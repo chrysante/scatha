@@ -839,13 +839,13 @@ public:
                                  UniquePtr<Identifier> name,
                                  UniquePtr<Expression> typeExpr,
                                  UniquePtr<Expression> initExpr,
-                                 bool isMut):
+                                 sema::Mutability mut):
         VarDeclBase(NodeType::VariableDeclaration,
                     sourceRange,
                     std::move(name),
                     std::move(typeExpr),
                     std::move(initExpr)),
-        isMut(isMut) {}
+        _mut(mut) {}
 
     AST_DERIVED_COMMON(VariableDeclaration)
 
@@ -854,8 +854,8 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// Offset of the variable if this is a struct member. Always zero
-    /// otherwise.
+    /// Offset of the variable in bytes from the beginning of the structure if
+    /// this is a struct member. Always zero otherwise.
     size_t offset() const {
         expectDecorated();
         return _offset;
@@ -867,20 +867,25 @@ public:
         return _index;
     }
 
+    /// Mutability of this variable
+    sema::Mutability mutability() const { return _mut; }
+
     /// `true` if this variable was declared with `let`, `false` if declared
     /// with `var`
-    bool isMutable() const { return isMut; }
+    bool isMutable() const { return mutability() == sema::Mutability::Mutable; }
 
+    /// Used by instantiation
     void setOffset(size_t offset) {
         _offset = utl::narrow_cast<uint32_t>(offset);
     }
 
+    /// Used by instantiation
     void setIndex(size_t index) { _index = utl::narrow_cast<uint32_t>(index); }
 
 private:
     uint32_t _offset = 0;
     uint32_t _index : 31 = 0;
-    bool isMut      : 1 = true;
+    sema::Mutability _mut;
 };
 
 /// Concrete node representing a parameter declaration.

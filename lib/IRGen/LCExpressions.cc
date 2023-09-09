@@ -294,12 +294,10 @@ Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
                                                "expr");
         }
         add<ir::Store>(lhs.get(), rhsValue);
-        if (auto* arrayType = dyncast<sema::ArrayType const*>(
-                sema::stripReference(expr.lhs()->type()).get());
+        if (auto* arrayType = ptrToArray(expr.lhs()->type().get());
             arrayType && arrayType->isDynamic())
         {
             SC_ASSERT(expr.operation() == Assignment, "");
-            SC_ASSERT(sema::isRef(expr.lhs()->type()), "");
             auto lhsSize = getArraySize(lhs.ID());
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
@@ -359,8 +357,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
     }
     }
     QualType memType = expr.type();
-    auto* arrayType =
-        dyncast<sema::ArrayType const*>(stripReference(memType).get());
+    auto* arrayType = ptrToArray(stripReference(memType).get());
     if (!arrayType) {
         return value;
     }
@@ -443,7 +440,7 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
     std::string name = callHasName ? "call.result" : std::string{};
     auto* inst = add<ir::Call>(function, arguments, std::move(name));
     // clang-format off
-    Value value = SC_MATCH(*sema::stripReference(call.type())) {
+    Value value = SC_MATCH(*stripRefOrPtr(call.type())) {
         [&](sema::ObjectType const&) {
             switch (retvalLocation) {
             case Register:
@@ -635,10 +632,15 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
                          Memory);
         }
 
-        case sema::RefConversion::TakeAddress: {
+        case sema::RefConversion::MaterializeTemporary: {
             auto value = getValue(expr);
-            SC_ASSERT(value.isMemory(), "");
-            return Value(value.ID(), value.get(), Register);
+            if (value.isMemory()) {
+                return Value(value.ID(), value.get(), Register);
+            }
+            else {
+                auto* temp = storeLocal(value.get());
+                return Value(value.ID(), temp, Register);
+            }
         }
         }
     }();
@@ -648,20 +650,16 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
     case None:
         return refConvResult;
 
-    case Array_FixedToDynamic:
-        [[fallthrough]];
-    case ArrayPtr_FixedToDynamic: {
+    case Array_FixedToDynamic: {
         return refConvResult;
     }
-    case Reinterpret_ArrayRef_ToByte:
+    case Reinterpret_Array_ToByte:
         [[fallthrough]];
-    case Reinterpret_ArrayRef_FromByte: {
-        SC_ASSERT(sema::isRef(expr->type()), "");
-        SC_ASSERT(sema::isRef(conv.type()), "");
-        auto* fromType = cast<sema::ArrayType const*>(
-            sema::stripReference(expr->type()).get());
-        auto* toType = cast<sema::ArrayType const*>(
-            sema::stripReference(conv.type()).get());
+    case Reinterpret_Array_FromByte: {
+        auto* fromType = ptrToArray(sema::stripReference(expr->type()).get());
+        SC_ASSERT(fromType, "");
+        auto* toType = ptrToArray(conv.type().get());
+        SC_ASSERT(toType, "");
         auto data = refConvResult;
         if (toType->isDynamic()) {
             uint32_t const oldID = data.ID();
@@ -669,7 +667,7 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
             if (fromType->isDynamic()) {
                 auto count = getArraySize(oldID);
                 if (conv.conversion()->objectConversion() ==
-                    Reinterpret_ArrayRef_ToByte)
+                    Reinterpret_Array_ToByte)
                 {
                     auto* newCount =
                         add<ir::ArithmeticInst>(toRegister(count),
@@ -691,10 +689,10 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
             }
             size_t count = fromType->count();
             switch (conv.conversion()->objectConversion()) {
-            case Reinterpret_ArrayRef_ToByte:
+            case Reinterpret_Array_ToByte:
                 count *= 8;
                 break;
-            case Reinterpret_ArrayRef_FromByte:
+            case Reinterpret_Array_FromByte:
                 count /= 8;
                 break;
             default:

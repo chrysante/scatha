@@ -37,7 +37,7 @@ struct X {
 }
 
 fn print(text: &str) {
-    __builtin_putstr(&text);
+    __builtin_putstr(text);
 }
 
 fn print(n: int) {

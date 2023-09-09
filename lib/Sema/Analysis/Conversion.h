@@ -167,7 +167,7 @@ SCATHA_TESTAPI QualType
 /// Inserts an AST conversion node into the position of \p expr and makes \p
 /// expr a child of the new node. \Returns a pointer to the added conversion
 /// node
-SCATHA_TESTAPI ast::Conversion* insertConversion(ast::Expression* expr,
+SCATHA_TESTAPI ast::Expression* insertConversion(ast::Expression* expr,
                                                  sema::Conversion const& conv);
 
 } // namespace scatha::sema

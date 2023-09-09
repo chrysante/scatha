@@ -1,47 +1,5 @@
 
 
-struct X {
-    fn new(&mut this, n: int) {
-        this.value = n;
-    }
-    
-    fn get(&mut this) -> &mut int {
-        return this.value;
-    }
-    
-    var value: int;
-}
-
-public fn main() -> int {
-    var x = X(2);
-    
-    x.get() = 1;
-    
-    return x.value;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*
 
 struct X {

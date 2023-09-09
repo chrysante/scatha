@@ -238,10 +238,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                         return None;
                     },
                     [](ByteType const&, ObjectType const&) -> RetType {
-                        return Reinterpret_ArrayRef_FromByte;
+                        return Reinterpret_Array_FromByte;
                     },
                     [](ObjectType const&, ByteType const&) -> RetType {
-                        return Reinterpret_ArrayRef_ToByte;
+                        return Reinterpret_Array_ToByte;
                     },
                     [](ObjectType const&, ObjectType const&) -> RetType {
                         return std::nullopt;
@@ -259,10 +259,8 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             }
             auto* fromArray = dyncast<ArrayType const*>(from.base().get());
             auto* toArray = dyncast<ArrayType const*>(to.base().get());
-            if (fromArray && !fromArray->isDynamic() &&
-                toArray && toArray->isDynamic())
-            {
-                return ArrayPtr_FixedToDynamic;
+            if (fromArray && toArray) {
+                return determineObjConv(kind, fromArray, toArray);
             }
             return std::nullopt;
         },
@@ -276,26 +274,29 @@ static std::optional<RefConversion> determineRefConv(ConversionKind kind,
                                                      QualType from,
                                                      QualType to) {
     using enum RefConversion;
-    switch (kind) {
-    case ConversionKind::Implicit:
-        [[fallthrough]];
-    case ConversionKind::Explicit: {
-        auto takeAddr =
-            to.isConst() ? std::optional(TakeAddress) : std::nullopt;
-        // clang-format off
-        std::optional<RefConversion> const resultMatrix[2][2] = {
-            /* From  / To     Value          Ref      */
-            /*      Value */ { None,         takeAddr },
-            /*        Ref */ { Dereference,  None        },
-        }; // clang-format on
-        return resultMatrix[isa<ReferenceType>(*from)][isa<ReferenceType>(*to)];
-    }
-    case ConversionKind::Reinterpret:
-        if (from == to) {
+    using Ret = std::optional<RefConversion>;
+    // clang-format off
+    return SC_MATCH (*from, *to) {
+        [&](ObjectType const& from, ObjectType const& to) -> Ret {
             return None;
-        }
-        return std::nullopt;
-    }
+        },
+        [&](ReferenceType const& from, ObjectType const& to) -> Ret {
+            return Dereference;
+        },
+        [&](ObjectType const& from, ReferenceType const& to) -> Ret {
+            if (kind == ConversionKind::Reinterpret) {
+                return std::nullopt;
+            }
+            /// We can always bind to a const reference
+            if (to.base().isConst()) {
+                return MaterializeTemporary;
+            }
+            return std::nullopt;
+        },
+        [&](ReferenceType const& from, ReferenceType const& to) -> Ret {
+            return None;
+        },
+    }; // clang-format on
 }
 
 static std::optional<MutConversion> determineMutConv(ConversionKind kind,
@@ -328,8 +329,8 @@ bool isCompatible(RefConversion refConv, ObjectTypeConversion objConv) {
     case RefConversion::Dereference:
         return true;
 
-    case RefConversion::TakeAddress:
-        return objConv == None || objConv == Array_FixedToDynamic;
+    case RefConversion::MaterializeTemporary:
+        return true;
     }
 }
 
@@ -506,9 +507,7 @@ std::optional<Conversion> sema::computeConversion(ConversionKind kind,
                                     stripReference(to).get());
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
-    if (kind == ConversionKind::Implicit && !objConv && constantValue &&
-        *refConv != RefConversion::TakeAddress)
-    {
+    if (kind == ConversionKind::Implicit && !objConv && constantValue) {
         objConv = tryImplicitConstConv(constantValue,
                                        stripReference(from).get(),
                                        stripReference(to).get());
@@ -547,17 +546,21 @@ static ast::Expression* convertImpl(ConversionKind kind,
         ctx.issueHandler().push<BadTypeConversion>(*expr, to);
         return nullptr;
     }
-    if (!conversion->isNoop()) {
-        expr = insertConversion(expr, *conversion);
-    }
+    auto* result = insertConversion(expr, *conversion);
     if (!invokeCopyCtor) {
-        return expr;
+        return result;
     }
     auto* structType = dyncast<StructureType const*>(to.get());
-    if (structType && !expr->isRValueNEW()) {
-        return copyValue(expr, *dtors, ctx);
+    if (!structType) {
+        return result;
     }
-    return expr;
+    bool needCtorCall =
+        conversion->objectConversion() == ObjectTypeConversion::None &&
+        result->isRValueNEW() && expr->isLValueNEW();
+    if (needCtorCall) {
+        return copyValue(result, *dtors, ctx);
+    }
+    return result;
 }
 
 ast::Expression* sema::convertImplicitly(ast::Expression* expr,
@@ -657,7 +660,7 @@ static QualType commonBase(SymbolTable& sym, QualType a, QualType b) {
     }
     // clang-format off
     auto* commonObjType = SC_MATCH(*a, *b) {
-        [&](IntType const& a, IntType const& b) -> ObjectType const* {
+        [&](IntType const& a, IntType const& b) {
             if (a.isSigned() && b.isUnsigned()) {
                 return commonTypeSignedUnsigned(sym, &a, &b);
             }
@@ -667,6 +670,28 @@ static QualType commonBase(SymbolTable& sym, QualType a, QualType b) {
             SC_ASSERT(a.signedness() == b.signedness(), "");
             return sym.intType(std::max(a.bitwidth(), b.bitwidth()),
                                a.signedness());
+        },
+        [&](ArrayType const& a, ArrayType const& b) -> ArrayType const* {
+            if (a.elementType() != b.elementType()) {
+                return nullptr;
+            }
+            if (a.count() == b.count()) {
+                return &a;
+            }
+            if (a.isDynamic()) {
+                return &a;
+            }
+            if (b.isDynamic()) {
+                return &b;
+            }
+            return nullptr;
+        },
+        [&](PointerType const& a, PointerType const& b) -> PointerType const* {
+            auto commonPointeeType = commonType(sym, a.base(), b.base());
+            if (!commonPointeeType) {
+                return nullptr;
+            }
+            return sym.pointer(commonPointeeType);
         },
         [&](ObjectType const& a, ObjectType const& b) -> ObjectType const* {
             return nullptr;
@@ -705,10 +730,13 @@ QualType sema::commonType(SymbolTable& sym,
                            }) | ToSmallVector<>);
 }
 
-ast::Conversion* sema::insertConversion(ast::Expression* expr,
+ast::Expression* sema::insertConversion(ast::Expression* expr,
                                         Conversion const& conv) {
     SC_ASSERT(expr->parent(),
               "Can't insert a conversion if node has no parent");
+    if (conv.isNoop()) {
+        return expr;
+    }
     size_t const indexInParent = expr->indexInParent();
     auto* parent = expr->parent();
     auto targetType = conv.targetType();

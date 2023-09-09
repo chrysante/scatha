@@ -32,10 +32,7 @@ void sema::convertArguments(ast::CallLike& fc,
                                                       fc.arguments(),
                                                       orResult.conversions))
     {
-        auto* arg = _arg;
-        if (!conv.isNoop()) {
-            arg = insertConversion(arg, conv);
-        }
+        auto* arg = insertConversion(_arg, conv);
         /// If our argument is an lvalue of struct type  we need to call the
         /// copy constructor if there is one
         if (!arg->isLValueNEW()) {

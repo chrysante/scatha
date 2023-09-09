@@ -8,7 +8,7 @@ TEST_CASE("First reference parameter", "[end-to-end][references]") {
     test::checkReturns(4, R"(
 public fn main() -> int {
     var i = 3;
-    f(&i);
+    f(i);
     return i;
 }
 fn f(x: &mut int)  {
@@ -16,15 +16,15 @@ fn f(x: &mut int)  {
 })");
 }
 
-TEST_CASE("Rebind reference", "[end-to-end][references]") {
+TEST_CASE("Rebind pointer", "[end-to-end][references]") {
     test::checkReturns(2, R"(
 public fn main() -> int {
     var i = 0;
     var j = 0;
-    var r = &i;
-    r += 1;
-    r = &j;
-    r += 1;
+    var r = &mut i;
+    *r += 1;
+    r = &mut j;
+    *r += 1;
     return i + j;
 })");
 }
@@ -33,50 +33,40 @@ TEST_CASE("Pass reference through function", "[end-to-end][references]") {
     test::checkReturns(1, R"(
 public fn main() -> int {
     var i = 0;
-    var j: &mut int = &f(&i);
+    var j: &mut int = f(i);
     j = 1;
     return i;
 }
 fn f(x: &mut int)  -> &mut int {
-    return &x;
+    return x;
 })");
 }
 
 TEST_CASE("Pass array reference through function",
           "[end-to-end][references][arrays]") {
     test::checkReturns(2, R"(
-fn pass(data: &[int]) -> &[int] { return &data; }
+fn pass(data: &[int]) -> &[int] { return data; }
 public fn main() -> int {
     let data = [1, 2, 3];
-    let result = pass(&data)[1];
+    let result = pass(data)[1];
     return result;
 })");
 }
 
-TEST_CASE("Property call with reference", "[end-to-end][references]") {
-    test::checkReturns(1, R"(
-fn pass(data: &int) -> int { return data; }
-public fn main() -> int {
-    let i = 1;
-    let r = &i;
-    return r.pass;
-})");
-}
-
-TEST_CASE("Reference data member in struct", "[end-to-end][references]") {
+TEST_CASE("Pointer data member in struct", "[end-to-end][references]") {
     test::checkReturns(1, R"(
 struct X {
-    var i: &mut int;
+    var i: *mut int;
 }
 public fn main() -> int {
     var i = 0;
     var x: X;
-    x.i = &i;
+    x.i = &mut i;
     f(x);
     return i;
 }
 fn f(x: X)  {
-    ++x.i;
+    ++*x.i;
 })");
 }
 
@@ -92,8 +82,8 @@ TEST_CASE("Reference to array element", "[end-to-end][arrays]") {
     test::checkReturns(5, R"(
 public fn main() -> int {
     var arr = [1, 2, 3, 4];
-    var r   = &arr[1];
-    r       = 5;
+    var r: &mut int = arr[1];
+    r = 5;
     return arr[1];
 })");
 }
@@ -122,7 +112,7 @@ TEST_CASE("Array reference passing", "[end-to-end][arrays][references]") {
     test::checkReturns(2, R"(
 public fn main() -> int {
     let x = [0, 1, 2, 3, 4];
-    return getElem(&x);
+    return getElem(x);
 }
 fn getElem(x: &[int]) -> int {
     return x[2];
@@ -131,22 +121,22 @@ fn getElem(x: &[int]) -> int {
     test::checkReturns(2, R"(
 public fn main() -> int {
     let x = [0, 1, 2, 3, 4];
-    return getElem(&x);
+    return getElem(x);
 }
 
 fn getElem(x: &[int]) -> &int {
-    return &x[2];
+    return x[2];
 })");
 
     test::checkReturns(2, R"(
 public fn main() -> int {
     let x = [0, 1, 2, 3, 4];
     let y = &x;
-    return getElem(&y);
+    return getElem(*y);
 }
 
 fn getElem(x: &[int]) -> &int {
-    return &x[2];
+    return x[2];
 })");
 }
 
@@ -160,7 +150,7 @@ public fn main() -> int {
     test::checkReturns(5, R"(
 public fn main() -> int {
     let x = [0, 1, 2, 3, 4];
-    return getCount(&x);
+    return getCount(x);
 }
 fn getCount(x: &[int]) -> int {
     return x.count;
@@ -169,7 +159,7 @@ fn getCount(x: &[int]) -> int {
     test::checkReturns(7, R"(
 public fn main() -> int {
     let x = [-3, 1, 2, 3, 4];
-    return sum(&x);
+    return sum(x);
 }
 fn sum(x: &[int]) -> int {
     var s = 0;
@@ -180,31 +170,31 @@ fn sum(x: &[int]) -> int {
 })");
 }
 
-TEST_CASE("Reassign array reference", "[end-to-end][arrays][references]") {
+TEST_CASE("Reassign array pointer", "[end-to-end][arrays][references]") {
     test::checkReturns(2, R"(
 public fn main() -> int {
     let a = [1, 2, 3];
-    var b: &[int] = &a;
+    var b: *[int] = &a;
     let c = [1, 2];
     b = &c;
-    return b.count;
+    return (*b).count;
 })");
 }
 
-TEST_CASE("Array reference struct member", "[end-to-end][arrays][references]") {
+TEST_CASE("Array pointer struct member", "[end-to-end][arrays][references]") {
     test::checkReturns(4, R"(
 struct X {
     fn sum(&this) -> int {
-        return this.r[0] + this.r[1];
+        return (*this.r)[0] + (*this.r)[1];
     }
     var x: int;
-    var r: &mut [int];
+    var r: *mut [int];
 }
 public fn main() -> int {
     var a = [1, 2];
     var x: X;
-    x.r = &a;
-    ++x.r[0];
+    x.r = &mut a;
+    ++(*x.r)[0];
     return x.sum;
 })");
 }
@@ -233,9 +223,9 @@ public fn main() -> int {
 
 TEST_CASE("First string", "[end-to-end][arrays]") {
     test::checkPrints("Hello World!\n", R"(
-fn print(text: &[byte]) {
-    __builtin_putstr(&text);
-    __builtin_putchar(10);
+fn print(text: &str) {
+    __builtin_putstr(text);
+    __builtin_putchar('\n');
 }
 public fn main() {
     print("Hello World!");
@@ -265,30 +255,30 @@ fn sum(data: &[int]) -> int {
 }
 public fn main() -> int {
     let data = [5, 3, 1, 2, 3, 4, 5, 6, 100, -45213];
-    return sum(&data[2:7]);
+    return sum(data[2:7]);
 })");
 }
 
 TEST_CASE("Dynamic allocation", "[end-to-end][arrays]") {
     test::checkReturns(45, R"(
 public fn main() -> int {
-    var data = &allocateInts(10);
-    for i = 0; i < data.count; ++i {
-        data[i] = i;
+    var data = allocateInts(10);
+    for i = 0; i < (*data).count; ++i {
+        (*data)[i] = i;
     }
     var sum = 0;
-        for i = 0; i < data.count; ++i {
-        sum += data[i];
+        for i = 0; i < (*data).count; ++i {
+        sum += (*data)[i];
     }
-    deallocateInts(&data);
+    deallocateInts(data);
     return sum;
 }
-fn allocateInts(count: int) -> &mut [int] {
-    var result = &__builtin_alloc(count * 8, 8);
-    return reinterpret<&mut [int]>(&result);
+fn allocateInts(count: int) -> *mut [int] {
+    var result = __builtin_alloc(count * 8, 8);
+    return reinterpret<*mut [int]>(result);
 }
-fn deallocateInts(data: &mut [int]) {
-    let bytes = reinterpret<&mut [byte]>(&data);
-    __builtin_dealloc(&bytes, 8);
+fn deallocateInts(data: *mut [int]) {
+    let bytes = reinterpret<*mut [byte]>(data);
+    __builtin_dealloc(bytes, 8);
 })");
 }

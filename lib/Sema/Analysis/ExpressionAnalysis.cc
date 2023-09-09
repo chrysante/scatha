@@ -512,13 +512,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return nullptr;
     }
-    auto* arg = expr.argument(0);
-    if (!isa<IntType>(*arg->type())) {
-        iss.push<BadExpression>(*arg, IssueSeverity::Error);
-        return nullptr;
-    }
     dereference(expr.callee(), ctx);
-    dereference(expr.argument(0), ctx);
+    convertImplicitly(expr.argument(0), sym.S64(), *dtorStack, ctx);
     auto mutability = stripReference(expr.callee()->type()).mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
     expr.decorateExpr(nullptr, sym.reference(elemType));
@@ -530,19 +525,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     if (!arrayType) {
         return nullptr;
     }
-    auto& lower = *expr.lower();
-    if (!isa<IntType>(*lower.type())) {
-        iss.push<BadExpression>(expr, IssueSeverity::Error);
-        return nullptr;
-    }
-    auto& upper = *expr.upper();
-    if (!isa<IntType>(*upper.type())) {
-        iss.push<BadExpression>(expr, IssueSeverity::Error);
-        return nullptr;
-    }
     dereference(expr.callee(), ctx);
-    dereference(&lower, ctx);
-    dereference(&upper, ctx);
+    convertImplicitly(expr.lower(), sym.S64(), *dtorStack, ctx);
+    convertImplicitly(expr.upper(), sym.S64(), *dtorStack, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
     QualType arrayRefType = sym.reference(dynArrayType);
     expr.decorateExpr(nullptr, arrayRefType);

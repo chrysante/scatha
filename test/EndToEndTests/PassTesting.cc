@@ -15,7 +15,6 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "AST/LowerToIR.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
@@ -23,6 +22,7 @@
 #include "IR/Fwd.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"
+#include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "Opt/Optimizer.h"
 #include "Opt/PassManager.h"
@@ -62,7 +62,7 @@ static std::pair<ir::Context, ir::Module> parseScatha(std::string_view text) {
     sema::SymbolTable sym;
     auto analysisResult = sema::analyze(*ast, sym, issues);
     validateEmpty(text, issues);
-    auto result = ast::lowerToIR(*ast, sym, analysisResult);
+    auto result = ast::generateIR(*ast, sym, analysisResult);
     opt::forEach(result.first, result.second, opt::unifyReturns);
     return result;
 }

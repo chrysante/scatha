@@ -262,10 +262,10 @@ struct Y { var x: X; }
     CHECK(issues.findOnLine<StrongReferenceCycle>(2));
 }
 
-TEST_CASE("No cyclic dependency issues with references", "[sema][issue]") {
+TEST_CASE("No cyclic dependency issues with pointers", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-struct X { var y: &Y; }
-struct Y { var x: &X; }
+struct X { var y: *Y; }
+struct Y { var x: *X; }
 )");
     CHECK(issues.empty());
 }

@@ -295,12 +295,13 @@ UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
         return nullptr;
     }
     tokens.eat();
-    bool const isMut = declarator.kind() == Var;
-    return parseShortVariableDeclaration(isMut, declarator);
+    using enum sema::Mutability;
+    auto mut = declarator.kind() == Var ? Mutable : Const;
+    return parseShortVariableDeclaration(mut, declarator);
 }
 
 UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
-    bool mut, std::optional<Token> declarator) {
+    sema::Mutability mutability, std::optional<Token> declarator) {
     auto identifier = parseIdentifier();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(tokens.current());
@@ -337,7 +338,7 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
                                               std::move(identifier),
                                               std::move(typeExpr),
                                               std::move(initExpr),
-                                              mut);
+                                              mutability);
 }
 
 UniquePtr<ast::Statement> Context::parseStatement() {
@@ -540,8 +541,8 @@ UniquePtr<ast::LoopStatement> Context::parseForStatement() {
         return nullptr;
     }
     tokens.eat();
-    auto varDecl =
-        parseShortVariableDeclaration(/* isMutable = */ true, forToken);
+    using enum sema::Mutability;
+    auto varDecl = parseShortVariableDeclaration(Mutable, forToken);
     if (!varDecl) {
         // TODO: This should be ExpectedDeclaration or something...
         pushExpectedExpression(tokens.peek());

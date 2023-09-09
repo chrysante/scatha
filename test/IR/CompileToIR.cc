@@ -1,9 +1,9 @@
 #include "CompileToIR.h"
 
 #include "AST/AST.h"
-#include "AST/LowerToIR.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
@@ -23,5 +23,5 @@ ir::Module test::compileToIR(std::string_view text) {
     if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }
-    return ast::lowerToIR(*ast, sym, analysisResult).second;
+    return ast::generateIR(*ast, sym, analysisResult).second;
 }

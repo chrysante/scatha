@@ -185,7 +185,14 @@ void InstContext::instantiateStructureType(SDGNode& node) {
         auto& var = *varDecl->variable();
         structType.addMemberVariable(&var);
         if (!varDecl->type()) {
-            return;
+            continue;
+        }
+        if (isa<ReferenceType>(*varDecl->type())) {
+            using enum InvalidDeclaration::Reason;
+            iss.push<InvalidDeclaration>(varDecl,
+                                         InvalidInCurrentScope,
+                                         structType);
+            continue;
         }
         QualType varType = varDecl->type();
         objectAlign = std::max(objectAlign, varType->align());

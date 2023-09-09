@@ -87,7 +87,7 @@ std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
 bool sema::isRef(QualType type) { return isa<ReferenceType>(*type); }
 
 QualType sema::stripReference(QualType type) {
-    if (auto* refType = dyncast<ReferenceType const*>(type.get())) {
+    if (auto* refType = dyncast_or_null<ReferenceType const*>(type.get())) {
         return refType->base();
     }
     return type;

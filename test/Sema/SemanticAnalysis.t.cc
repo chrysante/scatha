@@ -72,16 +72,13 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     CHECK(varDecl->type().get() == sym.S64());
     auto* varDeclInit = cast<ast::Conversion*>(varDecl->initExpression());
     CHECK(varDeclInit->type().get() == sym.S64());
-    CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
     auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
     auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpression());
-    CHECK(nestedvarDeclInit->valueCategory() == ValueCategory::RValue);
     auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
     CHECK(xDecl->type().get() == sym.S64());
     auto* intLit = cast<ast::Literal*>(xDecl->initExpression());
     CHECK(intLit->value<APInt>() == 39);
-    CHECK(intLit->valueCategory() == ValueCategory::RValue);
     auto* zDecl = fn->body()->statement<VariableDeclaration>(3);
     CHECK(zDecl->type().get() == sym.S64());
     auto* intHexLit = cast<ast::Literal*>(zDecl->initExpression());
@@ -92,7 +89,6 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
     auto* ret = fn->body()->statement<ReturnStatement>(5);
     CHECK(ret->expression()->type().get() == sym.S64());
-    CHECK(ret->expression()->valueCategory() == ValueCategory::LValue);
 }
 
 TEST_CASE("Decoration of the AST with function call expression", "[sema]") {
@@ -121,7 +117,6 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     REQUIRE(calleeOverloadSet);
     auto* calleeFunction = calleeOverloadSet->front();
     CHECK(fnCallExpr->function() == calleeFunction);
-    CHECK(fnCallExpr->valueCategory() == ValueCategory::RValue);
 }
 
 TEST_CASE("Decoration of the AST with struct definition", "[sema]") {
@@ -365,13 +360,17 @@ public fn main() {
 TEST_CASE("Sizeof structs with reference and array members", "[sema]") {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 struct X {
-    var r: &s8;
+    var r: *s8;
 }
 struct Y {
-    var r: &[s8];
+    var r: *[s8];
 }
 struct Z {
     var r: [s8, 7];
+}
+struct W {
+    var r: [s8, 7];
+    var n: s64;
 })");
     REQUIRE(iss.empty());
     auto* x = sym.lookup<StructureType>("X");
@@ -383,4 +382,7 @@ struct Z {
     auto* z = sym.lookup<StructureType>("Z");
     CHECK(z->size() == 7);
     CHECK(z->align() == 1);
+    auto* w = sym.lookup<StructureType>("W");
+    CHECK(w->size() == 16);
+    CHECK(w->align() == 8);
 }

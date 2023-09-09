@@ -244,20 +244,20 @@ public fn main() -> bool {
         62,   21,   66,   48,   99,   94,   69,   46,  100,   38,
         16,   53,   96,   34,   59,   14,   29,   93,   36,   26
     ];
-    sort(&data);
-    return isSorted(&data);
+    sort(data);
+    return isSorted(data);
 }
 
 fn sort(data: &mut [int]) {
     if data.count == 0 {
         return;
     }
-    let splitIndex = split(&data);
-    sort(&data[0 : splitIndex]);
-    sort(&data[splitIndex + 1 : data.count]);
+    let p = partition(data);
+    sort(data[0 : p]);
+    sort(data[p + 1 : data.count]);
 }
 
-fn split(data: &mut [int]) -> int {
+fn partition(data: &mut [int]) -> int {
     var i = 0;
     var j = data.count - 2;
     let pivot = data[data.count - 1];
@@ -269,13 +269,13 @@ fn split(data: &mut [int]) -> int {
             --j;
         }
         if data[i] > data[j] {
-            swap(&data[i], &data[j]);
+            swap(data[i], data[j]);
         }
     }
     if data[i] <= pivot {
         return data.count - 1; // index of pivot
     }
-    swap(&data[i], &data[data.count - 1]);
+    swap(data[i], data[data.count - 1]);
     return i;
 }
 

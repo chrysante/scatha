@@ -37,7 +37,7 @@ public fn main() -> int {
 }
 
 TEST_CASE("Overload on mutability", "[end-to-end]") {
-    test::checkReturns(0x111000, R"(
+    test::checkReturns(0b100, R"(
 fn f(value: &int) -> int {
     return 0;
 }
@@ -46,14 +46,11 @@ fn f(value: &mut int) -> int {
 }
 public fn main() -> int {
     var result = 0;
-    let i = 0;
-    var j = 1;
-    result |= f(&i) <<  0;
-    result |= i.f() <<  4;
-    result |= i.f   <<  8;
-    result |= f(&j) << 12;
-    result |= j.f() << 16;
-    result |= j.f   << 20;
+    let i: int;
+    var j: int;
+    result |= f(0) << 0;
+    result |= f(i) << 1;
+    result |= f(j) << 2;
     return result;
 })");
 }

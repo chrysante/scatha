@@ -42,12 +42,12 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
         QualType memType = member->type();
         structure->addMember(mapType(memType));
         structIndexMap[{ structType, semaIndex }] = irIndex++;
-        auto* arrayType = dyncast<sema::ArrayType const*>(
-            sema::stripReference(memType).get());
+        auto* arrayType = ptrToArray(memType.get());
         if (!arrayType || !arrayType->isDynamic()) {
             continue;
         }
-        SC_ASSERT(sema::isRef(memType), "Can't have dynamic arrays in structs");
+        SC_ASSERT(isa<sema::PointerType>(*memType),
+                  "Can't have dynamic arrays in structs");
         structure->addMember(ctx.integralType(64));
         /// We simply increment the index without adding anything to the map
         /// because `getValueImpl(MemberAccess)` will know what to do
@@ -107,15 +107,15 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     auto retvalPC = CC.returnValue();
     switch (retvalPC.location()) {
     case Register:
-        switch (sema::stripReference(function->returnType())->entityType()) {
-        case sema::EntityType::ArrayType: {
-            irReturnType = arrayViewType;
-            break;
-        }
-        default:
-            irReturnType = mapType(function->returnType());
-            break;
-        }
+        // clang-format off
+        irReturnType = SC_MATCH (*stripRefOrPtr(function->returnType())) {
+            [&](sema::ObjectType const&) {
+                return mapType(function->returnType());
+            },
+            [&](sema::ArrayType const&) {
+                return arrayViewType;
+            },
+        }; // clang-format on
         break;
 
     case Memory:

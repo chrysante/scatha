@@ -190,22 +190,31 @@ static void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
     }
 }
 
+static bool isPoison(ast::Expression* expr) {
+    if (!expr || !expr->isDecorated()) {
+        return false;
+    }
+    return isa_or_null<PoisonEntity>(expr->entity());
+}
+
 void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
     SC_ASSERT(currentFunction,
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
-    if (!var.typeExpr() && !var.initExpression()) {
-        iss.push<InvalidDeclaration>(&var,
-                                     InvalidDeclaration::Reason::CantInferType,
-                                     sym.currentScope());
+    QualType declaredType = getDeclaredType(var.typeExpr());
+    QualType deducedType = deduceType(var.initExpression(), var.dtorStack());
+    QualType finalType = declaredType ? declaredType : deducedType;
+    if (!finalType) {
+        if (!isPoison(var.typeExpr()) && !isPoison(var.initExpression())) {
+            iss.push<InvalidDeclaration>(
+                &var,
+                InvalidDeclaration::Reason::CantInferType,
+                sym.currentScope());
+        }
         sym.declarePoison(std::string(var.name()), EntityCategory::Value);
         return;
     }
-    QualType declaredType = getDeclaredType(var.typeExpr());
-    QualType deducedType = deduceType(var.initExpression(), var.dtorStack());
-    QualType finalType =
-        declaredType ? declaredType : stripReference(deducedType);
     if (!var.isMutable()) {
         finalType = finalType.toConst();
     }
@@ -425,5 +434,5 @@ QualType FuncBodyContext::deduceType(ast::Expression* initExpr,
         /// pushed errors already
         return nullptr;
     }
-    return initExpr->type();
+    return stripReference(initExpr->type());
 }

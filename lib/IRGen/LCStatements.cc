@@ -179,12 +179,12 @@ void LoweringContext::generateArraySizeImpl(
         return;
     }
     if (sema::isRef(varDecl->type())) {
-        memorizeArraySize(varID, sizeCallback());
+        memorizeArraySize(varID, Value(newID(), sizeCallback(), Register));
     }
     else {
-        auto* sizeVar =
-            storeLocal(sizeCallback(), utl::strcat(varDecl->name(), ".size"));
-        memorizeArraySize(varID, Value(newID(), sizeVar, size.type(), Memory));
+        auto* size = sizeCallback();
+        auto* sizeVar = storeLocal(size, utl::strcat(varDecl->name(), ".size"));
+        memorizeArraySize(varID, Value(newID(), sizeVar, size->type(), Memory));
     }
 }
 
@@ -202,6 +202,10 @@ void LoweringContext::generateParamArraySize(ast::VarDeclBase const* varDecl,
     generateArraySizeImpl(varDecl, varID, [&] { return param->next(); });
 }
 
+static bool varDeclNeedCopy(QualType type) {
+    return type->hasTrivialLifetime() && !isa<sema::ArrayType>(*type);
+}
+
 void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
     std::string name = std::string(varDecl.name());
@@ -216,7 +220,12 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     else if (initExpr) {
         auto value = getValue(initExpr);
         ir::Value* address = nullptr;
-        if (value.isMemory() && initExpr->isRValueNEW()) {
+        /// The test for trivial lifetime is temporary. We should find a better
+        /// solution but for now it works. It works because for trivial lifetime
+        /// types
+        if (value.isMemory() && initExpr->isRValueNEW() &&
+            !varDeclNeedCopy(initExpr->type()))
+        {
             address = value.get();
             address->setName(name);
         }
@@ -251,43 +260,43 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
     }
     auto returnValue = getValue(retDecl.expression());
     emitDestructorCalls(retDecl.dtorStack());
-    switch (sema::stripReference(retDecl.expression()->type())->entityType()) {
-    case sema::EntityType::ArrayType: {
-        switch (CC.returnValue().location()) {
-        case Register: {
-            auto* data = toRegister(returnValue);
-            auto* size = toRegister(getArraySize(returnValue.ID()));
-            auto* insertData = add<ir::InsertValue>(ctx.undef(arrayViewType),
-                                                    data,
-                                                    std::array{ size_t{ 0 } },
-                                                    "retval");
-            auto* insertSize = add<ir::InsertValue>(insertData,
-                                                    size,
-                                                    std::array{ size_t{ 1 } },
-                                                    "retval");
-            add<ir::Return>(insertSize);
-            break;
-        }
-        case Memory:
-            SC_UNIMPLEMENTED();
-            break;
-        }
-        break;
-    }
-    default:
-        switch (CC.returnValue().location()) {
-        case Register:
-            add<ir::Return>(toRegister(returnValue));
-            break;
-
-        case Memory:
-            add<ir::Store>(&currentFunction->parameters().front(),
-                           toRegister(returnValue));
-            add<ir::Return>(ctx.voidValue());
-            break;
-        }
-        break;
-    }
+    // clang-format off
+    SC_MATCH (*stripRefOrPtr(retDecl.expression()->type())) {
+        [&](sema::ObjectType const&) {
+            switch (CC.returnValue().location()) {
+            case Register:
+                add<ir::Return>(toRegister(returnValue));
+                break;
+                
+            case Memory:
+                add<ir::Store>(&currentFunction->parameters().front(),
+                               toRegister(returnValue));
+                add<ir::Return>(ctx.voidValue());
+                break;
+            }
+        },
+        [&](sema::ArrayType const&) {
+            switch (CC.returnValue().location()) {
+            case Register: {
+                auto* data = toRegister(returnValue);
+                auto* size = toRegister(getArraySize(returnValue.ID()));
+                auto* insertData = add<ir::InsertValue>(ctx.undef(arrayViewType),
+                                                        data,
+                                                        std::array{ size_t{ 0 } },
+                                                        "retval");
+                auto* insertSize = add<ir::InsertValue>(insertData,
+                                                        size,
+                                                        std::array{ size_t{ 1 } },
+                                                        "retval");
+                add<ir::Return>(insertSize);
+                break;
+            }
+            case Memory:
+                SC_UNIMPLEMENTED();
+                break;
+            }
+        },
+    }; // clang-format on
 }
 
 void LoweringContext::generateImpl(IfStatement const& stmt) {

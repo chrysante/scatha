@@ -14,6 +14,30 @@ using namespace ast;
 
 using enum ValueLocation;
 
+sema::ArrayType const* LoweringContext::ptrToArray(
+    sema::ObjectType const* type) {
+    auto* ptr = dyncast<sema::PointerType const*>(type);
+    if (!ptr) {
+        return nullptr;
+    }
+    return dyncast<sema::ArrayType const*>(ptr->base().get());
+}
+
+sema::QualType LoweringContext::stripRefOrPtr(sema::QualType type) {
+    // clang-format off
+    return SC_MATCH (*type) {
+        [](sema::PointerType const& ptr) {
+            return ptr.base();
+        },
+        [](sema::ReferenceType const& ref) {
+            return ref.base();
+        },
+        [&](sema::ObjectType const&) {
+            return type;
+        },
+    }; // clang-format off
+}
+
 void LoweringContext::emitDestructorCalls(sema::DTorStack const& dtorStack) {
     for (auto call: dtorStack) {
         auto* function = getFunction(call.destructor);

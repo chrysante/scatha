@@ -176,6 +176,12 @@ struct LoweringContext {
 
     /// # Utils
 
+    /// \Returns pointee type as array type, if \p type is a pointer to array,
+    /// `nullptr` otherwise
+    static sema::ArrayType const* ptrToArray(sema::ObjectType const* type);
+
+    static sema::QualType stripRefOrPtr(sema::QualType);
+
     /// Allocate a new basic block with name \p name without adding it to the
     /// current function
     ir::BasicBlock* newBlock(std::string name);
