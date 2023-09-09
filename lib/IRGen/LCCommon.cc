@@ -107,22 +107,9 @@ ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
     }
 }
 
-utl::small_vector<ir::Value*> LoweringContext::mapArguments(auto&& args) {
-    utl::small_vector<ir::Value*> result;
-    for (auto* arg: args) {
-        result.push_back(getValue(arg));
-    }
-    return result;
-}
-
 void LoweringContext::memorizeObject(sema::Object const* object, Value value) {
-    bool success = tryMemorizeObject(object, value);
+    bool success = objectMap.insert({ object, value }).second;
     SC_ASSERT(success, "Redeclaration");
-}
-
-bool LoweringContext::tryMemorizeObject(sema::Object const* object,
-                                        Value value) {
-    return objectMap.insert({ object, value }).second;
 }
 
 Value LoweringContext::getObject(sema::Object const* object) const {

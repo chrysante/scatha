@@ -229,14 +229,9 @@ struct LoweringContext {
     /// return value if the passing convention is `Stack`
     Value genCall(ast::FunctionCall const*);
 
-    utl::small_vector<ir::Value*> mapArguments(auto&& args);
-
     /// Associate object with program values
     /// Values are stored in `objectMap`
     void memorizeObject(sema::Object const* object, Value value);
-
-    ///
-    bool tryMemorizeObject(sema::Object const* object, Value value);
 
     /// Retrieve value associated with \p object
     Value getObject(sema::Object const* object) const;
