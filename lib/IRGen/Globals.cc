@@ -1,61 +1,45 @@
-#include "IRGen/LoweringContext.h"
+#include "IRGen/Globals.h"
 
 #include <range/v3/view.hpp>
-#include <svm/Builtin.h>
+#include <utl/utility.hpp>
 
-#include "AST/AST.h"
-#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
+#include "IRGen/CallingConvention.h"
+#include "IRGen/Maps.h"
+#include "IRGen/MetaData.h"
 #include "IRGen/Utility.h"
 #include "Sema/Entity.h"
-#include "Sema/SymbolTable.h"
+#include "Sema/QualType.h"
 
 using namespace scatha;
 using namespace irgen;
-
+using enum ValueLocation;
 using sema::QualType;
 
-using enum ValueLocation;
-
-void LoweringContext::makeDeclarations() {
-    arrayViewType = ctx.anonymousStructure(
-        std::array<ir::Type const*, 2>{ ctx.pointerType(),
-                                        ctx.integralType(64) });
-    for (auto* type: analysisResult.structDependencyOrder) {
-        declareType(type);
-    }
-    for (auto* function: symbolTable.functions()) {
-        if (function->isNative()) {
-            declareFunction(function);
-        }
-    }
-}
-
-void LoweringContext::declareType(sema::StructureType const* structType) {
-    auto structure = allocate<ir::StructureType>(structType->mangledName());
+std::pair<UniquePtr<ir::StructureType>, StructMetaData> irgen::generateType(
+    ir::Context& ctx, TypeMap& typeMap, sema::StructureType const* semaType) {
+    auto irType = allocate<ir::StructureType>(semaType->mangledName());
+    StructMetaData metaData;
     size_t irIndex = 0;
-    for (auto [semaIndex, member]:
-         structType->memberVariables() | ranges::views::enumerate)
-    {
-        QualType memType = member->type();
-        structure->addMember(typeMap.get(memType));
-        structIndexMap[{ structType, semaIndex }] = irIndex++;
+    for (auto* member: semaType->memberVariables()) {
+        sema::QualType memType = member->type();
+        irType->addMember(typeMap.get(memType));
+        metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
         auto* arrayType = ptrToArray(memType.get());
         if (!arrayType || !arrayType->isDynamic()) {
             continue;
         }
         SC_ASSERT(isa<sema::PointerType>(*memType),
                   "Can't have dynamic arrays in structs");
-        structure->addMember(ctx.integralType(64));
+        irType->addMember(ctx.integralType(64));
         /// We simply increment the index without adding anything to the map
         /// because `getValueImpl(MemberAccess)` will know what to do
         ++irIndex;
     }
-    typeMap.insert(structType, structure.get());
-    mod.addStructure(std::move(structure));
+    return { std::move(irType), std::move(metaData) };
 }
 
 static bool isTrivial(sema::QualType type) {
@@ -100,21 +84,29 @@ static CallingConvention computeCC(sema::Function const* function) {
     return CallingConvention(retval, args);
 }
 
-ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
-    auto CC = computeCC(function);
-    CCMap[function] = CC;
+static ir::Type const* makeArrayViewType(ir::Context& ctx) {
+    std::array<ir::Type const*, 2> members = { ctx.pointerType(),
+                                               ctx.integralType(64) };
+    return ctx.anonymousStructure(members);
+}
+
+std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
+    ir::Context& ctx, TypeMap& typeMap, sema::Function const* semaFn) {
+    FunctionMetaData metaData;
+    auto CC = computeCC(semaFn);
+    metaData.CC = CC;
     ir::Type const* irReturnType = nullptr;
     utl::small_vector<ir::Type const*> irArgTypes;
     auto retvalPC = CC.returnValue();
     switch (retvalPC.location()) {
     case Register:
         // clang-format off
-        irReturnType = SC_MATCH (*stripRefOrPtr(function->returnType())) {
+        irReturnType = SC_MATCH (*stripRefOrPtr(semaFn->returnType())) {
             [&](sema::ObjectType const&) {
-                return typeMap.get(function->returnType());
+                return typeMap.get(semaFn->returnType());
             },
             [&](sema::ArrayType const&) {
-                return arrayViewType;
+                return makeArrayViewType(ctx);
             },
         }; // clang-format on
         break;
@@ -125,7 +117,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
         break;
     }
     for (auto [argPC, type]:
-         ranges::views::zip(CC.arguments(), function->argumentTypes()))
+         ranges::views::zip(CC.arguments(), semaFn->argumentTypes()))
     {
         switch (argPC.location()) {
         case Register:
@@ -148,43 +140,32 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     // TODO: Generate proper function type here
     ir::FunctionType const* const functionType = nullptr;
 
-    switch (function->kind()) {
+    switch (semaFn->kind()) {
     case sema::FunctionKind::Native: {
-        auto fn = allocate<ir::Function>(functionType,
-                                         irReturnType,
-                                         irArgTypes,
-                                         function->mangledName(),
-                                         mapFuncAttrs(function->attributes()),
-                                         accessSpecToVisibility(
-                                             function->accessSpecifier()));
-        auto* result = fn.get();
-        functionMap[function] = result;
-        mod.addFunction(std::move(fn));
-        return result;
+        auto irFn = allocate<ir::Function>(functionType,
+                                           irReturnType,
+                                           irArgTypes,
+                                           semaFn->mangledName(),
+                                           mapFuncAttrs(semaFn->attributes()),
+                                           accessSpecToVisibility(
+                                               semaFn->accessSpecifier()));
+        return { std::move(irFn), std::move(metaData) };
     }
-
     case sema::FunctionKind::External: {
-        auto fn =
+        auto irFn =
             allocate<ir::ExtFunction>(functionType,
                                       irReturnType,
                                       irArgTypes,
-                                      std::string(function->name()),
+                                      std::string(semaFn->name()),
                                       utl::narrow_cast<uint32_t>(
-                                          function->slot()),
+                                          semaFn->slot()),
                                       utl::narrow_cast<uint32_t>(
-                                          function->index()),
-                                      mapFuncAttrs(function->attributes()));
-        auto* result = fn.get();
-        functionMap[function] = result;
-        mod.addGlobal(std::move(fn));
-        return result;
+                                          semaFn->index()),
+                                      mapFuncAttrs(semaFn->attributes()));
+        return { std::move(irFn), std::move(metaData) };
     }
 
-    case sema::FunctionKind::Generated: {
+    case sema::FunctionKind::Generated:
         SC_UNIMPLEMENTED();
-    }
-
-    default:
-        SC_UNREACHABLE();
     }
 }

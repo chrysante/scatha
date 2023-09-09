@@ -18,6 +18,8 @@ namespace scatha::irgen {
 /// Description of how a value is passed to and returned from function calls.
 class PassingConvention {
 public:
+    PassingConvention() = default;
+
     PassingConvention(ValueLocation loc, size_t numParams):
         _loc(loc), _numParams(utl::narrow_cast<uint16_t>(numParams)) {}
 
@@ -28,8 +30,8 @@ public:
     size_t numParams() const { return _numParams; }
 
 private:
-    ValueLocation _loc;
-    uint16_t _numParams;
+    ValueLocation _loc = {};
+    uint16_t _numParams = {};
 };
 
 /// Print \p PC to \p ostream

@@ -8,6 +8,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
+#include "IRGen/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 

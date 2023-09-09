@@ -7,6 +7,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
+#include "IRGen/Utility.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
