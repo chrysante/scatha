@@ -13,6 +13,7 @@
 #include "Common/List.h"
 #include "IR/Fwd.h"
 #include "IRGen/CallingConvention.h"
+#include "IRGen/Maps.h"
 #include "IRGen/Value.h"
 #include "Sema/AnalysisResult.h"
 #include "Sema/DTorStack.h"
@@ -34,7 +35,7 @@ struct LoweringContext {
     ir::Module& mod;
 
     /// ## Maps
-    utl::hashmap<sema::Type const*, ir::Type const*> typeMap;
+    TypeMap typeMap;
 
     /// Maps variables to IR values in stack memory
     utl::hashmap<sema::Object const*, Value> objectMap;
@@ -261,26 +262,6 @@ struct LoweringContext {
 
     ///
     std::optional<Value> tryGetArraySize(uint32_t ID) const;
-
-    /// # Map utils
-
-    ir::Type const* mapType(sema::QualType semaType);
-
-    ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryOperator op);
-
-    ir::CompareOperation mapCompareOp(ast::BinaryOperator op);
-
-    ir::ArithmeticOperation mapArithmeticOp(sema::BuiltinType const* type,
-                                            ast::BinaryOperator op);
-
-    ir::ArithmeticOperation mapArithmeticAssignOp(sema::BuiltinType const* type,
-                                                  ast::BinaryOperator op);
-
-    ir::CompareMode mapCompareMode(sema::BuiltinType const* type);
-
-    ir::FunctionAttribute mapFuncAttrs(sema::FunctionAttribute attr);
-
-    ir::Visibility accessSpecToVisibility(sema::AccessSpecifier spec);
 };
 
 } // namespace scatha::irgen

@@ -40,7 +40,7 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
          structType->memberVariables() | ranges::views::enumerate)
     {
         QualType memType = member->type();
-        structure->addMember(mapType(memType));
+        structure->addMember(typeMap.get(memType));
         structIndexMap[{ structType, semaIndex }] = irIndex++;
         auto* arrayType = ptrToArray(memType.get());
         if (!arrayType || !arrayType->isDynamic()) {
@@ -53,7 +53,7 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
         /// because `getValueImpl(MemberAccess)` will know what to do
         ++irIndex;
     }
-    typeMap[structType] = structure.get();
+    typeMap.insert(structType, structure.get());
     mod.addStructure(std::move(structure));
 }
 
@@ -110,7 +110,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
         // clang-format off
         irReturnType = SC_MATCH (*stripRefOrPtr(function->returnType())) {
             [&](sema::ObjectType const&) {
-                return mapType(function->returnType());
+                return typeMap.get(function->returnType());
             },
             [&](sema::ArrayType const&) {
                 return arrayViewType;
@@ -128,7 +128,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     {
         switch (argPC.location()) {
         case Register:
-            irArgTypes.push_back(mapType(type));
+            irArgTypes.push_back(typeMap.get(type));
             break;
 
         case Memory: {
