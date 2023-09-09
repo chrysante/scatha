@@ -25,15 +25,14 @@ class Value {
 public:
     Value() = default;
 
-    explicit Value(uint32_t id,
-                   ir::Value* value,
+    explicit Value(ir::Value* value,
                    ir::Type const* type,
                    ValueLocation location):
 
-        _val(value), _type(type), _id(id), _loc(location) {}
+        _val(value), _type(type), _loc(location) {}
 
-    explicit Value(uint32_t id, ir::Value* value, ValueLocation location):
-        Value(id, value, value->type(), location) {
+    explicit Value(ir::Value* value, ValueLocation location):
+        Value(value, value->type(), location) {
         SC_ASSERT(
             location == ValueLocation::Register,
             "If the value is in memory the type must be specified explicitly");
@@ -57,11 +56,6 @@ public:
     /// \Returns `true` if this value is in memory
     bool isMemory() const { return location() == ValueLocation::Memory; }
 
-    /// The unique ID of this value
-    uint32_t ID() const { return _id; }
-
-    void setID(uint32_t id) { _id = id; }
-
     /// Test the value pointer for null
     explicit operator bool() const { return !!_val; }
 
@@ -72,7 +66,6 @@ public:
 private:
     ir::Value* _val = nullptr;
     ir::Type const* _type = nullptr;
-    uint32_t _id;
     ValueLocation _loc = {};
 };
 

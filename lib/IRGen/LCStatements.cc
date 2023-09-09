@@ -87,25 +87,21 @@ void LoweringContext::generateParameter(
         switch (pc.location()) {
         case Register: {
             if (isa<sema::ReferenceType>(*paramDecl->type())) {
-                Value data(newID(), irParam, Register);
+                Value data(irParam, Register);
                 memorizeObject(paramVar, data);
                 ++irParamItr;
                 if (arrayType->isDynamic()) {
-                    Value size(newID(), irParam->next(), Register);
+                    Value size(irParam->next(), Register);
                     memorizeArraySize(paramVar, size);
                     ++irParamItr;
                 }
             }
             else if (isa<sema::PointerType>(*paramDecl->type())) {
-                Value data(newID(),
-                           storeLocal(irParam),
-                           irParam->type(),
-                           Memory);
+                Value data(storeLocal(irParam), irParam->type(), Memory);
                 memorizeObject(paramVar, data);
                 ++irParamItr;
                 if (arrayType->isDynamic()) {
-                    Value size(newID(),
-                               storeLocal(irParam->next()),
+                    Value size(storeLocal(irParam->next()),
                                irParam->next()->type(),
                                Memory);
                     memorizeArraySize(paramVar, size);
@@ -117,8 +113,8 @@ void LoweringContext::generateParameter(
                           "Can't pass dynamic array by value");
                 auto* dataAddress = storeLocal(irParam, name);
                 auto* sizeValue = ctx.integralConstant(arrayType->count(), 64);
-                Value data(newID(), dataAddress, irType, Memory);
-                Value size(newID(), sizeValue, Register);
+                Value data(dataAddress, irType, Memory);
+                Value size(sizeValue, Register);
                 memorizeObject(paramVar, data);
                 memorizeArraySize(paramVar, size);
                 ++irParamItr;
@@ -127,8 +123,8 @@ void LoweringContext::generateParameter(
         }
 
         case Memory: {
-            Value data(newID(), irParam, irType, Memory);
-            Value size(newID(), irParam->next(), Register);
+            Value data(irParam, irType, Memory);
+            Value size(irParam->next(), Register);
             memorizeObject(paramVar, data);
             memorizeArraySize(paramVar, size);
             std::advance(irParamItr, 2);
@@ -140,18 +136,17 @@ void LoweringContext::generateParameter(
         switch (pc.location()) {
         case Register: {
             if (isa<sema::ReferenceType>(*paramDecl->type())) {
-                memorizeObject(paramVar, Value(newID(), irParam, Register));
+                memorizeObject(paramVar, Value(irParam, Register));
             }
             else {
                 auto* address = storeLocal(irParam, name);
-                memorizeObject(paramVar,
-                               Value(newID(), address, irType, Memory));
+                memorizeObject(paramVar, Value(address, irType, Memory));
             }
             break;
         }
 
         case Memory: {
-            memorizeObject(paramVar, Value(newID(), irParam, irType, Memory));
+            memorizeObject(paramVar, Value(irParam, irType, Memory));
             break;
         }
         }
@@ -178,14 +173,13 @@ void LoweringContext::generateArraySizeImpl(
         memorizeArraySize(varDecl->variable(), arrayType->count());
     }
     else if (sema::isRef(varDecl->type())) {
-        memorizeArraySize(varDecl->variable(),
-                          Value(newID(), sizeCallback(), Register));
+        memorizeArraySize(varDecl->variable(), Value(sizeCallback(), Register));
     }
     else {
         auto* size = sizeCallback();
         auto* sizeVar = storeLocal(size, utl::strcat(varDecl->name(), ".size"));
         memorizeArraySize(varDecl->variable(),
-                          Value(newID(), sizeVar, size->type(), Memory));
+                          Value(sizeVar, size->type(), Memory));
     }
 }
 
@@ -230,16 +224,14 @@ void LoweringContext::generateImpl(ast::VariableDeclaration const& varDecl) {
         else {
             address = storeLocal(toRegister(value), name);
         }
-        auto varID = newID();
         memorizeObject(varDecl.variable(),
-                       Value(varID, address, value.type(), Memory));
+                       Value(address, value.type(), Memory));
         generateVarDeclArraySize(&varDecl, initExpr->object());
     }
     else {
         auto* type = typeMap(varDecl.type());
         auto* address = makeLocal(type, name);
-        auto varID = newID();
-        memorizeObject(varDecl.variable(), Value(varID, address, type, Memory));
+        memorizeObject(varDecl.variable(), Value(address, type, Memory));
         generateVarDeclArraySize(&varDecl, nullptr);
     }
     emitDestructorCalls(dtorStack);

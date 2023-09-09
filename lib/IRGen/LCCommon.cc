@@ -156,7 +156,7 @@ void LoweringContext::memorizeArraySize(sema::Object const* object,
 
 void LoweringContext::memorizeArraySize(sema::Object const* object,
                                         size_t count) {
-    memorizeArraySize(object, Value(newID(), intConstant(count, 64), Register));
+    memorizeArraySize(object, Value(intConstant(count, 64), Register));
 }
 
 void LoweringContext::memorizeLazyArraySize(

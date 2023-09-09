@@ -60,20 +60,21 @@ Value LoweringContext::getValue(ast::Expression const* expr) {
 }
 
 Value LoweringContext::getValueImpl(ast::Identifier const& id) {
-    Value obj = objectMap[id.object()];
-    SC_ASSERT(obj, "Undeclared identifier");
-    return Value(obj.ID(), obj.get(), Register);
+    /// Because identifier expressions always have reference type, we take the
+    /// address of the referred to value and put it in a register
+    Value value = getObject(id.object());
+    return Value(value.get(), Register);
 }
 
 Value LoweringContext::getValueImpl(ast::Literal const& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        return Value(newID(), intConstant(lit.value<APInt>()), Register);
+        return Value(intConstant(lit.value<APInt>()), Register);
     case Boolean:
-        return Value(newID(), intConstant(lit.value<APInt>()), Register);
+        return Value(intConstant(lit.value<APInt>()), Register);
     case FloatingPoint:
-        return Value(newID(), floatConstant(lit.value<APFloat>()), Register);
+        return Value(floatConstant(lit.value<APFloat>()), Register);
     case This: {
         return objectMap[lit.object()];
     }
@@ -84,16 +85,13 @@ Value LoweringContext::getValueImpl(ast::Literal const& lit) {
         auto* type = ctx.arrayType(ctx.integralType(8), size);
         auto staticData =
             allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
-        auto data = Value(newID(),
-                          staticData.get(),
-                          staticData.get()->type(),
-                          Register);
+        auto data = Value(staticData.get(), staticData.get()->type(), Register);
         mod.addConstantData(std::move(staticData));
         memorizeArraySize(lit.object(), size);
         return data;
     }
     case Char:
-        return Value(newID(), intConstant(lit.value<APInt>()), Register);
+        return Value(intConstant(lit.value<APInt>()), Register);
     }
 }
 
@@ -123,7 +121,7 @@ Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
         case ast::UnaryOperatorNotation::Prefix:
             return operand;
         case ast::UnaryOperatorNotation::Postfix:
-            return Value(newID(), operandValue, Register);
+            return Value(operandValue, Register);
         case ast::UnaryOperatorNotation::_count:
             SC_UNREACHABLE();
         }
@@ -141,7 +139,7 @@ Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
                                                  operand,
                                                  operation,
                                                  "negated");
-        return Value(newID(), newValue, Register);
+        return Value(newValue, Register);
     }
 
     default:
@@ -150,7 +148,7 @@ Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
             add<ir::UnaryArithmeticInst>(operand,
                                          mapUnaryOp(expr.operation()),
                                          "expr");
-        return Value(newID(), newValue, Register);
+        return Value(newValue, Register);
     }
 }
 
@@ -196,7 +194,7 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
         }
         auto operation = mapArithmeticOp(builtinType, expr.operation());
         auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, "expr");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
 
     case LogicalAnd:
@@ -236,7 +234,7 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
                     "log.or");
             }
         }();
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
 
     case Less:
@@ -255,7 +253,7 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
                                             mapCompareMode(builtinType),
                                             mapCompareOp(expr.operation()),
                                             "cmp.res");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
 
     case Comma:
@@ -328,8 +326,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
             return getArraySize(expr.accessed()->object());
         }
         else {
-            return Value(newID(),
-                         ctx.integralConstant(arrayType->count(), 64),
+            return Value(ctx.integralConstant(arrayType->count(), 64),
                          Register);
         }
     }
@@ -345,7 +342,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
     case Register: {
         auto* result =
             add<ir::ExtractValue>(base.get(), std::array{ irIndex }, "mem.acc");
-        value = Value(newID(), result, Register);
+        value = Value(result, Register);
         break;
     }
     case Memory: {
@@ -356,11 +353,11 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
                                                   std::array{ irIndex },
                                                   "mem.acc");
         if (sema::isRef(expr.type())) {
-            value = Value(newID(), result, Register);
+            value = Value(result, Register);
         }
         else {
             auto* accessedType = typeMap(var->type());
-            value = Value(newID(), result, accessedType, Memory);
+            value = Value(result, accessedType, Memory);
         }
         break;
     }
@@ -380,7 +377,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
                 builder.add<ir::ExtractValue>(base.get(),
                                               std::array{ sizeIndex },
                                               "mem.acc.size");
-            return Value(newID(), result, Register);
+            return Value(result, Register);
         }
         case Memory: {
             auto* result =
@@ -389,7 +386,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
                                                    intConstant(0, 64),
                                                    std::array{ sizeIndex },
                                                    "mem.acc.size");
-            return Value(newID(), result, ctx.integralType(64), Memory);
+            return Value(result, ctx.integralType(64), Memory);
         }
         }
     });
@@ -432,7 +429,7 @@ Value LoweringContext::getValueImpl(ast::Conditional const& condExpr) {
     std::array<ir::PhiMapping, 2> phiArgs = { { { thenBlock, thenVal },
                                                 { elseBlock, elseVal } } };
     auto* result = add<ir::Phi>(phiArgs, "cond");
-    return Value(newID(), result, Register);
+    return Value(result, Register);
 }
 
 Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
@@ -455,9 +452,9 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
         [&](sema::ObjectType const&) {
             switch (retvalLocation) {
             case Register:
-                return Value(newID(), inst, Register);
+                return Value(inst, Register);
             case Memory:
-                return Value(newID(),
+                return Value(
                              arguments.front(),
                              typeMap(call.function()->returnType()),
                              Memory);
@@ -472,8 +469,8 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
                 auto* size =
                     add<ir::ExtractValue>(inst,
                                           std::array{ size_t{ 1 } }, "size");
-                Value value(newID(), data, Register);
-                memorizeArraySize(call.object(), Value(newID(), size, Register));
+                Value value(data, Register);
+                memorizeArraySize(call.object(), Value(size, Register));
                 return value;
             }
             case Memory:
@@ -514,7 +511,7 @@ Value LoweringContext::getValueImpl(ast::Subscript const& expr) {
                                                 index,
                                                 std::initializer_list<size_t>{},
                                                 "elem.ptr");
-        return Value(newID(), addr, elemType, Register);
+        return Value(addr, elemType, Register);
     }
     }
 }
@@ -532,12 +529,12 @@ Value LoweringContext::getValueImpl(ast::SubscriptSlice const& expr) {
                                             lower,
                                             std::initializer_list<size_t>{},
                                             "elem.ptr");
-    Value result(newID(), addr, Register);
+    Value result(addr, Register);
     auto* size = add<ir::ArithmeticInst>(upper,
                                          lower,
                                          ir::ArithmeticOperation::Sub,
                                          "slice.count");
-    memorizeArraySize(expr.object(), Value(newID(), size, Register));
+    memorizeArraySize(expr.object(), Value(size, Register));
     return result;
 }
 
@@ -602,9 +599,9 @@ Value LoweringContext::getValueImpl(ast::ListExpression const& list) {
     auto* irType = typeMap(semaType);
     auto* array = new ir::Alloca(ctx, irType, "list");
     allocas.push_back(array);
-    Value size(newID(), intConstant(list.children().size(), 64), Register);
+    Value size(intConstant(list.children().size(), 64), Register);
     valueMap.insert({ semaType->countProperty(), size });
-    auto value = Value(newID(), array, irType, Memory);
+    auto value = Value(array, irType, Memory);
     if (!genStaticListData(list, array)) {
         genListDataFallback(list, array);
     }
@@ -621,8 +618,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
 
         case sema::RefConversion::Dereference: {
             auto address = getValue(expr);
-            return Value(address.ID(),
-                         toRegister(address),
+            return Value(toRegister(address),
                          typeMap(stripReference(expr->type())),
                          Memory);
         }
@@ -630,11 +626,11 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         case sema::RefConversion::MaterializeTemporary: {
             auto value = getValue(expr);
             if (value.isMemory()) {
-                return Value(value.ID(), value.get(), Register);
+                return Value(value.get(), Register);
             }
             else {
                 auto* temp = storeLocal(value.get());
-                return Value(value.ID(), temp, Register);
+                return Value(temp, Register);
             }
         }
         }
@@ -658,8 +654,6 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         SC_ASSERT(toType, "");
         auto data = refConvResult;
         if (toType->isDynamic()) {
-            uint32_t const oldID = data.ID();
-            data.setID(newID());
             if (fromType->isDynamic()) {
                 auto count = getArraySize(expr->object());
                 if (conv.conversion()->objectConversion() ==
@@ -670,7 +664,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                 intConstant(8, 64),
                                                 ir::ArithmeticOperation::Mul,
                                                 "reinterpret.count");
-                    count = Value(newID(), newCount, Register);
+                    count = Value(newCount, Register);
                 }
                 else {
                     auto* newCount =
@@ -678,7 +672,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                 intConstant(8, 64),
                                                 ir::ArithmeticOperation::SDiv,
                                                 "reinterpret.count");
-                    count = Value(newID(), newCount, Register);
+                    count = Value(newCount, Register);
                 }
                 memorizeArraySize(conv.object(), count);
                 return data;
@@ -706,7 +700,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                typeMap(conv.type()),
                                                ir::Conversion::Bitcast,
                                                "reinterpret");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case SS_Trunc:
         [[fallthrough]];
@@ -719,7 +713,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                typeMap(conv.type()),
                                                ir::Conversion::Trunc,
                                                "trunc");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case SS_Widen:
         [[fallthrough]];
@@ -728,7 +722,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                typeMap(conv.type()),
                                                ir::Conversion::Sext,
                                                "sext");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case US_Widen:
         [[fallthrough]];
@@ -737,49 +731,49 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                typeMap(conv.type()),
                                                ir::Conversion::Zext,
                                                "zext");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case Float_Trunc: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
                                                typeMap(conv.type()),
                                                ir::Conversion::Ftrunc,
                                                "ftrunc");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case Float_Widen: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
                                                typeMap(conv.type()),
                                                ir::Conversion::Fext,
                                                "fext");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case SignedToFloat: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
                                                typeMap(conv.type()),
                                                ir::Conversion::StoF,
                                                "stof");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case UnsignedToFloat: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
                                                typeMap(conv.type()),
                                                ir::Conversion::UtoF,
                                                "utof");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case FloatToSigned: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
                                                typeMap(conv.type()),
                                                ir::Conversion::FtoS,
                                                "ftos");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     case FloatToUnsigned: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
                                                typeMap(conv.type()),
                                                ir::Conversion::FtoU,
                                                "ftou");
-        return Value(newID(), result, Register);
+        return Value(result, Register);
     }
     }
 }
@@ -803,9 +797,9 @@ Value LoweringContext::getValueImpl(ast::ConstructorCall const& call) {
         for (auto [PC, arg]: PCsAndArgs) {
             generateArgument(PC, getValue(arg), arg->object(), arguments);
         }
-        memorizeObject(call.object(), Value(newID(), address, type, Memory));
+        memorizeObject(call.object(), Value(address, type, Memory));
         add<ir::Call>(function, arguments, std::string{});
-        return Value(newID(), address, type, Memory);
+        return Value(address, type, Memory);
     }
     case Move:
         SC_UNIMPLEMENTED();
@@ -819,9 +813,9 @@ Value LoweringContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
     return SC_MATCH (*expr.type()) {
         [&](sema::ObjectType const& type) {
             auto value = getValue(expr.argument());
-            auto result = Value(newID(), toRegister(value), Register);
+            auto result = Value(toRegister(value), Register);
             if (auto arraySize = tryGetArraySize(expr.argument()->object())) {
-                auto newSize = Value(newID(), toRegister(*arraySize), Register);
+                auto newSize = Value(toRegister(*arraySize), Register);
                 memorizeArraySize(expr.object(), newSize);
             }
             return result;

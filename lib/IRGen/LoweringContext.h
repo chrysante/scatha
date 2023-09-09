@@ -58,9 +58,6 @@ struct LoweringContext {
     utl::hashmap<std::pair<sema::StructureType const*, size_t>, size_t>
         structIndexMap;
 
-    uint32_t _valueID = 0;
-    uint32_t newID() { return ++_valueID; }
-
     /// ## Current state
 
     ir::Function* currentFunction = nullptr;
