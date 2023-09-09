@@ -134,20 +134,41 @@ ir::Value* LoweringContext::constant(ssize_t value, ir::Type const* type) {
 }
 
 void LoweringContext::memorizeObject(sema::Object const* object, Value value) {
-    bool success = objectMap.insert({ object, value }).second;
+    bool success = tryMemorizeObject(object, value);
     SC_ASSERT(success, "Redeclaration");
+}
+
+bool LoweringContext::tryMemorizeObject(sema::Object const* object,
+                                        Value value) {
+    return objectMap.insert({ object, value }).second;
+}
+
+Value LoweringContext::getObject(sema::Object const* object) const {
+    auto itr = objectMap.find(object);
+    SC_ASSERT(itr != objectMap.end(), "Not found");
+    return itr->second;
 }
 
 void LoweringContext::memorizeArraySize(sema::Object const* object,
                                         Value size) {
-    SC_ASSERT(object, "Must not be null");
-    auto [itr, success] = arraySizeMap.insert({ object, size });
-    SC_ASSERT(success, "ID already present");
+    memorizeLazyArraySize(object, [size](ir::BasicBlock*) { return size; });
 }
 
 void LoweringContext::memorizeArraySize(sema::Object const* object,
                                         size_t count) {
     memorizeArraySize(object, Value(newID(), intConstant(count, 64), Register));
+}
+
+void LoweringContext::memorizeLazyArraySize(
+    sema::Object const* object, std::function<Value(ir::BasicBlock*)> getter) {
+    SC_ASSERT(object, "Must not be null");
+    auto [itr, success] = arraySizeMap.insert({ object, std::move(getter) });
+    SC_ASSERT(success, "ID already present");
+}
+
+void LoweringContext::memorizeArraySizeOf(sema::Object const* newObj,
+                                          sema::Object const* original) {
+    memorizeArraySize(newObj, getArraySize(original));
 }
 
 Value LoweringContext::getArraySize(sema::Object const* object) const {
@@ -163,5 +184,5 @@ std::optional<Value> LoweringContext::tryGetArraySize(
     if (itr == arraySizeMap.end()) {
         return std::nullopt;
     }
-    return itr->second;
+    return itr->second(currentBlock);
 }

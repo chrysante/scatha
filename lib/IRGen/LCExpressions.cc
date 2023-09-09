@@ -7,6 +7,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
+#include "IRGen/Builder.h"
 #include "IRGen/Utility.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
@@ -322,8 +323,15 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
             dyncast<sema::ArrayType const*>(expr.accessed()->type().get()))
     {
         SC_ASSERT(expr.member()->value() == "count", "What else?");
-        auto value = getValue(expr.accessed());
-        return getArraySize(expr.accessed()->object());
+        if (arrayType->isDynamic()) {
+            getValue(expr.accessed());
+            return getArraySize(expr.accessed()->object());
+        }
+        else {
+            return Value(newID(),
+                         ctx.integralConstant(arrayType->count(), 64),
+                         Register);
+        }
     }
 
     Value base = getValue(expr.accessed());
@@ -362,27 +370,29 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
     if (!arrayType) {
         return value;
     }
-    Value size;
-    switch (base.location()) {
-    case Register: {
-        auto* result = add<ir::ExtractValue>(base.get(),
-                                             std::array{ irIndex + 1 },
-                                             "mem.acc.size");
-        size = Value(newID(), result, Register);
-        break;
-    }
-    case Memory: {
-        auto* baseType = typeMap(sema::stripReference(expr.accessed()->type()));
-        auto* result = add<ir::GetElementPointer>(baseType,
-                                                  base.get(),
-                                                  intConstant(0, 64),
-                                                  std::array{ irIndex + 1 },
-                                                  "mem.acc.size");
-        size = Value(newID(), result, ctx.integralType(64), Memory);
-        break;
-    }
-    }
-    memorizeArraySize(expr.object(), size);
+    memorizeLazyArraySize(expr.object(),
+                          [this, base, sizeIndex = irIndex + 1](
+                              ir::BasicBlock* BB) {
+        BasicBlockBuilder builder(ctx, BB);
+        switch (base.location()) {
+        case Register: {
+            auto* result =
+                builder.add<ir::ExtractValue>(base.get(),
+                                              std::array{ sizeIndex },
+                                              "mem.acc.size");
+            return Value(newID(), result, Register);
+        }
+        case Memory: {
+            auto* result =
+                builder.add<ir::GetElementPointer>(base.type(),
+                                                   base.get(),
+                                                   intConstant(0, 64),
+                                                   std::array{ sizeIndex },
+                                                   "mem.acc.size");
+            return Value(newID(), result, ctx.integralType(64), Memory);
+        }
+        }
+    });
     return value;
 }
 

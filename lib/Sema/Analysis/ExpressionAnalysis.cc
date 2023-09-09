@@ -447,10 +447,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         performRestrictedNameLookup = true;
         return analyze(ma.member());
     });
-    if (!success) {
-        success = uniformFunctionCall(ma);
-    }
-    if (!success) {
+    if (!success && !(success = uniformFunctionCall(ma))) {
         return nullptr;
     }
     if (isa<OverloadSet>(ma.member()->entity()) &&
@@ -458,22 +455,31 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     {
         return rewritePropertyCall(ma);
     }
-    if (ma.accessed()->isValue() && !ma.member()->isValue()) {
-        iss.push<InvalidNameLookup>(ma);
-        return nullptr;
-    }
-    auto type = ma.member()->type();
-    if (ma.accessed()->isValue()) {
+    switch (ma.accessed()->entityCategory()) {
+    case EntityCategory::Value: {
+        if (!ma.member()->isValue()) {
+            iss.push<InvalidNameLookup>(ma);
+            return nullptr;
+        }
+        auto type = ma.member()->type();
         if (!isa<ReferenceType>(*ma.accessed()->type())) {
             type = stripReference(type);
             auto mut = ma.accessed()->type().mutability();
             type = QualType(type.get(), mut);
         }
+        ma.decorateExpr(sym.temporary(type));
+        if (!isa<OverloadSet>(ma.member()->entity())) {
+            dereference(ma.accessed(), ctx);
+        }
+        break;
     }
-    ma.decorateExpr(sym.temporary(type));
-    /// Dereference the object if its a value
-    if (ma.accessed()->isValue() && !isa<OverloadSet>(ma.member()->entity())) {
-        dereference(ma.accessed(), ctx);
+    case EntityCategory::Type:
+        ma.decorateExpr(ma.member()->entity());
+        break;
+    case EntityCategory::Indeterminate:
+        break;
+    case EntityCategory::_count:
+        SC_UNREACHABLE();
     }
     return &ma;
 }

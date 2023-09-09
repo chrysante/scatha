@@ -1,6 +1,8 @@
 #ifndef SCATHA_IRGEN_LOWERINGCONTEXT_H_
 #define SCATHA_IRGEN_LOWERINGCONTEXT_H_
 
+#include <functional>
+
 #include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/ipp.hpp>
@@ -40,7 +42,8 @@ struct LoweringContext {
     /// Maps variables to IR values in stack memory
     utl::hashmap<sema::Object const*, Value> objectMap;
     /// Maps array IDs to their respective sizes
-    utl::hashmap<sema::Object const*, Value> arraySizeMap;
+    utl::hashmap<sema::Object const*, std::function<Value(ir::BasicBlock*)>>
+        arraySizeMap;
 
     /// Maps variables to SSA values
     /// Right now this map exists solely to map the `.count` member variable to
@@ -243,11 +246,25 @@ struct LoweringContext {
     /// Values are stored in `objectMap`
     void memorizeObject(sema::Object const* object, Value value);
 
+    ///
+    bool tryMemorizeObject(sema::Object const* object, Value value);
+
+    /// Retrieve value associated with \p object
+    Value getObject(sema::Object const* object) const;
+
     /// Associate array IDs with their size
     void memorizeArraySize(sema::Object const*, Value size);
 
     /// \overload
     void memorizeArraySize(sema::Object const*, size_t size);
+
+    ///
+    void memorizeLazyArraySize(sema::Object const*,
+                               std::function<Value(ir::BasicBlock*)>);
+
+    /// Make \p newObj refer to the same array size value as \p original
+    void memorizeArraySizeOf(sema::Object const* newObj,
+                             sema::Object const* original);
 
     /// Retrieve stored array size
     Value getArraySize(sema::Object const*) const;

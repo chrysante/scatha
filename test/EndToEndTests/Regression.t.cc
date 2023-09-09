@@ -97,3 +97,14 @@ public fn main(n: int, cond: bool) -> int {
     return n;
 })");
 }
+
+TEST_CASE("Size of array data member", "[end-to-end][regression]") {
+    test::checkReturns(5, R"(
+struct X {
+    var data: [int, 5];
+}
+public fn main(cond: bool) -> int {
+    var x: X;
+    return x.data.count;
+})");
+}
