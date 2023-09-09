@@ -712,7 +712,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
         auto itr = ivMap.find({ baseValue, ins });
         if (itr != ivMap.end()) {
             auto* iv = itr->second;
-            if (ranges::equal(iv->memberIndices(), std::array{ index })) {
+            if (ranges::equal(iv->memberIndices(), ranges::views::single(index))) {
                 baseValue = iv;
                 continue;
             }
