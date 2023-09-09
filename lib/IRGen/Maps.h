@@ -5,6 +5,7 @@
 
 #include "AST/Fwd.h"
 #include "IR/Fwd.h"
+#include "IRGen/MetaData.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 
@@ -16,20 +17,27 @@ public:
     explicit TypeMap(ir::Context& ctx): ctx(&ctx) {}
 
     ///
-    void insert(sema::Type const* key, ir::Type const* value);
+    void insert(sema::StructureType const* key,
+                ir::StructureType const* value,
+                StructMetaData metaData);
 
-    /// Shorthand for `get(type.get())`
-    ir::Type const* get(sema::QualType type) const;
+    /// Shorthand for `(*this*)(type.get())`
+    ir::Type const* operator()(sema::QualType type) const;
 
     /// Translate \p type to corresponding IR type
-    ir::Type const* get(sema::Type const* type) const;
+    ir::Type const* operator()(sema::Type const* type) const;
+
+    /// \Returns the meta data associated with \p type
+    StructMetaData const& metaData(sema::Type const* type) const;
 
 private:
-    ir::Type const* getImpl(sema::Type const* type) const;
+    void insertImpl(sema::Type const* key, ir::Type const* value) const;
+    ir::Type const* get(sema::Type const* type) const;
 
     ir::Context* ctx;
     /// Mutable to cache results in const getter functions
     mutable utl::hashmap<sema::Type const*, ir::Type const*> map;
+    utl::hashmap<sema::StructureType const*, StructMetaData> meta;
 };
 
 ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryOperator op);

@@ -105,7 +105,7 @@ Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
         Value operand = getValue(expr.operand());
         ir::Value* opAddr = toRegister(operand);
         ir::Type const* operandType =
-            typeMap.get(sema::stripReference(expr.operand()->type()));
+            typeMap(sema::stripReference(expr.operand()->type()));
         ir::Value* operandValue =
             add<ir::Load>(opAddr,
                           operandType,
@@ -341,8 +341,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
         break;
     }
     case Memory: {
-        auto* baseType =
-            typeMap.get(sema::stripReference(expr.accessed()->type()));
+        auto* baseType = typeMap(sema::stripReference(expr.accessed()->type()));
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   intConstant(0, 64),
@@ -352,7 +351,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
             value = Value(newID(), result, Register);
         }
         else {
-            auto* accessedType = typeMap.get(var->type());
+            auto* accessedType = typeMap(var->type());
             value = Value(newID(), result, accessedType, Memory);
         }
         break;
@@ -373,8 +372,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
         break;
     }
     case Memory: {
-        auto* baseType =
-            typeMap.get(sema::stripReference(expr.accessed()->type()));
+        auto* baseType = typeMap(sema::stripReference(expr.accessed()->type()));
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   intConstant(0, 64),
@@ -433,7 +431,7 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
     utl::small_vector<ir::Value*> arguments;
     auto const retvalLocation = CC.returnValue().location();
     if (retvalLocation == Memory) {
-        auto* returnType = typeMap.get(call.function()->returnType());
+        auto* returnType = typeMap(call.function()->returnType());
         arguments.push_back(makeLocal(returnType, "retval"));
     }
     for (auto [PC, arg]: ranges::views::zip(CC.arguments(), call.arguments())) {
@@ -451,7 +449,7 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
             case Memory:
                 return Value(newID(),
                              arguments.front(),
-                             typeMap.get(call.function()->returnType()),
+                             typeMap(call.function()->returnType()),
                              Memory);
             }
         },
@@ -489,7 +487,7 @@ void LoweringContext::generateArgument(PassingConvention const& PC,
 Value LoweringContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(
         stripReference(expr.callee()->type()).get());
-    auto* elemType = typeMap.get(arrayType->elementType());
+    auto* elemType = typeMap(arrayType->elementType());
     auto array = getValue(expr.callee());
     /// Right now we don't use the size but here we could at a call to an
     /// assertion function
@@ -513,7 +511,7 @@ Value LoweringContext::getValueImpl(ast::Subscript const& expr) {
 Value LoweringContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(
         stripReference(expr.callee()->type()).get());
-    auto* elemType = typeMap.get(arrayType->elementType());
+    auto* elemType = typeMap(arrayType->elementType());
     auto array = getValue(expr.callee());
     auto lower = getValue<Register>(expr.lower());
     auto upper = getValue<Register>(expr.upper());
@@ -560,7 +558,7 @@ bool LoweringContext::genStaticListData(ast::ListExpression const& list,
     }
     auto constData =
         allocate<ir::ConstantData>(ctx,
-                                   ctx.arrayType(typeMap.get(elemType),
+                                   ctx.arrayType(typeMap(elemType),
                                                  list.elements().size()),
                                    std::move(data),
                                    "array");
@@ -577,7 +575,7 @@ bool LoweringContext::genStaticListData(ast::ListExpression const& list,
 void LoweringContext::genListDataFallback(ast::ListExpression const& list,
                                           ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
-    auto* elemType = typeMap.get(arrayType->elementType());
+    auto* elemType = typeMap(arrayType->elementType());
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
         auto* gep = add<ir::GetElementPointer>(elemType,
                                                dest,
@@ -590,7 +588,7 @@ void LoweringContext::genListDataFallback(ast::ListExpression const& list,
 
 Value LoweringContext::getValueImpl(ast::ListExpression const& list) {
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
-    auto* irType = typeMap.get(semaType);
+    auto* irType = typeMap(semaType);
     auto* array = new ir::Alloca(ctx, irType, "list");
     allocas.push_back(array);
     Value size(newID(), intConstant(list.children().size(), 64), Register);
@@ -614,7 +612,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
             auto address = getValue(expr);
             return Value(address.ID(),
                          toRegister(address),
-                         typeMap.get(stripReference(expr->type())),
+                         typeMap(stripReference(expr->type())),
                          Memory);
         }
 
@@ -693,7 +691,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
 
     case Reinterpret_Value: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::Bitcast,
                                                "reinterpret");
         return Value(newID(), result, Register);
@@ -706,7 +704,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         [[fallthrough]];
     case UU_Trunc: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::Trunc,
                                                "trunc");
         return Value(newID(), result, Register);
@@ -715,7 +713,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         [[fallthrough]];
     case SU_Widen: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::Sext,
                                                "sext");
         return Value(newID(), result, Register);
@@ -724,49 +722,49 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         [[fallthrough]];
     case UU_Widen: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::Zext,
                                                "zext");
         return Value(newID(), result, Register);
     }
     case Float_Trunc: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::Ftrunc,
                                                "ftrunc");
         return Value(newID(), result, Register);
     }
     case Float_Widen: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::Fext,
                                                "fext");
         return Value(newID(), result, Register);
     }
     case SignedToFloat: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::StoF,
                                                "stof");
         return Value(newID(), result, Register);
     }
     case UnsignedToFloat: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::UtoF,
                                                "utof");
         return Value(newID(), result, Register);
     }
     case FloatToSigned: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::FtoS,
                                                "ftos");
         return Value(newID(), result, Register);
     }
     case FloatToUnsigned: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
-                                               typeMap.get(conv.type()),
+                                               typeMap(conv.type()),
                                                ir::Conversion::FtoU,
                                                "ftou");
         return Value(newID(), result, Register);
@@ -778,7 +776,7 @@ Value LoweringContext::getValueImpl(ast::ConstructorCall const& call) {
     using enum sema::SpecialMemberFunction;
     switch (call.kind()) {
     case New: {
-        auto* type = typeMap.get(call.constructedType());
+        auto* type = typeMap(call.constructedType());
         auto* address = makeLocal(type, "anon");
         auto* function = getFunction(call.function());
         auto CCItr = CCMap.find(call.function());

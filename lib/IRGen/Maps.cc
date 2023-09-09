@@ -7,26 +7,39 @@
 using namespace scatha;
 using namespace irgen;
 
-void TypeMap::insert(sema::Type const* key, ir::Type const* value) {
-    [[maybe_unused]] auto [itr, success] = map.insert({ key, value });
-    SC_ASSERT(success, "Failed to insert type");
+void TypeMap::insert(sema::StructureType const* key,
+                     ir::StructureType const* value,
+                     StructMetaData metaData) {
+    insertImpl(key, value);
+    meta.insert({ key, std::move(metaData) });
 }
 
-ir::Type const* TypeMap::get(sema::QualType type) const {
-    return get(static_cast<sema::Type const*>(type.get()));
+ir::Type const* TypeMap::operator()(sema::QualType type) const {
+    return (*this)(static_cast<sema::Type const*>(type.get()));
 }
 
-ir::Type const* TypeMap::get(sema::Type const* type) const {
+ir::Type const* TypeMap::operator()(sema::Type const* type) const {
     auto itr = map.find(type);
     if (itr != map.end()) {
         return itr->second;
     }
-    auto* result = getImpl(type);
-    const_cast<TypeMap*>(this)->insert(type, result);
+    auto* result = get(type);
+    insertImpl(type, result);
     return result;
 }
 
-ir::Type const* TypeMap::getImpl(sema::Type const* type) const {
+StructMetaData const& TypeMap::metaData(sema::Type const* type) const {
+    auto itr = meta.find(cast<sema::StructureType const*>(type));
+    SC_ASSERT(itr != meta.end(), "Not found");
+    return itr->second;
+}
+
+void TypeMap::insertImpl(sema::Type const* key, ir::Type const* value) const {
+    [[maybe_unused]] auto [itr, success] = map.insert({ key, value });
+    SC_ASSERT(success, "Failed to insert type");
+}
+
+ir::Type const* TypeMap::get(sema::Type const* type) const {
     // clang-format off
     return SC_MATCH (*type) {
         [&](sema::VoidType const&) -> ir::Type const* {

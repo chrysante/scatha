@@ -77,7 +77,7 @@ void LoweringContext::generateParameter(
     List<ir::Parameter>::iterator& irParamItr) {
     QualType semaType = paramDecl->type();
     auto* irParam = irParamItr.to_address();
-    auto* irType = typeMap.get(paramDecl->type());
+    auto* irType = typeMap(paramDecl->type());
     std::string name(paramDecl->name());
 
     auto* arrayType =
@@ -240,7 +240,7 @@ void LoweringContext::generateImpl(ast::VariableDeclaration const& varDecl) {
         generateVarDeclArraySize(&varDecl, varID, value.ID());
     }
     else {
-        auto* type = typeMap.get(varDecl.type());
+        auto* type = typeMap(varDecl.type());
         auto* address = makeLocal(type, name);
         auto varID = newID();
         memorizeObject(varDecl.variable(), Value(varID, address, type, Memory));

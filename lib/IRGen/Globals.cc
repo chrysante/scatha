@@ -26,7 +26,7 @@ std::pair<UniquePtr<ir::StructureType>, StructMetaData> irgen::generateType(
     size_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
         sema::QualType memType = member->type();
-        irType->addMember(typeMap.get(memType));
+        irType->addMember(typeMap(memType));
         metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
         auto* arrayType = ptrToArray(memType.get());
         if (!arrayType || !arrayType->isDynamic()) {
@@ -103,7 +103,7 @@ std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
         // clang-format off
         irReturnType = SC_MATCH (*stripRefOrPtr(semaFn->returnType())) {
             [&](sema::ObjectType const&) {
-                return typeMap.get(semaFn->returnType());
+                return typeMap(semaFn->returnType());
             },
             [&](sema::ArrayType const&) {
                 return makeArrayViewType(ctx);
@@ -121,7 +121,7 @@ std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
     {
         switch (argPC.location()) {
         case Register:
-            irArgTypes.push_back(typeMap.get(type));
+            irArgTypes.push_back(typeMap(type));
             break;
 
         case Memory: {

@@ -16,7 +16,7 @@
 using namespace scatha;
 using namespace irgen;
 
-std::pair<ir::Context, ir::Module> /*irgen::generateIR*/ TBA(
+std::pair<ir::Context, ir::Module> irgen::generateIR2(
     ast::ASTNode const& root,
     sema::SymbolTable const& sym,
     sema::AnalysisResult const& analysisResult) {
@@ -26,6 +26,7 @@ std::pair<ir::Context, ir::Module> /*irgen::generateIR*/ TBA(
 
     for (auto* semaType: analysisResult.structDependencyOrder) {
         auto [irType, metaData] = generateType(ctx, typeMap, semaType);
+        typeMap.insert(semaType, irType.get(), std::move(metaData));
         mod.addStructure(std::move(irType));
     }
 
@@ -39,7 +40,7 @@ std::pair<ir::Context, ir::Module> /*irgen::generateIR*/ TBA(
     //    LoweringContext context(symbolTable, analysisResult, ctx, mod);
     //    context.run(root);
 
-    ir::setupInvariants(ctx, mod);
-    ir::assertInvariants(ctx, mod);
+    //    ir::setupInvariants(ctx, mod);
+    //    ir::assertInvariants(ctx, mod);
     return { std::move(ctx), std::move(mod) };
 }
