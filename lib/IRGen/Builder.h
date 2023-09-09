@@ -9,26 +9,10 @@
 
 namespace scatha::irgen {
 
-/// Helper class to build IR
-class Builder {
+///
+class BasicBlockBuilder {
 public:
-    explicit Builder(ir::Context& ctx, ir::Function& function);
-
-    /// Access the currently active basic block, i.e. the block that was added
-    /// last to the function
-    ir::BasicBlock& currentBlock() const { return *currentBB; }
-
-    /// Creates a new basic block with name \p name without adding it to the
-    /// current function
-    ir::BasicBlock* newBlock(std::string name);
-
-    /// Add the basic block \p BB to the current function
-    /// \Returns the argument
-    ir::BasicBlock* add(ir::BasicBlock* BB);
-
-    /// Create a new basic block with name \p name and add it to the current
-    /// function
-    ir::BasicBlock* addNewBlock(std::string name);
+    explicit BasicBlockBuilder(ir::Context& ctx, ir::BasicBlock* BB);
 
     /// Add the instruction \p inst to the current basic block
     /// \Returns the argument
@@ -53,6 +37,35 @@ public:
         return result;
     }
 
+protected:
+    ir::Context& ctx;
+    ir::BasicBlock* currentBB;
+};
+
+/// Helper class to build IR functions
+class FunctionBuilder: public BasicBlockBuilder {
+public:
+    explicit FunctionBuilder(ir::Context& ctx, ir::Function* function);
+
+    ///
+    using BasicBlockBuilder::add;
+
+    /// Access the currently active basic block, i.e. the block that was added
+    /// last to the function
+    ir::BasicBlock& currentBlock() const { return *currentBB; }
+
+    /// Creates a new basic block with name \p name without adding it to the
+    /// current function
+    ir::BasicBlock* newBlock(std::string name);
+
+    /// Add the basic block \p BB to the current function
+    /// \Returns the argument
+    ir::BasicBlock* add(ir::BasicBlock* BB);
+
+    /// Create a new basic block with name \p name and add it to the current
+    /// function
+    ir::BasicBlock* addNewBlock(std::string name);
+
     /// Allocates stack memory for a value of type \p type with name \p name
     ir::Value* makeLocalVariable(ir::Type const* type, std::string name);
 
@@ -65,9 +78,7 @@ public:
     ir::Value* storeToMemory(ir::Value* value, std::string name);
 
 private:
-    ir::Context& ctx;
     ir::Function& function;
-    ir::BasicBlock* currentBB;
     utl::small_vector<ir::Alloca*> allocas;
 };
 
