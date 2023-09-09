@@ -7,6 +7,72 @@
 using namespace scatha;
 using namespace irgen;
 
+void ValueMap::insert(sema::Object const* object, Value value) {
+    bool success = values.insert({ object, value }).second;
+    SC_ASSERT(success, "Redeclaration");
+}
+
+void ValueMap::insert(sema::Function const* semaFn,
+                      ir::Callable* irFn,
+                      FunctionMetaData metaData) {
+    bool success = functions.insert({ semaFn, irFn }).second;
+    SC_ASSERT(success, "Redeclaration");
+    functionMetaData.insert({ semaFn, std::move(metaData) });
+}
+
+void ValueMap::insertArraySize(sema::Object const* object, Value size) {
+    insertArraySize(object, [size](ir::BasicBlock*) { return size; });
+}
+
+void ValueMap::insertArraySize(sema::Object const* object, LazyArraySize size) {
+    SC_ASSERT(object, "Must not be null");
+    auto [itr, success] = arraySizes.insert({ object, std::move(size) });
+    SC_ASSERT(success, "ID already present");
+}
+
+void ValueMap::insertArraySizeOf(sema::Object const* newObj,
+                                 sema::Object const* original) {
+    auto itr = arraySizes.find(original);
+    SC_ASSERT(itr != arraySizes.end(), "Not found");
+    insertArraySize(newObj, itr->second);
+}
+
+Value ValueMap::operator()(sema::Object const* object) const {
+    auto itr = values.find(object);
+    SC_ASSERT(itr != values.end(), "Not found");
+    return itr->second;
+}
+
+ir::Callable* ValueMap::operator()(sema::Function const* function) const {
+    auto itr = functions.find(function);
+    SC_ASSERT(itr != functions.end(), "Not found");
+    return itr->second;
+}
+
+Value ValueMap::arraySize(sema::Object const* object,
+                          ir::BasicBlock* BB) const {
+    SC_ASSERT(object, "");
+    auto result = tryGetArraySize(object, BB);
+    SC_ASSERT(result, "Not found");
+    return *result;
+}
+
+std::optional<Value> ValueMap::tryGetArraySize(sema::Object const* object,
+                                               ir::BasicBlock* BB) const {
+    auto itr = arraySizes.find(object);
+    if (itr == arraySizes.end()) {
+        return std::nullopt;
+    }
+    return itr->second(BB);
+}
+
+FunctionMetaData const& ValueMap::metaData(
+    sema::Function const* function) const {
+    auto itr = functionMetaData.find(function);
+    SC_ASSERT(itr != functionMetaData.end(), "Not found");
+    return itr->second;
+}
+
 void TypeMap::insert(sema::StructType const* key,
                      ir::StructType const* value,
                      StructMetaData metaData) {
