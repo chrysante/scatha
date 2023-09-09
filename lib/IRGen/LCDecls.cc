@@ -13,7 +13,7 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
-using namespace ast;
+using namespace irgen;
 
 using sema::QualType;
 

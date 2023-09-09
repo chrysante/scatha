@@ -1,9 +1,9 @@
 #include "IRGen/Value.h"
 
 using namespace scatha;
-using namespace ast;
+using namespace irgen;
 
-std::string_view ast::toString(ValueLocation VL) {
+std::string_view irgen::toString(ValueLocation VL) {
     using enum ValueLocation;
     switch (VL) {
     case Register:
@@ -13,6 +13,6 @@ std::string_view ast::toString(ValueLocation VL) {
     }
 }
 
-std::ostream& ast::operator<<(std::ostream& ostream, ValueLocation VL) {
+std::ostream& irgen::operator<<(std::ostream& ostream, ValueLocation VL) {
     return ostream << toString(VL);
 }

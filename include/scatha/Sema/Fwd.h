@@ -9,6 +9,7 @@
 
 namespace scatha::sema {
 
+struct AnalysisResult;
 class Context;
 class Conversion;
 class FunctionSignature;

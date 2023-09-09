@@ -18,7 +18,7 @@
 #include "Sema/DTorStack.h"
 #include "Sema/Fwd.h"
 
-namespace scatha::ast {
+namespace scatha::irgen {
 
 struct Loop {
     ir::BasicBlock* header = nullptr;
@@ -87,42 +87,42 @@ struct LoweringContext {
 
     /// # Statements
 
-    void generate(ASTNode const& node);
+    void generate(ast::ASTNode const& node);
 
-    void generateImpl(ASTNode const& node) { SC_UNREACHABLE(); }
+    void generateImpl(ast::ASTNode const& node) { SC_UNREACHABLE(); }
 
-    void generateImpl(TranslationUnit const&);
+    void generateImpl(ast::TranslationUnit const&);
 
-    void generateImpl(CompoundStatement const&);
+    void generateImpl(ast::CompoundStatement const&);
 
-    void generateImpl(FunctionDefinition const&);
+    void generateImpl(ast::FunctionDefinition const&);
 
-    void generateParameter(ParameterDeclaration const* paramDecl,
+    void generateParameter(ast::ParameterDeclaration const* paramDecl,
                            PassingConvention pc,
                            List<ir::Parameter>::iterator& paramItr);
 
-    void generateImpl(StructDefinition const&);
+    void generateImpl(ast::StructDefinition const&);
 
-    void generateImpl(VariableDeclaration const&);
+    void generateImpl(ast::VariableDeclaration const&);
 
-    void generateImpl(ExpressionStatement const&);
+    void generateImpl(ast::ExpressionStatement const&);
 
-    void generateImpl(EmptyStatement const&) {}
+    void generateImpl(ast::EmptyStatement const&) {}
 
-    void generateImpl(ReturnStatement const&);
+    void generateImpl(ast::ReturnStatement const&);
 
-    void generateImpl(IfStatement const&);
+    void generateImpl(ast::IfStatement const&);
 
-    void generateImpl(LoopStatement const&);
+    void generateImpl(ast::LoopStatement const&);
 
-    void generateImpl(JumpStatement const&);
+    void generateImpl(ast::JumpStatement const&);
 
     /// # Expressions
 
-    Value getValue(Expression const* expr);
+    Value getValue(ast::Expression const* expr);
 
     template <ValueLocation Loc>
-    ir::Value* getValue(Expression const* expr) {
+    ir::Value* getValue(ast::Expression const* expr) {
         auto value = getValue(expr);
         switch (Loc) {
         case ValueLocation::Register:
@@ -132,22 +132,22 @@ struct LoweringContext {
         }
     }
 
-    Value getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
-    Value getValueImpl(Identifier const&);
-    Value getValueImpl(Literal const&);
-    Value getValueImpl(UnaryExpression const&);
-    Value getValueImpl(BinaryExpression const&);
-    Value getValueImpl(MemberAccess const&);
-    Value getValueImpl(DereferenceExpression const&);
-    Value getValueImpl(AddressOfExpression const&);
-    Value getValueImpl(Conditional const&);
-    Value getValueImpl(FunctionCall const&);
-    Value getValueImpl(Subscript const&);
-    Value getValueImpl(SubscriptSlice const&);
-    Value getValueImpl(ListExpression const&);
-    Value getValueImpl(Conversion const&);
-    Value getValueImpl(ConstructorCall const&);
-    Value getValueImpl(TrivialCopyExpr const&);
+    Value getValueImpl(ast::Expression const& expr) { SC_UNREACHABLE(); }
+    Value getValueImpl(ast::Identifier const&);
+    Value getValueImpl(ast::Literal const&);
+    Value getValueImpl(ast::UnaryExpression const&);
+    Value getValueImpl(ast::BinaryExpression const&);
+    Value getValueImpl(ast::MemberAccess const&);
+    Value getValueImpl(ast::DereferenceExpression const&);
+    Value getValueImpl(ast::AddressOfExpression const&);
+    Value getValueImpl(ast::Conditional const&);
+    Value getValueImpl(ast::FunctionCall const&);
+    Value getValueImpl(ast::Subscript const&);
+    Value getValueImpl(ast::SubscriptSlice const&);
+    Value getValueImpl(ast::ListExpression const&);
+    Value getValueImpl(ast::Conversion const&);
+    Value getValueImpl(ast::ConstructorCall const&);
+    Value getValueImpl(ast::TrivialCopyExpr const&);
 
     /// # Helpers
 
@@ -155,9 +155,9 @@ struct LoweringContext {
                           Value arg,
                           utl::vector<ir::Value*>& outArgs);
 
-    bool genStaticListData(ListExpression const& list, ir::Alloca* dest);
+    bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
 
-    void genListDataFallback(ListExpression const& list, ir::Alloca* dest);
+    void genListDataFallback(ast::ListExpression const& list, ir::Alloca* dest);
 
     void emitDestructorCalls(sema::DTorStack const& dtorStack);
 
@@ -234,7 +234,7 @@ struct LoweringContext {
     /// \Returns the value passing convention of the return value and the return
     /// value if the passing convention is `Register` or the address of the
     /// return value if the passing convention is `Stack`
-    Value genCall(FunctionCall const*);
+    Value genCall(ast::FunctionCall const*);
 
     utl::small_vector<ir::Value*> mapArguments(auto&& args);
 
@@ -283,6 +283,6 @@ struct LoweringContext {
     ir::Visibility accessSpecToVisibility(sema::AccessSpecifier spec);
 };
 
-} // namespace scatha::ast
+} // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_LOWERINGCONTEXT_H_

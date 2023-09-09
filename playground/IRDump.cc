@@ -79,7 +79,7 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
         issues.print(text, errStr);
         return std::nullopt;
     }
-    return ast::generateIR(*ast, sym, analysisResult);
+    return irgen::generateIR(*ast, sym, analysisResult);
 }
 
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>

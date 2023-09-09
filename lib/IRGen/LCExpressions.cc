@@ -13,7 +13,7 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
-using namespace ast;
+using namespace irgen;
 using sema::QualType;
 
 using enum ValueLocation;
@@ -24,7 +24,7 @@ static bool isIntType(size_t width, ir::Type const* type) {
 
 /// MARK: getValue() Implementation
 
-Value LoweringContext::getValue(Expression const* expr) {
+Value LoweringContext::getValue(ast::Expression const* expr) {
     SC_ASSERT(expr, "");
     /// Returning constants here if possible breaks when we take the address of
     /// a constant. A solution that also solves the array size problem could be
@@ -57,24 +57,25 @@ Value LoweringContext::getValue(Expression const* expr) {
                  [this](auto const& expr) { return getValueImpl(expr); });
 }
 
-Value LoweringContext::getValueImpl(Identifier const& id) {
+Value LoweringContext::getValueImpl(ast::Identifier const& id) {
     Value obj = objectMap[id.object()];
     SC_ASSERT(obj, "Undeclared identifier");
     return Value(obj.ID(), obj.get(), Register);
 }
 
-Value LoweringContext::getValueImpl(Literal const& lit) {
+Value LoweringContext::getValueImpl(ast::Literal const& lit) {
+    using enum ast::LiteralKind;
     switch (lit.kind()) {
-    case LiteralKind::Integer:
+    case Integer:
         return Value(newID(), intConstant(lit.value<APInt>()), Register);
-    case LiteralKind::Boolean:
+    case Boolean:
         return Value(newID(), intConstant(lit.value<APInt>()), Register);
-    case LiteralKind::FloatingPoint:
+    case FloatingPoint:
         return Value(newID(), floatConstant(lit.value<APFloat>()), Register);
-    case LiteralKind::This: {
+    case This: {
         return objectMap[lit.object()];
     }
-    case LiteralKind::String: {
+    case String: {
         std::string const& sourceText = lit.value<std::string>();
         size_t size = sourceText.size();
         utl::vector<u8> text(sourceText.begin(), sourceText.end());
@@ -89,14 +90,14 @@ Value LoweringContext::getValueImpl(Literal const& lit) {
         memorizeArraySize(data.ID(), size);
         return data;
     }
-    case LiteralKind::Char:
+    case Char:
         return Value(newID(), intConstant(lit.value<APInt>()), Register);
     }
 }
 
-Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
+Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
+    using enum ast::UnaryOperator;
     switch (expr.operation()) {
-        using enum UnaryOperator;
     case Increment:
         [[fallthrough]];
     case Decrement: {
@@ -151,12 +152,12 @@ Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
     }
 }
 
-Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
+Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
     auto* builtinType = dyncast<sema::BuiltinType const*>(
         sema::stripReference(expr.lhs()->type()).get());
 
+    using enum ast::BinaryOperator;
     switch (expr.operation()) {
-        using enum BinaryOperator;
     case Multiplication:
         [[fallthrough]];
     case Division:
@@ -305,12 +306,12 @@ Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
         }
         return Value();
     }
-    case BinaryOperator::_count:
+    case _count:
         SC_UNREACHABLE();
     }
 }
 
-Value LoweringContext::getValueImpl(MemberAccess const& expr) {
+Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
     if (auto itr = valueMap.find(expr.member()->entity());
         itr != valueMap.end())
     {
@@ -384,18 +385,18 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
     return value;
 }
 
-Value LoweringContext::getValueImpl(DereferenceExpression const& expr) {
+Value LoweringContext::getValueImpl(ast::DereferenceExpression const& expr) {
     /// Since a dereference expression converts from `*T` to `&T`, this is a
     /// no-op. The actual dereferencing happens in the conversion nodes.
     return getValue(expr.referred());
 }
 
-Value LoweringContext::getValueImpl(AddressOfExpression const& expr) {
+Value LoweringContext::getValueImpl(ast::AddressOfExpression const& expr) {
     /// See `getValueImpl(DereferenceExpression)`
     return getValue(expr.referred());
 }
 
-Value LoweringContext::getValueImpl(Conditional const& condExpr) {
+Value LoweringContext::getValueImpl(ast::Conditional const& condExpr) {
     auto* cond = getValue<Register>(condExpr.condition());
     auto* thenBlock = newBlock("cond.then");
     auto* elseBlock = newBlock("cond.else");
@@ -423,7 +424,7 @@ Value LoweringContext::getValueImpl(Conditional const& condExpr) {
     return Value(newID(), result, Register);
 }
 
-Value LoweringContext::getValueImpl(FunctionCall const& call) {
+Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
     ir::Callable* function = getFunction(call.function());
     auto CC = CCMap[call.function()];
     utl::small_vector<ir::Value*> arguments;
@@ -482,7 +483,7 @@ void LoweringContext::generateArgument(PassingConvention const& PC,
     }
 }
 
-Value LoweringContext::getValueImpl(Subscript const& expr) {
+Value LoweringContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(
         stripReference(expr.callee()->type()).get());
     auto* elemType = mapType(arrayType->elementType());
@@ -506,7 +507,7 @@ Value LoweringContext::getValueImpl(Subscript const& expr) {
     }
 }
 
-Value LoweringContext::getValueImpl(SubscriptSlice const& expr) {
+Value LoweringContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(
         stripReference(expr.callee()->type()).get());
     auto* elemType = mapType(arrayType->elementType());
@@ -528,7 +529,7 @@ Value LoweringContext::getValueImpl(SubscriptSlice const& expr) {
     return result;
 }
 
-static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
+static bool evalConstant(ast::Expression const* expr, utl::vector<u8>& dest) {
     auto* val = dyncast_or_null<sema::IntValue const*>(expr->constantValue());
     if (!val) {
         return false;
@@ -542,7 +543,7 @@ static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
     return true;
 }
 
-bool LoweringContext::genStaticListData(ListExpression const& list,
+bool LoweringContext::genStaticListData(ast::ListExpression const& list,
                                         ir::Alloca* dest) {
     auto* type = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = type->elementType();
@@ -570,7 +571,7 @@ bool LoweringContext::genStaticListData(ListExpression const& list,
     return true;
 }
 
-void LoweringContext::genListDataFallback(ListExpression const& list,
+void LoweringContext::genListDataFallback(ast::ListExpression const& list,
                                           ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = mapType(arrayType->elementType());
@@ -584,7 +585,7 @@ void LoweringContext::genListDataFallback(ListExpression const& list,
     }
 }
 
-Value LoweringContext::getValueImpl(ListExpression const& list) {
+Value LoweringContext::getValueImpl(ast::ListExpression const& list) {
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
     auto* irType = mapType(semaType);
     auto* array = new ir::Alloca(ctx, irType, "list");
@@ -599,7 +600,7 @@ Value LoweringContext::getValueImpl(ListExpression const& list) {
     return value;
 }
 
-Value LoweringContext::getValueImpl(Conversion const& conv) {
+Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
     auto* expr = conv.expression();
     Value refConvResult = [&]() -> Value {
         switch (conv.conversion()->refConversion()) {
@@ -770,7 +771,7 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
     }
 }
 
-Value LoweringContext::getValueImpl(ConstructorCall const& call) {
+Value LoweringContext::getValueImpl(ast::ConstructorCall const& call) {
     using enum sema::SpecialMemberFunction;
     switch (call.kind()) {
     case New: {
@@ -800,7 +801,7 @@ Value LoweringContext::getValueImpl(ConstructorCall const& call) {
     }
 }
 
-Value LoweringContext::getValueImpl(TrivialCopyExpr const& expr) {
+Value LoweringContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
     // clang-format off
     return SC_MATCH (*expr.type()) {
         [&](sema::ObjectType const& type) {

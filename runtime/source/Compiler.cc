@@ -76,7 +76,7 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     if (iss.haveErrors()) {
         return nullptr;
     }
-    auto [ctx, mod] = ast::generateIR(*astRoot, *impl->sym, analysisResult);
+    auto [ctx, mod] = irgen::generateIR(*astRoot, *impl->sym, analysisResult);
     if (settings.optimize) {
         opt::optimize(ctx, mod, 1);
     }

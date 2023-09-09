@@ -10,7 +10,7 @@
 #include "IR/CFG/Value.h"
 #include "Sema/Fwd.h"
 
-namespace scatha::ast {
+namespace scatha::irgen {
 
 enum class ValueLocation : uint8_t { Register, Memory };
 
@@ -76,11 +76,11 @@ private:
     ValueLocation _loc = {};
 };
 
-} // namespace scatha::ast
+} // namespace scatha::irgen
 
 template <>
-struct std::hash<scatha::ast::Value> {
-    size_t operator()(scatha::ast::Value const& value) const {
+struct std::hash<scatha::irgen::Value> {
+    size_t operator()(scatha::irgen::Value const& value) const {
         return value.hashValue();
     }
 };

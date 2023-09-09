@@ -10,7 +10,7 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
-using namespace ast;
+using namespace irgen;
 
 using enum ValueLocation;
 
@@ -223,9 +223,9 @@ ir::Type const* LoweringContext::mapType(sema::QualType semaType) {
 ir::UnaryArithmeticOperation LoweringContext::mapUnaryOp(
     ast::UnaryOperator op) {
     switch (op) {
-    case UnaryOperator::BitwiseNot:
+    case ast::UnaryOperator::BitwiseNot:
         return ir::UnaryArithmeticOperation::BitwiseNot;
-    case UnaryOperator::LogicalNot:
+    case ast::UnaryOperator::LogicalNot:
         return ir::UnaryArithmeticOperation::LogicalNot;
     default:
         SC_UNREACHABLE();
@@ -234,17 +234,17 @@ ir::UnaryArithmeticOperation LoweringContext::mapUnaryOp(
 
 ir::CompareOperation LoweringContext::mapCompareOp(ast::BinaryOperator op) {
     switch (op) {
-    case BinaryOperator::Less:
+    case ast::BinaryOperator::Less:
         return ir::CompareOperation::Less;
-    case BinaryOperator::LessEq:
+    case ast::BinaryOperator::LessEq:
         return ir::CompareOperation::LessEq;
-    case BinaryOperator::Greater:
+    case ast::BinaryOperator::Greater:
         return ir::CompareOperation::Greater;
-    case BinaryOperator::GreaterEq:
+    case ast::BinaryOperator::GreaterEq:
         return ir::CompareOperation::GreaterEq;
-    case BinaryOperator::Equals:
+    case ast::BinaryOperator::Equals:
         return ir::CompareOperation::Equal;
-    case BinaryOperator::NotEquals:
+    case ast::BinaryOperator::NotEquals:
         return ir::CompareOperation::NotEqual;
     default:
         SC_UNREACHABLE("Only handle compare operations here.");
@@ -254,7 +254,7 @@ ir::CompareOperation LoweringContext::mapCompareOp(ast::BinaryOperator op) {
 ir::ArithmeticOperation LoweringContext::mapArithmeticOp(
     sema::BuiltinType const* type, ast::BinaryOperator op) {
     switch (op) {
-    case BinaryOperator::Multiplication:
+    case ast::BinaryOperator::Multiplication:
         // clang-format off
         return visit(*type, utl::overload{
             [](sema::IntType const&) {
@@ -268,7 +268,7 @@ ir::ArithmeticOperation LoweringContext::mapArithmeticOp(
             },
         }); // clang-format on
 
-    case BinaryOperator::Division:
+    case ast::BinaryOperator::Division:
         // clang-format off
         return visit(*type, utl::overload{
             [](sema::IntType const& type) {
@@ -284,12 +284,12 @@ ir::ArithmeticOperation LoweringContext::mapArithmeticOp(
             },
         }); // clang-format on
 
-    case BinaryOperator::Remainder:
+    case ast::BinaryOperator::Remainder:
         return cast<sema::IntType const*>(type)->isSigned() ?
                    ir::ArithmeticOperation::SRem :
                    ir::ArithmeticOperation::URem;
 
-    case BinaryOperator::Addition:
+    case ast::BinaryOperator::Addition:
         // clang-format off
         return visit(*type, utl::overload{
             [](sema::IntType const&) {
@@ -303,7 +303,7 @@ ir::ArithmeticOperation LoweringContext::mapArithmeticOp(
             },
         }); // clang-format on
 
-    case BinaryOperator::Subtraction:
+    case ast::BinaryOperator::Subtraction:
         // clang-format off
         return visit(*type, utl::overload{
             [](sema::IntType const&) {
@@ -317,19 +317,19 @@ ir::ArithmeticOperation LoweringContext::mapArithmeticOp(
             },
         }); // clang-format on
 
-    case BinaryOperator::LeftShift:
+    case ast::BinaryOperator::LeftShift:
         return ir::ArithmeticOperation::LShL;
 
-    case BinaryOperator::RightShift:
+    case ast::BinaryOperator::RightShift:
         return ir::ArithmeticOperation::LShR;
 
-    case BinaryOperator::BitwiseAnd:
+    case ast::BinaryOperator::BitwiseAnd:
         return ir::ArithmeticOperation::And;
 
-    case BinaryOperator::BitwiseXOr:
+    case ast::BinaryOperator::BitwiseXOr:
         return ir::ArithmeticOperation::XOr;
 
-    case BinaryOperator::BitwiseOr:
+    case ast::BinaryOperator::BitwiseOr:
         return ir::ArithmeticOperation::Or;
 
     default:
@@ -340,27 +340,28 @@ ir::ArithmeticOperation LoweringContext::mapArithmeticOp(
 ir::ArithmeticOperation LoweringContext::mapArithmeticAssignOp(
     sema::BuiltinType const* type, ast::BinaryOperator op) {
     auto nonAssign = [&] {
+        using enum ast::BinaryOperator;
         switch (op) {
-        case BinaryOperator::AddAssignment:
-            return BinaryOperator::Addition;
-        case BinaryOperator::SubAssignment:
-            return BinaryOperator::Subtraction;
-        case BinaryOperator::MulAssignment:
-            return BinaryOperator::Multiplication;
-        case BinaryOperator::DivAssignment:
-            return BinaryOperator::Division;
-        case BinaryOperator::RemAssignment:
-            return BinaryOperator::Remainder;
-        case BinaryOperator::LSAssignment:
-            return BinaryOperator::LeftShift;
-        case BinaryOperator::RSAssignment:
-            return BinaryOperator::RightShift;
-        case BinaryOperator::AndAssignment:
-            return BinaryOperator::BitwiseAnd;
-        case BinaryOperator::OrAssignment:
-            return BinaryOperator::BitwiseOr;
-        case BinaryOperator::XOrAssignment:
-            return BinaryOperator::BitwiseXOr;
+        case AddAssignment:
+            return Addition;
+        case SubAssignment:
+            return Subtraction;
+        case MulAssignment:
+            return Multiplication;
+        case DivAssignment:
+            return Division;
+        case RemAssignment:
+            return Remainder;
+        case LSAssignment:
+            return LeftShift;
+        case RSAssignment:
+            return RightShift;
+        case AndAssignment:
+            return BitwiseAnd;
+        case OrAssignment:
+            return BitwiseOr;
+        case XOrAssignment:
+            return BitwiseXOr;
         default:
             SC_UNREACHABLE("Only handle arithmetic assign operations here.");
         }

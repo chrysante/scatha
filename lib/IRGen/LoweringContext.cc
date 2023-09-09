@@ -9,10 +9,10 @@
 #include "IRGen/IRGen.h"
 
 using namespace scatha;
-using namespace ast;
+using namespace irgen;
 
-[[nodiscard]] std::pair<ir::Context, ir::Module> ast::generateIR(
-    ASTNode const& root,
+[[nodiscard]] std::pair<ir::Context, ir::Module> irgen::generateIR(
+    ast::ASTNode const& root,
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult) {
     ir::Context ctx;

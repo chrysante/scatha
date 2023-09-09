@@ -166,7 +166,7 @@ static void run(ir::Module const& mod) {
     }
 
     header("IR Module");
-    auto [ctx, mod] = ast::generateIR(*root, sym, analysisResult);
+    auto [ctx, mod] = irgen::generateIR(*root, sym, analysisResult);
     ir::print(mod);
 
     run(mod);

@@ -64,7 +64,7 @@ void playground::compile(std::string text) {
 
     subHeader();
     header("Generated IR");
-    auto [ctx, mod] = ast::generateIR(*ast, sym, analysisResult);
+    auto [ctx, mod] = irgen::generateIR(*ast, sym, analysisResult);
     ir::print(mod);
 
     header("Optimized IR");

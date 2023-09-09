@@ -13,7 +13,7 @@
 #include "IRGen/Value.h"
 #include "Sema/Fwd.h"
 
-namespace scatha::ast {
+namespace scatha::irgen {
 
 /// Description of how a value is passed to and returned from function calls.
 class PassingConvention {
@@ -72,6 +72,6 @@ void print(CallingConvention const& CC, std::ostream& str);
 /// Print \p CC to `std::cout`
 void print(CallingConvention const& CC);
 
-} // namespace scatha::ast
+} // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_CALLINGCONVENTION_H_

@@ -3,32 +3,18 @@
 
 #include <utility>
 
+#include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
+#include <scatha/IR/Fwd.h>
+#include <scatha/Sema/Fwd.h>
 
-namespace scatha::sema {
+namespace scatha::irgen {
 
-struct AnalysisResult;
-class SymbolTable;
-
-} // namespace scatha::sema
-
-namespace scatha::ir {
-
-class Module;
-class Context;
-
-} // namespace scatha::ir
-
-/// For now this is in `namespace ast`, we will change this later
-namespace scatha::ast {
-
-class ASTNode;
-
-[[nodiscard]] SCATHA_API std::pair<ir::Context, ir::Module> generateIR(
-    ASTNode const& ast,
+SCATHA_API std::pair<ir::Context, ir::Module> generateIR(
+    ast::ASTNode const& ast,
     sema::SymbolTable const& symbolTable,
-    sema::AnalysisResult const&);
+    sema::AnalysisResult const& analysisResult);
 
-} // namespace scatha::ast
+} // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_IRGEN_H_

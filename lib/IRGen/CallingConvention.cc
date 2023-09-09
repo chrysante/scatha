@@ -5,15 +5,15 @@
 #include <range/v3/view.hpp>
 
 using namespace scatha;
-using namespace ast;
+using namespace irgen;
 
-std::ostream& ast::operator<<(std::ostream& str, PassingConvention PC) {
+std::ostream& irgen::operator<<(std::ostream& str, PassingConvention PC) {
     return str << "[" << PC.location() << ", " << PC.numParams() << "]";
 }
 
-void ast::print(CallingConvention const& CC) { print(CC, std::cout); }
+void irgen::print(CallingConvention const& CC) { print(CC, std::cout); }
 
-void ast::print(CallingConvention const& CC, std::ostream& str) {
+void irgen::print(CallingConvention const& CC, std::ostream& str) {
     str << "ReturnValue: " << CC.returnValue() << std::endl;
     str << "Parameters:  " << CC.argument(0) << std::endl;
     for (auto& PC: CC.arguments() | ranges::views::drop(1)) {

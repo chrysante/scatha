@@ -12,29 +12,29 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
-using namespace ast;
+using namespace irgen;
 using sema::QualType;
 
 using enum ValueLocation;
 
-void LoweringContext::generate(ASTNode const& node) {
+void LoweringContext::generate(ast::ASTNode const& node) {
     visit(node, [this](auto const& node) { return generateImpl(node); });
 }
 
-void LoweringContext::generateImpl(TranslationUnit const& tu) {
+void LoweringContext::generateImpl(ast::TranslationUnit const& tu) {
     for (auto* decl: tu.declarations()) {
         generate(*decl);
     }
 }
 
-void LoweringContext::generateImpl(CompoundStatement const& cmpStmt) {
+void LoweringContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     for (auto* statement: cmpStmt.statements()) {
         generate(*statement);
     }
     emitDestructorCalls(cmpStmt.dtorStack());
 }
 
-void LoweringContext::generateImpl(FunctionDefinition const& def) {
+void LoweringContext::generateImpl(ast::FunctionDefinition const& def) {
     currentSemaFunction = def.function();
     currentFunction =
         cast<ir::Function*>(functionMap.find(def.function())->second);
@@ -71,7 +71,7 @@ sema::ObjectType const* stripPtrAndRef(sema::ObjectType const* type) {
 }
 
 void LoweringContext::generateParameter(
-    ParameterDeclaration const* paramDecl,
+    ast::ParameterDeclaration const* paramDecl,
     PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) {
     QualType semaType = paramDecl->type();
@@ -159,8 +159,9 @@ void LoweringContext::generateParameter(
     }
 }
 
-void LoweringContext::generateImpl(StructDefinition const& def) {
-    for (auto* stmt: def.body()->statements() | Filter<FunctionDefinition>) {
+void LoweringContext::generateImpl(ast::StructDefinition const& def) {
+    for (auto* stmt: def.body()->statements() | Filter<ast::FunctionDefinition>)
+    {
         generate(*stmt);
     }
 }
@@ -206,7 +207,7 @@ static bool varDeclNeedCopy(QualType type) {
     return type->hasTrivialLifetime() && !isa<sema::ArrayType>(*type);
 }
 
-void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
+void LoweringContext::generateImpl(ast::VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
     std::string name = std::string(varDecl.name());
     auto* initExpr = varDecl.initExpression();
@@ -247,12 +248,13 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     emitDestructorCalls(dtorStack);
 }
 
-void LoweringContext::generateImpl(ExpressionStatement const& exprStatement) {
+void LoweringContext::generateImpl(
+    ast::ExpressionStatement const& exprStatement) {
     (void)getValue(exprStatement.expression());
     emitDestructorCalls(exprStatement.dtorStack());
 }
 
-void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
+void LoweringContext::generateImpl(ast::ReturnStatement const& retDecl) {
     auto CC = CCMap[currentSemaFunction];
     if (!retDecl.expression()) {
         add<ir::Return>(ctx.voidValue());
@@ -299,7 +301,7 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
     }; // clang-format on
 }
 
-void LoweringContext::generateImpl(IfStatement const& stmt) {
+void LoweringContext::generateImpl(ast::IfStatement const& stmt) {
     auto* condition = getValue<Register>(stmt.condition());
     emitDestructorCalls(stmt.dtorStack());
     auto* thenBlock = newBlock("if.then");
@@ -317,7 +319,7 @@ void LoweringContext::generateImpl(IfStatement const& stmt) {
     add(endBlock);
 }
 
-void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
+void LoweringContext::generateImpl(ast::LoopStatement const& loopStmt) {
     switch (loopStmt.kind()) {
     case ast::LoopKind::For: {
         auto* loopHeader = newBlock("loop.header");
@@ -407,14 +409,14 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
     emitDestructorCalls(loopStmt.dtorStack());
 }
 
-void LoweringContext::generateImpl(JumpStatement const& jump) {
+void LoweringContext::generateImpl(ast::JumpStatement const& jump) {
     emitDestructorCalls(jump.dtorStack());
     auto* dest = [&] {
         auto& currentLoop = loopStack.top();
         switch (jump.kind()) {
-        case JumpStatement::Break:
+        case ast::JumpStatement::Break:
             return currentLoop.end;
-        case JumpStatement::Continue:
+        case ast::JumpStatement::Continue:
             return currentLoop.inc ? currentLoop.inc : currentLoop.header;
         }
     }();
