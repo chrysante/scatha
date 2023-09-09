@@ -22,8 +22,7 @@ using enum ValueLocation;
 
 void LoweringContext::makeDeclarations() {
     arrayViewType = ctx.anonymousStruct(
-        std::array<ir::Type const*, 2>{ ctx.ptrType(),
-                                        ctx.intType(64) });
+        std::array<ir::Type const*, 2>{ ctx.ptrType(), ctx.intType(64) });
     for (auto* type: analysisResult.structDependencyOrder) {
         declareType(type);
     }

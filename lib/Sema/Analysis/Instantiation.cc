@@ -47,8 +47,7 @@ struct InstContext {
 
     QualType analyzeTypeExpression(ast::Expression*) const;
 
-    Function* generateSLF(SpecialLifetimeFunction key,
-                          StructType& type) const;
+    Function* generateSLF(SpecialLifetimeFunction key, StructType& type) const;
 
     FunctionSignature makeLifetimeSignature(
         StructType& type, SpecialLifetimeFunction function) const;
@@ -380,8 +379,7 @@ static SLFArray getDefinedSLFs(StructType& type) {
     return result;
 }
 
-static bool computeDefaultConstructible(StructType& type,
-                                        SLFArray const& SLF) {
+static bool computeDefaultConstructible(StructType& type, SLFArray const& SLF) {
     using enum SpecialLifetimeFunction;
     using enum SpecialMemberFunction;
     /// If we have a default constructor we are clearly default constructible

@@ -231,14 +231,6 @@ struct LoweringContext {
 
     utl::small_vector<ir::Value*> mapArguments(auto&& args);
 
-    ir::Value* intConstant(APInt value);
-
-    ir::Value* intConstant(size_t value, size_t bitwidth);
-
-    ir::Value* floatConstant(APFloat value);
-
-    ir::Value* constant(ssize_t value, ir::Type const* type);
-
     /// Associate object with program values
     /// Values are stored in `objectMap`
     void memorizeObject(sema::Object const* object, Value value);

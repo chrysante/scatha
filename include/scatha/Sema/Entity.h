@@ -612,9 +612,9 @@ public:
 class SCATHA_API StructType: public ObjectType {
 public:
     explicit StructType(std::string name,
-                           Scope* parentScope,
-                           size_t size = InvalidSize,
-                           size_t align = InvalidSize):
+                        Scope* parentScope,
+                        size_t size = InvalidSize,
+                        size_t align = InvalidSize):
         ObjectType(EntityType::StructType,
                    ScopeKind::Object,
                    std::move(name),

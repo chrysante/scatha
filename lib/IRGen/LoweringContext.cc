@@ -34,8 +34,7 @@ LoweringContext::LoweringContext(sema::SymbolTable const& symbolTable,
     mod(mod),
     typeMap(ctx) {
     arrayViewType = ctx.anonymousStruct(
-        std::array<ir::Type const*, 2>{ ctx.ptrType(),
-                                        ctx.intType(64) });
+        std::array<ir::Type const*, 2>{ ctx.ptrType(), ctx.intType(64) });
 }
 
 void LoweringContext::run(ast::ASTNode const& root) {

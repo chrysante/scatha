@@ -70,11 +70,12 @@ Value LoweringContext::getValueImpl(ast::Literal const& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        return Value(intConstant(lit.value<APInt>()), Register);
+        return Value(ctx.intConstant(lit.value<APInt>()), Register);
     case Boolean:
-        return Value(intConstant(lit.value<APInt>()), Register);
-    case FloatingPoint:
-        return Value(floatConstant(lit.value<APFloat>()), Register);
+        return Value(ctx.intConstant(lit.value<APInt>()), Register);
+    case FloatingPoint: {
+        return Value(ctx.floatConstant(lit.value<APFloat>()), Register);
+    }
     case This: {
         return objectMap[lit.object()];
     }
@@ -91,7 +92,7 @@ Value LoweringContext::getValueImpl(ast::Literal const& lit) {
         return data;
     }
     case Char:
-        return Value(intConstant(lit.value<APInt>()), Register);
+        return Value(ctx.intConstant(lit.value<APInt>()), Register);
     }
 }
 
@@ -111,7 +112,7 @@ Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
                           utl::strcat(expr.operation(), ".op"));
         auto* newValue =
             add<ir::ArithmeticInst>(operandValue,
-                                    constant(1, operandType),
+                                    ctx.arithmeticConstant(1, operandType),
                                     expr.operation() == Increment ?
                                         ir::ArithmeticOperation::Add :
                                         ir::ArithmeticOperation::Sub,
@@ -135,10 +136,11 @@ Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
         auto operation = isa<sema::IntType>(expr.operand()->type().get()) ?
                              ir::ArithmeticOperation::Sub :
                              ir::ArithmeticOperation::FSub;
-        auto* newValue = add<ir::ArithmeticInst>(constant(0, operand->type()),
-                                                 operand,
-                                                 operation,
-                                                 "negated");
+        auto* newValue =
+            add<ir::ArithmeticInst>(ctx.arithmeticConstant(0, operand->type()),
+                                    operand,
+                                    operation,
+                                    "negated");
         return Value(newValue, Register);
     }
 
@@ -222,14 +224,14 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
             if (expr.operation() == LogicalAnd) {
                 return add<ir::Phi>(
                     std::array<ir::PhiMapping, 2>{
-                        ir::PhiMapping{ startBlock, intConstant(0, 1) },
+                        ir::PhiMapping{ startBlock, ctx.boolConstant(0) },
                         ir::PhiMapping{ rhsBlock, rhs } },
                     "log.and");
             }
             else {
                 return add<ir::Phi>(
                     std::array<ir::PhiMapping, 2>{
-                        ir::PhiMapping{ startBlock, intConstant(1, 1) },
+                        ir::PhiMapping{ startBlock, ctx.boolConstant(1) },
                         ir::PhiMapping{ rhsBlock, rhs } },
                     "log.or");
             }
@@ -326,8 +328,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
             return getArraySize(expr.accessed()->object());
         }
         else {
-            return Value(ctx.intConstant(arrayType->count(), 64),
-                         Register);
+            return Value(ctx.intConstant(arrayType->count(), 64), Register);
         }
     }
 
@@ -349,7 +350,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
         auto* baseType = typeMap(sema::stripReference(expr.accessed()->type()));
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
-                                                  intConstant(0, 64),
+                                                  ctx.intConstant(0, 64),
                                                   std::array{ irIndex },
                                                   "mem.acc");
         if (sema::isRef(expr.type())) {
@@ -383,7 +384,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
             auto* result =
                 builder.add<ir::GetElementPointer>(base.type(),
                                                    base.get(),
-                                                   intConstant(0, 64),
+                                                   ctx.intConstant(0, 64),
                                                    std::array{ sizeIndex },
                                                    "mem.acc.size");
             return Value(result, ctx.intType(64), Memory);
@@ -574,7 +575,7 @@ bool LoweringContext::genStaticListData(ast::ListExpression const& list,
     mod.addConstantData(std::move(constData));
     auto* memcpy = getFunction(
         symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
-    auto* size = intConstant(list.elements().size() * elemType->size(), 64);
+    auto* size = ctx.intConstant(list.elements().size() * elemType->size(), 64);
     std::array<ir::Value*, 4> args = { dest, size, source, size };
     add<ir::Call>(memcpy, args, std::string{});
     return true;
@@ -587,7 +588,7 @@ void LoweringContext::genListDataFallback(ast::ListExpression const& list,
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
         auto* gep = add<ir::GetElementPointer>(elemType,
                                                dest,
-                                               intConstant(index, 32),
+                                               ctx.intConstant(index, 32),
                                                std::initializer_list<size_t>{},
                                                "elem.ptr");
         add<ir::Store>(gep, getValue<Register>(elem));
@@ -599,7 +600,7 @@ Value LoweringContext::getValueImpl(ast::ListExpression const& list) {
     auto* irType = typeMap(semaType);
     auto* array = new ir::Alloca(ctx, irType, "list");
     allocas.push_back(array);
-    Value size(intConstant(list.children().size(), 64), Register);
+    Value size(ctx.intConstant(list.children().size(), 64), Register);
     valueMap.insert({ semaType->countProperty(), size });
     auto value = Value(array, irType, Memory);
     if (!genStaticListData(list, array)) {
@@ -661,7 +662,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                 {
                     auto* newCount =
                         add<ir::ArithmeticInst>(toRegister(count),
-                                                intConstant(8, 64),
+                                                ctx.intConstant(8, 64),
                                                 ir::ArithmeticOperation::Mul,
                                                 "reinterpret.count");
                     count = Value(newCount, Register);
@@ -669,7 +670,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                 else {
                     auto* newCount =
                         add<ir::ArithmeticInst>(toRegister(count),
-                                                intConstant(8, 64),
+                                                ctx.intConstant(8, 64),
                                                 ir::ArithmeticOperation::SDiv,
                                                 "reinterpret.count");
                     count = Value(newCount, Register);

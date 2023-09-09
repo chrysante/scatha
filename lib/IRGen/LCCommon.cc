@@ -115,24 +115,6 @@ utl::small_vector<ir::Value*> LoweringContext::mapArguments(auto&& args) {
     return result;
 }
 
-ir::Value* LoweringContext::intConstant(APInt value) {
-    return ctx.intConstant(value);
-}
-
-ir::Value* LoweringContext::intConstant(size_t value, size_t bitwidth) {
-    return intConstant(APInt(value, bitwidth));
-}
-
-ir::Value* LoweringContext::floatConstant(APFloat value) {
-    return ctx.floatConstant(value,
-                             value.precision() == APFloatPrec::Single ? 32 :
-                                                                        64);
-}
-
-ir::Value* LoweringContext::constant(ssize_t value, ir::Type const* type) {
-    return ctx.arithmeticConstant(value, type);
-}
-
 void LoweringContext::memorizeObject(sema::Object const* object, Value value) {
     bool success = tryMemorizeObject(object, value);
     SC_ASSERT(success, "Redeclaration");
@@ -156,7 +138,7 @@ void LoweringContext::memorizeArraySize(sema::Object const* object,
 
 void LoweringContext::memorizeArraySize(sema::Object const* object,
                                         size_t count) {
-    memorizeArraySize(object, Value(intConstant(count, 64), Register));
+    memorizeArraySize(object, Value(ctx.intConstant(count, 64), Register));
 }
 
 void LoweringContext::memorizeLazyArraySize(

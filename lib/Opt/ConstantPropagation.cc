@@ -209,15 +209,13 @@ bool SCCPContext::apply() {
             continue;
         }
         SC_ASSERT(isa<Instruction>(value), "We can only replace instructions");
-        size_t const bitwidth =
-            cast<ArithmeticType const*>(value->type())->bitwidth();
         // clang-format off
         Value* const newValue = std::visit(utl::overload{
             [&](APInt const& constant) -> Value* {
                 return irCtx.intConstant(constant);
             },
             [&](APFloat const& constant) -> Value* {
-                return irCtx.floatConstant(constant, bitwidth);
+                return irCtx.floatConstant(constant);
             },
             [](auto const&) -> Value* { SC_UNREACHABLE(); }
         }, latticeElement); // clang-format on

@@ -1073,8 +1073,7 @@ public:
 
     /// The struct being defined
     sema::StructType* structType() {
-        return const_cast<sema::StructType*>(
-            std::as_const(*this).structType());
+        return const_cast<sema::StructType*>(std::as_const(*this).structType());
     }
 
     /// \overload

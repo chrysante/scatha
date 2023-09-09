@@ -6,20 +6,17 @@
 using namespace scatha;
 using namespace ir;
 
-IntegralConstant::IntegralConstant(Context& context,
-                                   APInt value,
-                                   size_t bitwidth):
-    Constant(NodeType::IntegralConstant, context.intType(bitwidth)),
+IntegralConstant::IntegralConstant(Context& context, APInt value):
+    Constant(NodeType::IntegralConstant, context.intType(value.bitwidth())),
     _value(value) {}
 
 IntegralType const* IntegralConstant::type() const {
     return cast<IntegralType const*>(Value::type());
 }
 
-FloatingPointConstant::FloatingPointConstant(Context& context,
-                                             APFloat value,
-                                             size_t bitwidth):
-    Constant(NodeType::FloatingPointConstant, context.floatType(bitwidth)),
+FloatingPointConstant::FloatingPointConstant(Context& context, APFloat value):
+    Constant(NodeType::FloatingPointConstant,
+             context.floatType(value.precision())),
     _value(value) {}
 
 FloatType const* FloatingPointConstant::type() const {

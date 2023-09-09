@@ -115,11 +115,9 @@ public:
 /// Represents a (user defined) structure type.
 class SCATHA_TESTAPI StructType: public Type {
 public:
-    explicit StructType(std::string name):
-        StructType(std::move(name), {}) {}
+    explicit StructType(std::string name): StructType(std::move(name), {}) {}
 
-    explicit StructType(std::string name,
-                           std::span<Type const* const> members):
+    explicit StructType(std::string name, std::span<Type const* const> members):
         Type(std::move(name), TypeCategory::StructType, 0, 0),
         _members(members) {
         computeSizeAndAlign();

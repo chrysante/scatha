@@ -78,11 +78,17 @@ IntegralType const* Context::intType(size_t bitwidth) {
                                            impl->_intTypes);
 }
 
+IntegralType const* Context::boolType() { return intType(1); }
+
 FloatType const* Context::floatType(size_t bitwidth) {
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Other sizes not supported");
     return getArithmeticType<FloatType>(bitwidth,
                                         impl->_types,
                                         impl->_floatTypes);
+}
+
+FloatType const* Context::floatType(APFloatPrec precision) {
+    return floatType(precision.totalBitwidth());
 }
 
 StructType const* Context::anonymousStruct(
@@ -119,7 +125,7 @@ IntegralConstant* Context::intConstant(APInt value) {
     if (itr == impl->_integralConstants.end()) {
         std::tie(itr, std::ignore) = impl->_integralConstants.insert(
             { std::pair{ bitwidth, value },
-              allocate<IntegralConstant>(*this, value, bitwidth) });
+              allocate<IntegralConstant>(*this, value) });
     }
     SC_ASSERT(ucmp(itr->second->value(), value) == 0, "Value mismatch");
     return itr->second.get();
@@ -129,12 +135,17 @@ IntegralConstant* Context::intConstant(u64 value, size_t bitwidth) {
     return intConstant(APInt(value, bitwidth));
 }
 
-FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitwidth) {
+IntegralConstant* Context::boolConstant(bool value) {
+    return intConstant(value, 1);
+}
+
+FloatingPointConstant* Context::floatConstant(APFloat value) {
+    size_t const bitwidth = value.precision().totalBitwidth();
     auto itr = impl->_floatConstants.find({ bitwidth, value });
     if (itr == impl->_floatConstants.end()) {
         std::tie(itr, std::ignore) = impl->_floatConstants.insert(
             { std::pair{ bitwidth, value },
-              allocate<FloatingPointConstant>(*this, value, bitwidth) });
+              allocate<FloatingPointConstant>(*this, value) });
     }
     SC_ASSERT(itr->second->value() == value, "Value mismatch");
     return itr->second.get();
@@ -143,9 +154,9 @@ FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitwidth) {
 FloatingPointConstant* Context::floatConstant(double value, size_t bitwidth) {
     switch (bitwidth) {
     case 32:
-        return floatConstant(APFloat(value, APFloatPrec::Single), 32);
+        return floatConstant(APFloat(value, APFloatPrec::Single));
     case 64:
-        return floatConstant(APFloat(value, APFloatPrec::Double), 64);
+        return floatConstant(APFloat(value, APFloatPrec::Double));
     default:
         SC_UNREACHABLE();
     }
@@ -170,8 +181,7 @@ Constant* Context::arithmeticConstant(APInt value) {
 }
 
 Constant* Context::arithmeticConstant(APFloat value) {
-    size_t const bitwidth = value.precision() == APFloatPrec::Single ? 32 : 64;
-    return floatConstant(value, bitwidth);
+    return floatConstant(value);
 }
 
 UndefValue* Context::undef(Type const* type) {

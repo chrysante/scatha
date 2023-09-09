@@ -85,8 +85,7 @@ static CallingConvention computeCC(sema::Function const* function) {
 }
 
 static ir::Type const* makeArrayViewType(ir::Context& ctx) {
-    std::array<ir::Type const*, 2> members = { ctx.ptrType(),
-                                               ctx.intType(64) };
+    std::array<ir::Type const*, 2> members = { ctx.ptrType(), ctx.intType(64) };
     return ctx.anonymousStruct(members);
 }
 

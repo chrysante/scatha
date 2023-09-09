@@ -535,10 +535,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
                   TokenKind::GlobalIdentifier);
         auto const ptrName = eatToken();
         auto result = allocate<Load>(nullptr, type, name());
-        addValueLink(result.get(),
-                     irCtx.ptrType(),
-                     ptrName,
-                     &Load::setAddress);
+        addValueLink(result.get(), irCtx.ptrType(), ptrName, &Load::setAddress);
         return result;
     }
     case TokenKind::Store: {
@@ -1116,7 +1113,7 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
                 reportSemaIssue(token, SemanticIssue::InvalidType);
             }
             auto value = parseFloat(token, floatType);
-            return irCtx.floatConstant(value, floatType->bitwidth());
+            return irCtx.floatConstant(value);
         }
         else {
             SC_UNREACHABLE();
