@@ -28,10 +28,9 @@ public:
     explicit Value(uint32_t id,
                    ir::Value* value,
                    ir::Type const* type,
-                   ValueLocation location,
-                   sema::ValueCategory valueCat = sema::ValueCategory::LValue):
+                   ValueLocation location):
 
-        _val(value), _type(type), _id(id), _loc(location), _cat(valueCat) {}
+        _val(value), _type(type), _id(id), _loc(location) {}
 
     explicit Value(uint32_t id, ir::Value* value, ValueLocation location):
         Value(id, value, value->type(), location) {
@@ -58,30 +57,6 @@ public:
     /// \Returns `true` if this value is in memory
     bool isMemory() const { return location() == ValueLocation::Memory; }
 
-    /// The value category of this value. Only meaningful if the value is in
-    /// memory Defaults to `LValue` \Note We store this information here,
-    /// because in certain cases the memory of rvalue arguments can be reused
-    sema::ValueCategory valueCategory() const { return _cat; }
-
-    /// \Returns `valueCategory() == ValueCategory::LValue`
-    bool isLValue() const {
-        return valueCategory() == sema::ValueCategory::LValue;
-    }
-
-    /// \Returns `valueCategory() == ValueCategory::RValue`
-    bool isRValue() const {
-        return valueCategory() == sema::ValueCategory::RValue;
-    }
-
-    /// \Returns the same value but marked as lvalue to prevent further reuse
-    Value toLValue() const {
-        return Value(ID(),
-                     get(),
-                     type(),
-                     location(),
-                     sema::ValueCategory::LValue);
-    }
-
     /// The unique ID of this value
     uint32_t ID() const { return _id; }
 
@@ -92,16 +67,13 @@ public:
 
     bool operator==(Value const&) const = default;
 
-    size_t hashValue() const {
-        return utl::hash_combine(_val, _type, _loc, _cat);
-    }
+    size_t hashValue() const { return utl::hash_combine(_val, _type, _loc); }
 
 private:
     ir::Value* _val = nullptr;
     ir::Type const* _type = nullptr;
     uint32_t _id;
     ValueLocation _loc = {};
-    sema::ValueCategory _cat = {};
 };
 
 } // namespace scatha::ast

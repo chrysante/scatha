@@ -84,8 +84,7 @@ Value LoweringContext::getValueImpl(Literal const& lit) {
         auto data = Value(newID(),
                           staticData.get(),
                           staticData.get()->type(),
-                          Register,
-                          sema::ValueCategory::LValue);
+                          Register);
         mod.addConstantData(std::move(staticData));
         memorizeArraySize(data.ID(), size);
         return data;
@@ -449,8 +448,7 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
                 return Value(newID(),
                              arguments.front(),
                              mapType(call.function()->returnType()),
-                             Memory,
-                             sema::ValueCategory::RValue);
+                             Memory);
             }
         },
         [&](sema::ArrayType const&) {
@@ -503,7 +501,7 @@ Value LoweringContext::getValueImpl(Subscript const& expr) {
                                                 index,
                                                 std::initializer_list<size_t>{},
                                                 "elem.ptr");
-        return Value(newID(), addr, elemType, Register, array.valueCategory());
+        return Value(newID(), addr, elemType, Register);
     }
     }
 }
@@ -593,8 +591,7 @@ Value LoweringContext::getValueImpl(ListExpression const& list) {
     allocas.push_back(array);
     Value size(newID(), intConstant(list.children().size(), 64), Register);
     valueMap.insert({ semaType->countProperty(), size });
-    auto value =
-        Value(newID(), array, irType, Memory, sema::ValueCategory::RValue);
+    auto value = Value(newID(), array, irType, Memory);
     if (!genStaticListData(list, array)) {
         genListDataFallback(list, array);
     }
@@ -794,11 +791,7 @@ Value LoweringContext::getValueImpl(ConstructorCall const& call) {
         }
         memorizeObject(call.object(), Value(newID(), address, type, Memory));
         add<ir::Call>(function, arguments, std::string{});
-        return Value(newID(),
-                     address,
-                     type,
-                     Memory,
-                     sema::ValueCategory::RValue);
+        return Value(newID(), address, type, Memory);
     }
     case Move:
         SC_UNIMPLEMENTED();
@@ -812,7 +805,6 @@ Value LoweringContext::getValueImpl(TrivialCopyExpr const& expr) {
     return SC_MATCH (*expr.type()) {
         [&](sema::ObjectType const& type) {
             auto value = getValue(expr.argument());
-            auto* temp = storeLocal(toRegister(value));
             auto result = Value(newID(), toRegister(value), Register);
             if (auto arraySize = tryGetArraySize(value.ID())) {
                 auto newSize = Value(newID(), toRegister(*arraySize), Register);

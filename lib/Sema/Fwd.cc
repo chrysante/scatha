@@ -28,16 +28,6 @@ std::ostream& sema::operator<<(std::ostream& str, EntityCategory cat) {
     // clang-format on
 }
 
-std::ostream& sema::operator<<(std::ostream& str, ValueCategory cat) {
-    // clang-format off
-    return str << UTL_SERIALIZE_ENUM(cat, {
-        { ValueCategory::None,   "None" },
-        { ValueCategory::LValue, "LValue" },
-        { ValueCategory::RValue, "RValue" },
-    });
-    // clang-format on
-}
-
 std::string_view sema::toString(ScopeKind k) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(k, {
