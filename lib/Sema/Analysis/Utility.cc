@@ -29,7 +29,7 @@ static void convertArgsImpl(auto&& args,
                             DTorStack& dtors,
                             Context& ctx) {
     for (auto [arg, conv]: ranges::views::zip(args, conversions)) {
-        auto* converted = insertConversion(arg, conv);
+        auto* converted = insertConversion(arg, conv, ctx.symbolTable());
         /// If our argument is an lvalue of struct type  we need to call the
         /// copy constructor if there is one
         bool needCtorCall =
@@ -69,7 +69,7 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     auto structType = nonTrivialLifetimeType(type.get());
     if (!structType) {
         auto copy = allocate<ast::TrivialCopyExpr>(expr->extractFromParent());
-        copy->decorateExpr(nullptr, type);
+        copy->decorateExpr(sym.temporary(type));
         auto* result = copy.get();
         parent->setChild(index, std::move(copy));
         return result;
@@ -87,7 +87,7 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
                                        sourceRange,
                                        copyCtor,
                                        SpecialMemberFunction::New);
-    ctorCall->decorateExpr(&sym.addTemporary(structType));
+    ctorCall->decorateExpr(sym.temporary(structType));
     dtors.push(ctorCall->object());
     auto* result = ctorCall.get();
     parent->setChild(index, std::move(ctorCall));

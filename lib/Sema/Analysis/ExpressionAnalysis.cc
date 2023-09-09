@@ -38,7 +38,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
-
+    std::pair<Object*, QualType> analyzeBinaryExpr(ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* uniformFunctionCall(ast::MemberAccess&);
@@ -65,8 +65,6 @@ struct ExprContext {
     /// \Returns `true` if \p expr is a type. Otherwise submits an error and
     /// returns `false`
     bool expectType(ast::Expression const* expr);
-
-    QualType analyzeBinaryExpr(ast::BinaryExpression&);
 
     DTorStack* dtorStack;
     sema::Context& ctx;
@@ -111,19 +109,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        lit.decorateExpr(nullptr, sym.S64());
+        lit.decorateExpr(sym.temporary(sym.S64()));
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ true));
         return &lit;
 
     case Boolean:
-        lit.decorateExpr(nullptr, sym.Bool());
+        lit.decorateExpr(sym.temporary(sym.Bool()));
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return &lit;
 
     case FloatingPoint:
-        lit.decorateExpr(nullptr, sym.F64());
+        lit.decorateExpr(sym.temporary(sym.F64()));
         lit.setConstantValue(allocate<FloatValue>(lit.value<APFloat>()));
         return &lit;
 
@@ -142,12 +140,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         lit.decorateExpr(thisEntity, type);
         return &lit;
     }
-    case String:
-        lit.decorateExpr(nullptr, sym.reference(QualType::Const(sym.Str())));
+    case String: {
+        auto type = sym.reference(QualType::Const(sym.Str()));
+        lit.decorateExpr(sym.temporary(type));
         return &lit;
+    }
 
     case Char:
-        lit.decorateExpr(nullptr, sym.Byte());
+        lit.decorateExpr(sym.temporary(sym.Byte()));
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return &lit;
@@ -169,7 +169,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             return nullptr;
         }
         dereference(u.operand(), ctx);
-        u.decorateExpr(nullptr, operandBaseType);
+        u.decorateExpr(sym.temporary(operandBaseType));
         break;
     case ast::UnaryOperator::BitwiseNot:
         if (!isAny<ByteType, IntType>(operandBaseType.get())) {
@@ -177,7 +177,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             return nullptr;
         }
         dereference(u.operand(), ctx);
-        u.decorateExpr(nullptr, operandBaseType);
+        u.decorateExpr(sym.temporary(operandBaseType));
         break;
     case ast::UnaryOperator::LogicalNot:
         if (!isAny<BoolType>(operandBaseType.get())) {
@@ -185,7 +185,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             return nullptr;
         }
         dereference(u.operand(), ctx);
-        u.decorateExpr(nullptr, operandBaseType);
+        u.decorateExpr(sym.temporary(operandBaseType));
         break;
     case ast::UnaryOperator::Increment:
         [[fallthrough]];
@@ -204,7 +204,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             break;
         }
         case ast::UnaryOperatorNotation::Postfix: {
-            u.decorateExpr(nullptr, operandBaseType);
+            u.decorateExpr(sym.temporary(operandBaseType));
             break;
         }
         case ast::UnaryOperatorNotation::_count:
@@ -226,15 +226,160 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& b) {
     if (!success) {
         return nullptr;
     }
-    QualType resultType = analyzeBinaryExpr(b);
-    if (!resultType) {
+    auto [temporary, type] = analyzeBinaryExpr(b);
+    if (!temporary) {
         return nullptr;
     }
-    b.decorateExpr(nullptr, resultType);
+    b.decorateExpr(temporary, type);
     b.setConstantValue(evalBinary(b.operation(),
                                   b.lhs()->constantValue(),
                                   b.rhs()->constantValue()));
     return &b;
+}
+
+/// FIXME: Do we really need optional pointer here?
+static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
+                                                      ObjectType const* type,
+                                                      ast::BinaryOperator op) {
+    if (ast::isArithmeticAssignment(op)) {
+        if (getResultType(sym, type, ast::toNonAssignment(op)).has_value()) {
+            return sym.Void();
+        }
+        return std::nullopt;
+    }
+    switch (op) {
+        using enum ast::BinaryOperator;
+    case Multiplication:
+        [[fallthrough]];
+    case Division:
+        [[fallthrough]];
+    case Addition:
+        [[fallthrough]];
+    case Subtraction:
+        if (isAny<IntType, FloatType>(type)) {
+            return type;
+        }
+        return std::nullopt;
+
+    case Remainder:
+        if (isAny<IntType>(type)) {
+            return type;
+        }
+        return std::nullopt;
+
+    case BitwiseAnd:
+        [[fallthrough]];
+    case BitwiseXOr:
+        [[fallthrough]];
+    case BitwiseOr:
+        if (isAny<ByteType, BoolType, IntType>(type)) {
+            return type;
+        }
+        return std::nullopt;
+
+    case Less:
+        [[fallthrough]];
+    case LessEq:
+        [[fallthrough]];
+    case Greater:
+        [[fallthrough]];
+    case GreaterEq:
+        if (isAny<ByteType, IntType, FloatType>(type)) {
+            return sym.Bool();
+        }
+        return std::nullopt;
+
+    case Equals:
+        [[fallthrough]];
+    case NotEquals:
+        if (isAny<ByteType, BoolType, IntType, FloatType>(type)) {
+            return sym.Bool();
+        }
+        return std::nullopt;
+
+    case LogicalAnd:
+        [[fallthrough]];
+    case LogicalOr:
+        if (isAny<BoolType>(type)) {
+            return sym.Bool();
+        }
+        return std::nullopt;
+
+    case LeftShift:
+        [[fallthrough]];
+    case RightShift:
+        if (isAny<ByteType, IntType>(type)) {
+            return type;
+        }
+        return std::nullopt;
+
+    case Assignment:
+        return sym.Void();
+
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+std::pair<Object*, QualType> ExprContext::analyzeBinaryExpr(
+    ast::BinaryExpression& expr) {
+    /// Handle comma operator separately
+    if (expr.operation() == ast::BinaryOperator::Comma) {
+        return { expr.rhs()->object(), expr.rhs()->type() };
+    }
+
+    /// Determine common type
+    QualType commonQualifiedType =
+        sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
+    if (!commonQualifiedType) {
+        iss.push<BadOperandsForBinaryExpression>(expr,
+                                                 expr.lhs()->type(),
+                                                 expr.rhs()->type());
+        return {};
+    }
+    QualType commonType = stripQualifiers(commonQualifiedType);
+
+    auto resultType = getResultType(sym, commonType.get(), expr.operation());
+    if (!resultType) {
+        iss.push<BadOperandsForBinaryExpression>(expr,
+                                                 expr.lhs()->type(),
+                                                 expr.rhs()->type());
+        return {};
+    }
+
+    /// Handle value assignment seperately
+    if (ast::isAssignment(expr.operation())) {
+        QualType lhsType = expr.lhs()->type();
+        /// Here we only look at assignment _through_ references
+        /// That means LHS shall be an implicit reference
+        dereference(expr.lhs(), ctx);
+        if (!expr.lhs()->type().isMutable()) {
+            iss.push<BadOperandsForBinaryExpression>(expr,
+                                                     expr.lhs()->type(),
+                                                     expr.rhs()->type());
+            return {};
+        }
+        bool success = true;
+        success &= !!convertImplicitly(expr.rhs(),
+                                       stripQualifiers(lhsType),
+                                       *dtorStack,
+                                       ctx);
+        if (!success) {
+            return {};
+        }
+        return { sym.temporary(sym.Void()), sym.Void() };
+    }
+
+    bool successfullConv = true;
+    successfullConv &=
+        !!convertImplicitly(expr.lhs(), commonType, *dtorStack, ctx);
+    successfullConv &=
+        !!convertImplicitly(expr.rhs(), commonType, *dtorStack, ctx);
+
+    if (successfullConv) {
+        return { sym.temporary(*resultType), *resultType };
+    }
+    return {};
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
@@ -325,7 +470,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
             type = QualType(type.get(), mut);
         }
     }
-    ma.decorateExpr(ma.member()->entity(), type, ma.member()->entityCategory());
+    ma.decorateExpr(sym.temporary(type));
     /// Dereference the object if its a value
     if (ma.accessed()->isValue() && !isa<OverloadSet>(ma.member()->entity())) {
         dereference(ma.accessed(), ctx);
@@ -377,7 +522,7 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
                                             std::move(args),
                                             ma.sourceRange());
     QualType type = func->returnType();
-    auto* temp = &sym.addTemporary(type);
+    auto* temp = sym.temporary(type);
     call->decorateCall(temp, type, func);
     dtorStack->push(temp);
     bool const convSucc = convertExplicitly(call->argument(0),
@@ -496,7 +641,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
               "Common type should not return a type if not both types are "
               "convertible to that type");
 
-    c.decorateExpr(nullptr, commonType);
+    c.decorateExpr(sym.temporary(commonType));
     c.setConstantValue(evalConditional(c.condition()->constantValue(),
                                        c.thenExpr()->constantValue(),
                                        c.elseExpr()->constantValue()));
@@ -516,7 +661,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
     convertImplicitly(expr.argument(0), sym.S64(), *dtorStack, ctx);
     auto mutability = stripReference(expr.callee()->type()).mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
-    expr.decorateExpr(nullptr, sym.reference(elemType));
+    auto type = sym.reference(elemType);
+    expr.decorateExpr(sym.temporary(type));
     return &expr;
 }
 
@@ -530,7 +676,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     convertImplicitly(expr.upper(), sym.S64(), *dtorStack, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
     QualType arrayRefType = sym.reference(dynArrayType);
-    expr.decorateExpr(nullptr, arrayRefType);
+    expr.decorateExpr(sym.temporary(arrayRefType));
     return &expr;
 }
 
@@ -563,7 +709,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
               "For now");
     SC_ASSERT(expr.arguments().size() == 1, "For now");
     SC_ASSERT(expr.argument(0)->isType(), "For now");
-    expr.decorateExpr(nullptr, cast<ObjectType*>(expr.argument(0)->entity()));
+    auto* resultType = cast<ObjectType const*>(expr.argument(0)->entity());
+    expr.decorateExpr(sym.temporary(resultType));
     return &expr;
 }
 
@@ -665,7 +812,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
     auto* function = result.function;
     QualType type = function->returnType();
-    fc.decorateCall(&sym.addTemporary(type), type, function);
+    fc.decorateCall(sym.temporary(type), type, function);
     convertArguments(fc, result, *dtorStack, ctx);
     dtorStack->push(fc.object());
     return &fc;
@@ -680,7 +827,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         return nullptr;
     }
     if (list.elements().empty()) {
-        list.decorateExpr(nullptr);
+        list.decorateExpr(sym.temporary(nullptr));
         return nullptr;
     }
     auto* first = list.elements().front();
@@ -707,7 +854,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         }
         auto* arrayType =
             sym.arrayType(commonType.get(), list.elements().size());
-        list.decorateExpr(nullptr, arrayType);
+        list.decorateExpr(sym.temporary(arrayType));
         return &list;
     }
     case EntityCategory::Type: {
@@ -739,146 +886,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     default:
         SC_UNREACHABLE();
     }
-}
-
-static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
-                                                      ObjectType const* type,
-                                                      ast::BinaryOperator op) {
-    if (ast::isArithmeticAssignment(op)) {
-        if (getResultType(sym, type, ast::toNonAssignment(op)).has_value()) {
-            return sym.Void();
-        }
-        return std::nullopt;
-    }
-    switch (op) {
-        using enum ast::BinaryOperator;
-    case Multiplication:
-        [[fallthrough]];
-    case Division:
-        [[fallthrough]];
-    case Addition:
-        [[fallthrough]];
-    case Subtraction:
-        if (isAny<IntType, FloatType>(type)) {
-            return type;
-        }
-        return std::nullopt;
-
-    case Remainder:
-        if (isAny<IntType>(type)) {
-            return type;
-        }
-        return std::nullopt;
-
-    case BitwiseAnd:
-        [[fallthrough]];
-    case BitwiseXOr:
-        [[fallthrough]];
-    case BitwiseOr:
-        if (isAny<ByteType, BoolType, IntType>(type)) {
-            return type;
-        }
-        return std::nullopt;
-
-    case Less:
-        [[fallthrough]];
-    case LessEq:
-        [[fallthrough]];
-    case Greater:
-        [[fallthrough]];
-    case GreaterEq:
-        if (isAny<ByteType, IntType, FloatType>(type)) {
-            return sym.Bool();
-        }
-        return std::nullopt;
-
-    case Equals:
-        [[fallthrough]];
-    case NotEquals:
-        if (isAny<ByteType, BoolType, IntType, FloatType>(type)) {
-            return sym.Bool();
-        }
-        return std::nullopt;
-
-    case LogicalAnd:
-        [[fallthrough]];
-    case LogicalOr:
-        if (isAny<BoolType>(type)) {
-            return sym.Bool();
-        }
-        return std::nullopt;
-
-    case LeftShift:
-        [[fallthrough]];
-    case RightShift:
-        if (isAny<ByteType, IntType>(type)) {
-            return type;
-        }
-        return std::nullopt;
-
-    case Assignment:
-        return sym.Void();
-
-    default:
-        SC_UNREACHABLE();
-    }
-}
-
-QualType ExprContext::analyzeBinaryExpr(ast::BinaryExpression& expr) {
-    /// Handle comma operator separately
-    if (expr.operation() == ast::BinaryOperator::Comma) {
-        return expr.rhs()->type();
-    }
-
-    /// Determine common type
-    QualType commonQualifiedType =
-        sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
-    if (!commonQualifiedType) {
-        iss.push<BadOperandsForBinaryExpression>(expr,
-                                                 expr.lhs()->type(),
-                                                 expr.rhs()->type());
-        return nullptr;
-    }
-    QualType commonType = stripQualifiers(commonQualifiedType);
-
-    auto resultType = getResultType(sym, commonType.get(), expr.operation());
-    if (!resultType) {
-        iss.push<BadOperandsForBinaryExpression>(expr,
-                                                 expr.lhs()->type(),
-                                                 expr.rhs()->type());
-        return nullptr;
-    }
-
-    /// Handle value assignment seperately
-    if (ast::isAssignment(expr.operation())) {
-        QualType lhsType = expr.lhs()->type();
-        /// Here we only look at assignment _through_ references
-        /// That means LHS shall be an implicit reference
-        dereference(expr.lhs(), ctx);
-        if (!expr.lhs()->type().isMutable()) {
-            iss.push<BadOperandsForBinaryExpression>(expr,
-                                                     expr.lhs()->type(),
-                                                     expr.rhs()->type());
-            return nullptr;
-        }
-        bool success = true;
-        success &= !!convertImplicitly(expr.rhs(),
-                                       stripQualifiers(lhsType),
-                                       *dtorStack,
-                                       ctx);
-        return success ? sym.Void() : nullptr;
-    }
-
-    bool successfullConv = true;
-    successfullConv &=
-        !!convertImplicitly(expr.lhs(), commonType, *dtorStack, ctx);
-    successfullConv &=
-        !!convertImplicitly(expr.rhs(), commonType, *dtorStack, ctx);
-
-    if (successfullConv) {
-        return *resultType;
-    }
-    return nullptr;
 }
 
 Entity* ExprContext::lookup(ast::Identifier& id) {

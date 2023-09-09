@@ -316,16 +316,12 @@ public:
 
     /// Declared object
     /// This is equivalent to `cast<Object*>(entity())`
-    template <typename ObjType = sema::Object>
-    ObjType* object() {
-        return const_cast<ObjType*>(std::as_const(*this).object<ObjType>());
+    sema::Object* object() {
+        return const_cast<sema::Object*>(std::as_const(*this).object());
     }
 
     /// \overload
-    template <typename ObjType = sema::Object>
-    ObjType const* object() const {
-        return cast<ObjType const*>(entity());
-    }
+    sema::Object const* object() const;
 
     /// The type of the expression. Only valid if: `kind == ::Value`
     sema::QualType type() const {
@@ -791,16 +787,12 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Declared variable
-    template <typename V = sema::Variable>
-    V* variable() {
-        return const_cast<V*>(std::as_const(*this).variable());
+    sema::Variable* variable() {
+        return const_cast<sema::Variable*>(std::as_const(*this).variable());
     }
 
     /// \overload
-    template <typename V = sema::Variable>
-    V const* variable() const {
-        return cast<V const*>(entity());
-    }
+    sema::Variable const* variable() const;
 
     /// Type of the parameter.
     sema::QualType type() const {
@@ -1038,16 +1030,12 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// The function being defined
-    template <typename F = sema::Function>
-    F* function() {
-        return const_cast<F*>(std::as_const(*this).function());
+    sema::Function* function() {
+        return const_cast<sema::Function*>(std::as_const(*this).function());
     }
 
     /// \overload
-    template <typename F = sema::Function>
-    F const* function() const {
-        return cast<F const*>(entity());
-    }
+    sema::Function const* function() const;
 
     /// Return type of the function.
     sema::QualType returnType() const {
@@ -1084,16 +1072,13 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// The struct being defined
-    template <typename S = sema::StructureType>
-    S* structType() {
-        return const_cast<S*>(std::as_const(*this).structType());
+    sema::StructureType* structType() {
+        return const_cast<sema::StructureType*>(
+            std::as_const(*this).structType());
     }
 
     /// \overload
-    template <typename S = sema::StructureType>
-    S const* structType() const {
-        return cast<S const*>(entity());
-    }
+    sema::StructureType const* structType() const;
 };
 
 /// Concrete node representing a statement that consists of a single expression.

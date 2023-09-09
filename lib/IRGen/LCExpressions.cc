@@ -88,7 +88,7 @@ Value LoweringContext::getValueImpl(ast::Literal const& lit) {
                           staticData.get()->type(),
                           Register);
         mod.addConstantData(std::move(staticData));
-        memorizeArraySize(data.ID(), size);
+        memorizeArraySize(lit.object(), size);
         return data;
     }
     case Char:
@@ -299,10 +299,10 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
             arrayType && arrayType->isDynamic())
         {
             SC_ASSERT(expr.operation() == Assignment, "");
-            auto lhsSize = getArraySize(lhs.ID());
+            auto lhsSize = getArraySize(expr.lhs()->object());
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
-            auto* rhsSizeReg = toRegister(getArraySize(rhs.ID()));
+            auto* rhsSizeReg = toRegister(getArraySize(expr.rhs()->object()));
             add<ir::Store>(lhsSize.get(), rhsSizeReg);
         }
         return Value();
@@ -323,7 +323,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
     {
         SC_ASSERT(expr.member()->value() == "count", "What else?");
         auto value = getValue(expr.accessed());
-        return getArraySize(value.ID());
+        return getArraySize(expr.accessed()->object());
     }
 
     Value base = getValue(expr.accessed());
@@ -382,7 +382,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
         break;
     }
     }
-    memorizeArraySize(value.ID(), size);
+    memorizeArraySize(expr.object(), size);
     return value;
 }
 
@@ -435,7 +435,7 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
         arguments.push_back(makeLocal(returnType, "retval"));
     }
     for (auto [PC, arg]: ranges::views::zip(CC.arguments(), call.arguments())) {
-        generateArgument(PC, getValue(arg), arguments);
+        generateArgument(PC, getValue(arg), arg->object(), arguments);
     }
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
@@ -463,7 +463,7 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
                     add<ir::ExtractValue>(inst,
                                           std::array{ size_t{ 1 } }, "size");
                 Value value(newID(), data, Register);
-                memorizeArraySize(value.ID(), Value(newID(), size, Register));
+                memorizeArraySize(call.object(), Value(newID(), size, Register));
                 return value;
             }
             case Memory:
@@ -477,10 +477,11 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
 
 void LoweringContext::generateArgument(PassingConvention const& PC,
                                        Value value,
+                                       sema::Object const* object,
                                        utl::vector<ir::Value*>& arguments) {
     arguments.push_back(toValueLocation(PC.location(), value));
     if (PC.numParams() == 2) {
-        arguments.push_back(toRegister(getArraySize(value.ID())));
+        arguments.push_back(toRegister(getArraySize(object)));
     }
 }
 
@@ -491,7 +492,7 @@ Value LoweringContext::getValueImpl(ast::Subscript const& expr) {
     auto array = getValue(expr.callee());
     /// Right now we don't use the size but here we could at a call to an
     /// assertion function
-    [[maybe_unused]] auto size = getArraySize(array.ID());
+    [[maybe_unused]] auto size = getArraySize(expr.callee()->object());
     auto index = getValue<Register>(expr.arguments().front());
     switch (array.location()) {
     case Register:
@@ -526,7 +527,7 @@ Value LoweringContext::getValueImpl(ast::SubscriptSlice const& expr) {
                                          lower,
                                          ir::ArithmeticOperation::Sub,
                                          "slice.count");
-    memorizeArraySize(result.ID(), Value(newID(), size, Register));
+    memorizeArraySize(expr.object(), Value(newID(), size, Register));
     return result;
 }
 
@@ -597,7 +598,7 @@ Value LoweringContext::getValueImpl(ast::ListExpression const& list) {
     if (!genStaticListData(list, array)) {
         genListDataFallback(list, array);
     }
-    memorizeArraySize(value.ID(), size);
+    memorizeArraySize(list.object(), size);
     return value;
 }
 
@@ -635,6 +636,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         return refConvResult;
 
     case Array_FixedToDynamic: {
+        memorizeArraySize(conv.object(), getArraySize(expr->object()));
         return refConvResult;
     }
     case Reinterpret_Array_ToByte:
@@ -649,7 +651,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
             uint32_t const oldID = data.ID();
             data.setID(newID());
             if (fromType->isDynamic()) {
-                auto count = getArraySize(oldID);
+                auto count = getArraySize(expr->object());
                 if (conv.conversion()->objectConversion() ==
                     Reinterpret_Array_ToByte)
                 {
@@ -668,7 +670,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                 "reinterpret.count");
                     count = Value(newID(), newCount, Register);
                 }
-                memorizeArraySize(data.ID(), count);
+                memorizeArraySize(conv.object(), count);
                 return data;
             }
             size_t count = fromType->count();
@@ -682,7 +684,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
             default:
                 SC_UNREACHABLE();
             }
-            memorizeArraySize(data.ID(), count);
+            memorizeArraySize(conv.object(), count);
             return data;
         }
         SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
@@ -789,7 +791,7 @@ Value LoweringContext::getValueImpl(ast::ConstructorCall const& call) {
             ranges::views::zip(CC.arguments() | ranges::views::drop(1),
                                call.arguments());
         for (auto [PC, arg]: PCsAndArgs) {
-            generateArgument(PC, getValue(arg), arguments);
+            generateArgument(PC, getValue(arg), arg->object(), arguments);
         }
         memorizeObject(call.object(), Value(newID(), address, type, Memory));
         add<ir::Call>(function, arguments, std::string{});
@@ -808,9 +810,9 @@ Value LoweringContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
         [&](sema::ObjectType const& type) {
             auto value = getValue(expr.argument());
             auto result = Value(newID(), toRegister(value), Register);
-            if (auto arraySize = tryGetArraySize(value.ID())) {
+            if (auto arraySize = tryGetArraySize(expr.argument()->object())) {
                 auto newSize = Value(newID(), toRegister(*arraySize), Register);
-                memorizeArraySize(result.ID(), newSize);
+                memorizeArraySize(expr.object(), newSize);
             }
             return result;
         },

@@ -138,23 +138,28 @@ void LoweringContext::memorizeObject(sema::Object const* object, Value value) {
     SC_ASSERT(success, "Redeclaration");
 }
 
-void LoweringContext::memorizeArraySize(uint32_t ID, Value size) {
-    bool success = arraySizeMap.insert({ ID, size }).second;
+void LoweringContext::memorizeArraySize(sema::Object const* object,
+                                        Value size) {
+    SC_ASSERT(object, "Must not be null");
+    auto [itr, success] = arraySizeMap.insert({ object, size });
     SC_ASSERT(success, "ID already present");
 }
 
-void LoweringContext::memorizeArraySize(uint32_t ID, size_t count) {
-    memorizeArraySize(ID, Value(newID(), intConstant(count, 64), Register));
+void LoweringContext::memorizeArraySize(sema::Object const* object,
+                                        size_t count) {
+    memorizeArraySize(object, Value(newID(), intConstant(count, 64), Register));
 }
 
-Value LoweringContext::getArraySize(uint32_t ID) const {
-    auto result = tryGetArraySize(ID);
+Value LoweringContext::getArraySize(sema::Object const* object) const {
+    SC_ASSERT(object, "");
+    auto result = tryGetArraySize(object);
     SC_ASSERT(result, "Not found");
     return *result;
 }
 
-std::optional<Value> LoweringContext::tryGetArraySize(uint32_t ID) const {
-    auto itr = arraySizeMap.find(ID);
+std::optional<Value> LoweringContext::tryGetArraySize(
+    sema::Object const* object) const {
+    auto itr = arraySizeMap.find(object);
     if (itr == arraySizeMap.end()) {
         return std::nullopt;
     }

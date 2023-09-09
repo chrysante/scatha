@@ -45,7 +45,7 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
                                                    sourceRange,
                                                    result.function,
                                                    SpecialMemberFunction::New);
-    ctorCall->decorateExpr(&ctx.symbolTable().addTemporary(structType));
+    ctorCall->decorateExpr(ctx.symbolTable().temporary(structType));
     convertArguments(*ctorCall, result, dtors, ctx);
     return ctorCall;
 }

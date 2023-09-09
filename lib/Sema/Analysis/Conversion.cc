@@ -546,7 +546,7 @@ static ast::Expression* convertImpl(ConversionKind kind,
         ctx.issueHandler().push<BadTypeConversion>(*expr, to);
         return nullptr;
     }
-    auto* result = insertConversion(expr, *conversion);
+    auto* result = insertConversion(expr, *conversion, ctx.symbolTable());
     if (!invokeCopyCtor) {
         return result;
     }
@@ -730,8 +730,18 @@ QualType sema::commonType(SymbolTable& sym,
                            }) | ToSmallVector<>);
 }
 
+static Entity* getConvertedEntity(Entity* original,
+                                  Conversion const& conv,
+                                  SymbolTable& sym) {
+    if (conv.objectConversion() == ObjectTypeConversion::None) {
+        return original;
+    }
+    return sym.temporary(conv.targetType());
+}
+
 ast::Expression* sema::insertConversion(ast::Expression* expr,
-                                        Conversion const& conv) {
+                                        Conversion const& conv,
+                                        SymbolTable& sym) {
     SC_ASSERT(expr->parent(),
               "Can't insert a conversion if node has no parent");
     if (conv.isNoop()) {
@@ -744,7 +754,8 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
                                            std::make_unique<Conversion>(conv));
     auto* result = owner.get();
     parent->setChild(indexInParent, std::move(owner));
-    result->decorateExpr(expr->entity(), targetType);
+    auto* entity = getConvertedEntity(expr->entity(), conv, sym);
+    result->decorateExpr(entity, targetType);
     result->setConstantValue(
         evalConversion(result->conversion(),
                        result->expression()->constantValue()));

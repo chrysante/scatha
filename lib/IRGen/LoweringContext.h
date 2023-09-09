@@ -40,7 +40,7 @@ struct LoweringContext {
     /// Maps variables to IR values in stack memory
     utl::hashmap<sema::Object const*, Value> objectMap;
     /// Maps array IDs to their respective sizes
-    utl::hashmap<uint32_t, Value> arraySizeMap;
+    utl::hashmap<sema::Object const*, Value> arraySizeMap;
 
     /// Maps variables to SSA values
     /// Right now this map exists solely to map the `.count` member variable to
@@ -154,6 +154,7 @@ struct LoweringContext {
 
     void generateArgument(PassingConvention const& PC,
                           Value arg,
+                          sema::Object const* object,
                           utl::vector<ir::Value*>& outArgs);
 
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
@@ -165,15 +166,12 @@ struct LoweringContext {
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
     void generateArraySizeImpl(ast::VarDeclBase const* varDecl,
-                               uint32_t varID,
                                utl::function_view<ir::Value*()> sizeCallback);
 
     void generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
-                                  uint32_t varID,
-                                  uint32_t initID);
+                                  sema::Object const* initObject);
 
     void generateParamArraySize(ast::VarDeclBase const* varDecl,
-                                uint32_t varID,
                                 ir::Parameter* param);
 
     /// # Utils
@@ -246,16 +244,16 @@ struct LoweringContext {
     void memorizeObject(sema::Object const* object, Value value);
 
     /// Associate array IDs with their size
-    void memorizeArraySize(uint32_t ID, Value size);
+    void memorizeArraySize(sema::Object const*, Value size);
 
     /// \overload
-    void memorizeArraySize(uint32_t ID, size_t size);
+    void memorizeArraySize(sema::Object const*, size_t size);
 
     /// Retrieve stored array size
-    Value getArraySize(uint32_t ID) const;
+    Value getArraySize(sema::Object const*) const;
 
     ///
-    std::optional<Value> tryGetArraySize(uint32_t ID) const;
+    std::optional<Value> tryGetArraySize(sema::Object const*) const;
 };
 
 } // namespace scatha::irgen

@@ -164,11 +164,12 @@ SCATHA_TESTAPI QualType
     commonType(SymbolTable& symbolTable,
                std::span<ast::Expression const* const> expressions);
 
-/// Inserts an AST conversion node into the position of \p expr and makes \p
-/// expr a child of the new node. \Returns a pointer to the added conversion
-/// node
+/// Inserts an AST conversion node into the position of \p expr and makes
+/// \p expr a child of the new node.
+/// \Returns a pointer to the added conversion node
 SCATHA_TESTAPI ast::Expression* insertConversion(ast::Expression* expr,
-                                                 sema::Conversion const& conv);
+                                                 sema::Conversion const& conv,
+                                                 SymbolTable& sym);
 
 } // namespace scatha::sema
 

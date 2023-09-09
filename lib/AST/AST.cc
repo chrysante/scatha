@@ -48,6 +48,10 @@ size_t ASTNode::indexOf(ASTNode const* child) const {
     return utl::narrow_cast<size_t>(itr - _children.begin());
 }
 
+sema::Object const* Expression::object() const {
+    return cast<sema::Object const*>(entity());
+}
+
 sema::QualType Expression::typeOrTypeEntity() const {
     return isValue() ? type() : cast<sema::ObjectType const*>(entity());
 }
@@ -107,4 +111,16 @@ sema::QualType Conversion::targetType() const {
 
 sema::ObjectType const* ConstructorCall::constructedType() const {
     return cast<sema::ObjectType const*>(function()->parent());
+}
+
+sema::Variable const* VarDeclBase::variable() const {
+    return cast<sema::Variable const*>(entity());
+}
+
+sema::Function const* FunctionDefinition::function() const {
+    return cast<sema::Function const*>(entity());
+}
+
+sema::StructureType const* StructDefinition::structType() const {
+    return cast<sema::StructureType const*>(entity());
 }

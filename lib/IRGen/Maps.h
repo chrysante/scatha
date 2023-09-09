@@ -11,6 +11,12 @@
 
 namespace scatha::irgen {
 
+///
+class ValueMap {
+public:
+private:
+};
+
 /// Maps Sema types to IR types
 class TypeMap {
 public:

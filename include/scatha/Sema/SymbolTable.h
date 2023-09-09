@@ -112,7 +112,7 @@ public:
     Property& addProperty(PropertyKind kind, QualType type);
 
     /// Creates a new unique temporary object of type \p type
-    Temporary& addTemporary(QualType type);
+    Temporary* temporary(QualType type);
 
     /// Declares an anonymous scope within the current scope.
     Scope& addAnonymousScope();

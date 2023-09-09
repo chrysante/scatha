@@ -256,10 +256,10 @@ Property& SymbolTable::addProperty(PropertyKind kind, QualType type) {
     return *prop;
 }
 
-Temporary& SymbolTable::addTemporary(QualType type) {
+Temporary* SymbolTable::temporary(QualType type) {
     auto* temp =
         impl->addEntity<Temporary>(impl->temporaryID++, &currentScope(), type);
-    return *temp;
+    return temp;
 }
 
 Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(
