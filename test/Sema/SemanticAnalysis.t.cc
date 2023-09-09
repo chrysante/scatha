@@ -75,6 +75,8 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
     auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
     auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpression());
+    CHECK(nestedvarDeclInit->type().get() ==
+          sym.reference(QualType::Const(sym.Str())));
     auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
     CHECK(xDecl->type().get() == sym.S64());
     auto* intLit = cast<ast::Literal*>(xDecl->initExpression());
