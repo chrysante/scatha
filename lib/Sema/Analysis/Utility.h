@@ -16,7 +16,16 @@ ast::Statement* parentStatement(ast::ASTNode* node);
 
 /// Insert the conversions necessary to make the call to the function selected
 /// by overload resolution
-SCATHA_TESTAPI void convertArguments(ast::CallLike& fc,
+SCATHA_TESTAPI void convertArguments(ast::FunctionCall& fc,
+                                     OverloadResolutionResult const& orResult,
+                                     DTorStack& dtors,
+                                     Context& ctx);
+
+/// \overload for constructors
+/// Constructors need certain care because the object argument is part of the
+/// overload resolution result, but is not part of the arguments so it needs to
+/// be dropped from the OR result
+SCATHA_TESTAPI void convertArguments(ast::ConstructorCall& cc,
                                      OverloadResolutionResult const& orResult,
                                      DTorStack& dtors,
                                      Context& ctx);

@@ -24,22 +24,38 @@ ast::Statement* sema::parentStatement(ast::ASTNode* node) {
     }
 }
 
-void sema::convertArguments(ast::CallLike& fc,
+static void convertArgsImpl(auto&& args,
+                            auto&& conversions,
+                            DTorStack& dtors,
+                            Context& ctx) {
+    for (auto [arg, conv]: ranges::views::zip(args, conversions)) {
+        auto* converted = insertConversion(arg, conv);
+        /// If our argument is an lvalue of struct type  we need to call the
+        /// copy constructor if there is one
+        bool needCtorCall =
+            conv.objectConversion() == ObjectTypeConversion::None &&
+            converted->isRValueNEW() && arg->isLValueNEW();
+        if (needCtorCall) {
+            copyValue(converted, dtors, ctx);
+        }
+    }
+}
+
+void sema::convertArguments(ast::FunctionCall& fc,
                             OverloadResolutionResult const& orResult,
                             DTorStack& dtors,
                             Context& ctx) {
-    for (auto [index, _arg, conv]: ranges::views::zip(ranges::views::iota(0),
-                                                      fc.arguments(),
-                                                      orResult.conversions))
-    {
-        auto* arg = insertConversion(_arg, conv);
-        /// If our argument is an lvalue of struct type  we need to call the
-        /// copy constructor if there is one
-        if (!arg->isLValueNEW()) {
-            continue;
-        }
-        copyValue(arg, dtors, ctx);
-    }
+    convertArgsImpl(fc.arguments(), orResult.conversions, dtors, ctx);
+}
+
+void sema::convertArguments(ast::ConstructorCall& cc,
+                            OverloadResolutionResult const& orResult,
+                            DTorStack& dtors,
+                            Context& ctx) {
+    convertArgsImpl(cc.arguments(),
+                    orResult.conversions | ranges::views::drop(1),
+                    dtors,
+                    ctx);
 }
 
 ast::Expression* sema::copyValue(ast::Expression* expr,

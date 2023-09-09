@@ -76,5 +76,43 @@ TEST_CASE("Constructors", "[end-to-end][member-access]") {
             public fn main() {
                 for x = X(1); x.value <= 3; ++x.value {}
             })");
+        test::checkPrints("+0+1-1-0", CommonDefs + R"(
+            fn takeCopy(value: X) {}
+            public fn main() {
+                var x = X();
+                takeCopy(x);
+            })");
+        test::checkPrints("+0+1-1-0", CommonDefs + R"(
+            fn makeCopy(value: &X) -> X { return value; }
+            public fn main() {
+                var x = X();
+                makeCopy(x);
+            })");
+        test::checkPrints("+0-0", CommonDefs + R"(
+            fn takeRef(value: &X) {}
+            public fn main() {
+                var x = X();
+                takeRef(x);
+            })");
+        /// The caller is responsible for destroying by-value arguments, so the
+        /// argument is destroyed after the return value
+        test::checkPrints("+0+1+2-2-1-0", CommonDefs + R"(
+            fn passCopy(value: X) -> X { return value; }
+            public fn main() {
+                var x = X();
+                passCopy(x);
+            })");
+        /// We store the return value in a variable so it is destroyed at scope
+        /// exit
+        test::checkPrints("+0+1+2-1-2-0", CommonDefs + R"(
+            fn passCopy(value: X) -> X { return value; }
+            public fn main() {
+                var x = X();
+                let y = passCopy(x);
+            })");
+        test::checkPrints("+0+1+2-2-1-0", CommonDefs + R"(
+            public fn main() {
+                X(X(X()));
+            })");
     }
 }
