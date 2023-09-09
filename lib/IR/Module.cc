@@ -31,7 +31,7 @@ ExtFunction* Module::builtinFunction(svm::Builtin builtin) {
     return extFunction(svm::BuiltinFunctionSlot, static_cast<size_t>(builtin));
 }
 
-void Module::addStructure(UniquePtr<StructureType> structure) {
+void Module::addStructure(UniquePtr<StructType> structure) {
     structs.push_back(std::move(structure));
 }
 

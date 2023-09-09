@@ -9,7 +9,7 @@ using namespace ir;
 IntegralConstant::IntegralConstant(Context& context,
                                    APInt value,
                                    size_t bitwidth):
-    Constant(NodeType::IntegralConstant, context.integralType(bitwidth)),
+    Constant(NodeType::IntegralConstant, context.intType(bitwidth)),
     _value(value) {}
 
 IntegralType const* IntegralConstant::type() const {
@@ -30,6 +30,6 @@ ConstantData::ConstantData(ir::Context& ctx,
                            Type const* dataType,
                            utl::vector<uint8_t> data,
                            std::string name):
-    Constant(NodeType::ConstantData, ctx.pointerType(), std::move(name)),
+    Constant(NodeType::ConstantData, ctx.ptrType(), std::move(name)),
     _dataType(dataType),
     _data(std::move(data)) {}

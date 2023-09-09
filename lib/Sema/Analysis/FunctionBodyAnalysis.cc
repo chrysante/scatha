@@ -180,7 +180,7 @@ void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
 }
 
 static void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
-    auto* structType = dyncast<StructureType const*>(expr->type().get());
+    auto* structType = dyncast<StructType const*>(expr->type().get());
     if (!structType) {
         return;
     }

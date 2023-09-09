@@ -19,9 +19,9 @@ using namespace irgen;
 using enum ValueLocation;
 using sema::QualType;
 
-std::pair<UniquePtr<ir::StructureType>, StructMetaData> irgen::generateType(
-    ir::Context& ctx, TypeMap& typeMap, sema::StructureType const* semaType) {
-    auto irType = allocate<ir::StructureType>(semaType->mangledName());
+std::pair<UniquePtr<ir::StructType>, StructMetaData> irgen::generateType(
+    ir::Context& ctx, TypeMap& typeMap, sema::StructType const* semaType) {
+    auto irType = allocate<ir::StructType>(semaType->mangledName());
     StructMetaData metaData;
     size_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
@@ -34,7 +34,7 @@ std::pair<UniquePtr<ir::StructureType>, StructMetaData> irgen::generateType(
         }
         SC_ASSERT(isa<sema::PointerType>(*memType),
                   "Can't have dynamic arrays in structs");
-        irType->addMember(ctx.integralType(64));
+        irType->addMember(ctx.intType(64));
         /// We simply increment the index without adding anything to the map
         /// because `getValueImpl(MemberAccess)` will know what to do
         ++irIndex;
@@ -85,9 +85,9 @@ static CallingConvention computeCC(sema::Function const* function) {
 }
 
 static ir::Type const* makeArrayViewType(ir::Context& ctx) {
-    std::array<ir::Type const*, 2> members = { ctx.pointerType(),
-                                               ctx.integralType(64) };
-    return ctx.anonymousStructure(members);
+    std::array<ir::Type const*, 2> members = { ctx.ptrType(),
+                                               ctx.intType(64) };
+    return ctx.anonymousStruct(members);
 }
 
 std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
@@ -113,7 +113,7 @@ std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
 
     case Memory:
         irReturnType = ctx.voidType();
-        irArgTypes.push_back(ctx.pointerType());
+        irArgTypes.push_back(ctx.ptrType());
         break;
     }
     for (auto [argPC, type]:
@@ -125,7 +125,7 @@ std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
             break;
 
         case Memory: {
-            irArgTypes.push_back(ctx.pointerType());
+            irArgTypes.push_back(ctx.ptrType());
             break;
         }
         }
@@ -133,7 +133,7 @@ std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
         /// This works because the only case `argPC.numParams() == 2` is the
         /// dynamic array case.
         if (argPC.numParams() == 2) {
-            irArgTypes.push_back(ctx.integralType(64));
+            irArgTypes.push_back(ctx.intType(64));
         }
     }
 

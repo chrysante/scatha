@@ -116,7 +116,7 @@ utl::small_vector<ir::Value*> LoweringContext::mapArguments(auto&& args) {
 }
 
 ir::Value* LoweringContext::intConstant(APInt value) {
-    return ctx.integralConstant(value);
+    return ctx.intConstant(value);
 }
 
 ir::Value* LoweringContext::intConstant(size_t value, size_t bitwidth) {

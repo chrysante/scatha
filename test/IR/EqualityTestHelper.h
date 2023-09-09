@@ -17,7 +17,7 @@ struct StructureEqTester {
         return std::move(*this);
     }
 
-    void test(scatha::ir::StructureType const&) const;
+    void test(scatha::ir::StructType const&) const;
 
 private:
     std::string name;

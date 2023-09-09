@@ -7,8 +7,8 @@
 using namespace scatha;
 using namespace irgen;
 
-void TypeMap::insert(sema::StructureType const* key,
-                     ir::StructureType const* value,
+void TypeMap::insert(sema::StructType const* key,
+                     ir::StructType const* value,
                      StructMetaData metaData) {
     insertImpl(key, value);
     meta.insert({ key, std::move(metaData) });
@@ -29,7 +29,7 @@ ir::Type const* TypeMap::operator()(sema::Type const* type) const {
 }
 
 StructMetaData const& TypeMap::metaData(sema::Type const* type) const {
-    auto itr = meta.find(cast<sema::StructureType const*>(type));
+    auto itr = meta.find(cast<sema::StructType const*>(type));
     SC_ASSERT(itr != meta.end(), "Not found");
     return itr->second;
 }
@@ -46,18 +46,18 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
             return ctx->voidType();
         },
         [&](sema::BoolType const&) -> ir::Type const* {
-            return ctx->integralType(1);
+            return ctx->intType(1);
         },
         [&](sema::ByteType const&) -> ir::Type const* {
-            return ctx->integralType(8);
+            return ctx->intType(8);
         },
         [&](sema::IntType const& intType) -> ir::Type const* {
-            return ctx->integralType(intType.bitwidth());
+            return ctx->intType(intType.bitwidth());
         },
         [&](sema::FloatType const& floatType) -> ir::Type const* {
             return ctx->floatType(floatType.bitwidth());
         },
-        [&](sema::StructureType const& structType) -> ir::Type const* {
+        [&](sema::StructType const& structType) -> ir::Type const* {
             SC_UNREACHABLE("Undeclared structure type");
         },
         [&](sema::ArrayType const& arrayType) -> ir::Type const* {
@@ -65,10 +65,10 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
                                   arrayType.count());
         },
         [&](sema::PointerType const&) -> ir::Type const* {
-            return ctx->pointerType();
+            return ctx->ptrType();
         },
         [&](sema::ReferenceType const&) -> ir::Type const* {
-            return ctx->pointerType();
+            return ctx->ptrType();
         },
     }; // clang-format on
 }

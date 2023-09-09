@@ -12,7 +12,7 @@ using namespace scatha;
 using namespace test;
 using namespace test::ir;
 
-void StructureEqTester::test(scatha::ir::StructureType const& structure) const {
+void StructureEqTester::test(scatha::ir::StructType const& structure) const {
     CHECK(structure.name() == name);
     CHECK(structure.members().size() == memberTypenames.size());
     for (auto&& [memType, name]:

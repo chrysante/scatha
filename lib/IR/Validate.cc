@@ -234,24 +234,24 @@ void AssertContext::assertSpecialInvariants(Call const& call) {
 }
 
 void AssertContext::assertSpecialInvariants(Branch const& branch) {
-    CHECK(branch.condition()->type() == ctx.integralType(1),
+    CHECK(branch.condition()->type() == ctx.intType(1),
           "Condition must be type i1");
 }
 
 void AssertContext::assertSpecialInvariants(Load const& load) {
-    CHECK(load.address()->type() == ctx.pointerType(),
+    CHECK(load.address()->type() == ctx.ptrType(),
           "Address must be of pointer type");
 }
 
 void AssertContext::assertSpecialInvariants(Store const& store) {
-    CHECK(store.address()->type() == ctx.pointerType(),
+    CHECK(store.address()->type() == ctx.ptrType(),
           "Address must be of pointer type");
 }
 
 void AssertContext::assertSpecialInvariants(GetElementPointer const& gep) {
-    CHECK(gep.basePointer()->type() == ctx.pointerType(),
+    CHECK(gep.basePointer()->type() == ctx.ptrType(),
           "Base pointer must be of pointer type");
-    if (!isa<StructureType>(gep.inboundsType())) {
+    if (!isa<StructType>(gep.inboundsType())) {
         CHECK(
             gep.memberIndices().empty(),
             "We can only have member indices if we are accessing a structure");

@@ -12,7 +12,7 @@ using namespace ir;
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
     Alloca(context,
-           context.integralConstant(1, 32),
+           context.intConstant(1, 32),
            allocatedType,
            std::move(name)) {}
 
@@ -21,7 +21,7 @@ Alloca::Alloca(Context& context,
                Type const* allocatedType,
                std::string name):
     Instruction(NodeType::Alloca,
-                context.pointerType(),
+                context.ptrType(),
                 std::move(name),
                 { count },
                 { allocatedType }) {}
@@ -55,7 +55,7 @@ CompareInst::CompareInst(Context& context,
     BinaryInstruction(NodeType::CompareInst,
                       lhs,
                       rhs,
-                      context.integralType(1),
+                      context.intType(1),
                       std::move(name)),
     _mode(mode),
     _op(op) {}
@@ -67,7 +67,7 @@ static Type const* computeUAType(Context& context,
         return nullptr;
     }
     if (op == UnaryArithmeticOperation::LogicalNot) {
-        return context.integralType(1);
+        return context.intType(1);
     }
     return operand->type();
 }
@@ -204,7 +204,7 @@ static Type const* computeAccessedTypeGen(Type const* operandType,
                                           std::span<SizeT const> indices) {
     Type const* result = operandType;
     for (auto index: indices) {
-        result = cast<StructureType const*>(result)->memberAt(index);
+        result = cast<StructType const*>(result)->memberAt(index);
     }
     return result;
 }
@@ -216,7 +216,7 @@ GetElementPointer::GetElementPointer(Context& context,
                                      std::span<size_t const> memberIndices,
                                      std::string name):
     Instruction(NodeType::GetElementPointer,
-                context.pointerType(),
+                context.ptrType(),
                 std::move(name),
                 { basePointer, arrayIndex },
                 { inboundsType }),

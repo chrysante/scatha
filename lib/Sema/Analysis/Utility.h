@@ -40,9 +40,9 @@ SCATHA_TESTAPI ast::Expression* copyValue(ast::Expression* expr,
                                           DTorStack& dtors,
                                           Context& ctx);
 
-/// \returns \p type downcast to `StructureType`, if \p type is a struct type
+/// \returns \p type downcast to `StructType`, if \p type is a struct type
 /// with non-trivial lifetime Otherwise returns `nullptr`
-StructureType const* nonTrivialLifetimeType(ObjectType const* type);
+StructType const* nonTrivialLifetimeType(ObjectType const* type);
 
 } // namespace scatha::sema
 

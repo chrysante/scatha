@@ -1072,13 +1072,13 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// The struct being defined
-    sema::StructureType* structType() {
-        return const_cast<sema::StructureType*>(
+    sema::StructType* structType() {
+        return const_cast<sema::StructType*>(
             std::as_const(*this).structType());
     }
 
     /// \overload
-    sema::StructureType const* structType() const;
+    sema::StructType const* structType() const;
 };
 
 /// Concrete node representing a statement that consists of a single expression.

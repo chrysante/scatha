@@ -21,9 +21,9 @@ using sema::QualType;
 using enum ValueLocation;
 
 void LoweringContext::makeDeclarations() {
-    arrayViewType = ctx.anonymousStructure(
-        std::array<ir::Type const*, 2>{ ctx.pointerType(),
-                                        ctx.integralType(64) });
+    arrayViewType = ctx.anonymousStruct(
+        std::array<ir::Type const*, 2>{ ctx.ptrType(),
+                                        ctx.intType(64) });
     for (auto* type: analysisResult.structDependencyOrder) {
         declareType(type);
     }
@@ -34,8 +34,8 @@ void LoweringContext::makeDeclarations() {
     }
 }
 
-void LoweringContext::declareType(sema::StructureType const* structType) {
-    auto structure = allocate<ir::StructureType>(structType->mangledName());
+void LoweringContext::declareType(sema::StructType const* structType) {
+    auto structure = allocate<ir::StructType>(structType->mangledName());
     size_t irIndex = 0;
     for (auto [semaIndex, member]:
          structType->memberVariables() | ranges::views::enumerate)
@@ -49,7 +49,7 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
         }
         SC_ASSERT(isa<sema::PointerType>(*memType),
                   "Can't have dynamic arrays in structs");
-        structure->addMember(ctx.integralType(64));
+        structure->addMember(ctx.intType(64));
         /// We simply increment the index without adding anything to the map
         /// because `getValueImpl(MemberAccess)` will know what to do
         ++irIndex;
@@ -121,7 +121,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
 
     case Memory:
         irReturnType = ctx.voidType();
-        irArgTypes.push_back(ctx.pointerType());
+        irArgTypes.push_back(ctx.ptrType());
         break;
     }
     for (auto [argPC, type]:
@@ -133,7 +133,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
             break;
 
         case Memory: {
-            irArgTypes.push_back(ctx.pointerType());
+            irArgTypes.push_back(ctx.ptrType());
             break;
         }
         }
@@ -141,7 +141,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
         /// This works because the only case `argPC.numParams() == 2` is the
         /// dynamic array case.
         if (argPC.numParams() == 2) {
-            irArgTypes.push_back(ctx.integralType(64));
+            irArgTypes.push_back(ctx.intType(64));
         }
     }
 

@@ -7,7 +7,7 @@ using namespace scatha;
 using namespace sema;
 
 size_t StructDependencyGraph::add(Node node) {
-    SC_ASSERT(isa<StructureType>(node.entity) || isa<Variable>(node.entity),
+    SC_ASSERT(isa<StructType>(node.entity) || isa<Variable>(node.entity),
               "Only structs and their data members shall be in this graph");
     size_t const index = _nodes.size();
     _indices.insert({ node.entity, index });

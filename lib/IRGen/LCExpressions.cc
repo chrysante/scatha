@@ -82,7 +82,7 @@ Value LoweringContext::getValueImpl(ast::Literal const& lit) {
         std::string const& sourceText = lit.value<std::string>();
         size_t size = sourceText.size();
         utl::vector<u8> text(sourceText.begin(), sourceText.end());
-        auto* type = ctx.arrayType(ctx.integralType(8), size);
+        auto* type = ctx.arrayType(ctx.intType(8), size);
         auto staticData =
             allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
         auto data = Value(staticData.get(), staticData.get()->type(), Register);
@@ -326,7 +326,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
             return getArraySize(expr.accessed()->object());
         }
         else {
-            return Value(ctx.integralConstant(arrayType->count(), 64),
+            return Value(ctx.intConstant(arrayType->count(), 64),
                          Register);
         }
     }
@@ -336,7 +336,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
 
     Value value;
     size_t const irIndex = structIndexMap[{
-        cast<sema::StructureType const*>(expr.accessed()->type().get()),
+        cast<sema::StructType const*>(expr.accessed()->type().get()),
         var->index() }];
     switch (base.location()) {
     case Register: {
@@ -386,7 +386,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
                                                    intConstant(0, 64),
                                                    std::array{ sizeIndex },
                                                    "mem.acc.size");
-            return Value(result, ctx.integralType(64), Memory);
+            return Value(result, ctx.intType(64), Memory);
         }
         }
     });

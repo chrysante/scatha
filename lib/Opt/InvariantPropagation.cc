@@ -321,13 +321,13 @@ void IPContext::propagate(BasicBlock* BB) {
             addInvariant(A,
                          condition,
                          { Unsigned, Equal },
-                         ctx.integralConstant(true, 1));
+                         ctx.intConstant(true, 1));
         }
         if (B->hasSinglePredecessor()) {
             addInvariant(B,
                          condition,
                          { Unsigned, Equal },
-                         ctx.integralConstant(false, 1));
+                         ctx.intConstant(false, 1));
         }
         if (auto* cmp = dyncast<CompareInst*>(condition)) {
             auto* a = cmp->operandAt(0);

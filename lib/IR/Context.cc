@@ -34,7 +34,7 @@ struct Context::Impl {
     utl::hashmap<uint32_t, IntegralType const*> _intTypes;
     utl::hashmap<uint32_t, FloatType const*> _floatTypes;
     utl::hashmap<StructKey,
-                 StructureType const*,
+                 StructType const*,
                  internal::StructHash,
                  internal::StructEqual>
         _anonymousStructs;
@@ -58,7 +58,7 @@ Context::~Context() = default;
 
 VoidType const* Context::voidType() { return impl->_voidType; }
 
-PointerType const* Context::pointerType() { return impl->_ptrType; }
+PointerType const* Context::ptrType() { return impl->_ptrType; }
 
 template <typename A>
 static auto* getArithmeticType(size_t bitwidth, auto& types, auto& map) {
@@ -72,7 +72,7 @@ static auto* getArithmeticType(size_t bitwidth, auto& types, auto& map) {
     return itr->second;
 }
 
-IntegralType const* Context::integralType(size_t bitwidth) {
+IntegralType const* Context::intType(size_t bitwidth) {
     return getArithmeticType<IntegralType>(bitwidth,
                                            impl->_types,
                                            impl->_intTypes);
@@ -85,13 +85,13 @@ FloatType const* Context::floatType(size_t bitwidth) {
                                         impl->_floatTypes);
 }
 
-StructureType const* Context::anonymousStructure(
+StructType const* Context::anonymousStruct(
     std::span<Type const* const> members) {
     auto itr = impl->_anonymousStructs.find(members);
     if (itr != impl->_anonymousStructs.end()) {
         return itr->second;
     }
-    auto type = allocate<StructureType>(std::string{});
+    auto type = allocate<StructType>(std::string{});
     for (auto* member: members) {
         type->addMember(member);
     }
@@ -113,7 +113,7 @@ ArrayType const* Context::arrayType(Type const* elementType, size_t count) {
     return itr->second;
 }
 
-IntegralConstant* Context::integralConstant(APInt value) {
+IntegralConstant* Context::intConstant(APInt value) {
     size_t const bitwidth = value.bitwidth();
     auto itr = impl->_integralConstants.find({ bitwidth, value });
     if (itr == impl->_integralConstants.end()) {
@@ -125,8 +125,8 @@ IntegralConstant* Context::integralConstant(APInt value) {
     return itr->second.get();
 }
 
-IntegralConstant* Context::integralConstant(u64 value, size_t bitwidth) {
-    return integralConstant(APInt(value, bitwidth));
+IntegralConstant* Context::intConstant(u64 value, size_t bitwidth) {
+    return intConstant(APInt(value, bitwidth));
 }
 
 FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitwidth) {
@@ -155,7 +155,7 @@ Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
     // clang-format off
     return visit(*type, utl::overload{
         [&](IntegralType const& type) {
-            return integralConstant(static_cast<uint64_t>(value),
+            return intConstant(static_cast<uint64_t>(value),
                                     type.bitwidth());
         },
         [&](FloatType const& type) {
@@ -166,7 +166,7 @@ Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
 }
 
 Constant* Context::arithmeticConstant(APInt value) {
-    return integralConstant(value);
+    return intConstant(value);
 }
 
 Constant* Context::arithmeticConstant(APFloat value) {

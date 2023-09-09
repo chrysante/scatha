@@ -122,7 +122,7 @@ SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
 
 SymbolTable::~SymbolTable() = default;
 
-Expected<StructureType&, SemanticIssue*> SymbolTable::declareStructureType(
+Expected<StructType&, SemanticIssue*> SymbolTable::declareStructureType(
     std::string name) {
     using enum InvalidDeclaration::Reason;
     if (isKeyword(name)) {
@@ -133,7 +133,7 @@ Expected<StructureType&, SemanticIssue*> SymbolTable::declareStructureType(
     if (Entity* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto* type = impl->addEntity<StructureType>(name, &currentScope());
+    auto* type = impl->addEntity<StructType>(name, &currentScope());
     currentScope().add(type);
     return *type;
 }

@@ -550,7 +550,7 @@ static ast::Expression* convertImpl(ConversionKind kind,
     if (!invokeCopyCtor) {
         return result;
     }
-    auto* structType = dyncast<StructureType const*>(to.get());
+    auto* structType = dyncast<StructType const*>(to.get());
     if (!structType) {
         return result;
     }

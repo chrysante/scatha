@@ -550,7 +550,7 @@ static std::pair<ir::Type const*, size_t> computeInnerTypeAndByteOffset(
     ir::Type const* type, std::span<uint16_t const> indices) {
     size_t byteOffset = 0;
     for (size_t index: indices) {
-        auto* sType = cast<ir::StructureType const*>(type);
+        auto* sType = cast<ir::StructType const*>(type);
         byteOffset += sType->memberOffsetAt(index);
         type = sType->memberAt(index);
     }
@@ -766,7 +766,7 @@ mir::MemoryAddress CodeGenContext::computeGep(
     size_t const elemSize = accessedType->size();
     size_t innerOffset = 0;
     for (size_t index: gep->memberIndices()) {
-        auto* sType = cast<ir::StructureType const*>(accessedType);
+        auto* sType = cast<ir::StructType const*>(accessedType);
         innerOffset += sType->memberOffsetAt(index);
         accessedType = sType->memberAt(index);
     }

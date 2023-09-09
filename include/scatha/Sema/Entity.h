@@ -41,7 +41,7 @@
 /// │     │  │     ├─ ByteType
 /// │     │  │     ├─ IntType
 /// │     │  │     └─ FloatType
-/// │     │  ├─ StructureType
+/// │     │  ├─ StructType
 /// │     │  ├─ ArrayType
 /// │     │  └─ RefTypeBase
 /// │     │     ├─ PointerType
@@ -609,13 +609,13 @@ public:
 };
 
 /// Concrete class representing the type of a structure
-class SCATHA_API StructureType: public ObjectType {
+class SCATHA_API StructType: public ObjectType {
 public:
-    explicit StructureType(std::string name,
+    explicit StructType(std::string name,
                            Scope* parentScope,
                            size_t size = InvalidSize,
                            size_t align = InvalidSize):
-        ObjectType(EntityType::StructureType,
+        ObjectType(EntityType::StructType,
                    ScopeKind::Object,
                    std::move(name),
                    parentScope,

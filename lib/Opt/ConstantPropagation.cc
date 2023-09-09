@@ -214,7 +214,7 @@ bool SCCPContext::apply() {
         // clang-format off
         Value* const newValue = std::visit(utl::overload{
             [&](APInt const& constant) -> Value* {
-                return irCtx.integralConstant(constant);
+                return irCtx.intConstant(constant);
             },
             [&](APFloat const& constant) -> Value* {
                 return irCtx.floatConstant(constant, bitwidth);

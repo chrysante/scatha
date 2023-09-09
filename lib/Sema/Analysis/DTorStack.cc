@@ -11,7 +11,7 @@ using namespace sema;
 
 static std::optional<DestructorCall> makeDTorCall(Object* obj) {
     auto* type = obj->type().get();
-    auto* structType = dyncast<StructureType const*>(type);
+    auto* structType = dyncast<StructType const*>(type);
     if (!structType) {
         return std::nullopt;
     }

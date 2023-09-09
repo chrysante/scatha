@@ -20,7 +20,7 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     DTorStack& dtors,
     Context& ctx,
     SourceRange sourceRange) {
-    auto* structType = dyncast<StructureType const*>(type);
+    auto* structType = dyncast<StructType const*>(type);
     if (!structType) {
         return nullptr;
     }

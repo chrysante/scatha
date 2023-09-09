@@ -84,7 +84,7 @@ struct ParseContext {
     template <typename T>
     UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
-    UniquePtr<StructureType> parseStructure();
+    UniquePtr<StructType> parseStructure();
     UniquePtr<ConstantData> parseConstant();
     void parseConstantData(Type const* type, utl::vector<u8>& data);
 
@@ -536,7 +536,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto const ptrName = eatToken();
         auto result = allocate<Load>(nullptr, type, name());
         addValueLink(result.get(),
-                     irCtx.pointerType(),
+                     irCtx.ptrType(),
                      ptrName,
                      &Load::setAddress);
         return result;
@@ -550,7 +550,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto const valueName = eatToken();
         auto result = allocate<Store>(irCtx, nullptr, nullptr);
         addValueLink(result.get(),
-                     irCtx.pointerType(),
+                     irCtx.ptrType(),
                      addrName,
                      &Store::setAddress);
         addValueLink(result.get(), valueType, valueName, &Store::setValue);
@@ -604,7 +604,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         eatToken();
         auto condTypeName = peekToken();
         auto* condType = parseType();
-        if (condType != irCtx.integralType(1)) {
+        if (condType != irCtx.intType(1)) {
             reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
         auto condName = eatToken();
@@ -614,7 +614,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto elseName = eatToken();
         auto result = allocate<Branch>(irCtx, nullptr, nullptr, nullptr);
         addValueLink(result.get(),
-                     irCtx.integralType(1),
+                     irCtx.intType(1),
                      condName,
                      &Branch::setCondition);
         addValueLink<BasicBlock>(result.get(),
@@ -813,7 +813,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
                                                   indices,
                                                   name());
         addValueLink(result.get(),
-                     irCtx.pointerType(),
+                     irCtx.ptrType(),
                      basePtrName,
                      &GetElementPointer::setBasePtr);
         addValueLink(result.get(),
@@ -863,7 +863,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         eatToken();
         auto condTypeName = peekToken();
         auto* condType = parseType();
-        if (condType != irCtx.integralType(1)) {
+        if (condType != irCtx.intType(1)) {
             reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
         auto condName = eatToken();
@@ -875,7 +875,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto elseName = eatToken();
         auto result = allocate<Select>(nullptr, nullptr, nullptr, name());
         addValueLink(result.get(),
-                     irCtx.integralType(1),
+                     irCtx.intType(1),
                      condName,
                      &Select::setCondition);
         addValueLink(result.get(), thenType, thenName, &Select::setThenValue);
@@ -899,7 +899,7 @@ utl::small_vector<size_t> ParseContext::parseConstantIndices() {
     }
 }
 
-UniquePtr<StructureType> ParseContext::parseStructure() {
+UniquePtr<StructType> ParseContext::parseStructure() {
     if (peekToken().kind() != TokenKind::Structure) {
         return nullptr;
     }
@@ -917,7 +917,7 @@ UniquePtr<StructureType> ParseContext::parseStructure() {
         eatToken();
     }
     expect(eatToken(), TokenKind::CloseBrace);
-    auto structure = allocate<StructureType>(std::string(nameID.id()), members);
+    auto structure = allocate<StructType>(std::string(nameID.id()), members);
     return structure;
 }
 
@@ -945,7 +945,7 @@ void ParseContext::parseConstantData(Type const* type, utl::vector<u8>& data) {
     using enum SemanticIssue::Reason;
     // clang-format off
     visit(*type, utl::overload{
-        [&](StructureType const& type) { SC_UNIMPLEMENTED(); },
+        [&](StructType const& type) { SC_UNIMPLEMENTED(); },
         [&](ArrayType const& type) {
             expect(eatToken(), TokenKind::OpenBracket);
             for (size_t i = 0; i < type.count(); ++i) {
@@ -1003,7 +1003,7 @@ Type const* ParseContext::tryParseType() {
         return irCtx.voidType();
     case TokenKind::Ptr:
         eatToken();
-        return irCtx.pointerType();
+        return irCtx.ptrType();
     case TokenKind::GlobalIdentifier: {
         eatToken();
         auto structures = mod.structures();
@@ -1021,7 +1021,7 @@ Type const* ParseContext::tryParseType() {
         reportSemaIssue(token, SemanticIssue::UnexpectedID);
     case TokenKind::IntType:
         eatToken();
-        return irCtx.integralType(token.width());
+        return irCtx.intType(token.width());
     case TokenKind::FloatType:
         eatToken();
         return irCtx.floatType(token.width());
@@ -1037,7 +1037,7 @@ Type const* ParseContext::tryParseType() {
             members.push_back(type);
             if (peekToken().kind() == TokenKind::CloseBrace) {
                 eatToken();
-                return irCtx.anonymousStructure(members);
+                return irCtx.anonymousStruct(members);
             }
             expect(eatToken(), TokenKind::Comma);
         }
@@ -1104,7 +1104,7 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
                 reportSemaIssue(token, SemanticIssue::InvalidType);
             }
             auto value = parseInt(token, intType);
-            return irCtx.integralConstant(value);
+            return irCtx.intConstant(value);
         }
         else {
             SC_UNREACHABLE();

@@ -375,16 +375,16 @@ struct W {
     var n: s64;
 })");
     REQUIRE(iss.empty());
-    auto* x = sym.lookup<StructureType>("X");
+    auto* x = sym.lookup<StructType>("X");
     CHECK(x->size() == 8);
     CHECK(x->align() == 8);
-    auto* y = sym.lookup<StructureType>("Y");
+    auto* y = sym.lookup<StructType>("Y");
     CHECK(y->size() == 16);
     CHECK(y->align() == 8);
-    auto* z = sym.lookup<StructureType>("Z");
+    auto* z = sym.lookup<StructType>("Z");
     CHECK(z->size() == 7);
     CHECK(z->align() == 1);
-    auto* w = sym.lookup<StructureType>("W");
+    auto* w = sym.lookup<StructType>("W");
     CHECK(w->size() == 16);
     CHECK(w->align() == 8);
 }

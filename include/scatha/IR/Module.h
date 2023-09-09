@@ -48,7 +48,7 @@ public:
     ExtFunction* builtinFunction(svm::Builtin builtin);
 
     /// Add a structure type to this module
-    void addStructure(UniquePtr<StructureType> structure);
+    void addStructure(UniquePtr<StructType> structure);
 
     /// Add a global value to this module
     void addGlobal(UniquePtr<Value> value);
@@ -79,7 +79,7 @@ public:
     Function const& back() const;
 
 private:
-    utl::vector<UniquePtr<StructureType>> structs;
+    utl::vector<UniquePtr<StructType>> structs;
     utl::vector<UniquePtr<Value>> _globals;
     utl::vector<UniquePtr<ConstantData>> _constantData;
     utl::hashmap<std::pair<size_t, size_t>, ExtFunction*> _extFunctions;

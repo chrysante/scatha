@@ -121,6 +121,6 @@ sema::Function const* FunctionDefinition::function() const {
     return cast<sema::Function const*>(entity());
 }
 
-sema::StructureType const* StructDefinition::structType() const {
-    return cast<sema::StructureType const*>(entity());
+sema::StructType const* StructDefinition::structType() const {
+    return cast<sema::StructType const*>(entity());
 }

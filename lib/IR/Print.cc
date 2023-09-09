@@ -46,7 +46,7 @@ struct PrintCtx {
     void printImpl(InsertValue const&);
     void printImpl(Select const&);
 
-    void print(StructureType const& structure);
+    void print(StructType const& structure);
 
     void print(ConstantData const& constData);
 
@@ -157,7 +157,7 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
         }
         // clang-format off
         visit(*type, utl::overload{
-            [&](StructureType const& type) {
+            [&](StructType const& type) {
                 if (!type.name().empty()) {
                     str << tfmt::format(tfmt::Green, "@", type.name());
                     return;
@@ -398,7 +398,7 @@ void PrintCtx::printImpl(Select const& select) {
     typedName(select.elseValue());
 }
 
-void PrintCtx::print(StructureType const& structure) {
+void PrintCtx::print(StructType const& structure) {
     str << formatKeyword("struct") << " " << formatType(&structure) << " {\n";
     indent.increase();
     for (bool first = true; auto const* type: structure.members()) {

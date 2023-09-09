@@ -770,7 +770,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion node
     if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
-        if (auto* structType = dyncast<StructureType const*>(targetType)) {
+        if (auto* structType = dyncast<StructType const*>(targetType)) {
             auto args = fc.arguments() |
                         ranges::views::transform([](auto* arg) {
                             return arg->extractFromParent();

@@ -88,7 +88,7 @@ public:
     /// if it is a structure type.
     /// Incompatible with `addSingleChild()`
     void fanOut() {
-        auto* sType = dyncast<ir::StructureType const*>(type());
+        auto* sType = dyncast<ir::StructType const*>(type());
         if (!sType) {
             return;
         }
@@ -110,7 +110,7 @@ public:
     ///
     /// Incompatible with `fanOut()`
     AccessTree* addSingleChild(size_t index) {
-        auto* sType = dyncast<ir::StructureType const*>(_type);
+        auto* sType = dyncast<ir::StructType const*>(_type);
         SC_ASSERT(sType && index < sType->members().size(), "Invalid index");
         if (_children.empty()) {
             _children.resize(sType->members().size());

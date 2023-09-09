@@ -14,7 +14,7 @@ namespace scatha::sema {
 /// Creates symbol table entries for all globally visible symbols
 /// \Returns a list of all struct types of the program in topsort order, i.e. if
 /// `Y` has a member of type `X`, then `X` comes before `Y`
-SCATHA_API std::vector<StructureType const*> instantiateEntities(
+SCATHA_API std::vector<StructType const*> instantiateEntities(
     Context& context,
     StructDependencyGraph& structDependencies,
     std::span<ast::FunctionDefinition*> functions);

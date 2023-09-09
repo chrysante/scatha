@@ -23,8 +23,8 @@ public:
     explicit TypeMap(ir::Context& ctx): ctx(&ctx) {}
 
     ///
-    void insert(sema::StructureType const* key,
-                ir::StructureType const* value,
+    void insert(sema::StructType const* key,
+                ir::StructType const* value,
                 StructMetaData metaData);
 
     /// Shorthand for `(*this*)(type.get())`
@@ -43,7 +43,7 @@ private:
     ir::Context* ctx;
     /// Mutable to cache results in const getter functions
     mutable utl::hashmap<sema::Type const*, ir::Type const*> map;
-    utl::hashmap<sema::StructureType const*, StructMetaData> meta;
+    utl::hashmap<sema::StructType const*, StructMetaData> meta;
 };
 
 ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryOperator op);

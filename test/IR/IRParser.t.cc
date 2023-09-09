@@ -25,9 +25,9 @@ func i64 @testfn(i64) {
     REQUIRE(fnItr != mod.end());
     ir::Function& fn = *fnItr;
     CHECK(fn.name() == "testfn");
-    CHECK(fn.returnType() == ctx.integralType(64));
+    CHECK(fn.returnType() == ctx.intType(64));
     auto& firstParam = fn.parameters().front();
-    CHECK(firstParam.type() == ctx.integralType(64));
+    CHECK(firstParam.type() == ctx.intType(64));
     ir::BasicBlock& entry = fn.front();
     CHECK(entry.name() == "entry");
     ir::Return& ret = cast<ir::Return&>(entry.front());

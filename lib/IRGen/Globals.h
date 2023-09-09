@@ -15,8 +15,8 @@ struct StructMetaData;
 struct FunctionMetaData;
 
 /// Translates \p semaType to an IR structure type
-std::pair<UniquePtr<ir::StructureType>, StructMetaData> generateType(
-    ir::Context& ctx, TypeMap& typeMap, sema::StructureType const* semaType);
+std::pair<UniquePtr<ir::StructType>, StructMetaData> generateType(
+    ir::Context& ctx, TypeMap& typeMap, sema::StructType const* semaType);
 
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code

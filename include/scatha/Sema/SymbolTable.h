@@ -46,7 +46,7 @@ public:
     /// \returns Reference to declared type if no error occurs or
     /// `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
-    Expected<StructureType&, SemanticIssue*> declareStructureType(
+    Expected<StructType&, SemanticIssue*> declareStructureType(
         std::string name);
 
     /// Declares a function to the current scope without signature.

@@ -9,7 +9,7 @@ namespace scatha::sema {
 
 /// Result structure of function `sema::analyze()`
 struct AnalysisResult {
-    std::vector<StructureType const*> structDependencyOrder;
+    std::vector<StructType const*> structDependencyOrder;
 };
 
 } // namespace scatha::sema

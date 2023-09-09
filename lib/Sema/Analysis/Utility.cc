@@ -94,8 +94,8 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     return result;
 }
 
-StructureType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
-    auto structType = dyncast<StructureType const*>(type);
+StructType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
+    auto structType = dyncast<StructType const*>(type);
     if (!structType || structType->hasTrivialLifetime()) {
         return nullptr;
     }

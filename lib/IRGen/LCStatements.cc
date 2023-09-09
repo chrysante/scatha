@@ -112,7 +112,7 @@ void LoweringContext::generateParameter(
                 SC_ASSERT(!arrayType->isDynamic(),
                           "Can't pass dynamic array by value");
                 auto* dataAddress = storeLocal(irParam, name);
-                auto* sizeValue = ctx.integralConstant(arrayType->count(), 64);
+                auto* sizeValue = ctx.intConstant(arrayType->count(), 64);
                 Value data(dataAddress, irType, Memory);
                 Value size(sizeValue, Register);
                 memorizeObject(paramVar, data);

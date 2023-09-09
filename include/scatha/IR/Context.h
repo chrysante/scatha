@@ -29,28 +29,28 @@ public:
     VoidType const* voidType();
 
     /// \returns The `ptr` type
-    PointerType const* pointerType();
+    PointerType const* ptrType();
 
     /// \returns The `iN` type where `N` is \p bitwidth
-    IntegralType const* integralType(size_t bitwidth);
+    IntegralType const* intType(size_t bitwidth);
 
     /// \returns The `fN` type where `N` is \p bitwidth
     /// \param bitwidth must be either 32 or 64
     FloatType const* floatType(size_t bitwidth);
 
     /// \returns The structure type with members \p members
-    StructureType const* anonymousStructure(
+    StructType const* anonymousStruct(
         std::span<Type const* const> members);
 
     /// \returns The array type of \p elementType with \p count elements
     ArrayType const* arrayType(Type const* elementType, size_t count);
 
     /// \returns The global integral constant with value \p value
-    IntegralConstant* integralConstant(APInt value);
+    IntegralConstant* intConstant(APInt value);
 
     /// \returns The global integral constant of \p bitwidth bits with value \p
     /// value
-    IntegralConstant* integralConstant(u64 value, size_t bitwidth);
+    IntegralConstant* intConstant(u64 value, size_t bitwidth);
 
     /// \returns The global floating point constant of \p bitwidth bits with
     /// value \p value

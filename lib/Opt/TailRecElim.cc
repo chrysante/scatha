@@ -427,15 +427,15 @@ bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) const {
 Value* TREContext::identityValue(ArithmeticInst const* inst) const {
     switch (inst->operation()) {
     case ArithmeticOperation::Add:
-        return irCtx.integralConstant(APInt(0, 64));
+        return irCtx.intConstant(APInt(0, 64));
     case ArithmeticOperation::Mul:
-        return irCtx.integralConstant(APInt(1, 64));
+        return irCtx.intConstant(APInt(1, 64));
     case ArithmeticOperation::And:
-        return irCtx.integralConstant(APInt(-1, 64));
+        return irCtx.intConstant(APInt(-1, 64));
     case ArithmeticOperation::Or:
-        return irCtx.integralConstant(APInt(0, 64));
+        return irCtx.intConstant(APInt(0, 64));
     case ArithmeticOperation::XOr:
-        return irCtx.integralConstant(APInt(0, 64));
+        return irCtx.intConstant(APInt(0, 64));
     default:
         SC_UNREACHABLE();
     }

@@ -26,7 +26,7 @@ std::string FunctionType::makeName(
     return std::move(sstr).str();
 }
 
-void StructureType::computeSizeAndAlign() {
+void StructType::computeSizeAndAlign() {
     setSize(0);
     setAlign(0);
     _memberOffsets.clear();
