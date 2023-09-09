@@ -34,7 +34,7 @@ static void convertArgsImpl(auto&& args,
         /// copy constructor if there is one
         bool needCtorCall =
             conv.objectConversion() == ObjectTypeConversion::None &&
-            converted->isRValueNEW() && arg->isLValueNEW();
+            converted->isRValue() && arg->isLValue();
         if (needCtorCall) {
             copyValue(converted, dtors, ctx);
         }

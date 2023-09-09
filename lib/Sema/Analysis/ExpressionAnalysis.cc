@@ -434,7 +434,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
     auto* referred = expr.referred();
     switch (referred->entityCategory()) {
     case EntityCategory::Value: {
-        if (!referred->isLValueNEW()) {
+        if (!referred->isLValue()) {
             iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
         }

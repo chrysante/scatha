@@ -223,7 +223,7 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         /// The test for trivial lifetime is temporary. We should find a better
         /// solution but for now it works. It works because for trivial lifetime
         /// types
-        if (value.isMemory() && initExpr->isRValueNEW() &&
+        if (value.isMemory() && initExpr->isRValue() &&
             !varDeclNeedCopy(initExpr->type()))
         {
             address = value.get();

@@ -53,13 +53,13 @@ sema::QualType Expression::typeOrTypeEntity() const {
 }
 
 /// Convenience wrapper for `isa<sema::ReferenceType>(type());`
-bool Expression::isLValueNEW() const {
+bool Expression::isLValue() const {
     SC_ASSERT(isValue(), "Must be a value to be an LValue");
     return isa<sema::ReferenceType>(*type());
 }
 
 /// Convenience wrapper for `!isa<sema::ReferenceType>(type());`
-bool Expression::isRValueNEW() const {
+bool Expression::isRValue() const {
     SC_ASSERT(isValue(), "Must be a value to be an RValue");
     return !isa<sema::ReferenceType>(*type());
 }

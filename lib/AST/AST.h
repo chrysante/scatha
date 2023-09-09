@@ -343,10 +343,10 @@ public:
     }
 
     /// Convenience wrapper for `isa<sema::ReferenceType>(type());`
-    bool isLValueNEW() const;
+    bool isLValue() const;
 
     /// Convenience wrapper for `!isa<sema::ReferenceType>(type());`
-    bool isRValueNEW() const;
+    bool isRValue() const;
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Type`
     bool isType() const {
