@@ -85,20 +85,7 @@ bool opt::compareEqual(ir::Phi const* lhs,
 }
 
 void opt::replaceValue(ir::Value* oldValue, ir::Value* newValue) {
-    if (oldValue == newValue) {
-        return;
-    }
-    /// We need this funny way of traversing the user list of the old value,
-    /// because in the loop body the user is erased from the user list and
-    /// iterators are invalidated.
-    while (!oldValue->users().empty()) {
-        auto* user = *oldValue->users().begin();
-        for (auto [index, op]: ranges::views::enumerate(user->operands())) {
-            if (op == oldValue) {
-                user->setOperand(index, newValue);
-            }
-        }
-    }
+    oldValue->replaceAllUsesWith(newValue);
 }
 
 void opt::removePredecessorAndUpdatePhiNodes(

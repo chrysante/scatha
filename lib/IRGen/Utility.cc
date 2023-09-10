@@ -30,7 +30,12 @@ sema::QualType irgen::stripRefOrPtr(sema::QualType type) {
     }; // clang-format off
 }
 
-ir::Type const* irgen::makeArrayViewType(ir::Context& ctx) {
+bool irgen::isArrayAndDynamic(sema::ObjectType const* type) {
+    auto* arrayType = dyncast<sema::ArrayType const*>(type);
+    return arrayType && arrayType->isDynamic();
+}
+
+ir::StructType const* irgen::makeArrayViewType(ir::Context& ctx) {
     std::array<ir::Type const*, 2> members = { ctx.ptrType(), ctx.intType(64) };
     return ctx.anonymousStruct(members);
 }

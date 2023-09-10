@@ -60,6 +60,9 @@ public:
     /// Clear all users from this values user list and update users
     void removeAllUses();
 
+    /// Replace all uses of `this` with \p newValue
+    void replaceAllUsesWith(Value* newValue);
+
 private:
     friend class User;
 

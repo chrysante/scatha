@@ -53,11 +53,6 @@ static bool isTrivial(sema::QualType type) {
 
 static const size_t maxRegPassingSize = 16;
 
-static bool isArrayAndDynamic(sema::ObjectType const* type) {
-    auto* arrayType = dyncast<sema::ArrayType const*>(type);
-    return arrayType && arrayType->isDynamic();
-}
-
 static PassingConvention computePCImpl(sema::QualType type, bool isRetval) {
     if (auto* refType = dyncast<sema::RefTypeBase const*>(type.get())) {
         size_t argCount = isArrayAndDynamic(refType->base().get()) ? 2 : 1;

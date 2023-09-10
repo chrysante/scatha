@@ -145,14 +145,21 @@ struct FuncGenContext: FunctionBuilder {
     /// location
     ir::Value* toValueLocation(ValueLocation location, Value value);
 
-    ///
-    ir::Callable* getFunction(sema::Function const*);
+    /// Map \p semaFn to the corresponding IR function. If the function is not
+    /// declared it will be declared.
+    ir::Callable* getFunction(sema::Function const* semaFn);
 
     ///
     ir::ExtFunction* getMemcpy();
 
-    ///
-    CallingConvention const& getCC(sema::Function const*);
+    /// Emit a call to `memcpy`
+    void callMemcpy(ir::Value* dest, ir::Value* source, ir::Value* numBytes);
+
+    /// \overload for `size_t numBytes`
+    void callMemcpy(ir::Value* dest, ir::Value* source, size_t numBytes);
+
+    /// Get the calling convention of \p function
+    CallingConvention const& getCC(sema::Function const* function);
 };
 
 } // namespace
@@ -357,45 +364,42 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
         add<ir::Return>(ctx.voidValue());
         return;
     }
-    auto returnValue = getValue(retDecl.expression());
+    auto retval = getValue(retDecl.expression());
     emitDestructorCalls(retDecl.dtorStack());
-    // clang-format off
-    SC_MATCH (*stripRefOrPtr(retDecl.expression()->type())) {
-        [&](sema::ObjectType const&) {
-            switch (getCC(&semaFn).returnValue().location()) {
-            case Register:
-                add<ir::Return>(toRegister(returnValue));
-                break;
-                
-            case Memory:
-                add<ir::Store>(&irFn.parameters().front(),
-                               toRegister(returnValue));
-                add<ir::Return>(ctx.voidValue());
-                break;
+    auto retvalLocation = getCC(&semaFn).returnValue().location();
+    switch (retvalLocation) {
+    case Register: {
+        auto baseType = stripRefOrPtr(retDecl.expression()->type());
+        if (isArrayAndDynamic(baseType.get())) {
+            auto size = valueMap.arraySize(retDecl.expression()->object());
+            auto* structRet = buildStructure(makeArrayViewType(ctx),
+                                             std::array{ toRegister(retval),
+                                                         toRegister(size) },
+                                             "retval");
+            add<ir::Return>(structRet);
+        }
+        else {
+            add<ir::Return>(toRegister(retval));
+        }
+        break;
+    }
+    case Memory: {
+        auto* retvalDest = &irFn.parameters().front();
+        if (retval.isMemory()) {
+            if (auto* allocaInst = dyncast<ir::Alloca*>(retval.get())) {
+                allocaInst->replaceAllUsesWith(retvalDest);
             }
-        },
-        [&](sema::ArrayType const&) {
-            switch (getCC(&semaFn).returnValue().location()) {
-            case Register: {
-                auto size = valueMap.arraySize(retDecl.expression()->object());
-                auto* baseValue = ctx.undef(makeArrayViewType(ctx));
-                auto* insertData = add<ir::InsertValue>(baseValue,
-                                                        toRegister(returnValue),
-                                                        std::array{ size_t{ 0 } },
-                                                        "retval");
-                auto* insertSize = add<ir::InsertValue>(insertData,
-                                                        toRegister(size),
-                                                        std::array{ size_t{ 1 } },
-                                                        "retval");
-                add<ir::Return>(insertSize);
-                break;
+            else {
+                callMemcpy(retvalDest, toMemory(retval), retval.type()->size());
             }
-            case Memory:
-                SC_UNIMPLEMENTED();
-                break;
-            }
-        },
-    }; // clang-format on
+        }
+        else {
+            add<ir::Store>(retvalDest, toRegister(retval));
+        }
+        add<ir::Return>(ctx.voidValue());
+        break;
+    }
+    }
 }
 
 void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
@@ -950,13 +954,12 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             case Register:
                 return Value(inst, Register);
             case Memory:
-                return Value(
-                             arguments.front(),
+                return Value(arguments.front(),
                              typeMap(call.function()->returnType()),
                              Memory);
             }
         },
-        [&](sema::ArrayType const&) {
+        [&](sema::ArrayType const& arrayType) {
             switch (retvalLocation) {
             case Register: {
                 auto* data =
@@ -970,7 +973,13 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
                 return value;
             }
             case Memory:
-                SC_UNIMPLEMENTED();
+                SC_ASSERT(!arrayType.isDynamic(), "Cannot return dynamic array by value");
+                Value value(arguments.front(),
+                            typeMap(call.function()->returnType()),
+                            Memory);
+                auto* size = ctx.intConstant(arrayType.size(), 64);
+                valueMap.insertArraySize(call.object(), Value(size, Register));
+                return value;
             }
         },
     }; // clang-format on
@@ -1068,10 +1077,7 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
                                    "array");
     auto* source = constData.get();
     mod.addConstantData(std::move(constData));
-    auto* memcpy = getMemcpy();
-    auto* size = ctx.intConstant(list.elements().size() * elemType->size(), 64);
-    std::array<ir::Value*, 4> args = { dest, size, source, size };
-    add<ir::Call>(memcpy, args, std::string{});
+    callMemcpy(dest, source, list.elements().size() * elemType->size());
     return true;
 }
 
@@ -1326,10 +1332,7 @@ Value FuncGenContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
                 SC_ASSERT(source.isMemory(), "");
                 auto* arrayType = typeMap(&type);
                 auto* array = makeLocalVariable(arrayType, "list");
-                auto* memcpy = getMemcpy();
-                auto* size = ctx.intConstant(type.size(), 64);
-                std::array<ir::Value*, 4> args = { array, size, source.get(), size };
-                add<ir::Call>(memcpy, args, std::string{});
+                callMemcpy(array, source.get(), type.size());
                 return Value(array, arrayType, Memory);
             }
         },
@@ -1394,6 +1397,20 @@ ir::ExtFunction* FuncGenContext::getMemcpy() {
     auto* semaMemcpy = symbolTable.builtinFunction(index);
     auto* irMemcpy = getFunction(semaMemcpy);
     return cast<ir::ExtFunction*>(irMemcpy);
+}
+
+void FuncGenContext::callMemcpy(ir::Value* dest,
+                                ir::Value* source,
+                                ir::Value* numBytes) {
+    auto* memcpy = getMemcpy();
+    std::array args = { dest, numBytes, source, numBytes };
+    add<ir::Call>(memcpy, args, std::string{});
+}
+
+void FuncGenContext::callMemcpy(ir::Value* dest,
+                                ir::Value* source,
+                                size_t numBytes) {
+    callMemcpy(dest, source, ctx.intConstant(numBytes, 64));
 }
 
 CallingConvention const& FuncGenContext::getCC(sema::Function const* function) {

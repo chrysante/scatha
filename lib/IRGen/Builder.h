@@ -1,10 +1,12 @@
 #ifndef SCATHA_IRGEN_BUILDER_H_
 #define SCATHA_IRGEN_BUILDER_H_
 
+#include <span>
 #include <string>
 
 #include <utl/vector.hpp>
 
+#include "Common/UniquePtr.h"
 #include "IR/Fwd.h"
 
 namespace scatha::irgen {
@@ -48,6 +50,9 @@ class FunctionBuilder: public BasicBlockBuilder {
 public:
     explicit FunctionBuilder(ir::Context& ctx, ir::Function* function);
 
+    /// Defaulted in the implemention file because of UniquePtrs member
+    ~FunctionBuilder();
+
     /// Bring `add()` function for instructions into scope
     using BasicBlockBuilder::add;
 
@@ -78,13 +83,19 @@ public:
     /// \overload specifying a name for the allocated memory
     ir::Alloca* storeToMemory(ir::Value* value, std::string name);
 
+    /// Build a structure with repeated `InsertValue` instructions
+    /// The elements in \p members must match the struct members exactly
+    ir::Value* buildStructure(ir::StructType const* type,
+                              std::span<ir::Value* const> members,
+                              std::string name);
+
     /// Finish construction of the function by inserting all alloca instruction
     /// into the entry block and calling `ir::setupInvariants()`
     void finish();
 
 private:
     ir::Function& function;
-    utl::small_vector<ir::Alloca*> allocas;
+    utl::small_vector<UniquePtr<ir::Alloca>> allocas;
 };
 
 } // namespace scatha::irgen
