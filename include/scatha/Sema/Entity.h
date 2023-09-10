@@ -9,10 +9,10 @@
 #include <utility>
 
 #include <range/v3/view.hpp>
-#include <utl/functional.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 
+#include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Ranges.h>
 #include <scatha/Common/UniquePtr.h>
@@ -402,6 +402,12 @@ public:
     /// Set the kind of special member function this function is
     void setSMFKind(SpecialMemberFunction kind) { _smfKind = kind; }
 
+    /// The definition of this function in the AST
+    ast::FunctionDefinition const* definition() const { return def; }
+
+    /// Set the definition of this function
+    void setDefinition(ast::FunctionDefinition const* def) { this->def = def; }
+
     /// \returns Slot of extern function table.
     ///
     /// Only applicable if this function is extern.
@@ -452,6 +458,7 @@ private:
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
     std::optional<SpecialMemberFunction> _smfKind;
+    ast::FunctionDefinition const* def = nullptr;
     FunctionKind _kind = FunctionKind::Native;
     bool _isMember          : 1 = false;
     bool _haveBinaryAddress : 1 = false;
@@ -568,14 +575,7 @@ protected:
                             std::string name,
                             size_t bitwidth,
                             Signedness signedness,
-                            Scope* parentScope):
-        BuiltinType(entityType,
-                    std::move(name),
-                    parentScope,
-                    utl::ceil_divide(bitwidth, 8),
-                    utl::ceil_divide(bitwidth, 8)),
-        _signed(signedness),
-        _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)) {}
+                            Scope* parentScope);
 
 private:
     Signedness _signed;

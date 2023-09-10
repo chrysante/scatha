@@ -5,6 +5,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <svm/Builtin.h>
+#include <utl/functional.hpp>
 #include <utl/hash.hpp>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
@@ -160,6 +161,19 @@ VoidType::VoidType(Scope* parentScope):
                 parentScope,
                 InvalidSize,
                 InvalidSize) {}
+
+ArithmeticType::ArithmeticType(EntityType entityType,
+                               std::string name,
+                               size_t bitwidth,
+                               Signedness signedness,
+                               Scope* parentScope):
+    BuiltinType(entityType,
+                std::move(name),
+                parentScope,
+                utl::ceil_divide(bitwidth, 8),
+                utl::ceil_divide(bitwidth, 8)),
+    _signed(signedness),
+    _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)) {}
 
 BoolType::BoolType(Scope* parentScope):
     ArithmeticType(EntityType::BoolType,

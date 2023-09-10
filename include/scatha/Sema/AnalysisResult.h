@@ -1,7 +1,7 @@
 #ifndef SCATHA_SEMA_ANALYSISRESULT_H_
 #define SCATHA_SEMA_ANALYSISRESULT_H_
 
-#include <vector>
+#include <utl/vector.hpp>
 
 #include <scatha/Sema/Fwd.h>
 
@@ -9,8 +9,8 @@ namespace scatha::sema {
 
 /// Result structure of function `sema::analyze()`
 struct AnalysisResult {
-    std::vector<StructType const*> structDependencyOrder;
-    std::vector<ast::FunctionDefinition*> functions;
+    utl::vector<StructType const*> structDependencyOrder;
+    utl::vector<ast::FunctionDefinition*> functions;
 };
 
 } // namespace scatha::sema

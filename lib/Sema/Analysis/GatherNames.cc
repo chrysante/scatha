@@ -41,7 +41,7 @@ struct GatherContext {
     SymbolTable& sym;
     IssueHandler& iss;
     StructDependencyGraph& dependencyGraph;
-    std::vector<ast::FunctionDefinition*>& functions;
+    utl::vector<ast::FunctionDefinition*>& functions;
 };
 
 } // namespace
@@ -83,6 +83,7 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         return InvalidIndex;
     }
     auto& func = *declResult;
+    func.setDefinition(&funcDef);
     funcDef.decorateDecl(&func);
     funcDef.body()->decorateScope(&func);
     /// Now add this function definition to the dependency graph

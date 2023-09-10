@@ -59,7 +59,7 @@ struct InstContext {
 
 } // namespace
 
-std::vector<StructType const*> sema::instantiateEntities(
+utl::vector<StructType const*> sema::instantiateEntities(
     Context& ctx,
     StructDependencyGraph& typeDependencies,
     std::span<ast::FunctionDefinition*> functions) {

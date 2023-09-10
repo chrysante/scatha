@@ -18,7 +18,7 @@
 #include "Common/APInt.h"
 #include "Common/SourceLocation.h"
 #include "Common/UniquePtr.h"
-#include "Sema/DTorStack.h"
+#include "Sema/Analysis/DTorStack.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 

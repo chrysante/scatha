@@ -1,5 +1,10 @@
 #include "IRGen/IRGen.h"
 
+#include <queue>
+
+#include <range/v3/algorithm.hpp>
+#include <range/v3/view.hpp>
+
 #include "AST/AST.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -13,8 +18,6 @@
 #include "Sema/AnalysisResult.h"
 #include "Sema/Entity.h"
 
-#include <utl/vector.hpp>
-
 using namespace scatha;
 using namespace irgen;
 
@@ -25,25 +28,33 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
     ir::Context ctx;
     ir::Module mod;
     TypeMap typeMap(ctx);
-
     for (auto* semaType: analysisResult.structDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap);
     }
-
     FunctionMap functionMap;
-
-    utl::vector<ir::Function*> irFns;
-    for (auto* funcDecl: analysisResult.functions) {
-        auto* semaFn = funcDecl->function();
-        auto* irFn = declareFunction(semaFn, ctx, mod, typeMap, functionMap);
-        irFns.push_back(cast<ir::Function*>(irFn));
+    auto queue =
+        analysisResult.functions |
+        ranges::views::transform([](auto* def) { return def->function(); }) |
+        ranges::views::filter([](auto* fn) {
+            return fn->accessSpecifier() == sema::AccessSpecifier::Public;
+        }) |
+        ranges::to<std::deque<sema::Function const*>>;
+    for (auto* semaFn: queue) {
+        declareFunction(semaFn, ctx, mod, typeMap, functionMap);
     }
-    for (auto [funcDecl, irFn]:
-         ranges::views::zip(analysisResult.functions, irFns))
-    {
-        generateFunction(*funcDecl, *irFn, ctx, mod, sym, typeMap, functionMap);
+    while (!queue.empty()) {
+        auto* semaFn = queue.front();
+        queue.pop_front();
+        auto* irFn = functionMap(semaFn);
+        auto decls = generateFunction(*semaFn->definition(),
+                                      cast<ir::Function&>(*irFn),
+                                      ctx,
+                                      mod,
+                                      sym,
+                                      typeMap,
+                                      functionMap);
+        ranges::copy(decls, std::back_inserter(queue));
     }
-
     ir::assertInvariants(ctx, mod);
     return { std::move(ctx), std::move(mod) };
 }

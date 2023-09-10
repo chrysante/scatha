@@ -42,6 +42,7 @@ struct FuncGenContext: FunctionBuilder {
     sema::SymbolTable const& symbolTable;
     TypeMap const& typeMap;
     FunctionMap& functionMap;
+    utl::vector<sema::Function const*>& declaredFunctions;
 
     /// Local state
     ValueMap valueMap;
@@ -53,7 +54,8 @@ struct FuncGenContext: FunctionBuilder {
                    ir::Module& mod,
                    sema::SymbolTable const& symbolTable,
                    TypeMap const& typeMap,
-                   FunctionMap& functionMap):
+                   FunctionMap& functionMap,
+                   utl::vector<sema::Function const*>& declaredFunctions):
         FunctionBuilder(ctx, &irFn),
         semaFn(semaFn),
         irFn(irFn),
@@ -62,6 +64,7 @@ struct FuncGenContext: FunctionBuilder {
         symbolTable(symbolTable),
         typeMap(typeMap),
         functionMap(functionMap),
+        declaredFunctions(declaredFunctions),
         valueMap(ctx) {}
 
     /// # Statements
@@ -154,22 +157,25 @@ struct FuncGenContext: FunctionBuilder {
 
 } // namespace
 
-void irgen::generateFunction(ast::FunctionDefinition const& funcDecl,
-                             ir::Function& irFn,
-                             ir::Context& ctx,
-                             ir::Module& mod,
-                             sema::SymbolTable const& symbolTable,
-                             TypeMap const& typeMap,
-                             FunctionMap& functionMap) {
-
+utl::small_vector<sema::Function const*> irgen::generateFunction(
+    ast::FunctionDefinition const& funcDecl,
+    ir::Function& irFn,
+    ir::Context& ctx,
+    ir::Module& mod,
+    sema::SymbolTable const& symbolTable,
+    TypeMap const& typeMap,
+    FunctionMap& functionMap) {
+    utl::small_vector<sema::Function const*> declaredFunctions;
     FuncGenContext(*funcDecl.function(),
                    irFn,
                    ctx,
                    mod,
                    symbolTable,
                    typeMap,
-                   functionMap)
+                   functionMap,
+                   declaredFunctions)
         .generate(funcDecl);
+    return declaredFunctions;
 }
 
 /// MARK: - Statements
@@ -187,7 +193,7 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
 
 void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     addNewBlock("entry");
-    auto const& CC = getCC(&semaFn);
+    auto CC = getCC(&semaFn);
     auto irParamItr = irFn.parameters().begin();
     if (CC.returnValue().location() == Memory) {
         ++irParamItr;
@@ -356,8 +362,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
     // clang-format off
     SC_MATCH (*stripRefOrPtr(retDecl.expression()->type())) {
         [&](sema::ObjectType const&) {
-            auto const& CC = getCC(&semaFn);
-            switch (CC.returnValue().location()) {
+            switch (getCC(&semaFn).returnValue().location()) {
             case Register:
                 add<ir::Return>(toRegister(returnValue));
                 break;
@@ -370,8 +375,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
             }
         },
         [&](sema::ArrayType const&) {
-            auto const& CC = getCC(&semaFn);
-            switch (CC.returnValue().location()) {
+            switch (getCC(&semaFn).returnValue().location()) {
             case Register: {
                 auto size = valueMap.arraySize(retDecl.expression()->object());
                 auto* baseValue = ctx.undef(makeArrayViewType(ctx));
@@ -818,7 +822,6 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
             dyncast<sema::ArrayType const*>(expr.accessed()->type().get()))
     {
         SC_ASSERT(expr.member()->value() == "count", "What else?");
-#warning do we need this branch?
         if (arrayType->isDynamic()) {
             getValue(expr.accessed());
             return valueMap.arraySize(expr.accessed()->object());
@@ -927,9 +930,9 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     ir::Callable* function = getFunction(call.function());
-    auto const& CC = getCC(call.function());
-    utl::small_vector<ir::Value*> arguments;
+    auto CC = getCC(call.function());
     auto const retvalLocation = CC.returnValue().location();
+    utl::small_vector<ir::Value*> arguments;
     if (retvalLocation == Memory) {
         auto* returnType = typeMap(call.function()->returnType());
         arguments.push_back(makeLocalVariable(returnType, "retval"));
@@ -1279,7 +1282,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructorCall const& call) {
         auto* type = typeMap(call.constructedType());
         auto* address = makeLocalVariable(type, "anon");
         auto* function = getFunction(call.function());
-        auto const& CC = getCC(call.function());
+        auto CC = getCC(call.function());
         /// Lifetime function always must take the object parameter by reference
         /// so we can just pass the pointer here
         utl::small_vector<ir::Value*> arguments = { address };
@@ -1377,18 +1380,13 @@ ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
 }
 
 ir::Callable* FuncGenContext::getFunction(sema::Function const* semaFunction) {
-    switch (semaFunction->kind()) {
-    case sema::FunctionKind::Native:
-        return functionMap(semaFunction);
-
-    case sema::FunctionKind::External:
-        [[fallthrough]];
-    case sema::FunctionKind::Generated:
-        if (auto* irFunction = functionMap.tryGet(semaFunction)) {
-            return irFunction;
-        }
-        return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
+    if (auto* irFunction = functionMap.tryGet(semaFunction)) {
+        return irFunction;
     }
+    if (semaFunction->isNative()) {
+        declaredFunctions.push_back(semaFunction);
+    }
+    return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
 }
 
 ir::ExtFunction* FuncGenContext::getMemcpy() {

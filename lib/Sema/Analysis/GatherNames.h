@@ -1,7 +1,7 @@
 #ifndef SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 #define SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 
-#include <vector>
+#include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
 #include "Common/Base.h"
@@ -19,10 +19,10 @@ class SymbolTable;
 /// - `functionDefinitions` All function definitions in the program
 struct GatherNamesResult {
     StructDependencyGraph structs;
-    std::vector<ast::FunctionDefinition*> functions;
+    utl::vector<ast::FunctionDefinition*> functions;
 };
 
-/// In gatherNames phase we declare (but not instantiate) all non-local names in
+/// In gatherNames phase we declare (but not instantiate) all global names in
 /// the translation unit, including nested structs and member variables and
 /// functions. After executing `gatherNames()` all globally visible symbols are
 /// declared in the table, so we can then analyze all e.g. function

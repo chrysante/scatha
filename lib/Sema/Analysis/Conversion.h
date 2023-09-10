@@ -6,7 +6,7 @@
 
 #include "AST/Fwd.h"
 #include "Issue/IssueHandler.h"
-#include "Sema/DTorStack.h"
+#include "Sema/Analysis/DTorStack.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 
