@@ -288,7 +288,7 @@ void FuncGenContext::generateDeclArraySizeImpl(
 void FuncGenContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
                                               sema::Object const* initObject) {
     generateDeclArraySizeImpl(varDecl, [&] {
-        return toRegister(valueMap.arraySize(initObject, &currentBlock()));
+        return toRegister(valueMap.arraySize(initObject));
     });
 }
 
@@ -373,8 +373,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
             auto const& CC = getCC(&semaFn);
             switch (CC.returnValue().location()) {
             case Register: {
-                auto size = valueMap.arraySize(retDecl.expression()->object(),
-                                               &currentBlock());
+                auto size = valueMap.arraySize(retDecl.expression()->object());
                 auto* baseValue = ctx.undef(makeArrayViewType(ctx));
                 auto* insertData = add<ir::InsertValue>(baseValue,
                                                         toRegister(returnValue),
@@ -795,17 +794,14 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
                                                "expr");
         }
         add<ir::Store>(lhs.get(), rhsValue);
-        if (auto* arrayType = ptrToArray(expr.lhs()->type().get());
-            arrayType && arrayType->isDynamic())
-        {
+        auto* arrayType = ptrToArray(expr.lhs()->type().get());
+        if (arrayType && arrayType->isDynamic()) {
             SC_ASSERT(expr.operation() == Assignment, "");
-            auto lhsSize =
-                valueMap.arraySize(expr.lhs()->object(), &currentBlock());
+            auto lhsSize = valueMap.arraySize(expr.lhs()->object());
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
-            auto* rhsSizeReg = toRegister(
-                valueMap.arraySize(expr.rhs()->object(), &currentBlock()));
-            add<ir::Store>(lhsSize.get(), rhsSizeReg);
+            auto rhsSize = valueMap.arraySize(expr.rhs()->object());
+            add<ir::Store>(lhsSize.get(), toRegister(rhsSize));
         }
         return Value();
     }
@@ -825,8 +821,7 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
 #warning do we need this branch?
         if (arrayType->isDynamic()) {
             getValue(expr.accessed());
-            return valueMap.arraySize(expr.accessed()->object(),
-                                      &currentBlock());
+            return valueMap.arraySize(expr.accessed()->object());
         }
         else {
             return Value(ctx.intConstant(arrayType->count(), 64), Register);
@@ -869,7 +864,7 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
     if (!arrayType) {
         return value;
     }
-    auto lazySize = [this, base, sizeIndex = irIndex + 1](ir::BasicBlock*) {
+    auto lazySize = [this, base, sizeIndex = irIndex + 1] {
         switch (base.location()) {
         case Register: {
             auto* result = add<ir::ExtractValue>(base.get(),
@@ -986,8 +981,7 @@ void FuncGenContext::generateArgument(PassingConvention const& PC,
                                       utl::vector<ir::Value*>& arguments) {
     arguments.push_back(toValueLocation(PC.location(), value));
     if (PC.numParams() == 2) {
-        arguments.push_back(
-            toRegister(valueMap.arraySize(object, &currentBlock())));
+        arguments.push_back(toRegister(valueMap.arraySize(object)));
     }
 }
 
@@ -998,8 +992,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto array = getValue(expr.callee());
     /// Right now we don't use the size but here we could issue a call to an
     /// assertion function
-    [[maybe_unused]] auto size =
-        valueMap.arraySize(expr.callee()->object(), &currentBlock());
+    [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object());
     auto index = getValue<Register>(expr.arguments().front());
     switch (array.location()) {
     case Register:
@@ -1143,8 +1136,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
 
     case Array_FixedToDynamic: {
         valueMap.insertArraySize(conv.object(),
-                                 valueMap.arraySize(expr->object(),
-                                                    &currentBlock()));
+                                 valueMap.arraySize(expr->object()));
         return refConvResult;
     }
     case Reinterpret_Array_ToByte:
@@ -1157,8 +1149,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         auto data = refConvResult;
         if (toType->isDynamic()) {
             if (fromType->isDynamic()) {
-                auto count =
-                    valueMap.arraySize(expr->object(), &currentBlock());
+                auto count = valueMap.arraySize(expr->object());
                 if (conv.conversion()->objectConversion() ==
                     Reinterpret_Array_ToByte)
                 {
@@ -1315,7 +1306,8 @@ Value FuncGenContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
         [&](sema::ObjectType const& type) {
             auto value = getValue(expr.argument());
             auto result = Value(toRegister(value), Register);
-            if (auto arraySize = valueMap.tryGetArraySize(expr.argument()->object(), &currentBlock())) {
+            auto arraySize = valueMap.tryGetArraySize(expr.argument()->object());
+            if (arraySize) {
                 auto newSize = Value(toRegister(*arraySize), Register);
                 valueMap.insertArraySize(expr.object(), newSize);
             }

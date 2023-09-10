@@ -16,7 +16,7 @@ namespace scatha::irgen {
 /// Maps sema objects to `irgen::Value` objects
 class ValueMap {
 public:
-    using LazyArraySize = std::function<Value(ir::BasicBlock*)>;
+    using LazyArraySize = std::function<Value()>;
 
     explicit ValueMap(ir::Context& ctx);
 
@@ -47,11 +47,10 @@ public:
 
     /// Retrieve array size associated with \p object
     /// \pre \p object must be associated with an array size
-    Value arraySize(sema::Object const* object, ir::BasicBlock* BB) const;
+    Value arraySize(sema::Object const* object) const;
 
     /// Try to retrieve array size associated with \p object
-    std::optional<Value> tryGetArraySize(sema::Object const* object,
-                                         ir::BasicBlock* BB) const;
+    std::optional<Value> tryGetArraySize(sema::Object const* object) const;
 
 private:
     ir::Context* ctx;

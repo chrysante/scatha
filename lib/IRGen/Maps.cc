@@ -22,7 +22,7 @@ bool ValueMap::tryInsert(sema::Object const* object, Value value) {
 }
 
 void ValueMap::insertArraySize(sema::Object const* object, Value size) {
-    insertArraySize(object, [size](ir::BasicBlock*) { return size; });
+    insertArraySize(object, [size] { return size; });
 }
 
 void ValueMap::insertArraySize(sema::Object const* object, size_t size) {
@@ -57,19 +57,18 @@ std::optional<Value> ValueMap::tryGet(sema::Object const* object) const {
     return std::nullopt;
 }
 
-Value ValueMap::arraySize(sema::Object const* object,
-                          ir::BasicBlock* BB) const {
+Value ValueMap::arraySize(sema::Object const* object) const {
     SC_ASSERT(object, "");
-    auto result = tryGetArraySize(object, BB);
+    auto result = tryGetArraySize(object);
     SC_ASSERT(result, "Not found");
     return *result;
 }
 
-std::optional<Value> ValueMap::tryGetArraySize(sema::Object const* object,
-                                               ir::BasicBlock* BB) const {
+std::optional<Value> ValueMap::tryGetArraySize(
+    sema::Object const* object) const {
     auto itr = arraySizes.find(object);
     if (itr != arraySizes.end()) {
-        return itr->second(BB);
+        return itr->second();
     }
     return std::nullopt;
 }
