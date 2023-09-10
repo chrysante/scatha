@@ -75,7 +75,7 @@ ir::Value* LoweringContext::toValueLocation(ValueLocation location,
     }
 }
 
-ir::Value* LoweringContext::storeLocal(ir::Value* value, std::string name) {
+ir::Alloca* LoweringContext::storeLocal(ir::Value* value, std::string name) {
     if (name.empty()) {
         name = utl::strcat(value->name(), ".addr");
     }
@@ -84,7 +84,7 @@ ir::Value* LoweringContext::storeLocal(ir::Value* value, std::string name) {
     return addr;
 }
 
-ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
+ir::Alloca* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
     auto* addr = new ir::Alloca(ctx, type, std::move(name));
     allocas.push_back(addr);
     return addr;

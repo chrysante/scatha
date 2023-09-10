@@ -108,3 +108,14 @@ public fn main(cond: bool) -> int {
     return x.data.count;
 })");
 }
+
+TEST_CASE("Pass large array by value", "[end-to-end][regression]") {
+    test::checkReturns(1, R"(
+fn first(data: [int, 10]) -> int {
+    return data[0];
+}
+public fn main() -> int {
+    let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
+    return first(data);
+})");
+}

@@ -598,8 +598,7 @@ void LoweringContext::genListDataFallback(ast::ListExpression const& list,
 Value LoweringContext::getValueImpl(ast::ListExpression const& list) {
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
     auto* irType = typeMap(semaType);
-    auto* array = new ir::Alloca(ctx, irType, "list");
-    allocas.push_back(array);
+    auto* array = makeLocal(irType, "list");
     Value size(ctx.intConstant(list.children().size(), 64), Register);
     valueMap.insert({ semaType->countProperty(), size });
     auto value = Value(array, irType, Memory);
@@ -822,7 +821,22 @@ Value LoweringContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
             return result;
         },
         [&](sema::ArrayType const& type) -> Value {
-            SC_UNIMPLEMENTED();
+            if (type.size() <= 64) {
+                auto value = getValue(expr.argument());
+                return Value(toRegister(value), Register);
+            }
+            else {
+                auto source = getValue(expr.argument());
+                SC_ASSERT(source.isMemory(), "");
+                auto* arrayType = typeMap(&type);
+                auto* array = makeLocal(arrayType, "list");
+                auto* memcpy = getFunction(
+                    symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
+                auto* size = ctx.intConstant(type.size(), 64);
+                std::array<ir::Value*, 4> args = { array, size, source.get(), size };
+                add<ir::Call>(memcpy, args, std::string{});
+                return Value(array, arrayType, Memory);
+            }
         },
     }; // clang-format on
 }

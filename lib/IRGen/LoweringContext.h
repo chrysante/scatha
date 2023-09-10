@@ -218,9 +218,9 @@ struct LoweringContext {
         return result;
     }
 
-    ir::Value* storeLocal(ir::Value* value, std::string name = {});
+    ir::Alloca* storeLocal(ir::Value* value, std::string name = {});
 
-    ir::Value* makeLocal(ir::Type const* type, std::string name);
+    ir::Alloca* makeLocal(ir::Type const* type, std::string name);
 
     ir::Callable* getFunction(sema::Function const*);
 
