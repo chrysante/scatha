@@ -37,7 +37,8 @@ public:
         return result;
     }
 
-protected:
+private:
+    friend class FunctionBuilder;
     ir::Context& ctx;
     ir::BasicBlock* currentBB;
 };
@@ -67,16 +68,19 @@ public:
     ir::BasicBlock* addNewBlock(std::string name);
 
     /// Allocates stack memory for a value of type \p type with name \p name
-    ir::Value* makeLocalVariable(ir::Type const* type, std::string name);
+    ir::Alloca* makeLocalVariable(ir::Type const* type, std::string name);
 
     /// Allocate stack space for \p value and emit a store instruction storing
     /// \p value into the allocated memory. \Returns a pointer to the allocated
     /// memory region
-    ir::Value* storeToMemory(ir::Value* value);
+    ir::Alloca* storeToMemory(ir::Value* value);
 
     /// \overload specifying a name for the allocated memory
-    ir::Value* storeToMemory(ir::Value* value, std::string name);
+    ir::Alloca* storeToMemory(ir::Value* value, std::string name);
 
+    ///
+    void finish();
+    
 private:
     ir::Function& function;
     utl::small_vector<ir::Alloca*> allocas;

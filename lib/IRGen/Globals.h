@@ -21,7 +21,7 @@ std::pair<UniquePtr<ir::StructType>, StructMetaData> generateType(
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code
 std::pair<UniquePtr<ir::Callable>, FunctionMetaData> declareFunction(
-    ir::Context& ctx, TypeMap& typeMap, sema::Function const* semaFn);
+    ir::Context& ctx, TypeMap const& typeMap, sema::Function const* semaFn);
 
 } // namespace scatha::irgen
 

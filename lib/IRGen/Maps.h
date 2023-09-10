@@ -13,22 +13,22 @@
 
 namespace scatha::irgen {
 
-/// Maps sema entities to `irgen::Value` objects
+/// Maps sema objects to `irgen::Value` objects
 class ValueMap {
 public:
     using LazyArraySize = std::function<Value(ir::BasicBlock*)>;
 
+    explicit ValueMap(ir::Context& ctx);
+    
     /// Associate \p object with \p value
     void insert(sema::Object const* object, Value value);
-
-    /// Associate \p semaFn with \p irFn and \p metaData
-    void insert(sema::Function const* semaFn,
-                ir::Callable* irFn,
-                FunctionMetaData metaData);
 
     /// Associate array object \p object with the size \p size
     void insertArraySize(sema::Object const* object, Value size);
 
+    /// Associate array object \p object with the size \p size
+    void insertArraySize(sema::Object const* object, size_t size);
+    
     /// Associate array object \p object with the lazily evaluated size \p size
     void insertArraySize(sema::Object const* object, LazyArraySize size);
 
@@ -39,9 +39,9 @@ public:
     /// Retrieve value associated with \p object
     Value operator()(sema::Object const* object) const;
 
-    /// Retrieve IR function associated with \p function
-    ir::Callable* operator()(sema::Function const* function) const;
-
+    /// Try to retrieve value associated with \p object
+    std::optional<Value> tryGet(sema::Object const* object) const;
+    
     /// Retrieve array size associated with \p object
     /// \pre \p object must be associated with an array size
     Value arraySize(sema::Object const* object, ir::BasicBlock* BB) const;
@@ -50,14 +50,32 @@ public:
     std::optional<Value> tryGetArraySize(sema::Object const* object,
                                          ir::BasicBlock* BB) const;
 
+private:
+    ir::Context* ctx;
+    utl::hashmap<sema::Entity const*, Value> values;
+    utl::hashmap<sema::Object const*, LazyArraySize> arraySizes;
+};
+
+/// Maps sema functions to IR functions
+class FunctionMap {
+public:
+    /// Associate \p semaFn with \p irFn and \p metaData
+    void insert(sema::Function const* semaFn,
+                ir::Callable* irFn,
+                FunctionMetaData metaData);
+    
+    /// Retrieve IR function associated with \p function
+    ir::Callable* operator()(sema::Function const* function) const;
+    
+    /// Try to retrieve IR function associated with \p function
+    ir::Callable* tryGet(sema::Function const* function) const;
+    
     /// \Returns the meta data associated with \p type
     FunctionMetaData const& metaData(sema::Function const* function) const;
-
+    
 private:
-    utl::hashmap<sema::Entity const*, Value> values;
     utl::hashmap<sema::Function const*, ir::Callable*> functions;
     utl::hashmap<sema::Function const*, FunctionMetaData> functionMetaData;
-    utl::hashmap<sema::Object const*, LazyArraySize> arraySizes;
 };
 
 /// Maps sema types to IR types
@@ -88,6 +106,8 @@ private:
     mutable utl::hashmap<sema::Type const*, ir::Type const*> map;
     utl::hashmap<sema::StructType const*, StructMetaData> meta;
 };
+
+/// # Maps of operators and other attributes
 
 ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryOperator op);
 

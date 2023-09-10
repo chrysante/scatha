@@ -2,26 +2,28 @@
 
 #include "IR/Context.h"
 #include "IR/Type.h"
+#include "IR/CFG.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
 using namespace irgen;
+
+/// # ValueMap
+
+ValueMap::ValueMap(ir::Context& ctx): ctx(&ctx) {}
 
 void ValueMap::insert(sema::Object const* object, Value value) {
     bool success = values.insert({ object, value }).second;
     SC_ASSERT(success, "Redeclaration");
 }
 
-void ValueMap::insert(sema::Function const* semaFn,
-                      ir::Callable* irFn,
-                      FunctionMetaData metaData) {
-    bool success = functions.insert({ semaFn, irFn }).second;
-    SC_ASSERT(success, "Redeclaration");
-    functionMetaData.insert({ semaFn, std::move(metaData) });
-}
-
 void ValueMap::insertArraySize(sema::Object const* object, Value size) {
     insertArraySize(object, [size](ir::BasicBlock*) { return size; });
+}
+
+void ValueMap::insertArraySize(sema::Object const* object, size_t size) {
+    using enum ValueLocation;
+    insertArraySize(object, Value(ctx->intConstant(size, 64), Register));
 }
 
 void ValueMap::insertArraySize(sema::Object const* object, LazyArraySize size) {
@@ -43,10 +45,12 @@ Value ValueMap::operator()(sema::Object const* object) const {
     return itr->second;
 }
 
-ir::Callable* ValueMap::operator()(sema::Function const* function) const {
-    auto itr = functions.find(function);
-    SC_ASSERT(itr != functions.end(), "Not found");
-    return itr->second;
+std::optional<Value> ValueMap::tryGet(sema::Object const* object) const {
+    auto itr = values.find(object);
+    if (itr != values.end()) {
+        return itr->second;
+    }
+    return std::nullopt;
 }
 
 Value ValueMap::arraySize(sema::Object const* object,
@@ -60,18 +64,44 @@ Value ValueMap::arraySize(sema::Object const* object,
 std::optional<Value> ValueMap::tryGetArraySize(sema::Object const* object,
                                                ir::BasicBlock* BB) const {
     auto itr = arraySizes.find(object);
-    if (itr == arraySizes.end()) {
-        return std::nullopt;
+    if (itr != arraySizes.end()) {
+        return itr->second(BB);
     }
-    return itr->second(BB);
+    return std::nullopt;
 }
 
-FunctionMetaData const& ValueMap::metaData(
-    sema::Function const* function) const {
-    auto itr = functionMetaData.find(function);
-    SC_ASSERT(itr != functionMetaData.end(), "Not found");
-    return itr->second;
+/// # FunctionMap
+
+void FunctionMap::insert(sema::Function const* semaFn,
+                      ir::Callable* irFn,
+                      FunctionMetaData metaData) {
+    bool success = functions.insert({ semaFn, irFn }).second;
+    SC_ASSERT(success, "Redeclaration");
+    functionMetaData.insert({ semaFn, std::move(metaData) });
 }
+
+ir::Callable* FunctionMap::operator()(sema::Function const* function) const {
+    auto* result = tryGet(function);
+    SC_ASSERT(result, "Not found");
+    return result;
+}
+
+ir::Callable* FunctionMap::tryGet(sema::Function const* function) const {
+    auto itr = functions.find(function);
+    if (itr != functions.end()) {
+        return itr->second;
+    }
+    return nullptr;
+}
+
+FunctionMetaData const& FunctionMap::metaData(
+                                           sema::Function const* function) const {
+                                               auto itr = functionMetaData.find(function);
+                                               SC_ASSERT(itr != functionMetaData.end(), "Not found");
+                                               return itr->second;
+                                           }
+
+/// # TypeMap
 
 void TypeMap::insert(sema::StructType const* key,
                      ir::StructType const* value,

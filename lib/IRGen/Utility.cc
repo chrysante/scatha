@@ -1,6 +1,8 @@
 #include "IRGen/Utility.h"
 
 #include "Sema/Entity.h"
+#include "IR/Context.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace irgen;
@@ -26,4 +28,9 @@ sema::QualType irgen::stripRefOrPtr(sema::QualType type) {
             return type;
         },
     }; // clang-format off
+}
+
+ir::Type const* irgen::makeArrayViewType(ir::Context& ctx) {
+    std::array<ir::Type const*, 2> members = { ctx.ptrType(), ctx.intType(64) };
+    return ctx.anonymousStruct(members);
 }

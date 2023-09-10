@@ -84,13 +84,8 @@ static CallingConvention computeCC(sema::Function const* function) {
     return CallingConvention(retval, args);
 }
 
-static ir::Type const* makeArrayViewType(ir::Context& ctx) {
-    std::array<ir::Type const*, 2> members = { ctx.ptrType(), ctx.intType(64) };
-    return ctx.anonymousStruct(members);
-}
-
 std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
-    ir::Context& ctx, TypeMap& typeMap, sema::Function const* semaFn) {
+    ir::Context& ctx, TypeMap const& typeMap, sema::Function const* semaFn) {
     FunctionMetaData metaData;
     auto CC = computeCC(semaFn);
     metaData.CC = CC;

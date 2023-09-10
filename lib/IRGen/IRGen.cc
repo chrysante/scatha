@@ -2,16 +2,19 @@
 
 #include "AST/AST.h"
 #include "IR/CFG.h"
+#include "IRGen/GenerateFunction.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
+#include "IR/CFG.h"
+#include "IR/Validate.h"
 #include "IR/Validate.h"
 #include "IRGen/Globals.h"
 #include "IRGen/Maps.h"
 #include "IRGen/MetaData.h"
 #include "Sema/AnalysisResult.h"
 #include "Sema/Entity.h"
-#include "Sema/SymbolTable.h"
+
 
 using namespace scatha;
 using namespace irgen;
@@ -30,17 +33,24 @@ std::pair<ir::Context, ir::Module> irgen::generateIR2(
         mod.addStructure(std::move(irType));
     }
 
-    for (auto* semaFn: sym.functions()) {
-        if (semaFn->isNative()) {
-            auto [irFn, metaData] = declareFunction(ctx, typeMap, semaFn);
-            mod.addGlobal(std::move(irFn));
-        }
+    FunctionMap functionMap;
+    
+    for (auto* funcDecl: analysisResult.functions) {
+        auto* semaFn = funcDecl->function();
+        auto [irFnOwner, metaData] = declareFunction(ctx, typeMap, semaFn);
+        auto* irFn = irFnOwner.get();
+        functionMap.insert(semaFn, irFn, std::move(metaData));
+        mod.addGlobal(std::move(irFnOwner));
+         generateFunction(*funcDecl,
+                              cast<ir::Function&>(*irFn),
+                              ctx,
+                              mod,
+                              sym,
+                              typeMap,
+                              functionMap);
     }
-
-    //    LoweringContext context(symbolTable, analysisResult, ctx, mod);
-    //    context.run(root);
-
-    //    ir::setupInvariants(ctx, mod);
-    //    ir::assertInvariants(ctx, mod);
+    
+    
+    ir::assertInvariants(ctx, mod);
     return { std::move(ctx), std::move(mod) };
 }

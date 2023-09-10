@@ -1,30 +1,525 @@
-#include "IRGen/LoweringContext.h"
+#include "IRGen/GenerateFunction.h"
 
+#include <utl/function_view.hpp>
+#include <utl/strcat.hpp>
 #include <svm/Builtin.h>
 
-#include "AST/AST.h"
-#include "IR/CFG.h"
-#include "IR/Context.h"
-#include "IR/Module.h"
-#include "IR/Type.h"
+#include "IRGen/Maps.h"
+#include "IRGen/Value.h"
 #include "IRGen/Builder.h"
 #include "IRGen/Utility.h"
-#include "Sema/Analysis/ConstantExpressions.h"
-#include "Sema/Analysis/Conversion.h"
+#include "IRGen/Globals.h"
+#include "IR/CFG.h"
+#include "IR/Module.h"
+#include "IR/Context.h"
+#include "IR/Type.h"
+#include "AST/AST.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/QualType.h"
+#include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 
 using namespace scatha;
 using namespace irgen;
-using sema::QualType;
-
 using enum ValueLocation;
+
+namespace {
+
+struct Loop {
+    ir::BasicBlock* header = nullptr;
+    ir::BasicBlock* body = nullptr;
+    ir::BasicBlock* inc = nullptr;
+    ir::BasicBlock* end = nullptr;
+};
+
+struct FuncGenContext: FunctionBuilder {
+    // Global references
+    sema::Function const& semaFn;
+    ir::Function& irFn;
+    ir::Context& ctx;
+    ir::Module& mod;
+    sema::SymbolTable const& symbolTable;
+    TypeMap const& typeMap;
+    FunctionMap& functionMap;
+    
+    /// Local state
+    ValueMap valueMap;
+    utl::stack<Loop, 4> loopStack;
+    
+    FuncGenContext(sema::Function const& semaFn,
+                   ir::Function& irFn,
+                   ir::Context& ctx,
+                   ir::Module& mod,
+                   sema::SymbolTable const& symbolTable,
+                   TypeMap const& typeMap,
+                   FunctionMap& functionMap):
+    FunctionBuilder(ctx, &irFn),
+    semaFn(semaFn),
+    irFn(irFn),
+    ctx(ctx),
+    mod(mod),
+    symbolTable(symbolTable),
+    typeMap(typeMap),
+    functionMap(functionMap),
+    valueMap(ctx) {}
+    
+    /// # Statements
+    void generate(ast::Statement const&);
+    
+    void generateImpl(ast::Statement const&) { SC_UNREACHABLE(); }
+    void generateImpl(ast::CompoundStatement const&);
+    void generateImpl(ast::FunctionDefinition const&);
+    void generateParameter(ast::ParameterDeclaration const* paramDecl,
+                           PassingConvention pc,
+                           List<ir::Parameter>::iterator& paramItr);
+    void generateImpl(ast::VariableDeclaration const&);
+    void generateImpl(ast::ExpressionStatement const&);
+    void generateImpl(ast::EmptyStatement const&) {}
+    void generateImpl(ast::ReturnStatement const&);
+    void generateImpl(ast::IfStatement const&);
+    void generateImpl(ast::LoopStatement const&);
+    void generateImpl(ast::JumpStatement const&);
+    
+    /// # Statement specific utilities
+    void emitDestructorCalls(sema::DTorStack const& dtorStack);
+    
+    /// Creates array size values and stores them in `objectMap` if declared
+    /// type is array
+    void generateDeclArraySizeImpl(
+        ast::VarDeclBase const* varDecl,
+        utl::function_view<ir::Value*()> sizeCallback);
+
+    void generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
+                                  sema::Object const* initObject);
+
+    void generateParamArraySize(ast::VarDeclBase const* varDecl,
+                                ir::Parameter* param);
+    
+    /// # Expressions
+    Value getValue(ast::Expression const* expr);
+
+    template <ValueLocation Loc>
+    ir::Value* getValue(ast::Expression const* expr);
+    
+    Value getValueImpl(ast::Expression const& expr) { SC_UNREACHABLE(); }
+    Value getValueImpl(ast::Identifier const&);
+    Value getValueImpl(ast::Literal const&);
+    Value getValueImpl(ast::UnaryExpression const&);
+    Value getValueImpl(ast::BinaryExpression const&);
+    Value getValueImpl(ast::MemberAccess const&);
+    Value getValueImpl(ast::DereferenceExpression const&);
+    Value getValueImpl(ast::AddressOfExpression const&);
+    Value getValueImpl(ast::Conditional const&);
+    Value getValueImpl(ast::FunctionCall const&);
+    Value getValueImpl(ast::Subscript const&);
+    Value getValueImpl(ast::SubscriptSlice const&);
+    Value getValueImpl(ast::ListExpression const&);
+    Value getValueImpl(ast::Conversion const&);
+    Value getValueImpl(ast::ConstructorCall const&);
+    Value getValueImpl(ast::TrivialCopyExpr const&);
+    
+    /// # Expression specific utilities
+    void generateArgument(PassingConvention const& PC,
+                          Value arg,
+                          sema::Object const* object,
+                          utl::vector<ir::Value*>& outArgs);
+    bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
+    void genListDataFallback(ast::ListExpression const& list, ir::Alloca* dest);
+    
+    /// # General utilities
+    
+    /// If the value \p value is already in a register, returns that.
+    /// Otherwise loads the value from memory and returns the `load` instruction
+    ir::Value* toRegister(Value value);
+    
+    /// If the value \p value is in memory, returns the address.
+    /// Otherwise allocates stack memory, stores the value and returns the
+    /// address
+    ir::Value* toMemory(Value value);
+    
+    /// \Returns `toRegister(value)` or `toMemory(value)` depending on \p location
+    ir::Value* toValueLocation(ValueLocation location, Value value);
+    
+    ///
+    ir::Callable* getFunction(sema::Function const*);
+    
+    ///
+    ir::ExtFunction* getMemcpy();
+    
+    ///
+    CallingConvention const& getCC(sema::Function const*);
+};
+
+} // namespace
+
+void irgen::generateFunction(ast::FunctionDefinition const& funcDecl,
+                             ir::Function& irFn,
+                             ir::Context& ctx,
+                             ir::Module& mod,
+                             sema::SymbolTable const& symbolTable,
+                             TypeMap const& typeMap,
+                             FunctionMap& functionMap) {
+    
+    FuncGenContext(*funcDecl.function(),
+                   irFn,
+                   ctx,
+                   mod,
+                   symbolTable,
+                   typeMap,
+                   functionMap).generate(funcDecl);
+}
+
+/// MARK: - Statements
+
+void FuncGenContext::generate(ast::Statement const& node) {
+    visit(node, [this](auto const& node) { return generateImpl(node); });
+}
+
+void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
+    for (auto* statement: cmpStmt.statements()) {
+        generate(*statement);
+    }
+    emitDestructorCalls(cmpStmt.dtorStack());
+}
+
+void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
+    addNewBlock("entry");
+    auto const& CC = getCC(&semaFn);
+    auto irParamItr = irFn.parameters().begin();
+    if (CC.returnValue().location() == Memory) {
+        ++irParamItr;
+    }
+    for (auto [paramDecl, pc]:
+         ranges::views::zip(def.parameters(), CC.arguments()))
+    {
+        generateParameter(paramDecl, pc, irParamItr);
+    }
+    generate(*def.body());
+    finish();
+}
+
+void FuncGenContext::generateParameter(
+    ast::ParameterDeclaration const* paramDecl,
+    PassingConvention pc,
+    List<ir::Parameter>::iterator& irParamItr) {
+    sema::QualType semaType = paramDecl->type();
+    auto* irParam = irParamItr.to_address();
+    auto* irType = typeMap(paramDecl->type());
+    std::string name(paramDecl->name());
+    auto* paramVar = paramDecl->variable();
+    auto* baseType = stripRefOrPtr(semaType.get()).get();
+    auto* arrayType = dyncast<sema::ArrayType const*>(baseType);
+    bool const isDynArray = arrayType && arrayType->isDynamic();
+    switch (pc.location()) {
+    case Register: {
+        if (isa<sema::ReferenceType>(*paramDecl->type())) {
+            valueMap.insert(paramVar, Value(irParam, Register));
+            ++irParamItr;
+            if (isDynArray) {
+                Value size(irParam->next(), Register);
+                valueMap.insertArraySize(paramVar, size);
+                ++irParamItr;
+            }
+            // FIXME: What about references to static arrays?
+        }
+        else {
+            auto* address = storeToMemory(irParam, name);
+            valueMap.insert(paramVar, Value(address, irType, Memory));
+            ++irParamItr;
+            if (isDynArray) {
+                SC_ASSERT(isa<sema::PointerType>(*paramDecl->type()),
+                          "Can't pass dynamic array by value");
+                Value size(storeToMemory(irParam->next()),
+                           irParam->next()->type(),
+                           Memory);
+                valueMap.insertArraySize(paramVar, size);
+                ++irParamItr;
+            }
+            else if (arrayType) {
+                auto* size = ctx.intConstant(arrayType->count(), 64);
+                valueMap.insertArraySize(paramVar, Value(size, Register));
+            }
+        }
+        break;
+    }
+
+    case Memory: {
+        Value data(irParam, irType, Memory);
+        valueMap.insert(paramVar, data);
+        ++irParamItr;
+        if (arrayType) {
+            SC_ASSERT(!isDynArray,
+                      "By value array parameters cannot be dynamic");
+            auto* size = ctx.intConstant(arrayType->count(), 64);
+            valueMap.insertArraySize(paramVar, Value(size, Register));
+        }
+        break;
+    }
+    }
+}
+
+void FuncGenContext::generateDeclArraySizeImpl(
+    ast::VarDeclBase const* varDecl,
+    utl::function_view<ir::Value*()> sizeCallback) {
+    auto* type = stripRefOrPtr(varDecl->type().get()).get();
+    auto* arrayType = dyncast<sema::ArrayType const*>(type);
+    if (!arrayType) {
+        return;
+    }
+    if (!arrayType->isDynamic()) {
+        valueMap.insertArraySize(varDecl->variable(), arrayType->count());
+    }
+    else if (sema::isRef(varDecl->type())) {
+        valueMap.insertArraySize(varDecl->variable(), Value(sizeCallback(), Register));
+    }
+    else {
+        auto* size = sizeCallback();
+        auto* sizeVar = storeToMemory(size, utl::strcat(varDecl->name(), ".size"));
+        valueMap.insertArraySize(varDecl->variable(),
+                          Value(sizeVar, size->type(), Memory));
+    }
+}
+
+void FuncGenContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
+                                               sema::Object const* initObject) {
+    generateDeclArraySizeImpl(varDecl, [&] {
+        return toRegister(valueMap.arraySize(initObject, &currentBlock()));
+    });
+}
+
+void FuncGenContext::generateParamArraySize(ast::VarDeclBase const* varDecl,
+                                             ir::Parameter* param) {
+    generateDeclArraySizeImpl(varDecl, [&] { return param->next(); });
+}
+
+static bool varDeclNeedCopy(sema::QualType type) {
+    return type->hasTrivialLifetime() && !isa<sema::ArrayType>(*type);
+}
+
+void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
+    auto dtorStack = varDecl.dtorStack();
+    std::string name = std::string(varDecl.name());
+    auto* initExpr = varDecl.initExpression();
+    if (sema::isRef(varDecl.type())) {
+        SC_ASSERT(initExpr, "Reference must be initialized");
+        auto value = getValue(initExpr);
+        valueMap.insert(varDecl.variable(), value);
+        /// We don't store array size because we just reuse the value from our
+        /// init expression, so the array size is already stored
+    }
+    else if (initExpr) {
+        auto value = getValue(initExpr);
+        ir::Value* address = nullptr;
+        /// The test for trivial lifetime is temporary. We should find a better
+        /// solution but for now it works. It works because for trivial lifetime
+        /// types
+        if (value.isMemory() && initExpr->isRValue() &&
+            !varDeclNeedCopy(initExpr->type()))
+        {
+            address = value.get();
+            address->setName(name);
+        }
+        else {
+            address = storeToMemory(toRegister(value), name);
+        }
+        valueMap.insert(varDecl.variable(),
+                       Value(address, value.type(), Memory));
+        generateVarDeclArraySize(&varDecl, initExpr->object());
+    }
+    else {
+        auto* type = typeMap(varDecl.type());
+        auto* address = makeLocalVariable(type, name);
+        valueMap.insert(varDecl.variable(), Value(address, type, Memory));
+        generateVarDeclArraySize(&varDecl, nullptr);
+    }
+    emitDestructorCalls(dtorStack);
+}
+
+void FuncGenContext::generateImpl(
+    ast::ExpressionStatement const& exprStatement) {
+    (void)getValue(exprStatement.expression());
+    emitDestructorCalls(exprStatement.dtorStack());
+}
+
+void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
+    auto const& CC = functionMap.metaData(&semaFn).CC;
+    if (!retDecl.expression()) {
+        add<ir::Return>(ctx.voidValue());
+        return;
+    }
+    auto returnValue = getValue(retDecl.expression());
+    emitDestructorCalls(retDecl.dtorStack());
+    // clang-format off
+    SC_MATCH (*stripRefOrPtr(retDecl.expression()->type())) {
+        [&](sema::ObjectType const&) {
+            switch (CC.returnValue().location()) {
+            case Register:
+                add<ir::Return>(toRegister(returnValue));
+                break;
+                
+            case Memory:
+                add<ir::Store>(&irFn.parameters().front(),
+                               toRegister(returnValue));
+                add<ir::Return>(ctx.voidValue());
+                break;
+            }
+        },
+        [&](sema::ArrayType const&) {
+            switch (CC.returnValue().location()) {
+            case Register: {
+                auto* data = toRegister(returnValue);
+                auto* size = toRegister(valueMap.arraySize(retDecl.expression()->object(),
+                                                           &currentBlock()));
+                auto* baseValue = ctx.undef(makeArrayViewType(ctx));
+                auto* insertData = add<ir::InsertValue>(baseValue,
+                                                        data,
+                                                        std::array{ size_t{ 0 } },
+                                                        "retval");
+                auto* insertSize = add<ir::InsertValue>(insertData,
+                                                        size,
+                                                        std::array{ size_t{ 1 } },
+                                                        "retval");
+                add<ir::Return>(insertSize);
+                break;
+            }
+            case Memory:
+                SC_UNIMPLEMENTED();
+                break;
+            }
+        },
+    }; // clang-format on
+}
+
+void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
+    auto* condition = getValue<Register>(stmt.condition());
+    emitDestructorCalls(stmt.dtorStack());
+    auto* thenBlock = newBlock("if.then");
+    auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
+    auto* endBlock = newBlock("if.end");
+    add<ir::Branch>(condition, thenBlock, elseBlock ? elseBlock : endBlock);
+    add(thenBlock);
+    generate(*stmt.thenBlock());
+    add<ir::Goto>(endBlock);
+    if (stmt.elseBlock()) {
+        add(elseBlock);
+        generate(*stmt.elseBlock());
+        add<ir::Goto>(endBlock);
+    }
+    add(endBlock);
+}
+
+void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
+    switch (loopStmt.kind()) {
+    case ast::LoopKind::For: {
+        auto* loopHeader = newBlock("loop.header");
+        auto* loopBody = newBlock("loop.body");
+        auto* loopInc = newBlock("loop.inc");
+        auto* loopEnd = newBlock("loop.end");
+        generate(*loopStmt.varDecl());
+        add<ir::Goto>(loopHeader);
+
+        /// Header
+        add(loopHeader);
+        auto* condition = getValue<Register>(loopStmt.condition());
+        emitDestructorCalls(loopStmt.conditionDtorStack());
+        add<ir::Branch>(condition, loopBody, loopEnd);
+        loopStack.push({ .header = loopHeader,
+                         .body = loopBody,
+                         .inc = loopInc,
+                         .end = loopEnd });
+
+        /// Body
+        add(loopBody);
+        generate(*loopStmt.block());
+        add<ir::Goto>(loopInc);
+
+        /// Inc
+        add(loopInc);
+        getValue(loopStmt.increment());
+        emitDestructorCalls(loopStmt.incrementDtorStack());
+        add<ir::Goto>(loopHeader);
+
+        /// End
+        add(loopEnd);
+        loopStack.pop();
+        break;
+    }
+
+    case ast::LoopKind::While: {
+        auto* loopHeader = newBlock("loop.header");
+        auto* loopBody = newBlock("loop.body");
+        auto* loopEnd = newBlock("loop.end");
+        add<ir::Goto>(loopHeader);
+
+        /// Header
+        add(loopHeader);
+        auto* condition = getValue<Register>(loopStmt.condition());
+        emitDestructorCalls(loopStmt.conditionDtorStack());
+        add<ir::Branch>(condition, loopBody, loopEnd);
+        loopStack.push(
+            { .header = loopHeader, .body = loopBody, .end = loopEnd });
+
+        /// Body
+        add(loopBody);
+        generate(*loopStmt.block());
+        add<ir::Goto>(loopHeader);
+
+        /// End
+        add(loopEnd);
+        loopStack.pop();
+        break;
+    }
+
+    case ast::LoopKind::DoWhile: {
+        auto* loopBody = newBlock("loop.body");
+        auto* loopFooter = newBlock("loop.footer");
+        auto* loopEnd = newBlock("loop.end");
+        add<ir::Goto>(loopBody);
+        loopStack.push(
+            { .header = loopFooter, .body = loopBody, .end = loopEnd });
+
+        /// Body
+        add(loopBody);
+        generate(*loopStmt.block());
+        add<ir::Goto>(loopFooter);
+
+        /// Footer
+        add(loopFooter);
+        auto* condition = getValue<Register>(loopStmt.condition());
+        emitDestructorCalls(loopStmt.conditionDtorStack());
+        add<ir::Branch>(condition, loopBody, loopEnd);
+
+        /// End
+        add(loopEnd);
+        loopStack.pop();
+        break;
+    }
+    }
+    emitDestructorCalls(loopStmt.dtorStack());
+}
+
+void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
+    emitDestructorCalls(jump.dtorStack());
+    auto* dest = [&] {
+        auto& currentLoop = loopStack.top();
+        switch (jump.kind()) {
+        case ast::JumpStatement::Break:
+            return currentLoop.end;
+        case ast::JumpStatement::Continue:
+            return currentLoop.inc ? currentLoop.inc : currentLoop.header;
+        }
+    }();
+    add<ir::Goto>(dest);
+}
+
+/// MARK: - Expressions
 
 static bool isIntType(size_t width, ir::Type const* type) {
     return cast<ir::IntegralType const*>(type)->bitwidth() == 1;
 }
 
-Value LoweringContext::getValue(ast::Expression const* expr) {
+Value FuncGenContext::getValue(ast::Expression const* expr) {
     SC_ASSERT(expr, "");
     /// Returning constants here if possible breaks when we take the address of
     /// a constant. A solution that also solves the array size problem could be
@@ -57,26 +552,29 @@ Value LoweringContext::getValue(ast::Expression const* expr) {
                  [this](auto const& expr) { return getValueImpl(expr); });
 }
 
-Value LoweringContext::getValueImpl(ast::Identifier const& id) {
+template <ValueLocation Loc>
+ir::Value* FuncGenContext::getValue(ast::Expression const* expr) {
+    return toValueLocation(Loc, getValue(expr));
+}
+
+Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
     /// Because identifier expressions always have reference type, we take the
     /// address of the referred to value and put it in a register
-    Value value = getObject(id.object());
+    Value value = valueMap(id.object());
     return Value(value.get(), Register);
 }
 
-Value LoweringContext::getValueImpl(ast::Literal const& lit) {
+Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
         return Value(ctx.intConstant(lit.value<APInt>()), Register);
     case Boolean:
         return Value(ctx.intConstant(lit.value<APInt>()), Register);
-    case FloatingPoint: {
+    case FloatingPoint:
         return Value(ctx.floatConstant(lit.value<APFloat>()), Register);
-    }
-    case This: {
-        return objectMap[lit.object()];
-    }
+    case This:
+        return valueMap(lit.object());
     case String: {
         std::string const& sourceText = lit.value<std::string>();
         size_t size = sourceText.size();
@@ -86,7 +584,7 @@ Value LoweringContext::getValueImpl(ast::Literal const& lit) {
             allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
         auto data = Value(staticData.get(), staticData.get()->type(), Register);
         mod.addConstantData(std::move(staticData));
-        memorizeArraySize(lit.object(), size);
+        valueMap.insertArraySize(lit.object(), size);
         return data;
     }
     case Char:
@@ -94,7 +592,7 @@ Value LoweringContext::getValueImpl(ast::Literal const& lit) {
     }
 }
 
-Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
+Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
     using enum ast::UnaryOperator;
     switch (expr.operation()) {
     case Increment:
@@ -152,7 +650,7 @@ Value LoweringContext::getValueImpl(ast::UnaryExpression const& expr) {
     }
 }
 
-Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
+Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     auto* builtinType = dyncast<sema::BuiltinType const*>(
         sema::stripReference(expr.lhs()->type()).get());
 
@@ -202,7 +700,7 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
     case LogicalOr: {
         ir::Value* const lhs = getValue<Register>(expr.lhs());
         SC_ASSERT(isIntType(1, lhs->type()), "Need i1 for logical operation");
-        auto* startBlock = currentBlock;
+        auto* startBlock = &currentBlock();
         auto* rhsBlock = newBlock("log.rhs");
         auto* endBlock = newBlock("log.end");
         if (expr.operation() == LogicalAnd) {
@@ -218,23 +716,22 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
         add<ir::Goto>(endBlock);
         add(endBlock);
 
-        auto* result = [&] {
-            if (expr.operation() == LogicalAnd) {
-                return add<ir::Phi>(
-                    std::array<ir::PhiMapping, 2>{
-                        ir::PhiMapping{ startBlock, ctx.boolConstant(0) },
-                        ir::PhiMapping{ rhsBlock, rhs } },
-                    "log.and");
-            }
-            else {
-                return add<ir::Phi>(
-                    std::array<ir::PhiMapping, 2>{
-                        ir::PhiMapping{ startBlock, ctx.boolConstant(1) },
-                        ir::PhiMapping{ rhsBlock, rhs } },
-                    "log.or");
-            }
-        }();
-        return Value(result, Register);
+        if (expr.operation() == LogicalAnd) {
+            auto* result = add<ir::Phi>(
+                std::array<ir::PhiMapping, 2>{
+                    ir::PhiMapping{ startBlock, ctx.boolConstant(0) },
+                    ir::PhiMapping{ rhsBlock, rhs } },
+                "log.and");
+            return Value(result, Register);
+        }
+        else {
+            auto* result = add<ir::Phi>(
+                std::array<ir::PhiMapping, 2>{
+                    ir::PhiMapping{ startBlock, ctx.boolConstant(1) },
+                    ir::PhiMapping{ rhsBlock, rhs } },
+                "log.or");
+            return Value(result, Register);
+        }
     }
 
     case Less:
@@ -298,10 +795,10 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
             arrayType && arrayType->isDynamic())
         {
             SC_ASSERT(expr.operation() == Assignment, "");
-            auto lhsSize = getArraySize(expr.lhs()->object());
+            auto lhsSize = valueMap.arraySize(expr.lhs()->object(), &currentBlock());
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
-            auto* rhsSizeReg = toRegister(getArraySize(expr.rhs()->object()));
+            auto* rhsSizeReg = toRegister(valueMap.arraySize(expr.rhs()->object(), &currentBlock()));
             add<ir::Store>(lhsSize.get(), rhsSizeReg);
         }
         return Value();
@@ -311,11 +808,9 @@ Value LoweringContext::getValueImpl(ast::BinaryExpression const& expr) {
     }
 }
 
-Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
-    if (auto itr = valueMap.find(expr.member()->entity());
-        itr != valueMap.end())
-    {
-        return itr->second;
+Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
+    if (auto value = valueMap.tryGet(expr.member()->object())) {
+        return *value;
     }
     if (auto* arrayType =
             dyncast<sema::ArrayType const*>(expr.accessed()->type().get()))
@@ -323,7 +818,7 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
         SC_ASSERT(expr.member()->value() == "count", "What else?");
         if (arrayType->isDynamic()) {
             getValue(expr.accessed());
-            return getArraySize(expr.accessed()->object());
+            return valueMap.arraySize(expr.accessed()->object(), &currentBlock());
         }
         else {
             return Value(ctx.intConstant(arrayType->count(), 64), Register);
@@ -334,9 +829,9 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
     auto* var = cast<sema::Variable const*>(expr.member()->entity());
 
     Value value;
-    size_t const irIndex = structIndexMap[{
-        cast<sema::StructType const*>(expr.accessed()->type().get()),
-        var->index() }];
+    
+    auto const& metaData = typeMap.metaData(expr.accessed()->type().get());
+    size_t const irIndex = metaData.indexMap[var->index()];
     switch (base.location()) {
     case Register: {
         auto* result =
@@ -361,12 +856,12 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
         break;
     }
     }
-    QualType memType = expr.type();
+    sema::QualType memType = expr.type();
     auto* arrayType = ptrToArray(stripReference(memType).get());
     if (!arrayType) {
         return value;
     }
-    memorizeLazyArraySize(expr.object(),
+    valueMap.insertArraySize(expr.object(),
                           [this, base, sizeIndex = irIndex + 1](
                               ir::BasicBlock* BB) {
         BasicBlockBuilder builder(ctx, BB);
@@ -392,18 +887,18 @@ Value LoweringContext::getValueImpl(ast::MemberAccess const& expr) {
     return value;
 }
 
-Value LoweringContext::getValueImpl(ast::DereferenceExpression const& expr) {
+Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
     /// Since a dereference expression converts from `*T` to `&T`, this is a
     /// no-op. The actual dereferencing happens in the conversion nodes.
     return getValue(expr.referred());
 }
 
-Value LoweringContext::getValueImpl(ast::AddressOfExpression const& expr) {
+Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
     /// See `getValueImpl(DereferenceExpression)`
     return getValue(expr.referred());
 }
 
-Value LoweringContext::getValueImpl(ast::Conditional const& condExpr) {
+Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     auto* cond = getValue<Register>(condExpr.condition());
     auto* thenBlock = newBlock("cond.then");
     auto* elseBlock = newBlock("cond.else");
@@ -413,14 +908,14 @@ Value LoweringContext::getValueImpl(ast::Conditional const& condExpr) {
     /// Generate then block.
     add(thenBlock);
     auto* thenVal = getValue<Register>(condExpr.thenExpr());
-    thenBlock = currentBlock; /// Nested `?:` operands etc. may have changed
-                              /// `currentBlock`
+    thenBlock = &currentBlock(); /// Nested `?:` operands etc. may have changed
+                                 /// `currentBlock`
     add<ir::Goto>(endBlock);
 
     /// Generate else block.
     add(elseBlock);
     auto* elseVal = getValue<Register>(condExpr.elseExpr());
-    elseBlock = currentBlock;
+    elseBlock = &currentBlock();
     add<ir::Goto>(endBlock);
 
     /// Generate end block.
@@ -431,14 +926,14 @@ Value LoweringContext::getValueImpl(ast::Conditional const& condExpr) {
     return Value(result, Register);
 }
 
-Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
+Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     ir::Callable* function = getFunction(call.function());
-    auto CC = CCMap[call.function()];
+    auto const& CC = getCC(call.function());
     utl::small_vector<ir::Value*> arguments;
     auto const retvalLocation = CC.returnValue().location();
     if (retvalLocation == Memory) {
         auto* returnType = typeMap(call.function()->returnType());
-        arguments.push_back(makeLocal(returnType, "retval"));
+        arguments.push_back(makeLocalVariable(returnType, "retval"));
     }
     for (auto [PC, arg]: ranges::views::zip(CC.arguments(), call.arguments())) {
         generateArgument(PC, getValue(arg), arg->object(), arguments);
@@ -469,7 +964,7 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
                     add<ir::ExtractValue>(inst,
                                           std::array{ size_t{ 1 } }, "size");
                 Value value(data, Register);
-                memorizeArraySize(call.object(), Value(size, Register));
+                valueMap.insertArraySize(call.object(), Value(size, Register));
                 return value;
             }
             case Memory:
@@ -477,28 +972,28 @@ Value LoweringContext::getValueImpl(ast::FunctionCall const& call) {
             }
         },
     }; // clang-format on
-    memorizeObject(call.object(), value);
+    valueMap.insert(call.object(), value);
     return value;
 }
 
-void LoweringContext::generateArgument(PassingConvention const& PC,
+void FuncGenContext::generateArgument(PassingConvention const& PC,
                                        Value value,
                                        sema::Object const* object,
                                        utl::vector<ir::Value*>& arguments) {
     arguments.push_back(toValueLocation(PC.location(), value));
     if (PC.numParams() == 2) {
-        arguments.push_back(toRegister(getArraySize(object)));
+        arguments.push_back(toRegister(valueMap.arraySize(object, &currentBlock())));
     }
 }
 
-Value LoweringContext::getValueImpl(ast::Subscript const& expr) {
+Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(
         stripReference(expr.callee()->type()).get());
     auto* elemType = typeMap(arrayType->elementType());
     auto array = getValue(expr.callee());
     /// Right now we don't use the size but here we could at a call to an
     /// assertion function
-    [[maybe_unused]] auto size = getArraySize(expr.callee()->object());
+    [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object(), &currentBlock());
     auto index = getValue<Register>(expr.arguments().front());
     switch (array.location()) {
     case Register:
@@ -515,7 +1010,7 @@ Value LoweringContext::getValueImpl(ast::Subscript const& expr) {
     }
 }
 
-Value LoweringContext::getValueImpl(ast::SubscriptSlice const& expr) {
+Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(
         stripReference(expr.callee()->type()).get());
     auto* elemType = typeMap(arrayType->elementType());
@@ -533,7 +1028,7 @@ Value LoweringContext::getValueImpl(ast::SubscriptSlice const& expr) {
                                          lower,
                                          ir::ArithmeticOperation::Sub,
                                          "slice.count");
-    memorizeArraySize(expr.object(), Value(size, Register));
+    valueMap.insertArraySize(expr.object(), Value(size, Register));
     return result;
 }
 
@@ -551,7 +1046,7 @@ static bool evalConstant(ast::Expression const* expr, utl::vector<u8>& dest) {
     return true;
 }
 
-bool LoweringContext::genStaticListData(ast::ListExpression const& list,
+bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
                                         ir::Alloca* dest) {
     auto* type = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = type->elementType();
@@ -571,15 +1066,14 @@ bool LoweringContext::genStaticListData(ast::ListExpression const& list,
                                    "array");
     auto* source = constData.get();
     mod.addConstantData(std::move(constData));
-    auto* memcpy = getFunction(
-        symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
+    auto* memcpy = getMemcpy();
     auto* size = ctx.intConstant(list.elements().size() * elemType->size(), 64);
     std::array<ir::Value*, 4> args = { dest, size, source, size };
     add<ir::Call>(memcpy, args, std::string{});
     return true;
 }
 
-void LoweringContext::genListDataFallback(ast::ListExpression const& list,
+void FuncGenContext::genListDataFallback(ast::ListExpression const& list,
                                           ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = typeMap(arrayType->elementType());
@@ -593,21 +1087,21 @@ void LoweringContext::genListDataFallback(ast::ListExpression const& list,
     }
 }
 
-Value LoweringContext::getValueImpl(ast::ListExpression const& list) {
+Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
     auto* irType = typeMap(semaType);
-    auto* array = makeLocal(irType, "list");
+    auto* array = makeLocalVariable(irType, "list");
     Value size(ctx.intConstant(list.children().size(), 64), Register);
-    valueMap.insert({ semaType->countProperty(), size });
+    valueMap.insert(semaType->countProperty(), size);
     auto value = Value(array, irType, Memory);
     if (!genStaticListData(list, array)) {
         genListDataFallback(list, array);
     }
-    memorizeArraySize(list.object(), size);
+    valueMap.insertArraySize(list.object(), size);
     return value;
 }
 
-Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
+Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     auto* expr = conv.expression();
     Value refConvResult = [&]() -> Value {
         switch (conv.conversion()->refConversion()) {
@@ -627,7 +1121,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                 return Value(value.get(), Register);
             }
             else {
-                auto* temp = storeLocal(value.get());
+                auto* temp = storeToMemory(value.get());
                 return Value(temp, Register);
             }
         }
@@ -640,7 +1134,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         return refConvResult;
 
     case Array_FixedToDynamic: {
-        memorizeArraySize(conv.object(), getArraySize(expr->object()));
+        valueMap.insertArraySize(conv.object(), valueMap.arraySize(expr->object(), &currentBlock()));
         return refConvResult;
     }
     case Reinterpret_Array_ToByte:
@@ -653,7 +1147,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
         auto data = refConvResult;
         if (toType->isDynamic()) {
             if (fromType->isDynamic()) {
-                auto count = getArraySize(expr->object());
+                auto count = valueMap.arraySize(expr->object(), &currentBlock());
                 if (conv.conversion()->objectConversion() ==
                     Reinterpret_Array_ToByte)
                 {
@@ -672,7 +1166,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
                                                 "reinterpret.count");
                     count = Value(newCount, Register);
                 }
-                memorizeArraySize(conv.object(), count);
+                valueMap.insertArraySize(conv.object(), count);
                 return data;
             }
             size_t count = fromType->count();
@@ -686,7 +1180,7 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
             default:
                 SC_UNREACHABLE();
             }
-            memorizeArraySize(conv.object(), count);
+            valueMap.insertArraySize(conv.object(), count);
             return data;
         }
         SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
@@ -776,16 +1270,14 @@ Value LoweringContext::getValueImpl(ast::Conversion const& conv) {
     }
 }
 
-Value LoweringContext::getValueImpl(ast::ConstructorCall const& call) {
+Value FuncGenContext::getValueImpl(ast::ConstructorCall const& call) {
     using enum sema::SpecialMemberFunction;
     switch (call.kind()) {
     case New: {
         auto* type = typeMap(call.constructedType());
-        auto* address = makeLocal(type, "anon");
+        auto* address = makeLocalVariable(type, "anon");
         auto* function = getFunction(call.function());
-        auto CCItr = CCMap.find(call.function());
-        SC_ASSERT(CCItr != CCMap.end(), "");
-        auto const& CC = CCItr->second;
+        auto const& CC = getCC(call.function());
         /// Lifetime function always must take the object parameter by reference
         /// so we can just pass the pointer here
         utl::small_vector<ir::Value*> arguments = { address };
@@ -795,7 +1287,7 @@ Value LoweringContext::getValueImpl(ast::ConstructorCall const& call) {
         for (auto [PC, arg]: PCsAndArgs) {
             generateArgument(PC, getValue(arg), arg->object(), arguments);
         }
-        memorizeObject(call.object(), Value(address, type, Memory));
+        valueMap.insert(call.object(), Value(address, type, Memory));
         add<ir::Call>(function, arguments, std::string{});
         return Value(address, type, Memory);
     }
@@ -806,15 +1298,15 @@ Value LoweringContext::getValueImpl(ast::ConstructorCall const& call) {
     }
 }
 
-Value LoweringContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
+Value FuncGenContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
     // clang-format off
     return SC_MATCH (*expr.type()) {
         [&](sema::ObjectType const& type) {
             auto value = getValue(expr.argument());
             auto result = Value(toRegister(value), Register);
-            if (auto arraySize = tryGetArraySize(expr.argument()->object())) {
+            if (auto arraySize = valueMap.tryGetArraySize(expr.argument()->object(), &currentBlock())) {
                 auto newSize = Value(toRegister(*arraySize), Register);
-                memorizeArraySize(expr.object(), newSize);
+                valueMap.insertArraySize(expr.object(), newSize);
             }
             return result;
         },
@@ -827,9 +1319,8 @@ Value LoweringContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
                 auto source = getValue(expr.argument());
                 SC_ASSERT(source.isMemory(), "");
                 auto* arrayType = typeMap(&type);
-                auto* array = makeLocal(arrayType, "list");
-                auto* memcpy = getFunction(
-                    symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
+                auto* array = makeLocalVariable(arrayType, "list");
+                auto* memcpy = getMemcpy();
                 auto* size = ctx.intConstant(type.size(), 64);
                 std::array<ir::Value*, 4> args = { array, size, source.get(), size };
                 add<ir::Call>(memcpy, args, std::string{});
@@ -837,4 +1328,79 @@ Value LoweringContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
             }
         },
     }; // clang-format on
+}
+
+/// MARK: - General utilities
+
+void FuncGenContext::emitDestructorCalls(sema::DTorStack const& dtorStack) {
+    for (auto call: dtorStack) {
+        auto* function = getFunction(call.destructor);
+        auto object = valueMap(call.object);
+        SC_ASSERT(object.isMemory(), "Objects with non trivial lifetime must be in memory");
+        add<ir::Call>(function,
+                      std::array{ object.get() },
+                      std::string{});
+    }
+}
+
+ir::Value* FuncGenContext::toRegister(Value value) {
+    switch (value.location()) {
+    case Register:
+        return value.get();
+    case Memory:
+        return add<ir::Load>(value.get(),
+                             value.type(),
+                             std::string(value.get()->name()));
+    }
+}
+
+ir::Value* FuncGenContext::toMemory(Value value) {
+    switch (value.location()) {
+    case Register:
+        return storeToMemory(value.get());
+
+    case Memory:
+        return value.get();
+    }
+}
+
+ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
+                                            Value value) {
+    switch (location) {
+    case Register:
+        return toRegister(value);
+    case Memory:
+        return toMemory(value);
+    }
+}
+
+ir::Callable* FuncGenContext::getFunction(sema::Function const* semaFunction) {
+    switch (semaFunction->kind()) {
+    case sema::FunctionKind::Native:
+        return functionMap(semaFunction);
+
+    case sema::FunctionKind::External:
+        [[fallthrough]];
+    case sema::FunctionKind::Generated: {
+        if (auto* irFunction = functionMap.tryGet(semaFunction)) {
+            return irFunction;
+        }
+        auto [irFunction, metaData] = declareFunction(ctx, typeMap, semaFunction);
+        functionMap.insert(semaFunction, irFunction.get(), std::move(metaData));
+        auto* result = irFunction.get();
+        mod.addGlobal(std::move(irFunction));
+        return result;
+    }
+    }
+}
+
+ir::ExtFunction* FuncGenContext::getMemcpy() {
+    size_t index = static_cast<size_t>(svm::Builtin::memcpy);
+    auto* semaMemcpy = symbolTable.builtinFunction(index);
+    auto* irMemcpy = getFunction(semaMemcpy);
+    return cast<ir::ExtFunction*>(irMemcpy);
+}
+
+CallingConvention const& FuncGenContext::getCC(sema::Function const* function) {
+    return functionMap.metaData(function).CC;
 }

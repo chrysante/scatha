@@ -225,11 +225,6 @@ struct LoweringContext {
 
     ir::Callable* getFunction(sema::Function const*);
 
-    /// \Returns the value passing convention of the return value and the return
-    /// value if the passing convention is `Register` or the address of the
-    /// return value if the passing convention is `Stack`
-    Value genCall(ast::FunctionCall const*);
-
     /// Associate object with program values
     /// Values are stored in `objectMap`
     void memorizeObject(sema::Object const* object, Value value);
