@@ -84,10 +84,6 @@ bool opt::compareEqual(ir::Phi const* lhs,
     return cmpEqImpl(lhs, rhs);
 }
 
-void opt::replaceValue(ir::Value* oldValue, ir::Value* newValue) {
-    oldValue->replaceAllUsesWith(newValue);
-}
-
 void opt::removePredecessorAndUpdatePhiNodes(
     ir::BasicBlock* basicBlock, ir::BasicBlock const* predecessor) {
     basicBlock->removePredecessor(predecessor);
@@ -98,7 +94,7 @@ void opt::removePredecessorAndUpdatePhiNodes(
         /// Transform all phi nodes into the value at the other predecessor.
         for (auto& phi: basicBlock->phiNodes()) {
             Value* const value = phi.argumentAt(1 - bbPhiIndex).value;
-            replaceValue(&phi, value);
+            phi.replaceAllUsesWith(value);
         }
         basicBlock->eraseAllPhiNodes();
     }

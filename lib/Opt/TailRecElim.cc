@@ -160,7 +160,7 @@ bool TREContext::run() {
     for (auto [phi, param]:
          ranges::views::zip(phiParams, function.parameters()))
     {
-        replaceValue(&param, phi);
+        param.replaceAllUsesWith(phi);
         phi->setArgument(size_t(0), &param);
     }
     return true;

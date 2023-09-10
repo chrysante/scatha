@@ -197,7 +197,7 @@ bool Ctx::mainPass() {
         bb->erase(bb->terminator());
         for (auto& phi: succ->phiNodes()) {
             SC_ASSERT(phi.argumentCount() == 1, "Invalid argument count");
-            opt::replaceValue(&phi, phi.argumentAt(0).value);
+            phi.replaceAllUsesWith(phi.argumentAt(0).value);
         }
         succ->eraseAllPhiNodes();
         bb->splice(bb->end(), succ);
@@ -279,7 +279,7 @@ bool Ctx::merge(BasicBlock* pred, BasicBlock* via, BasicBlock* succ) {
                                   phi.operandOf(b),
                                   utl::strcat("select.", phi.name()));
         selects.push_back(select);
-        opt::replaceValue(&phi, select);
+        phi.replaceAllUsesWith(select);
     }
     succ->eraseAllPhiNodes();
     for (auto* select: selects | ranges::views::reverse) {

@@ -321,7 +321,7 @@ bool Inliner::doInline(Call* callInst) {
                                 utl::narrow_cast<ssize_t>(index))
                           .to_address();
         auto* arg = callInst->argumentAt(index);
-        replaceValue(param, arg);
+        param->replaceAllUsesWith(arg);
     }
     if (!inlineSelfRecImpl(clone.get(),
                            callee,
@@ -343,7 +343,7 @@ bool Inliner::inlineSelfRecursion(ir::Function* function) {
         selfRecursive.insert(function);
         return false;
     }
-    replaceValue(function, clone.get());
+    function->replaceAllUsesWith(clone.get());
     auto& node = callGraph[function];
     callGraph.updateFunctionPointer(&node, clone.get());
     mod.eraseFunction(function);

@@ -293,7 +293,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
                     /// with `undef`
                     value = irCtx.undef(load.type());
                 }
-                replaceValue(&load, value);
+                load.replaceAllUsesWith(value);
             },
             [&](Store& store) {
                 auto* address = dyncast<Alloca*>(store.address());

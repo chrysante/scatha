@@ -219,7 +219,7 @@ bool SCCPContext::apply() {
             },
             [](auto const&) -> Value* { SC_UNREACHABLE(); }
         }, latticeElement); // clang-format on
-        replaceValue(value, newValue);
+        value->replaceAllUsesWith(newValue);
         replacedInstructions.push_back(cast<Instruction*>(value));
     }
     for (auto* inst: replacedInstructions) {

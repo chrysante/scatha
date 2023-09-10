@@ -131,7 +131,7 @@ static void eraseSingleValuePhiNodes(BasicBlock* BB) {
             break;
         }
         auto* arg = phi->argumentAt(0).value;
-        replaceValue(phi, arg);
+        phi->replaceAllUsesWith(arg);
         BB->erase(phi);
     }
 }

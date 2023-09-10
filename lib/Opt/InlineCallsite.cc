@@ -39,7 +39,7 @@ void opt::inlineCallsite(ir::Context& ctx,
     for (auto [param, arg]:
          ranges::views::zip(calleeClone->parameters(), call->arguments()))
     {
-        replaceValue(&param, arg);
+        param.replaceAllUsesWith(arg);
     }
     /// Traverse `calleeClone` and replace all returns with
     /// gotos to `landingpad`
@@ -66,7 +66,7 @@ void opt::inlineCallsite(ir::Context& ctx,
         auto* phi = new Phi(call->type(), "inline.phi");
         phi->setArguments(phiArgs);
         landingpad->insert(landingpad->begin(), phi);
-        replaceValue(call, phi);
+        call->replaceAllUsesWith(phi);
     }
     /// Now that we have eventually replaced all uses with a phi node we can
     /// erase the call instruction.

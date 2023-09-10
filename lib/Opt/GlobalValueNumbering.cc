@@ -685,7 +685,7 @@ LocalComputationTable GVNContext::buildLCT(BasicBlock* BB) {
             continue;
         }
         if (auto* existing = result.insertOrExisting(rank, inst)) {
-            replaceValue(inst, existing);
+            inst->replaceAllUsesWith(existing);
             redundant.insert(inst);
             modified = true;
         }
@@ -918,7 +918,7 @@ void GVNContext::moveInImpl(
         [&](Instruction* insertPoint, MovableComputationTable::Entry& entry) {
         Instruction* inst = entry.copy();
         if (auto* existing = LCT.insertOrExisting(rank, inst)) {
-            replaceValue(inst, existing);
+            inst->replaceAllUsesWith(existing);
             inst = existing;
         }
         else {
@@ -928,7 +928,7 @@ void GVNContext::moveInImpl(
         }
         for (auto* original: entry.originals()) {
             redundant.insert(original);
-            replaceValue(original, inst);
+            original->replaceAllUsesWith(inst);
             modified = true;
         }
         return inst;
@@ -981,7 +981,7 @@ void GVNContext::moveInImpl(
                 auto* otherEntry = MCT_B.computationEqualTo(copy);
                 for (auto* original: otherEntry->originals()) {
                     redundant.insert(original);
-                    replaceValue(original, copy);
+                    original->replaceAllUsesWith(copy);
                     modified = true;
                 }
                 MCT_B.eraseComputationEqualTo(copy);
@@ -1032,7 +1032,7 @@ void GVNContext::moveOut(size_t rank,
             }
             auto* phi = new Phi(phiArgs, std::string(inst->name()));
             BB->insertPhi(phi);
-            replaceValue(inst, phi);
+            inst->replaceAllUsesWith(phi);
         }
         break;
     }

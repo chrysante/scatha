@@ -382,7 +382,7 @@ bool IPContext::evaluate(BasicBlock* BB) {
     bool result = false;
     for (auto& inst: *BB) {
         if (auto* newVal = evaluate(&inst)) {
-            replaceValue(&inst, newVal);
+            inst.replaceAllUsesWith(newVal);
             result = true;
         }
     }

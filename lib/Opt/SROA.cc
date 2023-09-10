@@ -298,7 +298,7 @@ void VariableContext::replaceBySlicesImpl(Instruction* address,
                                                 std::string(load.name()));
                     bb->insert(&load, cast<Instruction*>(aggregate));
                 });
-                replaceValue(&load, aggregate);
+                load.replaceAllUsesWith(aggregate);
                 bb->erase(&load);
             },
             [&](Store& store) {
