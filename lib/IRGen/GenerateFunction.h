@@ -2,8 +2,8 @@
 #define SCATHA_IRGEN_GENERATEFUNCTION_H_
 
 #include "AST/Fwd.h"
-#include "Sema/Fwd.h"
 #include "IR/Fwd.h"
+#include "Sema/Fwd.h"
 
 namespace scatha::irgen {
 

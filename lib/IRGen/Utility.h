@@ -1,8 +1,8 @@
 #ifndef SCATHA_IRGEN_UTILITY_H_
 #define SCATHA_IRGEN_UTILITY_H_
 
-#include "Sema/Fwd.h"
 #include "IR/Fwd.h"
+#include "Sema/Fwd.h"
 
 namespace scatha::irgen {
 

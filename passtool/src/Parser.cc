@@ -7,11 +7,11 @@
 #include <string>
 #include <vector>
 
-#include <scatha/AST/LowerToIR.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
 #include <scatha/IR/Parser.h>
 #include <scatha/IR/Print.h>
+#include <scatha/IRGen/IRGen.h>
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
@@ -57,7 +57,7 @@ std::pair<ir::Context, ir::Module> passtool::parseFile(
         if (issueHandler.haveErrors()) {
             std::exit(-1);
         }
-        return ast::lowerToIR(*ast, semaSym, analysisResult);
+        return irgen::generateIR(*ast, semaSym, analysisResult);
     }
     case IR: {
         auto result = ir::parse(text);

@@ -6,16 +6,6 @@
 using namespace scatha;
 using namespace ir;
 
-void Module::addFunction(Function* function) {
-    function->set_parent(this);
-    funcs.push_back(function);
-}
-
-void Module::addFunction(UniquePtr<Function> function) {
-    /// `.release()` because `List<>` takes ownership.
-    addFunction(function.release());
-}
-
 Module::Module(Module&& rhs) noexcept = default;
 
 Module& Module::operator=(Module&& rhs) noexcept = default;
@@ -36,10 +26,21 @@ void Module::addStructure(UniquePtr<StructType> structure) {
 }
 
 void Module::addGlobal(UniquePtr<Value> value) {
-    if (auto* func = dyncast<ExtFunction*>(value.get())) {
-        _extFunctions[{ func->slot(), func->index() }] = func;
-    }
-    _globals.push_back(std::move(value));
+    // clang-format off
+    SC_MATCH (*value) {
+        [&](ExtFunction& func) {
+            _extFunctions[{ func.slot(), func.index() }] = &func;
+            _globals.push_back(std::move(value));
+        },
+        [&](Function& func) {
+            value.release();
+            func.set_parent(this);
+            funcs.push_back(&func);
+        },
+        [&](Value&) {
+            _globals.push_back(std::move(value));
+        },
+    }; // clang-format on
 }
 
 void Module::addConstantData(UniquePtr<ConstantData> value) {

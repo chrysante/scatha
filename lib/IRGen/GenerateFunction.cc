@@ -1,24 +1,24 @@
 #include "IRGen/GenerateFunction.h"
 
+#include <svm/Builtin.h>
 #include <utl/function_view.hpp>
 #include <utl/strcat.hpp>
-#include <svm/Builtin.h>
 
-#include "IRGen/Maps.h"
-#include "IRGen/Value.h"
-#include "IRGen/Builder.h"
-#include "IRGen/Utility.h"
-#include "IRGen/Globals.h"
-#include "IR/CFG.h"
-#include "IR/Module.h"
-#include "IR/Context.h"
-#include "IR/Type.h"
 #include "AST/AST.h"
-#include "Sema/Entity.h"
-#include "Sema/SymbolTable.h"
-#include "Sema/QualType.h"
-#include "Sema/Analysis/Conversion.h"
+#include "IR/CFG.h"
+#include "IR/Context.h"
+#include "IR/Module.h"
+#include "IR/Type.h"
+#include "IRGen/Builder.h"
+#include "IRGen/Globals.h"
+#include "IRGen/Maps.h"
+#include "IRGen/Utility.h"
+#include "IRGen/Value.h"
 #include "Sema/Analysis/ConstantExpressions.h"
+#include "Sema/Analysis/Conversion.h"
+#include "Sema/Entity.h"
+#include "Sema/QualType.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace irgen;
@@ -42,11 +42,11 @@ struct FuncGenContext: FunctionBuilder {
     sema::SymbolTable const& symbolTable;
     TypeMap const& typeMap;
     FunctionMap& functionMap;
-    
+
     /// Local state
     ValueMap valueMap;
     utl::stack<Loop, 4> loopStack;
-    
+
     FuncGenContext(sema::Function const& semaFn,
                    ir::Function& irFn,
                    ir::Context& ctx,
@@ -54,19 +54,19 @@ struct FuncGenContext: FunctionBuilder {
                    sema::SymbolTable const& symbolTable,
                    TypeMap const& typeMap,
                    FunctionMap& functionMap):
-    FunctionBuilder(ctx, &irFn),
-    semaFn(semaFn),
-    irFn(irFn),
-    ctx(ctx),
-    mod(mod),
-    symbolTable(symbolTable),
-    typeMap(typeMap),
-    functionMap(functionMap),
-    valueMap(ctx) {}
-    
+        FunctionBuilder(ctx, &irFn),
+        semaFn(semaFn),
+        irFn(irFn),
+        ctx(ctx),
+        mod(mod),
+        symbolTable(symbolTable),
+        typeMap(typeMap),
+        functionMap(functionMap),
+        valueMap(ctx) {}
+
     /// # Statements
     void generate(ast::Statement const&);
-    
+
     void generateImpl(ast::Statement const&) { SC_UNREACHABLE(); }
     void generateImpl(ast::CompoundStatement const&);
     void generateImpl(ast::FunctionDefinition const&);
@@ -80,10 +80,10 @@ struct FuncGenContext: FunctionBuilder {
     void generateImpl(ast::IfStatement const&);
     void generateImpl(ast::LoopStatement const&);
     void generateImpl(ast::JumpStatement const&);
-    
+
     /// # Statement specific utilities
     void emitDestructorCalls(sema::DTorStack const& dtorStack);
-    
+
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
     void generateDeclArraySizeImpl(
@@ -95,13 +95,13 @@ struct FuncGenContext: FunctionBuilder {
 
     void generateParamArraySize(ast::VarDeclBase const* varDecl,
                                 ir::Parameter* param);
-    
+
     /// # Expressions
     Value getValue(ast::Expression const* expr);
 
     template <ValueLocation Loc>
     ir::Value* getValue(ast::Expression const* expr);
-    
+
     Value getValueImpl(ast::Expression const& expr) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
     Value getValueImpl(ast::Literal const&);
@@ -118,7 +118,7 @@ struct FuncGenContext: FunctionBuilder {
     Value getValueImpl(ast::Conversion const&);
     Value getValueImpl(ast::ConstructorCall const&);
     Value getValueImpl(ast::TrivialCopyExpr const&);
-    
+
     /// # Expression specific utilities
     void generateArgument(PassingConvention const& PC,
                           Value arg,
@@ -126,27 +126,28 @@ struct FuncGenContext: FunctionBuilder {
                           utl::vector<ir::Value*>& outArgs);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
     void genListDataFallback(ast::ListExpression const& list, ir::Alloca* dest);
-    
+
     /// # General utilities
-    
+
     /// If the value \p value is already in a register, returns that.
     /// Otherwise loads the value from memory and returns the `load` instruction
     ir::Value* toRegister(Value value);
-    
+
     /// If the value \p value is in memory, returns the address.
     /// Otherwise allocates stack memory, stores the value and returns the
     /// address
     ir::Value* toMemory(Value value);
-    
-    /// \Returns `toRegister(value)` or `toMemory(value)` depending on \p location
+
+    /// \Returns `toRegister(value)` or `toMemory(value)` depending on \p
+    /// location
     ir::Value* toValueLocation(ValueLocation location, Value value);
-    
+
     ///
     ir::Callable* getFunction(sema::Function const*);
-    
+
     ///
     ir::ExtFunction* getMemcpy();
-    
+
     ///
     CallingConvention const& getCC(sema::Function const*);
 };
@@ -160,14 +161,15 @@ void irgen::generateFunction(ast::FunctionDefinition const& funcDecl,
                              sema::SymbolTable const& symbolTable,
                              TypeMap const& typeMap,
                              FunctionMap& functionMap) {
-    
+
     FuncGenContext(*funcDecl.function(),
                    irFn,
                    ctx,
                    mod,
                    symbolTable,
                    typeMap,
-                   functionMap).generate(funcDecl);
+                   functionMap)
+        .generate(funcDecl);
 }
 
 /// MARK: - Statements
@@ -271,25 +273,27 @@ void FuncGenContext::generateDeclArraySizeImpl(
         valueMap.insertArraySize(varDecl->variable(), arrayType->count());
     }
     else if (sema::isRef(varDecl->type())) {
-        valueMap.insertArraySize(varDecl->variable(), Value(sizeCallback(), Register));
+        valueMap.insertArraySize(varDecl->variable(),
+                                 Value(sizeCallback(), Register));
     }
     else {
         auto* size = sizeCallback();
-        auto* sizeVar = storeToMemory(size, utl::strcat(varDecl->name(), ".size"));
+        auto* sizeVar =
+            storeToMemory(size, utl::strcat(varDecl->name(), ".size"));
         valueMap.insertArraySize(varDecl->variable(),
-                          Value(sizeVar, size->type(), Memory));
+                                 Value(sizeVar, size->type(), Memory));
     }
 }
 
 void FuncGenContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
-                                               sema::Object const* initObject) {
+                                              sema::Object const* initObject) {
     generateDeclArraySizeImpl(varDecl, [&] {
         return toRegister(valueMap.arraySize(initObject, &currentBlock()));
     });
 }
 
 void FuncGenContext::generateParamArraySize(ast::VarDeclBase const* varDecl,
-                                             ir::Parameter* param) {
+                                            ir::Parameter* param) {
     generateDeclArraySizeImpl(varDecl, [&] { return param->next(); });
 }
 
@@ -324,7 +328,7 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
             address = storeToMemory(toRegister(value), name);
         }
         valueMap.insert(varDecl.variable(),
-                       Value(address, value.type(), Memory));
+                        Value(address, value.type(), Memory));
         generateVarDeclArraySize(&varDecl, initExpr->object());
     }
     else {
@@ -343,7 +347,6 @@ void FuncGenContext::generateImpl(
 }
 
 void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
-    auto const& CC = functionMap.metaData(&semaFn).CC;
     if (!retDecl.expression()) {
         add<ir::Return>(ctx.voidValue());
         return;
@@ -353,6 +356,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
     // clang-format off
     SC_MATCH (*stripRefOrPtr(retDecl.expression()->type())) {
         [&](sema::ObjectType const&) {
+            auto const& CC = getCC(&semaFn);
             switch (CC.returnValue().location()) {
             case Register:
                 add<ir::Return>(toRegister(returnValue));
@@ -366,18 +370,18 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
             }
         },
         [&](sema::ArrayType const&) {
+            auto const& CC = getCC(&semaFn);
             switch (CC.returnValue().location()) {
             case Register: {
-                auto* data = toRegister(returnValue);
-                auto* size = toRegister(valueMap.arraySize(retDecl.expression()->object(),
-                                                           &currentBlock()));
+                auto size = valueMap.arraySize(retDecl.expression()->object(),
+                                               &currentBlock());
                 auto* baseValue = ctx.undef(makeArrayViewType(ctx));
                 auto* insertData = add<ir::InsertValue>(baseValue,
-                                                        data,
+                                                        toRegister(returnValue),
                                                         std::array{ size_t{ 0 } },
                                                         "retval");
                 auto* insertSize = add<ir::InsertValue>(insertData,
-                                                        size,
+                                                        toRegister(size),
                                                         std::array{ size_t{ 1 } },
                                                         "retval");
                 add<ir::Return>(insertSize);
@@ -795,10 +799,12 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
             arrayType && arrayType->isDynamic())
         {
             SC_ASSERT(expr.operation() == Assignment, "");
-            auto lhsSize = valueMap.arraySize(expr.lhs()->object(), &currentBlock());
+            auto lhsSize =
+                valueMap.arraySize(expr.lhs()->object(), &currentBlock());
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
-            auto* rhsSizeReg = toRegister(valueMap.arraySize(expr.rhs()->object(), &currentBlock()));
+            auto* rhsSizeReg = toRegister(
+                valueMap.arraySize(expr.rhs()->object(), &currentBlock()));
             add<ir::Store>(lhsSize.get(), rhsSizeReg);
         }
         return Value();
@@ -816,9 +822,11 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
             dyncast<sema::ArrayType const*>(expr.accessed()->type().get()))
     {
         SC_ASSERT(expr.member()->value() == "count", "What else?");
+#warning do we need this branch?
         if (arrayType->isDynamic()) {
             getValue(expr.accessed());
-            return valueMap.arraySize(expr.accessed()->object(), &currentBlock());
+            return valueMap.arraySize(expr.accessed()->object(),
+                                      &currentBlock());
         }
         else {
             return Value(ctx.intConstant(arrayType->count(), 64), Register);
@@ -829,7 +837,7 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
     auto* var = cast<sema::Variable const*>(expr.member()->entity());
 
     Value value;
-    
+
     auto const& metaData = typeMap.metaData(expr.accessed()->type().get());
     size_t const irIndex = metaData.indexMap[var->index()];
     switch (base.location()) {
@@ -861,29 +869,25 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
     if (!arrayType) {
         return value;
     }
-    valueMap.insertArraySize(expr.object(),
-                          [this, base, sizeIndex = irIndex + 1](
-                              ir::BasicBlock* BB) {
-        BasicBlockBuilder builder(ctx, BB);
+    auto lazySize = [this, base, sizeIndex = irIndex + 1](ir::BasicBlock*) {
         switch (base.location()) {
         case Register: {
-            auto* result =
-                builder.add<ir::ExtractValue>(base.get(),
-                                              std::array{ sizeIndex },
-                                              "mem.acc.size");
+            auto* result = add<ir::ExtractValue>(base.get(),
+                                                 std::array{ sizeIndex },
+                                                 "mem.acc.size");
             return Value(result, Register);
         }
         case Memory: {
-            auto* result =
-                builder.add<ir::GetElementPointer>(base.type(),
-                                                   base.get(),
-                                                   ctx.intConstant(0, 64),
-                                                   std::array{ sizeIndex },
-                                                   "mem.acc.size");
+            auto* result = add<ir::GetElementPointer>(base.type(),
+                                                      base.get(),
+                                                      ctx.intConstant(0, 64),
+                                                      std::array{ sizeIndex },
+                                                      "mem.acc.size");
             return Value(result, ctx.intType(64), Memory);
         }
         }
-    });
+    };
+    valueMap.insertArraySize(expr.object(), lazySize);
     return value;
 }
 
@@ -977,12 +981,13 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
 }
 
 void FuncGenContext::generateArgument(PassingConvention const& PC,
-                                       Value value,
-                                       sema::Object const* object,
-                                       utl::vector<ir::Value*>& arguments) {
+                                      Value value,
+                                      sema::Object const* object,
+                                      utl::vector<ir::Value*>& arguments) {
     arguments.push_back(toValueLocation(PC.location(), value));
     if (PC.numParams() == 2) {
-        arguments.push_back(toRegister(valueMap.arraySize(object, &currentBlock())));
+        arguments.push_back(
+            toRegister(valueMap.arraySize(object, &currentBlock())));
     }
 }
 
@@ -991,9 +996,10 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
         stripReference(expr.callee()->type()).get());
     auto* elemType = typeMap(arrayType->elementType());
     auto array = getValue(expr.callee());
-    /// Right now we don't use the size but here we could at a call to an
+    /// Right now we don't use the size but here we could issue a call to an
     /// assertion function
-    [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object(), &currentBlock());
+    [[maybe_unused]] auto size =
+        valueMap.arraySize(expr.callee()->object(), &currentBlock());
     auto index = getValue<Register>(expr.arguments().front());
     switch (array.location()) {
     case Register:
@@ -1047,7 +1053,7 @@ static bool evalConstant(ast::Expression const* expr, utl::vector<u8>& dest) {
 }
 
 bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
-                                        ir::Alloca* dest) {
+                                       ir::Alloca* dest) {
     auto* type = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = type->elementType();
     utl::small_vector<u8> data;
@@ -1074,7 +1080,7 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
 }
 
 void FuncGenContext::genListDataFallback(ast::ListExpression const& list,
-                                          ir::Alloca* dest) {
+                                         ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = typeMap(arrayType->elementType());
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
@@ -1092,7 +1098,9 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     auto* irType = typeMap(semaType);
     auto* array = makeLocalVariable(irType, "list");
     Value size(ctx.intConstant(list.children().size(), 64), Register);
-    valueMap.insert(semaType->countProperty(), size);
+    /// We try to insert because a list expression of the same type might have
+    /// already added the value here
+    valueMap.tryInsert(semaType->countProperty(), size);
     auto value = Value(array, irType, Memory);
     if (!genStaticListData(list, array)) {
         genListDataFallback(list, array);
@@ -1134,7 +1142,9 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         return refConvResult;
 
     case Array_FixedToDynamic: {
-        valueMap.insertArraySize(conv.object(), valueMap.arraySize(expr->object(), &currentBlock()));
+        valueMap.insertArraySize(conv.object(),
+                                 valueMap.arraySize(expr->object(),
+                                                    &currentBlock()));
         return refConvResult;
     }
     case Reinterpret_Array_ToByte:
@@ -1147,7 +1157,8 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         auto data = refConvResult;
         if (toType->isDynamic()) {
             if (fromType->isDynamic()) {
-                auto count = valueMap.arraySize(expr->object(), &currentBlock());
+                auto count =
+                    valueMap.arraySize(expr->object(), &currentBlock());
                 if (conv.conversion()->objectConversion() ==
                     Reinterpret_Array_ToByte)
                 {
@@ -1336,10 +1347,9 @@ void FuncGenContext::emitDestructorCalls(sema::DTorStack const& dtorStack) {
     for (auto call: dtorStack) {
         auto* function = getFunction(call.destructor);
         auto object = valueMap(call.object);
-        SC_ASSERT(object.isMemory(), "Objects with non trivial lifetime must be in memory");
-        add<ir::Call>(function,
-                      std::array{ object.get() },
-                      std::string{});
+        SC_ASSERT(object.isMemory(),
+                  "Objects with non trivial lifetime must be in memory");
+        add<ir::Call>(function, std::array{ object.get() }, std::string{});
     }
 }
 
@@ -1365,7 +1375,7 @@ ir::Value* FuncGenContext::toMemory(Value value) {
 }
 
 ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
-                                            Value value) {
+                                           Value value) {
     switch (location) {
     case Register:
         return toRegister(value);
@@ -1381,16 +1391,11 @@ ir::Callable* FuncGenContext::getFunction(sema::Function const* semaFunction) {
 
     case sema::FunctionKind::External:
         [[fallthrough]];
-    case sema::FunctionKind::Generated: {
+    case sema::FunctionKind::Generated:
         if (auto* irFunction = functionMap.tryGet(semaFunction)) {
             return irFunction;
         }
-        auto [irFunction, metaData] = declareFunction(ctx, typeMap, semaFunction);
-        functionMap.insert(semaFunction, irFunction.get(), std::move(metaData));
-        auto* result = irFunction.get();
-        mod.addGlobal(std::move(irFunction));
-        return result;
-    }
+        return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
     }
 }
 

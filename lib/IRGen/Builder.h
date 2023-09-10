@@ -48,7 +48,7 @@ class FunctionBuilder: public BasicBlockBuilder {
 public:
     explicit FunctionBuilder(ir::Context& ctx, ir::Function* function);
 
-    ///
+    /// Bring `add()` function for instructions into scope
     using BasicBlockBuilder::add;
 
     /// Access the currently active basic block, i.e. the block that was added
@@ -78,9 +78,10 @@ public:
     /// \overload specifying a name for the allocated memory
     ir::Alloca* storeToMemory(ir::Value* value, std::string name);
 
-    ///
+    /// Finish construction of the function by inserting all alloca instruction
+    /// into the entry block and calling `ir::setupInvariants()`
     void finish();
-    
+
 private:
     ir::Function& function;
     utl::small_vector<ir::Alloca*> allocas;

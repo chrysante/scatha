@@ -5,13 +5,13 @@
 #include <sstream>
 #include <string>
 
-#include <scatha/AST/LowerToIR.h>
 #include <scatha/AST/Print.h>
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
+#include <scatha/IRGen/IRGen.h>
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/Opt/Optimizer.h>
 #include <scatha/Parser/Parser.h>
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
     }
 
     /// Generate IR
-    auto [context, mod] = ast::lowerToIR(*ast, semaSym, analysisResult);
+    auto [context, mod] = irgen::generateIR(*ast, semaSym, analysisResult);
 
     if (options.optimize) {
         opt::optimize(context, mod, 1);

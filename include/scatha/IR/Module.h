@@ -29,15 +29,19 @@ public:
     /// View over the static constant data objects in this module
     auto constantData() const { return _constantData | ToConstAddress; }
 
+    ///
     auto structures() { return structs | Opaque; }
 
+    ///
     auto structures() const { return structs | Opaque; }
 
     /// View over the globals in this module
     auto globals() const { return _globals | ToConstAddress; }
 
+    ///
     auto& functions() { return funcs; }
 
+    ///
     auto const& functions() const { return funcs; }
 
     /// \Returns The `ExtFunction` in slot \p slot at index \p index
@@ -56,25 +60,20 @@ public:
     /// Add static constant data to this module
     void addConstantData(UniquePtr<ConstantData> value);
 
-    void addFunction(Function* function);
-
-    void addFunction(UniquePtr<Function> function);
-
+    ///
     void eraseFunction(Function* function);
 
+    ///
     List<Function>::iterator eraseFunction(List<Function>::const_iterator itr);
 
+    ///
     List<Function>::iterator begin();
     List<Function>::const_iterator begin() const;
-
     List<Function>::iterator end();
     List<Function>::const_iterator end() const;
-
     bool empty() const;
-
     Function& front();
     Function const& front() const;
-
     Function& back();
     Function const& back() const;
 

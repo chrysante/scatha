@@ -1,8 +1,8 @@
 #include "IRGen/Utility.h"
 
-#include "Sema/Entity.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
+#include "Sema/Entity.h"
 
 using namespace scatha;
 using namespace irgen;

@@ -347,14 +347,7 @@ void ParseContext::parse() {
             continue;
         }
         if (auto fn = parseCallable()) {
-            if (auto* nativeFunc = dyncast<Function*>(fn.get())) {
-                fn.release();
-                mod.addFunction(UniquePtr<Function>(nativeFunc));
-            }
-            else {
-                SC_ASSERT(isa<ExtFunction>(*fn), "");
-                mod.addGlobal(std::move(fn));
-            }
+            mod.addGlobal(std::move(fn));
             continue;
         }
         throw SyntaxIssue(peekToken());

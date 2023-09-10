@@ -1,8 +1,8 @@
 #include "IRGen/Maps.h"
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
-#include "IR/CFG.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -13,8 +13,12 @@ using namespace irgen;
 ValueMap::ValueMap(ir::Context& ctx): ctx(&ctx) {}
 
 void ValueMap::insert(sema::Object const* object, Value value) {
-    bool success = values.insert({ object, value }).second;
+    [[maybe_unused]] bool success = tryInsert(object, value);
     SC_ASSERT(success, "Redeclaration");
+}
+
+bool ValueMap::tryInsert(sema::Object const* object, Value value) {
+    return values.insert({ object, value }).second;
 }
 
 void ValueMap::insertArraySize(sema::Object const* object, Value size) {
@@ -73,8 +77,8 @@ std::optional<Value> ValueMap::tryGetArraySize(sema::Object const* object,
 /// # FunctionMap
 
 void FunctionMap::insert(sema::Function const* semaFn,
-                      ir::Callable* irFn,
-                      FunctionMetaData metaData) {
+                         ir::Callable* irFn,
+                         FunctionMetaData metaData) {
     bool success = functions.insert({ semaFn, irFn }).second;
     SC_ASSERT(success, "Redeclaration");
     functionMetaData.insert({ semaFn, std::move(metaData) });
@@ -95,11 +99,11 @@ ir::Callable* FunctionMap::tryGet(sema::Function const* function) const {
 }
 
 FunctionMetaData const& FunctionMap::metaData(
-                                           sema::Function const* function) const {
-                                               auto itr = functionMetaData.find(function);
-                                               SC_ASSERT(itr != functionMetaData.end(), "Not found");
-                                               return itr->second;
-                                           }
+    sema::Function const* function) const {
+    auto itr = functionMetaData.find(function);
+    SC_ASSERT(itr != functionMetaData.end(), "Not found");
+    return itr->second;
+}
 
 /// # TypeMap
 

@@ -169,8 +169,6 @@ static void run(ir::Module const& mod) {
     auto [ctx, mod] = irgen::generateIR(*root, sym, analysisResult);
     ir::print(mod);
 
-    return;
-
     run(mod);
 
     header("After optimizations");

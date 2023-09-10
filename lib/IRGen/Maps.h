@@ -19,16 +19,19 @@ public:
     using LazyArraySize = std::function<Value(ir::BasicBlock*)>;
 
     explicit ValueMap(ir::Context& ctx);
-    
+
     /// Associate \p object with \p value
     void insert(sema::Object const* object, Value value);
+
+    /// Associate \p object with \p value if \p object is not already in the map
+    bool tryInsert(sema::Object const* object, Value value);
 
     /// Associate array object \p object with the size \p size
     void insertArraySize(sema::Object const* object, Value size);
 
     /// Associate array object \p object with the size \p size
     void insertArraySize(sema::Object const* object, size_t size);
-    
+
     /// Associate array object \p object with the lazily evaluated size \p size
     void insertArraySize(sema::Object const* object, LazyArraySize size);
 
@@ -41,7 +44,7 @@ public:
 
     /// Try to retrieve value associated with \p object
     std::optional<Value> tryGet(sema::Object const* object) const;
-    
+
     /// Retrieve array size associated with \p object
     /// \pre \p object must be associated with an array size
     Value arraySize(sema::Object const* object, ir::BasicBlock* BB) const;
@@ -63,16 +66,16 @@ public:
     void insert(sema::Function const* semaFn,
                 ir::Callable* irFn,
                 FunctionMetaData metaData);
-    
+
     /// Retrieve IR function associated with \p function
     ir::Callable* operator()(sema::Function const* function) const;
-    
+
     /// Try to retrieve IR function associated with \p function
     ir::Callable* tryGet(sema::Function const* function) const;
-    
+
     /// \Returns the meta data associated with \p type
     FunctionMetaData const& metaData(sema::Function const* function) const;
-    
+
 private:
     utl::hashmap<sema::Function const*, ir::Callable*> functions;
     utl::hashmap<sema::Function const*, FunctionMetaData> functionMetaData;

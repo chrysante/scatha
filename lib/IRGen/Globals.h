@@ -10,18 +10,22 @@
 
 namespace scatha::irgen {
 
+class FunctionMap;
 class TypeMap;
-struct StructMetaData;
-struct FunctionMetaData;
 
 /// Translates \p semaType to an IR structure type
-std::pair<UniquePtr<ir::StructType>, StructMetaData> generateType(
-    ir::Context& ctx, TypeMap& typeMap, sema::StructType const* semaType);
+ir::StructType* generateType(sema::StructType const* semaType,
+                             ir::Context& ctx,
+                             ir::Module& mod,
+                             TypeMap& typeMap);
 
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code
-std::pair<UniquePtr<ir::Callable>, FunctionMetaData> declareFunction(
-    ir::Context& ctx, TypeMap const& typeMap, sema::Function const* semaFn);
+ir::Callable* declareFunction(sema::Function const* semaFn,
+                              ir::Context& ctx,
+                              ir::Module& mod,
+                              TypeMap const& typeMap,
+                              FunctionMap& functionMap);
 
 } // namespace scatha::irgen
 

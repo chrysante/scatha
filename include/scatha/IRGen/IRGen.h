@@ -15,11 +15,6 @@ SCATHA_API std::pair<ir::Context, ir::Module> generateIR(
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult);
 
-SCATHA_API std::pair<ir::Context, ir::Module> generateIR2(
-    ast::ASTNode const& ast,
-    sema::SymbolTable const& symbolTable,
-    sema::AnalysisResult const& analysisResult);
-
 } // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_IRGEN_H_

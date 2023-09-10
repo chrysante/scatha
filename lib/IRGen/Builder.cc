@@ -34,7 +34,7 @@ ir::BasicBlock* FunctionBuilder::addNewBlock(std::string name) {
 }
 
 ir::Alloca* FunctionBuilder::makeLocalVariable(ir::Type const* type,
-                                              std::string name) {
+                                               std::string name) {
     auto* addr = new ir::Alloca(ctx, type, std::move(name));
     allocas.push_back(addr);
     return addr;

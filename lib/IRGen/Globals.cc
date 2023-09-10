@@ -19,8 +19,10 @@ using namespace irgen;
 using enum ValueLocation;
 using sema::QualType;
 
-std::pair<UniquePtr<ir::StructType>, StructMetaData> irgen::generateType(
-    ir::Context& ctx, TypeMap& typeMap, sema::StructType const* semaType) {
+ir::StructType* irgen::generateType(sema::StructType const* semaType,
+                                    ir::Context& ctx,
+                                    ir::Module& mod,
+                                    TypeMap& typeMap) {
     auto irType = allocate<ir::StructType>(semaType->mangledName());
     StructMetaData metaData;
     size_t irIndex = 0;
@@ -39,7 +41,10 @@ std::pair<UniquePtr<ir::StructType>, StructMetaData> irgen::generateType(
         /// because `getValueImpl(MemberAccess)` will know what to do
         ++irIndex;
     }
-    return { std::move(irType), std::move(metaData) };
+    auto* result = irType.get();
+    typeMap.insert(semaType, result, std::move(metaData));
+    mod.addStructure(std::move(irType));
+    return result;
 }
 
 static bool isTrivial(sema::QualType type) {
@@ -84,8 +89,11 @@ static CallingConvention computeCC(sema::Function const* function) {
     return CallingConvention(retval, args);
 }
 
-std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
-    ir::Context& ctx, TypeMap const& typeMap, sema::Function const* semaFn) {
+ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
+                                     ir::Context& ctx,
+                                     ir::Module& mod,
+                                     TypeMap const& typeMap,
+                                     FunctionMap& functionMap) {
     FunctionMetaData metaData;
     auto CC = computeCC(semaFn);
     metaData.CC = CC;
@@ -133,33 +141,36 @@ std::pair<UniquePtr<ir::Callable>, FunctionMetaData> irgen::declareFunction(
 
     // TODO: Generate proper function type here
     ir::FunctionType const* const functionType = nullptr;
-
+    UniquePtr<ir::Callable> irFn;
     switch (semaFn->kind()) {
     case sema::FunctionKind::Native: {
-        auto irFn = allocate<ir::Function>(functionType,
-                                           irReturnType,
-                                           irArgTypes,
-                                           semaFn->mangledName(),
-                                           mapFuncAttrs(semaFn->attributes()),
-                                           accessSpecToVisibility(
-                                               semaFn->accessSpecifier()));
-        return { std::move(irFn), std::move(metaData) };
-    }
-    case sema::FunctionKind::External: {
-        auto irFn =
-            allocate<ir::ExtFunction>(functionType,
+        irFn = allocate<ir::Function>(functionType,
                                       irReturnType,
                                       irArgTypes,
-                                      std::string(semaFn->name()),
-                                      utl::narrow_cast<uint32_t>(
-                                          semaFn->slot()),
-                                      utl::narrow_cast<uint32_t>(
-                                          semaFn->index()),
-                                      mapFuncAttrs(semaFn->attributes()));
-        return { std::move(irFn), std::move(metaData) };
+                                      semaFn->mangledName(),
+                                      mapFuncAttrs(semaFn->attributes()),
+                                      accessSpecToVisibility(
+                                          semaFn->accessSpecifier()));
+        break;
+    }
+    case sema::FunctionKind::External: {
+        irFn = allocate<ir::ExtFunction>(functionType,
+                                         irReturnType,
+                                         irArgTypes,
+                                         std::string(semaFn->name()),
+                                         utl::narrow_cast<uint32_t>(
+                                             semaFn->slot()),
+                                         utl::narrow_cast<uint32_t>(
+                                             semaFn->index()),
+                                         mapFuncAttrs(semaFn->attributes()));
+        break;
     }
 
     case sema::FunctionKind::Generated:
         SC_UNIMPLEMENTED();
     }
+    functionMap.insert(semaFn, irFn.get(), std::move(metaData));
+    auto* result = irFn.get();
+    mod.addGlobal(std::move(irFn));
+    return result;
 }

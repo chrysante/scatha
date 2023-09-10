@@ -54,7 +54,7 @@ fn erase(table: &mut [int], n: int) -> bool {
     let end = max(table.count, 256);
     for i = 0; i < end; ++i, ++h {
         h  %= table.count;
-        let entry = &mut table[h];
+        let entry: &mut int = table[h];
         if entry == n {
             entry = -1;
             return true;
