@@ -259,6 +259,16 @@ public fn main() -> int {
 })");
 }
 
+TEST_CASE("Return array by value", "[end-to-end][arrays]") {
+    test::checkReturns(1, R"(
+fn makeArray() -> [int, 10] {
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+}
+public fn main() -> int {
+    return makeArray()[0];
+})");
+}
+
 TEST_CASE("Dynamic allocation", "[end-to-end][arrays]") {
     test::checkReturns(45, R"(
 public fn main() -> int {
