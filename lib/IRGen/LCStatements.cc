@@ -81,76 +81,55 @@ void LoweringContext::generateParameter(
     std::string name(paramDecl->name());
     auto* paramVar = paramDecl->variable();
 
-    auto* arrayType =
-        dyncast<sema::ArrayType const*>(stripPtrAndRef(semaType.get()));
-    if (arrayType) {
-        switch (pc.location()) {
-        case Register: {
-            if (isa<sema::ReferenceType>(*paramDecl->type())) {
-                Value data(irParam, Register);
-                memorizeObject(paramVar, data);
-                ++irParamItr;
-                if (arrayType->isDynamic()) {
-                    Value size(irParam->next(), Register);
-                    memorizeArraySize(paramVar, size);
-                    ++irParamItr;
-                }
-            }
-            else if (isa<sema::PointerType>(*paramDecl->type())) {
-                Value data(storeLocal(irParam), irParam->type(), Memory);
-                memorizeObject(paramVar, data);
-                ++irParamItr;
-                if (arrayType->isDynamic()) {
-                    Value size(storeLocal(irParam->next()),
-                               irParam->next()->type(),
-                               Memory);
-                    memorizeArraySize(paramVar, size);
-                    ++irParamItr;
-                }
-            }
-            else {
-                SC_ASSERT(!arrayType->isDynamic(),
-                          "Can't pass dynamic array by value");
-                auto* dataAddress = storeLocal(irParam, name);
-                auto* sizeValue = ctx.intConstant(arrayType->count(), 64);
-                Value data(dataAddress, irType, Memory);
-                Value size(sizeValue, Register);
-                memorizeObject(paramVar, data);
+    auto* baseType = stripPtrAndRef(semaType.get());
+    auto* arrayType = dyncast<sema::ArrayType const*>(baseType);
+    bool const isDynArray = arrayType && arrayType->isDynamic();
+
+    switch (pc.location()) {
+    case Register: {
+        if (isa<sema::ReferenceType>(*paramDecl->type())) {
+            memorizeObject(paramVar, Value(irParam, Register));
+            ++irParamItr;
+            if (isDynArray) {
+                Value size(irParam->next(), Register);
                 memorizeArraySize(paramVar, size);
                 ++irParamItr;
             }
-            break;
+            // FIXME: What about references to static arrays?
         }
-
-        case Memory: {
-            Value data(irParam, irType, Memory);
-            Value size(irParam->next(), Register);
-            memorizeObject(paramVar, data);
-            memorizeArraySize(paramVar, size);
-            std::advance(irParamItr, 2);
-            break;
+        else {
+            auto* address = storeLocal(irParam, name);
+            memorizeObject(paramVar, Value(address, irType, Memory));
+            ++irParamItr;
+            if (isDynArray) {
+                SC_ASSERT(isa<sema::PointerType>(*paramDecl->type()),
+                          "Can't pass dynamic array by value");
+                Value size(storeLocal(irParam->next()),
+                           irParam->next()->type(),
+                           Memory);
+                memorizeArraySize(paramVar, size);
+                ++irParamItr;
+            }
+            else if (arrayType) {
+                auto* size = ctx.intConstant(arrayType->count(), 64);
+                memorizeArraySize(paramVar, Value(size, Register));
+            }
         }
-        }
+        break;
     }
-    else {
-        switch (pc.location()) {
-        case Register: {
-            if (isa<sema::ReferenceType>(*paramDecl->type())) {
-                memorizeObject(paramVar, Value(irParam, Register));
-            }
-            else {
-                auto* address = storeLocal(irParam, name);
-                memorizeObject(paramVar, Value(address, irType, Memory));
-            }
-            break;
-        }
 
-        case Memory: {
-            memorizeObject(paramVar, Value(irParam, irType, Memory));
-            break;
-        }
-        }
+    case Memory: {
+        Value data(irParam, irType, Memory);
+        memorizeObject(paramVar, data);
         ++irParamItr;
+        if (arrayType) {
+            SC_ASSERT(!isDynArray,
+                      "By value array parameters cannot be dynamic");
+            auto* size = ctx.intConstant(arrayType->count(), 64);
+            memorizeArraySize(paramVar, Value(size, Register));
+        }
+        break;
+    }
     }
 }
 

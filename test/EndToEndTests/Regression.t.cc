@@ -109,6 +109,20 @@ public fn main(cond: bool) -> int {
 })");
 }
 
+TEST_CASE("Pass small array by value", "[end-to-end][regression]") {
+    /// FIXME: This fails
+    /// Right now this fails because of a bug in memtoreg
+    return;
+    test::checkReturns(1, R"(
+fn first(data: [int, 2]) -> int {
+    return data[0];
+}
+public fn main() -> int {
+    let data = [1, 2];
+    return first(data);
+})");
+}
+
 TEST_CASE("Pass large array by value", "[end-to-end][regression]") {
     test::checkReturns(1, R"(
 fn first(data: [int, 10]) -> int {
