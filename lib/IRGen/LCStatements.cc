@@ -61,16 +61,6 @@ void LoweringContext::generateImpl(ast::FunctionDefinition const& def) {
     allocas.clear();
 }
 
-sema::ObjectType const* stripPtrAndRef(sema::ObjectType const* type) {
-    if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
-        return ptrType->base().get();
-    }
-    if (auto* refType = dyncast<sema::ReferenceType const*>(type)) {
-        return refType->base().get();
-    }
-    return type;
-}
-
 void LoweringContext::generateParameter(
     ast::ParameterDeclaration const* paramDecl,
     PassingConvention pc,
@@ -81,7 +71,7 @@ void LoweringContext::generateParameter(
     std::string name(paramDecl->name());
     auto* paramVar = paramDecl->variable();
 
-    auto* baseType = stripPtrAndRef(semaType.get());
+    auto* baseType = stripRefOrPtr(semaType.get()).get();
     auto* arrayType = dyncast<sema::ArrayType const*>(baseType);
     bool const isDynArray = arrayType && arrayType->isDynamic();
 
@@ -140,10 +130,10 @@ void LoweringContext::generateImpl(ast::StructDefinition const& def) {
     }
 }
 
-void LoweringContext::generateArraySizeImpl(
+void LoweringContext::generateDeclArraySizeImpl(
     ast::VarDeclBase const* varDecl,
     utl::function_view<ir::Value*()> sizeCallback) {
-    auto* type = stripPtrAndRef(varDecl->type().get());
+    auto* type = stripRefOrPtr(varDecl->type().get()).get();
     auto* arrayType = dyncast<sema::ArrayType const*>(type);
     if (!arrayType) {
         return;
@@ -164,13 +154,14 @@ void LoweringContext::generateArraySizeImpl(
 
 void LoweringContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
                                                sema::Object const* initObject) {
-    generateArraySizeImpl(varDecl,
-                          [&] { return toRegister(getArraySize(initObject)); });
+    generateDeclArraySizeImpl(varDecl, [&] {
+        return toRegister(getArraySize(initObject));
+    });
 }
 
 void LoweringContext::generateParamArraySize(ast::VarDeclBase const* varDecl,
                                              ir::Parameter* param) {
-    generateArraySizeImpl(varDecl, [&] { return param->next(); });
+    generateDeclArraySizeImpl(varDecl, [&] { return param->next(); });
 }
 
 static bool varDeclNeedCopy(QualType type) {

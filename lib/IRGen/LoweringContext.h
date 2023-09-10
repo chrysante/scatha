@@ -165,8 +165,9 @@ struct LoweringContext {
 
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
-    void generateArraySizeImpl(ast::VarDeclBase const* varDecl,
-                               utl::function_view<ir::Value*()> sizeCallback);
+    void generateDeclArraySizeImpl(
+        ast::VarDeclBase const* varDecl,
+        utl::function_view<ir::Value*()> sizeCallback);
 
     void generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
                                   sema::Object const* initObject);
