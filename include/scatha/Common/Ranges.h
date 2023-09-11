@@ -65,10 +65,6 @@ inline constexpr auto TakeAddress = ranges::views::transform(
 inline constexpr auto Dereference = ranges::views::transform(
     []<typename T>(T&& t) -> decltype(auto) { return *std::forward<T>(t); });
 
-/// View applying `.get()` to every element
-inline constexpr auto ToRawPtr = ranges::views::transform(
-    []<typename T>(T&& t) -> decltype(auto) { return t.get(); });
-
 /// Turn any range into an opaquely typed range
 inline constexpr auto Opaque =
     ranges::views::transform([]<typename T>(T&& value) -> decltype(auto) {
