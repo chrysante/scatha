@@ -1352,6 +1352,9 @@ void FuncGenContext::emitDestructorCalls(sema::DTorStack const& dtorStack) {
 }
 
 ir::Value* FuncGenContext::toRegister(Value value) {
+    auto* semaType = typeMap(value.type());
+    SC_ASSERT(!semaType || semaType->hasTrivialLifetime(),
+              "We can only have trivial lifetime types in registers");
     switch (value.location()) {
     case Register:
         return value.get();

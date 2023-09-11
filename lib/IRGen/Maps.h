@@ -96,6 +96,9 @@ public:
     /// Translate \p type to corresponding IR type
     ir::Type const* operator()(sema::Type const* type) const;
 
+    /// Translate \p type to back corresponding sema type
+    sema::ObjectType const* operator()(ir::Type const* type) const;
+
     /// \Returns the meta data associated with \p type
     StructMetaData const& metaData(sema::Type const* type) const;
 
@@ -106,6 +109,7 @@ private:
     ir::Context* ctx;
     /// Mutable to cache results in const getter functions
     mutable utl::hashmap<sema::Type const*, ir::Type const*> map;
+    mutable utl::hashmap<ir::Type const*, sema::Type const*> backMap;
     utl::hashmap<sema::StructType const*, StructMetaData> meta;
 };
 

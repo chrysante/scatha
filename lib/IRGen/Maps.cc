@@ -127,6 +127,14 @@ ir::Type const* TypeMap::operator()(sema::Type const* type) const {
     return result;
 }
 
+sema::ObjectType const* TypeMap::operator()(ir::Type const* type) const {
+    auto itr = backMap.find(type);
+    if (itr != backMap.end()) {
+        return cast<sema::ObjectType const*>(itr->second);
+    }
+    return nullptr;
+}
+
 StructMetaData const& TypeMap::metaData(sema::Type const* type) const {
     auto itr = meta.find(cast<sema::StructType const*>(type));
     SC_ASSERT(itr != meta.end(), "Not found");
@@ -134,8 +142,9 @@ StructMetaData const& TypeMap::metaData(sema::Type const* type) const {
 }
 
 void TypeMap::insertImpl(sema::Type const* key, ir::Type const* value) const {
-    [[maybe_unused]] auto [itr, success] = map.insert({ key, value });
+    [[maybe_unused]] bool success = map.insert({ key, value }).second;
     SC_ASSERT(success, "Failed to insert type");
+    backMap.insert({ value, key });
 }
 
 ir::Type const* TypeMap::get(sema::Type const* type) const {
