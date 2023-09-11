@@ -1,9 +1,9 @@
 #ifndef SCATHA_OPT_ACCESSTREE_H_
 #define SCATHA_OPT_ACCESSTREE_H_
 
+#include <iosfwd>
 #include <memory>
 #include <optional>
-#include <ostream>
 
 #include <range/v3/view.hpp>
 #include <utl/function_view.hpp>
@@ -13,28 +13,13 @@
 #include "IR/Fwd.h"
 #include "IR/Type.h"
 
-namespace scatha::internal {
-
-template <typename T>
-struct VoidToEmpty {
-    using type = T;
-};
-
-template <>
-struct VoidToEmpty<void> {
-    using type = struct {};
-};
-
-} // namespace scatha::internal
-
 namespace scatha::opt {
 
 /// Represents accesses to objects of structure type
-template <typename Payload>
+/// \Note We don't inherit from the generic graph class because here the tree
+/// nodes own their children
 class AccessTree {
     static auto childrenImpl(auto* self) { return self->_children | ToAddress; }
-
-    using PayloadType = typename internal::VoidToEmpty<Payload>::type;
 
 public:
     explicit AccessTree(ir::Type const* type): _type(type) {}
@@ -75,17 +60,7 @@ public:
     }
 
     /// \overload
-    AccessTree const* sibling(ssize_t offset) const {
-        if (!parent()) {
-            return nullptr;
-        }
-        ssize_t index = utl::narrow_cast<ssize_t>(*this->index()) + offset;
-        if (index < 0 || static_cast<size_t>(index) >= parent()->numChildren())
-        {
-            return nullptr;
-        }
-        return parent()->childAt(index);
-    }
+    AccessTree const* sibling(ssize_t offset) const;
 
     ///
     AccessTree* leftSibling() {
@@ -109,10 +84,11 @@ public:
     /// \overload
     AccessTree const* parent() const { return _parent; }
 
-    /// Reference to payload
-    auto const& payload() const { return _payload; }
+    ///
+    ir::Value* value() const { return _value; }
 
-    void setPayload(PayloadType payload) { _payload = std::move(payload); }
+    ///
+    void setValue(ir::Value* value) { _value = value; }
 
     /// The index of this node in it's parent
     std::optional<size_t> index() const {
@@ -120,44 +96,18 @@ public:
     }
 
     /// Create children for every member type of this node's type,
-    /// if it is a structure type.
+    /// if it is a structure or array type.
     /// Incompatible with `addSingleChild()`
-    void fanOut() {
-        auto* sType = dyncast<ir::StructType const*>(type());
-        if (!sType) {
-            return;
-        }
-        if (!_children.empty()) {
-            SC_ASSERT(_children.size() == sType->members().size(), "");
-            return;
-        }
-        for (auto [index, t]: sType->members() | ranges::views::enumerate) {
-            _children.push_back(std::make_unique<AccessTree>(t));
-            _children.back()->_index = index;
-        }
-    }
+    void fanOut();
 
     /// Set a single child at index \p index
     ///
-    /// \pre Type of this node must be a structure type.
+    /// \pre Type of this node must be a structure or array type.
     ///
     /// \Returns Child node
     ///
     /// Incompatible with `fanOut()`
-    AccessTree* addSingleChild(size_t index) {
-        auto* sType = dyncast<ir::StructType const*>(_type);
-        SC_ASSERT(sType && index < sType->members().size(), "Invalid index");
-        if (_children.empty()) {
-            _children.resize(sType->members().size());
-        }
-        auto& child = _children[index];
-        if (!child) {
-            child = std::make_unique<AccessTree>(sType->memberAt(index));
-            child->_parent = this;
-            child->_index = index;
-        }
-        return child.get();
-    }
+    AccessTree* addSingleChild(size_t index);
 
     /// Invoke \p callback for every leaf of this tree
     void leafWalk(
@@ -183,39 +133,13 @@ public:
     }
 
     /// Deep copy this tree making copies of the payloads
-    std::unique_ptr<AccessTree> clone() {
-        auto result = std::make_unique<AccessTree>(type());
-        result->_children.resize(_children.size());
-        result->_index = _index;
-        result->_payload = _payload;
-        for (auto&& [child, resChild]:
-             ranges::views::zip(_children, result->_children))
-        {
-            if (child) {
-                resChild = child->clone();
-                resChild->_parent = result.get();
-            }
-        }
-        return result;
-    }
+    std::unique_ptr<AccessTree> clone();
 
-    /// Print this tree
-    template <typename PayloadTransform = std::identity>
-    void print(std::ostream& str, auto pt = {}, int level = 0) const {
-        for (int i = 0; i < level; ++i) {
-            str << "    ";
-        }
-        if (index()) {
-            str << *index() << ": ";
-        }
-        str << "[" << type()->name() << ", " << std::invoke(pt, payload())
-            << "]\n";
-        for (auto* c: children()) {
-            if (c) {
-                c->print(str, pt, level + 1);
-            }
-        }
-    }
+    /// Print this tree to `std::cout`
+    void print() const;
+
+    /// \overload
+    void print(std::ostream& str) const;
 
 private:
     void leafWalkImpl(
@@ -251,13 +175,11 @@ private:
         callback(this, indices);
     }
 
-protected:
-    PayloadType _payload{};
-
 private:
     AccessTree* _parent = nullptr;
     utl::small_vector<std::unique_ptr<AccessTree>> _children;
     ir::Type const* _type = nullptr;
+    ir::Value* _value = nullptr;
     size_t _index = 0;
 };
 

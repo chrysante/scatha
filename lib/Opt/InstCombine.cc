@@ -25,8 +25,6 @@ SC_REGISTER_PASS(opt::instCombine, "instcombine");
 
 namespace {
 
-using AccessTreeNode = opt::AccessTree<Value*>;
-
 struct InstCombineCtx {
     InstCombineCtx(Context& irCtx, Function& function):
         irCtx(irCtx), function(function) {}
@@ -134,11 +132,11 @@ struct InstCombineCtx {
         }
     }
 
-    AccessTreeNode* getAccessTree(ExtractValue* inst);
-    AccessTreeNode* getAccessTree(InsertValue* inst);
+    AccessTree* getAccessTree(ExtractValue* inst);
+    AccessTree* getAccessTree(InsertValue* inst);
 
     template <typename Inst>
-    AccessTreeNode* getAccessTreeCommon(Inst* inst);
+    AccessTree* getAccessTreeCommon(Inst* inst);
 
     Context& irCtx;
     Function& function;
@@ -149,7 +147,7 @@ struct InstCombineCtx {
     /// if they are used or can be deleted.
     utl::hashset<ExtractValue*> evList;
     bool modifiedAny = false;
-    utl::hashmap<Instruction*, std::unique_ptr<AccessTreeNode>> accessTrees;
+    utl::hashmap<Instruction*, std::unique_ptr<AccessTree>> accessTrees;
 };
 
 } // namespace
@@ -524,7 +522,7 @@ Value* InstCombineCtx::visitImpl(Phi* phi) {
     return nullptr;
 }
 
-static void print(auto* inst, AccessTreeNode const* tree) {
+static void print(auto* inst, AccessTree const* tree) {
     std::cout << *inst << ":\n";
     tree->print(
         std::cout,
@@ -585,7 +583,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         accessTree = accessTree->childAt(indices[i]);
     }
     if (i < indices.size()) {
-        auto* base = accessTree->payload();
+        auto* base = accessTree->value();
         SC_ASSERT(base, "");
         auto newIndices = indices | ranges::views::drop(i) |
                           ranges::to<utl::small_vector<size_t>>;
@@ -596,7 +594,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         return newExtr;
     }
     if (!accessTree->hasChildren()) {
-        if (auto* base = accessTree->payload()) {
+        if (auto* base = accessTree->value()) {
             return base;
         }
         SC_ASSERT(insertBase, "");
@@ -612,17 +610,13 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     return nullptr;
 }
 
-void printAT(AccessTree<Value*> const* node) {
-    node->print(std::cout, [](Value* value) { return toString(value); });
-}
-
 static void gatherMostUsedBase(utl::hashmap<Value*, size_t>& baseCount,
-                               AccessTreeNode* leaf,
+                               AccessTree* leaf,
                                std::span<size_t const> leafIndices) {
-    if (!leaf->payload()) {
+    if (!leaf->value()) {
         return;
     }
-    auto* ev = dyncast<ExtractValue*>(leaf->payload());
+    auto* ev = dyncast<ExtractValue*>(leaf->value());
     if (!ev) {
         return;
     }
@@ -642,7 +636,7 @@ static Value* maxElement(utl::hashmap<Value*, size_t> const& baseCount) {
         ->first;
 }
 
-static Value* mostUsedChildrenBase(AccessTreeNode* node) {
+static Value* mostUsedChildrenBase(AccessTree* node) {
     utl::hashmap<Value*, size_t> baseCount;
     for (auto [index, child]: node->children() | ranges::views::enumerate) {
         gatherMostUsedBase(baseCount, child, std::array{ index });
@@ -650,10 +644,9 @@ static Value* mostUsedChildrenBase(AccessTreeNode* node) {
     return maxElement(baseCount);
 }
 
-static Value* mostUsedLeavesBase(AccessTreeNode* node) {
+static Value* mostUsedLeavesBase(AccessTree* node) {
     utl::hashmap<Value*, size_t> baseCount;
-    node->leafWalk(
-        [&](AccessTreeNode* leaf, std::span<size_t const> leafIndices) {
+    node->leafWalk([&](AccessTree* leaf, std::span<size_t const> leafIndices) {
         gatherMostUsedBase(baseCount, leaf, leafIndices);
     });
     return maxElement(baseCount);
@@ -661,21 +654,20 @@ static Value* mostUsedLeavesBase(AccessTreeNode* node) {
 
 static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
     newLeavesInserts(
-        AccessTreeNode* node,
+        AccessTree* node,
         ir::Context& irCtx,
         utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
     utl::small_vector<UniquePtr<InsertValue>> result;
     auto* maxValue = mostUsedLeavesBase(node);
     auto* baseValue = maxValue ? maxValue : irCtx.undef(node->type());
-    node->leafWalk(
-        [&](AccessTreeNode* leaf, std::span<size_t const> leafIndices) {
-        auto* ev = dyncast<ExtractValue*>(leaf->payload());
+    node->leafWalk([&](AccessTree* leaf, std::span<size_t const> leafIndices) {
+        auto* ev = dyncast<ExtractValue*>(leaf->value());
         if (ev && ranges::equal(ev->memberIndices(), leafIndices) &&
             ev->baseValue() == maxValue)
         {
             return;
         }
-        auto* ins = leaf->payload();
+        auto* ins = leaf->value();
         auto itr = ivMap.find({ baseValue, ins });
         if (itr != ivMap.end()) {
             auto* iv = itr->second;
@@ -693,7 +685,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
 
 static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
     newChildrenInserts(
-        AccessTreeNode* node,
+        AccessTree* node,
         ir::Context& irCtx,
         utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
     utl::small_vector<UniquePtr<InsertValue>> result;
@@ -702,13 +694,13 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
 
     for (size_t index = 0; auto child: node->children()) {
         std::array const indices{ index++ };
-        auto* ev = dyncast<ExtractValue*>(child->payload());
+        auto* ev = dyncast<ExtractValue*>(child->value());
         if (ev && ranges::equal(ev->memberIndices(), indices) &&
             ev->baseValue() == maxValue)
         {
             continue;
         }
-        auto* ins = child->payload();
+        auto* ins = child->value();
         auto itr = ivMap.find({ baseValue, ins });
         if (itr != ivMap.end()) {
             auto* iv = itr->second;
@@ -770,15 +762,14 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
     auto* root = getAccessTree(insertInst);
     auto const ivMap = gatherIVMap(insertInst);
     utl::small_vector<UniquePtr<InsertValue>> inserts;
-    root->postOrderWalk(
-        [&](AccessTreeNode* node, std::span<size_t const> indices) {
+    root->postOrderWalk([&](AccessTree* node, std::span<size_t const> indices) {
         if (node->children().empty()) {
             /// Create `extract_value` instructions for all nodes that have no
             /// associated value
-            if (!node->payload()) {
-                auto* ev = new ExtractValue(root->payload(), indices, "ev");
+            if (!node->value()) {
+                auto* ev = new ExtractValue(root->value(), indices, "ev");
                 insertInst->parent()->insert(insertInst, ev);
-                node->setPayload(ev);
+                node->setValue(ev);
                 evList.insert(ev);
             }
             return;
@@ -789,18 +780,18 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
 
         if (childrenInserts.size() < leavesInserts.size()) {
             mergeInserts(inserts, childrenInserts, leavesInserts);
-            node->setPayload(childrenBase);
+            node->setValue(childrenBase);
         }
         else {
             mergeInserts(inserts, leavesInserts, childrenInserts);
-            node->setPayload(leavesBase);
+            node->setValue(leavesBase);
         }
     });
     for (auto& insert: inserts) {
         push(insert.get());
         insertInst->parent()->insert(insertInst, insert.release());
     }
-    auto* newValue = root->payload();
+    auto* newValue = root->value();
     if (newValue == insertInst) {
         return nullptr;
     }
@@ -813,23 +804,23 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
     return newValue;
 }
 
-AccessTreeNode* InstCombineCtx::getAccessTree(ExtractValue* inst) {
+AccessTree* InstCombineCtx::getAccessTree(ExtractValue* inst) {
     return getAccessTreeCommon(inst);
 }
 
-AccessTreeNode* InstCombineCtx::getAccessTree(InsertValue* inst) {
+AccessTree* InstCombineCtx::getAccessTree(InsertValue* inst) {
     auto* root = getAccessTreeCommon(inst);
     auto* node = root;
     for (size_t index: inst->memberIndices()) {
         node->fanOut();
         node = node->childAt(index);
     }
-    node->setPayload(inst->insertedValue());
+    node->setValue(inst->insertedValue());
     return root;
 }
 
 template <typename Inst>
-AccessTreeNode* InstCombineCtx::getAccessTreeCommon(Inst* inst) {
+AccessTree* InstCombineCtx::getAccessTreeCommon(Inst* inst) {
     if (auto itr = accessTrees.find(inst); itr != accessTrees.end()) {
         return itr->second.get();
     }
@@ -842,8 +833,8 @@ AccessTreeNode* InstCombineCtx::getAccessTreeCommon(Inst* inst) {
             return getAccessTree(&ivBase)->clone();
         },
         [&](Value& base) {
-            auto tree = std::make_unique<AccessTreeNode>(base.type());
-            tree->setPayload(&base);
+            auto tree = std::make_unique<AccessTree>(base.type());
+            tree->setValue(&base);
             return tree;
         }
     }); // clang-format on

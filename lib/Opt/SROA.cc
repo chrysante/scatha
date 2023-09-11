@@ -25,8 +25,6 @@ SC_REGISTER_PASS(opt::sroa, "sroa");
 
 namespace {
 
-using AccessTreeNode = opt::AccessTree<Alloca*>;
-
 struct VariableContext {
     explicit VariableContext(Alloca* address, ir::Context& irCtx):
         irCtx(irCtx), baseAlloca(address) {}
@@ -41,24 +39,22 @@ struct VariableContext {
 
     /// Build the access tree with using all the GEPs that directly or
     /// indirectly access this alloca.
-    bool buildAccessTreeImpl(AccessTreeNode* parent,
-                             GetElementPointer* address);
+    bool buildAccessTreeImpl(AccessTree* parent, GetElementPointer* address);
 
-    bool buildAccessTreeVisitUsers(AccessTreeNode* parent,
-                                   Instruction* address);
+    bool buildAccessTreeVisitUsers(AccessTree* parent, Instruction* address);
 
     void addAllocasForLeaves();
 
     void replaceBySlices();
 
-    void replaceBySlicesImpl(Load* load, AccessTreeNode* node);
-    void replaceBySlicesImpl(Store* store, AccessTreeNode* node);
-    void replaceBySlicesImpl(GetElementPointer* gep, AccessTreeNode* node);
-    void replaceBySlicesImpl(Instruction* inst, AccessTreeNode* node) {
+    void replaceBySlicesImpl(Load* load, AccessTree* node);
+    void replaceBySlicesImpl(Store* store, AccessTree* node);
+    void replaceBySlicesImpl(GetElementPointer* gep, AccessTree* node);
+    void replaceBySlicesImpl(Instruction* inst, AccessTree* node) {
         SC_UNREACHABLE();
     }
 
-    AccessTreeNode* sibling(AccessTreeNode* node, ssize_t offset) {
+    AccessTree* sibling(AccessTree* node, ssize_t offset) {
         if (node->parent()) {
             return node->sibling(offset);
         }
@@ -71,15 +67,15 @@ struct VariableContext {
     }
 
     void accessTreeLeafWalk(
-        AccessTreeNode* root,
-        utl::function_view<void(AccessTreeNode*, std::span<size_t const>)>
+        AccessTree* root,
+        utl::function_view<void(AccessTree*, std::span<size_t const>)>
             callback);
 
     void accessTreePreorderWalk(
-        utl::function_view<void(size_t level, AccessTreeNode*)> callback);
+        utl::function_view<void(size_t level, AccessTree*)> callback);
 
     void accessTreePostorderWalk(
-        utl::function_view<void(size_t level, AccessTreeNode*)> callback);
+        utl::function_view<void(size_t level, AccessTree*)> callback);
 
     void printAccessTree() {
         std::cout << "%" << baseAlloca->name() << ":" << std::endl;
@@ -88,7 +84,7 @@ struct VariableContext {
         }
     }
 
-    void printAccessTreeImpl(AccessTreeNode const* node, int level) {
+    void printAccessTreeImpl(AccessTree const* node, int level) {
         for (int i = 0; i < level; ++i) {
             std::cout << "    ";
         }
@@ -109,7 +105,7 @@ struct VariableContext {
 
     /// Maps `getelementptr` instructions to their corresponding nodes in the
     /// access tree.
-    utl::hashmap<Instruction*, AccessTreeNode*> addressToTreeNodes;
+    utl::hashmap<Instruction*, AccessTree*> addressToTreeNodes;
 
     /// While building the access tree we collect all loads to later erase all
     /// unused loads
@@ -117,7 +113,7 @@ struct VariableContext {
 
     /// The access trees. This has as many elements as there are array accesses
     /// by GEP instructions.
-    utl::small_vector<std::unique_ptr<AccessTreeNode>> accessForest;
+    utl::small_vector<std::unique_ptr<AccessTree>> accessForest;
 };
 
 } // namespace
@@ -141,6 +137,10 @@ bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
     return modifiedAny;
 }
 
+static ir::Alloca* getAlloca(AccessTree* node) {
+    return cast<ir::Alloca*>(node->value());
+}
+
 void VariableContext::slice() {
     addAllocasForLeaves();
     cleanUnusedLoads();
@@ -159,7 +159,7 @@ bool VariableContext::buildAccessTree() {
     SC_ASSERT(accessForest.empty(), "");
 
     accessForest.push_back(
-        std::make_unique<AccessTreeNode>(getRootType(baseAlloca)));
+        std::make_unique<AccessTree>(getRootType(baseAlloca)));
 #warning Should this not be accessForest.back()??
     auto* root = accessForest.front().get();
     addressToTreeNodes.insert({ baseAlloca, root });
@@ -171,7 +171,7 @@ bool VariableContext::buildAccessTree() {
 
 /// First this gets called with the `alloca` instruction and then recursively
 /// with all users that are `gep`'s
-bool VariableContext::buildAccessTreeImpl(AccessTreeNode* node,
+bool VariableContext::buildAccessTreeImpl(AccessTree* node,
                                           GetElementPointer* gep) {
     SC_ASSERT(!addressToTreeNodes.contains(gep), "gep graph should be acyclic");
     if (!gep->hasConstantArrayIndex()) {
@@ -188,7 +188,7 @@ bool VariableContext::buildAccessTreeImpl(AccessTreeNode* node,
         }
         if (!accessForest[arrayIndex]) {
             accessForest[arrayIndex] =
-                std::make_unique<AccessTreeNode>(gep->inboundsType());
+                std::make_unique<AccessTree>(gep->inboundsType());
         }
         node = accessForest[arrayIndex].get();
     }
@@ -204,7 +204,7 @@ bool VariableContext::buildAccessTreeImpl(AccessTreeNode* node,
     return buildAccessTreeVisitUsers(node, gep);
 }
 
-bool VariableContext::buildAccessTreeVisitUsers(AccessTreeNode* node,
+bool VariableContext::buildAccessTreeVisitUsers(AccessTree* node,
                                                 Instruction* address) {
     bool haveGEPs = false;
     for (auto* user: address->users()) {
@@ -276,12 +276,12 @@ void VariableContext::addAllocasForLeaves() {
             continue;
         }
         accessTreeLeafWalk(root.get(),
-                           [&](AccessTreeNode* node,
+                           [&](AccessTree* node,
                                std::span<size_t const> indices) {
             SC_ASSERT(node->type(), "We need to know what we allocate");
             auto* newScalar =
                 new Alloca(irCtx, node->type(), makeName(baseAlloca, indices));
-            node->setPayload(newScalar);
+            node->setValue(newScalar);
             baseAlloca->parent()->insert(baseAlloca, newScalar);
         });
     }
@@ -299,18 +299,17 @@ void VariableContext::replaceBySlices() {
     }
 }
 
-void VariableContext::replaceBySlicesImpl(Load* load, AccessTreeNode* node) {
+void VariableContext::replaceBySlicesImpl(Load* load, AccessTree* node) {
     if (!node->hasChildren()) {
-        load->setAddress(node->payload());
+        load->setAddress(node->value());
         return;
     }
     auto* bb = load->parent();
     Value* aggregate = irCtx.undef(load->type());
     accessTreeLeafWalk(node,
-                       [&](AccessTreeNode* leaf,
-                           std::span<size_t const> indices) {
-        auto* newLoad = new Load(leaf->payload(),
-                                 leaf->payload()->allocatedType(),
+                       [&](AccessTree* leaf, std::span<size_t const> indices) {
+        auto* newLoad = new Load(leaf->value(),
+                                 getAlloca(leaf)->allocatedType(),
                                  std::string(load->name()));
         bb->insert(load, newLoad);
         aggregate = new InsertValue(aggregate,
@@ -323,7 +322,7 @@ void VariableContext::replaceBySlicesImpl(Load* load, AccessTreeNode* node) {
     bb->erase(load);
 }
 
-void VariableContext::replaceBySlicesImpl(Store* store, AccessTreeNode* node) {
+void VariableContext::replaceBySlicesImpl(Store* store, AccessTree* node) {
     auto* bb = store->parent();
     auto* storedValue = store->value();
     if (!node->hasChildren()) {
@@ -336,36 +335,34 @@ void VariableContext::replaceBySlicesImpl(Store* store, AccessTreeNode* node) {
                                                std::array{ i },
                                                std::string("sroa.ev"));
                 bb->insert(store, slice);
-                auto* newStore = new Store(irCtx, sibling->payload(), slice);
+                auto* newStore = new Store(irCtx, sibling->value(), slice);
                 bb->insert(store, newStore);
             }
             bb->erase(store);
         }
         else {
-            store->setAddress(node->payload());
+            store->setAddress(node->value());
         }
         return;
     }
     accessTreeLeafWalk(node,
-                       [&](AccessTreeNode* leaf,
-                           std::span<size_t const> indices) {
+                       [&](AccessTree* leaf, std::span<size_t const> indices) {
         auto* slice = new ExtractValue(storedValue,
                                        indices,
-                                       std::string(leaf->payload()->name()));
+                                       std::string(leaf->value()->name()));
         bb->insert(store, slice);
-        auto* newStore = new Store(irCtx, leaf->payload(), slice);
+        auto* newStore = new Store(irCtx, leaf->value(), slice);
         bb->insert(store, newStore);
     });
     bb->erase(store);
 }
 
 void VariableContext::replaceBySlicesImpl(GetElementPointer* gep,
-                                          AccessTreeNode* node) {}
+                                          AccessTree* node) {}
 
 void VariableContext::accessTreeLeafWalk(
-    AccessTreeNode* root,
-    utl::function_view<void(AccessTreeNode*, std::span<size_t const>)>
-        callback) {
+    AccessTree* root,
+    utl::function_view<void(AccessTree*, std::span<size_t const>)> callback) {
     SC_ASSERT(root, "");
     utl::small_vector<size_t> indices;
     auto impl = [&](auto* node, auto impl) -> void {
@@ -385,7 +382,7 @@ void VariableContext::accessTreeLeafWalk(
 }
 
 void VariableContext::accessTreePreorderWalk(
-    utl::function_view<void(size_t level, AccessTreeNode*)> callback) {
+    utl::function_view<void(size_t level, AccessTree*)> callback) {
     size_t l = 0;
     auto impl = [&](auto* node, auto impl) -> void {
         if (!node) {
@@ -405,7 +402,7 @@ void VariableContext::accessTreePreorderWalk(
 }
 
 void VariableContext::accessTreePostorderWalk(
-    utl::function_view<void(size_t level, AccessTreeNode*)> callback) {
+    utl::function_view<void(size_t level, AccessTree*)> callback) {
     size_t l = 0;
     auto impl = [&](auto* node, auto impl) -> void {
         if (!node) {
