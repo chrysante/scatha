@@ -22,28 +22,20 @@ AccessTree* AccessTree::sibling(ssize_t offset) {
     }
     auto& result = parent()->_children[index];
     if (!result) {
-        SC_ASSERT(isArrayNode(), "");
-        result = std::make_unique<AccessTree>(type(),
-                                              parent(),
-                                              index,
-                                              /* isArrayNode = */ true);
+        result = std::make_unique<AccessTree>(type(), parent(), index);
     }
     return result.get();
 }
 
 AccessTree* AccessTree::addArrayChild(size_t index) {
-    if (isArrayNode()) {
-        return sibling(utl::narrow_cast<ssize_t>(index));
-    }
+    SC_ASSERT(!parent() || !parent()->isArrayNode(), "");
+    _isArrayNode = true;
     if (_children.size() <= index) {
         _children.resize(index + 1);
     }
     auto& child = _children[index];
     if (!child) {
-        child = std::make_unique<AccessTree>(type(),
-                                             this,
-                                             index,
-                                             /* isArrayNode = */ true);
+        child = std::make_unique<AccessTree>(type(), this, index);
     }
     return child.get();
 }
@@ -63,6 +55,7 @@ void AccessTree::fanOut() {
             }
         },
         [&](ir::ArrayType const& aType) {
+            SC_UNREACHABLE();
             if (!_children.empty()) {
                 SC_ASSERT(_children.size() == aType.count(), "");
                 return;

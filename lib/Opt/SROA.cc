@@ -72,7 +72,14 @@ struct VariableContext {
     /// combining the individual values with `InsertValue` instructions.
     /// Replaces stores analogously using `ExtractValue` instructions
     void replaceBySlices();
+    Value* loadSlices(Type const* type,
+                      std::string name,
+                      Instruction* insertBefore,
+                      AccessTree* node);
     void replaceBySlicesImpl(Load* load, AccessTree* node);
+    void storeSlices(Instruction* insertBefore,
+                     Value* storedValue,
+                     AccessTree* node);
     void replaceBySlicesImpl(Store* store, AccessTree* node);
     void replaceBySlicesImpl(GetElementPointer* gep, AccessTree* node);
     void replaceBySlicesImpl(Instruction* inst, AccessTree* node) {
@@ -129,11 +136,24 @@ void VariableContext::slice() {
     replaceBySlices();
 }
 
+/// \Returns the element type if \p type is an array type, otherwise returns \p
+/// type
+static Type const* stripArrayType(Type const* type) {
+    if (auto* arrayType = dyncast<ArrayType const*>(type)) {
+        return arrayType->elementType();
+    }
+    return type;
+}
+
 bool VariableContext::buildAccessTree() {
-    SC_ASSERT(!accessTree, "");
-    accessTree = std::make_unique<AccessTree>(baseAlloca->allocatedType());
-    addressToTreeNodes.insert({ baseAlloca, accessTree.get() });
-    if (!buildAccessTreeVisitUsers(accessTree.get(), baseAlloca)) {
+    accessTree = std::make_unique<AccessTree>(stripArrayType(
+                                                  baseAlloca->allocatedType()),
+                                              nullptr,
+                                              0,
+                                              true);
+    auto* firstElem = accessTree->addArrayChild(0);
+    addressToTreeNodes.insert({ baseAlloca, firstElem });
+    if (!buildAccessTreeVisitUsers(firstElem, baseAlloca)) {
         return false;
     }
     return true;
@@ -147,12 +167,12 @@ bool VariableContext::buildAccessTreeImpl(AccessTree* node,
     if (!gep->hasConstantArrayIndex()) {
         return false;
     }
-    if (isa<ir::ArrayType>(node->type())) {
-        node->fanOut();
-        node = node->childAt(gep->constantArrayIndex());
+    size_t arrayIndex = gep->constantArrayIndex();
+    if (node->parent()->isArrayNode()) {
+        node = node->sibling(utl::narrow_cast<ssize_t>(arrayIndex));
     }
     else {
-        node = node->addArrayChild(gep->constantArrayIndex());
+        node = node->addArrayChild(arrayIndex);
     }
     for (size_t index: gep->memberIndices()) {
         node->fanOut();
@@ -229,61 +249,95 @@ void VariableContext::replaceBySlices() {
     }
 }
 
-void VariableContext::replaceBySlicesImpl(Load* load, AccessTree* node) {
-    SC_ASSERT(load->type() == node->type(), "");
-    if (!node->hasChildren()) {
-        load->setAddress(node->value());
-        return;
-    }
-    auto* bb = load->parent();
-    Value* aggregate = irCtx.undef(load->type());
+Value* VariableContext::loadSlices(Type const* type,
+                                   std::string name,
+                                   Instruction* insertBefore,
+                                   AccessTree* node) {
+    auto* bb = insertBefore->parent();
+    Value* aggregate = irCtx.undef(type);
     accessTreeLeafWalk(node,
                        [&](AccessTree* leaf, std::span<size_t const> indices) {
-        auto* newLoad = new Load(leaf->value(),
-                                 getAlloca(leaf)->allocatedType(),
-                                 std::string(load->name()));
-        bb->insert(load, newLoad);
-        aggregate = new InsertValue(aggregate,
-                                    newLoad,
-                                    indices,
-                                    std::string(load->name()));
-        bb->insert(load, cast<Instruction*>(aggregate));
+        auto* newLoad =
+            new Load(leaf->value(), getAlloca(leaf)->allocatedType(), name);
+        bb->insert(insertBefore, newLoad);
+        if (!indices.empty()) {
+            aggregate = new InsertValue(aggregate, newLoad, indices, name);
+            bb->insert(insertBefore, cast<Instruction*>(aggregate));
+        }
+        else {
+            aggregate = newLoad;
+        }
     });
-    load->replaceAllUsesWith(aggregate);
+    return aggregate;
+}
+
+void VariableContext::replaceBySlicesImpl(Load* load, AccessTree* node) {
+    auto* bb = load->parent();
+    auto* loadedType = load->type();
+    auto* arrayType = dyncast<ArrayType const*>(loadedType);
+    auto name = std::string(load->name());
+    Value* newValue = nullptr;
+    if (!arrayType) {
+        newValue = loadSlices(loadedType, name, load, node);
+    }
+    else {
+        auto* elemType = arrayType->elementType();
+        SC_ASSERT(arrayType && elemType == node->type(), "");
+        newValue = irCtx.undef(loadedType);
+        for (size_t i = 0; i < arrayType->count(); ++i) {
+            auto* aggregate =
+                new InsertValue(newValue,
+                                loadSlices(elemType, name, load, node),
+                                std::array{ i },
+                                name);
+            bb->insert(load, aggregate);
+            newValue = aggregate;
+            node = node->rightSibling();
+        }
+    }
+    load->replaceAllUsesWith(newValue);
     bb->erase(load);
+}
+
+void VariableContext::storeSlices(Instruction* insertBefore,
+                                  Value* storedValue,
+                                  AccessTree* node) {
+    auto* bb = insertBefore->parent();
+    accessTreeLeafWalk(node,
+                       [&](AccessTree* leaf, std::span<size_t const> indices) {
+        auto* value = storedValue;
+        if (!indices.empty()) {
+            auto* slice = new ExtractValue(storedValue,
+                                           indices,
+                                           std::string(leaf->value()->name()));
+            bb->insert(insertBefore, slice);
+            value = slice;
+        }
+        auto* newStore = new Store(irCtx, leaf->value(), value);
+        bb->insert(insertBefore, newStore);
+    });
 }
 
 void VariableContext::replaceBySlicesImpl(Store* store, AccessTree* node) {
     auto* bb = store->parent();
     auto* storedValue = store->value();
-    if (!node->hasChildren()) {
-        auto* type = storedValue->type();
-        if (auto* arrayType = dyncast<ir::ArrayType const*>(type)) {
-            for (size_t i = 0; i < arrayType->count(); ++i) {
-                auto* sibling = node->sibling(utl::narrow_cast<ssize_t>(i));
-                auto* slice = new ExtractValue(storedValue,
-                                               std::array{ i },
-                                               std::string("sroa.ev"));
-                bb->insert(store, slice);
-                auto* newStore = new Store(irCtx, sibling->value(), slice);
-                bb->insert(store, newStore);
-            }
-            bb->erase(store);
-        }
-        else {
-            store->setAddress(node->value());
-        }
-        return;
+    auto* storedType = storedValue->type();
+    auto* arrayType = dyncast<ArrayType const*>(storedType);
+    if (!arrayType) {
+        storeSlices(store, storedValue, node);
     }
-    accessTreeLeafWalk(node,
-                       [&](AccessTree* leaf, std::span<size_t const> indices) {
-        auto* slice = new ExtractValue(storedValue,
-                                       indices,
-                                       std::string(leaf->value()->name()));
-        bb->insert(store, slice);
-        auto* newStore = new Store(irCtx, leaf->value(), slice);
-        bb->insert(store, newStore);
-    });
+    else {
+        SC_ASSERT(arrayType && arrayType->elementType() == node->type(), "");
+        for (size_t i = 0; i < arrayType->count(); ++i) {
+            auto* slice =
+                new ExtractValue(storedValue,
+                                 std::array{ i },
+                                 utl::strcat(storedValue->name(), ".", i));
+            bb->insert(store, slice);
+            storeSlices(store, slice, node);
+            node = node->rightSibling();
+        }
+    }
     bb->erase(store);
 }
 
@@ -328,7 +382,10 @@ void VariableContext::accessTreeLeafWalk(
             for (auto [index, child]:
                  node->children() | ranges::views::enumerate)
             {
-                if (!child->isArrayNode()) {
+                if (!child) {
+                    continue;
+                }
+                if (!node->isArrayNode()) {
                     indices.push_back(index);
                     impl(child, impl);
                     indices.pop_back();

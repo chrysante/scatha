@@ -7,8 +7,15 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
+static bool sroaAndMemToReg(ir::Context& ctx, ir::Function& function) {
+    bool result = false;
+    result |= opt::sroa(ctx, function);
+    result |= opt::memToReg(ctx, function);
+    return result;
+}
+
 TEST_CASE("SROA - 1", "[opt][sroa]") {
-    test::passTest(&opt::sroa,
+    test::passTest(opt::sroa,
                    R"(
 struct @X {
   i64, i64
@@ -84,7 +91,7 @@ func i64 @main() {
 }
 
 TEST_CASE("SROA - 2", "[opt][sroa]") {
-    test::passTest(&opt::sroa,
+    test::passTest(opt::sroa,
                    R"(
 struct @X {
   i1, i64
@@ -121,7 +128,7 @@ func i64 @f(@X %0) {
 }
 
 TEST_CASE("SROA - 3", "[opt][sroa]") {
-    test::passTest(&opt::sroa,
+    test::passTest(opt::sroa,
                    R"(
 struct @X {
   i64, i64, i64
@@ -202,7 +209,7 @@ func i64 @main(i1 %cond) {
 }
 
 TEST_CASE("SROA - 4", "[opt][sroa]") {
-    test::passTest(&opt::sroa,
+    test::passTest(opt::sroa,
                    R"(
 struct @X {
     i64, i64, i64
@@ -266,44 +273,124 @@ func void @takeX(@X %0) {
 })");
 }
 
-TEST_CASE("SROA - 5", "[opt][sroa]") {
-    test::passTest(&opt::sroa,
+TEST_CASE("SROA - Override one struct member", "[opt][sroa]") {
+    test::passTest(sroaAndMemToReg,
                    R"(
-struct @X {
-  i64, i64, i64
-}
+struct @X { i64, i64, i64 }
 func @X @main(@X %0) {
   %entry:
-    %x.0 = alloca @X, i32 1
-    store ptr %x.0, @X %0
-    %member.ptr = getelementptr inbounds @X, ptr %x.0, i64 0, 2
+    %data = alloca @X, i32 1
+    store ptr %data, @X %0
+    %member.ptr = getelementptr inbounds @X, ptr %data, i64 0, 2
     store ptr %member.ptr, i64 1
-    %tmp = load i64, ptr %member.ptr
-    %x.1 = load @X, ptr %x.0
-    return @X %x.1
+    %result = load @X, ptr %data
+    return @X %result
 })",
                    R"(
-struct @X {
-  i64, i64, i64
-}
+struct @X { i64, i64, i64 }
 func @X @main(@X %0) {
   %entry:
-    %x.0_0.0 = alloca i64, i32 1
-    %x.0_1.0 = alloca i64, i32 1
-    %x.0_2.0 = alloca i64, i32 1
-    %x.0_0.2 = extract_value @X %0, 0
-    store ptr %x.0_0.0, i64 %x.0_0.2
-    %x.0_1.2 = extract_value @X %0, 1
-    store ptr %x.0_1.0, i64 %x.0_1.2
-    %x.0_2.2 = extract_value @X %0, 2
-    store ptr %x.0_2.0, i64 %x.0_2.2
-    store ptr %x.0_2.0, i64 1
-    %x.3 = load i64, ptr %x.0_0.0
-    %x.5 = insert_value @X undef, i64 %x.3, 0
-    %x.7 = load i64, ptr %x.0_1.0
-    %x.9 = insert_value @X %x.5, i64 %x.7, 1
-    %x.11 = load i64, ptr %x.0_2.0
-    %x.13 = insert_value @X %x.9, i64 %x.11, 2
-    return @X %x.13
+    %data.7 = extract_value @X %0, 0
+    %data.9 = extract_value @X %0, 1
+    %data.11 = extract_value @X %0, 2
+    %result.3 = insert_value @X undef, i64 %data.7, 0
+    %result.7 = insert_value @X %result.3, i64 %data.9, 1
+    %result.11 = insert_value @X %result.7, i64 1, 2
+    return @X %result.11
 })");
+}
+
+TEST_CASE("SROA - Store array, load element", "[opt][sroa]") {
+    test::passTest(sroaAndMemToReg,
+                   R"(
+func i64 @main([i64, 2] %0) {
+  %entry:
+    %data = alloca [i64, 2], i32 1
+    store ptr %data, [i64, 2] %0
+    %elem.ptr = getelementptr inbounds i64, ptr %data, i64 1
+    %result = load i64, ptr %elem.ptr
+    return i64 %result
+})",
+                   R"(
+func i64 @main([i64, 2] %0) {
+  %entry:
+    %0.1 = extract_value [i64, 2] %0, 0
+    %0.3 = extract_value [i64, 2] %0, 1
+    return i64 %0.3
+})");
+}
+
+TEST_CASE("SROA - Store array, load nested element", "[opt][sroa]") {
+    test::passTest(sroaAndMemToReg,
+                   R"(
+struct @X { i32, i32 }
+func i32 @main([@X, 2] %0) {
+  %entry:
+    %data = alloca [@X, 2], i32 1
+    store ptr %data, [@X, 2] %0
+    %elem.ptr = getelementptr inbounds @X, ptr %data, i64 1, 0
+    %result = load i32, ptr %elem.ptr
+    return i32 %result
+})",
+                   R"(
+struct @X { i32, i32 }
+func i32 @main([@X, 2] %0) {
+  %entry:
+    %0.1 = extract_value [@X, 2] %0, 0
+    %0.3 = extract_value [@X, 2] %0, 1
+    %data.7 = extract_value @X %0.3, 0
+    %data.9 = extract_value @X %0.3, 1
+    return i32 %data.7
+})");
+}
+
+TEST_CASE("SROA - Store elements, load array", "[opt][sroa]") {
+    test::passTest(sroaAndMemToReg,
+                   R"(
+func [i64, 2] @main(i64 %0, i64 %1) {
+  %entry:
+    %data = alloca [i64, 2], i32 1
+    %at.0 = getelementptr inbounds i64, ptr %data, i64 0
+    store ptr %at.0, i64 %1
+    %at.1 = getelementptr inbounds i64, ptr %data, i64 1
+    store ptr %at.1, i64 %0
+    %result = load [i64, 2], ptr %data
+    return [i64, 2] %result
+})",
+                   R"(
+func [i64, 2] @main(i64 %0, i64 %1) {
+  %entry:
+    %result.3 = insert_value [i64, 2] undef, i64 %1, 0
+    %result.7 = insert_value [i64, 2] %result.3, i64 %0, 1
+    return [i64, 2] %result.7
+})");
+}
+
+TEST_CASE("SROA - Store nested elements, load array", "[opt][sroa]") {
+    test::passTest(sroaAndMemToReg,
+                   R"(
+struct @X { i64, i64 }
+func [@X, 2] @main(@X %0, i64 %1, i64 %2) {
+  %entry:
+    %data = alloca [@X, 2]
+    %at.0 = getelementptr inbounds @X, ptr %data, i64 0
+    store ptr %at.0, @X %0
+    %at.1.0 = getelementptr inbounds @X, ptr %data, i64 1, 0
+    store ptr %at.1.0, i64 %1
+    %at.1.1 = getelementptr inbounds @X, ptr %data, i64 1, 1
+    store ptr %at.1.1, i64 %2
+    %result = load [@X, 2], ptr %data
+    return [@X, 2] %result
+})",
+                   R"(
+struct @X { i64, i64 }
+func [@X, 2] @main(@X %0, i64 %1, i64 %2) {
+  %entry:
+    %result.3 = insert_value [@X, 2] undef, @X %0, 0
+    %result.7 = insert_value @X undef, i64 %1, 0
+    %result.11 = insert_value @X %result.7, i64 %2, 1
+    %result.13 = insert_value [@X, 2] %result.3, @X %result.11, 1
+    return [@X, 2] %result.13
+}
+)");
 }

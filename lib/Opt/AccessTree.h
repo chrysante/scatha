@@ -87,7 +87,7 @@ public:
         return parent() ? std::optional(_index) : std::nullopt;
     }
 
-    ///
+    /// Makes this node an array node and adds a child at index \p index
     AccessTree* addArrayChild(size_t index);
 
     /// Create children for every member type of this node's type,
