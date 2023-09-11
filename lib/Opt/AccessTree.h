@@ -22,7 +22,14 @@ class AccessTree {
     static auto childrenImpl(auto* self) { return self->_children | ToAddress; }
 
 public:
-    explicit AccessTree(ir::Type const* type): _type(type) {}
+    explicit AccessTree(ir::Type const* type,
+                        AccessTree* parent = nullptr,
+                        size_t index = 0,
+                        bool isArrayNode = false):
+        _type(type),
+        _parent(parent),
+        _index(index),
+        _isArrayNode(isArrayNode) {}
 
     /// The type this leaf represents
     ir::Type const* type() const { return _type; }
@@ -80,16 +87,13 @@ public:
         return parent() ? std::optional(_index) : std::nullopt;
     }
 
+    ///
+    AccessTree* addArrayChild(size_t index);
+
     /// Create children for every member type of this node's type,
     /// if it is a structure or array type.
     /// Incompatible with `addSingleChild()`
     void fanOut();
-
-    ///
-    AccessTree* addArrayChild(size_t index);
-
-    ///
-    AccessTree* addSingleElementArrayChild();
 
     /// Set a single child at index \p index
     ///
@@ -101,7 +105,7 @@ public:
     AccessTree* addSingleChild(size_t index);
 
     ///
-    bool isDynArrayNode() const { return _isDynArrayNode; }
+    bool isArrayNode() const { return _isArrayNode; }
 
     /// Invoke \p callback for every leaf of this tree
     void leafWalk(
@@ -169,13 +173,14 @@ private:
         callback(this, indices);
     }
 
-private:
-    AccessTree* _parent = nullptr;
-    utl::small_vector<std::unique_ptr<AccessTree>> _children;
+    /// Defined in constructor
     ir::Type const* _type = nullptr;
-    ir::Value* _value = nullptr;
+    AccessTree* _parent = nullptr;
     size_t _index = 0;
-    bool _isDynArrayNode = false;
+    bool _isArrayNode = false;
+
+    utl::small_vector<std::unique_ptr<AccessTree>> _children;
+    ir::Value* _value = nullptr;
 };
 
 } // namespace scatha::opt

@@ -22,13 +22,30 @@ AccessTree* AccessTree::sibling(ssize_t offset) {
     }
     auto& result = parent()->_children[index];
     if (!result) {
-        SC_ASSERT(isDynArrayNode(), "");
-        result = std::make_unique<AccessTree>(type());
-        result->_parent = parent();
-        result->_index = index;
-        result->_isDynArrayNode = true;
+        SC_ASSERT(isArrayNode(), "");
+        result = std::make_unique<AccessTree>(type(),
+                                              parent(),
+                                              index,
+                                              /* isArrayNode = */ true);
     }
     return result.get();
+}
+
+AccessTree* AccessTree::addArrayChild(size_t index) {
+    if (isArrayNode()) {
+        return sibling(utl::narrow_cast<ssize_t>(index));
+    }
+    if (_children.size() <= index) {
+        _children.resize(index + 1);
+    }
+    auto& child = _children[index];
+    if (!child) {
+        child = std::make_unique<AccessTree>(type(),
+                                             this,
+                                             index,
+                                             /* isArrayNode = */ true);
+    }
+    return child.get();
 }
 
 void AccessTree::fanOut() {
@@ -41,9 +58,7 @@ void AccessTree::fanOut() {
             for (auto [index, t]: sType.members() | ranges::views::enumerate) {
                 auto& child = _children[index];
                 if (!child) {
-                    child = std::make_unique<AccessTree>(t);
-                    child->_parent = this;
-                    child->_index = index;
+                    child = std::make_unique<AccessTree>(t, this, index);
                 }
             }
         },
@@ -54,35 +69,11 @@ void AccessTree::fanOut() {
             }
             auto* t = aType.elementType();
             for (size_t index = 0; index < aType.count(); ++index) {
-                auto& child = _children.push_back(std::make_unique<AccessTree>(t));
-                child->_parent = this;
-                child->_index = index;
-                child->_isDynArrayNode = true;
+                _children.push_back(std::make_unique<AccessTree>(t, this, index, /* isArrayNode = */ true));
             }
         },
         [&](ir::Type const&) {},
     }; // clang-format on
-}
-
-AccessTree* AccessTree::addArrayChild(size_t index) {
-    if (isDynArrayNode()) {
-        return sibling(utl::narrow_cast<ssize_t>(index));
-    }
-    if (_children.size() <= index) {
-        _children.resize(index + 1);
-    }
-    auto& child = _children[index];
-    if (!child) {
-        child = std::make_unique<AccessTree>(type());
-        child->_parent = this;
-        child->_index = index;
-        child->_isDynArrayNode = true;
-    }
-    return child.get();
-}
-
-AccessTree* AccessTree::addSingleElementArrayChild() {
-    return addArrayChild(0);
 }
 
 AccessTree* AccessTree::addSingleChild(size_t index) {
@@ -93,9 +84,8 @@ AccessTree* AccessTree::addSingleChild(size_t index) {
     }
     auto& child = _children[index];
     if (!child) {
-        child = std::make_unique<AccessTree>(sType->memberAt(index));
-        child->_parent = this;
-        child->_index = index;
+        child =
+            std::make_unique<AccessTree>(sType->memberAt(index), this, index);
     }
     return child.get();
 }
@@ -137,7 +127,7 @@ static void printImpl(AccessTree const* node,
     else {
         str << " <No type>";
     }
-    if (node->isDynArrayNode()) {
+    if (node->isArrayNode()) {
         str << " [DynArrayNode]";
     }
     str << std::endl;

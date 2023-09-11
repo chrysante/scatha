@@ -239,8 +239,6 @@ struct @X {
 }
 func i64 @main(i1 %cond) {
   %entry:
-    %array_0.0 = alloca i64, i32 1
-    %array_1.0 = alloca i64, i32 1
     %array_2.0 = alloca i64, i32 1
     %array_0.2 = alloca i64, i32 1
     %array_1.2 = alloca i64, i32 1

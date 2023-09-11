@@ -26,46 +26,7 @@ SC_REGISTER_PASS(opt::sroa, "sroa");
 namespace {
 
 struct VariableContext {
-    explicit VariableContext(Alloca* address, ir::Context& irCtx):
-        irCtx(irCtx), baseAlloca(address) {}
-
-    bool buildAccessTree();
-
-    void slice();
-
-    void cleanUnusedLoads();
-
-    void cleanUnusedAddresses(Instruction* address);
-
-    /// Build the access tree with using all the GEPs that directly or
-    /// indirectly access this alloca.
-    bool buildAccessTreeImpl(AccessTree* parent, GetElementPointer* address);
-
-    bool buildAccessTreeVisitUsers(AccessTree* parent, Instruction* address);
-
-    void addAllocasForLeaves();
-    void addAllocasForLeavesImpl(AccessTree* node);
-
-    void replaceBySlices();
-
-    void replaceBySlicesImpl(Load* load, AccessTree* node);
-    void replaceBySlicesImpl(Store* store, AccessTree* node);
-    void replaceBySlicesImpl(GetElementPointer* gep, AccessTree* node);
-    void replaceBySlicesImpl(Instruction* inst, AccessTree* node) {
-        SC_UNREACHABLE();
-    }
-
-    void accessTreeLeafWalk(
-        AccessTree* root,
-        utl::function_view<void(AccessTree*, std::span<size_t const>)>
-            callback);
-
-    void accessTreePreorderWalk(
-        utl::function_view<void(size_t level, AccessTree*)> callback);
-
-    void accessTreePostorderWalk(
-        utl::function_view<void(size_t level, AccessTree*)> callback);
-
+    /// The IR context
     ir::Context& irCtx;
 
     /// The address of the structure we are trying to slice.
@@ -82,6 +43,59 @@ struct VariableContext {
     /// The access trees. This has as many elements as there are array accesses
     /// by GEP instructions.
     std::unique_ptr<AccessTree> accessTree;
+
+    /// We keep track of the added allocas to prune them in the end
+    utl::small_vector<Alloca*> addedAllocas;
+
+    /// Construct a variable context
+    explicit VariableContext(Alloca* address, ir::Context& irCtx):
+        irCtx(irCtx), baseAlloca(address) {}
+
+    /// First step in the algorithm. If this returns `false` then slicing is not
+    /// possible The access tree is built by looking at all the GEPs that
+    /// directly or transitively access this alloca.
+    bool buildAccessTree();
+
+    /// Helper functions for `buildAccessTree()`
+    bool buildAccessTreeImpl(AccessTree* parent, GetElementPointer* address);
+    bool buildAccessTreeVisitUsers(AccessTree* parent, Instruction* address);
+
+    /// The the allocation according to the access tree
+    void slice();
+
+    /// Recursively walks the access tree and inserts alloca instructions for
+    /// the leaf nodes
+    void addAllocasForLeaves();
+    void addAllocasForLeavesImpl(AccessTree* node);
+
+    /// Replaces loads by creating single loads to each leaf in the subtree and
+    /// combining the individual values with `InsertValue` instructions.
+    /// Replaces stores analogously using `ExtractValue` instructions
+    void replaceBySlices();
+    void replaceBySlicesImpl(Load* load, AccessTree* node);
+    void replaceBySlicesImpl(Store* store, AccessTree* node);
+    void replaceBySlicesImpl(GetElementPointer* gep, AccessTree* node);
+    void replaceBySlicesImpl(Instruction* inst, AccessTree* node) {
+        SC_UNREACHABLE();
+    }
+
+    /// This is an intermediate step called during slicing after building the
+    /// access tree
+    void cleanUnusedLoads();
+
+    /// This is called in the end after slicing and cleans up all unnecessarily
+    /// added instructions
+    void clean();
+
+    /// Called by `clean()`. Recursively walks all the GEP instructions that
+    /// access this alloca (in post-order) and erases any instructions that are
+    /// not used
+    void cleanUnusedGEPs(Instruction* address);
+
+    void accessTreeLeafWalk(
+        AccessTree* root,
+        utl::function_view<void(AccessTree*, std::span<size_t const>)>
+            callback);
 };
 
 } // namespace
@@ -90,13 +104,13 @@ bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
     auto allocas =
         function.entry() | TakeAddress | Filter<Alloca> | ToSmallVector<>;
     bool modifiedAny = false;
-    for (auto* address: allocas) {
-        VariableContext varInfo(address, irCtx);
+    for (auto* allocaInst: allocas) {
+        VariableContext varInfo(allocaInst, irCtx);
         if (!varInfo.buildAccessTree()) {
             continue;
         }
         varInfo.slice();
-        varInfo.cleanUnusedAddresses(address);
+        varInfo.clean();
         modifiedAny = true;
     }
     if (modifiedAny) {
@@ -184,27 +198,6 @@ bool VariableContext::buildAccessTreeVisitUsers(AccessTree* node,
     return true;
 }
 
-void VariableContext::cleanUnusedLoads() {
-    for (auto& inst: loads) {
-        if (inst->users().empty()) {
-            inst->parent()->erase(inst);
-            inst = nullptr;
-        }
-    }
-}
-
-void VariableContext::cleanUnusedAddresses(Instruction* address) {
-    auto users = address->users() | ToSmallVector<>;
-    for (auto* user: users) {
-        if (auto* gep = dyncast<GetElementPointer*>(user)) {
-            cleanUnusedAddresses(gep);
-        }
-    }
-    if (address->users().empty()) {
-        address->parent()->erase(address);
-    }
-}
-
 void VariableContext::addAllocasForLeaves() {
     addAllocasForLeavesImpl(accessTree.get());
 }
@@ -215,6 +208,7 @@ void VariableContext::addAllocasForLeavesImpl(AccessTree* node) {
             new Alloca(irCtx, node->type(), std::string(baseAlloca->name()));
         node->setValue(newScalar);
         baseAlloca->parent()->insert(baseAlloca, newScalar);
+        addedAllocas.push_back(newScalar);
     }
     for (auto* child: node->children()) {
         if (child) {
@@ -296,6 +290,34 @@ void VariableContext::replaceBySlicesImpl(Store* store, AccessTree* node) {
 void VariableContext::replaceBySlicesImpl(GetElementPointer* gep,
                                           AccessTree* node) {}
 
+void VariableContext::cleanUnusedLoads() {
+    for (auto& inst: loads) {
+        if (inst->users().empty()) {
+            inst->parent()->erase(inst);
+            inst = nullptr;
+        }
+    }
+}
+
+void VariableContext::clean() {
+    cleanUnusedGEPs(baseAlloca);
+    for (auto* inst: addedAllocas) {
+        if (!inst->isUsed()) {
+            inst->parent()->erase(inst);
+        }
+    }
+}
+
+void VariableContext::cleanUnusedGEPs(Instruction* address) {
+    auto users = address->users() | Filter<GetElementPointer> | ToSmallVector<>;
+    for (auto* gep: users) {
+        cleanUnusedGEPs(gep);
+    }
+    if (address->users().empty()) {
+        address->parent()->erase(address);
+    }
+}
+
 void VariableContext::accessTreeLeafWalk(
     AccessTree* root,
     utl::function_view<void(AccessTree*, std::span<size_t const>)> callback) {
@@ -306,7 +328,7 @@ void VariableContext::accessTreeLeafWalk(
             for (auto [index, child]:
                  node->children() | ranges::views::enumerate)
             {
-                if (!child->isDynArrayNode()) {
+                if (!child->isArrayNode()) {
                     indices.push_back(index);
                     impl(child, impl);
                     indices.pop_back();
@@ -321,38 +343,4 @@ void VariableContext::accessTreeLeafWalk(
         }
     };
     impl(root, impl);
-}
-
-void VariableContext::accessTreePreorderWalk(
-    utl::function_view<void(size_t level, AccessTree*)> callback) {
-    size_t l = 0;
-    auto impl = [&](auto* node, auto impl) -> void {
-        if (!node) {
-            return;
-        }
-        callback(l, node);
-        ++l;
-        for (auto* child: node->children()) {
-            impl(child, impl);
-        }
-        --l;
-    };
-    impl(accessTree.get(), impl);
-}
-
-void VariableContext::accessTreePostorderWalk(
-    utl::function_view<void(size_t level, AccessTree*)> callback) {
-    size_t l = 0;
-    auto impl = [&](auto* node, auto impl) -> void {
-        if (!node) {
-            return;
-        }
-        ++l;
-        for (auto* child: node->children()) {
-            impl(child, impl);
-        }
-        --l;
-        callback(l, node);
-    };
-    impl(accessTree.get(), impl);
 }
