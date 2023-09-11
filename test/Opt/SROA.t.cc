@@ -15,20 +15,35 @@ struct @X {
 }
 func i64 @main() {
   %entry:
-    %a = alloca @X, i32 10
-    %p.0 = getelementptr inbounds @X, ptr %a, i32 3
-    %x.0 = insert_value @X undef, i64 1, 0
-    %x.1 = insert_value @X %x.0, i64 2, 1
-    store ptr %p.0, @X %x.1
-    %q.0 = getelementptr inbounds @X, ptr %p.0, i32 0, 1
-    %p.1 = getelementptr inbounds @X, ptr %a, i32 5
-    %x.2 = insert_value @X undef, i64 1, 0
-    %x.3 = insert_value @X %x.0, i64 2, 1
-    store ptr %p.1, @X %x.3
-    %q.1 = getelementptr inbounds @X, ptr %p.1, i32 0, 0
-    %res.0 = load i64, ptr %q.0
-    %res.1 = load i64, ptr %q.1
-    %res = add i64 %res.0, i64 %res.1
+    %data = alloca @X, i32 10
+    
+    # Make variable x
+    %x.tmp = insert_value @X undef, i64 1, 0
+    %x = insert_value @X %x.tmp, i64 2, 1
+    
+    # Make variable y
+    %y.tmp = insert_value @X undef, i64 1, 0
+    %y = insert_value @X %y.tmp, i64 2, 1
+    
+    # Store x into array index 3
+    %data.at.3 = getelementptr inbounds @X, ptr %data, i32 3
+    store ptr %data.at.3, @X %x
+    
+    # Store y into array index 5
+    %data.at.5 = getelementptr inbounds @X, ptr %data, i32 5
+    store ptr %data.at.5, @X %y
+    
+    # Load second data member from index 3
+    %member.1 = getelementptr inbounds @X, ptr %data.at.3, i32 0, 1
+    %lhs = load i64, ptr %member.1
+    
+    # Load first data member from index 5
+    %member.0 = getelementptr inbounds @X, ptr %data.at.5, i32 0, 0
+    %rhs = load i64, ptr %member.0
+    
+    # Sum lhs and rhs
+    %res = add i64 %lhs, i64 %rhs
+    
     return i64 %res
 })",
                    R"(
@@ -37,26 +52,33 @@ struct @X {
 }
 func i64 @main() {
   %entry:
-    %a.1 = alloca @X, i32 1
-    %a_0.0 = alloca i64, i32 1
-    %a_1.0 = alloca i64, i32 1
-    %a_0.2 = alloca i64, i32 1
-    %a_1.2 = alloca i64, i32 1
-    %x.0 = insert_value @X undef, i64 1, 0
-    %x.1 = insert_value @X %x.0, i64 2, 1
-    %a_0.4 = extract_value @X %x.1, 0
-    store ptr %a_0.0, i64 %a_0.4
-    %a_1.4 = extract_value @X %x.1, 1
-    store ptr %a_1.0, i64 %a_1.4
-    %x.2 = insert_value @X undef, i64 1, 0
-    %x.3 = insert_value @X %x.0, i64 2, 1
-    %a_0.6 = extract_value @X %x.3, 0
-    store ptr %a_0.2, i64 %a_0.6
-    %a_1.6 = extract_value @X %x.3, 1
-    store ptr %a_1.2, i64 %a_1.6
-    %res.0 = load i64, ptr %a_1.0
-    %res.1 = load i64, ptr %a_0.2
-    %res = add i64 %res.0, i64 %res.1
+    %data.1 = alloca i64, i32 1
+    %data.3 = alloca i64, i32 1
+    %data.5 = alloca i64, i32 1
+    %data.7 = alloca i64, i32 1
+
+    %x.tmp = insert_value @X undef, i64 1, 0
+    %x = insert_value @X %x.tmp, i64 2, 1
+
+    %y.tmp = insert_value @X undef, i64 1, 0
+    %y = insert_value @X %y.tmp, i64 2, 1
+
+    %data.9 = extract_value @X %x, 0
+    store ptr %data.1, i64 %data.9
+
+    %data.11 = extract_value @X %x, 1
+    store ptr %data.3, i64 %data.11
+
+    %data.13 = extract_value @X %y, 0
+    store ptr %data.5, i64 %data.13
+
+    %data.15 = extract_value @X %y, 1
+    store ptr %data.7, i64 %data.15
+
+    %lhs = load i64, ptr %data.3
+    %rhs = load i64, ptr %data.5
+    %res = add i64 %lhs, i64 %rhs
+
     return i64 %res
 })");
 }
@@ -85,13 +107,13 @@ struct @X {
 func i64 @f(@X %0) {
   %entry:
     %r = alloca i64, i32 1
-    %x_0.0 = alloca i1, i32 1
-    %x_1.0 = alloca i64, i32 1
-    %x_0.2 = extract_value @X %0, 0
-    store ptr %x_0.0, i1 %x_0.2
-    %x_1.2 = extract_value @X %0, 1
-    store ptr %x_1.0, i64 %x_1.2
-    %x.1.value = load i64, ptr %x_1.0
+    %x.2 = alloca i1, i32 1
+    %x.4 = alloca i64, i32 1
+    %x.6 = extract_value @X %0, 0
+    store ptr %x.2, i1 %x.6
+    %x.8 = extract_value @X %0, 1
+    store ptr %x.4, i64 %x.8
+    %x.1.value = load i64, ptr %x.4
     store ptr %r, i64 %x.1.value
     %ret = load i64, ptr %r
     return i64 %ret
@@ -147,33 +169,32 @@ struct @X {
 }
 func i64 @main(i1 %cond) {
   %entry:
-    %a.1 = alloca @X, i32 1
-    %a_0.0 = alloca i64, i32 1
-    %a_1.0 = alloca i64, i32 1
-    %a_2.0 = alloca i64, i32 1
+    %a.1 = alloca i64, i32 1
+    %a.3 = alloca i64, i32 1
+    %a.5 = alloca i64, i32 1
     %i = insert_value @X undef, i64 3, 2
-    %a_0.2 = extract_value @X %i, 0
-    store ptr %a_0.0, i64 %a_0.2
-    %a_1.2 = extract_value @X %i, 1
-    store ptr %a_1.0, i64 %a_1.2
-    %a_2.2 = extract_value @X %i, 2
-    store ptr %a_2.0, i64 %a_2.2
+    %a.7 = extract_value @X %i, 0
+    store ptr %a.1, i64 %a.7
+    %a.9 = extract_value @X %i, 1
+    store ptr %a.3, i64 %a.9
+    %a.11 = extract_value @X %i, 2
+    store ptr %a.5, i64 %a.11
     branch i1 %cond, label %if, label %then
 
   %if:                        # preds: entry
-    store ptr %a_0.0, i64 1
-    store ptr %a_1.0, i64 2
+    store ptr %a.1, i64 1
+    store ptr %a.3, i64 2
     goto label %end
 
   %then:                      # preds: entry
-    store ptr %a_0.0, i64 5
-    store ptr %a_1.0, i64 6
+    store ptr %a.1, i64 5
+    store ptr %a.3, i64 6
     goto label %end
 
   %end:                       # preds: if, then
-    %x = load i64, ptr %a_0.0
-    %y = load i64, ptr %a_1.0
-    %z = load i64, ptr %a_2.0
+    %x = load i64, ptr %a.1
+    %y = load i64, ptr %a.3
+    %z = load i64, ptr %a.5
     %r.0 = add i64 %x, i64 %y
     %r.1 = add i64 %r.0, i64 %z
     return i64 %r.1

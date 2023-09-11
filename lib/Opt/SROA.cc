@@ -44,6 +44,7 @@ struct VariableContext {
     bool buildAccessTreeVisitUsers(AccessTree* parent, Instruction* address);
 
     void addAllocasForLeaves();
+    void addAllocasForLeavesImpl(AccessTree* node);
 
     void replaceBySlices();
 
@@ -52,18 +53,6 @@ struct VariableContext {
     void replaceBySlicesImpl(GetElementPointer* gep, AccessTree* node);
     void replaceBySlicesImpl(Instruction* inst, AccessTree* node) {
         SC_UNREACHABLE();
-    }
-
-    AccessTree* sibling(AccessTree* node, ssize_t offset) {
-        if (node->parent()) {
-            return node->sibling(offset);
-        }
-        auto itr =
-            ranges::find_if(accessForest,
-                            [&](auto& root) { return root.get() == node; }) +
-            offset;
-        SC_ASSERT(itr < accessForest.end(), "Invalid node or offset");
-        return itr->get();
     }
 
     void accessTreeLeafWalk(
@@ -76,27 +65,6 @@ struct VariableContext {
 
     void accessTreePostorderWalk(
         utl::function_view<void(size_t level, AccessTree*)> callback);
-
-    void printAccessTree() {
-        std::cout << "%" << baseAlloca->name() << ":" << std::endl;
-        for (auto& node: accessForest) {
-            printAccessTreeImpl(node.get(), 0);
-        }
-    }
-
-    void printAccessTreeImpl(AccessTree const* node, int level) {
-        for (int i = 0; i < level; ++i) {
-            std::cout << "    ";
-        }
-        if (node->index()) {
-            std::cout << *node->index() << " ";
-        }
-        std::cout << "[" << node->type()->name() << "]";
-        std::cout << std::endl;
-        for (auto* c: node->children()) {
-            printAccessTreeImpl(c, level + 1);
-        }
-    }
 
     ir::Context& irCtx;
 
@@ -113,7 +81,7 @@ struct VariableContext {
 
     /// The access trees. This has as many elements as there are array accesses
     /// by GEP instructions.
-    utl::small_vector<std::unique_ptr<AccessTree>> accessForest;
+    std::unique_ptr<AccessTree> accessTree;
 };
 
 } // namespace
@@ -147,23 +115,11 @@ void VariableContext::slice() {
     replaceBySlices();
 }
 
-ir::Type const* getRootType(ir::Alloca const* baseAlloca) {
-    auto* allocated = baseAlloca->allocatedType();
-    if (auto* array = dyncast<ir::ArrayType const*>(allocated)) {
-        return array->elementType();
-    }
-    return allocated;
-}
-
 bool VariableContext::buildAccessTree() {
-    SC_ASSERT(accessForest.empty(), "");
-
-    accessForest.push_back(
-        std::make_unique<AccessTree>(getRootType(baseAlloca)));
-#warning Should this not be accessForest.back()??
-    auto* root = accessForest.front().get();
-    addressToTreeNodes.insert({ baseAlloca, root });
-    if (!buildAccessTreeVisitUsers(nullptr, baseAlloca)) {
+    SC_ASSERT(!accessTree, "");
+    accessTree = std::make_unique<AccessTree>(baseAlloca->allocatedType());
+    addressToTreeNodes.insert({ baseAlloca, accessTree.get() });
+    if (!buildAccessTreeVisitUsers(accessTree.get(), baseAlloca)) {
         return false;
     }
     return true;
@@ -177,24 +133,12 @@ bool VariableContext::buildAccessTreeImpl(AccessTree* node,
     if (!gep->hasConstantArrayIndex()) {
         return false;
     }
-    /// If node pointer is null then we may have non zero array index.
-    /// We check for that also in the loop to access the correct type.
-    if (!node) {
-        SC_ASSERT(gep->basePointer() == this->baseAlloca,
-                  "We are level 1 so we may have non-zero array index");
-        size_t const arrayIndex = gep->constantArrayIndex();
-        if (accessForest.size() <= arrayIndex) {
-            accessForest.resize(arrayIndex + 1);
-        }
-        if (!accessForest[arrayIndex]) {
-            accessForest[arrayIndex] =
-                std::make_unique<AccessTree>(gep->inboundsType());
-        }
-        node = accessForest[arrayIndex].get();
+    if (isa<ir::ArrayType>(node->type())) {
+        node->fanOut();
+        node = node->childAt(gep->constantArrayIndex());
     }
-    /// Else we may not have non-zero constant array index
-    else if (gep->constantArrayIndex() != 0) {
-        return false;
+    else {
+        node = node->addArrayChild(gep->constantArrayIndex());
     }
     for (size_t index: gep->memberIndices()) {
         node->fanOut();
@@ -261,29 +205,21 @@ void VariableContext::cleanUnusedAddresses(Instruction* address) {
     }
 }
 
-static std::string makeName(Value const* original,
-                            std::span<std::size_t const> indices) {
-    std::string result = std::string(original->name());
-    for (size_t index: indices) {
-        result += utl::strcat("_", index);
-    }
-    return result;
+void VariableContext::addAllocasForLeaves() {
+    addAllocasForLeavesImpl(accessTree.get());
 }
 
-void VariableContext::addAllocasForLeaves() {
-    for (auto& root: accessForest) {
-        if (!root) {
-            continue;
+void VariableContext::addAllocasForLeavesImpl(AccessTree* node) {
+    if (node->children().empty()) {
+        auto* newScalar =
+            new Alloca(irCtx, node->type(), std::string(baseAlloca->name()));
+        node->setValue(newScalar);
+        baseAlloca->parent()->insert(baseAlloca, newScalar);
+    }
+    for (auto* child: node->children()) {
+        if (child) {
+            addAllocasForLeavesImpl(child);
         }
-        accessTreeLeafWalk(root.get(),
-                           [&](AccessTree* node,
-                               std::span<size_t const> indices) {
-            SC_ASSERT(node->type(), "We need to know what we allocate");
-            auto* newScalar =
-                new Alloca(irCtx, node->type(), makeName(baseAlloca, indices));
-            node->setValue(newScalar);
-            baseAlloca->parent()->insert(baseAlloca, newScalar);
-        });
     }
 }
 
@@ -300,6 +236,7 @@ void VariableContext::replaceBySlices() {
 }
 
 void VariableContext::replaceBySlicesImpl(Load* load, AccessTree* node) {
+    SC_ASSERT(load->type() == node->type(), "");
     if (!node->hasChildren()) {
         load->setAddress(node->value());
         return;
@@ -329,8 +266,7 @@ void VariableContext::replaceBySlicesImpl(Store* store, AccessTree* node) {
         auto* type = storedValue->type();
         if (auto* arrayType = dyncast<ir::ArrayType const*>(type)) {
             for (size_t i = 0; i < arrayType->count(); ++i) {
-                auto* sibling =
-                    this->sibling(node, utl::narrow_cast<ssize_t>(i));
+                auto* sibling = node->sibling(utl::narrow_cast<ssize_t>(i));
                 auto* slice = new ExtractValue(storedValue,
                                                std::array{ i },
                                                std::string("sroa.ev"));
@@ -367,12 +303,18 @@ void VariableContext::accessTreeLeafWalk(
     utl::small_vector<size_t> indices;
     auto impl = [&](auto* node, auto impl) -> void {
         if (node->hasChildren()) {
-            indices.push_back(0);
-            for (auto* child: node->children()) {
-                impl(child, impl);
-                ++indices.back();
+            for (auto [index, child]:
+                 node->children() | ranges::views::enumerate)
+            {
+                if (!child->isDynArrayNode()) {
+                    indices.push_back(index);
+                    impl(child, impl);
+                    indices.pop_back();
+                }
+                else {
+                    impl(child, impl);
+                }
             }
-            indices.pop_back();
         }
         else {
             callback(node, indices);
@@ -395,10 +337,7 @@ void VariableContext::accessTreePreorderWalk(
         }
         --l;
     };
-    for (auto& root: accessForest) {
-        l = 0;
-        impl(root.get(), impl);
-    }
+    impl(accessTree.get(), impl);
 }
 
 void VariableContext::accessTreePostorderWalk(
@@ -415,8 +354,5 @@ void VariableContext::accessTreePostorderWalk(
         --l;
         callback(l, node);
     };
-    for (auto& root: accessForest) {
-        l = 0;
-        impl(root.get(), impl);
-    }
+    impl(accessTree.get(), impl);
 }

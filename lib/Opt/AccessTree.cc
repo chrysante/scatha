@@ -2,36 +2,87 @@
 
 #include <iostream>
 
+#include "Common/Ranges.h"
+#include "Common/TreeFormatter.h"
 #include "IR/CFG/Value.h"
+#include "IR/Print.h"
 
 using namespace scatha;
 using namespace opt;
 
-AccessTree const* AccessTree::sibling(ssize_t offset) const {
+AccessTree* AccessTree::sibling(ssize_t offset) {
     if (!parent()) {
         return nullptr;
     }
     ssize_t sIndex = utl::narrow_cast<ssize_t>(*this->index()) + offset;
     size_t index = static_cast<size_t>(sIndex);
-    if (sIndex < 0 || index >= parent()->numChildren()) {
-        return nullptr;
+    SC_ASSERT(sIndex >= 0, "");
+    if (index >= parent()->numChildren()) {
+        parent()->_children.resize(index + 1);
     }
-    return parent()->childAt(index);
+    auto& result = parent()->_children[index];
+    if (!result) {
+        SC_ASSERT(isDynArrayNode(), "");
+        result = std::make_unique<AccessTree>(type());
+        result->_parent = parent();
+        result->_index = index;
+        result->_isDynArrayNode = true;
+    }
+    return result.get();
 }
 
 void AccessTree::fanOut() {
-    auto* sType = dyncast<ir::StructType const*>(type());
-    if (!sType) {
-        return;
+    // clang-format off
+    SC_MATCH (*type()) {
+        [&](ir::StructType const& sType) {
+            if (_children.size() < sType.members().size()) {
+                _children.resize(sType.members().size());
+            }
+            for (auto [index, t]: sType.members() | ranges::views::enumerate) {
+                auto& child = _children[index];
+                if (!child) {
+                    child = std::make_unique<AccessTree>(t);
+                    child->_parent = this;
+                    child->_index = index;
+                }
+            }
+        },
+        [&](ir::ArrayType const& aType) {
+            if (!_children.empty()) {
+                SC_ASSERT(_children.size() == aType.count(), "");
+                return;
+            }
+            auto* t = aType.elementType();
+            for (size_t index = 0; index < aType.count(); ++index) {
+                auto& child = _children.push_back(std::make_unique<AccessTree>(t));
+                child->_parent = this;
+                child->_index = index;
+                child->_isDynArrayNode = true;
+            }
+        },
+        [&](ir::Type const&) {},
+    }; // clang-format on
+}
+
+AccessTree* AccessTree::addArrayChild(size_t index) {
+    if (isDynArrayNode()) {
+        return sibling(utl::narrow_cast<ssize_t>(index));
     }
-    if (!_children.empty()) {
-        SC_ASSERT(_children.size() == sType->members().size(), "");
-        return;
+    if (_children.size() <= index) {
+        _children.resize(index + 1);
     }
-    for (auto [index, t]: sType->members() | ranges::views::enumerate) {
-        _children.push_back(std::make_unique<AccessTree>(t));
-        _children.back()->_index = index;
+    auto& child = _children[index];
+    if (!child) {
+        child = std::make_unique<AccessTree>(type());
+        child->_parent = this;
+        child->_index = index;
+        child->_isDynArrayNode = true;
     }
+    return child.get();
+}
+
+AccessTree* AccessTree::addSingleElementArrayChild() {
+    return addArrayChild(0);
 }
 
 AccessTree* AccessTree::addSingleChild(size_t index) {
@@ -67,19 +118,41 @@ std::unique_ptr<AccessTree> AccessTree::clone() {
 
 void AccessTree::print() const { print(std::cout); }
 
+static void printImpl(AccessTree const* node,
+                      std::ostream& str,
+                      TreeFormatter& formatter) {
+    str << formatter.beginLine();
+    if (auto index = node->index()) {
+        str << *index << " : ";
+    }
+    if (auto* value = node->value()) {
+        str << toString(node->value());
+    }
+    else {
+        str << "<No value>";
+    }
+    if (auto* type = node->type()) {
+        str << " " << type->name();
+    }
+    else {
+        str << " <No type>";
+    }
+    if (node->isDynArrayNode()) {
+        str << " [DynArrayNode]";
+    }
+    str << std::endl;
+    auto children = node->children() |
+                    ranges::views::filter([](auto* p) { return !!p; }) |
+                    ToSmallVector<>;
+    for (auto [index, child]: children | ranges::views::enumerate) {
+        formatter.push(index != children.size() - 1 ? Level::Child :
+                                                      Level::LastChild);
+        printImpl(child, str, formatter);
+        formatter.pop();
+    }
+}
+
 void AccessTree::print(std::ostream& str) const {
-    SC_UNIMPLEMENTED();
-    //    for (int i = 0; i < level; ++i) {
-    //        str << "    ";
-    //    }
-    //    if (index()) {
-    //        str << *index() << ": ";
-    //    }
-    //    str << "[" << type()->name() << ", " << std::invoke(pt, payload())
-    //        << "]\n";
-    //    for (auto* c: children()) {
-    //        if (c) {
-    //            c->print(str, pt, level + 1);
-    //        }
-    //    }
+    TreeFormatter formatter;
+    printImpl(this, str, formatter);
 }

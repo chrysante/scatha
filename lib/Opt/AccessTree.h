@@ -55,28 +55,13 @@ public:
 
     /// \Returns the sibling at offset \p offset if it exists, otherwise
     /// `nullptr`
-    AccessTree* sibling(ssize_t offset) {
-        return const_cast<AccessTree*>(std::as_const(*this).sibling(offset));
-    }
-
-    /// \overload
-    AccessTree const* sibling(ssize_t offset) const;
+    AccessTree* sibling(ssize_t offset);
 
     ///
-    AccessTree* leftSibling() {
-        return const_cast<AccessTree*>(std::as_const(*this).leftSibling());
-    }
-
-    /// \overload
-    AccessTree const* leftSibling() const { return sibling(-1); }
+    AccessTree* leftSibling() { return sibling(-1); }
 
     ///
-    AccessTree* rightSibling() {
-        return const_cast<AccessTree*>(std::as_const(*this).rightSibling());
-    }
-
-    /// \overload
-    AccessTree const* rightSibling() const { return sibling(1); }
+    AccessTree* rightSibling() { return sibling(1); }
 
     /// Pointer to parent node
     AccessTree* parent() { return _parent; }
@@ -100,6 +85,12 @@ public:
     /// Incompatible with `addSingleChild()`
     void fanOut();
 
+    ///
+    AccessTree* addArrayChild(size_t index);
+
+    ///
+    AccessTree* addSingleElementArrayChild();
+
     /// Set a single child at index \p index
     ///
     /// \pre Type of this node must be a structure or array type.
@@ -108,6 +99,9 @@ public:
     ///
     /// Incompatible with `fanOut()`
     AccessTree* addSingleChild(size_t index);
+
+    ///
+    bool isDynArrayNode() const { return _isDynArrayNode; }
 
     /// Invoke \p callback for every leaf of this tree
     void leafWalk(
@@ -181,6 +175,7 @@ private:
     ir::Type const* _type = nullptr;
     ir::Value* _value = nullptr;
     size_t _index = 0;
+    bool _isDynArrayNode = false;
 };
 
 } // namespace scatha::opt
