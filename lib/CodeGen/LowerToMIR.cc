@@ -776,12 +776,8 @@ mir::MemoryAddress CodeGenContext::computeGep(
     }();
     auto* accessedType = gep->inboundsType();
     size_t const elemSize = accessedType->size();
-    size_t innerOffset = 0;
-    for (size_t index: gep->memberIndices()) {
-        auto* sType = cast<ir::StructType const*>(accessedType);
-        innerOffset += sType->memberOffsetAt(index);
-        accessedType = sType->memberAt(index);
-    }
+    auto [innerType, innerOffset] =
+        computeInnerTypeAndByteOffset(accessedType, gep->memberIndices());
     return mir::MemoryAddress(basePtr,
                               dynFactor,
                               utl::narrow_cast<uint32_t>(elemSize),
