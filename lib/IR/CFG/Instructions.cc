@@ -204,7 +204,17 @@ static Type const* computeAccessedTypeGen(Type const* operandType,
                                           std::span<SizeT const> indices) {
     Type const* result = operandType;
     for (auto index: indices) {
-        result = cast<StructType const*>(result)->memberAt(index);
+        // clang-format off
+        result = SC_MATCH (*result) {
+            [&](StructType const& type) {
+                return type.memberAt(index);
+            },
+            [&](ArrayType const& type) {
+                SC_ASSERT(index < type.count(), "Index out of bounds");
+                return type.elementType();
+            },
+            [](Type const&) -> ir::Type const* { SC_UNREACHABLE(); }
+        }; // clang-format on
     }
     return result;
 }

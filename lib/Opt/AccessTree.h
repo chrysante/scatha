@@ -68,6 +68,41 @@ public:
     /// Wether this node is a leaf
     bool isLeaf() const { return _children.empty(); }
 
+    /// \Returns the sibling at offset \p offset if it exists, otherwise
+    /// `nullptr`
+    AccessTree* sibling(ssize_t offset) {
+        return const_cast<AccessTree*>(std::as_const(*this).sibling(offset));
+    }
+
+    /// \overload
+    AccessTree const* sibling(ssize_t offset) const {
+        if (!parent()) {
+            return nullptr;
+        }
+        ssize_t index = utl::narrow_cast<ssize_t>(*this->index()) + offset;
+        if (index < 0 || static_cast<size_t>(index) >= parent()->numChildren())
+        {
+            return nullptr;
+        }
+        return parent()->childAt(index);
+    }
+
+    ///
+    AccessTree* leftSibling() {
+        return const_cast<AccessTree*>(std::as_const(*this).leftSibling());
+    }
+
+    /// \overload
+    AccessTree const* leftSibling() const { return sibling(-1); }
+
+    ///
+    AccessTree* rightSibling() {
+        return const_cast<AccessTree*>(std::as_const(*this).rightSibling());
+    }
+
+    /// \overload
+    AccessTree const* rightSibling() const { return sibling(1); }
+
     /// Pointer to parent node
     AccessTree* parent() { return _parent; }
 

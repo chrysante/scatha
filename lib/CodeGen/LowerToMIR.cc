@@ -550,9 +550,21 @@ static std::pair<ir::Type const*, size_t> computeInnerTypeAndByteOffset(
     ir::Type const* type, std::span<uint16_t const> indices) {
     size_t byteOffset = 0;
     for (size_t index: indices) {
-        auto* sType = cast<ir::StructType const*>(type);
-        byteOffset += sType->memberOffsetAt(index);
-        type = sType->memberAt(index);
+        // clang-format off
+        SC_MATCH (*type) {
+            [&](ir::StructType const& structType) {
+                byteOffset += structType.memberOffsetAt(index);
+                type = structType.memberAt(index);
+            },
+            [&](ir::ArrayType const& arrayType) {
+                auto* elemType = arrayType.elementType();
+                byteOffset += index * elemType->size();
+                type = elemType;
+            },
+            [](ir::Type const&) {
+                SC_UNREACHABLE();
+            },
+        }; // clang-format on
     }
     return { type, byteOffset };
 }
