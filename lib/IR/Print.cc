@@ -26,7 +26,7 @@ struct PrintCtx {
 
     void printImpl(Value const&) { SC_UNREACHABLE(); }
     void printImpl(Function const&);
-    void printImpl(ExtFunction const&);
+    void printImpl(ForeignFunction const&);
     void printImpl(BasicBlock const&);
     void printImpl(Instruction const&);
     void printImpl(Alloca const&);
@@ -237,7 +237,7 @@ void PrintCtx::printImpl(Function const& function) {
     str << "}\n\n";
 }
 
-void PrintCtx::printImpl(ExtFunction const& function) {
+void PrintCtx::printImpl(ForeignFunction const& function) {
     str << formatKeyword("ext") << " ";
     funcDecl(&function);
     str << "\n\n";

@@ -440,7 +440,7 @@ void CodeGenContext::genInst(ir::Call const& call) {
             args.push_back(resolve(&func));
             return mir::InstCode::Call;
         },
-        [&](ir::ExtFunction const& func) {
+        [&](ir::ForeignFunction const& func) {
             callData.extFuncAddress = {
                 .slot  = static_cast<uint32_t>(func.slot()),
                 .index = static_cast<uint32_t>(func.index())

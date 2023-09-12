@@ -44,12 +44,12 @@ public:
     ///
     auto const& functions() const { return funcs; }
 
-    /// \Returns The `ExtFunction` in slot \p slot at index \p index
-    ExtFunction* extFunction(size_t slot, size_t index);
+    /// \Returns The `ForeignFunction` in slot \p slot at index \p index
+    ForeignFunction* extFunction(size_t slot, size_t index);
 
-    /// \Returns The `ExtFunction` in slot `svm::BuiltinFunctionSlot` at index
+    /// \Returns The `ForeignFunction` in slot `svm::BuiltinFunctionSlot` at index
     /// \p builtin
-    ExtFunction* builtinFunction(svm::Builtin builtin);
+    ForeignFunction* builtinFunction(svm::Builtin builtin);
 
     /// Add a structure type to this module
     void addStructure(UniquePtr<StructType> structure);
@@ -81,7 +81,7 @@ private:
     utl::vector<UniquePtr<StructType>> structs;
     utl::vector<UniquePtr<Value>> _globals;
     utl::vector<UniquePtr<ConstantData>> _constantData;
-    utl::hashmap<std::pair<size_t, size_t>, ExtFunction*> _extFunctions;
+    utl::hashmap<std::pair<size_t, size_t>, ForeignFunction*> _extFunctions;
     List<Function> funcs;
 };
 

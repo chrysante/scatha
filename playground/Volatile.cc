@@ -112,10 +112,12 @@ static void run(ir::Module const& mod) {
 [[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
     header("IR Module");
-    opt::PassManager::makePipeline("inline, deadfuncelim, gvn")
-        .execute(ctx, irMod);
+    //    opt::PassManager::makePipeline("unifyreturns,sroa,memtoreg,instcombine")
+    //        .execute(ctx, irMod);
     print(irMod);
     auto mod = cg::codegen(irMod, *std::make_unique<cg::DebugLogger>());
+    header("Assembly");
+    Asm::print(mod);
     run(mod);
 }
 
@@ -126,10 +128,10 @@ static void run(ir::Module const& mod) {
     print(mod);
     run(mod);
 
-    header("Inlined");
-    // opt::PassManager::makePipeline("sroa,memtoreg")(ctx, mod);
-    opt::PassManager::makePipeline("inline, deadfuncelim")(ctx, mod);
+    header("After pre pipeline");
+    opt::PassManager::makePipeline("unifyreturns, sroa, memtoreg")(ctx, mod);
     print(mod);
+
     run(mod);
 }
 
@@ -211,5 +213,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    mirPlayground(path);
 }

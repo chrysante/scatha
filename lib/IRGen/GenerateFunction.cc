@@ -150,7 +150,7 @@ struct FuncGenContext: FunctionBuilder {
     ir::Callable* getFunction(sema::Function const* semaFn);
 
     ///
-    ir::ExtFunction* getMemcpy();
+    ir::ForeignFunction* getMemcpy();
 
     /// Emit a call to `memcpy`
     void callMemcpy(ir::Value* dest, ir::Value* source, ir::Value* numBytes);
@@ -1387,11 +1387,11 @@ ir::Callable* FuncGenContext::getFunction(sema::Function const* semaFunction) {
     return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
 }
 
-ir::ExtFunction* FuncGenContext::getMemcpy() {
+ir::ForeignFunction* FuncGenContext::getMemcpy() {
     size_t index = static_cast<size_t>(svm::Builtin::memcpy);
     auto* semaMemcpy = symbolTable.builtinFunction(index);
     auto* irMemcpy = getFunction(semaMemcpy);
-    return cast<ir::ExtFunction*>(irMemcpy);
+    return cast<ir::ForeignFunction*>(irMemcpy);
 }
 
 void FuncGenContext::callMemcpy(ir::Value* dest,

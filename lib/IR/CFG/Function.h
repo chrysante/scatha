@@ -43,7 +43,7 @@ private:
 };
 
 /// Represents a callable.
-/// This is a base common class of `Function` and `ExtFunction`.
+/// This is a base common class of `Function` and `ForeignFunction`.
 class SCATHA_API Callable: public Constant {
 public:
     /// \returns The function parameters
@@ -216,9 +216,9 @@ private:
 };
 
 /// Represents an external function.
-class SCATHA_API ExtFunction: public Callable {
+class SCATHA_API ForeignFunction: public Callable {
 public:
-    explicit ExtFunction(FunctionType const* functionType,
+    explicit ForeignFunction(FunctionType const* functionType,
                          Type const* returnType,
                          std::span<Type const* const> parameterTypes,
                          std::string name,
@@ -226,7 +226,7 @@ public:
                          uint32_t index,
                          FunctionAttribute attr);
 
-    explicit ExtFunction(FunctionType const* functionType,
+    explicit ForeignFunction(FunctionType const* functionType,
                          Type const* returnType,
                          std::span<Parameter* const> parameters,
                          std::string name,

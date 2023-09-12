@@ -76,7 +76,7 @@ struct ParseContext {
 
     UniquePtr<Callable> parseCallable();
     UniquePtr<Parameter> parseParamDecl(size_t index);
-    UniquePtr<ExtFunction> makeExtFunction(Type const* returnType,
+    UniquePtr<ForeignFunction> makeForeignFunction(Type const* returnType,
                                            utl::small_vector<Parameter*> params,
                                            Token name);
     UniquePtr<BasicBlock> parseBasicBlock();
@@ -386,7 +386,7 @@ UniquePtr<Callable> ParseContext::parseCallable() {
     }
     expect(eatToken(), TokenKind::CloseParan);
     if (isExt) {
-        auto result = makeExtFunction(returnType, parameters, name);
+        auto result = makeForeignFunction(returnType, parameters, name);
         registerValue(name, result.get());
         return result;
     }
@@ -444,11 +444,11 @@ static std::optional<uint32_t> builtinIndex(std::string_view name) {
     return std::nullopt;
 }
 
-UniquePtr<ExtFunction> ParseContext::makeExtFunction(
+UniquePtr<ForeignFunction> ParseContext::makeForeignFunction(
     Type const* returnType, utl::small_vector<Parameter*> params, Token name) {
     if (name.id().starts_with("__builtin_")) {
         if (auto index = builtinIndex(name.id())) {
-            return allocate<ExtFunction>(nullptr,
+            return allocate<ForeignFunction>(nullptr,
                                          returnType,
                                          params,
                                          std::string(name.id()),

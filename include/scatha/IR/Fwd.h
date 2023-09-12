@@ -13,7 +13,7 @@
 ///    │  ├─ UndefValue
 ///    │  └─ Callable
 ///    │     ├─ Function
-///    │     └─ ExtFunction
+///    │     └─ ForeignFunction
 ///    └─ Instruction
 ///       ├─ Alloca
 ///       ├─ Store

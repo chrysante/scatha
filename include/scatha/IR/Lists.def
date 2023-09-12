@@ -20,7 +20,7 @@ SC_CGFNODE_DEF(ConstantData,          CONCRETE)
 
 SC_CGFNODE_DEF(Callable,              ABSTRACT)
 SC_CGFNODE_DEF(Function,              CONCRETE)
-SC_CGFNODE_DEF(ExtFunction,           CONCRETE)
+SC_CGFNODE_DEF(ForeignFunction,           CONCRETE)
 SC_CGFNODE_DEF(BasicBlock,            CONCRETE)
 
 /// Instruction base classes

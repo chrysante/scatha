@@ -153,14 +153,14 @@ void Function::eraseCallback(BasicBlock const& bb) {
     }
 }
 
-ExtFunction::ExtFunction(FunctionType const* functionType,
+ForeignFunction::ForeignFunction(FunctionType const* functionType,
                          Type const* returnType,
                          std::span<Type const* const> parameterTypes,
                          std::string name,
                          uint32_t slot,
                          uint32_t index,
                          FunctionAttribute attr):
-    Callable(NodeType::ExtFunction,
+    Callable(NodeType::ForeignFunction,
              functionType,
              returnType,
              parameterTypes,
@@ -170,14 +170,14 @@ ExtFunction::ExtFunction(FunctionType const* functionType,
     _slot(slot),
     _index(index) {}
 
-ExtFunction::ExtFunction(FunctionType const* functionType,
+ForeignFunction::ForeignFunction(FunctionType const* functionType,
                          Type const* returnType,
                          std::span<Parameter* const> parameters,
                          std::string name,
                          uint32_t slot,
                          uint32_t index,
                          FunctionAttribute attr):
-    Callable(NodeType::ExtFunction,
+    Callable(NodeType::ForeignFunction,
              functionType,
              returnType,
              parameters,

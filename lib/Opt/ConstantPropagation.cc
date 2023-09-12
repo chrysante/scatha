@@ -674,7 +674,7 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
 FormalValue SCCPContext::evaluateCall(Callable const* function,
                                       std::span<FormalValue const> args) {
     /// Right now we can atmost evaluate certain builtin functions.
-    auto* extFn = dyncast<ExtFunction const*>(function);
+    auto* extFn = dyncast<ForeignFunction const*>(function);
     if (!extFn) {
         return Inevaluable{};
     }
