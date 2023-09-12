@@ -269,6 +269,38 @@ public fn main() -> int {
 })");
 }
 
+TEST_CASE("Return small array by value", "[end-to-end][arrays]") {
+    test::checkReturns(1, R"(
+fn makeArray() -> [int, 2] {
+    return [1, 2];
+}
+public fn main() -> int {
+    return makeArray()[0];
+})");
+}
+
+TEST_CASE("Pass array by value", "[end-to-end][arrays]") {
+    test::checkReturns(1, R"(
+fn first(data: [int, 10]) -> int {
+    return data[0];
+}
+public fn main() -> int {
+    let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    return first(data);
+})");
+}
+
+TEST_CASE("Pass small array by value", "[end-to-end][arrays]") {
+    test::checkReturns(1, R"(
+fn first(data: [int, 2]) -> int {
+    return data[0];
+}
+public fn main() -> int {
+    let data = [1, 2];
+    return first(data);
+})");
+}
+
 TEST_CASE("Dynamic allocation", "[end-to-end][arrays]") {
     test::checkReturns(45, R"(
 public fn main() -> int {

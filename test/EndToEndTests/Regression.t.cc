@@ -109,20 +109,6 @@ public fn main(cond: bool) -> int {
 })");
 }
 
-TEST_CASE("Pass small array by value", "[end-to-end][regression]") {
-    /// FIXME: This fails
-    /// Right now this fails because of a bug in memtoreg
-    return;
-    test::checkReturns(1, R"(
-fn first(data: [int, 2]) -> int {
-    return data[0];
-}
-public fn main() -> int {
-    let data = [1, 2];
-    return first(data);
-})");
-}
-
 TEST_CASE("Pass large array by value", "[end-to-end][regression]") {
     test::checkReturns(1, R"(
 fn first(data: [int, 10]) -> int {
@@ -131,5 +117,22 @@ fn first(data: [int, 10]) -> int {
 public fn main() -> int {
     let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
     return first(data);
+})");
+}
+
+TEST_CASE("MemToReg bug") {
+    test::checkIRReturns(42, R"(
+func i64 @main() {
+  %entry:
+    %0 = insert_value [i64, 2] undef, i64 42, 0
+    %res = call i64 @f, [i64, 2] %0
+    return i64 %res
+}
+func i64 @f([i64, 2] %0) {
+  %entry:
+    %data = alloca [i64, 2], i32 1
+    store ptr %data, [i64, 2] %0
+    %result = load i64, ptr %data
+    return i64 %result
 })");
 }

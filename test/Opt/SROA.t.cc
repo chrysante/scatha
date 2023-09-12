@@ -391,6 +391,24 @@ func [@X, 2] @main(@X %0, i64 %1, i64 %2) {
     %result.11 = insert_value @X %result.7, i64 %2, 1
     %result.13 = insert_value [@X, 2] %result.3, @X %result.11, 1
     return [@X, 2] %result.13
+})");
 }
-)");
+
+TEST_CASE("SROA - Access nodes generated from store", "[opt][sroa]") {
+    test::passTest(sroaAndMemToReg,
+                   R"(
+func i64 @main([i64, 2] %0) {
+  %entry:
+    %data = alloca [i64, 2], i32 1
+    store ptr %data, [i64, 2] %0
+    %result = load i64, ptr %data
+    return i64 %result
+})",
+                   R"(
+func i64 @main([i64, 2] %0) {
+  %entry:
+    %0.1 = extract_value [i64, 2] %0, 0
+    %0.3 = extract_value [i64, 2] %0, 1
+    return i64 %0.1
+})");
 }
