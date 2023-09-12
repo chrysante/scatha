@@ -128,8 +128,8 @@ static void run(ir::Module const& mod) {
     print(mod);
     run(mod);
 
-    header("After pre pipeline");
-    opt::PassManager::makePipeline("unifyreturns, sroa, memtoreg")(ctx, mod);
+    header("After inliner");
+    opt::PassManager::makePipeline("inline")(ctx, mod);
     print(mod);
 
     run(mod);
@@ -213,5 +213,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    mirPlayground(path);
+    frontendPlayground(path);
 }

@@ -1,18 +1,19 @@
 
-fn f(m: int, n: int) -> int {
-    return n;
+
+
+fn toInline() -> int {
+    var data: [int, (1 << 13) - 1];
+    var data2 = [1];
+    __builtin_memcpy(reinterpret<*mut [byte]>(&mut data[0 : 1]),
+                     reinterpret<*mut [byte]>(&mut data2));
+    return data2[0];
 }
 
-fn g(n: int) -> int {
-    var a = 2 * n;
-    var b = 3 * n;
-    
-    var f1 = f(0, a);
-    var f2 = f(0, b);
-    
-    return 1 + f1 + f2;
-}
 
-fn main(n: int) -> int {
-    return g(1);
+fn main() -> int {
+    var result = 0;
+    for i = 0; i < 10; ++i {
+        result += toInline();
+    }
+    return result;
 }
