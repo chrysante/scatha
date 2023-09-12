@@ -317,7 +317,7 @@ struct X {
     // fn f(&this)  {}
 }
 fn f(x: &X) {}
-public fn main() {
+fn main() {
     var x: X;
     x.f();
 })");
@@ -340,7 +340,7 @@ struct X {
     fn f(&this)  {}
 }
 fn f(x: &X) {}
-public fn main() {
+fn main() {
     var x: X;
     x.f();
 })");

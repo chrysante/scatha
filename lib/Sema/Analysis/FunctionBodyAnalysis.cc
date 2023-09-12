@@ -96,19 +96,6 @@ void FuncBodyContext::analyze(ast::ASTNode& node) {
     visit(node, [this](auto& node) { this->analyzeImpl(node); });
 }
 
-sema::AccessSpecifier translateAccessSpec(ast::AccessSpec spec) {
-    switch (spec) {
-    case ast::AccessSpec::None:
-        return sema::AccessSpecifier::Private;
-    case ast::AccessSpec::Public:
-        return sema::AccessSpecifier::Public;
-    case ast::AccessSpec::Private:
-        return sema::AccessSpecifier::Private;
-    case ast::AccessSpec::_count:
-        SC_UNREACHABLE();
-    }
-}
-
 void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
@@ -131,7 +118,12 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     auto* function = fn.function();
     fn.decorateFunction(function, function->returnType());
     fn.body()->decorateScope(function);
-    function->setAccessSpecifier(translateAccessSpec(fn.accessSpec()));
+    function->setBinaryVisibility(fn.binaryVisibility());
+    /// Maybe try to abstract this later and perform some more checks on main,
+    /// but for now we just do this here
+    if (function->name() == "main") {
+        function->setBinaryVisibility(BinaryVisibility::Export);
+    }
     currentFunction = &fn;
     paramIndex = 0;
     sym.pushScope(function);

@@ -29,9 +29,9 @@ public:
 
     /// \Returns `true` if the address of this block should appear in the
     /// global symbol table.
-    bool isPublic() const { return _public; }
+    bool isExternallyVisible() const { return _extern; }
 
-    void setPublic(bool value = true) { _public = value; }
+    void setExternallyVisible(bool value = true) { _extern = value; }
 
     std::string_view name() const { return _name; }
 
@@ -58,7 +58,7 @@ public:
 
 private:
     size_t _id   : 63;
-    bool _public : 1 = false;
+    bool _extern : 1 = false;
     std::string _name;
     utl::vector<Instruction> instructions;
 };

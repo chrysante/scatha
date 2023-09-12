@@ -126,17 +126,6 @@ BinaryOperator ast::toNonAssignment(BinaryOperator op) {
     }
 }
 
-std::string_view ast::toString(AccessSpec spec) {
-    return std::array{
-#define SC_ACCESS_SPEC_DEF(spec, str) std::string_view(str),
-#include "AST/Lists.def"
-    }[static_cast<size_t>(spec)];
-}
-
-std::ostream& ast::operator<<(std::ostream& str, AccessSpec spec) {
-    return str << toString(spec);
-}
-
 std::string_view ast::toString(LoopKind loopKind) {
     switch (loopKind) {
     case LoopKind::For:

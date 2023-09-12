@@ -739,10 +739,15 @@ public:
     /// Identifier expression representing the name of this declaration.
     AST_PROPERTY(0, Identifier, nameIdentifier, NameIdentifier)
 
-    /// Access specifier. `None` if none was specified.
-    AccessSpec accessSpec() const { return _accessSpec; }
+    /// Access specifier. Defaults to`Public`
+    sema::AccessSpecifier accessSpec() const { return _accessSpec; }
 
-    void setAccessSpec(AccessSpec spec) { _accessSpec = spec; }
+    void setAccessSpec(sema::AccessSpecifier spec) { _accessSpec = spec; }
+
+    /// Binary visibility specifier. Defaults to `Internal`
+    sema::BinaryVisibility binaryVisibility() const { return _binaryVis; }
+
+    void setBinaryVisibility(sema::BinaryVisibility vis) { _binaryVis = vis; }
 
     /// **Decoration provided by semantic analysis**
 
@@ -767,7 +772,8 @@ protected:
     using Statement::Statement;
 
 private:
-    AccessSpec _accessSpec = AccessSpec::None;
+    sema::AccessSpecifier _accessSpec = sema::AccessSpecifier::Public;
+    sema::BinaryVisibility _binaryVis = sema::BinaryVisibility::Internal;
     sema::Entity* _entity = nullptr;
 };
 

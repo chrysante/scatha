@@ -86,8 +86,17 @@ SCATHA_API std::string_view toString(FunctionKind);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
 
-///
+/// `public` or `private`. Defines whether the name is allowed to be referenced
+/// in a specific context.
+/// This is not implemented yet
 enum class AccessSpecifier : uint8_t { Public, Private };
+
+/// `export` or `internal`. Defines whether a function or member functions of a
+/// type will have entries in the binary symbol table after compilation. All
+/// functions default to `internal` except for `main()` which defaults to
+/// `export`. Note that there is no keyword for `internal`, because everything
+/// defaults to that.
+enum class BinaryVisibility : uint8_t { Export, Internal };
 
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };

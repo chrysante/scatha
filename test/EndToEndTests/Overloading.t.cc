@@ -6,7 +6,7 @@ using namespace scatha;
 
 TEST_CASE("Overloading", "[end-to-end]") {
     test::checkReturns(1 + 1 + 2 + 3 + 4 + 5 + 6, R"(
-public fn main() -> int {
+fn main() -> int {
     return add() + add(1.0) * add(1) + add(2, 3) + add(4, 5, 6);
 }
 fn add() -> int {
@@ -31,7 +31,7 @@ TEST_CASE("Overloading 2", "[end-to-end]") {
 fn f(i: int, b: bool) -> int { return 1; }
 fn f(i: double, b: bool) -> int { return 2; }
 fn f(i: bool, b: bool) -> int { return 3; }
-public fn main() -> int {
+fn main() -> int {
     return f(0.0, true);
 })");
 }
@@ -44,7 +44,7 @@ fn f(value: &int) -> int {
 fn f(value: &mut int) -> int {
     return 1;
 }
-public fn main() -> int {
+fn main() -> int {
     var result = 0;
     let i: int;
     var j: int;

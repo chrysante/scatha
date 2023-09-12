@@ -76,9 +76,10 @@ struct ParseContext {
 
     UniquePtr<Callable> parseCallable();
     UniquePtr<Parameter> parseParamDecl(size_t index);
-    UniquePtr<ForeignFunction> makeForeignFunction(Type const* returnType,
-                                           utl::small_vector<Parameter*> params,
-                                           Token name);
+    UniquePtr<ForeignFunction> makeForeignFunction(
+        Type const* returnType,
+        utl::small_vector<Parameter*> params,
+        Token name);
     UniquePtr<BasicBlock> parseBasicBlock();
     UniquePtr<Instruction> parseInstruction();
     template <typename T>
@@ -390,13 +391,14 @@ UniquePtr<Callable> ParseContext::parseCallable() {
         registerValue(name, result.get());
         return result;
     }
-    auto result = allocate<Function>(nullptr,
-                                     returnType,
-                                     parameters,
-                                     std::string(name.id()),
-                                     FunctionAttribute::None,
-                                     Visibility::Extern); // FIXME: Parse
-                                                          // function visibility
+    auto result =
+        allocate<Function>(nullptr,
+                           returnType,
+                           parameters,
+                           std::string(name.id()),
+                           FunctionAttribute::None,
+                           Visibility::External); // FIXME: Parse
+                                                  // function visibility
     registerValue(name, result.get());
     expect(eatToken(), TokenKind::OpenBrace);
     /// Parse the body of the function.
@@ -449,12 +451,12 @@ UniquePtr<ForeignFunction> ParseContext::makeForeignFunction(
     if (name.id().starts_with("__builtin_")) {
         if (auto index = builtinIndex(name.id())) {
             return allocate<ForeignFunction>(nullptr,
-                                         returnType,
-                                         params,
-                                         std::string(name.id()),
-                                         svm::BuiltinFunctionSlot,
-                                         *index,
-                                         FunctionAttribute::None);
+                                             returnType,
+                                             params,
+                                             std::string(name.id()),
+                                             svm::BuiltinFunctionSlot,
+                                             *index,
+                                             FunctionAttribute::None);
         }
     }
     reportSemaIssue(name, SemanticIssue::InvalidEntity);

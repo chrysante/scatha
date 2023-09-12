@@ -129,7 +129,7 @@ ir::CompareMode mapCompareMode(sema::BuiltinType const* type);
 
 ir::FunctionAttribute mapFuncAttrs(sema::FunctionAttribute attr);
 
-ir::Visibility accessSpecToVisibility(sema::AccessSpecifier spec);
+ir::Visibility mapVisibility(sema::BinaryVisibility spec);
 
 } // namespace scatha::irgen
 

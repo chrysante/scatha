@@ -11,7 +11,7 @@ using namespace scatha;
 
 TEST_CASE("Recursive euclidean algorithm", "[end-to-end]") {
     test::checkReturns(7, R"(
-public fn main() -> int {
+fn main() -> int {
     let a = 756476;
     let b = 1253;
     return gcd(a, b);
@@ -26,7 +26,7 @@ fn gcd(a: int, b: int) -> int {
 
 TEST_CASE("Recursive fibonacci", "[end-to-end]") {
     test::checkReturns(55, R"(
-public fn main() -> int {
+fn main() -> int {
     let n = 10;
     return fib(n);
 }
@@ -43,7 +43,7 @@ fn fib(n: int) -> int {
 
 TEST_CASE("Recursive factorial and weird variations", "[end-to-end]") {
     test::checkReturns(3628800, R"(
-public fn main() -> int {
+fn main() -> int {
     return fact(10);
 }
 fn fact(n: int) -> int {
@@ -53,24 +53,24 @@ fn fact(n: int) -> int {
     return n * fact(n - 1);
 })");
     test::checkReturns(9223372036854775807ull, R"(
-public fn main() -> int { return fac(6); }
+fn main() -> int { return fac(6); }
 fn fac(n: int) -> int {
     return n <= 1 ? 1 : n | fac((n << 2) + 1);
 })");
     test::checkReturns(2147483647, R"(
-public fn main() -> int { return fac(1459485138); }
+fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n | fac((n >> 1) + 1);
 }
 fn pass(n: int) -> int { return n; }
 )");
     test::checkReturns(1688818043, R"(
-public fn main() -> int { return fac(1459485138); }
+fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n ^ fac((n >> 1) + 1);
 })");
     test::checkReturns(0, R"(
-public fn main() -> int { return fac(1459485138); }
+fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n & fac((n >> 1) + 1);
 })");
@@ -100,7 +100,7 @@ func i64 @main() {
 
 TEST_CASE("Recursive pow", "[end-to-end]") {
     test::checkReturns(243, R"(
-public fn main() -> int {
+fn main() -> int {
      return pow(3, 5);
 }
 fn pow(base: int, exponent: int) -> int {
@@ -178,7 +178,7 @@ fn r1(n: int) -> int {
 fn r2(n: int) -> int {
     return n + r1(n - 1);
 }
-public fn main(n: int) -> int {
+fn main(n: int) -> int {
     return r1(1) + r1(10);
 })");
 }
@@ -194,7 +194,7 @@ fn ack(n: int, m: int) -> int {
     }
     return ack(n - 1, ack(n, m - 1));
 }
-public fn main(n: int) -> int {
+fn main(n: int) -> int {
     return ack(3, 4);
 })");
 }
@@ -220,7 +220,7 @@ fn eval(expr: Expr) -> int {
     expr.rhs = -expr.rhs;
     return eval(expr);
 }
-public fn main(n: int) -> int {
+fn main(n: int) -> int {
     var expr: Expr;
     expr.id = 2;
     expr.lhs = 5;
@@ -231,7 +231,7 @@ public fn main(n: int) -> int {
 
 TEST_CASE("Sort", "[end-to-end]") {
     test::checkReturns(1, R"(
-public fn main() -> bool {
+fn main() -> bool {
     var data = [
         15,   50,   82,   57,    7,   42,   86,   23,   60,   51,
         17,   19,   80,   33,   49,   35,   79,   98,   89,   27,

@@ -1,4 +1,4 @@
-// SCATHA-PUBLIC-HEADER
+/// This header is public because syntax issues contain tokens
 
 #ifndef SCATHA_AST_TOKEN_H_
 #define SCATHA_AST_TOKEN_H_

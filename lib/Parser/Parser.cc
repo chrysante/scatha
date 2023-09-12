@@ -58,22 +58,17 @@ UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
-    ast::AccessSpec accessSpec = ast::AccessSpec::None;
-    if (isAccessSpec(tokens.peek().kind())) {
+    sema::BinaryVisibility binaryVis = sema::BinaryVisibility::Internal;
+    if (tokens.peek().kind() == Export) {
         Token const token = tokens.eat();
-        if (token.kind() == Public) {
-            accessSpec = ast::AccessSpec::Public;
-        }
-        if (token.kind() == Private) {
-            accessSpec = ast::AccessSpec::Private;
-        }
+        binaryVis = sema::BinaryVisibility::Export;
     }
     if (auto funcDef = parseFunctionDefinition()) {
-        funcDef->setAccessSpec(accessSpec);
+        funcDef->setBinaryVisibility(binaryVis);
         return funcDef;
     }
     if (auto structDef = parseStructDefinition()) {
-        structDef->setAccessSpec(accessSpec);
+        structDef->setBinaryVisibility(binaryVis);
         return structDef;
     }
     return nullptr;

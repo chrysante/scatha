@@ -8,7 +8,7 @@ using namespace scatha;
 
 TEST_CASE("Slighty complex call graph", "[end-to-end][inlining]") {
     test::checkReturns(1, R"(
-public fn main() -> int {
+fn main() -> int {
     return f(1);
 }
 fn f(n: int) -> int {
@@ -23,7 +23,7 @@ fn g(n: int) -> int {
 
 TEST_CASE("External function call", "[end-to-end][inlining]") {
     test::checkReturns(utl::bit_cast<uint64_t>(std::sqrt(2.0)), R"(
-public fn main() -> double {
+fn main() -> double {
     return sqrt(2.0);
 }
 fn sqrt(x: double) -> double {

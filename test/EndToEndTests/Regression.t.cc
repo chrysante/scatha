@@ -7,7 +7,7 @@ using namespace scatha;
 TEST_CASE("CodeGen DCE wrongly eliminates function calls with side effects",
           "[end-to-end][regression]") {
     test::checkReturns(10, R"(
-public fn main() -> int {
+fn main() -> int {
     var i = 0;
     modifyWithIgnoredReturnValue(i);
     return i;
@@ -23,7 +23,7 @@ TEST_CASE("Assignment error", "[end-to-end][regression][arrays]") {
 fn f(a: &mut [int], b: &[int]) -> void {
     a[0] = b[0];
 }
-public fn main() -> int {
+fn main() -> int {
     var a = [0, 0];
     var b = [1, 2];
     f(a, b);
@@ -37,7 +37,7 @@ TEST_CASE("Weird bug in simplifyCFG", "[end-to-end][regression]") {
     /// road Unfortunately I was not able to simplify the code sample any
     /// further while still reproducing the issue.
     test::checkCompiles(R"(
-public fn main() {
+fn main() {
     for i = 1; i < 13; ++i {
         if i != 1 {
             print(", ");
@@ -62,7 +62,7 @@ fn print(msg: &str) {
 
 TEST_CASE("Bug in LoopRotate - 1", "[end-to-end][regression]") {
     test::checkReturns(3, R"(
-public fn main() -> int {
+fn main() -> int {
     var n = 0;
     for i = 0; i < 10; ++i {
         n += 2;
@@ -76,7 +76,7 @@ public fn main() -> int {
 
 TEST_CASE("Bug in LoopRotate - 2", "[end-to-end][regression]") {
     test::checkReturns(4, R"(
-public fn main() -> int {
+fn main() -> int {
     var sum = 0;
     for i = 0; i < 2; ++i {
         for j = 0; j < 2; ++j {
@@ -89,7 +89,7 @@ public fn main() -> int {
 
 TEST_CASE("Bug in simplifycfg", "[end-to-end][regression]") {
     test::checkReturns(10, R"(
-public fn main(n: int, cond: bool) -> int {
+fn main(n: int, cond: bool) -> int {
     if cond {}
     else {}
     n ^= n;
@@ -103,7 +103,7 @@ TEST_CASE("Size of array data member", "[end-to-end][regression]") {
 struct X {
     var data: [int, 5];
 }
-public fn main(cond: bool) -> int {
+fn main(cond: bool) -> int {
     var x: X;
     return x.data.count;
 })");
@@ -114,7 +114,7 @@ TEST_CASE("Pass large array by value", "[end-to-end][regression]") {
 fn first(data: [int, 10]) -> int {
     return data[0];
 }
-public fn main() -> int {
+fn main() -> int {
     let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
     return first(data);
 })");

@@ -126,7 +126,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
 
 void Context::run() {
     for (auto& block: stream) {
-        if (block.isPublic()) {
+        if (block.isExternallyVisible()) {
             sym.insert({ std::string(block.name()), currentPosition() });
             if (block.name().starts_with("main")) {
                 startAddress = currentPosition();

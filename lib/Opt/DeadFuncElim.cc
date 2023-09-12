@@ -44,7 +44,7 @@ bool opt::deadFuncElim(Context& ctx, Module& mod, LocalPass) {
 
 bool DFEContext::run() {
     for (auto& F: mod) {
-        if (F.visibility() == Visibility::Extern) {
+        if (F.visibility() == Visibility::External) {
             visit(&callgraph[&F]);
         }
     }

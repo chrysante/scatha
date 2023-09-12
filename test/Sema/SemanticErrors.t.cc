@@ -309,7 +309,7 @@ fn f() { return 0; }
 
 TEST_CASE("Expect reference initializer", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-public fn main() { var r: &mut int = 1; }
+fn main() { var r: &mut int = 1; }
 )");
     auto issue = issues.findOnLine<BadTypeConversion>(2);
     CHECK(issue);

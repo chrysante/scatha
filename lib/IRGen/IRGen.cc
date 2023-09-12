@@ -36,7 +36,7 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
         analysisResult.functions |
         ranges::views::transform([](auto* def) { return def->function(); }) |
         ranges::views::filter([](auto* fn) {
-            return fn->accessSpecifier() == sema::AccessSpecifier::Public;
+            return fn->binaryVisibility() == sema::BinaryVisibility::Export;
         }) |
         ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {

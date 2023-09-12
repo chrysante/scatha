@@ -132,7 +132,7 @@ public:
                       std::span<Type const* const> parameterTypes,
                       std::string name,
                       FunctionAttribute attr,
-                      Visibility vis = Visibility::Static);
+                      Visibility vis = Visibility::Internal);
 
     /// Construct a function with explicit parameters.
     explicit Function(FunctionType const* functionType,
@@ -140,7 +140,7 @@ public:
                       std::span<Parameter* const> parameters,
                       std::string name,
                       FunctionAttribute attr,
-                      Visibility vis = Visibility::Static);
+                      Visibility vis = Visibility::Internal);
 
     ~Function();
 
@@ -219,20 +219,20 @@ private:
 class SCATHA_API ForeignFunction: public Callable {
 public:
     explicit ForeignFunction(FunctionType const* functionType,
-                         Type const* returnType,
-                         std::span<Type const* const> parameterTypes,
-                         std::string name,
-                         uint32_t slot,
-                         uint32_t index,
-                         FunctionAttribute attr);
+                             Type const* returnType,
+                             std::span<Type const* const> parameterTypes,
+                             std::string name,
+                             uint32_t slot,
+                             uint32_t index,
+                             FunctionAttribute attr);
 
     explicit ForeignFunction(FunctionType const* functionType,
-                         Type const* returnType,
-                         std::span<Parameter* const> parameters,
-                         std::string name,
-                         uint32_t slot,
-                         uint32_t index,
-                         FunctionAttribute attr);
+                             Type const* returnType,
+                             std::span<Parameter* const> parameters,
+                             std::string name,
+                             uint32_t slot,
+                             uint32_t index,
+                             FunctionAttribute attr);
 
     /// Slot in external function table of VM.
     size_t slot() const { return _slot; }

@@ -15,7 +15,7 @@ struct X {
     }
     var value: int;
 }
-public fn main() -> int {
+fn main() -> int {
     var x: X;
     x.value = 0;
     x.setValue(1);
@@ -32,7 +32,7 @@ struct X {
 fn getValue(x: &X) -> int {
      return x.value;
 }
-public fn main() -> int {
+fn main() -> int {
     var x: X;
     x.value = 42;
     let result = x.getValue;

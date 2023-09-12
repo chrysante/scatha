@@ -364,11 +364,11 @@ ir::FunctionAttribute irgen::mapFuncAttrs(sema::FunctionAttribute attr) {
     }
 }
 
-ir::Visibility irgen::accessSpecToVisibility(sema::AccessSpecifier spec) {
+ir::Visibility irgen::mapVisibility(sema::BinaryVisibility spec) {
     switch (spec) {
-    case sema::AccessSpecifier::Public:
-        return ir::Visibility::Extern;
-    case sema::AccessSpecifier::Private:
-        return ir::Visibility::Static;
+    case sema::BinaryVisibility::Export:
+        return ir::Visibility::External;
+    case sema::BinaryVisibility::Internal:
+        return ir::Visibility::Internal;
     }
 }

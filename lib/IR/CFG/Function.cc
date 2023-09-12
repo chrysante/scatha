@@ -154,35 +154,35 @@ void Function::eraseCallback(BasicBlock const& bb) {
 }
 
 ForeignFunction::ForeignFunction(FunctionType const* functionType,
-                         Type const* returnType,
-                         std::span<Type const* const> parameterTypes,
-                         std::string name,
-                         uint32_t slot,
-                         uint32_t index,
-                         FunctionAttribute attr):
+                                 Type const* returnType,
+                                 std::span<Type const* const> parameterTypes,
+                                 std::string name,
+                                 uint32_t slot,
+                                 uint32_t index,
+                                 FunctionAttribute attr):
     Callable(NodeType::ForeignFunction,
              functionType,
              returnType,
              parameterTypes,
              std::move(name),
              attr,
-             Visibility::Static),
+             Visibility::Internal),
     _slot(slot),
     _index(index) {}
 
 ForeignFunction::ForeignFunction(FunctionType const* functionType,
-                         Type const* returnType,
-                         std::span<Parameter* const> parameters,
-                         std::string name,
-                         uint32_t slot,
-                         uint32_t index,
-                         FunctionAttribute attr):
+                                 Type const* returnType,
+                                 std::span<Parameter* const> parameters,
+                                 std::string name,
+                                 uint32_t slot,
+                                 uint32_t index,
+                                 FunctionAttribute attr):
     Callable(NodeType::ForeignFunction,
              functionType,
              returnType,
              parameters,
              std::move(name),
              attr,
-             Visibility::Static),
+             Visibility::Internal),
     _slot(slot),
     _index(index) {}

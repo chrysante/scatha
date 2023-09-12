@@ -6,14 +6,14 @@ using namespace scatha;
 
 TEST_CASE("Return boolean literal", "[end-to-end]") {
     test::checkReturns(1, R"(
-public fn main() -> bool {
+fn main() -> bool {
     return true;
 })");
 }
 
 TEST_CASE("Logical not", "[end-to-end]") {
     test::checkReturns(1, R"(
-public fn main() -> bool {
+fn main() -> bool {
     let i = 0;
     return !(i == 1);
 })");
@@ -21,7 +21,7 @@ public fn main() -> bool {
 
 TEST_CASE("Logical and", "[end-to-end]") {
     test::checkReturns(0, R"(
-public fn main() -> bool {
+fn main() -> bool {
     let a = true;
     let b = false;
     return a && b;
@@ -30,7 +30,7 @@ public fn main() -> bool {
 
 TEST_CASE("Logical or", "[end-to-end]") {
     test::checkReturns(1, R"(
-public fn main() -> bool {
+fn main() -> bool {
     let a = true;
     let b = false;
     return a || b;

@@ -386,9 +386,8 @@ public:
     /// \Returns `isForeign() && slot() == svm::BuiltinFunctionSlot`
     bool isBuiltin() const;
 
-#warning rename to isForeign
     /// \Returns `kind() == FunctionKind::Foreign`
-    bool isExtern() const { return kind() == FunctionKind::Foreign; }
+    bool isForeign() const { return kind() == FunctionKind::Foreign; }
 
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
@@ -430,13 +429,19 @@ public:
     /// \returns Bitfield of function attributes
     FunctionAttribute attributes() const { return attrs; }
 
+    /// See Sema/Fwd.h
     AccessSpecifier accessSpecifier() const { return accessSpec; }
+
+    /// See Sema/Fwd.h
+    BinaryVisibility binaryVisibility() const { return binaryVis; }
 
     void setKind(FunctionKind kind) { _kind = kind; }
 
     void setIsMember(bool value = true) { _isMember = value; }
 
     void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
+
+    void setBinaryVisibility(BinaryVisibility vis) { binaryVis = vis; }
 
     /// Set attribute \p attr to `true`.
     void setAttribute(FunctionAttribute attr) { attrs |= attr; }
@@ -458,6 +463,7 @@ private:
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
+    BinaryVisibility binaryVis = BinaryVisibility::Internal;
     std::optional<SpecialMemberFunction> _smfKind;
     ast::FunctionDefinition const* def = nullptr;
     FunctionKind _kind = FunctionKind::Native;

@@ -181,7 +181,7 @@ SC_TYPE_CATEGORY_DEF(FunctionType)
 #   define SC_VISKIND_DEF(type)
 #endif
 
-SC_VISKIND_DEF(Extern)
-SC_VISKIND_DEF(Static)
+SC_VISKIND_DEF(External)
+SC_VISKIND_DEF(Internal)
 
 #undef SC_VISKIND_DEF

@@ -136,25 +136,26 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     UniquePtr<ir::Callable> irFn;
     switch (semaFn->kind()) {
     case sema::FunctionKind::Native: {
-        irFn = allocate<ir::Function>(functionType,
-                                      irReturnType,
-                                      irArgTypes,
-                                      semaFn->mangledName(),
-                                      mapFuncAttrs(semaFn->attributes()),
-                                      accessSpecToVisibility(
-                                          semaFn->accessSpecifier()));
+        irFn =
+            allocate<ir::Function>(functionType,
+                                   irReturnType,
+                                   irArgTypes,
+                                   semaFn->mangledName(),
+                                   mapFuncAttrs(semaFn->attributes()),
+                                   mapVisibility(semaFn->binaryVisibility()));
         break;
     }
     case sema::FunctionKind::Foreign: {
-        irFn = allocate<ir::ForeignFunction>(functionType,
-                                         irReturnType,
-                                         irArgTypes,
-                                         std::string(semaFn->name()),
-                                         utl::narrow_cast<uint32_t>(
-                                             semaFn->slot()),
-                                         utl::narrow_cast<uint32_t>(
-                                             semaFn->index()),
-                                         mapFuncAttrs(semaFn->attributes()));
+        irFn =
+            allocate<ir::ForeignFunction>(functionType,
+                                          irReturnType,
+                                          irArgTypes,
+                                          std::string(semaFn->name()),
+                                          utl::narrow_cast<uint32_t>(
+                                              semaFn->slot()),
+                                          utl::narrow_cast<uint32_t>(
+                                              semaFn->index()),
+                                          mapFuncAttrs(semaFn->attributes()));
         break;
     }
 

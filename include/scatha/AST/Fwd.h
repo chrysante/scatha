@@ -95,17 +95,7 @@ BinaryOperator toNonAssignment(BinaryOperator op);
 ///
 enum class MemberAccessOperation { Direct, Pointer };
 
-/// List of all access specifiers
-enum class AccessSpec {
-#define SC_ACCESS_SPEC_DEF(name, _) name,
-#include <scatha/AST/Lists.def>
-    _count
-};
-
-SCATHA_API std::string_view toString(AccessSpec);
-
-SCATHA_API std::ostream& operator<<(std::ostream&, AccessSpec);
-
+///
 enum class LoopKind { For, While, DoWhile };
 
 std::string_view toString(LoopKind loopKind);

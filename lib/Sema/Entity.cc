@@ -251,10 +251,8 @@ PointerType::PointerType(QualType base):
 ReferenceType::ReferenceType(QualType base):
     RefTypeBase(EntityType::ReferenceType, base, makePtrName(base, "&")) {}
 
-/// # OverloadSet
-
 bool Function::isBuiltin() const {
-    return isExtern() && slot() == svm::BuiltinFunctionSlot;
+    return isForeign() && slot() == svm::BuiltinFunctionSlot;
 }
 
 std::pair<Function const*, bool> OverloadSet::add(Function* F) {
