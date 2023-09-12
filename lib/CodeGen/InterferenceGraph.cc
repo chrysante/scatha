@@ -73,23 +73,20 @@ void InterferenceGraph::computeImpl(Function& F) {
     for (auto argRegs = F.virtualArgumentRegisters(); auto* r: argRegs) {
         addEdges(r, argRegs);
     }
-    for (auto returnRegs = F.virtualReturnValueRegisters(); auto* r: returnRegs)
-    {
-        addEdges(r, returnRegs);
+    for (auto retRegs = F.virtualReturnValueRegisters(); auto* r: retRegs) {
+        addEdges(r, retRegs);
     }
     for (auto& BB: F) {
         auto live = BB.liveOut();
         for (auto& inst: BB | ranges::views::reverse) {
             auto* dest = inst.dest();
-            if (dest && isa<VirtualRegister>(dest)) {
+            if (isa_or_null<VirtualRegister>(dest)) {
                 addEdges(dest, live);
             }
-            for (auto* op: inst.operands()) {
-                if (auto* vreg = dyncast_or_null<VirtualRegister*>(op)) {
-                    live.insert(vreg);
-                }
-            }
             live.erase(dest);
+            for (auto* op: inst.operands() | Filter<VirtualRegister>) {
+                live.insert(op);
+            }
         }
     }
 }

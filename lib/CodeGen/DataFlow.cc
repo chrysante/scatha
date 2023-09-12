@@ -109,6 +109,12 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
         }
         merge(live, liveInSucc);
     }
+    /// If we return from this block, the return values are live out
+    if (auto& ret = BB->back(); ret.instcode() == mir::InstCode::Return) {
+        for (auto* reg: ret.operands() | Filter<mir::Register>) {
+            live.insert(reg);
+        }
+    }
     BB->setLiveOut(live);
     /// After we set the _live out_ set we remove instructions from the set to
     /// determine our _live in_ set. We erase all registers that are defined by
