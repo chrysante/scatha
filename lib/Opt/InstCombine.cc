@@ -37,6 +37,7 @@ struct InstCombineCtx {
     Value* visitImpl(Instruction* inst) { return nullptr; }
     Value* visitImpl(ArithmeticInst* inst);
     Value* visitImpl(Phi* phi);
+    Value* visitImpl(Select* inst);
     Value* visitImpl(ExtractValue* inst);
     Value* visitImpl(InsertValue* inst);
 
@@ -309,15 +310,16 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
 
         /// ## Bitwise AND
     case ArithmeticOperation::And: {
-        // TODO: Replace complex expression by APInt::max(<bitwitdh>)
-        if (isConstant(rhs,
-                       APInt(-1,
-                             cast<IntegralType const*>(rhs->type())
-                                 ->bitwidth())))
-        {
+        size_t bitwidth = cast<IntegralType const*>(rhs->type())->bitwidth();
+        if (isConstant(rhs, APInt(size_t(-1), bitwidth))) {
             return lhs;
         }
-        // TODO: mergeArithmetic(inst);
+        if (isConstant(lhs, APInt(size_t(-1), bitwidth))) {
+            return rhs;
+        }
+        if (lhs == rhs) {
+            return lhs;
+        }
         break;
     }
 
@@ -326,7 +328,19 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         if (isConstant(rhs, 0)) {
             return lhs;
         }
-        // TODO: mergeArithmetic(inst);
+        if (isConstant(lhs, 0)) {
+            return rhs;
+        }
+        if (lhs == rhs) {
+            return lhs;
+        }
+        break;
+    }
+
+    case ArithmeticOperation::XOr: {
+        if (lhs == rhs) {
+            return irCtx.arithmeticConstant(0, rhs->type());
+        }
         break;
     }
 
@@ -518,6 +532,18 @@ Value* InstCombineCtx::visitImpl(Phi* phi) {
         ranges::all_of(phi->operands(), [&](auto* op) { return op == first; });
     if (allEqual) {
         return first;
+    }
+    return nullptr;
+}
+
+Value* InstCombineCtx::visitImpl(Select* inst) {
+    if (auto* constant = dyncast<IntegralConstant*>(inst->condition())) {
+        SC_ASSERT(constant->value().bitwidth() == 1, "Must be bool");
+        return constant->value().to<bool>() ? inst->thenValue() :
+                                              inst->elseValue();
+    }
+    if (inst->thenValue() == inst->elseValue()) {
+        return inst->thenValue();
     }
     return nullptr;
 }

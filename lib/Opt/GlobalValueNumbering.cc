@@ -4,8 +4,6 @@
 #include <bit>
 #include <queue>
 
-#include <iostream>
-
 #include <range/v3/algorithm.hpp>
 #include <utl/function_view.hpp>
 #include <utl/graph.hpp>
@@ -17,6 +15,7 @@
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
+#include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
 #include "IR/Validate.h"
@@ -30,6 +29,10 @@ using namespace ir;
 SC_REGISTER_PASS(opt::globalValueNumbering, "gvn");
 
 namespace {
+
+/// Really annoying but we put this here for now to query the context in
+/// `Computation` class
+thread_local ir::Context* gContext = nullptr;
 
 /// Structure used to identify identical computations
 struct Computation {
@@ -53,56 +56,64 @@ struct Computation {
                       std::span<Value const* const> AOps,
                       Instruction const* B,
                       std::span<Value const* const> BOps) {
-        if (A->nodeType() != B->nodeType()) {
-            return false;
-        }
         // clang-format off
-        bool const compEqual = utl::visit(*A, utl::overload{
-            [&](ArithmeticInst const& inst) {
-                return inst.operation() ==
-                           cast<ArithmeticInst const*>(B)->operation();
+        return SC_MATCH (*A, *B) {
+            [&](ArithmeticInst const& A, ArithmeticInst const& B) {
+                if (A.operation() != B.operation()) {
+                    return false;
+                }
+                if (ranges::equal(AOps, BOps)) {
+                    return true;
+                }
+                if (gContext->isCommutative(A.operation())) {
+                    return A.lhs() == B.rhs() && A.rhs() == B.lhs();
+                }
+                return false;
             },
-            [&](UnaryArithmeticInst const& inst) {
-                return inst.operation() ==
-                           cast<UnaryArithmeticInst const*>(B)->operation();
+            [&](UnaryArithmeticInst const& A, UnaryArithmeticInst const& B) {
+                return A.operation() == B.operation() &&
+                       ranges::equal(AOps, BOps);
             },
-            [&](CompareInst const& inst) {
-                return inst.operation() ==
-                           cast<CompareInst const*>(B)->operation();
+            [&](CompareInst const& A, CompareInst const& B) {
+                if (A.operation() != B.operation()) {
+                    return false;
+                }
+                if (ranges::equal(AOps, BOps)) {
+                    return true;
+                }
+                if (A.operation() == CompareOperation::Equal ||
+                    A.operation() == CompareOperation::NotEqual)
+                {
+                    return A.lhs() == B.rhs() && A.rhs() == B.lhs();
+                }
+                return false;
             },
-            [&](Call const& inst) -> bool {
-                SC_UNIMPLEMENTED();
+            [&](Call const& A, Call const& B) -> bool {
+                return ranges::equal(AOps, BOps);
             },
-            [&](ExtractValue const& inst) {
-                return ranges::equal(
-                           inst.memberIndices(),
-                           cast<ExtractValue const*>(B)->memberIndices());
+            [&](ExtractValue const& A, ExtractValue const& B) {
+                return ranges::equal(AOps, BOps) &&
+                       ranges::equal(A.memberIndices(), B.memberIndices());
             },
-            [&](InsertValue const& inst) {
-                return ranges::equal(
-                           inst.memberIndices(),
-                           cast<InsertValue const*>(B)->memberIndices());
+            [&](InsertValue const& A, InsertValue const& B) {
+                return ranges::equal(AOps, BOps) &&
+                       ranges::equal(A.memberIndices(), B.memberIndices());
             },
-            [&](GetElementPointer const& inst) {
-                return ranges::equal(
-                           inst.memberIndices(),
-                           cast<GetElementPointer const*>(B)->memberIndices());
+            [&](GetElementPointer const& A, GetElementPointer const& B) {
+                return ranges::equal(AOps, BOps) &&
+                       ranges::equal(A.memberIndices(), B.memberIndices());
             },
-            [&](ConversionInst const& inst) {
-                return inst.conversion() ==
-                           cast<ConversionInst const*>(B)->conversion();
+            [&](ConversionInst const& A, ConversionInst const& B) {
+                return A.conversion() == B.conversion() &&
+                       ranges::equal(AOps, BOps);
             },
-            [&](Select const& inst) {
-                return true;
+            [&](Select const& A, Select const& B) {
+                return ranges::equal(AOps, BOps);
             },
-            [&](Instruction const& inst) -> bool {
-                SC_UNREACHABLE();
+            [&](Instruction const& A, Instruction const& B) -> bool {
+                return false;
             }
-        }); // clang-format on
-        if (!compEqual) {
-            return false;
-        }
-        return ranges::equal(AOps, BOps);
+        }; // clang-format on
     }
 
     static size_t hash(Instruction const* inst,
@@ -148,7 +159,12 @@ struct Computation {
             }
         }); // clang-format on
         for (auto* operand: ops) {
-            utl::hash_combine_seed(seed, operand);
+            /// We XOR the hash because it is commutative. This way two lists of
+            /// operands end up with the same hash regardless of order. We do
+            /// this because commutative computations can be considered equal if
+            /// they have the same operands but in different order, and the hash
+            /// must reflect that.
+            seed ^= utl::hash_combine(operand);
         }
         return seed;
     }
@@ -431,6 +447,7 @@ struct GVNContext {
 } // namespace
 
 bool opt::globalValueNumbering(Context& ctx, Function& function) {
+    gContext = &ctx;
     bool result = false;
     /// We limit the scope of the `GVNContext`. It may still hold cloned
     /// instructions that must be deleted before `assertInvariants` runs.
