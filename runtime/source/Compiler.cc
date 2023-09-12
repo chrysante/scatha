@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 
+#include <range/v3/view.hpp>
 #include <svm/VirtualMachine.h>
 #include <utl/vector.hpp>
 
@@ -82,17 +83,15 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     }
     auto asmStream = cg::codegen(mod);
     auto asmResult = Asm::assemble(asmStream);
-    for (auto* f: impl->sym->functions()) {
-        if (!f->isNative() ||
-            f->accessSpecifier() != sema::AccessSpecifier::Public)
-        {
-            continue;
-        }
-        auto itr = asmResult.symbolTable.find(f->mangledName());
+    for (auto* F: impl->sym->functions() | ranges::views::filter([](auto* F) {
+                      return F->isNative() && F->isBinaryVisible();
+                  }))
+    {
+        auto itr = asmResult.symbolTable.find(F->mangledName());
         SC_ASSERT(
             itr != asmResult.symbolTable.end(),
             "Public (externally visible) functions must have a binary address");
-        f->setBinaryAddress(itr->second);
+        F->setBinaryAddress(itr->second);
     }
     auto result = std::make_unique<Program>(std::move(asmResult.program),
                                             std::move(impl->sym));

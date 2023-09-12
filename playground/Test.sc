@@ -1,4 +1,4 @@
-public fn main() -> int {
+fn main() -> int {
     var data = allocateInts(10);
     for i = 0; i < (*data).count; ++i {
         (*data)[i] = i;

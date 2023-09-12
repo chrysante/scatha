@@ -389,6 +389,11 @@ public:
     /// \Returns `kind() == FunctionKind::Foreign`
     bool isForeign() const { return kind() == FunctionKind::Foreign; }
 
+    /// \Returns `binaryVisibility() == BinaryVisibility::Export`
+    bool isBinaryVisible() const {
+        return binaryVisibility() == BinaryVisibility::Export;
+    }
+
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
 

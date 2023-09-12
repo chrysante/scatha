@@ -23,6 +23,6 @@ struct X {
     var n: int;
 }
 
-public fn main(cond: bool) {
+fn main(cond: bool) {
     var x = X();    
 }

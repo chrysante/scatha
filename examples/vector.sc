@@ -52,7 +52,7 @@ struct IntVector {
     var mData: &mut [int];
 }
 
-public fn main() -> int {
+fn main() -> int {
     var v: IntVector;
     v.init(2);
     v.push_back(1);

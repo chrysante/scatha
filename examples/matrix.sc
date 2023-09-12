@@ -51,7 +51,7 @@ fn print(A: &[int]) {
     }
 }
 
-public fn main() -> int {
+fn main() -> int {
     var A = [
         1,  0,  1, 
         0,  1,  0, 

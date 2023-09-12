@@ -103,7 +103,7 @@ fn printRaw(table: &[int]) {
     }
 }
 
-public fn main() -> bool {
+fn main() -> bool {
     var table: [int, 10];
     
     table.init();
