@@ -1,20 +1,18 @@
-fn main() -> int {
-    var data = allocateInts(10);
-    for i = 0; i < (*data).count; ++i {
-        (*data)[i] = i;
-    }
-    var sum = 0;
-        for i = 0; i < (*data).count; ++i {
-        sum += (*data)[i];
-    }
-    deallocateInts(data);
-    return sum;
+
+fn f(n: int, m: int) -> int {
+    return n + m;
 }
-fn allocateInts(count: int) -> *mut [int] {
-    var result = __builtin_alloc(count * 8, 8);
-    return reinterpret<*mut [int]>(result);
+
+fn g(n: int) -> int {
+    var a = 1 + n;
+    var b = 5 * n;
+    var f1 = f(a, b);
+    var c = 2 + n;
+    var d = 7 * n;
+    var f2 = f(c, d);
+    return 1 + f1 + f2;
 }
-fn deallocateInts(data: *mut [int]) {
-    let bytes = reinterpret<*mut [byte]>(data);
-    __builtin_dealloc(bytes, 8);
+
+fn main(n: int) -> int {
+    return g(1);
 }
