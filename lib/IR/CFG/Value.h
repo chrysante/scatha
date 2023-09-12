@@ -22,9 +22,6 @@ protected:
                    std::string name) noexcept:
         _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
-    /// For complex initialization.
-    void setType(Type const* type) { _type = type; }
-
 public:
     /// Calls `removeAllUses()`
     ~Value();
@@ -62,6 +59,9 @@ public:
 
     /// Replace all uses of `this` with \p newValue
     void replaceAllUsesWith(Value* newValue);
+
+    /// For complex initialization.
+    void setType(Type const* type) { _type = type; }
 
 private:
     friend class User;

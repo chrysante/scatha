@@ -656,6 +656,11 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
             }
             call->setFunction(func);
         });
+        /// We set the type manually. If the called function is not parsed yet
+        /// but we try to access the type, i.e. because an ExtractValue
+        /// instruction uses the return value, we would crash. `addValueLink`
+        /// asserted or will assert that the return type is correct.
+        result->setType(retType);
         for (auto [index, arg]: args | ranges::views::enumerate) {
             auto [type, name] = arg;
             addValueLink(result.get(),
