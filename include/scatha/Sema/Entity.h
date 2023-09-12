@@ -383,11 +383,12 @@ public:
     /// \Returns `kind() == FunctionKind::Native`
     bool isNative() const { return kind() == FunctionKind::Native; }
 
-    /// \Returns `isExtern() && slot() == svm::BuiltinFunctionSlot`
+    /// \Returns `isForeign() && slot() == svm::BuiltinFunctionSlot`
     bool isBuiltin() const;
 
-    /// \Returns `kind() == FunctionKind::External`
-    bool isExtern() const { return kind() == FunctionKind::External; }
+#warning rename to isForeign
+    /// \Returns `kind() == FunctionKind::Foreign`
+    bool isExtern() const { return kind() == FunctionKind::Foreign; }
 
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }

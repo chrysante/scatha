@@ -80,7 +80,7 @@ SCATHA_API std::string_view toString(PropertyKind);
 SCATHA_API std::ostream& operator<<(std::ostream&, PropertyKind);
 
 ///
-enum class FunctionKind : u8 { Native, External, Generated };
+enum class FunctionKind : u8 { Native, Foreign, Generated };
 
 SCATHA_API std::string_view toString(FunctionKind);
 

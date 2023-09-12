@@ -145,7 +145,8 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                           semaFn->accessSpecifier()));
         break;
     }
-    case sema::FunctionKind::External: {
+    case sema::FunctionKind::Foreign: {
+#warning return ir::ExtFunction to ForeignFunction
         irFn = allocate<ir::ExtFunction>(functionType,
                                          irReturnType,
                                          irArgTypes,

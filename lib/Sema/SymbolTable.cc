@@ -100,7 +100,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->_builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareSpecialFunction(                                                    \
-        FunctionKind::External,                                                \
+        FunctionKind::Foreign,                                                \
         "__builtin_" #name,                                                    \
         /* slot = */ svm::BuiltinFunctionSlot,                                 \
         /* index = */ static_cast<size_t>(svm::Builtin::name),                 \
@@ -213,7 +213,7 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
         function.attrs = attrs;
         function._slot = utl::narrow_cast<u16>(slot);
         function._index = utl::narrow_cast<u32>(index);
-        if (kind == FunctionKind::External && slot == svm::BuiltinFunctionSlot)
+        if (kind == FunctionKind::Foreign && slot == svm::BuiltinFunctionSlot)
         {
             function.setBuiltin();
             function.overloadSet()->setBuiltin();

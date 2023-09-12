@@ -39,11 +39,11 @@ Compiler& Compiler::operator=(Compiler&&) noexcept = default;
 
 Compiler::~Compiler() = default;
 
-std::optional<ExtFunctionID> Compiler::declareFunction(
+std::optional<ForeignFunctionID> Compiler::declareFunction(
     std::string name, QualType returnType, std::span<QualType const> argTypes) {
-    ExtFunctionID const result{ impl->FunctionSlot, impl->slotIndex };
+    ForeignFunctionID const result{ impl->FunctionSlot, impl->slotIndex };
     bool success =
-        impl->sym->declareSpecialFunction(sema::FunctionKind::External,
+        impl->sym->declareSpecialFunction(sema::FunctionKind::Foreign,
                                           std::move(name),
                                           result.slot,
                                           result.index,

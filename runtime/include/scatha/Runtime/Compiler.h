@@ -33,13 +33,13 @@ public:
     /// If the program calls a non-builtin external function, it must be
     /// declared prior to compilation. This method wraps a call to the internal
     /// symbol table if the semantic analysis phase
-    std::optional<ExtFunctionID> declareFunction(
+    std::optional<ForeignFunctionID> declareFunction(
         std::string name,
         QualType returnType,
         std::span<QualType const> argTypes);
 
     /// \overload
-    std::optional<ExtFunctionID> declareFunction(
+    std::optional<ForeignFunctionID> declareFunction(
         std::string name,
         QualType returnType,
         std::initializer_list<QualType> argTypes) {

@@ -63,8 +63,8 @@ std::string_view sema::toString(FunctionKind k) {
     switch (k) {
     case FunctionKind::Native:
         return "Native";
-    case FunctionKind::External:
-        return "External";
+    case FunctionKind::Foreign:
+        return "Foreign";
     case FunctionKind::Generated:
         return "Generated";
     }

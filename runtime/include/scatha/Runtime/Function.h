@@ -15,8 +15,8 @@ namespace scatha {
 /// registers
 ///
 template <typename Function>
-void setExtFunction(svm::VirtualMachine* VM,
-                    ExtFunctionID ID,
+void setForeignFunction(svm::VirtualMachine* VM,
+                    ForeignFunctionID ID,
                     Function&& function);
 
 /// Invoke the function at address \p funcAddress in the virtual machine \p VM
@@ -33,7 +33,7 @@ R run(svm::VirtualMachine* VM, size_t funcAddress, Args... args);
 // ===-----------------------------------------------------------------------===
 
 template <typename F>
-void scatha::setExtFunction(svm::VirtualMachine* vm, ExtFunctionID id, F&& f) {
+void scatha::setForeignFunction(svm::VirtualMachine* vm, ForeignFunctionID id, F&& f) {
     static_assert(
         std::is_empty_v<F> || std::is_lvalue_reference_v<F>,
         "If function type is not empty, it must be an l-value reference. It is "

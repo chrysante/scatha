@@ -48,7 +48,7 @@ void playground::hostIntegration(std::filesystem::path path) {
     }
 
     svm::VirtualMachine vm;
-    setExtFunction(&vm, *cbID1, [](long arg) { return cppCallback(arg); });
+    setForeignFunction(&vm, *cbID1, [](long arg) { return cppCallback(arg); });
 
     vm.loadBinary(prog->binary());
 
@@ -60,7 +60,7 @@ void playground::hostIntegration(std::filesystem::path path) {
         return arg * arg;
     };
 
-    setExtFunction(&vm, *cbID2, callback2);
+    setForeignFunction(&vm, *cbID2, callback2);
 
     auto mainAddress = prog->findAddress("main", { Int });
     if (!mainAddress) {

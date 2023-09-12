@@ -51,7 +51,7 @@ struct QualType {
     Qualifier qual;
 };
 
-struct ExtFunctionID {
+struct ForeignFunctionID {
     size_t slot, index;
 };
 
