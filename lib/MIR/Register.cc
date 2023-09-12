@@ -54,3 +54,9 @@ void SSARegister::addDefImpl(Instruction* inst) {
     SC_ASSERT(defs().empty(), "SSA register can only be assigned once");
     Register::addDefImpl(inst);
 }
+
+CalleeRegister::CalleeRegister():
+    Register::Override<CalleeRegister>(NodeType::CalleeRegister) {
+    /// Callee registers are always fixed
+    setFixed();
+}

@@ -35,6 +35,8 @@ void cg::allocateRegisters(mir::Function& F) {
         }
     }
     /// Now we color the interference graph and replace registers
+    /// This is were the actual work happens, everything is this file is mostly
+    /// auxiliary
     auto graph = InterferenceGraph::compute(F);
     graph.colorize();
     size_t const numCols = graph.numColors();
@@ -49,7 +51,10 @@ void cg::allocateRegisters(mir::Function& F) {
     /// registers
     utl::hashmap<mir::VirtualRegister*, mir::HardwareRegister*> registerMap;
     for (auto* node: graph) {
-        auto* vreg = cast<mir::VirtualRegister*>(node->reg());
+        auto* vreg = dyncast<mir::VirtualRegister*>(node->reg());
+        if (!vreg) {
+            continue;
+        }
         auto* hreg = F.hardwareRegisters().at(node->color());
         vreg->replaceWith(hreg);
         registerMap[vreg] = hreg;

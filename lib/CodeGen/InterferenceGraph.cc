@@ -40,7 +40,7 @@ void InterferenceGraph::colorize() {
     uint32_t maxCol = 0;
     for (auto* node: nodeView) {
         auto* reg = node->reg();
-        if (reg->fixed()) {
+        if (reg->fixed() && !isa<mir::CalleeRegister>(reg)) {
             uint32_t const col = utl::narrow_cast<uint32_t>(reg->index());
             colors[node] = node->col = col;
             maxCol = std::max(maxCol, col + 1);
@@ -70,6 +70,9 @@ void InterferenceGraph::computeImpl(Function& F) {
     for (auto& reg: F.virtualRegisters()) {
         addRegister(&reg);
     }
+    for (auto& reg: F.calleeRegisters()) {
+        addRegister(&reg);
+    }
     for (auto argRegs = F.virtualArgumentRegisters(); auto* r: argRegs) {
         addEdges(r, argRegs);
     }
@@ -79,12 +82,14 @@ void InterferenceGraph::computeImpl(Function& F) {
     for (auto& BB: F) {
         auto live = BB.liveOut();
         for (auto& inst: BB | ranges::views::reverse) {
-            auto* dest = inst.dest();
-            if (isa_or_null<VirtualRegister>(dest)) {
+            for (auto* dest: inst.destRegisters()) {
                 addEdges(dest, live);
             }
-            live.erase(dest);
-            for (auto* op: inst.operands() | Filter<VirtualRegister>) {
+            /// Pretty sure these need to be seperate for loops
+            for (auto* dest: inst.destRegisters()) {
+                live.erase(dest);
+            }
+            for (auto* op: inst.operands() | Filter<Register>) {
                 live.insert(op);
             }
         }

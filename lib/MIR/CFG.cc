@@ -99,6 +99,13 @@ void Instruction::replaceOperand(Value* old, Value* repl) {
     }
 }
 
+Register const* Instruction::singleDest() const {
+    if (numDests() == 1) {
+        return _dest;
+    }
+    return nullptr;
+}
+
 UniquePtr<Instruction> Instruction::clone() {
     return allocate<Instruction>(*this);
 }

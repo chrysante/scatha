@@ -106,6 +106,15 @@ public:
     /// \overload
     Register const* dest() const { return _dest; }
 
+    /// \returns the destination register if this instructions defines exactly
+    /// one register. Otherwise returns `nullptr`
+    Register* singleDest() {
+        return const_cast<Register*>(std::as_const(*this).singleDest());
+    }
+
+    /// \overload
+    Register const* singleDest() const;
+
     /// View over all destination registers. This is usually just on register
     /// but might be more, for example on `ret` instructions
     auto destRegisters() { return destsImpl(this); }

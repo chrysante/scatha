@@ -65,10 +65,89 @@ static void mapSSAToVirtualRegisters(mir::Function& F) {
     }
 }
 
-static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
-                                                mir::BasicBlock& BB,
-                                                mir::BasicBlock::Iterator itr) {
-    auto& call = *itr;
+static bool argumentLifetimeEnds(auto argItr,
+                                 mir::Instruction const& call,
+                                 mir::BasicBlock const& BB) {
+    auto* argument = cast<mir::Register const*>(*argItr);
+    bool isUniqueArg =
+        !ranges::contains(std::next(argItr), call.operands().end(), argument);
+    if (!isUniqueArg) {
+        return false;
+    }
+    /// We traverse the basic block to see if the argument is used after the
+    /// call
+    for (auto i = mir::BasicBlock::ConstIterator(call.next()); i != BB.end();
+         ++i)
+    {
+        auto& inst = *i;
+        if (ranges::contains(inst.operands(), argument)) {
+            return false;
+        }
+        if (ranges::contains(inst.destRegisters(), argument)) {
+            return true;
+        }
+    }
+    return !BB.isLiveOut(argument);
+}
+
+static bool isUsed(mir::Register const* reg,
+                   mir::BasicBlock::ConstIterator begin,
+                   mir::BasicBlock::ConstIterator end) {
+    auto range = ranges::make_subrange(begin, end);
+    for (auto& inst: range) {
+        if (ranges::contains(inst.operands(), reg)) {
+            return true;
+        }
+        if (ranges::contains(inst.destRegisters(), reg)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// \Returns an iterator to the last instruction in the range `[BB.begin(),
+/// end)` that defines `reg`. If nonesuch is found returns \p end
+static mir::BasicBlock::Iterator lastDefinition(mir::Register const* reg,
+                                                mir::BasicBlock::Iterator end,
+                                                mir::BasicBlock& BB) {
+    auto range = ranges::make_subrange(BB.begin(), end);
+    for (auto& inst: range | ranges::views::reverse) {
+        if (ranges::contains(inst.destRegisters(), reg)) {
+            return mir::BasicBlock::Iterator(&inst);
+        }
+    }
+    return end;
+}
+
+std::optional<mir::BasicBlock::Iterator> replaceableDefiningInstruction(
+    mir::BasicBlock::Iterator callItr,
+    auto argItr,
+    mir::CalleeRegister const* destReg) {
+    auto& call = *callItr;
+    auto& BB = *call.parent();
+    mir::Register* argReg = dyncast<mir::Register*>(*argItr);
+    if (!argReg) {
+        return std::nullopt;
+    }
+    if (BB.isLiveIn(argReg)) {
+        return std::nullopt;
+    }
+    if (!argumentLifetimeEnds(argItr, call, BB)) {
+        return std::nullopt;
+    }
+    auto lastDefOfArgReg = lastDefinition(argReg, callItr, BB);
+    if (!lastDefOfArgReg->singleDest()) {
+        return std::nullopt;
+    }
+    if (isUsed(destReg, lastDefOfArgReg, callItr)) {
+        return std::nullopt;
+    }
+    return lastDefOfArgReg;
+}
+
+static mir::BasicBlock::Iterator destroySSACall(
+    mir::Function& F, mir::BasicBlock& BB, mir::BasicBlock::Iterator callItr) {
+    auto& call = *callItr;
     auto argBegin = call.operands().begin();
     size_t numCalleeRegs = call.operands().size();
     bool const isExt = call.instcode() == mir::InstCode::CallExt;
@@ -85,16 +164,29 @@ static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
         F.calleeRegisters().add(reg);
     }
     /// Copy arguments into callee registers.
+    auto argItr = argBegin;
     for (auto dest = F.calleeRegisters().begin();
-         argBegin != call.operands().end();
-         ++dest, ++argBegin)
+         argItr != call.operands().end();
+         ++dest, ++argItr)
     {
-        auto* copy = new mir::Instruction(mir::InstCode::Copy,
-                                          dest.to_address(),
-                                          { *argBegin });
-        BB.insert(&call, copy);
+        mir::Value* arg = *argItr;
+        mir::CalleeRegister* destReg = dest.to_address();
+        auto replaceableInst =
+            replaceableDefiningInstruction(callItr, argItr, destReg);
+        if (replaceableInst) {
+            (*replaceableInst)->setDest(destReg);
+            for (auto i = std::next(*replaceableInst); i != callItr; ++i) {
+                auto& inst = *i;
+                inst.replaceOperand(arg, destReg);
+            }
+        }
+        else {
+            auto* copy =
+                new mir::Instruction(mir::InstCode::Copy, destReg, { arg });
+            BB.insert(&call, copy);
+        }
     }
-    ++itr;
+    ++callItr;
     /// Call instructions define registers as long as we work with SSA
     /// registers. From here on we explicitly copy the arguments out of the
     /// register space of the callee.
@@ -106,7 +198,7 @@ static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
         {
             auto* copy =
                 new mir::Instruction(mir::InstCode::Copy, dest, { calleeReg });
-            BB.insert(itr, copy);
+            BB.insert(callItr, copy);
         }
     }
     /// We don't define registers anymore, see comment above.
@@ -117,7 +209,7 @@ static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
     else {
         call.setOperands({ callee });
     }
-    return itr;
+    return callItr;
 }
 
 static mir::BasicBlock::Iterator destroyReturn(mir::Function& F,

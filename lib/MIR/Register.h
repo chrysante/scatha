@@ -154,8 +154,7 @@ public:
 /// Represents a register in a callee's register space.
 class CalleeRegister: public Register::Override<CalleeRegister> {
 public:
-    explicit CalleeRegister():
-        Register::Override<CalleeRegister>(NodeType::CalleeRegister) {}
+    explicit CalleeRegister();
 };
 
 /// Represents an actual register in the hardware (or the VM)
