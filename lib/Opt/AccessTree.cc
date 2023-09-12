@@ -55,7 +55,6 @@ void AccessTree::fanOut() {
             }
         },
         [&](ir::ArrayType const& aType) {
-            SC_UNREACHABLE();
             if (!_children.empty()) {
                 SC_ASSERT(_children.size() == aType.count(), "");
                 return;

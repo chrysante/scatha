@@ -73,14 +73,23 @@ struct MemToRegContext {
 
 } // namespace
 
-static bool isPromotable(Alloca const& allc) {
-    for (auto* user: allc.users()) {
-        if (isa<Load>(user)) {
+static bool isPromotable(Alloca const& allocaInst) {
+    for (auto* inst: allocaInst.users()) {
+        if (auto* load = dyncast<Load const*>(inst)) {
+            /// To be safe we check the type. The algorithm exhibits strange
+            /// behaviour otherwise
+            if (load->type() != allocaInst.allocatedType()) {
+                return false;
+            }
             continue;
         }
-        if (auto* store = dyncast<Store const*>(user);
-            store && store->address() == &allc)
-        {
+        if (auto* store = dyncast<Store const*>(inst)) {
+            if (store->address() != &allocaInst) {
+                return false;
+            }
+            if (store->value()->type() != allocaInst.allocatedType()) {
+                return false;
+            }
             continue;
         }
         return false;

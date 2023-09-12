@@ -52,13 +52,14 @@ struct VariableContext {
         irCtx(irCtx), baseAlloca(address) {}
 
     /// First step in the algorithm. If this returns `false` then slicing is not
-    /// possible The access tree is built by looking at all the GEPs that
+    /// possible. The access tree is built by looking at all the GEPs that
     /// directly or transitively access this alloca.
     bool buildAccessTree();
 
     /// Helper functions for `buildAccessTree()`
-    bool buildAccessTreeImpl(AccessTree* parent, GetElementPointer* address);
     bool buildAccessTreeVisitUsers(AccessTree* parent, Instruction* address);
+    bool buildAccessTreeImpl(AccessTree* parent, GetElementPointer* address);
+    bool addArrayNodes(AccessTree* firstElemNode, Type const* type);
 
     /// The the allocation according to the access tree
     void slice();
@@ -159,6 +160,48 @@ bool VariableContext::buildAccessTree() {
     return true;
 }
 
+bool VariableContext::buildAccessTreeVisitUsers(AccessTree* node,
+                                                Instruction* address) {
+    /// Flag to check wether there is anything to destructure
+    bool haveStructure = false;
+    for (auto* inst: address->users()) {
+        // clang-format off
+        bool flag = SC_MATCH (*inst) {
+            [&](Load& load) {
+                loads.push_back(&load);
+                haveStructure |= addArrayNodes(node, load.type());
+                return true;
+            },
+            [&](Store const& store) {
+                /// For `store`s we also need to check if we are actually the
+                /// address and not the value argument.
+                if (store.value() == address) {
+                    return false;
+                }
+                haveStructure |= addArrayNodes(node, store.value()->type());
+                return true;
+            },
+            [&](GetElementPointer& gep) {
+                haveStructure = true;
+                return buildAccessTreeImpl(node, &gep);
+            },
+            [](Instruction const&) {
+                /// If any user is not a `load`, `store` or `getelementptr`
+                /// instruction, we don't consider this `alloca`
+                return false;
+            },
+            
+        }; // clang-format on
+        if (!flag) {
+            return false;
+        }
+    }
+    if (address == baseAlloca) {
+        return haveStructure;
+    }
+    return true;
+}
+
 /// First this gets called with the `alloca` instruction and then recursively
 /// with all users that are `gep`'s
 bool VariableContext::buildAccessTreeImpl(AccessTree* node,
@@ -182,38 +225,17 @@ bool VariableContext::buildAccessTreeImpl(AccessTree* node,
     return buildAccessTreeVisitUsers(node, gep);
 }
 
-bool VariableContext::buildAccessTreeVisitUsers(AccessTree* node,
-                                                Instruction* address) {
-    bool haveGEPs = false;
-    for (auto* user: address->users()) {
-        // clang-format off
-        bool flag = visit(*user, utl::overload{
-            [](User const& user) {
-                /// If any user is not a `load`, `store` or `getelementptr`
-                /// instruction, we don't consider this `alloca`
-                return false;
-            },
-            [&](Load& load) {
-                loads.push_back(&load);
-                return true;
-            },
-            [&](Store const& store) {
-                /// For `store`s we also need to check if we are actually the
-                /// address and not the value argument.
-                return store.value() != address;
-            },
-            [&](GetElementPointer& gep) {
-                haveGEPs = true;
-                return buildAccessTreeImpl(node, &gep);
-            }
-            
-        }); // clang-format on
-        if (!flag) {
-            return false;
-        }
+bool VariableContext::addArrayNodes(AccessTree* firstElemNode,
+                                    Type const* type) {
+    auto* arrayType = dyncast<ArrayType const*>(type);
+    if (!arrayType) {
+        return false;
     }
-    if (address == baseAlloca) {
-        return haveGEPs;
+    auto* parent = firstElemNode->parent();
+    size_t nodeIndex = *firstElemNode->index();
+    /// We start from 1 because node 0 already exists (it is `firstElemNode`)
+    for (size_t i = 1; i < arrayType->count(); ++i) {
+        parent->addArrayChild(nodeIndex + i);
     }
     return true;
 }
