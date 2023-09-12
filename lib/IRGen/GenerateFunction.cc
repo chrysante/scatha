@@ -947,42 +947,41 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
     auto* inst = add<ir::Call>(function, arguments, std::move(name));
-    // clang-format off
-    Value value = SC_MATCH(*stripRefOrPtr(call.type())) {
-        [&](sema::ObjectType const&) {
-            switch (retvalLocation) {
-            case Register:
-                return Value(inst, Register);
-            case Memory:
-                return Value(arguments.front(),
-                             typeMap(call.function()->returnType()),
-                             Memory);
-            }
-        },
-        [&](sema::ArrayType const& arrayType) {
-            switch (retvalLocation) {
-            case Register: {
-                auto* data =
-                    add<ir::ExtractValue>(inst,
-                                          std::array{ size_t{ 0 } }, "data");
-                auto* size =
-                    add<ir::ExtractValue>(inst,
-                                          std::array{ size_t{ 1 } }, "size");
-                Value value(data, Register);
+    Value value;
+    switch (retvalLocation) {
+    case Register: {
+        if (isArrayPtrOrArrayRef(call.function()->returnType().get())) {
+            auto* data =
+                add<ir::ExtractValue>(inst, std::array{ size_t{ 0 } }, "data");
+            auto* size =
+                add<ir::ExtractValue>(inst, std::array{ size_t{ 1 } }, "size");
+            value = Value(data, Register);
+            valueMap.insertArraySize(call.object(), Value(size, Register));
+        }
+        else {
+            value = Value(inst, Register);
+            auto* arrayType = dyncast<sema::ArrayType const*>(
+                call.function()->returnType().get());
+            if (arrayType) {
+                auto* size = ctx.intConstant(arrayType->size(), 64);
                 valueMap.insertArraySize(call.object(), Value(size, Register));
-                return value;
             }
-            case Memory:
-                SC_ASSERT(!arrayType.isDynamic(), "Cannot return dynamic array by value");
-                Value value(arguments.front(),
-                            typeMap(call.function()->returnType()),
-                            Memory);
-                auto* size = ctx.intConstant(arrayType.size(), 64);
-                valueMap.insertArraySize(call.object(), Value(size, Register));
-                return value;
-            }
-        },
-    }; // clang-format on
+        }
+        break;
+    }
+    case Memory: {
+        value = Value(arguments.front(),
+                      typeMap(call.function()->returnType()),
+                      Memory);
+        auto* arrayType = dyncast<sema::ArrayType const*>(
+            call.function()->returnType().get());
+        if (arrayType) {
+            auto* size = ctx.intConstant(arrayType->size(), 64);
+            valueMap.insertArraySize(call.object(), Value(size, Register));
+        }
+        break;
+    }
+    }
     valueMap.insert(call.object(), value);
     return value;
 }
@@ -1006,19 +1005,12 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     /// assertion function
     [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object());
     auto index = getValue<Register>(expr.arguments().front());
-    switch (array.location()) {
-    case Register:
-        /// Here we should insert `ExtractValue` instruction
-        SC_UNIMPLEMENTED();
-    case Memory: {
-        auto* addr = add<ir::GetElementPointer>(elemType,
-                                                array.get(),
-                                                index,
-                                                std::initializer_list<size_t>{},
-                                                "elem.ptr");
-        return Value(addr, elemType, Register);
-    }
-    }
+    auto* addr = add<ir::GetElementPointer>(elemType,
+                                            toMemory(array),
+                                            index,
+                                            std::initializer_list<size_t>{},
+                                            "elem.ptr");
+    return Value(addr, elemType, Register);
 }
 
 Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {

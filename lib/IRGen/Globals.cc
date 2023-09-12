@@ -97,15 +97,12 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     auto retvalPC = CC.returnValue();
     switch (retvalPC.location()) {
     case Register:
-        // clang-format off
-        irReturnType = SC_MATCH (*stripRefOrPtr(semaFn->returnType())) {
-            [&](sema::ObjectType const&) {
-                return typeMap(semaFn->returnType());
-            },
-            [&](sema::ArrayType const&) {
-                return makeArrayViewType(ctx);
-            },
-        }; // clang-format on
+        if (isArrayPtrOrArrayRef(semaFn->returnType().get())) {
+            irReturnType = makeArrayViewType(ctx);
+        }
+        else {
+            irReturnType = typeMap(semaFn->returnType());
+        }
         break;
 
     case Memory:

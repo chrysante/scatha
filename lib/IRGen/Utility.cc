@@ -35,6 +35,10 @@ bool irgen::isArrayAndDynamic(sema::ObjectType const* type) {
     return arrayType && arrayType->isDynamic();
 }
 
+bool irgen::isArrayPtrOrArrayRef(sema::ObjectType const* type) {
+    return isa<sema::ArrayType>(stripRefOrPtr(type).get()) && (isa<sema::PointerType>(type) || isa<sema::ReferenceType>(type));
+}
+
 ir::StructType const* irgen::makeArrayViewType(ir::Context& ctx) {
     std::array<ir::Type const*, 2> members = { ctx.ptrType(), ctx.intType(64) };
     return ctx.anonymousStruct(members);

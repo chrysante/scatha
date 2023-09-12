@@ -18,6 +18,9 @@ sema::QualType stripRefOrPtr(sema::QualType type);
 bool isArrayAndDynamic(sema::ObjectType const* type);
 
 ///
+bool isArrayPtrOrArrayRef(sema::ObjectType const* type);
+
+///
 ir::StructType const* makeArrayViewType(ir::Context& ctx);
 
 } // namespace scatha::irgen
