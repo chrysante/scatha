@@ -95,7 +95,9 @@ static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
         BB.insert(&call, copy);
     }
     ++itr;
-    /// Copy arguments out of callee registers
+    /// Call instructions define registers as long as we work with SSA
+    /// registers. From here on we explicitly copy the arguments out of the
+    /// register space of the callee.
     if (auto* dest = call.dest()) {
         auto calleeReg = F.calleeRegisters().begin().to_address();
         SC_ASSERT(F.calleeRegisters().size() >= call.numDests(), "");
@@ -107,8 +109,12 @@ static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
             BB.insert(itr, copy);
         }
     }
-    call.clearOperands();
-    if (!isExt) {
+    /// We don't define registers anymore, see comment above.
+    call.clearDest();
+    if (isExt) {
+        call.clearOperands();
+    }
+    else {
         call.setOperands({ callee });
     }
     return itr;

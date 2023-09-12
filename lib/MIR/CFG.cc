@@ -12,31 +12,40 @@ Instruction::Instruction(InstCode opcode,
                          utl::small_vector<Value*> operands,
                          uint64_t instData,
                          size_t width):
-    oc(opcode),
-    _width(utl::narrow_cast<uint16_t>(width)),
-    _dest(nullptr),
-    _instData(instData) {
+    oc(opcode), _width(utl::narrow_cast<uint16_t>(width)), _instData(instData) {
     setDest(dest);
     setOperands(std::move(operands));
 }
 
-void Instruction::setDest(Register* newDest) {
-    if (_dest) {
-        _dest->removeDef(this);
-    }
-    if (newDest) {
-        newDest->addDef(this);
-    }
+void Instruction::setDest(Register* newDest, size_t numDests) {
+    SC_ASSERT(newDest || numDests == 0,
+              "If we don't have a dest, then numDests must be 0");
+    clearDest();
     _dest = newDest;
+    _numDests = utl::narrow_cast<uint16_t>(numDests);
+    for (auto* reg: destRegisters()) {
+        reg->addDef(this);
+    }
 }
 
-void Instruction::setNumDests(size_t num) {
-    _numDests = utl::narrow_cast<uint16_t>(num);
+void Instruction::setDest(Register* dest) { setDest(dest, dest ? 1 : 0); }
+
+void Instruction::setFirstDest(Register* firstDest) {
+    auto numDestsTmp = _numDests;
+    clearDest();
+    _dest = firstDest;
+    _numDests = numDestsTmp;
+    for (auto* reg: destRegisters()) {
+        reg->addDef(this);
+    }
 }
 
 void Instruction::clearDest() {
-    setDest(nullptr);
-    setNumDests(1);
+    for (auto* reg: destRegisters()) {
+        reg->removeDef(this);
+    }
+    _dest = nullptr;
+    _numDests = 0;
 }
 
 void Instruction::setOperands(utl::small_vector<Value*> operands) {

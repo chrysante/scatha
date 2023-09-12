@@ -457,8 +457,9 @@ void CodeGenContext::genInst(ir::Call const& call) {
     }
     size_t const numDests = numWords(call.type());
     auto* dest = resolve(&call);
-    auto* mirCall = addNewInst(instcode, dest, std::move(args), callData).inst;
-    mirCall->setNumDests(numDests);
+    auto* mirCall =
+        addNewInst(instcode, nullptr, std::move(args), callData).inst;
+    mirCall->setDest(dest, numDests);
 }
 
 void CodeGenContext::genInst(ir::Return const& ret) {

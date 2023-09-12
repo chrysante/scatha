@@ -62,10 +62,16 @@ public:
                          size_t width = 8);
 
     /// Set the register that this instruction defines to \p dest
+    void setDest(Register* dest, size_t numDests);
+
+    /// \overload for `numDests = dest ? 1 : 0`
     void setDest(Register* dest);
 
-    /// Only applicable for `call` instructions in SSA form.
-    void setNumDests(size_t num);
+    /// This function is used to replace registers as we lower. It does not
+    /// modify `numDests`. It only updates the first destination register and
+    /// the remaining registers then are the registers following the new first
+    /// dest
+    void setFirstDest(Register* firstDest);
 
     /// Set the destination register to `nullptr` and `numDests` to 1
     void clearDest();
@@ -168,7 +174,7 @@ private:
     Register* _dest = nullptr;
     utl::small_vector<Value*> ops;
     uint64_t _instData;
-    uint16_t _numDests = 1;
+    uint16_t _numDests = 0;
 };
 
 } // namespace scatha::mir

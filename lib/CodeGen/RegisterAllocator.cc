@@ -30,9 +30,6 @@ void cg::allocateRegisters(mir::Function& F) {
             inst.setOperandAt(0, dest);
             break;
         }
-        case Call:
-            inst.clearDest();
-            break;
         default:
             break;
         }
@@ -107,12 +104,17 @@ void cg::allocateRegisters(mir::Function& F) {
     /// We erase all instructions that are not critical and don't define live
     /// registers
     for (auto& BB: F) {
+        /// We make a copy because we modify the live set as we traverse the
+        /// block, so we know at each instruction which registers are live.
         auto live = BB.liveOut();
         utl::small_vector<mir::Instruction*> toErase;
         for (auto& inst: BB | ranges::views::reverse) {
-            bool canErase = !hasSideEffects(&inst) &&
-                            !isa_or_null<mir::CalleeRegister>(inst.dest()) &&
-                            !live.contains(inst.dest());
+            bool canErase =
+                !hasSideEffects(&inst) &&
+                !isa_or_null<mir::CalleeRegister>(inst.dest()) &&
+                ranges::none_of(inst.destRegisters(), [&](auto* dest) {
+                    return live.contains(dest);
+                });
             if (canErase) {
                 toErase.push_back(&inst);
                 continue;
@@ -121,7 +123,9 @@ void cg::allocateRegisters(mir::Function& F) {
             /// is overridden here, except when the instruction is a `cmov`,
             /// because that does not necessarily define the register
             if (inst.instcode() != mir::InstCode::CondCopy) {
-                live.erase(inst.dest());
+                for (auto* reg: inst.destRegisters()) {
+                    live.erase(reg);
+                }
             }
             for (auto* reg: inst.operands() | Filter<mir::Register>) {
                 live.insert(reg);
