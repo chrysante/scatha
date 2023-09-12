@@ -143,7 +143,7 @@ TEST_CASE("Bug in SSA destruction / register allocation") {
     /// register to the first call must be preserved and would override it with
     /// the computation of the argument to the second call.
     /// This results in wrongfully returning 7 instead of 6, because both calls
-    /// to `f` end up with arguments 0 and 3 
+    /// to `f` end up with arguments 0 and 3
     test::checkIRReturns(6, R"(
 func i64 @main-s64(i64 %0) {
   %entry:
