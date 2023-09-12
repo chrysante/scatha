@@ -32,6 +32,16 @@ class Instruction:
         return res;
     }
 
+    static auto destsImpl(auto* self) {
+        return ranges::views::iota(size_t{ 0 }, self->numDests()) |
+               ranges::views::transform(
+                   [dest = self->dest()](size_t index) mutable {
+            auto* result = dest;
+            dest = dest->next();
+            return result;
+               });
+    }
+
 public:
     template <InstructionData T = uint64_t>
     explicit Instruction(InstCode opcode,
@@ -53,6 +63,12 @@ public:
 
     /// Set the register that this instruction defines to \p dest
     void setDest(Register* dest);
+
+    /// Only applicable for `call` instructions in SSA form.
+    void setNumDests(size_t num);
+
+    /// Set the destination register to `nullptr` and `numDests` to 1
+    void clearDest();
 
     /// Set the operands this instruction uses
     void setOperands(utl::small_vector<Value*> operands);
@@ -85,16 +101,18 @@ public:
     /// \overload
     Register const* dest() const { return _dest; }
 
+    /// View over all destination registers. This is usually just on register
+    /// but might be more, for example on `ret` instructions
+    auto destRegisters() { return destsImpl(this); }
+
+    /// \overload
+    auto destRegisters() const { return destsImpl(this); }
+
     /// Only applicable for `call` instructions in SSA form.
     /// Hopefully we can generalize this in the future to instructions
     /// which may have multiple (consecutive) dest registers.
     /// This would also be useful for vector instructions.
     size_t numDests() const { return _numDests; }
-
-    /// Only applicable for `call` instructions in SSA form.
-    void setNumDests(size_t num) {
-        _numDests = utl::narrow_cast<uint16_t>(num);
-    }
 
     /// \Returns The index of this instruction. Only valid if function has been
     /// linearized.
@@ -147,7 +165,7 @@ private:
     InstCode oc; // 2 Bytes
     uint16_t _width;
     uint32_t _index = ~0u;
-    Register* _dest;
+    Register* _dest = nullptr;
     utl::small_vector<Value*> ops;
     uint64_t _instData;
     uint16_t _numDests = 1;
@@ -296,6 +314,12 @@ public:
     /// \Returns The number of registers to be filled with the return value by
     /// the callee.
     size_t numReturnValueRegisters() const { return numRetvalRegs; }
+
+    /// \Returns a view over the instructions in this function
+    auto instructions() { return *this | ranges::views::join; }
+
+    /// \overload
+    auto instructions() const { return *this | ranges::views::join; }
 
     /// # SSA registers
 

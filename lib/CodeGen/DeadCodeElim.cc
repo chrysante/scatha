@@ -2,25 +2,13 @@
 
 #include <utl/hashtable.hpp>
 
+#include "CodeGen/Utility.h"
 #include "Common/Ranges.h"
 #include "MIR/CFG.h"
 
 using namespace scatha;
 using namespace cg;
 using namespace mir;
-
-static bool isCritical(mir::Instruction const* inst) {
-    switch (inst->instcode()) {
-    case InstCode::Store:
-    case InstCode::Call:
-    case InstCode::CallExt:
-    case InstCode::Return:
-    case InstCode::Test:
-        return true;
-    default:
-        return false;
-    }
-}
 
 namespace {
 
@@ -61,7 +49,7 @@ void DCEContext::mark() {
 }
 
 void DCEContext::visitInstruction(mir::Instruction* inst) {
-    if (isCritical(inst)) {
+    if (hasSideEffects(inst)) {
         return;
     }
     if (deadInstructions.contains(inst)) {

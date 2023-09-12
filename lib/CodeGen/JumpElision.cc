@@ -23,6 +23,8 @@ struct JumpElimContext {
     /// into `L`, and during DFS we gradually move them back into `F`
     JumpElimContext(mir::Function& F): F(F), L(std::move(F)) {}
 
+    ~JumpElimContext();
+
     void run();
 
     void DFS(mir::BasicBlock* BB);
@@ -150,5 +152,14 @@ begin:
         /// the end that we can now elide, so we repeat the current loop
         /// iteration
         goto begin;
+    }
+}
+
+JumpElimContext::~JumpElimContext() {
+    /// We update the predecessor lists of the successors of the erased blocks
+    for (auto& BB: L) {
+        for (auto* succ: BB.successors()) {
+            succ->removePredecessor(&BB);
+        }
     }
 }

@@ -133,18 +133,11 @@ struct PrintContext {
             str << "\n";
         }
         indent.increase();
-        /// We only print live lists if we haven't yet allocated hardware
-        /// registers, because then live sets are not maintained anymore.
-        bool const hasHardwareRegs = !F->hardwareRegisters().empty();
-        if (!hasHardwareRegs) {
-            printLiveList("Live in", BB->liveIn());
-        }
+        printLiveList("Live in", BB->liveIn());
         for (auto& inst: *BB) {
             print(&inst);
         }
-        if (!hasHardwareRegs) {
-            printLiveList("Live out", BB->liveOut());
-        }
+        printLiveList("Live out", BB->liveOut());
         indent.decrease();
     }
 

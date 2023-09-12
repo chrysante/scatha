@@ -163,8 +163,6 @@ class HardwareRegister: public Register::Override<HardwareRegister> {
 public:
     HardwareRegister():
         Register::Override<HardwareRegister>(NodeType::HardwareRegister) {}
-
-private:
 };
 
 } // namespace scatha::mir

@@ -118,11 +118,15 @@ static mir::BasicBlock::Iterator destroyReturn(mir::Function& F,
                                                mir::BasicBlock& BB,
                                                mir::BasicBlock::Iterator itr) {
     auto& ret = *itr;
-    auto dest = F.virtualReturnValueRegisters().begin();
-    for (auto* arg: ret.operands()) {
-        auto* copy =
-            new mir::Instruction(mir::InstCode::Copy, *dest++, { arg });
+    for (auto [arg, dest]:
+         ranges::views::zip(ret.operands(), F.virtualReturnValueRegisters()))
+    {
+        auto* copy = new mir::Instruction(mir::InstCode::Copy, dest, { arg });
         BB.insert(itr, copy);
+        if (auto* argReg = dyncast<mir::Register*>(arg)) {
+            BB.removeLiveOut(argReg);
+        }
+        BB.addLiveOut(dest);
     }
     ret.clearOperands();
     return ++itr;
@@ -156,6 +160,9 @@ static mir::BasicBlock::Iterator destroySSATailCall(
                                           { tmp });
         BB.insert(&call, copy);
         dest->setFixed();
+        /// We mark the arguments registers live out since they need to be
+        /// preserved for the called function
+        BB.addLiveOut(dest.to_address());
         ++dest;
     }
     auto& ret = *call.next();

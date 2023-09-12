@@ -30,6 +30,15 @@ void Instruction::setDest(Register* newDest) {
     _dest = newDest;
 }
 
+void Instruction::setNumDests(size_t num) {
+    _numDests = utl::narrow_cast<uint16_t>(num);
+}
+
+void Instruction::clearDest() {
+    setDest(nullptr);
+    setNumDests(1);
+}
+
 void Instruction::setOperands(utl::small_vector<Value*> operands) {
     clearOperands();
     for (auto* op: operands) {

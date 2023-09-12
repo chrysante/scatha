@@ -1,32 +1,40 @@
 #include "CodeGen/Passes.h"
 
 #include "CodeGen/InterferenceGraph.h"
+#include "CodeGen/Utility.h"
 #include "MIR/CFG.h"
 
 using namespace scatha;
 using namespace cg;
 
 void cg::allocateRegisters(mir::Function& F) {
-    /// For instructions that are three address instructions in the MIR but two
-    /// address instructions in the VM, we issue copies of the first operand
-    /// into the destination register and then replace the first operand by the
-    /// dest register.
-    for (auto& BB: F) {
-        for (auto& inst: BB) {
-            if (inst.instcode() != mir::InstCode::UnaryArithmetic &&
-                inst.instcode() != mir::InstCode::Arithmetic &&
-                inst.instcode() != mir::InstCode::Conversion)
-            {
-                continue;
-            }
+    for (auto& inst: F.instructions()) {
+        using enum mir::InstCode;
+        switch (inst.instcode()) {
+        case UnaryArithmetic:
+            [[fallthrough]];
+        case Arithmetic:
+            [[fallthrough]];
+        case Conversion: {
+            /// For instructions that are three address instructions in the MIR
+            /// but two address instructions in the VM, we issue copies of the
+            /// first operand into the destination register and then replace the
+            /// first operand by the dest register.
             auto* dest = inst.dest();
             auto* operand = inst.operandAt(0);
             SC_ASSERT(dest != operand,
                       "Here we should be still in kind of SSA form");
             auto* copy =
                 new mir::Instruction(mir::InstCode::Copy, dest, { operand });
-            BB.insert(&inst, copy);
+            inst.parent()->insert(&inst, copy);
             inst.setOperandAt(0, dest);
+            break;
+        }
+        case Call:
+            inst.clearDest();
+            break;
+        default:
+            break;
         }
     }
     /// Now we color the interference graph and replace registers
@@ -36,12 +44,33 @@ void cg::allocateRegisters(mir::Function& F) {
     SC_ASSERT(F.hardwareRegisters().empty(),
               "Must be empty because we are allocating `numCols` new registers "
               "that we expect to be indexed with [0, numCols)");
+    /// Allocate hardware registers
     for (size_t i = 0; i < numCols; ++i) {
         F.hardwareRegisters().add(new mir::HardwareRegister());
     }
+    /// Replace all virtual registers with the newly allocated hardware
+    /// registers
+    utl::hashmap<mir::VirtualRegister*, mir::HardwareRegister*> registerMap;
     for (auto* node: graph) {
-        size_t const color = node->color();
-        node->reg()->replaceWith(F.hardwareRegisters().at(color));
+        auto* vreg = cast<mir::VirtualRegister*>(node->reg());
+        auto* hreg = F.hardwareRegisters().at(node->color());
+        vreg->replaceWith(hreg);
+        registerMap[vreg] = hreg;
+    }
+    /// Update live sets with new registers
+    /// \Note this code is copied from `mapSSAToVirtualRegisters()`, we could
+    /// abstract this
+    for (auto& BB: F) {
+        for (auto [vreg, hreg]: registerMap) {
+            if (BB.isLiveIn(vreg)) {
+                BB.addLiveIn(hreg);
+            }
+            BB.removeLiveIn(vreg);
+            if (BB.isLiveOut(vreg)) {
+                BB.addLiveOut(hreg);
+            }
+            BB.removeLiveOut(vreg);
+        }
     }
     /// Then we try to evict some copy instructions.
     for (auto& BB: F) {
@@ -73,6 +102,33 @@ void cg::allocateRegisters(mir::Function& F) {
                 continue;
             }
             ++inst;
+        }
+    }
+    /// We erase all instructions that are not critical and don't define live
+    /// registers
+    for (auto& BB: F) {
+        auto live = BB.liveOut();
+        utl::small_vector<mir::Instruction*> toErase;
+        for (auto& inst: BB | ranges::views::reverse) {
+            bool canErase = !hasSideEffects(&inst) &&
+                            !isa_or_null<mir::CalleeRegister>(inst.dest()) &&
+                            !live.contains(inst.dest());
+            if (canErase) {
+                toErase.push_back(&inst);
+                continue;
+            }
+            /// We erase the destination register from the live set because it
+            /// is overridden here, except when the instruction is a `cmov`,
+            /// because that does not necessarily define the register
+            if (inst.instcode() != mir::InstCode::CondCopy) {
+                live.erase(inst.dest());
+            }
+            for (auto* reg: inst.operands() | Filter<mir::Register>) {
+                live.insert(reg);
+            }
+        }
+        for (auto* inst: toErase) {
+            BB.erase(inst);
         }
     }
     /// Now as a last step we allocate callee registers to the upper hardware
