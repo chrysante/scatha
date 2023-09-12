@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 
+#include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
@@ -14,124 +15,12 @@
 using namespace scatha;
 using namespace Asm;
 
-void Asm::print(AssemblyStream const& assemblyStream) {
-    print(assemblyStream, std::cout);
-}
-
-void Asm::print(AssemblyStream const& stream, std::ostream& str) {
-    for (auto& block: stream) {
-        print(block, str);
-    }
-}
-
-void Asm::print(Block const& block) { print(block, std::cout); }
-
-void Asm::print(Block const& block, std::ostream& str) {
-    std::cout << block.name() << "/" << block.id() << ":\n";
-    for (auto& inst: block) {
-        str << inst << "\n";
-    }
-}
-
 static constexpr utl::streammanip instName =
     [](std::ostream& str, auto const&... args) {
     int const instNameWidth = 8;
     str << "  " << std::setw(instNameWidth) << std::left
         << utl::strcat(args...);
 };
-
-static void printImpl(std::ostream& str, MoveInst const& mov) {
-    str << instName("mov", 8 * mov.numBytes()) << " " << mov.dest() << ", "
-        << mov.source();
-}
-
-static void printImpl(std::ostream& str, CMoveInst const& cmov) {
-    str << instName(toCMoveInstName(cmov.condition()), cmov.numBytes()) << " "
-        << cmov.dest() << ", " << cmov.source();
-}
-
-static void printImpl(std::ostream& str, UnaryArithmeticInst const& inst) {
-    str << instName(inst.operation()) << " " << inst.operand();
-}
-
-static void printImpl(std::ostream& str, ArithmeticInst const& inst) {
-    str << instName(inst.operation(), 8 * inst.width()) << " " << inst.dest()
-        << ", " << inst.source();
-}
-
-static void printImpl(std::ostream& str, JumpInst const& jmp) {
-    str << instName(toJumpInstName(jmp.condition())) << " "
-        << jmp.targetLabelID();
-}
-
-static void printImpl(std::ostream& str, CallInst const& call) {
-    str << instName("call") << " " << call.functionLabelID() << ", "
-        << call.regPtrOffset();
-}
-
-static void printImpl(std::ostream& str, CallExtInst const& call) {
-    str << instName("callExt") << " " << call.regPtrOffset() << ", "
-        << call.slot() << ", " << call.index();
-}
-
-static void printImpl(std::ostream& str, ReturnInst const&) {
-    str << instName("ret");
-}
-
-static void printImpl(std::ostream& str, TerminateInst const&) {
-    str << instName("terminate");
-}
-
-static void printImpl(std::ostream& str, LIncSPInst const& lincsp) {
-    str << instName("lincsp") << " " << lincsp.dest() << ", "
-        << lincsp.offset();
-}
-
-static void printImpl(std::ostream& str, LEAInst const& lea) {
-    str << instName("lea") << " " << lea.dest() << ", " << lea.address();
-}
-
-static void printImpl(std::ostream& str, LDAInst const& lda) {
-    str << instName("lda") << " " << lda.dest() << ", " << lda.offset();
-}
-
-static void printImpl(std::ostream& str, CompareInst const& cmp) {
-    // clang-format off
-    auto name = UTL_MAP_ENUM(cmp.type(), std::string_view, {
-        { Type::Signed,   "scmp" },
-        { Type::Unsigned, "ucmp" },
-        { Type::Float,    "fcmp" },
-    }); // clang-format on
-    str << instName(name, cmp.width() * 8) << " " << cmp.lhs() << ", "
-        << cmp.rhs();
-}
-
-static void printImpl(std::ostream& str, TestInst const& test) {
-    str << instName(test.type() == Type::Signed ? "stest" : "utest") << " "
-        << test.operand();
-}
-
-static void printImpl(std::ostream& str, SetInst const& set) {
-    str << instName(toSetInstName(set.operation())) << " " << set.dest();
-}
-
-static void printImpl(std::ostream& str, TruncExtInst const& conv) {
-    switch (conv.type()) {
-    case Type::Signed:
-        str << instName("sext", conv.fromBits()) << " " << conv.operand();
-        break;
-    case Type::Float:
-        if (conv.fromBits() == 32) {
-            str << instName("fext") << " " << conv.operand();
-        }
-        else {
-            str << instName("ftrunc") << " " << conv.operand();
-        }
-        break;
-    default:
-        SC_UNREACHABLE();
-    }
-}
 
 static std::string_view typeToChar(Type type) {
     switch (type) {
@@ -146,20 +35,6 @@ static std::string_view typeToChar(Type type) {
     }
 }
 
-static void printImpl(std::ostream& str, ConvertInst const& conv) {
-    str << instName(typeToChar(conv.fromType()),
-                    conv.fromBits(),
-                    "to",
-                    typeToChar(conv.toType()),
-                    conv.toBits())
-        << " " << conv.operand();
-}
-
-std::ostream& Asm::operator<<(std::ostream& str, Instruction const& inst) {
-    visit([&](auto& inst) { printImpl(str, inst); }, inst);
-    return str;
-}
-
 namespace {
 
 struct CoutRestore {
@@ -168,42 +43,223 @@ struct CoutRestore {
     std::ios_base::fmtflags flags;
 };
 
+struct PrintCtx {
+    std::ostream& str;
+    utl::hashmap<uint64_t, Block const*> blockIDMap;
+
+    /// Prints the name of the target block if it exists in the map, otherwise
+    /// prints the ID
+    auto label(uint64_t ID) {
+        return utl::streammanip([this, ID](std::ostream& str) {
+            auto itr = blockIDMap.find(ID);
+            if (itr != blockIDMap.end()) {
+                auto* block = itr->second;
+                str << block->name();
+            }
+            else {
+                str << "Label: " << ID;
+            }
+        });
+    }
+
+    explicit PrintCtx(std::ostream& str): str(str) {}
+
+    void print(AssemblyStream const& stream) {
+        for (auto& block: stream) {
+            blockIDMap[block.id()] = &block;
+        }
+        for (auto& block: stream) {
+            print(block);
+        }
+    }
+
+    void print(Block const& block) {
+        std::cout << block.name() << ": ID: " << block.id() << "\n";
+        for (auto& inst: block) {
+            print(inst);
+            str << "\n";
+        }
+    }
+
+    void print(Instruction const& inst) {
+        std::visit([&](auto& inst) { printImpl(inst); }, inst);
+    }
+
+    void print(Value const& value) {
+        std::visit([&](auto& value) { printImpl(value); }, value);
+    }
+
+    void printImpl(MoveInst const& mov) {
+        str << instName("mov", 8 * mov.numBytes()) << " " << mov.dest() << ", "
+            << mov.source();
+    }
+
+    void printImpl(CMoveInst const& cmov) {
+        str << instName(toCMoveInstName(cmov.condition()), cmov.numBytes())
+            << " " << cmov.dest() << ", " << cmov.source();
+    }
+
+    void printImpl(UnaryArithmeticInst const& inst) {
+        str << instName(inst.operation()) << " " << inst.operand();
+    }
+
+    void printImpl(ArithmeticInst const& inst) {
+        str << instName(inst.operation(), 8 * inst.width()) << " "
+            << inst.dest() << ", " << inst.source();
+    }
+
+    void printImpl(JumpInst const& jmp) {
+        str << instName(toJumpInstName(jmp.condition())) << " "
+            << label(jmp.targetLabelID());
+    }
+
+    void printImpl(CallInst const& call) {
+        str << instName("call") << " " << label(call.functionLabelID()) << ", "
+            << call.regPtrOffset();
+    }
+
+    void printImpl(CallExtInst const& call) {
+        str << instName("callExt") << " " << call.regPtrOffset() << ", "
+            << call.slot() << ", " << call.index();
+    }
+
+    void printImpl(ReturnInst const&) { str << instName("ret"); }
+
+    void printImpl(TerminateInst const&) { str << instName("terminate"); }
+
+    void printImpl(LIncSPInst const& lincsp) {
+        str << instName("lincsp") << " " << lincsp.dest() << ", "
+            << lincsp.offset();
+    }
+
+    void printImpl(LEAInst const& lea) {
+        str << instName("lea") << " " << lea.dest() << ", " << lea.address();
+    }
+
+    void printImpl(LDAInst const& lda) {
+        str << instName("lda") << " " << lda.dest() << ", " << lda.offset();
+    }
+
+    void printImpl(CompareInst const& cmp) {
+        // clang-format off
+        auto name = UTL_MAP_ENUM(cmp.type(), std::string_view, {
+            { Type::Signed,   "scmp" },
+            { Type::Unsigned, "ucmp" },
+            { Type::Float,    "fcmp" },
+        }); // clang-format on
+        str << instName(name, cmp.width() * 8) << " " << cmp.lhs() << ", "
+            << cmp.rhs();
+    }
+
+    void printImpl(TestInst const& test) {
+        str << instName(test.type() == Type::Signed ? "stest" : "utest") << " "
+            << test.operand();
+    }
+
+    void printImpl(SetInst const& set) {
+        str << instName(toSetInstName(set.operation())) << " " << set.dest();
+    }
+
+    void printImpl(TruncExtInst const& conv) {
+        switch (conv.type()) {
+        case Type::Signed:
+            str << instName("sext", conv.fromBits()) << " " << conv.operand();
+            break;
+        case Type::Float:
+            if (conv.fromBits() == 32) {
+                str << instName("fext") << " " << conv.operand();
+            }
+            else {
+                str << instName("ftrunc") << " " << conv.operand();
+            }
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
+    }
+
+    void printImpl(ConvertInst const& conv) {
+        str << instName(typeToChar(conv.fromType()),
+                        conv.fromBits(),
+                        "to",
+                        typeToChar(conv.toType()),
+                        conv.toBits())
+            << " " << conv.operand();
+    }
+
+    void printImpl(Value8 const& value) {
+        CoutRestore r;
+        str << "0x" << std::hex << value.value() << "_u8";
+    }
+
+    void printImpl(Value16 const& value) {
+        CoutRestore r;
+        str << "0x" << std::hex << value.value() << "_u16";
+    }
+
+    void printImpl(Value32 const& value) {
+        CoutRestore r;
+        str << "0x" << std::hex << value.value() << "_u32";
+    }
+
+    void printImpl(Value64 const& value) {
+        CoutRestore r;
+        str << "0x" << std::hex << value.value() << "_u64";
+    }
+
+    void printImpl(RegisterIndex const& regIdx) {
+        str << "%" << regIdx.value();
+    }
+
+    void printImpl(MemoryAddress const& addr) {
+        str << "[ %" << addr.baseptrRegisterIndex();
+        if (!addr.onlyEvaluatesInnerOffset()) {
+            str << " + %" << addr.offsetCountRegisterIndex() << " * "
+                << addr.constantOffsetMultiplier();
+        }
+        if (addr.constantInnerOffset() > 0) {
+            str << " + " << addr.constantInnerOffset();
+        }
+        str << " ]";
+    }
+};
+
 } // namespace
 
-static void printImpl(std::ostream& str, Value8 const& value) {
-    CoutRestore r;
-    str << std::hex << value.value() << "_u8";
+void Asm::print(AssemblyStream const& assemblyStream) {
+    print(assemblyStream, std::cout);
 }
 
-static void printImpl(std::ostream& str, Value16 const& value) {
-    CoutRestore r;
-    str << std::hex << value.value() << "_u16";
+void Asm::print(AssemblyStream const& stream, std::ostream& str) {
+    PrintCtx(str).print(stream);
 }
 
-static void printImpl(std::ostream& str, Value32 const& value) {
-    CoutRestore r;
-    str << std::hex << value.value() << "_u32";
+void Asm::print(Block const& block) { print(block, std::cout); }
+
+void Asm::print(Block const& block, std::ostream& str) {
+    PrintCtx(str).print(block);
 }
 
-static void printImpl(std::ostream& str, Value64 const& value) {
-    CoutRestore r;
-    str << std::hex << value.value() << "_u64";
+void Asm::print(Instruction const& inst) { print(inst, std::cout); }
+
+void Asm::print(Instruction const& inst, std::ostream& str) {
+    PrintCtx(str).print(inst);
+    str << "\n";
 }
 
-static void printImpl(std::ostream& str, RegisterIndex const& regIdx) {
-    str << "%" << regIdx.value();
+std::ostream& Asm::operator<<(std::ostream& str, Instruction const& inst) {
+    PrintCtx(str).print(inst);
+    return str;
 }
 
-static void printImpl(std::ostream& str, MemoryAddress const& addr) {
-    str << "*(ptr)%" << addr.baseptrRegisterIndex();
-    if (!addr.onlyEvaluatesInnerOffset()) {
-        str << " + %" << addr.offsetCountRegisterIndex() << " * "
-            << addr.constantOffsetMultiplier();
-    }
-    str << " + " << addr.constantInnerOffset();
+void Asm::print(Value const& value) { print(value, std::cout); }
+
+void Asm::print(Value const& value, std::ostream& str) {
+    PrintCtx(str).print(value);
+    str << "\n";
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value const& value) {
-    std::visit([&](auto& value) { printImpl(str, value); }, value);
+    PrintCtx(str).print(value);
     return str;
 }
