@@ -6,10 +6,13 @@ fn f(n: int, m: int) -> int {
 fn g(n: int) -> int {
     var a = 1 + n;
     var b = 5 * n;
-    var f1 = f(a, b);
+    
     var c = 2 + n;
     var d = 7 * n;
+    
+    var f1 = f(a, b);
     var f2 = f(c, d);
+    
     return 1 + f1 + f2;
 }
 
