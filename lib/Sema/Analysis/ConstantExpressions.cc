@@ -160,9 +160,19 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
                                   lhs->isSigned());
 
     case LeftShift:
-        [[fallthrough]];
+        if (!lhs || !rhs) {
+            return nullptr;
+        }
+        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        return allocate<IntValue>(lshl(lhs->value(), rhs->value().to<int>()),
+                                  lhs->isSigned());
     case RightShift:
-        return nullptr;
+        if (!lhs || !rhs) {
+            return nullptr;
+        }
+        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        return allocate<IntValue>(lshr(lhs->value(), rhs->value().to<int>()),
+                                  lhs->isSigned());
     case Less:
         [[fallthrough]];
     case LessEq:
