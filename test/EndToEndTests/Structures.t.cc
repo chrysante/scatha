@@ -38,7 +38,7 @@ struct X {
 })");
 }
 
-TEST_CASE("Return custom structs", "[end-to-end][member-access]") {
+TEST_CASE("Return structs", "[end-to-end][member-access]") {
     test::checkReturns(2, R"(
 struct X {
     var b: bool;
@@ -61,7 +61,7 @@ public fn main() -> int {
 })");
 }
 
-TEST_CASE("Pass custom structs as arguments", "[end-to-end][member-access]") {
+TEST_CASE("Pass structs as arguments", "[end-to-end][member-access]") {
     test::checkReturns(5, R"(
 struct X {
     var b: bool;
@@ -84,7 +84,7 @@ public fn main() -> int {
 })");
 }
 
-TEST_CASE("Pass and return custom structs and access rvalue",
+TEST_CASE("Pass and return structs and access rvalue",
           "[end-to-end][member-access]") {
     test::checkReturns(5, R"(
 public fn main() -> int {

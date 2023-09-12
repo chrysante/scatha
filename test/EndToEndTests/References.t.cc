@@ -177,7 +177,7 @@ public fn main() -> int {
     var b: *[int] = &a;
     let c = [1, 2];
     b = &c;
-    return (*b).count;
+    return b->count;
 })");
 }
 
