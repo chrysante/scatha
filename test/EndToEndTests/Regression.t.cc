@@ -136,3 +136,32 @@ func i64 @f([i64, 2] %0) {
     return i64 %result
 })");
 }
+
+TEST_CASE("Bug in SSA destruction / register allocation") {
+    /// When the arguments to both calls are computed before the first call
+    /// instruction, SSA destruction would not realize that the argument
+    /// register to the first call must be preserved and would override it with
+    /// the computation of the argument to the second call.
+    /// This results in wrongfully returning 7 instead of 6, because both calls
+    /// to `f` end up with arguments 0 and 3 
+    test::checkIRReturns(6, R"(
+func i64 @main-s64(i64 %0) {
+  %entry:
+    %call.result = call i64 @g-s64, i64 1
+    return i64 %call.result
+}
+func i64 @g-s64(i64 %0) {
+  %entry:
+    %expr = mul i64 %0, i64 2
+    %expr.0 = mul i64 %0, i64 3
+    %call.result = call i64 @f-s64-s64, i64 0, i64 %expr
+    %call.result.0 = call i64 @f-s64-s64, i64 0, i64 %expr.0
+    %expr.1 = add i64 %call.result, i64 1
+    %expr.2 = add i64 %expr.1, i64 %call.result.0
+    return i64 %expr.2
+}
+func i64 @f-s64-s64(i64 %0, i64 %1) {
+  %entry:
+    return i64 %1
+})");
+}

@@ -65,6 +65,9 @@ static void mapSSAToVirtualRegisters(mir::Function& F) {
     }
 }
 
+/// The following logic tries to coalesce copies when passing arguments to
+/// callees. This does not yet coalesce copies out of the callee. This should
+/// end up in a more general copy coalescing step.
 static bool argumentLifetimeEnds(auto argItr,
                                  mir::Instruction const& call,
                                  mir::BasicBlock const& BB) {
@@ -105,8 +108,9 @@ static bool isUsed(mir::Register const* reg,
     return false;
 }
 
-/// \Returns an iterator to the last instruction in the range `[BB.begin(),
-/// end)` that defines `reg`. If nonesuch is found returns \p end
+/// \Returns an iterator to the last instruction in the range
+/// `[BB.begin(), end)` that defines `reg`. If nonesuch is found \p end is
+/// returned.
 static mir::BasicBlock::Iterator lastDefinition(mir::Register const* reg,
                                                 mir::BasicBlock::Iterator end,
                                                 mir::BasicBlock& BB) {
@@ -164,6 +168,14 @@ static mir::BasicBlock::Iterator destroySSACall(
         F.calleeRegisters().add(reg);
     }
     /// Copy arguments into callee registers.
+    utl::small_vector<mir::Value*> newArguments;
+    if (isExt) {
+        newArguments.reserve(call.operands().size());
+    }
+    else {
+        newArguments.reserve(call.operands().size() + 1);
+        newArguments.push_back(callee);
+    }
     auto argItr = argBegin;
     for (auto dest = F.calleeRegisters().begin();
          argItr != call.operands().end();
@@ -185,6 +197,7 @@ static mir::BasicBlock::Iterator destroySSACall(
                 new mir::Instruction(mir::InstCode::Copy, destReg, { arg });
             BB.insert(&call, copy);
         }
+        newArguments.push_back(destReg);
     }
     ++callItr;
     /// Call instructions define registers as long as we work with SSA
@@ -203,12 +216,7 @@ static mir::BasicBlock::Iterator destroySSACall(
     }
     /// We don't define registers anymore, see comment above.
     call.clearDest();
-    if (isExt) {
-        call.clearOperands();
-    }
-    else {
-        call.setOperands({ callee });
-    }
+    call.setOperands(newArguments);
     return callItr;
 }
 
