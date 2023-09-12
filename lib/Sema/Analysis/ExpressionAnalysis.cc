@@ -435,6 +435,16 @@ static Scope* findLookupTargetScope(ast::Expression& expr) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
+    /// For an expression of the kind `obj->member` we simply rewrite the AST so
+    /// the expression becomes `(*obj).member`
+    if (ma.operation() == ast::MemberAccessOperation::Pointer) {
+        auto accessed = ma.accessed()->extractFromParent();
+        auto deref =
+            allocate<ast::DereferenceExpression>(std::move(accessed),
+                                                 Mutability::Const,
+                                                 accessed->sourceRange());
+        ma.setAccessed(std::move(deref));
+    }
     if (!analyze(ma.accessed())) {
         return nullptr;
     }

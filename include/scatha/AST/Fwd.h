@@ -92,6 +92,9 @@ bool isArithmeticAssignment(BinaryOperator op);
 /// \Pre \p op must be an arithmetic assignment operator
 BinaryOperator toNonAssignment(BinaryOperator op);
 
+///
+enum class MemberAccessOperation { Direct, Pointer };
+
 /// List of all access specifiers
 enum class AccessSpec {
 #define SC_ACCESS_SPEC_DEF(name, _) name,

@@ -811,6 +811,8 @@ UniquePtr<ast::Expression> Context::parsePostfix() {
             expr = parseFunctionCall(std::move(expr));
             break;
         case Dot:
+            [[fallthrough]];
+        case Arrow:
             expr = parseMemberAccess(std::move(expr));
             break;
         default:
@@ -1066,12 +1068,28 @@ UniquePtr<ast::FunctionCall> Context::parseFunctionCall(
                                                     CloseParan);
 }
 
+static ast::MemberAccessOperation toMemberAccessOp(TokenKind kind) {
+    using enum ast::MemberAccessOperation;
+    switch (kind) {
+    case Dot:
+        return Direct;
+    case Arrow:
+        return Pointer;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+static bool isMemberAccess(TokenKind kind) {
+    return kind == Dot || kind == Arrow;
+}
+
 UniquePtr<ast::Expression> Context::parseMemberAccess(
     UniquePtr<ast::Expression> left) {
-    SC_ASSERT(tokens.peek().kind() == Dot, "");
+    SC_ASSERT(isMemberAccess(tokens.peek().kind()), "");
     while (true) {
         auto const& token = tokens.peek();
-        if (token.kind() != Dot) {
+        if (!isMemberAccess(token.kind())) {
             return left;
         }
         tokens.eat();
@@ -1081,7 +1099,8 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
         }
         left = allocate<ast::MemberAccess>(std::move(left),
                                            std::move(right),
-                                           token.sourceRange());
+                                           token.sourceRange(),
+                                           toMemberAccessOp(token.kind()));
         continue;
     }
 }
