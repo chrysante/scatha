@@ -34,6 +34,8 @@ export fn allocate(bytes: int) -> *mut [byte] {
     return __builtin_alloc(bytes, 8);
 }
 
-export fn deallocate(bytes: *mut [byte]) {
-    __builtin_dealloc(bytes, 8);
+/// We take the array by reference because the runtime library cannot deal with
+/// pointers right now
+export fn deallocate(bytes: &mut [byte]) {
+    __builtin_dealloc(&mut bytes, 8);
 }
