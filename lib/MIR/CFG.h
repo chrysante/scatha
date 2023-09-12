@@ -33,13 +33,12 @@ class Instruction:
     }
 
     static auto destsImpl(auto* self) {
-        return ranges::views::iota(size_t{ 0 }, self->numDests()) |
-               ranges::views::transform(
-                   [dest = self->dest()](size_t index) mutable {
-            auto* result = dest;
-            dest = dest->next();
-            return result;
-               });
+        return ranges::views::generate([dest = self->dest()]() mutable {
+                   auto* result = dest;
+                   dest = dest->next();
+                   return result;
+               }) |
+               ranges::views::take(self->numDests());
     }
 
 public:
