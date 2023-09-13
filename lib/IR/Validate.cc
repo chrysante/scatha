@@ -33,8 +33,8 @@ struct AssertContext {
     void assertInvariants(BasicBlock const& bb);
     void assertInvariants(Instruction const& inst);
 
-    void assertSpecialInvariants(Value const&) { SC_UNREACHABLE(); }
     void assertSpecialInvariants(Instruction const&) {}
+    void assertSpecialInvariants(Alloca const&);
     void assertSpecialInvariants(Phi const&);
     void assertSpecialInvariants(Call const&);
     void assertSpecialInvariants(Branch const&);
@@ -200,6 +200,11 @@ void AssertContext::assertInvariants(Instruction const& inst) {
               "If our user is an instruction it must be in the same function");
     }
     visit(inst, [this](auto& inst) { assertSpecialInvariants(inst); });
+}
+
+void AssertContext::assertSpecialInvariants(Alloca const& inst) {
+    CHECK(inst.parent() == &currentFunction->entry(),
+          "Allocas must always be defined in the entry block");
 }
 
 void AssertContext::assertSpecialInvariants(Phi const& phi) {
