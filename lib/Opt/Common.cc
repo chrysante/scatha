@@ -1,9 +1,11 @@
 #include "Opt/Common.h"
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/hashset.hpp>
 
 #include "Common/Graph.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "Opt/PassRegistry.h"
 
@@ -61,6 +63,20 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
         return false;
     };
     return search(from->parent(), search);
+}
+
+void opt::moveAllocas(ir::BasicBlock* from, ir::BasicBlock* to) {
+    auto insertPoint =
+        ranges::find_if(*to, [](auto& inst) { return !isa<Alloca>(inst); });
+    for (auto itr = from->begin(); itr != from->end();) {
+        auto& inst = *itr;
+        if (!isa<Alloca>(inst)) {
+            break;
+        }
+        ++itr;
+        from->extract(&inst).release();
+        to->insert(insertPoint, &inst);
+    }
 }
 
 static bool cmpEqImpl(ir::Phi const* lhs, auto rhs) {

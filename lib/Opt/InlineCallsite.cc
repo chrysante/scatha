@@ -72,16 +72,7 @@ void opt::inlineCallsite(ir::Context& ctx,
     /// Now that we have eventually replaced all uses with a phi node we can
     /// erase the call instruction.
     landingpad->erase(call);
-    /// Move all allocas from the callee into the entry of the caller
-    auto allocas =
-        calleeClone->entry() | Filter<Alloca> | TakeAddress | ToSmallVector<>;
-    auto insertPoint = ranges::find_if(caller->entry(), [](auto& inst) {
-        return !isa<Alloca>(inst);
-    });
-    for (auto* allocaInst: allocas) {
-        calleeClone->entry().extract(allocaInst).release();
-        caller->entry().insert(insertPoint, allocaInst);
-    }
+    moveAllocas(&calleeClone->entry(), &caller->entry());
     /// Move basic blocks from the calleeClone into calling function.
     caller->splice(Function::Iterator(landingpad), calleeClone.get());
     caller->invalidateCFGInfo();
