@@ -5,15 +5,13 @@
 
 namespace scatha::opt {
 
-///
-///
-///
-bool isPromotable(ir::Alloca const* inst);
+/// Checks whether \p allocaInst is promotable to SSA form
+bool isPromotable(ir::Alloca const* allocaInst);
 
-///
-///
-///
-void promoteAlloca(ir::Alloca* inst,
+/// Promotes \p allocaInst to SSA form.
+/// \pre Calls to this function must be guarded with a call to `isPromotable()`.
+/// This function will trap if \p allocaInst is not promotable
+void promoteAlloca(ir::Alloca* allocaInst,
                    ir::Context& ctx,
                    ir::DominanceInfo const& domInfo);
 
