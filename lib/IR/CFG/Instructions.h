@@ -438,13 +438,12 @@ public:
                           std::span<size_t const>(memberIndices),
                           name) {}
 
-    explicit GetElementPointer(
-        Context& context,
-        Type const* inboundsType, // Should probably be called `inboundsType`
-        Value* basePointer,
-        Value* arrayIndex,
-        std::span<size_t const> memberIndices,
-        std::string name);
+    explicit GetElementPointer(Context& context,
+                               Type const* inboundsType,
+                               Value* basePointer,
+                               Value* arrayIndex,
+                               std::span<size_t const> memberIndices,
+                               std::string name);
 
     /// The type of the value that the base pointer points to.
     Type const* inboundsType() const { return typeOperands()[0]; }
