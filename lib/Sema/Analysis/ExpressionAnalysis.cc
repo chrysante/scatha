@@ -370,13 +370,13 @@ std::pair<Object*, QualType> ExprContext::analyzeBinaryExpr(
         return { sym.temporary(sym.Void()), sym.Void() };
     }
 
-    bool successfullConv = true;
-    successfullConv &=
+    bool successfulConv = true;
+    successfulConv &=
         !!convertImplicitly(expr.lhs(), commonType, *dtorStack, ctx);
-    successfullConv &=
+    successfulConv &=
         !!convertImplicitly(expr.rhs(), commonType, *dtorStack, ctx);
 
-    if (successfullConv) {
+    if (successfulConv) {
         return { sym.temporary(*resultType), *resultType };
     }
     return {};
