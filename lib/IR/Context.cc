@@ -99,7 +99,7 @@ StructType const* Context::anonymousStruct(
     }
     auto type = allocate<StructType>(std::string{});
     for (auto* member: members) {
-        type->addMember(member);
+        type->pushMember(member);
     }
     auto* result = type.get();
     impl->_types.push_back(std::move(type));

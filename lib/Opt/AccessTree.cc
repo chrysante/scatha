@@ -44,13 +44,13 @@ void AccessTree::fanOut() {
     // clang-format off
     SC_MATCH (*type()) {
         [&](ir::StructType const& sType) {
-            if (_children.size() < sType.members().size()) {
-                _children.resize(sType.members().size());
+            if (_children.size() < sType.numElements()) {
+                _children.resize(sType.numElements());
             }
-            for (auto [index, t]: sType.members() | ranges::views::enumerate) {
+            for (auto [index, member]: sType.members() | ranges::views::enumerate) {
                 auto& child = _children[index];
                 if (!child) {
-                    child = std::make_unique<AccessTree>(t, this, index);
+                    child = std::make_unique<AccessTree>(member.type, this, index);
                 }
             }
         },
@@ -70,14 +70,14 @@ void AccessTree::fanOut() {
 
 AccessTree* AccessTree::addSingleChild(size_t index) {
     auto* sType = dyncast<ir::StructType const*>(_type);
-    SC_ASSERT(sType && index < sType->members().size(), "Invalid index");
+    SC_ASSERT(sType && index < sType->numElements(), "Invalid index");
     if (_children.empty()) {
-        _children.resize(sType->members().size());
+        _children.resize(sType->numElements());
     }
     auto& child = _children[index];
     if (!child) {
         child =
-            std::make_unique<AccessTree>(sType->memberAt(index), this, index);
+            std::make_unique<AccessTree>(sType->elementAt(index), this, index);
     }
     return child.get();
 }

@@ -97,9 +97,9 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
                     return;
                 }
                 str << "{ ";
-                for (bool first = true; auto* member: type.members()) {
+                for (bool first = true; auto [type, offset]: type.members()) {
                     str << (first ? first = false, "" : ", ")
-                        << formatType(member);
+                        << formatType(type);
                 }
                 str << " }";
             },
@@ -414,7 +414,7 @@ void PrintCtx::printImpl(Select const& select) {
 void PrintCtx::print(StructType const& structure) {
     str << formatKeyword("struct") << " " << formatType(&structure) << " {\n";
     indent.increase();
-    for (bool first = true; auto const* type: structure.members()) {
+    for (bool first = true; auto [type, offset]: structure.members()) {
         str << (first ? (first = false), "" : ",\n") << indent;
         str << formatType(type);
     }

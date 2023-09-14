@@ -155,12 +155,12 @@ bool isShift(ArithmeticOperation arithmeticOp);
 
 /// ## Forward declarations of type categories
 
-#define SC_TYPE_CATEGORY_DEF(TypeCat) class TypeCat;
+#define SC_TYPE_CATEGORY_DEF(TypeCat, _) class TypeCat;
 #include <scatha/IR/Lists.def>
 
 /// List of all type categories
 enum class TypeCategory {
-#define SC_TYPE_CATEGORY_DEF(TypeCat) TypeCat,
+#define SC_TYPE_CATEGORY_DEF(TypeCat, _) TypeCat,
 #include <scatha/IR/Lists.def>
     _count
 };
@@ -193,10 +193,10 @@ UTL_BITFIELD_OPERATORS(FunctionAttribute);
 #include <scatha/IR/Lists.def>
 
 /// Map enum `TypeCategory` to actual type category classes
-#define SC_TYPE_CATEGORY_DEF(TypeCat)                                          \
+#define SC_TYPE_CATEGORY_DEF(TypeCat, Abstractness)                            \
     SC_DYNCAST_MAP(::scatha::ir::TypeCat,                                      \
                    ::scatha::ir::TypeCategory::TypeCat,                        \
-                   CONCRETE);
+                   Abstractness)
 #include <scatha/IR/Lists.def>
 
 namespace scatha::ir::internal {

@@ -27,8 +27,8 @@ MemberTree::Node* MemberTree::computeDFS(ir::Type const* type,
     // clang-format off
     SC_MATCH (*type) {
         [&](ir::StructType const& type) {
-            for (size_t i = 0; i < type.members().size(); ++i) {
-                auto* node = computeDFS(type.memberAt(i), i, offset + type.memberOffsetAt(i));
+            for (size_t i = 0; i < type.numElements(); ++i) {
+                auto* node = computeDFS(type.elementAt(i), i, offset + type.offsetAt(i));
                 result->addChild(node);
             }
         },

@@ -28,7 +28,7 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
     size_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
         sema::QualType memType = member->type();
-        irType->addMember(typeMap(memType));
+        irType->pushMember(typeMap(memType));
         metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
         auto* arrayType = ptrToArray(memType.get());
         if (!arrayType || !arrayType->isDynamic()) {
@@ -36,7 +36,7 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
         }
         SC_ASSERT(isa<sema::PointerType>(*memType),
                   "Can't have dynamic arrays in structs");
-        irType->addMember(ctx.intType(64));
+        irType->pushMember(ctx.intType(64));
         /// We simply increment the index without adding anything to the map
         /// because `getValueImpl(MemberAccess)` will know what to do
         ++irIndex;

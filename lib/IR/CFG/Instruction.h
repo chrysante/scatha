@@ -71,10 +71,10 @@ protected:
 
 public:
     /// \returns the operand of this instruction
-    Value* operand() { return operands()[0]; } // namespace scatha::ir
+    Value* operand() { return operandAt(0); }
 
     /// \overload
-    Value const* operand() const { return operands()[0]; }
+    Value const* operand() const { return operandAt(0); }
 
     /// Set the single operand of this unary instruction.
     void setOperand(Value* value) { User::setOperand(0, value); }
@@ -98,19 +98,19 @@ public:
     void swapOperands();
 
     /// \returns the LHS operand
-    Value* lhs() { return operands()[0]; }
+    Value* lhs() { return operandAt(0); }
 
     ///  \overload
-    Value const* lhs() const { return operands()[0]; }
+    Value const* lhs() const { return operandAt(0); }
 
     /// Set LHS operand to \p value
     void setLHS(Value* value) { setOperand(0, value); }
 
     /// \returns the RHS operand
-    Value* rhs() { return operands()[1]; }
+    Value* rhs() { return operandAt(1); }
 
     ///  \overload
-    Value const* rhs() const { return operands()[1]; }
+    Value const* rhs() const { return operandAt(1); }
 
     /// Set RHS operand to \p value
     void setRHS(Value* value) { setOperand(1, value); }

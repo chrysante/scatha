@@ -1,16 +1,16 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_IR_TYPES_H_
 #define SCATHA_IR_TYPES_H_
 
 #include <span>
 #include <string>
 
+#include <range/v3/view.hpp>
 #include <utl/functional.hpp> // For ceil_divide
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
+#include <scatha/Common/Ranges.h>
 #include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
@@ -112,47 +112,74 @@ public:
         ArithmeticType("f", TypeCategory::FloatType, bitwidth) {}
 };
 
+/// Common interface of `StructType` and `ArrayType`
+class SCATHA_TESTAPI RecordType: public Type {
+public:
+    struct Member {
+        Type const* type;
+        size_t offset;
+    };
+
+    using Type::Type;
+
+    /// \returns The member type at \p index
+    Type const* elementAt(std::size_t index) const;
+
+    /// \returns The offset of member at \p index in bytes.
+    size_t offsetAt(std::size_t index) const;
+
+    /// \Returns the member structure `{ type, offset }` at index \p index
+    Member memberAt(size_t index) const;
+
+    /// \Returns the number of elements in this struct
+    size_t numElements() const;
+};
+
 /// Represents a (user defined) structure type.
-class SCATHA_TESTAPI StructType: public Type {
+class SCATHA_TESTAPI StructType: public RecordType {
 public:
     explicit StructType(std::string name): StructType(std::move(name), {}) {}
 
     explicit StructType(std::string name, std::span<Type const* const> members):
-        Type(std::move(name), TypeCategory::StructType, 0, 0),
-        _members(members) {
+        RecordType(std::move(name), TypeCategory::StructType, 0, 0),
+        _members(members | ranges::views::transform([](auto* type) {
+                     return Member{ type, 0 };
+                 }) |
+                 ToSmallVector<>) {
         computeSizeAndAlign();
     }
 
-    /// \returns The member type at \p index
-    Type const* memberAt(std::size_t index) const { return _members[index]; }
-
-    /// \returns The offset of member at \p index in bytes.
-    size_t memberOffsetAt(std::size_t index) const {
-        return _memberOffsets[index];
-    }
-
-    /// \returns A view over the member types in this structure.
-    std::span<Type const* const> members() const { return _members; }
-
-    /// \returns A view over the member offsets in this structure.
-    std::span<uint16_t const> offsets() const { return _memberOffsets; }
+    /// \returns A view over the members in this structure.
+    std::span<Member const> members() const { return _members; }
 
     /// Add a member to the end of this structure.
-    void addMember(Type const* type) {
-        _members.push_back(type);
+    void pushMember(Type const* type) {
+        _members.push_back({ type, 0 });
         computeSizeAndAlign();
     }
 
 private:
+    friend class RecordType;
+    Type const* elementAtImpl(std::size_t index) const {
+        return memberAt(index).type;
+    }
+
+    size_t offsetAtImpl(std::size_t index) const {
+        return memberAt(index).offset;
+    }
+
+    Member memberAtImpl(size_t index) const { return _members[index]; }
+
+    size_t numElementsImpl() const { return _members.size(); }
+
     void computeSizeAndAlign();
 
 private:
-    utl::small_vector<Type const*> _members;
-    utl::small_vector<uint16_t> _memberOffsets;
+    utl::small_vector<Member> _members;
 };
 
 /// Represents a fixed size array type.
-class SCATHA_TESTAPI ArrayType: public Type {
+class SCATHA_TESTAPI ArrayType: public RecordType {
 public:
     explicit ArrayType(Type const* elementType, size_t count);
 
@@ -163,6 +190,19 @@ public:
     size_t count() const { return _count; }
 
 private:
+    friend class RecordType;
+    Type const* elementAtImpl(std::size_t index) const { return elementType(); }
+
+    size_t offsetAtImpl(std::size_t index) const {
+        return index * elementType()->size();
+    }
+
+    Member memberAtImpl(size_t index) const {
+        return { elementType(), offsetAtImpl(index) };
+    }
+
+    size_t numElementsImpl() const { return count(); }
+
     Type const* _elemType = nullptr;
     size_t _count = 0;
 };

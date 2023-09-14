@@ -59,10 +59,10 @@ ir::Alloca* FunctionBuilder::storeToMemory(ir::Value* value, std::string name) {
 ir::Value* FunctionBuilder::buildStructure(ir::StructType const* type,
                                            std::span<ir::Value* const> members,
                                            std::string name) {
-    SC_ASSERT(type->members().size() == members.size(), "Size mismatch");
+    SC_ASSERT(type->numElements() == members.size(), "Size mismatch");
     ir::Value* value = ctx.undef(type);
     for (auto [index, member]: members | ranges::views::enumerate) {
-        SC_ASSERT(member->type() == type->memberAt(index), "Type mismatch");
+        SC_ASSERT(member->type() == type->elementAt(index), "Type mismatch");
         value = add<ir::InsertValue>(value, member, std::array{ index }, name);
     }
     return value;

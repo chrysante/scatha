@@ -26,15 +26,29 @@ std::string FunctionType::makeName(
     return std::move(sstr).str();
 }
 
+Type const* RecordType::elementAt(std::size_t index) const {
+    return visit(*this, [=](auto& type) { return type.elementAtImpl(index); });
+}
+
+size_t RecordType::offsetAt(std::size_t index) const {
+    return visit(*this, [=](auto& type) { return type.offsetAtImpl(index); });
+}
+
+RecordType::Member RecordType::memberAt(size_t index) const {
+    return visit(*this, [=](auto& type) { return type.memberAtImpl(index); });
+}
+
+size_t RecordType::numElements() const {
+    return visit(*this, [=](auto& type) { return type.numElementsImpl(); });
+}
+
 void StructType::computeSizeAndAlign() {
     setSize(0);
     setAlign(0);
-    _memberOffsets.clear();
-    for (auto* member: _members) {
-        setAlign(std::max(align(), member->align()));
-        size_t const currentBaseSize = utl::round_up(size(), member->align());
-        _memberOffsets.push_back(utl::narrow_cast<u16>(currentBaseSize));
-        setSize(currentBaseSize + member->size());
+    for (auto& [type, offset]: _members) {
+        setAlign(std::max(align(), type->align()));
+        offset = utl::round_up(size(), type->align());
+        setSize(offset + type->size());
     }
     /// Empty types have a size of 1 to give objects address identity (and also
     /// because it solves many issues)
@@ -42,9 +56,9 @@ void StructType::computeSizeAndAlign() {
 }
 
 ArrayType::ArrayType(Type const* elementType, size_t count):
-    Type(utl::strcat("[", elementType->name(), ",", count, "]"),
-         TypeCategory::ArrayType,
-         count * elementType->size(),
-         elementType->align()),
+    RecordType(utl::strcat("[", elementType->name(), ",", count, "]"),
+               TypeCategory::ArrayType,
+               count * elementType->size(),
+               elementType->align()),
     _elemType(elementType),
     _count(count) {}

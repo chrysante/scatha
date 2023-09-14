@@ -421,9 +421,82 @@ private:
     utl::small_vector<BasicBlock*> _preds;
 };
 
+/// Select one of two values basec on a boolean condition
+class Select: public Instruction {
+public:
+    explicit Select(Value* condition,
+                    Value* thenValue,
+                    Value* elseValue,
+                    std::string name);
+
+    /// The condition to select on.
+    Value* condition() { return operandAt(0); }
+
+    /// \overload
+    Value const* condition() const { return operandAt(0); }
+
+    /// Set the condition to select on.
+    void setCondition(Value* value) { setOperand(0, value); }
+
+    /// Value to choose if condition is `true`
+    Value* thenValue() { return operandAt(1); }
+
+    /// \overload
+    Value const* thenValue() const { return operandAt(1); }
+
+    /// Set the value to choose if condition is `true`.
+    void setThenValue(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        setOperand(1, value);
+    }
+
+    /// Value to choose if condition is `false`
+    Value* elseValue() { return operandAt(2); }
+
+    /// \overload
+    Value const* elseValue() const { return operandAt(2); }
+
+    /// Set the value to choose if condition is `false`.
+    void setElseValue(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        setOperand(2, value);
+    }
+};
+
+/// Common base class of `GetElementPointer`, `ExtractValue` and `InsertValue`
+class AccessValueInst: public Instruction {
+public:
+    using Instruction::Instruction;
+
+    ///
+    std::span<size_t const> memberIndices() const { return _indices; }
+
+    ///
+    void addMemberIndexFront(size_t index) {
+        _indices.insert(_indices.begin(), index);
+    }
+
+    ///
+    void addMemberIndexBack(size_t index) { _indices.push_back(index); }
+
+    ///
+    void setMemberIndices(std::span<size_t const> indices);
+
+protected:
+    static Type const* computeAccessedType(Type const* operandType,
+                                           std::span<size_t const> indices);
+
+private:
+    utl::small_vector<size_t> _indices;
+};
+
 /// `gep` or GetElementPointer instruction. Calculate offset pointer to a
 /// structure member or array element.
-class GetElementPointer: public Instruction {
+class GetElementPointer: public AccessValueInst {
 public:
     explicit GetElementPointer(Context& context,
                                Type const* inboundsType,
@@ -459,8 +532,6 @@ public:
 
     Value const* arrayIndex() const { return operands()[1]; }
 
-    std::span<uint16_t const> memberIndices() const { return _memberIndices; }
-
     bool hasConstantArrayIndex() const;
 
     size_t constantArrayIndex() const;
@@ -470,46 +541,11 @@ public:
     void setBasePtr(Value* basePtr) { setOperand(0, basePtr); }
 
     void setArrayIndex(Value* arrayIndex) { setOperand(1, arrayIndex); }
-
-    void addMemberIndexFront(size_t index) {
-        _memberIndices.insert(_memberIndices.begin(),
-                              utl::narrow_cast<uint16_t>(index));
-    }
-
-    void addMemberIndexBack(size_t index) {
-        _memberIndices.push_back(utl::narrow_cast<uint16_t>(index));
-    }
-
-private:
-    utl::small_vector<uint16_t> _memberIndices;
 };
-
-namespace internal {
-
-class AccessValueBase {
-public:
-    explicit AccessValueBase(std::span<size_t const> indices):
-        AccessValueBase(indices, 0) {}
-
-    template <std::integral SizeT>
-    explicit AccessValueBase(std::span<SizeT const> indices, int = 0):
-        _indices(indices | ranges::to<utl::small_vector<uint16_t>>) {}
-
-    std::span<uint16_t const> memberIndices() const { return _indices; }
-
-protected:
-    static Type const* computeAccessedType(Type const* operandType,
-                                           std::span<size_t const> indices);
-
-private:
-    utl::small_vector<uint16_t> _indices;
-};
-
-} // namespace internal
 
 /// `extract_value` instruction. Extract the value of a structure member or
 /// array element.
-class ExtractValue: public UnaryInstruction, public internal::AccessValueBase {
+class ExtractValue: public AccessValueInst {
 public:
     explicit ExtractValue(Value* baseValue,
                           std::initializer_list<size_t> indices,
@@ -518,39 +554,22 @@ public:
                      std::span<size_t const>(indices),
                      std::move(name)) {}
 
-    template <std::integral SizeT>
-    explicit ExtractValue(Value* baseValue,
-                          std::span<SizeT const> indices,
-                          std::string name,
-                          int = 0):
-        UnaryInstruction(
-            NodeType::ExtractValue,
-            baseValue,
-            baseValue ?
-                computeAccessedType(baseValue->type(),
-                                    indices |
-                                        ranges::to<utl::small_vector<size_t>>) :
-                nullptr,
-            std::move(name)),
-        internal::AccessValueBase(indices) {}
-
     explicit ExtractValue(Value* baseValue,
                           std::span<size_t const> indices,
-                          std::string name):
-        ExtractValue(baseValue, indices, std::move(name), 0) {}
+                          std::string name);
 
     /// The structure or array being accessed. Same as `operand()`
-    Value* baseValue() { return operand(); }
+    Value* baseValue() { return operandAt(0); }
 
     /// \overload
-    Value const* baseValue() const { return operand(); }
+    Value const* baseValue() const { return operandAt(0); }
 
     /// Same as `setOperand()`
     void setBaseValue(Value* value);
 };
 
 /// `insert_value` instruction. Insert a value into a structure or array.
-class InsertValue: public BinaryInstruction, public internal::AccessValueBase {
+class InsertValue: public AccessValueInst {
 public:
     explicit InsertValue(Value* baseValue,
                          Value* insertedValue,
@@ -567,72 +586,22 @@ public:
                          std::string name);
 
     /// The structure or array being accessed. Same as `lhs()`
-    Value* baseValue() { return lhs(); }
+    Value* baseValue() { return operandAt(0); }
 
     /// \overload
-    Value const* baseValue() const { return lhs(); }
+    Value const* baseValue() const { return operandAt(0); }
 
-    /// Same as `setLHS()`
-    void setBaseValue(Value* value) {
-        if (!type()) {
-            setType(value->type());
-        }
-        setLHS(value);
-    }
+    ///
+    void setBaseValue(Value* value);
 
-    /// The value being inserted. Same as `rhs()`
-    Value* insertedValue() { return rhs(); }
+    /// The value being inserted
+    Value* insertedValue() { return operandAt(1); }
 
     /// \overload
-    Value const* insertedValue() const { return rhs(); }
+    Value const* insertedValue() const { return operandAt(1); }
 
     /// Same as `setRHS()`
-    void setInsertedValue(Value* value) { setRHS(value); }
-};
-
-class Select: public Instruction {
-public:
-    explicit Select(Value* condition,
-                    Value* thenValue,
-                    Value* elseValue,
-                    std::string name);
-
-    /// The condition to select on.
-    Value* condition() { return operands()[0]; }
-
-    /// \overload
-    Value const* condition() const { return operands()[0]; }
-
-    /// Set the condition to select on.
-    void setCondition(Value* value) { setOperand(0, value); }
-
-    /// Value to choose if condition is `true`
-    Value* thenValue() { return operands()[1]; }
-
-    /// \overload
-    Value const* thenValue() const { return operands()[1]; }
-
-    /// Set the value to choose if condition is `true`.
-    void setThenValue(Value* value) {
-        if (!type()) {
-            setType(value->type());
-        }
-        setOperand(1, value);
-    }
-
-    /// Value to choose if condition is `false`
-    Value* elseValue() { return operands()[2]; }
-
-    /// \overload
-    Value const* elseValue() const { return operands()[2]; }
-
-    /// Set the value to choose if condition is `false`.
-    void setElseValue(Value* value) {
-        if (!type()) {
-            setType(value->type());
-        }
-        setOperand(2, value);
-    }
+    void setInsertedValue(Value* value) { setOperand(1, value); }
 };
 
 } // namespace scatha::ir

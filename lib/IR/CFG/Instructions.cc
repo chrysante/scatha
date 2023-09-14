@@ -199,24 +199,27 @@ Value const* Phi::operandOf(BasicBlock const* pred) const {
     return operands()[index];
 }
 
+Select::Select(Value* condition,
+               Value* thenValue,
+               Value* elseValue,
+               std::string name):
+    Instruction(NodeType::Select,
+                thenValue ? thenValue->type() : nullptr,
+                std::move(name),
+                { condition, thenValue, elseValue }) {}
+
 template <typename SizeT>
 static Type const* computeAccessedTypeGen(Type const* operandType,
                                           std::span<SizeT const> indices) {
     Type const* result = operandType;
     for (auto index: indices) {
-        // clang-format off
-        result = SC_MATCH (*result) {
-            [&](StructType const& type) {
-                return type.memberAt(index);
-            },
-            [&](ArrayType const& type) {
-                SC_ASSERT(index < type.count(), "Index out of bounds");
-                return type.elementType();
-            },
-            [](Type const&) -> ir::Type const* { SC_UNREACHABLE(); }
-        }; // clang-format on
+        result = cast<RecordType const*>(result)->elementAt(index);
     }
     return result;
+}
+
+void AccessValueInst::setMemberIndices(std::span<size_t const> indices) {
+    _indices = indices | ToSmallVector<>;
 }
 
 GetElementPointer::GetElementPointer(Context& context,
@@ -225,12 +228,13 @@ GetElementPointer::GetElementPointer(Context& context,
                                      Value* arrayIndex,
                                      std::span<size_t const> memberIndices,
                                      std::string name):
-    Instruction(NodeType::GetElementPointer,
-                context.ptrType(),
-                std::move(name),
-                { basePointer, arrayIndex },
-                { inboundsType }),
-    _memberIndices(memberIndices | ranges::to<utl::small_vector<uint16_t>>) {}
+    AccessValueInst(NodeType::GetElementPointer,
+                    context.ptrType(),
+                    std::move(name),
+                    { basePointer, arrayIndex },
+                    { inboundsType }) {
+    setMemberIndices(memberIndices);
+}
 
 Type const* GetElementPointer::accessedType() const {
     return computeAccessedTypeGen(inboundsType(), memberIndices());
@@ -244,34 +248,44 @@ size_t GetElementPointer::constantArrayIndex() const {
     return cast<IntegralConstant const*>(arrayIndex())->value().to<size_t>();
 }
 
-Type const* ir::internal::AccessValueBase::computeAccessedType(
+Type const* ir::AccessValueInst::computeAccessedType(
     Type const* operandType, std::span<size_t const> indices) {
     return computeAccessedTypeGen(operandType, indices);
+}
+
+ExtractValue::ExtractValue(Value* baseValue,
+                           std::span<size_t const> indices,
+                           std::string name):
+    AccessValueInst(NodeType::ExtractValue,
+                    baseValue ?
+                        computeAccessedType(baseValue->type(), indices) :
+                        nullptr,
+                    std::move(name),
+                    { baseValue }) {
+    setMemberIndices(indices);
 }
 
 void ExtractValue::setBaseValue(Value* value) {
     if (!type()) {
         setType(computeAccessedTypeGen(value->type(), memberIndices()));
     }
-    setOperand(value);
+    setOperand(0, value);
 }
 
 InsertValue::InsertValue(Value* baseValue,
                          Value* insertedValue,
                          std::span<size_t const> indices,
                          std::string name):
-    BinaryInstruction(NodeType::InsertValue,
-                      baseValue,
-                      insertedValue,
-                      baseValue ? baseValue->type() : nullptr,
-                      std::move(name)),
-    internal::AccessValueBase(indices) {}
+    AccessValueInst(NodeType::InsertValue,
+                    baseValue ? baseValue->type() : nullptr,
+                    std::move(name),
+                    { baseValue, insertedValue }) {
+    setMemberIndices(indices);
+}
 
-Select::Select(Value* condition,
-               Value* thenValue,
-               Value* elseValue,
-               std::string name):
-    Instruction(NodeType::Select,
-                thenValue ? thenValue->type() : nullptr,
-                std::move(name),
-                { condition, thenValue, elseValue }) {}
+void InsertValue::setBaseValue(Value* value) {
+    if (!type()) {
+        setType(value->type());
+    }
+    setOperand(0, value);
+}

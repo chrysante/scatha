@@ -20,7 +20,7 @@ SC_CGFNODE_DEF(ConstantData,          CONCRETE)
 
 SC_CGFNODE_DEF(Callable,              ABSTRACT)
 SC_CGFNODE_DEF(Function,              CONCRETE)
-SC_CGFNODE_DEF(ForeignFunction,           CONCRETE)
+SC_CGFNODE_DEF(ForeignFunction,       CONCRETE)
 SC_CGFNODE_DEF(BasicBlock,            CONCRETE)
 
 /// Instruction base classes
@@ -42,10 +42,11 @@ SC_CGFNODE_DEF(Branch,                CONCRETE)
 SC_CGFNODE_DEF(Return,                CONCRETE)
 SC_CGFNODE_DEF(Call,                  CONCRETE)
 SC_CGFNODE_DEF(Phi,                   CONCRETE)
+SC_CGFNODE_DEF(Select,                CONCRETE)
+SC_CGFNODE_DEF(AccessValueInst,       ABSTRACT)
 SC_CGFNODE_DEF(GetElementPointer,     CONCRETE)
 SC_CGFNODE_DEF(ExtractValue,          CONCRETE)
 SC_CGFNODE_DEF(InsertValue,           CONCRETE)
-SC_CGFNODE_DEF(Select,                CONCRETE)
 
 #undef SC_CGFNODE_DEF
 
@@ -158,18 +159,19 @@ SC_ARITHMETIC_OPERATION_DEF(XOr,  xor)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_TYPE_CATEGORY_DEF
-#   define SC_TYPE_CATEGORY_DEF(type)
+#   define SC_TYPE_CATEGORY_DEF(type, _)
 #endif
 
-SC_TYPE_CATEGORY_DEF(Type)
-SC_TYPE_CATEGORY_DEF(VoidType)
-SC_TYPE_CATEGORY_DEF(PointerType)
-SC_TYPE_CATEGORY_DEF(ArithmeticType)
-SC_TYPE_CATEGORY_DEF(IntegralType)
-SC_TYPE_CATEGORY_DEF(FloatType)
-SC_TYPE_CATEGORY_DEF(StructType)
-SC_TYPE_CATEGORY_DEF(ArrayType)
-SC_TYPE_CATEGORY_DEF(FunctionType)
+SC_TYPE_CATEGORY_DEF(Type,           ABSTRACT)
+SC_TYPE_CATEGORY_DEF(VoidType,       CONCRETE)
+SC_TYPE_CATEGORY_DEF(PointerType,    CONCRETE)
+SC_TYPE_CATEGORY_DEF(ArithmeticType, ABSTRACT)
+SC_TYPE_CATEGORY_DEF(IntegralType,   CONCRETE)
+SC_TYPE_CATEGORY_DEF(FloatType,      CONCRETE)
+SC_TYPE_CATEGORY_DEF(RecordType,     ABSTRACT)
+SC_TYPE_CATEGORY_DEF(StructType,     CONCRETE)
+SC_TYPE_CATEGORY_DEF(ArrayType,      CONCRETE)
+SC_TYPE_CATEGORY_DEF(FunctionType,   CONCRETE)
 
 #undef SC_TYPE_CATEGORY_DEF
 
