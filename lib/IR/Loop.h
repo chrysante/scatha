@@ -91,7 +91,7 @@ private:
     }
 
     using NodeSet =
-        utl::node_hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
+        utl::node_hashset<Node, Node::PayloadHash<>, Node::PayloadEqual<>>;
     NodeSet _nodes;
     std::unique_ptr<Node> _virtualRoot;
 };

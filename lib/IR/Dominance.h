@@ -68,7 +68,8 @@ private:
     }
 
 private:
-    using NodeSet = utl::hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
+    using NodeSet =
+        utl::hashset<Node, Node::PayloadHash<>, Node::PayloadEqual<>>;
     NodeSet _nodes;
     Node* _root;
 };

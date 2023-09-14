@@ -8,6 +8,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "Common/Base.h"
@@ -80,9 +81,9 @@ class GraphNodeBase {
 
     /// To add const-ness to the pointee if payload is a pointer.
     using PayloadViewConstPtr =
-        std::conditional_t<std::is_pointer_v<PayloadView>,
-                           std::remove_pointer_t<PayloadView> const*,
-                           PayloadView>;
+        typename std::conditional_t<std::is_pointer_v<PayloadView>,
+                                    std::remove_pointer<PayloadView>,
+                                    std::type_identity<void>>::type const*;
 
     static constexpr bool HasPayload = !std::is_same_v<Payload, void>;
 
@@ -94,29 +95,28 @@ class GraphNodeBase {
 public:
     /// `PayloadHash` and `PayloadEqual` exist to put `GraphNode` in hashsets
     /// where only the payload is used as the key.
+    template <typename Ptr = PayloadViewConstPtr>
+        requires(!std::is_same_v<Ptr, void const*>)
     struct PayloadHash {
         using is_transparent = void;
         size_t operator()(Self const& node) const {
             return (*this)(node.payload());
         }
-        size_t operator()(PayloadViewConstPtr payload) const {
-            return std::hash<std::decay_t<PayloadViewConstPtr>>{}(
-                static_cast<PayloadViewConstPtr>(payload));
+        size_t operator()(Ptr payload) const {
+            return std::hash<std::decay_t<Ptr>>{}(static_cast<Ptr>(payload));
         }
     };
 
     /// See `PayloadHash`.
+    template <typename Ptr = PayloadViewConstPtr>
+        requires(!std::is_same_v<Ptr, void const*>)
     struct PayloadEqual {
         using is_transparent = void;
         bool operator()(Self const& a, Self const& b) const {
             return a.payload() == b.payload();
         }
-        bool operator()(Self const& a, PayloadViewConstPtr b) const {
-            return a.payload() == b;
-        }
-        bool operator()(PayloadViewConstPtr a, Self const& b) const {
-            return a == b.payload();
-        }
+        bool operator()(Self const& a, Ptr b) const { return a.payload() == b; }
+        bool operator()(Ptr a, Self const& b) const { return a == b.payload(); }
     };
 
     GraphNodeBase()
@@ -336,7 +336,7 @@ public:
         for (auto* child: children()) {
             child->traversePostorder(F);
         }
-        std::invoke(F, static_cast<Derived* const>(this));
+        std::invoke(F, static_cast<Derived const*>(this));
     }
 
 private:

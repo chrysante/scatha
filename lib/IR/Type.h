@@ -134,6 +134,9 @@ public:
     /// \returns A view over the member types in this structure.
     std::span<Type const* const> members() const { return _members; }
 
+    /// \returns A view over the member offsets in this structure.
+    std::span<uint16_t const> offsets() const { return _memberOffsets; }
+
     /// Add a member to the end of this structure.
     void addMember(Type const* type) {
         _members.push_back(type);
@@ -145,7 +148,7 @@ private:
 
 private:
     utl::small_vector<Type const*> _members;
-    utl::small_vector<u16> _memberOffsets;
+    utl::small_vector<uint16_t> _memberOffsets;
 };
 
 /// Represents a fixed size array type.

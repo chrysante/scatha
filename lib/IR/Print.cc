@@ -69,72 +69,6 @@ struct PrintCtx {
 
 } // namespace
 
-void ir::print(Module const& mod) { ir::print(mod, std::cout); }
-
-void ir::print(Module const& mod, std::ostream& str) {
-    PrintCtx ctx(str);
-    for (auto& structure: mod.structures()) {
-        ctx.print(*structure);
-    }
-    for (auto* constData: mod.constantData()) {
-        ctx.print(*constData);
-    }
-    for (auto* global: mod.globals()) {
-        ctx.print(*global);
-    }
-    for (auto& function: mod) {
-        ctx.print(function);
-    }
-}
-
-void ir::print(Callable const& callable) { ir::print(callable, std::cout); }
-
-void ir::print(Callable const& callable, std::ostream& str) {
-    PrintCtx ctx(str);
-    visit(callable, [&](auto& function) { ctx.print(function); });
-}
-
-void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }
-
-void ir::print(Instruction const& inst, std::ostream& str) {
-    str << inst << std::endl;
-}
-
-std::ostream& ir::operator<<(std::ostream& str, Instruction const& inst) {
-    PrintCtx ctx(str);
-    ctx.print(inst);
-    return str;
-}
-
-std::string ir::toString(Value const& value) { return toString(&value); }
-
-std::string ir::toString(Value const* value) {
-    if (!value) {
-        return "<null-value>";
-    }
-    // clang-format off
-    return visit(*value, utl::overload{
-        [&](Function const& func) { return utl::strcat("@", func.name()); },
-        [&](Value const& value) { return utl::strcat("%", value.name()); },
-        [&](IntegralConstant const& value) {
-            return value.value().toString();
-        },
-        [&](FloatingPointConstant const& value) {
-            return value.value().toString();
-        },
-        [&](UndefValue const&) {
-            return std::string("undef");
-        },
-    }); // clang-format on
-}
-
-void PrintCtx::print(Value const& value) {
-    if (auto* inst = dyncast<Instruction const*>(&value)) {
-        instDecl(inst);
-    }
-    visit(value, [this](auto const& value) { printImpl(value); });
-}
-
 static auto formatKeyword(auto... name) {
     return tfmt::format(tfmt::Magenta | tfmt::Bold, name...);
 }
@@ -225,6 +159,85 @@ static auto equals() {
 }
 
 static auto label() { return tertiary("label"); }
+
+void ir::print(Module const& mod) { ir::print(mod, std::cout); }
+
+void ir::print(Module const& mod, std::ostream& str) {
+    PrintCtx ctx(str);
+    for (auto& structure: mod.structures()) {
+        ctx.print(*structure);
+    }
+    for (auto* constData: mod.constantData()) {
+        ctx.print(*constData);
+    }
+    for (auto* global: mod.globals()) {
+        ctx.print(*global);
+    }
+    for (auto& function: mod) {
+        ctx.print(function);
+    }
+}
+
+void ir::print(Callable const& callable) { ir::print(callable, std::cout); }
+
+void ir::print(Callable const& callable, std::ostream& str) {
+    PrintCtx ctx(str);
+    visit(callable, [&](auto& function) { ctx.print(function); });
+}
+
+void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }
+
+void ir::print(Instruction const& inst, std::ostream& str) {
+    str << inst << std::endl;
+}
+
+std::ostream& ir::operator<<(std::ostream& str, Instruction const& inst) {
+    PrintCtx ctx(str);
+    ctx.print(inst);
+    return str;
+}
+
+void ir::print(Type const& type) { print(type, std::cout); }
+
+void ir::print(Type const& type, std::ostream& ostream) {
+    if (auto* structType = dyncast<StructType const*>(&type)) {
+        PrintCtx{ ostream }.print(*structType);
+    }
+    else {
+        ostream << type << std::endl;
+    }
+}
+
+std::ostream& ir::operator<<(std::ostream& ostream, Type const& type) {
+    return ostream << formatType(&type);
+}
+
+std::string ir::toString(Value const* value) {
+    if (!value) {
+        return "<null-value>";
+    }
+    // clang-format off
+    return visit(*value, utl::overload{
+        [&](Function const& func) { return utl::strcat("@", func.name()); },
+        [&](Value const& value) { return utl::strcat("%", value.name()); },
+        [&](IntegralConstant const& value) {
+            return value.value().toString();
+        },
+        [&](FloatingPointConstant const& value) {
+            return value.value().toString();
+        },
+        [&](UndefValue const&) {
+            return std::string("undef");
+        },
+    }); // clang-format on
+}
+
+void PrintCtx::print(Value const& value) {
+    if (auto* inst = dyncast<Instruction const*>(&value)) {
+        instDecl(inst);
+    }
+    visit(value, [this](auto const& value) { printImpl(value); });
+}
 
 void PrintCtx::printImpl(Function const& function) {
     funcDecl(&function);

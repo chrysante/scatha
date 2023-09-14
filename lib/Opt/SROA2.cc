@@ -22,8 +22,10 @@
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
+#include "Opt/MemberTree.h"
 #include "Opt/PassRegistry.h"
 
+#include "IR/Print.h"
 #include <iostream>
 
 using namespace scatha;
@@ -35,7 +37,7 @@ SC_REGISTER_PASS(opt::sroa2, "sroa2");
 namespace {
 
 struct Slice {
-    uint32_t begin, end;
+    size_t begin, end;
     Alloca* newAlloca;
 };
 
@@ -45,11 +47,8 @@ struct Variable {
     LoopNestingForest& LNF;
     Alloca* baseAlloca;
 
-    /// All the loads that load from our alloca
-    utl::hashset<Load*> loads;
-
-    /// All the stores that store to our alloca
-    utl::hashset<Store*> stores;
+    /// All the loads and stores that directly or indirectly use our alloca
+    utl::hashset<Instruction*> loadsAndStores;
 
     /// All the GEPs that compute pointers into our alloca
     utl::hashset<GetElementPointer*> geps;
@@ -90,6 +89,12 @@ struct Variable {
     /// load from or store to
     utl::hashmap<Instruction const*, utl::small_vector<Slice>> instToSlicesMap;
 
+    std::span<Slice const> getSlices(Instruction const* inst) const {
+        auto itr = instToSlicesMap.find(inst);
+        SC_ASSERT(itr != instToSlicesMap.end(), "Not found");
+        return itr->second;
+    }
+
     Variable(Context& ctx, Function& function, Alloca* baseAlloca):
         ctx(ctx),
         function(function),
@@ -108,8 +113,8 @@ struct Variable {
         // clang-format off
         return SC_MATCH (*inst) {
             [&](Alloca& inst) { return true; },
-            [&](Load& load) { return loads.insert(&load).second; },
-            [&](Store& store) { return stores.insert(&store).second; },
+            [&](Load& load) { return loadsAndStores.insert(&load).second; },
+            [&](Store& store) { return loadsAndStores.insert(&store).second; },
             [&](GetElementPointer& gep) { return geps.insert(&gep).second; },
             [&](Phi& phi) { return phis.insert(&phi).second; },
             [&](Instruction& inst) -> bool { SC_UNREACHABLE(); },
@@ -119,8 +124,8 @@ struct Variable {
     void forget(Instruction* inst) {
         // clang-format off
         SC_MATCH (*inst) {
-            [&](Load& load) { loads.erase(&load); },
-            [&](Store& store) { stores.erase(&store); },
+            [&](Load& load) { loadsAndStores.erase(&load); },
+            [&](Store& store) { loadsAndStores.erase(&store); },
             [&](GetElementPointer& gep) { geps.erase(&gep); },
             [&](Phi& phi) { phis.erase(&phi); },
             [&](Instruction& inst) { SC_UNREACHABLE(); },
@@ -153,8 +158,13 @@ struct Variable {
 
     ///
     void computeSlices();
-    std::pair<size_t, size_t> getRange(Load const* load);
-    std::pair<size_t, size_t> getRange(Store const* store);
+    std::pair<size_t, size_t> getRange(Instruction const* inst);
+
+    ///
+    void replaceBySlices();
+    void replaceBySlices(Load const* load);
+    void replaceBySlices(Store const* store);
+    void replaceBySlices(Instruction const* inst) { SC_UNREACHABLE(); }
 };
 
 } // namespace
@@ -177,6 +187,7 @@ bool Variable::run() {
     }
     rewritePhis();
     computeSlices();
+    replaceBySlices();
     return true;
 }
 
@@ -377,20 +388,25 @@ Instruction* Variable::copyInstruction(Instruction* inst, BasicBlock* dest) {
 static utl::small_vector<Slice> slicesInRange(size_t begin,
                                               size_t end,
                                               std::span<Slice const> slices) {
-    return utl::small_vector<Slice>(
-        ranges::lower_bound(slices, begin, ranges::less{}, &Slice::begin),
-        ranges::upper_bound(slices, end, ranges::less{}, &Slice::end));
+    return ranges::make_subrange(ranges::lower_bound(slices,
+                                                     begin,
+                                                     ranges::less{},
+                                                     &Slice::begin),
+                                 ranges::upper_bound(slices,
+                                                     end,
+                                                     ranges::less{},
+                                                     &Slice::end)) |
+           ranges::views::transform(
+               [&](Slice slice) {
+        return Slice{ slice.begin - begin, slice.end - begin, slice.newAlloca };
+           }) |
+        ToSmallVector<>;
 }
 
 void Variable::computeSlices() {
     std::set<size_t> set;
-    for (auto* load: loads) {
-        auto [begin, end] = getRange(load);
-        set.insert(begin);
-        set.insert(end);
-    }
-    for (auto* store: stores) {
-        auto [begin, end] = getRange(store);
+    for (auto* inst: loadsAndStores) {
+        auto [begin, end] = getRange(inst);
         set.insert(begin);
         set.insert(end);
     }
@@ -403,27 +419,83 @@ void Variable::computeSlices() {
                                      ctx.intType(8),
                                      utl::strcat(baseAlloca->name(), ".slice"));
                       function.entry().insert(baseAlloca, newAlloca);
-                      return Slice{ utl::narrow_cast<uint32_t>(begin),
-                                    utl::narrow_cast<uint32_t>(end),
-                                    newAlloca };
+                      return Slice{ begin, end, newAlloca };
                   }) |
                   ToSmallVector<>;
-    for (auto* load: loads) {
-        auto [begin, end] = getRange(load);
-        instToSlicesMap[load] = slicesInRange(begin, end, slices);
-    }
-    for (auto* store: stores) {
-        auto [begin, end] = getRange(store);
-        instToSlicesMap[store] = slicesInRange(begin, end, slices);
+    for (auto* inst: loadsAndStores) {
+        auto [begin, end] = getRange(inst);
+        instToSlicesMap[inst] = slicesInRange(begin, end, slices);
     }
 }
 
-std::pair<size_t, size_t> Variable::getRange(Load const* load) {
-    size_t offset = getPtrOffset(load->address());
-    return { offset, offset + load->type()->size() };
+std::pair<size_t, size_t> Variable::getRange(Instruction const* inst) {
+    // clang-format off
+    return SC_MATCH (*inst) {
+        [&](Load const& load) {
+            size_t offset = getPtrOffset(load.address());
+            return std::pair{ offset, offset + load.type()->size() };
+        },
+        [&](Store const& store) {
+            size_t offset = getPtrOffset(store.address());
+            return std::pair{ offset, offset + store.value()->type()->size() };
+        },
+        [&](Instruction const& inst) -> std::pair<size_t, size_t> {
+            SC_UNREACHABLE();
+        }
+    }; // clang-format on
 }
 
-std::pair<size_t, size_t> Variable::getRange(Store const* store) {
-    size_t offset = getPtrOffset(store->address());
-    return { offset, offset + store->value()->type()->size() };
+void Variable::replaceBySlices() {
+    for (auto* inst: loadsAndStores) {
+        visit(*inst, [&](auto& inst) { replaceBySlices(&inst); });
+    }
 }
+
+static void memTreePostorder(
+    MemberTree const& tree,
+    std::span<Slice const> slices,
+    utl::function_view<void(MemberTree::Node const*,
+                            std::span<Slice const>,
+                            std::span<size_t const>)> fn) {
+    utl::small_vector<size_t> indices;
+    auto itr = slices.begin();
+    auto impl = [&](auto& impl, MemberTree::Node const* node) -> void {
+        for (auto* child: node->children()) {
+            indices.push_back(child->index());
+            impl(impl, child);
+            indices.pop_back();
+        }
+        auto begin = itr;
+        while (itr != slices.end() && itr->end <= node->end()) {
+            ++itr;
+        }
+        auto end = itr;
+        utl::small_vector<Slice> ourSlices(begin, end);
+        fn(node, ourSlices, indices);
+    };
+    impl(impl, tree.root());
+}
+
+void Variable::replaceBySlices(Load const* load) {
+    auto slices = getSlices(load);
+    auto memberTree = MemberTree::compute(load->type());
+    print(memberTree);
+    memTreePostorder(memberTree,
+                     slices,
+                     [&](MemberTree::Node const* node,
+                         std::span<Slice const> slices,
+                         std::span<size_t const> indices) {
+        std::cout << "  " << *node->type() << ": ";
+        for (auto slice: slices) {
+            std::cout << "[" << slice.begin << ", " << slice.end << "), ";
+        }
+        std::cout << std::endl;
+        std::cout << "    ";
+        for (size_t index: indices) {
+            std::cout << "." << index;
+        }
+        std::cout << std::endl;
+    });
+}
+
+void Variable::replaceBySlices(Store const* store) {}

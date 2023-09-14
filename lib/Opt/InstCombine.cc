@@ -548,15 +548,6 @@ Value* InstCombineCtx::visitImpl(Select* inst) {
     return nullptr;
 }
 
-static void print(auto* inst, AccessTree const* tree) {
-    std::cout << *inst << ":\n";
-    tree->print(
-        std::cout,
-        [](auto* v) { return ir::toString(v); },
-        1);
-    std::cout << "\n";
-}
-
 Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     /// Extracting from `undef` results in `undef`
     if (isa<UndefValue>(extractInst->baseValue())) {
