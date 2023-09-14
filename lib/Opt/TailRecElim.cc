@@ -202,8 +202,8 @@ void TREContext::generateLoopHeader() {
     loopHeader = &function.entry();
     loopHeader->setName("tre.loopheader");
     newEntry->pushBack(new Goto(irCtx, loopHeader));
-    function.pushFront(newEntry);
     moveAllocas(&function.entry(), newEntry);
+    function.pushFront(newEntry);
 
     std::array entryRng = { newEntry };
     auto retBlocks = viableReturns | ranges::views::transform(

@@ -66,6 +66,9 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
 }
 
 void opt::moveAllocas(ir::BasicBlock* from, ir::BasicBlock* to) {
+    if (from == to) {
+        return;
+    }
     auto insertPoint =
         ranges::find_if(*to, [](auto& inst) { return !isa<Alloca>(inst); });
     for (auto itr = from->begin(); itr != from->end();) {
