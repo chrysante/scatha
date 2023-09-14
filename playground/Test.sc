@@ -1,5 +1,27 @@
 
 
+
+
+struct X {
+    var a: bool;
+    var b: bool;
+    var c: bool;
+    var d: int;
+}
+
+fn mod(x: X) -> X {
+    x.c = true;
+    return x;
+}
+
+fn main() -> int {
+    var x: X;
+    x.d = 1;
+    return mod(x).d;
+}
+
+/*
+
 struct X {
     var y: Y;
     var i: int;
@@ -24,8 +46,6 @@ fn main(b: bool) -> int {
     let q = x;
     return z.y.j + w.k;
 }
-
-/*
 
 # phi pointers in a loop
 

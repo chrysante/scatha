@@ -129,8 +129,7 @@ static void run(ir::Module const& mod) {
     run(mod);
 
     header("After SROA");
-    opt::PassManager::makePipeline(
-        "sroa2")(ctx, mod);
+    opt::PassManager::makePipeline("sroa2")(ctx, mod);
     print(mod);
 
     run(mod);

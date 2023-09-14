@@ -89,6 +89,9 @@ struct Variable {
     ///
     utl::small_vector<Alloca*> insertedAllocas;
 
+    ///
+    utl::small_vector<size_t> slicePoints;
+
     /// Accessors for `ptrToOffsetMap` @{
     size_t getPtrOffset(Value const* ptr) const {
         auto result = tryGetPtrOffset(ptr);
@@ -275,19 +278,9 @@ static size_t computeGepOffset(GetElementPointer const* gep) {
     size_t offset = 0;
     offset += currentType->size() * gep->constantArrayIndex();
     for (size_t index: gep->memberIndices()) {
-        // clang-format off
-        SC_MATCH (*currentType) {
-            [&](StructType const& type) {
-                offset += type.memberOffsetAt(index);
-                currentType = type.memberAt(index);
-            },
-            [&](ArrayType const& type) {
-                SC_ASSERT(index < type.count(), "Index out of bounds");
-                offset += index * type.elementType()->size();
-                currentType = type.elementType();
-            },
-            [](Type const&) { SC_UNREACHABLE(); }
-        }; // clang-format on
+        auto* record = cast<RecordType const*>(currentType);
+        offset += record->offsetAt(index);
+        currentType = record->elementAt(index);
     }
     return offset;
 }
@@ -511,22 +504,30 @@ static void memTreePostorder(
                             std::span<Slice const>,
                             std::span<size_t const>)> fn) {
     utl::small_vector<size_t> indices;
-    auto itr = slices.begin();
-    auto impl = [&](auto& impl, MemberTree::Node const* node) -> void {
+    auto sliceItr = slices.begin();
+    auto impl =
+        [&](auto& impl, auto& sliceItr, MemberTree::Node const* node) -> bool {
+        bool calledAnyChildren = false;
+        auto childItr = sliceItr;
         for (auto* child: node->children()) {
             indices.push_back(child->index());
-            impl(impl, child);
+            calledAnyChildren |= impl(impl, childItr, child);
             indices.pop_back();
         }
-        if (itr != slices.end() && itr->begin() == node->begin()) {
-            auto begin = itr;
-            while (itr != slices.end() && itr->end() <= node->end()) {
-                ++itr;
-            }
-            fn(node, std::span(begin, itr), indices);
+        if (calledAnyChildren) {
+            return true;
         }
+        while (sliceItr != slices.end() && sliceItr->begin() < node->begin()) {
+            ++sliceItr;
+        }
+        auto begin = sliceItr;
+        while (sliceItr != slices.end() && sliceItr->end() <= node->end()) {
+            ++sliceItr;
+        }
+        fn(node, std::span(begin, sliceItr), indices);
+        return begin != sliceItr;
     };
-    impl(impl, tree.root());
+    impl(impl, sliceItr, tree.root());
 }
 
 bool Variable::replaceBySlices(Load* load) {
@@ -612,17 +613,6 @@ bool Variable::replaceBySlices(Store* store) {
     }
     return modified;
 }
-
-#if 0 /// Some debugging code I don't wanna throw away just jet
-for (size_t index: indices) {
-    std::cout << "." << index;
-}
-std::cout << ": ";
-for (auto slice: slices) {
-    std::cout << slice << ", ";
-}
-std::cout << std::endl;
-#endif
 
 bool Variable::promoteSlices() {
     bool modified = false;
