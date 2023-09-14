@@ -387,6 +387,18 @@ public:
                    [](auto p) -> ConstPhiMapping { return p; });
     }
 
+    auto indexedArguments() {
+        return ranges::views::zip(ranges::views::iota(size_t{ 0 }),
+                                  _preds,
+                                  operands());
+    }
+
+    auto indexedArguments() const {
+        return ranges::views::zip(ranges::views::iota(size_t{ 0 }),
+                                  _preds,
+                                  operands());
+    }
+
     size_t indexOf(BasicBlock const* predecessor) const {
         return utl::narrow_cast<size_t>(
             std::find(_preds.begin(), _preds.end(), predecessor) -

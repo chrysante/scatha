@@ -1,6 +1,7 @@
 #ifndef SCATHA_COMMON_RANGES_H_
 #define SCATHA_COMMON_RANGES_H_
 
+#include <tuple>
 #include <type_traits>
 
 #include <range/v3/view.hpp>
@@ -12,24 +13,31 @@
 
 namespace scatha {
 
-template <typename T>
+template <typename... T>
+    requires(sizeof...(T) > 0)
 inline constexpr auto Filter = ranges::views::filter(
                                    []<typename V>(V const& value) {
     using NoRef = std::remove_reference_t<V>;
     if constexpr (std::is_pointer_v<NoRef>) {
-        return isa_or_null<T>(value);
+        return (... || isa_or_null<T>(value));
     }
     else {
-        return isa<T>(value);
+        return (... || isa<T>(value));
     }
 }) | ranges::views::transform([]<typename V>(V&& value) -> decltype(auto) {
-    using NoRef = std::remove_reference_t<V>;
-    using NoPtr = std::remove_pointer_t<NoRef>;
-    if constexpr (std::is_pointer_v<NoRef>) {
-        return cast<utl::copy_cv_t<NoPtr, T>*>(value);
+    if constexpr (sizeof...(T) > 1) {
+        return std::forward<V>(value);
     }
     else {
-        return cast<utl::copy_cv_t<NoPtr, T>&>(value);
+        using NoRef = std::remove_reference_t<V>;
+        using NoPtr = std::remove_pointer_t<NoRef>;
+        using First = std::tuple_element_t<0, std::tuple<T...>>;
+        if constexpr (std::is_pointer_v<NoRef>) {
+            return cast<utl::copy_cv_t<NoPtr, First>*>(value);
+        }
+        else {
+            return cast<utl::copy_cv_t<NoPtr, First>&>(value);
+        }
     }
 });
 
@@ -45,6 +53,8 @@ SC_CASTING_RANGE_DEF(Cast, cast);
 SC_CASTING_RANGE_DEF(CastOrNull, cast_or_null);
 SC_CASTING_RANGE_DEF(DynCast, dyncast);
 SC_CASTING_RANGE_DEF(DynCastOrNull, dyncast_or_null);
+
+#undef SC_CASTING_RANGE_DEF
 
 /// View applying `std::to_address` to every element
 inline constexpr auto ToAddress = ranges::views::transform(

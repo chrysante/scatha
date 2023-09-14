@@ -82,6 +82,8 @@ SCATHA_API bool memToReg(ir::Context& context, ir::Function& function);
 /// \Returns `true` if \p function was modified in the pass.
 SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
 
+SCATHA_API bool sroa2(ir::Context& context, ir::Function& function);
+
 /// Simplify the control flow graph by merging and erasing unneeded blocks
 SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 
