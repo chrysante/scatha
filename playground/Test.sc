@@ -1,29 +1,31 @@
 
 
-#//struct X {
-#//    var y: Y;
-#//    var i: int;
-#//}
-#//
-#//struct Y {
-#//    var j: s32;
-#//    var k: s32;
-#//}
-#//
-#//fn main(b: bool) -> int {
-#//    var x: X;
-#//    x.y.j = 1;
-#//    x.y.k = 2;
-#//    x.i = 3;
-#//    var y: X;
-#//    y.y.j = 4;
-#//    y.y.k = 5;
-#//    y.i = 6;
-#//    var z: &X = b ? x : y;
-#//    let w = x.y;
-#//    let q = x;
-#//    return z.y.j + w.k;
-#//}
+struct X {
+    var y: Y;
+    var i: int;
+}
+
+struct Y {
+    var j: s32;
+    var k: s32;
+}
+
+fn main(b: bool) -> int {
+    var x: X;
+    x.y.j = 1;
+    x.y.k = 2;
+    x.i = 3;
+    var y: X;
+    y.y.j = 4;
+    y.y.k = 5;
+    y.i = 6;
+    var z: &X = b ? x : y;
+    let w = x.y;
+    let q = x;
+    return z.y.j + w.k;
+}
+
+/*
 
 # phi pointers in a loop
 
@@ -103,4 +105,8 @@ func i32 @main() {
     %ret = extract_value { i64, i32, i32 } %struct, 1
     return i32 %ret
 }
+
+*/
+
+
 

@@ -128,8 +128,9 @@ static void run(ir::Module const& mod) {
     print(mod);
     run(mod);
 
-    header("After inliner");
-    opt::PassManager::makePipeline("inline")(ctx, mod);
+    header("After SROA");
+    opt::PassManager::makePipeline(
+        "sroa2")(ctx, mod);
     print(mod);
 
     run(mod);
@@ -213,5 +214,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    irPlayground(path);
 }

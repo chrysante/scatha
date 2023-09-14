@@ -175,21 +175,21 @@ struct Variable {
     /// instructions if necessary. The analyze step makes sure that this
     /// operation is safe. After this step we can erase all phis that use the
     /// alloca
-    void rewritePhis();
+    bool rewritePhis();
     Instruction* copyInstruction(Instruction* inst, BasicBlock* dest);
 
     ///
-    void computeSlices();
+    bool computeSlices();
     std::pair<size_t, size_t> getRange(Instruction const* inst);
 
     ///
-    void replaceBySlices();
-    void replaceBySlices(Load* load);
-    void replaceBySlices(Store* store);
-    void replaceBySlices(Instruction* inst) { SC_UNREACHABLE(); }
+    bool replaceBySlices();
+    bool replaceBySlices(Load* load);
+    bool replaceBySlices(Store* store);
+    bool replaceBySlices(Instruction* inst) { SC_UNREACHABLE(); }
 
     ///
-    void promoteSlices();
+    bool promoteSlices();
 };
 
 } // namespace
@@ -197,25 +197,37 @@ struct Variable {
 bool opt::sroa2(Context& ctx, Function& function) {
     auto worklist =
         function.entry() | Filter<Alloca> | TakeAddress | ToSmallVector<>;
-    for (auto* baseAlloca: worklist) {
-        Variable var(ctx, function, baseAlloca);
-        if (!var.run()) {
-            continue;
+    bool modified = false;
+    while (!worklist.empty()) {
+        bool thisRound = false;
+        for (auto itr = worklist.begin(); itr != worklist.end(); ++itr) {
+            auto* baseAlloca = *itr;
+            if (Variable(ctx, function, baseAlloca).run()) {
+                thisRound = true;
+                *itr = worklist.back();
+                worklist.pop_back();
+                --itr;
+            }
         }
+        if (!thisRound) {
+            break;
+        }
+        modified = true;
     }
     ir::assertInvariants(ctx, function);
-    return false;
+    return modified;
 }
 
 bool Variable::run() {
     if (!analyze(baseAlloca)) {
         return false;
     }
-    rewritePhis();
-    computeSlices();
-    replaceBySlices();
-    promoteSlices();
-    return true;
+    bool modified = false;
+    modified |= rewritePhis();
+    modified |= computeSlices();
+    modified |= replaceBySlices();
+    modified |= promoteSlices();
+    return modified;
 }
 
 bool Variable::analyze(Instruction* inst) {
@@ -331,9 +343,9 @@ static void reverseBFS(Function& function,
     }
 }
 
-void Variable::rewritePhis() {
+bool Variable::rewritePhis() {
     if (phis.empty()) {
-        return;
+        return false;
     }
     /// We split critical edges so we can safely copy users of phi instructions
     /// to predecessors of the phis
@@ -407,6 +419,7 @@ void Variable::rewritePhis() {
         phi->parent()->erase(phi);
     }
     phis.clear();
+    return true;
 }
 
 Instruction* Variable::copyInstruction(Instruction* inst, BasicBlock* dest) {
@@ -434,7 +447,7 @@ static utl::small_vector<Slice> slicesInRange(size_t begin,
            ToSmallVector<>;
 }
 
-void Variable::computeSlices() {
+bool Variable::computeSlices() {
     std::set<size_t> set;
     for (auto* inst: loadsAndStores) {
         auto [begin, end] = getRange(inst);
@@ -444,9 +457,11 @@ void Variable::computeSlices() {
     auto primSlices = ranges::views::zip(set, set | ranges::views::drop(1));
     utl::small_vector<Slice> slices;
     slices.reserve(set.size() - 1);
+    bool modified = false;
     for (auto [begin, end]: primSlices) {
         Alloca* newAlloca = baseAlloca;
         if (begin != 0 || end != baseAlloca->allocatedType()->size()) {
+            modified = true;
             newAlloca = new Alloca(ctx,
                                    ctx.intConstant(end - begin, 32),
                                    ctx.intType(8),
@@ -460,6 +475,7 @@ void Variable::computeSlices() {
         auto [begin, end] = getRange(inst);
         instToSlicesMap[inst] = slicesInRange(begin, end, slices);
     }
+    return modified;
 }
 
 std::pair<size_t, size_t> Variable::getRange(Instruction const* inst) {
@@ -479,10 +495,13 @@ std::pair<size_t, size_t> Variable::getRange(Instruction const* inst) {
     }; // clang-format on
 }
 
-void Variable::replaceBySlices() {
+bool Variable::replaceBySlices() {
+    bool modified = false;
     for (auto* inst: loadsAndStores) {
-        visit(*inst, [&](auto& inst) { replaceBySlices(&inst); });
+        modified |=
+            visit(*inst, [&](auto& inst) { return replaceBySlices(&inst); });
     }
+    return modified;
 }
 
 static void memTreePostorder(
@@ -510,8 +529,9 @@ static void memTreePostorder(
     impl(impl, tree.root());
 }
 
-void Variable::replaceBySlices(Load* load) {
+bool Variable::replaceBySlices(Load* load) {
     auto tree = MemberTree::compute(load->type());
+    bool modified = false;
     Value* aggregate = ctx.undef(load->type());
     memTreePostorder(tree,
                      getSlices(load),
@@ -526,18 +546,18 @@ void Variable::replaceBySlices(Load* load) {
             SC_ASSERT(slice.begin() == node->begin() &&
                           slice.end() == node->end(),
                       "Implement this case!");
-            auto* newLoad = new Load(slice.newAlloca(),
-                                     node->type(),
-                                     std::string(load->name()));
-            load->parent()->insert(load, newLoad);
-            if (!indices.empty()) {
+            if (indices.empty()) {
+                load->setAddress(slice.newAlloca());
+            }
+            else {
+                auto* newLoad = new Load(slice.newAlloca(),
+                                         node->type(),
+                                         std::string(load->name()));
+                load->parent()->insert(load, newLoad);
                 aggregate =
                     new InsertValue(aggregate, newLoad, indices, "sroa.insert");
                 load->parent()->insert(load, cast<Instruction*>(aggregate));
-                ;
-            }
-            else {
-                aggregate = newLoad;
+                modified = true;
             }
             break;
         }
@@ -546,12 +566,16 @@ void Variable::replaceBySlices(Load* load) {
             break;
         }
     });
-    load->replaceAllUsesWith(aggregate);
-    load->parent()->erase(load);
+    if (modified) {
+        load->replaceAllUsesWith(aggregate);
+        load->parent()->erase(load);
+    }
+    return modified;
 }
 
-void Variable::replaceBySlices(Store* store) {
+bool Variable::replaceBySlices(Store* store) {
     auto tree = MemberTree::compute(store->value()->type());
+    bool modified = false;
     memTreePostorder(tree,
                      getSlices(store),
                      [&](MemberTree::Node const* node,
@@ -565,13 +589,17 @@ void Variable::replaceBySlices(Store* store) {
             SC_ASSERT(slice.begin() == node->begin() &&
                           slice.end() == node->end(),
                       "Implement this case!");
-            auto* value = store->value();
-            if (!indices.empty()) {
-                value = new ExtractValue(value, indices, "sroa.extract");
-                store->parent()->insert(store, cast<Instruction*>(value));
+            if (indices.empty()) {
+                store->setAddress(slice.newAlloca());
             }
-            auto* newStore = new Store(ctx, slice.newAlloca(), value);
-            store->parent()->insert(store, newStore);
+            else {
+                auto* extr =
+                    new ExtractValue(store->value(), indices, "sroa.extract");
+                store->parent()->insert(store, extr);
+                auto* newStore = new Store(ctx, slice.newAlloca(), extr);
+                store->parent()->insert(store, newStore);
+                modified = true;
+            }
             break;
         }
         default:
@@ -579,10 +607,13 @@ void Variable::replaceBySlices(Store* store) {
             break;
         }
     });
-    store->parent()->erase(store);
+    if (modified) {
+        store->parent()->erase(store);
+    }
+    return modified;
 }
 
-#if 0
+#if 0 /// Some debugging code I don't wanna throw away just jet
 for (size_t index: indices) {
     std::cout << "." << index;
 }
@@ -593,8 +624,10 @@ for (auto slice: slices) {
 std::cout << std::endl;
 #endif
 
-void Variable::promoteSlices() {
+bool Variable::promoteSlices() {
+    bool modified = false;
     for (auto* gep: geps) {
+        modified = true;
         gep->parent()->erase(gep);
     }
     auto const& domInfo = function.getOrComputeDomInfo();
@@ -602,7 +635,8 @@ void Variable::promoteSlices() {
         if (newAlloca == baseAlloca) {
             continue;
         }
-        tryPromoteAlloca(newAlloca, ctx, domInfo);
+        modified |= tryPromoteAlloca(newAlloca, ctx, domInfo);
     }
-    tryPromoteAlloca(baseAlloca, ctx, domInfo);
+    modified |= tryPromoteAlloca(baseAlloca, ctx, domInfo);
+    return modified;
 }
