@@ -17,7 +17,12 @@ using namespace ir;
 using namespace opt;
 
 bool opt::isPromotable(Alloca const* allocaInst) {
-    size_t size = allocaInst->allocatedType()->size();
+    auto* constantCount = dyncast<IntegralConstant const*>(allocaInst->count());
+    if (!constantCount) {
+        return false;
+    }
+    size_t size = constantCount->value().to<size_t>() *
+                  allocaInst->allocatedType()->size();
     return ranges::all_of(allocaInst->users(), [&](Instruction const* inst) {
         // clang-format off
         return SC_MATCH (*inst) {
@@ -92,6 +97,16 @@ void opt::promoteAlloca(Alloca* inst,
     info.insertPhis();
     info.rename(&function->entry());
     info.clean();
+}
+
+bool opt::tryPromoteAlloca(Alloca* inst,
+                           Context& ctx,
+                           DominanceInfo const& domInfo) {
+    if (isPromotable(inst)) {
+        promoteAlloca(inst, ctx, domInfo);
+        return true;
+    }
+    return false;
 }
 
 VariableInfo::VariableInfo(Alloca& allocaInst,

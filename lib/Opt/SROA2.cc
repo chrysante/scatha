@@ -21,12 +21,14 @@
 #include "IR/Loop.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
+#include "Opt/AllocaPromotion.h"
 #include "Opt/Common.h"
 #include "Opt/MemberTree.h"
 #include "Opt/PassRegistry.h"
 
 #include "IR/Print.h"
 #include <iostream>
+#include <termfmt/termfmt.h>
 
 using namespace scatha;
 using namespace ir;
@@ -37,8 +39,25 @@ SC_REGISTER_PASS(opt::sroa2, "sroa2");
 namespace {
 
 struct Slice {
-    size_t begin, end;
-    Alloca* newAlloca;
+    Slice(size_t begin, size_t end, Alloca* newAlloca):
+        _begin(begin), _end(end), _newAlloca(newAlloca) {}
+
+    size_t begin() const { return _begin; }
+
+    size_t end() const { return _end; }
+
+    size_t size() const { return end() - begin(); }
+
+    Alloca* newAlloca() const { return _newAlloca; }
+
+    friend std::ostream& operator<<(std::ostream& str, Slice const& slice) {
+        return str << toString(slice.newAlloca()) << " [" << slice.begin()
+                   << ", " << slice.end() << ")";
+    }
+
+private:
+    size_t _begin, _end;
+    Alloca* _newAlloca;
 };
 
 struct Variable {
@@ -63,12 +82,19 @@ struct Variable {
     /// Maps all pointer instructions to their offset into the alloca region
     utl::hashmap<Instruction const*, size_t> ptrToOffsetMap;
 
+    /// Maps load and store instructions to a range of slices that it should
+    /// load from or store to
+    utl::hashmap<Instruction const*, utl::small_vector<Slice>> instToSlicesMap;
+
+    ///
+    utl::small_vector<Alloca*> insertedAllocas;
+
+    /// Accessors for `ptrToOffsetMap` @{
     size_t getPtrOffset(Value const* ptr) const {
         auto result = tryGetPtrOffset(ptr);
         SC_ASSERT(result, "Not found");
         return *result;
     }
-
     std::optional<size_t> tryGetPtrOffset(Value const* ptr) const {
         auto* inst = dyncast<Instruction const*>(ptr);
         if (!inst) {
@@ -80,14 +106,10 @@ struct Variable {
         }
         return std::nullopt;
     }
-
     bool addPointer(Instruction* ptr, size_t offset) {
         return ptrToOffsetMap.insert({ ptr, offset }).second;
     }
-
-    /// Maps load and store instructions to a range of slices that it should
-    /// load from or store to
-    utl::hashmap<Instruction const*, utl::small_vector<Slice>> instToSlicesMap;
+    /// @}
 
     std::span<Slice const> getSlices(Instruction const* inst) const {
         auto itr = instToSlicesMap.find(inst);
@@ -162,9 +184,12 @@ struct Variable {
 
     ///
     void replaceBySlices();
-    void replaceBySlices(Load const* load);
-    void replaceBySlices(Store const* store);
-    void replaceBySlices(Instruction const* inst) { SC_UNREACHABLE(); }
+    void replaceBySlices(Load* load);
+    void replaceBySlices(Store* store);
+    void replaceBySlices(Instruction* inst) { SC_UNREACHABLE(); }
+
+    ///
+    void promoteSlices();
 };
 
 } // namespace
@@ -178,6 +203,7 @@ bool opt::sroa2(Context& ctx, Function& function) {
             continue;
         }
     }
+    ir::assertInvariants(ctx, function);
     return false;
 }
 
@@ -188,6 +214,7 @@ bool Variable::run() {
     rewritePhis();
     computeSlices();
     replaceBySlices();
+    promoteSlices();
     return true;
 }
 
@@ -210,6 +237,9 @@ bool Variable::analyzeImpl(Instruction* inst) { return false; }
 
 bool Variable::analyzeImpl(Alloca* allocaInst) {
     SC_ASSERT(allocaInst == baseAlloca, "");
+    if (!isa<IntegralConstant>(allocaInst->count())) {
+        return false;
+    }
     addPointer(allocaInst, 0);
     return analyzeUsers(allocaInst);
 }
@@ -396,11 +426,12 @@ static utl::small_vector<Slice> slicesInRange(size_t begin,
                                                      end,
                                                      ranges::less{},
                                                      &Slice::end)) |
-           ranges::views::transform(
-               [&](Slice slice) {
-        return Slice{ slice.begin - begin, slice.end - begin, slice.newAlloca };
+           ranges::views::transform([&](Slice slice) {
+               return Slice(slice.begin() - begin,
+                            slice.end() - begin,
+                            slice.newAlloca());
            }) |
-        ToSmallVector<>;
+           ToSmallVector<>;
 }
 
 void Variable::computeSlices() {
@@ -410,18 +441,21 @@ void Variable::computeSlices() {
         set.insert(begin);
         set.insert(end);
     }
-    auto slices = ranges::views::zip(set, set | ranges::views::drop(1)) |
-                  ranges::views::transform([&](auto p) {
-                      auto [begin, end] = p;
-                      auto* newAlloca =
-                          new Alloca(ctx,
-                                     ctx.intConstant(end - begin, 32),
-                                     ctx.intType(8),
-                                     utl::strcat(baseAlloca->name(), ".slice"));
-                      function.entry().insert(baseAlloca, newAlloca);
-                      return Slice{ begin, end, newAlloca };
-                  }) |
-                  ToSmallVector<>;
+    auto primSlices = ranges::views::zip(set, set | ranges::views::drop(1));
+    utl::small_vector<Slice> slices;
+    slices.reserve(set.size() - 1);
+    for (auto [begin, end]: primSlices) {
+        Alloca* newAlloca = baseAlloca;
+        if (begin != 0 || end != baseAlloca->allocatedType()->size()) {
+            newAlloca = new Alloca(ctx,
+                                   ctx.intConstant(end - begin, 32),
+                                   ctx.intType(8),
+                                   utl::strcat(baseAlloca->name(), ".slice"));
+            function.entry().insert(baseAlloca, newAlloca);
+            insertedAllocas.push_back(newAlloca);
+        }
+        slices.push_back({ begin, end, newAlloca });
+    }
     for (auto* inst: loadsAndStores) {
         auto [begin, end] = getRange(inst);
         instToSlicesMap[inst] = slicesInRange(begin, end, slices);
@@ -465,37 +499,110 @@ static void memTreePostorder(
             impl(impl, child);
             indices.pop_back();
         }
-        auto begin = itr;
-        while (itr != slices.end() && itr->end <= node->end()) {
-            ++itr;
+        if (itr != slices.end() && itr->begin() == node->begin()) {
+            auto begin = itr;
+            while (itr != slices.end() && itr->end() <= node->end()) {
+                ++itr;
+            }
+            fn(node, std::span(begin, itr), indices);
         }
-        auto end = itr;
-        utl::small_vector<Slice> ourSlices(begin, end);
-        fn(node, ourSlices, indices);
     };
     impl(impl, tree.root());
 }
 
-void Variable::replaceBySlices(Load const* load) {
-    auto slices = getSlices(load);
-    auto memberTree = MemberTree::compute(load->type());
-    print(memberTree);
-    memTreePostorder(memberTree,
-                     slices,
+void Variable::replaceBySlices(Load* load) {
+    auto tree = MemberTree::compute(load->type());
+    Value* aggregate = ctx.undef(load->type());
+    memTreePostorder(tree,
+                     getSlices(load),
                      [&](MemberTree::Node const* node,
                          std::span<Slice const> slices,
                          std::span<size_t const> indices) {
-        std::cout << "  " << *node->type() << ": ";
-        for (auto slice: slices) {
-            std::cout << "[" << slice.begin << ", " << slice.end << "), ";
+        switch (slices.size()) {
+        case 0:
+            break;
+        case 1: {
+            auto slice = slices.front();
+            SC_ASSERT(slice.begin() == node->begin() &&
+                          slice.end() == node->end(),
+                      "Implement this case!");
+            auto* newLoad = new Load(slice.newAlloca(),
+                                     node->type(),
+                                     std::string(load->name()));
+            load->parent()->insert(load, newLoad);
+            if (!indices.empty()) {
+                aggregate =
+                    new InsertValue(aggregate, newLoad, indices, "sroa.insert");
+                load->parent()->insert(load, cast<Instruction*>(aggregate));
+                ;
+            }
+            else {
+                aggregate = newLoad;
+            }
+            break;
         }
-        std::cout << std::endl;
-        std::cout << "    ";
-        for (size_t index: indices) {
-            std::cout << "." << index;
+        default:
+            SC_UNIMPLEMENTED();
+            break;
         }
-        std::cout << std::endl;
     });
+    load->replaceAllUsesWith(aggregate);
+    load->parent()->erase(load);
 }
 
-void Variable::replaceBySlices(Store const* store) {}
+void Variable::replaceBySlices(Store* store) {
+    auto tree = MemberTree::compute(store->value()->type());
+    memTreePostorder(tree,
+                     getSlices(store),
+                     [&](MemberTree::Node const* node,
+                         std::span<Slice const> slices,
+                         std::span<size_t const> indices) {
+        switch (slices.size()) {
+        case 0:
+            break;
+        case 1: {
+            auto slice = slices.front();
+            SC_ASSERT(slice.begin() == node->begin() &&
+                          slice.end() == node->end(),
+                      "Implement this case!");
+            auto* value = store->value();
+            if (!indices.empty()) {
+                value = new ExtractValue(value, indices, "sroa.extract");
+                store->parent()->insert(store, cast<Instruction*>(value));
+            }
+            auto* newStore = new Store(ctx, slice.newAlloca(), value);
+            store->parent()->insert(store, newStore);
+            break;
+        }
+        default:
+            SC_UNIMPLEMENTED();
+            break;
+        }
+    });
+    store->parent()->erase(store);
+}
+
+#if 0
+for (size_t index: indices) {
+    std::cout << "." << index;
+}
+std::cout << ": ";
+for (auto slice: slices) {
+    std::cout << slice << ", ";
+}
+std::cout << std::endl;
+#endif
+
+void Variable::promoteSlices() {
+    for (auto* gep: geps) {
+        gep->parent()->erase(gep);
+    }
+    auto const& domInfo = function.getOrComputeDomInfo();
+    for (auto* newAlloca: insertedAllocas) {
+        if (newAlloca == baseAlloca) {
+            continue;
+        }
+        tryPromoteAlloca(newAlloca, ctx, domInfo);
+    }
+    tryPromoteAlloca(baseAlloca, ctx, domInfo);
+}

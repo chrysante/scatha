@@ -27,7 +27,6 @@ SCATHA_API void print(Instruction const& inst);
 /// Print instruction \p inst to \p ostream
 SCATHA_API void print(Instruction const& inst, std::ostream& ostream);
 
-
 /// Print instruction \p inst to \p ostream
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     Instruction const& inst);
