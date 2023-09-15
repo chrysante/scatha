@@ -185,8 +185,23 @@ private:
         }
     }
 
+    template <typename F, typename... Args>
+    static auto invokeAsBool(F&& f, Args&&... args) {
+        static constexpr bool ReturnsBool = requires {
+            static_cast<bool>(
+                std::invoke(std::forward<F>(f), std::forward<Args>(args)...));
+        };
+        if constexpr (ReturnsBool) {
+            return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+        }
+        else {
+            std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+            return false;
+        }
+    }
+
     template <auto Successors, typename SELF, typename F>
-    static void bfsImpl(SELF* root, F&& f) {
+    static auto bfsImpl(SELF* root, F&& f) {
         utl::hashset<SELF*> visited;
         std::queue<SELF*> queue;
         queue.push(root);
@@ -196,7 +211,9 @@ private:
         while (!queue.empty()) {
             auto* node = queue.front();
             queue.pop();
-            std::invoke(f, node);
+            if (auto result = invokeAsBool(f, node)) {
+                return result;
+            }
             for (auto* succ: std::invoke(Successors, node)) {
                 bool vis = false;
                 if constexpr (Kind != GraphKind::Tree) {
@@ -206,6 +223,13 @@ private:
                     queue.push(succ);
                 }
             }
+        }
+        using InvokeResult = std::invoke_result_t<F&&, SELF*>;
+        if constexpr (!std::is_same_v<void, std::remove_cv_t<InvokeResult>>) {
+            return InvokeResult{};
+        }
+        else {
+            return false;
         }
     }
 
@@ -414,15 +438,17 @@ public:
     /// Traverse the tree from this node in BFS order and invoke callable \p f
     /// on every node.
     template <typename F>
-    void BFS(F&& f) {
-        this->template bfsImpl<&GraphNode::_children>(static_cast<Self*>(this),
-                                                      f);
+    auto BFS(F&& f) {
+        return this->template bfsImpl<&GraphNode::_children>(static_cast<Self*>(
+                                                                 this),
+                                                             f);
     }
 
     /// \overload
     template <typename F>
-    void BFS(F&& f) const {
-        this->template bfsImpl<&GraphNode::_children>(static_cast<Self const*>(
+    auto BFS(F&& f) const {
+        return this
+            ->template bfsImpl<&GraphNode::_children>(static_cast<Self const*>(
                                                           this),
                                                       f);
     }

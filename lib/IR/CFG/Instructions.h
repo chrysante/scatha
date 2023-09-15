@@ -1,6 +1,8 @@
 #ifndef SCATHA_IR_CFG_INSTRUCTIONS_H_
 #define SCATHA_IR_CFG_INSTRUCTIONS_H_
 
+#include <optional>
+
 #include "Common/Ranges.h"
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Instruction.h"
@@ -21,16 +23,20 @@ public:
                     std::string name);
 
     /// \returns The number of objects allocated.
-    Value* count() { return operands()[0]; }
+    Value* count() { return operandAt(0); }
 
     /// \overload
-    Value const* count() const { return operands()[0]; }
+    Value const* count() const { return operandAt(0); }
+
+    /// \Returns the allocated size if `count()` is a constant. Otherwise
+    /// returns `std::nullopt`
+    std::optional<size_t> allocatedSize() const;
 
     /// Set the number of objects allocated.
     void setCount(Value* count) { setOperand(0, count); }
 
     /// \returns The type allocated by this `alloca` instruction
-    Type const* allocatedType() const { return typeOperands()[0]; }
+    Type const* allocatedType() const { return typeOperandAt(0); }
 };
 
 /// `load` instruction. Load data from memory into a register.

@@ -43,6 +43,9 @@ public:
     /// \returns a view over the type operands of this instruction
     std::span<Type const* const> typeOperands() const { return typeOps; }
 
+    /// \returns the type operand of this instruction at index \p index
+    Type const* typeOperandAt(size_t index) const { return typeOps[index]; }
+
     /// Set the type operand at \p index to \p type
     void setTypeOperand(size_t index, Type const* type);
 

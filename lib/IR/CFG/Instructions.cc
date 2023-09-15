@@ -26,6 +26,14 @@ Alloca::Alloca(Context& context,
                 { count },
                 { allocatedType }) {}
 
+std::optional<size_t> Alloca::allocatedSize() const {
+    auto* constCount = dyncast<IntegralConstant const*>(count());
+    if (!constCount) {
+        return std::nullopt;
+    }
+    return allocatedType()->size() * constCount->value().to<size_t>();
+}
+
 void Load::setAddress(Value* address) { UnaryInstruction::setOperand(address); }
 
 Store::Store(Context& context, Value* address, Value* value):
