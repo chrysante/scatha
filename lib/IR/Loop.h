@@ -70,17 +70,17 @@ public:
 
     /// Traverse all trees in preorder
     template <std::invocable<Node const*> F>
-    void traversePreorder(F&& f) const {
+    void preorderDFS(F&& f) const {
         for (auto* root: roots()) {
-            root->traversePreorder(f);
+            root->preorderDFS(f);
         }
     }
 
     /// \overload
     template <std::invocable<Node*> F>
-    void traversePreorder(F&& f) {
+    void preorderDFS(F&& f) {
         for (auto* root: roots()) {
-            root->traversePreorder(f);
+            root->preorderDFS(f);
         }
     }
 

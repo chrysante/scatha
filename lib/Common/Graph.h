@@ -380,7 +380,7 @@ public:
     /// Traverse the tree from this node in DFS order and invoke callable \p f
     /// on every node before visiting its successors.
     template <typename F>
-    void traversePreorder(F&& f) {
+    void preorderDFS(F&& f) {
         this->template dfsImpl<TO::Preorder,
                                &GraphNode::_children>(static_cast<Self*>(this),
                                                       f);
@@ -388,7 +388,7 @@ public:
 
     /// \overload
     template <typename F>
-    void traversePreorder(F&& f) const {
+    void preorderDFS(F&& f) const {
         this->template dfsImpl<TO::Preorder, &GraphNode::_children>(
             static_cast<Self const*>(this),
             f);
@@ -397,7 +397,7 @@ public:
     /// Traverse the tree from this node in DFS order and invoke callable \p f
     /// on every node after visiting its successors.
     template <typename F>
-    void traversePostorder(F&& f) {
+    void postorderDFS(F&& f) {
         this->template dfsImpl<TO::Postorder,
                                &GraphNode::_children>(static_cast<Self*>(this),
                                                       f);
@@ -405,10 +405,26 @@ public:
 
     /// \overload
     template <typename F>
-    void traversePostorder(F&& f) const {
+    void postorderDFS(F&& f) const {
         this->template dfsImpl<TO::Postorder, &GraphNode::_children>(
             static_cast<Self const*>(this),
             f);
+    }
+
+    /// Traverse the tree from this node in BFS order and invoke callable \p f
+    /// on every node.
+    template <typename F>
+    void BFS(F&& f) {
+        this->template bfsImpl<&GraphNode::_children>(static_cast<Self*>(this),
+                                                      f);
+    }
+
+    /// \overload
+    template <typename F>
+    void BFS(F&& f) const {
+        this->template bfsImpl<&GraphNode::_children>(static_cast<Self const*>(
+                                                          this),
+                                                      f);
     }
 
 private:

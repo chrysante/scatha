@@ -350,7 +350,7 @@ void IPContext::propagate(BasicBlock* BB) {
     }
 
     /// Propagate invariants through the nodes dominated by this node
-    domTree[BB]->traversePreorder([&](DomTree::Node const* node) {
+    domTree[BB]->preorderDFS([&](DomTree::Node const* node) {
         auto* sub = node->basicBlock();
         if (BB == sub) {
             return;

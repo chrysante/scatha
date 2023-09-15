@@ -474,7 +474,7 @@ bool GVNContext::run() {
 
 void GVNContext::gatherLoops() {
     auto& LNF = function.getOrComputeLNF();
-    LNF.traversePreorder([&](LNFNode const* node) {
+    LNF.preorderDFS([&](LNFNode const* node) {
         if (!node->isProperLoop()) {
             return;
         }
