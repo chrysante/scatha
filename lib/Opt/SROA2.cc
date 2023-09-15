@@ -35,7 +35,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::sroa2, "sroa2");
+SC_REGISTER_PASS(opt::sroa, "sroa");
 
 namespace {
 
@@ -258,7 +258,7 @@ struct Variable {
 
 } // namespace
 
-bool opt::sroa2(Context& ctx, Function& function) {
+bool opt::sroa(Context& ctx, Function& function) {
     SROAContext sroaCtx;
     auto worklist =
         function.entry() | Filter<Alloca> | TakeAddress | ToSmallVector<>;

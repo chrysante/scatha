@@ -60,6 +60,7 @@ SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 SCATHA_API bool propagateConstants(ir::Context& context,
                                    ir::Function& function);
 
+/// Experimental pass, not yet usable
 SCATHA_API bool propagateInvariants(ir::Context& context,
                                     ir::Function& function);
 
@@ -79,14 +80,13 @@ SCATHA_API bool instCombine(ir::Context& context, ir::Function& function);
 SCATHA_API bool memToReg(ir::Context& context, ir::Function& function);
 
 /// Perform scalar replacement of aggregates on \p function
+/// This directly promotes allocas so it can be used for SSA construction. All
+/// the transforms performed by memToReg are also performed by SROA
 /// \Returns `true` if \p function was modified in the pass.
+/// \Note This pass may modify the CFG if pointers to allocas are passed to phi
+/// instructions through critical edges. In that case the critical edge may be
+/// split
 SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
-
-/// Perform scalar replacement of aggregates on \p function
-/// This directly promotes alloces so it can be used for SSA construction. All
-/// the transforms performed by memToReg are also performed by SROA \Returns
-/// `true` if \p function was modified in the pass.
-SCATHA_API bool sroa2(ir::Context& context, ir::Function& function);
 
 /// Simplify the control flow graph by merging and erasing unneeded blocks
 SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
