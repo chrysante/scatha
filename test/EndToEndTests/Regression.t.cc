@@ -165,3 +165,20 @@ func i64 @f-s64-s64(i64 %0, i64 %1) {
     return i64 %1
 })");
 }
+TEST_CASE("SROA being too aggressive with phi'd pointers speculatively "
+          "exectuting stores") {
+    test::checkReturns(3, R"(
+fn main() -> int {
+    var cond = true;
+    var a = 0;
+    var b = 1;
+    var c: &mut int = cond ? a : b;
+    if !cond {
+        c = 2;
+    }
+    else {
+        c = 3;
+    }
+    return c;
+})");
+}

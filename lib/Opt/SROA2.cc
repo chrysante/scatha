@@ -37,6 +37,32 @@ using namespace opt;
 
 SC_REGISTER_PASS(opt::sroa, "sroa");
 
+/// Uniform interface to get the associated type of load and store instructions
+Type const* getLSType(Instruction const* inst) {
+    // clang-format off
+    return SC_MATCH (*inst) {
+        [](Load const& load) { return load.type(); },
+        [](Store const& store) { return store.value()->type(); },
+        [](Instruction const& inst) -> Type const* { SC_UNREACHABLE(); },
+    }; // clang-format on
+}
+
+/// Uniform interface to get the associated pointer of load and store
+/// instructions
+Value const* getLSPointer(Instruction const* inst) {
+    // clang-format off
+    return SC_MATCH (*inst) {
+        [](Load const& load) { return load.address(); },
+        [](Store const& store) { return store.address(); },
+        [](Instruction const& inst) -> Value const* { SC_UNREACHABLE(); },
+    }; // clang-format on
+}
+
+/// \overload
+Value* getLSPointer(Instruction* inst) {
+    return const_cast<Value*>(getLSPointer(&std::as_const(*inst)));
+}
+
 namespace {
 
 /// Stores data that shall be available for the entire duration of the algorithm
@@ -232,6 +258,13 @@ struct Variable {
     bool analyzeImpl(GetElementPointer* gep);
     bool analyzeImpl(Phi* phi);
 
+    /// If the pointer of the instruction\p loadOrStore is derived from a phi
+    /// instruction, this function checks if the instruction post dominates the
+    /// phi. If the pointer is not derived from a phi instruction this function
+    /// always returns `true`. We need this check to prevent speculative
+    /// execution.
+    bool pointerPostdominatesPhi(Instruction* loadOrStore);
+
     /// If any phi instructions transitively use the alloca we copy the users of
     /// the phi into each of the predecessor blocks of the phi and add new phi
     /// instructions if necessary. The analyze step makes sure that this
@@ -326,6 +359,10 @@ bool Variable::analyzeImpl(Alloca* allocaInst) {
 }
 
 bool Variable::analyzeImpl(Load* load) {
+    /// TODO: Evaluate if this is really needed for loads
+    if (!pointerPostdominatesPhi(load)) {
+        return false;
+    }
     memorize(load);
     return true;
 }
@@ -334,6 +371,9 @@ bool Variable::analyzeImpl(Store* store) {
     /// If we store any pointer into the alloca to memory it escapes our
     /// analysis
     if (isPointerToOurAlloca(store->value())) {
+        return false;
+    }
+    if (!pointerPostdominatesPhi(store)) {
         return false;
     }
     memorize(store);
@@ -381,6 +421,17 @@ bool Variable::analyzeImpl(Phi* phi) {
         return analyzeUsers(phi);
     }
     return true;
+}
+
+bool Variable::pointerPostdominatesPhi(Instruction* inst) {
+    auto* ptr = getLSPointer(inst);
+    auto* phi = getAssocPhi(ptr);
+    if (!phi) {
+        return true;
+    }
+    auto& domInfo = function.getOrComputePostDomInfo();
+    auto& dominatorSet = domInfo.dominatorSet(phi->parent());
+    return dominatorSet.contains(inst->parent());
 }
 
 /// FIXME: These functions are generic and have little to do with SROA. Move
@@ -458,7 +509,7 @@ bool Variable::rewritePhis() {
                 continue;
             }
             /// If the associated phi only has one argument, we don't need to
-            /// make copy, as we can directly use that argument in our
+            /// make a copy, as we can directly use that argument in our
             /// instruction. It is also necessary to not make a copy in this
             /// case, because our predecessor might have multiple successors and
             /// we would execute this instruction speculatively in the
@@ -571,32 +622,6 @@ static utl::small_vector<Slice> slicesInRange(size_t begin,
                             slice.newAlloca());
            }) |
            ToSmallVector<>;
-}
-
-/// Uniform interface to get the associated type of load and store instructions
-Type const* getLSType(Instruction const* inst) {
-    // clang-format off
-    return SC_MATCH (*inst) {
-        [](Load const& load) { return load.type(); },
-        [](Store const& store) { return store.value()->type(); },
-        [](Instruction const& inst) -> Type const* { SC_UNREACHABLE(); },
-    }; // clang-format on
-}
-
-/// Uniform interface to get the associated pointer of load and store
-/// instructions
-Value const* getLSPointer(Instruction const* inst) {
-    // clang-format off
-    return SC_MATCH (*inst) {
-        [](Load const& load) { return load.address(); },
-        [](Store const& store) { return store.address(); },
-        [](Instruction const& inst) -> Value const* { SC_UNREACHABLE(); },
-    }; // clang-format on
-}
-
-/// \overload
-Value* getLSPointer(Instruction* inst) {
-    return const_cast<Value*>(getLSPointer(&std::as_const(*inst)));
 }
 
 bool Variable::computeSlices() {

@@ -112,8 +112,7 @@ static void run(ir::Module const& mod) {
 [[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
     header("IR Module");
-    opt::PassManager::makePipeline("unifyreturns,sroa,memtoreg,instcombine")
-        .execute(ctx, irMod);
+    opt::PassManager::makePipeline("inline(sroa)").execute(ctx, irMod);
     print(irMod);
     auto mod = cg::codegen(irMod, *std::make_unique<cg::DebugLogger>());
     header("Assembly");
@@ -129,7 +128,7 @@ static void run(ir::Module const& mod) {
     run(mod);
 
     header("After SROA");
-    opt::PassManager::makePipeline("sroa2")(ctx, mod);
+    opt::PassManager::makePipeline("sroa")(ctx, mod);
     print(mod);
 
     run(mod);

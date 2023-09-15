@@ -366,3 +366,86 @@ func i64 @main([i64, 2] %0) {
     return i64 %sroa.extract.0
 })");
 }
+
+TEST_CASE("SROA - Phi instruction with only one argument", "[opt][sroa]") {
+    test::passTest(opt::sroa,
+                   R"(
+func i32 @main() {
+%entry:
+    %local = alloca i32, i32 1
+    store ptr %local, i32 1
+    branch i1 1, label %then, label %else
+    
+%then:
+    %p = phi ptr [label %entry: %local]
+    goto label %cond.end
+
+%else:
+    goto label %cond.end
+
+%cond.end:
+    %q = phi ptr [label %then: %p], [label %else: %local]
+    %res = load i32, ptr %q
+    return i32 %res
+})",
+                   R"(
+func i32 @main() {
+  %entry:
+    branch i1 1, label %then, label %else
+
+  %then:                      # preds: entry
+    goto label %cond.end
+
+  %else:                      # preds: entry
+    goto label %cond.end
+
+  %cond.end:                  # preds: then, else
+    %res.phi.0 = phi i32 [label %then : 1], [label %else : 1]
+    return i32 %res.phi.0
+})");
+}
+
+TEST_CASE("SROA - Phi alloca pointer with opaque pointer", "[opt][sroa]") {
+    test::passTest(opt::sroa,
+                   R"(
+func i64 @test(i1 %0, ptr %1) {
+%entry:
+    %local = alloca i64, i32 1
+    branch i1 %0, label %then, label %else
+    
+%then:
+    goto label %if.end
+
+%else:
+    goto label %if.end
+
+%if.end:
+    %p = phi ptr [label %then: %1], [label %else: %local]
+    store ptr %p, i64 1
+    goto label %end
+
+%end:
+    %ret = load i64, ptr %p
+    return i64 %ret
+})",
+                   R"(
+func i64 @test(i1 %0, ptr %1) {
+  %entry:
+    branch i1 %0, label %then, label %else
+
+  %then:                      # preds: entry
+    store ptr %1, i64 1
+    %ret.1 = load i64, ptr %1
+    goto label %if.end
+
+  %else:                      # preds: entry
+    goto label %if.end
+
+  %if.end:                    # preds: then, else
+    %ret.phi.0 = phi i64 [label %then : %ret.1], [label %else : 1]
+    goto label %end
+
+  %end:                       # preds: if.end
+    return i64 %ret.phi.0
+})");
+}
