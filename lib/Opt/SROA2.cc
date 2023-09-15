@@ -115,11 +115,8 @@ struct Variable {
     /// load from or store to
     utl::hashmap<Instruction const*, utl::small_vector<Slice>> instToSlicesMap;
 
-    ///
+    /// All intermediate alloca instructions created for our slices
     utl::small_vector<Alloca*> insertedAllocas;
-
-    ///
-    utl::small_vector<size_t> slicePoints;
 
     /// Accessors for `ptrToOffsetMap` @{
     size_t getPtrOffset(Value const* ptr) const {
@@ -127,6 +124,7 @@ struct Variable {
         SC_ASSERT(result, "Not found");
         return *result;
     }
+
     std::optional<size_t> tryGetPtrOffset(Value const* ptr) const {
         auto* inst = dyncast<Instruction const*>(ptr);
         if (!inst) {
@@ -138,6 +136,11 @@ struct Variable {
         }
         return std::nullopt;
     }
+
+    bool isPointerToOurAlloca(Value const* ptr) const {
+        return tryGetPtrOffset(ptr).has_value();
+    }
+
     bool addPointer(Instruction* ptr, size_t offset) {
         return ptrToOffsetMap.insert({ ptr, offset }).second;
     }
@@ -399,7 +402,7 @@ bool Variable::rewritePhis() {
                           "would not be executed.");
                 auto* copy = copyInstruction(&inst, pred);
                 toCopyMap[{ pred, &inst }] = copy;
-                if (tryGetPtrOffset(phiArgument)) {
+                if (isPointerToOurAlloca(phiArgument)) {
                     memorize(copy);
                 }
                 for (auto [index, operand]:
@@ -488,6 +491,22 @@ Type const* getLSType(Instruction const* inst) {
     }; // clang-format on
 }
 
+/// Uniform interface to get the associated pointer of load and store
+/// instructions
+Value const* getLSPointer(Instruction const* inst) {
+    // clang-format off
+    return SC_MATCH (*inst) {
+        [](Load const& load) { return load.address(); },
+        [](Store const& store) { return store.address(); },
+        [](Instruction const& inst) -> Value const* { SC_UNREACHABLE(); },
+    }; // clang-format on
+}
+
+/// \overload
+Value* getLSPointer(Instruction* inst) {
+    return const_cast<Value*>(getLSPointer(&std::as_const(*inst)));
+}
+
 bool Variable::computeSlices() {
     utl::hashset<size_t> set;
     /// We insert all the slice points at the positions that we directly load
@@ -503,18 +522,19 @@ bool Variable::computeSlices() {
     /// store all siblings
     for (auto* inst: loadsAndStores) {
         auto& tree = sroa.getMemberTree(getLSType(inst));
+        size_t const offset = getPtrOffset(getLSPointer(inst));
         utl::small_vector<MemberTree::Node const*> criticalSlicePoints;
         tree.root()->preorderDFS([&](MemberTree::Node const* node) {
             if (!node->parent()) {
                 return;
             }
             if (node->begin() != node->parent()->begin() &&
-                set.contains(node->begin()))
+                set.contains(offset + node->begin()))
             {
                 criticalSlicePoints.push_back(node);
             }
             if (node->end() != node->parent()->end() &&
-                set.contains(node->end()))
+                set.contains(offset + node->end()))
             {
                 criticalSlicePoints.push_back(node);
             }
@@ -525,8 +545,8 @@ bool Variable::computeSlices() {
                       "node should not be in the list if it does not have a "
                       "parent, see check above");
             for (auto* node: parent->children()) {
-                set.insert(node->begin());
-                set.insert(node->end());
+                set.insert(offset + node->begin());
+                set.insert(offset + node->end());
             }
         }
     }
@@ -559,20 +579,8 @@ bool Variable::computeSlices() {
 }
 
 std::pair<size_t, size_t> Variable::getRange(Instruction const* inst) {
-    // clang-format off
-    return SC_MATCH (*inst) {
-        [&](Load const& load) {
-            size_t offset = getPtrOffset(load.address());
-            return std::pair{ offset, offset + load.type()->size() };
-        },
-        [&](Store const& store) {
-            size_t offset = getPtrOffset(store.address());
-            return std::pair{ offset, offset + store.value()->type()->size() };
-        },
-        [&](Instruction const& inst) -> std::pair<size_t, size_t> {
-            SC_UNREACHABLE();
-        }
-    }; // clang-format on
+    size_t offset = getPtrOffset(getLSPointer(inst));
+    return std::pair{ offset, offset + getLSType(inst)->size() };
 }
 
 bool Variable::replaceBySlices() {

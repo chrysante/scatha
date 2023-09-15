@@ -5,6 +5,9 @@
 
 namespace scatha::opt {
 
+/// FIXME: We could proably speed up the promotion algorithm if we batch
+/// promotions and promote multiple allocas at the same time
+
 /// Checks whether \p allocaInst is promotable to SSA form
 bool isPromotable(ir::Alloca const* allocaInst);
 

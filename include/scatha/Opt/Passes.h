@@ -82,6 +82,10 @@ SCATHA_API bool memToReg(ir::Context& context, ir::Function& function);
 /// \Returns `true` if \p function was modified in the pass.
 SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
 
+/// Perform scalar replacement of aggregates on \p function
+/// This directly promotes alloces so it can be used for SSA construction. All
+/// the transforms performed by memToReg are also performed by SROA \Returns
+/// `true` if \p function was modified in the pass.
 SCATHA_API bool sroa2(ir::Context& context, ir::Function& function);
 
 /// Simplify the control flow graph by merging and erasing unneeded blocks
