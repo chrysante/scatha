@@ -75,8 +75,8 @@ struct Variable {
     /// All the phis that (transitively) use our alloca
     utl::hashset<Phi*> phis;
 
-    /// Maps loads, stores and geps to the phi node that transitively get their
-    /// pointer from
+    /// Maps loads, stores and geps to the phi node that they (transitively) get
+    /// their pointer from
     utl::hashmap<Instruction*, Phi*> assocPhis;
 
     /// Maps all pointer instructions to their offset into the alloca region
@@ -126,7 +126,12 @@ struct Variable {
         LNF(function.getOrComputeLNF()),
         baseAlloca(baseAlloca) {}
 
-    Phi* getAssocPhi(Instruction* inst) const {
+    /// \Returns the associated phi instruction or \p inst if \p inst is a phi
+    Phi* getAssocPhi(Value* value) const {
+        if (auto* phi = dyncast<Phi*>(value)) {
+            return phi;
+        }
+        auto* inst = dyncast<Instruction*>(value);
         auto itr = assocPhis.find(inst);
         if (itr != assocPhis.end()) {
             return itr->second;
@@ -239,9 +244,7 @@ bool Variable::analyze(Instruction* inst) {
 
 bool Variable::analyzeUsers(Instruction* inst) {
     return ranges::all_of(inst->users(), [&](auto* user) {
-        if (Phi* phi = nullptr;
-            (phi = dyncast<Phi*>(inst)) || (phi = getAssocPhi(inst)))
-        {
+        if (auto* phi = getAssocPhi(inst)) {
             assocPhis[user] = phi;
         }
         return analyze(user);
@@ -344,7 +347,7 @@ bool Variable::rewritePhis() {
     /// to predecessors of the phis
     splitCriticalEdges(ctx, function);
     utl::small_vector<Instruction*> toErase;
-    utl::hashmap<std::pair<BasicBlock*, Instruction*>, Instruction*> toCopyMap;
+    utl::hashmap<std::pair<BasicBlock*, Value*>, Instruction*> toCopyMap;
     reverseBFS(function, [&](BasicBlock* BB) {
         for (auto& inst: *BB | Filter<Load, Store, GetElementPointer>) {
             auto* phi = getAssocPhi(&inst);
@@ -355,37 +358,32 @@ bool Variable::rewritePhis() {
             /// We make copies of the instructions in each of the predecessor
             /// blocks of the phi
             utl::small_vector<PhiMapping> newPhiArgs;
-            for (auto [pred, value]: phi->arguments()) {
+            for (auto [pred, phiArgument]: phi->arguments()) {
                 auto* copy = copyInstruction(&inst, pred);
                 toCopyMap[{ pred, &inst }] = copy;
-                if (tryGetPtrOffset(value)) {
+                if (tryGetPtrOffset(phiArgument)) {
                     memorize(copy);
                 }
                 for (auto [index, operand]:
                      copy->operands() | ranges::views::enumerate)
                 {
                     if (operand == phi) {
-                        copy->setOperand(index, value);
+                        copy->setOperand(index, phiArgument);
                         continue;
                     }
-                    auto itr = toCopyMap.find(
-                        { pred, dyncast<Instruction*>(operand) });
+                    auto itr = toCopyMap.find({ pred, operand });
                     if (itr != toCopyMap.end()) {
                         copy->setOperand(index, itr->second);
                     }
+                }
+                newPhiArgs.push_back({ pred, copy });
+                if (auto* assocPhi = getAssocPhi(phiArgument)) {
+                    assocPhis[copy] = assocPhi;
                 }
                 if (auto* gep = dyncast<GetElementPointer*>(copy)) {
                     if (auto baseOffset = tryGetPtrOffset(gep->basePointer())) {
                         addPointer(gep, *baseOffset + computeGepOffset(gep));
                     }
-                }
-                newPhiArgs.push_back({ pred, copy });
-                if (auto* assocPhi = getAssocPhi(dyncast<Instruction*>(value)))
-                {
-                    assocPhis[copy] = assocPhi;
-                }
-                if (auto* assocPhi = dyncast<Phi*>(value)) {
-                    assocPhis[copy] = assocPhi;
                 }
             }
             /// If the instruction is a load we phi the copied loads together
