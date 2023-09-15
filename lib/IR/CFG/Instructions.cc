@@ -127,6 +127,10 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
     setOperands(std::move(ops));
 }
 
+BasicBlock const* TerminatorInst::targetAt(size_t index) const {
+    return targets()[index];
+}
+
 void TerminatorInst::updateTarget(BasicBlock* oldTarget,
                                   BasicBlock* newTarget) {
     updateOperand(oldTarget, newTarget);

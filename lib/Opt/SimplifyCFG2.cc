@@ -45,10 +45,18 @@ struct SCFGContext {
         worklist(function | TakeAddress |
                  ranges::to<utl::hashset<BasicBlock*>>) {}
 
+    /// Runs the algorithm
     bool run();
 
+    /// Try to fold \p BB if it is (nearly) empty and merge the successor and
+    /// predecessor blocks if possible
     bool foldIfEmpty(BasicBlock* BB);
 
+    /// Merge single predecessor - single successor edges
+    bool foldIntoSinglePred(BasicBlock* BB);
+
+    /// \Returns `true` if we tolerate the speculative execution of \p BB on
+    /// execution paths that would otherwise not enter \p BB
     bool canExecuteSpeculatively(BasicBlock const* BB);
 };
 
@@ -64,6 +72,10 @@ bool SCFGContext::run() {
         auto* BB = *worklist.begin();
         worklist.erase(worklist.begin());
         if (foldIfEmpty(BB)) {
+            modified = true;
+            continue;
+        }
+        if (foldIntoSinglePred(BB)) {
             modified = true;
             continue;
         }
@@ -161,13 +173,37 @@ bool SCFGContext::foldIfEmpty(BasicBlock* BB) {
     worklist.erase(pred);
     /// And insert `succ` and its new predecessors into the worklist
     worklist.insert(succ);
-    ranges::for_each(succ->predecessors(),
-                     [&](auto* pred) { worklist.insert(pred); });
+    worklist.insert(succ->predecessors().begin(), succ->predecessors().end());
+    return true;
+}
+
+bool SCFGContext::foldIntoSinglePred(BasicBlock* BB) {
+    auto* pred = BB->singlePredecessor();
+    if (!pred || pred->terminator()->numTargets() > 1) {
+        return false;
+    }
+    /// `pred` has only a single successor and is the only predecessor of `BB`,
+    /// so we can safely fold `BB` into `pred`
+    /// ```
+    /// pred
+    ///  |
+    ///  BB
+    /// ```
+    eraseSingleValuePhiNodes(BB);
+    pred->erase(pred->terminator());
+    pred->splice(pred->end(), BB->begin(), BB->end());
+    for (auto* succ: pred->successors()) {
+        succ->updatePredecessor(BB, pred);
+        worklist.insert(succ);
+    }
+    worklist.insert(pred);
+    function.erase(BB);
     return true;
 }
 
 bool SCFGContext::canExecuteSpeculatively(BasicBlock const* BB) {
     size_t count = 0;
+    size_t const MaxInstructionSpec = 4;
     for (auto& inst: *BB) {
         if (isa<TerminatorInst>(inst)) {
             break;
@@ -176,7 +212,7 @@ bool SCFGContext::canExecuteSpeculatively(BasicBlock const* BB) {
             return false;
         }
         ++count;
-        if (count > 4) {
+        if (count > MaxInstructionSpec) {
             return false;
         }
     }

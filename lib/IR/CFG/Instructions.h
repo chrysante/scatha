@@ -190,6 +190,14 @@ public:
 
     auto targets() const { return targetsImpl<BasicBlock const>(*this); }
 
+    BasicBlock* targetAt(size_t index) {
+        return const_cast<BasicBlock*>(std::as_const(*this).targetAt(index));
+    }
+
+    BasicBlock const* targetAt(size_t index) const;
+
+    size_t numTargets() const { return targets().size(); }
+
     void updateTarget(BasicBlock* oldTarget, BasicBlock* newTarget);
 
     void setTarget(size_t index, BasicBlock* bb);
