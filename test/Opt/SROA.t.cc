@@ -59,33 +59,15 @@ struct @X {
 }
 func i64 @main() {
   %entry:
-    %data.1 = alloca i64, i32 1
-    %data.3 = alloca i64, i32 1
-    %data.5 = alloca i64, i32 1
-    %data.7 = alloca i64, i32 1
-
     %x.tmp = insert_value @X undef, i64 1, 0
     %x = insert_value @X %x.tmp, i64 2, 1
-
     %y.tmp = insert_value @X undef, i64 1, 0
     %y = insert_value @X %y.tmp, i64 2, 1
-
-    %data.9 = extract_value @X %x, 0
-    store ptr %data.1, i64 %data.9
-
-    %data.11 = extract_value @X %x, 1
-    store ptr %data.3, i64 %data.11
-
-    %data.13 = extract_value @X %y, 0
-    store ptr %data.5, i64 %data.13
-
-    %data.15 = extract_value @X %y, 1
-    store ptr %data.7, i64 %data.15
-
-    %lhs = load i64, ptr %data.3
-    %rhs = load i64, ptr %data.5
-    %res = add i64 %lhs, i64 %rhs
-
+    %sroa.extract.0 = extract_value @X %x, 0
+    %sroa.extract.2 = extract_value @X %x, 1
+    %sroa.extract.4 = extract_value @X %y, 0
+    %sroa.extract.6 = extract_value @X %y, 1
+    %res = add i64 %sroa.extract.2, i64 %sroa.extract.4
     return i64 %res
 })");
 }
@@ -113,17 +95,9 @@ struct @X {
 }
 func i64 @f(@X %0) {
   %entry:
-    %r = alloca i64, i32 1
-    %x.2 = alloca i1, i32 1
-    %x.4 = alloca i64, i32 1
-    %x.6 = extract_value @X %0, 0
-    store ptr %x.2, i1 %x.6
-    %x.8 = extract_value @X %0, 1
-    store ptr %x.4, i64 %x.8
-    %x.1.value = load i64, ptr %x.4
-    store ptr %r, i64 %x.1.value
-    %ret = load i64, ptr %r
-    return i64 %ret
+    %sroa.extract.0 = extract_value @X %0, 0
+    %sroa.extract.2 = extract_value @X %0, 1
+    return i64 %sroa.extract.2
 })");
 }
 
@@ -170,40 +144,27 @@ func i64 @main(i1 %cond) {
 })",
                    R"(
 struct @X {
-  i64,
-  i64,
-  i64
+    i64, i64, i64
 }
 func i64 @main(i1 %cond) {
   %entry:
-    %a.1 = alloca i64, i32 1
-    %a.3 = alloca i64, i32 1
-    %a.5 = alloca i64, i32 1
     %i = insert_value @X undef, i64 3, 2
-    %a.7 = extract_value @X %i, 0
-    store ptr %a.1, i64 %a.7
-    %a.9 = extract_value @X %i, 1
-    store ptr %a.3, i64 %a.9
-    %a.11 = extract_value @X %i, 2
-    store ptr %a.5, i64 %a.11
+    %sroa.extract.0 = extract_value @X %i, 0
+    %sroa.extract.2 = extract_value @X %i, 1
+    %sroa.extract.4 = extract_value @X %i, 2
     branch i1 %cond, label %if, label %then
 
   %if:                        # preds: entry
-    store ptr %a.1, i64 1
-    store ptr %a.3, i64 2
     goto label %end
 
   %then:                      # preds: entry
-    store ptr %a.1, i64 5
-    store ptr %a.3, i64 6
     goto label %end
 
   %end:                       # preds: if, then
-    %x = load i64, ptr %a.1
-    %y = load i64, ptr %a.3
-    %z = load i64, ptr %a.5
-    %r.0 = add i64 %x, i64 %y
-    %r.1 = add i64 %r.0, i64 %z
+    %a.slice.6 = phi i64 [label %if : 2], [label %then : 6]
+    %a.slice.5 = phi i64 [label %if : 1], [label %then : 5]
+    %r.0 = add i64 %a.slice.5, i64 %a.slice.6
+    %r.1 = add i64 %r.0, i64 %sroa.extract.4
     return i64 %r.1
 })");
 }
@@ -240,32 +201,19 @@ func void @takeX(@X %0) {
 })",
                    R"(
 struct @X {
-  i64,
-  i64,
-  i64
+    i64, i64, i64
 }
 func i64 @main(i1 %cond) {
   %entry:
-    %array_2.0 = alloca i64, i32 1
-    %array_0.2 = alloca i64, i32 1
-    %array_1.2 = alloca i64, i32 1
-    %array_2.2 = alloca i64, i32 1
-    %x.1.value.1 = load i64, ptr %array_0.2
-    %x.1.value.3 = insert_value @X undef, i64 %x.1.value.1, 0
-    %x.1.value.5 = load i64, ptr %array_1.2
-    %x.1.value.7 = insert_value @X %x.1.value.3, i64 %x.1.value.5, 1
-    %x.1.value.9 = load i64, ptr %array_2.2
-    %x.1.value.11 = insert_value @X %x.1.value.7, i64 %x.1.value.9, 2
-    call void @takeX, @X %x.1.value.11
-    store ptr %array_1.2, i64 5
-    store ptr %array_2.0, i64 3
+    %sroa.insert.0 = insert_value @X undef, i64 undef, 0
+    %sroa.insert.2 = insert_value @X %sroa.insert.0, i64 undef, 1
+    %sroa.insert.4 = insert_value @X %sroa.insert.2, i64 undef, 2
+    call void @takeX, @X %sroa.insert.4
     goto label %end
 
   %end:                       # preds: entry
-    %a = load i64, ptr %array_1.2
-    %b = load i64, ptr %array_2.0
-    %res = add i64 %a, i64 %b
-    return i64 %b
+    %res = add i64 5, i64 3
+    return i64 3
 }
 func void @takeX(@X %0) {
   %entry:
@@ -274,9 +222,11 @@ func void @takeX(@X %0) {
 }
 
 TEST_CASE("SROA - Override one struct member", "[opt][sroa]") {
-    test::passTest(sroaAndMemToReg,
+    test::passTest(opt::sroa,
                    R"(
-struct @X { i64, i64, i64 }
+struct @X {
+    i64, i64, i64
+}
 func @X @main(@X %0) {
   %entry:
     %data = alloca @X, i32 1
@@ -287,21 +237,23 @@ func @X @main(@X %0) {
     return @X %result
 })",
                    R"(
-struct @X { i64, i64, i64 }
+struct @X {
+    i64, i64, i64
+}
 func @X @main(@X %0) {
   %entry:
-    %data.7 = extract_value @X %0, 0
-    %data.9 = extract_value @X %0, 1
-    %data.11 = extract_value @X %0, 2
-    %result.3 = insert_value @X undef, i64 %data.7, 0
-    %result.7 = insert_value @X %result.3, i64 %data.9, 1
-    %result.11 = insert_value @X %result.7, i64 1, 2
-    return @X %result.11
+    %sroa.extract.0 = extract_value @X %0, 0
+    %sroa.extract.2 = extract_value @X %0, 1
+    %sroa.extract.4 = extract_value @X %0, 2
+    %sroa.insert.0 = insert_value @X undef, i64 %sroa.extract.0, 0
+    %sroa.insert.2 = insert_value @X %sroa.insert.0, i64 %sroa.extract.2, 1
+    %sroa.insert.4 = insert_value @X %sroa.insert.2, i64 1, 2
+    return @X %sroa.insert.4
 })");
 }
 
 TEST_CASE("SROA - Store array, load element", "[opt][sroa]") {
-    test::passTest(sroaAndMemToReg,
+    test::passTest(opt::sroa,
                    R"(
 func i64 @main([i64, 2] %0) {
   %entry:
@@ -321,7 +273,7 @@ func i64 @main([i64, 2] %0) {
 }
 
 TEST_CASE("SROA - Store array, load nested element", "[opt][sroa]") {
-    test::passTest(sroaAndMemToReg,
+    test::passTest(opt::sroa,
                    R"(
 struct @X { i32, i32 }
 func i32 @main([@X, 2] %0) {
@@ -336,16 +288,15 @@ func i32 @main([@X, 2] %0) {
 struct @X { i32, i32 }
 func i32 @main([@X, 2] %0) {
   %entry:
-    %0.1 = extract_value [@X, 2] %0, 0
-    %0.3 = extract_value [@X, 2] %0, 1
-    %data.7 = extract_value @X %0.3, 0
-    %data.9 = extract_value @X %0.3, 1
-    return i32 %data.7
+    %sroa.extract.0 = extract_value [@X, 2] %0, 0
+    %sroa.extract.2 = extract_value [@X, 2] %0, 1, 0
+    %sroa.extract.4 = extract_value [@X, 2] %0, 1, 1
+    return i32 %sroa.extract.2
 })");
 }
 
 TEST_CASE("SROA - Store elements, load array", "[opt][sroa]") {
-    test::passTest(sroaAndMemToReg,
+    test::passTest(opt::sroa,
                    R"(
 func [i64, 2] @main(i64 %0, i64 %1) {
   %entry:
@@ -360,16 +311,18 @@ func [i64, 2] @main(i64 %0, i64 %1) {
                    R"(
 func [i64, 2] @main(i64 %0, i64 %1) {
   %entry:
-    %result.3 = insert_value [i64, 2] undef, i64 %1, 0
-    %result.7 = insert_value [i64, 2] %result.3, i64 %0, 1
-    return [i64, 2] %result.7
+    %sroa.insert.0 = insert_value [i64, 2] undef, i64 %1, 0
+    %sroa.insert.2 = insert_value [i64, 2] %sroa.insert.0, i64 %0, 1
+    return [i64, 2] %sroa.insert.2
 })");
 }
 
 TEST_CASE("SROA - Store nested elements, load array", "[opt][sroa]") {
-    test::passTest(sroaAndMemToReg,
+    test::passTest(opt::sroa,
                    R"(
-struct @X { i64, i64 }
+struct @X {
+    i64, i64
+}
 func [@X, 2] @main(@X %0, i64 %1, i64 %2) {
   %entry:
     %data = alloca [@X, 2]
@@ -383,19 +336,20 @@ func [@X, 2] @main(@X %0, i64 %1, i64 %2) {
     return [@X, 2] %result
 })",
                    R"(
-struct @X { i64, i64 }
+struct @X {
+    i64, i64
+}
 func [@X, 2] @main(@X %0, i64 %1, i64 %2) {
   %entry:
-    %result.3 = insert_value [@X, 2] undef, @X %0, 0
-    %result.7 = insert_value @X undef, i64 %1, 0
-    %result.11 = insert_value @X %result.7, i64 %2, 1
-    %result.13 = insert_value [@X, 2] %result.3, @X %result.11, 1
-    return [@X, 2] %result.13
+    %sroa.insert.0 = insert_value [@X, 2] undef, @X %0, 0
+    %sroa.insert.2 = insert_value [@X, 2] %sroa.insert.0, i64 %1, 1, 0
+    %sroa.insert.4 = insert_value [@X, 2] %sroa.insert.2, i64 %2, 1, 1
+    return [@X, 2] %sroa.insert.4
 })");
 }
 
 TEST_CASE("SROA - Access nodes generated from store", "[opt][sroa]") {
-    test::passTest(sroaAndMemToReg,
+    test::passTest(opt::sroa,
                    R"(
 func i64 @main([i64, 2] %0) {
   %entry:
@@ -407,8 +361,8 @@ func i64 @main([i64, 2] %0) {
                    R"(
 func i64 @main([i64, 2] %0) {
   %entry:
-    %0.1 = extract_value [i64, 2] %0, 0
-    %0.3 = extract_value [i64, 2] %0, 1
-    return i64 %0.1
+    %sroa.extract.0 = extract_value [i64, 2] %0, 0
+    %sroa.extract.2 = extract_value [i64, 2] %0, 1
+    return i64 %sroa.extract.0
 })");
 }

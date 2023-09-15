@@ -110,7 +110,7 @@ struct Variable {
     utl::hashmap<Instruction*, Phi*> assocPhis;
 
     /// Maps all pointer instructions to their offset into the alloca region
-    utl::hashmap<Instruction const*, size_t> ptrToOffsetMap;
+    utl::hashmap<Instruction const*, std::optional<size_t>> ptrToOffsetMap;
 
     /// Maps load and store instructions to a range of slices that it should
     /// load from or store to
@@ -120,12 +120,16 @@ struct Variable {
     utl::small_vector<Alloca*> insertedAllocas;
 
     /// Accessors for `ptrToOffsetMap` @{
+    /// \Returns the offset of \p ptr into our alloca region. \p ptr must be
+    /// registered and have a valid offset
     size_t getPtrOffset(Value const* ptr) const {
         auto result = tryGetPtrOffset(ptr);
         SC_ASSERT(result, "Not found");
         return *result;
     }
 
+    /// \Returns the offset of \p ptr into our alloca region if any offset is
+    /// registered
     std::optional<size_t> tryGetPtrOffset(Value const* ptr) const {
         auto* inst = dyncast<Instruction const*>(ptr);
         if (!inst) {
@@ -138,12 +142,20 @@ struct Variable {
         return std::nullopt;
     }
 
+    /// \Returns `true` if \p ptr is a pointer into our alloca region
     bool isPointerToOurAlloca(Value const* ptr) const {
         return tryGetPtrOffset(ptr).has_value();
     }
 
-    bool addPointer(Instruction* ptr, size_t offset) {
+    /// Register \p ptr as a pointer into our alloca region
+    bool addPointer(Instruction* ptr, std::optional<size_t> offset) {
         return ptrToOffsetMap.insert({ ptr, offset }).second;
+    }
+
+    /// Override the stored pointer offset of \p ptr with \p offset
+    /// Adds \p ptr if not registered before
+    void setPointerOffset(Instruction* ptr, size_t offset) {
+        ptrToOffsetMap[ptr] = offset;
     }
     /// @}
 
@@ -321,7 +333,7 @@ bool Variable::analyzeImpl(Load* load) {
 bool Variable::analyzeImpl(Store* store) {
     /// If we store any pointer into the alloca to memory it escapes our
     /// analysis
-    if (ptrToOffsetMap.contains(store->value())) {
+    if (isPointerToOurAlloca(store->value())) {
         return false;
     }
     memorize(store);
@@ -351,7 +363,7 @@ bool Variable::analyzeImpl(GetElementPointer* gep) {
                    getPtrOffset(gep->basePointer()) + computeGepOffset(gep));
     }
     else {
-        addPointer(gep, size_t(-1));
+        addPointer(gep, std::nullopt);
     }
     if (memorize(gep)) {
         return analyzeUsers(gep);
@@ -448,13 +460,20 @@ bool Variable::rewritePhis() {
             /// If the associated phi only has one argument, we don't need to
             /// make copy, as we can directly use that argument in our
             /// instruction. It is also necessary to not make a copy in this
-            /// case, because then our predecessor might have multiple
-            /// successors and we would execute this instruction speculatively
+            /// case, because our predecessor might have multiple successors and
+            /// we would execute this instruction speculatively in the
+            /// predecessor
             if (phi->operands().size() == 1) {
                 auto* phiArgument = phi->operandAt(0);
-                inst.updateOperand(phi, phiArgument);
+                inst.tryUpdateOperand(phi, phiArgument);
                 if (auto* assocPhi = getAssocPhi(phiArgument)) {
                     assocPhis[&inst] = assocPhi;
+                }
+                if (auto* gep = dyncast<GetElementPointer*>(&inst)) {
+                    if (auto baseOffset = tryGetPtrOffset(gep->basePointer())) {
+                        setPointerOffset(&inst,
+                                         *baseOffset + computeGepOffset(gep));
+                    }
                 }
                 continue;
             }
@@ -628,7 +647,7 @@ bool Variable::computeSlices() {
     auto primSlices =
         ranges::views::zip(sortedSet, sortedSet | ranges::views::drop(1));
     utl::small_vector<Slice> slices;
-    slices.reserve(sortedSet.size() - 1);
+    slices.reserve(primSlices.size());
     bool modified = false;
     for (auto [begin, end]: primSlices) {
         Alloca* newAlloca = baseAlloca;

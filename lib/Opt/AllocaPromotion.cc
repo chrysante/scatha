@@ -286,26 +286,29 @@ void VariableInfo::rename(BasicBlock* BB) {
             continue;
         }
         if (auto* phi = getPhi(succ)) {
-            phi->setArgument(BB, versions[stack.top()]);
+            auto* argument = versions[stack.top()];
+            phi->setArgument(BB, argument);
+            /// This is a preliminary hack to make sure the phi instructions
+            /// have the correct type. This does not work if we use memory for
+            /// type punning.
+            phi->setType(argument->type());
         }
     }
     for (auto* succ: BB->successors()) {
         rename(succ);
     }
     for (auto& inst: *BB) {
-        auto* ourPhi = getPhi(BB);
         // clang-format off
-        // TODO: Rename to isDef??
-        bool isPartOfThis = SC_MATCH (inst) {
+        bool isDef = SC_MATCH (inst) {
             [&](Phi& phi) {
-                return &phi == ourPhi;
+                return &phi == getPhi(BB);
             },
             [&](Store& store) {
                 return address == dyncast<Alloca*>(store.address());
             },
             [&](Instruction const& inst) { return false; }
         }; // clang-format on
-        if (isPartOfThis) {
+        if (isDef) {
             stack.pop();
         }
     }
