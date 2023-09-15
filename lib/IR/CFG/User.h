@@ -34,10 +34,15 @@ public:
     /// \p operand may be `nullptr`.
     void setOperand(size_t index, Value* operand);
 
-    /// Find \p oldOperand and replace it with \p newOperand
+    /// Replaces all uses of \p oldOperand with \p newOperand
     /// User lists are updated.
     /// \pre \p oldOperand must be an operand of this user.
     void updateOperand(Value const* oldOperand, Value* newOperand);
+
+    /// Replaces all uses of \p oldOperand with \p newOperand
+    /// User lists are updated.
+    /// \Returns `true` if any operands have been updated.
+    bool tryUpdateOperand(Value const* oldOperand, Value* newOperand);
 
     /// Set all operands to `nullptr`.
     /// User lists are updated.

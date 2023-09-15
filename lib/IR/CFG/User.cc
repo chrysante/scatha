@@ -38,14 +38,19 @@ void User::setOperands(utl::small_vector<Value*> operands) {
 }
 
 void User::updateOperand(Value const* oldOperand, Value* newOperand) {
-    bool leastOne = false;
+    [[maybe_unused]] bool result = tryUpdateOperand(oldOperand, newOperand);
+    SC_ASSERT(result, "Not found");
+}
+
+bool User::tryUpdateOperand(Value const* oldOperand, Value* newOperand) {
+    bool result = false;
     for (auto&& [index, op]: _operands | ranges::views::enumerate) {
         if (op == oldOperand) {
             setOperand(index, newOperand);
-            leastOne = true;
+            result = true;
         }
     }
-    SC_ASSERT(leastOne, "Not found");
+    return result;
 }
 
 void User::addOperand(Value* op) {
