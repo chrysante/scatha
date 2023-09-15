@@ -39,8 +39,7 @@
 using namespace scatha;
 using namespace test;
 
-using ParserType =
-    std::function<std::pair<ir::Context, ir::Module>(std::string_view)>;
+using Generator = utl::unique_function<std::pair<ir::Context, ir::Module>()>;
 
 [[noreturn]] static void throwIssue(std::string_view source,
                                     Issue const& issue) {
@@ -55,22 +54,28 @@ static void validateEmpty(std::string_view source, IssueHandler const& issues) {
     }
 }
 
-static std::pair<ir::Context, ir::Module> parseScatha(std::string_view text) {
+static Generator makeScathaGenerator(std::string_view text) {
     IssueHandler issues;
     auto ast = parse::parse(text, issues);
     validateEmpty(text, issues);
     sema::SymbolTable sym;
     auto analysisResult = sema::analyze(*ast, sym, issues);
     validateEmpty(text, issues);
-    auto result = irgen::generateIR(*ast, sym, analysisResult);
-    opt::forEach(result.first, result.second, opt::unifyReturns);
-    return result;
+    return [ast = std::move(ast),
+            sym = std::move(sym),
+            analysisResult = std::move(analysisResult)] {
+        auto result = irgen::generateIR(*ast, sym, analysisResult);
+        opt::forEach(result.first, result.second, opt::unifyReturns);
+        return result;
+    };
 }
 
-static std::pair<ir::Context, ir::Module> parseIR(std::string_view text) {
-    auto result = ir::parse(text).value();
-    opt::forEach(result.first, result.second, opt::unifyReturns);
-    return result;
+static Generator makeIRGenerator(std::string_view text) {
+    return [=] {
+        auto result = ir::parse(text).value();
+        opt::forEach(result.first, result.second, opt::unifyReturns);
+        return result;
+    };
 }
 
 static uint64_t run(ir::Module const& mod) {
@@ -105,38 +110,35 @@ struct Impl {
         return inst;
     }
 
-    void runTest(std::string_view source,
-                 uint64_t expected,
-                 ParserType parse) const {
+    void runTest(Generator const& generator, uint64_t expected) const {
         /// No optimization
         {
-            auto [ctx, mod] = parse(source);
+            auto [ctx, mod] = generator();
             checkReturns("Unoptimized", mod, expected);
         }
 
         /// Default optimizations
         {
-            auto [ctx, mod] = parse(source);
+            auto [ctx, mod] = generator();
             opt::optimize(ctx, mod, 1);
             checkReturns("Default pipeline", mod, expected);
         }
 
         if (getOptions().TestIdempotency) {
             /// Idempotency of passes without prior optimizations
-            testIdempotency(source,
-                            parse,
+            testIdempotency(generator,
                             opt::PassManager::makePipeline("unifyreturns"),
                             expected);
 
             /// Idempotency of passes after light optimizations
-            testIdempotency(source, parse, light, expected);
+            testIdempotency(generator, light, expected);
 
             /// Idempotency of passes after light optimizations and loop
             /// rotation
-            testIdempotency(source, parse, lightRotate, expected);
+            testIdempotency(generator, lightRotate, expected);
 
             /// Idempotency of passes after light inlining optimizations
-            testIdempotency(source, parse, lightInline, expected);
+            testIdempotency(generator, lightInline, expected);
         }
     }
 
@@ -147,12 +149,11 @@ struct Impl {
         CHECK(run(mod) == expected);
     }
 
-    void testIdempotency(std::string_view source,
-                         ParserType parse,
+    void testIdempotency(Generator const& generator,
                          opt::Pipeline const& prePipeline,
                          uint64_t expected) const {
         for (auto pass: opt::PassManager::localPasses()) {
-            auto [ctx, mod] = parse(source);
+            auto [ctx, mod] = generator();
             prePipeline.execute(ctx, mod);
             auto message = utl::strcat("Idempotency check for \"",
                                        pass.name(),
@@ -172,22 +173,22 @@ struct Impl {
 } // namespace
 
 void test::checkReturns(uint64_t expectedResult, std::string_view source) {
-    Impl::get().runTest(source, expectedResult, parseScatha);
+    Impl::get().runTest(makeScathaGenerator(source), expectedResult);
 }
 
 void test::checkIRReturns(uint64_t expectedResult, std::string_view source) {
-    Impl::get().runTest(source, expectedResult, parseIR);
+    Impl::get().runTest(makeIRGenerator(source), expectedResult);
 }
 
 void test::checkCompiles(std::string_view text) {
     CHECK_NOTHROW([=] {
-        auto [ctx, mod] = parseScatha(text);
+        auto [ctx, mod] = makeScathaGenerator(text)();
         opt::optimize(ctx, mod, 1);
     }());
 }
 
 void test::compileAndRun(std::string_view text) {
-    auto [ctx, mod] = parseScatha(text);
+    auto [ctx, mod] = makeScathaGenerator(text)();
     ::run(mod);
 }
 

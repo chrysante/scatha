@@ -7,13 +7,6 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-static bool sroaAndMemToReg(ir::Context& ctx, ir::Function& function) {
-    bool result = false;
-    result |= opt::sroa(ctx, function);
-    result |= opt::memToReg(ctx, function);
-    return result;
-}
-
 TEST_CASE("SROA - 1", "[opt][sroa]") {
     test::passTest(opt::sroa,
                    R"(
