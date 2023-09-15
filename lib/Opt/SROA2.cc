@@ -4,6 +4,7 @@
 #include <queue>
 #include <set>
 #include <span>
+#include <unordered_map>
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
@@ -38,16 +39,40 @@ SC_REGISTER_PASS(opt::sroa2, "sroa2");
 
 namespace {
 
+///
+///
+///
+struct SROAContext {
+    ///
+    std::unordered_map<Type const*, MemberTree> memberTrees;
+
+    MemberTree const& getMemberTree(Type const* type) {
+        auto itr = memberTrees.find(type);
+        if (itr != memberTrees.end()) {
+            return itr->second;
+        }
+        return memberTrees.insert({ type, MemberTree::compute(type) })
+            .first->second;
+    }
+};
+
+///
+///
+///
 struct Slice {
     Slice(size_t begin, size_t end, Alloca* newAlloca):
         _begin(begin), _end(end), _newAlloca(newAlloca) {}
 
+    ///
     size_t begin() const { return _begin; }
 
+    ///
     size_t end() const { return _end; }
 
+    ///
     size_t size() const { return end() - begin(); }
 
+    ///
     Alloca* newAlloca() const { return _newAlloca; }
 
     friend std::ostream& operator<<(std::ostream& str, Slice const& slice) {
@@ -60,7 +85,11 @@ private:
     Alloca* _newAlloca;
 };
 
+///
+///
+///
 struct Variable {
+    SROAContext& sroa;
     Context& ctx;
     Function& function;
     LoopNestingForest& LNF;
@@ -120,7 +149,11 @@ struct Variable {
         return itr->second;
     }
 
-    Variable(Context& ctx, Function& function, Alloca* baseAlloca):
+    Variable(SROAContext& sroa,
+             Context& ctx,
+             Function& function,
+             Alloca* baseAlloca):
+        sroa(sroa),
         ctx(ctx),
         function(function),
         LNF(function.getOrComputeLNF()),
@@ -203,6 +236,7 @@ struct Variable {
 } // namespace
 
 bool opt::sroa2(Context& ctx, Function& function) {
+    SROAContext sroaCtx;
     auto worklist =
         function.entry() | Filter<Alloca> | TakeAddress | ToSmallVector<>;
     bool modified = false;
@@ -210,7 +244,7 @@ bool opt::sroa2(Context& ctx, Function& function) {
         bool thisRound = false;
         for (auto itr = worklist.begin(); itr != worklist.end(); ++itr) {
             auto* baseAlloca = *itr;
-            if (Variable(ctx, function, baseAlloca).run()) {
+            if (Variable(sroaCtx, ctx, function, baseAlloca).run()) {
                 thisRound = true;
                 *itr = worklist.back();
                 worklist.pop_back();
@@ -317,23 +351,18 @@ bool Variable::analyzeImpl(Phi* phi) {
     return true;
 }
 
-static void reverseBFS(Function& function,
+static void forwardBFS(Function& function,
                        utl::function_view<void(BasicBlock*)> fn) {
-    auto visited = function | TakeAddress | ranges::views::filter([](auto* BB) {
-                       return isa<Return>(BB->terminator());
-                   }) |
-                   ranges::to<utl::hashset<BasicBlock*>>;
     std::queue<BasicBlock*> queue;
-    for (auto* BB: visited) {
-        queue.push(BB);
-    }
+    queue.push(&function.entry());
+    utl::hashset<BasicBlock*> visited{ &function.entry() };
     while (!queue.empty()) {
         auto* BB = queue.front();
         queue.pop();
         fn(BB);
-        for (auto* pred: BB->predecessors()) {
-            if (visited.insert(pred).second) {
-                queue.push(pred);
+        for (auto* succ: BB->successors()) {
+            if (visited.insert(succ).second) {
+                queue.push(succ);
             }
         }
     }
@@ -348,7 +377,7 @@ bool Variable::rewritePhis() {
     splitCriticalEdges(ctx, function);
     utl::small_vector<Instruction*> toErase;
     utl::hashmap<std::pair<BasicBlock*, Value*>, Instruction*> toCopyMap;
-    reverseBFS(function, [&](BasicBlock* BB) {
+    forwardBFS(function, [&](BasicBlock* BB) {
         for (auto& inst: *BB | Filter<Load, Store, GetElementPointer>) {
             auto* phi = getAssocPhi(&inst);
             if (!phi) {
@@ -438,12 +467,31 @@ static utl::small_vector<Slice> slicesInRange(size_t begin,
            ToSmallVector<>;
 }
 
+/// Uniform interface to get the associated type of load and store instructions
+Type const* getLSType(Instruction const* inst) {
+    // clang-format off
+    return SC_MATCH (*inst) {
+        [](Load const& load) { return load.type(); },
+        [](Store const& store) { return store.value()->type(); },
+        [](Instruction const& inst) -> Type const* { SC_UNREACHABLE(); },
+    }; // clang-format on
+}
+
 bool Variable::computeSlices() {
     std::set<size_t> set;
+    /// We insert all the slice points at the positions that we directly load
+    /// from and store to
     for (auto* inst: loadsAndStores) {
         auto [begin, end] = getRange(inst);
         set.insert(begin);
         set.insert(end);
+    }
+    /// Then we insert all the slice points at the positions that ...
+    for (auto* inst: loadsAndStores) {
+        auto& tree = sroa.getMemberTree(getLSType(inst));
+        tree.root()->BFS([&](MemberTree::Node const* node) {
+
+        });
     }
     auto primSlices = ranges::views::zip(set, set | ranges::views::drop(1));
     utl::small_vector<Slice> slices;
@@ -451,7 +499,7 @@ bool Variable::computeSlices() {
     bool modified = false;
     for (auto [begin, end]: primSlices) {
         Alloca* newAlloca = baseAlloca;
-        if (begin != 0 || end != baseAlloca->allocatedType()->size()) {
+        if (begin != 0 || end != baseAlloca->allocatedSize().value()) {
             modified = true;
             newAlloca = new Alloca(ctx,
                                    ctx.intConstant(end - begin, 32),
@@ -505,14 +553,17 @@ static void memTreePostorder(
     auto sliceItr = slices.begin();
     auto impl =
         [&](auto& impl, auto& sliceItr, MemberTree::Node const* node) -> bool {
-        bool calledAnyChildren = false;
+        bool calledAnyChildren = false, calledAllChildren = true;
         auto childItr = sliceItr;
         for (auto* child: node->children()) {
             indices.push_back(child->index());
-            calledAnyChildren |= impl(impl, childItr, child);
+            bool called = impl(impl, childItr, child);
+            calledAnyChildren |= called;
+            calledAllChildren &= called;
             indices.pop_back();
         }
         if (calledAnyChildren) {
+            SC_ASSERT(calledAllChildren, "Need to call either all or none");
             return true;
         }
         while (sliceItr != slices.end() && sliceItr->begin() < node->begin()) {
@@ -529,11 +580,12 @@ static void memTreePostorder(
 }
 
 bool Variable::replaceBySlices(Load* load) {
-    auto tree = MemberTree::compute(load->type());
+    auto& tree = sroa.getMemberTree(load->type());
+    auto slices = getSlices(load);
     bool modified = false;
     Value* aggregate = ctx.undef(load->type());
     memTreePostorder(tree,
-                     getSlices(load),
+                     slices,
                      [&](MemberTree::Node const* node,
                          std::span<Slice const> slices,
                          std::span<size_t const> indices) {
@@ -573,10 +625,11 @@ bool Variable::replaceBySlices(Load* load) {
 }
 
 bool Variable::replaceBySlices(Store* store) {
-    auto tree = MemberTree::compute(store->value()->type());
+    auto& tree = sroa.getMemberTree(store->value()->type());
+    auto slices = getSlices(store);
     bool modified = false;
     memTreePostorder(tree,
-                     getSlices(store),
+                     slices,
                      [&](MemberTree::Node const* node,
                          std::span<Slice const> slices,
                          std::span<size_t const> indices) {
