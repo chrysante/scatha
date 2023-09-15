@@ -39,13 +39,14 @@ SC_REGISTER_PASS(opt::sroa2, "sroa2");
 
 namespace {
 
-///
-///
-///
+/// Stores data that shall be available for the entire duration of the algorithm
 struct SROAContext {
-    ///
+    /// We cache all member trees because they are expensive to compute and may
+    /// used several types per type
     std::unordered_map<Type const*, MemberTree> memberTrees;
 
+    /// \Returns the existing member tree for \p type or creates a new one if
+    /// necessary
     MemberTree const& getMemberTree(Type const* type) {
         auto itr = memberTrees.find(type);
         if (itr != memberTrees.end()) {
@@ -56,26 +57,27 @@ struct SROAContext {
     }
 };
 
-///
-///
-///
+/// Represents a slice of an alloca instruction. Every slice will be temporarily
+/// associated with a new alloca instruction before it gets promoted
 struct Slice {
     Slice(size_t begin, size_t end, Alloca* newAlloca):
         _begin(begin), _end(end), _newAlloca(newAlloca) {}
 
-    ///
+    /// \Returns the index of the first byte of the slice
     size_t begin() const { return _begin; }
 
-    ///
+    /// \Returns the index of the first byte past the end of the slice
     size_t end() const { return _end; }
 
-    ///
+    /// \Returns the size of the slice in bytes
     size_t size() const { return end() - begin(); }
 
-    ///
+    /// \Returns the associated intermediate alloca instruction
     Alloca* newAlloca() const { return _newAlloca; }
 
-    friend std::ostream& operator<<(std::ostream& str, Slice const& slice) {
+    /// Print the slice to ostream \p str
+    [[maybe_unused]] friend std::ostream& operator<<(std::ostream& str,
+                                                     Slice const& slice) {
         return str << toString(slice.newAlloca()) << " [" << slice.begin()
                    << ", " << slice.end() << ")";
     }
@@ -85,9 +87,8 @@ private:
     Alloca* _newAlloca;
 };
 
-///
-///
-///
+/// Represents a variable (an alloca instruction) that we are trying to slice
+/// and promote This hold most relevant data of the algorithm
 struct Variable {
     SROAContext& sroa;
     Context& ctx;
@@ -146,6 +147,7 @@ struct Variable {
     }
     /// @}
 
+    /// Access the slices associated with load and store instructions
     std::span<Slice const> getSlices(Instruction const* inst) const {
         auto itr = instToSlicesMap.find(inst);
         SC_ASSERT(itr != instToSlicesMap.end(), "Not found");
@@ -175,6 +177,8 @@ struct Variable {
         return nullptr;
     }
 
+    /// Adds \p inst to the respective set of instructions
+    /// \Returns `true` if this instruction was not added before
     bool memorize(Instruction* inst) {
         // clang-format off
         return SC_MATCH (*inst) {
@@ -187,6 +191,7 @@ struct Variable {
         }; // clang-format on
     }
 
+    /// Removes \p inst from the respective set of instructions
     void forget(Instruction* inst) {
         // clang-format off
         SC_MATCH (*inst) {
@@ -199,6 +204,7 @@ struct Variable {
         assocPhis.erase(inst);
     }
 
+    /// Run the algorithm for this variable
     bool run();
 
     /// # Analysis
@@ -220,19 +226,21 @@ struct Variable {
     /// operation is safe. After this step we can erase all phis that use the
     /// alloca
     bool rewritePhis();
-    Instruction* copyInstruction(Instruction* inst, BasicBlock* dest);
+    Instruction* copyInstruction(Instruction* insertBefore, Instruction* inst);
 
-    ///
+    /// We slice the alloca based on the load and store instructions that
+    /// (transitively) use the alloca
     bool computeSlices();
     std::pair<size_t, size_t> getRange(Instruction const* inst);
 
-    ///
+    /// We replace loads and stores with multiple loads and stores to the slices
+    /// if necessary
     bool replaceBySlices();
     bool replaceBySlices(Load* load);
     bool replaceBySlices(Store* store);
     bool replaceBySlices(Instruction* inst) { SC_UNREACHABLE(); }
 
-    ///
+    /// We try to promote all the slices
     bool promoteSlices();
 };
 
@@ -243,6 +251,12 @@ bool opt::sroa2(Context& ctx, Function& function) {
     auto worklist =
         function.entry() | Filter<Alloca> | TakeAddress | ToSmallVector<>;
     bool modified = false;
+    /// We run the algorithm for each alloca. If an alloca is sliced we remove
+    /// it from the worklist. We continuously iterate the worklist until we
+    /// can't slice anything anymore. We need to traverse the worklist multiple
+    /// times to ensure idempotency of the pass because pointers to allocas
+    /// might be stored to other allocas and only become promoteable once the
+    /// other alloca has been promoted.
     while (!worklist.empty()) {
         bool thisRound = false;
         for (auto itr = worklist.begin(); itr != worklist.end(); ++itr) {
@@ -305,7 +319,8 @@ bool Variable::analyzeImpl(Load* load) {
 }
 
 bool Variable::analyzeImpl(Store* store) {
-    /// If we store any pointer into the alloca it escapes our analysis
+    /// If we store any pointer into the alloca to memory it escapes our
+    /// analysis
     if (ptrToOffsetMap.contains(store->value())) {
         return false;
     }
@@ -313,6 +328,8 @@ bool Variable::analyzeImpl(Store* store) {
     return true;
 }
 
+/// FIXME: This function also exists in lowerToMIR() and should become a member
+/// function of `GetElementPointer`
 static size_t computeGepOffset(GetElementPointer const* gep) {
     Type const* currentType = gep->inboundsType();
     size_t offset = 0;
@@ -354,8 +371,10 @@ bool Variable::analyzeImpl(Phi* phi) {
     return true;
 }
 
-static void forwardBFS(Function& function,
-                       utl::function_view<void(BasicBlock*)> fn) {
+/// FIXME: These functions are generic and have little to do with SROA. Move
+/// them to Opt/Common
+[[maybe_unused]] static void forwardBFS(
+    Function& function, utl::function_view<void(BasicBlock*)> fn) {
     std::queue<BasicBlock*> queue;
     queue.push(&function.entry());
     utl::hashset<BasicBlock*> visited{ &function.entry() };
@@ -371,19 +390,72 @@ static void forwardBFS(Function& function,
     }
 }
 
+[[maybe_unused]] static void reverseBFS(
+    Function& function, utl::function_view<void(BasicBlock*)> fn) {
+    auto visited = function | TakeAddress | ranges::views::filter([](auto* BB) {
+                       return isa<Return>(BB->terminator());
+                   }) |
+                   ranges::to<utl::hashset<BasicBlock*>>;
+    std::queue<BasicBlock*> queue;
+    for (auto* exit: visited) {
+        queue.push(exit);
+    }
+    while (!queue.empty()) {
+        auto* BB = queue.front();
+        queue.pop();
+        fn(BB);
+        for (auto* pred: BB->predecessors()) {
+            if (visited.insert(pred).second) {
+                queue.push(pred);
+            }
+        }
+    }
+}
+
 bool Variable::rewritePhis() {
     if (phis.empty()) {
         return false;
     }
     /// We split critical edges so we can safely copy users of phi instructions
-    /// to predecessors of the phis
+    /// to predecessors of the phis without execution any instructions
+    /// speculatively
     splitCriticalEdges(ctx, function);
     utl::small_vector<Instruction*> toErase;
     utl::hashmap<std::pair<BasicBlock*, Value*>, Instruction*> toCopyMap;
-    forwardBFS(function, [&](BasicBlock* BB) {
-        for (auto& inst: *BB | Filter<Load, Store, GetElementPointer>) {
+    auto getInsertPoint = [map = utl::hashmap<BasicBlock*, Instruction*>{}](
+                              BasicBlock* BB) mutable -> Instruction*& {
+        auto& result = map[BB];
+        if (!result) {
+            result = BB->terminator();
+        }
+        return result;
+    };
+    reverseBFS(function, [&](BasicBlock* BB) {
+        struct PhiInsertion {
+            Phi* before;
+            Phi* inserted;
+        };
+        /// We batch the phi insertions to be able to traverse the block without
+        /// iterator invalidations
+        utl::small_vector<PhiInsertion> phiInsertions;
+        for (auto& inst: *BB | ranges::views::reverse |
+                             Filter<Load, Store, GetElementPointer>)
+        {
             auto* phi = getAssocPhi(&inst);
             if (!phi) {
+                continue;
+            }
+            /// If the associated phi only has one argument, we don't need to
+            /// make copy, as we can directly use that argument in our
+            /// instruction. It is also necessary to not make a copy in this
+            /// case, because then our predecessor might have multiple
+            /// successors and we would execute this instruction speculatively
+            if (phi->operands().size() == 1) {
+                auto* phiArgument = phi->operandAt(0);
+                inst.updateOperand(phi, phiArgument);
+                if (auto* assocPhi = getAssocPhi(phiArgument)) {
+                    assocPhis[&inst] = assocPhi;
+                }
                 continue;
             }
             /// We look at all instructions that have an associated phi node.
@@ -392,15 +464,12 @@ bool Variable::rewritePhis() {
             utl::small_vector<PhiMapping> newPhiArgs;
             for (auto [pred, phiArgument]: phi->arguments()) {
                 SC_ASSERT(pred->numSuccessors() == 1,
-                          "If our phi block BB has multiple predecessors then "
-                          "this is guaranteed because we have split the "
-                          "critical edges. However if if have phi nodes with "
-                          "one predecessor this might fail. In this case we "
-                          "can probably just delete the phi node. This check "
-                          "is needed because we don't want to speculatively "
-                          "move instructions to places where they otherwise "
-                          "would not be executed.");
-                auto* copy = copyInstruction(&inst, pred);
+                          "This is guaranteed, because we have split the "
+                          "critical edges and don't make copies for phis that "
+                          "only have one argument.");
+                auto& insertPoint = getInsertPoint(pred);
+                auto* copy = copyInstruction(insertPoint, &inst);
+                insertPoint = copy;
                 toCopyMap[{ pred, &inst }] = copy;
                 if (isPointerToOurAlloca(phiArgument)) {
                     memorize(copy);
@@ -430,14 +499,17 @@ bool Variable::rewritePhis() {
             /// If the instruction is a load we phi the copied loads together
             /// We also prune a little bit here to avoid adding unused phi nodes
             if (isa<Load>(inst) && inst.isUsed()) {
-                BasicBlockBuilder builder(ctx, phi->parent());
                 auto* newPhi =
-                    builder.insert<Phi>(phi,
-                                        newPhiArgs,
-                                        utl::strcat(inst.name(), ".phi"));
+                    new Phi(newPhiArgs, utl::strcat(inst.name(), ".phi"));
                 inst.replaceAllUsesWith(newPhi);
+                phiInsertions.push_back({ .before = phi, .inserted = newPhi });
             }
             toErase.push_back(&inst);
+        }
+        /// After traversing one basic block we insert all the added phi
+        /// instructions
+        for (auto [before, inserted]: phiInsertions) {
+            before->parent()->insert(before, inserted);
         }
     });
     for (auto* inst: toErase) {
@@ -456,9 +528,10 @@ bool Variable::rewritePhis() {
     return true;
 }
 
-Instruction* Variable::copyInstruction(Instruction* inst, BasicBlock* dest) {
+Instruction* Variable::copyInstruction(Instruction* insertBefore,
+                                       Instruction* inst) {
     auto* copy = clone(ctx, inst).release();
-    dest->insert(dest->terminator(), copy);
+    insertBefore->parent()->insert(insertBefore, copy);
     return copy;
 }
 
