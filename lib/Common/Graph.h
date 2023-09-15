@@ -2,6 +2,7 @@
 #define SCATHA_COMMON_GRAPH_H_
 
 #include <concepts>
+#include <queue>
 #include <span>
 #include <tuple>
 #include <type_traits>
@@ -155,6 +156,59 @@ private:
         list.erase(itr);
     }
 
+    enum TraversalOrder { Preorder, Postorder };
+
+    template <TraversalOrder Order, auto Successors, typename SELF, typename F>
+    static void dfsImpl(SELF* self, F&& f) {
+        if constexpr (Kind != GraphKind::Tree) {
+            utl::hashset<SELF*> visited;
+            dfsSearch<Order, Successors, SELF>(&visited, self, f);
+        }
+        else {
+            dfsSearch<Order, Successors, SELF>(nullptr, self, f);
+        }
+    }
+
+    template <TraversalOrder Order, auto Successors, typename SELF, typename F>
+    static void dfsSearch(utl::hashset<SELF*>* visited, SELF* self, F&& f) {
+        if (Kind != GraphKind::Tree && !visited->insert(self).second) {
+            return;
+        }
+        if constexpr (Order == Preorder) {
+            std::invoke(f, self);
+        }
+        for (auto* succ: std::invoke(Successors, self)) {
+            dfsSearch<Order, Successors, SELF>(visited, succ, f);
+        }
+        if constexpr (Order == Postorder) {
+            std::invoke(f, self);
+        }
+    }
+
+    template <auto Successors, typename SELF, typename F>
+    static void bfsImpl(SELF* root, F&& f) {
+        utl::hashset<SELF*> visited;
+        std::queue<SELF*> queue;
+        queue.push(root);
+        if constexpr (Kind != GraphKind::Tree) {
+            visited.insert(root);
+        }
+        while (!queue.empty()) {
+            auto* node = queue.front();
+            queue.pop();
+            std::invoke(f, node);
+            for (auto* succ: std::invoke(Successors, node)) {
+                bool vis = false;
+                if constexpr (Kind != GraphKind::Tree) {
+                    vis = !visited.insert(succ).second;
+                }
+                if (!vis) {
+                    queue.push(succ);
+                }
+            }
+        }
+    }
+
     [[no_unique_address]] PayloadWrapper<Payload> _payload;
 };
 
@@ -192,16 +246,18 @@ class GraphNode<Payload, Derived, GraphKind::Directed>:
     using Base = internal::GraphNodeBase<Payload, Derived, GraphKind::Directed>;
     using typename Base::Self;
 
+    using TO = typename Base::TraversalOrder;
+
 public:
     using Base::Base;
 
-    /// \returns a view over references to predecessors.
+    /// \returns a view over pointers to predecessors.
     std::span<Self* const> predecessors() { return incoming; }
 
-    /// \returns a view over references to predecessors.
+    /// \overload
     std::span<Self const* const> predecessors() const { return incoming; }
 
-    /// \returns a view over references to successors.
+    /// \returns a view over pointers to successors.
     std::span<Self* const> successors() { return outgoing; }
 
     /// \overload
@@ -214,17 +270,21 @@ public:
     size_t outdegree() const { return outgoing.size(); }
 
     /// Add \p pred as predecessor if it is not already a predecessor.
+    /// \Note this node needs to be set as a successor of \p pred manually
     void addPredecessor(Self* pred) { Base::addEdgeImpl(incoming, pred); }
 
     /// Add \p succ as successor if it is not already a successor.
+    /// \Note this node needs to be set as a successor of \p pred manually
     void addSuccessor(Self* succ) { Base::addEdgeImpl(outgoing, succ); }
 
-    /// Add \p pred as predecessor if it is not already a predecessor.
+    /// Remove \p pred as predecessor
+    /// \pre \p pred must be a predecessor of this node
     void removePredecessor(Self const* pred) {
         Base::removeEdgeImpl(incoming, pred);
     }
 
-    /// Add \p succ as successor if it is not already a successor.
+    /// Remove \p succ as successor
+    /// \pre \p succ must be a successor of this node
     void removeSuccessor(Self const* succ) {
         Base::removeEdgeImpl(outgoing, succ);
     }
@@ -257,51 +317,37 @@ public:
     /// on every node before visiting its successors.
     template <typename F>
     void preorderDFS(F&& f) {
-        dfsImpl<true>(this, f);
+        this->template dfsImpl<TO::Preorder,
+                               &GraphNode::outgoing>(static_cast<Self*>(this),
+                                                     f);
     }
 
     /// \overload
     template <typename F>
     void preorderDFS(F&& f) const {
-        dfsImpl<true>(this, f);
+        this->template dfsImpl<TO::Preorder, &GraphNode::outgoing>(
+            static_cast<Self const*>(this),
+            f);
     }
 
     /// Traverse the graph from this node in DFS order and invoke callable \p f
     /// on every node after visiting its successors.
     template <typename F>
     void postorderDFS(F&& f) {
-        dfsImpl<false>(this, f);
+        this->template dfsImpl<TO::Postorder,
+                               &GraphNode::outgoing>(static_cast<Self*>(this),
+                                                     f);
     }
 
     /// \overload
     template <typename F>
     void postorderDFS(F&& f) const {
-        dfsImpl<false>(this, f);
+        this->template dfsImpl<TO::Postorder, &GraphNode::outgoing>(
+            static_cast<Self const*>(this),
+            f);
     }
 
 private:
-    template <bool Preorder, typename SELF, typename F>
-    static void dfsImpl(SELF* self, F&& f) {
-        utl::hashset<SELF*> visited;
-        dfsSearch<Preorder>(visited, self, f);
-    }
-
-    template <bool Preorder, typename SELF, typename F>
-    static void dfsSearch(utl::hashset<SELF*>& visited, SELF* self, F&& f) {
-        if (!visited.insert(self).second) {
-            return;
-        }
-        if constexpr (Preorder) {
-            std::invoke(f, self);
-        }
-        for (auto* succ: self->successors()) {
-            dfsSearch<Preorder>(visited, succ, f);
-        }
-        if constexpr (!Preorder) {
-            std::invoke(f, self);
-        }
-    }
-
     utl::small_vector<Self*> incoming;
     utl::small_vector<Self*> outgoing;
 };
@@ -312,31 +358,57 @@ class GraphNode<Payload, Derived, GraphKind::Tree>:
     using Base = internal::GraphNodeBase<Payload, Derived, GraphKind::Tree>;
     using typename Base::Self;
 
+    using TO = typename Base::TraversalOrder;
+
 public:
     using Base::Base;
 
+    /// \Returns a pointer to the parent node
     Self const* parent() const { return _parent; }
 
+    /// \Returns a view over the children of this node
     std::span<Self const* const> children() const { return _children; }
 
+    /// Add \p child as a child of this node. The parent pointer of\p child will
+    /// be set to this node
     void addChild(Self* child) {
         SC_ASSERT(child != this, "Would form an invalid tree");
         child->_parent = static_cast<Self*>(this);
         Base::addEdgeImpl(_children, child);
     }
 
-    void traversePreorder(auto&& F) const {
-        std::invoke(F, static_cast<Derived const*>(this));
-        for (auto* child: children()) {
-            child->traversePreorder(F);
-        }
+    /// Traverse the tree from this node in DFS order and invoke callable \p f
+    /// on every node before visiting its successors.
+    template <typename F>
+    void traversePreorder(F&& f) {
+        this->template dfsImpl<TO::Preorder,
+                               &GraphNode::_children>(static_cast<Self*>(this),
+                                                      f);
     }
 
-    void traversePostorder(auto&& F) const {
-        for (auto* child: children()) {
-            child->traversePostorder(F);
-        }
-        std::invoke(F, static_cast<Derived const*>(this));
+    /// \overload
+    template <typename F>
+    void traversePreorder(F&& f) const {
+        this->template dfsImpl<TO::Preorder, &GraphNode::_children>(
+            static_cast<Self const*>(this),
+            f);
+    }
+
+    /// Traverse the tree from this node in DFS order and invoke callable \p f
+    /// on every node after visiting its successors.
+    template <typename F>
+    void traversePostorder(F&& f) {
+        this->template dfsImpl<TO::Postorder,
+                               &GraphNode::_children>(static_cast<Self*>(this),
+                                                      f);
+    }
+
+    /// \overload
+    template <typename F>
+    void traversePostorder(F&& f) const {
+        this->template dfsImpl<TO::Postorder, &GraphNode::_children>(
+            static_cast<Self const*>(this),
+            f);
     }
 
 private:
