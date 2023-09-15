@@ -2,7 +2,6 @@
 
 #include <optional>
 #include <queue>
-#include <set>
 #include <span>
 #include <unordered_map>
 
@@ -388,6 +387,15 @@ bool Variable::rewritePhis() {
             /// blocks of the phi
             utl::small_vector<PhiMapping> newPhiArgs;
             for (auto [pred, phiArgument]: phi->arguments()) {
+                SC_ASSERT(pred->numSuccessors() == 1,
+                          "If our phi block BB has multiple predecessors then "
+                          "this is guaranteed because we have split the "
+                          "critical edges. However if if have phi nodes with "
+                          "one predecessor this might fail. In this case we "
+                          "can probably just delete the phi node. This check "
+                          "is needed because we don't want to speculatively "
+                          "move instructions to places where they otherwise "
+                          "would not be executed.");
                 auto* copy = copyInstruction(&inst, pred);
                 toCopyMap[{ pred, &inst }] = copy;
                 if (tryGetPtrOffset(phiArgument)) {
@@ -478,7 +486,7 @@ Type const* getLSType(Instruction const* inst) {
 }
 
 bool Variable::computeSlices() {
-    std::set<size_t> set;
+    utl::hashset<size_t> set;
     /// We insert all the slice points at the positions that we directly load
     /// from and store to
     for (auto* inst: loadsAndStores) {
@@ -486,16 +494,45 @@ bool Variable::computeSlices() {
         set.insert(begin);
         set.insert(end);
     }
-    /// Then we insert all the slice points at the positions that ...
+    /// Then we insert all the slice points at "critical positions".
+    /// If we slice at a certain member offset, we also need to slice the alloca
+    /// at all offsets of siblings in the member tree of that node to be able to
+    /// store all siblings
     for (auto* inst: loadsAndStores) {
         auto& tree = sroa.getMemberTree(getLSType(inst));
-        tree.root()->BFS([&](MemberTree::Node const* node) {
-
+        utl::small_vector<MemberTree::Node const*> criticalSlicePoints;
+        tree.root()->preorderDFS([&](MemberTree::Node const* node) {
+            if (!node->parent()) {
+                return;
+            }
+            if (node->begin() != node->parent()->begin() &&
+                set.contains(node->begin()))
+            {
+                criticalSlicePoints.push_back(node);
+            }
+            if (node->end() != node->parent()->end() &&
+                set.contains(node->end()))
+            {
+                criticalSlicePoints.push_back(node);
+            }
         });
+        for (auto* node: criticalSlicePoints) {
+            auto* parent = node->parent();
+            SC_ASSERT(parent,
+                      "node should not be in the list if it does not have a "
+                      "parent, see check above");
+            for (auto* node: parent->children()) {
+                set.insert(node->begin());
+                set.insert(node->end());
+            }
+        }
     }
-    auto primSlices = ranges::views::zip(set, set | ranges::views::drop(1));
+    auto sortedSet = set | ToSmallVector<>;
+    ranges::sort(sortedSet);
+    auto primSlices =
+        ranges::views::zip(sortedSet, sortedSet | ranges::views::drop(1));
     utl::small_vector<Slice> slices;
-    slices.reserve(set.size() - 1);
+    slices.reserve(sortedSet.size() - 1);
     bool modified = false;
     for (auto [begin, end]: primSlices) {
         Alloca* newAlloca = baseAlloca;
