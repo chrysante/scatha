@@ -208,6 +208,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
     }
     if (!var.initExpression()) {
         auto call = makeConstructorCall(finalType.get(),
+                                        nullptr,
                                         {},
                                         var.dtorStack(),
                                         ctx,

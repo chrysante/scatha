@@ -119,6 +119,7 @@ struct FuncGenContext: ir::FunctionBuilder {
     Value getValueImpl(ast::SubscriptSlice const&);
     Value getValueImpl(ast::ListExpression const&);
     Value getValueImpl(ast::Conversion const&);
+    Value getValueImpl(ast::UninitTemporary const&);
     Value getValueImpl(ast::ConstructorCall const&);
     Value getValueImpl(ast::TrivialCopyExpr const&);
 
@@ -1273,23 +1274,26 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     }
 }
 
+Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
+    auto* type = typeMap(stripReference(temp.type()));
+    auto* address = makeLocalVariable(type, "anon");
+    return Value(address, type, Memory);
+}
+
 Value FuncGenContext::getValueImpl(ast::ConstructorCall const& call) {
     using enum sema::SpecialMemberFunction;
     switch (call.kind()) {
     case New: {
         auto* type = typeMap(call.constructedType());
-        auto* address = makeLocalVariable(type, "anon");
         auto* function = getFunction(call.function());
         auto CC = getCC(call.function());
-        /// Lifetime function always must take the object parameter by reference
-        /// so we can just pass the pointer here
-        utl::small_vector<ir::Value*> arguments = { address };
-        auto PCsAndArgs =
-            ranges::views::zip(CC.arguments() | ranges::views::drop(1),
-                               call.arguments());
+        utl::small_vector<ir::Value*> arguments;
+        auto PCsAndArgs = ranges::views::zip(CC.arguments(), call.arguments());
         for (auto [PC, arg]: PCsAndArgs) {
             generateArgument(PC, getValue(arg), arg->object(), arguments);
         }
+        SC_ASSERT(!arguments.empty(), "Must have at least the object argument");
+        auto* address = arguments.front();
         valueMap.insert(call.object(), Value(address, type, Memory));
         add<ir::Call>(function, arguments, std::string{});
         return Value(address, type, Memory);

@@ -1255,6 +1255,16 @@ private:
     std::unique_ptr<sema::Conversion> _conv;
 };
 
+/// Concrete node representing an uninitialized temporary. This node is meant as
+/// an object argument to constructor calls
+class UninitTemporary: public Expression {
+public:
+    explicit UninitTemporary(SourceRange sourceRange):
+        Expression(NodeType::UninitTemporary, sourceRange) {}
+
+    AST_DERIVED_COMMON(UninitTemporary)
+};
+
 /// Concrete node representing a lifetime function call
 class SCATHA_API ConstructorCall: public CallLike {
 public:

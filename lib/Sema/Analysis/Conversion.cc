@@ -288,7 +288,7 @@ static std::optional<RefConversion> determineRefConv(ConversionKind kind,
                 return std::nullopt;
             }
             /// We can always bind to a const reference
-            if (to.base().isConst()) {
+            if (kind == ConversionKind::Explicit || to.base().isConst()) {
                 return MaterializeTemporary;
             }
             return std::nullopt;

@@ -18,6 +18,7 @@ class DTorStack;
 /// An error is pushed to \p issueHandler if no matching constructor is found
 UniquePtr<ast::ConstructorCall> makeConstructorCall(
     sema::ObjectType const* type,
+    UniquePtr<ast::Expression> objectArgument,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
     Context& ctx,

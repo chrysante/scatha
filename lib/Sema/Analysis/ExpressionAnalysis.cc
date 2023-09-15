@@ -787,6 +787,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                         }) |
                         ToSmallVector<>;
             auto ctorCall = makeConstructorCall(structType,
+                                                nullptr,
                                                 std::move(args),
                                                 *dtorStack,
                                                 ctx,

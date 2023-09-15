@@ -16,6 +16,7 @@ using namespace sema;
 
 UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     sema::ObjectType const* type,
+    UniquePtr<ast::Expression> objectArgument,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
     Context& ctx,
@@ -24,18 +25,20 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     if (!structType) {
         return nullptr;
     }
+    if (!objectArgument) {
+        objectArgument = allocate<ast::UninitTemporary>(sourceRange);
+        objectArgument->decorateExpr(ctx.symbolTable().temporary(type));
+    }
+    arguments.insert(arguments.begin(), std::move(objectArgument));
     using enum SpecialMemberFunction;
     auto* ctorSet = structType->specialMemberFunction(New);
     if (!ctorSet) {
         return nullptr;
     }
-    utl::small_vector<QualType> argTypes = { ctx.symbolTable().reference(
-        type) };
-    argTypes.reserve(1 + arguments.size());
-    ranges::transform(arguments, std::back_inserter(argTypes), [](auto& expr) {
-        return expr->type();
-    });
-    auto result = performOverloadResolution(ctorSet, argTypes, true);
+    auto result =
+        performOverloadResolution(ctorSet,
+                                  arguments | ToAddress | ToSmallVector<>,
+                                  /* isMemberCall = */ true);
     if (result.error) {
         result.error->setSourceRange(sourceRange);
         ctx.issueHandler().push(std::move(result.error));

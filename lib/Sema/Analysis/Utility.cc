@@ -4,6 +4,7 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Context.h"
 #include "Sema/Entity.h"
@@ -52,10 +53,7 @@ void sema::convertArguments(ast::ConstructorCall& cc,
                             OverloadResolutionResult const& orResult,
                             DTorStack& dtors,
                             Context& ctx) {
-    convertArgsImpl(cc.arguments(),
-                    orResult.conversions | ranges::views::drop(1),
-                    dtors,
-                    ctx);
+    convertArgsImpl(cc.arguments(), orResult.conversions, dtors, ctx);
 }
 
 ast::Expression* sema::copyValue(ast::Expression* expr,
@@ -83,11 +81,12 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
                              ctx);
     auto sourceRange = expr->sourceRange();
     auto ctorCall =
-        allocate<ast::ConstructorCall>(toSmallVector(expr->extractFromParent()),
-                                       sourceRange,
-                                       copyCtor,
-                                       SpecialMemberFunction::New);
-    ctorCall->decorateExpr(sym.temporary(structType));
+        makeConstructorCall(structType,
+                            nullptr,
+                            toSmallVector(expr->extractFromParent()),
+                            dtors,
+                            ctx,
+                            sourceRange);
     dtors.push(ctorCall->object());
     auto* result = ctorCall.get();
     parent->setChild(index, std::move(ctorCall));
