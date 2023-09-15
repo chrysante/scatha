@@ -20,16 +20,13 @@
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
+#include "IR/Print.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/AllocaPromotion.h"
 #include "Opt/Common.h"
 #include "Opt/MemberTree.h"
 #include "Opt/PassRegistry.h"
-
-#include "IR/Print.h"
-#include <iostream>
-#include <termfmt/termfmt.h>
 
 using namespace scatha;
 using namespace ir;
