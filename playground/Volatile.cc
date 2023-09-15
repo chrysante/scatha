@@ -212,5 +212,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    frontendPlayground(path);
 }

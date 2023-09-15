@@ -171,17 +171,6 @@ void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
     popScope.execute();
 }
 
-static void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
-    auto* structType = dyncast<StructType const*>(expr->type().get());
-    if (!structType) {
-        return;
-    }
-    using enum SpecialLifetimeFunction;
-    if (structType->specialLifetimeFunction(Destructor)) {
-        dtors.pop();
-    }
-}
-
 static bool isPoison(ast::Expression* expr) {
     if (!expr || !expr->isDecorated()) {
         return false;
@@ -211,7 +200,6 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
         finalType = finalType.toConst();
     }
     if (var.initExpression() && var.initExpression()->isDecorated()) {
-        using enum SpecialLifetimeFunction;
         convertImplicitly(var.initExpression(),
                           finalType,
                           var.dtorStack(),

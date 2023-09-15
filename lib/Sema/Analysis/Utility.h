@@ -44,6 +44,9 @@ SCATHA_TESTAPI ast::Expression* copyValue(ast::Expression* expr,
 /// with non-trivial lifetime Otherwise returns `nullptr`
 StructType const* nonTrivialLifetimeType(ObjectType const* type);
 
+///
+void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_UTILITY_H_

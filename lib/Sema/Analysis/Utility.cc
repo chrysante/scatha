@@ -101,3 +101,14 @@ StructType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
     }
     return structType;
 }
+
+void sema::popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
+    auto* structType = dyncast<StructType const*>(expr->type().get());
+    if (!structType) {
+        return;
+    }
+    using enum SpecialLifetimeFunction;
+    if (structType->specialLifetimeFunction(Destructor)) {
+        dtors.pop();
+    }
+}
