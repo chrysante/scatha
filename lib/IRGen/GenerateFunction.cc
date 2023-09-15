@@ -5,11 +5,11 @@
 #include <utl/strcat.hpp>
 
 #include "AST/AST.h"
+#include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
-#include "IRGen/Builder.h"
 #include "IRGen/Globals.h"
 #include "IRGen/Maps.h"
 #include "IRGen/Utility.h"
@@ -33,7 +33,7 @@ struct Loop {
     ir::BasicBlock* end = nullptr;
 };
 
-struct FuncGenContext: FunctionBuilder {
+struct FuncGenContext: ir::FunctionBuilder {
     // Global references
     sema::Function const& semaFn;
     ir::Function& irFn;

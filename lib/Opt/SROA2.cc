@@ -14,6 +14,7 @@
 
 #include "Common/Allocator.h"
 #include "Common/Ranges.h"
+#include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
@@ -426,9 +427,11 @@ bool Variable::rewritePhis() {
             /// If the instruction is a load we phi the copied loads together
             /// We also prune a little bit here to avoid adding unused phi nodes
             if (isa<Load>(inst) && inst.isUsed()) {
+                BasicBlockBuilder builder(ctx, phi->parent());
                 auto* newPhi =
-                    new Phi(newPhiArgs, utl::strcat(inst.name(), ".phi"));
-                phi->parent()->insert(phi, newPhi);
+                    builder.insert<Phi>(phi,
+                                        newPhiArgs,
+                                        utl::strcat(inst.name(), ".phi"));
                 inst.replaceAllUsesWith(newPhi);
             }
             toErase.push_back(&inst);
@@ -538,11 +541,12 @@ bool Variable::computeSlices() {
         Alloca* newAlloca = baseAlloca;
         if (begin != 0 || end != baseAlloca->allocatedSize().value()) {
             modified = true;
-            newAlloca = new Alloca(ctx,
-                                   ctx.intConstant(end - begin, 32),
-                                   ctx.intType(8),
-                                   utl::strcat(baseAlloca->name(), ".slice"));
-            function.entry().insert(baseAlloca, newAlloca);
+            BasicBlockBuilder builder(ctx, &function.entry());
+            newAlloca = builder.insert<Alloca>(baseAlloca,
+                                               ctx.intConstant(end - begin, 32),
+                                               ctx.intType(8),
+                                               utl::strcat(baseAlloca->name(),
+                                                           ".slice"));
             insertedAllocas.push_back(newAlloca);
         }
         slices.push_back({ begin, end, newAlloca });
@@ -638,13 +642,16 @@ bool Variable::replaceBySlices(Load* load) {
                 load->setAddress(slice.newAlloca());
             }
             else {
-                auto* newLoad = new Load(slice.newAlloca(),
-                                         node->type(),
-                                         std::string(load->name()));
-                load->parent()->insert(load, newLoad);
-                aggregate =
-                    new InsertValue(aggregate, newLoad, indices, "sroa.insert");
-                load->parent()->insert(load, cast<Instruction*>(aggregate));
+                BasicBlockBuilder builder(ctx, load->parent());
+                auto* newLoad = builder.insert<Load>(load,
+                                                     slice.newAlloca(),
+                                                     node->type(),
+                                                     std::string(load->name()));
+                aggregate = builder.insert<InsertValue>(load,
+                                                        aggregate,
+                                                        newLoad,
+                                                        indices,
+                                                        "sroa.insert");
                 modified = true;
             }
             break;
@@ -682,11 +689,12 @@ bool Variable::replaceBySlices(Store* store) {
                 store->setAddress(slice.newAlloca());
             }
             else {
-                auto* extr =
-                    new ExtractValue(store->value(), indices, "sroa.extract");
-                store->parent()->insert(store, extr);
-                auto* newStore = new Store(ctx, slice.newAlloca(), extr);
-                store->parent()->insert(store, newStore);
+                BasicBlockBuilder builder(ctx, store->parent());
+                auto* extr = builder.insert<ExtractValue>(store,
+                                                          store->value(),
+                                                          indices,
+                                                          "sroa.extract");
+                builder.insert<Store>(store, slice.newAlloca(), extr);
                 modified = true;
             }
             break;
