@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/numeric.hpp>
 #include <utl/functional.hpp>
 
@@ -35,8 +36,6 @@ struct CodeGenContext {
 
     void genBasicBlock(ir::BasicBlock const& bb);
 
-    /// \Returns The register that this instruction defines. Might be have been
-    /// defined before by another instruction, since we are leaving SSA here.
     void dispatchInst(ir::Instruction const& value);
     void genInst(ir::Instruction const& value) { SC_UNREACHABLE(); }
     void genInst(ir::Alloca const&);
@@ -483,29 +482,6 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
     size_t const numBytes = phi.type()->size();
     size_t const numWords = utl::ceil_divide(numBytes, 8);
     for (size_t i = 0; i < numWords; ++i) {
-        /// Prevent generating self referential phi nodes in the MIR
-        auto nextArgs =
-            arguments |
-            ranges::views::transform([](auto* arg) { return arg->next(); }) |
-            ToSmallVector<>;
-        for (auto&& [arg, pred]:
-             ranges::views::zip(arguments, phi.parent()->predecessors()))
-        {
-            if (arg == dest) {
-                auto* newArg = nextRegister();
-                auto insertPoint = resolve(pred)->end();
-                while (isTerminator(insertPoint->prev()->instcode())) {
-                    --insertPoint;
-                }
-                addNewInst(mir::InstCode::Copy,
-                           newArg,
-                           { arg },
-                           0,
-                           sliceWidth(numBytes, i, numWords),
-                           insertPoint);
-                arg = newArg;
-            }
-        }
         auto insertPoint = std::prev(currentBlock->end());
         while (insertPoint != currentBlock->begin() &&
                insertPoint->instcode() != mir::InstCode::Phi)
@@ -520,7 +496,7 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
                    sliceWidth(numBytes, i, numWords),
                    insertPoint);
         dest = dest->next();
-        arguments = nextArgs;
+        ranges::for_each(arguments, [](auto& arg) { arg = arg->next(); });
     }
 }
 
