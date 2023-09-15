@@ -40,6 +40,21 @@ void BasicBlock::insertPhi(Phi* phiNode) {
     insert(itr, phiNode);
 }
 
+static auto phiEndImpl(auto begin, auto end) {
+    while (begin != end && isa<Phi>(begin.to_address())) {
+        ++begin;
+    }
+    return begin;
+}
+
+BasicBlock::Iterator BasicBlock::phiEnd() { return phiEndImpl(begin(), end()); }
+
+BasicBlock::ConstIterator BasicBlock::phiEnd() const {
+    return phiEndImpl(begin(), end());
+}
+
+bool BasicBlock::hasPhiNodes() const { return isa<Phi>(front()); }
+
 void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
                                    BasicBlock* newPred) {
     auto itr = ranges::find(preds, oldPred);
@@ -88,17 +103,4 @@ void BasicBlock::eraseCallback(Instruction const& cinst) {
 
 bool BasicBlock::isEntry() const {
     return parent()->begin().to_address() == this;
-}
-
-static auto phiEndImpl(auto begin, auto end) {
-    while (begin != end && isa<Phi>(begin.to_address())) {
-        ++begin;
-    }
-    return begin;
-}
-
-BasicBlock::Iterator BasicBlock::phiEnd() { return phiEndImpl(begin(), end()); }
-
-BasicBlock::ConstIterator BasicBlock::phiEnd() const {
-    return phiEndImpl(begin(), end());
 }

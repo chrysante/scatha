@@ -1,21 +1,21 @@
+@const_data = [i32, 3] [i32 1, i32 2, i32 3]
 
-struct X {
-    
-    fn new(&mut this) {}
-    
-    fn new(&mut this, n: int) {}
-    
-    fn new(&mut this, rhs: &X) {}
-    
-    fn delete(&mut this) {}
-    
-}
+@other_data = i32 1
 
-fn main() {
-    // var x = X();
+func i32 @main() {
+%entry:
+    %1 = load i32, ptr @other_data
+    %p = getelementptr inbounds i32, ptr @const_data, i32 0
+    %t0 = load i32, ptr %p
+    %q = getelementptr inbounds i32, ptr @const_data, i32 1
+    %t1 = load i32, ptr %q
+    goto label %end
     
-    var x = X(2);
-    var y = x;
-    
-    // x = X();
+%end:
+    %r = getelementptr inbounds i32, ptr @const_data, i32 2
+    %t2 = load i32, ptr %r
+    %s0 = add i32 %t0, i32 %t1
+    %s1 = add i32 %s0, i32 %t2
+    %s2 = add i32 %s1, i32 %1
+    return i32 %s2
 }

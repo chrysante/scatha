@@ -29,6 +29,9 @@ public:
     /// \overload
     Value const* operandAt(size_t index) const { return _operands[index]; }
 
+    /// \Returns the number of operands of this user
+    size_t numOperands() const { return operands().size(); }
+
     /// Set the operand at \p index to \p operand
     /// Updates user list of \p operand and removed operand.
     /// \p operand may be `nullptr`.

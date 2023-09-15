@@ -58,29 +58,12 @@ bool opt::dce(ir::Context& context, ir::Function& function) {
     return result;
 }
 
-static bool isCritical(Instruction const& inst) {
-    // clang-format off
-    return visit(inst, utl::overload{
-        [](Return const&) { return true; },
-        [](Store const&) { return true; },
-        [](Call const& call) {
-            auto* function = call.function();
-            if (function->hasAttribute(FunctionAttribute::Memory_WriteNone)) {
-                return false;
-            }
-            return true;
-        },
-        [](Instruction const&) { return false; },
-    }); // clang-format on
-}
-
 bool DCEContext::run() {
     /// Initialization phase
     auto instructions =
         function.instructions() | TakeAddress | ToSmallVector<32>;
     auto criticalInstructions =
-        instructions |
-        ranges::views::filter([](auto* inst) { return isCritical(*inst); });
+        instructions | ranges::views::filter(hasSideEffects);
     for (auto* inst: criticalInstructions) {
         mark(inst);
     }

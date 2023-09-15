@@ -85,6 +85,15 @@ public:
         return { PhiIterator{ begin(), end() }, {} };
     }
 
+    /// \Returns Iterator to the first non-phi instruction in this basic block.
+    Iterator phiEnd();
+
+    /// \overload
+    ConstIterator phiEnd() const;
+
+    /// \Returns `true` if this block has any phi nodes
+    bool hasPhiNodes() const;
+
     /// Insert a new phi node after the last current phi node
     void insertPhi(Phi* phiNode);
 
@@ -203,12 +212,6 @@ public:
         return hasSingleSuccessor<TermInst>() ? successors<TermInst>().front() :
                                                 nullptr;
     }
-
-    /// \Returns Iterator to the first non-phi instruction in this basic block.
-    Iterator phiEnd();
-
-    /// \overload
-    ConstIterator phiEnd() const;
 
 private:
     /// For access to insert and erase callbacks.

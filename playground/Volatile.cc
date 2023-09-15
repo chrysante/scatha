@@ -124,11 +124,12 @@ static void run(ir::Module const& mod) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
     header("As parsed");
+    opt::PassManager::makePipeline("canonicalize, sroa, memtoreg")(ctx, mod);
     print(mod);
     run(mod);
 
-    header("After SROA");
-    opt::PassManager::makePipeline("sroa")(ctx, mod);
+    header("After SimplifyCFG");
+    opt::PassManager::makePipeline("simplifycfg2")(ctx, mod);
     print(mod);
 
     run(mod);
@@ -212,5 +213,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    irPlayground(path);
 }

@@ -28,15 +28,6 @@ class SCCCallGraph;
 
 namespace playground {
 
-std::string drawGraphGeneric(
-    scatha::ir::Module const& mod,
-    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)>
-        functionCallback,
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
-        bbDeclareCallback,
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
-        bbConnectCallback);
-
 std::string drawControlFlowGraph(scatha::ir::Module const& mod);
 
 void drawControlFlowGraph(scatha::ir::Module const& mod,

@@ -101,7 +101,7 @@ static constexpr utl::streammanip rowEnd = [](std::ostream& str) {
     str << "</td></tr>";
 };
 
-std::string playground::drawGraphGeneric(
+static std::string drawGraphGeneric(
     ir::Module const& mod,
     utl::function_view<void(std::stringstream&, ir::Function const&)>
         functionCallback,
