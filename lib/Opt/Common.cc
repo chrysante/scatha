@@ -103,28 +103,6 @@ bool opt::compareEqual(ir::Phi const* lhs,
     return cmpEqImpl(lhs, rhs);
 }
 
-void opt::removePredecessorAndUpdatePhiNodes(
-    ir::BasicBlock* basicBlock, ir::BasicBlock const* predecessor) {
-    basicBlock->removePredecessor(predecessor);
-    auto* const firstPhi = dyncast<Phi const*>(&basicBlock->front());
-    size_t const bbPhiIndex =
-        firstPhi ? firstPhi->indexOf(predecessor) : size_t(-1);
-    if (basicBlock->hasSinglePredecessor()) {
-        /// Transform all phi nodes into the value at the other predecessor.
-        for (auto& phi: basicBlock->phiNodes()) {
-            Value* const value = phi.argumentAt(1 - bbPhiIndex).value;
-            phi.replaceAllUsesWith(value);
-        }
-        basicBlock->eraseAllPhiNodes();
-    }
-    else {
-        /// Remove \p *predecessor from all phi nodes
-        for (auto& phi: basicBlock->phiNodes()) {
-            phi.removeArgument(bbPhiIndex);
-        }
-    }
-}
-
 BasicBlock* opt::splitEdge(std::string name,
                            Context& ctx,
                            BasicBlock* from,

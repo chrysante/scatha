@@ -27,13 +27,6 @@ bool compareEqual(ir::Phi const* lhs, std::span<ir::ConstPhiMapping const> rhs);
 SCATHA_TESTAPI
 bool compareEqual(ir::Phi const* lhs, std::span<ir::PhiMapping const> rhs);
 
-/// Fully remove \p *predecessor as predecessor of \p *basicBlock.
-/// Caller is responsible for removing \p *basicBlock as successor of
-/// \p predecessor
-SCATHA_TESTAPI
-void removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock,
-                                        ir::BasicBlock const* predecessor);
-
 /// Split the edge from \p from to \p to by inserting an empty basic block in
 /// between
 /// \returns The newly created basic block
