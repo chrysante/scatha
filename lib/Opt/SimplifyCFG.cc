@@ -15,7 +15,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::simplifyCFG, "simplifycfg");
+SC_REGISTER_PASS(opt::simplifyCFG_olg, "simplifycfg_olg");
 
 namespace {
 
@@ -42,7 +42,7 @@ struct Ctx {
 
 } // namespace
 
-bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
+bool opt::simplifyCFG_olg(ir::Context& irCtx, Function& function) {
     Ctx ctx(irCtx, function);
     bool modifiedAny = false;
     modifiedAny |= ctx.replaceConstCondBranches(&function.entry());

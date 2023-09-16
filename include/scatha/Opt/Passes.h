@@ -89,9 +89,9 @@ SCATHA_API bool memToReg(ir::Context& context, ir::Function& function);
 SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
 
 /// Simplify the control flow graph by merging and erasing unneeded blocks
-SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
+SCATHA_API bool simplifyCFG_olg(ir::Context& ctx, ir::Function& function);
 
-SCATHA_API bool simplifyCFG2(ir::Context& ctx, ir::Function& function);
+SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 
 /// Tail recursion elimination.
 ///

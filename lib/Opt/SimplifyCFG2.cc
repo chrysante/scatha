@@ -19,7 +19,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::simplifyCFG2, "simplifycfg2");
+SC_REGISTER_PASS(opt::simplifyCFG, "simplifycfg");
 
 ///
 static bool removeUnreachableBlocks(Function* function);
@@ -70,7 +70,7 @@ struct SCFGContext {
 
 } // namespace
 
-bool opt::simplifyCFG2(ir::Context& ctx, ir::Function& function) {
+bool opt::simplifyCFG(ir::Context& ctx, ir::Function& function) {
     bool modified = false;
     while (true) {
         modified |= SCFGContext(ctx, function).run();

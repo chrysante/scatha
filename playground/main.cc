@@ -113,7 +113,7 @@ int main(int argc, char const* const* argv) {
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/gen/cfg-sroa.gv");
         for (auto& function: mod) {
-            scatha::opt::simplifyCFG2(ctx, function);
+            scatha::opt::simplifyCFG(ctx, function);
         }
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
