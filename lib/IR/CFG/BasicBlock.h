@@ -135,11 +135,11 @@ public:
     }
 
     /// Remove predecessor \p *pred from the list of predecessors of this basic
-    /// block. \pre \p *pred must be a listed predecessor of this basic block.
+    /// block. All the phi instructions in this block are updated.
+    /// \pre \p *pred must be a listed predecessor of this basic block.
     void removePredecessor(BasicBlock const* pred);
 
-    /// Remove the predecessor at index \p index from the list of predecessors
-    /// of this basic block. \pre \p index must be valid.
+    /// \overload
     void removePredecessor(size_t index);
 
     /// The basic blocks directly reachable from this basic block

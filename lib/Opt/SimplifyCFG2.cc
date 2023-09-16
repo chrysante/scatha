@@ -11,6 +11,7 @@
 #include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 #include "Opt/Common.h"
 #include "Opt/PassRegistry.h"
 
@@ -20,6 +21,10 @@ using namespace opt;
 
 SC_REGISTER_PASS(opt::simplifyCFG2, "simplifycfg2");
 
+///
+static bool removeUnreachableBlocks(Function* function);
+
+///
 static void eraseSingleValuePhiNodes(BasicBlock* BB) {
     SC_ASSERT(BB->hasSinglePredecessor(), "Precondition");
     Phi* phi = nullptr;
@@ -48,6 +53,9 @@ struct SCFGContext {
     /// Runs the algorithm
     bool run();
 
+    ///
+    void rewriteConstantBranch(BasicBlock* BB);
+
     /// Try to fold \p BB if it is (nearly) empty and merge the successor and
     /// predecessor blocks if possible
     bool foldIfEmpty(BasicBlock* BB);
@@ -63,7 +71,19 @@ struct SCFGContext {
 } // namespace
 
 bool opt::simplifyCFG2(ir::Context& ctx, ir::Function& function) {
-    return SCFGContext(ctx, function).run();
+    bool modified = false;
+    while (true) {
+        modified |= SCFGContext(ctx, function).run();
+        if (removeUnreachableBlocks(&function)) {
+            modified = true;
+            continue;
+        }
+        break;
+    };
+    if (modified) {
+        function.invalidateCFGInfo();
+    }
+    return modified;
 }
 
 bool SCFGContext::run() {
@@ -71,6 +91,7 @@ bool SCFGContext::run() {
     while (!worklist.empty()) {
         auto* BB = *worklist.begin();
         worklist.erase(worklist.begin());
+        rewriteConstantBranch(BB);
         if (foldIfEmpty(BB)) {
             modified = true;
             continue;
@@ -80,10 +101,41 @@ bool SCFGContext::run() {
             continue;
         }
     }
-    if (modified) {
-        function.invalidateCFGInfo();
-    }
     return modified;
+}
+
+static std::optional<bool> getConstantCondition(Branch const* branch) {
+    auto* type = cast<IntegralType const*>(branch->condition()->type());
+    SC_ASSERT(type->bitwidth() == 1, "Must be boolean");
+    // clang-format off
+    return SC_MATCH (*branch->condition()) {
+        [](IntegralConstant const& cond) {
+            return std::optional(cond.value().to<bool>());
+        },
+        [](UndefValue const&) {
+            return std::optional(true);
+        },
+        [](Value const&) {
+            return std::nullopt;
+        }
+    }; // clang-format on
+}
+
+void SCFGContext::rewriteConstantBranch(BasicBlock* BB) {
+    auto* branch = dyncast<Branch*>(BB->terminator());
+    if (!branch) {
+        return;
+    }
+    auto condition = getConstantCondition(branch);
+    if (!condition) {
+        return;
+    }
+    auto* target = *condition ? branch->thenTarget() : branch->elseTarget();
+    auto* stale = *condition ? branch->elseTarget() : branch->thenTarget();
+    stale->removePredecessor(BB);
+    BB->erase(branch);
+    BasicBlockBuilder(ctx, BB).add<Goto>(target);
+    worklist.insert({ target, stale });
 }
 
 bool SCFGContext::foldIfEmpty(BasicBlock* BB) {
@@ -107,6 +159,7 @@ bool SCFGContext::foldIfEmpty(BasicBlock* BB) {
         /// ```
         succ->updatePredecessor(BB, pred);
         pred->terminator()->updateOperand(BB, succ);
+        worklist.erase(BB);
         function.erase(BB);
         worklist.insert({ pred, succ });
         worklist.insert(pred->successors().begin(), pred->successors().end());
@@ -115,8 +168,9 @@ bool SCFGContext::foldIfEmpty(BasicBlock* BB) {
         return true;
     }
     /// This is the slightly harder case
-    /// We try replace the phi instructions in `succ` with select instructions
-    /// and speculatively move the instructions from `BB` into `succ`
+    /// We try to replace the phi instructions in `succ` with select
+    /// instructions and speculatively move the instructions from `BB` into
+    /// `succ`
     /// ```
     ///   pred
     ///  /   |
@@ -168,9 +222,10 @@ bool SCFGContext::foldIfEmpty(BasicBlock* BB) {
     }
     succ->setPredecessors(pred->predecessors());
     /// And erase the dead blocks
+    worklist.erase(BB);
     function.erase(BB);
-    function.erase(pred);
     worklist.erase(pred);
+    function.erase(pred);
     /// And insert `succ` and its new predecessors into the worklist
     worklist.insert(succ);
     worklist.insert(succ->predecessors().begin(), succ->predecessors().end());
@@ -197,14 +252,20 @@ bool SCFGContext::foldIntoSinglePred(BasicBlock* BB) {
         worklist.insert(succ);
     }
     worklist.insert(pred);
+    worklist.erase(BB);
     function.erase(BB);
     return true;
 }
 
 bool SCFGContext::canExecuteSpeculatively(BasicBlock const* BB) {
-    size_t count = 0;
+    /// The number of instructions in a basic block that we are willing to
+    /// speculatively execute by folding it into another block
     size_t const MaxInstructionSpec = 4;
+    size_t count = 0;
     for (auto& inst: *BB) {
+        if (isa<Phi>(inst)) {
+            continue;
+        }
         if (isa<TerminatorInst>(inst)) {
             break;
         }
@@ -217,4 +278,31 @@ bool SCFGContext::canExecuteSpeculatively(BasicBlock const* BB) {
         }
     }
     return true;
+}
+
+static bool removeUnreachableBlocks(Function* function) {
+    utl::hashset<BasicBlock*> visited;
+    auto dfs = [&](auto& dfs, BasicBlock* BB) -> void {
+        if (!visited.insert(BB).second) {
+            return;
+        }
+        for (auto* succ: BB->successors()) {
+            dfs(dfs, succ);
+        }
+    };
+    dfs(dfs, &function->entry());
+    bool erasedAny = false;
+    for (auto itr = function->begin(); itr != function->end();) {
+        auto* BB = itr.to_address();
+        if (visited.contains(BB)) {
+            ++itr;
+            continue;
+        }
+        erasedAny = true;
+        for (auto* succ: BB->successors()) {
+            succ->removePredecessor(BB);
+        }
+        itr = function->erase(itr);
+    }
+    return erasedAny;
 }
