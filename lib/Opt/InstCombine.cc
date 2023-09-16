@@ -32,12 +32,16 @@ struct InstCombineCtx {
     bool run();
 
     /// \Returns Replacement value if possible
+    /// The visit functions never update users themselves, they only return the
+    /// replacement value if they find any
     Value* visitInstruction(Instruction* inst);
 
     Value* visitImpl(Instruction* inst) { return nullptr; }
     Value* visitImpl(ArithmeticInst* inst);
     Value* visitImpl(Phi* phi);
     Value* visitImpl(Select* inst);
+    Value* visitImpl(CompareInst* inst);
+    Value* visitImpl(UnaryArithmeticInst* inst);
     Value* visitImpl(ExtractValue* inst);
     Value* visitImpl(InsertValue* inst);
 
@@ -536,16 +540,93 @@ Value* InstCombineCtx::visitImpl(Phi* phi) {
     return nullptr;
 }
 
+/// Returns `i1` type if \p type is `i1`. Otherwise returns `nullptr`
+static ir::IntegralType const* getBoolType(ir::Type const* type) {
+    auto* intType = dyncast<IntegralType const*>(type);
+    if (intType && intType->bitwidth() == 1) {
+        return intType;
+    }
+    return nullptr;
+}
+
 Value* InstCombineCtx::visitImpl(Select* inst) {
+    /// If we have a constant condition we return the constantly selected value
     if (auto* constant = dyncast<IntegralConstant*>(inst->condition())) {
         SC_ASSERT(constant->value().bitwidth() == 1, "Must be bool");
         return constant->value().to<bool>() ? inst->thenValue() :
                                               inst->elseValue();
     }
+    /// Replace instructions of the form `%2 = select i1 %0, <type> %1, <type>
+    /// %1`  with the value `%1`
     if (inst->thenValue() == inst->elseValue()) {
         return inst->thenValue();
     }
+    /// If we select between two bools, we want to replace the select by either
+    /// the condition or the inverse of the condition
+    if (auto* boolType = getBoolType(inst->type())) {
+        SC_ASSERT(getBoolType(inst->thenValue()->type()), "");
+        SC_ASSERT(getBoolType(inst->elseValue()->type()), "");
+        auto* thenVal = dyncast<IntegralConstant*>(inst->thenValue());
+        auto* elseVal = dyncast<IntegralConstant*>(inst->elseValue());
+        if (!thenVal || !elseVal) {
+            return nullptr;
+        }
+        if (thenVal->value().to<bool>()) {
+            SC_ASSERT(!elseVal->value().to<bool>(),
+                      "Can't be the same, we checked that case earlier");
+            return inst->condition();
+        }
+        else {
+            SC_ASSERT(elseVal->value().to<bool>(),
+                      "Can't be the same, see case above");
+            auto* lnt =
+                new UnaryArithmeticInst(irCtx,
+                                        inst->condition(),
+                                        UnaryArithmeticOperation::LogicalNot,
+                                        "select.lnt");
+            inst->parent()->insert(inst, lnt);
+            return lnt;
+        }
+    }
     return nullptr;
+}
+
+Value* InstCombineCtx::visitImpl(CompareInst* inst) { return nullptr; }
+
+Value* InstCombineCtx::visitImpl(UnaryArithmeticInst* inst) {
+    using enum UnaryArithmeticOperation;
+    switch (inst->operation()) {
+    case BitwiseNot:
+        return nullptr;
+
+    case LogicalNot: {
+        /// If we have a logical not of a compare instruction, we either rewrite
+        /// the compare to its inverse operation or generate a new compare
+        /// instruction with the inverse operation
+        auto* compare = dyncast<CompareInst*>(inst->operand());
+        if (!compare) {
+            return nullptr;
+        }
+        if (compare->userCount() == 1) {
+            compare->setOperation(inverse(compare->operation()));
+            return compare;
+        }
+        auto* newCompare =
+            new CompareInst(irCtx,
+                            compare->lhs(),
+                            compare->rhs(),
+                            compare->mode(),
+                            inverse(compare->operation()),
+                            utl::strcat(compare->name(), ".inv"));
+        inst->parent()->insert(inst, newCompare);
+        return newCompare;
+    }
+    case Negate:
+        return nullptr;
+
+    case _count:
+        SC_UNREACHABLE();
+    };
 }
 
 Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {

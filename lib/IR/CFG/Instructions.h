@@ -118,6 +118,8 @@ public:
 
     CompareOperation operation() const { return _op; }
 
+    void setOperation(CompareOperation op) { _op = op; }
+
 private:
     CompareMode _mode;
     CompareOperation _op;

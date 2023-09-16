@@ -49,6 +49,7 @@ public:
 
     /// Number of users using this value. Multiple uses by the same user are
     /// counted as one.
+    /// TODO: Rename to numUsers()
     size_t userCount() const { return _users.size(); }
 
     /// \Returns `true` if this value has any users

@@ -18,7 +18,8 @@ class PipelineRoot;
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     Pipeline const& pipeline);
 
-/// Generate a descriptive string of the pipeline of the form `global(locals,...),...`
+/// Generate a descriptive string of the pipeline of the form
+/// `global(locals,...),...`
 SCATHA_API std::string toString(Pipeline const& pipeline);
 
 /// Print \p pipeline as a flat list of passes
