@@ -1,6 +1,7 @@
 #include "Opt/Pipeline.h"
 
 #include <iostream>
+#include <sstream>
 
 #include "Opt/Pipeline/PipelineNodes.h"
 
@@ -27,6 +28,12 @@ bool Pipeline::empty() const { return root->empty(); }
 std::ostream& opt::operator<<(std::ostream& ostream, Pipeline const& pipeline) {
     pipeline.root->print(ostream);
     return ostream;
+}
+
+std::string opt::toString(Pipeline const& pipeline) {
+    std::stringstream sstr;
+    sstr << pipeline;
+    return std::move(sstr).str();
 }
 
 void opt::print(Pipeline const& pipeline) { print(pipeline, std::cout); }

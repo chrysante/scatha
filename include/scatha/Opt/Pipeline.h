@@ -3,6 +3,7 @@
 
 #include <iosfwd>
 #include <memory>
+#include <string>
 
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
@@ -12,9 +13,13 @@ namespace scatha::opt {
 class Pipeline;
 class PipelineRoot;
 
-///
+/// Print a descriptive string of the pipeline to \p ostream
+/// Equivalent to `ostream << toString(pipeline)`
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     Pipeline const& pipeline);
+
+/// Generate a descriptive string of the pipeline of the form `global(locals,...),...`
+SCATHA_API std::string toString(Pipeline const& pipeline);
 
 /// Print \p pipeline as a flat list of passes
 SCATHA_API void print(Pipeline const& pipeline);
