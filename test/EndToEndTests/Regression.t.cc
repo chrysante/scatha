@@ -165,6 +165,7 @@ func i64 @f-s64-s64(i64 %0, i64 %1) {
     return i64 %1
 })");
 }
+
 TEST_CASE("SROA being too aggressive with phi'd pointers speculatively "
           "exectuting stores") {
     test::checkReturns(3, R"(
@@ -180,5 +181,18 @@ fn main() -> int {
         c = 3;
     }
     return c;
+})");
+}
+
+TEST_CASE("Invalid code generation for early declared compare operations") {
+    test::checkIRReturns(3, R"(
+func i64 @main() {
+%entry:
+    %0 = scmp eq i32 0, i32 1
+    %1 = scmp eq i32 1, i32 2
+    
+    %s = select i1 %0, i64 1, i64 2
+    %r = select i1 %1, i64 %s, i64 3
+    return i64 %r
 })");
 }
