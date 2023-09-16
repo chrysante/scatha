@@ -788,6 +788,7 @@ mir::CompareOperation CodeGenContext::readCondition(
                { cond },
                mir::CompareMode::Unsigned,
                1);
+    lastEmittedCompare = nullptr;
     return mir::CompareOperation::NotEqual;
 }
 
