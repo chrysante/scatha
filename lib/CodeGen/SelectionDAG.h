@@ -24,7 +24,7 @@ public:
     /// \Returns the value associated with this node
     ir::Value* value() const { return payload(); }
 
-    /// Nodes of the operands of this instruction
+    /// \Returns a view of the nodes of the operands of this instruction
     std::span<SelectionNode* const> operands() { return successors(); }
 
     /// \overload
@@ -32,7 +32,7 @@ public:
         return successors();
     }
 
-    /// Nodes of the users of this instruction
+    /// \Returns a view of the nodes of the users of this instruction
     std::span<SelectionNode* const> users() { return predecessors(); }
 
     /// \overload
