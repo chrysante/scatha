@@ -21,21 +21,22 @@ MemberTree MemberTree::compute(ir::Type const* type) {
 MemberTree::Node* MemberTree::computeDFS(ir::Type const* type,
                                          size_t index,
                                          size_t offset) {
-    nodes.push_back(std::make_unique<Node>(
-        Payload{ index, type, offset, offset + type->size() }));
-    auto* result = nodes.back().get();
+    auto* result =
+        allocate<Node>(allocator, index, type, offset, offset + type->size());
     // clang-format off
     SC_MATCH (*type) {
         [&](ir::StructType const& type) {
             for (size_t i = 0; i < type.numElements(); ++i) {
-                auto* node = computeDFS(type.elementAt(i), i, offset + type.offsetAt(i));
+                auto* node = computeDFS(type.elementAt(i), i,
+                                        offset + type.offsetAt(i));
                 result->addChild(node);
             }
         },
         [&](ir::ArrayType const& type) {
             auto* elemType = type.elementType();
             for (size_t i = 0; i < type.count(); ++i) {
-                auto* node = computeDFS(elemType, i, offset + i * elemType->size());
+                auto* node = computeDFS(elemType, i,
+                                        offset + i * elemType->size());
                 result->addChild(node);
             }
         },
