@@ -128,7 +128,7 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
 }
 
 BasicBlock const* TerminatorInst::targetAt(size_t index) const {
-    return targets()[utl::narrow_cast<size_t>(index)];
+    return targets()[utl::narrow_cast<ssize_t>(index)];
 }
 
 void TerminatorInst::updateTarget(BasicBlock* oldTarget,
