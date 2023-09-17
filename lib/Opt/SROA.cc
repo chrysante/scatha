@@ -66,11 +66,13 @@ static auto* memcpyDest(auto* call) {
     return call->argumentAt(0);
 }
 
+/// \Returns the source pointer of the memcpy operation
 static auto* memcpySource(auto* call) {
     SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
     return call->argumentAt(2);
 }
 
+/// \Returns the destination pointer of the memcpy operation
 static size_t memcpySize(Call const* call) {
     SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
     auto* size = cast<IntegralConstant const*>(call->argumentAt(1));
@@ -178,8 +180,8 @@ struct Variable {
     /// Maps all pointer instructions to their offset into the alloca region
     utl::hashmap<Instruction const*, std::optional<size_t>> ptrToOffsetMap;
 
-    /// Maps load and store instructions to a range of slices that it should
-    /// load from or store to
+    /// Maps subranges of the alloca region to lists of all slices in that
+    /// subrange
     utl::hashmap<Subrange, utl::small_vector<Slice>> sliceToSublices;
 
     /// All intermediate alloca instructions created for our slices
