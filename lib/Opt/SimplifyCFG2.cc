@@ -266,6 +266,10 @@ bool SCFGContext::canExecuteSpeculatively(BasicBlock const* BB) {
         if (isa<Phi>(inst)) {
             continue;
         }
+        /// gep instructions really are no-ops so we ignore them here
+        if (isa<GetElementPointer>(inst)) {
+            continue;
+        }
         if (isa<TerminatorInst>(inst)) {
             break;
         }
