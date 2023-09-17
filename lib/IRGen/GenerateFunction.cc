@@ -1067,7 +1067,8 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
                                    ctx.arrayType(typeMap(elemType),
                                                  list.elements().size()),
                                    std::move(data),
-                                   "array");
+                                   utl::strcat("array.at",
+                                               list.sourceLocation()));
     auto* source = constData.get();
     mod.addConstantData(std::move(constData));
     callMemcpy(dest, source, list.elements().size() * elemType->size());
