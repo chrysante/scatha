@@ -16,6 +16,7 @@
 
 using namespace scatha;
 using namespace ir;
+using namespace tfmt::modifiers;
 
 namespace {
 
@@ -70,30 +71,28 @@ struct PrintCtx {
 } // namespace
 
 static auto formatKeyword(auto... name) {
-    return tfmt::format(tfmt::Magenta | tfmt::Bold, name...);
+    return tfmt::format(Magenta | Bold, name...);
 }
 
 static auto formatNumLiteral(auto... value) {
-    return tfmt::format(tfmt::Cyan, value...);
+    return tfmt::format(Cyan, value...);
 }
 
-static auto tertiary(auto... name) {
-    return tfmt::format(tfmt::BrightGrey, name...);
-}
+static auto tertiary(auto... name) { return tfmt::format(BrightGrey, name...); }
 
 static auto formatInstName(auto... name) { return formatKeyword(name...); }
 
 static utl::vstreammanip<> formatType(ir::Type const* type) {
     return [=](std::ostream& str) {
         if (!type) {
-            str << tfmt::format(tfmt::BrightBlue | tfmt::Italic, "null-type");
+            str << tfmt::format(BrightBlue | Italic, "null-type");
             return;
         }
         // clang-format off
         visit(*type, utl::overload{
             [&](StructType const& type) {
                 if (!type.name().empty()) {
-                    str << tfmt::format(tfmt::Green, "@", type.name());
+                    str << tfmt::format(Green, "@", type.name());
                     return;
                 }
                 str << "{ ";
@@ -104,11 +103,11 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
                 str << " }";
             },
             [&](ArrayType const& type) {
-                str << "[" << formatType(type.elementType()) << ", "
-                    << formatNumLiteral(type.count()) << "]";
+                str << tfmt::format(None, "[") << formatType(type.elementType()) << ", "
+                    << formatNumLiteral(type.count()) << tfmt::format(None, "]");
             },
             [&](Type const& type) {
-                str << tfmt::format(tfmt::BrightBlue, type.name());
+                str << tfmt::format(BrightBlue, type.name());
             }
         }); // clang-format on
     };
@@ -141,30 +140,29 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
             return replaceSubstrings(std::string(value.name()),
                                      std::array{ "<"sv, ">"sv, "&"sv },
                                      std::array{ "&lt;"sv,
-                                                 "%gt;"sv,
+                                                 "&gt;"sv,
                                                  "&amp;"sv });
         }
     };
     if (!value) {
-        str << tfmt::format(tfmt::BrightWhite | tfmt::BGBrightRed | tfmt::Bold,
-                            "<NULL>");
+        str << tfmt::format(BrightWhite | BGBrightRed | Bold, "<NULL>");
         return;
     }
     // clang-format off
     visit(*value, utl::overload{
         [&](ir::Constant const& constant) {
-            str << tfmt::format(tfmt::Italic | tfmt::Green,
+            str << tfmt::format(Green,
                                 "@", htmlName(constant));
         },
         [&](ir::Parameter const& parameter) {
-            str << tfmt::format(tfmt::None, "%", htmlName(parameter));
+            str << tfmt::format(None, "%", htmlName(parameter));
         },
         [&](ir::BasicBlock const& basicBlock) {
-            str << tfmt::format(tfmt::Italic,
+            str << tfmt::format(Italic,
                                 "%", htmlName(basicBlock));
         },
         [&](ir::Instruction const& inst) {
-            str << tfmt::format(tfmt::None, "%", htmlName(inst));
+            str << tfmt::format(None, "%", htmlName(inst));
         },
         [&](ir::IntegralConstant const& value) {
             str << formatNumLiteral(value.value().toString());
@@ -176,14 +174,14 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
             str << formatKeyword("undef");
         },
         [&](ir::Value const&) {
-            str << tfmt::format(tfmt::BGMagenta, "???");
+            str << tfmt::format(BGMagenta, "???");
         },
     }); // clang-format on
 });
 
 static auto equals() {
     return utl::streammanip([](std::ostream& str) -> std::ostream& {
-        return str << " " << tfmt::format(tfmt::None, "=") << " ";
+        return str << " " << tfmt::format(None, "=") << " ";
     });
 }
 
@@ -212,6 +210,15 @@ void ir::print(Callable const& callable) { ir::print(callable, std::cout); }
 void ir::print(Callable const& callable, std::ostream& str) {
     PrintCtx ctx(str);
     visit(callable, [&](auto& function) { ctx.print(function); });
+}
+
+void ir::printDecl(Callable const& function) {
+    ir::printDecl(function, std::cout);
+}
+
+void ir::printDecl(Callable const& function, std::ostream& ostream) {
+    PrintCtx ctx(ostream);
+    ctx.funcDecl(&function);
 }
 
 void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }
@@ -306,7 +313,7 @@ void PrintCtx::printImpl(BasicBlock const& bb) {
         for (ssize_t i = 0; i < commentIndent; ++i) {
             str << ' ';
         }
-        tfmt::pushModifier(tfmt::BrightGrey, str);
+        tfmt::pushModifier(BrightGrey, str);
         str << "# preds: ";
         for (bool first = true; auto* pred: bb.predecessors()) {
             str << (first ? first = false, "" : ", ") << pred->name();
@@ -487,7 +494,7 @@ void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
                 intType && intType->bitwidth() == 8)
             {
                 std::string_view text(reinterpret_cast<char const*>(data.data()), data.size());
-                tfmt::format(tfmt::Red, [&]{
+                tfmt::format(Red, [&]{
                     str << '"';
                     printWithEscapeSeqs(str, text);
                     str << '"';

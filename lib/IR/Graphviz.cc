@@ -47,6 +47,13 @@ static constexpr utl::streammanip rowEnd = [](std::ostream& str) {
     str << "</td></tr>";
 };
 
+static Label makeLabel(Function const& function) {
+    std::stringstream sstr;
+    tfmt::setHTMLFormattable(sstr);
+    printDecl(function, sstr);
+    return Label(std::move(sstr).str(), LabelKind::HTML);
+}
+
 static Label makeLabel(BasicBlock const& BB) {
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
@@ -54,7 +61,7 @@ static Label makeLabel(BasicBlock const& BB) {
         sstr << "    " << rowBegin << fontBegin(monoFont) << "\n";
     };
     auto epilog = [&] { sstr << "    " << fontEnd << rowEnd << "\n"; };
-    sstr << "  " << tableBegin << "\n";
+    sstr << tableBegin << "\n";
     prolog();
     sstr << tfmt::format(tfmt::Italic, "%", BB.name()) << ":\n";
     epilog();
@@ -63,13 +70,12 @@ static Label makeLabel(BasicBlock const& BB) {
         sstr << inst << "\n";
         epilog();
     }
-    sstr << "    " << tableEnd << "\n";
+    sstr << tableEnd << "\n";
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
 static Graph* makeFunction(Function const& function) {
-    auto* subgraph =
-        Graph::make(ID(&function))->label(utl::strcat("@", function.name()));
+    auto* subgraph = Graph::make(ID(&function))->label(makeLabel(function));
     for (auto& BB: function) {
         subgraph->add(Vertex::make(ID(&BB))->label(makeLabel(BB)));
         for (auto* succ: BB.successors()) {
@@ -81,12 +87,14 @@ static Graph* makeFunction(Function const& function) {
 
 void ir::generateGraphviz(Function const& function, std::ostream& ostream) {
     Graph G;
+    G.font(monoFont);
     G.add(makeFunction(function));
     generate(G, ostream);
 }
 
 void ir::generateGraphviz(Module const& mod, std::ostream& ostream) {
     Graph G;
+    G.font(monoFont);
     for (auto& function: mod) {
         G.add(makeFunction(function));
     }

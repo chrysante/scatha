@@ -21,6 +21,12 @@ SCATHA_API void print(Callable const& function);
 /// Print function \p function to \p ostream
 SCATHA_API void print(Callable const& function, std::ostream& ostream);
 
+/// Print declaration of  \p function to `std::cout`
+SCATHA_API void printDecl(Callable const& function);
+
+/// Print declaration of  \p function to \p ostream
+SCATHA_API void printDecl(Callable const& function, std::ostream& ostream);
+
 /// Print instruction \p inst to `std::cout`
 SCATHA_API void print(Instruction const& inst);
 
