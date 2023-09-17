@@ -29,15 +29,15 @@ SelectionDAG SelectionDAG::build(ir::BasicBlock& BB) {
 SelectionNode const* SelectionDAG::operator[](ir::Instruction* inst) const {
     auto itr = nodemap.find(inst);
     SC_ASSERT(itr != nodemap.end(), "Not found");
-    return itr->second.get();
+    return itr->second;
 }
 
 SelectionNode* SelectionDAG::get(ir::Value* value) {
     auto& ptr = nodemap[value];
     if (!ptr) {
-        ptr = std::make_unique<SelectionNode>(value);
+        ptr = allocate<SelectionNode>(allocator, value);
     }
-    return ptr.get();
+    return ptr;
 }
 
 using namespace graphgen;

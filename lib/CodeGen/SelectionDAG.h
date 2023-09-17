@@ -7,6 +7,7 @@
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
+#include "Common/Allocator.h"
 #include "Common/Base.h"
 #include "Common/Graph.h"
 #include "Common/Ranges.h"
@@ -71,7 +72,8 @@ private:
     SelectionNode* get(ir::Value* value);
 
     ir::BasicBlock* BB = nullptr;
-    utl::hashmap<ir::Value*, std::unique_ptr<SelectionNode>> nodemap;
+    utl::hashmap<ir::Value*, SelectionNode*> nodemap;
+    MonotonicBufferAllocator allocator;
 };
 
 /// Writes graphviz code representing \p DAG to \p ostream
