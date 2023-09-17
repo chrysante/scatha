@@ -60,7 +60,10 @@ struct PrintCtx {
     void typedName(Value const*) const;
     void keyword(auto...) const;
     void space() const { str << " "; }
-    void comma() const { str << ", "; }
+    void comma() const {
+        str << tfmt::format(None, ",");
+        space();
+    }
     void to() const;
     void indexList(auto list) const;
 
@@ -299,7 +302,7 @@ static ssize_t length(auto const& fmt) {
 }
 
 void PrintCtx::printImpl(BasicBlock const& bb) {
-    str << indent << formatName(&bb) << ":";
+    str << indent << formatName(&bb) << tfmt::format(None, ":");
     if (!bb.isEntry()) {
         ssize_t commentIndent = 30;
         ssize_t const currentColumn =
@@ -313,12 +316,11 @@ void PrintCtx::printImpl(BasicBlock const& bb) {
         for (ssize_t i = 0; i < commentIndent; ++i) {
             str << ' ';
         }
-        tfmt::pushModifier(BrightGrey, str);
+        tfmt::FormatGuard grey(BrightGrey, str);
         str << "# preds: ";
         for (bool first = true; auto* pred: bb.predecessors()) {
             str << (first ? first = false, "" : ", ") << pred->name();
         }
-        tfmt::popModifier(str);
     }
     str << "\n";
     indent.increase();
