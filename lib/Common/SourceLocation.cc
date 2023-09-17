@@ -6,8 +6,7 @@
 using namespace scatha;
 
 std::ostream& scatha::operator<<(std::ostream& str, SourceLocation const& sc) {
-    return str << "[L:" << std::setw(3) << sc.line << ", C:" << std::setw(3)
-               << sc.column << "]";
+    return str << "[L:" << sc.line << ",C:" << sc.column << "]";
 }
 
 SourceRange scatha::merge(SourceRange lhs, SourceRange rhs) {
