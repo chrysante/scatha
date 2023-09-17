@@ -7,7 +7,9 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <svm/Builtin.h>
 #include <utl/function_view.hpp>
+#include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
@@ -34,30 +36,45 @@ using namespace opt;
 
 SC_REGISTER_PASS(opt::sroa, "sroa");
 
-/// Uniform interface to get the associated type of load and store instructions
-Type const* getLSType(Instruction const* inst) {
+/// Uniform interface to get the associated pointer and type the load or store
+/// instruction \p inst
+std::pair<Value const*, Type const*> getLSPointerAndType(
+    Instruction const* inst) {
+    using Ret = std::pair<Value const*, Type const*>;
     // clang-format off
     return SC_MATCH (*inst) {
-        [](Load const& load) { return load.type(); },
-        [](Store const& store) { return store.value()->type(); },
-        [](Instruction const& inst) -> Type const* { SC_UNREACHABLE(); },
+        [](Load const& load) {
+            return std::pair{ load.address(), load.type() };
+        },
+        [](Store const& store) {
+            return std::pair{ store.address(), store.value()->type() };
+        },
+        [](Instruction const& inst) -> Ret { SC_UNREACHABLE(); },
     }; // clang-format on
 }
 
-/// Uniform interface to get the associated pointer of load and store
-/// instructions
-Value const* getLSPointer(Instruction const* inst) {
-    // clang-format off
-    return SC_MATCH (*inst) {
-        [](Load const& load) { return load.address(); },
-        [](Store const& store) { return store.address(); },
-        [](Instruction const& inst) -> Value const* { SC_UNREACHABLE(); },
-    }; // clang-format on
+/// \Returns `true` if \p call is a call to memcpy with a constant size argument
+static bool isConstSizeMemcpy(Call const* call) {
+    return isBuiltinCall(call, static_cast<size_t>(svm::Builtin::memcpy)) &&
+           isa_or_null<IntegralConstant>(call->argumentAt(1)) &&
+           isa_or_null<IntegralConstant>(call->argumentAt(3));
 }
 
-/// \overload
-Value* getLSPointer(Instruction* inst) {
-    return const_cast<Value*>(getLSPointer(&std::as_const(*inst)));
+/// \Returns the destination pointer of a call to memcpy
+static auto* memcpyDest(auto* call) {
+    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    return call->argumentAt(0);
+}
+
+static auto* memcpySource(auto* call) {
+    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    return call->argumentAt(2);
+}
+
+static size_t memcpySize(Call const* call) {
+    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    auto* size = cast<IntegralConstant const*>(call->argumentAt(1));
+    return size->value().to<size_t>();
 }
 
 namespace {
@@ -79,6 +96,25 @@ struct SROAContext {
             .first->second;
     }
 };
+
+/// Represents a subregion of the analyzed alloca
+struct AllocaRegion {
+    Instruction const* beginPtr;
+    size_t size;
+
+    bool operator==(AllocaRegion const&) const = default;
+};
+
+} // namespace
+
+template <>
+struct std::hash<AllocaRegion> {
+    size_t operator()(AllocaRegion const& region) const {
+        return utl::hash_combine(region.beginPtr, region.size);
+    }
+};
+
+namespace {
 
 /// Represents a slice of an alloca instruction. Every slice will be temporarily
 /// associated with a new alloca instruction before it gets promoted
@@ -110,6 +146,8 @@ private:
     Alloca* _newAlloca;
 };
 
+using Subrange = std::pair<size_t, size_t>;
+
 /// Represents a variable (an alloca instruction) that we are trying to slice
 /// and promote This hold most relevant data of the algorithm
 struct Variable {
@@ -119,8 +157,13 @@ struct Variable {
     LoopNestingForest& LNF;
     Alloca* baseAlloca;
 
-    /// All the loads and stores that directly or indirectly use our alloca
-    utl::hashset<Instruction*> loadsAndStores;
+    /// The global memcpy function. This will be set if any memcpy accessed our
+    /// alloca and we keep it here to generate new calls to memcpy
+    Callable* memcpy = nullptr;
+
+    /// All instructions (loads, stores and memcpys) that directly or indirectly
+    /// read or wrote parts of our alloca region
+    utl::hashset<Instruction*> accesses;
 
     /// All the GEPs that compute pointers into our alloca
     utl::hashset<GetElementPointer*> geps;
@@ -137,7 +180,7 @@ struct Variable {
 
     /// Maps load and store instructions to a range of slices that it should
     /// load from or store to
-    utl::hashmap<Instruction const*, utl::small_vector<Slice>> instToSlicesMap;
+    utl::hashmap<Subrange, utl::small_vector<Slice>> sliceToSublices;
 
     /// All intermediate alloca instructions created for our slices
     utl::small_vector<Alloca*> insertedAllocas;
@@ -182,10 +225,10 @@ struct Variable {
     }
     /// @}
 
-    /// Access the slices associated with load and store instructions
-    std::span<Slice const> getSlices(Instruction const* inst) const {
-        auto itr = instToSlicesMap.find(inst);
-        SC_ASSERT(itr != instToSlicesMap.end(), "Not found");
+    /// Access the slices associated with the subregion \p region
+    std::span<Slice const> getSubslices(Subrange subrange) const {
+        auto itr = sliceToSublices.find(subrange);
+        SC_ASSERT(itr != sliceToSublices.end(), "Not found");
         return itr->second;
     }
 
@@ -218,8 +261,9 @@ struct Variable {
         // clang-format off
         return SC_MATCH (*inst) {
             [&](Alloca& inst) { return true; },
-            [&](Load& load) { return loadsAndStores.insert(&load).second; },
-            [&](Store& store) { return loadsAndStores.insert(&store).second; },
+            [&](Load& load) { return accesses.insert(&load).second; },
+            [&](Store& store) { return accesses.insert(&store).second; },
+            [&](Call& call) { return accesses.insert(&call).second; },
             [&](GetElementPointer& gep) { return geps.insert(&gep).second; },
             [&](Phi& phi) { return phis.insert(&phi).second; },
             [&](Instruction& inst) -> bool { SC_UNREACHABLE(); },
@@ -230,8 +274,9 @@ struct Variable {
     void forget(Instruction* inst) {
         // clang-format off
         SC_MATCH (*inst) {
-            [&](Load& load) { loadsAndStores.erase(&load); },
-            [&](Store& store) { loadsAndStores.erase(&store); },
+            [&](Load& load) { accesses.erase(&load); },
+            [&](Store& store) { accesses.erase(&store); },
+            [&](Call& call) { accesses.erase(&call); },
             [&](GetElementPointer& gep) { geps.erase(&gep); },
             [&](Phi& phi) { phis.erase(&phi); },
             [&](Instruction& inst) { SC_UNREACHABLE(); },
@@ -252,15 +297,16 @@ struct Variable {
     bool analyzeImpl(Alloca* base);
     bool analyzeImpl(Load* load);
     bool analyzeImpl(Store* store);
+    bool analyzeImpl(Call* call);
     bool analyzeImpl(GetElementPointer* gep);
     bool analyzeImpl(Phi* phi);
 
-    /// If the pointer of the instruction\p loadOrStore is derived from a phi
-    /// instruction, this function checks if the instruction post dominates the
-    /// phi. If the pointer is not derived from a phi instruction this function
-    /// always returns `true`. We need this check to prevent speculative
-    /// execution.
-    bool pointerPostdominatesPhi(Instruction* loadOrStore);
+    /// If the pointer \p pointer is derived from a phi instruction, this
+    /// function checks if the instruction \p user post dominates the phi. If
+    /// the pointer is not derived from a phi instruction this function always
+    /// returns `true`. We need this check to prevent speculative execution of
+    /// stores which are not generally safe.
+    bool pointerUsePostdominatesPhi(Instruction* user, Value* pointer);
 
     /// If any phi instructions transitively use the alloca we copy the users of
     /// the phi into each of the predecessor blocks of the phi and add new phi
@@ -273,13 +319,15 @@ struct Variable {
     /// We slice the alloca based on the load and store instructions that
     /// (transitively) use the alloca
     bool computeSlices();
-    std::pair<size_t, size_t> getRange(Instruction const* inst);
+    utl::small_vector<Subrange, 2> getAccessedSubranges(
+        Instruction const* inst);
 
     /// We replace loads and stores with multiple loads and stores to the slices
     /// if necessary
     bool replaceBySlices();
     bool replaceBySlices(Load* load);
     bool replaceBySlices(Store* store);
+    bool replaceBySlices(Call* call);
     bool replaceBySlices(Instruction* inst) { SC_UNREACHABLE(); }
 
     /// We try to promote all the slices
@@ -357,7 +405,7 @@ bool Variable::analyzeImpl(Alloca* allocaInst) {
 
 bool Variable::analyzeImpl(Load* load) {
     /// TODO: Evaluate if this is really needed for loads
-    if (!pointerPostdominatesPhi(load)) {
+    if (!pointerUsePostdominatesPhi(load, load->address())) {
         return false;
     }
     memorize(load);
@@ -370,10 +418,33 @@ bool Variable::analyzeImpl(Store* store) {
     if (isPointerToOurAlloca(store->value())) {
         return false;
     }
-    if (!pointerPostdominatesPhi(store)) {
+    if (!pointerUsePostdominatesPhi(store, store->address())) {
         return false;
     }
     memorize(store);
+    return true;
+}
+
+bool Variable::analyzeImpl(Call* call) {
+    if (!isConstSizeMemcpy(call)) {
+        return false;
+    }
+    bool destIsAllocaPtr = isPointerToOurAlloca(memcpyDest(call));
+    bool sourceIsAllocaPtr = isPointerToOurAlloca(memcpySource(call));
+    if (!destIsAllocaPtr && !sourceIsAllocaPtr) {
+        return false;
+    }
+    if (destIsAllocaPtr && !pointerUsePostdominatesPhi(call, memcpyDest(call)))
+    {
+        return false;
+    }
+    if (sourceIsAllocaPtr &&
+        !pointerUsePostdominatesPhi(call, memcpySource(call)))
+    {
+        return false;
+    }
+    memcpy = call->function();
+    memorize(call);
     return true;
 }
 
@@ -420,15 +491,14 @@ bool Variable::analyzeImpl(Phi* phi) {
     return true;
 }
 
-bool Variable::pointerPostdominatesPhi(Instruction* inst) {
-    auto* ptr = getLSPointer(inst);
+bool Variable::pointerUsePostdominatesPhi(Instruction* user, Value* ptr) {
     auto* phi = getAssocPhi(ptr);
     if (!phi) {
         return true;
     }
     auto& domInfo = function.getOrComputePostDomInfo();
     auto& dominatorSet = domInfo.dominatorSet(phi->parent());
-    return dominatorSet.contains(inst->parent());
+    return dominatorSet.contains(user->parent());
 }
 
 /// FIXME: These functions are generic and have little to do with SROA. Move
@@ -625,18 +695,26 @@ bool Variable::computeSlices() {
     utl::hashset<size_t> set;
     /// We insert all the slice points at the positions that we directly load
     /// from and store to
-    for (auto* inst: loadsAndStores) {
-        auto [begin, end] = getRange(inst);
-        set.insert(begin);
-        set.insert(end);
+    for (auto* inst: accesses) {
+        for (auto subrange: getAccessedSubranges(inst)) {
+            auto [begin, end] = subrange;
+            set.insert(end);
+            set.insert(begin);
+        }
     }
     /// Then we insert all the slice points at "critical positions".
     /// If we slice at a certain member offset, we also need to slice the alloca
     /// at all offsets of siblings in the member tree of that node to be able to
     /// store all siblings
-    for (auto* inst: loadsAndStores) {
-        auto& tree = sroa.getMemberTree(getLSType(inst));
-        size_t const offset = getPtrOffset(getLSPointer(inst));
+    for (auto* inst: accesses) {
+        /// Calls to memcpy don't define critical positions because they have no
+        /// structure
+        if (isa<Call>(inst)) {
+            continue;
+        }
+        auto [pointer, type] = getLSPointerAndType(inst);
+        size_t const offset = getPtrOffset(pointer);
+        auto& tree = sroa.getMemberTree(type);
         utl::small_vector<MemberTree::Node const*> criticalSlicePoints;
         tree.root()->preorderDFS([&](MemberTree::Node const* node) {
             if (!node->parent()) {
@@ -685,21 +763,48 @@ bool Variable::computeSlices() {
         }
         slices.push_back({ begin, end, newAlloca });
     }
-    for (auto* inst: loadsAndStores) {
-        auto [begin, end] = getRange(inst);
-        instToSlicesMap[inst] = slicesInRange(begin, end, slices);
+    for (auto* inst: accesses) {
+        for (auto subrange: getAccessedSubranges(inst)) {
+            auto [begin, end] = subrange;
+            sliceToSublices[subrange] = slicesInRange(begin, end, slices);
+        }
     }
     return modified;
 }
 
-std::pair<size_t, size_t> Variable::getRange(Instruction const* inst) {
-    size_t offset = getPtrOffset(getLSPointer(inst));
-    return std::pair{ offset, offset + getLSType(inst)->size() };
+utl::small_vector<Subrange, 2> Variable::getAccessedSubranges(
+    Instruction const* inst) {
+    using Ret = utl::small_vector<Subrange, 2>;
+    // clang-format off
+    return SC_MATCH (*inst) {
+        [&](Load const& load) -> Ret {
+            size_t offset = getPtrOffset(load.address());
+            return { { offset, offset + load.type()->size() } };
+        },
+        [&](Store const& store) -> Ret {
+            size_t offset = getPtrOffset(store.address());
+            return { { offset, offset + store.value()->type()->size() } };
+        },
+        [&](Call const& call) -> Ret {
+            SC_ASSERT(isConstSizeMemcpy(&call), "");
+            Ret result;
+            if (auto offset = tryGetPtrOffset(memcpyDest(&call))) {
+                result.push_back({ *offset, memcpySize(&call) });
+            }
+            if (auto offset = tryGetPtrOffset(memcpySource(&call))) {
+                result.push_back({ *offset, memcpySize(&call) });
+            }
+            return result;
+        },
+        [&](Instruction const& inst) -> Ret {
+            SC_UNREACHABLE();
+        }
+    }; // clang-format on
 }
 
 bool Variable::replaceBySlices() {
     bool modified = false;
-    for (auto* inst: loadsAndStores) {
+    for (auto* inst: accesses) {
         modified |=
             visit(*inst, [&](auto& inst) { return replaceBySlices(&inst); });
     }
@@ -744,7 +849,7 @@ static void memTreePostorder(
 
 bool Variable::replaceBySlices(Load* load) {
     auto& tree = sroa.getMemberTree(load->type());
-    auto slices = getSlices(load);
+    auto slices = getSubslices(getAccessedSubranges(load).front());
     bool modified = false;
     Value* aggregate = ctx.undef(load->type());
     memTreePostorder(tree,
@@ -792,7 +897,7 @@ bool Variable::replaceBySlices(Load* load) {
 
 bool Variable::replaceBySlices(Store* store) {
     auto& tree = sroa.getMemberTree(store->value()->type());
-    auto slices = getSlices(store);
+    auto slices = getSubslices(getAccessedSubranges(store).front());
     bool modified = false;
     memTreePostorder(tree,
                      slices,
@@ -830,6 +935,59 @@ bool Variable::replaceBySlices(Store* store) {
         store->parent()->erase(store);
     }
     return modified;
+}
+
+bool Variable::replaceBySlices(Call* call) {
+    SC_ASSERT(isConstSizeMemcpy(call), "");
+    auto subranges = getAccessedSubranges(call);
+    auto* dest = memcpyDest(call);
+    auto* source = memcpySource(call);
+    auto* byteType = ctx.intType(8);
+    BasicBlockBuilder builder(ctx, call->parent());
+    SC_ASSERT(isPointerToOurAlloca(dest) || isPointerToOurAlloca(source),
+              "One of them must point to our alloca");
+    if (isPointerToOurAlloca(dest) && isPointerToOurAlloca(source)) {
+        /// This is the hard case where we copy within our alloca region
+        SC_UNIMPLEMENTED();
+    }
+    else if (isPointerToOurAlloca(dest)) {
+        auto slices = getSubslices(subranges.front());
+        for (auto slice: slices) {
+            auto* gepIndex = ctx.intConstant(slice.begin(), 32);
+            auto* sourceSlicePtr =
+                builder.insert<GetElementPointer>(call,
+                                                  byteType,
+                                                  source,
+                                                  gepIndex,
+                                                  std::array<size_t, 0>{},
+                                                  "sroa.gep");
+            auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
+            Value* args[] = { slice.newAlloca(), size, sourceSlicePtr, size };
+            SC_ASSERT(memcpy, "Must be set to generate call to memcpy");
+            builder.insert<Call>(call, memcpy, std::span(args));
+        }
+        call->parent()->erase(call);
+        return true;
+    }
+    else /* isPointerToOurAlloca(source) */ {
+        auto slices = getSubslices(subranges.front());
+        for (auto slice: slices) {
+            auto* gepIndex = ctx.intConstant(slice.begin(), 32);
+            auto* destSlicePtr =
+                builder.insert<GetElementPointer>(call,
+                                                  byteType,
+                                                  dest,
+                                                  gepIndex,
+                                                  std::array<size_t, 0>{},
+                                                  "sroa.gep");
+            auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
+            Value* args[] = { destSlicePtr, size, slice.newAlloca(), size };
+            SC_ASSERT(memcpy, "Must be set to generate call to memcpy");
+            builder.insert<Call>(call, memcpy, std::span(args));
+        }
+        call->parent()->erase(call);
+        return true;
+    }
 }
 
 bool Variable::promoteSlices() {
