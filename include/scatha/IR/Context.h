@@ -51,6 +51,9 @@ public:
     /// \returns The array type of \p elementType with \p count elements
     ArrayType const* arrayType(Type const* elementType, size_t count);
 
+    /// \returns The array type of `i8` with \p count elements
+    ArrayType const* byteArrayType(size_t count);
+
     /// \returns The global integral constant with value \p value
     IntegralConstant* intConstant(APInt value);
 

@@ -119,6 +119,10 @@ ArrayType const* Context::arrayType(Type const* elementType, size_t count) {
     return itr->second;
 }
 
+ArrayType const* Context::byteArrayType(size_t count) {
+    return arrayType(intType(8), count);
+}
+
 IntegralConstant* Context::intConstant(APInt value) {
     size_t const bitwidth = value.bitwidth();
     auto itr = impl->_integralConstants.find({ bitwidth, value });
