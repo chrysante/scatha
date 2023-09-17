@@ -124,12 +124,14 @@ static void run(ir::Module const& mod) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
     header("As parsed");
-    opt::PassManager::makePipeline("canonicalize, sroa, memtoreg")(ctx, mod);
+    //    opt::PassManager::makePipeline(
+    //        "canonicalize, sroa, propagateconst, instcombine")(ctx, mod);
     print(mod);
     run(mod);
 
-    header("After SimplifyCFG");
-    opt::PassManager::makePipeline("simplifycfg2")(ctx, mod);
+    auto pipeline = opt::PassManager::makePipeline("inline");
+    header(toString(pipeline));
+    pipeline(ctx, mod);
     print(mod);
 
     run(mod);

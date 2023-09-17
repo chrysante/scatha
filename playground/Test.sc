@@ -1,21 +1,51 @@
-@const_data = [i32, 3] [i32 1, i32 2, i32 3]
 
-@other_data = i32 1
 
-func i32 @main() {
-%entry:
-    %1 = load i32, ptr @other_data
-    %p = getelementptr inbounds i32, ptr @const_data, i32 0
-    %t0 = load i32, ptr %p
-    %q = getelementptr inbounds i32, ptr @const_data, i32 1
-    %t1 = load i32, ptr %q
-    goto label %end
-    
-%end:
-    %r = getelementptr inbounds i32, ptr @const_data, i32 2
-    %t2 = load i32, ptr %r
-    %s0 = add i32 %t0, i32 %t1
-    %s1 = add i32 %s0, i32 %t2
-    %s2 = add i32 %s1, i32 %1
-    return i32 %s2
+fn main() -> int {
+    var conds = [true, false, false];
+    return test(conds);
 }
+
+fn test(conds: &[bool]) -> int {
+    var result = 5;
+    if conds[0] {
+        result = 1;
+    }
+    else if conds[1] {
+        result = 2;
+    }
+    else if conds[2] {
+        result = 3;
+    }
+    else if conds[3] {
+        result = 4;
+    }
+    else if conds[4] {
+        result = 5;
+    }
+    else if conds[5] {
+        result = 6;
+    }
+    return result;
+}
+    
+
+        
+    
+    
+        
+    
+
+
+
+
+
+//func i64 @main() {
+//%entry:
+//    %0 = scmp eq i32 0, i32 1
+//    %1 = lnt i1 %0
+//
+//    %s = select i1 %0, i64 1, i64 2
+//    %r = select i1 %1, i64 %s, i64 3
+//    return i64 %r
+//}
+
