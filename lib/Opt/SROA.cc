@@ -523,7 +523,7 @@ bool Variable::rewritePhis() {
         return false;
     }
     /// We split critical edges so we can safely copy users of phi instructions
-    /// to predecessors of the phis without execution any instructions
+    /// to predecessors of the phis without executing any instructions
     /// speculatively
     splitCriticalEdges(ctx, function);
     utl::small_vector<Instruction*> toErase;
