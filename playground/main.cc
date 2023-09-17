@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -7,6 +8,7 @@
 #include <utl/vector.hpp>
 
 #include "CodeGen/Passes.h"
+#include "CodeGen/SelectionDAG.h"
 #include "DrawGraph.h"
 #include "HostIntegration.h"
 #include "IR/CFG.h"
@@ -28,7 +30,7 @@ enum class ProgramCase {
     Volatile,
     EmitCFG,
     EmitCallGraph,
-    EmitUseGraph,
+    EmitSelectionDAG,
     EmitInterferenceGraph,
     HostIntegration,
 };
@@ -74,7 +76,7 @@ int main(int argc, char const* const* argv) {
         { "volatile", ProgramCase::Volatile },
         { "emit-cfg", ProgramCase::EmitCFG },
         { "emit-callgraph", ProgramCase::EmitCallGraph },
-        { "emit-use-graph", ProgramCase::EmitUseGraph },
+        { "emit-selection-dag", ProgramCase::EmitSelectionDAG },
         { "emit-interference-graph", ProgramCase::EmitInterferenceGraph },
         { "host-int", ProgramCase::HostIntegration },
     };
@@ -139,8 +141,20 @@ int main(int argc, char const* const* argv) {
                           "graphviz/gen/callgraph.gv");
         break;
     }
-    case ProgramCase::EmitUseGraph: {
-        std::cout << "Drawing use graph is not supported\n";
+    case ProgramCase::EmitSelectionDAG: {
+        auto [ctx, mod] = makeIRModuleFromFile(filepath);
+        scatha::opt::optimize(ctx, mod, 1);
+        auto& function = mod.front();
+        auto& BB = function.entry();
+        auto DAG = scatha::cg::SelectionDAG::build(BB);
+        auto path = std::filesystem::path(PROJECT_LOCATION) /
+                    "graphviz/gen/selection-dag.gv";
+        std::fstream file(path, std::ios::out | std::ios::trunc);
+        if (!file) {
+            std::cout << "Failed to open file " << path << std::endl;
+            return -1;
+        }
+        scatha::cg::generateGraphviz(DAG, file);
         break;
     }
     case ProgramCase::EmitInterferenceGraph: {

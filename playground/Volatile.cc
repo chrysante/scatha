@@ -122,18 +122,13 @@ static void run(ir::Module const& mod) {
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
-
     header("As parsed");
-    //    opt::PassManager::makePipeline(
-    //        "canonicalize, sroa, propagateconst, instcombine")(ctx, mod);
     print(mod);
     run(mod);
-
-    auto pipeline = opt::PassManager::makePipeline("inline");
+    auto pipeline = opt::PassManager::makePipeline("inline, deadfuncelim");
     header(toString(pipeline));
     pipeline(ctx, mod);
     print(mod);
-
     run(mod);
 }
 
