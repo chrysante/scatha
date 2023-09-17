@@ -215,13 +215,22 @@ void ir::print(Callable const& callable, std::ostream& str) {
     visit(callable, [&](auto& function) { ctx.print(function); });
 }
 
-void ir::printDecl(Callable const& function) {
-    ir::printDecl(function, std::cout);
-}
+void ir::printDecl(Value const& value) { ir::printDecl(value, std::cout); }
 
-void ir::printDecl(Callable const& function, std::ostream& ostream) {
+void ir::printDecl(Value const& value, std::ostream& ostream) {
     PrintCtx ctx(ostream);
-    ctx.funcDecl(&function);
+    // clang-format off
+    SC_MATCH (value) {
+        [&](Callable const& function) {
+            ctx.funcDecl(&function);
+        },
+        [&](Instruction const& inst) {
+            ctx.print(inst);
+        },
+        [&](Value const& value) {
+            ctx.typedName(&value);
+        }
+    }; // clang-format on
 }
 
 void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }

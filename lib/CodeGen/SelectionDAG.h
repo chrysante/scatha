@@ -2,24 +2,26 @@
 #define SCATHA_CODEGEN_SELECTIONDAG_H_
 
 #include <iosfwd>
+#include <memory>
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
 #include "Common/Base.h"
 #include "Common/Graph.h"
+#include "Common/Ranges.h"
 #include "IR/Fwd.h"
 
 namespace scatha::cg {
 
 /// Node in the selection DAG
 class SCATHA_TESTAPI SelectionNode:
-    public GraphNode<ir::Instruction*, SelectionNode, GraphKind::Directed> {
+    public GraphNode<ir::Value*, SelectionNode, GraphKind::Directed> {
 public:
     using GraphNode::GraphNode;
 
-    /// \Returns the instruction associated with this node
-    ir::Instruction* instruction() const { return payload(); }
+    /// \Returns the value associated with this node
+    ir::Value* value() const { return payload(); }
 
     /// Nodes of the operands of this instruction
     std::span<SelectionNode* const> operands() { return successors(); }
@@ -59,20 +61,17 @@ public:
     SelectionNode const* operator[](ir::Instruction* inst) const;
 
     /// \Returns a view over the nodes in this DAG
-    auto nodes() { return nodemap | ranges::views::values; }
+    auto nodes() { return nodemap | ranges::views::values | ToAddress; }
 
     /// \overload
-    auto nodes() const { return nodemap | ranges::views::values; }
+    auto nodes() const { return nodemap | ranges::views::values | ToAddress; }
 
 private:
-    SelectionNode* find(ir::Instruction* inst) {
-        return const_cast<SelectionNode*>(std::as_const(*this).find(inst));
-    }
-
-    SelectionNode const* find(ir::Instruction* inst) const;
+    /// Finds the node associated with \p value or creates a new node
+    SelectionNode* get(ir::Value* value);
 
     ir::BasicBlock* BB = nullptr;
-    utl::hashmap<ir::Instruction*, SelectionNode> nodemap;
+    utl::hashmap<ir::Value*, std::unique_ptr<SelectionNode>> nodemap;
 };
 
 /// Writes graphviz code representing \p DAG to \p ostream
