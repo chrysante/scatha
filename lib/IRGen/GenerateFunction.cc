@@ -1062,13 +1062,11 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
             return false;
         }
     }
+    auto* irType = ctx.arrayType(typeMap(elemType), list.elements().size());
+    auto [index, line, column] = list.sourceLocation();
+    auto name = utl::strcat("array.at[", line, ":", column, "]");
     auto constData =
-        allocate<ir::ConstantData>(ctx,
-                                   ctx.arrayType(typeMap(elemType),
-                                                 list.elements().size()),
-                                   std::move(data),
-                                   utl::strcat("array.at",
-                                               list.sourceLocation()));
+        allocate<ir::ConstantData>(ctx, irType, std::move(data), name);
     auto* source = constData.get();
     mod.addConstantData(std::move(constData));
     callMemcpy(dest, source, list.elements().size() * elemType->size());
