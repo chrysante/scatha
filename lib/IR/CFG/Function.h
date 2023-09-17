@@ -215,7 +215,7 @@ private:
     std::unique_ptr<AnalysisData> analysisData;
 };
 
-/// Represents an external function.
+/// Represents a foreign function.
 class SCATHA_API ForeignFunction: public Callable {
 public:
     explicit ForeignFunction(FunctionType const* functionType,
