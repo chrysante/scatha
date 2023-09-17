@@ -32,9 +32,9 @@ struct CGContext {
     }
 
     Asm::RegisterIndex toRegIdx(mir::Register const* reg) const {
-        SC_ASSERT(
-            reg->nodeType() == mir::NodeType::HardwareRegister,
-            "At this point we expect all registers to be hardware registers");
+        SC_ASSERT(reg->nodeType() == mir::NodeType::HardwareRegister,
+                  "At this point we expect all registers to be hardware "
+                  "registers");
         return Asm::RegisterIndex(reg->index());
     }
 

@@ -60,10 +60,10 @@ bool opt::dce(ir::Context& context, ir::Function& function) {
 
 bool DCEContext::run() {
     /// Initialization phase
-    auto instructions =
-        function.instructions() | TakeAddress | ToSmallVector<32>;
-    auto criticalInstructions =
-        instructions | ranges::views::filter(hasSideEffects);
+    auto instructions = function.instructions() | TakeAddress |
+                        ToSmallVector<32>;
+    auto criticalInstructions = instructions |
+                                ranges::views::filter(hasSideEffects);
     for (auto* inst: criticalInstructions) {
         mark(inst);
     }

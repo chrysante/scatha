@@ -16,8 +16,8 @@ SC_REGISTER_PASS(opt::memToReg, "memtoreg");
 
 bool opt::memToReg(Context& ctx, Function& function) {
     auto& domInfo = function.getOrComputeDomInfo();
-    auto allocas =
-        function.entry() | Filter<Alloca> | TakeAddress | ToSmallVector<>;
+    auto allocas = function.entry() | Filter<Alloca> | TakeAddress |
+                   ToSmallVector<>;
     bool modified = false;
     while (true) {
         auto promoEnd = ranges::partition(allocas, isPromotable);

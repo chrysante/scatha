@@ -88,9 +88,8 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
                   }))
     {
         auto itr = asmResult.symbolTable.find(F->mangledName());
-        SC_ASSERT(
-            itr != asmResult.symbolTable.end(),
-            "Public (externally visible) functions must have a binary address");
+        SC_ASSERT(itr != asmResult.symbolTable.end(),
+                  "Externally visible functions must have a binary address");
         F->setBinaryAddress(itr->second);
     }
     auto result = std::make_unique<Program>(std::move(asmResult.program),

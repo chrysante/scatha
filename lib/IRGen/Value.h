@@ -33,9 +33,9 @@ public:
 
     explicit Value(ir::Value* value, ValueLocation location):
         Value(value, value->type(), location) {
-        SC_ASSERT(
-            location == ValueLocation::Register,
-            "If the value is in memory the type must be specified explicitly");
+        SC_ASSERT(location == ValueLocation::Register,
+                  "If the value is in memory the type must be specified "
+                  "explicitly");
     }
 
     /// \Returns either the value or the address of the value, depending on

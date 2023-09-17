@@ -36,11 +36,12 @@ template <typename F>
 void scatha::setForeignFunction(svm::VirtualMachine* vm,
                                 ForeignFunctionID id,
                                 F&& f) {
-    static_assert(
-        std::is_empty_v<F> || std::is_lvalue_reference_v<F>,
-        "If function type is not empty, it must be an l-value reference. It is "
-        "also the users responsibility that that reference will be valid until "
-        "the last call to this function");
+    static_assert(std::is_empty_v<F> || std::is_lvalue_reference_v<F>,
+                  "If function type is not empty, it must be an l-value "
+                  "reference. It is "
+                  "also the users responsibility that that reference will be "
+                  "valid until "
+                  "the last call to this function");
     void* userdata = std::is_empty_v<F> ?
                          nullptr :
                          const_cast<void*>(reinterpret_cast<void const*>(&f));

@@ -554,9 +554,9 @@ static ast::Expression* convertImpl(ConversionKind kind,
     if (!structType) {
         return result;
     }
-    bool needCtorCall =
-        conversion->objectConversion() == ObjectTypeConversion::None &&
-        result->isRValue() && expr->isLValue();
+    bool needCtorCall = conversion->objectConversion() ==
+                            ObjectTypeConversion::None &&
+                        result->isRValue() && expr->isLValue();
     if (needCtorCall) {
         return copyValue(result, *dtors, ctx);
     }

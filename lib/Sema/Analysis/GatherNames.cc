@@ -130,9 +130,9 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& s) {
 }
 
 size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(
-        sym.currentScope().kind() == ScopeKind::Object,
-        "We only want to prepass struct definitions. What are we doing here?");
+    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object,
+              "We only want to prepass struct definitions. What are we doing "
+              "here?");
     SC_ASSERT(varDecl.typeExpr(),
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");

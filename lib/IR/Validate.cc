@@ -138,9 +138,9 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
             entry = false;
         }
         if (!entry) {
-            CHECK(
-                !isa<Phi>(inst),
-                "Phi nodes may not appear after one non-phi node has appeared");
+            CHECK(!isa<Phi>(inst),
+                  "Phi nodes may not appear after one non-phi "
+                  "node has appeared");
         }
         CHECK(!isa<TerminatorInst>(inst) ^ (inst == &bb.back()),
               "The last instruction must be the one and only terminator of a "
@@ -259,9 +259,9 @@ void AssertContext::assertSpecialInvariants(GetElementPointer const& gep) {
     CHECK(gep.basePointer()->type() == ctx.ptrType(),
           "Base pointer must be of pointer type");
     if (!isa<StructType>(gep.inboundsType())) {
-        CHECK(
-            gep.memberIndices().empty(),
-            "We can only have member indices if we are accessing a structure");
+        CHECK(gep.memberIndices().empty(),
+              "We can only have member indices if "
+              "we are accessing a structure");
     }
 }
 

@@ -33,9 +33,9 @@ static void convertArgsImpl(auto&& args,
         auto* converted = insertConversion(arg, conv, ctx.symbolTable());
         /// If our argument is an lvalue of struct type  we need to call the
         /// copy constructor if there is one
-        bool needCtorCall =
-            conv.objectConversion() == ObjectTypeConversion::None &&
-            converted->isRValue() && arg->isLValue();
+        bool needCtorCall = conv.objectConversion() ==
+                                ObjectTypeConversion::None &&
+                            converted->isRValue() && arg->isLValue();
         if (needCtorCall) {
             copyValue(converted, dtors, ctx);
         }

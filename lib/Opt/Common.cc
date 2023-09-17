@@ -30,9 +30,9 @@ bool opt::preceeds(Instruction const* a, Instruction const* b) {
 }
 
 bool opt::isReachable(Instruction const* from, Instruction const* to) {
-    SC_ASSERT(
-        from != to,
-        "from and to are equal. Does that mean they are reachable or not?");
+    SC_ASSERT(from != to,
+              "from and to are equal. Does that mean they are "
+              "reachable or not?");
     SC_ASSERT(from->parentFunction() == to->parentFunction(),
               "The instructions must be in the same function for this to be "
               "sensible");

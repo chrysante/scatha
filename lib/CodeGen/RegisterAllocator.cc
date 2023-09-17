@@ -114,12 +114,12 @@ void cg::allocateRegisters(mir::Function& F) {
         auto live = BB.liveOut();
         utl::small_vector<mir::Instruction*> toErase;
         for (auto& inst: BB | ranges::views::reverse) {
-            bool canErase =
-                !hasSideEffects(&inst) &&
-                !isa_or_null<mir::CalleeRegister>(inst.dest()) &&
-                ranges::none_of(inst.destRegisters(), [&](auto* dest) {
-                    return live.contains(dest);
-                });
+            bool canErase = !hasSideEffects(&inst) &&
+                            !isa_or_null<mir::CalleeRegister>(inst.dest()) &&
+                            ranges::none_of(inst.destRegisters(),
+                                            [&](auto* dest) {
+                return live.contains(dest);
+                            });
             if (canErase) {
                 toErase.push_back(&inst);
                 continue;

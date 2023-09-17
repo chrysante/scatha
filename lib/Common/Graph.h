@@ -39,8 +39,8 @@ class GraphNode;
 namespace internal {
 
 template <typename Payload,
-          bool IsTrivial =
-              (sizeof(Payload) <= 16) && std::is_trivially_copyable_v<Payload>>
+          bool IsTrivial = (sizeof(Payload) <= 16) &&
+                           std::is_trivially_copyable_v<Payload>>
 struct PayloadViewImpl /* IsTrivial = true*/ {
     using type = Payload;
 };

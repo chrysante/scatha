@@ -225,8 +225,8 @@ void TREContext::generateLoopHeader() {
             nullptr
         };
     });
-    auto phiArgs =
-        ranges::views::concat(entryArg, otherArgs) | ToSmallVector<8>;
+    auto phiArgs = ranges::views::concat(entryArg, otherArgs) |
+                   ToSmallVector<8>;
     auto before = loopHeader->phiEnd();
     for (auto& param: function.parameters()) {
         phiArgs[0].value = &param;
@@ -256,8 +256,8 @@ void TREContext::rewriteImpl(AccumulatedReturn info) {
     bb->insert(bb->terminator(), new Goto(irCtx, loopHeader));
     bb->erase(bb->terminator());
     /// Add accumulator to loop header
-    auto* startValue =
-        info.constant ? info.constant : identityValue(info.accInst);
+    auto* startValue = info.constant ? info.constant :
+                                       identityValue(info.accInst);
     auto* acc =
         new Phi({ { &function.entry(), startValue }, { bb, info.accInst } },
                 "tre.acc");

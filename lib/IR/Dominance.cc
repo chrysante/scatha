@@ -140,9 +140,9 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
         }
         return res;
     }();
-    SC_ASSERT(
-        !entries.empty(),
-        "Handle post-dom case without exit notes outside of this function");
+    SC_ASSERT(!entries.empty(),
+              "Handle post-dom case without exit notes "
+              "outside of this function");
     auto worklist = entries | ranges::to<utl::hashset<BasicBlock*>>;
     while (!worklist.empty()) {
         auto* bb = *worklist.begin();
@@ -191,8 +191,8 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
                                           std::span<BasicBlock* const> exits,
                                           auto predecessors) {
     DomTree result;
-    auto const nodeSet =
-        function | TakeAddress | ranges::to<utl::hashset<BasicBlock*>>;
+    auto const nodeSet = function | TakeAddress |
+                         ranges::to<utl::hashset<BasicBlock*>>;
     result._nodes = nodeSet | ranges::views::transform([](BasicBlock* bb) {
                         return DomTree::Node{ bb };
                     }) |

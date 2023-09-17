@@ -195,8 +195,8 @@ Expected<Token, LexicalIssue> Lexer::next() {
             char* strEnd = nullptr;
             long const width = std::strtol(first + 1, &strEnd, 10);
             SC_ASSERT(first + 1 != strEnd, "Failed to parse width");
-            auto const kind =
-                *first == 'i' ? TokenKind::IntType : TokenKind::FloatType;
+            auto const kind = *first == 'i' ? TokenKind::IntType :
+                                              TokenKind::FloatType;
             return Token(id, beginSL, kind, utl::narrow_cast<unsigned>(width));
         }
         return LexicalIssue(beginSL);

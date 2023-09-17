@@ -314,8 +314,8 @@ struct Variable {
 
 bool opt::sroa(Context& ctx, Function& function) {
     SROAContext sroaCtx;
-    auto worklist =
-        function.entry() | Filter<Alloca> | TakeAddress | ToSmallVector<>;
+    auto worklist = function.entry() | Filter<Alloca> | TakeAddress |
+                    ToSmallVector<>;
     bool modified = false;
     /// We run the algorithm for each alloca. If an alloca is sliced we remove
     /// it from the worklist. We continuously iterate the worklist until we

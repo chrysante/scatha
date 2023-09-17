@@ -99,13 +99,12 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     /// Declare builtin functions
     impl->_builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
-    declareSpecialFunction(                                                    \
-        FunctionKind::Foreign,                                                 \
-        "__builtin_" #name,                                                    \
-        /* slot = */ svm::BuiltinFunctionSlot,                                 \
-        /* index = */ static_cast<size_t>(svm::Builtin::name),                 \
-        FunctionSignature(__VA_ARGS__),                                        \
-        attrs);
+    declareSpecialFunction(FunctionKind::Foreign,                              \
+                           "__builtin_" #name,                                 \
+                           svm::BuiltinFunctionSlot,                           \
+                           static_cast<size_t>(svm::Builtin::name),            \
+                           FunctionSignature(__VA_ARGS__),                     \
+                           attrs);
     using enum FunctionAttribute;
 #include <svm/Builtin.def>
 
