@@ -2,6 +2,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <svm/Builtin.h>
 #include <utl/hashset.hpp>
 
 #include "Common/Graph.h"
@@ -191,4 +192,17 @@ bool opt::hasSideEffects(Instruction const* inst) {
         return true;
     }
     return false;
+}
+
+bool opt::isBuiltinCall(ir::Instruction const* inst, size_t index) {
+    auto* callInst = dyncast<Call const*>(inst);
+    if (!callInst) {
+        return false;
+    }
+    auto* target = dyncast<ForeignFunction const*>(callInst->function());
+    if (!target) {
+        return false;
+    }
+    return target->slot() == svm::BuiltinFunctionSlot &&
+           target->index() == index;
 }

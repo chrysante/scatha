@@ -56,6 +56,11 @@ SCATHA_TESTAPI ir::BasicBlock* addJoiningPredecessor(
 /// \returns `true` if the instruction \p inst has side effects
 SCATHA_TESTAPI bool hasSideEffects(ir::Instruction const* inst);
 
+/// \Returns `true` if \p callInst is a call instruction that calls the builtin
+/// function at index \p functionIndex
+SCATHA_TESTAPI bool isBuiltinCall(ir::Instruction const* callInst,
+                                  size_t functionIndex);
+
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_COMMON_H_
