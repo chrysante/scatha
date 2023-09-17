@@ -18,6 +18,9 @@ SelectionDAG SelectionDAG::build(ir::BasicBlock& BB) {
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
         for (auto* operand: inst.operands()) {
+            if (isa<BasicBlock>(operand) || isa<Callable>(operand)) {
+                continue;
+            }
             auto* opNode = DAG.get(operand);
             instNode->addSuccessor(opNode);
             opNode->addPredecessor(instNode);
