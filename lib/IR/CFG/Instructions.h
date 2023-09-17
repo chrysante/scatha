@@ -28,6 +28,9 @@ public:
     /// \overload
     Value const* count() const { return operandAt(0); }
 
+    /// \Returns the count as a constant if it is constant
+    std::optional<size_t> constantCount() const;
+
     /// \Returns the allocated size if `count()` is a constant. Otherwise
     /// returns `std::nullopt`
     std::optional<size_t> allocatedSize() const;

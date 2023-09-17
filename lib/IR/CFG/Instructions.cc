@@ -26,12 +26,19 @@ Alloca::Alloca(Context& context,
                 { count },
                 { allocatedType }) {}
 
-std::optional<size_t> Alloca::allocatedSize() const {
+std::optional<size_t> Alloca::constantCount() const {
     auto* constCount = dyncast<IntegralConstant const*>(count());
     if (!constCount) {
         return std::nullopt;
     }
-    return allocatedType()->size() * constCount->value().to<size_t>();
+    return constCount->value().to<size_t>();
+}
+
+std::optional<size_t> Alloca::allocatedSize() const {
+    if (auto count = constantCount()) {
+        return allocatedType()->size() * *count;
+    }
+    return std::nullopt;
 }
 
 void Load::setAddress(Value* address) { UnaryInstruction::setOperand(address); }
