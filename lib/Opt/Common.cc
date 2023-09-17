@@ -66,7 +66,7 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
     return search(from->parent(), search);
 }
 
-void opt::moveAllocas(ir::BasicBlock* from, ir::BasicBlock* to) {
+void opt::moveAllocas(BasicBlock* from, BasicBlock* to) {
     if (from == to) {
         return;
     }
@@ -83,7 +83,7 @@ void opt::moveAllocas(ir::BasicBlock* from, ir::BasicBlock* to) {
     }
 }
 
-static bool cmpEqImpl(ir::Phi const* lhs, auto rhs) {
+static bool cmpEqImpl(Phi const* lhs, auto rhs) {
     if (lhs->argumentCount() != ranges::size(rhs)) {
         return false;
     }
@@ -94,13 +94,11 @@ static bool cmpEqImpl(ir::Phi const* lhs, auto rhs) {
     return lhsSet == rhsSet;
 }
 
-bool opt::compareEqual(ir::Phi const* lhs,
-                       std::span<ir::ConstPhiMapping const> rhs) {
+bool opt::compareEqual(Phi const* lhs, std::span<ConstPhiMapping const> rhs) {
     return cmpEqImpl(lhs, rhs);
 }
 
-bool opt::compareEqual(ir::Phi const* lhs,
-                       std::span<ir::PhiMapping const> rhs) {
+bool opt::compareEqual(Phi const* lhs, std::span<PhiMapping const> rhs) {
     return cmpEqImpl(lhs, rhs);
 }
 
@@ -149,11 +147,10 @@ bool opt::splitCriticalEdges(Context& ctx, Function& function) {
     return dfs.modified;
 }
 
-ir::BasicBlock* opt::addJoiningPredecessor(
-    ir::Context& ctx,
-    ir::BasicBlock* header,
-    std::span<ir::BasicBlock* const> preds,
-    std::string name) {
+BasicBlock* opt::addJoiningPredecessor(Context& ctx,
+                                       BasicBlock* header,
+                                       std::span<BasicBlock* const> preds,
+                                       std::string name) {
     // clang-format off
     SC_ASSERT(ranges::all_of(preds, [&](auto* pred) {
         return ranges::contains(pred->successors(), header);
@@ -194,7 +191,7 @@ bool opt::hasSideEffects(Instruction const* inst) {
     return false;
 }
 
-bool opt::isBuiltinCall(ir::Instruction const* inst, size_t index) {
+bool opt::isBuiltinCall(Instruction const* inst, size_t index) {
     auto* callInst = dyncast<Call const*>(inst);
     if (!callInst) {
         return false;
@@ -205,4 +202,40 @@ bool opt::isBuiltinCall(ir::Instruction const* inst, size_t index) {
     }
     return target->slot() == svm::BuiltinFunctionSlot &&
            target->index() == index;
+}
+
+bool opt::isMemcpy(Call const* call) {
+    return isBuiltinCall(call, static_cast<size_t>(svm::Builtin::memcpy));
+}
+
+bool opt::isConstSizeMemcpy(Call const* call) {
+    return isMemcpy(call) &&
+           isa_or_null<IntegralConstant>(call->argumentAt(1)) &&
+           isa_or_null<IntegralConstant>(call->argumentAt(3));
+}
+
+Value const* opt::memcpyDest(Call const* call) {
+    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    return call->argumentAt(0);
+}
+
+Value const* opt::memcpySource(Call const* call) {
+    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    return call->argumentAt(2);
+}
+
+size_t opt::memcpySize(Call const* call) {
+    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    auto* size = cast<IntegralConstant const*>(call->argumentAt(1));
+    return size->value().to<size_t>();
+}
+
+void opt::setMemcpyDest(Call* call, Value* dest) {
+    SC_ASSERT(isMemcpy(call), "Invalid");
+    call->setArgument(0, dest);
+}
+
+void opt::setMemcpySource(Call* call, Value* source) {
+    SC_ASSERT(isMemcpy(call), "Invalid");
+    call->setArgument(2, source);
 }

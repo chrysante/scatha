@@ -3,6 +3,7 @@
 
 #include <span>
 #include <string>
+#include <utility>
 
 #include "Common/Base.h"
 #include "IR/Fwd.h"
@@ -45,8 +46,9 @@ SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 
 /// Creates a new basic block with name \p name that will be a predecessor of
 /// \p BB and a successor of all blocks in \p preds \pre All blocks in \p preds
-/// must be predecessors of \p BB \Note This function can be used to create
-/// preheaders for loop header with multiple inedges from outside the loop
+/// must be predecessors of \p BB
+/// \Note This function can be used to create preheaders for loop header with
+/// multiple inedges from outside the loop
 SCATHA_TESTAPI ir::BasicBlock* addJoiningPredecessor(
     ir::Context& ctx,
     ir::BasicBlock* BB,
@@ -60,6 +62,39 @@ SCATHA_TESTAPI bool hasSideEffects(ir::Instruction const* inst);
 /// function at index \p functionIndex
 SCATHA_TESTAPI bool isBuiltinCall(ir::Instruction const* callInst,
                                   size_t functionIndex);
+
+/// # Memcpy related queries
+
+/// \Returns `true` if \p call is a call to memcpy
+bool isMemcpy(ir::Call const* call);
+
+/// \Returns `true` if \p call is a call to memcpy with a constant size argument
+bool isConstSizeMemcpy(ir::Call const* call);
+
+/// \Returns the destination pointer of a call to memcpy
+ir::Value const* memcpyDest(ir::Call const* call);
+
+/// \overload for non-const argument
+inline ir::Value* memcpyDest(ir::Call* call) {
+    return const_cast<ir::Value*>(memcpyDest(&std::as_const(*call)));
+}
+
+/// \Returns the source pointer of the memcpy operation
+ir::Value const* memcpySource(ir::Call const* call);
+
+/// \overload for non-const argument
+inline ir::Value* memcpySource(ir::Call* call) {
+    return const_cast<ir::Value*>(memcpySource(&std::as_const(*call)));
+}
+
+/// \Returns the destination pointer of the memcpy operation
+size_t memcpySize(ir::Call const* call);
+
+/// Sets the destination pointer of the call to memcpy \p call to \p dest
+void setMemcpyDest(ir::Call* call, ir::Value* dest);
+
+/// Sets the destination pointer of the call to memcpy \p call to \p source
+void setMemcpySource(ir::Call* call, ir::Value* source);
 
 } // namespace scatha::opt
 

@@ -53,32 +53,6 @@ std::pair<Value const*, Type const*> getLSPointerAndType(
     }; // clang-format on
 }
 
-/// \Returns `true` if \p call is a call to memcpy with a constant size argument
-static bool isConstSizeMemcpy(Call const* call) {
-    return isBuiltinCall(call, static_cast<size_t>(svm::Builtin::memcpy)) &&
-           isa_or_null<IntegralConstant>(call->argumentAt(1)) &&
-           isa_or_null<IntegralConstant>(call->argumentAt(3));
-}
-
-/// \Returns the destination pointer of a call to memcpy
-static auto* memcpyDest(auto* call) {
-    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
-    return call->argumentAt(0);
-}
-
-/// \Returns the source pointer of the memcpy operation
-static auto* memcpySource(auto* call) {
-    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
-    return call->argumentAt(2);
-}
-
-/// \Returns the destination pointer of the memcpy operation
-static size_t memcpySize(Call const* call) {
-    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
-    auto* size = cast<IntegralConstant const*>(call->argumentAt(1));
-    return size->value().to<size_t>();
-}
-
 namespace {
 
 /// Stores data that shall be available for the entire duration of the algorithm
@@ -791,10 +765,10 @@ utl::small_vector<Subrange, 2> Variable::getAccessedSubranges(
             SC_ASSERT(isConstSizeMemcpy(&call), "");
             Ret result;
             if (auto offset = tryGetPtrOffset(memcpyDest(&call))) {
-                result.push_back({ *offset, memcpySize(&call) });
+                result.push_back({ *offset, *offset + memcpySize(&call) });
             }
             if (auto offset = tryGetPtrOffset(memcpySource(&call))) {
-                result.push_back({ *offset, memcpySize(&call) });
+                result.push_back({ *offset, *offset + memcpySize(&call) });
             }
             return result;
         },
@@ -954,6 +928,11 @@ bool Variable::replaceBySlices(Call* call) {
     }
     else if (isPointerToOurAlloca(dest)) {
         auto slices = getSubslices(subranges.front());
+        SC_ASSERT(!slices.empty(), "");
+        if (slices.size() == 1) {
+            setMemcpyDest(call, slices.front().newAlloca());
+            return false;
+        }
         for (auto slice: slices) {
             auto* gepIndex = ctx.intConstant(slice.begin(), 32);
             auto* sourceSlicePtr =
@@ -973,6 +952,11 @@ bool Variable::replaceBySlices(Call* call) {
     }
     else /* isPointerToOurAlloca(source) */ {
         auto slices = getSubslices(subranges.front());
+        SC_ASSERT(!slices.empty(), "");
+        if (slices.size() == 1) {
+            setMemcpySource(call, slices.front().newAlloca());
+            return false;
+        }
         for (auto slice: slices) {
             auto* gepIndex = ctx.intConstant(slice.begin(), 32);
             auto* destSlicePtr =
