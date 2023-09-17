@@ -114,8 +114,37 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
     };
 }
 
+static std::string replaceSubstrings(
+    std::string text,
+    std::span<std::string_view const> substrs,
+    std::span<std::string_view const> replacements) {
+    for (auto [substr, replacement]: ranges::views::zip(substrs, replacements))
+    {
+        size_t n = 0;
+        while ((n = text.find(substr, n)) != std::string::npos) {
+            text.replace(n, substr.size(), replacement);
+            n += replacement.size();
+        }
+    }
+    return text;
+}
+
 static constexpr utl::streammanip formatName([](std::ostream& str,
                                                 Value const* value) {
+    auto htmlName =
+        [escapeSymbols = tfmt::isHTMLFormattable(str)](Value const& value) {
+        if (!escapeSymbols) {
+            return std::string(value.name());
+        }
+        else {
+            using namespace std::literals;
+            return replaceSubstrings(std::string(value.name()),
+                                     std::array{ "<"sv, ">"sv, "&"sv },
+                                     std::array{ "&lt;"sv,
+                                                 "%gt;"sv,
+                                                 "&amp;"sv });
+        }
+    };
     if (!value) {
         str << tfmt::format(tfmt::BrightWhite | tfmt::BGBrightRed | tfmt::Bold,
                             "<NULL>");
@@ -125,17 +154,17 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
     visit(*value, utl::overload{
         [&](ir::Constant const& constant) {
             str << tfmt::format(tfmt::Italic | tfmt::Green,
-                                "@", constant.name());
+                                "@", htmlName(constant));
         },
         [&](ir::Parameter const& parameter) {
-            str << tfmt::format(tfmt::None, "%", parameter.name());
+            str << tfmt::format(tfmt::None, "%", htmlName(parameter));
         },
         [&](ir::BasicBlock const& basicBlock) {
             str << tfmt::format(tfmt::Italic,
-                                "%", basicBlock.name());
+                                "%", htmlName(basicBlock));
         },
         [&](ir::Instruction const& inst) {
-            str << tfmt::format(tfmt::None, "%", inst.name());
+            str << tfmt::format(tfmt::None, "%", htmlName(inst));
         },
         [&](ir::IntegralConstant const& value) {
             str << formatNumLiteral(value.value().toString());
