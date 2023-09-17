@@ -12,6 +12,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
+#include "IR/Validate.h"
 #include "Opt/Common.h"
 #include "Opt/PassRegistry.h"
 
@@ -63,6 +64,9 @@ struct SCFGContext {
     /// Merge single predecessor - single successor edges
     bool foldIntoSinglePred(BasicBlock* BB);
 
+    /// Replaces a branch where the targets are the same with a goto
+    bool replaceSameTargetBranch(BasicBlock* BB);
+
     /// \Returns `true` if we tolerate the speculative execution of \p BB on
     /// execution paths that would otherwise not enter \p BB
     bool canExecuteSpeculatively(BasicBlock const* BB);
@@ -83,6 +87,7 @@ bool opt::simplifyCFG(ir::Context& ctx, ir::Function& function) {
     if (modified) {
         function.invalidateCFGInfo();
     }
+    assertInvariants(ctx, function);
     return modified;
 }
 
@@ -97,6 +102,10 @@ bool SCFGContext::run() {
             continue;
         }
         if (foldIntoSinglePred(BB)) {
+            modified = true;
+            continue;
+        }
+        if (replaceSameTargetBranch(BB)) {
             modified = true;
             continue;
         }
@@ -254,6 +263,23 @@ bool SCFGContext::foldIntoSinglePred(BasicBlock* BB) {
     worklist.insert(pred);
     worklist.erase(BB);
     function.erase(BB);
+    return true;
+}
+
+bool SCFGContext::replaceSameTargetBranch(BasicBlock* BB) {
+    auto* branch = dyncast<Branch*>(BB->terminator());
+    if (!branch) {
+        return false;
+    }
+    if (branch->thenTarget() != branch->elseTarget()) {
+        return false;
+    }
+    auto* target = branch->thenTarget();
+    target->removePredecessor(BB);
+    auto* gotoInst = new Goto(ctx, target);
+    BB->insert(branch, gotoInst);
+    BB->erase(branch);
+    worklist.insert({ BB, target });
     return true;
 }
 

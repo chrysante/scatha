@@ -241,6 +241,8 @@ void AssertContext::assertSpecialInvariants(Call const& call) {
 void AssertContext::assertSpecialInvariants(Branch const& branch) {
     CHECK(branch.condition()->type() == ctx.intType(1),
           "Condition must be type i1");
+    CHECK(branch.thenTarget() != branch.elseTarget(),
+          "Branches must have distinct targets");
 }
 
 void AssertContext::assertSpecialInvariants(Load const& load) {

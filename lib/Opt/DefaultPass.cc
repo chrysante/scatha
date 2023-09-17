@@ -23,8 +23,8 @@ bool opt::defaultPass(Context& ctx, Function& function) {
     modified |= instCombine(ctx, function);
     modified |= propagateConstants(ctx, function);
     modified |= dce(ctx, function);
-    modified |= globalValueNumbering(ctx, function);
     modified |= simplifyCFG(ctx, function);
+    modified |= globalValueNumbering(ctx, function);
     modified |= tailRecElim(ctx, function);
     return modified;
 }
