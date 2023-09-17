@@ -62,11 +62,12 @@ externalincludedirs {
     "external/gmp/build/include", 
     "external/mpfr/build/include",
     "external/termfmt/include",
+    "external/graphgen/include",
     "external/APMath/include",
     "external/range-v3/include",
 }
 includedirs { "lib", "include/scatha" }
-links { "apmath", "termfmt" }
+links { "apmath", "graphgen", "termfmt" }
 
 filter { "system:macosx" }
 buildoptions "-fvisibility=hidden"
@@ -186,4 +187,5 @@ filter {}
 include "passtool"
 
 include "external/termfmt/lib.lua"
+include "external/graphgen/lib.lua"
 include "external/APMath/lib.lua"

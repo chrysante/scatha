@@ -28,15 +28,8 @@ class SCCCallGraph;
 
 namespace playground {
 
-std::string drawControlFlowGraph(scatha::ir::Module const& mod);
-
 void drawControlFlowGraph(scatha::ir::Module const& mod,
                           std::filesystem::path const& outFilepath);
-
-std::string drawUseGraph(scatha::ir::Module const& mod);
-
-void drawUseGraph(scatha::ir::Module const& mod,
-                  std::filesystem::path const& outFilepath);
 
 std::string drawCallGraph(scatha::opt::SCCCallGraph const& callGraph);
 

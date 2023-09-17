@@ -140,10 +140,7 @@ int main(int argc, char const* const* argv) {
         break;
     }
     case ProgramCase::EmitUseGraph: {
-        auto [ctx, mod] = makeIRModuleFromFile(filepath);
-        drawUseGraph(mod,
-                     std::filesystem::path(PROJECT_LOCATION) /
-                         "graphviz/gen/use-graph.gv");
+        std::cout << "Drawing use graph is not supported\n";
         break;
     }
     case ProgramCase::EmitInterferenceGraph: {
