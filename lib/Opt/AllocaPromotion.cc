@@ -7,10 +7,12 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
+#include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Type.h"
+#include "Opt/Common.h"
 
 using namespace scatha;
 using namespace ir;
@@ -26,14 +28,19 @@ bool opt::isPromotable(Alloca const* allocaInst) {
     return ranges::all_of(allocaInst->users(), [&](Instruction const* inst) {
         // clang-format off
         return SC_MATCH (*inst) {
-        [&] (Load const& load) {
+        [&](Load const& load) {
             return load.type()->size() == size;
         },
-        [&] (Store const& store) {
+        [&](Store const& store) {
             return store.value() != allocaInst &&
                    store.value()->type()->size() == size;
         },
-        [&] (Instruction const&) {
+        [&](Call const& call) {
+            return isConstSizeMemcpy(&call) &&
+                   memcpySize(&call) == size &&
+                   memcpyDest(&call) != memcpySource(&call);
+        },
+        [&](Instruction const&) {
             return false;
         }
         }; // clang-format on
@@ -48,9 +55,9 @@ struct VariableInfo {
     std::string name;
     Context& ctx;
     DominanceInfo const& domInfo;
-    utl::small_vector<Load*> loads;
+    utl::small_vector<Instruction*> uses;
     utl::hashset<BasicBlock*> usingBlocks;
-    utl::small_vector<Store*> stores;
+    utl::small_vector<Instruction*> defs;
     utl::hashset<BasicBlock*> definingBlocks;
     utl::hashmap<BasicBlock*, Phi*> BBToPhiMap;
     utl::hashset<Phi*> phiNodes;
@@ -76,11 +83,30 @@ struct VariableInfo {
 
     VariableInfo(ir::Alloca& inst, Context& ctx, DominanceInfo const& domInfo);
 
+    /// Computes all blocks where this alloca is live, that is all blocks where
+    /// we need to insert phi instructions
     utl::hashset<BasicBlock*> computeLiveBlocks();
 
+    /// Insert phi instructions where necessary
     void insertPhis();
 
     void genName(Value* value);
+
+    Value* getLastDef() {
+        if (stack.empty()) {
+            return nullptr;
+        }
+        size_t i = stack.top();
+        return versions[i];
+    }
+
+    /// \Returns \p value, possibly bitcast to \p type if \p value has a type
+    /// different than \p type
+    Value* bitcast(Value* value, Instruction* insertPoint, Type const* type);
+
+    bool renameDef(Instruction* inst);
+
+    bool renameUse(Instruction* inst);
 
     void rename(BasicBlock* BB);
 
@@ -109,11 +135,20 @@ bool opt::tryPromoteAlloca(Alloca* inst,
     return false;
 }
 
+static Type const* allocatedArrayType(Context& ctx, Alloca const* inst) {
+    auto* type = inst->allocatedType();
+    size_t size = inst->constantCount().value();
+    if (size == 1) {
+        return type;
+    }
+    return ctx.arrayType(type, size);
+}
+
 VariableInfo::VariableInfo(Alloca& allocaInst,
                            Context& ctx,
                            DominanceInfo const& domInfo):
     address(&allocaInst),
-    type(allocaInst.allocatedType()),
+    type(allocatedArrayType(ctx, &allocaInst)),
     name(allocaInst.name()),
     ctx(ctx),
     domInfo(domInfo) {
@@ -122,17 +157,59 @@ VariableInfo::VariableInfo(Alloca& allocaInst,
         SC_MATCH (*inst) {
             [&](Store& store) {
                 SC_ASSERT(store.address() == address, "Not promotable");
-                stores.push_back(&store);
+                defs.push_back(&store);
                 definingBlocks.insert(store.parent());
             },
             [&](Load& load) {
                 SC_ASSERT(load.address() == address, "Not promotable");
-                loads.push_back(&load);
+                uses.push_back(&load);
                 usingBlocks.insert(load.parent());
+            },
+            [&](Call& call) {
+                SC_ASSERT(isConstSizeMemcpy(&call), "Not promotable");
+                auto* dest = memcpyDest(&call);
+                auto* source = memcpySource(&call);
+                SC_ASSERT(dest == address || source || dest, "Not promotable");
+                if (dest == address) {
+                    defs.push_back(&call);
+                    definingBlocks.insert(call.parent());
+                }
+                else {
+                    uses.push_back(&call);
+                    usingBlocks.insert(call.parent());
+                }
             },
             [&](Instruction const& inst) { SC_UNREACHABLE("Not promotable"); }
         }; // clang-format on
     }
+}
+
+static Value const* definingAddress(Instruction const* inst) {
+    if (auto* store = dyncast<Store const*>(inst)) {
+        return store->address();
+    }
+    if (isMemcpy(inst)) {
+        return memcpyDest(inst);
+    }
+    return nullptr;
+}
+
+static Value* definingAddress(Instruction* inst) {
+    return const_cast<Value*>(definingAddress(&std::as_const(*inst)));
+}
+
+static Value const* usingAddress(Instruction const* inst) {
+    if (auto* load = dyncast<Load const*>(inst)) {
+        return load->address();
+    }
+    if (isMemcpy(inst)) {
+        return memcpySource(inst);
+    }
+    return nullptr;
+}
+
+static Value* usingAddress(Instruction* inst) {
+    return const_cast<Value*>(usingAddress(&std::as_const(*inst)));
 }
 
 /// Stolen from here:
@@ -149,10 +226,7 @@ utl::hashset<BasicBlock*> VariableInfo::computeLiveBlocks() {
         /// first reference to the alloca is a def (store), then we know it
         /// isn't live-in.
         for (auto i = bb->begin();; ++i) {
-            if (auto* store = dyncast<Store const*>(i.to_address())) {
-                if (store->address() != address) {
-                    continue;
-                }
+            if (definingAddress(i.to_address()) == address) {
                 /// We found a store to the alloca before a load. The alloca is
                 /// not actually live-in here.
                 *itr = worklist.back();
@@ -160,12 +234,10 @@ utl::hashset<BasicBlock*> VariableInfo::computeLiveBlocks() {
                 --itr;
                 break;
             }
-            if (Load* load = dyncast<Load*>(i.to_address())) {
+            if (usingAddress(i.to_address()) == address) {
                 /// Okay, we found a load before a store to the alloca. It is
                 /// actually live into this block.
-                if (load->address() == address) {
-                    break;
-                }
+                break;
             }
         }
     }
@@ -243,6 +315,64 @@ void VariableInfo::genName(Value* value) {
     }
 }
 
+Value* VariableInfo::bitcast(Value* value,
+                             Instruction* insertPoint,
+                             Type const* type) {
+    if (value->type() == type) {
+        return value;
+    }
+    SC_ASSERT(value->type()->size() == type->size(), "");
+    BasicBlockBuilder builder(ctx, insertPoint->parent());
+    return builder.insert<ConversionInst>(insertPoint,
+                                          value,
+                                          type,
+                                          Conversion::Bitcast,
+                                          "prom.bitcast");
+}
+
+bool VariableInfo::renameDef(Instruction* inst) {
+    if (definingAddress(inst) != address) {
+        return false;
+    }
+    if (auto* store = dyncast<Store*>(inst)) {
+        genName(store->value());
+    }
+    else {
+        auto* call = cast<Call*>(inst);
+        auto* source = memcpySource(call);
+        BasicBlockBuilder builder(ctx, inst->parent());
+        auto* value = builder.insert<Load>(call, source, type, "prom.memcpy");
+        genName(value);
+    }
+    return true;
+}
+
+bool VariableInfo::renameUse(Instruction* inst) {
+    if (usingAddress(inst) != address) {
+        return false;
+    }
+    Value* value = getLastDef();
+    if (auto* load = dyncast<Load*>(inst)) {
+        /// The stack being empty means we load from
+        /// uninitialized memory, so we replace the load
+        /// with `undef`
+        if (!value) {
+            value = ctx.undef(load->type());
+        }
+        load->replaceAllUsesWith(bitcast(value, load, load->type()));
+    }
+    else {
+        if (!value) {
+            value = ctx.undef(type);
+        }
+        auto* call = cast<Call*>(inst);
+        auto* dest = memcpyDest(call);
+        BasicBlockBuilder builder(ctx, inst->parent());
+        builder.insert<Store>(call, dest, value);
+    }
+    return true;
+}
+
 void VariableInfo::rename(BasicBlock* BB) {
     if (renamedBlocks.contains(BB)) {
         return;
@@ -252,34 +382,7 @@ void VariableInfo::rename(BasicBlock* BB) {
         genName(phi);
     }
     for (auto& inst: *BB) {
-        // clang-format off
-        SC_MATCH (inst) {
-            [&](Load& load) {
-                auto* allocaInst = dyncast<Alloca*>(load.address());
-                if (allocaInst != address) {
-                    return;
-                }
-                Value* value = nullptr;
-                if (!stack.empty()) {
-                    size_t i = stack.top();
-                    value = versions[i];
-                }
-                else {
-                    /// The stack being empty means we load from
-                    /// uninitialized memory, so we replace the load
-                    /// with `undef`
-                    value = ctx.undef(load.type());
-                }
-                load.replaceAllUsesWith(value);
-            },
-            [&](Store& store) {
-                auto* allocaInst = dyncast<Alloca*>(store.address());
-                if (allocaInst == address) {
-                    genName(store.value());
-                }
-            },
-            [&](Instruction&) {}
-        }; // clang-format on
+        renameDef(&inst) || renameUse(&inst);
     }
     for (auto* succ: BB->successors()) {
         if (stack.empty()) {
@@ -297,14 +400,18 @@ void VariableInfo::rename(BasicBlock* BB) {
     for (auto* succ: BB->successors()) {
         rename(succ);
     }
+    /// We pop the defs in this basic block off the stack
     for (auto& inst: *BB) {
         // clang-format off
         bool isDef = SC_MATCH (inst) {
-            [&](Phi& phi) {
+            [&](Phi const& phi) {
                 return &phi == getPhi(BB);
             },
-            [&](Store& store) {
-                return address == dyncast<Alloca*>(store.address());
+            [&](Store const& store) {
+                return address == store.address();
+            },
+            [&](Call const& call) {
+                return address == definingAddress(&call);
             },
             [&](Instruction const& inst) { return false; }
         }; // clang-format on
@@ -315,12 +422,11 @@ void VariableInfo::rename(BasicBlock* BB) {
 }
 
 void VariableInfo::clean() {
-    for (auto* load: loads) {
-        SC_ASSERT(load->users().empty(), "Should be empty after promotion");
-        load->parent()->erase(load);
+    for (auto* use: uses) {
+        use->parent()->erase(use);
     }
-    for (auto* store: stores) {
-        store->parent()->erase(store);
+    for (auto* def: defs) {
+        def->parent()->erase(def);
     }
     for (auto [BB, phi]: BBToPhiMap) {
         if (phi->users().empty()) {
