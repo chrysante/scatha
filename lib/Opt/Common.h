@@ -65,36 +65,36 @@ SCATHA_TESTAPI bool isBuiltinCall(ir::Instruction const* callInst,
 
 /// # Memcpy related queries
 
-/// \Returns `true` if \p call is a call to memcpy
-bool isMemcpy(ir::Call const* call);
+/// \Returns `true` if \p inst is a call to memcpy
+bool isMemcpy(ir::Instruction const* inst);
 
-/// \Returns `true` if \p call is a call to memcpy with a constant size argument
-bool isConstSizeMemcpy(ir::Call const* call);
+/// \Returns `true` if \p inst is a call to memcpy with a constant size argument
+bool isConstSizeMemcpy(ir::Instruction const* inst);
 
 /// \Returns the destination pointer of a call to memcpy
-ir::Value const* memcpyDest(ir::Call const* call);
+ir::Value const* memcpyDest(ir::Instruction const* call);
 
 /// \overload for non-const argument
-inline ir::Value* memcpyDest(ir::Call* call) {
+inline ir::Value* memcpyDest(ir::Instruction* call) {
     return const_cast<ir::Value*>(memcpyDest(&std::as_const(*call)));
 }
 
 /// \Returns the source pointer of the memcpy operation
-ir::Value const* memcpySource(ir::Call const* call);
+ir::Value const* memcpySource(ir::Instruction const* call);
 
 /// \overload for non-const argument
-inline ir::Value* memcpySource(ir::Call* call) {
+inline ir::Value* memcpySource(ir::Instruction* call) {
     return const_cast<ir::Value*>(memcpySource(&std::as_const(*call)));
 }
 
 /// \Returns the destination pointer of the memcpy operation
-size_t memcpySize(ir::Call const* call);
+size_t memcpySize(ir::Instruction const* call);
 
 /// Sets the destination pointer of the call to memcpy \p call to \p dest
-void setMemcpyDest(ir::Call* call, ir::Value* dest);
+void setMemcpyDest(ir::Instruction* call, ir::Value* dest);
 
 /// Sets the destination pointer of the call to memcpy \p call to \p source
-void setMemcpySource(ir::Call* call, ir::Value* source);
+void setMemcpySource(ir::Instruction* call, ir::Value* source);
 
 } // namespace scatha::opt
 

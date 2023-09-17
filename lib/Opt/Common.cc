@@ -204,38 +204,42 @@ bool opt::isBuiltinCall(Instruction const* inst, size_t index) {
            target->index() == index;
 }
 
-bool opt::isMemcpy(Call const* call) {
-    return isBuiltinCall(call, static_cast<size_t>(svm::Builtin::memcpy));
+bool opt::isMemcpy(Instruction const* inst) {
+    return isBuiltinCall(inst, static_cast<size_t>(svm::Builtin::memcpy));
 }
 
-bool opt::isConstSizeMemcpy(Call const* call) {
-    return isMemcpy(call) &&
-           isa_or_null<IntegralConstant>(call->argumentAt(1)) &&
+bool opt::isConstSizeMemcpy(Instruction const* inst) {
+    if (!isMemcpy(inst)) {
+        return false;
+    }
+    auto* call = cast<Call const*>(inst);
+    return isa_or_null<IntegralConstant>(call->argumentAt(1)) &&
            isa_or_null<IntegralConstant>(call->argumentAt(3));
 }
 
-Value const* opt::memcpyDest(Call const* call) {
+Value const* opt::memcpyDest(Instruction const* call) {
     SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
-    return call->argumentAt(0);
+    return cast<Call const*>(call)->argumentAt(0);
 }
 
-Value const* opt::memcpySource(Call const* call) {
+Value const* opt::memcpySource(Instruction const* call) {
     SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
-    return call->argumentAt(2);
+    return cast<Call const*>(call)->argumentAt(2);
 }
 
-size_t opt::memcpySize(Call const* call) {
-    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+size_t opt::memcpySize(Instruction const* inst) {
+    SC_ASSERT(isConstSizeMemcpy(inst), "Invalid");
+    auto* call = cast<Call const*>(inst);
     auto* size = cast<IntegralConstant const*>(call->argumentAt(1));
     return size->value().to<size_t>();
 }
 
-void opt::setMemcpyDest(Call* call, Value* dest) {
+void opt::setMemcpyDest(Instruction* call, Value* dest) {
     SC_ASSERT(isMemcpy(call), "Invalid");
-    call->setArgument(0, dest);
+    cast<Call*>(call)->setArgument(0, dest);
 }
 
-void opt::setMemcpySource(Call* call, Value* source) {
+void opt::setMemcpySource(Instruction* call, Value* source) {
     SC_ASSERT(isMemcpy(call), "Invalid");
-    call->setArgument(2, source);
+    cast<Call*>(call)->setArgument(2, source);
 }
