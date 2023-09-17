@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "IR/CFG/UniqueName.h"
+#include "IR/UniqueName.h"
 
 using namespace scatha;
 using namespace ir;

@@ -8,8 +8,8 @@
 #include "Common/Base.h"
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Constant.h"
-#include "IR/CFG/UniqueName.h"
 #include "IR/Fwd.h"
+#include "IR/UniqueName.h"
 
 namespace scatha::ir {
 
