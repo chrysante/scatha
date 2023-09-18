@@ -31,6 +31,10 @@ contexts:
     - match: \b(if|else|for|while|do|return|break|continue)\b
       scope: keyword.control
 
+    # Builtins
+    - match: \b(__builtin_alloc|__builtin_dealloc|__builtin_puti64|__builtin_putf64|__builtin_putstr|__builtin_sqrt_f64)\b
+      scope: punctuation.definition.keyword
+
     - match: \b(fn|var|let|struct|public|private|mut|new|delete|move)\b
       scope: punctuation.definition.keyword
 
