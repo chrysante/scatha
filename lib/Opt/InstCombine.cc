@@ -3,11 +3,13 @@
 #include <iostream>
 
 #include <range/v3/algorithm.hpp>
+#include <utl/functional.hpp> // for ceil_divide
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "Common/Base.h"
 #include "Common/Ranges.h"
+#include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Print.h"
@@ -78,6 +80,8 @@ struct InstCombineCtx {
 
     Value* visitImpl(Instruction* inst) { return nullptr; }
     Value* visitImpl(ArithmeticInst* inst);
+    Value* visitImpl(Load* inst);
+    Value* visitImpl(ConversionInst* inst);
     Value* visitImpl(Phi* phi);
     Value* visitImpl(Select* inst);
     Value* visitImpl(CompareInst* inst);
@@ -540,6 +544,85 @@ bool InstCombineCtx::tryMergeNegate(ArithmeticInst* inst) {
         }
     }
     return false;
+}
+
+static std::pair<Value*, size_t> recursiveGepBaseAndOffset(Value* pointer) {
+    auto* gep = dyncast<GetElementPointer*>(pointer);
+    if (!gep) {
+        return { pointer, 0 };
+    }
+    if (!gep->hasConstantArrayIndex()) {
+        return { nullptr, 0 };
+    }
+    auto [base, offset] = recursiveGepBaseAndOffset(gep->basePointer());
+    return { base, offset + *gep->constantByteOffset() };
+}
+
+static Value* makeValueFromConstantData(Context& ctx,
+                                        std::span<uint8_t const> data,
+                                        Type const* type) {
+    if (auto* intType = dyncast<IntegralType const*>(type)) {
+        size_t size = utl::ceil_divide(data.size(), 8);
+        utl::small_vector<uint64_t> localData(size);
+        std::memcpy(localData.data(), data.data(), data.size());
+        APInt value(localData, intType->bitwidth());
+        return ctx.intConstant(value);
+    }
+    return nullptr;
+}
+
+Value* InstCombineCtx::visitImpl(Load* load) {
+    auto [pointer, offset] = recursiveGepBaseAndOffset(load->address());
+    if (!pointer) {
+        return nullptr;
+    }
+    if (auto* constData = dyncast<ConstantData*>(pointer)) {
+        auto data = constData->data().subspan(offset, load->type()->size());
+        return makeValueFromConstantData(irCtx, data, load->type());
+    }
+    return nullptr;
+}
+
+Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
+    using enum Conversion;
+    switch (inst->conversion()) {
+    case Zext:
+        return nullptr;
+    case Sext:
+        return nullptr;
+    case Trunc:
+        return nullptr;
+    case Fext:
+        return nullptr;
+    case Ftrunc:
+        return nullptr;
+    case UtoF:
+        return nullptr;
+    case StoF:
+        return nullptr;
+    case FtoU:
+        return nullptr;
+    case FtoS:
+        return nullptr;
+    case Bitcast: {
+        if (auto* conv = dyncast<ConversionInst*>(inst->operand())) {
+            if (conv->conversion() == Bitcast) {
+                inst->setOperand(conv->operand());
+                return inst;
+            }
+        }
+        else if (auto* load = dyncast<Load*>(inst->operand())) {
+            BasicBlockBuilder builder(irCtx, inst->parent());
+            return builder.insert<Load>(load,
+                                        load->address(),
+                                        inst->type(),
+                                        std::string(inst->name()));
+        }
+        return nullptr;
+    }
+    case _count:
+        SC_UNREACHABLE();
+    }
 }
 
 Value* InstCombineCtx::visitImpl(Phi* phi) {
