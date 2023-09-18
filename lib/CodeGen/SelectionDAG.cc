@@ -49,23 +49,49 @@ SelectionNode* SelectionDAG::get(ir::Value* value) {
 
 using namespace graphgen;
 
-static Label makeLabel(ir::Value const* value) {
+static Label makeLabel(SelectionDAG const& DAG, ir::Value const* value) {
     std::stringstream sstr;
-    tfmt::setHTMLFormattable(sstr);
-    ir::printDecl(*value, sstr);
+    if (auto* inst = dyncast<ir::Instruction const*>(value);
+        !inst || inst->parent() == DAG.basicBlock())
+    {
+        tfmt::setHTMLFormattable(sstr);
+        ir::printDecl(*value, sstr);
+    }
+    else {
+        sstr << "<font color=\"Silver\">";
+        ir::printDecl(*value, sstr);
+        sstr << "</font>";
+    }
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
 void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
-    Graph G;
-    G.font("SF Mono");
-    G.rankdir(RankDir::BottomTop);
+    auto* G = Graph::make(ID(0));
     for (auto* node: DAG.nodes()) {
-        auto* vertex = Vertex::make(ID(node))->label(makeLabel(node->value()));
+        auto* vertex =
+            Vertex::make(ID(node))->label(makeLabel(DAG, node->value()));
         for (auto* opNode: node->operands()) {
-            G.add(Edge{ ID(node), ID(opNode) });
+            G->add(Edge{ ID(node), ID(opNode) });
         }
-        G.add(vertex);
+        G->add(vertex);
     }
-    generate(G, ostream);
+    Graph H;
+    H.label(makeLabel(DAG, DAG.basicBlock()));
+    H.add(G);
+    H.font("SF Mono");
+    H.rankdir(RankDir::BottomTop);
+    generate(H, ostream);
+}
+
+void cg::generateGraphvizTmp(SelectionDAG const& DAG) {
+    try {
+        auto [path, file] =
+            debug::newDebugFile(std::string(DAG.basicBlock()->name()));
+        generateGraphviz(DAG, file);
+        file.close();
+        debug::createGraphAndOpen(path);
+    }
+    catch (std::exception const& e) {
+        std::cout << e.what() << std::endl;
+    }
 }

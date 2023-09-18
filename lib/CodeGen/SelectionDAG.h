@@ -92,6 +92,10 @@ private:
 SCATHA_TESTAPI void generateGraphviz(SelectionDAG const& DAG,
                                      std::ostream& ostream);
 
+/// Debug utility to generate graphviz representation of the DAG to a temporary
+/// file
+SCATHA_TESTAPI void generateGraphvizTmp(SelectionDAG const& DAG);
+
 } // namespace scatha::cg
 
 #endif // SCATHA_CODEGEN_SELECTIONDAG_H_
