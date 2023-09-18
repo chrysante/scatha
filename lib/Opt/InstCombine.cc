@@ -25,9 +25,49 @@ SC_REGISTER_PASS(opt::instCombine, "instcombine");
 
 namespace {
 
+class Worklist {
+public:
+    explicit Worklist(Function& function,
+                      utl::hashset<Instruction*>& eraseList):
+        items(function.instructions() | TakeAddress | ToSmallVector<>),
+        eraseList(eraseList) {}
+
+    bool empty() const { return index == items.size(); }
+
+    void push(Instruction* inst) {
+        SC_ASSERT(inst, "");
+        if (eraseList.contains(inst)) {
+            return;
+        }
+        if (ranges::contains(items.begin() + index, items.end(), inst)) {
+            return;
+        }
+        items.push_back(inst);
+    }
+
+    void pushValue(Value* value) {
+        if (auto* inst = dyncast<Instruction*>(value)) {
+            push(inst);
+        }
+    }
+
+    void pushUsers(Value* value) {
+        for (auto* user: value->users()) {
+            pushValue(user);
+        }
+    }
+
+    Instruction* pop() { return items[index++]; }
+
+private:
+    size_t index = 0;
+    utl::small_vector<Instruction*> items;
+    utl::hashset<Instruction*>& eraseList;
+};
+
 struct InstCombineCtx {
     InstCombineCtx(Context& irCtx, Function& function):
-        irCtx(irCtx), function(function) {}
+        irCtx(irCtx), function(function), worklist(function, eraseList) {}
 
     bool run();
 
@@ -63,30 +103,6 @@ struct InstCombineCtx {
 
     bool tryMergeNegate(ArithmeticInst* inst);
 
-    void push(Instruction* inst) {
-        if (!eraseList.contains(inst)) {
-            worklist.insert(inst);
-        }
-    }
-
-    void pushIfInst(Value* value) {
-        if (auto* inst = dyncast<Instruction*>(value)) {
-            push(inst);
-        }
-    }
-
-    void pushUsers(Instruction* inst) {
-        for (auto* user: inst->users()) {
-            push(user);
-        }
-    }
-
-    void pushUsers(Value* value) {
-        for (auto* user: value->users()) {
-            pushIfInst(user);
-        }
-    }
-
     bool isUsed(Instruction* inst) const {
         if (hasSideEffects(inst)) {
             return true;
@@ -98,7 +114,7 @@ struct InstCombineCtx {
 
     void markForDeletion(Instruction* inst) {
         for (auto* op: inst->operands()) {
-            pushIfInst(op);
+            worklist.pushValue(op);
         }
         eraseList.insert(inst);
     }
@@ -145,8 +161,8 @@ struct InstCombineCtx {
 
     Context& irCtx;
     Function& function;
-    utl::hashset<Instruction*> worklist;
     utl::hashset<Instruction*> eraseList;
+    Worklist worklist;
     /// `ExtractValue` instructions that have been inserted as missing leaves in
     /// the access trees. Will be traversed after the algorithm has run to check
     /// if they are used or can be deleted.
@@ -165,12 +181,8 @@ bool opt::instCombine(Context& irCtx, Function& function) {
 }
 
 bool InstCombineCtx::run() {
-    worklist = function.instructions() | TakeAddress |
-               ranges::to<utl::hashset<Instruction*>>;
     while (!worklist.empty()) {
-        auto itr = worklist.begin();
-        Instruction* inst = *itr;
-        worklist.erase(itr);
+        auto* inst = worklist.pop();
         if (!isUsed(inst)) {
             markForDeletion(inst);
             continue;
@@ -180,8 +192,8 @@ bool InstCombineCtx::run() {
             continue;
         }
         modifiedAny = true;
-        pushUsers(inst);
-        pushIfInst(replacement);
+        worklist.pushUsers(inst);
+        worklist.pushValue(replacement);
         replaceInst(inst, replacement);
         markForDeletion(inst);
     }
@@ -222,14 +234,14 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         /// We push the users here because other arithmetic instructions that
         /// use this check for constant right hand sides of their operands and
         /// fold if possible
-        pushUsers(inst);
+        worklist.pushUsers(inst);
     }
     switch (inst->operation()) {
         /// ## Addition
     case ArithmeticOperation::Add:
         if (tryMergeNegate(inst)) {
             modifiedAny = true;
-            push(inst);
+            worklist.push(inst);
             return nullptr;
         }
         [[fallthrough]];
@@ -254,7 +266,7 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         }
         if (tryMergeNegate(inst)) {
             modifiedAny = true;
-            push(inst);
+            worklist.push(inst);
             return nullptr;
         }
         [[fallthrough]];
@@ -442,8 +454,8 @@ void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
     inst->setRHS(newRHS);
     inst->setLHS(newLHS);
     modifiedAny = true;
-    push(inst);
-    push(prevInst);
+    worklist.push(inst);
+    worklist.push(prevInst);
 }
 
 template <ArithmeticOperation MulOp,
@@ -486,8 +498,8 @@ void InstCombineCtx::mergeMultiplicativeImpl(ArithmeticInst* inst,
     inst->setRHS(newRHS);
     inst->setLHS(newLHS);
     modifiedAny = true;
-    push(inst);
-    push(prevInst);
+    worklist.push(inst);
+    worklist.push(prevInst);
 }
 
 static Value* negatedValue(Value* value) {
@@ -647,7 +659,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
                                  extractInst->memberIndices(),
                                  std::string(extractInst->name()));
             pred->insert(pred->terminator(), newExtract);
-            push(newExtract);
+            worklist.push(newExtract);
             newPhiArgs.push_back({ pred, newExtract });
         }
         auto* newPhi = new Phi(newPhiArgs, std::string(extractInst->name()));
@@ -886,18 +898,18 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
         }
     });
     for (auto& insert: inserts) {
-        push(insert.get());
+        worklist.push(insert.get());
         insertInst->parent()->insert(insertInst, insert.release());
     }
     auto* newValue = root->value();
     if (newValue == insertInst) {
         return nullptr;
     }
-    pushIfInst(insertInst->baseValue());
-    pushIfInst(insertInst->insertedValue());
+    worklist.pushValue(insertInst->baseValue());
+    worklist.pushValue(insertInst->insertedValue());
     if (auto* newInsert = dyncast<InsertValue*>(newValue)) {
-        pushIfInst(newInsert->baseValue());
-        pushIfInst(newInsert->insertedValue());
+        worklist.pushValue(newInsert->baseValue());
+        worklist.pushValue(newInsert->insertedValue());
     }
     return newValue;
 }
