@@ -15,8 +15,12 @@ using namespace ir;
 SelectionDAG SelectionDAG::build(ir::BasicBlock& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
+    /// We start the index at 1 because all values that are not defined in this
+    /// block have index 0
+    ssize_t index = 1;
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
+        instNode->setIndex(index++);
         for (auto* operand: inst.operands()) {
             if (isa<BasicBlock>(operand) || isa<Callable>(operand)) {
                 continue;
