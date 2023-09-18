@@ -29,17 +29,6 @@ public:
     /// are only used by other instructions.
     auto users() const { return Value::users() | Cast<Instruction*>; }
 
-    /// \returns Pairs of `User*` and `uint16_t`
-    /// The integer specifies how often a user uses this instruction
-    auto countedUsers() const {
-        return Value::countedUsers() |
-               ranges::views::transform(
-                   []<typename T>(std::pair<T*, uint16_t> user) {
-            return std::pair(cast<utl::copy_cv_t<T, Instruction>*>(user.first),
-                             user.second);
-               });
-    }
-
     /// \returns a view over the type operands of this instruction
     std::span<Type const* const> typeOperands() const { return typeOps; }
 
