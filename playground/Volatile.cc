@@ -125,7 +125,10 @@ static void run(ir::Module const& mod) {
     header("As parsed");
     print(mod);
     run(mod);
-    auto pipeline = opt::PassManager::makePipeline("inline, deadfuncelim");
+    auto pipeline = opt::PassManager::makePipeline("instcombine");
+    header(toString(pipeline));
+    pipeline(ctx, mod);
+    print(mod);
     header(toString(pipeline));
     pipeline(ctx, mod);
     print(mod);
