@@ -12,6 +12,8 @@ std::optional<char> scatha::toEscapeSequence(char c) {
         return 0x07;
     case 'b':
         return 0x08;
+    case 'e':
+        return 0x1B;
     case 'f':
         return 0x0C;
     case 'n':
@@ -39,6 +41,8 @@ std::optional<char> scatha::fromEscapeSequence(char seq) {
         return 'a';
     case 0x08:
         return 'b';
+    case 0x1B:
+        return 'e';
     case 0x0C:
         return 'f';
     case 0x0A:
