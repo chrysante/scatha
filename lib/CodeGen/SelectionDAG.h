@@ -20,12 +20,12 @@ class SelectionDAG;
 
 /// Node in the selection DAG
 class SCATHA_TESTAPI SelectionNode:
-    public GraphNode<ir::Value*, SelectionNode, GraphKind::Directed> {
+    public GraphNode<ir::Value const*, SelectionNode, GraphKind::Directed> {
 public:
-    SelectionNode(ir::Value* value): GraphNode(value) {}
+    SelectionNode(ir::Value const* value): GraphNode(value) {}
 
     /// \Returns the value associated with this node
-    ir::Value* value() const { return payload(); }
+    ir::Value const* value() const { return payload(); }
 
     /// \Returns a view of the nodes of the operands of this instruction
     std::span<SelectionNode* const> operands() { return successors(); }
@@ -59,19 +59,19 @@ public:
     SelectionDAG() = default;
 
     /// Builds a selection DAG for the basic block \p BB
-    static SelectionDAG build(ir::BasicBlock& BB);
+    static SelectionDAG build(ir::BasicBlock const& BB);
 
     /// \Returns the basic block this DAG represents
-    ir::BasicBlock* basicBlock() const { return BB; }
+    ir::BasicBlock const* basicBlock() const { return BB; }
 
     /// \Returns the node associated with the instruction \p inst
     /// Traps if no node is found
-    SelectionNode* operator[](ir::Instruction* inst) {
+    SelectionNode* operator[](ir::Instruction const* inst) {
         return const_cast<SelectionNode*>(std::as_const(*this)[inst]);
     }
 
     /// \overload
-    SelectionNode const* operator[](ir::Instruction* inst) const;
+    SelectionNode const* operator[](ir::Instruction const* inst) const;
 
     /// \Returns a view over the nodes in this DAG
     auto nodes() { return nodemap | ranges::views::values | ToAddress; }
@@ -79,12 +79,17 @@ public:
     /// \overload
     auto nodes() const { return nodemap | ranges::views::values | ToAddress; }
 
+    std::span<ir::Instruction const* const> criticalInstructions() const {
+        return critical;
+    }
+
 private:
     /// Finds the node associated with \p value or creates a new node
-    SelectionNode* get(ir::Value* value);
+    SelectionNode* get(ir::Value const* value);
 
-    ir::BasicBlock* BB = nullptr;
-    utl::hashmap<ir::Value*, SelectionNode*> nodemap;
+    ir::BasicBlock const* BB = nullptr;
+    utl::vector<ir::Instruction const*> critical;
+    utl::hashmap<ir::Value const*, SelectionNode*> nodemap;
     MonotonicBufferAllocator allocator;
 };
 

@@ -1,18 +1,23 @@
 #include "CodeGen/SelectionDAG.h"
 
+#include <exception>
+#include <fstream>
+#include <iostream>
 #include <sstream>
 
 #include <graphgen/graphgen.h>
 #include <termfmt/termfmt.h>
 
+#include "Debug/DebugGraphviz.h"
 #include "IR/CFG.h"
 #include "IR/Print.h"
+#include "Opt/Common.h"
 
 using namespace scatha;
 using namespace cg;
 using namespace ir;
 
-SelectionDAG SelectionDAG::build(ir::BasicBlock& BB) {
+SelectionDAG SelectionDAG::build(ir::BasicBlock const& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
     /// We start the index at 1 because all values that are not defined in this
@@ -21,6 +26,9 @@ SelectionDAG SelectionDAG::build(ir::BasicBlock& BB) {
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
         instNode->setIndex(index++);
+        if (opt::hasSideEffects(&inst)) {
+            DAG.critical.push_back(&inst);
+        }
         for (auto* operand: inst.operands()) {
             if (isa<BasicBlock>(operand) || isa<Callable>(operand)) {
                 continue;
@@ -33,13 +41,14 @@ SelectionDAG SelectionDAG::build(ir::BasicBlock& BB) {
     return DAG;
 }
 
-SelectionNode const* SelectionDAG::operator[](ir::Instruction* inst) const {
+SelectionNode const* SelectionDAG::operator[](
+    ir::Instruction const* inst) const {
     auto itr = nodemap.find(inst);
     SC_ASSERT(itr != nodemap.end(), "Not found");
     return itr->second;
 }
 
-SelectionNode* SelectionDAG::get(ir::Value* value) {
+SelectionNode* SelectionDAG::get(ir::Value const* value) {
     auto& ptr = nodemap[value];
     if (!ptr) {
         ptr = allocate<SelectionNode>(allocator, value);
