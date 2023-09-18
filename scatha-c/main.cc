@@ -69,6 +69,8 @@ int main(int argc, char* argv[]) {
     auto analysisResult = sema::analyze(*ast, semaSym, issueHandler);
     if (!issueHandler.empty()) {
         issueHandler.print(text);
+    }
+    if (issueHandler.haveErrors()) {
         return -1;
     }
 
