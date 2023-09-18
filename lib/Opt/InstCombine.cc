@@ -27,15 +27,23 @@ SC_REGISTER_PASS(opt::instCombine, "instcombine");
 
 namespace {
 
+/// Worklist for the algorithm. This ensures that no instruction appears twice
+/// on the worklist and also preserves insertion order.
 class Worklist {
 public:
+    /// Construct a worklist from \p function. Inserts all instructions from the
+    /// function into the worklist
     explicit Worklist(Function& function,
                       utl::hashset<Instruction*>& eraseList):
         items(function.instructions() | TakeAddress | ToSmallVector<>),
         eraseList(eraseList) {}
 
+    /// \Returns `true` if the worklist is empty
     bool empty() const { return index == items.size(); }
 
+    /// Push an instruction \p inst to the back of the worklist
+    /// \p inst is not added if it is already in the worklist or if it is in the
+    /// erase list
     void push(Instruction* inst) {
         SC_ASSERT(inst, "");
         if (eraseList.contains(inst)) {
@@ -47,18 +55,22 @@ public:
         items.push_back(inst);
     }
 
+    /// Push \p value to the list if it is an instruction
     void pushValue(Value* value) {
         if (auto* inst = dyncast<Instruction*>(value)) {
             push(inst);
         }
     }
 
+    /// Push all users of \p value onto the worklist
     void pushUsers(Value* value) {
         for (auto* user: value->users()) {
             pushValue(user);
         }
     }
 
+    /// Pop the first instruction off the worklist.
+    /// \Returns the popped instruction
     Instruction* pop() { return items[index++]; }
 
 private:
@@ -73,7 +85,7 @@ struct InstCombineCtx {
 
     bool run();
 
-    /// \Returns Replacement value if possible
+    /// \Returns replacement value if any folding occured
     /// The visit functions never update users themselves, they only return the
     /// replacement value if they find any
     Value* visitInstruction(Instruction* inst);
