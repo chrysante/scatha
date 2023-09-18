@@ -227,14 +227,17 @@ Select::Select(Value* condition,
                 std::move(name),
                 { condition, thenValue, elseValue }) {}
 
-template <typename SizeT>
-static Type const* computeAccessedTypeGen(Type const* operandType,
-                                          std::span<SizeT const> indices) {
-    Type const* result = operandType;
+/// Computes the inner type and byte offset by \p indices on \p operandType
+static std::pair<Type const*, size_t> computeAccessedTypeAndOffset(
+    Type const* operandType, std::span<size_t const> indices) {
+    Type const* type = operandType;
+    size_t offset = 0;
     for (auto index: indices) {
-        result = cast<RecordType const*>(result)->elementAt(index);
+        auto* record = cast<RecordType const*>(type);
+        offset += record->offsetAt(index);
+        type = record->elementAt(index);
     }
-    return result;
+    return { type, offset };
 }
 
 void AccessValueInst::setMemberIndices(std::span<size_t const> indices) {
@@ -256,39 +259,50 @@ GetElementPointer::GetElementPointer(Context& context,
 }
 
 Type const* GetElementPointer::accessedType() const {
-    return computeAccessedTypeGen(inboundsType(), memberIndices());
+    return computeAccessedTypeAndOffset(inboundsType(), memberIndices()).first;
 }
 
 bool GetElementPointer::hasConstantArrayIndex() const {
     return isa<IntegralConstant>(arrayIndex());
 }
 
-size_t GetElementPointer::constantArrayIndex() const {
-    return cast<IntegralConstant const*>(arrayIndex())->value().to<size_t>();
+std::optional<size_t> GetElementPointer::constantArrayIndex() const {
+    if (auto* constIndex = dyncast<IntegralConstant const*>(arrayIndex())) {
+        return constIndex->value().to<size_t>();
+    }
+    return std::nullopt;
 }
 
-Type const* ir::AccessValueInst::computeAccessedType(
-    Type const* operandType, std::span<size_t const> indices) {
-    return computeAccessedTypeGen(operandType, indices);
+std::optional<size_t> GetElementPointer::constantByteOffset() const {
+    if (auto index = constantArrayIndex()) {
+        return *index * inboundsType()->size() + innerByteOffset();
+    }
+    return std::nullopt;
+}
+
+size_t GetElementPointer::innerByteOffset() const {
+    return computeAccessedTypeAndOffset(inboundsType(), memberIndices()).second;
+}
+
+static Type const* tryGetAccessedType(Value const* value,
+                                      std::span<size_t const> indices) {
+    return value ? computeAccessedTypeAndOffset(value->type(), indices).first :
+                   nullptr;
 }
 
 ExtractValue::ExtractValue(Value* baseValue,
                            std::span<size_t const> indices,
                            std::string name):
     AccessValueInst(NodeType::ExtractValue,
-                    baseValue ?
-                        computeAccessedType(baseValue->type(), indices) :
-                        nullptr,
+                    tryGetAccessedType(baseValue, indices),
                     std::move(name),
                     { baseValue }) {
     setMemberIndices(indices);
 }
 
 void ExtractValue::setBaseValue(Value* value) {
-    if (!type()) {
-        setType(computeAccessedTypeGen(value->type(), memberIndices()));
-    }
     setOperand(0, value);
+    setType(tryGetAccessedType(value, memberIndices()));
 }
 
 InsertValue::InsertValue(Value* baseValue,

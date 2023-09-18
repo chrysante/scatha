@@ -491,30 +491,30 @@ class AccessValueInst: public Instruction {
 public:
     using Instruction::Instruction;
 
-    ///
+    /// The constant member indices. For an `insert_value` or `extract_value`
+    /// instruction these are all the indices. For a `getelementptr`
+    /// instruction these are the constant indices excluding the array index
     std::span<size_t const> memberIndices() const { return _indices; }
 
-    ///
+    /// Adds the constant member index \p index to the front of the current
+    /// member indices
     void addMemberIndexFront(size_t index) {
         _indices.insert(_indices.begin(), index);
     }
 
-    ///
+    /// Adds the constant member index \p index to the back of the current
+    /// member indices
     void addMemberIndexBack(size_t index) { _indices.push_back(index); }
 
-    ///
+    /// Set the constant member indices to \p indices
     void setMemberIndices(std::span<size_t const> indices);
-
-protected:
-    static Type const* computeAccessedType(Type const* operandType,
-                                           std::span<size_t const> indices);
 
 private:
     utl::small_vector<size_t> _indices;
 };
 
-/// `gep` or GetElementPointer instruction. Calculate offset pointer to a
-/// structure member or array element.
+/// `getelementptr` instruction. Calculate offset pointer to a structure member
+/// or array element.
 class GetElementPointer: public AccessValueInst {
 public:
     explicit GetElementPointer(Context& context,
@@ -537,29 +537,47 @@ public:
                                std::span<size_t const> memberIndices,
                                std::string name);
 
-    /// The type of the value that the base pointer points to.
+    /// \Returns the type of the value that the base pointer points to.
     Type const* inboundsType() const { return typeOperands()[0]; }
 
-    /// The type of the value the result of this instruction points to.
+    /// \Returns the type of the value the result of this instruction points to.
     Type const* accessedType() const;
 
-    Value* basePointer() { return operands()[0]; }
+    /// \Returns the pointer being modified by this instruction
+    Value* basePointer() { return operandAt(0); }
 
-    Value const* basePointer() const { return operands()[0]; }
+    /// \overload
+    Value const* basePointer() const { return operandAt(0); }
 
-    Value* arrayIndex() { return operands()[1]; }
+    /// \Returns the dynamic array index operand
+    Value* arrayIndex() { return operandAt(1); }
 
-    Value const* arrayIndex() const { return operands()[1]; }
+    /// \overload
+    Value const* arrayIndex() const { return operandAt(1); }
 
+    /// \Returns `true` if the array index is a constant
     bool hasConstantArrayIndex() const;
 
-    size_t constantArrayIndex() const;
+    /// \Returns the array index as a constant if possible
+    std::optional<size_t> constantArrayIndex() const;
 
-    void setAccessedType(Type const* type) { setTypeOperand(0, type); }
+    ///  \Returns the constant byte offset that this instruction computes if the
+    /// array index is a constant
+    std::optional<size_t> constantByteOffset() const;
 
-    void setBasePtr(Value* basePtr) { setOperand(0, basePtr); }
+    ///  \Returns the constant byte inner byte offset, that is the offset
+    /// computed by the constant member indices, not included the dynamic array
+    /// index
+    size_t innerByteOffset() const;
 
-    void setArrayIndex(Value* arrayIndex) { setOperand(1, arrayIndex); }
+    /// Sets the inbounds type to \p type
+    void setInboundsType(Type const* type) { setTypeOperand(0, type); }
+
+    /// Sets the base pointer to \p pointer
+    void setBasePtr(Value* pointer) { setOperand(0, pointer); }
+
+    /// Sets the array index to \p index
+    void setArrayIndex(Value* index) { setOperand(1, index); }
 };
 
 /// `extract_value` instruction. Extract the value of a structure member or
@@ -577,13 +595,13 @@ public:
                           std::span<size_t const> indices,
                           std::string name);
 
-    /// The structure or array being accessed. Same as `operand()`
+    /// The record being accessed
     Value* baseValue() { return operandAt(0); }
 
     /// \overload
     Value const* baseValue() const { return operandAt(0); }
 
-    /// Same as `setOperand()`
+    /// Set the record being accessed to \p value
     void setBaseValue(Value* value);
 };
 
@@ -604,22 +622,22 @@ public:
                          std::span<size_t const> indices,
                          std::string name);
 
-    /// The structure or array being accessed. Same as `lhs()`
+    /// \Returns the record being accessed
     Value* baseValue() { return operandAt(0); }
 
     /// \overload
     Value const* baseValue() const { return operandAt(0); }
 
-    ///
+    /// Set the record being accessed to \p value
     void setBaseValue(Value* value);
 
-    /// The value being inserted
+    /// \Returns the value being inserted
     Value* insertedValue() { return operandAt(1); }
 
     /// \overload
     Value const* insertedValue() const { return operandAt(1); }
 
-    /// Same as `setRHS()`
+    /// Set the value being inserted to \p value
     void setInsertedValue(Value* value) { setOperand(1, value); }
 };
 

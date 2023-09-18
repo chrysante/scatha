@@ -424,27 +424,14 @@ bool Variable::analyzeImpl(Call* call) {
     return true;
 }
 
-/// FIXME: This function also exists in lowerToMIR() and should become a member
-/// function of `GetElementPointer`
-static size_t computeGepOffset(GetElementPointer const* gep) {
-    Type const* currentType = gep->inboundsType();
-    size_t offset = 0;
-    offset += currentType->size() * gep->constantArrayIndex();
-    for (size_t index: gep->memberIndices()) {
-        auto* record = cast<RecordType const*>(currentType);
-        offset += record->offsetAt(index);
-        currentType = record->elementAt(index);
-    }
-    return offset;
-}
-
 bool Variable::analyzeImpl(GetElementPointer* gep) {
     if (!gep->hasConstantArrayIndex()) {
         return false;
     }
     if (!isa<Phi>(gep->basePointer())) {
-        addPointer(gep,
-                   getPtrOffset(gep->basePointer()) + computeGepOffset(gep));
+        size_t offset =
+            getPtrOffset(gep->basePointer()) + *gep->constantByteOffset();
+        addPointer(gep, offset);
     }
     else {
         addPointer(gep, std::nullopt);
@@ -565,8 +552,9 @@ bool Variable::rewritePhis() {
                 }
                 if (auto* gep = dyncast<GetElementPointer*>(&inst)) {
                     if (auto baseOffset = tryGetPtrOffset(gep->basePointer())) {
-                        setPointerOffset(&inst,
-                                         *baseOffset + computeGepOffset(gep));
+                        size_t offset =
+                            *baseOffset + *gep->constantByteOffset();
+                        setPointerOffset(&inst, offset);
                     }
                 }
                 continue;
@@ -605,7 +593,8 @@ bool Variable::rewritePhis() {
                 }
                 if (auto* gep = dyncast<GetElementPointer*>(copy)) {
                     if (auto baseOffset = tryGetPtrOffset(gep->basePointer())) {
-                        addPointer(gep, *baseOffset + computeGepOffset(gep));
+                        addPointer(gep,
+                                   *baseOffset + *gep->constantByteOffset());
                     }
                 }
             }
