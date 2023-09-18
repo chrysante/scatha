@@ -868,7 +868,7 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
     }
     }
     sema::QualType memType = expr.type();
-    auto* arrayType = ptrToArray(stripReference(memType).get());
+    auto* arrayType = ptrOrRefToArray(memType.get());
     if (!arrayType) {
         return value;
     }
@@ -1143,10 +1143,12 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case Reinterpret_Array_ToByte:
         [[fallthrough]];
     case Reinterpret_Array_FromByte: {
-        auto* fromType = ptrToArray(sema::stripReference(expr->type()).get());
+        auto* fromType = ptrOrRefToArray(expr->type().get());
         SC_ASSERT(fromType, "");
-        auto* toType = ptrToArray(conv.type().get());
+        auto* toType = ptrOrRefToArray(conv.type().get());
         SC_ASSERT(toType, "");
+        size_t fromCount = fromType->elementType()->size();
+        size_t toCount = toType->elementType()->size();
         auto data = refConvResult;
         if (toType->isDynamic()) {
             if (fromType->isDynamic()) {
@@ -1156,7 +1158,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
                 {
                     auto* newCount =
                         add<ir::ArithmeticInst>(toRegister(count),
-                                                ctx.intConstant(8, 64),
+                                                ctx.intConstant(fromCount, 64),
                                                 ir::ArithmeticOperation::Mul,
                                                 "reinterpret.count");
                     count = Value(newCount, Register);
@@ -1164,29 +1166,31 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
                 else {
                     auto* newCount =
                         add<ir::ArithmeticInst>(toRegister(count),
-                                                ctx.intConstant(8, 64),
+                                                ctx.intConstant(toCount, 64),
                                                 ir::ArithmeticOperation::SDiv,
                                                 "reinterpret.count");
                     count = Value(newCount, Register);
                 }
                 valueMap.insertArraySize(conv.object(), count);
-                return data;
             }
-            size_t count = fromType->count();
-            switch (conv.conversion()->objectConversion()) {
-            case Reinterpret_Array_ToByte:
-                count *= 8;
-                break;
-            case Reinterpret_Array_FromByte:
-                count /= 8;
-                break;
-            default:
-                SC_UNREACHABLE();
+            else {
+                size_t count = fromType->count();
+                switch (conv.conversion()->objectConversion()) {
+                case Reinterpret_Array_ToByte:
+                    count *= fromType->elementType()->size();
+                    break;
+                case Reinterpret_Array_FromByte:
+                    count /= toType->elementType()->size();
+                    break;
+                default:
+                    SC_UNREACHABLE();
+                }
+                valueMap.insertArraySize(conv.object(), count);
             }
-            valueMap.insertArraySize(conv.object(), count);
-            return data;
         }
-        SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
+        else {
+            SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
+        }
         return data;
     }
 

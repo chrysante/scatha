@@ -30,7 +30,7 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
         sema::QualType memType = member->type();
         irType->pushMember(typeMap(memType));
         metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
-        auto* arrayType = ptrToArray(memType.get());
+        auto* arrayType = ptrOrRefToArray(memType.get());
         if (!arrayType || !arrayType->isDynamic()) {
             continue;
         }

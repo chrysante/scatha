@@ -10,6 +10,9 @@ namespace scatha::irgen {
 /// `nullptr` otherwise
 sema::ArrayType const* ptrToArray(sema::ObjectType const* type);
 
+/// Same as `ptrToArray()` but also checks if \p type is an array reference
+sema::ArrayType const* ptrOrRefToArray(sema::ObjectType const* type);
+
 /// \Returns the base type if \p type is a pointer or reference type, otherwise
 /// returns \p type as is
 sema::QualType stripRefOrPtr(sema::QualType type);
