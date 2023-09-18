@@ -2,9 +2,11 @@
 
 - Clean up `AccessTree` class
 
-- Remove while loop from MemToReg
+- Reintroduce value categories to semantic analysis and remove reference types in expressions
 
-- Improve SROA for arrays
+- Write selection DAG based code generation algorithm
+
+- Make IR verification pass better  
 
 - Fix TRE for void calls
 
