@@ -77,9 +77,14 @@ static void writeBinary(std::ostream& file, std::span<uint8_t const> program) {
               std::ostream_iterator<char>(file));
 }
 
-/// Calls the system command `chmod` to permit execution of the emitted file
-static void signExecutable(std::filesystem::path filename) {
+/// Calls the system command `chmod` to permit execution of the specified file
+static void permitExecution(std::filesystem::path filename) {
     std::system(utl::strcat("chmod +x ", filename.string()).data());
+}
+
+/// Revokes permission to execute the specified file
+static void prohibitExecution(std::filesystem::path filename) {
+    std::system(utl::strcat("chmod -x ", filename.string()).data());
 }
 
 /// Emits the compiled binary.
@@ -96,7 +101,7 @@ static void emitFile(std::filesystem::path dest,
         }
         writeBashHeader(file);
         file.close();
-        signExecutable(dest);
+        permitExecution(dest);
     }
     /// We open the file again, this time in binary mode, to ensure that no
     /// unwanted character conversions occur
@@ -109,6 +114,12 @@ static void emitFile(std::filesystem::path dest,
     file.seekg(0, std::ios::end);
     writeBinary(file, program);
     file.close();
+    /// If we don't generate an executable, we explicitly revoke permission to
+    /// execute the file, because the same file could have been made executable
+    /// by a previous invocation of the compiler
+    if (!executable) {
+        prohibitExecution(dest);
+    }
 }
 
 int main(int argc, char* argv[]) {
