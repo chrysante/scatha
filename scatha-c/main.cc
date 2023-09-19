@@ -5,7 +5,6 @@
 #include <sstream>
 #include <string>
 
-#include <scatha/AST/Print.h>
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
@@ -27,37 +26,82 @@
 
 using namespace scatha;
 
+/// Writes red "Error: " message to \p str
 static constexpr utl::streammanip Warning([](std::ostream& str) {
     str << tfmt::format(tfmt::Yellow | tfmt::Bold, "Warning: ");
 });
 
+/// Writes yellow "Warning: " message to \p str
 static constexpr utl::streammanip Error([](std::ostream& str) {
     str << tfmt::format(tfmt::Red | tfmt::Bold, "Error: ");
 });
 
+/// Prints an error message to the console and exits the program
 [[noreturn]] static void fileEmissionError(std::string_view type,
                                            std::filesystem::path path) {
-    std::cout << Error << "Failed to emit " << type << "\n";
-    std::cout << "Target was: " << path << "\n";
+    std::cerr << Error << "Failed to emit " << type << "\n";
+    std::cerr << "Target was: " << path << "\n";
     std::exit(EXIT_FAILURE);
 }
 
-static void emitExecutable(std::filesystem::path dest, std::string binaryName) {
+/// Helper to write escaped bash command to a file. See documentation of
+/// `writeBashHeader()`
+static auto bashCommandEmitter(std::ostream& file) {
+    return [&, i = 0](std::string_view command) mutable {
+        file << "# Bash command " << i++ << "\n";
+        file << command << "\n";
+    };
+}
+
+/// To emit files that are directly executable, we prepend a bash script to the
+/// emitted binary file. That bash script identifies its directory and its name,
+/// executes the virtual machine with the same executable file and exits. The
+/// convention for bash commands is one commented line (starting with `#` and
+/// ending with `\n`) and one line of script (ending with `\n`). This way the
+/// virtual machine identifies the bash commands and ignores them
+static void writeBashHeader(std::ostream& file) {
+    auto emitter = bashCommandEmitter(file);
+    // clang-format off
+    emitter(R"__(SCRIPT_DIR="$(dirname "$(readlink -f "$0")")")__");
+    emitter(R"__(FILENAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")")__");
+    emitter(R"__(svm "$SCRIPT_DIR/$FILENAME")__");
+    emitter(R"__(exit $1)__");
+    // clang-format on
+}
+
+/// Copies the program \p program to the file \p file
+static void writeBinary(std::ostream& file, std::span<uint8_t const> program) {
+    std::copy(program.begin(),
+              program.end(),
+              std::ostream_iterator<char>(file));
+}
+
+/// Calls the system command `chmod` to permit execution of the emitted file
+static void signExecutable(std::filesystem::path filename) {
+    std::system(utl::strcat("chmod +x ", filename.string()).data());
+}
+
+/// Creates a directly executable file of our binary
+static void emitExecutable(std::filesystem::path dest,
+                           std::span<uint8_t const> program) {
     std::fstream file(dest, std::ios::out | std::ios::trunc);
     if (!file) {
         fileEmissionError("executable", dest);
     }
-    file << "SCRIPT_DIR=\"$(dirname \"$(readlink -f \"$0\")\")\"\n";
-    file << "set -e\n";
-    file << "svm \"$SCRIPT_DIR/" << binaryName << "\"\n";
-    file << "exit 0\n";
+    writeBashHeader(file);
     file.close();
-    /// Permit the file to be executed
-    std::system(utl::strcat("chmod +x ", dest.string()).data());
+    file.open(dest, std::ios::out | std::ios::binary | std::ios::app);
+    if (!file) {
+        fileEmissionError("binary", dest);
+    }
+    file.seekg(0, std::ios::end);
+    writeBinary(file, program);
+    file.close();
+    signExecutable(dest);
 }
 
-static void emitBinary(std::filesystem::path dest,
-                       std::span<uint8_t const> program) {
+[[maybe_unused]] static void emitBinary(std::filesystem::path dest,
+                                        std::span<uint8_t const> program) {
     std::fstream file(dest, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!file) {
         fileEmissionError("binary", dest);
@@ -127,15 +171,12 @@ int main(int argc, char* argv[]) {
                   << "\n";
     }
 
-    /// Emit binary
+    /// Emit executable
     if (options.bindir.empty()) {
         options.bindir = filepath.parent_path();
     }
     std::string const execName = filepath.stem().string();
-    std::string const binaryName = execName + ".sbin";
     std::filesystem::path const execDir = options.bindir / execName;
-    std::filesystem::path const binaryDir = options.bindir / binaryName;
-    emitBinary(binaryDir, program);
-    emitExecutable(execDir, binaryName);
+    emitExecutable(execDir, program);
     return 0;
 }

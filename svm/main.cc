@@ -11,23 +11,51 @@
 
 using namespace svm;
 
+/// Seeks the scatha binary in the file \p file to ignore any prepended bash
+/// commands See documentation of `writeBashHeader()` in "scatha-c" for an
+/// explanation of the convention
+std::span<uint8_t const> seekBinary(std::span<uint8_t const> file) {
+    auto* data = file.data();
+    auto* end = std::to_address(file.end());
+    /// We ignore any empty lines
+    while (data < end && *data == '\n') {
+        ++data;
+    }
+    /// We ignore lines starting with `#` and the next line
+    while (data < end && *data == '#') {
+        for (int i = 0; i < 2; ++i) {
+            while (data < end && *data != '\n') {
+                ++data;
+            }
+            ++data;
+        }
+    }
+    return std::span(data, end);
+}
+
 int main(int argc, char* argv[]) {
     Options options = parseCLI(argc, argv);
+    std::string progName = options.filepath.stem();
 
     std::fstream file(options.filepath, std::ios::in);
     if (!file) {
-        std::cout << "Failed to open program: " << options.filepath
+        std::cerr << "Failed to open program: " << options.filepath
                   << std::endl;
         return -1;
     }
     file.seekg(0, std::ios::end);
     auto const filesize = file.tellg();
     file.seekg(0, std::ios::beg);
-    utl::vector<u8> program(static_cast<size_t>(filesize));
-    file.read(reinterpret_cast<char*>(program.data()), filesize);
+    utl::vector<u8> executable(static_cast<size_t>(filesize));
+    file.read(reinterpret_cast<char*>(executable.data()), filesize);
+
+    if (executable.empty()) {
+        std::cerr << "Failed to run " << progName << ". Binary is empty.\n";
+        return -1;
+    }
 
     VirtualMachine vm;
-    vm.loadBinary(program.data());
+    vm.loadBinary(seekBinary(executable).data());
 
     auto const beginTime = std::chrono::high_resolution_clock::now();
     vm.execute({});
