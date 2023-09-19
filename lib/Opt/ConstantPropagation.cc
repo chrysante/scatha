@@ -296,7 +296,7 @@ void SCCPContext::visitExpression(Instruction& inst) {
     SC_ASSERT(isExpression(&inst), "");
     FormalValue const oldValue = formalValue(&inst);
     // clang-format off
-    FormalValue const value = visit(inst, utl::overload{
+    FormalValue const value = SC_MATCH (inst) {
         [&](ConversionInst& inst) {
             return evaluateConversion(inst.conversion(),
                                       inst.type(),
@@ -324,8 +324,12 @@ void SCCPContext::visitExpression(Instruction& inst) {
             ToSmallVector<>;
             return evaluateCall(call.function(), args);
         },
+        [&](Select& inst) {
+            return infimum(formalValue(inst.thenValue()),
+                           formalValue(inst.elseValue()));
+        },
         [&](Instruction const&) -> FormalValue { return Inevaluable{}; }
-    }); // clang-format on
+    }; // clang-format on
     if (value == oldValue) {
         return;
     }
