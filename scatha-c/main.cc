@@ -48,25 +48,26 @@ static constexpr utl::streammanip Error([](std::ostream& str) {
 /// `writeBashHeader()`
 static auto bashCommandEmitter(std::ostream& file) {
     return [&, i = 0](std::string_view command) mutable {
-        file << "# Bash command " << i++ << "\n";
+        if (i++ == 0) {
+            file << "#!/bin/sh\n";
+        }
+        else {
+            file << "#Bash command\n";
+        }
         file << command << "\n";
     };
 }
 
 /// To emit files that are directly executable, we prepend a bash script to the
-/// emitted binary file. That bash script identifies its directory and its name,
-/// executes the virtual machine with the same executable file and exits. The
-/// convention for bash commands is one commented line (starting with `#` and
-/// ending with `\n`) and one line of script (ending with `\n`). This way the
-/// virtual machine identifies the bash commands and ignores them
+/// emitted binary file. That bash script executes the virtual machine with the
+/// same file and exits. The convention for bash commands is one commented line
+/// (starting with `#` and ending with `\n`) and one line of script (ending with
+/// `\n`). This way the virtual machine identifies the bash commands and ignores
+/// them
 static void writeBashHeader(std::ostream& file) {
     auto emitter = bashCommandEmitter(file);
-    // clang-format off
-    emitter(R"__(SCRIPT_DIR="$(dirname "$(readlink -f "$0")")")__");
-    emitter(R"__(FILENAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")")__");
-    emitter(R"__(svm "$SCRIPT_DIR/$FILENAME")__");
-    emitter(R"__(exit $1)__");
-    // clang-format on
+    emitter("svm \"$0\"");
+    emitter("exit $1");
 }
 
 /// Copies the program \p program to the file \p file
