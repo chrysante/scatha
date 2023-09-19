@@ -1,15 +1,30 @@
-- Fix parser crashes
+## Language
 
-- Clean up `AccessTree` class
+### Array pointers should be automatically dereferenced when accessing them, i.e.
+```
+let ptr = &mut myArray;
+ptr[0] = 42;          // Now (*ptr)[42] is required which is unnecessary 
+let size = ptr.count; // Now (*ptr).count or ptr->count is required
+```
+Then we can also remove the `->` member access operator
 
-- Reintroduce value categories to semantic analysis and remove reference types in expressions
+### Add move semantics
 
-- Write selection DAG based code generation algorithm
+### Add dynamic memory allocation in the language 
 
-- Make IR verification pass better  
+## Frontend
 
-- Fix TRE for void calls
+### Fix parser crashes
+### Reintroduce value categories to semantic analysis and remove reference types in expressions
 
-- Improve inlining decisions
+## IR
 
-- Create annotations for functions such as no side effects etc.
+### Make IR verification pass better  
+### Improve inlining decisions
+### Fix TRE for void calls
+### Create annotations for functions such as no side effects etc.
+### Clean up `AccessTree` class
+
+## Backend
+
+### Write selection DAG based code generation algorithm

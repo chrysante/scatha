@@ -1,6 +1,6 @@
 # Scatha compiler
 
-Multi paradigm toy language with an optimizing byte code compiler and a virtual register machine.
+Procedural pet language project with an optimizing byte code compiler for a virtual machine.
 The language is compiled and strongly and statically typed. 
 Made for easy integration as an embedded scripting language into other applications. 
 
@@ -12,7 +12,7 @@ The project compiles and runs well with MSVC under Windows and Clang under MacOS
 
 ## Examples
 
-### Simple program to calculate the GCD of 27 and 9 using the euclidean algorithm. 
+### Simple program to calculate the GCD of two numbers using the euclidean algorithm. 
     fn main() -> int {
         return gcd(27, 9);
     }
@@ -31,13 +31,10 @@ Take a look at some more sophisticated [examples](examples/).
 ### Language
 - Arithemtic types with explicitly specified width
     - Signed and unsigned integral types: ✅
-        
         `s8`, `s16`, `s32`, `s64`
-
         `u8`, `u16`, `u32`, `u64`
 
     - Floating point types: ✅ 
-
         `f32`, `f64` 
 
     - Arithmetic vector types?
@@ -56,17 +53,17 @@ Take a look at some more sophisticated [examples](examples/).
     - Uniform function call syntax ✅
     - Constructors/destructors
     
-- `unique`/`shared` references and expression, similar to `std::unique_ptr<>`/`std::make_unique<>` res. `std::shared_ptr<>`/`std::make_shared<>` for simple dynamic memory allocation. This depends on having well defined object lifetimes (constructors/destructors).
+- `unique`/`shared` pointers and expression, similar to `std::unique_ptr<>`/`std::make_unique<>` res. `std::shared_ptr<>`/`std::make_shared<>` for simple dynamic memory allocation. This depends on having well defined object lifetimes (constructors/destructors).
     - Syntax shall look something like this:
         ```
         {
-            let i = unique int(1);
+            let i = mut unique int(1);
         } // i is deallocatd here
         {
-            let j: unique int = nil;
+            let j: *mut unique int = null;
             {
-                let i = unique int(1);
-                j = move i; // Now i == nil
+                let i = mut unique int(1);
+                j = move i; // Now i == null
             }
         } // j is deallocatd here
         ```
@@ -77,7 +74,7 @@ Take a look at some more sophisticated [examples](examples/).
 
 - Generics 
 - Standard library
-    - `string`, `array<T>` / `vector<T>`, `list<T>`, `dict<K, V>` etc. classes/generics
+    - `String`, `Array(T)` / `Vector(T)`, `List(T)`, `Dict(K, V)` etc. classes/generics
 
 ### Optimizer
 - Textual IR representation / IR parser. ✅
