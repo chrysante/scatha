@@ -1,6 +1,6 @@
 
 fn print(text: &str) {
-    __builtin_putstr(&text);
+    __builtin_putstr(text);
 }
 
 struct X {
@@ -23,6 +23,8 @@ struct X {
     var n: int;
 }
 
-fn main(cond: bool) {
-    var x = X();    
+fn main(cond: bool) -> int {
+    var x = X();
+    print("Hello world!\n");
+    return 1;
 }
