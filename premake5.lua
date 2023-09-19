@@ -46,7 +46,7 @@ filter "system:windows"
 filter {}
 
 ------------------------------------------
-project "scatha"
+project "scatha" -- Main compiler library
 kind "SharedLib"
 defines "SC_APIEXPORT"
 
@@ -74,10 +74,10 @@ buildoptions "-fvisibility=hidden"
 filter {}
 
 ------------------------------------------
-project "scatha-c"
+project "scathac" -- compiler executable
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
-addCppFiles "scatha-c"
+addCppFiles "scathac"
 
 externalincludedirs {
     "include",
