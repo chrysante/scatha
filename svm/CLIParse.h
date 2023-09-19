@@ -7,6 +7,7 @@ namespace svm {
 
 struct Options {
     std::filesystem::path filepath;
+    std::vector<std::string> arguments;
     bool time;
 };
 

@@ -52,7 +52,7 @@ static auto bashCommandEmitter(std::ostream& file) {
             file << "#!/bin/sh\n";
         }
         else {
-            file << "#Bash command\n";
+            file << "#Shell command\n";
         }
         file << command << "\n";
     };
@@ -66,7 +66,7 @@ static auto bashCommandEmitter(std::ostream& file) {
 /// them
 static void writeBashHeader(std::ostream& file) {
     auto emitter = bashCommandEmitter(file);
-    emitter("svm \"$0\"");
+    emitter("svm \"$0\" \"$@\"");
     emitter("exit $1");
 }
 

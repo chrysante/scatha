@@ -36,7 +36,6 @@ std::span<uint8_t const> seekBinary(std::span<uint8_t const> file) {
 int main(int argc, char* argv[]) {
     Options options = parseCLI(argc, argv);
     std::string progName = options.filepath.stem();
-
     std::fstream file(options.filepath, std::ios::in);
     if (!file) {
         std::cerr << "Failed to open program: " << options.filepath
@@ -56,6 +55,16 @@ int main(int argc, char* argv[]) {
 
     VirtualMachine vm;
     vm.loadBinary(seekBinary(executable).data());
+
+    if (!options.arguments.empty()) {
+        std::cout << "Passed arguments are: ";
+        for (auto& arg: options.arguments) {
+            std::cout << arg << " ";
+        }
+        std::cout << "\n"
+                  << "Warning: For now arguments are ignored and not passed to "
+                     "main.\n";
+    }
 
     auto const beginTime = std::chrono::high_resolution_clock::now();
     vm.execute({});
