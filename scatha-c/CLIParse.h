@@ -11,6 +11,7 @@ struct Options {
     std::filesystem::path bindir;
     bool optimize;
     bool time;
+    bool binaryOnly;
 };
 
 Options parseCLI(int argc, char* argv[]);

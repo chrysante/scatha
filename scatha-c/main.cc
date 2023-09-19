@@ -82,23 +82,31 @@ static void signExecutable(std::filesystem::path filename) {
     std::system(utl::strcat("chmod +x ", filename.string()).data());
 }
 
-/// Creates a directly executable file of our binary
-static void emitExecutable(std::filesystem::path dest,
-                           std::span<uint8_t const> program) {
-    std::fstream file(dest, std::ios::out | std::ios::trunc);
-    if (!file) {
-        fileEmissionError("executable", dest);
+/// Emits the compiled binary.
+/// \param dest The file output filename
+/// \param program The compiled binary
+/// \param executable If true, creates a directly executable file of our binary
+static void emitFile(std::filesystem::path dest,
+                     std::span<uint8_t const> program,
+                     bool executable) {
+    if (executable) {
+        std::fstream file(dest, std::ios::out | std::ios::trunc);
+        if (!file) {
+            fileEmissionError("executable", dest);
+        }
+        writeBashHeader(file);
+        file.close();
+        signExecutable(dest);
     }
-    writeBashHeader(file);
-    file.close();
-    file.open(dest, std::ios::out | std::ios::binary | std::ios::app);
+    auto const flags = std::ios::out | std::ios::binary |
+                       (executable ? std::ios::app : std::ios::trunc);
+    std::fstream file(dest, flags);
     if (!file) {
         fileEmissionError("binary", dest);
     }
     file.seekg(0, std::ios::end);
     writeBinary(file, program);
     file.close();
-    signExecutable(dest);
 }
 
 [[maybe_unused]] static void emitBinary(std::filesystem::path dest,
@@ -174,10 +182,8 @@ int main(int argc, char* argv[]) {
 
     /// Emit executable
     if (options.bindir.empty()) {
-        options.bindir = filepath.parent_path();
+        options.bindir = filepath.stem();
     }
-    std::string const execName = filepath.stem().string();
-    std::filesystem::path const execDir = options.bindir / execName;
-    emitExecutable(execDir, program);
+    emitFile(options.bindir, program, /* executable = */ !options.binaryOnly);
     return 0;
 }
