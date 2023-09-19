@@ -98,6 +98,8 @@ static void emitFile(std::filesystem::path dest,
         file.close();
         signExecutable(dest);
     }
+    /// We open the file again, this time in binary mode, to ensure that no
+    /// unwanted character conversions occur
     auto const flags = std::ios::out | std::ios::binary |
                        (executable ? std::ios::app : std::ios::trunc);
     std::fstream file(dest, flags);
@@ -109,17 +111,6 @@ static void emitFile(std::filesystem::path dest,
     file.close();
 }
 
-[[maybe_unused]] static void emitBinary(std::filesystem::path dest,
-                                        std::span<uint8_t const> program) {
-    std::fstream file(dest, std::ios::out | std::ios::trunc | std::ios::binary);
-    if (!file) {
-        fileEmissionError("binary", dest);
-    }
-    std::copy(program.begin(),
-              program.end(),
-              std::ostream_iterator<char>(file));
-}
-
 int main(int argc, char* argv[]) {
     scathac::Options options = scathac::parseCLI(argc, argv);
     if (options.files.empty()) {
@@ -128,19 +119,17 @@ int main(int argc, char* argv[]) {
     }
     if (options.files.size() > 1) {
         std::cout << Warning
-                  << "All input files but the first are ignored for now"
-                  << std::endl;
+                  << "All input files except the first are ignored for now\n";
     }
     auto const filepath = options.files.front();
     std::fstream file(filepath, std::ios::in);
     assert(file && "CLI11 library should have caught this");
-
     std::stringstream sstr;
     sstr << file.rdbuf();
     std::string const text = std::move(sstr).str();
 
+    /// Now we compile the program
     auto const compileBeginTime = std::chrono::high_resolution_clock::now();
-
     IssueHandler issueHandler;
     auto ast = parse::parse(text, issueHandler);
     if (!issueHandler.empty()) {
@@ -149,8 +138,6 @@ int main(int argc, char* argv[]) {
     if (!ast) {
         return -1;
     }
-
-    /// Analyse the AST
     sema::SymbolTable semaSym;
     auto analysisResult = sema::analyze(*ast, semaSym, issueHandler);
     if (!issueHandler.empty()) {
@@ -159,28 +146,20 @@ int main(int argc, char* argv[]) {
     if (issueHandler.haveErrors()) {
         return -1;
     }
-
-    /// Generate IR
     auto [context, mod] = irgen::generateIR(*ast, semaSym, analysisResult);
-
     if (options.optimize) {
         opt::optimize(context, mod, 1);
     }
-
-    /// Generate assembly
     auto asmStream = cg::codegen(mod);
-
-    /// Assemble program
     auto [program, symbolTable] = Asm::assemble(asmStream);
-
+    auto const compileEndTime = std::chrono::high_resolution_clock::now();
     if (options.time) {
-        auto const compileEndTime = std::chrono::high_resolution_clock::now();
         std::cout << "Compilation took "
                   << utl::format_duration(compileEndTime - compileBeginTime)
                   << "\n";
     }
 
-    /// Emit executable
+    /// We emit the executable
     if (options.bindir.empty()) {
         options.bindir = filepath.stem();
     }
