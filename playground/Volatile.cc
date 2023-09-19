@@ -14,6 +14,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/ISelTest.h"
 #include "CodeGen/Passes.h"
 #include "Common/Base.h"
 #include "IR/CFG.h"
@@ -112,12 +113,20 @@ static void run(ir::Module const& mod) {
 [[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
     header("IR Module");
-    opt::PassManager::makePipeline("inline(sroa)").execute(ctx, irMod);
+    opt::PassManager::makePipeline("inline, splitreturns").execute(ctx, irMod);
     print(irMod);
     auto mod = cg::codegen(irMod, *std::make_unique<cg::DebugLogger>());
     header("Assembly");
     Asm::print(mod);
     run(mod);
+}
+
+[[maybe_unused]] static void isellayground(std::filesystem::path path) {
+    auto [ctx, irMod] = makeIRModuleFromFile(path);
+    header("IR Module");
+    opt::PassManager::makePipeline("inline, splitreturns").execute(ctx, irMod);
+    print(irMod);
+    cg::isel(irMod.front());
 }
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
@@ -213,5 +222,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    iselPlayground(path);
 }
