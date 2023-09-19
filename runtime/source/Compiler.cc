@@ -69,7 +69,7 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
         return nullptr;
     }
     auto text = sources.front();
-    auto astRoot = parse::parse(text, iss);
+    auto astRoot = parser::parse(text, iss);
     if (!astRoot) {
         return nullptr;
     }

@@ -1,5 +1,3 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_PARSER_LEXICALISSUE_H_
 #define SCATHA_PARSER_LEXICALISSUE_H_
 
@@ -8,7 +6,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/Issue.h>
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 /// Base class of all lexical errors
 class SCATHA_API LexicalIssue: public Issue {
@@ -93,6 +91,6 @@ private:
     void format(std::ostream&) const override;
 };
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_PARSER_LEXICALISSUE_H_

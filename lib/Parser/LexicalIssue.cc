@@ -3,7 +3,7 @@
 #include <ostream>
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 void UnexpectedCharacter::format(std::ostream& str) const {
     str << "Unexpected character";

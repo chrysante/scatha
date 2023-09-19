@@ -5,7 +5,7 @@
 #include "test/IssueHelper.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 static void expectFooParse(ast::ASTNode const& ast) {
     auto const& tu = cast<ast::TranslationUnit const&>(ast);

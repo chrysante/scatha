@@ -1,5 +1,3 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_LEXER_LEXER_H_
 #define SCATHA_LEXER_LEXER_H_
 
@@ -11,11 +9,11 @@
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/Parser/Token.h>
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 SCATHA_API utl::vector<Token> lex(std::string_view text,
                                   IssueHandler& issueHandler);
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_LEXER_LEXER_H_

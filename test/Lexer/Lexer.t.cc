@@ -8,7 +8,7 @@
 #include "test/IssueHelper.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 namespace {
 struct ReferenceToken {
@@ -25,7 +25,7 @@ struct TestCase {
     std::vector<ReferenceToken> reference;
     void run() const {
         IssueHandler iss;
-        auto const tokens = parse::lex(text, iss);
+        auto const tokens = parser::lex(text, iss);
         REQUIRE(iss.empty());
         REQUIRE(tokens.size() == reference.size());
         for (std::size_t i = 0; i < std::min(tokens.size(), reference.size());
@@ -283,7 +283,7 @@ and end on next, line"
 template <typename T>
 static T lexTo(std::string_view text) {
     IssueHandler iss;
-    auto tokens = parse::lex(text, iss);
+    auto tokens = parser::lex(text, iss);
     assert(iss.empty());
     if constexpr (std::integral<T>) {
         return tokens.front().toInteger(64).to<u64>();
@@ -303,7 +303,7 @@ TEST_CASE("String literals", "[lex]") {
     IssueHandler iss;
     SECTION("Simple unterminated") {
         auto const text = R"(")";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(!iss.empty());
         auto* issue =
             dynamic_cast<UnterminatedStringLiteral const*>(&iss.front());
@@ -315,7 +315,7 @@ TEST_CASE("Escape sequences", "[lex]") {
     IssueHandler iss;
     SECTION("Simple hello world") {
         auto const text = R"("Hello world!\n")";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
         auto str = tokens.front();
         CHECK(str.id() == "Hello world!\n");
@@ -323,7 +323,7 @@ TEST_CASE("Escape sequences", "[lex]") {
     }
     SECTION("Simple hello world 2") {
         auto const text = R"("Hello\tworld!")";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
         auto str = tokens.front();
         CHECK(str.id() == "Hello\tworld!");
@@ -331,7 +331,7 @@ TEST_CASE("Escape sequences", "[lex]") {
     }
     SECTION("Invalid sequence") {
         auto const text = R"("Hello,\m world!")";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
         CHECK(!iss.empty());
         CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
@@ -340,7 +340,7 @@ TEST_CASE("Escape sequences", "[lex]") {
     }
     SECTION("Invalid sequence at begin") {
         auto const text = R"("\zHello world!")";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
         CHECK(!iss.empty());
         CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
@@ -349,7 +349,7 @@ TEST_CASE("Escape sequences", "[lex]") {
     }
     SECTION("Invalid sequence at end") {
         auto const text = R"("Hello world!\m")";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
         CHECK(!iss.empty());
         CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
@@ -362,7 +362,7 @@ TEST_CASE("Char literals", "[lex]") {
     IssueHandler iss;
     SECTION("Simple char literal") {
         auto const text = R"('L')";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
         auto lit = tokens.front();
         CHECK(lit.kind() == TokenKind::CharLiteral);
@@ -371,7 +371,7 @@ TEST_CASE("Char literals", "[lex]") {
     }
     SECTION("Unterminated") {
         auto const text = R"('L)";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(!iss.empty());
         auto* issue =
             dynamic_cast<UnterminatedCharLiteral const*>(&iss.front());
@@ -379,7 +379,7 @@ TEST_CASE("Char literals", "[lex]") {
     }
     SECTION("Unterminated - 2") {
         auto const text = "\'x\n\'";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(!iss.empty());
         auto* issue =
             dynamic_cast<UnterminatedCharLiteral const*>(&iss.front());
@@ -387,14 +387,14 @@ TEST_CASE("Char literals", "[lex]") {
     }
     SECTION("Invalid") {
         auto const text = R"('hello world')";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(!iss.empty());
         auto* issue = dynamic_cast<InvalidCharLiteral const*>(&iss.front());
         CHECK(issue);
     }
     SECTION("Escape sequence") {
         auto const text = R"('\n')";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
         auto lit = tokens.front();
         CHECK(lit.kind() == TokenKind::CharLiteral);
@@ -403,7 +403,7 @@ TEST_CASE("Char literals", "[lex]") {
     }
     SECTION("Invalid escape sequence") {
         auto const text = R"('\M')";
-        auto tokens = parse::lex(text, iss);
+        auto tokens = parser::lex(text, iss);
         REQUIRE(!iss.empty());
         auto* issue = dynamic_cast<InvalidEscapeSequence const*>(&iss.front());
         CHECK(issue);

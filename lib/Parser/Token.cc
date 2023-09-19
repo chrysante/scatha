@@ -9,9 +9,9 @@
 #include "Common/APInt.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
-bool parse::isIdentifier(TokenKind kind) {
+bool parser::isIdentifier(TokenKind kind) {
     switch (kind) {
     case TokenKind::Void:
         [[fallthrough]];

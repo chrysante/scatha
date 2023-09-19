@@ -41,7 +41,7 @@ std::pair<ir::Context, ir::Module> passtool::parseFile(
     switch (mode) {
     case Scatha: {
         IssueHandler issueHandler;
-        auto ast = parse::parse(text, issueHandler);
+        auto ast = parser::parse(text, issueHandler);
         if (!issueHandler.empty()) {
             issueHandler.print(text);
             issueHandler.clear();

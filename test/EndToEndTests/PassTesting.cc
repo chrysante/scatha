@@ -56,7 +56,7 @@ static void validateEmpty(std::string_view source, IssueHandler const& issues) {
 
 static Generator makeScathaGenerator(std::string_view text) {
     IssueHandler issues;
-    auto ast = parse::parse(text, issues);
+    auto ast = parser::parse(text, issues);
     validateEmpty(text, issues);
     sema::SymbolTable sym;
     auto analysisResult = sema::analyze(*ast, sym, issues);

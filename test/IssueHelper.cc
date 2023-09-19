@@ -8,13 +8,13 @@ using namespace scatha;
 
 test::IssueHelper test::getLexicalIssues(std::string_view text) {
     IssueHandler iss;
-    (void)parse::lex(text, iss);
+    (void)parser::lex(text, iss);
     return { std::move(iss) };
 }
 
 test::IssueHelper test::getSyntaxIssues(std::string_view text) {
     IssueHandler iss;
-    auto ast = parse::parse(text, iss);
+    auto ast = parser::parse(text, iss);
     return { std::move(iss), std::move(ast) };
 }
 

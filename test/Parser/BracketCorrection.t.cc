@@ -7,15 +7,12 @@
 #include "test/Parser/SimpleParser.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 static std::tuple<utl::vector<Token>, test::IssueHelper> correctBrackets(
     std::string_view text) {
-    auto tokens = [&] {
-        IssueHandler iss;
-        return parse::lex(text, iss);
-    }();
     IssueHandler iss;
+    auto tokens = parser::lex(text, iss);
     bracketCorrection(tokens, iss);
     return { std::move(tokens), test::IssueHelper{ std::move(iss) } };
 }

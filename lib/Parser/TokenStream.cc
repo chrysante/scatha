@@ -1,6 +1,6 @@
 #include "Parser/TokenStream.h"
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 TokenStream::TokenStream(utl::vector<Token> tokens):
     tokens(std::move(tokens)) {}
@@ -44,4 +44,4 @@ Token const& TokenStream::eatImpl(ssize_t* i) {
     return tokens[utl::narrow_cast<size_t>(++*i)];
 }
 
-} // namespace scatha::parse
+} // namespace scatha::parser

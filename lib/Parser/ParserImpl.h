@@ -12,7 +12,7 @@
 #include "Parser/TokenStream.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 namespace {
 

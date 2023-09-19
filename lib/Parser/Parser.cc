@@ -6,18 +6,17 @@
 #include "Parser/BracketCorrection.h"
 #include "Parser/Lexer.h"
 #include "Parser/Panic.h"
+#include "Parser/ParserImpl.h"
 #include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
 
-#include "Parser/ParserImpl.h"
-
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 using enum TokenKind;
 
-UniquePtr<ast::ASTNode> parse::parse(std::string_view source,
-                                     IssueHandler& issueHandler) {
+UniquePtr<ast::ASTNode> parser::parse(std::string_view source,
+                                      IssueHandler& issueHandler) {
     auto tokens = lex(source, issueHandler);
     if (issueHandler.haveErrors()) {
         return nullptr;

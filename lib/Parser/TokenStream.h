@@ -6,7 +6,7 @@
 #include "Common/Base.h"
 #include "Parser/Token.h"
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 /// A stream  of tokens to be used by the parser.
 /// Expands a range of Token's into TokenEx's.
@@ -71,6 +71,6 @@ private:
     ssize_t _index = -1;
 };
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_PARSER_TOKENSTREAM_H_

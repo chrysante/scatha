@@ -11,7 +11,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Common/SourceLocation.h>
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 enum class TokenKind {
 #define SC_KEYWORD_TOKEN_DEF(Token, _)     Token,
@@ -63,6 +63,6 @@ private:
     SourceRange _sourceRange;
 };
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_AST_TOKEN_H_

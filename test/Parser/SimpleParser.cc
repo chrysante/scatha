@@ -8,12 +8,12 @@ using namespace scatha;
 std::pair<UniquePtr<ast::ASTNode>, IssueHandler> test::parse(
     std::string_view text) {
     IssueHandler issues;
-    auto ast = ::parse::parse(text, issues);
+    auto ast = ::parser::parse(text, issues);
     return { std::move(ast), std::move(issues) };
 }
 
-parse::TokenStream test::makeTokenStream(std::string_view text) {
+parser::TokenStream test::makeTokenStream(std::string_view text) {
     IssueHandler issues;
-    auto tokens = parse::lex(text, issues);
-    return parse::TokenStream(std::move(tokens));
+    auto tokens = parser::lex(text, issues);
+    return parser::TokenStream(std::move(tokens));
 }

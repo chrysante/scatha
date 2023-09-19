@@ -5,7 +5,7 @@
 #include "Issue/IssueHandler.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 void ExpectedIdentifier::format(std::ostream& str) const {
     str << "Expected identifier";

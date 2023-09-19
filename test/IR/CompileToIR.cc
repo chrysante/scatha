@@ -14,7 +14,7 @@ using namespace scatha;
 
 ir::Module test::compileToIR(std::string_view text) {
     IssueHandler issues;
-    auto ast = parse::parse(text, issues);
+    auto ast = parser::parse(text, issues);
     if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }

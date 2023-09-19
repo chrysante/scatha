@@ -30,7 +30,7 @@
 #include "Util.h"
 
 using namespace scatha;
-using namespace scatha::parse;
+using namespace scatha::parser;
 
 void playground::compile(std::filesystem::path filepath) {
     std::fstream file(filepath);
@@ -46,7 +46,7 @@ void playground::compile(std::filesystem::path filepath) {
 void playground::compile(std::string text) {
     // Parsing
     IssueHandler issues;
-    auto ast = parse::parse(text, issues);
+    auto ast = parser::parse(text, issues);
     issues.print(text);
     if (!issues.empty()) {
         return;

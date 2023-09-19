@@ -9,7 +9,7 @@
 #include "Parser/LexicalIssue.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 using namespace lex;
 
 namespace {
@@ -50,7 +50,7 @@ struct Context {
 
 } // namespace
 
-utl::vector<Token> parse::lex(std::string_view text, IssueHandler& issues) {
+utl::vector<Token> parser::lex(std::string_view text, IssueHandler& issues) {
     Context ctx{ text, issues };
     return ctx.run();
 }

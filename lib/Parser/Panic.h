@@ -6,7 +6,7 @@
 
 #include <scatha/Parser/Token.h>
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 struct PanicOptions {
     TokenKind targetDelimiter = TokenKind::Semicolon;
@@ -15,6 +15,6 @@ struct PanicOptions {
 
 void panic(class TokenStream&, PanicOptions = {});
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_PARSE_PANIC_H_

@@ -68,7 +68,7 @@ void playground::irDump(std::string_view text) {
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
     makeIRModuleFromSC(std::string_view text, std::ostream& errStr) {
     IssueHandler issues;
-    auto ast = parse::parse(text, issues);
+    auto ast = parser::parse(text, issues);
     if (!issues.empty()) {
         issues.print(text, errStr);
         return std::nullopt;

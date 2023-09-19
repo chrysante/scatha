@@ -7,7 +7,7 @@
 #include "Issue/IssueHandler.h"
 #include "Parser/Token.h"
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 /// \brief Handles bracket mismatches in the token stream \p tokens by erasing
 /// and inserting bracket tokens and submitting errors to \p issueHandler
@@ -48,6 +48,6 @@ namespace scatha::parse {
 SCATHA_API void bracketCorrection(utl::vector<Token>& tokens,
                                   IssueHandler& issues);
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // PARSER_BRACKETCORRECTION_H_

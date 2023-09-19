@@ -1,5 +1,3 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_PARSER_BRACKET_H_
 #define SCATHA_PARSER_BRACKET_H_
 
@@ -8,7 +6,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Parser/Token.h>
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 struct Token;
 
@@ -29,6 +27,6 @@ std::string toString(Bracket bracket);
 
 TokenKind toTokenKind(Bracket bracket);
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_PARSER_BRACKET_H_

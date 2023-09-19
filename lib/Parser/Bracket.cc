@@ -5,9 +5,9 @@
 #include "Parser/Token.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
-Bracket parse::toBracket(Token const& token) {
+Bracket parser::toBracket(Token const& token) {
     using enum Bracket::Type;
     using enum Bracket::Side;
     switch (token.kind()) {
@@ -28,7 +28,7 @@ Bracket parse::toBracket(Token const& token) {
     }
 }
 
-std::string parse::toString(Bracket bracket) {
+std::string parser::toString(Bracket bracket) {
     static std::string const result[3][2] = {
         { "(", ")" },
         { "[", "]" },
@@ -38,7 +38,7 @@ std::string parse::toString(Bracket bracket) {
                  [static_cast<size_t>(bracket.side)];
 }
 
-TokenKind parse::toTokenKind(Bracket bracket) {
+TokenKind parser::toTokenKind(Bracket bracket) {
     if (bracket.side == Bracket::Side::Open) {
         switch (bracket.type) {
         case Bracket::Type::Paranthesis:

@@ -9,7 +9,7 @@
 #include "Parser/SyntaxIssue.h"
 
 using namespace scatha;
-using namespace parse;
+using namespace parser;
 
 /// ** We need: **
 /// - Additional information to construct tokens i.e. source location of string
@@ -47,8 +47,8 @@ struct Context {
 
 } // namespace
 
-void parse::bracketCorrection(utl::vector<Token>& tokens,
-                              IssueHandler& issues) {
+void parser::bracketCorrection(utl::vector<Token>& tokens,
+                               IssueHandler& issues) {
     Context ctx(tokens, issues);
     ctx.run();
 }

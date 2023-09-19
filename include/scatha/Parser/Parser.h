@@ -1,5 +1,3 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_PARSER_PARSER_H_
 #define SCATHA_PARSER_PARSER_H_
 
@@ -153,7 +151,7 @@
 
 // clang-format on
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 /// Parse source code \p source into an abstract syntax tree
 /// Issues will be submitted to \p issueHandler
@@ -161,6 +159,6 @@ namespace scatha::parse {
 SCATHA_API UniquePtr<ast::ASTNode> parse(std::string_view source,
                                          IssueHandler& issueHandler);
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_PARSER_PARSER_H_

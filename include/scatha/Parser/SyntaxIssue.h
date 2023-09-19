@@ -1,5 +1,3 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_PARSER_SYNTAXISSUE_H_
 #define SCATHA_PARSER_SYNTAXISSUE_H_
 
@@ -11,7 +9,7 @@
 #include <scatha/Issue/Issue.h>
 #include <scatha/Parser/Token.h>
 
-namespace scatha::parse {
+namespace scatha::parser {
 
 /// Base class of all syntax errors
 class SCATHA_API SyntaxIssue: public Issue {
@@ -103,6 +101,6 @@ private:
     TokenKind exp;
 };
 
-} // namespace scatha::parse
+} // namespace scatha::parser
 
 #endif // SCATHA_PARSER_SYNTAXISSUE_H_

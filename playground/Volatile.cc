@@ -154,7 +154,7 @@ static void run(ir::Module const& mod) {
     auto source = sstr.str();
 
     IssueHandler issues;
-    auto root = parse::parse(source, issues);
+    auto root = parser::parse(source, issues);
     if (!issues.empty()) {
         issues.print(source);
     }
@@ -198,7 +198,7 @@ static void run(ir::Module const& mod) {
     sstr << file.rdbuf();
     auto text = sstr.str();
     IssueHandler iss;
-    auto tokens = parse::lex(text, iss);
+    auto tokens = parser::lex(text, iss);
     for (auto& tok: tokens) {
         std::cout << tok.id() << std::endl;
     }

@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
     /// Now we compile the program
     auto const compileBeginTime = std::chrono::high_resolution_clock::now();
     IssueHandler issueHandler;
-    auto ast = parse::parse(text, issueHandler);
+    auto ast = parser::parse(text, issueHandler);
     if (!issueHandler.empty()) {
         issueHandler.print(text);
     }
