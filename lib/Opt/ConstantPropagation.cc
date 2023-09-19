@@ -78,13 +78,9 @@ FormalValue infimum(FormalValue const& a, FormalValue const& b) {
     if (isUnexamined(b)) {
         return a;
     }
-    /// I guess this is specified by the algorithm but it produces wrong results
-    /// with certain loops by mistaking phi functions for constant.
-#if 0
     if (a == b) {
         return a;
     }
-#endif
     return Inevaluable{};
 }
 
