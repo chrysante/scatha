@@ -196,11 +196,15 @@ public:
     /// The kind of property
     PropertyKind kind() const { return _kind; }
 
+    /// The value category of this property
+    ValueCategory valueCategory() const { return _valueCat; }
+
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
     PropertyKind _kind;
+    ValueCategory _valueCat{};
 };
 
 /// Represents a temporary object

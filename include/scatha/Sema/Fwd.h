@@ -54,6 +54,13 @@ enum class EntityCategory { Indeterminate, Value, Type, _count };
 SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 
 ///
+enum class ValueCategory { LValue, RValue };
+
+/// \Returns `LValue` if both `a` and`b` are `LValue`, otherwise returns
+/// `RValue`
+ValueCategory commonValueCat(ValueCategory a, ValueCategory b);
+
+///
 enum class ScopeKind {
     Invalid,
     Global,

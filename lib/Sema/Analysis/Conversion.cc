@@ -16,6 +16,7 @@
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
 
 std::string_view sema::toString(RefConversion conv) {
     return std::array{
@@ -755,7 +756,8 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
     auto* result = owner.get();
     parent->setChild(indexInParent, std::move(owner));
     auto* entity = getConvertedEntity(expr->entity(), conv, sym);
-    result->decorateExpr(entity, targetType);
+#warning This is not always an LValue, but we put this here for now
+    result->decorateValue(entity, LValue, targetType);
     result->setConstantValue(
         evalConversion(result->conversion(),
                        result->expression()->constantValue()));

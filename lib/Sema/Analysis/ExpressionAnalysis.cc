@@ -20,6 +20,7 @@
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
 
 namespace {
 
@@ -38,7 +39,8 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
-    std::pair<Object*, QualType> analyzeBinaryExpr(ast::BinaryExpression&);
+    std::tuple<Object*, ValueCategory, QualType> analyzeBinaryExpr(
+        ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* uniformFunctionCall(ast::MemberAccess&);
@@ -109,19 +111,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        lit.decorateExpr(sym.temporary(sym.S64()));
+        lit.decorateValue(sym.temporary(sym.S64()), RValue);
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ true));
         return &lit;
 
     case Boolean:
-        lit.decorateExpr(sym.temporary(sym.Bool()));
+        lit.decorateValue(sym.temporary(sym.Bool()), RValue);
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return &lit;
 
     case FloatingPoint:
-        lit.decorateExpr(sym.temporary(sym.F64()));
+        lit.decorateValue(sym.temporary(sym.F64()), RValue);
         lit.setConstantValue(allocate<FloatValue>(lit.value<APFloat>()));
         return &lit;
 
@@ -135,19 +137,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
             iss.push<BadExpression>(lit, IssueSeverity::Error);
             return nullptr;
         }
-        QualType type = function->argumentTypes().front();
+        QualType type = stripReferenceNew(function->argumentTypes().front());
         auto* thisEntity = function->findEntity<Variable>("__this");
-        lit.decorateExpr(thisEntity, type);
+        lit.decorateValue(thisEntity, LValue, type);
         return &lit;
     }
     case String: {
-        auto type = sym.reference(QualType::Const(sym.Str()));
-        lit.decorateExpr(sym.temporary(type));
+        auto type = QualType::Const(sym.Str());
+        lit.decorateValue(sym.temporary(type), LValue);
         return &lit;
     }
 
     case Char:
-        lit.decorateExpr(sym.temporary(sym.Byte()));
+        lit.decorateValue(sym.temporary(sym.Byte()), RValue);
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return &lit;
@@ -169,7 +171,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             return nullptr;
         }
         dereference(u.operand(), ctx);
-        u.decorateExpr(sym.temporary(operandBaseType));
+        u.decorateValue(sym.temporary(operandBaseType), RValue);
         break;
     case ast::UnaryOperator::BitwiseNot:
         if (!isAny<ByteType, IntType>(operandBaseType.get())) {
@@ -177,7 +179,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             return nullptr;
         }
         dereference(u.operand(), ctx);
-        u.decorateExpr(sym.temporary(operandBaseType));
+        u.decorateValue(sym.temporary(operandBaseType), RValue);
         break;
     case ast::UnaryOperator::LogicalNot:
         if (!isAny<BoolType>(operandBaseType.get())) {
@@ -185,7 +187,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             return nullptr;
         }
         dereference(u.operand(), ctx);
-        u.decorateExpr(sym.temporary(operandBaseType));
+        u.decorateValue(sym.temporary(operandBaseType), RValue);
         break;
     case ast::UnaryOperator::Increment:
         [[fallthrough]];
@@ -199,12 +201,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
         }
         switch (u.notation()) {
         case ast::UnaryOperatorNotation::Prefix: {
-            QualType refType = sym.reference(operandBaseType);
-            u.decorateExpr(u.operand()->entity(), refType);
+            u.decorateValue(u.operand()->entity(), LValue, operandType);
             break;
         }
         case ast::UnaryOperatorNotation::Postfix: {
-            u.decorateExpr(sym.temporary(operandBaseType));
+            u.decorateValue(sym.temporary(operandBaseType), RValue);
             break;
         }
         case ast::UnaryOperatorNotation::_count:
@@ -226,11 +227,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& b) {
     if (!success) {
         return nullptr;
     }
-    auto [temporary, type] = analyzeBinaryExpr(b);
-    if (!temporary) {
+    auto [object, valueCat, type] = analyzeBinaryExpr(b);
+    if (!object) {
         return nullptr;
     }
-    b.decorateExpr(temporary, type);
+    b.decorateValue(object, valueCat, type);
     b.setConstantValue(evalBinary(b.operation(),
                                   b.lhs()->constantValue(),
                                   b.rhs()->constantValue()));
@@ -321,11 +322,13 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
     }
 }
 
-std::pair<Object*, QualType> ExprContext::analyzeBinaryExpr(
+std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
     ast::BinaryExpression& expr) {
     /// Handle comma operator separately
     if (expr.operation() == ast::BinaryOperator::Comma) {
-        return { expr.rhs()->object(), expr.rhs()->type() };
+        return { expr.rhs()->object(),
+                 expr.rhs()->valueCategory(),
+                 expr.rhs()->type() };
     }
 
     /// Determine common type
@@ -347,7 +350,7 @@ std::pair<Object*, QualType> ExprContext::analyzeBinaryExpr(
         return {};
     }
 
-    /// Handle value assignment seperately
+    /// Handle assignment seperately
     if (ast::isAssignment(expr.operation())) {
         QualType lhsType = expr.lhs()->type();
         /// Here we only look at assignment _through_ references
@@ -367,7 +370,7 @@ std::pair<Object*, QualType> ExprContext::analyzeBinaryExpr(
         if (!success) {
             return {};
         }
-        return { sym.temporary(sym.Void()), sym.Void() };
+        return { sym.temporary(sym.Void()), RValue, sym.Void() };
     }
 
     bool successfulConv = true;
@@ -377,7 +380,7 @@ std::pair<Object*, QualType> ExprContext::analyzeBinaryExpr(
         !!convertImplicitly(expr.rhs(), commonType, *dtorStack, ctx);
 
     if (successfulConv) {
-        return { sym.temporary(*resultType), *resultType };
+        return { sym.temporary(*resultType), RValue, *resultType };
     }
     return {};
 }
@@ -390,28 +393,28 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     // clang-format off
     return SC_MATCH (*entity) {
         [&](Variable& var) {
-            id.decorateExpr(&var, sym.reference(var.type()));
+            id.decorateValue(&var, LValue);
             id.setConstantValue(clone(var.constantValue()));
             return &id;
         },
         [&](Property& prop) {
-            id.decorateExpr(&prop, prop.type());
+            id.decorateValue(&prop, prop.valueCategory());
             return &id;
         },
         [&](ObjectType& type) {
-            id.decorateExpr(&type);
+            id.decorateType(&type);
             return &id;
         },
         [&](OverloadSet& overloadSet) {
-            id.decorateExpr(&overloadSet);
+            id.decorateValue(&overloadSet, LValue);
             return &id;
         },
         [&](Generic& generic) {
-            id.decorateExpr(&generic);
+            id.decorateValue(&generic, LValue);
             return &id;
         },
         [&](PoisonEntity& poison) {
-            id.decorateExpr(&poison);
+            id.decorateValue(&poison, RValue);
             return nullptr;
         },
         [&](Entity const& entity) -> ast::Expression* {
@@ -477,14 +480,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
             auto mut = ma.accessed()->type().mutability();
             type = QualType(type.get(), mut);
         }
-        ma.decorateExpr(sym.temporary(type));
+        ma.decorateValue(sym.temporary(type), ma.member()->valueCategory());
         if (!isa<OverloadSet>(ma.member()->entity())) {
             dereference(ma.accessed(), ctx);
         }
         break;
     }
     case EntityCategory::Type:
-        ma.decorateExpr(ma.member()->entity());
+        ma.decorateType(cast<Type*>(ma.member()->entity()));
         break;
     case EntityCategory::Indeterminate:
         break;
@@ -537,9 +540,10 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
-    QualType type = func->returnType();
+    QualType type = stripReferenceNew(func->returnType());
+    auto valueCat = isa<ReferenceType>(*func->returnType()) ? LValue : RValue;
     auto* temp = sym.temporary(type);
-    call->decorateCall(temp, type, func);
+    call->decorateCall(temp, valueCat, type, func);
     dtorStack->push(temp);
     bool const convSucc = convertExplicitly(call->argument(0),
                                             func->argumentType(0),
@@ -569,13 +573,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
             return nullptr;
         }
         auto derefType = sym.reference(ptrType->base());
-        expr.decorateExpr(pointer->entity(), derefType);
+        expr.decorateValue(sym.temporary(derefType), LValue);
         return &expr;
     }
     case EntityCategory::Type: {
         auto* type = cast<ObjectType*>(pointer->entity());
         auto* ptrType = sym.pointer(QualType(type, expr.mutability()));
-        expr.decorateExpr(const_cast<PointerType*>(ptrType));
+        expr.decorateType(const_cast<PointerType*>(ptrType));
         return &expr;
     }
     default:
@@ -599,20 +603,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
             iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
         }
-        auto referredType = stripReference(referred->type());
-        if (!isConvertible(referredType.mutability(), expr.mutability())) {
+        if (!isConvertible(referred->type().mutability(), expr.mutability())) {
             iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
         }
-        referredType = QualType(referredType.get(), expr.mutability());
+        auto referredType = QualType(referred->type().get(), expr.mutability());
         auto* ptrType = sym.pointer(referredType);
-        expr.decorateExpr(referred->entity(), ptrType);
+        expr.decorateValue(sym.temporary(ptrType), RValue);
         return &expr;
     }
     case EntityCategory::Type: {
         auto* type = cast<ObjectType*>(referred->entity());
         auto* refType = sym.reference(QualType(type, expr.mutability()));
-        expr.decorateExpr(const_cast<ReferenceType*>(refType));
+        expr.decorateType(const_cast<ReferenceType*>(refType));
         return &expr;
     }
     default:
@@ -656,8 +659,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
-
-    c.decorateExpr(sym.temporary(commonType));
+    auto valueCat = commonValueCat(c.thenExpr()->valueCategory(),
+                                   c.elseExpr()->valueCategory());
+    c.decorateValue(sym.temporary(commonType), valueCat);
     c.setConstantValue(evalConditional(c.condition()->constantValue(),
                                        c.thenExpr()->constantValue(),
                                        c.elseExpr()->constantValue()));
@@ -675,10 +679,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
     }
     dereference(expr.callee(), ctx);
     convertImplicitly(expr.argument(0), sym.S64(), *dtorStack, ctx);
-    auto mutability = stripReference(expr.callee()->type()).mutability();
+    auto mutability = expr.callee()->type().mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
-    auto type = sym.reference(elemType);
-    expr.decorateExpr(sym.temporary(type));
+    expr.decorateValue(sym.temporary(elemType), expr.callee()->valueCategory());
     return &expr;
 }
 
@@ -691,8 +694,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     convertImplicitly(expr.lower(), sym.S64(), *dtorStack, ctx);
     convertImplicitly(expr.upper(), sym.S64(), *dtorStack, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
-    QualType arrayRefType = sym.reference(dynArrayType);
-    expr.decorateExpr(sym.temporary(arrayRefType));
+    expr.decorateValue(sym.temporary(dynArrayType),
+                       expr.callee()->valueCategory());
     return &expr;
 }
 
@@ -726,7 +729,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
     SC_ASSERT(expr.arguments().size() == 1, "For now");
     SC_ASSERT(expr.argument(0)->isType(), "For now");
     auto* resultType = cast<ObjectType const*>(expr.argument(0)->entity());
-    expr.decorateExpr(sym.temporary(resultType));
+    expr.decorateValue(sym.temporary(resultType), LValue /* this is probably not always correct, but we leave it for now */);
     return &expr;
 }
 
@@ -828,8 +831,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         return nullptr;
     }
     auto* function = result.function;
-    QualType type = function->returnType();
-    fc.decorateCall(sym.temporary(type), type, function);
+    QualType type = stripReferenceNew(function->returnType());
+    auto valueCat = isa<ReferenceType>(*function->returnType()) ? LValue :
+                                                                  RValue;
+    fc.decorateCall(sym.temporary(type), valueCat, type, function);
     convertArguments(fc, result, *dtorStack, ctx);
     dtorStack->push(fc.object());
     return &fc;
@@ -844,7 +849,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         return nullptr;
     }
     if (list.elements().empty()) {
-        list.decorateExpr(sym.temporary(nullptr));
+        list.decorateValue(sym.temporary(nullptr), RValue);
         return nullptr;
     }
     auto* first = list.elements().front();
@@ -871,7 +876,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         }
         auto* arrayType =
             sym.arrayType(commonType.get(), list.elements().size());
-        list.decorateExpr(sym.temporary(arrayType));
+        list.decorateValue(sym.temporary(arrayType), RValue);
         return &list;
     }
     case EntityCategory::Type: {
@@ -897,7 +902,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
             count = value->value().to<size_t>();
         }
         auto* arrayType = sym.arrayType(elementType, count);
-        list.decorateExpr(const_cast<ArrayType*>(arrayType));
+        list.decorateType(const_cast<ArrayType*>(arrayType));
         return &list;
     }
     default:

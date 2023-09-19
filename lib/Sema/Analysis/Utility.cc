@@ -12,6 +12,14 @@
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
+
+QualType sema::stripReferenceNew(QualType type) {
+    if (auto* ref = dyncast<ReferenceType const*>(type.get())) {
+        return ref->base();
+    }
+    return type;
+}
 
 ast::Statement* sema::parentStatement(ast::ASTNode* node) {
     while (true) {
@@ -67,7 +75,7 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     auto structType = nonTrivialLifetimeType(type.get());
     if (!structType) {
         auto copy = allocate<ast::TrivialCopyExpr>(expr->extractFromParent());
-        copy->decorateExpr(sym.temporary(type));
+        copy->decorateValue(sym.temporary(type), RValue);
         auto* result = copy.get();
         parent->setChild(index, std::move(copy));
         return result;

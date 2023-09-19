@@ -298,12 +298,10 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Wether the expression refers to a value or a type.
-    sema::EntityCategory entityCategory() const {
-        expectDecorated();
-        return _entityCat;
-    }
+    sema::EntityCategory entityCategory() const;
 
-    /// ID of the resolved symbol (may be `Invalid`)
+    /// The entity in the symbol table that this expression refers to. This must
+    /// not be null after successful semantic analysis.
     sema::Entity* entity() {
         return const_cast<sema::Entity*>(std::as_const(*this).entity());
     }
@@ -323,12 +321,13 @@ public:
     /// \overload
     sema::Object const* object() const;
 
-    /// The type of the expression. Only valid if: `kind == ::Value`
+    /// The type of the expression. Only non-null if: `kind == ::Value`
     sema::QualType type() const {
         expectDecorated();
         return _type;
     }
 
+#warning Remove this function. It is only used for uniform function calls which we will remove
     /// The type of the expression, if this is a value. If this is a
     /// type, returns that type
     sema::QualType typeOrTypeEntity() const;
@@ -338,22 +337,37 @@ public:
         return entityCategory() == sema::EntityCategory::Value;
     }
 
-    /// Convenience wrapper for `isa<sema::ReferenceType>(type());`
-    bool isLValue() const;
+    /// \Returns the value category of this expression
+    /// \pre This expression must refer to a value
+    sema::ValueCategory valueCategory() const { return _valueCat; }
 
-    /// Convenience wrapper for `!isa<sema::ReferenceType>(type());`
-    bool isRValue() const;
+    /// Convenience wrapper for `valueCategory() == LValue`
+    bool isLValue() const {
+        return valueCategory() == sema::ValueCategory::LValue;
+    }
+
+    /// Convenience wrapper for `valueCategory() == RValue`
+    bool isRValue() const {
+        return valueCategory() == sema::ValueCategory::RValue;
+    }
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Type`
     bool isType() const {
         return entityCategory() == sema::EntityCategory::Type;
     }
 
-    /// Decorate this node.
-    void decorateExpr(
-        sema::Entity* entity,
-        sema::QualType type = nullptr,
-        std::optional<sema::EntityCategory> entityCat = std::nullopt);
+    /// Decorate this node if this node refers to a value.
+    /// \param obejct The object in the symbol table that this expression refers
+    /// to. Must not be null. \param valueCategory The value category of this
+    /// expression. \param type The type of this expression. Right now in some
+    /// cases this differs from the type of the object, but we want to change
+    /// that and then remove this parameter
+    void decorateValue(sema::Entity* entity,
+                       sema::ValueCategory valueCategory,
+                       sema::QualType type = nullptr);
+
+    /// Decorate this node if this node refers to a type
+    void decorateType(sema::Type* type);
 
     /// \Returns Constant value if this expression is constant evaluable
     /// `nullptr` otherwise
@@ -367,7 +381,7 @@ public:
 private:
     sema::Entity* _entity = nullptr;
     sema::QualType _type = nullptr;
-    sema::EntityCategory _entityCat = sema::EntityCategory::Indeterminate;
+    sema::ValueCategory _valueCat{};
     UniquePtr<sema::Value> constVal;
 };
 
@@ -633,6 +647,7 @@ public:
 
     /// Decorate this function call
     void decorateCall(sema::Object* object,
+                      sema::ValueCategory valueCategory,
                       sema::QualType type,
                       sema::Function* calledFunction);
 

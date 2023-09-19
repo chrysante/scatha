@@ -10,6 +10,10 @@ namespace scatha::sema {
 struct OverloadResolutionResult;
 class DTorStack;
 
+/// \Returns the type referenced by \p type if \p type is a reference type.
+/// Otherwise returns \p type as is
+QualType stripReferenceNew(QualType type);
+
 /// \Returns the first statement that is an ancestor of \p node or `nullptr` if
 /// nonesuch exists
 ast::Statement* parentStatement(ast::ASTNode* node);

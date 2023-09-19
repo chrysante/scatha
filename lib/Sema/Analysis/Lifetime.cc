@@ -13,6 +13,7 @@
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
 
 UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     sema::ObjectType const* type,
@@ -21,13 +22,14 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     DTorStack& dtors,
     Context& ctx,
     SourceRange sourceRange) {
+    auto& sym = ctx.symbolTable();
     auto* structType = dyncast<StructType const*>(type);
     if (!structType) {
         return nullptr;
     }
     if (!objectArgument) {
         objectArgument = allocate<ast::UninitTemporary>(sourceRange);
-        objectArgument->decorateExpr(ctx.symbolTable().temporary(type));
+        objectArgument->decorateValue(sym.temporary(type), LValue);
     }
     arguments.insert(arguments.begin(), std::move(objectArgument));
     using enum SpecialMemberFunction;
@@ -48,7 +50,7 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
                                                    sourceRange,
                                                    result.function,
                                                    SpecialMemberFunction::New);
-    ctorCall->decorateExpr(ctx.symbolTable().temporary(structType));
+    ctorCall->decorateValue(sym.temporary(structType), RValue);
     convertArguments(*ctorCall, result, dtors, ctx);
     return ctorCall;
 }

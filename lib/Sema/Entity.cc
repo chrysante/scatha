@@ -246,7 +246,10 @@ static std::string makePtrName(QualType base, std::string_view op) {
 }
 
 PointerType::PointerType(QualType base):
-    RefTypeBase(EntityType::PointerType, base, makePtrName(base, "*")) {}
+    RefTypeBase(EntityType::PointerType, base, makePtrName(base, "*")) {
+    SC_ASSERT(!isa<ReferenceType>(*base),
+              "Pointers cannot point to references");
+}
 
 ReferenceType::ReferenceType(QualType base):
     RefTypeBase(EntityType::ReferenceType, base, makePtrName(base, "&")) {}

@@ -38,18 +38,17 @@ struct TestOS {
 
 } // namespace
 
-static UniquePtr<ast::Expression> makeExpr(QualType type) {
-    auto result =
-        allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
-                                       ast::UnaryOperatorNotation::Prefix,
-                                       nullptr,
-                                       SourceRange{});
-    result->decorateExpr(nullptr, type);
-    return result;
-}
-
 TEST_CASE("Overload resolution", "[sema]") {
     SymbolTable sym;
+    auto makeExpr = [&](QualType type) -> UniquePtr<ast::Expression> {
+        auto result =
+            allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
+                                           ast::UnaryOperatorNotation::Prefix,
+                                           nullptr,
+                                           SourceRange{});
+        result->decorateValue(sym.temporary(type));
+        return result;
+    };
     // clang-format off
     auto f = TestOS::make(sym, "f", {
         /// `f(s64, &[s64])`

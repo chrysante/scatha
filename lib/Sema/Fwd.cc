@@ -28,6 +28,13 @@ std::ostream& sema::operator<<(std::ostream& str, EntityCategory cat) {
     // clang-format on
 }
 
+ValueCategory sema::commonValueCat(ValueCategory a, ValueCategory b) {
+    if (a == b) {
+        return a;
+    }
+    return ValueCategory::RValue;
+}
+
 std::string_view sema::toString(ScopeKind k) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(k, {

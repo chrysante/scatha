@@ -56,45 +56,35 @@ sema::QualType Expression::typeOrTypeEntity() const {
     return isValue() ? type() : cast<sema::ObjectType const*>(entity());
 }
 
-/// Convenience wrapper for `isa<sema::ReferenceType>(type());`
-bool Expression::isLValue() const {
-    SC_ASSERT(isValue(), "Must be a value to be an LValue");
-    return isa<sema::ReferenceType>(*type());
+sema::EntityCategory Expression::entityCategory() const {
+    expectDecorated();
+    if (!entity()) {
+        return sema::EntityCategory::Indeterminate;
+    }
+    return entity()->category();
 }
 
-/// Convenience wrapper for `!isa<sema::ReferenceType>(type());`
-bool Expression::isRValue() const {
-    SC_ASSERT(isValue(), "Must be a value to be an RValue");
-    return !isa<sema::ReferenceType>(*type());
-}
-
-void Expression::decorateExpr(sema::Entity* entity,
-                              sema::QualType type,
-                              std::optional<sema::EntityCategory> entityCat) {
+void Expression::decorateValue(sema::Entity* entity,
+                               sema::ValueCategory valueCategory,
+                               sema::QualType type) {
+    SC_ASSERT(entity, "Must not be null");
     _entity = entity;
+    _valueCat = valueCategory;
     _type = type;
-    /// Derive defaults
-    if (entity) {
-        _entityCat = entity->category();
-    }
-    else {
-        _entityCat = sema::EntityCategory::Value;
-    }
     auto* object = dyncast_or_null<sema::Object*>(entity);
     if (!type && object) {
         _type = object->type();
     }
-    /// Override if user specified
-    if (entityCat) {
-        _entityCat = *entityCat;
-    }
     markDecorated();
 }
 
+void Expression::decorateType(sema::Type* type) { _entity = type; }
+
 void FunctionCall::decorateCall(sema::Object* object,
+                                sema::ValueCategory valueCategory,
                                 sema::QualType type,
                                 sema::Function* calledFunction) {
-    decorateExpr(object, type);
+    decorateValue(object, valueCategory, type);
     _function = calledFunction;
 }
 
