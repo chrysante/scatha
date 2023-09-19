@@ -34,7 +34,7 @@ fn main() -> int {
 TEST_CASE("Weird bug in simplifyCFG", "[end-to-end][regression]") {
     /// `simplifyCFG()`would crash because an erased basic block was still in
     /// the worklist, so the algorithm would read deallocated memory down the
-    /// road Unfortunately I was not able to simplify the code sample any
+    /// road. Unfortunately I was not able to simplify the code sample any
     /// further while still reproducing the issue.
     test::checkCompiles(R"(
 fn main() {

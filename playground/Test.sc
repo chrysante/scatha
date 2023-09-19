@@ -1,18 +1,23 @@
-@const_data = [i32, 3] [i32 1, i32 2, i32 3]
+export fn foo(x: int) -> int {
+    var y: int;
+    if (x > 42) {
+        y = 5;
+    }
+    return y;
+}
 
-@other_data = i32 1
 
-func i32 @main() {
-  %entry:
-    %1 = load i32, ptr @other_data
-    %p = getelementptr inbounds i32, ptr @const_data, i32 0
-    %t0 = load i32, ptr %p
-    %q = getelementptr inbounds i32, ptr @const_data, i32 1
-    %t1 = load i32, ptr %q
-    %r = getelementptr inbounds i32, ptr @const_data, i32 2
-    %t2 = load i32, ptr %r
-    %s0 = add i32 %t0, i32 %t1
-    %s1 = add i32 %s0, i32 %t2
-    %s2 = add i32 %s1, i32 %1
-    return i32 %s2
+export fn bar(x: int) -> int {
+    var y: int;
+    if (x < 100) {
+        if (x < 50) {
+            y = 5;
+        }
+    }
+    else {
+        if (x < 150) {
+            y = 10;
+        }
+    }
+    return y;
 }

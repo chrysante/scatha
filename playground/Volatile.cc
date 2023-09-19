@@ -121,7 +121,7 @@ static void run(ir::Module const& mod) {
     run(mod);
 }
 
-[[maybe_unused]] static void isellayground(std::filesystem::path path) {
+[[maybe_unused]] static void iselPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
     header("IR Module");
     opt::PassManager::makePipeline("inline, splitreturns").execute(ctx, irMod);
@@ -134,7 +134,7 @@ static void run(ir::Module const& mod) {
     header("As parsed");
     print(mod);
     run(mod);
-    auto pipeline = opt::PassManager::makePipeline("instcombine");
+    auto pipeline = opt::PassManager::makePipeline("inline");
     header(toString(pipeline));
     pipeline(ctx, mod);
     print(mod);
@@ -222,5 +222,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    iselPlayground(path);
+    irPlayground(path);
 }
