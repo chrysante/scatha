@@ -13,6 +13,7 @@
 #include "Common/Ranges.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/StructDependencyGraph.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
@@ -44,8 +45,6 @@ struct InstContext {
     QualType analyzeParameter(ast::ParameterDeclaration&, size_t index) const;
 
     void generateSLFs(StructType& type);
-
-    QualType analyzeTypeExpression(ast::Expression*) const;
 
     Function* generateSLF(SpecialLifetimeFunction key, StructType& type) const;
 
@@ -102,7 +101,7 @@ std::vector<StructType const*> InstContext::instantiateTypes(
                        });
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
-        QualType type = analyzeTypeExpression(var.typeExpr());
+        QualType type = analyzeTypeExpression(var.typeExpr(), ctx);
         if (type && isUserDefined(type)) {
             node.dependencies.push_back(
                 utl::narrow_cast<u16>(dependencyGraph.index(type.get())));
@@ -214,7 +213,7 @@ void InstContext::instantiateVariable(SDGNode& node) {
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    QualType type = analyzeTypeExpression(varDecl.typeExpr());
+    QualType type = analyzeTypeExpression(varDecl.typeExpr(), ctx);
     varDecl.decorateVarDecl(node.entity, type);
     /// Here we set the TypeID of the variable in the symbol table.
     varDecl.variable()->setType(type);
@@ -222,7 +221,7 @@ void InstContext::instantiateVariable(SDGNode& node) {
 
 static bool isRefTo(QualType argType, QualType referredType) {
     return isa<ReferenceType>(*argType) &&
-           stripReference(argType) == referredType;
+           stripReferenceNew(argType) == referredType;
 }
 
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
@@ -292,9 +291,10 @@ FunctionSignature InstContext::analyzeSignature(
     }
     /// For functions with unspecified return type we assume void until we
     /// implement return type deduction.
-    QualType returnType = decl.returnTypeExpr() ?
-                              analyzeTypeExpression(decl.returnTypeExpr()) :
-                              sym.Void();
+    QualType returnType =
+        decl.returnTypeExpr() ?
+            analyzeTypeExpression(decl.returnTypeExpr(), ctx) :
+            sym.Void();
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 
@@ -302,7 +302,7 @@ QualType InstContext::analyzeParameter(ast::ParameterDeclaration& param,
                                        size_t index) const {
     auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
     if (!thisParam) {
-        return analyzeTypeExpression(param.typeExpr());
+        return analyzeTypeExpression(param.typeExpr(), ctx);
     }
     if (index != 0) {
         iss.push<InvalidDeclaration>(&param,
@@ -468,17 +468,4 @@ FunctionSignature InstContext::makeLifetimeSignature(
     case Destructor:
         return FunctionSignature({ self }, ret);
     }
-}
-
-QualType InstContext::analyzeTypeExpression(ast::Expression* expr) const {
-    DTorStack dtorStack;
-    if (!sema::analyzeExpression(expr, dtorStack, ctx)) {
-        return nullptr;
-    }
-    SC_ASSERT(dtorStack.empty(), "");
-    if (!expr->isType()) {
-        iss.push<BadSymbolReference>(*expr, EntityCategory::Type);
-        return nullptr;
-    }
-    return cast<ObjectType*>(expr->entity());
 }

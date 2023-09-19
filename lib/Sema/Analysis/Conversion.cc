@@ -252,7 +252,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             }
         },
         [&](PointerType const& from, PointerType const& to) -> RetType {
-            if (from.base().isConst() && to.base().isMutable()) {
+            if (from.base().isConst() && to.base().isMut()) {
                 return std::nullopt;
             }
             if (from.base().get() == to.base().get()) {
@@ -286,7 +286,7 @@ static std::optional<ValueCatConversion> determineValueCatConv(
     if (from == LValue) {
         return LValueToRValue;
     }
-    SC_ASSERT(to == RValue, "Other cases are checked above");
+    SC_ASSERT(from == RValue, "Other cases are checked above");
     switch (kind) {
     case Implicit:
         if (toMutability == Const) {
@@ -303,8 +303,12 @@ static std::optional<ValueCatConversion> determineValueCatConv(
 }
 
 static std::optional<MutConversion> determineMutConv(ConversionKind kind,
+                                                     ValueCatConversion catConv,
                                                      Mutability from,
                                                      Mutability to) {
+    if (catConv == ValueCatConversion::LValueToRValue) {
+        return MutConversion::None;
+    }
     /// No mutability conversion happens
     if (from == to) {
         return MutConversion::None;
@@ -495,7 +499,10 @@ std::optional<Conversion> sema::computeConversion(
     if (!valueCatConv) {
         return std::nullopt;
     }
-    auto mutConv = determineMutConv(kind, from.mutability(), to.mutability());
+    auto mutConv = determineMutConv(kind,
+                                    *valueCatConv,
+                                    from.mutability(),
+                                    to.mutability());
     if (!mutConv) {
         return std::nullopt;
     }
@@ -574,6 +581,7 @@ ast::Expression* sema::dereference(ast::Expression* expr, Context& ctx) {
     return expr;
 }
 
+#if 0
 static QualType commonRef(SymbolTable& sym,
                           QualType commonObjType,
                           QualType a,
@@ -595,6 +603,7 @@ static QualType commonRef(SymbolTable& sym,
     /// Both types are references
     return sym.reference(commonObjType);
 }
+#endif
 
 static std::optional<size_t> nextBitwidth(size_t width) {
     switch (width) {
@@ -629,7 +638,7 @@ static Mutability commonMutability(Mutability a, Mutability b) {
     return a == Mutability::Mutable ? b : a;
 }
 
-static QualType commonBase(SymbolTable& sym, QualType a, QualType b) {
+QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
     auto commonMut = commonMutability(a.mutability(), b.mutability());
     if (a.get() == b.get()) {
         return QualType(a.get(), commonMut);
@@ -674,10 +683,6 @@ static QualType commonBase(SymbolTable& sym, QualType a, QualType b) {
         }
     }; // clang-format on
     return QualType(commonObjType, commonMut);
-}
-
-QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
-    return commonBase(sym, stripReference(a), stripReference(b));
 }
 
 QualType sema::commonType(SymbolTable& sym, std::span<QualType const> types) {

@@ -17,6 +17,11 @@ ast::Expression* analyzeExpression(ast::Expression* expression,
                                    DTorStack& dtorStack,
                                    Context& context);
 
+/// Analyses the expression \p expr and returns the type it refers to. If \p
+/// expr does not refer to a type, this function will push an error to the issue
+/// handler
+QualType analyzeTypeExpression(ast::Expression* expr, Context& context);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_EXPRESSIONANALYSIS_H_

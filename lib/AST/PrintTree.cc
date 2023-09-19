@@ -21,17 +21,14 @@ using namespace ast;
 
 void ast::printTree(ASTNode const& root) { printTree(root, std::cout); }
 
-static utl::vstreammanip<> typeHelper(ASTNode const* node) {
+static utl::vstreammanip<> formatType(sema::QualType type) {
     return [=](std::ostream& str) {
-        if (auto* expr = dyncast<Expression const*>(node)) {
-            str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
-                << expr->type()->name() << " "
-                << tfmt::format(tfmt::BrightGrey, expr->valueCategory());
+        str << " " << tfmt::format(tfmt::BrightGrey, "Type: ");
+        if (!type) {
+            str << tfmt::format(tfmt::Red, "NULL");
+            return;
         }
-        else if (auto* decl = dyncast<VarDeclBase const*>(node)) {
-            str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
-                << decl->type()->name();
-        }
+        str << type->name();
     };
 }
 
@@ -50,13 +47,23 @@ static constexpr utl::streammanip nodeType([](std::ostream& str,
     str << ": ";
 });
 
-static constexpr utl::streammanip header([](std::ostream& str,
-                                            TreeFormatter* formatter,
-                                            ASTNode const* node,
-                                            auto... args) {
+static constexpr utl::streammanip nodeHeader([](std::ostream& str,
+                                                TreeFormatter* formatter,
+                                                ASTNode const* node,
+                                                auto... args) {
     str << formatter->beginLine() << nodeType(node);
     ((str << args), ...);
-    str << typeHelper(node);
+    if (!node->isDecorated()) {
+        return;
+    }
+    if (auto* expr = dyncast<Expression const*>(node); expr && expr->isValue())
+    {
+        str << formatType(expr->type()) << " "
+            << tfmt::format(tfmt::BrightGrey, expr->valueCategory());
+    }
+    else if (auto* decl = dyncast<VarDeclBase const*>(node)) {
+        str << formatType(decl->type());
+    }
     auto* expr = dyncast<Expression const*>(node);
     if (!expr || !expr->constantValue()) {
         return;
@@ -147,40 +154,40 @@ struct PrintCtx {
 
     void print(ASTNode const& node) {
         if (!node.isDecorated()) {
-            str << header(&formatter, &node) << '\n';
+            str << nodeHeader(&formatter, &node) << '\n';
             goto end;
         }
 
         // clang-format off
         visit(node, utl::overload{
             [&](ASTNode const& node) {
-                str << header(&formatter, &node) << '\n';
+                str << nodeHeader(&formatter, &node) << '\n';
             },
             [&](Literal const& lit) {
-                str << header(&formatter, &node, formatLit(&lit)) << '\n';
+                str << nodeHeader(&formatter, &node, formatLit(&lit)) << '\n';
             },
             [&](Identifier const& id) {
                 auto value = tfmt::format(tfmt::Green | tfmt::Bold, id.value());
-                str << header(&formatter, &node, value) << '\n';
+                str << nodeHeader(&formatter, &node, value) << '\n';
             },
             [&](UnaryExpression const& expr) {
-                str << header(&formatter, &node, expr.operation()) << '\n';
+                str << nodeHeader(&formatter, &node, expr.operation()) << '\n';
             },
             [&](BinaryExpression const& expr) {
-                str << header(&formatter, &node, expr.operation()) << '\n';
+                str << nodeHeader(&formatter, &node, expr.operation()) << '\n';
             },
             [&](Declaration const& decl) {
                 auto name = tfmt::format(tfmt::Green | tfmt::Bold, decl.name());
-                str << header(&formatter, &node, name) << '\n';
+                str << nodeHeader(&formatter, &node, name) << '\n';
             },
             [&](FunctionDefinition const& func) {
-                str << header(&formatter, &node, funcDecl(func.function())) << '\n';
+                str << nodeHeader(&formatter, &node, funcDecl(func.function())) << '\n';
             },
             [&](LoopStatement const& loop) {
-                str << header(&formatter, &node, loop.kind()) << '\n';
+                str << nodeHeader(&formatter, &node, loop.kind()) << '\n';
             },
             [&](Conversion const& conv) {
-                str << header(&formatter, &node,
+                str << nodeHeader(&formatter, &node,
                               conv.conversion()->valueCatConversion(), ", ",
                               conv.conversion()->objectConversion()) << '\n';
             }

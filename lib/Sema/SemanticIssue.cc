@@ -32,8 +32,8 @@ BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
     _to(to) {}
 
 void BadTypeConversion::format(std::ostream& str) const {
-    str << "Invalid type conversion from `" << from().name() << "` to `"
-        << to().name() << "`\n";
+    str << "Invalid type conversion from " << from()->name() << " to "
+        << to()->name() << "\n";
 }
 
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(
@@ -142,6 +142,8 @@ std::ostream& sema::operator<<(std::ostream& str,
     return str << UTL_SERIALIZE_ENUM(r, {
         { InvalidDeclaration::Reason::InvalidInCurrentScope,
           "Invalid in currentScope" },
+        { InvalidDeclaration::Reason::InvalidType,
+          "Invalid type" },
         { InvalidDeclaration::Reason::Redefinition,
           "Redefinition" },
         { InvalidDeclaration::Reason::CantOverloadOnReturnType,

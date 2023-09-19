@@ -41,7 +41,7 @@ fn mul(a: int, b: X.Y.Z) -> int {
     CHECK(resultDecl->name() == "result");
     CHECK(!resultDecl->typeExpr());
     // CHECK(!resultDecl->isConstant);
-    CHECK(isa<Identifier>(resultDecl->initExpression()));
+    CHECK(isa<Identifier>(resultDecl->initExpr()));
     auto* const returnStatement =
         cast<ReturnStatement const*>(body->statements()[1]);
     CHECK(isa<Identifier>(returnStatement->expression()));
@@ -61,11 +61,11 @@ fn main() -> void {
     CHECK(function->name() == "main");
     auto* const aDecl =
         cast<VariableDeclaration*>(function->body()->statements()[0]);
-    auto* const intLit = cast<Literal const*>(aDecl->initExpression());
+    auto* const intLit = cast<Literal const*>(aDecl->initExpr());
     CHECK(intLit->value<APInt>() == 39);
     auto* const bDecl =
         cast<VariableDeclaration const*>(function->body()->statements()[1]);
-    auto* const floatLit = cast<Literal const*>(bDecl->initExpression());
+    auto* const floatLit = cast<Literal const*>(bDecl->initExpr());
     CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
 }
 
@@ -186,7 +186,7 @@ fn test() {
     REQUIRE(varDecl);
     CHECK(varDecl->name() == "x");
     CHECK(varDecl->typeExpr() == nullptr);
-    auto* const varInitExpr = cast<Literal const*>(varDecl->initExpression());
+    auto* const varInitExpr = cast<Literal const*>(varDecl->initExpr());
     REQUIRE(varInitExpr);
     CHECK(varInitExpr->value<APInt>() == 0);
     auto* const condition =

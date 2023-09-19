@@ -23,7 +23,7 @@ static std::string baseImpl(Entity const* entity) {
 }
 
 static std::string impl(QualType type) {
-    if (type.isMutable()) {
+    if (type.isMut()) {
         return utl::strcat("mut-", type->mangledName());
     }
     return type->mangledName();

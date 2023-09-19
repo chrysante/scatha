@@ -532,7 +532,7 @@ public:
     sema::Mutability mutability() const { return mut; }
 
     /// \Returns `true` if reference to `mut`
-    bool isMutable() const { return mut == sema::Mutability::Mutable; }
+    bool isMut() const { return mut == sema::Mutability::Mutable; }
 
 private:
     sema::Mutability mut;
@@ -872,7 +872,7 @@ public:
     AST_DERIVED_COMMON(VariableDeclaration)
 
     /// Expression to initialize this variable. May be null.
-    AST_PROPERTY(2, Expression, initExpression, InitExpression)
+    AST_PROPERTY(2, Expression, initExpr, InitExpr)
 
     /// **Decoration provided by semantic analysis**
 
@@ -892,9 +892,9 @@ public:
     /// Mutability of this variable
     sema::Mutability mutability() const { return _mut; }
 
-    /// `true` if this variable was declared with `let`, `false` if declared
-    /// with `var`
-    bool isMutable() const { return mutability() == sema::Mutability::Mutable; }
+    /// `true` if this variable was declared with `var`, `false` if declared
+    /// with `let`
+    bool isMut() const { return mutability() == sema::Mutability::Mutable; }
 
     /// Used by instantiation
     void setOffset(size_t offset) {

@@ -318,7 +318,7 @@ static bool varDeclNeedCopy(sema::QualType type) {
 void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
     std::string name = std::string(varDecl.name());
-    auto* initExpr = varDecl.initExpression();
+    auto* initExpr = varDecl.initExpr();
     if (sema::isRef(varDecl.type())) {
         SC_ASSERT(initExpr, "Reference must be initialized");
         auto value = getValue(initExpr);

@@ -46,7 +46,7 @@ public:
     explicit operator bool() const { return get() != nullptr; }
 
     /// \Returns `true` if `mutability() == Mutable`
-    bool isMutable() const { return mutability() == Mutability::Mutable; }
+    bool isMut() const { return mutability() == Mutability::Mutable; }
 
     /// \Returns `true` if `mutability() == Const`
     bool isConst() const { return mutability() == Mutability::Const; }
@@ -55,16 +55,16 @@ public:
     Mutability mutability() const { return _mut; }
 
     ///
-    QualType toMutability(Mutability mut) const { return QualType(get(), mut); }
+    QualType to(Mutability mut) const { return QualType(get(), mut); }
 
     ///
-    QualType toMut() const { return toMutability(Mutability::Mutable); }
+    QualType toMut() const { return to(Mutability::Mutable); }
 
     ///
-    QualType toConst() const { return toMutability(Mutability::Const); }
+    QualType toConst() const { return to(Mutability::Const); }
 
-    /// Name of this type
-    std::string name() const;
+    /// Name of this type with possible top level mutability qualifier
+    std::string qualName() const;
 
     /// Test for equality
     bool operator==(QualType const&) const = default;

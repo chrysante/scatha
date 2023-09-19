@@ -172,6 +172,8 @@ static void run(ir::Module const& mod) {
     header("Symbol Table");
     sema::print(sym);
 
+    return;
+
     if (!issues.empty()) {
         return;
     }
@@ -222,5 +224,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    frontendPlayground(path);
 }

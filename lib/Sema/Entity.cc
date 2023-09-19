@@ -55,7 +55,7 @@ void Object::setConstantValue(UniquePtr<Value> value) {
     if (value) {
         SC_ASSERT(type(), "Invalid");
         SC_ASSERT(!isa<ReferenceType>(*type()), "Invalid");
-        SC_ASSERT(!type().isMutable(), "Invalid");
+        SC_ASSERT(!type().isMut(), "Invalid");
     }
     constVal = std::move(value);
 }
@@ -241,18 +241,19 @@ RefTypeBase::RefTypeBase(EntityType type, QualType base, std::string name):
                ptrAlign()),
     _base(base) {}
 
-static std::string makePtrName(QualType base, std::string_view op) {
-    return utl::strcat(op, base.name());
+static std::string makeIndirectName(std::string_view indirection,
+                                    QualType base) {
+    return utl::strcat(indirection, base.qualName());
 }
 
 PointerType::PointerType(QualType base):
-    RefTypeBase(EntityType::PointerType, base, makePtrName(base, "*")) {
+    RefTypeBase(EntityType::PointerType, base, makeIndirectName("*", base)) {
     SC_ASSERT(!isa<ReferenceType>(*base),
               "Pointers cannot point to references");
 }
 
 ReferenceType::ReferenceType(QualType base):
-    RefTypeBase(EntityType::ReferenceType, base, makePtrName(base, "&")) {}
+    RefTypeBase(EntityType::ReferenceType, base, makeIndirectName("&", base)) {}
 
 bool Function::isBuiltin() const {
     return isForeign() && slot() == svm::BuiltinFunctionSlot;

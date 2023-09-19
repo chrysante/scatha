@@ -1,23 +1,9 @@
-export fn foo(x: int) -> int {
-    var y: int;
-    if (x > 42) {
-        y = 5;
-    }
-    return y;
-}
-
-
-export fn bar(x: int) -> int {
-    var y: int;
-    if (x < 100) {
-        if (x < 50) {
-            y = 5;
-        }
-    }
-    else {
-        if (x < 150) {
-            y = 10;
-        }
-    }
-    return y;
+fn main() -> int {
+    var i = 0;
+    var j = 0;
+    var r = &mut i;
+    *r += 1;
+    r = &mut j;
+    *r += 1;
+    return i + j;
 }

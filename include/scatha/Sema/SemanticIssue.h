@@ -204,6 +204,7 @@ class SCATHA_API InvalidDeclaration: public InvalidStatement {
 public:
     enum class Reason {
         InvalidInCurrentScope,
+        InvalidType,
         Redefinition,
         CantOverloadOnReturnType,
         CantInferType,

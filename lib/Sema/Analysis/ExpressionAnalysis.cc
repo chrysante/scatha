@@ -88,7 +88,25 @@ static bool isAny(T const* t) {
 ast::Expression* sema::analyzeExpression(ast::Expression* expr,
                                          DTorStack& dtorStack,
                                          Context& ctx) {
+    if (!expr) {
+        return nullptr;
+    }
     return ExprContext(ctx, dtorStack).analyze(expr);
+}
+
+QualType sema::analyzeTypeExpression(ast::Expression* expr, Context& ctx) {
+    DTorStack dtorStack;
+    expr = sema::analyzeExpression(expr, dtorStack, ctx);
+    SC_ASSERT(dtorStack.empty(), "");
+    if (!expr) {
+        return nullptr;
+    }
+    if (!expr->isType()) {
+        ctx.issueHandler().push<BadSymbolReference>(*expr,
+                                                    EntityCategory::Type);
+        return nullptr;
+    }
+    return cast<ObjectType*>(expr->entity());
 }
 
 ast::Expression* ExprContext::analyze(ast::Expression* expr) {
@@ -171,7 +189,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
-        dereference(u.operand(), ctx);
         u.decorateValue(sym.temporary(operandBaseType), RValue);
         break;
     case ast::UnaryOperator::BitwiseNot:
@@ -179,7 +196,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
-        dereference(u.operand(), ctx);
         u.decorateValue(sym.temporary(operandBaseType), RValue);
         break;
     case ast::UnaryOperator::LogicalNot:
@@ -187,7 +203,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
-        dereference(u.operand(), ctx);
         u.decorateValue(sym.temporary(operandBaseType), RValue);
         break;
     case ast::UnaryOperator::Increment:
@@ -197,7 +212,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
-        if (!u.operand()->isLValue() || u.operand()->type().isMutable()) {
+        if (!u.operand()->isLValue() || u.operand()->type().isMut()) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
@@ -355,8 +370,7 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
         QualType lhsType = expr.lhs()->type();
         /// Here we only look at assignment _through_ references
         /// That means LHS shall be an implicit reference
-        dereference(expr.lhs(), ctx);
-        if (!expr.lhs()->type().isMutable()) {
+        if (!expr.lhs()->type().isMut()) {
             iss.push<BadOperandsForBinaryExpression>(expr,
                                                      expr.lhs()->type(),
                                                      expr.rhs()->type());
@@ -391,7 +405,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     // clang-format off
     return SC_MATCH (*entity) {
         [&](Variable& var) {
-            id.decorateValue(&var, LValue);
+            id.decorateValue(&var, LValue,
+                             stripReferenceNew(var.type()));
             id.setConstantValue(clone(var.constantValue()));
             return &id;
         },
@@ -474,9 +489,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         auto type = ma.member()->type();
 #warning Type needs to be const if accessed object is const
         ma.decorateValue(sym.temporary(type), ma.member()->valueCategory());
-        if (!isa<OverloadSet>(ma.member()->entity())) {
-            dereference(ma.accessed(), ctx);
-        }
         break;
     }
     case EntityCategory::Type:
@@ -560,14 +572,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     auto* pointer = expr.referred();
     switch (pointer->entityCategory()) {
     case EntityCategory::Value: {
-        pointer = dereference(pointer, ctx);
         auto* ptrType = dyncast<PointerType const*>(pointer->type().get());
         if (!ptrType) {
             iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
         }
-        auto derefType = sym.reference(ptrType->base());
-        expr.decorateValue(sym.temporary(derefType), LValue);
+        expr.decorateValue(sym.temporary(ptrType->base()), LValue);
         return &expr;
     }
     case EntityCategory::Type: {
@@ -675,7 +685,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return nullptr;
     }
-    dereference(expr.callee(), ctx);
     convert(Implicit, expr.argument(0), sym.S64(), RValue, *dtorStack, ctx);
     auto mutability = expr.callee()->type().mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
@@ -688,7 +697,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     if (!arrayType) {
         return nullptr;
     }
-    dereference(expr.callee(), ctx);
     convert(Implicit, expr.lower(), sym.S64(), RValue, *dtorStack, ctx);
     convert(Implicit, expr.upper(), sym.S64(), RValue, *dtorStack, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());

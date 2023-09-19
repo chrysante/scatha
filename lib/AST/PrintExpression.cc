@@ -135,7 +135,7 @@ void Context::printImpl(GenericExpression const& expr) { SC_UNIMPLEMENTED(); }
 
 void Context::printImpl(AddressOfExpression const& ref) {
     str << "&";
-    if (ref.isMutable()) {
+    if (ref.isMut()) {
         str << "mut ";
     }
     print(*ref.referred());
