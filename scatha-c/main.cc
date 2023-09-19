@@ -19,6 +19,7 @@
 #include <scatha/Sema/SymbolTable.h>
 #include <termfmt/termfmt.h>
 #include <utl/format_time.hpp>
+#include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 #include <utl/typeinfo.hpp>
 
@@ -33,6 +34,38 @@ static constexpr utl::streammanip Warning([](std::ostream& str) {
 static constexpr utl::streammanip Error([](std::ostream& str) {
     str << tfmt::format(tfmt::Red | tfmt::Bold, "Error: ");
 });
+
+[[noreturn]] static void fileEmissionError(std::string_view type,
+                                           std::filesystem::path path) {
+    std::cout << Error << "Failed to emit " << type << "\n";
+    std::cout << "Target was: " << path << "\n";
+    std::exit(EXIT_FAILURE);
+}
+
+static void emitExecutable(std::filesystem::path dest, std::string binaryName) {
+    std::fstream file(dest, std::ios::out | std::ios::trunc);
+    if (!file) {
+        fileEmissionError("executable", dest);
+    }
+    file << "SCRIPT_DIR=\"$(dirname \"$(readlink -f \"$0\")\")\"\n";
+    file << "set -e\n";
+    file << "svm \"$SCRIPT_DIR/" << binaryName << "\"\n";
+    file << "exit 0\n";
+    file.close();
+    /// Permit the file to be executed
+    std::system(utl::strcat("chmod +x ", dest.string()).data());
+}
+
+static void emitBinary(std::filesystem::path dest,
+                       std::span<uint8_t const> program) {
+    std::fstream file(dest, std::ios::out | std::ios::trunc | std::ios::binary);
+    if (!file) {
+        fileEmissionError("binary", dest);
+    }
+    std::copy(program.begin(),
+              program.end(),
+              std::ostream_iterator<char>(file));
+}
 
 int main(int argc, char* argv[]) {
     scathac::Options options = scathac::parseCLI(argc, argv);
@@ -94,18 +127,15 @@ int main(int argc, char* argv[]) {
                   << "\n";
     }
 
+    /// Emit binary
     if (options.bindir.empty()) {
         options.bindir = filepath.parent_path();
     }
-    std::filesystem::path binary =
-        options.bindir / filepath.stem().concat(".sbin");
-    std::fstream out(binary,
-                     std::ios::out | std::ios::trunc | std::ios::binary);
-    if (!out) {
-        std::cout << "Failed to emit binary\n";
-        std::cout << "Target was: " << binary << "\n";
-        return -1;
-    }
-    std::copy(program.begin(), program.end(), std::ostream_iterator<char>(out));
+    std::string const execName = filepath.stem().string();
+    std::string const binaryName = execName + ".sbin";
+    std::filesystem::path const execDir = options.bindir / execName;
+    std::filesystem::path const binaryDir = options.bindir / binaryName;
+    emitBinary(binaryDir, program);
+    emitExecutable(execDir, binaryName);
     return 0;
 }
