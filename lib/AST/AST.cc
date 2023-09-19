@@ -78,7 +78,10 @@ void Expression::decorateValue(sema::Entity* entity,
     markDecorated();
 }
 
-void Expression::decorateType(sema::Type* type) { _entity = type; }
+void Expression::decorateType(sema::Type* type) {
+    _entity = type;
+    markDecorated();
+}
 
 void FunctionCall::decorateCall(sema::Object* object,
                                 sema::ValueCategory valueCategory,

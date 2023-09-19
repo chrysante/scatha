@@ -21,6 +21,7 @@
 using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
+using enum ConversionKind;
 
 namespace {
 
@@ -161,7 +162,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
         return nullptr;
     }
     QualType operandType = u.operand()->type();
-    QualType operandBaseType = stripQualifiers(operandType);
+    QualType operandBaseType = operandType.toMut();
     switch (u.operation()) {
     case ast::UnaryOperator::Promotion:
         [[fallthrough]];
@@ -196,7 +197,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
-        if (!convertToMutRef(u.operand(), ctx)) {
+        if (!u.operand()->isLValue() || u.operand()->type().isMutable()) {
+            iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
         switch (u.notation()) {
@@ -332,16 +334,14 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
     }
 
     /// Determine common type
-    QualType commonQualifiedType =
+    QualType commonType =
         sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
-    if (!commonQualifiedType) {
+    if (!commonType) {
         iss.push<BadOperandsForBinaryExpression>(expr,
                                                  expr.lhs()->type(),
                                                  expr.rhs()->type());
         return {};
     }
-    QualType commonType = stripQualifiers(commonQualifiedType);
-
     auto resultType = getResultType(sym, commonType.get(), expr.operation());
     if (!resultType) {
         iss.push<BadOperandsForBinaryExpression>(expr,
@@ -363,10 +363,8 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
             return {};
         }
         bool success = true;
-        success &= !!convertImplicitly(expr.rhs(),
-                                       stripQualifiers(lhsType),
-                                       *dtorStack,
-                                       ctx);
+        success &=
+            !!convert(Implicit, expr.rhs(), lhsType, RValue, *dtorStack, ctx);
         if (!success) {
             return {};
         }
@@ -375,9 +373,9 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
 
     bool successfulConv = true;
     successfulConv &=
-        !!convertImplicitly(expr.lhs(), commonType, *dtorStack, ctx);
+        !!convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx);
     successfulConv &=
-        !!convertImplicitly(expr.rhs(), commonType, *dtorStack, ctx);
+        !!convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx);
 
     if (successfulConv) {
         return { sym.temporary(*resultType), RValue, *resultType };
@@ -427,8 +425,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
 static Scope* findLookupTargetScope(ast::Expression& expr) {
     switch (expr.entityCategory()) {
     case EntityCategory::Value: {
-        auto type = stripReference(expr.type());
-        return const_cast<ObjectType*>(type.get());
+        return const_cast<ObjectType*>(expr.type().get());
     }
     case EntityCategory::Type:
         return cast<Scope*>(expr.entity());
@@ -475,11 +472,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
             return nullptr;
         }
         auto type = ma.member()->type();
-        if (!isa<ReferenceType>(*ma.accessed()->type())) {
-            type = stripReference(type);
-            auto mut = ma.accessed()->type().mutability();
-            type = QualType(type.get(), mut);
-        }
+#warning Type needs to be const if accessed object is const
         ma.decorateValue(sym.temporary(type), ma.member()->valueCategory());
         if (!isa<OverloadSet>(ma.member()->entity())) {
             dereference(ma.accessed(), ctx);
@@ -545,10 +538,12 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     auto* temp = sym.temporary(type);
     call->decorateCall(temp, valueCat, type, func);
     dtorStack->push(temp);
-    bool const convSucc = convertExplicitly(call->argument(0),
-                                            func->argumentType(0),
-                                            *dtorStack,
-                                            ctx);
+    bool const convSucc = convert(Explicit,
+                                  call->argument(0),
+                                  stripReferenceNew(func->argumentType(0)),
+                                  refToLValue(func->argumentType(0)),
+                                  *dtorStack,
+                                  ctx);
     SC_ASSERT(convSucc,
               "If overload resolution succeeds conversion must not fail");
 
@@ -566,8 +561,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     switch (pointer->entityCategory()) {
     case EntityCategory::Value: {
         pointer = dereference(pointer, ctx);
-        auto* type = stripReference(pointer->type()).get();
-        auto* ptrType = dyncast<PointerType const*>(type);
+        auto* ptrType = dyncast<PointerType const*>(pointer->type().get());
         if (!ptrType) {
             iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
@@ -626,7 +620,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
 
 ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     if (analyzeValue(c.condition())) {
-        convertImplicitly(c.condition(), sym.Bool(), *dtorStack, ctx);
+        convert(Implicit, c.condition(), sym.Bool(), RValue, *dtorStack, ctx);
     }
     auto* commonDtors = dtorStack;
     auto* lhsDtors = &c.branchDTorStack(0);
@@ -648,20 +642,24 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
         iss.push<BadOperandsForBinaryExpression>(c, thenType, elseType);
         return nullptr;
     }
-    success &= !!convertImplicitly(c.thenExpr(),
-                                   commonType,
-                                   c.branchDTorStack(0),
-                                   ctx);
-    success &= !!convertImplicitly(c.elseExpr(),
-                                   commonType,
-                                   c.branchDTorStack(1),
-                                   ctx);
+    auto commonValueCat = sema::commonValueCat(c.thenExpr()->valueCategory(),
+                                               c.elseExpr()->valueCategory());
+    success &= !!convert(Implicit,
+                         c.thenExpr(),
+                         commonType,
+                         commonValueCat,
+                         c.branchDTorStack(0),
+                         ctx);
+    success &= !!convert(Implicit,
+                         c.elseExpr(),
+                         commonType,
+                         commonValueCat,
+                         c.branchDTorStack(1),
+                         ctx);
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
-    auto valueCat = commonValueCat(c.thenExpr()->valueCategory(),
-                                   c.elseExpr()->valueCategory());
-    c.decorateValue(sym.temporary(commonType), valueCat);
+    c.decorateValue(sym.temporary(commonType), commonValueCat);
     c.setConstantValue(evalConditional(c.condition()->constantValue(),
                                        c.thenExpr()->constantValue(),
                                        c.elseExpr()->constantValue()));
@@ -678,7 +676,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         return nullptr;
     }
     dereference(expr.callee(), ctx);
-    convertImplicitly(expr.argument(0), sym.S64(), *dtorStack, ctx);
+    convert(Implicit, expr.argument(0), sym.S64(), RValue, *dtorStack, ctx);
     auto mutability = expr.callee()->type().mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
     expr.decorateValue(sym.temporary(elemType), expr.callee()->valueCategory());
@@ -691,8 +689,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
         return nullptr;
     }
     dereference(expr.callee(), ctx);
-    convertImplicitly(expr.lower(), sym.S64(), *dtorStack, ctx);
-    convertImplicitly(expr.upper(), sym.S64(), *dtorStack, ctx);
+    convert(Implicit, expr.lower(), sym.S64(), RValue, *dtorStack, ctx);
+    convert(Implicit, expr.upper(), sym.S64(), RValue, *dtorStack, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
     expr.decorateValue(sym.temporary(dynArrayType),
                        expr.callee()->valueCategory());
@@ -707,7 +705,7 @@ ArrayType const* ExprContext::analyzeSubscriptCommon(ast::CallLike& expr) {
     if (!success) {
         return nullptr;
     }
-    auto* accessedType = stripReference(expr.callee()->type()).get();
+    auto* accessedType = expr.callee()->type().get();
     auto* arrayType = dyncast<ArrayType const*>(accessedType);
     if (!arrayType) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
@@ -769,20 +767,26 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         /// Member access object `object` goes out of scope and is destroyed
     }
 
-    /// If our object is a generic expression, we assert that is a `reinterpret`
-    /// expression and rewrite the AST
+    /// If our object is a generic expression, we assert that it is a
+    /// `reinterpret` expression and rewrite the AST
     if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.callee())) {
         SC_ASSERT(genExpr->callee()->entity()->name() == "reinterpret", "");
         SC_ASSERT(fc.arguments().size() == 1, "");
         QualType targetType = genExpr->type();
         auto* arg = fc.argument(0);
         fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-        return convertReinterpret(arg, targetType, ctx);
+        return convert(Reinterpret,
+                       arg,
+                       stripReferenceNew(targetType),
+                       refToLValue(targetType),
+                       *dtorStack,
+                       ctx);
     }
 
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion node
     if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
+#warning It would be nice to not need the big if statement here
         if (auto* structType = dyncast<StructType const*>(targetType)) {
             auto args = fc.arguments() |
                         ranges::views::transform([](auto* arg) {
@@ -807,7 +811,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
             SC_ASSERT(fc.arguments().size() == 1, "For now...");
             auto* arg = fc.argument(0);
             fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-            return convertExplicitly(arg, targetType, *dtorStack, ctx);
+            return convert(Explicit, arg, targetType, RValue, *dtorStack, ctx);
         }
     }
 
@@ -868,10 +872,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
             iss.push<InvalidListExpr>(list, InvalidListExpr::NoCommonType);
             return nullptr;
         }
-        commonType = stripQualifiers(commonType);
         for (auto* expr: list.elements()) {
             bool const succ =
-                convertImplicitly(expr, commonType, *dtorStack, ctx);
+                convert(Implicit, expr, commonType, RValue, *dtorStack, ctx);
             SC_ASSERT(succ, "Conversion failed despite common type");
         }
         auto* arrayType =

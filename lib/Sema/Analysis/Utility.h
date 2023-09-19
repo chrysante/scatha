@@ -14,6 +14,9 @@ class DTorStack;
 /// Otherwise returns \p type as is
 QualType stripReferenceNew(QualType type);
 
+/// \Returns `LValue` if \p type is a reference type, otherwise returns `RValue`
+ValueCategory refToLValue(QualType type);
+
 /// \Returns the first statement that is an ancestor of \p node or `nullptr` if
 /// nonesuch exists
 ast::Statement* parentStatement(ast::ASTNode* node);

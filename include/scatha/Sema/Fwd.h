@@ -56,6 +56,10 @@ SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 ///
 enum class ValueCategory { LValue, RValue };
 
+SCATHA_API std::string_view toString(ValueCategory);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, ValueCategory);
+
 /// \Returns `LValue` if both `a` and`b` are `LValue`, otherwise returns
 /// `RValue`
 ValueCategory commonValueCat(ValueCategory a, ValueCategory b);
@@ -112,10 +116,10 @@ enum class Signedness { Signed, Unsigned };
 SCATHA_API bool isRef(QualType type);
 
 /// \Returns \p type, if it is not a reference type, otherwise `type->base()`
-SCATHA_API QualType stripReference(QualType type);
+[[deprecated]] SCATHA_API QualType stripReference(QualType type);
 
 /// \Returns `stripReference(type).toMut()`
-SCATHA_API QualType stripQualifiers(QualType type);
+[[deprecated]] SCATHA_API QualType stripQualifiers(QualType type);
 
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };

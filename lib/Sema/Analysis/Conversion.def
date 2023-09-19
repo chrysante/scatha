@@ -1,18 +1,18 @@
 // No include guards
 
 // ===----------------------------------------------------------------------===
-// === List of conversions betweens reference qualifications ---------------===
+// === List of conversions betweens lvalues and rvalues --------------------===
 // ===----------------------------------------------------------------------===
 
-#ifndef SC_REFCONV_DEF
-#   define SC_REFCONV_DEF(Name, Rank)
+#ifndef SC_VALUECATCONV_DEF
+#   define SC_VALUECATCONV_DEF(Name, Rank)
 #endif
 
-SC_REFCONV_DEF(None,                 0)
-SC_REFCONV_DEF(Dereference,          1)
-SC_REFCONV_DEF(MaterializeTemporary, 2)
+SC_VALUECATCONV_DEF(None,                 0)
+SC_VALUECATCONV_DEF(LValueToRValue,       1)
+SC_VALUECATCONV_DEF(MaterializeTemporary, 2)
 
-#undef SC_REFCONV_DEF
+#undef SC_VALUECATCONV_DEF
 
 // ===----------------------------------------------------------------------===
 // === List of mutability conversions --------------------------------------===

@@ -7,11 +7,13 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Lifetime.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
 
 ///  \returns The maximum conversion rank if all arguments are convertible to
 /// the parameters  `std::nullopt` otherwise
@@ -37,8 +39,13 @@ static std::optional<int> signatureMatch(
         }
         using enum ConversionKind;
         auto convKind = isMemberCall && index == 0 ? Explicit : Implicit;
-        auto conversion =
-            computeConversion(convKind, argType, constArg, paramType);
+#warning FIXME: This means we won't be able to pass arguments to functions taking references
+        auto conversion = computeConversion(convKind,
+                                            argType,
+                                            RValue,
+                                            stripReferenceNew(paramType),
+                                            refToLValue(paramType),
+                                            constArg);
         if (!conversion) {
             return std::nullopt;
         }

@@ -13,14 +13,14 @@
 namespace scatha::sema {
 
 /// Conversion between reference qualifications
-enum class RefConversion : uint8_t {
-#define SC_REFCONV_DEF(Name, ...) Name,
+enum class ValueCatConversion : uint8_t {
+#define SC_VALUECATCONV_DEF(Name, ...) Name,
 #include "Sema/Analysis/Conversion.def"
 };
 
-std::string_view toString(RefConversion conv);
+std::string_view toString(ValueCatConversion conv);
 
-std::ostream& operator<<(std::ostream& ostream, RefConversion conv);
+std::ostream& operator<<(std::ostream& ostream, ValueCatConversion conv);
 
 /// Conversion between reference qualifications
 enum class MutConversion : uint8_t {
@@ -47,12 +47,12 @@ class Conversion {
 public:
     Conversion(QualType fromType,
                QualType toType,
-               RefConversion refConv,
+               ValueCatConversion valueCatConv,
                MutConversion mutConv,
                ObjectTypeConversion objConv):
         from(fromType),
         to(toType),
-        refConv(refConv),
+        valueCatConv(valueCatConv),
         mutConv(mutConv),
         objConv(objConv) {}
 
@@ -62,8 +62,8 @@ public:
     /// The type of the value after the conversion
     QualType targetType() const { return to; }
 
-    /// The reference conversion kind
-    RefConversion refConversion() const { return refConv; }
+    /// The conversion between value categories
+    ValueCatConversion valueCatConversion() const { return valueCatConv; }
 
     /// The mutability conversion kind
     MutConversion mutConversion() const { return mutConv; }
@@ -77,7 +77,7 @@ public:
 private:
     QualType from;
     QualType to;
-    RefConversion refConv;
+    ValueCatConversion valueCatConv;
     MutConversion mutConv;
     ObjectTypeConversion objConv;
 };
@@ -94,61 +94,36 @@ enum class ConversionKind {
 SCATHA_TESTAPI std::optional<Conversion> computeConversion(
     ConversionKind kind,
     QualType from,
-    Value const* fromConstantValue,
-    QualType to);
-
-/// \overload with `nullptr` as the default argument for `fromConstantValue`
-SCATHA_TESTAPI std::optional<Conversion> computeConversion(ConversionKind kind,
-                                                           QualType from,
-                                                           QualType to);
+    ValueCategory fromCat,
+    QualType to,
+    ValueCategory toCat,
+    Value const* fromConstantValue = nullptr);
 
 /// \overload for expressions
 SCATHA_TESTAPI std::optional<Conversion> computeConversion(
-    ConversionKind kind, ast::Expression* expr, QualType to);
+    ConversionKind kind,
+    ast::Expression* expr,
+    QualType to,
+    ValueCategory toValueCat);
 
 /// Computes the rank of the conversion \p conv
 SCATHA_TESTAPI int computeRank(Conversion const& conv);
 
 /// Does nothing if `expr->type() == to`
-/// If \p expr is implicitly convertible to type \p to a `Conversion` node is
-/// inserted into the AST. Otherwise an error is pushed to \p issueHandler
-/// \Returns `true` if implicit conversion succeeded
-/// \Warning \p issueHandler can be null, however in that case if an issue
-/// occurs the function traps
-SCATHA_TESTAPI ast::Expression* convertImplicitly(ast::Expression* expr,
-                                                  QualType to,
-                                                  DTorStack& dtors,
-                                                  Context& ctx);
-
-/// Does nothing if `expr->type() == to`
-/// If \p expr is explicitly convertible to type \p to a `Conversion` node is
-/// inserted into the AST. Otherwise an error is pushed to \p issueHandler
-/// \Returns `true` if explicit conversion succeeded
-/// \Warning \p issueHandler can be null, however in that case if an issue
-/// occurs the function traps
-SCATHA_TESTAPI ast::Expression* convertExplicitly(ast::Expression* expr,
-                                                  QualType to,
-                                                  DTorStack& dtors,
-                                                  Context& ctx);
-
-/// Does nothing if `expr->type() == to`
-/// If \p expr is interpretable as type \p to a `Conversion` node is
-/// inserted into the AST. Otherwise an error is pushed to \p issueHandler
-/// \Returns `true` if reinterpret conversion succeeded
-/// \Warning \p issueHandler can be null, however in that case if an issue
-/// occurs the function traps
-SCATHA_TESTAPI ast::Expression* convertReinterpret(ast::Expression* expr,
-                                                   QualType to,
-                                                   Context& ctx);
-
-/// Convert expression \p expr to a mutable reference
-SCATHA_TESTAPI ast::Expression* convertToMutRef(ast::Expression* expr,
-                                                Context& ctx);
+/// If \p expr is convertible of kind \p kind to type \p to a `Conversion` node
+/// is inserted into the AST. Otherwise an error is pushed to \p issueHandler
+/// \Returns `true` if conversion succeeded
+SCATHA_TESTAPI ast::Expression* convert(ConversionKind kind,
+                                        ast::Expression* expr,
+                                        QualType to,
+                                        ValueCategory toValueCat,
+                                        DTorStack& dtors,
+                                        Context& ctx);
 
 /// Dereference the expression \p expr to if it is a reference
 /// Otherwise a no-op
-SCATHA_TESTAPI ast::Expression* dereference(ast::Expression* expr,
-                                            Context& ctx);
+[[deprecated]] SCATHA_TESTAPI ast::Expression* dereference(
+    ast::Expression* expr, Context& ctx);
 
 /// Find the common type of \p a and \p b
 SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,

@@ -18,14 +18,14 @@ using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
 
-std::string_view sema::toString(RefConversion conv) {
+std::string_view sema::toString(ValueCatConversion conv) {
     return std::array{
-#define SC_REFCONV_DEF(Name, ...) std::string_view(#Name),
+#define SC_VALUECATCONV_DEF(Name, ...) std::string_view(#Name),
 #include "Sema/Analysis/Conversion.def"
     }[static_cast<size_t>(conv)];
 }
 
-std::ostream& sema::operator<<(std::ostream& ostream, RefConversion conv) {
+std::ostream& sema::operator<<(std::ostream& ostream, ValueCatConversion conv) {
     return ostream << toString(conv);
 }
 
@@ -53,7 +53,7 @@ std::ostream& sema::operator<<(std::ostream& ostream,
 }
 
 bool Conversion::isNoop() const {
-    return refConversion() == RefConversion::None &&
+    return valueCatConversion() == ValueCatConversion::None &&
            mutConversion() == MutConversion::None &&
            objectConversion() == ObjectTypeConversion::None;
 }
@@ -271,49 +271,45 @@ static std::optional<ObjectTypeConversion> determineObjConv(
     }); // clang-format on
 }
 
-static std::optional<RefConversion> determineRefConv(ConversionKind kind,
-                                                     QualType from,
-                                                     QualType to) {
-    using enum RefConversion;
-    using Ret = std::optional<RefConversion>;
-    // clang-format off
-    return SC_MATCH (*from, *to) {
-        [&](ObjectType const& from, ObjectType const& to) -> Ret {
-            return None;
-        },
-        [&](ReferenceType const& from, ObjectType const& to) -> Ret {
-            return Dereference;
-        },
-        [&](ObjectType const& from, ReferenceType const& to) -> Ret {
-            if (kind == ConversionKind::Reinterpret) {
-                return std::nullopt;
-            }
-            /// We can always bind to a const reference
-            if (kind == ConversionKind::Explicit || to.base().isConst()) {
-                return MaterializeTemporary;
-            }
+static std::optional<ValueCatConversion> determineValueCatConv(
+    ConversionKind kind,
+    ValueCategory from,
+    ValueCategory to,
+    Mutability toMutability) {
+    using enum ConversionKind;
+    using enum ValueCatConversion;
+    using enum Mutability;
+
+    if (from == to) {
+        return None;
+    }
+    if (from == LValue) {
+        return LValueToRValue;
+    }
+    SC_ASSERT(to == RValue, "Other cases are checked above");
+    switch (kind) {
+    case Implicit:
+        if (toMutability == Const) {
+            return MaterializeTemporary;
+        }
+        else {
             return std::nullopt;
-        },
-        [&](ReferenceType const& from, ReferenceType const& to) -> Ret {
-            return None;
-        },
-    }; // clang-format on
+        }
+    case Explicit:
+        return MaterializeTemporary;
+    case Reinterpret:
+        SC_UNREACHABLE(); // I guess
+    }
 }
 
 static std::optional<MutConversion> determineMutConv(ConversionKind kind,
-                                                     QualType from,
-                                                     QualType to) {
-    /// Conversions to values are not concerned with mutability restrictions
-    if (!isRef(to)) {
-        return MutConversion::None;
-    }
-    auto fromBaseMut = stripReference(from).mutability();
-    auto toBaseMut = stripReference(to).mutability();
+                                                     Mutability from,
+                                                     Mutability to) {
     /// No mutability conversion happens
-    if (fromBaseMut == toBaseMut) {
+    if (from == to) {
         return MutConversion::None;
     }
-    switch (fromBaseMut) {
+    switch (from) {
     case Mutability::Mutable: // Mutable to Const:
         return MutConversion::MutToConst;
     case Mutability::Const:   // Const to Mutable
@@ -321,23 +317,24 @@ static std::optional<MutConversion> determineMutConv(ConversionKind kind,
     }
 }
 
-bool isCompatible(RefConversion refConv, ObjectTypeConversion objConv) {
+bool isCompatible(ValueCatConversion valueCatConv,
+                  ObjectTypeConversion objConv) {
     using enum ObjectTypeConversion;
-    switch (refConv) {
-    case RefConversion::None:
+    switch (valueCatConv) {
+    case ValueCatConversion::None:
         return true;
 
-    case RefConversion::Dereference:
+    case ValueCatConversion::LValueToRValue:
         return true;
 
-    case RefConversion::MaterializeTemporary:
+    case ValueCatConversion::MaterializeTemporary:
         return true;
     }
 }
 
-static int getRank(RefConversion conv) {
+static int getRank(ValueCatConversion conv) {
     return std::array{
-#define SC_REFCONV_DEF(Name, Rank) Rank,
+#define SC_VALUECATCONV_DEF(Name, Rank) Rank,
 #include "Sema/Analysis/Conversion.def"
     }[static_cast<size_t>(conv)];
 }
@@ -357,7 +354,7 @@ static int getRank(ObjectTypeConversion conv) {
 }
 
 int sema::computeRank(Conversion const& conv) {
-    return getRank(conv.refConversion()) + getRank(conv.mutConversion()) +
+    return getRank(conv.valueCatConversion()) + getRank(conv.mutConversion()) +
            getRank(conv.objectConversion());
 }
 
@@ -484,65 +481,65 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
     return std::nullopt;
 }
 
-std::optional<Conversion> sema::computeConversion(ConversionKind kind,
-                                                  QualType from,
-                                                  Value const* constantValue,
-                                                  QualType to) {
-    if (from == to) {
-        return Conversion(from,
-                          to,
-                          RefConversion::None,
-                          MutConversion::None,
-                          ObjectTypeConversion::None);
-    }
-    auto refConv = determineRefConv(kind, from, to);
-    if (!refConv) {
+std::optional<Conversion> sema::computeConversion(
+    ConversionKind kind,
+    QualType from,
+    ValueCategory fromCat,
+    QualType to,
+    ValueCategory toCat,
+    Value const* fromConstantValue) {
+    SC_ASSERT(!isa<ReferenceType>(*from), "We use value categories now");
+    SC_ASSERT(!isa<ReferenceType>(*to), "^^^");
+    auto valueCatConv =
+        determineValueCatConv(kind, fromCat, toCat, to.mutability());
+    if (!valueCatConv) {
         return std::nullopt;
     }
-    auto mutConv = determineMutConv(kind, from, to);
+    auto mutConv = determineMutConv(kind, from.mutability(), to.mutability());
     if (!mutConv) {
         return std::nullopt;
     }
-    auto objConv = determineObjConv(kind,
-                                    stripReference(from).get(),
-                                    stripReference(to).get());
+    auto objConv = determineObjConv(kind, from.get(), to.get());
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
-    if (kind == ConversionKind::Implicit && !objConv && constantValue) {
-        objConv = tryImplicitConstConv(constantValue,
-                                       stripReference(from).get(),
-                                       stripReference(to).get());
+    if (kind == ConversionKind::Implicit && !objConv && fromConstantValue) {
+        objConv = tryImplicitConstConv(fromConstantValue, from.get(), to.get());
     }
     if (!objConv) {
         return std::nullopt;
     }
-    if (!isCompatible(*refConv, *objConv)) {
+    if (!isCompatible(*valueCatConv, *objConv)) {
         return std::nullopt;
     }
-    return Conversion(from, to, *refConv, *mutConv, *objConv);
-}
-
-std::optional<Conversion> sema::computeConversion(ConversionKind kind,
-                                                  QualType from,
-                                                  QualType to) {
-    return computeConversion(kind, from, nullptr, to);
+    return Conversion(from, to, *valueCatConv, *mutConv, *objConv);
 }
 
 std::optional<Conversion> sema::computeConversion(ConversionKind kind,
                                                   ast::Expression* expr,
-                                                  QualType to) {
-    return computeConversion(kind, expr->type(), expr->constantValue(), to);
+                                                  QualType to,
+                                                  ValueCategory toValueCat) {
+    return computeConversion(kind,
+                             expr->type(),
+                             expr->valueCategory(),
+                             to,
+                             toValueCat,
+                             expr->constantValue());
 }
 
 /// Implementation of the `convert*` functions
 static ast::Expression* convertImpl(ConversionKind kind,
                                     ast::Expression* expr,
                                     QualType to,
+                                    ValueCategory toValueCat,
                                     DTorStack* dtors,
                                     Context& ctx,
                                     bool invokeCopyCtor = true) {
-    auto conversion =
-        computeConversion(kind, expr->type(), expr->constantValue(), to);
+    auto conversion = computeConversion(kind,
+                                        expr->type(),
+                                        expr->valueCategory(),
+                                        to,
+                                        toValueCat,
+                                        expr->constantValue());
     if (!conversion) {
         ctx.issueHandler().push<BadTypeConversion>(*expr, to);
         return nullptr;
@@ -564,39 +561,17 @@ static ast::Expression* convertImpl(ConversionKind kind,
     return result;
 }
 
-ast::Expression* sema::convertImplicitly(ast::Expression* expr,
-                                         QualType to,
-                                         DTorStack& dtors,
-                                         Context& ctx) {
-    return convertImpl(ConversionKind::Implicit, expr, to, &dtors, ctx);
-}
-
-ast::Expression* sema::convertExplicitly(ast::Expression* expr,
-                                         QualType to,
-                                         DTorStack& dtors,
-                                         Context& ctx) {
-    return convertImpl(ConversionKind::Explicit, expr, to, &dtors, ctx);
-}
-
-ast::Expression* sema::convertReinterpret(ast::Expression* expr,
-                                          QualType to,
-                                          Context& ctx) {
-    return convertImpl(ConversionKind::Reinterpret, expr, to, nullptr, ctx);
-}
-
-ast::Expression* sema::convertToMutRef(ast::Expression* expr, Context& ctx) {
-    auto& sym = ctx.symbolTable();
-    auto ref = sym.reference(stripReference(expr->type()).toMut());
-    return convertImpl(ConversionKind::Implicit, expr, ref, nullptr, ctx);
+ast::Expression* sema::convert(ConversionKind kind,
+                               ast::Expression* expr,
+                               QualType to,
+                               ValueCategory toValueCat,
+                               DTorStack& dtors,
+                               Context& ctx) {
+    return convertImpl(kind, expr, to, toValueCat, &dtors, ctx);
 }
 
 ast::Expression* sema::dereference(ast::Expression* expr, Context& ctx) {
-    return convertImpl(ConversionKind::Implicit,
-                       expr,
-                       stripReference(expr->type()),
-                       nullptr,
-                       ctx,
-                       /* invokeCopyCtor = */ false);
+    return expr;
 }
 
 static QualType commonRef(SymbolTable& sym,
@@ -702,12 +677,7 @@ static QualType commonBase(SymbolTable& sym, QualType a, QualType b) {
 }
 
 QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
-    QualType commonObjType =
-        commonBase(sym, stripReference(a), stripReference(b));
-    if (!commonObjType) {
-        return nullptr;
-    }
-    return commonRef(sym, commonObjType, a, b);
+    return commonBase(sym, stripReference(a), stripReference(b));
 }
 
 QualType sema::commonType(SymbolTable& sym, std::span<QualType const> types) {

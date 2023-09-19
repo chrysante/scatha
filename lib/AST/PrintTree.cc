@@ -21,34 +21,16 @@ using namespace ast;
 
 void ast::printTree(ASTNode const& root) { printTree(root, std::cout); }
 
-static sema::QualType getType(ASTNode const* node) {
-    if (!node->isDecorated()) {
-        return nullptr;
-    }
-    // clang-format off
-    return visit(*node, utl::overload{
-        [](ASTNode const& node) { return nullptr; },
-        [](Expression const& expr) { return expr.type(); },
-        [](VariableDeclaration const& decl) { return decl.type(); },
-        [](ParameterDeclaration const& decl) { return decl.type(); },
-    }); // clang-format on
-}
-
 static utl::vstreammanip<> typeHelper(ASTNode const* node) {
     return [=](std::ostream& str) {
-        if (auto type = getType(node)) {
+        if (auto* expr = dyncast<Expression const*>(node)) {
             str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
-                << type->name();
-            return;
+                << expr->type()->name() << " "
+                << tfmt::format(tfmt::BrightGrey, expr->valueCategory());
         }
-        if (auto* id = dyncast<Identifier const*>(node);
-            id && id->isDecorated())
-        {
-            str << tfmt::format(tfmt::BrightGrey,
-                                " [",
-                                id->entityCategory(),
-                                "]");
-            return;
+        else if (auto* decl = dyncast<VarDeclBase const*>(node)) {
+            str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
+                << decl->type()->name();
         }
     };
 }
@@ -83,7 +65,7 @@ static constexpr utl::streammanip header([](std::ostream& str,
     str << "\n"
         << formatter->beginLine() << tfmt::format(tfmt::BrightGrey, "Value: ");
     // clang-format off
-    visit(*expr->constantValue(), utl::overload{
+    SC_MATCH (*expr->constantValue()) {
         [&](sema::IntValue const& node) {
             auto value = node.value();
             str << (node.isSigned() ? value.signedToString() :
@@ -92,7 +74,7 @@ static constexpr utl::streammanip header([](std::ostream& str,
         [&](sema::FloatValue const& node) {
             str << node.value().toString();
         }
-    }); // clang-format on
+    }; // clang-format on
     formatter->pop();
 });
 
@@ -199,7 +181,7 @@ struct PrintCtx {
             },
             [&](Conversion const& conv) {
                 str << header(&formatter, &node,
-                              conv.conversion()->refConversion(), ", ",
+                              conv.conversion()->valueCatConversion(), ", ",
                               conv.conversion()->objectConversion()) << '\n';
             }
         }); // clang-format on

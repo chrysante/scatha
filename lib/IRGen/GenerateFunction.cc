@@ -1106,18 +1106,18 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
 Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     auto* expr = conv.expression();
     Value refConvResult = [&]() -> Value {
-        switch (conv.conversion()->refConversion()) {
-        case sema::RefConversion::None:
+        switch (conv.conversion()->valueCatConversion()) {
+        case sema::ValueCatConversion::None:
             return getValue(expr);
 
-        case sema::RefConversion::Dereference: {
+        case sema::ValueCatConversion::LValueToRValue: {
             auto address = getValue(expr);
             return Value(toRegister(address),
                          typeMap(stripReference(expr->type())),
                          Memory);
         }
 
-        case sema::RefConversion::MaterializeTemporary: {
+        case sema::ValueCatConversion::MaterializeTemporary: {
             auto value = getValue(expr);
             if (value.isMemory()) {
                 return Value(value.get(), Register);

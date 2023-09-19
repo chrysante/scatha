@@ -13,12 +13,20 @@
 using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
+using enum ConversionKind;
 
 QualType sema::stripReferenceNew(QualType type) {
     if (auto* ref = dyncast<ReferenceType const*>(type.get())) {
         return ref->base();
     }
     return type;
+}
+
+ValueCategory sema::refToLValue(QualType type) {
+    if (isa<ReferenceType>(*type)) {
+        return LValue;
+    }
+    return RValue;
 }
 
 ast::Statement* sema::parentStatement(ast::ASTNode* node) {
@@ -83,10 +91,12 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     using enum SpecialLifetimeFunction;
     auto* copyCtor = structType->specialLifetimeFunction(CopyConstructor);
     SC_ASSERT(copyCtor, "Must exists because we are non-trivial lifetime");
-    expr = convertExplicitly(expr,
-                             sym.reference(QualType::Const(structType)),
-                             dtors,
-                             ctx);
+    expr = convert(Explicit,
+                   expr,
+                   QualType::Const(structType),
+                   LValue,
+                   dtors,
+                   ctx);
     auto sourceRange = expr->sourceRange();
     auto ctorCall =
         makeConstructorCall(structType,

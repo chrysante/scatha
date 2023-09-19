@@ -19,6 +19,8 @@
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
+using enum ConversionKind;
 
 static void gatherParentDestructorsImpl(ast::Statement& stmt, auto condition) {
     for (auto* parentScope = cast<ast::Statement*>(stmt.parent());
@@ -200,10 +202,12 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
         finalType = finalType.toConst();
     }
     if (var.initExpression() && var.initExpression()->isDecorated()) {
-        convertImplicitly(var.initExpression(),
-                          finalType,
-                          var.dtorStack(),
-                          ctx);
+        convert(Implicit,
+                var.initExpression(),
+                finalType,
+                RValue,
+                var.dtorStack(),
+                ctx);
         popTopLevelDtor(var.initExpression(), var.dtorStack());
     }
     if (!var.initExpression()) {
@@ -320,7 +324,12 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
         iss.push<BadSymbolReference>(*rs.expression(), EntityCategory::Value);
         return;
     }
-    convertImplicitly(rs.expression(), returnType, rs.dtorStack(), ctx);
+    convert(Implicit,
+            rs.expression(),
+            stripReferenceNew(returnType),
+            refToLValue(returnType),
+            rs.dtorStack(),
+            ctx);
     popTopLevelDtor(rs.expression(), rs.dtorStack());
 }
 
@@ -333,7 +342,12 @@ void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeExpr(stmt.condition(), stmt.dtorStack())) {
-        convertImplicitly(stmt.condition(), sym.Bool(), stmt.dtorStack(), ctx);
+        convert(Implicit,
+                stmt.condition(),
+                sym.Bool(),
+                RValue,
+                stmt.dtorStack(),
+                ctx);
     }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
@@ -355,10 +369,12 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
         analyze(*stmt.varDecl());
     }
     if (analyzeExpr(stmt.condition(), stmt.conditionDtorStack())) {
-        convertImplicitly(stmt.condition(),
-                          sym.Bool(),
-                          stmt.conditionDtorStack(),
-                          ctx);
+        convert(Implicit,
+                stmt.condition(),
+                sym.Bool(),
+                RValue,
+                stmt.conditionDtorStack(),
+                ctx);
     }
     if (stmt.increment()) {
         analyzeExpr(stmt.increment(), stmt.incrementDtorStack());

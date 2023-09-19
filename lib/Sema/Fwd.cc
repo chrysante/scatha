@@ -28,6 +28,20 @@ std::ostream& sema::operator<<(std::ostream& str, EntityCategory cat) {
     // clang-format on
 }
 
+std::string_view sema::toString(ValueCategory cat) {
+    using enum ValueCategory;
+    switch (cat) {
+    case LValue:
+        return "LValue";
+    case RValue:
+        return "RValue";
+    }
+}
+
+std::ostream& sema::operator<<(std::ostream& str, ValueCategory cat) {
+    return str << toString(cat);
+}
+
 ValueCategory sema::commonValueCat(ValueCategory a, ValueCategory b) {
     if (a == b) {
         return a;
