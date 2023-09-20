@@ -71,8 +71,7 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     CHECK(fn->parameter(3)->type().get() == sym.Byte());
     auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
     CHECK(varDecl->type().get() == sym.S64());
-    auto* varDeclInit = cast<ast::Conversion*>(varDecl->initExpr());
-    CHECK(varDeclInit->type().get() == sym.S64());
+    CHECK(varDecl->initExpr()->type().get() == sym.S64());
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
     auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
     auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpr());

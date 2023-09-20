@@ -229,6 +229,23 @@ fn main(n: int) -> int {
 })");
 }
 
+TEST_CASE("Swap", "[end-to-end]") {
+    test::checkReturns(1, R"(
+fn main() -> bool {
+    var a = 1;
+    var b = 2;
+    var c = 3;
+    swap(a, b); // a = 2, b = 1
+    swap(b, c); // b = 3, c = 1
+    return a == 2 && b == 3 && c == 1;
+}
+fn swap(a: &mut int, b: &mut int) {
+    let tmp = a;
+    a = b;
+    b = tmp;
+})");
+}
+
 TEST_CASE("Sort", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> bool {
