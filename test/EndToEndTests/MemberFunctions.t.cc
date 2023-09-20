@@ -27,10 +27,10 @@ TEST_CASE("Uniform call syntax and property calls",
           "[end-to-end][member-functions]") {
     test::checkReturns(42, R"(
 struct X {
+    fn getValue(&this) -> int {
+         return this.value;
+    }
     var value: int;
-}
-fn getValue(x: &X) -> int {
-     return x.value;
 }
 fn main() -> int {
     var x: X;

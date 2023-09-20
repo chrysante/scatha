@@ -44,7 +44,6 @@ struct ExprContext {
         ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
-    ast::Expression* uniformFunctionCall(ast::MemberAccess&);
     ast::Expression* rewritePropertyCall(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
@@ -472,7 +471,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         performRestrictedNameLookup = true;
         return analyze(ma.member());
     });
-    if (!success && !(success = uniformFunctionCall(ma))) {
+    if (!success) {
         return nullptr;
     }
     if (isa<OverloadSet>(ma.member()->entity()) &&
@@ -503,30 +502,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         break;
     case EntityCategory::_count:
         SC_UNREACHABLE();
-    }
-    return &ma;
-}
-
-ast::Expression* ExprContext::uniformFunctionCall(ast::MemberAccess& ma) {
-    Scope* lookupTargetScope =
-        const_cast<ObjectType*>(ma.accessed()->typeOrTypeEntity().get());
-    /// If we don't find a member and our object is a value, we will look
-    /// for a function in the scope of the type of our object
-    if (!ma.accessed()->isValue()) {
-        /// Need to push the error here because the `Identifier` case does
-        /// not push an error in member access lookup
-        iss.push<UseOfUndeclaredIdentifier>(*ma.member(), *lookupTargetScope);
-        return nullptr;
-    }
-    bool success = !!sym.withScopeCurrent(lookupTargetScope->parent(),
-                                          [&] { return analyze(ma.member()); });
-    if (!success) {
-        return nullptr;
-    }
-    auto* overloadSet = dyncast<OverloadSet*>(ma.member()->entity());
-    if (!overloadSet) {
-        iss.push<UseOfUndeclaredIdentifier>(*ma.member(), *lookupTargetScope);
-        return nullptr;
     }
     return &ma;
 }
@@ -932,9 +907,7 @@ Entity* ExprContext::lookup(ast::Identifier& id) {
     auto* entity = restrictedLookup ?
                        sym.currentScope().findEntity(id.value()) :
                        sym.lookup(id.value());
-    if (!entity && !restrictedLookup) {
-        /// We don't emit issues when performing restricted lookup because we
-        /// may continue searching other scopes
+    if (!entity) {
         iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
     }
     return entity;

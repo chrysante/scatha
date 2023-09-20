@@ -35,9 +35,11 @@ struct PrintContext {
         return [=](std::ostream& str) {
             str << "(";
             for (bool first = true; QualType type: function->argumentTypes()) {
-                str << (first ? first = false, "" : ", ") << type->name();
+                str << (first ? first = false, "" : ", ")
+                    << (type ? type->name() : "NULL");
             }
-            str << ") -> " << function->returnType()->name();
+            auto retType = function->returnType();
+            str << ") -> " << (retType ? retType->name() : "NULL");
         };
     }
 

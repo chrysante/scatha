@@ -310,55 +310,6 @@ fn main(i: int) -> int {
     REQUIRE(iss.empty());
 }
 
-TEST_CASE("Universal function call syntax", "[sema]") {
-    SECTION("Non-member") {
-        auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
-struct X {
-    // fn f(&this)  {}
-}
-fn f(x: &X) {}
-fn main() {
-    var x: X;
-    x.f();
-})");
-        REQUIRE(iss.empty());
-        auto* tu = cast<TranslationUnit*>(ast.get());
-        auto decls = tu->declarations();
-        auto* mainDecl = *ranges::find_if(decls, [](auto* decl) {
-            return decl->name() == "main";
-        });
-        auto* main = cast<FunctionDefinition*>(mainDecl);
-        auto* stmt = main->body()->statement<ExpressionStatement>(1);
-        auto* call = cast<FunctionCall*>(stmt->expression());
-        auto* f = call->callee()->entity();
-        CHECK(f->name() == "f");
-        CHECK(isa<GlobalScope>(f->parent()));
-    }
-    SECTION("Member") {
-        auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
-struct X {
-    fn f(&this)  {}
-}
-fn f(x: &X) {}
-fn main() {
-    var x: X;
-    x.f();
-})");
-        REQUIRE(iss.empty());
-        auto* tu = cast<TranslationUnit*>(ast.get());
-        auto decls = tu->declarations();
-        auto* mainDecl = *ranges::find_if(decls, [](auto* decl) {
-            return decl->name() == "main";
-        });
-        auto* main = cast<FunctionDefinition*>(mainDecl);
-        auto* stmt = main->body()->statement<ExpressionStatement>(1);
-        auto* call = cast<FunctionCall*>(stmt->expression());
-        auto* f = call->callee()->entity();
-        CHECK(f->name() == "f");
-        CHECK(f->parent()->name() == "X");
-    }
-}
-
 TEST_CASE("Sizeof structs with reference and array members", "[sema]") {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 struct X {
