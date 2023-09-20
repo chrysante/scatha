@@ -1,5 +1,5 @@
-#ifndef SCATHA_IRGEN_GLOBALS_H_
-#define SCATHA_IRGEN_GLOBALS_H_
+#ifndef SCATHA_IRGEN_GLOBALDECLS_H_
+#define SCATHA_IRGEN_GLOBALDECLS_H_
 
 #include <span>
 
@@ -29,4 +29,4 @@ ir::Callable* declareFunction(sema::Function const* semaFn,
 
 } // namespace scatha::irgen
 
-#endif // SCATHA_IRGEN_GLOBALS_H_
+#endif // SCATHA_IRGEN_GLOBALDECLS_H_

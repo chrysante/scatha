@@ -1,4 +1,4 @@
-#include "IRGen/Globals.h"
+#include "IRGen/GlobalDecls.h"
 
 #include <range/v3/view.hpp>
 #include <utl/utility.hpp>

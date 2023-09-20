@@ -12,7 +12,7 @@
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "IRGen/GenerateFunction.h"
-#include "IRGen/Globals.h"
+#include "IRGen/GlobalDecls.h"
 #include "IRGen/Maps.h"
 #include "IRGen/MetaData.h"
 #include "Sema/AnalysisResult.h"
