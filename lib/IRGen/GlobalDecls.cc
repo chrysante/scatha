@@ -19,7 +19,9 @@ using namespace irgen;
 using enum ValueLocation;
 using sema::QualType;
 
-static sema::Type const* getPtrOrRefBase(sema::Type const* type) {
+/// \Returns the referred to type if \p type is a pointer or reference type.
+/// Otherwise returns `nullptr`
+static sema::ObjectType const* getPtrOrRefBase(sema::Type const* type) {
     // clang-format off
     return SC_MATCH (*type) {
         [](sema::ReferenceType const& type) {
@@ -29,17 +31,17 @@ static sema::Type const* getPtrOrRefBase(sema::Type const* type) {
             return type.base().get();
         },
         [](sema::Type const& type) {
-            return &type;
+            return nullptr;
         }
     }; // clang-format on
 }
 
-static bool memberNeedsSizeField(sema::Type const* member) {
-    if (!isa<sema::ReferenceType>(member) && !isa<sema::PointerType>(member)) {
-        return false;
+static bool isPointerToDynArray(sema::Type const* type) {
+    if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
+        auto* array = dyncast<sema::ArrayType const*>(ptrType->base().get());
+        return array && array->isDynamic();
     }
-    auto* array = dyncast<sema::ArrayType const*>(getPtrOrRefBase(member));
-    return array && array->isDynamic();
+    return false;
 }
 
 ir::StructType* irgen::generateType(sema::StructType const* semaType,
@@ -53,7 +55,9 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
         sema::QualType memType = member->type();
         structType->pushMember(typeMap(memType));
         metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
-        if (memberNeedsSizeField(memType.get())) {
+        /// Pointer to array data members need a second field in the IR struct
+        /// to store the size of the array
+        if (isPointerToDynArray(memType.get())) {
             structType->pushMember(ctx.intType(64));
             ++irIndex;
         }
@@ -71,8 +75,8 @@ static bool isTrivial(sema::QualType type) {
 static const size_t maxRegPassingSize = 16;
 
 static PassingConvention computePCImpl(sema::QualType type, bool isRetval) {
-    if (auto* refType = dyncast<sema::RefTypeBase const*>(type.get())) {
-        size_t argCount = isArrayAndDynamic(refType->base().get()) ? 2 : 1;
+    if (auto* referredTo = getPtrOrRefBase(type.get())) {
+        size_t argCount = isArrayAndDynamic(referredTo) ? 2 : 1;
         return PassingConvention(Register, isRetval ? 0 : argCount);
     }
     bool const isSmall = type->size() <= maxRegPassingSize;
