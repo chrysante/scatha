@@ -327,11 +327,6 @@ public:
         return _type;
     }
 
-#warning Remove this function. It is only used for uniform function calls which we will remove
-    /// The type of the expression, if this is a value. If this is a
-    /// type, returns that type
-    sema::QualType typeOrTypeEntity() const;
-
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Value`
     bool isValue() const {
         return entityCategory() == sema::EntityCategory::Value;

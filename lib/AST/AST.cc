@@ -52,10 +52,6 @@ sema::Object const* Expression::object() const {
     return cast<sema::Object const*>(entity());
 }
 
-sema::QualType Expression::typeOrTypeEntity() const {
-    return isValue() ? type() : cast<sema::ObjectType const*>(entity());
-}
-
 sema::EntityCategory Expression::entityCategory() const {
     expectDecorated();
     if (!entity()) {
