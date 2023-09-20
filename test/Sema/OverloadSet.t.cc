@@ -30,7 +30,7 @@ TEST_CASE("OverloadSet") {
         dynamic_cast<sema::InvalidDeclaration*>(f_double2_success.error());
     CHECK(f2error->reason() ==
           sema::InvalidDeclaration::Reason::CantOverloadOnReturnType);
-    /// Declare a function \code f: (double) -> double
+    /// Declare a function `fn f(double) -> double`
     auto* f_double3 = &sym.declareFunction("f").value();
     auto const f_double3_success =
         sym.setSignature(f_double3,

@@ -537,6 +537,15 @@ static ast::Expression* convertImpl(ConversionKind kind,
                                     DTorStack* dtors,
                                     Context& ctx,
                                     bool invokeCopyCtor = true) {
+    /// If we want to invoke a copy constructor, we convert the argument to
+    /// const lvalue. This is a preliminary hack
+    bool const needCopyCtor = invokeCopyCtor &&
+                              expr->valueCategory() == LValue &&
+                              isa<StructType>(*to) && toValueCat == RValue;
+    if (needCopyCtor) {
+        to = to.toConst();
+        toValueCat = LValue;
+    }
     auto conversion = computeConversion(kind,
                                         expr->type(),
                                         expr->valueCategory(),
@@ -547,21 +556,11 @@ static ast::Expression* convertImpl(ConversionKind kind,
         ctx.issueHandler().push<BadTypeConversion>(*expr, to);
         return nullptr;
     }
-    auto* result = insertConversion(expr, *conversion, ctx.symbolTable());
-    if (!invokeCopyCtor) {
-        return result;
+    auto* converted = insertConversion(expr, *conversion, ctx.symbolTable());
+    if (needCopyCtor) {
+        return copyValue(converted, *dtors, ctx);
     }
-    auto* structType = dyncast<StructType const*>(to.get());
-    if (!structType) {
-        return result;
-    }
-    bool needCtorCall = conversion->objectConversion() ==
-                            ObjectTypeConversion::None &&
-                        result->isRValue() && expr->isLValue();
-    if (needCtorCall) {
-        return copyValue(result, *dtors, ctx);
-    }
-    return result;
+    return converted;
 }
 
 ast::Expression* sema::convert(ConversionKind kind,

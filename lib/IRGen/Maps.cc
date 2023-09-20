@@ -47,8 +47,9 @@ void ValueMap::insertArraySize(sema::Object const* object, LazyArraySize size) {
 void ValueMap::insertArraySizeOf(sema::Object const* newObj,
                                  sema::Object const* original) {
     auto itr = arraySizes.find(original);
-    SC_ASSERT(itr != arraySizes.end(), "Not found");
-    insertArraySize(newObj, itr->second);
+    if (itr != arraySizes.end()) {
+        insertArraySize(newObj, itr->second);
+    }
 }
 
 Value ValueMap::operator()(sema::Object const* object) const {
@@ -105,7 +106,7 @@ static constexpr utl::streammanip printObject =
 };
 
 void irgen::print(ValueMap const& valueMap, std::ostream& str) {
-    for (auto [object, value]: valueMap) {
+    for (auto& [object, value]: valueMap) {
         str << printObject(*object) << " -> ";
         ir::printDecl(*value.get(), str);
         str << " "

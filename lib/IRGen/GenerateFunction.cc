@@ -183,7 +183,6 @@ utl::small_vector<sema::Function const*> irgen::generateFunction(
                            functionMap,
                            declaredFunctions);
     funcCtx.generate(funcDecl);
-    print(funcCtx.valueMap);
     return declaredFunctions;
 }
 
@@ -358,27 +357,31 @@ void FuncGenContext::generateImpl(
     emitDestructorCalls(exprStatement.dtorStack());
 }
 
-void FuncGenContext::generateImpl(ast::ReturnStatement const& retDecl) {
-    if (!retDecl.expression()) {
+void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
+    if (!retStmt.expression()) {
         add<ir::Return>(ctx.voidValue());
         return;
     }
-    auto retval = getValue(retDecl.expression());
-    emitDestructorCalls(retDecl.dtorStack());
+    auto retval = getValue(retStmt.expression());
+    emitDestructorCalls(retStmt.dtorStack());
     auto retvalLocation = getCC(&semaFn).returnValue().location();
     switch (retvalLocation) {
     case Register: {
-        auto baseType = stripRefOrPtr(retDecl.expression()->type());
+        /// Pointers we keep in registers but references directly refer to the
+        /// value in memory
+        auto valueLocation =
+            isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
+        auto baseType = stripRefOrPtr(retStmt.expression()->type());
         if (isArrayAndDynamic(baseType.get())) {
-            auto size = valueMap.arraySize(retDecl.expression()->object());
-            auto* structRet = buildStructure(makeArrayViewType(ctx),
-                                             std::array{ toRegister(retval),
-                                                         toRegister(size) },
-                                             "retval");
+            auto size = valueMap.arraySize(retStmt.expression()->object());
+            std::array elems = { toValueLocation(valueLocation, retval),
+                                 toRegister(size) };
+            auto* structRet =
+                buildStructure(makeArrayViewType(ctx), elems, "retval");
             add<ir::Return>(structRet);
         }
         else {
-            add<ir::Return>(toRegister(retval));
+            add<ir::Return>(toValueLocation(valueLocation, retval));
         }
         break;
     }
@@ -788,19 +791,17 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case XOrAssignment: {
         auto lhs = getValue(expr.lhs());
         SC_ASSERT(lhs.isMemory(), "");
-        auto rhs = getValue(expr.rhs());
-        SC_ASSERT(rhs.isRegister(), "");
-        auto* rhsValue = toRegister(rhs);
+        auto rhs = getValue<Register>(expr.rhs());
         if (expr.operation() != Assignment) {
             SC_ASSERT(builtinType == expr.rhs()->type().get(), "");
             auto operation =
                 mapArithmeticAssignOp(builtinType, expr.operation());
-            rhsValue = add<ir::ArithmeticInst>(toRegister(lhs),
-                                               rhsValue,
-                                               operation,
-                                               "expr");
+            rhs = add<ir::ArithmeticInst>(toRegister(lhs),
+                                          rhs,
+                                          operation,
+                                          "expr");
         }
-        add<ir::Store>(lhs.get(), rhsValue);
+        add<ir::Store>(lhs.get(), rhs);
         auto* arrayType = ptrToArray(expr.lhs()->type().get());
         if (arrayType && arrayType->isDynamic()) {
             SC_ASSERT(expr.operation() == Assignment, "");
@@ -849,7 +850,7 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
         break;
     }
     case Memory: {
-        auto* baseType = typeMap(sema::stripReference(expr.accessed()->type()));
+        auto* baseType = typeMap(expr.accessed()->type());
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   ctx.intConstant(0, 64),
@@ -893,14 +894,15 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
-    /// Since a dereference expression converts from `*T` to `&T`, this is a
-    /// no-op. The actual dereferencing happens in the conversion nodes.
-    return getValue(expr.referred());
+    auto* ptr = getValue<Register>(expr.referred());
+    valueMap.insertArraySizeOf(expr.object(), expr.referred()->object());
+    return Value(ptr, typeMap(expr.type()), Memory);
 }
 
 Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
-    /// See `getValueImpl(DereferenceExpression)`
-    return getValue(expr.referred());
+    auto* ptr = getValue<Memory>(expr.referred());
+    valueMap.insertArraySizeOf(expr.object(), expr.referred()->object());
+    return Value(ptr, Register);
 }
 
 Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
@@ -912,23 +914,25 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
 
     /// Generate then block.
     add(thenBlock);
-    auto* thenVal = getValue<Register>(condExpr.thenExpr());
+    auto thenVal = getValue(condExpr.thenExpr());
     thenBlock = &currentBlock(); /// Nested `?:` operands etc. may have changed
                                  /// `currentBlock`
     add<ir::Goto>(endBlock);
 
     /// Generate else block.
     add(elseBlock);
-    auto* elseVal = getValue<Register>(condExpr.elseExpr());
+    auto elseVal = getValue(condExpr.elseExpr());
     elseBlock = &currentBlock();
     add<ir::Goto>(endBlock);
 
     /// Generate end block.
     add(endBlock);
-    std::array<ir::PhiMapping, 2> phiArgs = { { { thenBlock, thenVal },
-                                                { elseBlock, elseVal } } };
+    std::array phiArgs = { ir::PhiMapping{ thenBlock, thenVal.get() },
+                           ir::PhiMapping{ elseBlock, elseVal.get() } };
     auto* result = add<ir::Phi>(phiArgs, "cond");
-    return Value(result, Register);
+    SC_ASSERT(thenVal.location() == elseVal.location(),
+              "Must be the same if we phi them here");
+    return Value(result, typeMap(condExpr.type()), thenVal.location());
 }
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
@@ -950,22 +954,36 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
     auto* inst = add<ir::Call>(function, irArguments, std::move(name));
+    auto semaRetType = call.function()->returnType();
     Value value;
     switch (retvalLocation) {
     case Register: {
-        if (isArrayPtrOrArrayRef(call.function()->returnType().get())) {
+        auto* refType = dyncast<sema::ReferenceType const*>(semaRetType.get());
+        if (isArrayPtrOrArrayRef(semaRetType.get())) {
             auto* data =
                 add<ir::ExtractValue>(inst, std::array{ size_t{ 0 } }, "data");
             auto* size =
                 add<ir::ExtractValue>(inst, std::array{ size_t{ 1 } }, "size");
-            value = Value(data, Register);
+            if (refType) {
+                value = Value(data, typeMap(refType->base()), Memory);
+            }
+            else {
+                value = Value(data, Register);
+            }
             valueMap.insertArraySize(call.object(), Value(size, Register));
         }
         else {
-            value = Value(inst, Register);
-            auto* arrayType = dyncast<sema::ArrayType const*>(
-                call.function()->returnType().get());
-            if (arrayType) {
+            if (refType) {
+                value = Value(inst, typeMap(refType->base()), Memory);
+            }
+            else {
+                value = Value(inst, Register);
+            }
+            /// Here we actually need to strip the reference because the
+            /// function may return a ref type
+            if (auto* arrayType = dyncast<sema::ArrayType const*>(
+                    stripReference(semaRetType).get()))
+            {
                 auto* size = ctx.intConstant(arrayType->size(), 64);
                 valueMap.insertArraySize(call.object(), Value(size, Register));
             }
@@ -998,7 +1016,7 @@ void FuncGenContext::generateArgument(PassingConvention const& PC,
     if (isa<sema::ReferenceType>(*paramType)) {
         SC_ASSERT(value.isMemory(),
                   "Need value in memory to pass by reference");
-        irArguments.push_back(value.get());
+        irArguments.push_back(toMemory(value));
     }
     else {
         irArguments.push_back(toValueLocation(PC.location(), value));
@@ -1025,8 +1043,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
-    auto* arrayType = cast<sema::ArrayType const*>(
-        stripReference(expr.callee()->type()).get());
+    auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
     auto* elemType = typeMap(arrayType->elementType());
     auto array = getValue(expr.callee());
     auto lower = getValue<Register>(expr.lower());
@@ -1037,7 +1054,7 @@ Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
                                             lower,
                                             std::initializer_list<size_t>{},
                                             "elem.ptr");
-    Value result(addr, Register);
+    Value result(addr, typeMap(expr.type()), Memory);
     auto* size = add<ir::ArithmeticInst>(upper,
                                          lower,
                                          ir::ArithmeticOperation::Sub,
@@ -1113,27 +1130,25 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     return value;
 }
 
+static sema::ArrayType const* toArrayStripPtr(sema::Type const* type) {
+    if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
+        type = ptrType->base().get();
+    }
+    return cast<sema::ArrayType const*>(type);
+}
+
 Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     auto* expr = conv.expression();
     Value refConvResult = [&]() -> Value {
         switch (conv.conversion()->valueCatConversion()) {
         case sema::ValueCatConversion::None:
+            [[fallthrough]];
+        case sema::ValueCatConversion::LValueToRValue:
             return getValue(expr);
-
-        case sema::ValueCatConversion::LValueToRValue: {
-            auto address = getValue(expr);
-            return Value(toRegister(address), Register);
-        }
 
         case sema::ValueCatConversion::MaterializeTemporary: {
             auto value = getValue(expr);
-            if (value.isMemory()) {
-                return value;
-            }
-            else {
-                auto* temp = storeToMemory(value.get());
-                return Value(temp, value.type(), Memory);
-            }
+            return Value(toMemory(value), value.type(), Memory);
         }
         }
     }();
@@ -1151,10 +1166,8 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case Reinterpret_Array_ToByte:
         [[fallthrough]];
     case Reinterpret_Array_FromByte: {
-        auto* fromType = ptrOrRefToArray(expr->type().get());
-        SC_ASSERT(fromType, "");
-        auto* toType = ptrOrRefToArray(conv.type().get());
-        SC_ASSERT(toType, "");
+        auto* fromType = toArrayStripPtr(expr->type().get());
+        auto* toType = toArrayStripPtr(conv.type().get());
         size_t fromCount = fromType->elementType()->size();
         size_t toCount = toType->elementType()->size();
         auto data = refConvResult;
