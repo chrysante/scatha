@@ -200,14 +200,14 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         return;
     }
     auto type = declType ? declType : initType;
-    if (type->size() == InvalidSize) {
+    if (!isa<ReferenceType>(type) && type->size() == InvalidSize) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         iss.push<InvalidDeclaration>(&varDecl,
                                      InvalidDeclaration::Reason::InvalidType,
                                      sym.currentScope());
         return;
     }
-    if (isa<ReferenceType>(*type) && !initExpr) {
+    if (isa<ReferenceType>(type) && !initExpr) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         iss.push<InvalidDeclaration>(
             &varDecl,
@@ -284,10 +284,12 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
     auto paramRes = [&] {
         if (thisParam.isReference()) {
             type = sym.reference({ parentType, thisParam.mutability() });
-            return sym.addVariable("this", type, Mutability::Const);
+            return sym.addVariable("__this", type, Mutability::Const);
         }
         else {
-            return sym.addVariable("this", parentType, thisParam.mutability());
+            return sym.addVariable("__this",
+                                   parentType,
+                                   thisParam.mutability());
         }
     }();
     if (!paramRes) {

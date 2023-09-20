@@ -155,7 +155,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
             iss.push<BadExpression>(lit, IssueSeverity::Error);
             return nullptr;
         }
-        auto* thisEntity = function->findEntity<Variable>("this");
+        auto* thisEntity = function->findEntity<Variable>("__this");
         lit.decorateValue(thisEntity, LValue, thisEntity->getQualType());
         return &lit;
     }
@@ -712,8 +712,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
               "For now");
     SC_ASSERT(expr.arguments().size() == 1, "For now");
     SC_ASSERT(expr.argument(0)->isType(), "For now");
-    auto* resultType = cast<ObjectType const*>(expr.argument(0)->entity());
-    expr.decorateValue(sym.temporary(resultType), LValue /* this is probably not always correct, but we leave it for now */);
+    auto* resultType = cast<Type const*>(expr.argument(0)->entity());
+    expr.decorateValue(sym.temporary(getQualType(resultType)),
+                       refToLValue(resultType));
     return &expr;
 }
 
@@ -759,13 +760,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         SC_ASSERT(genExpr->callee()->entity()->name() == "reinterpret", "");
         SC_ASSERT(fc.arguments().size() == 1, "");
         auto* arg = fc.argument(0);
+        auto* converted = convert(Reinterpret,
+                                  arg,
+                                  genExpr->type(),
+                                  genExpr->valueCategory(),
+                                  *dtorStack,
+                                  ctx);
         fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-        return convert(Reinterpret,
-                       arg,
-                       genExpr->type(),
-                       genExpr->valueCategory(),
-                       *dtorStack,
-                       ctx);
+        return converted;
     }
 
     /// if our object is a type, then we rewrite the AST so we end up with just

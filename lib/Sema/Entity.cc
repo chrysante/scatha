@@ -53,10 +53,10 @@ Object::Object(EntityType entityType,
 Object::~Object() = default;
 
 QualType Object::getQualType() const {
-    if (auto* ref = dyncast<ReferenceType const*>(type())) {
+    if (auto* ref = dyncast_or_null<ReferenceType const*>(type())) {
         return ref->base();
     }
-    return QualType(cast<ObjectType const*>(type()), mutability());
+    return QualType(cast_or_null<ObjectType const*>(type()), mutability());
 }
 
 void Object::setConstantValue(UniquePtr<Value> value) {

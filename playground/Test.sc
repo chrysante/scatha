@@ -1,3 +1,1 @@
-
-fn i() { let y: X.Z; }
-struct X { struct Y {} }
+fn main() { var r: &mut int = 1; }
