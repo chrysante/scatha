@@ -1,7 +1,15 @@
 #include "IRGen/Maps.h"
 
+#include <iostream>
+#include <string>
+
+#include <termfmt/termfmt.h>
+#include <utl/strcat.hpp>
+#include <utl/streammanip.hpp>
+
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Print.h"
 #include "IR/Type.h"
 #include "Sema/Entity.h"
 
@@ -72,6 +80,45 @@ std::optional<Value> ValueMap::tryGetArraySize(
     }
     return std::nullopt;
 }
+
+static std::string scopedName(sema::Entity const& entity) {
+    std::string name(entity.name());
+    auto* parent = entity.parent();
+    while (!isa_or_null<sema::GlobalScope>(parent)) {
+        name = utl::strcat(parent->name(), ".", name);
+        parent = parent->parent();
+    }
+    return name;
+}
+
+static constexpr utl::streammanip printObject =
+    [](std::ostream& str, sema::Object const& obj) {
+    // clang-format off
+    SC_MATCH (obj) {
+        [&](sema::Object const& obj) {
+            str << scopedName(obj);
+        },
+        [&](sema::Temporary const& anon) {
+            str << "Tmp[" << anon.id() << "]";
+        }
+    }; // clang-format on
+};
+
+void irgen::print(ValueMap const& valueMap, std::ostream& str) {
+    for (auto [object, value]: valueMap) {
+        str << printObject(*object) << " -> ";
+        ir::printDecl(*value.get(), str);
+        str << " "
+            << tfmt::format(tfmt::BrightGrey, "[", value.location(), "]");
+        if (value.location() == ValueLocation::Memory) {
+            str << " // " << *value.type();
+        }
+        str << "\n";
+    }
+    str << "\n";
+}
+
+void irgen::print(ValueMap const& valueMap) { print(valueMap, std::cout); }
 
 /// # FunctionMap
 

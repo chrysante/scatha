@@ -715,6 +715,19 @@ static Entity* getConvertedEntity(Entity* original,
     return sym.temporary(conv.targetType());
 }
 
+static ValueCategory getValueCat(ValueCategory original,
+                                 ValueCatConversion conv) {
+    using enum ValueCatConversion;
+    switch (conv) {
+    case None:
+        return original;
+    case LValueToRValue:
+        return RValue;
+    case MaterializeTemporary:
+        return LValue;
+    }
+}
+
 ast::Expression* sema::insertConversion(ast::Expression* expr,
                                         Conversion const& conv,
                                         SymbolTable& sym) {
@@ -731,8 +744,10 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
     auto* result = owner.get();
     parent->setChild(indexInParent, std::move(owner));
     auto* entity = getConvertedEntity(expr->entity(), conv, sym);
-#warning This is not always an LValue, but we put this here for now
-    result->decorateValue(entity, LValue, targetType);
+    result->decorateValue(entity,
+                          getValueCat(expr->valueCategory(),
+                                      conv.valueCatConversion()),
+                          targetType);
     result->setConstantValue(
         evalConversion(result->conversion(),
                        result->expression()->constantValue()));

@@ -2,6 +2,7 @@
 #define SCATHA_IRGEN_MAPS_H_
 
 #include <functional>
+#include <iosfwd>
 
 #include <utl/hashtable.hpp>
 
@@ -52,11 +53,24 @@ public:
     /// Try to retrieve array size associated with \p object
     std::optional<Value> tryGetArraySize(sema::Object const* object) const;
 
+    /// Range accessors
+    /// @{
+    auto begin() const { return values.begin(); }
+    auto end() const { return values.end(); }
+    size_t size() const { return values.size(); }
+    /// @}
+    
 private:
     ir::Context* ctx;
-    utl::hashmap<sema::Entity const*, Value> values;
+    utl::hashmap<sema::Object const*, Value> values;
     utl::hashmap<sema::Object const*, LazyArraySize> arraySizes;
 };
+
+/// Prints the value map \p valueMap to \p ostream
+void print(ValueMap const& valueMap, std::ostream& ostream);
+
+/// Prints the value map \p valueMap to `std::cout`
+void print(ValueMap const& valueMap);
 
 /// Maps sema functions to IR functions
 class FunctionMap {

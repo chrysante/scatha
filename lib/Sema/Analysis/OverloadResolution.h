@@ -28,10 +28,10 @@ struct OverloadResolutionResult {
 };
 
 /// Performs overload resolution
-SCATHA_TESTAPI OverloadResolutionResult
-    performOverloadResolution(OverloadSet* overloadSet,
-                              std::span<QualType const> argumentTypes,
-                              bool isMemberCall);
+SCATHA_TESTAPI OverloadResolutionResult performOverloadResolution(
+    OverloadSet* overloadSet,
+    std::span<std::pair<QualType, ValueCategory> const> argumentTypes,
+    bool isMemberCall);
 
 /// \overload for expressions
 SCATHA_TESTAPI OverloadResolutionResult

@@ -125,9 +125,9 @@ struct FuncGenContext: ir::FunctionBuilder {
 
     /// # Expression specific utilities
     void generateArgument(PassingConvention const& PC,
-                          Value arg,
-                          sema::Object const* object,
-                          utl::vector<ir::Value*>& outArgs);
+                          sema::QualType paramType,
+                          ast::Expression const* expr,
+                          utl::vector<ir::Value*>& irArgsOut);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
     void genListDataFallback(ast::ListExpression const& list, ir::Alloca* dest);
 
@@ -174,15 +174,16 @@ utl::small_vector<sema::Function const*> irgen::generateFunction(
     TypeMap const& typeMap,
     FunctionMap& functionMap) {
     utl::small_vector<sema::Function const*> declaredFunctions;
-    FuncGenContext(*funcDecl.function(),
-                   irFn,
-                   ctx,
-                   mod,
-                   symbolTable,
-                   typeMap,
-                   functionMap,
-                   declaredFunctions)
-        .generate(funcDecl);
+    FuncGenContext funcCtx(*funcDecl.function(),
+                           irFn,
+                           ctx,
+                           mod,
+                           symbolTable,
+                           typeMap,
+                           functionMap,
+                           declaredFunctions);
+    funcCtx.generate(funcDecl);
+    print(funcCtx.valueMap);
     return declaredFunctions;
 }
 
@@ -229,8 +230,11 @@ void FuncGenContext::generateParameter(
     bool const isDynArray = arrayType && arrayType->isDynamic();
     switch (pc.location()) {
     case Register: {
-        if (isa<sema::ReferenceType>(*paramDecl->type())) {
-            valueMap.insert(paramVar, Value(irParam, Register));
+        if (auto* refType =
+                dyncast<sema::ReferenceType const*>(paramDecl->type().get()))
+        {
+            valueMap.insert(paramVar,
+                            Value(irParam, typeMap(refType->base()), Memory));
             ++irParamItr;
             if (isDynArray) {
                 Value size(irParam->next(), Register);
@@ -311,10 +315,6 @@ void FuncGenContext::generateParamArraySize(ast::VarDeclBase const* varDecl,
     generateDeclArraySizeImpl(varDecl, [&] { return param->next(); });
 }
 
-static bool varDeclNeedCopy(sema::QualType type) {
-    return type->hasTrivialLifetime() && !isa<sema::ArrayType>(*type);
-}
-
 void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
     std::string name = std::string(varDecl.name());
@@ -332,10 +332,8 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
         /// The test for trivial lifetime is temporary. We should find a better
         /// solution but for now it works. It works because for trivial lifetime
         /// types
-        if (value.isMemory() && initExpr->isRValue() &&
-            !varDeclNeedCopy(initExpr->type()))
-        {
-            address = value.get();
+        if (value.isMemory() && initExpr->isRValue()) {
+            address = toMemory(value);
             address->setName(name);
         }
         else {
@@ -573,7 +571,7 @@ Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
     /// Because identifier expressions always have reference type, we take the
     /// address of the referred to value and put it in a register
     Value value = valueMap(id.object());
-    return Value(value.get(), Register);
+    return value; // Value(value.get(), Register);
 }
 
 Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
@@ -611,13 +609,11 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         [[fallthrough]];
     case Decrement: {
         Value operand = getValue(expr.operand());
-        ir::Value* opAddr = toRegister(operand);
-        ir::Type const* operandType =
-            typeMap(sema::stripReference(expr.operand()->type()));
-        ir::Value* operandValue =
-            add<ir::Load>(opAddr,
-                          operandType,
-                          utl::strcat(expr.operation(), ".op"));
+        SC_ASSERT(operand.isMemory(),
+                  "Operand must be in memory to be modified");
+        ir::Value* opAddr = toMemory(operand);
+        ir::Type const* operandType = typeMap(expr.operand()->type());
+        ir::Value* operandValue = toRegister(operand);
         auto* newValue =
             add<ir::ArithmeticInst>(operandValue,
                                     ctx.arithmeticConstant(1, operandType),
@@ -791,7 +787,9 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         [[fallthrough]];
     case XOrAssignment: {
         auto lhs = getValue(expr.lhs());
+        SC_ASSERT(lhs.isMemory(), "");
         auto rhs = getValue(expr.rhs());
+        SC_ASSERT(rhs.isRegister(), "");
         auto* rhsValue = toRegister(rhs);
         if (expr.operation() != Assignment) {
             SC_ASSERT(builtinType == expr.rhs()->type().get(), "");
@@ -937,17 +935,21 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     ir::Callable* function = getFunction(call.function());
     auto CC = getCC(call.function());
     auto const retvalLocation = CC.returnValue().location();
-    utl::small_vector<ir::Value*> arguments;
+    utl::small_vector<ir::Value*> irArguments;
     if (retvalLocation == Memory) {
         auto* returnType = typeMap(call.function()->returnType());
-        arguments.push_back(makeLocalVariable(returnType, "retval"));
+        irArguments.push_back(makeLocalVariable(returnType, "retval"));
     }
-    for (auto [PC, arg]: ranges::views::zip(CC.arguments(), call.arguments())) {
-        generateArgument(PC, getValue(arg), arg->object(), arguments);
+    for (auto [PC, paramType, argExpr]:
+         ranges::views::zip(CC.arguments(),
+                            call.function()->argumentTypes(),
+                            call.arguments()))
+    {
+        generateArgument(PC, paramType, argExpr, irArguments);
     }
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
-    auto* inst = add<ir::Call>(function, arguments, std::move(name));
+    auto* inst = add<ir::Call>(function, irArguments, std::move(name));
     Value value;
     switch (retvalLocation) {
     case Register: {
@@ -971,7 +973,7 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
         break;
     }
     case Memory: {
-        value = Value(arguments.front(),
+        value = Value(irArguments.front(),
                       typeMap(call.function()->returnType()),
                       Memory);
         auto* arrayType = dyncast<sema::ArrayType const*>(
@@ -988,18 +990,26 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
 }
 
 void FuncGenContext::generateArgument(PassingConvention const& PC,
-                                      Value value,
-                                      sema::Object const* object,
-                                      utl::vector<ir::Value*>& arguments) {
-    arguments.push_back(toValueLocation(PC.location(), value));
+                                      sema::QualType paramType,
+                                      ast::Expression const* expr,
+                                      utl::vector<ir::Value*>& irArguments) {
+    auto value = getValue(expr);
+    auto* object = expr->object();
+    if (isa<sema::ReferenceType>(*paramType)) {
+        SC_ASSERT(value.isMemory(),
+                  "Need value in memory to pass by reference");
+        irArguments.push_back(value.get());
+    }
+    else {
+        irArguments.push_back(toValueLocation(PC.location(), value));
+    }
     if (PC.numParams() == 2) {
-        arguments.push_back(toRegister(valueMap.arraySize(object)));
+        irArguments.push_back(toRegister(valueMap.arraySize(object)));
     }
 }
 
 Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
-    auto* arrayType = cast<sema::ArrayType const*>(
-        stripReference(expr.callee()->type()).get());
+    auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
     auto* elemType = typeMap(arrayType->elementType());
     auto array = getValue(expr.callee());
     /// Right now we don't use the size but here we could issue a call to an
@@ -1011,7 +1021,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
                                             index,
                                             std::initializer_list<size_t>{},
                                             "elem.ptr");
-    return Value(addr, elemType, Register);
+    return Value(addr, elemType, Memory);
 }
 
 Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
@@ -1112,19 +1122,17 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
 
         case sema::ValueCatConversion::LValueToRValue: {
             auto address = getValue(expr);
-            return Value(toRegister(address),
-                         typeMap(stripReference(expr->type())),
-                         Memory);
+            return Value(toRegister(address), Register);
         }
 
         case sema::ValueCatConversion::MaterializeTemporary: {
             auto value = getValue(expr);
             if (value.isMemory()) {
-                return Value(value.get(), Register);
+                return value;
             }
             else {
                 auto* temp = storeToMemory(value.get());
-                return Value(temp, Register);
+                return Value(temp, value.type(), Memory);
             }
         }
         }
@@ -1290,15 +1298,18 @@ Value FuncGenContext::getValueImpl(ast::ConstructorCall const& call) {
         auto* type = typeMap(call.constructedType());
         auto* function = getFunction(call.function());
         auto CC = getCC(call.function());
-        utl::small_vector<ir::Value*> arguments;
-        auto PCsAndArgs = ranges::views::zip(CC.arguments(), call.arguments());
-        for (auto [PC, arg]: PCsAndArgs) {
-            generateArgument(PC, getValue(arg), arg->object(), arguments);
+        utl::small_vector<ir::Value*> irArguments;
+        auto PCsAndArgs = ranges::views::zip(CC.arguments(),
+                                             call.function()->argumentTypes(),
+                                             call.arguments());
+        for (auto [PC, paramType, argExpr]: PCsAndArgs) {
+            generateArgument(PC, paramType, argExpr, irArguments);
         }
-        SC_ASSERT(!arguments.empty(), "Must have at least the object argument");
-        auto* address = arguments.front();
+        SC_ASSERT(!irArguments.empty(),
+                  "Must have at least the object argument");
+        auto* address = irArguments.front();
         valueMap.insert(call.object(), Value(address, type, Memory));
-        add<ir::Call>(function, arguments, std::string{});
+        add<ir::Call>(function, irArguments, std::string{});
         return Value(address, type, Memory);
     }
     case Move:

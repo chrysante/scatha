@@ -212,7 +212,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
-        if (!u.operand()->isLValue() || u.operand()->type().isMut()) {
+        if (!u.operand()->isLValue() || !u.operand()->type().isMut()) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }

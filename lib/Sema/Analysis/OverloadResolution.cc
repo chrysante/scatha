@@ -19,7 +19,7 @@ using enum ValueCategory;
 /// the parameters  `std::nullopt` otherwise
 static std::optional<int> signatureMatch(
     OverloadResolutionResult& result,
-    std::span<QualType const> argTypes,
+    std::span<std::pair<QualType, ValueCategory> const> argTypes,
     std::span<Value const* const> constantArgs,
     std::span<QualType const> paramTypes,
     bool isMemberCall) {
@@ -34,15 +34,14 @@ static std::optional<int> signatureMatch(
                             constantArgs,
                             paramTypes))
     {
-        if (!paramType || !argType) {
+        if (!paramType || !argType.first) {
             return std::nullopt;
         }
         using enum ConversionKind;
         auto convKind = isMemberCall && index == 0 ? Explicit : Implicit;
-#warning FIXME: This means we won't be able to pass arguments to functions taking references
         auto conversion = computeConversion(convKind,
-                                            argType,
-                                            RValue,
+                                            argType.first,
+                                            argType.second,
                                             stripReferenceNew(paramType),
                                             refToLValue(paramType),
                                             constArg);
@@ -65,7 +64,7 @@ static OverloadResolutionResult makeError(Args&&... args) {
 
 static OverloadResolutionResult performORImpl(
     OverloadSet* overloadSet,
-    std::span<QualType const> argTypes,
+    std::span<std::pair<QualType, ValueCategory> const> argTypes,
     std::span<Value const* const> constArgs,
     bool isMemberCall) {
     utl::small_vector<OverloadResolutionResult, 4> results;
@@ -120,7 +119,7 @@ static OverloadResolutionResult performORImpl(
 
 OverloadResolutionResult sema::performOverloadResolution(
     OverloadSet* overloadSet,
-    std::span<QualType const> argTypes,
+    std::span<std::pair<QualType, ValueCategory> const> argTypes,
     bool isMemberCall) {
     return performORImpl(overloadSet,
                          argTypes,
@@ -133,12 +132,12 @@ OverloadResolutionResult sema::performOverloadResolution(
     OverloadSet* overloadSet,
     std::span<ast::Expression const* const> arguments,
     bool isMemberCall) {
-    utl::small_vector<QualType> argTypes;
+    utl::small_vector<std::pair<QualType, ValueCategory>> argTypes;
     utl::small_vector<Value const*> argValues;
     argTypes.reserve(arguments.size());
     argValues.reserve(arguments.size());
     for (auto* arg: arguments) {
-        argTypes.push_back(arg->type());
+        argTypes.push_back({ arg->type(), arg->valueCategory() });
         argValues.push_back(arg->constantValue());
     }
     return performORImpl(overloadSet, argTypes, argValues, isMemberCall);
