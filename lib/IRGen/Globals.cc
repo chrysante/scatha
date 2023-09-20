@@ -19,31 +19,48 @@ using namespace irgen;
 using enum ValueLocation;
 using sema::QualType;
 
+static sema::Type const* getPtrOrRefBase(sema::Type const* type) {
+    // clang-format off
+    return SC_MATCH (*type) {
+        [](sema::ReferenceType const& type) {
+            return type.base().get();
+        },
+        [](sema::PointerType const& type) {
+            return type.base().get();
+        },
+        [](sema::Type const& type) {
+            return &type;
+        }
+    }; // clang-format on
+}
+
+static bool memberNeedsSizeField(sema::Type const* member) {
+    if (!isa<sema::ReferenceType>(member) && !isa<sema::PointerType>(member)) {
+        return false;
+    }
+    auto* array = dyncast<sema::ArrayType const*>(getPtrOrRefBase(member));
+    return array && array->isDynamic();
+}
+
 ir::StructType* irgen::generateType(sema::StructType const* semaType,
                                     ir::Context& ctx,
                                     ir::Module& mod,
                                     TypeMap& typeMap) {
-    auto irType = allocate<ir::StructType>(semaType->mangledName());
+    auto structType = allocate<ir::StructType>(semaType->mangledName());
     StructMetaData metaData;
     size_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
         sema::QualType memType = member->type();
-        irType->pushMember(typeMap(memType));
+        structType->pushMember(typeMap(memType));
         metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
-        auto* arrayType = ptrOrRefToArray(memType.get());
-        if (!arrayType || !arrayType->isDynamic()) {
-            continue;
+        if (memberNeedsSizeField(memType.get())) {
+            structType->pushMember(ctx.intType(64));
+            ++irIndex;
         }
-        SC_ASSERT(isa<sema::PointerType>(*memType),
-                  "Can't have dynamic arrays in structs");
-        irType->pushMember(ctx.intType(64));
-        /// We simply increment the index without adding anything to the map
-        /// because `getValueImpl(MemberAccess)` will know what to do
-        ++irIndex;
     }
-    auto* result = irType.get();
+    auto* result = structType.get();
     typeMap.insert(semaType, result, std::move(metaData));
-    mod.addStructure(std::move(irType));
+    mod.addStructure(std::move(structType));
     return result;
 }
 

@@ -535,14 +535,12 @@ static ast::Expression* convertImpl(ConversionKind kind,
                                     QualType to,
                                     ValueCategory toValueCat,
                                     DTorStack* dtors,
-                                    Context& ctx,
-                                    bool invokeCopyCtor = true) {
+                                    Context& ctx) {
     /// If we want to invoke a copy constructor, we convert the argument to
     /// const lvalue. This is a preliminary hack
-    bool const needCopyCtor = invokeCopyCtor &&
-                              expr->valueCategory() == LValue &&
-                              isa<StructType>(*to) && toValueCat == RValue;
-    if (needCopyCtor) {
+    bool const makeCopy = expr->valueCategory() == LValue &&
+                          toValueCat == RValue;
+    if (makeCopy) {
         to = to.toConst();
         toValueCat = LValue;
     }
@@ -557,7 +555,7 @@ static ast::Expression* convertImpl(ConversionKind kind,
         return nullptr;
     }
     auto* converted = insertConversion(expr, *conversion, ctx.symbolTable());
-    if (needCopyCtor) {
+    if (makeCopy) {
         return copyValue(converted, *dtors, ctx);
     }
     return converted;

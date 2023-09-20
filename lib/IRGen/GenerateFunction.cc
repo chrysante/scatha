@@ -661,10 +661,78 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
     }
 }
 
-Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
-    auto* builtinType = dyncast<sema::BuiltinType const*>(
-        sema::stripReference(expr.lhs()->type()).get());
+static std::string getResultName(ast::BinaryOperator op) {
+    using enum ast::BinaryOperator;
+    switch (op) {
+    case Multiplication:
+        return "prod";
+    case Division:
+        return "quot";
+    case Remainder:
+        return "rem";
+    case Addition:
+        return "sum";
+    case Subtraction:
+        return "diff";
+    case LeftShift:
+        return "lshift";
+    case RightShift:
+        return "rshift";
+    case Less:
+        return "ls";
+    case LessEq:
+        return "lseq";
+    case Greater:
+        return "grt";
+    case GreaterEq:
+        return "grteq";
+    case Equals:
+        return "eq";
+    case NotEquals:
+        return "neq";
+    case BitwiseAnd:
+        return "and";
+    case BitwiseXOr:
+        return "xor";
+    case BitwiseOr:
+        return "or";
+    case LogicalAnd:
+        return "land";
+    case LogicalOr:
+        return "lor";
+    case Assignment:
+        return "?";
+    case AddAssignment:
+        return "sum";
+    case SubAssignment:
+        return "diff";
+    case MulAssignment:
+        return "prod";
+    case DivAssignment:
+        return "quot";
+    case RemAssignment:
+        return "rem";
+    case LSAssignment:
+        return "lshift";
+    case RSAssignment:
+        return "rshift";
+    case AndAssignment:
+        return "and";
+    case OrAssignment:
+        return "or";
+    case XOrAssignment:
+        return "xor";
+    case Comma:
+        return "?";
+    case _count:
+        SC_UNREACHABLE();
+    }
+}
 
+Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
+    auto* builtinType =
+        dyncast<sema::BuiltinType const*>(expr.lhs()->type().get());
+    auto resName = getResultName(expr.operation());
     using enum ast::BinaryOperator;
     switch (expr.operation()) {
     case Multiplication:
@@ -688,21 +756,8 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case BitwiseOr: {
         auto* lhs = getValue<Register>(expr.lhs());
         auto* rhs = getValue<Register>(expr.rhs());
-        auto* type = lhs->type();
-        if (expr.operation() != LeftShift && expr.operation() != RightShift) {
-            SC_ASSERT(lhs->type() == rhs->type(),
-                      "Need same types to do arithmetic");
-            SC_ASSERT(isa<ir::ArithmeticType>(type),
-                      "Need arithmetic type to do arithmetic");
-        }
-        else {
-            SC_ASSERT(isa<ir::IntegralType>(lhs->type()),
-                      "Need integral type for shift");
-            SC_ASSERT(isa<ir::IntegralType>(rhs->type()),
-                      "Need integral type for shift");
-        }
         auto operation = mapArithmeticOp(builtinType, expr.operation());
-        auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, "expr");
+        auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, resName);
         return Value(result, Register);
     }
 
@@ -760,7 +815,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
                                             getValue<Register>(expr.rhs()),
                                             mapCompareMode(builtinType),
                                             mapCompareOp(expr.operation()),
-                                            "cmp.res");
+                                            resName);
         return Value(result, Register);
     }
 
@@ -768,8 +823,21 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         getValue(expr.lhs());
         return getValue(expr.rhs());
 
-    case Assignment:
-        [[fallthrough]];
+    case Assignment: {
+        auto lhs = getValue<Memory>(expr.lhs());
+        auto rhs = getValue<Register>(expr.rhs());
+        add<ir::Store>(lhs, rhs);
+        auto* arrayType = ptrToArray(expr.lhs()->type().get());
+        if (arrayType && arrayType->isDynamic()) {
+            SC_ASSERT(expr.operation() == Assignment, "");
+            auto lhsSize = valueMap.arraySize(expr.lhs()->object());
+            SC_ASSERT(lhsSize.location() == Memory,
+                      "Must be in memory to reassign");
+            auto rhsSize = valueMap.arraySize(expr.rhs()->object());
+            add<ir::Store>(lhsSize.get(), toRegister(rhsSize));
+        }
+        return Value();
+    }
     case AddAssignment:
         [[fallthrough]];
     case SubAssignment:
@@ -792,25 +860,10 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         auto lhs = getValue(expr.lhs());
         SC_ASSERT(lhs.isMemory(), "");
         auto rhs = getValue<Register>(expr.rhs());
-        if (expr.operation() != Assignment) {
-            SC_ASSERT(builtinType == expr.rhs()->type().get(), "");
-            auto operation =
-                mapArithmeticAssignOp(builtinType, expr.operation());
-            rhs = add<ir::ArithmeticInst>(toRegister(lhs),
-                                          rhs,
-                                          operation,
-                                          "expr");
-        }
+        SC_ASSERT(builtinType == expr.rhs()->type().get(), "");
+        auto operation = mapArithmeticAssignOp(builtinType, expr.operation());
+        rhs = add<ir::ArithmeticInst>(toRegister(lhs), rhs, operation, resName);
         add<ir::Store>(lhs.get(), rhs);
-        auto* arrayType = ptrToArray(expr.lhs()->type().get());
-        if (arrayType && arrayType->isDynamic()) {
-            SC_ASSERT(expr.operation() == Assignment, "");
-            auto lhsSize = valueMap.arraySize(expr.lhs()->object());
-            SC_ASSERT(lhsSize.location() == Memory,
-                      "Must be in memory to reassign");
-            auto rhsSize = valueMap.arraySize(expr.rhs()->object());
-            add<ir::Store>(lhsSize.get(), toRegister(rhsSize));
-        }
         return Value();
     }
     case _count:
@@ -935,6 +988,13 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     return Value(result, typeMap(condExpr.type()), thenVal.location());
 }
 
+static sema::Type const* stripRef(sema::Type const* type) {
+    if (auto* ref = dyncast<sema::ReferenceType const*>(type)) {
+        return ref->base().get();
+    }
+    return type;
+}
+
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     ir::Callable* function = getFunction(call.function());
     auto CC = getCC(call.function());
@@ -982,7 +1042,7 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             /// Here we actually need to strip the reference because the
             /// function may return a ref type
             if (auto* arrayType = dyncast<sema::ArrayType const*>(
-                    stripReference(semaRetType).get()))
+                    stripRef(semaRetType.get())))
             {
                 auto* size = ctx.intConstant(arrayType->size(), 64);
                 valueMap.insertArraySize(call.object(), Value(size, Register));
@@ -1299,7 +1359,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
 }
 
 Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
-    auto* type = typeMap(stripReference(temp.type()));
+    auto* type = typeMap(temp.type());
     auto* address = makeLocalVariable(type, "anon");
     return Value(address, type, Memory);
 }

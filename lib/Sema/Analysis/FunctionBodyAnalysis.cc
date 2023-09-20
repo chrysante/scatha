@@ -219,7 +219,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         convert(Implicit,
                 initExpr,
                 stripReferenceNew(type),
-                LValue, // refToLValue(type),
+                refToLValue(type),
                 varDecl.dtorStack(),
                 ctx);
         popTopLevelDtor(initExpr, varDecl.dtorStack());

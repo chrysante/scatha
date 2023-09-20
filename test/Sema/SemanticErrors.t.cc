@@ -74,15 +74,15 @@ fn main(i: int) -> bool {
 })");
     auto const line3 = issues.findOnLine<BadOperandsForBinaryExpression>(3);
     REQUIRE(line3);
-    CHECK(sema::stripReference(line3->lhs()).get() == issues.sym.S64());
+    CHECK(line3->lhs().get() == issues.sym.S64());
     CHECK(line3->rhs().get() == issues.sym.F64());
     auto const line4 = issues.findOnLine<BadOperandsForBinaryExpression>(4);
     REQUIRE(line4);
-    CHECK(sema::stripReference(line4->lhs()).get() == issues.sym.S64());
+    CHECK(line4->lhs().get() == issues.sym.S64());
     CHECK(line4->rhs().get() == issues.sym.F64());
     auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
     REQUIRE(line5);
-    CHECK(sema::stripReference(line5->operandType()).get() == issues.sym.S64());
+    CHECK(line5->operandType().get() == issues.sym.S64());
     CHECK(issues.noneOnLine(6));
 }
 
