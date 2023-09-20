@@ -16,10 +16,10 @@ using enum ValueCategory;
 namespace {
 
 struct TestOS {
-    static TestOS make(
-        SymbolTable& sym,
-        std::string name,
-        std::initializer_list<std::initializer_list<QualType>> paramTypeLists) {
+    static TestOS make(SymbolTable& sym,
+                       std::string name,
+                       std::initializer_list<std::initializer_list<Type const*>>
+                           paramTypeLists) {
         TestOS result;
         result.overloadSet = allocate<OverloadSet>(name, nullptr);
         for (auto types: paramTypeLists) {

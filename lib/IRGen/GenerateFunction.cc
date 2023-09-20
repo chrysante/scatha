@@ -125,7 +125,7 @@ struct FuncGenContext: ir::FunctionBuilder {
 
     /// # Expression specific utilities
     void generateArgument(PassingConvention const& PC,
-                          sema::QualType paramType,
+                          sema::Type const* paramType,
                           ast::Expression const* expr,
                           utl::vector<ir::Value*>& irArgsOut);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
@@ -219,18 +219,18 @@ void FuncGenContext::generateParameter(
     ast::ParameterDeclaration const* paramDecl,
     PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) {
-    sema::QualType semaType = paramDecl->type();
+    sema::Type const* semaType = paramDecl->type();
     auto* irParam = irParamItr.to_address();
     auto* irType = typeMap(paramDecl->type());
     std::string name(paramDecl->name());
     auto* paramVar = paramDecl->variable();
-    auto* baseType = stripRefOrPtr(semaType.get()).get();
+    auto* baseType = stripRefOrPtr(semaType);
     auto* arrayType = dyncast<sema::ArrayType const*>(baseType);
     bool const isDynArray = arrayType && arrayType->isDynamic();
     switch (pc.location()) {
     case Register: {
         if (auto* refType =
-                dyncast<sema::ReferenceType const*>(paramDecl->type().get()))
+                dyncast<sema::ReferenceType const*>(paramDecl->type()))
         {
             valueMap.insert(paramVar,
                             Value(irParam, typeMap(refType->base()), Memory));
@@ -281,7 +281,7 @@ void FuncGenContext::generateParameter(
 void FuncGenContext::generateDeclArraySizeImpl(
     ast::VarDeclBase const* varDecl,
     utl::function_view<ir::Value*()> sizeCallback) {
-    auto* type = stripRefOrPtr(varDecl->type().get()).get();
+    auto* type = stripRefOrPtr(varDecl->type());
     auto* arrayType = dyncast<sema::ArrayType const*>(type);
     if (!arrayType) {
         return;
@@ -289,7 +289,7 @@ void FuncGenContext::generateDeclArraySizeImpl(
     if (!arrayType->isDynamic()) {
         valueMap.insertArraySize(varDecl->variable(), arrayType->count());
     }
-    else if (sema::isRef(varDecl->type())) {
+    else if (isa<sema::ReferenceType>(varDecl->type())) {
         valueMap.insertArraySize(varDecl->variable(),
                                  Value(sizeCallback(), Register));
     }
@@ -318,7 +318,7 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
     std::string name = std::string(varDecl.name());
     auto* initExpr = varDecl.initExpr();
-    if (sema::isRef(varDecl.type())) {
+    if (isa<sema::ReferenceType>(varDecl.type())) {
         SC_ASSERT(initExpr, "Reference must be initialized");
         auto value = getValue(initExpr);
         valueMap.insert(varDecl.variable(), value);
@@ -371,8 +371,8 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         /// value in memory
         auto valueLocation =
             isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
-        auto baseType = stripRefOrPtr(retStmt.expression()->type());
-        if (isArrayAndDynamic(baseType.get())) {
+        auto baseType = stripRefOrPtr(retStmt.expression()->type().get());
+        if (isArrayAndDynamic(dyncast<sema::ObjectType const*>(baseType))) {
             auto size = valueMap.arraySize(retStmt.expression()->object());
             std::array elems = { toValueLocation(valueLocation, retval),
                                  toRegister(size) };
@@ -909,18 +909,19 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
                                                   ctx.intConstant(0, 64),
                                                   std::array{ irIndex },
                                                   "mem.acc");
-        if (sema::isRef(expr.type())) {
-            value = Value(result, Register);
-        }
-        else {
-            auto* accessedType = typeMap(var->type());
-            value = Value(result, accessedType, Memory);
-        }
+        auto* accessedType = typeMap(var->type());
+        value = Value(result, accessedType, Memory);
+        //        if (sema::isRef(expr.type())) {
+        //            value = Value(result, Register);
+        //        }
+        //        else {
+        //        }
         break;
     }
     }
     sema::QualType memType = expr.type();
-    auto* arrayType = ptrOrRefToArray(memType.get());
+    auto* arrayType =
+        dyncast_or_null<sema::ArrayType const*>(getPtrOrRefBase(memType.get()));
     if (!arrayType) {
         return value;
     }
@@ -1018,8 +1019,8 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     Value value;
     switch (retvalLocation) {
     case Register: {
-        auto* refType = dyncast<sema::ReferenceType const*>(semaRetType.get());
-        if (isArrayPtrOrArrayRef(semaRetType.get())) {
+        auto* refType = dyncast<sema::ReferenceType const*>(semaRetType);
+        if (isArrayPtrOrArrayRef(semaRetType)) {
             auto* data =
                 add<ir::ExtractValue>(inst, std::array{ size_t{ 0 } }, "data");
             auto* size =
@@ -1041,8 +1042,8 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             }
             /// Here we actually need to strip the reference because the
             /// function may return a ref type
-            if (auto* arrayType = dyncast<sema::ArrayType const*>(
-                    stripRef(semaRetType.get())))
+            if (auto* arrayType =
+                    dyncast<sema::ArrayType const*>(stripRef(semaRetType)))
             {
                 auto* size = ctx.intConstant(arrayType->size(), 64);
                 valueMap.insertArraySize(call.object(), Value(size, Register));
@@ -1054,8 +1055,8 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
         value = Value(irArguments.front(),
                       typeMap(call.function()->returnType()),
                       Memory);
-        auto* arrayType = dyncast<sema::ArrayType const*>(
-            call.function()->returnType().get());
+        auto* arrayType =
+            dyncast<sema::ArrayType const*>(call.function()->returnType());
         if (arrayType) {
             auto* size = ctx.intConstant(arrayType->size(), 64);
             valueMap.insertArraySize(call.object(), Value(size, Register));
@@ -1068,12 +1069,12 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
 }
 
 void FuncGenContext::generateArgument(PassingConvention const& PC,
-                                      sema::QualType paramType,
+                                      sema::Type const* paramType,
                                       ast::Expression const* expr,
                                       utl::vector<ir::Value*>& irArguments) {
     auto value = getValue(expr);
     auto* object = expr->object();
-    if (isa<sema::ReferenceType>(*paramType)) {
+    if (isa<sema::ReferenceType>(paramType)) {
         SC_ASSERT(value.isMemory(),
                   "Need value in memory to pass by reference");
         irArguments.push_back(toMemory(value));

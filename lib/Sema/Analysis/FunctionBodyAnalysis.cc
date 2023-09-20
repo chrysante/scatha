@@ -184,7 +184,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
               "We should not have handled local variables in prepass.");
     auto* initExpr = analyzeExpr(varDecl.initExpr(), varDecl.dtorStack());
     auto declType = analyzeTypeExpression(varDecl.typeExpr(), ctx);
-    auto initType = initExpr ? initExpr->type() : nullptr;
+    auto initType = initExpr ? initExpr->type().get() : nullptr;
     if (initExpr && !initExpr->isValue()) {
         iss.push<BadSymbolReference>(*initExpr, EntityCategory::Value);
         return;
@@ -199,7 +199,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         }
         return;
     }
-    auto type = (declType ? declType : initType).to(varDecl.mutability());
+    auto type = declType ? declType : initType;
     if (type->size() == InvalidSize) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         iss.push<InvalidDeclaration>(&varDecl,
@@ -215,17 +215,26 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
             sym.currentScope());
         return;
     }
+    auto varDeclRes = sym.addVariable(std::string(varDecl.name()),
+                                      type,
+                                      varDecl.mutability());
+    if (!varDeclRes) {
+        iss.push(varDeclRes.error()->setStatement(varDecl));
+        return;
+    }
+    auto& variable = *varDeclRes;
+    varDecl.decorateVarDecl(&variable);
     if (initExpr) {
         convert(Implicit,
                 initExpr,
-                stripReferenceNew(type),
+                variable.getQualType(),
                 refToLValue(type),
                 varDecl.dtorStack(),
                 ctx);
         popTopLevelDtor(initExpr, varDecl.dtorStack());
     }
     else {
-        auto call = makeConstructorCall(type.get(),
+        auto call = makeConstructorCall(cast<ObjectType const*>(type),
                                         nullptr,
                                         {},
                                         varDecl.dtorStack(),
@@ -235,14 +244,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
             varDecl.setInitExpr(std::move(call));
         }
     }
-    auto varDeclRes = sym.addVariable(std::string(varDecl.name()), type);
-    if (!varDeclRes) {
-        iss.push(varDeclRes.error()->setStatement(varDecl));
-        return;
-    }
-    auto& variable = *varDeclRes;
-    varDecl.decorateVarDecl(&variable, type);
-    if (type.isConst() && initExpr) {
+    if (variable.isConst() && initExpr) {
         variable.setConstantValue(clone(initExpr->constantValue()));
     }
     cast<ast::Statement*>(varDecl.parent())->pushDtor(&variable);
@@ -254,16 +256,16 @@ void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    QualType declaredType =
+    Type const* declaredType =
         currentFunction->function()->argumentType(paramIndex);
-    auto paramRes =
-        sym.addVariable(std::string(paramDecl.name()), declaredType);
+    auto paramRes = sym.addVariable(std::string(paramDecl.name()),
+                                    declaredType,
+                                    paramDecl.mutability());
     if (!paramRes) {
         iss.push(paramRes.error()->setStatement(paramDecl));
         return;
     }
-    auto& param = *paramRes;
-    paramDecl.decorateVarDecl(&param, declaredType);
+    paramDecl.decorateVarDecl(&*paramRes);
     ++paramIndex;
 }
 
@@ -278,18 +280,22 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
     if (!parentType) {
         return;
     }
-    auto type = QualType(parentType, thisParam.mutability());
-    if (thisParam.isReference()) {
-        type = sym.reference(type);
-    }
-    auto paramRes = sym.addVariable("__this", type);
+    Type const* type = parentType;
+    auto paramRes = [&] {
+        if (thisParam.isReference()) {
+            type = sym.reference({ parentType, thisParam.mutability() });
+            return sym.addVariable("this", type, Mutability::Const);
+        }
+        else {
+            return sym.addVariable("this", parentType, thisParam.mutability());
+        }
+    }();
     if (!paramRes) {
         iss.push(paramRes.error()->setStatement(thisParam));
         return;
     }
     function->setIsMember();
-    auto& param = *paramRes;
-    thisParam.decorateVarDecl(&param, type);
+    thisParam.decorateVarDecl(&*paramRes);
     ++paramIndex;
 }
 
@@ -310,7 +316,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function,
               "Return statements can only occur at function scope. Perhaps "
               "this should be a soft error");
-    QualType returnType = currentFunction->returnType();
+    Type const* returnType = currentFunction->returnType();
     if (!returnType) {
         return;
     }
@@ -340,7 +346,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     }
     convert(Implicit,
             rs.expression(),
-            stripReferenceNew(returnType),
+            getQualType(returnType),
             refToLValue(returnType),
             rs.dtorStack(),
             ctx);

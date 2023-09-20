@@ -574,30 +574,6 @@ ast::Expression* sema::dereference(ast::Expression* expr, Context& ctx) {
     return expr;
 }
 
-#if 0
-static QualType commonRef(SymbolTable& sym,
-                          QualType commonObjType,
-                          QualType a,
-                          QualType b) {
-    /// If `a` is a reference and `b` is not or vice versa, we return a the
-    /// common base type as mutable
-    if (!isRef(a) != !isRef(b)) {
-        return commonObjType.toMut();
-    }
-    /// If none of `a` and `b` is a reference, we return a the common base type
-    /// as is
-    if (!isRef(a) || !isRef(b)) {
-        return commonObjType;
-    }
-    /// We only reference-qualify the result if no base type conversion occured
-    if (stripReference(a).get() != stripReference(b).get()) {
-        return commonObjType.toMut();
-    }
-    /// Both types are references
-    return sym.reference(commonObjType);
-}
-#endif
-
 static std::optional<size_t> nextBitwidth(size_t width) {
     switch (width) {
     case 8:

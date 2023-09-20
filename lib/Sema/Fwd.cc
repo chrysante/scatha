@@ -95,19 +95,6 @@ std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
     return str << toString(k);
 }
 
-bool sema::isRef(QualType type) { return isa<ReferenceType>(*type); }
-
-QualType sema::stripReference(QualType type) {
-    if (auto* refType = dyncast_or_null<ReferenceType const*>(type.get())) {
-        return refType->base();
-    }
-    return type;
-}
-
-QualType sema::stripQualifiers(QualType type) {
-    return stripReference(type).toMut();
-}
-
 std::string_view sema::toString(SpecialMemberFunction SMF) {
     return std::array{
 #define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(name, str) std::string_view(str),

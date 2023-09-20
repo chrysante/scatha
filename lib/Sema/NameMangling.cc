@@ -48,8 +48,8 @@ static std::string impl(ReferenceType const* type) {
 static std::string impl(Function const* func) {
     std::stringstream sstr;
     sstr << baseImpl(func);
-    for (QualType arg: func->signature().argumentTypes()) {
-        sstr << "-" << mangleName(arg.get());
+    for (auto* arg: func->signature().argumentTypes()) {
+        sstr << "-" << mangleName(arg);
     }
     return std::move(sstr).str();
 }

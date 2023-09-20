@@ -112,15 +112,6 @@ enum class BinaryVisibility : uint8_t { Export, Internal };
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };
 
-/// \Returns `true` if \p type is a `ReferenceType`
-SCATHA_API bool isRef(QualType type);
-
-/// \Returns \p type, if it is not a reference type, otherwise `type->base()`
-[[deprecated]] SCATHA_API QualType stripReference(QualType type);
-
-/// \Returns `stripReference(type).toMut()`
-[[deprecated]] SCATHA_API QualType stripQualifiers(QualType type);
-
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };
 

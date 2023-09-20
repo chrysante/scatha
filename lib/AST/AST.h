@@ -818,51 +818,61 @@ public:
     /// \overload
     sema::Variable const* variable() const;
 
-    /// Type of the parameter.
-    sema::QualType type() const {
+    /// Type of the declaration
+    sema::Type const* type() const {
         expectDecorated();
         return _type;
     }
 
+    /// The mutability qualifier of this declaration.
+    /// This is set by the parser
+    sema::Mutability mutability() const { return _mut; }
+
+    ///
+    bool isMut() const { return mutability() == sema::Mutability::Mutable; }
+
+    ///
+    bool isConst() const { return !isMut(); }
+
     /// Decorate this node.
-    void decorateVarDecl(sema::Entity* entity, sema::QualType type) {
-        _type = type;
-        Declaration::decorateDecl(entity);
-    }
+    void decorateVarDecl(sema::Object* object);
 
 protected:
     template <typename... Children>
     explicit VarDeclBase(NodeType nodeType,
+                         sema::Mutability mut,
                          SourceRange sourceRange,
                          UniquePtr<Identifier> name,
                          UniquePtr<Children>... children):
         Declaration(nodeType,
                     sourceRange,
                     std::move(name),
-                    std::move(children)...) {
+                    std::move(children)...),
+        _mut(mut) {
         if (nameIdentifier()) {
             setSourceRange(nameIdentifier()->sourceRange());
         }
     }
 
 private:
-    sema::QualType _type = nullptr;
+    sema::Type const* _type = nullptr;
+    sema::Mutability _mut;
 };
 
 /// Concrete node representing a variable declaration.
 class SCATHA_API VariableDeclaration: public VarDeclBase {
 public:
-    explicit VariableDeclaration(SourceRange sourceRange,
+    explicit VariableDeclaration(sema::Mutability mut,
+                                 SourceRange sourceRange,
                                  UniquePtr<Identifier> name,
                                  UniquePtr<Expression> typeExpr,
-                                 UniquePtr<Expression> initExpr,
-                                 sema::Mutability mut):
+                                 UniquePtr<Expression> initExpr):
         VarDeclBase(NodeType::VariableDeclaration,
+                    mut,
                     sourceRange,
                     std::move(name),
                     std::move(typeExpr),
-                    std::move(initExpr)),
-        _mut(mut) {}
+                    std::move(initExpr)) {}
 
     AST_DERIVED_COMMON(VariableDeclaration)
 
@@ -884,13 +894,6 @@ public:
         return _index;
     }
 
-    /// Mutability of this variable
-    sema::Mutability mutability() const { return _mut; }
-
-    /// `true` if this variable was declared with `var`, `false` if declared
-    /// with `let`
-    bool isMut() const { return mutability() == sema::Mutability::Mutable; }
-
     /// Used by instantiation
     void setOffset(size_t offset) {
         _offset = utl::narrow_cast<uint32_t>(offset);
@@ -902,15 +905,16 @@ public:
 private:
     uint32_t _offset = 0;
     uint32_t _index : 31 = 0;
-    sema::Mutability _mut;
 };
 
 /// Concrete node representing a parameter declaration.
 class SCATHA_API ParameterDeclaration: public VarDeclBase {
 public:
-    explicit ParameterDeclaration(UniquePtr<Identifier> name,
+    explicit ParameterDeclaration(sema::Mutability mut,
+                                  UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
         ParameterDeclaration(NodeType::ParameterDeclaration,
+                             mut,
                              SourceRange{},
                              std::move(name),
                              std::move(typeExpr)) {}
@@ -919,10 +923,12 @@ public:
 
 protected:
     explicit ParameterDeclaration(NodeType nodeType,
+                                  sema::Mutability mut,
                                   SourceRange sourceRange,
                                   UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
         VarDeclBase(nodeType,
+                    mut,
                     sourceRange,
                     std::move(name),
                     std::move(typeExpr)) {}
@@ -931,27 +937,23 @@ protected:
 /// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
-    explicit ThisParameter(SourceRange sourceRange,
+    explicit ThisParameter(sema::Mutability mut,
                            bool isRef,
-                           sema::Mutability mut):
+                           SourceRange sourceRange):
         ParameterDeclaration(NodeType::ThisParameter,
+                             mut,
                              sourceRange,
                              nullptr,
                              nullptr),
-        isRef(isRef),
-        mut(mut) {}
+        isRef(isRef) {}
 
     AST_DERIVED_COMMON(ThisParameter)
 
     /// The optional reference qualifier attached to the `this` parameter
     bool isReference() const { return isRef; }
 
-    /// The mutability qualifier attached to the `this` parameter
-    sema::Mutability mutability() const { return mut; }
-
 private:
     bool isRef;
-    sema::Mutability mut;
 };
 
 /// Nothing to see here yet...
@@ -1062,19 +1064,19 @@ public:
     sema::Function const* function() const;
 
     /// Return type of the function.
-    sema::QualType returnType() const {
+    sema::Type const* returnType() const {
         expectDecorated();
         return _returnType;
     }
 
     /// Decorate this node.
-    void decorateFunction(sema::Entity* entity, sema::QualType returnType) {
+    void decorateFunction(sema::Entity* entity, sema::Type const* returnType) {
         _returnType = returnType;
         Declaration::decorateDecl(entity);
     }
 
 private:
-    sema::QualType _returnType = nullptr;
+    sema::Type const* _returnType = nullptr;
 };
 
 /// Concrete node representing the definition of a struct.

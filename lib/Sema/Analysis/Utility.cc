@@ -15,15 +15,15 @@ using namespace sema;
 using enum ValueCategory;
 using enum ConversionKind;
 
-QualType sema::stripReferenceNew(QualType type) {
-    if (auto* ref = dyncast<ReferenceType const*>(type.get())) {
+QualType sema::getQualType(Type const* type, Mutability mut) {
+    if (auto* ref = dyncast<ReferenceType const*>(type)) {
         return ref->base();
     }
-    return type;
+    return { cast<ObjectType const*>(type), mut };
 }
 
-ValueCategory sema::refToLValue(QualType type) {
-    if (isa<ReferenceType>(*type)) {
+ValueCategory sema::refToLValue(Type const* type) {
+    if (isa<ReferenceType>(type)) {
         return LValue;
     }
     return RValue;

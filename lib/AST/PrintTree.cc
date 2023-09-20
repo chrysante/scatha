@@ -21,7 +21,7 @@ using namespace ast;
 
 void ast::printTree(ASTNode const& root) { printTree(root, std::cout); }
 
-static utl::vstreammanip<> formatType(sema::QualType type) {
+static utl::vstreammanip<> formatType(sema::Type const* type) {
     return [=](std::ostream& str) {
         str << " " << tfmt::format(tfmt::BrightGrey, "Type: ");
         if (!type) {
@@ -58,7 +58,7 @@ static constexpr utl::streammanip nodeHeader([](std::ostream& str,
     }
     if (auto* expr = dyncast<Expression const*>(node); expr && expr->isValue())
     {
-        str << formatType(expr->type()) << " "
+        str << formatType(expr->type().get()) << " "
             << tfmt::format(tfmt::BrightGrey, expr->valueCategory());
     }
     else if (auto* decl = dyncast<VarDeclBase const*>(node)) {

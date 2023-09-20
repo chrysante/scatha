@@ -7,10 +7,11 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
+using enum sema::Mutability;
 
 TEST_CASE("SymbolTable lookup", "[sema]") {
     sema::SymbolTable sym;
-    auto const var = sym.addVariable("x", sym.S64());
+    auto const var = sym.addVariable("x", sym.S64(), Mutable);
     REQUIRE(var.hasValue());
     auto* x = sym.lookup("x");
     CHECK(&var.value() == x);
@@ -28,7 +29,7 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
     /// Begin `struct X`
     sym.pushScope(xType);
     /// Add member variable `i` to `X`
-    auto* memberI = &sym.addVariable("i", sym.S64()).value();
+    auto* memberI = &sym.addVariable("i", sym.S64(), Mutable).value();
     sym.popScope();
     /// End `X`
     xType->setSize(8);

@@ -10,7 +10,7 @@ using namespace scatha;
 using namespace sema;
 
 static std::optional<DestructorCall> makeDTorCall(Object* obj) {
-    auto* type = obj->type().get();
+    auto* type = obj->type();
     auto* structType = dyncast<StructType const*>(type);
     if (!structType) {
         return std::nullopt;

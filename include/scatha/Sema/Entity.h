@@ -43,9 +43,8 @@
 /// │     │  │     └─ FloatType
 /// │     │  ├─ StructType
 /// │     │  ├─ ArrayType
-/// │     │  └─ RefTypeBase
-/// │     │     ├─ PointerType
-/// │     │     └─ ReferenceType
+/// │     │  └─ PointerType
+/// │     ├─ ReferenceType
 /// │     └─ FunctionType [??, does not exist]
 /// └─ PoisonEntity
 /// ```
@@ -124,10 +123,24 @@ public:
     ~Object();
 
     /// Set the type of this object.
-    void setType(QualType type) { _type = type; }
+    void setType(Type const* type) { _type = type; }
 
     /// Type of this object.
-    QualType type() const { return _type; }
+    Type const* type() const { return _type; }
+
+    /// Mutability of this object.
+    Mutability mutability() const { return _mut; }
+
+    /// \Returns `true` if this object is mutable
+    bool isMut() const { return mutability() == Mutability::Mutable; }
+
+    /// \Returns `true` if this object is const
+    bool isConst() const { return !isMut(); }
+
+    /// \Returns the QualType that represents the type of this object.
+    /// That is, if this object is a reference, it returns the referred to type,
+    /// otherwise returns the type including mutability qualifier
+    QualType getQualType() const;
 
     /// \Returns Constant value if this variable is `const` and has a
     /// const-evaluable initializer `nullptr` otherwise
@@ -140,13 +153,17 @@ protected:
     explicit Object(EntityType entityType,
                     std::string name,
                     Scope* parentScope,
-                    QualType type);
+                    Type const* type,
+                    Mutability mutability);
+
+    void setMutability(Mutability mut) { _mut = mut; }
 
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
-    QualType _type;
+    Type const* _type;
+    Mutability _mut;
     UniquePtr<Value> constVal;
 };
 
@@ -157,7 +174,8 @@ public:
 
     explicit Variable(std::string name,
                       Scope* parentScope,
-                      QualType type = nullptr);
+                      Type const* type = nullptr,
+                      Mutability mutability = {});
 
     /// Set the offset of this variable.
     void setOffset(size_t offset) { _offset = offset; }
@@ -179,6 +197,9 @@ public:
     /// visible.
     bool isLocal() const;
 
+    /// For the symbol table
+    using Object::setMutability;
+
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
@@ -191,7 +212,7 @@ private:
 /// of arrays
 class SCATHA_API Property: public Object {
 public:
-    explicit Property(PropertyKind kind, Scope* parentScope, QualType type);
+    explicit Property(PropertyKind kind, Scope* parentScope, Type const* type);
 
     /// The kind of property
     PropertyKind kind() const { return _kind; }
@@ -306,8 +327,8 @@ class SCATHA_API FunctionSignature {
 public:
     FunctionSignature() = default;
 
-    explicit FunctionSignature(utl::small_vector<QualType> argumentTypes,
-                               QualType returnType):
+    explicit FunctionSignature(utl::small_vector<Type const*> argumentTypes,
+                               Type const* returnType):
         _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
 
     Type const* type() const {
@@ -317,20 +338,24 @@ public:
     }
 
     /// Argument types
-    std::span<QualType const> argumentTypes() const { return _argumentTypes; }
+    std::span<Type const* const> argumentTypes() const {
+        return _argumentTypes;
+    }
 
     /// Argument type at index \p index
-    QualType argumentType(size_t index) const { return _argumentTypes[index]; }
+    Type const* argumentType(size_t index) const {
+        return _argumentTypes[index];
+    }
 
     /// Number of arguments
     size_t argumentCount() const { return _argumentTypes.size(); }
 
     /// Return type
-    QualType returnType() const { return _returnType; }
+    Type const* returnType() const { return _returnType; }
 
 private:
-    utl::small_vector<QualType> _argumentTypes;
-    QualType _returnType;
+    utl::small_vector<Type const*> _argumentTypes;
+    Type const* _returnType;
 };
 
 /// \Returns `true` if \p a and \p b have the same argument types
@@ -366,15 +391,15 @@ public:
     FunctionSignature const& signature() const { return _sig; }
 
     /// Return type
-    QualType returnType() const { return _sig.returnType(); }
+    Type const* returnType() const { return _sig.returnType(); }
 
     /// Argument types
-    std::span<QualType const> argumentTypes() const {
+    std::span<Type const* const> argumentTypes() const {
         return _sig.argumentTypes();
     }
 
     /// Argument type at index \p index
-    QualType argumentType(size_t index) const {
+    Type const* argumentType(size_t index) const {
         return _sig.argumentType(index);
     }
 
@@ -496,7 +521,12 @@ public:
     /// Align of this type
     size_t align() const;
 
+#warning where are we using this?
     bool isComplete() const;
+
+    bool isDefaultConstructible() const;
+
+    bool hasTrivialLifetime() const;
 
 protected:
     explicit Type(EntityType entityType,
@@ -508,6 +538,11 @@ protected:
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Type; }
+
+    size_t sizeImpl() const { return InvalidSize; }
+    size_t alignImpl() const { return InvalidSize; }
+    bool isDefaultConstructibleImpl() const { return true; }
+    bool hasTrivialLifetimeImpl() const { return true; }
 };
 
 /// Abstract class representing the type of an object
@@ -527,14 +562,7 @@ public:
 
     void setAlign(size_t value) { _align = value; }
 
-    bool isDefaultConstructible() const;
-
-    bool hasTrivialLifetime() const;
-
 private:
-    bool isDefaultConstructibleImpl() const { return true; }
-    bool hasTrivialLifetimeImpl() const { return true; }
-
     friend class Type;
     size_t sizeImpl() const { return _size; }
     size_t alignImpl() const { return _align; }
@@ -685,7 +713,7 @@ public:
     }
 
 private:
-    friend class ObjectType;
+    friend class Type;
     bool isDefaultConstructible() const { return _isDefaultConstructible; }
     /// Structure type has trivial lifetime if no user defined copy constructor,
     /// move constructor or destructor are present and all member types are
@@ -733,7 +761,7 @@ public:
     void setCountProperty(Property* prop) { countProp = prop; }
 
 private:
-    friend class ObjectType;
+    friend class Type;
     bool isDefaultConstructibleImpl() const {
         return elementType()->isDefaultConstructible();
     }
@@ -747,29 +775,33 @@ private:
     size_t _count;
 };
 
-/// Abstract base class of `PointerType` and `ReferenceType`
-class SCATHA_API RefTypeBase: public ObjectType {
+/// Common base class of `PointerType` and `ReferenceType`
+class SCATHA_API PtrRefTypeBase {
 public:
-    /// The type referred to
+    /// The type referred to by the pointer or reference
     QualType base() const { return _base; }
 
 protected:
-    explicit RefTypeBase(EntityType type, QualType base, std::string name);
+    PtrRefTypeBase(QualType type): _base(type) {}
 
 private:
     QualType _base;
 };
 
 /// Represents a pointer type
-class SCATHA_API PointerType: public RefTypeBase {
+class SCATHA_API PointerType: public ObjectType, public PtrRefTypeBase {
 public:
     explicit PointerType(QualType base);
 };
 
 /// Represents a reference type
-class SCATHA_API ReferenceType: public RefTypeBase {
+class SCATHA_API ReferenceType: public Type, public PtrRefTypeBase {
 public:
     explicit ReferenceType(QualType base);
+
+private:
+    friend class Type;
+    bool isDefaultConstructibleImpl() const { return false; }
 };
 
 /// # OverloadSet

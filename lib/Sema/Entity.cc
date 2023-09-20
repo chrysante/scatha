@@ -46,37 +46,53 @@ void Entity::addAlternateName(std::string name) {
 Object::Object(EntityType entityType,
                std::string name,
                Scope* parentScope,
-               QualType type):
-    Entity(entityType, std::move(name), parentScope), _type(type) {}
+               Type const* type,
+               Mutability mut):
+    Entity(entityType, std::move(name), parentScope), _type(type), _mut(mut) {}
 
 Object::~Object() = default;
 
+QualType Object::getQualType() const {
+    if (auto* ref = dyncast<ReferenceType const*>(type())) {
+        return ref->base();
+    }
+    return QualType(cast<ObjectType const*>(type()), mutability());
+}
+
 void Object::setConstantValue(UniquePtr<Value> value) {
     if (value) {
-        SC_ASSERT(type(), "Invalid");
-        SC_ASSERT(!isa<ReferenceType>(*type()), "Invalid");
-        SC_ASSERT(!type().isMut(), "Invalid");
+        SC_ASSERT(type(), "Object must have a type to have a constant value");
+        SC_ASSERT(isConst(), "Only const objects have constant values");
     }
     constVal = std::move(value);
 }
 
-Variable::Variable(std::string name, Scope* parentScope, QualType type):
-    Object(EntityType::Variable, std::move(name), parentScope, type) {}
+Variable::Variable(std::string name,
+                   Scope* parentScope,
+                   Type const* type,
+                   Mutability mut):
+    Object(EntityType::Variable, std::move(name), parentScope, type, mut) {}
 
 bool Variable::isLocal() const {
     return parent()->kind() == ScopeKind::Function ||
            parent()->kind() == ScopeKind::Anonymous;
 }
 
-Property::Property(PropertyKind kind, Scope* parentScope, QualType type):
+Property::Property(PropertyKind kind, Scope* parentScope, Type const* type):
     Object(EntityType::Property,
            std::string(toString(kind)),
            parentScope,
-           type),
+           type,
+           {}),
     _kind(kind) {}
 
 Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
-    Object(EntityType::Temporary, std::string{}, parentScope, type), _id(id) {}
+    Object(EntityType::Temporary,
+           std::string{},
+           parentScope,
+           type.get(),
+           type.mutability()),
+    _id(id) {}
 
 Scope::Scope(EntityType entityType,
              ScopeKind kind,
@@ -145,12 +161,12 @@ bool Type::isComplete() const {
     return size() != InvalidSize;
 }
 
-bool ObjectType::isDefaultConstructible() const {
+bool Type::isDefaultConstructible() const {
     return visit(*this,
                  [](auto& self) { return self.isDefaultConstructibleImpl(); });
 }
 
-bool ObjectType::hasTrivialLifetime() const {
+bool Type::hasTrivialLifetime() const {
     return visit(*this,
                  [](auto& self) { return self.hasTrivialLifetimeImpl(); });
 }
@@ -232,28 +248,26 @@ static size_t ptrSize(QualType base) { return isa<ArrayType>(*base) ? 16 : 8; }
 
 static size_t ptrAlign() { return 8; }
 
-RefTypeBase::RefTypeBase(EntityType type, QualType base, std::string name):
-    ObjectType(type,
-               ScopeKind::Invalid,
-               std::move(name),
-               nullptr,
-               ptrSize(base),
-               ptrAlign()),
-    _base(base) {}
-
 static std::string makeIndirectName(std::string_view indirection,
                                     QualType base) {
     return utl::strcat(indirection, base.qualName());
 }
 
 PointerType::PointerType(QualType base):
-    RefTypeBase(EntityType::PointerType, base, makeIndirectName("*", base)) {
-    SC_ASSERT(!isa<ReferenceType>(*base),
-              "Pointers cannot point to references");
-}
+    ObjectType(EntityType::PointerType,
+               ScopeKind::Invalid,
+               makeIndirectName("*", base),
+               nullptr,
+               ptrSize(base),
+               ptrAlign()),
+    PtrRefTypeBase(base) {}
 
 ReferenceType::ReferenceType(QualType base):
-    RefTypeBase(EntityType::ReferenceType, base, makeIndirectName("&", base)) {}
+    Type(EntityType::ReferenceType,
+         ScopeKind::Invalid,
+         makeIndirectName("&", base),
+         nullptr),
+    PtrRefTypeBase(base) {}
 
 bool Function::isBuiltin() const {
     return isForeign() && slot() == svm::BuiltinFunctionSlot;

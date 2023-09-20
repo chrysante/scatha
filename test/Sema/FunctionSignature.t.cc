@@ -14,11 +14,11 @@ TEST_CASE("Function Type", "[sema]") {
     auto* fnF = &sym.declareFunction("f").value();
     auto const overloadSuccess = sym.setSignature(fnF, fSig);
     REQUIRE(overloadSuccess);
-    CHECK(fnF->signature().argumentType(0).get() == sym.S64());
-    CHECK(fnF->signature().returnType().get() == sym.S64());
+    CHECK(fnF->signature().argumentType(0) == sym.S64());
+    CHECK(fnF->signature().returnType() == sym.S64());
     auto const fnG = &sym.declareFunction("g").value();
     auto const overloadSuccess2 = sym.setSignature(fnG, gSig);
     REQUIRE(overloadSuccess2);
-    CHECK(fnG->signature().argumentType(0).get() == sym.S64());
-    CHECK(fnG->signature().returnType().get() == sym.Void());
+    CHECK(fnG->signature().argumentType(0) == sym.S64());
+    CHECK(fnG->signature().returnType() == sym.Void());
 }

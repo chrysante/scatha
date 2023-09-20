@@ -237,18 +237,19 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     return *variable;
 }
 
-Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(std::string name,
-                                                             QualType type) {
+Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
+    std::string name, Type const* type, Mutability mutability) {
     auto declResult = declareVariable(std::move(name));
     if (!declResult) {
         return declResult.error();
     }
     auto& var = *declResult;
     var.setType(type);
+    var.setMutability(mutability);
     return var;
 }
 
-Property& SymbolTable::addProperty(PropertyKind kind, QualType type) {
+Property& SymbolTable::addProperty(PropertyKind kind, Type const* type) {
     auto* prop = impl->addEntity<Property>(kind, &currentScope(), type);
     currentScope().add(prop);
     return *prop;
@@ -330,9 +331,6 @@ PointerType const* SymbolTable::pointer(QualType pointee) {
 }
 
 ReferenceType const* SymbolTable::reference(QualType referred) {
-    if (auto* refType = dyncast<ReferenceType const*>(referred.get())) {
-        return refType;
-    }
     auto itr = impl->refTypes.find(referred);
     if (itr != impl->refTypes.end()) {
         return itr->second;

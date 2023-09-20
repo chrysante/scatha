@@ -21,7 +21,7 @@ static std::optional<int> signatureMatch(
     OverloadResolutionResult& result,
     std::span<std::pair<QualType, ValueCategory> const> argTypes,
     std::span<Value const* const> constantArgs,
-    std::span<QualType const> paramTypes,
+    std::span<Type const* const> paramTypes,
     bool isMemberCall) {
     if (paramTypes.size() != argTypes.size()) {
         return std::nullopt;
@@ -42,7 +42,7 @@ static std::optional<int> signatureMatch(
         auto conversion = computeConversion(convKind,
                                             argType.first,
                                             argType.second,
-                                            stripReferenceNew(paramType),
+                                            getQualType(paramType),
                                             refToLValue(paramType),
                                             constArg);
         if (!conversion) {

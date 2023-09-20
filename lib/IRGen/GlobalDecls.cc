@@ -19,31 +19,6 @@ using namespace irgen;
 using enum ValueLocation;
 using sema::QualType;
 
-/// \Returns the referred to type if \p type is a pointer or reference type.
-/// Otherwise returns `nullptr`
-static sema::ObjectType const* getPtrOrRefBase(sema::Type const* type) {
-    // clang-format off
-    return SC_MATCH (*type) {
-        [](sema::ReferenceType const& type) {
-            return type.base().get();
-        },
-        [](sema::PointerType const& type) {
-            return type.base().get();
-        },
-        [](sema::Type const& type) {
-            return nullptr;
-        }
-    }; // clang-format on
-}
-
-static bool isPointerToDynArray(sema::Type const* type) {
-    if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
-        auto* array = dyncast<sema::ArrayType const*>(ptrType->base().get());
-        return array && array->isDynamic();
-    }
-    return false;
-}
-
 ir::StructType* irgen::generateType(sema::StructType const* semaType,
                                     ir::Context& ctx,
                                     ir::Module& mod,
@@ -52,12 +27,11 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
     StructMetaData metaData;
     size_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
-        sema::QualType memType = member->type();
-        structType->pushMember(typeMap(memType));
+        structType->pushMember(typeMap(member->type()));
         metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
         /// Pointer to array data members need a second field in the IR struct
         /// to store the size of the array
-        if (isPointerToDynArray(memType.get())) {
+        if (isPtrOrRefToDynArray(member->type())) {
             structType->pushMember(ctx.intType(64));
             ++irIndex;
         }
@@ -68,14 +42,14 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
     return result;
 }
 
-static bool isTrivial(sema::QualType type) {
+static bool isTrivial(sema::Type const* type) {
     return type->hasTrivialLifetime();
 }
 
 static const size_t maxRegPassingSize = 16;
 
-static PassingConvention computePCImpl(sema::QualType type, bool isRetval) {
-    if (auto* referredTo = getPtrOrRefBase(type.get())) {
+static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
+    if (auto* referredTo = getPtrOrRefBase(type)) {
         size_t argCount = isArrayAndDynamic(referredTo) ? 2 : 1;
         return PassingConvention(Register, isRetval ? 0 : argCount);
     }
@@ -83,18 +57,20 @@ static PassingConvention computePCImpl(sema::QualType type, bool isRetval) {
     if (isSmall && isTrivial(type)) {
         return PassingConvention(Register, isRetval ? 0u : 1u);
     }
-    size_t argCount = isArrayAndDynamic(type.get()) ? 2 : 1;
+    size_t argCount =
+        isArrayAndDynamic(cast<sema::ObjectType const*>(type)) ? 2 : 1;
+    SC_ASSERT(argCount == 1, "We can't pass dynamic arrays on the stack");
     return PassingConvention(Memory, argCount);
 }
 
-static PassingConvention computeRetValPC(sema::QualType type) {
-    if (isa<sema::VoidType>(*type)) {
+static PassingConvention computeRetValPC(sema::Type const* type) {
+    if (isa<sema::VoidType>(type)) {
         return { Register, 0 };
     }
     return computePCImpl(type, true);
 }
 
-static PassingConvention computeArgPC(sema::QualType type) {
+static PassingConvention computeArgPC(sema::Type const* type) {
     return computePCImpl(type, false);
 }
 
@@ -117,15 +93,15 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     utl::small_vector<ir::Type const*> irArgTypes;
     auto retvalPC = CC.returnValue();
     switch (retvalPC.location()) {
-    case Register:
-        if (isArrayPtrOrArrayRef(semaFn->returnType().get())) {
+    case Register: {
+        if (isPtrOrRefToDynArray(semaFn->returnType())) {
             irReturnType = makeArrayViewType(ctx);
         }
         else {
             irReturnType = typeMap(semaFn->returnType());
         }
         break;
-
+    }
     case Memory:
         irReturnType = ctx.voidType();
         irArgTypes.push_back(ctx.ptrType());

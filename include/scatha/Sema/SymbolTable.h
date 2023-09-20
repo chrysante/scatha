@@ -102,12 +102,13 @@ public:
     /// `InvalidDeclaration` with reason `Redefinition` if name of
     /// \p varDecl is already in use in the current scope.
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
-                                                    QualType type);
+                                                    Type const* type,
+                                                    Mutability mutability);
 
     ///
     ///
     ///
-    Property& addProperty(PropertyKind kind, QualType type);
+    Property& addProperty(PropertyKind kind, Type const* type);
 
     /// Creates a new unique temporary object of type \p type
     Temporary* temporary(QualType type);

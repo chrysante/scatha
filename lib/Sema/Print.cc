@@ -34,11 +34,11 @@ struct PrintContext {
     utl::vstreammanip<> nameImpl(Function const* function) {
         return [=](std::ostream& str) {
             str << "(";
-            for (bool first = true; QualType type: function->argumentTypes()) {
+            for (bool first = true; auto* type: function->argumentTypes()) {
                 str << (first ? first = false, "" : ", ")
                     << (type ? type->name() : "NULL");
             }
-            auto retType = function->returnType();
+            auto* retType = function->returnType();
             str << ") -> " << (retType ? retType->name() : "NULL");
         };
     }

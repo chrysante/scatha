@@ -7,6 +7,36 @@
 using namespace scatha;
 using namespace irgen;
 
+sema::ObjectType const* irgen::getPtrOrRefBase(sema::Type const* type) {
+    // clang-format off
+    return SC_MATCH (*type) {
+        [](sema::ReferenceType const& type) {
+            return type.base().get();
+        },
+        [](sema::PointerType const& type) {
+            return type.base().get();
+        },
+        [](sema::Type const& type) {
+            return nullptr;
+        }
+    }; // clang-format on
+}
+
+sema::ArrayType const* ptrOrRefToArrayImpl(sema::Type const* type) {
+    return dyncast_or_null<sema::ArrayType const*>(getPtrOrRefBase(type));
+}
+
+bool irgen::isPtrOrRefToArray(sema::Type const* type) {
+    return ptrOrRefToArrayImpl(type) != nullptr;
+}
+
+bool irgen::isPtrOrRefToDynArray(sema::Type const* type) {
+    auto* AT = ptrOrRefToArrayImpl(type);
+    return AT && AT->isDynamic();
+}
+
+/// # THESE ARE OLD
+
 sema::ArrayType const* irgen::ptrToArray(sema::ObjectType const* type) {
     if (auto* ptr = dyncast<sema::PointerType const*>(type)) {
         return dyncast<sema::ArrayType const*>(ptr->base().get());
@@ -14,24 +44,14 @@ sema::ArrayType const* irgen::ptrToArray(sema::ObjectType const* type) {
     return nullptr;
 }
 
-sema::ArrayType const* irgen::ptrOrRefToArray(sema::ObjectType const* type) {
-    if (auto* ptr = ptrToArray(stripReference(type).get())) {
-        return ptr;
-    }
-    if (auto* ref = dyncast<sema::ReferenceType const*>(type)) {
-        return dyncast<sema::ArrayType const*>(ref->base().get());
-    }
-    return nullptr;
-}
-
-sema::QualType irgen::stripRefOrPtr(sema::QualType type) {
+sema::Type const* irgen::stripRefOrPtr(sema::Type const* type) {
     // clang-format off
     return SC_MATCH (*type) {
         [](sema::PointerType const& ptr) {
-            return ptr.base();
+            return ptr.base().get();
         },
         [](sema::ReferenceType const& ref) {
-            return ref.base();
+            return ref.base().get();
         },
         [&](sema::ObjectType const&) {
             return type;
@@ -44,8 +64,8 @@ bool irgen::isArrayAndDynamic(sema::ObjectType const* type) {
     return arrayType && arrayType->isDynamic();
 }
 
-bool irgen::isArrayPtrOrArrayRef(sema::ObjectType const* type) {
-    return isa<sema::ArrayType>(stripRefOrPtr(type).get()) && (isa<sema::PointerType>(type) || isa<sema::ReferenceType>(type));
+bool irgen::isArrayPtrOrArrayRef(sema::Type const* type) {
+    return isa<sema::ArrayType>(stripRefOrPtr(type)) && (isa<sema::PointerType>(type) || isa<sema::ReferenceType>(type));
 }
 
 ir::StructType const* irgen::makeArrayViewType(ir::Context& ctx) {

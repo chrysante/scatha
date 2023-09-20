@@ -12,10 +12,10 @@ class DTorStack;
 
 /// \Returns the type referenced by \p type if \p type is a reference type.
 /// Otherwise returns \p type as is
-QualType stripReferenceNew(QualType type);
+QualType getQualType(Type const* type, Mutability mut = Mutability::Mutable);
 
 /// \Returns `LValue` if \p type is a reference type, otherwise returns `RValue`
-ValueCategory refToLValue(QualType type);
+ValueCategory refToLValue(Type const* type);
 
 /// \Returns the first statement that is an ancestor of \p node or `nullptr` if
 /// nonesuch exists

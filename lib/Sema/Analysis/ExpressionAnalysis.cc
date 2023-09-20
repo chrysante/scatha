@@ -93,7 +93,7 @@ ast::Expression* sema::analyzeExpression(ast::Expression* expr,
     return ExprContext(ctx, dtorStack).analyze(expr);
 }
 
-QualType sema::analyzeTypeExpression(ast::Expression* expr, Context& ctx) {
+Type const* sema::analyzeTypeExpression(ast::Expression* expr, Context& ctx) {
     DTorStack dtorStack;
     expr = sema::analyzeExpression(expr, dtorStack, ctx);
     SC_ASSERT(dtorStack.empty(), "");
@@ -105,7 +105,7 @@ QualType sema::analyzeTypeExpression(ast::Expression* expr, Context& ctx) {
                                                     EntityCategory::Type);
         return nullptr;
     }
-    return cast<ObjectType*>(expr->entity());
+    return cast<Type const*>(expr->entity());
 }
 
 ast::Expression* ExprContext::analyze(ast::Expression* expr) {
@@ -155,9 +155,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
             iss.push<BadExpression>(lit, IssueSeverity::Error);
             return nullptr;
         }
-        QualType type = stripReferenceNew(function->argumentTypes().front());
-        auto* thisEntity = function->findEntity<Variable>("__this");
-        lit.decorateValue(thisEntity, LValue, type);
+        auto* thisEntity = function->findEntity<Variable>("this");
+        lit.decorateValue(thisEntity, LValue, thisEntity->getQualType());
         return &lit;
     }
     case String: {
@@ -404,8 +403,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     // clang-format off
     return SC_MATCH (*entity) {
         [&](Variable& var) {
-            id.decorateValue(&var, LValue,
-                             stripReferenceNew(var.type()));
+            id.decorateValue(&var, LValue, var.getQualType());
             id.setConstantValue(clone(var.constantValue()));
             return &id;
         },
@@ -525,14 +523,14 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
-    QualType type = stripReferenceNew(func->returnType());
+    QualType type = getQualType(func->returnType());
     auto valueCat = isa<ReferenceType>(*func->returnType()) ? LValue : RValue;
     auto* temp = sym.temporary(type);
     call->decorateCall(temp, valueCat, type, func);
     dtorStack->push(temp);
     bool const convSucc = convert(Explicit,
                                   call->argument(0),
-                                  stripReferenceNew(func->argumentType(0)),
+                                  getQualType(func->argumentType(0)),
                                   refToLValue(func->argumentType(0)),
                                   *dtorStack,
                                   ctx);
@@ -760,13 +758,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.callee())) {
         SC_ASSERT(genExpr->callee()->entity()->name() == "reinterpret", "");
         SC_ASSERT(fc.arguments().size() == 1, "");
-        QualType targetType = genExpr->type();
         auto* arg = fc.argument(0);
         fc.parent()->replaceChild(&fc, fc.extractArgument(0));
         return convert(Reinterpret,
                        arg,
-                       stripReferenceNew(targetType),
-                       refToLValue(targetType),
+                       genExpr->type(),
+                       genExpr->valueCategory(),
                        *dtorStack,
                        ctx);
     }
@@ -823,7 +820,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         return nullptr;
     }
     auto* function = result.function;
-    QualType type = stripReferenceNew(function->returnType());
+    QualType type = getQualType(function->returnType());
     auto valueCat = isa<ReferenceType>(*function->returnType()) ? LValue :
                                                                   RValue;
     fc.decorateCall(sym.temporary(type), valueCat, type, function);

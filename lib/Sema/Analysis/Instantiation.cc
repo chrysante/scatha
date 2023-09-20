@@ -42,7 +42,8 @@ struct InstContext {
 
     FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
 
-    QualType analyzeParameter(ast::ParameterDeclaration&, size_t index) const;
+    Type const* analyzeParameter(ast::ParameterDeclaration&,
+                                 size_t index) const;
 
     void generateSLFs(StructType& type);
 
@@ -76,7 +77,7 @@ utl::vector<StructType const*> sema::instantiateEntities(
     return structs;
 }
 
-static bool isUserDefined(QualType type) {
+static bool isUserDefined(Type const* type) {
     // clang-format off
     return SC_MATCH(*type) {
         [](StructType const&) {
@@ -85,7 +86,7 @@ static bool isUserDefined(QualType type) {
         [](ArrayType const& arrayType) {
             return isUserDefined(arrayType.elementType());
         },
-        [](ObjectType const&) {
+        [](Type const&) {
             return false;
         }
     }; // clang-format on
@@ -101,10 +102,10 @@ std::vector<StructType const*> InstContext::instantiateTypes(
                        });
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
-        QualType type = analyzeTypeExpression(var.typeExpr(), ctx);
+        auto* type = analyzeTypeExpression(var.typeExpr(), ctx);
         if (type && isUserDefined(type)) {
             node.dependencies.push_back(
-                utl::narrow_cast<u16>(dependencyGraph.index(type.get())));
+                utl::narrow_cast<u16>(dependencyGraph.index(type)));
         }
     }
     /// Check for cycles
@@ -192,7 +193,7 @@ void InstContext::instantiateStructureType(SDGNode& node) {
                                          structType);
             continue;
         }
-        QualType varType = varDecl->type();
+        auto* varType = varDecl->type();
         objectAlign = std::max(objectAlign, varType->align());
         SC_ASSERT(varType->size() % varType->align() == 0,
                   "size must be a multiple of align");
@@ -213,15 +214,16 @@ void InstContext::instantiateVariable(SDGNode& node) {
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    QualType type = analyzeTypeExpression(varDecl.typeExpr(), ctx);
-    varDecl.decorateVarDecl(node.entity, type);
+    auto* type = analyzeTypeExpression(varDecl.typeExpr(), ctx);
     /// Here we set the TypeID of the variable in the symbol table.
-    varDecl.variable()->setType(type);
+    auto* variable = cast<Variable*>(node.entity);
+    variable->setType(type);
+    varDecl.decorateVarDecl(variable);
 }
 
-static bool isRefTo(QualType argType, QualType referredType) {
-    return isa<ReferenceType>(*argType) &&
-           stripReferenceNew(argType) == referredType;
+static bool isRefTo(Type const* argType, QualType referredType) {
+    auto* refType = dyncast<ReferenceType const*>(argType);
+    return refType && refType->base() == referredType;
 }
 
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
@@ -285,21 +287,20 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
 
 FunctionSignature InstContext::analyzeSignature(
     ast::FunctionDefinition& decl) const {
-    utl::small_vector<QualType> argumentTypes;
+    utl::small_vector<Type const*> argumentTypes;
     for (auto [index, param]: decl.parameters() | ranges::views::enumerate) {
         argumentTypes.push_back(analyzeParameter(*param, index));
     }
     /// For functions with unspecified return type we assume void until we
     /// implement return type deduction.
-    QualType returnType =
-        decl.returnTypeExpr() ?
-            analyzeTypeExpression(decl.returnTypeExpr(), ctx) :
-            sym.Void();
+    auto* returnType = decl.returnTypeExpr() ?
+                           analyzeTypeExpression(decl.returnTypeExpr(), ctx) :
+                           sym.Void();
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 
-QualType InstContext::analyzeParameter(ast::ParameterDeclaration& param,
-                                       size_t index) const {
+Type const* InstContext::analyzeParameter(ast::ParameterDeclaration& param,
+                                          size_t index) const {
     auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
     if (!thisParam) {
         return analyzeTypeExpression(param.typeExpr(), ctx);
@@ -417,7 +418,7 @@ void InstContext::generateSLFs(StructType& type) {
     if (isDefaultConstructible && !SLF[DefaultConstructor]) {
         bool anyMemberHasDefCtor = ranges::any_of(type.memberVariables(),
                                                   [](auto* var) {
-            auto* type = dyncast<StructType const*>(var->type().get());
+            auto* type = dyncast<StructType const*>(var->type());
             return type && type->specialLifetimeFunction(DefaultConstructor);
         });
         if (anyMemberHasDefCtor) {
@@ -454,9 +455,9 @@ Function* InstContext::generateSLF(SpecialLifetimeFunction key,
 
 FunctionSignature InstContext::makeLifetimeSignature(
     StructType& type, SpecialLifetimeFunction function) const {
-    QualType self = sym.reference(QualType::Mut(&type));
-    QualType rhs = sym.reference(QualType::Const(&type));
-    QualType ret = sym.Void();
+    auto* self = sym.reference(QualType::Mut(&type));
+    auto* rhs = sym.reference(QualType::Const(&type));
+    auto* ret = sym.Void();
     using enum SpecialLifetimeFunction;
     switch (function) {
     case DefaultConstructor:

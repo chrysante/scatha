@@ -184,9 +184,9 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     Token const idToken = tokens.peek();
     if (idToken.kind() == This) {
         tokens.eat();
-        return allocate<ast::ThisParameter>(idToken.sourceRange(),
+        return allocate<ast::ThisParameter>(sema::Mutability::Mutable,
                                             /* isRef = */ false,
-                                            sema::Mutability::Mutable);
+                                            idToken.sourceRange());
     }
     if (idToken.kind() == BitAnd) {
         tokens.eat();
@@ -198,9 +198,9 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
         auto const thisToken = tokens.eat();
         auto sourceRange =
             merge(idToken.sourceRange(), thisToken.sourceRange());
-        return allocate<ast::ThisParameter>(sourceRange,
+        return allocate<ast::ThisParameter>(mutQual,
                                             /* isRef = */ true,
-                                            mutQual);
+                                            sourceRange);
     }
     auto identifier = parseIdentifier();
     if (!identifier) {
@@ -253,7 +253,8 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
             tokens.eat();
         }
     }
-    return allocate<ast::ParameterDeclaration>(std::move(identifier),
+    return allocate<ast::ParameterDeclaration>(sema::Mutability::Mutable,
+                                               std::move(identifier),
                                                std::move(typeExpr));
 }
 
@@ -328,11 +329,11 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     auto sourceRange = declarator ? declarator->sourceRange() :
                        identifier ? identifier->sourceRange() :
                                     tokens.current().sourceRange();
-    return allocate<ast::VariableDeclaration>(sourceRange,
+    return allocate<ast::VariableDeclaration>(mutability,
+                                              sourceRange,
                                               std::move(identifier),
                                               std::move(typeExpr),
-                                              std::move(initExpr),
-                                              mutability);
+                                              std::move(initExpr));
 }
 
 UniquePtr<ast::Statement> Context::parseStatement() {
