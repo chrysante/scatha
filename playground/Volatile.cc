@@ -172,8 +172,6 @@ static void run(ir::Module const& mod) {
     header("Symbol Table");
     sema::print(sym);
 
-    return;
-
     if (!issues.empty()) {
         return;
     }

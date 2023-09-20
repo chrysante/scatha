@@ -303,12 +303,8 @@ static std::optional<ValueCatConversion> determineValueCatConv(
 }
 
 static std::optional<MutConversion> determineMutConv(ConversionKind kind,
-                                                     ValueCatConversion catConv,
                                                      Mutability from,
                                                      Mutability to) {
-    if (catConv == ValueCatConversion::LValueToRValue) {
-        return MutConversion::None;
-    }
     /// No mutability conversion happens
     if (from == to) {
         return MutConversion::None;
@@ -499,10 +495,10 @@ std::optional<Conversion> sema::computeConversion(
     if (!valueCatConv) {
         return std::nullopt;
     }
-    auto mutConv = determineMutConv(kind,
-                                    *valueCatConv,
-                                    from.mutability(),
-                                    to.mutability());
+    std::optional mutConv = MutConversion::None;
+    if (toCat != RValue) {
+        mutConv = determineMutConv(kind, from.mutability(), to.mutability());
+    }
     if (!mutConv) {
         return std::nullopt;
     }
@@ -639,6 +635,8 @@ static Mutability commonMutability(Mutability a, Mutability b) {
 }
 
 QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
+    SC_ASSERT(!isa<ReferenceType>(*a), "");
+    SC_ASSERT(!isa<ReferenceType>(*b), "");
     auto commonMut = commonMutability(a.mutability(), b.mutability());
     if (a.get() == b.get()) {
         return QualType(a.get(), commonMut);

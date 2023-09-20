@@ -3,6 +3,7 @@
 #include <array>
 
 #include "AST/AST.h"
+#include "Common/Allocator.h"
 #include "Common/UniquePtr.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Entity.h"
@@ -10,6 +11,7 @@
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
 
 namespace {
 
@@ -40,13 +42,16 @@ struct TestOS {
 
 TEST_CASE("Overload resolution", "[sema]") {
     SymbolTable sym;
-    auto makeExpr = [&](QualType type) -> UniquePtr<ast::Expression> {
+    MonotonicBufferAllocator allocator;
+    auto makeExpr = [&](QualType type,
+                        ValueCategory valueCat) -> ast::Expression* {
         auto result =
-            allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
+            allocate<ast::UnaryExpression>(allocator,
+                                           ast::UnaryOperator::Promotion,
                                            ast::UnaryOperatorNotation::Prefix,
                                            nullptr,
                                            SourceRange{});
-        result->decorateValue(sym.temporary(type));
+        result->decorateValue(sym.temporary(type), valueCat);
         return result;
     };
     // clang-format off
@@ -60,8 +65,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("1") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            makeExpr(sym.reference(sym.S64())).get(),
-            makeExpr(sym.reference(sym.arrayType(sym.S64(), 3))).get()
+            makeExpr(sym.S64(), LValue),
+            makeExpr(sym.arrayType(sym.S64(), 3), LValue)
         }, false); // clang-format on
 
         REQUIRE(!result.error);
@@ -71,8 +76,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("2") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            makeExpr(sym.reference(QualType::Const(sym.S64()))).get(),
-            makeExpr(sym.reference(QualType::Const(sym.arrayType(sym.S64())))).get()
+            makeExpr(QualType::Const(sym.S64()), RValue),
+            makeExpr(QualType::Const(sym.arrayType(sym.S64())), LValue)
         }, false); // clang-format on
         REQUIRE(!result.error);
         CHECK(result.function == f.functions[0].get());
@@ -81,8 +86,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("3") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            makeExpr(sym.reference(sym.S32())).get(),
-            makeExpr(sym.reference(sym.arrayType(sym.S64(), 4))).get()
+            makeExpr(sym.S32(), LValue),
+            makeExpr(sym.arrayType(sym.S64(), 4), LValue)
         }, false); // clang-format on
         REQUIRE(!result.error);
         CHECK(result.function == f.functions[0].get());
@@ -97,7 +102,7 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("4") {
         // clang-format off
         auto result = performOverloadResolution(g.overloadSet.get(), std::array{
-            makeExpr(sym.reference(sym.Str())).get()
+            makeExpr(sym.Str(), LValue)
         }, false); // clang-format on
         REQUIRE(!result.error);
     }

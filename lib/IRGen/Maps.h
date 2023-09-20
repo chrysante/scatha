@@ -59,7 +59,7 @@ public:
     auto end() const { return values.end(); }
     size_t size() const { return values.size(); }
     /// @}
-    
+
 private:
     ir::Context* ctx;
     utl::hashmap<sema::Object const*, Value> values;

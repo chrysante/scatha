@@ -12,6 +12,8 @@
 
 using namespace scatha;
 using namespace sema;
+using enum ValueCategory;
+using enum ConversionKind;
 
 TEST_CASE("Implicit conversion rank", "[sema]") {
     sema::SymbolTable sym;
@@ -19,34 +21,51 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
                               ast::UnaryOperatorNotation::Prefix,
                               nullptr,
                               SourceRange{});
+    auto fromCat = GENERATE(LValue, RValue);
+    auto toCat = GENERATE(LValue, RValue);
+    if (fromCat == RValue && toCat == LValue) {
+        return;
+    }
+    INFO("From: " << fromCat);
+    INFO("To:   " << toCat);
     SECTION("1") {
-        expr.decorateValue(sym.temporary(sym.U16()));
-        auto conv =
-            computeConversion(ConversionKind::Implicit, &expr, sym.U16());
+        expr.decorateValue(sym.temporary(sym.U16()), fromCat);
+        auto conv = computeConversion(ConversionKind::Implicit,
+                                      &expr,
+                                      sym.U16(),
+                                      toCat);
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("2") {
-        expr.decorateValue(sym.temporary(sym.S64()));
-        auto conv =
-            computeConversion(ConversionKind::Implicit, &expr, sym.S64());
+        expr.decorateValue(sym.temporary(sym.S64()), fromCat);
+        auto conv = computeConversion(ConversionKind::Implicit,
+                                      &expr,
+                                      sym.S64(),
+                                      toCat);
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("3") {
-        expr.decorateValue(sym.temporary(sym.U16()));
-        auto conv =
-            computeConversion(ConversionKind::Implicit, &expr, sym.S32());
+        expr.decorateValue(sym.temporary(sym.U16()), fromCat);
+        auto conv = computeConversion(ConversionKind::Implicit,
+                                      &expr,
+                                      sym.S32(),
+                                      toCat);
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("4") {
-        expr.decorateValue(sym.temporary(sym.U16()));
-        auto conv =
-            computeConversion(ConversionKind::Implicit, &expr, sym.U32());
+        expr.decorateValue(sym.temporary(sym.U16()), fromCat);
+        auto conv = computeConversion(ConversionKind::Implicit,
+                                      &expr,
+                                      sym.U32(),
+                                      toCat);
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("5") {
-        expr.decorateValue(sym.temporary(sym.S16()));
-        auto conv =
-            computeConversion(ConversionKind::Implicit, &expr, sym.U32());
+        expr.decorateValue(sym.temporary(sym.S16()), fromCat);
+        auto conv = computeConversion(ConversionKind::Implicit,
+                                      &expr,
+                                      sym.U32(),
+                                      toCat);
         CHECK(!conv);
     }
 }
@@ -65,7 +84,7 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
              SourceRange{});
     auto* expr = base.operand();
     auto setType = [&](QualType type) {
-        expr->decorateValue(sym.temporary(type));
+        expr->decorateValue(sym.temporary(type), LValue);
     };
     auto set = [&](QualType type, auto value) {
         setType(type);
@@ -86,62 +105,62 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
     /// # Widening
     SECTION("u32(5) to u64") {
         set(sym.U32(), 5);
-        CHECK(convertImplicitly(expr, sym.U64(), dtors, ctx));
+        CHECK(convert(Implicit, expr, sym.U64(), RValue, dtors, ctx));
         CHECK(iss.empty());
     }
     SECTION("u64(5) to u64") {
         set(sym.U64(), 5);
-        CHECK(convertImplicitly(expr, sym.U64(), dtors, ctx));
+        CHECK(convert(Implicit, expr, sym.U64(), RValue, dtors, ctx));
         CHECK(iss.empty());
     }
 
     /// # Explicit widening
     SECTION("byte(5) to s64") {
         set(sym.Byte(), 5);
-        CHECK(convertExplicitly(expr, sym.S64(), dtors, ctx));
+        CHECK(convert(Explicit, expr, sym.S64(), RValue, dtors, ctx));
         CHECK(iss.empty());
     }
 
     /// # Narrowing
     SECTION("s64(5) to s8") {
         set(sym.S64(), 5);
-        CHECK(convertImplicitly(expr, sym.S8(), dtors, ctx));
+        CHECK(convert(Implicit, expr, sym.S8(), RValue, dtors, ctx));
         CHECK(iss.empty());
     }
     SECTION("s64(<unknown>) to s8") {
         setType(sym.S64());
-        CHECK(!convertImplicitly(expr, sym.S8(), dtors, ctx));
-        CHECK(convertExplicitly(expr, sym.S8(), dtors, ctx));
+        CHECK(!convert(Implicit, expr, sym.S8(), RValue, dtors, ctx));
+        CHECK(convert(Explicit, expr, sym.S8(), RValue, dtors, ctx));
     }
     SECTION("S64(-1) to u32") {
         set(sym.S64(), -1);
-        CHECK(!convertImplicitly(expr, sym.U32(), dtors, ctx));
-        CHECK(convertExplicitly(expr, sym.U32(), dtors, ctx));
+        CHECK(!convert(Implicit, expr, sym.U32(), RValue, dtors, ctx));
+        CHECK(convert(Explicit, expr, sym.U32(), RValue, dtors, ctx));
         APInt result = getResult();
         CHECK(result.bitwidth() == 32);
         CHECK(ucmp(result, ~0u) == 0);
     }
     SECTION("U32(0x1000000F) to s16") {
         set(sym.U32(), 0x1000000F);
-        CHECK(!convertImplicitly(expr, sym.S16(), dtors, ctx));
-        CHECK(convertExplicitly(expr, sym.S16(), dtors, ctx));
+        CHECK(!convert(Implicit, expr, sym.S16(), RValue, dtors, ctx));
+        CHECK(convert(Explicit, expr, sym.S16(), RValue, dtors, ctx));
         APInt result = getResult();
         CHECK(result.bitwidth() == 16);
         CHECK(ucmp(result, 0xF) == 0);
     }
     SECTION("-1 to u64") {
         set(sym.S64(), -1);
-        CHECK(!convertImplicitly(expr, sym.U64(), dtors, ctx));
-        CHECK(convertExplicitly(expr, sym.U32(), dtors, ctx));
+        CHECK(!convert(Implicit, expr, sym.U64(), RValue, dtors, ctx));
+        CHECK(convert(Explicit, expr, sym.U32(), RValue, dtors, ctx));
     }
     SECTION("s64(5) to byte") {
         set(sym.S64(), 5);
-        CHECK(convertImplicitly(expr, sym.Byte(), dtors, ctx));
+        CHECK(convert(Implicit, expr, sym.Byte(), RValue, dtors, ctx));
         CHECK(iss.empty());
     }
     SECTION("s64(256) to byte") {
         set(sym.S64(), 256);
-        CHECK(!convertImplicitly(expr, sym.Byte(), dtors, ctx));
+        CHECK(!convert(Implicit, expr, sym.Byte(), RValue, dtors, ctx));
     }
     /// No destructors shall have been emitted since we only convert between
     /// trivial types
@@ -151,34 +170,12 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
 TEST_CASE("Common type", "[sema]") {
     SymbolTable sym;
     auto S64 = sym.S64();
-    auto S64MutRef = sym.reference(QualType::Mut(sym.S64()));
-    auto S64ConstRef = sym.reference(QualType::Const(sym.S64()));
-
-    auto S32 = sym.S32();
-    auto S32MutRef = sym.reference(QualType::Mut(sym.S32()));
     auto Byte = sym.Byte();
     auto U64 = sym.U64();
     auto U32 = sym.U32();
 
     SECTION("s64, s64 -> s64") {
         CHECK(commonType(sym, S64, S64) == QualType::Mut(S64));
-    }
-    SECTION("&mut s64, &mut s64 -> &mut s64") {
-        CHECK(commonType(sym, S64MutRef, S64MutRef) ==
-              QualType::Mut(S64MutRef));
-    }
-    SECTION("&s64, &mut s64 -> &s64") {
-        CHECK(commonType(sym, S64ConstRef, S64MutRef) ==
-              QualType::Mut(S64ConstRef));
-    }
-    SECTION("&s64, s64 -> s64") {
-        CHECK(commonType(sym, S64ConstRef, S64) == QualType::Mut(S64));
-    }
-    SECTION("&s64, &mut s32 -> s64") {
-        CHECK(commonType(sym, S64ConstRef, S32MutRef) == QualType::Mut(S64));
-    }
-    SECTION("&s64, s32 -> s64") {
-        CHECK(commonType(sym, S64ConstRef, S32) == QualType::Mut(S64));
     }
     SECTION("s64, byte -> None") { CHECK(!commonType(sym, S64, Byte)); }
     SECTION("s64, u64 -> None") { CHECK(!commonType(sym, S64, U64)); }

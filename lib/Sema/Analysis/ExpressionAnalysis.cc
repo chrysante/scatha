@@ -486,13 +486,18 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
             iss.push<InvalidNameLookup>(ma);
             return nullptr;
         }
-        auto type = ma.member()->type();
-#warning Type needs to be const if accessed object is const
+        auto type = QualType(ma.member()->type().get(),
+                             ma.accessed()->type().mutability());
         ma.decorateValue(sym.temporary(type), ma.member()->valueCategory());
         break;
     }
     case EntityCategory::Type:
-        ma.decorateType(cast<Type*>(ma.member()->entity()));
+        if (ma.member()->isValue()) {
+            ma.decorateValue(ma.member()->entity(), LValue);
+        }
+        else if (ma.member()->isType()) {
+            ma.decorateType(cast<Type*>(ma.member()->entity()));
+        }
         break;
     case EntityCategory::Indeterminate:
         break;

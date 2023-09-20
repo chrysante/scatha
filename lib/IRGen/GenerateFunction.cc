@@ -592,7 +592,7 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         auto* type = ctx.arrayType(ctx.intType(8), size);
         auto staticData =
             allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
-        auto data = Value(staticData.get(), staticData.get()->type(), Register);
+        auto data = Value(staticData.get(), staticData.get()->type(), Memory);
         mod.addConstantData(std::move(staticData));
         valueMap.insertArraySize(lit.object(), size);
         return data;

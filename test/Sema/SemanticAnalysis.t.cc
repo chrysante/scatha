@@ -12,6 +12,7 @@
 using namespace scatha;
 using namespace sema;
 using namespace ast;
+using enum ValueCategory;
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
     auto const text = R"(
@@ -75,8 +76,8 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
     auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
     auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpr());
-    CHECK(nestedvarDeclInit->type().get() ==
-          sym.reference(QualType::Const(sym.Str())));
+    CHECK(nestedvarDeclInit->type() == QualType::Const(sym.Str()));
+    CHECK(nestedvarDeclInit->valueCategory() == LValue);
     auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
     CHECK(xDecl->type().get() == sym.S64());
     auto* intLit = cast<ast::Literal*>(xDecl->initExpr());

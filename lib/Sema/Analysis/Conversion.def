@@ -9,8 +9,8 @@
 #endif
 
 SC_VALUECATCONV_DEF(None,                 0)
-SC_VALUECATCONV_DEF(LValueToRValue,       1)
-SC_VALUECATCONV_DEF(MaterializeTemporary, 2)
+SC_VALUECATCONV_DEF(LValueToRValue,       0)
+SC_VALUECATCONV_DEF(MaterializeTemporary, 1)
 
 #undef SC_VALUECATCONV_DEF
 
