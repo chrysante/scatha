@@ -910,10 +910,12 @@ private:
 /// Concrete node representing a parameter declaration.
 class SCATHA_API ParameterDeclaration: public VarDeclBase {
 public:
-    explicit ParameterDeclaration(sema::Mutability mut,
+    explicit ParameterDeclaration(size_t index,
+                                  sema::Mutability mut,
                                   UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
         ParameterDeclaration(NodeType::ParameterDeclaration,
+                             index,
                              mut,
                              SourceRange{},
                              std::move(name),
@@ -921,8 +923,12 @@ public:
 
     AST_DERIVED_COMMON(ParameterDeclaration)
 
+    /// The index of this parameter in the parameter list
+    size_t index() const { return _index; }
+
 protected:
     explicit ParameterDeclaration(NodeType nodeType,
+                                  size_t index,
                                   sema::Mutability mut,
                                   SourceRange sourceRange,
                                   UniquePtr<Identifier> name,
@@ -931,16 +937,22 @@ protected:
                     mut,
                     sourceRange,
                     std::move(name),
-                    std::move(typeExpr)) {}
+                    std::move(typeExpr)),
+        _index(index) {}
+
+private:
+    size_t _index;
 };
 
 /// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
-    explicit ThisParameter(sema::Mutability mut,
+    explicit ThisParameter(size_t index,
+                           sema::Mutability mut,
                            bool isRef,
                            SourceRange sourceRange):
         ParameterDeclaration(NodeType::ThisParameter,
+                             index,
                              mut,
                              sourceRange,
                              nullptr,

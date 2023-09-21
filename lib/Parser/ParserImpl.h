@@ -22,7 +22,8 @@ struct Context {
     UniquePtr<ast::TranslationUnit> parseTranslationUnit();
     UniquePtr<ast::Declaration> parseExternalDeclaration();
     UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
-    UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration();
+    UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration(
+        size_t index);
     UniquePtr<ast::StructDefinition> parseStructDefinition();
     UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
     UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(

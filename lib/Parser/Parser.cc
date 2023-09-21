@@ -129,8 +129,9 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
         return this->parseList<ParamListType>(OpenParan,
                                               CloseParan,
                                               Comma,
-                                              [this] {
-            return parseParameterDeclaration();
+                                              [this,
+                                               index = size_t{ 0 }]() mutable {
+            return parseParameterDeclaration(index++);
         });
     };
     auto params = parseList();
@@ -180,12 +181,14 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
                                              std::move(body));
 }
 
-UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
+UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
+    size_t index) {
     Token const idToken = tokens.peek();
     auto thisMutQual = eatMut();
     if (idToken.kind() == This) {
         tokens.eat();
-        return allocate<ast::ThisParameter>(thisMutQual,
+        return allocate<ast::ThisParameter>(index,
+                                            thisMutQual,
                                             /* isRef = */ false,
                                             idToken.sourceRange());
     }
@@ -199,7 +202,8 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
         auto const thisToken = tokens.eat();
         auto sourceRange =
             merge(idToken.sourceRange(), thisToken.sourceRange());
-        return allocate<ast::ThisParameter>(refMutQual,
+        return allocate<ast::ThisParameter>(index,
+                                            refMutQual,
                                             /* isRef = */ true,
                                             sourceRange);
     }
@@ -255,7 +259,8 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
             tokens.eat();
         }
     }
-    return allocate<ast::ParameterDeclaration>(mutQual,
+    return allocate<ast::ParameterDeclaration>(index,
+                                               mutQual,
                                                std::move(identifier),
                                                std::move(typeExpr));
 }
