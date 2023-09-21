@@ -773,37 +773,23 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion node
     if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
-        /// TODO: Rewrite this
-        /// To actually rewrite this in a nice way, i.e. to just write
-        /// `return convert(Explicit, ...)`,
-        /// the convertion tests need to check constructors for conversions
-        /// between object types.
-        if (auto* structType = dyncast<StructType const*>(targetType)) {
-            auto args = fc.arguments() |
-                        ranges::views::transform([](auto* arg) {
-                            return arg->extractFromParent();
-                        }) |
-                        ToSmallVector<>;
-            auto ctorCall = makeConstructorCall(structType,
-                                                nullptr,
-                                                std::move(args),
-                                                *dtorStack,
-                                                ctx,
-                                                fc.sourceRange());
-            if (!ctorCall) {
-                return nullptr;
-            }
-            dtorStack->push(ctorCall->object());
-            auto* result = ctorCall.get();
-            fc.parent()->setChild(fc.indexInParent(), std::move(ctorCall));
-            return result;
+        auto args = fc.arguments() | ranges::views::transform([](auto* arg) {
+                        return arg->extractFromParent();
+                    }) |
+                    ToSmallVector<>;
+        auto ctorCall = makePseudoConstructorCall(targetType,
+                                                  nullptr,
+                                                  std::move(args),
+                                                  *dtorStack,
+                                                  ctx,
+                                                  fc.sourceRange());
+        if (!ctorCall) {
+            return nullptr;
         }
-        else {
-            SC_ASSERT(fc.arguments().size() == 1, "For now...");
-            auto* arg = fc.argument(0);
-            fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-            return convert(Explicit, arg, targetType, RValue, *dtorStack, ctx);
-        }
+        dtorStack->push(ctorCall->object());
+        auto* result = ctorCall.get();
+        fc.parent()->setChild(fc.indexInParent(), std::move(ctorCall));
+        return result;
     }
 
     /// Make sure we have an overload set as our called object

@@ -51,7 +51,7 @@
 ///    │  ├─ FunctionCall
 ///    │  ├─ ConstructorCall
 ///    │  └─ Subscript
-///    ├─ TrivialCopyExpr
+///    ├─ TrivialConstructExpr
 ///    ├─ AddressOfExpression
 ///    ├─ DereferenceExpression
 ///    └─ Conversion
@@ -1309,17 +1309,24 @@ private:
 };
 
 /// Concrete node representing a copy of a trivial value
-class SCATHA_API TrivialCopyExpr: public Expression {
+class SCATHA_API TrivialConstructExpr: public CallLike {
 public:
-    explicit TrivialCopyExpr(UniquePtr<Expression> argument):
-        Expression(NodeType::TrivialCopyExpr,
-                   argument->sourceRange(),
-                   std::move(argument)) {}
+    explicit TrivialConstructExpr(
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        sema::ObjectType const* constructedType,
+        SourceRange sourceRange):
+        CallLike(NodeType::TrivialConstructExpr,
+                 nullptr,
+                 std::move(arguments),
+                 sourceRange) {}
 
-    AST_DERIVED_COMMON(TrivialCopyExpr)
+    AST_DERIVED_COMMON(TrivialConstructExpr)
 
-    /// The expression being copied
-    AST_PROPERTY(0, Expression, argument, Argument)
+    /// The type being constructed.
+    sema::ObjectType const* constructedType() const { return constrType; }
+
+private:
+    sema::ObjectType const* constrType;
 };
 
 } // namespace scatha::ast

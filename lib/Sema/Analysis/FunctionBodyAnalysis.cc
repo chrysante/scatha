@@ -234,15 +234,16 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         popTopLevelDtor(initExpr, varDecl.dtorStack());
     }
     else {
-        auto call = makeConstructorCall(cast<ObjectType const*>(type),
-                                        nullptr,
-                                        {},
-                                        varDecl.dtorStack(),
-                                        ctx,
-                                        varDecl.sourceRange());
-        if (call) {
-            varDecl.setInitExpr(std::move(call));
-        }
+        auto call = makePseudoConstructorCall(cast<ObjectType const*>(type),
+                                              nullptr,
+                                              {},
+                                              varDecl.dtorStack(),
+                                              ctx,
+                                              varDecl.sourceRange());
+        /// We don't need to declare poison here if there is no matching
+        /// constructor because the type is explicitly declared. We will get an
+        /// error but we can analyze uses of this variable.
+        varDecl.setInitExpr(std::move(call));
     }
     if (variable.isConst() && initExpr) {
         variable.setConstantValue(clone(initExpr->constantValue()));

@@ -114,7 +114,7 @@ struct FuncGenContext: ir::FunctionBuilder {
     Value getValueImpl(ast::Conversion const&);
     Value getValueImpl(ast::UninitTemporary const&);
     Value getValueImpl(ast::ConstructorCall const&);
-    Value getValueImpl(ast::TrivialCopyExpr const&);
+    Value getValueImpl(ast::TrivialConstructExpr const&);
 
     /// # Expression specific utilities
     void generateArgument(PassingConvention const& PC,
@@ -1349,26 +1349,49 @@ Value FuncGenContext::getValueImpl(ast::ConstructorCall const& call) {
     }
 }
 
-Value FuncGenContext::getValueImpl(ast::TrivialCopyExpr const& expr) {
+Value FuncGenContext::getValueImpl(ast::TrivialConstructExpr const& expr) {
     // clang-format off
     return SC_MATCH (*expr.type()) {
         [&](sema::ObjectType const& type) {
-            auto value = getValue(expr.argument());
-            auto result = Value(toRegister(value), Register);
-            auto arraySize = valueMap.tryGetArraySize(expr.argument()->object());
-            if (arraySize) {
-                auto newSize = Value(toRegister(*arraySize), Register);
-                valueMap.insertArraySize(expr.object(), newSize);
+            if (expr.arguments().empty()) {
+                auto* value = ctx.undef(typeMap(expr.type()));
+                return Value(value, Register);
             }
-            return result;
+            else {
+                SC_ASSERT(expr.arguments().size() == 1, "");
+                auto* arg = expr.arguments().front();
+                auto value = getValue(arg);
+                valueMap.insertArraySizeOf(expr.object(), arg->object());
+                return Value(toRegister(value), Register);
+            }
         },
-        [&](sema::ArrayType const& type) -> Value {
-            if (type.size() <= 64) {
-                auto value = getValue(expr.argument());
+        [&](sema::StructType const& type) {
+            if (expr.arguments().empty()) {
+                auto* value = ctx.undef(typeMap(expr.type()));
+                return Value(value, Register);
+            }
+            else if (expr.arguments().size() == 1 &&
+                     expr.arguments().front()->type().get() ==
+                         expr.type().get())
+            {
+                auto* arg = expr.arguments().front();
+                auto value = getValue(arg);
+                valueMap.insertArraySizeOf(expr.object(), arg->object());
                 return Value(toRegister(value), Register);
             }
             else {
-                auto source = getValue(expr.argument());
+                SC_UNIMPLEMENTED();
+            }
+        },
+        [&](sema::ArrayType const& type) -> Value {
+            SC_ASSERT(expr.arguments().size() == 1, "");
+            auto* arg = expr.arguments().front();
+            if (type.size() <= 64) {
+                auto value = getValue(arg);
+                return Value(toRegister(value), Register);
+            }
+            else {
+                auto source = getValue(arg);
                 SC_ASSERT(source.isMemory(), "");
                 auto* arrayType = typeMap(&type);
                 auto* array = makeLocalVariable(arrayType, "list");

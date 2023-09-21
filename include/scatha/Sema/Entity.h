@@ -677,6 +677,12 @@ public:
         return _memberVars;
     }
 
+    /// \Returns a view over the member types in this struct
+    auto members() const {
+        return memberVariables() |
+               ranges::views::transform([](auto* var) { return var->type(); });
+    }
+
     /// Adds a variable to the list of member variables of this structure
     void addMemberVariable(Variable* var) { _memberVars.push_back(var); }
 

@@ -488,8 +488,6 @@ std::optional<Conversion> sema::computeConversion(
     QualType to,
     ValueCategory toCat,
     Value const* fromConstantValue) {
-    SC_ASSERT(!isa<ReferenceType>(*from), "We use value categories now");
-    SC_ASSERT(!isa<ReferenceType>(*to), "^^^");
     auto valueCatConv =
         determineValueCatConv(kind, fromCat, toCat, to.mutability());
     if (!valueCatConv) {
@@ -702,25 +700,33 @@ static ValueCategory getValueCat(ValueCategory original,
 ast::Expression* sema::insertConversion(ast::Expression* expr,
                                         Conversion const& conv,
                                         SymbolTable& sym) {
-    SC_ASSERT(expr->parent(),
-              "Can't insert a conversion if node has no parent");
     if (conv.isNoop()) {
         return expr;
     }
-    size_t const indexInParent = expr->indexInParent();
-    auto* parent = expr->parent();
+    ast::Conversion* converted = nullptr;
+    if (!expr->parent()) {
+        converted =
+            allocate<ast::Conversion>(UniquePtr<ast::Expression>(expr),
+                                      std::make_unique<Conversion>(conv))
+                .release();
+    }
+    else {
+        size_t const indexInParent = expr->indexInParent();
+        auto* parent = expr->parent();
+        auto owner =
+            allocate<ast::Conversion>(expr->extractFromParent(),
+                                      std::make_unique<Conversion>(conv));
+        converted = owner.get();
+        parent->setChild(indexInParent, std::move(owner));
+    }
     auto targetType = conv.targetType();
-    auto owner = allocate<ast::Conversion>(expr->extractFromParent(),
-                                           std::make_unique<Conversion>(conv));
-    auto* result = owner.get();
-    parent->setChild(indexInParent, std::move(owner));
     auto* entity = getConvertedEntity(expr->entity(), conv, sym);
-    result->decorateValue(entity,
-                          getValueCat(expr->valueCategory(),
-                                      conv.valueCatConversion()),
-                          targetType);
-    result->setConstantValue(
-        evalConversion(result->conversion(),
-                       result->expression()->constantValue()));
-    return result;
+    converted->decorateValue(entity,
+                             getValueCat(expr->valueCategory(),
+                                         conv.valueCatConversion()),
+                             targetType);
+    converted->setConstantValue(
+        evalConversion(converted->conversion(),
+                       converted->expression()->constantValue()));
+    return converted;
 }

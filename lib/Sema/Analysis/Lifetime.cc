@@ -14,29 +14,75 @@
 using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
+using enum ConversionKind;
 
-UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
+static bool canConstructTrivialType(
+    ObjectType const* type,
+    utl::small_vector<UniquePtr<ast::Expression>>& arguments,
+    DTorStack& dtors,
+    Context& ctx) {
+    if (arguments.size() == 0) {
+        return true;
+    }
+    if (arguments.size() == 1) {
+        auto* arg =
+            convert(Explicit,
+                    arguments.front().get(),
+                    getQualType(type, Mutability::Const),
+                    LValue, // So we don't end up in infinite recursion :/
+                    dtors,
+                    ctx);
+        if (arg) {
+            arguments.front().release();
+            arguments.front() = UniquePtr<ast::Expression>(arg);
+            return true;
+        }
+    }
+    if (auto* structType = dyncast<StructType const*>(type)) {
+        if (arguments.size() != structType->members().size()) {
+            return false;
+        }
+        return ranges::equal(structType->members(),
+                             arguments |
+                                 ranges::views::transform([](auto& arg) {
+                                     return arg->type().get();
+                                 }));
+    }
+    return false;
+}
+
+UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
     sema::ObjectType const* type,
-    UniquePtr<ast::Expression> objectArgument,
+    UniquePtr<ast::Expression>
+        objectArgument,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
     Context& ctx,
     SourceRange sourceRange) {
+    using enum SpecialMemberFunction;
+
     auto& sym = ctx.symbolTable();
+    auto& iss = ctx.issueHandler();
     auto* structType = dyncast<StructType const*>(type);
-    if (!structType) {
-        return nullptr;
+    if (!structType || !structType->specialMemberFunction(New)) {
+        if (canConstructTrivialType(type, arguments, dtors, ctx)) {
+            auto expr =
+                allocate<ast::TrivialConstructExpr>(std::move(arguments),
+                                                    type,
+                                                    sourceRange);
+            expr->decorateValue(sym.temporary(type), RValue);
+            return expr;
+        }
+        /// Push an error here!
+        SC_UNIMPLEMENTED();
     }
     if (!objectArgument) {
         objectArgument = allocate<ast::UninitTemporary>(sourceRange);
         objectArgument->decorateValue(sym.temporary(type), LValue);
     }
     arguments.insert(arguments.begin(), std::move(objectArgument));
-    using enum SpecialMemberFunction;
     auto* ctorSet = structType->specialMemberFunction(New);
-    if (!ctorSet) {
-        return nullptr;
-    }
+    SC_ASSERT(ctorSet, "Trivial lifetime case is handled above");
     auto result =
         performOverloadResolution(ctorSet,
                                   arguments | ToAddress | ToSmallVector<>,
