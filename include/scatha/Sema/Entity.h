@@ -521,11 +521,14 @@ public:
     /// Align of this type
     size_t align() const;
 
-#warning where are we using this?
+    /// \Returns `size() != InvalidSize`
+    /// Specifically this returns `true` for `void` and dynamic array types
     bool isComplete() const;
 
+    ///
     bool isDefaultConstructible() const;
 
+    ///
     bool hasTrivialLifetime() const;
 
 protected:
@@ -801,6 +804,8 @@ public:
 
 private:
     friend class Type;
+    size_t sizeImpl() const { return 0; }
+    size_t alignImpl() const { return 0; }
     bool isDefaultConstructibleImpl() const { return false; }
 };
 

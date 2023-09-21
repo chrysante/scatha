@@ -773,7 +773,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion node
     if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
-#warning It would be nice to not need the big if statement here
+        /// TODO: Rewrite this
+        /// To actually rewrite this in a nice way, i.e. to just write
+        /// `return convert(Explicit, ...)`,
+        /// the convertion tests need to check constructors for conversions
+        /// between object types.
         if (auto* structType = dyncast<StructType const*>(targetType)) {
             auto args = fc.arguments() |
                         ranges::views::transform([](auto* arg) {

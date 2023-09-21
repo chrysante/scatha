@@ -200,7 +200,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         return;
     }
     auto type = declType ? declType : initType;
-    if (!isa<ReferenceType>(type) && type->size() == InvalidSize) {
+    if (!type->isComplete()) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         iss.push<InvalidDeclaration>(&varDecl,
                                      InvalidDeclaration::Reason::InvalidType,
