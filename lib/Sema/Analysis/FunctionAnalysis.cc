@@ -15,6 +15,7 @@
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SemanticIssuesNEW.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -238,20 +239,19 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     if (!declType && !initType) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
-        if (!isPoison(varDecl.typeExpr()) && !isPoison(initExpr)) {
-            iss.push<InvalidDeclaration>(
-                &varDecl,
-                InvalidDeclaration::Reason::CantInferType,
-                sym.currentScope());
+        if (isPoison(varDecl.typeExpr()) && !isPoison(initExpr)) {
+            return;
         }
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
         return;
     }
     auto type = declType ? declType : initType;
     if (!type->isComplete()) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
-        iss.push<InvalidDeclaration>(&varDecl,
-                                     InvalidDeclaration::Reason::InvalidType,
-                                     sym.currentScope());
+        ctx.issue<BadVarDecl>(&varDecl,
+                              BadVarDecl::IncompleteType,
+                              type,
+                              initExpr);
         return;
     }
     if (isa<ReferenceType>(type) && !initExpr) {

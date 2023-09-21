@@ -5,6 +5,7 @@
 
 #include "Issue/IssueHandler.h"
 #include "Sema/Fwd.h"
+#include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
 
@@ -49,6 +50,14 @@ public:
         return analyzedFunctions.contains(function);
     }
     /// @}
+
+    /// Conveniece wrapper to emit issues
+    template <typename I, typename... Args>
+    void issue(auto* astNode, Args&&... args) {
+        iss->push<I>(astNode,
+                     &sym->currentScope(),
+                     std::forward<Args>(args)...);
+    }
 
 private:
     SymbolTable* sym;

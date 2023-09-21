@@ -246,7 +246,9 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
         return;
     }
     /// TODO: Handle return type correctly
-    /// If the function is a special member function we should check if it has a return type specified. If so, we emit an error. Otherwise we set the return type to void
+    /// If the function is a special member function we should check if it has a
+    /// return type specified. If so, we emit an error. Otherwise we set the
+    /// return type to void
     auto SMF = toSMF(def);
     if (!SMF) {
         return;

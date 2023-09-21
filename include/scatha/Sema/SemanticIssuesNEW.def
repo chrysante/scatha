@@ -1,0 +1,49 @@
+// No include guards
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad declaration -------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADDECL_DEF
+#   define SC_SEMA_BADDECL_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADDECL_DEF(ReservedIdentifier, Error, "Reserved identifier")
+SC_SEMA_BADDECL_DEF(InvalidInThisScope, Error, "Invalid in this scope")
+SC_SEMA_BADDECL_DEF(NoReason,           Error, "")
+
+#undef SC_SEMA_BADDECL_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad variable declaration ----------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADVARDECL_DEF
+#   define SC_SEMA_BADVARDECL_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADVARDECL_DEF(IncompleteType,
+                       Error,
+                       "Cannot declare variable of incomplete type " << type()->name())
+SC_SEMA_BADVARDECL_DEF(ExpectedLValueInit,
+                       Error,
+                       "Lvalue initializer is required for variable reference")
+SC_SEMA_BADVARDECL_DEF(CantInferType,
+                       Error,
+                       "Can't infer type")
+
+#undef SC_SEMA_BADVARDECL_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad function definition -----------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADFUNCDEF_DEF
+#   define SC_SEMA_BADFUNCDEF_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADFUNCDEF_DEF(InvalidSMF,
+                       Error,
+                       "Invalid special member function declaration")
+
+#undef SC_SEMA_BADFUNCDEF_DEF

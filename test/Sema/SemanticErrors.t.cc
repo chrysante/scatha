@@ -2,6 +2,7 @@
 
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SemanticIssuesNEW.h"
 #include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
@@ -180,9 +181,9 @@ fn g(y: Y.data) {}
 struct Y { var data: int; }
 )");
     // let v;
-    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3 = issues.findOnLine<BadVarDecl>(3);
     REQUIRE(line3);
-    CHECK(line3->reason() == InvalidDeclaration::Reason::CantInferType);
+    CHECK(line3->reason() == BadVarDecl::CantInferType);
     // let x = 0;
     CHECK(issues.noneOnLine(4));
     // let y: x;
@@ -326,9 +327,9 @@ fn main() {
     CHECK(badSymRef->have() == EntityCategory::Type);
     CHECK(badSymRef->expected() == EntityCategory::Value);
 
-    auto invalidDecl = issues.findOnLine<InvalidDeclaration>(5);
+    auto invalidDecl = issues.findOnLine<BadVarDecl>(5);
     REQUIRE(invalidDecl);
-    CHECK(invalidDecl->reason() == InvalidDeclaration::Reason::CantInferType);
+    CHECK(invalidDecl->reason() == BadVarDecl::CantInferType);
 
     auto invCount = issues.findOnLine<InvalidListExpr>(6);
     REQUIRE(invCount);
