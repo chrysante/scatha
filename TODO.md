@@ -14,8 +14,9 @@ Then we can also remove the `->` member access operator
 
 ## Frontend
 
+### Restructure `FunctionBodyAnalysis` so it just takes a single function at a time
+
 ### Fix parser crashes
-### Reintroduce value categories to semantic analysis and remove reference types in expressions
 
 ## IR
 

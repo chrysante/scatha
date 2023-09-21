@@ -28,6 +28,20 @@ Take a look at some more sophisticated [examples](examples/).
 
 ## Feature roadmap
 
+### Constructors and destructors
+- Almost done, need to handle assignment somehow though
+
+### Dynamic memory allocation in the language.
+- Right now only possible with `__builtin_alloc()`/`__builtin_dealloc()` functions which directly call `malloc` and `free` 
+
+### Built in string formatting
+
+### Some library functions
+
+### Generics?
+
+---
+
 ### Language
 - Arithemtic types with explicitly specified width
     - Signed and unsigned integral types: ✅
