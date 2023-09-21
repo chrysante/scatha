@@ -290,9 +290,13 @@ void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
 }
 
 void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
-    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function,
-              "Return statements can only occur at function scope. Perhaps "
-              "this should be a soft error");
+    if (sym.currentScope().kind() != ScopeKind::Function) {
+        iss.push<InvalidStatement>(
+            &rs,
+            InvalidStatement::Reason::InvalidScopeForStatement,
+            sym.currentScope());
+        return;
+    }
     Type const* returnType = currentFunction.returnType();
     if (!returnType) {
         return;
