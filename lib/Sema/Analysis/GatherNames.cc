@@ -6,7 +6,7 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/Context.h"
+#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"

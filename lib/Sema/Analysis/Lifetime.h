@@ -6,7 +6,7 @@
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
-#include "Sema/Context.h"
+#include "Sema/Analysis/Context.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {

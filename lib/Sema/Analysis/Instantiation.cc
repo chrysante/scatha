@@ -14,7 +14,7 @@
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/StructDependencyGraph.h"
 #include "Sema/Analysis/Utility.h"
-#include "Sema/Context.h"
+#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
 #include "Sema/SemanticIssue.h"

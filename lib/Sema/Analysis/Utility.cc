@@ -6,7 +6,7 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
-#include "Sema/Context.h"
+#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 

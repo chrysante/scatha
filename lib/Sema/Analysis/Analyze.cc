@@ -3,7 +3,7 @@
 #include "Sema/Analysis/FunctionAnalysis.h"
 #include "Sema/Analysis/GatherNames.h"
 #include "Sema/Analysis/Instantiation.h"
-#include "Sema/Context.h"
+#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
