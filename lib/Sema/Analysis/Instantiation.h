@@ -15,7 +15,7 @@ namespace scatha::sema {
 /// \Returns a list of all struct types of the program in topsort order, i.e. if
 /// `Y` has a member of type `X`, then `X` comes before `Y`
 SCATHA_API utl::vector<StructType const*> instantiateEntities(
-    Context& context,
+    AnalysisContext& context,
     StructDependencyGraph& structDependencies,
     std::span<ast::FunctionDefinition*> functions);
 

@@ -5,8 +5,8 @@
 #include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
@@ -21,7 +21,7 @@ namespace {
 /// Gathers all declarations and declares them in the symbol table. Also
 /// analyzes the dependencies of structs because they are trivial.
 struct GatherContext {
-    GatherContext(sema::Context& ctx, GatherNamesResult& result):
+    GatherContext(sema::AnalysisContext& ctx, GatherNamesResult& result):
         sym(ctx.symbolTable()),
         iss(ctx.issueHandler()),
         dependencyGraph(result.structs),
@@ -46,7 +46,8 @@ struct GatherContext {
 
 } // namespace
 
-GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& root, Context& ctx) {
+GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& root,
+                                            AnalysisContext& ctx) {
     GatherNamesResult result;
     GatherContext(ctx, result).gather(root);
     return result;

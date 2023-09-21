@@ -7,9 +7,9 @@
 
 #include "AST/AST.h"
 #include "Common/Ranges.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
@@ -533,7 +533,7 @@ static ast::Expression* convertImpl(ConversionKind kind,
                                     QualType to,
                                     ValueCategory toValueCat,
                                     DTorStack* dtors,
-                                    Context& ctx) {
+                                    AnalysisContext& ctx) {
     /// If we want to invoke a copy constructor, we convert the argument to
     /// const lvalue. This is a preliminary hack
     bool const makeCopy = expr->valueCategory() == LValue &&
@@ -564,11 +564,12 @@ ast::Expression* sema::convert(ConversionKind kind,
                                QualType to,
                                ValueCategory toValueCat,
                                DTorStack& dtors,
-                               Context& ctx) {
+                               AnalysisContext& ctx) {
     return convertImpl(kind, expr, to, toValueCat, &dtors, ctx);
 }
 
-ast::Expression* sema::dereference(ast::Expression* expr, Context& ctx) {
+ast::Expression* sema::dereference(ast::Expression* expr,
+                                   AnalysisContext& ctx) {
     return expr;
 }
 

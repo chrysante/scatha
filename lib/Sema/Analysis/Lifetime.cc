@@ -6,6 +6,7 @@
 #include <range/v3/view.hpp>
 
 #include "AST/AST.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
@@ -20,7 +21,7 @@ static bool canConstructTrivialType(
     ObjectType const* type,
     utl::small_vector<UniquePtr<ast::Expression>>& arguments,
     DTorStack& dtors,
-    Context& ctx) {
+    AnalysisContext& ctx) {
     if (arguments.size() == 0) {
         return true;
     }
@@ -74,7 +75,7 @@ UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
     UniquePtr<ast::Expression> objectArgument,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
-    Context& ctx,
+    AnalysisContext& ctx,
     SourceRange sourceRange) {
     using enum SpecialMemberFunction;
 

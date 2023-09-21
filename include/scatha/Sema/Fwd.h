@@ -10,7 +10,7 @@
 namespace scatha::sema {
 
 struct AnalysisResult;
-class Context;
+class AnalysisContext;
 class Conversion;
 class FunctionSignature;
 class SemanticIssue;

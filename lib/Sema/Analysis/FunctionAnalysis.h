@@ -13,7 +13,7 @@ namespace scatha::sema {
 class SymbolTable;
 
 /// Semantically analyze the function \p function
-SCTEST_API void analyzeFunction(Context& ctx,
+SCTEST_API void analyzeFunction(AnalysisContext& ctx,
                                 ast::FunctionDefinition* function);
 
 } // namespace scatha::sema

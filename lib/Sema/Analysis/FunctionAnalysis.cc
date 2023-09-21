@@ -6,13 +6,13 @@
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Common/Ranges.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/DTorStack.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/Utility.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
@@ -48,7 +48,8 @@ static void gatherParentDestructors(ast::JumpStatement& stmt) {
 namespace {
 
 struct FuncBodyContext {
-    FuncBodyContext(sema::Context& ctx, ast::FunctionDefinition& function):
+    FuncBodyContext(sema::AnalysisContext& ctx,
+                    ast::FunctionDefinition& function):
         ctx(ctx),
         sym(ctx.symbolTable()),
         iss(ctx.issueHandler()),
@@ -76,7 +77,7 @@ struct FuncBodyContext {
         return sema::analyzeExpression(expr, dtorStack, ctx);
     }
 
-    sema::Context& ctx;
+    sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
     ast::FunctionDefinition& currentFunction;
@@ -84,7 +85,7 @@ struct FuncBodyContext {
 
 } // namespace
 
-void sema::analyzeFunction(Context& ctx, ast::FunctionDefinition* def) {
+void sema::analyzeFunction(AnalysisContext& ctx, ast::FunctionDefinition* def) {
     ctx.symbolTable().withScopeCurrent(def->function()->parent(), [&] {
         FuncBodyContext funcBodyCtx(ctx, *def);
         funcBodyCtx.run();

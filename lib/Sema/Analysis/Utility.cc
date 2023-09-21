@@ -3,10 +3,10 @@
 #include <range/v3/view.hpp>
 
 #include "AST/AST.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -44,7 +44,7 @@ ast::Statement* sema::parentStatement(ast::ASTNode* node) {
 static void convertArgsImpl(auto&& args,
                             auto&& conversions,
                             DTorStack& dtors,
-                            Context& ctx) {
+                            AnalysisContext& ctx) {
     for (auto [arg, conv]: ranges::views::zip(args, conversions)) {
         auto* converted = insertConversion(arg, conv, ctx.symbolTable());
         /// If our argument is an lvalue of struct type  we need to call the
@@ -61,20 +61,20 @@ static void convertArgsImpl(auto&& args,
 void sema::convertArguments(ast::FunctionCall& fc,
                             OverloadResolutionResult const& orResult,
                             DTorStack& dtors,
-                            Context& ctx) {
+                            AnalysisContext& ctx) {
     convertArgsImpl(fc.arguments(), orResult.conversions, dtors, ctx);
 }
 
 void sema::convertArguments(ast::ConstructorCall& cc,
                             OverloadResolutionResult const& orResult,
                             DTorStack& dtors,
-                            Context& ctx) {
+                            AnalysisContext& ctx) {
     convertArgsImpl(cc.arguments(), orResult.conversions, dtors, ctx);
 }
 
 ast::Expression* sema::copyValue(ast::Expression* expr,
                                  DTorStack& dtors,
-                                 Context& ctx) {
+                                 AnalysisContext& ctx) {
     auto* parent = expr->parent();
     size_t index = expr->indexInParent();
     auto sourceRange = expr->sourceRange();

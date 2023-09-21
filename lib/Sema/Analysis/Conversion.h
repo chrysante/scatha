@@ -118,12 +118,12 @@ SCTEST_API ast::Expression* convert(ConversionKind kind,
                                     QualType to,
                                     ValueCategory toValueCat,
                                     DTorStack& dtors,
-                                    Context& ctx);
+                                    AnalysisContext& ctx);
 
 /// Dereference the expression \p expr to if it is a reference
 /// Otherwise a no-op
 [[deprecated]] SCTEST_API ast::Expression* dereference(ast::Expression* expr,
-                                                       Context& ctx);
+                                                       AnalysisContext& ctx);
 
 /// Find the common type of \p a and \p b
 SCTEST_API QualType commonType(SymbolTable& symbolTable,

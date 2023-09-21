@@ -26,7 +26,7 @@ ast::Statement* parentStatement(ast::ASTNode* node);
 SCTEST_API void convertArguments(ast::FunctionCall& fc,
                                  OverloadResolutionResult const& orResult,
                                  DTorStack& dtors,
-                                 Context& ctx);
+                                 AnalysisContext& ctx);
 
 /// \overload for constructors
 /// Constructors need certain care because the object argument is part of the
@@ -35,7 +35,7 @@ SCTEST_API void convertArguments(ast::FunctionCall& fc,
 SCTEST_API void convertArguments(ast::ConstructorCall& cc,
                                  OverloadResolutionResult const& orResult,
                                  DTorStack& dtors,
-                                 Context& ctx);
+                                 AnalysisContext& ctx);
 
 /// Makes a copy of the value of \p expr
 /// If the type of \p expr has a copy constructor, the copy constructor is
@@ -45,7 +45,7 @@ SCTEST_API void convertArguments(ast::ConstructorCall& cc,
 /// \Note \p dtors may be null, in that case no destructor call will be emitted
 SCTEST_API ast::Expression* copyValue(ast::Expression* expr,
                                       DTorStack& dtors,
-                                      Context& ctx);
+                                      AnalysisContext& ctx);
 
 /// \returns \p type downcast to `StructType`, if \p type is a struct type
 /// with non-trivial lifetime Otherwise returns `nullptr`

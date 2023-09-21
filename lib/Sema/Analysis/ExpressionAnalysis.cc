@@ -8,12 +8,12 @@
 
 #include "AST/AST.h"
 #include "Common/Ranges.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Analysis/Utility.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
@@ -26,7 +26,7 @@ using enum ConversionKind;
 namespace {
 
 struct ExprContext {
-    ExprContext(sema::Context& ctx, DTorStack& dtorStack):
+    ExprContext(sema::AnalysisContext& ctx, DTorStack& dtorStack):
         dtorStack(&dtorStack),
         ctx(ctx),
         sym(ctx.symbolTable()),
@@ -69,7 +69,7 @@ struct ExprContext {
     bool expectType(ast::Expression const* expr);
 
     DTorStack* dtorStack;
-    sema::Context& ctx;
+    sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
@@ -86,14 +86,15 @@ static bool isAny(T const* t) {
 
 ast::Expression* sema::analyzeExpression(ast::Expression* expr,
                                          DTorStack& dtorStack,
-                                         Context& ctx) {
+                                         AnalysisContext& ctx) {
     if (!expr) {
         return nullptr;
     }
     return ExprContext(ctx, dtorStack).analyze(expr);
 }
 
-Type const* sema::analyzeTypeExpression(ast::Expression* expr, Context& ctx) {
+Type const* sema::analyzeTypeExpression(ast::Expression* expr,
+                                        AnalysisContext& ctx) {
     DTorStack dtorStack;
     expr = sema::analyzeExpression(expr, dtorStack, ctx);
     SC_ASSERT(dtorStack.empty(), "");

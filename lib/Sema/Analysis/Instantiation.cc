@@ -11,10 +11,10 @@
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Common/Ranges.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/StructDependencyGraph.h"
 #include "Sema/Analysis/Utility.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
 #include "Sema/SemanticIssue.h"
@@ -26,7 +26,7 @@ using namespace sema;
 namespace {
 
 struct InstContext {
-    InstContext(sema::Context& ctx):
+    InstContext(sema::AnalysisContext& ctx):
         ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
 
     std::vector<StructType const*> instantiateTypes(
@@ -52,7 +52,7 @@ struct InstContext {
     FunctionSignature makeLifetimeSignature(
         StructType& type, SpecialLifetimeFunction function) const;
 
-    sema::Context& ctx;
+    sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
 };
@@ -60,7 +60,7 @@ struct InstContext {
 } // namespace
 
 utl::vector<StructType const*> sema::instantiateEntities(
-    Context& ctx,
+    AnalysisContext& ctx,
     StructDependencyGraph& typeDependencies,
     std::span<ast::FunctionDefinition*> functions) {
     InstContext instCtx(ctx);

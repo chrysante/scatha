@@ -6,7 +6,6 @@
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {
@@ -24,7 +23,7 @@ UniquePtr<ast::Expression> makePseudoConstructorCall(
     UniquePtr<ast::Expression> objectArgument,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
-    Context& ctx,
+    AnalysisContext& ctx,
     SourceRange sourceRange);
 
 } // namespace scatha::sema

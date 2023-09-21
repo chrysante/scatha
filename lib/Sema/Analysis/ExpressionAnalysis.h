@@ -15,12 +15,13 @@ class ExpressionAnalysisResult;
 /// Creates entries in the symbol table for defined entities.
 ast::Expression* analyzeExpression(ast::Expression* expression,
                                    DTorStack& dtorStack,
-                                   Context& context);
+                                   AnalysisContext& context);
 
 /// Analyses the expression \p expr and returns the type it refers to. If \p
 /// expr does not refer to a type, this function will push an error to the issue
 /// handler
-Type const* analyzeTypeExpression(ast::Expression* expr, Context& context);
+Type const* analyzeTypeExpression(ast::Expression* expr,
+                                  AnalysisContext& context);
 
 } // namespace scatha::sema
 

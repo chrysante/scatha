@@ -3,10 +3,10 @@
 #include <array>
 
 #include "AST/AST.h"
+#include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/DTorStack.h"
-#include "Sema/Analysis/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -73,7 +73,7 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
 TEST_CASE("Arithemetic conversions", "[sema]") {
     sema::SymbolTable sym;
     IssueHandler iss;
-    sema::Context ctx(sym, iss);
+    sema::AnalysisContext ctx(sym, iss);
     ast::UnaryExpression
         base(ast::UnaryOperator::Promotion,
              ast::UnaryOperatorNotation::Prefix,
