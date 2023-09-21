@@ -1,6 +1,6 @@
 #include "Sema/Analyze.h"
 
-#include "Sema/Analysis/FunctionBodyAnalysis.h"
+#include "Sema/Analysis/FunctionAnalysis.h"
 #include "Sema/Analysis/GatherNames.h"
 #include "Sema/Analysis/Instantiation.h"
 #include "Sema/Context.h"

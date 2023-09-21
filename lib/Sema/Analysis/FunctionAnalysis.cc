@@ -1,4 +1,4 @@
-#include "Sema/Analysis/FunctionBodyAnalysis.h"
+#include "Sema/Analysis/FunctionAnalysis.h"
 
 #include <utl/scope_guard.hpp>
 #include <utl/stack.hpp>
