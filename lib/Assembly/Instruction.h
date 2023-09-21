@@ -32,7 +32,7 @@ public:
     size_t numBytes() const { return _numBytes; }
 
 private:
-    SCATHA_TESTAPI void verify();
+    SCTEST_API void verify();
 
 private:
     Value _dest, _src;
@@ -59,7 +59,7 @@ public:
     size_t numBytes() const { return _numBytes; }
 
 private:
-    SCATHA_TESTAPI void verify();
+    SCTEST_API void verify();
 
 private:
     CompareOperation _cond;
@@ -285,7 +285,7 @@ public:
     size_t width() const { return _width; }
 
 private:
-    SCATHA_TESTAPI void verify() const;
+    SCTEST_API void verify() const;
 
 private:
     ArithmeticOperation _op;
@@ -308,7 +308,7 @@ public:
     size_t fromBits() const { return _fromBits; }
 
 private:
-    SCATHA_TESTAPI void verify();
+    SCTEST_API void verify();
 
     RegisterIndex _op;
     Type _type;
@@ -339,7 +339,7 @@ public:
     size_t toBits() const { return _toBits; }
 
 private:
-    SCATHA_TESTAPI void verify();
+    SCTEST_API void verify();
 
     RegisterIndex _op;
     Type _from;

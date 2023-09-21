@@ -17,7 +17,7 @@ struct DestructorCall {
 };
 
 /// Stack of destructor calls
-class SCATHA_TESTAPI DTorStack {
+class SCTEST_API DTorStack {
 public:
     /// Push destructor call for the object \p obj onto the stack.
     /// The destructor function is derived from the type of \p obj

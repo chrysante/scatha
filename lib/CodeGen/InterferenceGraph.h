@@ -14,7 +14,7 @@
 
 namespace scatha::cg {
 
-class SCATHA_TESTAPI InterferenceGraph {
+class SCTEST_API InterferenceGraph {
     template <typename N>
     auto getNodeView() const {
         return nodes | ranges::views::transform(

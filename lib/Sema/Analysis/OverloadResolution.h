@@ -28,13 +28,13 @@ struct OverloadResolutionResult {
 };
 
 /// Performs overload resolution
-SCATHA_TESTAPI OverloadResolutionResult performOverloadResolution(
+SCTEST_API OverloadResolutionResult performOverloadResolution(
     OverloadSet* overloadSet,
     std::span<std::pair<QualType, ValueCategory> const> argumentTypes,
     bool isMemberCall);
 
 /// \overload for expressions
-SCATHA_TESTAPI OverloadResolutionResult
+SCTEST_API OverloadResolutionResult
     performOverloadResolution(OverloadSet* overloadSet,
                               std::span<ast::Expression const* const> arguments,
                               bool isMemberCall);

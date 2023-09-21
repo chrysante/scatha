@@ -25,7 +25,7 @@ namespace scatha::opt {
 /// algorithm.
 ///
 /// \Warning Direct self recursion is ignored.
-class SCATHA_TESTAPI SCCCallGraph {
+class SCTEST_API SCCCallGraph {
 public:
     class SCCNode;
 

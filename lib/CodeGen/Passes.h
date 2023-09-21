@@ -19,11 +19,11 @@ class AssemblyStream;
 namespace scatha::cg {
 
 /// Lower IR module \p mod to MIR module
-SCATHA_TESTAPI mir::Module lowerToMIR(ir::Module const& mod);
+SCTEST_API mir::Module lowerToMIR(ir::Module const& mod);
 
 /// Computes the live-in and live-out sets of function \p F
 /// \pre Requires \p F to be in SSA form
-SCATHA_TESTAPI void computeLiveSets(mir::Function& F);
+SCTEST_API void computeLiveSets(mir::Function& F);
 
 /// Eliminate dead instructions in function \p F
 /// Not as powerful as DCE of IR, as it won't catch dead cycles,
@@ -32,7 +32,7 @@ SCATHA_TESTAPI void computeLiveSets(mir::Function& F);
 /// \Returns `true` if any changes have been made to \p F
 ///
 /// \pre Requires \p F to be in SSA form
-SCATHA_TESTAPI bool deadCodeElim(mir::Function& F);
+SCTEST_API bool deadCodeElim(mir::Function& F);
 
 /// Convert function \p F out of SSA form
 ///
@@ -41,17 +41,17 @@ SCATHA_TESTAPI bool deadCodeElim(mir::Function& F);
 /// instructions and if possible replaces tail calls by jump intructions
 ///
 /// \pre Requires \p F to be in SSA form
-SCATHA_TESTAPI void destroySSA(mir::Function& F);
+SCTEST_API void destroySSA(mir::Function& F);
 
 /// Convert registers of function \p F to hardware registers. Redundant copy
 /// instructions will be elided.
 ///
 /// \pre Requires \p F to be in virtual register form
-SCATHA_TESTAPI void allocateRegisters(mir::Function& F);
+SCTEST_API void allocateRegisters(mir::Function& F);
 
 /// Reorder the basic blocks of function \p F to elide terminating jump
 /// instructions
-SCATHA_TESTAPI void elideJumps(mir::Function& F);
+SCTEST_API void elideJumps(mir::Function& F);
 
 /// Lower MIR module \p mod to assembly
 SCATHA_API Asm::AssemblyStream lowerToASM(mir::Module const& mod);

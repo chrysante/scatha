@@ -10,10 +10,10 @@
 
 namespace scatha::opt {
 
-SCATHA_TESTAPI
+SCTEST_API
 bool preceeds(ir::Instruction const* a, ir::Instruction const* b);
 
-SCATHA_TESTAPI
+SCTEST_API
 bool isReachable(ir::Instruction const* from, ir::Instruction const* to);
 
 /// Moves all Alloca instructions from the basic block \p from into the basic
@@ -22,24 +22,24 @@ bool isReachable(ir::Instruction const* from, ir::Instruction const* to);
 /// them after the set of initial allocas in \p to This is used for inlining
 void moveAllocas(ir::BasicBlock* from, ir::BasicBlock* to);
 
-SCATHA_TESTAPI
+SCTEST_API
 bool compareEqual(ir::Phi const* lhs, std::span<ir::ConstPhiMapping const> rhs);
 
-SCATHA_TESTAPI
+SCTEST_API
 bool compareEqual(ir::Phi const* lhs, std::span<ir::PhiMapping const> rhs);
 
 /// Split the edge from \p from to \p to by inserting an empty basic block in
 /// between
 /// \returns The newly created basic block
-SCATHA_TESTAPI ir::BasicBlock* splitEdge(std::string name,
-                                         ir::Context& ctx,
-                                         ir::BasicBlock* from,
-                                         ir::BasicBlock* to);
+SCTEST_API ir::BasicBlock* splitEdge(std::string name,
+                                     ir::Context& ctx,
+                                     ir::BasicBlock* from,
+                                     ir::BasicBlock* to);
 
 /// \Overload with default name
-SCATHA_TESTAPI ir::BasicBlock* splitEdge(ir::Context& ctx,
-                                         ir::BasicBlock* from,
-                                         ir::BasicBlock* to);
+SCTEST_API ir::BasicBlock* splitEdge(ir::Context& ctx,
+                                     ir::BasicBlock* from,
+                                     ir::BasicBlock* to);
 
 /// Removes critical edges from \p function by inserting empty basic blocks
 SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
@@ -49,19 +49,19 @@ SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 /// must be predecessors of \p BB
 /// \Note This function can be used to create preheaders for loop header with
 /// multiple inedges from outside the loop
-SCATHA_TESTAPI ir::BasicBlock* addJoiningPredecessor(
+SCTEST_API ir::BasicBlock* addJoiningPredecessor(
     ir::Context& ctx,
     ir::BasicBlock* BB,
     std::span<ir::BasicBlock* const> preds,
     std::string name);
 
 /// \returns `true` if the instruction \p inst has side effects
-SCATHA_TESTAPI bool hasSideEffects(ir::Instruction const* inst);
+SCTEST_API bool hasSideEffects(ir::Instruction const* inst);
 
 /// \Returns `true` if \p callInst is a call instruction that calls the builtin
 /// function at index \p functionIndex
-SCATHA_TESTAPI bool isBuiltinCall(ir::Instruction const* callInst,
-                                  size_t functionIndex);
+SCTEST_API bool isBuiltinCall(ir::Instruction const* callInst,
+                              size_t functionIndex);
 
 /// # Memcpy related queries
 

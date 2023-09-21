@@ -18,16 +18,16 @@
 
 #if defined(__GNUC__)
 
-#define SCATHA_API     __attribute__((visibility("default")))
-#define SCATHA_TESTAPI __attribute__((visibility("default")))
+#define SCATHA_API __attribute__((visibility("default")))
+#define SCTEST_API __attribute__((visibility("default")))
 
 #elif defined(_MSC_VER)
 #if defined(SC_APIEXPORT)
-#define SCATHA_API     __declspec(dllexport)
-#define SCATHA_TESTAPI __declspec(dllexport)
+#define SCATHA_API __declspec(dllexport)
+#define SCTEST_API __declspec(dllexport)
 #elif defined(SC_APIIMPORT)
-#define SCATHA_API     __declspec(dllimport)
-#define SCATHA_TESTAPI __declspec(dllimport)
+#define SCATHA_API __declspec(dllimport)
+#define SCTEST_API __declspec(dllimport)
 #elif
 #error Need either SC_APIEXPORT or SC_APIIMPORT defined
 #endif // APIIMPORT / APIEXPORT

@@ -19,7 +19,7 @@ namespace scatha::cg {
 class SelectionDAG;
 
 /// Node in the selection DAG
-class SCATHA_TESTAPI SelectionNode:
+class SCTEST_API SelectionNode:
     public GraphNode<ir::Value const*, SelectionNode, GraphKind::Directed> {
 public:
     SelectionNode(ir::Value const* value): GraphNode(value) {}
@@ -54,7 +54,7 @@ private:
 };
 
 /// Used for instruction selection
-class SCATHA_TESTAPI SelectionDAG {
+class SCTEST_API SelectionDAG {
 public:
     SelectionDAG() = default;
 
@@ -94,12 +94,12 @@ private:
 };
 
 /// Writes graphviz code representing \p DAG to \p ostream
-SCATHA_TESTAPI void generateGraphviz(SelectionDAG const& DAG,
-                                     std::ostream& ostream);
+SCTEST_API void generateGraphviz(SelectionDAG const& DAG,
+                                 std::ostream& ostream);
 
 /// Debug utility to generate graphviz representation of the DAG to a temporary
 /// file
-SCATHA_TESTAPI void generateGraphvizTmp(SelectionDAG const& DAG);
+SCTEST_API void generateGraphvizTmp(SelectionDAG const& DAG);
 
 } // namespace scatha::cg
 

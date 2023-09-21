@@ -9,7 +9,7 @@
 
 namespace scatha::ir {
 
-class SCATHA_TESTAPI UniqueNameFactory {
+class SCTEST_API UniqueNameFactory {
 public:
     /// Make a uniqued variation of \p name
     ///

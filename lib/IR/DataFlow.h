@@ -17,7 +17,7 @@ class LiveSets {
 public:
     /// Computes the live-in and live-out sets for each basic block of function
     /// \p F
-    SCATHA_TESTAPI static LiveSets compute(Function const& F);
+    SCTEST_API static LiveSets compute(Function const& F);
 
     /// \Returns Live sets of basic block \p BB or `nullptr` if \p BB does not
     /// have live sets. This can occur if a block is unreachable.

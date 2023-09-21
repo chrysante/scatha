@@ -9,16 +9,16 @@
 namespace scatha::mir {
 
 /// Print the module \p mod to `std::cout`
-SCATHA_TESTAPI void print(mir::Module const& mod);
+SCTEST_API void print(mir::Module const& mod);
 
 /// Print the module \p mod to \p ostream
-SCATHA_TESTAPI void print(mir::Module const& mod, std::ostream& ostream);
+SCTEST_API void print(mir::Module const& mod, std::ostream& ostream);
 
 /// Print the function \p F to `std::cout`
-SCATHA_TESTAPI void print(mir::Function const& F);
+SCTEST_API void print(mir::Function const& F);
 
 /// Print the function \p F to \p ostream
-SCATHA_TESTAPI void print(mir::Function const& F, std::ostream& ostream);
+SCTEST_API void print(mir::Function const& F, std::ostream& ostream);
 
 } // namespace scatha::mir
 

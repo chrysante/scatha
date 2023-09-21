@@ -11,8 +11,6 @@
 
 namespace scatha::ir {
 
-class Context;
-
 class CloneValueMap {
 public:
     void add(Value* oldValue, Value* newValue) { map[oldValue] = newValue; }
@@ -30,21 +28,20 @@ private:
     utl::hashmap<Value*, Value*> map;
 };
 
-SCATHA_TESTAPI UniquePtr<Instruction> clone(Context& context,
-                                            Instruction* inst);
+SCTEST_API UniquePtr<Instruction> clone(Context& context, Instruction* inst);
 
 template <std::derived_from<Instruction> Inst>
-SCATHA_TESTAPI UniquePtr<Inst> clone(Context& context, Inst* inst) {
+SCTEST_API UniquePtr<Inst> clone(Context& context, Inst* inst) {
     return uniquePtrCast<Inst>(clone(context, static_cast<Instruction*>(inst)));
 }
 
-SCATHA_TESTAPI UniquePtr<BasicBlock> clone(Context& context, BasicBlock* BB);
+SCTEST_API UniquePtr<BasicBlock> clone(Context& context, BasicBlock* BB);
 
-SCATHA_TESTAPI UniquePtr<BasicBlock> clone(Context& context,
-                                           BasicBlock* BB,
-                                           CloneValueMap& map);
+SCTEST_API UniquePtr<BasicBlock> clone(Context& context,
+                                       BasicBlock* BB,
+                                       CloneValueMap& map);
 
-SCATHA_TESTAPI UniquePtr<Function> clone(Context& context, Function* function);
+SCTEST_API UniquePtr<Function> clone(Context& context, Function* function);
 
 } // namespace scatha::ir
 

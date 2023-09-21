@@ -113,7 +113,7 @@ public:
 };
 
 /// Common interface of `StructType` and `ArrayType`
-class SCATHA_TESTAPI RecordType: public Type {
+class SCTEST_API RecordType: public Type {
 public:
     struct Member {
         Type const* type;
@@ -136,7 +136,7 @@ public:
 };
 
 /// Represents a (user defined) structure type.
-class SCATHA_TESTAPI StructType: public RecordType {
+class SCTEST_API StructType: public RecordType {
 public:
     explicit StructType(std::string name): StructType(std::move(name), {}) {}
 
@@ -179,7 +179,7 @@ private:
 };
 
 /// Represents a fixed size array type.
-class SCATHA_TESTAPI ArrayType: public RecordType {
+class SCTEST_API ArrayType: public RecordType {
 public:
     explicit ArrayType(Type const* elementType, size_t count);
 

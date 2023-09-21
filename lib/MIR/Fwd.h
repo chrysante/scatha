@@ -54,16 +54,16 @@ std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 namespace scatha::mir {
 
 /// Insulated call to `delete` on the most derived base of \p value
-SCATHA_TESTAPI void privateDelete(mir::Value* value);
+SCTEST_API void privateDelete(mir::Value* value);
 
 /// Insulated call to destructor on the most derived base of \p value
-SCATHA_TESTAPI void privateDestroy(mir::Value* value);
+SCTEST_API void privateDestroy(mir::Value* value);
 
 /// \overload
-SCATHA_TESTAPI void privateDelete(mir::Instruction* inst);
+SCTEST_API void privateDelete(mir::Instruction* inst);
 
 /// \overload
-SCATHA_TESTAPI void privateDestroy(mir::Instruction* inst);
+SCTEST_API void privateDestroy(mir::Instruction* inst);
 
 } // namespace scatha::mir
 

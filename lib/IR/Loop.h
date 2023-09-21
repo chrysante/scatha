@@ -34,7 +34,7 @@ public:
 /// The loop nesting forest of a function `F` is a forest representing the loops
 /// of `F`. Every node is the header of a loop, where single basic blocks are
 /// considered to be trivial loops.
-class SCATHA_TESTAPI LoopNestingForest {
+class SCTEST_API LoopNestingForest {
 public:
     using Node = LNFNode;
 
@@ -97,10 +97,10 @@ private:
 };
 
 /// Print the loop nesting forest \p LNF to `std::cout`.
-SCATHA_TESTAPI void print(LoopNestingForest const& LNF);
+SCTEST_API void print(LoopNestingForest const& LNF);
 
 /// Print the loop nesting forest \p LNF to \p ostream
-SCATHA_TESTAPI void print(LoopNestingForest const& LNF, std::ostream& ostream);
+SCTEST_API void print(LoopNestingForest const& LNF, std::ostream& ostream);
 
 } // namespace scatha::ir
 

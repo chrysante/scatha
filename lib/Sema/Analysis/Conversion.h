@@ -91,7 +91,7 @@ enum class ConversionKind {
 };
 
 /// Computes the conversion from \p from to \p to
-SCATHA_TESTAPI std::optional<Conversion> computeConversion(
+SCTEST_API std::optional<Conversion> computeConversion(
     ConversionKind kind,
     QualType from,
     ValueCategory fromCat,
@@ -100,51 +100,51 @@ SCATHA_TESTAPI std::optional<Conversion> computeConversion(
     Value const* fromConstantValue = nullptr);
 
 /// \overload for expressions
-SCATHA_TESTAPI std::optional<Conversion> computeConversion(
+SCTEST_API std::optional<Conversion> computeConversion(
     ConversionKind kind,
     ast::Expression* expr,
     QualType to,
     ValueCategory toValueCat);
 
 /// Computes the rank of the conversion \p conv
-SCATHA_TESTAPI int computeRank(Conversion const& conv);
+SCTEST_API int computeRank(Conversion const& conv);
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is convertible of kind \p kind to type \p to a `Conversion` node
 /// is inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` if conversion succeeded
-SCATHA_TESTAPI ast::Expression* convert(ConversionKind kind,
-                                        ast::Expression* expr,
-                                        QualType to,
-                                        ValueCategory toValueCat,
-                                        DTorStack& dtors,
-                                        Context& ctx);
+SCTEST_API ast::Expression* convert(ConversionKind kind,
+                                    ast::Expression* expr,
+                                    QualType to,
+                                    ValueCategory toValueCat,
+                                    DTorStack& dtors,
+                                    Context& ctx);
 
 /// Dereference the expression \p expr to if it is a reference
 /// Otherwise a no-op
-[[deprecated]] SCATHA_TESTAPI ast::Expression* dereference(
-    ast::Expression* expr, Context& ctx);
+[[deprecated]] SCTEST_API ast::Expression* dereference(ast::Expression* expr,
+                                                       Context& ctx);
 
 /// Find the common type of \p a and \p b
-SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,
-                                   QualType a,
-                                   QualType b);
+SCTEST_API QualType commonType(SymbolTable& symbolTable,
+                               QualType a,
+                               QualType b);
 
 /// Find the common type of \p types
-SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,
-                                   std::span<QualType const> types);
+SCTEST_API QualType commonType(SymbolTable& symbolTable,
+                               std::span<QualType const> types);
 
 /// Find the common type of \p expressions
-SCATHA_TESTAPI QualType
+SCTEST_API QualType
     commonType(SymbolTable& symbolTable,
                std::span<ast::Expression const* const> expressions);
 
 /// Inserts an AST conversion node into the position of \p expr and makes
 /// \p expr a child of the new node.
 /// \Returns a pointer to the added conversion node
-SCATHA_TESTAPI ast::Expression* insertConversion(ast::Expression* expr,
-                                                 sema::Conversion const& conv,
-                                                 SymbolTable& sym);
+SCTEST_API ast::Expression* insertConversion(ast::Expression* expr,
+                                             sema::Conversion const& conv,
+                                             SymbolTable& sym);
 
 } // namespace scatha::sema
 

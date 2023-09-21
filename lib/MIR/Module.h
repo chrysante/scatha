@@ -13,7 +13,7 @@ namespace scatha::mir {
 
 /// Represents one unit of translation
 /// Also acts as a constants pool
-class SCATHA_TESTAPI Module {
+class SCTEST_API Module {
     template <typename T>
     static decltype(auto) asDerived(auto&& self) {
         return static_cast<T&>(self);

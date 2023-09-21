@@ -109,7 +109,7 @@ class MemoryAddress: public ValueBase {
 
 public:
     /// See documentation in "OpCode.h"
-    SCATHA_TESTAPI static RegisterIndex const InvalidRegisterIndex;
+    SCTEST_API static RegisterIndex const InvalidRegisterIndex;
 
     explicit MemoryAddress(RegisterIndex baseptrRegIdx):
         MemoryAddress(baseptrRegIdx.value()) {}

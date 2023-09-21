@@ -17,7 +17,7 @@ namespace scatha::ir {
 class DomTree;
 
 /// Dominator tree of a function
-class SCATHA_TESTAPI DomTree {
+class SCTEST_API DomTree {
 public:
     class Node: public TreeNode<ir::BasicBlock*, Node> {
         using Base = TreeNode<ir::BasicBlock*, Node>;
@@ -74,16 +74,16 @@ private:
     Node* _root;
 };
 
-SCATHA_TESTAPI void print(DomTree const& domTree);
+SCTEST_API void print(DomTree const& domTree);
 
-SCATHA_TESTAPI void print(DomTree const& domTree, std::ostream& ostream);
+SCTEST_API void print(DomTree const& domTree, std::ostream& ostream);
 
 /// Groups dominance information of a function.
 /// Specifically, once computed, it contains:
 /// - Dominator sets for each basic block
 /// - A dominator tree
 /// - Dominance frontiers for each basic block
-class SCATHA_TESTAPI DominanceInfo {
+class SCTEST_API DominanceInfo {
 public:
     using DomMap = utl::hashmap<ir::BasicBlock*, utl::hashset<ir::BasicBlock*>>;
 

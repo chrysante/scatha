@@ -12,7 +12,7 @@ namespace scatha::Asm {
 
 class Block;
 
-class SCATHA_TESTAPI AssemblyStream {
+class SCATHA_API AssemblyStream {
 public:
     AssemblyStream();
 
