@@ -155,11 +155,7 @@ size_t Type::align() const {
     return visit(*this, [](auto& derived) { return derived.alignImpl(); });
 }
 
-bool Type::isComplete() const {
-    SC_ASSERT((size() == InvalidSize) == (align() == InvalidSize),
-              "Either both or neither must be invalid");
-    return size() != InvalidSize;
-}
+bool Type::isComplete() const { return size() != InvalidSize; }
 
 bool Type::isDefaultConstructible() const {
     return visit(*this,

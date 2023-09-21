@@ -39,7 +39,8 @@
 /// │  └─ ControlFlowStatement
 /// │     ├─ ReturnStatement
 /// │     ├─ IfStatement
-/// │     └─ LoopStatement
+/// │     ├─ LoopStatement
+/// │     └─ JumpStatement
 /// └─ Expression
 ///    ├─ Identifier
 ///    ├─ Literal
