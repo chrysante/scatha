@@ -102,7 +102,9 @@ std::vector<StructType const*> InstContext::instantiateTypes(
                        });
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
-        auto* type = analyzeTypeExpression(var.typeExpr(), ctx);
+        auto* type = sym.withScopeCurrent(node.entity->parent(), [&] {
+            return analyzeTypeExpression(var.typeExpr(), ctx);
+        });
         if (type && isUserDefined(type)) {
             node.dependencies.push_back(
                 utl::narrow_cast<u16>(dependencyGraph.index(type)));
@@ -204,6 +206,9 @@ void InstContext::instantiateStructureType(SDGNode& node) {
         var.setOffset(currentOffset);
         var.setIndex(varIndex);
         objectSize += varType->size();
+    }
+    if (objectAlign > 0) {
+        objectSize = utl::round_up(objectSize, objectAlign);
     }
     structType.setSize(objectSize);
     structType.setAlign(objectAlign);

@@ -61,6 +61,8 @@ private:
     utl::hashmap<Entity*, std::size_t> _indices;
 };
 
+SCTEST_API void generateDebugGraph(StructDependencyGraph const&);
+
 using SDGNode = StructDependencyGraph::Node;
 
 } // namespace scatha::sema
