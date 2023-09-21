@@ -11,6 +11,8 @@
 #include "IR/Context.h"
 #include "IR/Print.h"
 #include "IR/Type.h"
+#include "IRGen/Utility.h"
+#include "IRGen/Value.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -67,7 +69,6 @@ std::optional<Value> ValueMap::tryGet(sema::Object const* object) const {
 }
 
 Value ValueMap::arraySize(sema::Object const* object) const {
-    SC_ASSERT(object, "");
     auto result = tryGetArraySize(object);
     SC_ASSERT(result, "Not found");
     return *result;
@@ -75,6 +76,11 @@ Value ValueMap::arraySize(sema::Object const* object) const {
 
 std::optional<Value> ValueMap::tryGetArraySize(
     sema::Object const* object) const {
+    /// For statically sized arrays we just extract the size information from
+    /// the type, so we don't need to store it in the map
+    if (auto size = getStaticArraySize(object->type())) {
+        return Value(ctx->intConstant(*size, 64), ValueLocation::Register);
+    }
     auto itr = arraySizes.find(object);
     if (itr != arraySizes.end()) {
         return itr->second();

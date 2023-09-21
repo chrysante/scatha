@@ -49,18 +49,15 @@ static bool isTrivial(sema::Type const* type) {
 static const size_t maxRegPassingSize = 16;
 
 static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
-    if (auto* referredTo = getPtrOrRefBase(type)) {
-        size_t argCount = isArrayAndDynamic(referredTo) ? 2 : 1;
-        return PassingConvention(Register, isRetval ? 0 : argCount);
+    if (isPtrOrRefToDynArray(type)) {
+        return PassingConvention(Register, isRetval ? 0 : 2);
     }
-    bool const isSmall = type->size() <= maxRegPassingSize;
+    bool const isSmall = isa<sema::ReferenceType>(type) ||
+                         type->size() <= maxRegPassingSize;
     if (isSmall && isTrivial(type)) {
         return PassingConvention(Register, isRetval ? 0u : 1u);
     }
-    size_t argCount =
-        isArrayAndDynamic(cast<sema::ObjectType const*>(type)) ? 2 : 1;
-    SC_ASSERT(argCount == 1, "We can't pass dynamic arrays on the stack");
-    return PassingConvention(Memory, argCount);
+    return PassingConvention(Memory, 1);
 }
 
 static PassingConvention computeRetValPC(sema::Type const* type) {

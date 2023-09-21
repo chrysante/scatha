@@ -1,6 +1,8 @@
 #ifndef SCATHA_IRGEN_UTILITY_H_
 #define SCATHA_IRGEN_UTILITY_H_
 
+#include <optional>
+
 #include "IR/Fwd.h"
 #include "Sema/Fwd.h"
 
@@ -10,29 +12,18 @@ namespace scatha::irgen {
 /// Otherwise returns `nullptr`
 sema::ObjectType const* getPtrOrRefBase(sema::Type const* type);
 
-///
+/// \Returns `true` if \p type is a pointer or a reference to an array
 bool isPtrOrRefToArray(sema::Type const* type);
 
-///
+/// \Returns `true` if \p type is a pointer or a reference to an array with
+/// dynamic size
 bool isPtrOrRefToDynArray(sema::Type const* type);
 
-/// # THESE ARE OLD
+/// \Returns the size if \p type is a statically sized array or a pointer or
+/// reference thereto
+std::optional<size_t> getStaticArraySize(sema::Type const* type);
 
-/// \Returns pointee type as array type, if \p type is a pointer to array,
-/// `nullptr` otherwise
-sema::ArrayType const* ptrToArray(sema::ObjectType const* type);
-
-/// \Returns the base type if \p type is a pointer or reference type, otherwise
-/// returns \p type as is
-sema::Type const* stripRefOrPtr(sema::Type const* type);
-
-///
-bool isArrayAndDynamic(sema::ObjectType const* type);
-
-///
-bool isArrayPtrOrArrayRef(sema::Type const* type);
-
-///
+/// Creates an anonymous struct type with members `ptr` and `i64`
 ir::StructType const* makeArrayViewType(ir::Context& ctx);
 
 } // namespace scatha::irgen

@@ -324,3 +324,25 @@ fn deallocateInts(data: *mut [int]) {
     __builtin_dealloc(bytes, 8);
 })");
 }
+
+TEST_CASE("References to static arrays", "[end-to-end][arrays]") {
+    test::checkReturns(1, R"(
+fn pass(data: &[int, 2]) -> &[int, 2] {
+    return data;
+}
+fn main() -> int {
+    let data = [1, 2];
+    let ref: &[int, 2] = pass(data);
+    return ref[0];
+})");
+    /// Here we convert the static array reference to dynamic
+    test::checkReturns(1, R"(
+fn pass(data: &[int, 2]) -> &[int, 2] {
+    return data;
+}
+fn main() -> int {
+    let data = [1, 2];
+    let ref: &[int] = pass(data);
+    return ref[0];
+})");
+}
