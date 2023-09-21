@@ -1,75 +1,82 @@
 
-fn print(n: byte) {
+fn printChar(n: byte) {
     __builtin_putchar(n);
 }
 
 fn print(n: int) {
     __builtin_puti64(n);
-    print('\n');
+    printChar('\n');
 }
 
-fn at(A: &mut [int], i: int, j: int) -> &mut int {
-    return &mut A[i * 3 + j];
-}
-
-fn mul(A: &mut [int], B: &[int]) -> void {
-    var C: [int, 9];
-    for i = 0; i < 9; ++i {
-        C[i] = 0;
-    }
-    for i = 0; i < 3; ++i {
-        for k = 0; k < 3; ++k {
-            for j = 0; j < 3; ++j {
-                C.at(i, k) += A.at(i, j) * B.at(j, k);
-            }
-        }    
-    }
-    for i = 0; i < A.count; ++i {
-        A[i] = C[i];
-    }
-}
-
-fn det2(A: &[int]) -> int {
-    return A[0] * A[3] - A[2] * A[1];
-}           
-
-
-fn det3(A: &[int]) -> int {
-    return A.at(0, 0) * (A.at(1, 1) * A.at(2, 2) - A.at(2, 1) * A.at(1, 2)) -
-           A.at(0, 1) * (A.at(1, 0) * A.at(2, 2) - A.at(1, 2) * A.at(2, 0)) +
-           A.at(0, 2) * (A.at(1, 0) * A.at(2, 1) - A.at(1, 1) * A.at(2, 0));
-}
-
-fn print(A: &[int]) {
-    for i = 0; i < 3; ++i {
-        for j = 0; j < 3; ++j {
-            __builtin_puti64(A.at(i, j));
-            print(' ');
-            print(' ');
+struct Matrix {
+    fn new(&mut this) {
+        for i = 0; i < 9; ++i {
+            this.data[i] = 0;
         }
-        print('\n');
     }
+
+    fn new(&mut this, data: [int, 9]) {
+        this.data = data;
+    }
+
+    fn at(&mut this, i: int, j: int) -> &mut int {
+        return this.data[i * 3 + j];
+    }
+
+    fn at(&this, i: int, j: int) -> &int {
+        return this.data[i * 3 + j];
+    }
+
+    fn mul(&mut this, B: &Matrix) -> void {
+        var C = Matrix();
+        for i = 0; i < 3; ++i {
+            for k = 0; k < 3; ++k {
+                for j = 0; j < 3; ++j {
+                    C.at(i, k) += this.at(i, j) * B.at(j, k);
+                }
+            }    
+        }
+        for i = 0; i < this.data.count; ++i {
+            this.data[i] = C.data[i];
+        }
+    }
+
+    fn det(&this) -> int {
+        return this.at(0, 0) * (this.at(1, 1) * this.at(2, 2) - this.at(2, 1) * this.at(1, 2)) -
+               this.at(0, 1) * (this.at(1, 0) * this.at(2, 2) - this.at(1, 2) * this.at(2, 0)) +
+               this.at(0, 2) * (this.at(1, 0) * this.at(2, 1) - this.at(1, 1) * this.at(2, 0));
+    }
+
+    fn print(&this) {
+        for i = 0; i < 3; ++i {
+            for j = 0; j < 3; ++j {
+                __builtin_puti64(this.at(i, j));
+                printChar(' ');
+                printChar(' ');
+            }
+            printChar('\n');
+        }
+    }
+
+    var data: [int, 9];
 }
 
 fn main() -> int {
-    var A = [
+    var A = Matrix([
         1,  0,  1, 
         0,  1,  0, 
         3,  0,  1 
-    ];
+    ]);
 
-    let B = [
+    let B = Matrix([
         1,  0,  0, 
         0,  2,  0, 
         0,  0,  1
-    ];
+    ]);
 
-    A.mul(&B);
-
+    A.mul(B);
     A.print();
-
-    print(det3(&A));
-
+    print(A.det());
     return 0;
 }
 

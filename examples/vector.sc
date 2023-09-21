@@ -8,36 +8,36 @@ fn sum(data: &[int]) -> int {
 }
 
 struct IntVector {
-    fn init(&mut this, cap: int) {
-        let data = &mut __builtin_alloc(8 * cap, 8);
+    fn new(&mut this, cap: int) {
+        let data = __builtin_alloc(8 * cap, 8);
         this.numElems = 0;
-        this.mData = reinterpret<&mut [int]>(&mut data);
+        this.mData = reinterpret<*mut [int]>(data);
     }
 
-    fn deinit(&mut this) {
-        let data = &mut reinterpret<&mut [byte]>(&this.mData);
-        __builtin_dealloc(&mut data, 8);
+    fn delete(&mut this) {
+        let data = reinterpret<*mut [byte]>(this.mData);
+        __builtin_dealloc(data, 8);
     }
 
     fn push_back(&mut this, value: int) {
-        this.mData[this.numElems] = value;
+        (*this.mData)[this.numElems] = value;
         ++this.numElems;
     }
 
     fn at(&mut this, index: int) -> &mut int {
-        return &mut this.mData[index];
+        return (*this.mData)[index];
     }
 
     fn at(&this, index: int) -> &int {
-        return &this.mData[index];
+        return (*this.mData)[index];
     }
 
     fn data(&mut this) -> &mut [int] {
-        return &mut this.mData;
+        return *this.mData;
     }
 
     fn data(&this) -> &[int] {
-        return &this.mData;
+        return *this.mData;
     }
 
     fn count(&this) -> int {
@@ -45,20 +45,19 @@ struct IntVector {
     }
 
     fn capacity(&this) -> int {
-        return this.mData.count;
+        return this.mData->count;
     }
 
     var numElems: int;
-    var mData: &mut [int];
+    var mData: *mut [int];
 }
 
-fn main() -> int {
-    var v: IntVector;
-    v.init(2);
+fn main() {
+    var v = IntVector(2);
     v.push_back(1);
     v.at(0) = 15;
     v.at(1) = 7;
-    let result = v.data.sum();
-    v.deinit();
-    return result;
+    let result = sum(v.data());
+    __builtin_puti64(result);
+    __builtin_putstr("\n");
 }

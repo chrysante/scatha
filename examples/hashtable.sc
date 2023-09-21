@@ -106,37 +106,33 @@ fn printRaw(table: &[int]) {
 fn main() -> bool {
     var table: [int, 10];
     
-    table.init();
+    init(table);
     
     var result = true;
     
-    result &= table.store(5);
-    result &= table.store(15);
-    result &= table.store(7);
-    result &= table.store(0);
+    result &= store(table, 5);
+    result &= store(table, 15);
+    result &= store(table, 7);
+    result &= store(table, 0);
     
-    table.print();
+    print(table);
+    erase(table, 15);
+    print(table);
+    store(table, 15);
+    print(table);
     
-    table.erase(15);
-    
-    table.print();
-    
-    table.store(15);
-    
-    table.print();
-    
-    result &= table.store(13);
-    result &= table.store(31);
-    result &= table.store(11);
+    result &= store(table, 13);
+    result &= store(table, 31);
+    result &= store(table, 11);
 
-    table.print();
+    print(table);
     
-    result &= table.contains(5);
-    result &= table.contains(7);
-    result &= table.contains(0);
-    result &= !table.contains(9);
-    result &= !table.contains(8);
-    result &= !table.contains(100);
+    result &= contains(table, 5);
+    result &= contains(table, 7);
+    result &= contains(table, 0);
+    result &= !contains(table, 9);
+    result &= !contains(table, 8);
+    result &= !contains(table, 100);
 
     return result;
 }
