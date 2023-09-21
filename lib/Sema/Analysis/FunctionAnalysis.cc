@@ -106,10 +106,7 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        iss.push<InvalidDeclaration>(
-            &fn,
-            InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope());
+        ctx.issue<DeclInvalidInScope>(&fn);
         sym.declarePoison(std::string(fn.name()), EntityCategory::Value);
         return;
     }
@@ -201,11 +198,8 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
 void FuncBodyContext::analyzeImpl(ast::StructDefinition& def) {
     /// Function defintion is only allowed in the global scope, at namespace
     /// scope and structure scope.
-    iss.push<InvalidDeclaration>(
-        &def,
-        InvalidDeclaration::Reason::InvalidInCurrentScope,
-        sym.currentScope());
     sym.declarePoison(std::string(def.name()), EntityCategory::Type);
+    ctx.issue<DeclInvalidInScope>(&def);
 }
 
 void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
@@ -256,10 +250,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     if (isa<ReferenceType>(type) && !initExpr) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
-        iss.push<InvalidDeclaration>(
-            &varDecl,
-            InvalidDeclaration::Reason::ExpectedReferenceInitializer,
-            sym.currentScope());
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ExpectedRefInit);
         return;
     }
     auto varDeclRes = sym.addVariable(std::string(varDecl.name()),
@@ -299,24 +290,12 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
 }
 
 void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
-    if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push<InvalidStatement>(
-            &es,
-            InvalidStatement::Reason::InvalidScopeForStatement,
-            sym.currentScope());
-        return;
-    }
+    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
     analyzeExpr(es.expression(), es.dtorStack());
 }
 
 void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
-    if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push<InvalidStatement>(
-            &rs,
-            InvalidStatement::Reason::InvalidScopeForStatement,
-            sym.currentScope());
-        return;
-    }
+    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
     Type const* returnType = currentFunction.returnType();
     if (!rs.expression() && !isa_or_null<VoidType>(returnType)) {
         iss.push<InvalidStatement>(

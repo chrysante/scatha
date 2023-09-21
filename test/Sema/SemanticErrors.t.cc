@@ -210,14 +210,12 @@ fn f() {
 	struct X {}
 })");
     Function const* f = issues.sym.lookup<OverloadSet>("f")->front();
-    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3 = issues.findOnLine<DeclInvalidInScope>(3);
     REQUIRE(line3);
-    CHECK(line3->reason() == InvalidDeclaration::Reason::InvalidInCurrentScope);
-    CHECK(line3->currentScope() == f);
-    auto const line4 = issues.findOnLine<InvalidDeclaration>(4);
+    CHECK(line3->scope() == f);
+    auto const line4 = issues.findOnLine<DeclInvalidInScope>(4);
     REQUIRE(line4);
-    CHECK(line4->reason() == InvalidDeclaration::Reason::InvalidInCurrentScope);
-    CHECK(line4->currentScope() == f);
+    CHECK(line4->scope() == f);
 }
 
 TEST_CASE("Invalid statement at struct scope", "[sema][issue]") {

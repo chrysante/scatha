@@ -10,6 +10,7 @@
 #include "Common/Base.h"
 
 using namespace scatha;
+using namespace tfmt::modifiers;
 
 void scatha::highlightSource(std::string_view text, SourceRange sourceRange) {
     highlightSource(text, sourceRange, std::cout);
@@ -76,8 +77,7 @@ static std::string_view getLine(std::string_view text,
 }
 
 static auto lineNumber(ssize_t index) {
-    return tfmt::format(tfmt::BrightGrey,
-                        utl::strcat(std::setw(4), index, ": "));
+    return tfmt::format(BrightGrey, utl::strcat(std::setw(4), index, ": "));
 }
 
 void scatha::highlightSource(std::string_view text,
@@ -95,7 +95,7 @@ void scatha::highlightSource(std::string_view text,
 
     /// Previous lines
     ssize_t lineIndex = std::max(0, beginLoc.line - 3);
-    for (; lineIndex != beginLoc.line; ++lineIndex) {
+    for (; lineIndex < beginLoc.line; ++lineIndex) {
         str << lineNumber(lineIndex)
             << getLine(text, index, lineIndex - beginLoc.line) << "\n";
     }
@@ -103,8 +103,7 @@ void scatha::highlightSource(std::string_view text,
     /// Erroneous line
     str << lineNumber(lineIndex);
     str << line.substr(0, column - 1);
-    str << tfmt::format(tfmt::Red | tfmt::Italic,
-                        line.substr(column - 1, numChars));
+    str << tfmt::format(Bold, line.substr(column - 1, numChars));
     size_t const endPos = column - 1 + numChars;
     str << line.substr(endPos, line.size() - endPos);
     str << '\n';
@@ -114,7 +113,7 @@ void scatha::highlightSource(std::string_view text,
     for (size_t i = 0; i < 6 + column - 1; ++i) {
         str << ' ';
     }
-    tfmt::format(tfmt::Red, [&] {
+    tfmt::format(Red | Bold, [&] {
         for (size_t i = 0; i < std::max(size_t{ 1 }, numChars); ++i) {
 #if SC_UNICODE_TERMINAL
             str << "˜";

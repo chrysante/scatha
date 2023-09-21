@@ -1,5 +1,8 @@
 #include "Sema/SemanticIssuesNEW.h"
 
+#include <ostream>
+#include <string_view>
+
 #include "AST/AST.h"
 #include "Sema/Entity.h"
 
@@ -18,6 +21,37 @@ BadDecl::BadDecl(ast::Declaration const* declaration,
 
 ast::Declaration const* BadDecl::declaration() const {
     return cast<ast::Declaration const*>(statement());
+}
+
+static std::string_view format(ast::Declaration const* decl) {
+    using namespace ast;
+    using namespace std::literals;
+    // clang-format off
+    return SC_MATCH (*decl) {
+        [](VariableDeclaration const&) { return "Variable declaration"sv; },
+        [](ParameterDeclaration const&) { return "Parameter declaration"sv; },
+        [](FunctionDefinition const&) { return "Function definition"sv; },
+        [](StructDefinition const&) { return "Struct declaration"sv; },
+        [](ASTNode const&) -> std::string_view { SC_UNREACHABLE(); },
+    }; // clang-format off
+}
+
+static std::string_view format(Scope const* scope) {
+    using enum ScopeKind;
+    switch(scope->kind()) {
+    case Global: return "";
+    case Namespace: return "";
+    case Variable: return "";
+    case Function: return "";
+    case Object: return "";
+    case Anonymous: return "";
+    case Invalid: return "";
+    case _count: return "";
+    }
+}
+
+void DeclInvalidInScope::format(std::ostream& str) const {
+    str << ::format(declaration()) << " invalid in " << ::format(scope());
 }
 
 static IssueSeverity toSeverity(BadVarDecl::Reason reason) {

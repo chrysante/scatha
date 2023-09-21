@@ -25,9 +25,9 @@ SC_SEMA_BADDECL_DEF(NoReason,           Error, "")
 SC_SEMA_BADVARDECL_DEF(IncompleteType,
                        Error,
                        "Cannot declare variable of incomplete type " << type()->name())
-SC_SEMA_BADVARDECL_DEF(ExpectedLValueInit,
+SC_SEMA_BADVARDECL_DEF(ExpectedRefInit,
                        Error,
-                       "Lvalue initializer is required for variable reference")
+                       "An lvalue expression is required to initialize variable reference")
 SC_SEMA_BADVARDECL_DEF(CantInferType,
                        Error,
                        "Can't infer type")

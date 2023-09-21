@@ -1,6 +1,8 @@
 #ifndef SCATHA_SEMA_SEMANTICISSUES_H_
 #define SCATHA_SEMA_SEMANTICISSUES_H_
 
+#include <iosfwd>
+
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/Issue.h>
@@ -14,10 +16,11 @@
 /// ├─ BadStatement
 /// │  ├─ BadDeclaration
 /// │  │  ├─ Redefinition
-/// │  │  ├─ BadVariableDeclaration
-/// │  │  ├─ BadParameterDeclaration
-/// │  │  ├─ BadFunctionDefinition
-/// │  │  ├─ BadStructDefinition
+/// │  │  ├─ DeclInvalidInScope
+/// │  │  ├─ BadVarDecl
+/// │  │  ├─ BadParamDecl
+/// │  │  ├─ BadFuncDef
+/// │  │  ├─ BadStructDef
 /// │  ├─ BadCompoundStatement ??
 /// │  ├─ BadExpressionStatement ??
 /// │  └─ BadControlFlowStatement
@@ -99,6 +102,16 @@ private:
     void format(std::ostream& str) const override;
 
     ast::Declaration const* prev;
+};
+
+///
+class SCATHA_API DeclInvalidInScope: public BadDecl {
+public:
+    DeclInvalidInScope(ast::Declaration const* declaration, Scope const* scope):
+        BadDecl(declaration, scope, IssueSeverity::Error) {}
+
+private:
+    void format(std::ostream& str) const override;
 };
 
 ///
