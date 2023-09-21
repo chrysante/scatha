@@ -256,10 +256,10 @@ public:
         removeLiveImpl(_liveOut, reg, count);
     }
 
-    /// \Returns `true` if register \p reg is live-in
+    /// \Returns `true` if register \p reg is live-in to this block
     bool isLiveIn(Register const* reg) const { return _liveIn.contains(reg); }
 
-    /// \Returns `true` if register \p reg is live.out
+    /// \Returns `true` if register \p reg is live-out of this block
     bool isLiveOut(Register const* reg) const { return _liveOut.contains(reg); }
 
     /// \Returns The set of live-in registers
