@@ -27,12 +27,12 @@ public:
     /// detect cycles we maintain a set of functions that are currently being
     /// analyzed
     /// @{
-    /// Add a function to the set of function that are currently being analyzed
+    /// Add a function to the set of functions that are currently being analyzed
     void beginAnalyzing(Function const* function) {
         currentlyAnalyzedFunctions.insert(function);
     }
 
-    /// Remove a function to the set of function that are currently being
+    /// Remove a function to the set of functions that are currently being
     /// analyzed
     void endAnalyzing(Function const* function) {
         currentlyAnalyzedFunctions.erase(function);
