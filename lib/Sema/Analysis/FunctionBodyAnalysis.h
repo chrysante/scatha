@@ -12,12 +12,9 @@ namespace scatha::sema {
 
 class SymbolTable;
 
-/// Instantiate all functions in the program.
-/// Here we don't need the dependency graph anymore, as functions don't strongly
-/// depend on each other at compile time. This may change if we introduce
-/// compile time evaluation of functions.
-SCATHA_API void analyzeFunctionBodies(
-    Context& context, std::span<ast::FunctionDefinition* const> functions);
+/// Semantically analyze the function \p function
+SCTEST_API void analyzeFunction(Context& ctx,
+                                ast::FunctionDefinition* function);
 
 } // namespace scatha::sema
 

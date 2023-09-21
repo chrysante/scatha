@@ -48,17 +48,22 @@ static void gatherParentDestructors(ast::JumpStatement& stmt) {
 namespace {
 
 struct FuncBodyContext {
-    FuncBodyContext(sema::Context& ctx):
-        ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
+    FuncBodyContext(sema::Context& ctx, ast::FunctionDefinition& function):
+        ctx(ctx),
+        sym(ctx.symbolTable()),
+        iss(ctx.issueHandler()),
+        currentFunction(function) {}
+
+    void run() { analyze(currentFunction); }
 
     void analyze(ast::ASTNode&);
 
     void analyzeImpl(ast::FunctionDefinition&);
+    void analyzeImpl(ast::ParameterDeclaration&);
+    void analyzeImpl(ast::ThisParameter&);
     void analyzeImpl(ast::StructDefinition&);
     void analyzeImpl(ast::CompoundStatement&);
     void analyzeImpl(ast::VariableDeclaration&);
-    void analyzeImpl(ast::ParameterDeclaration&);
-    void analyzeImpl(ast::ThisParameter&);
     void analyzeImpl(ast::ExpressionStatement&);
     void analyzeImpl(ast::ReturnStatement&);
     void analyzeImpl(ast::IfStatement&);
@@ -74,21 +79,16 @@ struct FuncBodyContext {
     sema::Context& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
-    ast::FunctionDefinition* currentFunction = nullptr;
-    size_t paramIndex = 0;
+    ast::FunctionDefinition& currentFunction;
 };
 
 } // namespace
 
-void sema::analyzeFunctionBodies(
-    Context& ctx, std::span<ast::FunctionDefinition* const> functions) {
-    FuncBodyContext funcBodyCtx(ctx);
-    auto& sym = ctx.symbolTable();
-    for (auto* def: functions) {
-        sym.makeScopeCurrent(def->function()->parent());
-        funcBodyCtx.analyzeImpl(cast<ast::FunctionDefinition&>(*def));
-        sym.makeScopeCurrent(nullptr);
-    }
+void sema::analyzeFunction(Context& ctx, ast::FunctionDefinition* def) {
+    ctx.symbolTable().withScopeCurrent(def->function()->parent(), [&] {
+        FuncBodyContext funcBodyCtx(ctx, *def);
+        funcBodyCtx.run();
+    });
 }
 
 void FuncBodyContext::analyze(ast::ASTNode& node) {
@@ -109,65 +109,94 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
         sym.declarePoison(std::string(fn.name()), EntityCategory::Value);
         return;
     }
-    SC_ASSERT(fn.function(),
-              "Can't analyze the body if wen don't have a symbol to push this "
-              "functions scope.");
+    SC_ASSERT(&fn == &currentFunction,
+              "We only analyze one function per context object");
     /// Here the AST node is partially decorated: `entity()` is already set by
     /// `gatherNames()` phase, now we complete the decoration.
-    auto* function = fn.function();
-    fn.decorateFunction(function, function->returnType());
-    fn.body()->decorateScope(function);
-    function->setBinaryVisibility(fn.binaryVisibility());
+    auto* semaFn = fn.function();
+    fn.decorateFunction(semaFn, semaFn->returnType());
+    fn.body()->decorateScope(semaFn);
+    semaFn->setBinaryVisibility(fn.binaryVisibility());
     /// Maybe try to abstract this later and perform some more checks on main,
     /// but for now we just do this here
-    if (function->name() == "main") {
-        function->setBinaryVisibility(BinaryVisibility::Export);
+    if (semaFn->name() == "main") {
+        semaFn->setBinaryVisibility(BinaryVisibility::Export);
     }
-    currentFunction = &fn;
-    paramIndex = 0;
-    sym.pushScope(function);
-    utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto* param: fn.parameters()) {
-        analyze(*param);
-    }
-    /// The body will push the scope itself again.
-    popScope.execute();
+    sym.withScopePushed(semaFn, [&] {
+        for (auto* param: fn.parameters()) {
+            analyze(*param);
+        }
+    });
     analyze(*fn.body());
 }
 
-void FuncBodyContext::analyzeImpl(ast::StructDefinition& s) {
-    auto const sk = sym.currentScope().kind();
-    if (sk != ScopeKind::Global && sk != ScopeKind::Namespace &&
-        sk != ScopeKind::Object)
-    {
-        /// Function defintion is only allowed in the global scope, at namespace
-        /// scope and structure scope.
-        iss.push<InvalidDeclaration>(
-            &s,
-            InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope());
-        sym.declarePoison(std::string(s.name()), EntityCategory::Type);
+void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
+    Type const* declaredType =
+        currentFunction.function()->argumentType(paramDecl.index());
+    if (declaredType) {
+        auto paramRes = sym.addVariable(std::string(paramDecl.name()),
+                                        declaredType,
+                                        paramDecl.mutability());
+        if (!paramRes) {
+            iss.push(paramRes.error()->setStatement(paramDecl));
+            return;
+        }
+        paramDecl.decorateVarDecl(&*paramRes);
     }
+    else {
+        sym.declarePoison(std::string(paramDecl.name()), EntityCategory::Value);
+    }
+}
+
+void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
+    auto* function = cast<Function*>(currentFunction.entity());
+    auto* parentType = dyncast<ObjectType*>(function->parent());
+    if (!parentType) {
+        return;
+    }
+    if (thisParam.index() != 0) {
+        /// TODO: Push error here!
+        SC_UNIMPLEMENTED();
+    }
+    auto paramRes = [&] {
+        if (thisParam.isReference()) {
+            auto* type = sym.reference({ parentType, thisParam.mutability() });
+            return sym.addVariable("__this", type, Mutability::Const);
+        }
+        else {
+            return sym.addVariable("__this",
+                                   parentType,
+                                   thisParam.mutability());
+        }
+    }();
+    if (!paramRes) {
+        iss.push(paramRes.error()->setStatement(thisParam));
+        return;
+    }
+    function->setIsMember();
+    thisParam.decorateVarDecl(&*paramRes);
+}
+
+void FuncBodyContext::analyzeImpl(ast::StructDefinition& def) {
+    /// Function defintion is only allowed in the global scope, at namespace
+    /// scope and structure scope.
+    iss.push<InvalidDeclaration>(
+        &def,
+        InvalidDeclaration::Reason::InvalidInCurrentScope,
+        sym.currentScope());
+    sym.declarePoison(std::string(def.name()), EntityCategory::Type);
 }
 
 void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
         block.decorateScope(&sym.addAnonymousScope());
     }
-    else {
-        SC_ASSERT(block.scope()->kind() != ScopeKind::Anonymous ||
-                      currentFunction != nullptr,
-                  "If we are analyzing an anonymous scope we must have a "
-                  "function pushed, because anonymous scopes "
-                  "can only appear in functions.");
-    }
-    sym.pushScope(block.scope());
-    utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    auto statements = block.statements() | ToSmallVector<>;
-    for (auto* statement: statements) {
-        analyze(*statement);
-    }
-    popScope.execute();
+    sym.withScopePushed(block.scope(), [&] {
+        /// We make a copy why?
+        for (auto* statement: block.statements() | ToSmallVector<>) {
+            analyze(*statement);
+        }
+    });
 }
 
 static bool isPoison(ast::Expression* expr) {
@@ -178,8 +207,6 @@ static bool isPoison(ast::Expression* expr) {
 }
 
 void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(currentFunction,
-              "We only handle function local variables in this pass.");
     SC_ASSERT(!varDecl.isDecorated(),
               "We should not have handled local variables in prepass.");
     auto* initExpr = analyzeExpr(varDecl.initExpr(), varDecl.dtorStack());
@@ -251,62 +278,6 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     cast<ast::Statement*>(varDecl.parent())->pushDtor(&variable);
 }
 
-void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
-    SC_ASSERT(currentFunction != nullptr,
-              "We'd better have a function pushed when analyzing function "
-              "parameters.");
-    SC_ASSERT(!paramDecl.isDecorated(),
-              "We should not have handled parameters in prepass.");
-    Type const* declaredType =
-        currentFunction->function()->argumentType(paramIndex);
-    if (declaredType) {
-        auto paramRes = sym.addVariable(std::string(paramDecl.name()),
-                                        declaredType,
-                                        paramDecl.mutability());
-        if (!paramRes) {
-            iss.push(paramRes.error()->setStatement(paramDecl));
-            return;
-        }
-        paramDecl.decorateVarDecl(&*paramRes);
-    }
-    else {
-        sym.declarePoison(std::string(paramDecl.name()), EntityCategory::Value);
-    }
-    ++paramIndex;
-}
-
-void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
-    SC_ASSERT(currentFunction != nullptr,
-              "We'd better have a function pushed when analyzing function "
-              "parameters.");
-    SC_ASSERT(!thisParam.isDecorated(),
-              "We should not have handled parameters in prepass.");
-    auto* function = cast<Function*>(currentFunction->entity());
-    auto* parentType = dyncast<ObjectType*>(function->parent());
-    if (!parentType) {
-        return;
-    }
-    Type const* type = parentType;
-    auto paramRes = [&] {
-        if (thisParam.isReference()) {
-            type = sym.reference({ parentType, thisParam.mutability() });
-            return sym.addVariable("__this", type, Mutability::Const);
-        }
-        else {
-            return sym.addVariable("__this",
-                                   parentType,
-                                   thisParam.mutability());
-        }
-    }();
-    if (!paramRes) {
-        iss.push(paramRes.error()->setStatement(thisParam));
-        return;
-    }
-    function->setIsMember();
-    thisParam.decorateVarDecl(&*paramRes);
-    ++paramIndex;
-}
-
 void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
@@ -319,12 +290,10 @@ void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
 }
 
 void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
-    SC_ASSERT(currentFunction,
-              "This should have been set by case FunctionDefinition");
     SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function,
               "Return statements can only occur at function scope. Perhaps "
               "this should be a soft error");
-    Type const* returnType = currentFunction->returnType();
+    Type const* returnType = currentFunction.returnType();
     if (!returnType) {
         return;
     }
