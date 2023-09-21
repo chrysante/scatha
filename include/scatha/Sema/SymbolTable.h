@@ -149,9 +149,18 @@ public:
 
     /// Invoke function \p f with scope \p scope made current
     decltype(auto) withScopeCurrent(Scope* scope, std::invocable auto&& f) {
-        utl::scope_guard guard(
-            [this, current = &currentScope()] { makeScopeCurrent(current); });
+        auto* stashed = &currentScope();
+        utl::scope_guard guard([&] { makeScopeCurrent(stashed); });
         makeScopeCurrent(scope);
+        return std::invoke(f);
+    }
+
+    /// Invoke function \p f with scope \p scope pushed
+    /// This is essentially the same as `withScopeCurrent()` but it traps if \p
+    /// scope is not a direct child of the current scope
+    decltype(auto) withScopePushed(Scope* scope, std::invocable auto&& f) {
+        utl::scope_guard guard([this] { popScope(); });
+        pushScope(scope);
         return std::invoke(f);
     }
 
