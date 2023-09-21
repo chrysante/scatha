@@ -269,6 +269,11 @@ ReferenceType::ReferenceType(QualType base):
          nullptr),
     PtrRefTypeBase(base) {}
 
+void Function::setDeducedReturnType(Type const* type) {
+    SC_ASSERT(!returnType(), "Already set");
+    _sig._returnType = type;
+}
+
 bool Function::isBuiltin() const {
     return isForeign() && slot() == svm::BuiltinFunctionSlot;
 }

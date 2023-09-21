@@ -245,6 +245,8 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
         iss.push(result.error());
         return;
     }
+    /// TODO: Handle return type correctly
+    /// If the function is a special member function we should check if it has a return type specified. If so, we emit an error. Otherwise we set the return type to void
     auto SMF = toSMF(def);
     if (!SMF) {
         return;
@@ -296,11 +298,11 @@ FunctionSignature InstContext::analyzeSignature(
     for (auto [index, param]: decl.parameters() | ranges::views::enumerate) {
         argumentTypes.push_back(analyzeParameter(*param, index));
     }
-    /// For functions with unspecified return type we assume void until we
-    /// implement return type deduction.
+    /// If the return type is not specified it will be deduced during function
+    /// analysis
     auto* returnType = decl.returnTypeExpr() ?
                            analyzeTypeExpression(decl.returnTypeExpr(), ctx) :
-                           sym.Void();
+                           nullptr;
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 

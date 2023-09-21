@@ -282,6 +282,15 @@ public:
     /// \Returns A View over the entities in this scope
     auto entities() const { return _entities | ranges::views::values; }
 
+    /// \Returns the corresponding AST node
+    ast::Declaration* astNode() { return _astNode; }
+
+    /// \overload
+    ast::Declaration const* astNode() const { return _astNode; }
+
+    /// TODO: Get rid of this and pass ast nodes through constructors
+    void setASTNode(ast::Declaration* node) { _astNode = node; }
+
 protected:
     explicit Scope(EntityType entityType,
                    ScopeKind,
@@ -301,10 +310,9 @@ private:
     void addAlternateChildName(Entity* child, std::string name);
 
 private:
-    /// Scopes don't own their childscopes. These objects are owned by the
-    /// symbol table.
     utl::hashset<Scope*> _children;
     utl::hashmap<std::string, Entity*> _entities;
+    ast::Declaration* _astNode = nullptr;
     ScopeKind _kind;
 };
 
@@ -350,10 +358,13 @@ public:
     /// Number of arguments
     size_t argumentCount() const { return _argumentTypes.size(); }
 
-    /// Return type
+    /// \Returns the return type.
+    /// \Warning During analysis this could be null if the return type is
+    /// not yet deduced.
     Type const* returnType() const { return _returnType; }
 
 private:
+    friend class Function; /// To set deduced return type
     utl::small_vector<Type const*> _argumentTypes;
     Type const* _returnType;
 };
@@ -392,6 +403,10 @@ public:
 
     /// Return type
     Type const* returnType() const { return _sig.returnType(); }
+
+    /// Sets the return type to \p type
+    /// Must only be called if the return type of this function is yet unknown
+    void setDeducedReturnType(Type const* type);
 
     /// Argument types
     std::span<Type const* const> argumentTypes() const {
@@ -435,12 +450,6 @@ public:
 
     /// Set the kind of special member function this function is
     void setSMFKind(SpecialMemberFunction kind) { _smfKind = kind; }
-
-    /// The definition of this function in the AST
-    ast::FunctionDefinition const* definition() const { return def; }
-
-    /// Set the definition of this function
-    void setDefinition(ast::FunctionDefinition const* def) { this->def = def; }
 
     /// \returns Slot of extern function table.
     ///
@@ -499,7 +508,6 @@ private:
     AccessSpecifier accessSpec = AccessSpecifier::Private;
     BinaryVisibility binaryVis = BinaryVisibility::Internal;
     std::optional<SpecialMemberFunction> _smfKind;
-    ast::FunctionDefinition const* def = nullptr;
     FunctionKind _kind = FunctionKind::Native;
     bool _isMember          : 1 = false;
     bool _haveBinaryAddress : 1 = false;

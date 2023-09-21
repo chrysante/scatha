@@ -265,7 +265,7 @@ fn main() -> bool {
     return isSorted(data);
 }
 
-fn sort(data: &mut [int]) {
+fn sort(data: &mut [int]) -> void {
     if data.count == 0 {
         return;
     }

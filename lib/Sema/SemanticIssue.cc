@@ -70,7 +70,8 @@ void InvalidStatement::format(std::ostream& str) const {
 }
 
 void BadFunctionCall::format(std::ostream& str) const {
-    str << "No matching function for call to '" << overloadSet()->name() << "'";
+    str << "No matching function for call to '" << overloadSet()->name()
+        << "'. " << reason();
 }
 
 std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
@@ -78,6 +79,8 @@ std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
     return str << UTL_SERIALIZE_ENUM(r, {
         { BadFunctionCall::Reason::NoMatchingFunction, "No matching function" },
         { BadFunctionCall::Reason::ObjectNotCallable,  "Object not callable" },
+        { BadFunctionCall::Reason::CantDeduceReturnType,
+          "Cannot deduce return type on mutually recursive function" }
     }); // clang-format on
 }
 

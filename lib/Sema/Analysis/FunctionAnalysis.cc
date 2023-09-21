@@ -81,6 +81,8 @@ struct FuncBodyContext {
     SymbolTable& sym;
     IssueHandler& iss;
     ast::FunctionDefinition& currentFunction;
+    /// Only needed if return type is not specified
+    sema::Type const* deducedReturnType = nullptr;
 };
 
 } // namespace
@@ -115,6 +117,13 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     /// Here the AST node is partially decorated: `entity()` is already set by
     /// `gatherNames()` phase, now we complete the decoration.
     auto* semaFn = fn.function();
+    if (ctx.isAnalyzed(semaFn) || ctx.isAnalyzing(semaFn)) {
+        /// We don't emit errors here if the function is currently analyzing
+        /// because the error should appear at the callsite
+        return;
+    }
+    ctx.beginAnalyzing(semaFn);
+    utl::scope_guard guard([&] { ctx.endAnalyzing(semaFn); });
     fn.decorateFunction(semaFn, semaFn->returnType());
     fn.body()->decorateScope(semaFn);
     semaFn->setBinaryVisibility(fn.binaryVisibility());
@@ -128,7 +137,17 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
             analyze(*param);
         }
     });
+    /// The function body compound statement pushes the scope again
     analyze(*fn.body());
+    /// If we have deduced a return type in the return statements we set it here
+    if (!semaFn->returnType()) {
+        if (deducedReturnType) {
+            semaFn->setDeducedReturnType(deducedReturnType);
+        }
+        else {
+            semaFn->setDeducedReturnType(sym.Void());
+        }
+    }
 }
 
 void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
@@ -299,10 +318,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
         return;
     }
     Type const* returnType = currentFunction.returnType();
-    if (!returnType) {
-        return;
-    }
-    if (!rs.expression() && !isa<VoidType>(*returnType)) {
+    if (!rs.expression() && !isa_or_null<VoidType>(returnType)) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
@@ -315,7 +331,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     if (!analyzeExpr(rs.expression(), rs.dtorStack())) {
         return;
     }
-    if (isa<VoidType>(*returnType)) {
+    if (isa_or_null<VoidType>(returnType)) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
@@ -326,12 +342,26 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
         iss.push<BadSymbolReference>(*rs.expression(), EntityCategory::Value);
         return;
     }
-    convert(Implicit,
-            rs.expression(),
-            getQualType(returnType),
-            refToLValue(returnType),
-            rs.dtorStack(),
-            ctx);
+    if (returnType) {
+        convert(Implicit,
+                rs.expression(),
+                getQualType(returnType),
+                refToLValue(returnType),
+                rs.dtorStack(),
+                ctx);
+    }
+    else {
+        returnType = rs.expression()->type().get();
+        if (!deducedReturnType) {
+            deducedReturnType = returnType;
+        }
+        if (deducedReturnType != returnType) {
+            /// TODO: Push error here.
+            /// For return type deduction all return statements must return the
+            /// same type
+            SC_UNIMPLEMENTED();
+        }
+    }
     popTopLevelDtor(rs.expression(), rs.dtorStack());
 }
 

@@ -1,13 +1,16 @@
 #ifndef SCATHA_SEMA_ANALYSISCONTEXT_H_
 #define SCATHA_SEMA_ANALYSISCONTEXT_H_
 
+#include <utl/hashtable.hpp>
+
 #include "Issue/IssueHandler.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {
 
 /// Semantic analysis context
-/// Owns the symbol table and has a reference to the issue handler
+/// Has references to the symbol table and  the issue handler and stores some
+/// indermediate analysis data
 class SCATHA_API AnalysisContext {
 public:
     AnalysisContext(SymbolTable& sym, IssueHandler& issueHandler):
@@ -19,9 +22,39 @@ public:
     /// \Returns the issue handler of this context
     IssueHandler& issueHandler() const { return *iss; }
 
+    /// ## Cycle detection in return type deduction
+    /// To deduce return types we recursively analyze functions when needed. To
+    /// detect cycles we maintain a set of functions that are currently being
+    /// analyzed
+    /// @{
+    /// Add a function to the set of function that are currently being analyzed
+    void beginAnalyzing(Function const* function) {
+        currentlyAnalyzedFunctions.insert(function);
+    }
+
+    /// Remove a function to the set of function that are currently being
+    /// analyzed
+    void endAnalyzing(Function const* function) {
+        currentlyAnalyzedFunctions.erase(function);
+        analyzedFunctions.insert(function);
+    }
+
+    /// \Returns `true` if \p function is currently being analyzed
+    bool isAnalyzing(Function const* function) {
+        return currentlyAnalyzedFunctions.contains(function);
+    }
+
+    /// \Returns `true` if \p function is currently being analyzed
+    bool isAnalyzed(Function const* function) {
+        return analyzedFunctions.contains(function);
+    }
+    /// @}
+
 private:
     SymbolTable* sym;
     IssueHandler* iss;
+    utl::hashset<Function const*> analyzedFunctions;
+    utl::hashset<Function const*> currentlyAnalyzedFunctions;
 };
 
 } // namespace scatha::sema

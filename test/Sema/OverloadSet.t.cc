@@ -28,8 +28,7 @@ TEST_CASE("OverloadSet") {
     REQUIRE(!f_double2_success);
     auto* f2error =
         dynamic_cast<sema::InvalidDeclaration*>(f_double2_success.error());
-    CHECK(f2error->reason() ==
-          sema::InvalidDeclaration::Reason::CantOverloadOnReturnType);
+    CHECK(f2error->reason() == sema::InvalidDeclaration::Reason::Redefinition);
     /// Declare a function `fn f(double) -> double`
     auto* f_double3 = &sym.declareFunction("f").value();
     auto const f_double3_success =

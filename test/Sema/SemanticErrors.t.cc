@@ -126,8 +126,7 @@ fn g() {}
 )");
     auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
-    CHECK(line3->reason() ==
-          InvalidDeclaration::Reason::CantOverloadOnReturnType);
+    CHECK(line3->reason() == InvalidDeclaration::Reason::Redefinition);
     auto const line5 = issues.findOnLine<InvalidDeclaration>(5);
     REQUIRE(line5);
     CHECK(line5->reason() == InvalidDeclaration::Reason::Redefinition);
@@ -293,7 +292,7 @@ fn f() -> int { return; }
 
 TEST_CASE("Void function must not return a value", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-fn f() { return 0; }
+fn f() -> void { return 0; }
 )");
     auto issue = issues.findOnLine<InvalidStatement>(2);
     REQUIRE(issue);

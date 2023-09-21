@@ -1,16 +1,15 @@
 
-
-struct X {
-    var i: int;
-    var f: float;
-    struct Y {
-        var k: int;
-        var b: byte;
-    }
-    var y: Y;
+fn f(m: int) {
+    return g(m + 1);
 }
 
-fn main() -> int {
-    let x = X(2, 1.0, X.Y(1, 'X'));
-    return x.i + int(x.f);
+fn g(n: int) {
+    if n > 10 {
+        return n;
+    }
+    return f(n);
+}
+
+fn main() {
+    return f(0);
 }

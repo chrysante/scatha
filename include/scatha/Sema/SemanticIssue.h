@@ -107,21 +107,32 @@ public:
 
 class SCATHA_API BadFunctionCall: public BadExpression {
 public:
-    enum class Reason { NoMatchingFunction, ObjectNotCallable, _count };
+    enum class Reason {
+        NoMatchingFunction,
+        ObjectNotCallable,
+        CantDeduceReturnType,
+        _count
+    };
 
 public:
     explicit BadFunctionCall(ast::Expression const& expression,
                              OverloadSet const* overloadSet,
-                             utl::small_vector<QualType> argTypes,
+                             utl::small_vector<Type const*> argTypes,
                              Reason reason):
         BadExpression(expression, IssueSeverity::Error),
         _reason(reason),
         _argTypes(std::move(argTypes)),
         _overloadSet(overloadSet) {}
 
+    explicit BadFunctionCall(ast::Expression const& expression, Reason reason):
+        BadFunctionCall(expression,
+                        nullptr,
+                        utl::small_vector<Type const*>{},
+                        reason) {}
+
     Reason reason() const { return _reason; }
 
-    std::span<QualType const> argumentTypes() const { return _argTypes; }
+    std::span<Type const* const> argumentTypes() const { return _argTypes; }
 
     OverloadSet const* overloadSet() const { return _overloadSet; }
 
@@ -129,7 +140,7 @@ private:
     void format(std::ostream&) const override;
 
     Reason _reason;
-    utl::small_vector<QualType> _argTypes;
+    utl::small_vector<Type const*> _argTypes;
     OverloadSet const* _overloadSet;
 };
 
@@ -233,7 +244,6 @@ private:
 
 SCATHA_API std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
 
-/// MARK: Cycles
 class SCATHA_API StrongReferenceCycle: public SemanticIssue {
 public:
     struct Node {

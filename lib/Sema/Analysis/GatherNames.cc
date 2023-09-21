@@ -84,7 +84,7 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         return InvalidIndex;
     }
     auto& func = *declResult;
-    func.setDefinition(&funcDef);
+    func.setASTNode(&funcDef);
     funcDef.decorateDecl(&func);
     funcDef.body()->decorateScope(&func);
     /// Now add this function definition to the dependency graph
@@ -111,6 +111,7 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& s) {
         return InvalidIndex;
     }
     auto& objType = *declResult;
+    objType.setASTNode(&s);
     s.decorateDecl(&objType);
     s.body()->decorateScope(&objType);
     size_t const index =

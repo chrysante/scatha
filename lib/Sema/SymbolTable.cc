@@ -185,12 +185,7 @@ Expected<void, SemanticIssue*> SymbolTable::setSignature(
     auto const [otherFunction, success] = overloadSet->add(function);
     if (!success) {
         using enum InvalidDeclaration::Reason;
-        InvalidDeclaration::Reason const reason =
-            otherFunction->signature().returnType() ==
-                    function->signature().returnType() ?
-                Redefinition :
-                CantOverloadOnReturnType;
-        return new InvalidDeclaration(nullptr, reason, currentScope());
+        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
     return {};
 }

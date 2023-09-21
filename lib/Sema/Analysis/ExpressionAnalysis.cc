@@ -11,6 +11,7 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/FunctionAnalysis.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Analysis/Utility.h"
@@ -59,6 +60,11 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     Entity* lookup(ast::Identifier& id);
+
+    /// Access the return type of a \p function
+    /// If necessary this deduces the return type by calling `analyzeFunction()`
+    /// \Returns `nullptr` if return type deduction failed
+    Type const* getReturnType(Function* function);
 
     /// \Returns `true` if \p expr is a value. Otherwise submits an error and
     /// returns `false`
@@ -524,8 +530,17 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
-    QualType type = getQualType(func->returnType());
-    auto valueCat = isa<ReferenceType>(*func->returnType()) ? LValue : RValue;
+    auto* returnType = getReturnType(func);
+    if (!returnType) {
+        iss.push<BadFunctionCall>(
+            ma,
+            overloadSet,
+            utl::small_vector<Type const*>{},
+            BadFunctionCall::Reason::CantDeduceReturnType);
+        return nullptr;
+    }
+    QualType type = getQualType(returnType);
+    auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
     auto* temp = sym.temporary(type);
     call->decorateCall(temp, valueCat, type, func);
     dtorStack->push(temp);
@@ -797,8 +812,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto* overloadSet = dyncast_or_null<OverloadSet*>(fc.callee()->entity());
     if (!overloadSet) {
         iss.push<BadFunctionCall>(fc,
-                                  nullptr,
-                                  utl::vector<QualType>{},
                                   BadFunctionCall::Reason::ObjectNotCallable);
         return nullptr;
     }
@@ -813,9 +826,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         return nullptr;
     }
     auto* function = result.function;
-    QualType type = getQualType(function->returnType());
-    auto valueCat = isa<ReferenceType>(*function->returnType()) ? LValue :
-                                                                  RValue;
+    auto* returnType = getReturnType(function);
+    if (!returnType) {
+        iss.push<BadFunctionCall>(
+            fc,
+            overloadSet,
+            fc.arguments() | ranges::views::transform([](auto* arg) {
+                return arg->type().get();
+            }) | ToSmallVector<>,
+            BadFunctionCall::Reason::CantDeduceReturnType);
+        return nullptr;
+    }
+    QualType type = getQualType(returnType);
+    auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
     fc.decorateCall(sym.temporary(type), valueCat, type, function);
     convertArguments(fc, result, *dtorStack, ctx);
     dtorStack->push(fc.object());
@@ -901,6 +924,19 @@ Entity* ExprContext::lookup(ast::Identifier& id) {
         iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
     }
     return entity;
+}
+
+Type const* ExprContext::getReturnType(Function* function) {
+    if (function->returnType()) {
+        return function->returnType();
+    }
+    analyzeFunction(ctx, cast<ast::FunctionDefinition*>(function->astNode()));
+    if (function->returnType()) {
+        return function->returnType();
+    }
+    /// If we get here we failed to deduce the return type because of cycles in
+    /// the call graph
+    return nullptr;
 }
 
 bool ExprContext::expectValue(ast::Expression const* expr) {

@@ -46,7 +46,8 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
         auto* semaFn = queue.front();
         queue.pop_front();
         auto* irFn = functionMap(semaFn);
-        auto decls = generateFunction(*semaFn->definition(),
+        auto* def = cast<ast::FunctionDefinition const*>(semaFn->astNode());
+        auto decls = generateFunction(*def,
                                       cast<ir::Function&>(*irFn),
                                       ctx,
                                       mod,
