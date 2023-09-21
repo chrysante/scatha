@@ -298,7 +298,7 @@ static std::optional<ValueCatConversion> determineValueCatConv(
     case Explicit:
         return MaterializeTemporary;
     case Reinterpret:
-        SC_UNREACHABLE(); // I guess
+        return std::nullopt;
     }
 }
 
