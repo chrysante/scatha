@@ -182,23 +182,24 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
 
 UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     Token const idToken = tokens.peek();
+    auto thisMutQual = eatMut();
     if (idToken.kind() == This) {
         tokens.eat();
-        return allocate<ast::ThisParameter>(sema::Mutability::Mutable,
+        return allocate<ast::ThisParameter>(thisMutQual,
                                             /* isRef = */ false,
                                             idToken.sourceRange());
     }
     if (idToken.kind() == BitAnd) {
         tokens.eat();
         using enum sema::Mutability;
-        auto const mutQual = eatMut() ? Mutable : Const;
+        auto const refMutQual = eatMut();
         if (tokens.peek().kind() != This) {
             return nullptr;
         }
         auto const thisToken = tokens.eat();
         auto sourceRange =
             merge(idToken.sourceRange(), thisToken.sourceRange());
-        return allocate<ast::ThisParameter>(mutQual,
+        return allocate<ast::ThisParameter>(refMutQual,
                                             /* isRef = */ true,
                                             sourceRange);
     }
@@ -238,6 +239,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     else {
         tokens.eat();
     }
+    auto mutQual = eatMut();
     auto typeExpr = parseTypeExpression();
     if (!typeExpr) {
         pushExpectedExpression(tokens.peek());
@@ -253,7 +255,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
             tokens.eat();
         }
     }
-    return allocate<ast::ParameterDeclaration>(sema::Mutability::Mutable,
+    return allocate<ast::ParameterDeclaration>(mutQual,
                                                std::move(identifier),
                                                std::move(typeExpr));
 }
@@ -767,9 +769,9 @@ UniquePtr<ast::Expression> Context::parseRefImpl(
     }
     tokens.eat();
     using enum sema::Mutability;
-    auto mut = eatMut() ? Mutable : Const;
+    auto mutQual = eatMut();
     auto ref = parsePrefix();
-    return allocate<Expr>(std::move(ref), mut, token.sourceRange());
+    return allocate<Expr>(std::move(ref), mutQual, token.sourceRange());
 }
 
 UniquePtr<ast::Expression> Context::parseDereference() {
@@ -1100,12 +1102,12 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
     }
 }
 
-bool Context::eatMut() {
+sema::Mutability Context::eatMut() {
     if (tokens.peek().kind() == Mutable) {
         tokens.eat();
-        return true;
+        return sema::Mutability::Mutable;
     }
-    return false;
+    return sema::Mutability::Const;
 }
 
 void Context::pushExpectedExpression(Token const& token) {

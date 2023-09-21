@@ -24,7 +24,7 @@ fn main() -> int {
 
 TEST_CASE("Iterative gcd", "[end-to-end]") {
     test::checkReturns(7, R"(
-fn gcd(a: int, b: int) -> int {
+fn gcd(a: mut int, b: mut int) -> int {
     while a != b {
         if a > b {
             a -= b;
@@ -41,7 +41,7 @@ fn main() -> int {
     return gcd(a, b);
 })");
     test::checkReturns(8, R"(
-fn gcd(a: int, b: int) -> int {
+fn gcd(a: mut int, b: mut int) -> int {
     while b != 0 && true {
         let t = b + 0;
         b = a % b;
@@ -58,7 +58,7 @@ fn main() -> int {
 
 TEST_CASE("Float pow", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn pow(base: double, exp: int) -> double {
+fn pow(base: mut double, exp: mut int) -> double {
     var result: double = 1.0;
     var i = 0;
     if (exp < 0) {
@@ -99,7 +99,7 @@ fn main() -> int {
 
 TEST_CASE("Float pow / for", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn pow(base: double, exp: int) -> double {
+fn pow(base: mut double, exp: mut int) -> double {
     var result: double = 1.0;
     if (exp < 0) {
         base = 1.0 / base;

@@ -835,7 +835,7 @@ public:
     bool isConst() const { return !isMut(); }
 
     /// Decorate this node.
-    void decorateVarDecl(sema::Object* object);
+    void decorateVarDecl(sema::Entity* entity);
 
 protected:
     template <typename... Children>

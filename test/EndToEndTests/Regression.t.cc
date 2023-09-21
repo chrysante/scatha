@@ -89,7 +89,7 @@ fn main() -> int {
 
 TEST_CASE("Bug in simplifycfg", "[end-to-end][regression]") {
     test::checkReturns(10, R"(
-fn main(n: int, cond: bool) -> int {
+fn main(n: mut int, cond: bool) -> int {
     if cond {}
     else {}
     n ^= n;

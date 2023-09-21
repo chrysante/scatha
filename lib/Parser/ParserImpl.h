@@ -68,7 +68,7 @@ struct Context {
     UniquePtr<ast::Literal> parseLiteral();
 
     // Helpers
-    bool eatMut();
+    sema::Mutability eatMut();
 
     void pushExpectedExpression(Token const&);
 

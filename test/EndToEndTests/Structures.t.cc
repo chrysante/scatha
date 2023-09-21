@@ -147,7 +147,7 @@ fn main() -> int {
 
 TEST_CASE("Member access mem2reg failure", "[end-to-end][member-access]") {
     test::checkReturns(1, R"(
-fn modifyX(x: X) -> X {
+fn modifyX(x: mut X) -> X {
     x.a = 1;
     return x;
 }

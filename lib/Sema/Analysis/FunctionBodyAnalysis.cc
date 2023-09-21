@@ -258,14 +258,19 @@ void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
               "We should not have handled parameters in prepass.");
     Type const* declaredType =
         currentFunction->function()->argumentType(paramIndex);
-    auto paramRes = sym.addVariable(std::string(paramDecl.name()),
-                                    declaredType,
-                                    paramDecl.mutability());
-    if (!paramRes) {
-        iss.push(paramRes.error()->setStatement(paramDecl));
-        return;
+    if (declaredType) {
+        auto paramRes = sym.addVariable(std::string(paramDecl.name()),
+                                        declaredType,
+                                        paramDecl.mutability());
+        if (!paramRes) {
+            iss.push(paramRes.error()->setStatement(paramDecl));
+            return;
+        }
+        paramDecl.decorateVarDecl(&*paramRes);
     }
-    paramDecl.decorateVarDecl(&*paramRes);
+    else {
+        sym.declarePoison(std::string(paramDecl.name()), EntityCategory::Value);
+    }
     ++paramIndex;
 }
 

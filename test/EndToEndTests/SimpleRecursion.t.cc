@@ -206,7 +206,7 @@ struct Expr {
     var lhs: int;
     var rhs: int;
 }
-fn eval(expr: Expr) -> int {
+fn eval(expr: mut Expr) -> int {
     // 0 == Literal
     if expr.id == 0 {
         return expr.lhs;
