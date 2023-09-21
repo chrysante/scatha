@@ -44,7 +44,7 @@ fn print(n: int) {
     __builtin_puti64(n);
 })";
 
-TEST_CASE("Constructors", "[end-to-end][member-access]") {
+TEST_CASE("Constructors", "[end-to-end][constructors]") {
     SECTION("Variables declarations") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
@@ -115,4 +115,21 @@ TEST_CASE("Constructors", "[end-to-end][member-access]") {
                 X(X(X()));
             })");
     }
+}
+
+TEST_CASE("Pseudo constructors", "[end-to-end][constructors]") {
+    test::checkReturns(5, R"(
+struct X {
+    var i: int;
+    var f: float;
+    struct Y {
+        var k: int;
+        var b: byte;
+    }
+    var y: Y;
+}
+fn main() -> int {
+    let x = X(2, 1.0, X.Y(1, 1));
+    return x.i + int(x.f) + x.y.k + int(x.y.b);
+})");
 }
