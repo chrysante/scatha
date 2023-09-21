@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <utl/scope_guard.hpp>
+
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Sema/Fwd.h>
@@ -146,22 +148,11 @@ public:
     void makeScopeCurrent(Scope* scope);
 
     /// Invoke function \p f with scope \p scope made current
-    decltype(auto) withScopeCurrent(Scope* scope,
-                                    std::invocable auto&& f) const {
-        static constexpr bool IsVoid =
-            std::is_same_v<std::invoke_result_t<decltype(f)>, void>;
-        auto& mutThis = const_cast<SymbolTable&>(*this);
-        auto* old = &const_cast<Scope&>(currentScope());
-        mutThis.makeScopeCurrent(scope);
-        if constexpr (IsVoid) {
-            std::invoke(f);
-            mutThis.makeScopeCurrent(old);
-        }
-        else {
-            decltype(auto) result = std::invoke(f);
-            mutThis.makeScopeCurrent(old);
-            return result;
-        }
+    decltype(auto) withScopeCurrent(Scope* scope, std::invocable auto&& f) {
+        utl::scope_guard guard(
+            [this, current = &currentScope()] { makeScopeCurrent(current); });
+        makeScopeCurrent(scope);
+        return std::invoke(f);
     }
 
     /// # Accessors
