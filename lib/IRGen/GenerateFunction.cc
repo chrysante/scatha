@@ -1380,7 +1380,15 @@ Value FuncGenContext::getValueImpl(ast::TrivialConstructExpr const& expr) {
                 return Value(toRegister(value), Register);
             }
             else {
-                SC_UNIMPLEMENTED();
+                ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
+                for (auto [index, arg]: expr.arguments() | ranges::views::enumerate) {
+                    auto* member = getValue<Register>(arg);
+                    aggregate = add<ir::InsertValue>(aggregate,
+                                                     member,
+                                                     std::array{ index },
+                                                     "aggregate");
+                }
+                return Value(aggregate, Register);
             }
         },
         [&](sema::ArrayType const& type) -> Value {

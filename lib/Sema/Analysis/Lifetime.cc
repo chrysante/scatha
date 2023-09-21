@@ -24,7 +24,11 @@ static bool canConstructTrivialType(
     if (arguments.size() == 0) {
         return true;
     }
-    if (arguments.size() == 1) {
+    if (arguments.size() == 1 &&
+        (!isa<StructType>(type) || type == arguments.front()->type().get()))
+    {
+        /// We convert explicitly here because it allows expressions like
+        /// `int(1.0)`
         auto* arg =
             convert(Explicit,
                     arguments.front().get(),
@@ -42,19 +46,32 @@ static bool canConstructTrivialType(
         if (arguments.size() != structType->members().size()) {
             return false;
         }
-        return ranges::equal(structType->members(),
-                             arguments |
-                                 ranges::views::transform([](auto& arg) {
-                                     return arg->type().get();
-                                 }));
+        bool success = true;
+        for (auto&& [arg, type]:
+             ranges::views::zip(arguments, structType->members()))
+        {
+            auto* converted = convert(Implicit,
+                                      arg.get(),
+                                      getQualType(type, Mutability::Const),
+                                      RValue,
+                                      dtors,
+                                      ctx);
+            if (converted) {
+                arg.release();
+                arg = UniquePtr<ast::Expression>(converted);
+            }
+            else {
+                success = false;
+            }
+        }
+        return success;
     }
     return false;
 }
 
 UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
     sema::ObjectType const* type,
-    UniquePtr<ast::Expression>
-        objectArgument,
+    UniquePtr<ast::Expression> objectArgument,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
     Context& ctx,
@@ -73,7 +90,7 @@ UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
             expr->decorateValue(sym.temporary(type), RValue);
             return expr;
         }
-        /// Push an error here!
+        /// TODO: Push an error here!
         SC_UNIMPLEMENTED();
     }
     if (!objectArgument) {
