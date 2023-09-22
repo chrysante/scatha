@@ -66,32 +66,8 @@ std::ostream& ast::operator<<(std::ostream& str, BinaryOperator op) {
 
 bool ast::isAssignment(BinaryOperator op) {
     using enum BinaryOperator;
-    switch (op) {
-    case Assignment:
-        [[fallthrough]];
-    case AddAssignment:
-        [[fallthrough]];
-    case SubAssignment:
-        [[fallthrough]];
-    case MulAssignment:
-        [[fallthrough]];
-    case DivAssignment:
-        [[fallthrough]];
-    case RemAssignment:
-        [[fallthrough]];
-    case LSAssignment:
-        [[fallthrough]];
-    case RSAssignment:
-        [[fallthrough]];
-    case AndAssignment:
-        [[fallthrough]];
-    case OrAssignment:
-        [[fallthrough]];
-    case XOrAssignment:
-        return true;
-    default:
-        return false;
-    }
+    return utl::to_underlying(op) >= utl::to_underlying(Assignment) &&
+           utl::to_underlying(op) <= utl::to_underlying(XOrAssignment);
 }
 
 bool ast::isArithmeticAssignment(BinaryOperator op) {
@@ -100,30 +76,9 @@ bool ast::isArithmeticAssignment(BinaryOperator op) {
 
 BinaryOperator ast::toNonAssignment(BinaryOperator op) {
     using enum BinaryOperator;
-    switch (op) {
-    case AddAssignment:
-        return Addition;
-    case SubAssignment:
-        return Subtraction;
-    case MulAssignment:
-        return Multiplication;
-    case DivAssignment:
-        return Division;
-    case RemAssignment:
-        return Remainder;
-    case LSAssignment:
-        return LeftShift;
-    case RSAssignment:
-        return RightShift;
-    case AndAssignment:
-        return BitwiseAnd;
-    case OrAssignment:
-        return BitwiseOr;
-    case XOrAssignment:
-        return BitwiseXOr;
-    default:
-        SC_UNREACHABLE();
-    }
+    auto diff =
+        utl::to_underlying(AddAssignment) - utl::to_underlying(Assignment);
+    return BinaryOperator{ utl::to_underlying(op) - diff };
 }
 
 std::string_view ast::toString(LoopKind loopKind) {
