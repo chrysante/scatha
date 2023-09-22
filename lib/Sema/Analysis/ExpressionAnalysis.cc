@@ -173,10 +173,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
             scope = scope->parent();
         }
         auto* function = cast<Function*>(scope);
-        if (!function->isMember()) {
-            iss.push<BadExpression>(lit, IssueSeverity::Error);
-            return nullptr;
-        }
         auto* thisEntity = function->findEntity<Variable>("__this");
         lit.decorateValue(thisEntity, LValue, thisEntity->getQualType());
         return &lit;
@@ -563,11 +559,7 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
                                             ma.sourceRange());
     auto* returnType = getReturnType(func);
     if (!returnType) {
-        iss.push<BadFunctionCall>(
-            ma,
-            overloadSet,
-            utl::small_vector<Type const*>{},
-            BadFunctionCall::Reason::CantDeduceReturnType);
+        ctx.badExpr(&ma, CantDeduceReturnType);
         return nullptr;
     }
     QualType type = getQualType(returnType);
@@ -597,9 +589,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     auto* pointer = expr.referred();
     switch (pointer->entityCategory()) {
     case EntityCategory::Value: {
-        auto* ptrType = dyncast<PointerType const*>(pointer->type().get());
+        auto* ptrType =
+            dyncast_or_null<PointerType const*>(pointer->type().get());
         if (!ptrType) {
-            iss.push<BadExpression>(expr, IssueSeverity::Error);
+            ctx.badExpr(&expr, DerefNoPtr);
             return nullptr;
         }
         expr.decorateValue(sym.temporary(ptrType->base()), LValue);
@@ -629,11 +622,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
     switch (referred->entityCategory()) {
     case EntityCategory::Value: {
         if (!referred->isLValue()) {
-            iss.push<BadExpression>(expr, IssueSeverity::Error);
+            ctx.badExpr(&expr, AddrOfNoLValue);
             return nullptr;
         }
         if (!isConvertible(referred->type().mutability(), expr.mutability())) {
-            iss.push<BadExpression>(expr, IssueSeverity::Error);
+            ctx.badExpr(&expr, MutAddrOfImmutable);
             return nullptr;
         }
         auto referredType = QualType(referred->type().get(), expr.mutability());

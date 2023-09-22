@@ -66,9 +66,9 @@ fn f(x: int) { let y: float = 1.; }
 fn f(x: float) -> int { return "a string"; }
 )");
     CHECK(issues.noneOnLine(3));
-    auto const line4 = issues.findOnLine<BadTypeConversion>(4);
+    auto const line4 = issues.findOnLine<BadTypeConv>(4);
     REQUIRE(line4);
-    CHECK(line4->to().get() == issues.sym.S64());
+    CHECK(line4->to() == issues.sym.S64());
 }
 
 TEST_CASE("Bad operands for unary expression", "[sema][issue]") {
@@ -294,7 +294,7 @@ TEST_CASE("Expect reference initializer", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main() { var r: &mut int = 1; }
 )");
-    auto issue = issues.findOnLine<BadTypeConversion>(2);
+    auto issue = issues.findOnLine<BadValueCatConv>(2);
     CHECK(issue);
 }
 

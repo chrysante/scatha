@@ -3,6 +3,7 @@
 #include <array>
 
 #include "AST/AST.h"
+#include "Common/Allocator.h"
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"

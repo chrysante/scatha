@@ -21,7 +21,6 @@ class IssueHandler;
 namespace scatha::sema {
 
 class FunctionSignature;
-class SemanticIssue;
 
 class SCATHA_API SymbolTable {
 public:
@@ -65,7 +64,7 @@ public:
     /// We need this two step way of addings functions to first scan
     /// all declarations to allow for forward references to other entities.
     ///
-    /// \returns `true` of if  \p signature is a legal overload
+    /// \returns `true` if  \p signature is a legal overload
     /// Otherwise emits an error the to issue handler
     bool setFuncSig(Function* function, FunctionSignature signature);
 

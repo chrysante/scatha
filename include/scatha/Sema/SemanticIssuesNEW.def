@@ -190,6 +190,24 @@ SC_SEMA_BADEXPR_DEF(Conditional,
                         << " and " << expr->elseExpr()->type()->name()
                         << " have no common type")
 
+SC_SEMA_BADEXPR_DEF(DereferenceExpression,
+                    DerefNoPtr,
+                    Error,
+                    "Cannot dereference non-pointer type "
+                        << expr->referred()->type()->name())
+
+SC_SEMA_BADEXPR_DEF(AddressOfExpression,
+                    AddrOfNoLValue,
+                    Error,
+                    "Cannot take the address of an rvalue of type "
+                        << expr->referred()->type()->name())
+
+SC_SEMA_BADEXPR_DEF(AddressOfExpression,
+                    MutAddrOfImmutable,
+                    Error,
+                    "Cannot take mutable address of an immutable value of type "
+                        << expr->referred()->type()->name())
+
 SC_SEMA_BADEXPR_DEF(CallLike,
                     SubscriptNoArray,
                     Error,

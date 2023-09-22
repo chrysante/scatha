@@ -37,11 +37,9 @@ static std::optional<int> signatureMatch(
         auto convKind =
             kind == ORKind::MemberFunction && index == 0 ? Explicit : Implicit;
         auto conversion = computeConversion(convKind,
-                                            expr->type(),
-                                            expr->valueCategory(),
+                                            expr,
                                             getQualType(paramType),
-                                            refToLValue(paramType),
-                                            expr->constantValue());
+                                            refToLValue(paramType));
         if (!conversion) {
             return std::nullopt;
         }

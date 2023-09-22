@@ -481,50 +481,43 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
     return std::nullopt;
 }
 
-std::optional<Conversion> sema::computeConversion(
+Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     ConversionKind kind,
-    QualType from,
-    ValueCategory fromCat,
+    ast::Expression const* expr,
     QualType to,
-    ValueCategory toCat,
-    Value const* fromConstantValue) {
-    auto valueCatConv =
-        determineValueCatConv(kind, fromCat, toCat, to.mutability());
+    ValueCategory toValueCat) {
+    auto valueCatConv = determineValueCatConv(kind,
+                                              expr->valueCategory(),
+                                              toValueCat,
+                                              to.mutability());
     if (!valueCatConv) {
-        return std::nullopt;
+        return std::make_unique<BadValueCatConv>(nullptr, expr, toValueCat);
     }
     std::optional mutConv = MutConversion::None;
-    if (toCat != RValue) {
-        mutConv = determineMutConv(kind, from.mutability(), to.mutability());
+    if (toValueCat != RValue) {
+        mutConv =
+            determineMutConv(kind, expr->type().mutability(), to.mutability());
     }
     if (!mutConv) {
-        return std::nullopt;
+        return std::make_unique<BadMutConv>(nullptr, expr, to.mutability());
     }
-    auto objConv = determineObjConv(kind, from.get(), to.get());
+    auto objConv = determineObjConv(kind, expr->type().get(), to.get());
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
-    if (kind == ConversionKind::Implicit && !objConv && fromConstantValue) {
-        objConv = tryImplicitConstConv(fromConstantValue, from.get(), to.get());
+    if (kind == ConversionKind::Implicit && !objConv && expr->constantValue()) {
+        objConv = tryImplicitConstConv(expr->constantValue(),
+                                       expr->type().get(),
+                                       to.get());
     }
     if (!objConv) {
-        return std::nullopt;
+        return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
     }
     if (!isCompatible(*valueCatConv, *objConv)) {
-        return std::nullopt;
+        // FIXME: Do we need this case?
+        SC_UNREACHABLE();
+        return nullptr;
     }
-    return Conversion(from, to, *valueCatConv, *mutConv, *objConv);
-}
-
-std::optional<Conversion> sema::computeConversion(ConversionKind kind,
-                                                  ast::Expression* expr,
-                                                  QualType to,
-                                                  ValueCategory toValueCat) {
-    return computeConversion(kind,
-                             expr->type(),
-                             expr->valueCategory(),
-                             to,
-                             toValueCat,
-                             expr->constantValue());
+    return Conversion(expr->type(), to, *valueCatConv, *mutConv, *objConv);
 }
 
 /// Implementation of the `convert*` functions
@@ -542,14 +535,9 @@ static ast::Expression* convertImpl(ConversionKind kind,
         to = to.toConst();
         toValueCat = LValue;
     }
-    auto conversion = computeConversion(kind,
-                                        expr->type(),
-                                        expr->valueCategory(),
-                                        to,
-                                        toValueCat,
-                                        expr->constantValue());
+    auto conversion = computeConversion(kind, expr, to, toValueCat);
     if (!conversion) {
-        ctx.issueHandler().push<BadTypeConversion>(*expr, to);
+        ctx.issueHandler().push(std::move(conversion).error());
         return nullptr;
     }
     auto* converted = insertConversion(expr, *conversion, ctx.symbolTable());

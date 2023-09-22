@@ -5,10 +5,12 @@
 #include <string_view>
 
 #include "AST/Fwd.h"
+#include "Common/Expected.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Analysis/DTorStack.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
+#include "Sema/SemanticIssuesNEW.h"
 
 namespace scatha::sema {
 
@@ -90,20 +92,12 @@ enum class ConversionKind {
     Reinterpret,
 };
 
-/// Computes the conversion from \p from to \p to
-SCTEST_API std::optional<Conversion> computeConversion(
+/// Computes the conversion of \p expr to type \p toType and value category
+/// \p toValueCat
+SCTEST_API Expected<Conversion, std::unique_ptr<SemaIssue>> computeConversion(
     ConversionKind kind,
-    QualType from,
-    ValueCategory fromCat,
-    QualType to,
-    ValueCategory toCat,
-    Value const* fromConstantValue = nullptr);
-
-/// \overload for expressions
-SCTEST_API std::optional<Conversion> computeConversion(
-    ConversionKind kind,
-    ast::Expression* expr,
-    QualType to,
+    ast::Expression const* expr,
+    QualType toType,
     ValueCategory toValueCat);
 
 /// Computes the rank of the conversion \p conv

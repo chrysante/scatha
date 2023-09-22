@@ -15,7 +15,7 @@
 /// This closely reflects the hierarchy of AST nodes
 ///
 /// ```
-/// SemanticIssue
+/// SemaIssue
 /// ├─ BadStmt
 /// │  ├─ GenericBadStmt
 /// │  ├─ BadDecl
@@ -25,8 +25,11 @@
 /// │  │  ├─ BadSMF
 /// │  │  └─ StructDefCycle
 /// │  └─ BadReturnStatement
-/// ├─ BadExpression
-/// │  └─ BadSymRef
+/// ├─ BadExpr
+/// │  ├─ BadSymRef
+/// │  ├─ BadTypeConv
+/// │  ├─ BadValueCatConv
+/// │  └─ BadMutConv
 /// └─ ORError
 /// ```
 
@@ -48,6 +51,9 @@ public:                                                                        \
 /// Base class of all semantic issues
 class SCATHA_API SemaIssue: public Issue {
 public:
+    explicit SemaIssue(IssueSeverity severity = IssueSeverity::Error):
+        SemaIssue(nullptr, {}, severity) {}
+
     SemaIssue(Scope const* scope,
               SourceRange sourceRange,
               IssueSeverity severity):
@@ -56,11 +62,10 @@ public:
     /// \Returns the scope in which the issue occured
     Scope const* scope() const { return _scope; }
 
-protected:
     void setScope(Scope const* scope) { _scope = scope; }
 
 private:
-    Scope const* _scope;
+    Scope const* _scope = nullptr;
 };
 
 /// Base class of all statement related issues
@@ -229,6 +234,8 @@ public:
     /// \Returns the erroneous expression
     ast::Expression const* expr() const { return _expr; }
 
+    void setExpr(ast::Expression const* expr) { _expr = expr; }
+
 protected:
     explicit BadExpr(Scope const* scope,
                      ast::Expression const* expr,
@@ -244,7 +251,7 @@ private:
 class SCATHA_API BadSymRef: public BadExpr {
 public:
     explicit BadSymRef(Scope const* scope,
-                       ast::Expression const* expression,
+                       ast::Expression const* expr,
                        EntityCategory expected);
 
     EntityCategory have() const;
@@ -255,6 +262,52 @@ private:
     void format(std::ostream&) const override;
 
     EntityCategory _expected;
+};
+
+///
+class SCATHA_API BadTypeConv: public BadExpr {
+public:
+    BadTypeConv(Scope const* scope,
+                ast::Expression const* expr,
+                Type const* to):
+        BadExpr(scope, expr, IssueSeverity::Error), _to(to) {}
+
+    Type const* to() const { return _to; }
+
+private:
+    void format(std::ostream&) const override;
+
+    Type const* _to;
+};
+
+///
+class SCATHA_API BadValueCatConv: public BadExpr {
+public:
+    BadValueCatConv(Scope const* scope,
+                    ast::Expression const* expr,
+                    ValueCategory to):
+        BadExpr(scope, expr, IssueSeverity::Error), _to(to) {}
+
+    ValueCategory to() const { return _to; }
+
+private:
+    void format(std::ostream&) const override;
+
+    ValueCategory _to;
+};
+
+///
+class SCATHA_API BadMutConv: public BadExpr {
+public:
+    BadMutConv(Scope const* scope, ast::Expression const* expr, Mutability to):
+        BadExpr(scope, expr, IssueSeverity::Error), _to(to) {}
+
+    Mutability to() const { return _to; }
+
+private:
+    void format(std::ostream&) const override;
+
+    Mutability _to;
 };
 
 /// Overload resolution error
