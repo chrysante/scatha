@@ -19,32 +19,29 @@ using enum ValueCategory;
 /// the parameters  `std::nullopt` otherwise
 static std::optional<int> signatureMatch(
     OverloadResolutionResult& result,
-    std::span<std::pair<QualType, ValueCategory> const> argTypes,
-    std::span<Value const* const> constantArgs,
+    std::span<ast::Expression const* const> args,
     std::span<Type const* const> paramTypes,
-    bool isMemberCall) {
-    if (paramTypes.size() != argTypes.size()) {
+    ORKind kind) {
+    if (args.size() != paramTypes.size()) {
         return std::nullopt;
     }
-    SC_ASSERT(argTypes.size() == constantArgs.size(), "");
+    SC_ASSERT(args.size() == paramTypes.size(), "");
     int maxRank = 0;
-    for (auto [index, argType, constArg, paramType]:
-         ranges::views::zip(ranges::views::iota(0),
-                            argTypes,
-                            constantArgs,
-                            paramTypes))
+    for (auto [index, expr, paramType]:
+         ranges::views::zip(ranges::views::iota(0), args, paramTypes))
     {
-        if (!paramType || !argType.first) {
+        if (!expr->type() || !paramType) {
             return std::nullopt;
         }
         using enum ConversionKind;
-        auto convKind = isMemberCall && index == 0 ? Explicit : Implicit;
+        auto convKind =
+            kind == ORKind::MemberFunction && index == 0 ? Explicit : Implicit;
         auto conversion = computeConversion(convKind,
-                                            argType.first,
-                                            argType.second,
+                                            expr->type(),
+                                            expr->valueCategory(),
                                             getQualType(paramType),
                                             refToLValue(paramType),
-                                            constArg);
+                                            expr->constantValue());
         if (!conversion) {
             return std::nullopt;
         }
@@ -62,11 +59,10 @@ static OverloadResolutionResult makeError(Args&&... args) {
     return result;
 }
 
-static OverloadResolutionResult performORImpl(
+OverloadResolutionResult sema::performOverloadResolution(
     OverloadSet* overloadSet,
-    std::span<std::pair<QualType, ValueCategory> const> argTypes,
-    std::span<Value const* const> constArgs,
-    bool isMemberCall) {
+    std::span<ast::Expression const* const> arguments,
+    ORKind kind) {
     utl::small_vector<OverloadResolutionResult, 4> results;
     /// Contains ranks and the index of the matching result structure in
     /// `results`
@@ -77,11 +73,7 @@ static OverloadResolutionResult performORImpl(
     utl::small_vector<RankIndexPair> ranks;
     for (auto* F: *overloadSet) {
         OverloadResolutionResult match{ .function = F };
-        auto rank = signatureMatch(match,
-                                   argTypes,
-                                   constArgs,
-                                   F->argumentTypes(),
-                                   isMemberCall);
+        auto rank = signatureMatch(match, arguments, F->argumentTypes(), kind);
         if (rank) {
             ranks.push_back(
                 { *rank, utl::narrow_cast<uint32_t>(results.size()) });
@@ -96,6 +88,7 @@ static OverloadResolutionResult performORImpl(
     }
     ranges::sort(ranks, ranges::less{}, [](auto pair) { return pair.rank; });
     int const lowestRank = ranks.front().rank;
+    /// TODO: Use lower_bound or similar here
     auto firstHigherRank = ranges::find_if(ranks, [=](auto pair) {
         return pair.rank != lowestRank;
     });
@@ -103,7 +96,7 @@ static OverloadResolutionResult performORImpl(
 
     switch (ranks.size()) {
     case 0:
-        return makeError<NoMatchingFunction>(overloadSet);
+        SC_UNREACHABLE();
     case 1:
         return std::move(results[ranks.front().index]);
     default: {
@@ -115,30 +108,4 @@ static OverloadResolutionResult performORImpl(
                                                       std::move(functions));
     }
     }
-}
-
-OverloadResolutionResult sema::performOverloadResolution(
-    OverloadSet* overloadSet,
-    std::span<std::pair<QualType, ValueCategory> const> argTypes,
-    bool isMemberCall) {
-    return performORImpl(overloadSet,
-                         argTypes,
-                         utl::small_vector<Value const*>(argTypes.size()),
-                         isMemberCall);
-}
-
-/// \overload for expressions
-OverloadResolutionResult sema::performOverloadResolution(
-    OverloadSet* overloadSet,
-    std::span<ast::Expression const* const> arguments,
-    bool isMemberCall) {
-    utl::small_vector<std::pair<QualType, ValueCategory>> argTypes;
-    utl::small_vector<Value const*> argValues;
-    argTypes.reserve(arguments.size());
-    argValues.reserve(arguments.size());
-    for (auto* arg: arguments) {
-        argTypes.push_back({ arg->type(), arg->valueCategory() });
-        argValues.push_back(arg->constantValue());
-    }
-    return performORImpl(overloadSet, argTypes, argValues, isMemberCall);
 }

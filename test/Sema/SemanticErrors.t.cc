@@ -348,21 +348,9 @@ struct X {
     fn f(n: int, this) {}
 }
 )");
-    {
-        auto* issue = issues.findOnLine<BadVarDecl>(2);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadVarDecl::ThisInFreeFunction);
-    }
-    {
-        auto* issue = issues.findOnLine<BadVarDecl>(3);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadVarDecl::ThisInFreeFunction);
-    }
-    {
-        auto* issue = issues.findOnLine<BadVarDecl>(5);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadVarDecl::ThisPosition);
-    }
+    CHECK(issues.findOnLine<BadVarDecl>(2, BadVarDecl::ThisInFreeFunction));
+    CHECK(issues.findOnLine<BadVarDecl>(3, BadVarDecl::ThisInFreeFunction));
+    CHECK(issues.findOnLine<BadVarDecl>(5, BadVarDecl::ThisPosition));
 }
 
 TEST_CASE("Invalid special member functions", "[sema][issue]") {

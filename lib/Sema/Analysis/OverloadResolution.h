@@ -27,17 +27,15 @@ struct OverloadResolutionResult {
     std::unique_ptr<OverloadResolutionError> error;
 };
 
-/// Performs overload resolution
-SCTEST_API OverloadResolutionResult performOverloadResolution(
-    OverloadSet* overloadSet,
-    std::span<std::pair<QualType, ValueCategory> const> argumentTypes,
-    bool isMemberCall);
+/// Kinds of overload resolution. This distinction is necessary because for
+/// member function calls we convert the first argument explicitly
+enum class ORKind { FreeFunction, MemberFunction };
 
-/// \overload for expressions
+/// Performs overload resolution
 SCTEST_API OverloadResolutionResult
     performOverloadResolution(OverloadSet* overloadSet,
                               std::span<ast::Expression const* const> arguments,
-                              bool isMemberCall);
+                              ORKind kind = ORKind::FreeFunction);
 
 } // namespace scatha::sema
 

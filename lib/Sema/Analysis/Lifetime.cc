@@ -104,7 +104,7 @@ UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
     auto result =
         performOverloadResolution(ctorSet,
                                   arguments | ToAddress | ToSmallVector<>,
-                                  /* isMemberCall = */ true);
+                                  ORKind::MemberFunction);
     if (result.error) {
         result.error->setSourceRange(sourceRange);
         ctx.issueHandler().push(std::move(result.error));

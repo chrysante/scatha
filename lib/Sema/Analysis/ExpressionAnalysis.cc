@@ -539,7 +539,7 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
     auto funcRes = performOverloadResolution(overloadSet,
                                              std::array{ ma.accessed() },
-                                             true);
+                                             ORKind::MemberFunction);
     if (funcRes.error) {
         funcRes.error->setSourceRange(ma.sourceRange());
         iss.push(std::move(funcRes.error));
@@ -757,7 +757,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
 
 ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     bool success = analyze(fc.callee());
-    bool isMemberCall = false;
+    auto orKind = ORKind::FreeFunction;
     /// We analyze all the arguments
     for (size_t i = 0; i < fc.arguments().size(); ++i) {
         if (!analyze(fc.argument(i)) || !expectValue(fc.argument(i))) {
@@ -778,8 +778,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         auto objectArg = memberAccess->extractAccessed();
         fc.insertArgument(0, std::move(objectArg));
         fc.setCallee(std::move(memFunc));
-        isMemberCall = true;
-        /// Cannot direct call special member functions
+        orKind = ORKind::MemberFunction;
+        /// Cannot explicitly call special member functions
         if (os && os->isSpecialMemberFunction()) {
             ctx.badExpr(&fc, ExplicitSMFCall);
             return nullptr;
@@ -838,7 +838,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     // TODO: Rewrite this to return a function and push errors itself
     auto result = performOverloadResolution(overloadSet,
                                             fc.arguments() | ToSmallVector<>,
-                                            isMemberCall);
+                                            orKind);
     if (result.error) {
         result.error->setSourceRange(fc.sourceRange());
         iss.push(std::move(result.error));

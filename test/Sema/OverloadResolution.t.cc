@@ -67,7 +67,7 @@ TEST_CASE("Overload resolution", "[sema]") {
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
             makeExpr(sym.S64(), LValue),
             makeExpr(sym.arrayType(sym.S64(), 3), LValue)
-        }, false); // clang-format on
+        }, ORKind::FreeFunction); // clang-format on
 
         REQUIRE(!result.error);
         CHECK(result.function == f.functions[1].get());
@@ -78,7 +78,7 @@ TEST_CASE("Overload resolution", "[sema]") {
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
             makeExpr(QualType::Const(sym.S64()), RValue),
             makeExpr(QualType::Const(sym.arrayType(sym.S64())), LValue)
-        }, false); // clang-format on
+        }, ORKind::FreeFunction); // clang-format on
         REQUIRE(!result.error);
         CHECK(result.function == f.functions[0].get());
     }
@@ -88,7 +88,7 @@ TEST_CASE("Overload resolution", "[sema]") {
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
             makeExpr(sym.S32(), LValue),
             makeExpr(sym.arrayType(sym.S64(), 4), LValue)
-        }, false); // clang-format on
+        }, ORKind::FreeFunction); // clang-format on
         REQUIRE(!result.error);
         CHECK(result.function == f.functions[0].get());
     }
@@ -103,7 +103,7 @@ TEST_CASE("Overload resolution", "[sema]") {
         // clang-format off
         auto result = performOverloadResolution(g.overloadSet.get(), std::array{
             makeExpr(sym.Str(), LValue)
-        }, false); // clang-format on
+        }, ORKind::FreeFunction); // clang-format on
         REQUIRE(!result.error);
     }
 }
