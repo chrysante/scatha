@@ -29,20 +29,13 @@ public:
 
 public:
     SymbolTable();
-
-    SymbolTable(SymbolTable const& rhs) = delete;
-
-    SymbolTable& operator=(SymbolTable const& rhs) = delete;
-
     SymbolTable(SymbolTable&&) noexcept;
-
     SymbolTable& operator=(SymbolTable&&) noexcept;
-
     ~SymbolTable();
 
     /// # Modifiers
 
-    /// Declares an object type to the current scope without size and
+    /// Declares a struct to the current scope without specifying size and
     /// alignment.
     ///
     /// For successful return the name must not have been declared
@@ -55,28 +48,26 @@ public:
     /// \overload for use without AST
     StructType* declareStructureType(std::string name);
 
-    /// Declares a function to the current scope without signature.
+    /// Declares a function name without signature to the current scope.
     ///
     /// For successful return the name must not have been declared
     /// before in the current scope as some entity other than `Function`
     ///
-    /// \returns Const reference to declared function if no error occurs or
-    /// `InvalidDeclaration` with reason `Redefinition` if declared
-    /// name is already used by another kind of entity in the current scope.
-    Expected<Function&, SemanticIssue*> declareFunction(std::string name);
+    /// \returns the declared function if no error occured
+    /// Otherwise emites an error the to issue handler
+    Function* declareFuncName(ast::FunctionDefinition* def);
+
+    /// \overload for use without AST
+    Function* declareFuncName(std::string name);
 
     /// Add signature to declared function.
     ///
     /// We need this two step way of addings functions to first scan
     /// all declarations to allow for forward references to other entities.
     ///
-    /// \returns Nothing if  \p signature is a legal overload or
-    /// `InvalidDeclaration` with reason `Redefinition` if \p signature
-    /// is not a legal overload, with reason `CantOverloadOnReturnType` if \p
-    /// signature has same arguments as another function in the overload set but
-    /// different return type.
-    Expected<void, SemanticIssue*> setSignature(Function* function,
-                                                FunctionSignature signature);
+    /// \returns `true` of if  \p signature is a legal overload
+    /// Otherwise emites an error the to issue handler
+    bool setFuncSig(Function* function, FunctionSignature signature);
 
     /// Declares an external function.
     ///
@@ -276,6 +267,7 @@ private:
     struct Impl;
 
     StructType* declareStructImpl(ast::StructDefinition* def, std::string name);
+    Function* declareFuncImpl(ast::FunctionDefinition* def, std::string name);
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);

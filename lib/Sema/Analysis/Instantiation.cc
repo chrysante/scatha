@@ -235,14 +235,8 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     auto* function = def.function();
     sym.makeScopeCurrent(function->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto result = sym.setSignature(function, analyzeSignature(def));
+    auto result = sym.setFuncSig(function, analyzeSignature(def));
     if (!result) {
-        if (auto* invStatement =
-                dynamic_cast<InvalidStatement*>(result.error()))
-        {
-            invStatement->setStatement(def);
-        }
-        iss.push(result.error());
         return;
     }
     /// TODO: Handle return type correctly
@@ -452,9 +446,9 @@ Function* InstContext::generateSLF(SpecialLifetimeFunction key,
                                    StructType& type) const {
     auto SMFKind = toSMF(key);
     Function* function = sym.withScopeCurrent(&type, [&] {
-        return &sym.declareFunction(std::string(toString(SMFKind))).value();
+        return sym.declareFuncName(std::string(toString(SMFKind)));
     });
-    sym.setSignature(function, makeLifetimeSignature(type, key));
+    sym.setFuncSig(function, makeLifetimeSignature(type, key));
     function->setKind(FunctionKind::Generated);
     function->setIsMember();
     function->setSMFKind(SMFKind);

@@ -130,12 +130,12 @@ fn f() -> int {}
 fn g() {}
 fn g() {}
 )");
-    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
+    auto* line3 = issues.findOnLine<Redefinition>(3);
     REQUIRE(line3);
-    CHECK(line3->reason() == InvalidDeclaration::Reason::Redefinition);
-    auto const line5 = issues.findOnLine<InvalidDeclaration>(5);
+    CHECK(isa<Function>(line3->existing()));
+    auto* line5 = issues.findOnLine<Redefinition>(5);
     REQUIRE(line5);
-    CHECK(line5->reason() == InvalidDeclaration::Reason::Redefinition);
+    CHECK(isa<Function>(line5->existing()));
 }
 
 TEST_CASE("Invalid variable redefinition", "[sema][issue]") {
@@ -162,15 +162,12 @@ fn f(){}
 fn g(){}
 struct g{}
 )");
-    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3 = issues.findOnLine<Redefinition>(3);
     REQUIRE(line3);
-    CHECK(line3->reason() == InvalidDeclaration::Reason::Redefinition);
-    // CHECK(line3->symbolCategory() == SymbolCategory::Function);
-    // CHECK(line3->existingSymbolCategory() == SymbolCategory::Type);
+    CHECK(isa<StructType>(line3->existing()));
     auto const line5 = issues.findOnLine<Redefinition>(5);
-    CHECK(line5);
-    // CHECK(line5->symbolCategory() == SymbolCategory::Type);
-    // CHECK(line5->existingSymbolCategory() == SymbolCategory::OverloadSet);
+    REQUIRE(line5);
+    CHECK(isa<OverloadSet>(line5->existing()));
 }
 
 TEST_CASE("Invalid variable declaration", "[sema][issue]") {

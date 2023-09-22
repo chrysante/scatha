@@ -167,28 +167,28 @@ T* SymbolTable::declareBuiltinType(Args&&... args) {
     return type;
 }
 
-Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
-    std::string name) {
-    using enum InvalidDeclaration::Reason;
+Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
+                                       std::string name) {
     if (isKeyword(name)) {
-        return new InvalidDeclaration(nullptr,
-                                      ReservedIdentifier,
-                                      currentScope());
+        impl->issue<GenericBadDecl>(def, GenericBadDecl::ReservedIdentifier);
+        return nullptr;
     }
-    OverloadSet* overloadSet = [&] {
-        if (auto* entity = currentScope().findEntity(name)) {
-            return dyncast<OverloadSet*>(entity);
+    OverloadSet* overloadSet = [&]() -> OverloadSet* {
+        auto* entity = currentScope().findEntity(name);
+        if (!entity) {
+            auto* overloadSet =
+                impl->addEntity<OverloadSet>(name, &currentScope());
+            currentScope().add(overloadSet);
+            return overloadSet;
         }
-        /// Create a new overload set
-        auto* overloadSet = impl->addEntity<OverloadSet>(name, &currentScope());
-        currentScope().add(overloadSet);
-        return overloadSet;
+        if (auto* os = dyncast<OverloadSet*>(entity)) {
+            return os;
+        }
+        impl->issue<Redefinition>(def, entity);
+        return nullptr;
     }();
-    /// We still don't know if the `dyncast` in the lambda was successful
     if (!overloadSet) {
-        return new InvalidDeclaration(nullptr,
-                                      InvalidDeclaration::Reason::Redefinition,
-                                      currentScope());
+        return nullptr;
     }
     Function* function = impl->addEntity<Function>(name,
                                                    overloadSet,
@@ -196,19 +196,28 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
                                                    FunctionAttribute::None);
     currentScope().add(function);
     impl->_functions.push_back(function);
-    return *function;
+    return function;
 }
 
-Expected<void, SemanticIssue*> SymbolTable::setSignature(
-    Function* function, FunctionSignature sig) {
+Function* SymbolTable::declareFuncName(ast::FunctionDefinition* def) {
+    return declareFuncImpl(def, std::string(def->name()));
+}
+
+Function* SymbolTable::declareFuncName(std::string name) {
+    return declareFuncImpl(nullptr, name);
+}
+
+bool SymbolTable::setFuncSig(Function* function, FunctionSignature sig) {
     function->setSignature(std::move(sig));
     auto* overloadSet = function->overloadSet();
-    auto const [otherFunction, success] = overloadSet->add(function);
-    if (!success) {
-        using enum InvalidDeclaration::Reason;
-        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
+    auto* existing = overloadSet->add(function);
+    if (!existing) {
+        return true;
     }
-    return {};
+    impl->issue<Redefinition>(cast_or_null<ast::Declaration*>(
+                                  function->astNode()),
+                              existing);
+    return false;
 }
 
 bool SymbolTable::declareSpecialFunction(FunctionKind kind,
@@ -218,12 +227,13 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
                                          FunctionSignature signature,
                                          FunctionAttribute attrs) {
     return withScopeCurrent(&globalScope(), [&] {
-        auto declResult = declareFunction(std::move(name));
+        auto declResult = declareFuncName(std::move(name));
         if (!declResult) {
             return false;
         }
         auto& function = *declResult;
-        setSignature(&function, std::move(signature));
+        bool success = setFuncSig(&function, std::move(signature));
+        SC_ASSERT(success, "Failed to overload function");
         function._kind = kind;
         function.attrs = attrs;
         function._slot = utl::narrow_cast<u16>(slot);

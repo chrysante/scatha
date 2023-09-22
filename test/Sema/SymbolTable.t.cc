@@ -20,11 +20,9 @@ TEST_CASE("SymbolTable lookup", "[sema]") {
 TEST_CASE("SymbolTable define custom type", "[sema]") {
     sema::SymbolTable sym;
     /// Declare function `i` in the global scope
-    auto* fnI = &sym.declareFunction("i").value();
-    auto const overloadSuccessI =
-        sym.setSignature(fnI,
-                         sema::FunctionSignature({ sym.S64() }, sym.S64()));
-    REQUIRE(overloadSuccessI);
+    auto* fnI = sym.declareFuncName("i");
+    REQUIRE(
+        sym.setFuncSig(fnI, sema::FunctionSignature({ sym.S64() }, sym.S64())));
     auto* xType = sym.declareStructureType("X");
     REQUIRE(xType);
     /// Begin `struct X`

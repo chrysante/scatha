@@ -9,10 +9,17 @@
 using namespace scatha;
 using namespace sema;
 
+static SourceRange getSourceRange(ast::Statement const* statement) {
+    if (statement) {
+        return statement->sourceRange();
+    }
+    return {};
+}
+
 BadStatementNEW::BadStatementNEW(Scope const* scope,
                                  ast::Statement const* statement,
                                  IssueSeverity severity):
-    SemaIssue(scope, statement->sourceRange(), severity), stmt(statement) {}
+    SemaIssue(scope, getSourceRange(statement), severity), stmt(statement) {}
 
 BadDecl::BadDecl(Scope const* scope,
                  ast::Declaration const* declaration,

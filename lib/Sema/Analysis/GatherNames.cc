@@ -80,19 +80,16 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
             sym.currentScope());
         return static_cast<size_t>(-1);
     }
-    Expected const declResult =
-        sym.declareFunction(std::string(funcDef.name()));
-    if (!declResult.hasValue()) {
-        iss.push(declResult.error()->setStatement(funcDef));
+    auto* function = sym.declareFuncName(&funcDef);
+    if (!function) {
         return InvalidIndex;
     }
-    auto& func = *declResult;
-    func.setASTNode(&funcDef);
-    funcDef.decorateDecl(&func);
-    funcDef.body()->decorateScope(&func);
+    function->setASTNode(&funcDef);
+    funcDef.decorateDecl(function);
+    funcDef.body()->decorateScope(function);
     /// Now add this function definition to the dependency graph
     functions.push_back(&funcDef);
-    return ~size_t{};
+    return InvalidIndex;
 }
 
 size_t GatherContext::gatherImpl(ast::StructDefinition& def) {

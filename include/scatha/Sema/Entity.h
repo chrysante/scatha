@@ -838,10 +838,10 @@ public:
         Entity(EntityType::OverloadSet, std::move(name), parentScope) {}
 
     /// Add a function to this overload set.
-    /// \returns Pair of \p function and `true` if \p function is a legal
-    /// overload. Pair of pointer to existing function that prevents \p function
-    /// from being a legal overload and `false` otherwise.
-    std::pair<Function const*, bool> add(Function* function);
+    /// \returns `nullptr` if \p function is a legal
+    /// overload. Otherwise returns the existing function that conflicts with
+    /// the overload
+    Function* add(Function* function);
 
     /// Inherit interface from `utl::vector`
     using VecBase::begin;

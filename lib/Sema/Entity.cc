@@ -274,13 +274,13 @@ bool Function::isBuiltin() const {
     return isForeign() && slot() == svm::BuiltinFunctionSlot;
 }
 
-std::pair<Function const*, bool> OverloadSet::add(Function* F) {
+Function* OverloadSet::add(Function* F) {
     auto itr = ranges::find_if(*this, [&](Function const* G) {
         return ranges::equal(F->argumentTypes(), G->argumentTypes());
     });
     if (itr == end()) {
         push_back(F);
-        return { F, true };
+        return nullptr;
     }
-    return { *itr, false };
+    return *itr;
 }
