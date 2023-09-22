@@ -121,13 +121,11 @@ std::vector<StructType const*> InstContext::instantiateTypes(
                             return dependencyGraph[index].dependencies;
                         });
     if (!cycle.empty()) {
-        using Node = StrongReferenceCycle::Node;
-        auto nodes = cycle | ranges::views::transform([&](size_t index) {
-                         auto const& node = dependencyGraph[index];
-                         return Node{ node.astNode, node.entity };
-                     }) |
-                     ranges::to<utl::vector>;
-        iss.push<StrongReferenceCycle>(std::move(nodes));
+        auto entities = cycle | ranges::views::transform(
+                                    [&](size_t index) -> Entity const* {
+                                        return dependencyGraph[index].entity;
+                                    });
+        ctx.issue<StructDefCycle>(entities | ranges::to<std::vector>);
         return {};
     }
     /// Sort dependencies...

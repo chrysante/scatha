@@ -96,15 +96,6 @@ void BadSymbolReference::format(std::ostream& str) const {
     str << "' is " << printEC(have()) << ", expected " << printEC(expected());
 }
 
-StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
-    SemanticIssue(cycle.front().astNode->extSourceRange(),
-                  IssueSeverity::Error),
-    _cycle(std::move(cycle)) {}
-
-void StrongReferenceCycle::format(std::ostream& str) const {
-    str << "Strong reference cycle";
-}
-
 InvalidListExpr::InvalidListExpr(ast::ListExpression const& expr,
                                  Reason reason):
     BadExpression(expr, IssueSeverity::Error), _reason(reason) {}

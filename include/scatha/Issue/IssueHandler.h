@@ -72,10 +72,10 @@ public:
     bool haveErrors() const;
 
     /// Print all issues
-    void print(std::string_view source);
+    void print(std::string_view source) const;
 
     /// Print all issues to \p ostream
-    void print(std::string_view source, std::ostream& ostream);
+    void print(std::string_view source, std::ostream& ostream) const;
 
 private:
     std::vector<std::unique_ptr<Issue>> _issues;

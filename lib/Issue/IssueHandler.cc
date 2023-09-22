@@ -10,9 +10,11 @@ bool IssueHandler::haveErrors() const {
     return ranges::any_of(*this, [](auto* issue) { return issue->isError(); });
 }
 
-void IssueHandler::print(std::string_view source) { print(source, std::cout); }
+void IssueHandler::print(std::string_view source) const {
+    print(source, std::cout);
+}
 
-void IssueHandler::print(std::string_view source, std::ostream& ostream) {
+void IssueHandler::print(std::string_view source, std::ostream& ostream) const {
     for (auto* issue: *this) {
         issue->print(source, ostream);
     }

@@ -174,6 +174,20 @@ void BadReturnStmt::format(std::ostream& str) const {
     }
 }
 
+StructDefCycle::StructDefCycle(Scope const* scope,
+                               std::vector<Entity const*> cycle):
+    BadDecl(scope, nullptr, IssueSeverity::Error), _cycle(std::move(cycle)) {}
+
+void StructDefCycle::format(std::ostream& str) const {
+    str << "Cycling struct definition: ";
+    for (auto [index, entity]: cycle() | ranges::views::enumerate) {
+        if (index != 0) {
+            str << " -> ";
+        }
+        str << entity->name();
+    }
+}
+
 BadExpr::BadExpr(Scope const* scope,
                  ast::Expression const* expression,
                  IssueSeverity severity):

@@ -2,6 +2,8 @@
 #define SCATHA_SEMA_SEMANTICISSUES_H_
 
 #include <iosfwd>
+#include <span>
+#include <vector>
 
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
@@ -20,7 +22,7 @@
 /// │  │  ├─ BadVarDecl
 /// │  │  ├─ BadParamDecl
 /// │  │  ├─ BadSMF
-/// │  │  └─ BadStructDef
+/// │  │  └─ StructDefCycle
 /// │  └─ BadReturnStatement
 /// └─ BadExpression
 ///    ├─ BadIdentifier
@@ -190,6 +192,20 @@ public:
 
 private:
     void format(std::ostream& str) const override;
+};
+
+/// Error due to cyclic struct definition
+class SCATHA_API StructDefCycle: public BadDecl {
+public:
+    StructDefCycle(Scope const* scope, std::vector<Entity const*> cycle);
+
+    /// The definition cycle
+    std::span<Entity const* const> cycle() const { return _cycle; }
+
+private:
+    void format(std::ostream& str) const override;
+
+    std::vector<Entity const*> _cycle;
 };
 
 /// Base class of all statement related issues

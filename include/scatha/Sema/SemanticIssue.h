@@ -175,23 +175,6 @@ private:
     EntityCategory _expected;
 };
 
-class SCATHA_API StrongReferenceCycle: public SemanticIssue {
-public:
-    struct Node {
-        ast::ASTNode const* astNode = nullptr;
-        sema::Entity const* entity = nullptr;
-    };
-
-    explicit StrongReferenceCycle(utl::vector<Node> cycle);
-
-    std::span<Node const> cycle() const { return _cycle; }
-
-private:
-    void format(std::ostream&) const override;
-
-    utl::vector<Node> _cycle;
-};
-
 class SCATHA_API InvalidListExpr: public BadExpression {
 public:
     enum Reason {

@@ -250,7 +250,7 @@ TEST_CASE("Cyclic dependency in struct definition - 1", "[sema][issue]") {
 struct X { var y: Y; }
 struct Y { var x: X; }
 )");
-    CHECK(issues.findOnLine<StrongReferenceCycle>(2));
+    CHECK(issues.findOnLine<StructDefCycle>(0));
 }
 
 TEST_CASE("No cyclic dependency issues with pointers", "[sema][issue]") {
@@ -275,7 +275,7 @@ struct Z {
 struct W {
     var x: X;
 })");
-    CHECK(issues.findOnLine<StrongReferenceCycle>(2));
+    CHECK(issues.findOnLine<StructDefCycle>(0));
 }
 
 TEST_CASE("Non void function must return a value", "[sema][issue]") {
