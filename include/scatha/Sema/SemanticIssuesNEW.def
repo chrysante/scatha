@@ -171,3 +171,28 @@ SC_SEMA_BADBINEXPR_DEF(ImmutableLHS,
                        "Immutable operand is invalid in assignment expression")
 
 #undef SC_SEMA_BADBINEXPR_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad member access expression ------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADMEMACC_DEF
+#   define SC_SEMA_BADMEMACC_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADMEMACC_DEF(NonStaticThroughType,
+                      Error,
+                      "Cannot access non-static member "
+                          << expression()->member()->value()
+                          << " without an object")
+
+SC_SEMA_BADMEMACC_DEF(TypeThroughValue,
+                      Error,
+                      "Cannot access non-static member "
+                          << expression()->member()->value()
+                          << " without an object")
+
+
+
+
+#undef SC_SEMA_BADMEMACC_DEF

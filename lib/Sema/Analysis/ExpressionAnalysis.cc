@@ -460,6 +460,7 @@ static Scope* findLookupTargetScope(ast::Expression& expr) {
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     /// For an expression of the kind `obj->member` we simply rewrite the AST so
     /// the expression becomes `(*obj).member`
+    /// TODO: Rewrite this
     if (ma.operation() == ast::MemberAccessOperation::Pointer) {
         auto accessed = ma.accessed()->extractFromParent();
         auto deref =
@@ -471,12 +472,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(ma.accessed())) {
         return nullptr;
     }
-    Scope* lookupTargetScope = findLookupTargetScope(*ma.accessed());
-    SC_ASSERT(lookupTargetScope,
-              "analyze(ma.accessed()) should have failed if this is null");
-    bool success = sym.withScopeCurrent(lookupTargetScope, [&] {
-        /// We restrict name lookup to the
-        /// current scope. This flag will be unset by the identifier case.
+    bool success = sym.withScopeCurrent(findLookupTargetScope(*ma.accessed()),
+                                        [&] {
+        /// We restrict name lookup to the current scope. This flag will be
+        /// unset by the identifier case.
         performRestrictedNameLookup = true;
         return analyze(ma.member());
     });
@@ -488,29 +487,54 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     {
         return rewritePropertyCall(ma);
     }
+    /// Double dispatch table on the entity categories of the accessed object
+    /// and the member
     switch (ma.accessed()->entityCategory()) {
     case EntityCategory::Value: {
-        if (!ma.member()->isValue()) {
-            iss.push<InvalidNameLookup>(ma);
-            return nullptr;
-        }
-        auto type = QualType(ma.member()->type().get(),
-                             ma.accessed()->type().mutability());
-        ma.decorateValue(sym.temporary(type), ma.member()->valueCategory());
-        break;
+        // clang-format off
+        return SC_MATCH (*ma.member()->entity()) {
+            [&](Object& object) {
+                auto mut = ma.accessed()->type().mutability();
+                auto type = ma.member()->type().to(mut);
+                ma.decorateValue(sym.temporary(type),
+                                 ma.member()->valueCategory());
+                return &ma;
+            },
+            [&](OverloadSet& os) {
+                ma.decorateValue(&os, LValue);
+                return &ma;
+            },
+            [&](Type& type) {
+                ctx.issue<BadMemAcc>(&ma, BadMemAcc::NonStaticThroughType);
+                return nullptr;
+            },
+            [&](Entity& type) -> ast::Expression* {
+                SC_UNREACHABLE();
+            }
+        }; // clang-format on
     }
     case EntityCategory::Type:
-        if (ma.member()->isValue()) {
-            ma.decorateValue(ma.member()->entity(), LValue);
-        }
-        else if (ma.member()->isType()) {
-            ma.decorateType(cast<Type*>(ma.member()->entity()));
-        }
-        break;
+        // clang-format off
+        return SC_MATCH (*ma.member()->entity()) {
+            [&](Object& object) {
+                ctx.issue<BadMemAcc>(&ma, BadMemAcc::NonStaticThroughType);
+                return nullptr;
+            },
+            [&](OverloadSet& os) {
+                ma.decorateValue(&os, LValue);
+                return &ma;
+            },
+            [&](Type& type) {
+                ma.decorateType(&type);
+                return &ma;
+            },
+            [&](Entity& type) -> ast::Expression* {
+                SC_UNREACHABLE();
+            }
+        }; // clang-format on
     case EntityCategory::Indeterminate:
-        break;
+        return nullptr;
     }
-    return &ma;
 }
 
 ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {

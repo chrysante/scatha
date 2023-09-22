@@ -341,3 +341,27 @@ void BadBinaryExpr::format(std::ostream& str) const {
 #include "Sema/SemanticIssuesNEW.def"
     }
 }
+
+static IssueSeverity toSeverity(BadMemAcc::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADMEMACC_DEF(reason, severity, _)                             \
+    case BadMemAcc::reason:                                                    \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadMemAcc::BadMemAcc(Scope const* scope,
+                     ast::MemberAccess const* expr,
+                     Reason reason):
+    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
+
+void BadMemAcc::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADMEMACC_DEF(reason, _, message)                              \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}

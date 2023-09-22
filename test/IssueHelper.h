@@ -15,20 +15,27 @@ namespace scatha::test {
 
 struct IssueHelper {
     template <typename T>
-    T const* findOnLine(ssize_t line, ssize_t col = -1) const {
+    T const* findOnLine(ssize_t line) const {
         for (auto* issueBase: iss) {
             auto* issue = dynamic_cast<T const*>(issueBase);
             if (!issue) {
                 continue;
             }
             auto const sourceLoc = issue->sourceLocation();
-            if (sourceLoc.line == line &&
-                (sourceLoc.column == col || col == (size_t)-1))
-            {
+            if (sourceLoc.line == line) {
                 return issue;
             }
         }
         return nullptr;
+    }
+
+    template <typename T>
+    bool findOnLine(ssize_t line, typename T::Reason reason) const {
+        auto* issue = findOnLine<T>(line);
+        if (!issue) {
+            return false;
+        }
+        return issue->reason() == reason;
     }
 
     bool noneOnLine(size_t line) const {

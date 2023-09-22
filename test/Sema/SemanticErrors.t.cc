@@ -29,18 +29,19 @@ TEST_CASE("Bad symbol reference", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main() -> int {
 	let i = int;
-	let j: 0 = int;
+	let j: 0
+         = int;
 	return int;
 }
 fn f() -> 0 {}
 fn f(i: 0) {}
 )");
     CHECK(issues.findOnLine<BadSymbolReference>(3));
-    CHECK(issues.findOnLine<BadSymbolReference>(4, 9));
-    CHECK(issues.findOnLine<BadSymbolReference>(4, 13));
+    CHECK(issues.findOnLine<BadSymbolReference>(4));
     CHECK(issues.findOnLine<BadSymbolReference>(5));
-    CHECK(issues.findOnLine<BadSymbolReference>(7));
+    CHECK(issues.findOnLine<BadSymbolReference>(6));
     CHECK(issues.findOnLine<BadSymbolReference>(8));
+    CHECK(issues.findOnLine<BadSymbolReference>(9));
 }
 
 TEST_CASE("Invalid redefinition of builtin types", "[sema][issue]") {
@@ -147,19 +148,15 @@ struct X {
 TEST_CASE("Bad member access expression", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main() {
-//  These aren't actually semantic issues but parsing issues.
-//  Although we might consider allowing X.<0, 1...> in the future.
-//  X.0;
-//  X."0";
-//  X.0.0;
-	X.data;
+/* 3 */ X.data;
+/* 4 */
+/* 5 */
+/* 6 */
+/* 7 */
 }
 struct X { let data: float; }
 )");
-    // CHECK(issues.findOnLine<BadMemberAccess>(3));
-    // CHECK(issues.findOnLine<BadMemberAccess>(4));
-    // CHECK(issues.findOnLine<BadMemberAccess>(5));
-    CHECK(issues.noneOnLine(6));
+    CHECK(issues.findOnLine<BadMemAcc>(3, BadMemAcc::NonStaticThroughType));
 }
 
 TEST_CASE("Invalid function redefinition", "[sema][issue]") {
@@ -209,36 +206,24 @@ struct g{}
 
 TEST_CASE("Invalid variable declaration", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-fn f() {
-	let v;
-	let x = 0;
-	let y: x;
-	let z = int;
-}
-fn g(y: Y.data) {}
-struct Y { var data: int; }
+/* 2 */ fn f() {
+/* 3 */    let v;
+/* 4 */    let x = 0;
+/* 5 */    let y: x;
+/* 6 */    let z = int;
+/* 7 */ }
 )");
     // let v;
-    auto const line3 = issues.findOnLine<BadVarDecl>(3);
-    REQUIRE(line3);
-    CHECK(line3->reason() == BadVarDecl::CantInferType);
-    // let x = 0;
+    CHECK(issues.findOnLine<BadVarDecl>(3, BadVarDecl::CantInferType));
     CHECK(issues.noneOnLine(4));
-    // let y: x;
     auto const line5 = issues.findOnLine<BadSymbolReference>(5);
     REQUIRE(line5);
     CHECK(line5->have() == EntityCategory::Value);
     CHECK(line5->expected() == EntityCategory::Type);
-    // let z = int;
     auto const line6 = issues.findOnLine<BadSymbolReference>(6);
     REQUIRE(line6);
     CHECK(line6->have() == EntityCategory::Type);
     CHECK(line6->expected() == EntityCategory::Value);
-    // fn g(y: Y.data) {}
-    auto const line8 = issues.findOnLine<BadSymbolReference>(8);
-    REQUIRE(line8);
-    CHECK(line8->have() == EntityCategory::Value);
-    CHECK(line8->expected() == EntityCategory::Type);
 }
 
 TEST_CASE("Invalid declaration", "[sema][issue]") {
