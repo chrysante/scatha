@@ -131,13 +131,11 @@ size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(varDecl.typeExpr(),
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");
-    auto declResult = sym.declareVariable(std::string(varDecl.name()));
-    if (!declResult) {
-        iss.push(declResult.error()->setStatement(varDecl));
+    auto* variable = sym.declareVariable(std::string(varDecl.name()));
+    if (!variable) {
         return InvalidIndex;
     }
-    auto& var = *declResult;
-    return dependencyGraph.add({ .entity = &var, .astNode = &varDecl });
+    return dependencyGraph.add({ .entity = variable, .astNode = &varDecl });
 }
 
 size_t GatherContext::gatherImpl(ast::Statement& statement) {

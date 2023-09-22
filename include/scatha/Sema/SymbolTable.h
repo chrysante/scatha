@@ -54,7 +54,7 @@ public:
     /// before in the current scope as some entity other than `Function`
     ///
     /// \returns the declared function if no error occured
-    /// Otherwise emites an error the to issue handler
+    /// Otherwise emits an error the to issue handler
     Function* declareFuncName(ast::FunctionDefinition* def);
 
     /// \overload for use without AST
@@ -66,7 +66,7 @@ public:
     /// all declarations to allow for forward references to other entities.
     ///
     /// \returns `true` of if  \p signature is a legal overload
-    /// Otherwise emites an error the to issue handler
+    /// Otherwise emits an error the to issue handler
     bool setFuncSig(Function* function, FunctionSignature signature);
 
     /// Declares an external function.
@@ -87,22 +87,28 @@ public:
     /// For successful return the name must not have been declared
     /// before in the current scope.
     ///
-    /// \returns Reference to declared variable if no error occurs or
-    /// `InvalidDeclaration` with reason `Redefinition` if declared
-    /// name is already in use in the current scope.
-    Expected<Variable&, SemanticIssue*> declareVariable(std::string name);
+    /// \returns the declared variable if no error occurs
+    /// Otherwise emits an error the to issue handler
+    Variable* declareVariable(ast::VarDeclBase* vardecl);
+
+    /// \overload for use without AST
+    Variable* declareVariable(std::string name);
 
     /// Declares a variable to the current scope.
     ///
     /// For successful return the name must not have been declared
     /// before in the current scope.
     ///
-    /// \returns Reference to declared variable if no error occurs or
-    /// `InvalidDeclaration` with reason `Redefinition` if name of
-    /// \p varDecl is already in use in the current scope.
-    Expected<Variable&, SemanticIssue*> addVariable(std::string name,
-                                                    Type const* type,
-                                                    Mutability mutability);
+    /// \returns the declared variable if no error occurs
+    /// Otherwise emits an error the to issue handler
+    Variable* defineVariable(ast::VarDeclBase* vardecl,
+                             Type const* type,
+                             Mutability mutability);
+
+    /// \overload for use without AST
+    Variable* defineVariable(std::string name,
+                             Type const* type,
+                             Mutability mutability);
 
     ///
     ///
@@ -268,6 +274,11 @@ private:
 
     StructType* declareStructImpl(ast::StructDefinition* def, std::string name);
     Function* declareFuncImpl(ast::FunctionDefinition* def, std::string name);
+    Variable* declareVarImpl(ast::VarDeclBase* vardecl, std::string name);
+    Variable* defineVarImpl(ast::VarDeclBase* vardecl,
+                            std::string name,
+                            Type const* type,
+                            Mutability mut);
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);

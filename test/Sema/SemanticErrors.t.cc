@@ -147,12 +147,10 @@ fn f(x: int) {
 fn f(x: int, x: int) {}
 )");
     CHECK(issues.noneOnLine(3));
-    auto const line4 = issues.findOnLine<InvalidDeclaration>(4);
-    REQUIRE(line4);
-    CHECK(line4->reason() == InvalidDeclaration::Reason::Redefinition);
-    auto const line6 = issues.findOnLine<InvalidDeclaration>(6);
-    REQUIRE(line6);
-    CHECK(line6->reason() == InvalidDeclaration::Reason::Redefinition);
+    auto* line4 = issues.findOnLine<Redefinition>(4);
+    CHECK(line4);
+    auto* line6 = issues.findOnLine<Redefinition>(6);
+    CHECK(line6);
 }
 
 TEST_CASE("Invalid redefinition category", "[sema][issue]") {

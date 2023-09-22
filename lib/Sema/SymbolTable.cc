@@ -247,32 +247,53 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
     });
 }
 
-Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
-    std::string name) {
-    using enum InvalidDeclaration::Reason;
+Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
+                                      std::string name) {
     if (isKeyword(name)) {
-        return new InvalidDeclaration(nullptr,
-                                      ReservedIdentifier,
-                                      currentScope());
+        impl->issue<GenericBadDecl>(vardecl,
+                                    GenericBadDecl::ReservedIdentifier);
+        return nullptr;
     }
-    if (auto* entity = currentScope().findEntity(name)) {
-        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
+    if (auto* existing = currentScope().findEntity(name)) {
+        impl->issue<Redefinition>(vardecl, existing);
+        return nullptr;
     }
     auto* variable = impl->addEntity<Variable>(name, &currentScope());
     currentScope().add(variable);
-    return *variable;
+    return variable;
 }
 
-Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
-    std::string name, Type const* type, Mutability mutability) {
-    auto declResult = declareVariable(std::move(name));
-    if (!declResult) {
-        return declResult.error();
+Variable* SymbolTable::defineVarImpl(ast::VarDeclBase* vardecl,
+                                     std::string name,
+                                     Type const* type,
+                                     Mutability mut) {
+    auto* var = declareVarImpl(vardecl, std::move(name));
+    if (!var) {
+        return nullptr;
     }
-    auto& var = *declResult;
-    var.setType(type);
-    var.setMutability(mutability);
+    var->setType(type);
+    var->setMutability(mut);
     return var;
+}
+
+Variable* SymbolTable::declareVariable(ast::VarDeclBase* vardecl) {
+    return declareVarImpl(vardecl, std::string(vardecl->name()));
+}
+
+Variable* SymbolTable::declareVariable(std::string name) {
+    return declareVarImpl(nullptr, std::move(name));
+}
+
+Variable* SymbolTable::defineVariable(ast::VarDeclBase* vardecl,
+                                      Type const* type,
+                                      Mutability mut) {
+    return defineVarImpl(vardecl, std::string(vardecl->name()), type, mut);
+}
+
+Variable* SymbolTable::defineVariable(std::string name,
+                                      Type const* type,
+                                      Mutability mut) {
+    return defineVarImpl(nullptr, std::move(name), type, mut);
 }
 
 Property& SymbolTable::addProperty(PropertyKind kind, Type const* type) {

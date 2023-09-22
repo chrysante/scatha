@@ -151,18 +151,14 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
 void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     Type const* declaredType =
         currentFunction.function()->argumentType(paramDecl.index());
-    if (declaredType) {
-        auto paramRes = sym.addVariable(std::string(paramDecl.name()),
-                                        declaredType,
-                                        paramDecl.mutability());
-        if (!paramRes) {
-            iss.push(paramRes.error()->setStatement(paramDecl));
-            return;
-        }
-        paramDecl.decorateVarDecl(&*paramRes);
-    }
-    else {
+    if (!declaredType) {
         sym.declarePoison(std::string(paramDecl.name()), EntityCategory::Value);
+        return;
+    }
+    auto* param =
+        sym.defineVariable(&paramDecl, declaredType, paramDecl.mutability());
+    if (param) {
+        paramDecl.decorateVarDecl(param);
     }
 }
 
@@ -176,23 +172,21 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
         /// TODO: Push error here!
         SC_UNIMPLEMENTED();
     }
-    auto paramRes = [&] {
+    auto* param = [&] {
         if (thisParam.isReference()) {
             auto* type = sym.reference({ parentType, thisParam.mutability() });
-            return sym.addVariable("__this", type, Mutability::Const);
+            return sym.defineVariable("__this", type, Mutability::Const);
         }
         else {
-            return sym.addVariable("__this",
-                                   parentType,
-                                   thisParam.mutability());
+            return sym.defineVariable("__this",
+                                      parentType,
+                                      thisParam.mutability());
         }
     }();
-    if (!paramRes) {
-        iss.push(paramRes.error()->setStatement(thisParam));
-        return;
+    if (param) {
+        function->setIsMember();
+        thisParam.decorateVarDecl(param);
     }
-    function->setIsMember();
-    thisParam.decorateVarDecl(&*paramRes);
 }
 
 void FuncBodyContext::analyzeImpl(ast::StructDefinition& def) {
@@ -253,19 +247,15 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ExpectedRefInit);
         return;
     }
-    auto varDeclRes = sym.addVariable(std::string(varDecl.name()),
-                                      type,
-                                      varDecl.mutability());
-    if (!varDeclRes) {
-        iss.push(varDeclRes.error()->setStatement(varDecl));
+    auto* variable = sym.defineVariable(&varDecl, type, varDecl.mutability());
+    if (!variable) {
         return;
     }
-    auto& variable = *varDeclRes;
-    varDecl.decorateVarDecl(&variable);
+    varDecl.decorateVarDecl(variable);
     if (initExpr) {
         convert(Implicit,
                 initExpr,
-                variable.getQualType(),
+                variable->getQualType(),
                 refToLValue(type),
                 varDecl.dtorStack(),
                 ctx);
@@ -283,10 +273,10 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         /// error but we can analyze uses of this variable.
         varDecl.setInitExpr(std::move(call));
     }
-    if (variable.isConst() && initExpr) {
-        variable.setConstantValue(clone(initExpr->constantValue()));
+    if (variable->isConst() && initExpr) {
+        variable->setConstantValue(clone(initExpr->constantValue()));
     }
-    cast<ast::Statement*>(varDecl.parent())->pushDtor(&variable);
+    cast<ast::Statement*>(varDecl.parent())->pushDtor(variable);
 }
 
 void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {

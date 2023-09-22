@@ -11,10 +11,8 @@ using enum sema::Mutability;
 
 TEST_CASE("SymbolTable lookup", "[sema]") {
     sema::SymbolTable sym;
-    auto const var = sym.addVariable("x", sym.S64(), Mutable);
-    REQUIRE(var.hasValue());
-    auto* x = sym.lookup("x");
-    CHECK(&var.value() == x);
+    auto* var = sym.defineVariable("x", sym.S64(), Mutable);
+    CHECK(var == sym.lookup("x"));
 }
 
 TEST_CASE("SymbolTable define custom type", "[sema]") {
@@ -25,12 +23,9 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
         sym.setFuncSig(fnI, sema::FunctionSignature({ sym.S64() }, sym.S64())));
     auto* xType = sym.declareStructureType("X");
     REQUIRE(xType);
-    /// Begin `struct X`
-    sym.pushScope(xType);
-    /// Add member variable `i` to `X`
-    auto* memberI = &sym.addVariable("i", sym.S64(), Mutable).value();
-    sym.popScope();
-    /// End `X`
+    auto* memberI = sym.withScopePushed(xType, [&] {
+        return sym.defineVariable("i", sym.S64(), Mutable);
+    });
     xType->setSize(8);
     auto const* const overloadSet = sym.lookup<sema::OverloadSet>("i");
     REQUIRE(overloadSet != nullptr);
