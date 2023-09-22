@@ -72,23 +72,41 @@ fn f(x: float) -> int { return "a string"; }
 TEST_CASE("Bad operands for expression", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main(i: int) -> bool {
-	let a = !(i == 1.0);
-	let b = !(i + 1.0);
-	let c = !i;
-	let d = ~i;
+/* 3 */	let a = !(i == 1.0);
+/* 4 */	let b = !(i + 1.0);
+/* 5 */	let c = !i;
+/* 6 */	let d = ~i;
+/* 7 */ let e = ++i;
+/* 8 */ let e = --0;
 })");
-    auto const line3 = issues.findOnLine<BadOperandsForBinaryExpression>(3);
-    REQUIRE(line3);
-    CHECK(line3->lhs().get() == issues.sym.S64());
-    CHECK(line3->rhs().get() == issues.sym.F64());
-    auto const line4 = issues.findOnLine<BadOperandsForBinaryExpression>(4);
-    REQUIRE(line4);
-    CHECK(line4->lhs().get() == issues.sym.S64());
-    CHECK(line4->rhs().get() == issues.sym.F64());
-    auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
-    REQUIRE(line5);
-    CHECK(line5->operandType().get() == issues.sym.S64());
+    {
+        auto const issue = issues.findOnLine<BadOperandsForBinaryExpression>(3);
+        REQUIRE(issue);
+        CHECK(issue->lhs().get() == issues.sym.S64());
+        CHECK(issue->rhs().get() == issues.sym.F64());
+    }
+    {
+        auto const issue = issues.findOnLine<BadOperandsForBinaryExpression>(4);
+        REQUIRE(issue);
+        CHECK(issue->lhs().get() == issues.sym.S64());
+        CHECK(issue->rhs().get() == issues.sym.F64());
+    }
+    {
+        auto const issue = issues.findOnLine<BadUnaryExpr>(5);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadUnaryExpr::Type);
+    }
     CHECK(issues.noneOnLine(6));
+    {
+        auto const issue = issues.findOnLine<BadUnaryExpr>(7);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadUnaryExpr::Immutable);
+    }
+    {
+        auto const issue = issues.findOnLine<BadUnaryExpr>(8);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadUnaryExpr::ValueCat);
+    }
 }
 
 TEST_CASE("Bad function call expression", "[sema][issue]") {

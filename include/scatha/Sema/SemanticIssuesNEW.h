@@ -27,8 +27,8 @@
 /// └─ BadExpression
 ///    ├─ BadIdentifier
 ///    ├─ BadLiteral ??
-///    ├─ BadUnaryExpression
-///    ├─ BadBinaryExpression
+///    ├─ BadUnaryExpr
+///    ├─ BadBinaryExpr
 ///    ├─ BadMemberAccess
 ///    ├─ BadConditional
 ///    ├─ BadFunctionCall
@@ -254,6 +254,25 @@ public:
                            Reason reason);
 
     SC_SEMA_DERIVED_EXPR(Identifier, identifier)
+
+private:
+    void format(std::ostream& str) const override;
+};
+
+///
+class SCATHA_API BadUnaryExpr: public BadExpr {
+public:
+    enum Reason {
+#define SC_SEMA_BADUNEXPR_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    explicit BadUnaryExpr(Scope const* scope,
+                          ast::UnaryExpression const* expr,
+                          Reason reason);
+
+    SC_SEMA_DERIVED_EXPR(UnaryExpression, expression)
 
 private:
     void format(std::ostream& str) const override;

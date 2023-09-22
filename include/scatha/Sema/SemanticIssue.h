@@ -67,19 +67,6 @@ private:
     QualType _to;
 };
 
-class SCATHA_API BadOperandForUnaryExpression: public BadExpression {
-public:
-    explicit BadOperandForUnaryExpression(ast::Expression const& expression,
-                                          QualType operandType);
-
-    QualType operandType() const { return _opType; }
-
-private:
-    void format(std::ostream&) const override;
-
-    QualType _opType;
-};
-
 class SCATHA_API BadOperandsForBinaryExpression: public BadExpression {
 public:
     explicit BadOperandsForBinaryExpression(ast::Expression const& expression,

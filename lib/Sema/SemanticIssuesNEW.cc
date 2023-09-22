@@ -212,3 +212,27 @@ void BadIdentifier::format(std::ostream& str) const {
 #include "Sema/SemanticIssuesNEW.def"
     }
 }
+
+static IssueSeverity toSeverity(BadUnaryExpr::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADUNEXPR_DEF(reason, severity, _)                             \
+    case BadUnaryExpr::reason:                                                 \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadUnaryExpr::BadUnaryExpr(Scope const* scope,
+                           ast::UnaryExpression const* expr,
+                           Reason reason):
+    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
+
+void BadUnaryExpr::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADUNEXPR_DEF(reason, _, message)                              \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}

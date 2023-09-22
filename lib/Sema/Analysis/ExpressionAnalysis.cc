@@ -85,7 +85,7 @@ struct ExprContext {
 } // namespace
 
 template <typename... Args, typename T>
-static bool isAny(T const* t) {
+static bool isAny(T const& t) {
     return (isa<Args>(t) || ...);
 }
 
@@ -183,50 +183,53 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
     if (!analyze(u.operand())) {
         return nullptr;
     }
-    QualType operandType = u.operand()->type();
-    QualType operandBaseType = operandType.toMut();
+    auto* type = u.operand()->type().get();
     switch (u.operation()) {
     case ast::UnaryOperator::Promotion:
         [[fallthrough]];
     case ast::UnaryOperator::Negation:
-        if (!isAny<IntType, FloatType>(operandBaseType.get())) {
-            iss.push<BadOperandForUnaryExpression>(u, operandType);
+        if (!isAny<IntType, FloatType>(type)) {
+            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
             return nullptr;
         }
-        u.decorateValue(sym.temporary(operandBaseType), RValue);
+        u.decorateValue(sym.temporary(type), RValue);
         break;
     case ast::UnaryOperator::BitwiseNot:
-        if (!isAny<ByteType, IntType>(operandBaseType.get())) {
-            iss.push<BadOperandForUnaryExpression>(u, operandType);
+        if (!isAny<ByteType, IntType>(type)) {
+            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
             return nullptr;
         }
-        u.decorateValue(sym.temporary(operandBaseType), RValue);
+        u.decorateValue(sym.temporary(type), RValue);
         break;
     case ast::UnaryOperator::LogicalNot:
-        if (!isAny<BoolType>(operandBaseType.get())) {
-            iss.push<BadOperandForUnaryExpression>(u, operandType);
+        if (!isAny<BoolType>(type)) {
+            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
             return nullptr;
         }
-        u.decorateValue(sym.temporary(operandBaseType), RValue);
+        u.decorateValue(sym.temporary(type), RValue);
         break;
     case ast::UnaryOperator::Increment:
         [[fallthrough]];
     case ast::UnaryOperator::Decrement: {
-        if (!isAny<IntType>(operandBaseType.get())) {
-            iss.push<BadOperandForUnaryExpression>(u, operandType);
+        if (!isAny<IntType>(type)) {
+            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
             return nullptr;
         }
-        if (!u.operand()->isLValue() || !u.operand()->type().isMut()) {
-            iss.push<BadOperandForUnaryExpression>(u, operandType);
+        if (!u.operand()->isLValue()) {
+            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::ValueCat);
+            return nullptr;
+        }
+        if (!u.operand()->type().isMut()) {
+            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Immutable);
             return nullptr;
         }
         switch (u.notation()) {
         case ast::UnaryOperatorNotation::Prefix: {
-            u.decorateValue(u.operand()->entity(), LValue, operandType);
+            u.decorateValue(u.operand()->entity(), LValue, type);
             break;
         }
         case ast::UnaryOperatorNotation::Postfix: {
-            u.decorateValue(sym.temporary(operandBaseType), RValue);
+            u.decorateValue(sym.temporary(type), RValue);
             break;
         }
         }

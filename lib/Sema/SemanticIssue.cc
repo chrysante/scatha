@@ -36,14 +36,6 @@ void BadTypeConversion::format(std::ostream& str) const {
         << to()->name() << "\n";
 }
 
-BadOperandForUnaryExpression::BadOperandForUnaryExpression(
-    ast::Expression const& expression, QualType operandType):
-    BadExpression(expression, IssueSeverity::Error), _opType(operandType) {}
-
-void BadOperandForUnaryExpression::format(std::ostream& str) const {
-    str << "Invalid operand for unary expression";
-}
-
 void BadOperandsForBinaryExpression::format(std::ostream& str) const {
     str << "Invalid operands for binary expression: `" << lhs()->name()
         << "` and `" << rhs()->name() << "`";

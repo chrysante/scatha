@@ -113,3 +113,29 @@ SC_SEMA_BADID_DEF(Undeclared,
                   "Use of undeclared identifier '" << identifier()->value() << "'")
 
 #undef SC_SEMA_BADID_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad unary expression --------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADUNEXPR_DEF
+#   define SC_SEMA_BADUNEXPR_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADUNEXPR_DEF(Type,
+                      Error,
+                      "Operand type " << expression()->operand()->type()->name()
+                          << " is invalid for unary operator " << expression()->operation())
+
+SC_SEMA_BADUNEXPR_DEF(ValueCat,
+                      Error,
+                      expression()->operand()->valueCategory()
+                          << " operand is invalid for unary operator "
+                          << expression()->operation())
+
+SC_SEMA_BADUNEXPR_DEF(Immutable,
+                      Error,
+                      "Immutable operand is invalid for unary operator "
+                          << expression()->operation())
+
+#undef SC_SEMA_BADUNEXPR_DEF
