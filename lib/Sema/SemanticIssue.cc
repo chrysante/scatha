@@ -49,26 +49,6 @@ void BadOperandsForBinaryExpression::format(std::ostream& str) const {
         << "` and `" << rhs()->name() << "`";
 }
 
-InvalidStatement::InvalidStatement(ast::Statement const* statement,
-                                   Reason reason,
-                                   Scope const& inScope):
-    SemanticIssue(statement ? statement->extSourceRange() : SourceRange{},
-                  IssueSeverity::Error),
-    _statement(statement),
-    _reason(reason),
-    _scope(&inScope) {}
-
-InvalidStatement* InvalidStatement::setStatement(
-    ast::Statement const& statement) {
-    _statement = &statement;
-    setSourceRange(statement.extSourceRange());
-    return this;
-}
-
-void InvalidStatement::format(std::ostream& str) const {
-    str << "Invalid statement: " << reason();
-}
-
 void BadFunctionCall::format(std::ostream& str) const {
     str << "No matching function for call to '" << overloadSet()->name()
         << "'. " << reason();
@@ -114,52 +94,6 @@ void BadSymbolReference::format(std::ostream& str) const {
     str << "Invalid symbol category: '";
     printExpression(expression(), str);
     str << "' is " << printEC(have()) << ", expected " << printEC(expected());
-}
-
-std::ostream& sema::operator<<(std::ostream& str, InvalidStatement::Reason r) {
-    // clang-format off
-    return str << UTL_SERIALIZE_ENUM(r, {
-        { InvalidStatement::Reason::ExpectedDeclaration,
-          "Expected declaration" },
-        { InvalidStatement::Reason::InvalidDeclaration,
-          "Invalid declaration" },
-        { InvalidStatement::Reason::InvalidJump, "Invalid location for jump" },
-        { InvalidStatement::Reason::InvalidScopeForStatement,
-          "Invalid scope for statement" },
-        { InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
-          "Non-void function must return a value" },
-        { InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
-          "Void function must not return a value" },
-    }); // clang-format on
-}
-
-void InvalidDeclaration::format(std::ostream& str) const {
-    str << "Invalid declaration: " << reason();
-}
-
-std::ostream& sema::operator<<(std::ostream& str,
-                               InvalidDeclaration::Reason r) {
-    // clang-format off
-    return str << UTL_SERIALIZE_ENUM(r, {
-        { InvalidDeclaration::Reason::InvalidInCurrentScope,
-          "Invalid in currentScope" },
-        { InvalidDeclaration::Reason::InvalidType,
-          "Invalid type" },
-        { InvalidDeclaration::Reason::Redefinition,
-          "Redefinition" },
-        { InvalidDeclaration::Reason::CantOverloadOnReturnType,
-          "Can't overload on ReturnType" },
-        { InvalidDeclaration::Reason::CantInferType,
-          "Can't infer type" },
-        { InvalidDeclaration::Reason::ExpectedReferenceInitializer,
-          "Expected reference initializer" },
-        { InvalidDeclaration::Reason::ReservedIdentifier,
-          "Reserved identifier" },
-        { InvalidDeclaration::Reason::ThisParameter,
-          "Invalid `this` parameter" },
-        { InvalidDeclaration::Reason::InvalidSpecialMemberFunction,
-          "Invalid special member function declaration" }
-    }); // clang-format on
 }
 
 StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
