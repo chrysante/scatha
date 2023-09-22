@@ -81,7 +81,7 @@ OverloadResolutionResult sema::performOverloadResolution(
         }
     }
     if (results.empty()) {
-        return makeError<NoMatchingFunction>(overloadSet);
+        return makeError<ORError>(overloadSet);
     }
     if (results.size() == 1) {
         return std::move(results.front());
@@ -100,12 +100,17 @@ OverloadResolutionResult sema::performOverloadResolution(
     case 1:
         return std::move(results[ranks.front().index]);
     default: {
-        auto functions =
-            results |
-            ranges::views::transform(&OverloadResolutionResult::function) |
-            ToSmallVector<>;
-        return makeError<AmbiguousOverloadResolution>(overloadSet,
-                                                      std::move(functions));
+        auto args = arguments | ranges::views::transform([](auto* expr) {
+                        return std::pair{ expr->type(), expr->valueCategory() };
+                    }) |
+                    ranges::to<std::vector>;
+        auto functions = results | ranges::views::transform([](auto& r) {
+                             return std::as_const(r).function;
+                         }) |
+                         ranges::to<std::vector>;
+        return makeError<ORError>(overloadSet,
+                                  std::move(args),
+                                  std::move(functions));
     }
     }
 }

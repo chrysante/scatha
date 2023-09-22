@@ -107,7 +107,7 @@ UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
                                   ORKind::MemberFunction);
     if (result.error) {
         result.error->setSourceRange(sourceRange);
-        ctx.issueHandler().push(std::move(result.error));
+        iss.push(std::move(result.error));
         return nullptr;
     }
     auto ctorCall = allocate<ast::ConstructorCall>(std::move(arguments),

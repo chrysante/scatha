@@ -10,7 +10,7 @@
 #include "Common/Expected.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Fwd.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemanticIssuesNEW.h"
 
 namespace scatha::sema {
 
@@ -24,7 +24,7 @@ struct OverloadResolutionResult {
     utl::small_vector<Conversion> conversions;
 
     /// The error if overload resolution failed. `nullptr` otherwise
-    std::unique_ptr<OverloadResolutionError> error;
+    std::unique_ptr<ORError> error;
 };
 
 /// Kinds of overload resolution. This distinction is necessary because for

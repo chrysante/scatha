@@ -9,6 +9,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/Issue.h>
 #include <scatha/Sema/Fwd.h>
+#include <scatha/Sema/QualType.h>
 
 /// # Hierarchy of semantic issue classes
 /// This closely reflects the hierarchy of AST nodes
@@ -24,19 +25,8 @@
 /// │  │  ├─ BadSMF
 /// │  │  └─ StructDefCycle
 /// │  └─ BadReturnStatement
-/// └─ BadExpression
-///    ├─ BadIdentifier
-///    ├─ BadLiteral ??
-///    ├─ BadUnaryExpr
-///    ├─ BadBinaryExpr
-///    ├─ BadMemAcc
-///    ├─ BadCondExpr
-///    ├─ BadFunctionCall
-///    ├─ BadConstructorCall
-///    ├─ BadSubscript
-///    ├─ BadPointerReference
-///    ├─ BadPointerDereference
-///    └─ BadTypeConversion
+/// ├─ BadExpression
+/// └─ ORError
 /// ```
 
 namespace scatha::sema {
@@ -64,6 +54,9 @@ public:
 
     /// \Returns the scope in which the issue occured
     Scope const* scope() const { return _scope; }
+
+protected:
+    void setScope(Scope const* scope) { _scope = scope; }
 
 private:
     Scope const* _scope;
@@ -239,6 +232,27 @@ private:
     void format(std::ostream&) const override;
 
     ast::Expression const* _expr;
+};
+
+/// Base class of all statement related issues
+class SCATHA_API ORError: public SemaIssue {
+public:
+    explicit ORError(
+        OverloadSet const* os,
+        std::vector<std::pair<QualType, ValueCategory>> argTypes = {},
+        std::vector<Function const*> matches = {});
+
+    void decorate(Scope const* scope, SourceRange sourceRange) {
+        setScope(scope);
+        setSourceRange(sourceRange);
+    }
+
+private:
+    void format(std::ostream&) const override;
+
+    OverloadSet const* os;
+    std::vector<std::pair<QualType, ValueCategory>> argTypes;
+    std::vector<Function const*> matches;
 };
 
 } // namespace scatha::sema

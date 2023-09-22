@@ -292,3 +292,20 @@ void BadExpr::format(std::ostream& str) const {
 #include "Sema/SemanticIssuesNEW.def"
     }
 }
+
+ORError::ORError(OverloadSet const* os,
+                 std::vector<std::pair<QualType, ValueCategory>> argTypes,
+                 std::vector<Function const*> matches):
+    SemaIssue(nullptr, {}, IssueSeverity::Error),
+    os(os),
+    argTypes(std::move(argTypes)),
+    matches(std::move(matches)) {}
+
+void ORError::format(std::ostream& str) const {
+    if (matches.empty()) {
+        str << "No matching function to call for " << os->name();
+    }
+    else {
+        str << "Ambiguous function call to " << os->name();
+    }
+}
