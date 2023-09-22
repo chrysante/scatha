@@ -230,13 +230,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             u.decorateValue(sym.temporary(operandBaseType), RValue);
             break;
         }
-        case ast::UnaryOperatorNotation::_count:
-            SC_UNREACHABLE();
         }
         break;
     }
-    case ast::UnaryOperator::_count:
-        SC_UNREACHABLE();
     }
     u.setConstantValue(evalUnary(u.operation(), u.operand()->constantValue()));
     return &u;

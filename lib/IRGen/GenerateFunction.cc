@@ -593,8 +593,6 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
             return operand;
         case ast::UnaryOperatorNotation::Postfix:
             return Value(operandValue, Register);
-        case ast::UnaryOperatorNotation::_count:
-            SC_UNREACHABLE();
         }
     }
 
@@ -687,8 +685,6 @@ static std::string getResultName(ast::BinaryOperator op) {
         return "xor";
     case Comma:
         return "?";
-    case _count:
-        SC_UNREACHABLE();
     }
 }
 
@@ -829,8 +825,6 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         add<ir::Store>(lhs.get(), rhs);
         return Value();
     }
-    case _count:
-        SC_UNREACHABLE();
     }
 }
 
