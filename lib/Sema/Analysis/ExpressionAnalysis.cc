@@ -760,18 +760,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     bool isMemberCall = false;
     /// We analyze all the arguments
     for (size_t i = 0; i < fc.arguments().size(); ++i) {
-        if (!analyze(fc.argument(i))) {
+        if (!analyze(fc.argument(i)) || !expectValue(fc.argument(i))) {
             success = false;
-            continue;
-        }
-        if (!expectValue(fc.argument(i))) {
-            success = false;
-            continue;
-        }
-        if (!fc.argument(i)->type()) {
-            iss.push<BadExpression>(*fc.argument(i), IssueSeverity::Error);
-            success = false;
-            continue;
         }
     }
     if (!success) {
@@ -784,18 +774,26 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     {
         auto memberAccess = fc.extractCallee<ast::MemberAccess>();
         auto memFunc = memberAccess->extractMember();
+        auto* os = dyncast<OverloadSet*>(memFunc->entity());
         auto objectArg = memberAccess->extractAccessed();
         fc.insertArgument(0, std::move(objectArg));
         fc.setCallee(std::move(memFunc));
         isMemberCall = true;
-        /// Member access object `object` goes out of scope and is destroyed
+        /// Cannot direct call special member functions
+        if (os && os->isSpecialMemberFunction()) {
+            ctx.badExpr(&fc, ExplicitSMFCall);
+            return nullptr;
+        }
     }
 
-    /// If our object is a generic expression, we assert that it is a
+    /// If our callee is a generic expression, we assert that it is a
     /// `reinterpret` expression and rewrite the AST
     if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.callee())) {
         SC_ASSERT(genExpr->callee()->entity()->name() == "reinterpret", "");
-        SC_ASSERT(fc.arguments().size() == 1, "");
+        if (fc.arguments().size() != 1) {
+            ctx.badExpr(&fc, GenericBadExpr);
+            return nullptr;
+        }
         auto* arg = fc.argument(0);
         auto* converted = convert(Reinterpret,
                                   arg,
@@ -832,12 +830,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// Make sure we have an overload set as our called object
     auto* overloadSet = dyncast_or_null<OverloadSet*>(fc.callee()->entity());
     if (!overloadSet) {
-        iss.push<BadFunctionCall>(fc,
-                                  BadFunctionCall::Reason::ObjectNotCallable);
+        ctx.badExpr(&fc, ObjectNotCallable);
         return nullptr;
     }
 
     /// Perform overload resolution
+    // TODO: Rewrite this to return a function and push errors itself
     auto result = performOverloadResolution(overloadSet,
                                             fc.arguments() | ToSmallVector<>,
                                             isMemberCall);
@@ -849,13 +847,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto* function = result.function;
     auto* returnType = getReturnType(function);
     if (!returnType) {
-        iss.push<BadFunctionCall>(
-            fc,
-            overloadSet,
-            fc.arguments() | ranges::views::transform([](auto* arg) {
-                return arg->type().get();
-            }) | ToSmallVector<>,
-            BadFunctionCall::Reason::CantDeduceReturnType);
+        ctx.badExpr(&fc, CantDeduceReturnType);
         return nullptr;
     }
     QualType type = getQualType(returnType);
@@ -879,8 +871,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         return nullptr;
     }
     auto* first = list.elements().front();
-    auto entityCat = first->entityCategory();
-    switch (entityCat) {
+    switch (first->entityCategory()) {
     case EntityCategory::Value: {
         for (auto* expr: list.elements()) {
             success &= expectValue(expr);
@@ -890,8 +881,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         }
         auto elements = list.elements() | ToSmallVector<>;
         QualType commonType = sema::commonType(sym, elements);
-        if (!commonType || isa<VoidType>(*commonType)) {
-            iss.push<InvalidListExpr>(list, InvalidListExpr::NoCommonType);
+        if (!commonType) {
+            ctx.badExpr(&list, ListExprNoCommonType);
+            return nullptr;
+        }
+        if (isa<VoidType>(*commonType)) {
+            ctx.badExpr(&list, ListExprVoid);
             return nullptr;
         }
         for (auto* expr: list.elements()) {
@@ -906,22 +901,26 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     }
     case EntityCategory::Type: {
         auto* elementType = cast<ObjectType*>(first->entity());
-        if (list.elements().size() != 1 && list.elements().size() != 2) {
-            iss.push<InvalidListExpr>(
-                list,
-                InvalidListExpr::InvalidElemCountForArrayType);
+        if (list.elements().size() > 2) {
+            ctx.badExpr(&list, ListExprTypeExcessElements);
             return nullptr;
         }
         size_t count = ArrayType::DynamicCount;
         if (list.elements().size() == 2) {
             auto* countExpr = list.element(1);
             auto* countType = dyncast<IntType const*>(countExpr->type().get());
+            if (!countType) {
+                ctx.badExpr(countExpr, ListExprNoIntSize);
+                return nullptr;
+            }
             auto* value =
-                dyncast_or_null<IntValue const*>(countExpr->constantValue());
-            if (!countType || !value ||
-                (countType->isSigned() && value->value().negative()))
-            {
-                iss.push<BadExpression>(*countExpr, IssueSeverity::Error);
+                cast_or_null<IntValue const*>(countExpr->constantValue());
+            if (!value) {
+                ctx.badExpr(countExpr, ListExprNoConstSize);
+                return nullptr;
+            }
+            if (countType->isSigned() && value->value().negative()) {
+                ctx.badExpr(countExpr, ListExprNegativeSize);
                 return nullptr;
             }
             count = value->value().to<size_t>();
@@ -931,7 +930,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         return &list;
     }
     default:
-        SC_UNREACHABLE();
+        ctx.badExpr(&list, ListExprBadEntity);
+        return nullptr;
     }
 }
 
@@ -953,6 +953,10 @@ bool ExprContext::expectValue(ast::Expression const* expr) {
         return false;
     }
     if (!expr->isValue()) {
+        iss.push<BadSymbolReference>(*expr, EntityCategory::Value);
+        return false;
+    }
+    if (!expr->type()) {
         iss.push<BadSymbolReference>(*expr, EntityCategory::Value);
         return false;
     }

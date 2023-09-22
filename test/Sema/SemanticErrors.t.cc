@@ -301,28 +301,19 @@ fn main() { var r: &mut int = 1; }
 TEST_CASE("Invalid lists", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main() {
-    let a = [u32(1), 0.0];
-    let b = [u32(1), int];
-    let c = [];
-    let d: [int, 1, int];
+/* 3 */ let a = [u32(1), 0.0];
+/* 4 */ let b = [u32(1), int];
+/* 5 */ let c = [];
+/* 6 */ let d: [int, 1, int];
 })");
 
-    auto cmnType = issues.findOnLine<InvalidListExpr>(3);
-    REQUIRE(cmnType);
-    CHECK(cmnType->reason() == InvalidListExpr::NoCommonType);
-
+    CHECK(issues.findOnLine<BadExpr>(3, ListExprNoCommonType));
     auto badSymRef = issues.findOnLine<BadSymbolReference>(4);
     REQUIRE(badSymRef);
     CHECK(badSymRef->have() == EntityCategory::Type);
     CHECK(badSymRef->expected() == EntityCategory::Value);
-
-    auto invalidDecl = issues.findOnLine<BadVarDecl>(5);
-    REQUIRE(invalidDecl);
-    CHECK(invalidDecl->reason() == BadVarDecl::CantInferType);
-
-    auto invCount = issues.findOnLine<InvalidListExpr>(6);
-    REQUIRE(invCount);
-    CHECK(invCount->reason() == InvalidListExpr::InvalidElemCountForArrayType);
+    CHECK(issues.findOnLine<BadVarDecl>(5, BadVarDecl::CantInferType));
+    CHECK(issues.findOnLine<BadExpr>(6, ListExprTypeExcessElements));
 }
 
 TEST_CASE("Invalid jump", "[sema][issue]") {
@@ -342,8 +333,8 @@ fn main() {
         }
     }
 })");
-    CHECK(issues.findOnLine<GenericBadStmt>(3));
-    CHECK(issues.findOnLine<GenericBadStmt>(5));
+    CHECK(issues.findOnLine<GenericBadStmt>(3, GenericBadStmt::InvalidScope));
+    CHECK(issues.findOnLine<GenericBadStmt>(5, GenericBadStmt::InvalidScope));
     CHECK(issues.noneOnLine(8));
     CHECK(issues.noneOnLine(9));
     CHECK(issues.noneOnLine(13));
@@ -390,38 +381,32 @@ TEST_CASE("Invalid special member functions", "[sema][issue]") {
 /* 12 */      fn new(&mut this) -> int {}
 /*    */  }
 )");
-    {
-        auto* issue = issues.findOnLine<BadSMF>(2);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadSMF::NotInStruct);
-    }
-    {
-        auto* issue = issues.findOnLine<BadSMF>(4);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadSMF::NoParams);
-    }
-    {
-        auto* issue = issues.findOnLine<BadSMF>(5);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadSMF::BadFirstParam);
-    }
+    CHECK(issues.findOnLine<BadSMF>(2, BadSMF::NotInStruct));
+    CHECK(issues.findOnLine<BadSMF>(4, BadSMF::NoParams));
+    CHECK(issues.findOnLine<BadSMF>(5, BadSMF::BadFirstParam));
     CHECK(issues.noneOnLine(6));
     CHECK(issues.noneOnLine(7));
-    {
-        auto* issue = issues.findOnLine<BadSMF>(8);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadSMF::MoveSignature);
-    }
+    CHECK(issues.findOnLine<BadSMF>(8, BadSMF::MoveSignature));
     CHECK(issues.noneOnLine(9));
-    {
-        auto* issue = issues.findOnLine<BadSMF>(10);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadSMF::DeleteSignature);
-    }
+    CHECK(issues.findOnLine<BadSMF>(10, BadSMF::DeleteSignature));
     CHECK(issues.noneOnLine(11));
-    {
-        auto* issue = issues.findOnLine<BadSMF>(12);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadSMF::HasReturnType);
-    }
+    CHECK(issues.findOnLine<BadSMF>(12, BadSMF::HasReturnType));
+}
+
+TEST_CASE("Explicit calls to SMFs", "[sema][issue]") {
+    return;
+    auto const issues = test::getSemaIssues(R"(
+fn main() {
+/*  3 */ var x = X();
+/*  4 */ x.new();
+/*  5 */ var y = x;
+/*  6 */ x.new(y);
+}
+struct X {
+    fn new(&mut this) {}
+    fn new(&mut this, rhs: &X) {}
+    fn delete(&mut this) {}
+})");
+    CHECK(issues.findOnLine<BadExpr>(4, BadExpr::ExplicitSMFCall));
+    CHECK(issues.findOnLine<BadExpr>(6, BadExpr::ExplicitSMFCall));
 }

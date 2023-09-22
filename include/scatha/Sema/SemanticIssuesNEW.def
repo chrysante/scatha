@@ -108,6 +108,13 @@ SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue,
 #   define SC_SEMA_BADEXPR_DEF(ExprType, Reason, Severity, Message)
 #endif
 
+/// This should only be used for temporary language constructs for which it is
+/// not worthwhile to make special errors
+SC_SEMA_BADEXPR_DEF(Expression,
+                    GenericBadExpr,
+                    Error,
+                    "Bad expression")
+
 SC_SEMA_BADEXPR_DEF(Identifier,
                     UndeclaredID,
                     Error,
@@ -188,5 +195,57 @@ SC_SEMA_BADEXPR_DEF(Subscript,
                     SubscriptArgCount,
                     Error,
                     "Subscript expression requires exactly one argument")
+
+SC_SEMA_BADEXPR_DEF(FunctionCall,
+                    ExplicitSMFCall,
+                    Error,
+                    "Cannot explicitly call special member function '"
+                        << cast<OverloadSet const*>(expr->callee()->entity())->SMFKind()
+                        << "'")
+
+SC_SEMA_BADEXPR_DEF(FunctionCall,
+                    ObjectNotCallable,
+                    Error,
+                    "Object not callable")
+
+SC_SEMA_BADEXPR_DEF(FunctionCall,
+                    CantDeduceReturnType,
+                    Error,
+                    "Cannot deduce return type on recursive function")
+
+SC_SEMA_BADEXPR_DEF(ListExpression,
+                    ListExprNoCommonType,
+                    Error,
+                    "No common type in array expression")
+
+SC_SEMA_BADEXPR_DEF(ListExpression,
+                    ListExprVoid,
+                    Error,
+                    "Invalid array of void elements")
+
+SC_SEMA_BADEXPR_DEF(ListExpression,
+                    ListExprTypeExcessElements,
+                    Error,
+                    "Too many arguments in array type expression")
+
+SC_SEMA_BADEXPR_DEF(ListExpression,
+                    ListExprNoIntSize,
+                    Error,
+                    "Array type expression requires integral size")
+
+SC_SEMA_BADEXPR_DEF(ListExpression,
+                    ListExprNoConstSize,
+                    Error,
+                    "Array type expression requires constant size")
+
+SC_SEMA_BADEXPR_DEF(ListExpression,
+                    ListExprNegativeSize,
+                    Error,
+                    "Array type expression requires non-negative size")
+
+SC_SEMA_BADEXPR_DEF(ListExpression,
+                    ListExprBadEntity,
+                    Error,
+                    "Invalid entity for array expression")
 
 #undef SC_SEMA_BADEXPR_DEF

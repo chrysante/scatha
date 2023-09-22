@@ -850,6 +850,17 @@ public:
     /// \overload for const
     Function const* find(std::span<Type const* const> paramTypes) const;
 
+    /// \Returns `true` is this overload set is a set of special member
+    /// functions
+    bool isSpecialMemberFunction() const {
+        /// Either all functions are SMFs or none is
+        return front()->isSpecialMemberFunction();
+    }
+
+    /// \Returns the kind of special member function if this overload set is a
+    /// set of special member functions
+    SpecialMemberFunction SMFKind() const { return front()->SMFKind(); }
+
     /// Inherit interface from `utl::vector`
     using small_vector::begin;
     using small_vector::empty;
