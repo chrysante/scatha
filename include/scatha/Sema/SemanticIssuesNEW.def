@@ -51,3 +51,20 @@ SC_SEMA_BADFUNCDEF_DEF(InvalidSMF,
                        "Invalid special member function declaration")
 
 #undef SC_SEMA_BADFUNCDEF_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad return statement --------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADRETURN_DEF
+#   define SC_SEMA_BADRETURN_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADRETURN_DEF(NonVoidMustReturnValue,
+                      Error,
+                      "Non-void function must return a value")
+SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue,
+                      Error,
+                      "Void function must not return a value")
+
+#undef SC_SEMA_BADRETURN_DEF

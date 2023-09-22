@@ -37,8 +37,8 @@ struct GatherContext {
     size_t gatherImpl(ast::FunctionDefinition&);
     size_t gatherImpl(ast::StructDefinition&);
     size_t gatherImpl(ast::VariableDeclaration&);
-    size_t gatherImpl(ast::Statement&);
-    size_t gatherImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
+    size_t gatherImpl(ast::Statement& stmt);
+    size_t gatherImpl(ast::Expression&) { SC_UNREACHABLE(); }
 
     AnalysisContext& ctx;
     SymbolTable& sym;
@@ -138,10 +138,7 @@ size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
     return dependencyGraph.add({ .entity = variable, .astNode = &varDecl });
 }
 
-size_t GatherContext::gatherImpl(ast::Statement& statement) {
-    using enum InvalidStatement::Reason;
-    iss.push<InvalidStatement>(&statement,
-                               InvalidScopeForStatement,
-                               sym.currentScope());
+size_t GatherContext::gatherImpl(ast::Statement& stmt) {
+    ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
     return InvalidIndex;
 }

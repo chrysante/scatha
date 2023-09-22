@@ -16,9 +16,9 @@ static SourceRange getSourceRange(ast::Statement const* statement) {
     return {};
 }
 
-BadStatementNEW::BadStatementNEW(Scope const* scope,
-                                 ast::Statement const* statement,
-                                 IssueSeverity severity):
+BadStmt::BadStmt(Scope const* scope,
+                 ast::Statement const* statement,
+                 IssueSeverity severity):
     SemaIssue(scope, getSourceRange(statement), severity), stmt(statement) {}
 
 static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
@@ -33,7 +33,7 @@ static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
 GenericBadStmt::GenericBadStmt(Scope const* scope,
                                ast::Statement const* stmt,
                                Reason reason):
-    BadStatementNEW(scope, stmt, toSeverity(reason)), _reason(reason) {}
+    BadStmt(scope, stmt, toSeverity(reason)), _reason(reason) {}
 
 void GenericBadStmt::format(std::ostream& str) const {
     switch (reason()) {
@@ -57,7 +57,7 @@ static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
 BadDecl::BadDecl(Scope const* scope,
                  ast::Declaration const* declaration,
                  IssueSeverity severity):
-    BadStatementNEW(scope, declaration, severity) {}
+    BadStmt(scope, declaration, severity) {}
 
 ast::Declaration const* BadDecl::declaration() const {
     return cast<ast::Declaration const*>(statement());
@@ -123,6 +123,30 @@ static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
 #define SC_SEMA_BADFUNCDEF_DEF(reason, severity, _)                            \
     case BadFuncDef::reason:                                                   \
         return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+static IssueSeverity toSeverity(BadReturnStmt::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADRETURN_DEF(reason, severity, _)                             \
+    case BadReturnStmt::reason:                                                \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadReturnStmt::BadReturnStmt(Scope const* scope,
+                             ast::ReturnStatement const* statement,
+                             Reason reason):
+    BadStmt(scope, statement, toSeverity(reason)), _reason(reason) {}
+
+void BadReturnStmt::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADRETURN_DEF(reason, _, message)                              \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
 #include "Sema/SemanticIssuesNEW.def"
     }
 }

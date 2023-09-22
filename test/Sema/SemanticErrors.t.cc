@@ -231,11 +231,10 @@ struct X {
 })");
     auto const* x = issues.sym.lookup<ObjectType>("X");
     auto checkLine = [&](int line) {
-        auto const issue = issues.findOnLine<InvalidStatement>(line);
+        auto const issue = issues.findOnLine<GenericBadStmt>(line);
         REQUIRE(issue);
-        CHECK(issue->reason() ==
-              InvalidStatement::Reason::InvalidScopeForStatement);
-        CHECK(issue->currentScope() == x);
+        CHECK(issue->reason() == GenericBadStmt::InvalidScope);
+        CHECK(issue->scope() == x);
     };
     checkLine(3);                // return 0;
     checkLine(4);                // 1;
@@ -283,20 +282,18 @@ TEST_CASE("Non void function must return a value", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() -> int { return; }
 )");
-    auto issue = issues.findOnLine<InvalidStatement>(2);
+    auto issue = issues.findOnLine<BadReturnStmt>(2);
     REQUIRE(issue);
-    CHECK(issue->reason() ==
-          InvalidStatement::Reason::NonVoidFunctionMustReturnAValue);
+    CHECK(issue->reason() == BadReturnStmt::NonVoidMustReturnValue);
 }
 
 TEST_CASE("Void function must not return a value", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() -> void { return 0; }
 )");
-    auto issue = issues.findOnLine<InvalidStatement>(2);
+    auto issue = issues.findOnLine<BadReturnStmt>(2);
     REQUIRE(issue);
-    CHECK(issue->reason() ==
-          InvalidStatement::Reason::VoidFunctionMustNotReturnAValue);
+    CHECK(issue->reason() == BadReturnStmt::VoidMustNotReturnValue);
 }
 
 TEST_CASE("Expect reference initializer", "[sema][issue]") {

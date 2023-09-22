@@ -9,25 +9,19 @@
 #include <scatha/Sema/Fwd.h>
 
 /// # Hierarchy of semantic issue classes
-/// These closely reflect the hierarchy of AST nodes
+/// This closely reflects the hierarchy of AST nodes
 ///
 /// ```
 /// SemanticIssue
-/// ├─ BadStatement
+/// ├─ BadStmt
 /// │  ├─ GenericBadStmt
-/// │  ├─ BadDeclaration
+/// │  ├─ BadDecl
 /// │  │  ├─ Redefinition
 /// │  │  ├─ BadVarDecl
 /// │  │  ├─ BadParamDecl
 /// │  │  ├─ BadFuncDef
 /// │  │  └─ BadStructDef
-/// │  ├─ BadCompoundStatement ??
-/// │  ├─ BadExpressionStatement ??
-/// │  └─ BadControlFlowStatement
-/// │     ├─ BadReturnStatement
-/// │     ├─ BadIfStatement
-/// │     ├─ BadLoopStatement
-/// │     └─ BadJumpStatement
+/// │  └─ BadReturnStatement
 /// └─ BadExpression
 ///    ├─ BadIdentifier
 ///    ├─ BadLiteral ??
@@ -68,22 +62,22 @@ private:
 };
 
 /// Base class of all statement related issues
-class SCATHA_API BadStatementNEW: public SemaIssue {
+class SCATHA_API BadStmt: public SemaIssue {
 public:
     /// \Returns the erroneous statement
     ast::Statement const* statement() const { return stmt; }
 
 protected:
-    explicit BadStatementNEW(Scope const* scope,
-                             ast::Statement const* statement,
-                             IssueSeverity severity);
+    explicit BadStmt(Scope const* scope,
+                     ast::Statement const* statement,
+                     IssueSeverity severity);
 
 private:
     ast::Statement const* stmt;
 };
 
 ///
-class SCATHA_API GenericBadStmt: public BadStatementNEW {
+class SCATHA_API GenericBadStmt: public BadStmt {
 public:
     enum Reason {
 #define SC_SEMA_GENERICBADSTMT_DEF(reason, _0, _1) reason,
@@ -100,7 +94,7 @@ private:
 };
 
 /// Base class of all declaration related issues
-class SCATHA_API BadDecl: public BadStatementNEW {
+class SCATHA_API BadDecl: public BadStmt {
 protected:
     explicit BadDecl(Scope const* scope,
                      ast::Declaration const* declaration,
@@ -156,15 +150,6 @@ private:
     ast::Expression const* _initExpr;
 };
 
-///
-class SCATHA_API BadParamDecl: public BadDecl {
-public:
-    BadParamDecl();
-
-private:
-};
-
-///
 class SCATHA_API BadFuncDef: public BadDecl {
 public:
     enum Reason {
@@ -182,11 +167,20 @@ private:
 };
 
 ///
-class SCATHA_API BadStructDefinition: public BadDecl {
+class SCATHA_API BadReturnStmt: public BadStmt {
 public:
-    BadStructDefinition();
+    enum Reason {
+#define SC_SEMA_BADRETURN_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    BadReturnStmt(Scope const* scope,
+                  ast::ReturnStatement const* statement,
+                  Reason reason);
 
 private:
+    void format(std::ostream& str) const override;
 };
 
 /// Base class of all statement related issues
@@ -205,5 +199,7 @@ private:
 };
 
 } // namespace scatha::sema
+
+#undef SC_SEMA_ISSUE_REASON
 
 #endif // SCATHA_SEMA_SEMANTICISSUES_H_

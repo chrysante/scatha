@@ -288,10 +288,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
     Type const* returnType = currentFunction.returnType();
     if (!rs.expression() && !isa_or_null<VoidType>(returnType)) {
-        iss.push<InvalidStatement>(
-            &rs,
-            InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
-            sym.currentScope());
+        ctx.issue<BadReturnStmt>(&rs, BadReturnStmt::NonVoidMustReturnValue);
         return;
     }
     /// We gather parent destructors here because `analyzeExpr()` may add more
@@ -301,10 +298,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
         return;
     }
     if (isa_or_null<VoidType>(returnType)) {
-        iss.push<InvalidStatement>(
-            &rs,
-            InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
-            sym.currentScope());
+        ctx.issue<BadReturnStmt>(&rs, BadReturnStmt::VoidMustNotReturnValue);
         return;
     }
     if (!rs.expression()->isValue()) {
