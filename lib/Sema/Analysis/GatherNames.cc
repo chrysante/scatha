@@ -99,7 +99,7 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
     {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and struct scope
-        ctx.issue<GenericBadDecl>(&def, GenericBadDecl::InvalidInScope);
+        ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
         return InvalidIndex;
     }
     auto* type = sym.declareStructureType(&def);

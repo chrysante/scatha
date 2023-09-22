@@ -113,13 +113,13 @@ public:
     ///
     ///
     ///
-    Property& addProperty(PropertyKind kind, Type const* type);
+    Property* addProperty(PropertyKind kind, Type const* type);
 
     /// Creates a new unique temporary object of type \p type
     Temporary* temporary(QualType type);
 
     /// Declares an anonymous scope within the current scope.
-    Scope& addAnonymousScope();
+    Scope* addAnonymousScope();
 
     /// Declares a poison entity to the current scope.
     ///

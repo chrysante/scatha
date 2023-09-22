@@ -21,6 +21,39 @@ BadStatementNEW::BadStatementNEW(Scope const* scope,
                                  IssueSeverity severity):
     SemaIssue(scope, getSourceRange(statement), severity), stmt(statement) {}
 
+static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, _)                        \
+    case GenericBadStmt::reason:                                               \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+GenericBadStmt::GenericBadStmt(Scope const* scope,
+                               ast::Statement const* stmt,
+                               Reason reason):
+    BadStatementNEW(scope, stmt, toSeverity(reason)), _reason(reason) {}
+
+void GenericBadStmt::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_GENERICBADSTMT_DEF(reason, _, message)                         \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADVARDECL_DEF(reason, severity, _)                            \
+    case BadVarDecl::reason:                                                   \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
 BadDecl::BadDecl(Scope const* scope,
                  ast::Declaration const* declaration,
                  IssueSeverity severity):
@@ -62,39 +95,6 @@ static std::string_view format(Scope const* scope) {
         return "";
     case _count:
         return "";
-    }
-}
-
-static IssueSeverity toSeverity(GenericBadDecl::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_GENERICBADDECL_DEF(reason, severity, _)                        \
-    case GenericBadDecl::reason:                                               \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-GenericBadDecl::GenericBadDecl(Scope const* scope,
-                               ast::Declaration const* declaration,
-                               Reason reason):
-    BadDecl(scope, declaration, toSeverity(reason)), _reason(reason) {}
-
-static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_BADVARDECL_DEF(reason, severity, _)                            \
-    case BadVarDecl::reason:                                                   \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-void GenericBadDecl::format(std::ostream& str) const {
-    switch (reason()) {
-#define SC_SEMA_GENERICBADDECL_DEF(reason, _, message)                         \
-    case reason:                                                               \
-        str << message;                                                        \
-        break;
-#include "Sema/SemanticIssuesNEW.def"
     }
 }
 

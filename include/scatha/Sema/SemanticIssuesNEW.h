@@ -14,8 +14,8 @@
 /// ```
 /// SemanticIssue
 /// ├─ BadStatement
+/// │  ├─ GenericBadStmt
 /// │  ├─ BadDeclaration
-/// │  │  ├─ GenericBadDecl
 /// │  │  ├─ Redefinition
 /// │  │  ├─ BadVarDecl
 /// │  │  ├─ BadParamDecl
@@ -82,6 +82,23 @@ private:
     ast::Statement const* stmt;
 };
 
+///
+class SCATHA_API GenericBadStmt: public BadStatementNEW {
+public:
+    enum Reason {
+#define SC_SEMA_GENERICBADSTMT_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    GenericBadStmt(Scope const* scope,
+                   ast::Statement const* statement,
+                   Reason reason);
+
+private:
+    void format(std::ostream& str) const override;
+};
+
 /// Base class of all declaration related issues
 class SCATHA_API BadDecl: public BadStatementNEW {
 protected:
@@ -91,23 +108,6 @@ protected:
 
     /// \Returns the erroneous declaration
     ast::Declaration const* declaration() const;
-};
-
-///
-class SCATHA_API GenericBadDecl: public BadDecl {
-public:
-    enum Reason {
-#define SC_SEMA_GENERICBADDECL_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemanticIssuesNEW.def>
-    };
-    SC_SEMA_ISSUE_REASON()
-
-    GenericBadDecl(Scope const* scope,
-                   ast::Declaration const* declaration,
-                   Reason reason);
-
-private:
-    void format(std::ostream& str) const override;
 };
 
 /// Declaration of a name that is already defined in the same scope

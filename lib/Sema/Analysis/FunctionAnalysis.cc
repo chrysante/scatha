@@ -106,7 +106,7 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        ctx.issue<GenericBadDecl>(&fn, GenericBadDecl::InvalidInScope);
+        ctx.issue<GenericBadStmt>(&fn, GenericBadStmt::InvalidScope);
         sym.declarePoison(std::string(fn.name()), EntityCategory::Value);
         return;
     }
@@ -193,12 +193,12 @@ void FuncBodyContext::analyzeImpl(ast::StructDefinition& def) {
     /// Function defintion is only allowed in the global scope, at namespace
     /// scope and structure scope.
     sym.declarePoison(std::string(def.name()), EntityCategory::Type);
-    ctx.issue<GenericBadDecl>(&def, GenericBadDecl::InvalidInScope);
+    ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
 }
 
 void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
-        block.decorateScope(&sym.addAnonymousScope());
+        block.decorateScope(sym.addAnonymousScope());
     }
     sym.withScopePushed(block.scope(), [&] {
         /// We make a copy why?
@@ -336,10 +336,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
 
 void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push<InvalidStatement>(
-            &stmt,
-            InvalidStatement::Reason::InvalidScopeForStatement,
-            sym.currentScope());
+        ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
         return;
     }
     if (analyzeExpr(stmt.condition(), stmt.dtorStack())) {
@@ -358,13 +355,10 @@ void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
 
 void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push<InvalidStatement>(
-            &stmt,
-            InvalidStatement::Reason::InvalidScopeForStatement,
-            sym.currentScope());
+        ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
         return;
     }
-    stmt.block()->decorateScope(&sym.addAnonymousScope());
+    stmt.block()->decorateScope(sym.addAnonymousScope());
     sym.pushScope(stmt.block()->scope());
     if (stmt.varDecl()) {
         analyze(*stmt.varDecl());
@@ -388,9 +382,7 @@ void FuncBodyContext::analyzeImpl(ast::JumpStatement& stmt) {
     auto* parent = stmt.parent();
     while (true) {
         if (!parent || isa<ast::FunctionDefinition>(parent)) {
-            iss.push<InvalidStatement>(&stmt,
-                                       InvalidStatement::Reason::InvalidJump,
-                                       sym.currentScope());
+            ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
             return;
         }
         if (isa<ast::LoopStatement>(parent)) {

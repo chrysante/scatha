@@ -1,22 +1,22 @@
 // No include guards
 
 // ===--------------------------------------------------------------------=== //
-// === List of all reasons for a generic bad declaration -----------------=== //
+// === List of all reasons for a generic bad statement -------------------=== //
 // ===--------------------------------------------------------------------=== //
 
-#ifndef SC_SEMA_GENERICBADDECL_DEF
-#   define SC_SEMA_GENERICBADDECL_DEF(reason, severity, text)
+#ifndef SC_SEMA_GENERICBADSTMT_DEF
+#   define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, text)
 #endif
 
-SC_SEMA_GENERICBADDECL_DEF(ReservedIdentifier,
+SC_SEMA_GENERICBADSTMT_DEF(ReservedIdentifier,
                            Error,
                            "Reserved identifier")
-SC_SEMA_GENERICBADDECL_DEF(InvalidInScope,
+SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
                            Error,
-                           declaration()->nodeType() << " invalid in "
+                           statement()->nodeType() << " invalid in "
                                << scope()->kind() << " scope")
 
-#undef SC_SEMA_GENERICBADDECL_DEF
+#undef SC_SEMA_GENERICBADSTMT_DEF
 
 // ===--------------------------------------------------------------------=== //
 // === List of all reasons for a bad variable declaration ----------------=== //

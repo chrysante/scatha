@@ -49,13 +49,12 @@ struct X {
 	fn int() {}
 	struct float {}
 })");
-#warning Reenable checks
-    //    auto* line3 = issues.findOnLine<GenericBadDecl>(3);
-    //    REQUIRE(line3);
-    //    CHECK(line3->reason() == GenericBadDecl::ReservedIdentifier);
-    auto* line4 = issues.findOnLine<GenericBadDecl>(4);
+    auto* line3 = issues.findOnLine<GenericBadStmt>(3);
+    REQUIRE(line3);
+    CHECK(line3->reason() == GenericBadStmt::ReservedIdentifier);
+    auto* line4 = issues.findOnLine<GenericBadStmt>(4);
     REQUIRE(line4);
-    CHECK(line4->reason() == GenericBadDecl::ReservedIdentifier);
+    CHECK(line4->reason() == GenericBadStmt::ReservedIdentifier);
 }
 
 TEST_CASE("Bad type conversion", "[sema][issue]") {
@@ -209,14 +208,14 @@ fn f() {
 	struct X {}
 })");
     Function const* f = issues.sym.lookup<OverloadSet>("f")->front();
-    auto const line3 = issues.findOnLine<GenericBadDecl>(3);
+    auto const line3 = issues.findOnLine<GenericBadStmt>(3);
     REQUIRE(line3);
     CHECK(line3->scope() == f);
-    CHECK(line3->reason() == GenericBadDecl::InvalidInScope);
-    auto const line4 = issues.findOnLine<GenericBadDecl>(4);
+    CHECK(line3->reason() == GenericBadStmt::InvalidScope);
+    auto const line4 = issues.findOnLine<GenericBadStmt>(4);
     REQUIRE(line4);
     CHECK(line4->scope() == f);
-    CHECK(line4->reason() == GenericBadDecl::InvalidInScope);
+    CHECK(line4->reason() == GenericBadStmt::InvalidScope);
 }
 
 TEST_CASE("Invalid statement at struct scope", "[sema][issue]") {
@@ -352,8 +351,8 @@ fn main() {
         }
     }
 })");
-    CHECK(issues.findOnLine<InvalidStatement>(3));
-    CHECK(issues.findOnLine<InvalidStatement>(5));
+    CHECK(issues.findOnLine<GenericBadStmt>(3));
+    CHECK(issues.findOnLine<GenericBadStmt>(5));
     CHECK(issues.noneOnLine(8));
     CHECK(issues.noneOnLine(9));
     CHECK(issues.noneOnLine(13));

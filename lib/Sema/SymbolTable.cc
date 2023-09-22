@@ -138,7 +138,7 @@ SymbolTable::~SymbolTable() = default;
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
                                            std::string name) {
     if (isKeyword(name)) {
-        impl->issue<GenericBadDecl>(def, GenericBadDecl::ReservedIdentifier);
+        impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
     if (Entity* entity = currentScope().findEntity(name)) {
@@ -170,7 +170,7 @@ T* SymbolTable::declareBuiltinType(Args&&... args) {
 Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                        std::string name) {
     if (isKeyword(name)) {
-        impl->issue<GenericBadDecl>(def, GenericBadDecl::ReservedIdentifier);
+        impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
     OverloadSet* overloadSet = [&]() -> OverloadSet* {
@@ -250,8 +250,8 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
 Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
                                       std::string name) {
     if (isKeyword(name)) {
-        impl->issue<GenericBadDecl>(vardecl,
-                                    GenericBadDecl::ReservedIdentifier);
+        impl->issue<GenericBadStmt>(vardecl,
+                                    GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
     if (auto* existing = currentScope().findEntity(name)) {
@@ -296,10 +296,10 @@ Variable* SymbolTable::defineVariable(std::string name,
     return defineVarImpl(nullptr, std::move(name), type, mut);
 }
 
-Property& SymbolTable::addProperty(PropertyKind kind, Type const* type) {
+Property* SymbolTable::addProperty(PropertyKind kind, Type const* type) {
     auto* prop = impl->addEntity<Property>(kind, &currentScope(), type);
     currentScope().add(prop);
-    return *prop;
+    return prop;
 }
 
 Temporary* SymbolTable::temporary(QualType type) {
@@ -324,11 +324,11 @@ Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(
     return *entity;
 }
 
-Scope& SymbolTable::addAnonymousScope() {
+Scope* SymbolTable::addAnonymousScope() {
     auto* scope =
         impl->addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
     currentScope().add(scope);
-    return *scope;
+    return scope;
 }
 
 ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
@@ -341,7 +341,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType = impl->addEntity<ArrayType>(elementType, size);
     impl->_arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
-        auto* arraySize = &addProperty(PropertyKind::ArraySize, S64());
+        auto* arraySize = addProperty(PropertyKind::ArraySize, S64());
         arrayType->setCountProperty(arraySize);
     });
     return arrayType;
