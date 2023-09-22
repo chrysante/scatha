@@ -19,13 +19,14 @@ std::ostream& sema::operator<<(std::ostream& str, EntityType t) {
 }
 
 std::ostream& sema::operator<<(std::ostream& str, EntityCategory cat) {
-    // clang-format off
-    return str << UTL_SERIALIZE_ENUM(cat, {
-        { EntityCategory::Indeterminate, "Indeterminate" },
-        { EntityCategory::Value,         "Value" },
-        { EntityCategory::Type,          "Type" },
-    });
-    // clang-format on
+    switch (cat) {
+    case EntityCategory::Indeterminate:
+        return str << "Indeterminate";
+    case EntityCategory::Value:
+        return str << "Value";
+    case EntityCategory::Type:
+        return str << "Type";
+    }
 }
 
 std::string_view sema::toString(ValueCategory cat) {
@@ -49,17 +50,21 @@ ValueCategory sema::commonValueCat(ValueCategory a, ValueCategory b) {
     return ValueCategory::RValue;
 }
 
-std::string_view sema::toString(ScopeKind k) {
-    // clang-format off
-    return UTL_SERIALIZE_ENUM(k, {
-        { ScopeKind::Invalid,   "Invalid" },
-        { ScopeKind::Global,    "Global" },
-        { ScopeKind::Namespace, "Namespace" },
-        { ScopeKind::Variable,  "Variable" },
-        { ScopeKind::Function,  "Function" },
-        { ScopeKind::Object,    "Object" },
-        { ScopeKind::Anonymous, "Anonymous" },
-    }); // clang-format on
+std::string_view sema::toString(ScopeKind kind) {
+    switch (kind) {
+    case ScopeKind::Invalid:
+        return "Invalid";
+    case ScopeKind::Global:
+        return "Global";
+    case ScopeKind::Namespace:
+        return "Namespace";
+    case ScopeKind::Variable:
+        return "Variable";
+    case ScopeKind::Function:
+        return "Function";
+    case ScopeKind::Type:
+        return "Type";
+    }
 }
 
 std::ostream& sema::operator<<(std::ostream& str, ScopeKind k) {

@@ -87,13 +87,9 @@ static std::string_view format(Scope const* scope) {
         return "";
     case Function:
         return "";
-    case Object:
-        return "";
-    case Anonymous:
+    case Type:
         return "";
     case Invalid:
-        return "";
-    case _count:
         return "";
     }
 }

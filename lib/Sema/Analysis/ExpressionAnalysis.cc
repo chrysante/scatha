@@ -505,8 +505,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         break;
     case EntityCategory::Indeterminate:
         break;
-    case EntityCategory::_count:
-        SC_UNREACHABLE();
     }
     return &ma;
 }

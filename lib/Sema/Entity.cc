@@ -74,8 +74,7 @@ Variable::Variable(std::string name,
     Object(EntityType::Variable, std::move(name), parentScope, type, mut) {}
 
 bool Variable::isLocal() const {
-    return parent()->kind() == ScopeKind::Function ||
-           parent()->kind() == ScopeKind::Anonymous;
+    return parent()->kind() == ScopeKind::Function;
 }
 
 Property::Property(PropertyKind kind, Scope* parentScope, Type const* type):

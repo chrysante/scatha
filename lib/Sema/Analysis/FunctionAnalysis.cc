@@ -102,7 +102,7 @@ void FuncBodyContext::analyze(ast::ASTNode& node) {
 void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
-                                                   sk != ScopeKind::Object)
+                                                   sk != ScopeKind::Type)
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.

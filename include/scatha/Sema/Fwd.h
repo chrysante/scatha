@@ -49,7 +49,7 @@ namespace scatha::sema {
 /// See "Sema/QualType.h" for details.
 class QualType;
 
-enum class EntityCategory { Indeterminate, Value, Type, _count };
+enum class EntityCategory { Indeterminate, Value, Type };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 
@@ -71,9 +71,7 @@ enum class ScopeKind {
     Namespace,
     Variable,
     Function,
-    Object,
-    Anonymous,
-    _count
+    Type,
 };
 
 SCATHA_API std::string_view toString(ScopeKind);

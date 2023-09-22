@@ -107,8 +107,6 @@ static constexpr utl::streammanip printEC([](std::ostream& str,
     case Indeterminate:
         str << "indeterminate";
         break;
-    case _count:
-        SC_UNREACHABLE();
     }
 });
 

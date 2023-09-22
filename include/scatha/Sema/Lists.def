@@ -32,7 +32,7 @@ SC_SEMA_ENTITY_DEF(Object,         ABSTRACT)
 SC_SEMA_ENTITY_DEF(Variable,       CONCRETE)
 SC_SEMA_ENTITY_DEF(Property,       CONCRETE)
 SC_SEMA_ENTITY_DEF(Temporary,      CONCRETE)
-SC_SEMA_ENTITY_DEF(PoisonEntity,   CONCRETE)
+SC_SEMA_ENTITY_DEF(PoisonEntity,   CONCRETE) // Warning: Update last definition in Fwd.h of this changes
 
 #undef SC_SEMA_ENTITY_DEF
 

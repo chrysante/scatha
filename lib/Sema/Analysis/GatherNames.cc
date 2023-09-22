@@ -70,7 +70,7 @@ size_t GatherContext::gatherImpl(ast::TranslationUnit& tu) {
 size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     if (auto const scopeKind = sym.currentScope().kind();
         scopeKind != ScopeKind::Global && scopeKind != ScopeKind::Namespace &&
-        scopeKind != ScopeKind::Object)
+        scopeKind != ScopeKind::Type)
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
@@ -95,7 +95,7 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
 size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
-                                                   sk != ScopeKind::Object)
+                                                   sk != ScopeKind::Type)
     {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and struct scope
@@ -125,7 +125,7 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
 }
 
 size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object,
+    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Type,
               "We only want to prepass struct definitions. What are we doing "
               "here?");
     SC_ASSERT(varDecl.typeExpr(),

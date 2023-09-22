@@ -591,7 +591,7 @@ protected:
                          size_t size,
                          size_t align):
         ObjectType(entityType,
-                   ScopeKind::Object,
+                   ScopeKind::Type,
                    std::move(name),
                    parentScope,
                    size,
@@ -671,7 +671,7 @@ public:
                         size_t size = InvalidSize,
                         size_t align = InvalidSize):
         ObjectType(EntityType::StructType,
-                   ScopeKind::Object,
+                   ScopeKind::Type,
                    std::move(name),
                    parentScope,
                    size,
@@ -752,7 +752,7 @@ public:
 
     explicit ArrayType(ObjectType const* elementType, size_t count):
         ObjectType(EntityType::ArrayType,
-                   ScopeKind::Object,
+                   ScopeKind::Type,
                    makeName(elementType, count),
                    const_cast<Scope*>(elementType->parent()),
                    count != DynamicCount ? count * elementType->size() :
