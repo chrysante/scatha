@@ -29,3 +29,7 @@ Then we can also remove the `->` member access operator
 ## Backend
 
 ### Write selection DAG based code generation algorithm
+
+## Other
+
+### Consider testing for null in `dyncast` and removing `dyncast_or_null`
