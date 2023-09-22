@@ -122,6 +122,7 @@ SC_SEMA_BADID_DEF(Undeclared,
 #   define SC_SEMA_BADUNEXPR_DEF(reason, severity, text)
 #endif
 
+// TODO: Rename to BadType
 SC_SEMA_BADUNEXPR_DEF(Type,
                       Error,
                       "Operand type " << expression()->operand()->type()->name()
@@ -139,3 +140,34 @@ SC_SEMA_BADUNEXPR_DEF(Immutable,
                           << expression()->operation())
 
 #undef SC_SEMA_BADUNEXPR_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad binary expression -------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADBINEXPR_DEF
+#   define SC_SEMA_BADBINEXPR_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADBINEXPR_DEF(NoCommonType,
+                       Error,
+                       "Operand types " << expression()->lhs()->type()->name()
+                           << " and " << expression()->rhs()->type()->name()
+                           << " have no common type")
+
+SC_SEMA_BADBINEXPR_DEF(BadType,
+                       Error,
+                       ::format(expression()->operation()) << " is not supported for operand types "
+                           << expression()->lhs()->type()->name() << " and "
+                           << expression()->rhs()->type()->name())
+
+SC_SEMA_BADBINEXPR_DEF(ValueCatLHS,
+                       Error,
+                       expression()->lhs()->valueCategory()
+                          << " operand is invalid in assignment expression")
+
+SC_SEMA_BADBINEXPR_DEF(ImmutableLHS,
+                       Error,
+                       "Immutable operand is invalid in assignment expression")
+
+#undef SC_SEMA_BADBINEXPR_DEF

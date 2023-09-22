@@ -10,6 +10,12 @@ fn main() {
     [1, 0.0, 2];
     var j = 0;
     for i; int(i) != 3; i = byte(int(i) + 1) {}
+    
+    1 *= 2;
+    var b: byte;
+    b += 1;
+    b %= '.';
+    b % '.';
 }
 
 

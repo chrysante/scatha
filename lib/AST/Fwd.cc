@@ -76,9 +76,30 @@ bool ast::isArithmeticAssignment(BinaryOperator op) {
 
 BinaryOperator ast::toNonAssignment(BinaryOperator op) {
     using enum BinaryOperator;
-    auto diff =
-        utl::to_underlying(AddAssignment) - utl::to_underlying(Assignment);
-    return BinaryOperator{ utl::to_underlying(op) - diff };
+    switch (op) {
+    case AddAssignment:
+        return Addition;
+    case SubAssignment:
+        return Subtraction;
+    case MulAssignment:
+        return Multiplication;
+    case DivAssignment:
+        return Division;
+    case RemAssignment:
+        return Remainder;
+    case LSAssignment:
+        return LeftShift;
+    case RSAssignment:
+        return RightShift;
+    case AndAssignment:
+        return BitwiseAnd;
+    case OrAssignment:
+        return BitwiseOr;
+    case XOrAssignment:
+        return BitwiseXOr;
+    default:
+        SC_UNREACHABLE();
+    }
 }
 
 std::string_view ast::toString(LoopKind loopKind) {

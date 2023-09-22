@@ -262,6 +262,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& b) {
 static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
                                                       ObjectType const* type,
                                                       ast::BinaryOperator op) {
+    /// For arighmetic assignment we recursively call this function with the
+    /// respective non-assignment arithemtic operator
     if (ast::isArithmeticAssignment(op)) {
         if (getResultType(sym, type, ast::toNonAssignment(op)).has_value()) {
             return sym.Void();
@@ -351,50 +353,42 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
                  expr.rhs()->type() };
     }
 
-    /// Determine common type
+    /// Determine common type of operands
     QualType commonType =
         sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
     if (!commonType) {
-        iss.push<BadOperandsForBinaryExpression>(expr,
-                                                 expr.lhs()->type(),
-                                                 expr.rhs()->type());
+        ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::NoCommonType);
         return {};
     }
+
+    /// Determine result type of operation
     auto resultType = getResultType(sym, commonType.get(), expr.operation());
     if (!resultType) {
-        iss.push<BadOperandsForBinaryExpression>(expr,
-                                                 expr.lhs()->type(),
-                                                 expr.rhs()->type());
+        ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::BadType);
         return {};
     }
 
     /// Handle assignment seperately
     if (ast::isAssignment(expr.operation())) {
         QualType lhsType = expr.lhs()->type();
-        /// Here we only look at assignment _through_ references
-        /// That means LHS shall be an implicit reference
-        if (!expr.lhs()->type().isMut()) {
-            iss.push<BadOperandsForBinaryExpression>(expr,
-                                                     expr.lhs()->type(),
-                                                     expr.rhs()->type());
+        if (expr.lhs()->valueCategory() != LValue) {
+            ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::ValueCatLHS);
             return {};
         }
-        bool success = true;
-        success &=
-            !!convert(Implicit, expr.rhs(), lhsType, RValue, *dtorStack, ctx);
-        if (!success) {
+        if (!expr.lhs()->type().isMut()) {
+            ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::ImmutableLHS);
+            return {};
+        }
+        if (!convert(Implicit, expr.rhs(), lhsType, RValue, *dtorStack, ctx)) {
             return {};
         }
         return { sym.temporary(sym.Void()), RValue, sym.Void() };
     }
 
-    bool successfulConv = true;
-    successfulConv &=
-        !!convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx);
-    successfulConv &=
-        !!convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx);
-
-    if (successfulConv) {
+    /// Convert the operands to common type
+    if (convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx) &&
+        convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx))
+    {
         return { sym.temporary(*resultType), RValue, *resultType };
     }
     return {};

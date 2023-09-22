@@ -251,3 +251,93 @@ void BadUnaryExpr::format(std::ostream& str) const {
 #include "Sema/SemanticIssuesNEW.def"
     }
 }
+
+static IssueSeverity toSeverity(BadBinaryExpr::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADBINEXPR_DEF(reason, severity, _)                            \
+    case BadBinaryExpr::reason:                                                \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+static std::string_view format(ast::BinaryOperator op) {
+    using enum ast::BinaryOperator;
+    switch (op) {
+    case Multiplication:
+        return "Multiplication";
+    case Division:
+        return "Division";
+    case Remainder:
+        return "Remainder operation";
+    case Addition:
+        return "Addition";
+    case Subtraction:
+        return "Subtraction";
+    case LeftShift:
+        return "Left shift";
+    case RightShift:
+        return "Right shift";
+    case Less:
+        [[fallthrough]];
+    case LessEq:
+        [[fallthrough]];
+    case Greater:
+        [[fallthrough]];
+    case GreaterEq:
+        return "Relational comparison";
+    case Equals:
+        [[fallthrough]];
+    case NotEquals:
+        return "Equality comparison";
+    case BitwiseAnd:
+        return "Bitwise and";
+    case BitwiseXOr:
+        return "Bitwise xor";
+    case BitwiseOr:
+        return "Bitwise or";
+    case LogicalAnd:
+        return "Logical and";
+    case LogicalOr:
+        return "Logical and";
+    case Assignment:
+        return "Assignment";
+    case AddAssignment:
+        [[fallthrough]];
+    case SubAssignment:
+        [[fallthrough]];
+    case MulAssignment:
+        [[fallthrough]];
+    case DivAssignment:
+        [[fallthrough]];
+    case RemAssignment:
+        [[fallthrough]];
+    case LSAssignment:
+        [[fallthrough]];
+    case RSAssignment:
+        [[fallthrough]];
+    case AndAssignment:
+        [[fallthrough]];
+    case OrAssignment:
+        [[fallthrough]];
+    case XOrAssignment:
+        return "Arithmetic assignment";
+    case Comma:
+        return "Comma operation";
+    }
+}
+
+BadBinaryExpr::BadBinaryExpr(Scope const* scope,
+                             ast::BinaryExpression const* expr,
+                             Reason reason):
+    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
+
+void BadBinaryExpr::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADBINEXPR_DEF(reason, _, message)                             \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}

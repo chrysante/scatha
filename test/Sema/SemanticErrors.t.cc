@@ -69,43 +69,65 @@ fn f(x: float) -> int { return "a string"; }
     CHECK(line4->to().get() == issues.sym.S64());
 }
 
-TEST_CASE("Bad operands for expression", "[sema][issue]") {
+TEST_CASE("Bad operands for unary expression", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main(i: int) -> bool {
-/* 3 */	let a = !(i == 1.0);
-/* 4 */	let b = !(i + 1.0);
-/* 5 */	let c = !i;
-/* 6 */	let d = ~i;
-/* 7 */ let e = ++i;
-/* 8 */ let e = --0;
+/* 3 */	!i;
+/* 4 */	~i;
+/* 5 */ ++i;
+/* 6 */ --0;
 })");
     {
-        auto const issue = issues.findOnLine<BadOperandsForBinaryExpression>(3);
-        REQUIRE(issue);
-        CHECK(issue->lhs().get() == issues.sym.S64());
-        CHECK(issue->rhs().get() == issues.sym.F64());
-    }
-    {
-        auto const issue = issues.findOnLine<BadOperandsForBinaryExpression>(4);
-        REQUIRE(issue);
-        CHECK(issue->lhs().get() == issues.sym.S64());
-        CHECK(issue->rhs().get() == issues.sym.F64());
-    }
-    {
-        auto const issue = issues.findOnLine<BadUnaryExpr>(5);
+        auto const issue = issues.findOnLine<BadUnaryExpr>(3);
         REQUIRE(issue);
         CHECK(issue->reason() == BadUnaryExpr::Type);
     }
-    CHECK(issues.noneOnLine(6));
+    CHECK(issues.noneOnLine(4));
     {
-        auto const issue = issues.findOnLine<BadUnaryExpr>(7);
+        auto const issue = issues.findOnLine<BadUnaryExpr>(5);
         REQUIRE(issue);
         CHECK(issue->reason() == BadUnaryExpr::Immutable);
     }
     {
-        auto const issue = issues.findOnLine<BadUnaryExpr>(8);
+        auto const issue = issues.findOnLine<BadUnaryExpr>(6);
         REQUIRE(issue);
         CHECK(issue->reason() == BadUnaryExpr::ValueCat);
+    }
+}
+
+TEST_CASE("Bad operands for binary expression", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+fn main(i: int, f: double) -> bool {
+/* 3 */ i == 1.0;
+/* 4 */ i + '1';
+/* 5 */ f ^ 1.0;
+/* 6 */ i *= 2;
+/* 7 */ 2 *= 2;
+})");
+    {
+        auto const issue = issues.findOnLine<BadBinaryExpr>(3);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadBinaryExpr::NoCommonType);
+    }
+    {
+        auto const issue = issues.findOnLine<BadBinaryExpr>(4);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadBinaryExpr::NoCommonType);
+    }
+    {
+        auto const issue = issues.findOnLine<BadBinaryExpr>(5);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadBinaryExpr::BadType);
+    }
+    {
+        auto const issue = issues.findOnLine<BadBinaryExpr>(6);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadBinaryExpr::ImmutableLHS);
+    }
+    {
+        auto const issue = issues.findOnLine<BadBinaryExpr>(7);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadBinaryExpr::ValueCatLHS);
     }
 }
 
