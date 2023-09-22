@@ -258,17 +258,16 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& b) {
     return &b;
 }
 
-/// FIXME: Do we really need optional pointer here?
-static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
-                                                      ObjectType const* type,
-                                                      ast::BinaryOperator op) {
+static ObjectType const* getResultType(SymbolTable& sym,
+                                       ObjectType const* type,
+                                       ast::BinaryOperator op) {
     /// For arighmetic assignment we recursively call this function with the
-    /// respective non-assignment arithemtic operator
+    /// respective non-assignment arithemetic operator
     if (ast::isArithmeticAssignment(op)) {
-        if (getResultType(sym, type, ast::toNonAssignment(op)).has_value()) {
+        if (getResultType(sym, type, ast::toNonAssignment(op))) {
             return sym.Void();
         }
-        return std::nullopt;
+        return nullptr;
     }
     switch (op) {
         using enum ast::BinaryOperator;
@@ -282,13 +281,13 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         if (isAny<IntType, FloatType>(type)) {
             return type;
         }
-        return std::nullopt;
+        return nullptr;
 
     case Remainder:
         if (isAny<IntType>(type)) {
             return type;
         }
-        return std::nullopt;
+        return nullptr;
 
     case BitwiseAnd:
         [[fallthrough]];
@@ -298,7 +297,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         if (isAny<ByteType, BoolType, IntType>(type)) {
             return type;
         }
-        return std::nullopt;
+        return nullptr;
 
     case Less:
         [[fallthrough]];
@@ -310,7 +309,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         if (isAny<ByteType, IntType, FloatType>(type)) {
             return sym.Bool();
         }
-        return std::nullopt;
+        return nullptr;
 
     case Equals:
         [[fallthrough]];
@@ -318,7 +317,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         if (isAny<ByteType, BoolType, IntType, FloatType>(type)) {
             return sym.Bool();
         }
-        return std::nullopt;
+        return nullptr;
 
     case LogicalAnd:
         [[fallthrough]];
@@ -326,7 +325,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         if (isAny<BoolType>(type)) {
             return sym.Bool();
         }
-        return std::nullopt;
+        return nullptr;
 
     case LeftShift:
         [[fallthrough]];
@@ -334,7 +333,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         if (isAny<ByteType, IntType>(type)) {
             return type;
         }
-        return std::nullopt;
+        return nullptr;
 
     case Assignment:
         return sym.Void();
@@ -362,7 +361,7 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
     }
 
     /// Determine result type of operation
-    auto resultType = getResultType(sym, commonType.get(), expr.operation());
+    auto* resultType = getResultType(sym, commonType.get(), expr.operation());
     if (!resultType) {
         ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::BadType);
         return {};
@@ -389,7 +388,7 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
     if (convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx) &&
         convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx))
     {
-        return { sym.temporary(*resultType), RValue, *resultType };
+        return { sym.temporary(resultType), RValue, resultType };
     }
     return {};
 }
