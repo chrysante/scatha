@@ -45,7 +45,6 @@ struct ExprContext {
     std::tuple<Object*, ValueCategory, QualType> analyzeBinaryExpr(
         ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
-    Entity* lookup(ast::Identifier& id);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* rewritePropertyCall(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
@@ -79,7 +78,13 @@ struct ExprContext {
     IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
     /// unset by Identifier
-    bool performRestrictedNameLookup = false;
+    void restrictNameLookup(Scope* scope) { restrictedLookupScope = scope; }
+    Scope* getRestrictedLookupScope() {
+        auto* scope = restrictedLookupScope;
+        restrictedLookupScope = nullptr;
+        return scope;
+    }
+    Scope* restrictedLookupScope = nullptr;
 };
 
 } // namespace
@@ -394,8 +399,16 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
-    Entity* entity = lookup(id);
+    auto* entity = [&] {
+        if (auto* scope = getRestrictedLookupScope()) {
+            return scope->findEntity(id.value());
+        }
+        else {
+            return sym.lookup(id.value());
+        }
+    }();
     if (!entity) {
+        ctx.issue<BadIdentifier>(&id, BadIdentifier::Undeclared);
         return nullptr;
     }
     // clang-format off
@@ -432,19 +445,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     }; // clang-format on
 }
 
-Entity* ExprContext::lookup(ast::Identifier& id) {
-    bool const restrictedLookup = performRestrictedNameLookup;
-    performRestrictedNameLookup = false;
-    auto* entity = restrictedLookup ?
-                       sym.currentScope().findEntity(id.value()) :
-                       sym.lookup(id.value());
-    if (!entity) {
-        ctx.issue<BadIdentifier>(&id, BadIdentifier::Undeclared);
-        return nullptr;
-    }
-    return entity;
-}
-
 static Scope* findLookupTargetScope(ast::Expression& expr) {
     switch (expr.entityCategory()) {
     case EntityCategory::Value: {
@@ -472,14 +472,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(ma.accessed())) {
         return nullptr;
     }
-    bool success = sym.withScopeCurrent(findLookupTargetScope(*ma.accessed()),
-                                        [&] {
-        /// We restrict name lookup to the current scope. This flag will be
-        /// unset by the identifier case.
-        performRestrictedNameLookup = true;
-        return analyze(ma.member());
-    });
-    if (!success) {
+    restrictNameLookup(findLookupTargetScope(*ma.accessed()));
+    if (!analyze(ma.member())) {
         return nullptr;
     }
     if (isa<OverloadSet>(ma.member()->entity()) &&
