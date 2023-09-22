@@ -19,7 +19,7 @@
 /// │  │  ├─ Redefinition
 /// │  │  ├─ BadVarDecl
 /// │  │  ├─ BadParamDecl
-/// │  │  ├─ BadFuncDef
+/// │  │  ├─ BadSMF
 /// │  │  └─ BadStructDef
 /// │  └─ BadReturnStatement
 /// └─ BadExpression
@@ -150,20 +150,29 @@ private:
     ast::Expression const* _initExpr;
 };
 
-class SCATHA_API BadFuncDef: public BadDecl {
+class SCATHA_API BadSMF: public BadDecl {
 public:
     enum Reason {
-#define SC_SEMA_BADFUNCDEF_DEF(reason, _0, _1) reason,
+#define SC_SEMA_BADSMF_DEF(reason, _0, _1) reason,
 #include <scatha/Sema/SemanticIssuesNEW.def>
     };
     SC_SEMA_ISSUE_REASON()
 
-    BadFuncDef(Scope const* scope,
-               ast::FunctionDefinition const* funcdef,
-               Reason reason);
+    BadSMF(Scope const* scope,
+           ast::FunctionDefinition const* funcdef,
+           Reason reason,
+           SpecialMemberFunction SMF,
+           StructType const* parent);
+
+    SpecialMemberFunction SMF() const { return smf; }
+
+    StructType const* parent() const { return _parent; }
 
 private:
     void format(std::ostream& str) const override;
+
+    SpecialMemberFunction smf;
+    StructType const* _parent;
 };
 
 ///

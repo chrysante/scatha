@@ -1,10 +1,16 @@
-
-
-
-
-fn main() {
-    if true {
-        struct X {}
+struct X {
+    //fn new(&mut this) {
+    //
+    //}
+    //fn new(&mut this, n: int) {
+    //
+    //}
+    //fn new(&mut this, rhs: &X) {
+    //
+    //}
+    
+    fn delete(&mut this) {
+    
     }
 
 }

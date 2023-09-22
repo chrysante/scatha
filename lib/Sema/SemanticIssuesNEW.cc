@@ -60,7 +60,7 @@ BadDecl::BadDecl(Scope const* scope,
     BadStmt(scope, declaration, severity) {}
 
 ast::Declaration const* BadDecl::declaration() const {
-    return cast<ast::Declaration const*>(statement());
+    return cast_or_null<ast::Declaration const*>(statement());
 }
 
 static std::string_view format(ast::Declaration const* decl) {
@@ -95,7 +95,10 @@ static std::string_view format(Scope const* scope) {
 }
 
 void Redefinition::format(std::ostream& str) const {
-    str << "Redefinition of " << declaration()->name();
+    str << "Redefinition";
+    if (declaration()) {
+        str << " of " << declaration()->name();
+    }
 }
 
 BadVarDecl::BadVarDecl(Scope const* scope,
@@ -118,11 +121,31 @@ void BadVarDecl::format(std::ostream& str) const {
     }
 }
 
-static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
+static IssueSeverity toSeverity(BadSMF::Reason reason) {
     switch (reason) {
-#define SC_SEMA_BADFUNCDEF_DEF(reason, severity, _)                            \
-    case BadFuncDef::reason:                                                   \
+#define SC_SEMA_BADSMF_DEF(reason, severity, _)                                \
+    case BadSMF::reason:                                                       \
         return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadSMF::BadSMF(Scope const* scope,
+               ast::FunctionDefinition const* funcdef,
+               Reason reason,
+               SpecialMemberFunction SMF,
+               StructType const* parent):
+    BadDecl(scope, funcdef, toSeverity(reason)),
+    _reason(reason),
+    smf(SMF),
+    _parent(parent) {}
+
+void BadSMF::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADSMF_DEF(reason, _, message)                                 \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
 #include "Sema/SemanticIssuesNEW.def"
     }
 }

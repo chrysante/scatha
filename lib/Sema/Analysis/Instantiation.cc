@@ -233,56 +233,51 @@ static bool isRefTo(Type const* argType, QualType referredType) {
 }
 
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
-    auto* function = def.function();
-    sym.makeScopeCurrent(function->parent());
+    auto* F = def.function();
+    sym.makeScopeCurrent(F->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto result = sym.setFuncSig(function, analyzeSignature(def));
+    auto result = sym.setFuncSig(F, analyzeSignature(def));
     if (!result) {
         return;
     }
-    /// TODO: Handle return type correctly
-    /// If the function is a special member function we should check if it has a
-    /// return type specified. If so, we emit an error. Otherwise we set the
-    /// return type to void
     auto SMF = toSMF(def);
     if (!SMF) {
         return;
     }
-    auto pushError = [&] {
-        using enum InvalidDeclaration::Reason;
-        iss.push(new InvalidDeclaration(&def,
-                                        InvalidSpecialMemberFunction,
-                                        *function->parent()));
-    };
-    auto* structType = dyncast<StructType*>(function->parent());
-    if (!structType) {
-        pushError();
+    auto* type = dyncast<StructType*>(F->parent());
+    type->addSpecialMemberFunction(*SMF, F->overloadSet());
+    if (!type) {
+        ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, *SMF, type);
         return;
     }
-    function->setSMFKind(*SMF);
-    structType->addSpecialMemberFunction(*SMF, function->overloadSet());
-    auto const& sig = function->signature();
-    if (sig.argumentCount() == 0 ||
-        !isRefTo(sig.argumentType(0), QualType::Mut(structType)))
-    {
-        pushError();
+    F->setSMFKind(*SMF);
+    if (def.returnTypeExpr()) {
+        ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, *SMF, type);
+        return;
+    }
+    F->setDeducedReturnType(sym.Void());
+    Type const* mutRef = sym.reference(QualType::Mut(type));
+    if (F->argumentCount() == 0) {
+        ctx.issue<BadSMF>(&def, BadSMF::NoParams, *SMF, type);
+        return;
+    }
+    if (F->argumentType(0) != mutRef) {
+        ctx.issue<BadSMF>(&def, BadSMF::BadFirstParam, *SMF, type);
         return;
     }
     using enum SpecialMemberFunction;
-    switch (function->SMFKind()) {
+    switch (F->SMFKind()) {
     case New:
         break;
     case Move:
-        if (sig.argumentCount() != 2 ||
-            !isRefTo(sig.argumentType(1), QualType::Mut(structType)))
-        {
-            pushError();
+        if (F->argumentCount() != 2 || F->argumentType(1) != mutRef) {
+            ctx.issue<BadSMF>(&def, BadSMF::MoveSignature, *SMF, type);
             return;
         }
         break;
     case Delete:
-        if (sig.argumentCount() != 1) {
-            pushError();
+        if (F->argumentCount() != 1) {
+            ctx.issue<BadSMF>(&def, BadSMF::DeleteSignature, *SMF, type);
             return;
         }
         break;
@@ -341,25 +336,26 @@ struct SLFArray: std::array<Function*, EnumSize<SpecialLifetimeFunction>> {
 
 } // namespace
 
-static SLFArray getDefinedSLFs(StructType& type) {
+static SLFArray getDefinedSLFs(SymbolTable& sym, StructType& type) {
     using enum SpecialMemberFunction;
     using enum SpecialLifetimeFunction;
     SLFArray result{};
+    Type const* mutRef = sym.reference(QualType::Mut(&type));
+    Type const* constRef = sym.reference(QualType::Const(&type));
     if (auto* constructor = type.specialMemberFunction(New)) {
-        for (auto* function: *constructor) {
-            auto const& sig = function->signature();
-            switch (sig.argumentCount()) {
+        for (auto* F: *constructor) {
+            switch (F->argumentCount()) {
             case 1: {
-                if (isRefTo(sig.argumentType(0), QualType::Mut(&type))) {
-                    result[DefaultConstructor] = function;
+                if (F->argumentType(0) == mutRef) {
+                    result[DefaultConstructor] = F;
                 }
                 break;
             }
             case 2: {
-                if (isRefTo(sig.argumentType(0), QualType::Mut(&type)) &&
-                    isRefTo(sig.argumentType(1), QualType::Const(&type)))
+                if (F->argumentType(0) == mutRef &&
+                    F->argumentType(1) == constRef)
                 {
-                    result[CopyConstructor] = function;
+                    result[CopyConstructor] = F;
                 }
                 break;
             }
@@ -368,13 +364,15 @@ static SLFArray getDefinedSLFs(StructType& type) {
             }
         }
     }
-    if (auto* move = type.specialMemberFunction(Move)) {
-        SC_ASSERT(move->size() == 1, "Can only have one move constructor");
-        result[MoveConstructor] = move->front();
+    if (auto* os = type.specialMemberFunction(Move)) {
+        if (auto* move = os->find(std::array{ mutRef, mutRef })) {
+            result[MoveConstructor] = move;
+        }
     }
-    if (auto* del = type.specialMemberFunction(Delete)) {
-        SC_ASSERT(del->size() == 1, "Can only have one destructor");
-        result[Destructor] = del->front();
+    if (auto* os = type.specialMemberFunction(Delete)) {
+        if (auto* del = os->find(std::array{ mutRef })) {
+            result[Destructor] = del;
+        }
     }
     return result;
 }
@@ -409,7 +407,7 @@ static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
 
 void InstContext::generateSLFs(StructType& type) {
     using enum SpecialLifetimeFunction;
-    auto SLF = getDefinedSLFs(type);
+    auto SLF = getDefinedSLFs(sym, type);
     bool const isDefaultConstructible = computeDefaultConstructible(type, SLF);
     bool const hasTrivialLifetime = computeTrivialLifetime(type, SLF);
     type.setIsDefaultConstructible(isDefaultConstructible);
@@ -444,7 +442,9 @@ Function* InstContext::generateSLF(SpecialLifetimeFunction key,
     Function* function = sym.withScopeCurrent(&type, [&] {
         return sym.declareFuncName(std::string(toString(SMFKind)));
     });
-    sym.setFuncSig(function, makeLifetimeSignature(type, key));
+    SC_ASSERT(function, "Name can't be used by other symbol");
+    bool result = sym.setFuncSig(function, makeLifetimeSignature(type, key));
+    SC_ASSERT(result, "Can't be defined because we checked in getDefinedSLFs");
     function->setKind(FunctionKind::Generated);
     function->setIsMember();
     function->setSMFKind(SMFKind);

@@ -48,18 +48,40 @@ SC_SEMA_BADVARDECL_DEF(ThisPosition,
 #undef SC_SEMA_BADVARDECL_DEF
 
 // ===--------------------------------------------------------------------=== //
-// === List of all reasons for a bad function definition -----------------=== //
+// === List of all reasons for a bad special member function -------------=== //
 // ===--------------------------------------------------------------------=== //
 
-#ifndef SC_SEMA_BADFUNCDEF_DEF
-#   define SC_SEMA_BADFUNCDEF_DEF(reason, severity, text)
+#ifndef SC_SEMA_BADSMF_DEF
+#   define SC_SEMA_BADSMF_DEF(reason, severity, text)
 #endif
 
-SC_SEMA_BADFUNCDEF_DEF(InvalidSMF,
-                       Error,
-                       "Invalid special member function declaration")
+SC_SEMA_BADSMF_DEF(HasReturnType,
+                   Error,
+                   "Function '" << SMF() << "' must not have a return type")
+SC_SEMA_BADSMF_DEF(NotInStruct,
+                   Error,
+                   "Function '" << SMF() << "' must be a member function")
+SC_SEMA_BADSMF_DEF(NoParams,
+                   Error,
+                   "Function '" << SMF()
+                       << "' must have at least one parameter of type "
+                       << "&mut " << parent()->name())
+SC_SEMA_BADSMF_DEF(BadFirstParam,
+                   Error,
+                   "The first parameter to function '" << SMF()
+                       << "' must be of type "
+                       << "&mut " << parent()->name())
+SC_SEMA_BADSMF_DEF(MoveSignature,
+                   Error,
+                   "The parameters types of function '" << SMF()
+                       << "' must be "
+                       << "&mut " << parent()->name() << ", "
+                       << "&mut " << parent()->name())
+SC_SEMA_BADSMF_DEF(DeleteSignature,
+                   Error,
+                   "Function '" << SMF() << "' must have exactly one parameter")
 
-#undef SC_SEMA_BADFUNCDEF_DEF
+#undef SC_SEMA_BADSMF_DEF
 
 // ===--------------------------------------------------------------------=== //
 // === List of all reasons for a bad return statement --------------------=== //

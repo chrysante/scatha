@@ -828,8 +828,6 @@ private:
 class SCATHA_API OverloadSet:
     public Entity,
     private utl::small_vector<Function*, 8> {
-    using VecBase = utl::small_vector<Function*, 8>;
-
 public:
     SC_MOVEONLY(OverloadSet);
 
@@ -843,14 +841,23 @@ public:
     /// the overload
     Function* add(Function* function);
 
+    /// \Returns the function in this overload set that exactly matches the
+    /// parameter types \p paramTypes
+    Function* find(std::span<Type const* const> paramTypes) {
+        return const_cast<Function*>(std::as_const(*this).find(paramTypes));
+    }
+
+    /// \overload for const
+    Function const* find(std::span<Type const* const> paramTypes) const;
+
     /// Inherit interface from `utl::vector`
-    using VecBase::begin;
-    using VecBase::empty;
-    using VecBase::end;
-    using VecBase::size;
-    using VecBase::operator[];
-    using VecBase::back;
-    using VecBase::front;
+    using small_vector::begin;
+    using small_vector::empty;
+    using small_vector::end;
+    using small_vector::size;
+    using small_vector::operator[];
+    using small_vector::back;
+    using small_vector::front;
 
 private:
     friend class Entity;

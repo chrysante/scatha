@@ -11,7 +11,7 @@ namespace scatha {
 /// Represents a location in source code
 struct SourceLocation {
     /// \Returns `true` if this object represents a valid source location
-    bool valid() const { return line != 0 && column != 0; }
+    bool valid() const { return line > 0 && column > 0; }
 
     i64 index = 0;
     i32 line = 0, column = 0;

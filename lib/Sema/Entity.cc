@@ -283,3 +283,10 @@ Function* OverloadSet::add(Function* F) {
     }
     return *itr;
 }
+
+Function const* OverloadSet::find(std::span<Type const* const> types) const {
+    auto itr = ranges::find_if(*this, [&](auto* function) {
+        return ranges::equal(function->argumentTypes(), types);
+    });
+    return itr != end() ? *itr : nullptr;
+}

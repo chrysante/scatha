@@ -363,13 +363,71 @@ struct X {
     fn f(n: int, this) {}
 }
 )");
-    auto* line2 = issues.findOnLine<BadVarDecl>(2);
-    REQUIRE(line2);
-    CHECK(line2->reason() == BadVarDecl::ThisInFreeFunction);
-    auto* line3 = issues.findOnLine<BadVarDecl>(3);
-    REQUIRE(line3);
-    CHECK(line3->reason() == BadVarDecl::ThisInFreeFunction);
-    auto* line5 = issues.findOnLine<BadVarDecl>(5);
-    REQUIRE(line5);
-    CHECK(line5->reason() == BadVarDecl::ThisPosition);
+    {
+        auto* issue = issues.findOnLine<BadVarDecl>(2);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadVarDecl::ThisInFreeFunction);
+    }
+    {
+        auto* issue = issues.findOnLine<BadVarDecl>(3);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadVarDecl::ThisInFreeFunction);
+    }
+    {
+        auto* issue = issues.findOnLine<BadVarDecl>(5);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadVarDecl::ThisPosition);
+    }
+}
+
+TEST_CASE("Invalid special member functions", "[sema][issue]") {
+    return;
+    auto const issues = test::getSemaIssues(R"(
+/*  2 */  fn new() {}
+/*  3 */  struct X {
+/*  4 */      fn new() {}
+/*  5 */      fn new(&this) {}
+/*  6 */      fn new(self: &mut X) {}
+/*  7 */      fn new(lhs: &mut X, rhs: &X) {}
+/*  8 */      fn move(lhs: &mut X) {}
+/*  9 */      fn move(lhs: &mut X, rhs: &mut X) {}
+/* 10 */      fn delete(&mut this, n: int) {}
+/* 11 */      fn delete(&mut this) {}
+/* 12 */      fn new(&mut this) -> int {}
+/*    */  }
+)");
+    {
+        auto* issue = issues.findOnLine<BadSMF>(2);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadSMF::NotInStruct);
+    }
+    {
+        auto* issue = issues.findOnLine<BadSMF>(4);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadSMF::NoParams);
+    }
+    {
+        auto* issue = issues.findOnLine<BadSMF>(5);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadSMF::BadFirstParam);
+    }
+    CHECK(issues.noneOnLine(6));
+    CHECK(issues.noneOnLine(7));
+    {
+        auto* issue = issues.findOnLine<BadSMF>(8);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadSMF::MoveSignature);
+    }
+    CHECK(issues.noneOnLine(9));
+    {
+        auto* issue = issues.findOnLine<BadSMF>(10);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadSMF::DeleteSignature);
+    }
+    CHECK(issues.noneOnLine(11));
+    {
+        auto* issue = issues.findOnLine<BadSMF>(12);
+        REQUIRE(issue);
+        CHECK(issue->reason() == BadSMF::HasReturnType);
+    }
 }
