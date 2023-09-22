@@ -13,8 +13,8 @@ SC_SEMA_GENERICBADSTMT_DEF(ReservedIdentifier,
                            "Reserved identifier")
 SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
                            Error,
-                           statement()->nodeType() << " invalid in "
-                               << scope()->kind() << " scope")
+                           ::format(statement()) << " is invalid in "
+                               << ::format(scope()))
 
 #undef SC_SEMA_GENERICBADSTMT_DEF
 

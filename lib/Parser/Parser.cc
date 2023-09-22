@@ -152,6 +152,7 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
+    auto closeParan = tokens.current();
     UniquePtr<ast::Expression> returnTypeExpr;
     if (Token const arrow = tokens.peek(); arrow.kind() == Arrow) {
         tokens.eat();
@@ -174,7 +175,9 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
-    return allocate<ast::FunctionDefinition>(declarator.sourceRange(),
+    auto sourceRange =
+        merge(declarator.sourceRange(), closeParan.sourceRange());
+    return allocate<ast::FunctionDefinition>(sourceRange,
                                              std::move(identifier),
                                              std::move(*params),
                                              std::move(returnTypeExpr),
@@ -299,7 +302,9 @@ UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
     tokens.eat();
     using enum sema::Mutability;
     auto mut = declarator.kind() == Var ? Mutable : Const;
-    return parseShortVariableDeclaration(mut, declarator);
+    auto result = parseShortVariableDeclaration(mut, declarator);
+    result->setDirectSourceRange(declarator.sourceRange());
+    return result;
 }
 
 UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
@@ -974,9 +979,11 @@ UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
                                                                  Comma,
                                                                  parseCallback)
             .value(); // TODO: Handle error
+    auto const& closeToken = tokens.current();
     return allocate<FunctionCallLike>(std::move(primary),
                                       std::move(args),
-                                      openToken.sourceRange());
+                                      merge(openToken.sourceRange(),
+                                            closeToken.sourceRange()));
 }
 
 template <typename, typename List>

@@ -15,6 +15,7 @@ static long cppCallback(long arg) {
 }
 
 void playground::hostIntegration(std::filesystem::path path) {
+#if 0
     std::fstream file(path);
     if (!file) {
         std::cout << "Failed to open " << path << std::endl;
@@ -83,4 +84,5 @@ void playground::hostIntegration(std::filesystem::path path) {
     run(&vm, print.value(), data);
 
     run(&vm, dealloc.value(), data);
+#endif
 }

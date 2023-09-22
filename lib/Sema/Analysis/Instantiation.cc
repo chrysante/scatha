@@ -225,11 +225,6 @@ void InstContext::instantiateVariable(SDGNode& node) {
     varDecl.decorateVarDecl(variable);
 }
 
-static bool isRefTo(Type const* argType, QualType referredType) {
-    auto* refType = dyncast<ReferenceType const*>(argType);
-    return refType && refType->base() == referredType;
-}
-
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     auto* F = def.function();
     sym.makeScopeCurrent(F->parent());

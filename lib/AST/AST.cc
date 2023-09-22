@@ -14,18 +14,13 @@ void ast::privateDelete(ASTNode* node) {
     visit(*node, [](auto& derived) { delete &derived; });
 }
 
-static void extSourceRangeImpl(SourceRange& result, ASTNode const* node) {
-    result = merge(result, node->sourceRange());
-    for (auto* child: node->children()) {
-        if (child) {
-            extSourceRangeImpl(result, child);
+SourceRange ASTNode::sourceRange() const {
+    SourceRange result = directSourceRange();
+    for (auto* child: children()) {
+        if (child && !isa<CompoundStatement>(child)) {
+            result = merge(result, child->sourceRange());
         }
     }
-}
-
-SourceRange ASTNode::extSourceRange() const {
-    SourceRange result;
-    extSourceRangeImpl(result, this);
     return result;
 }
 

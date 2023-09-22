@@ -60,6 +60,12 @@ private:
 
 SCATHA_API SourceRange merge(SourceRange lhs, SourceRange rhs);
 
+template <std::same_as<SourceRange>... Args>
+SourceRange merge(SourceRange lhs, Args... args) {
+    ((lhs = merge(lhs, args)), ...);
+    return lhs;
+}
+
 } // namespace scatha
 
 #endif // SCATHA_AST_SOURCELOCATION_H_

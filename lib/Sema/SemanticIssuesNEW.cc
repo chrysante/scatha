@@ -3,6 +3,8 @@
 #include <ostream>
 #include <string_view>
 
+#include <utl/streammanip.hpp>
+
 #include "AST/AST.h"
 #include "Sema/Entity.h"
 
@@ -27,6 +29,41 @@ static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
     case GenericBadStmt::reason:                                               \
         return IssueSeverity::severity;
 #include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+/// Used by `SC_SEMA_GENERICBADSTMT_DEF`
+static std::string_view format(ast::Statement const* stmt) {
+    using namespace ast;
+    using namespace std::literals;
+    // clang-format off
+    return SC_MATCH (*stmt) {
+        [](VariableDeclaration const&) { return "Variable declaration"sv; },
+        [](ParameterDeclaration const&) { return "Parameter declaration"sv; },
+        [](FunctionDefinition const&) { return "Function definition"sv; },
+        [](StructDefinition const&) { return "Struct declaration"sv; },
+        [](ReturnStatement const&) { return "Return statement"sv; },
+        [](Statement const&) { return "Statement"sv; },
+    }; // clang-format on
+}
+
+/// Used by `SC_SEMA_GENERICBADSTMT_DEF`
+static std::string_view format(Scope const* scope) {
+    using enum ScopeKind;
+    switch (scope->kind()) {
+    case Global:
+        return "global scope";
+    case Namespace:
+        return "namespace scope";
+    case Variable:
+#warning
+        return "???";
+    case Function:
+        return "function scope";
+    case Type:
+        return "struct scope";
+    case Invalid:
+        return "invalid scope";
     }
 }
 
@@ -58,37 +95,6 @@ BadDecl::BadDecl(Scope const* scope,
                  ast::Declaration const* declaration,
                  IssueSeverity severity):
     BadStmt(scope, declaration, severity) {}
-
-static std::string_view format(ast::Declaration const* decl) {
-    using namespace ast;
-    using namespace std::literals;
-    // clang-format off
-    return SC_MATCH (*decl) {
-        [](VariableDeclaration const&) { return "Variable declaration"sv; },
-        [](ParameterDeclaration const&) { return "Parameter declaration"sv; },
-        [](FunctionDefinition const&) { return "Function definition"sv; },
-        [](StructDefinition const&) { return "Struct declaration"sv; },
-        [](ASTNode const&) -> std::string_view { SC_UNREACHABLE(); },
-    }; // clang-format on
-}
-
-static std::string_view format(Scope const* scope) {
-    using enum ScopeKind;
-    switch (scope->kind()) {
-    case Global:
-        return "";
-    case Namespace:
-        return "";
-    case Variable:
-        return "";
-    case Function:
-        return "";
-    case Type:
-        return "";
-    case Invalid:
-        return "";
-    }
-}
 
 void Redefinition::format(std::ostream& str) const {
     str << "Redefinition";
@@ -174,14 +180,23 @@ StructDefCycle::StructDefCycle(Scope const* scope,
                                std::vector<Entity const*> cycle):
     BadDecl(scope, nullptr, IssueSeverity::Error), _cycle(std::move(cycle)) {}
 
+static constexpr utl::streammanip formatEntity =
+    [](std::ostream& str, Entity const* e) {
+    // clang-format off
+    SC_MATCH (*e) {
+        [&](StructType const&) { str << "struct"; },
+        [&](Variable const& var) { str << (var.isMut() ? "var" : "let"); },
+        [&](Entity const&) { str << "<unknown-decl>"; },
+    }; // clang-format on
+    str << " " << e->name();
+};
+
 void StructDefCycle::format(std::ostream& str) const {
-    str << "Cycling struct definition: ";
-    for (auto [index, entity]: cycle() | ranges::views::enumerate) {
-        if (index != 0) {
-            str << " -> ";
-        }
-        str << entity->name();
+    str << "Cyclic struct definition\nDefinition cycle is: ";
+    for (auto* entity: cycle()) {
+        str << formatEntity(entity) << " -> ";
     }
+    str << formatEntity(cycle().front());
 }
 
 BadExpr::BadExpr(Scope const* scope,

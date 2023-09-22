@@ -14,7 +14,7 @@ using namespace sema;
 
 BadExpression::BadExpression(ast::Expression const& expr,
                              IssueSeverity severity):
-    SemanticIssue(expr.extSourceRange(), severity), _expr(&expr) {}
+    SemanticIssue(expr.sourceRange(), severity), _expr(&expr) {}
 
 void BadExpression::format(std::ostream& str) const { str << "Bad expression"; }
 

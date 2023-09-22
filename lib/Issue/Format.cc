@@ -83,10 +83,7 @@ static auto lineNumber(ssize_t index) {
 void scatha::highlightSource(std::string_view text,
                              SourceRange sourceRange,
                              std::ostream& str) {
-    if (!sourceRange.valid()) {
-        str << "Invalid source location\n";
-        return;
-    }
+    SC_ASSERT(sourceRange.valid(), "");
     size_t const index = utl::narrow_cast<size_t>(sourceRange.begin().index);
     size_t const column = utl::narrow_cast<size_t>(sourceRange.begin().column);
     std::string_view const line = getLine(text, index);

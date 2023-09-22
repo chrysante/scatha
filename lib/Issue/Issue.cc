@@ -24,9 +24,14 @@ static constexpr utl::streammanip label([](std::ostream& str,
 });
 
 void Issue::print(std::string_view source, std::ostream& str) const {
-    str << label(severity()) << "L:" << sourceLocation().line
-        << " C:" << sourceLocation().column << " : ";
+    str << label(severity());
+    if (sourceLocation().valid()) {
+        str << "L:" << sourceLocation().line << " C:" << sourceLocation().column
+            << " : ";
+    }
     format(str);
     str << "\n";
-    highlightSource(source, sourceRange(), str);
+    if (sourceRange().valid()) {
+        highlightSource(source, sourceRange(), str);
+    }
 }

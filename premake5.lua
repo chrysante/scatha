@@ -174,7 +174,12 @@ includedirs { ".", "lib", "playground", "apmath" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha", "svm-lib", "runtime", "termfmt" }
+links { 
+    "scatha", 
+    "svm-lib",
+    --"runtime", 
+    "termfmt" 
+}
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }
