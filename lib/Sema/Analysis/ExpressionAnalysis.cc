@@ -17,6 +17,7 @@
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SemanticIssuesNEW.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -44,6 +45,7 @@ struct ExprContext {
     std::tuple<Object*, ValueCategory, QualType> analyzeBinaryExpr(
         ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
+    Entity* lookup(ast::Identifier& id);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* rewritePropertyCall(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
@@ -56,10 +58,7 @@ struct ExprContext {
     ArrayType const* analyzeSubscriptCommon(ast::CallLike&);
     ast::Expression* analyzeImpl(ast::GenericExpression&);
     ast::Expression* analyzeImpl(ast::ListExpression&);
-
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
-
-    Entity* lookup(ast::Identifier& id);
 
     /// Access the return type of a \p function
     /// If necessary this deduces the return type by calling `analyzeFunction()`
@@ -435,6 +434,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
             SC_UNREACHABLE();
         }
     }; // clang-format on
+}
+
+Entity* ExprContext::lookup(ast::Identifier& id) {
+    bool const restrictedLookup = performRestrictedNameLookup;
+    performRestrictedNameLookup = false;
+    auto* entity = restrictedLookup ?
+                       sym.currentScope().findEntity(id.value()) :
+                       sym.lookup(id.value());
+    if (!entity) {
+        ctx.issue<BadIdentifier>(&id, BadIdentifier::Undeclared);
+        return nullptr;
+    }
+    return entity;
 }
 
 static Scope* findLookupTargetScope(ast::Expression& expr) {
@@ -906,18 +918,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     default:
         SC_UNREACHABLE();
     }
-}
-
-Entity* ExprContext::lookup(ast::Identifier& id) {
-    bool const restrictedLookup = performRestrictedNameLookup;
-    performRestrictedNameLookup = false;
-    auto* entity = restrictedLookup ?
-                       sym.currentScope().findEntity(id.value()) :
-                       sym.lookup(id.value());
-    if (!entity) {
-        iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
-    }
-    return entity;
 }
 
 Type const* ExprContext::getReturnType(Function* function) {

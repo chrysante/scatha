@@ -146,20 +146,6 @@ private:
 
 SCATHA_API std::ostream& operator<<(std::ostream&, BadFunctionCall::Reason);
 
-class SCATHA_API UseOfUndeclaredIdentifier: public BadExpression {
-public:
-    explicit UseOfUndeclaredIdentifier(ast::Expression const& expression,
-                                       Scope const& inScope):
-        BadExpression(expression, IssueSeverity::Error), _scope(&inScope) {}
-
-    Scope const& currentScope() const { return *_scope; }
-
-private:
-    void format(std::ostream&) const override;
-
-    Scope const* _scope;
-};
-
 class SCATHA_API BadSymbolReference: public BadExpression {
 public:
     explicit BadSymbolReference(ast::Expression const& expression,

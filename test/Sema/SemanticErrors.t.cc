@@ -18,11 +18,11 @@ fn h() { 1 + x; }
 fn i() { let y: X.Z; }
 struct X { struct Y {} }
 )");
-    CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(2));
-    CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(3));
-    CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(4));
-    CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(5));
-    CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(6));
+    CHECK(issues.findOnLine<BadIdentifier>(2));
+    CHECK(issues.findOnLine<BadIdentifier>(3));
+    CHECK(issues.findOnLine<BadIdentifier>(4));
+    CHECK(issues.findOnLine<BadIdentifier>(5));
+    CHECK(issues.findOnLine<BadIdentifier>(6));
 }
 
 TEST_CASE("Bad symbol reference", "[sema][issue]") {

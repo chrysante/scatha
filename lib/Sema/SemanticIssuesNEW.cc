@@ -59,10 +59,6 @@ BadDecl::BadDecl(Scope const* scope,
                  IssueSeverity severity):
     BadStmt(scope, declaration, severity) {}
 
-ast::Declaration const* BadDecl::declaration() const {
-    return cast_or_null<ast::Declaration const*>(statement());
-}
-
 static std::string_view format(ast::Declaration const* decl) {
     using namespace ast;
     using namespace std::literals;
@@ -192,3 +188,27 @@ BadExpr::BadExpr(Scope const* scope,
                  ast::Expression const* expression,
                  IssueSeverity severity):
     SemaIssue(scope, expression->sourceRange(), severity), expr(expression) {}
+
+static IssueSeverity toSeverity(BadIdentifier::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADID_DEF(reason, severity, _)                                 \
+    case BadIdentifier::reason:                                                \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadIdentifier::BadIdentifier(Scope const* scope,
+                             ast::Identifier const* id,
+                             Reason reason):
+    BadExpr(scope, id, toSeverity(reason)), _reason(reason) {}
+
+void BadIdentifier::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADID_DEF(reason, _, message)                                  \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}

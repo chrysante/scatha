@@ -48,6 +48,18 @@ private:                                                                       \
 public:                                                                        \
     Reason reason() const { return _reason; }
 
+#define SC_SEMA_DERIVED_STMT(Type, Name)                                       \
+    template <typename T = ast::Type>                                          \
+    T const* Name() const {                                                    \
+        return cast_or_null<T const*>(BadStmt::statement());                   \
+    }
+
+#define SC_SEMA_DERIVED_EXPR(Type, Name)                                       \
+    template <typename T = ast::Type>                                          \
+    T const* Name() const {                                                    \
+        return cast_or_null<T const*>(BadExpr::expression());                  \
+    }
+
 /// Base class of all semantic issues
 class SCATHA_API SemaIssue: public Issue {
 public:
@@ -102,8 +114,7 @@ protected:
                      ast::Declaration const* declaration,
                      IssueSeverity severity);
 
-    /// \Returns the erroneous declaration
-    ast::Declaration const* declaration() const;
+    SC_SEMA_DERIVED_STMT(Declaration, declaration)
 };
 
 /// Declaration of a name that is already defined in the same scope
@@ -139,6 +150,8 @@ public:
                Type const* type = nullptr,
                ast::Expression const* initExpr = nullptr);
 
+    SC_SEMA_DERIVED_STMT(VarDeclBase, declaration)
+
     ///
     Type const* type() const { return _type; }
 
@@ -166,6 +179,8 @@ public:
            SpecialMemberFunction SMF,
            StructType const* parent);
 
+    SC_SEMA_DERIVED_STMT(FunctionDefinition, definition)
+
     SpecialMemberFunction SMF() const { return smf; }
 
     StructType const* parent() const { return _parent; }
@@ -185,6 +200,8 @@ public:
 #include <scatha/Sema/SemanticIssuesNEW.def>
     };
     SC_SEMA_ISSUE_REASON()
+
+    SC_SEMA_DERIVED_STMT(ReturnStatement, statement)
 
     BadReturnStmt(Scope const* scope,
                   ast::ReturnStatement const* statement,
@@ -223,8 +240,29 @@ private:
     ast::Expression const* expr;
 };
 
+///
+class SCATHA_API BadIdentifier: public BadExpr {
+public:
+    enum Reason {
+#define SC_SEMA_BADID_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    explicit BadIdentifier(Scope const* scope,
+                           ast::Identifier const* id,
+                           Reason reason);
+
+    SC_SEMA_DERIVED_EXPR(Identifier, identifier)
+
+private:
+    void format(std::ostream& str) const override;
+};
+
 } // namespace scatha::sema
 
 #undef SC_SEMA_ISSUE_REASON
+#undef SC_SEMA_DERIVED_STMT
+#undef SC_SEMA_DERIVED_EXPR
 
 #endif // SCATHA_SEMA_SEMANTICISSUES_H_

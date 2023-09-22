@@ -64,10 +64,6 @@ std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
     }); // clang-format on
 }
 
-void UseOfUndeclaredIdentifier::format(std::ostream& str) const {
-    str << "Use of undeclared identifier '" << toString(expression()) << "'";
-}
-
 BadSymbolReference::BadSymbolReference(ast::Expression const& expr,
                                        EntityCategory expected):
     BadExpression(expr, IssueSeverity::Error),

@@ -99,3 +99,17 @@ SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue,
                       "Void function must not return a value")
 
 #undef SC_SEMA_BADRETURN_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad identifier --------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADID_DEF
+#   define SC_SEMA_BADID_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADID_DEF(Undeclared,
+                  Error,
+                  "Use of undeclared identifier '" << identifier()->value() << "'")
+
+#undef SC_SEMA_BADID_DEF
