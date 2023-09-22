@@ -29,8 +29,8 @@ using enum BadExpr::Reason;
 namespace {
 
 struct ExprContext {
-    ExprContext(sema::AnalysisContext& ctx, DTorStack& dtorStack):
-        dtorStack(&dtorStack),
+    ExprContext(sema::AnalysisContext& ctx, DTorStack* dtorStack):
+        dtorStack(dtorStack),
         ctx(ctx),
         sym(ctx.symbolTable()),
         iss(ctx.issueHandler()) {}
@@ -39,6 +39,9 @@ struct ExprContext {
 
     /// Shorthand for `analyze() && expectValue()`
     ast::Expression* analyzeValue(ast::Expression*);
+
+    ///
+    Type const* analyzeType(ast::Expression* expr);
 
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
@@ -98,30 +101,17 @@ static bool isAny(T const& t) {
 ast::Expression* sema::analyzeExpression(ast::Expression* expr,
                                          DTorStack& dtorStack,
                                          AnalysisContext& ctx) {
-    return ExprContext(ctx, dtorStack).analyze(expr);
+    return ExprContext(ctx, &dtorStack).analyze(expr);
 }
 
 ast::Expression* sema::analyzeValueExpr(ast::Expression* expr,
                                         DTorStack& dtorStack,
                                         AnalysisContext& ctx) {
-    ExprContext exprCtx(ctx, dtorStack);
-    expr = exprCtx.analyze(expr);
-    if (!exprCtx.expectValue(expr)) {
-        return nullptr;
-    }
-    return expr;
+    return ExprContext(ctx, &dtorStack).analyzeValue(expr);
 }
 
 Type const* sema::analyzeTypeExpr(ast::Expression* expr, AnalysisContext& ctx) {
-    DTorStack dtorStack;
-    ExprContext exprCtx(ctx, dtorStack);
-    expr = exprCtx.analyze(expr);
-    SC_ASSERT(dtorStack.empty(),
-              "Type expression cannot trigger destructor calls");
-    if (!exprCtx.expectType(expr)) {
-        return nullptr;
-    }
-    return cast<Type const*>(expr->entity());
+    return ExprContext(ctx, nullptr).analyzeType(expr);
 }
 
 ast::Expression* ExprContext::analyze(ast::Expression* expr) {
@@ -137,10 +127,24 @@ ast::Expression* ExprContext::analyze(ast::Expression* expr) {
 
 ast::Expression* ExprContext::analyzeValue(ast::Expression* expr) {
     auto* result = analyze(expr);
-    if (!result || !expectValue(result)) {
+    if (!expectValue(result)) {
         return nullptr;
     }
     return result;
+}
+
+Type const* ExprContext::analyzeType(ast::Expression* expr) {
+    auto* stashed = dtorStack;
+    DTorStack tmpDtorStack;
+    dtorStack = &tmpDtorStack;
+    expr = analyze(expr);
+    SC_ASSERT(dtorStack->empty(),
+              "Type expression should not trigger destructor calls");
+    dtorStack = stashed;
+    if (!expectType(expr)) {
+        return nullptr;
+    }
+    return cast<Type const*>(expr->entity());
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
@@ -192,7 +196,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
-    if (!analyze(u.operand())) {
+    if (!analyzeValue(u.operand())) {
         return nullptr;
     }
     auto* type = u.operand()->type().get();
@@ -254,8 +258,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
 
 ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& b) {
     bool success = true;
-    success &= !!analyze(b.lhs());
-    success &= !!analyze(b.rhs());
+    success &= !!analyzeValue(b.lhs());
+    success &= !!analyzeValue(b.rhs());
     if (!success) {
         return nullptr;
     }
@@ -766,7 +770,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto orKind = ORKind::FreeFunction;
     /// We analyze all the arguments
     for (size_t i = 0; i < fc.arguments().size(); ++i) {
-        if (!analyze(fc.argument(i)) || !expectValue(fc.argument(i))) {
+        if (!analyzeValue(fc.argument(i))) {
             success = false;
         }
     }
