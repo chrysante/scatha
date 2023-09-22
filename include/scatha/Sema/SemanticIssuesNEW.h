@@ -30,7 +30,7 @@
 ///    ├─ BadUnaryExpr
 ///    ├─ BadBinaryExpr
 ///    ├─ BadMemAcc
-///    ├─ BadConditional
+///    ├─ BadCondExpr
 ///    ├─ BadFunctionCall
 ///    ├─ BadConstructorCall
 ///    ├─ BadSubscript
@@ -57,7 +57,7 @@ public:                                                                        \
 #define SC_SEMA_DERIVED_EXPR(Type, Name)                                       \
     template <typename T = ast::Type>                                          \
     T const* Name() const {                                                    \
-        return cast_or_null<T const*>(BadExpr::expression());                  \
+        return cast_or_null<T const*>(BadExpr::expr());                        \
     }
 
 /// Base class of all semantic issues
@@ -229,15 +229,15 @@ private:
 class SCATHA_API BadExpr: public SemaIssue {
 public:
     /// \Returns the erroneous expression
-    ast::Expression const* expression() const { return expr; }
+    ast::Expression const* expr() const { return _expr; }
 
 protected:
     explicit BadExpr(Scope const* scope,
-                     ast::Expression const* expression,
+                     ast::Expression const* expr,
                      IssueSeverity severity);
 
 private:
-    ast::Expression const* expr;
+    ast::Expression const* _expr;
 };
 
 ///
@@ -253,7 +253,7 @@ public:
                            ast::Identifier const* id,
                            Reason reason);
 
-    SC_SEMA_DERIVED_EXPR(Identifier, identifier)
+    SC_SEMA_DERIVED_EXPR(Identifier, id)
 
 private:
     void format(std::ostream& str) const override;
@@ -272,7 +272,7 @@ public:
                           ast::UnaryExpression const* expr,
                           Reason reason);
 
-    SC_SEMA_DERIVED_EXPR(UnaryExpression, expression)
+    SC_SEMA_DERIVED_EXPR(UnaryExpression, expr)
 
 private:
     void format(std::ostream& str) const override;
@@ -291,7 +291,7 @@ public:
                            ast::BinaryExpression const* expr,
                            Reason reason);
 
-    SC_SEMA_DERIVED_EXPR(BinaryExpression, expression)
+    SC_SEMA_DERIVED_EXPR(BinaryExpression, expr)
 
 private:
     void format(std::ostream& str) const override;
@@ -310,7 +310,45 @@ public:
                        ast::MemberAccess const* expr,
                        Reason reason);
 
-    SC_SEMA_DERIVED_EXPR(MemberAccess, expression)
+    SC_SEMA_DERIVED_EXPR(MemberAccess, expr)
+
+private:
+    void format(std::ostream& str) const override;
+};
+
+///
+class SCATHA_API BadCondExpr: public BadExpr {
+public:
+    enum Reason {
+#define SC_SEMA_BADCONDEXPR_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    explicit BadCondExpr(Scope const* scope,
+                         ast::Conditional const* expr,
+                         Reason reason);
+
+    SC_SEMA_DERIVED_EXPR(Conditional, expr)
+
+private:
+    void format(std::ostream& str) const override;
+};
+
+///
+class SCATHA_API BadSubscript: public BadExpr {
+public:
+    enum Reason {
+#define SC_SEMA_BADSUBSCR_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    explicit BadSubscript(Scope const* scope,
+                          ast::CallLike const* expr,
+                          Reason reason);
+
+    SC_SEMA_DERIVED_EXPR(CallLike, expr)
 
 private:
     void format(std::ostream& str) const override;

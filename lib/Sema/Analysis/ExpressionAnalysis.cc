@@ -663,7 +663,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     QualType elseType = c.elseExpr()->type();
     QualType commonType = sema::commonType(sym, thenType, elseType);
     if (!commonType) {
-        iss.push<BadOperandsForBinaryExpression>(c, thenType, elseType);
+        ctx.issue<BadCondExpr>(&c, BadCondExpr::NoCommonType);
         return nullptr;
     }
     auto commonValueCat = sema::commonValueCat(c.thenExpr()->valueCategory(),
@@ -696,7 +696,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         return nullptr;
     }
     if (expr.arguments().size() != 1) {
-        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        ctx.issue<BadSubscript>(&expr, BadSubscript::ArgCount);
         return nullptr;
     }
     convert(Implicit, expr.argument(0), sym.S64(), RValue, *dtorStack, ctx);
@@ -730,7 +730,7 @@ ArrayType const* ExprContext::analyzeSubscriptCommon(ast::CallLike& expr) {
     auto* accessedType = expr.callee()->type().get();
     auto* arrayType = dyncast<ArrayType const*>(accessedType);
     if (!arrayType) {
-        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        ctx.issue<BadSubscript>(&expr, BadSubscript::NoArray);
         return nullptr;
     }
     return arrayType;

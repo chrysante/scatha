@@ -200,9 +200,9 @@ void StructDefCycle::format(std::ostream& str) const {
 }
 
 BadExpr::BadExpr(Scope const* scope,
-                 ast::Expression const* expression,
+                 ast::Expression const* expr,
                  IssueSeverity severity):
-    SemaIssue(scope, expression->sourceRange(), severity), expr(expression) {}
+    SemaIssue(scope, expr->sourceRange(), severity), _expr(expr) {}
 
 static IssueSeverity toSeverity(BadIdentifier::Reason reason) {
     switch (reason) {
@@ -359,6 +359,54 @@ BadMemAcc::BadMemAcc(Scope const* scope,
 void BadMemAcc::format(std::ostream& str) const {
     switch (reason()) {
 #define SC_SEMA_BADMEMACC_DEF(reason, _, message)                              \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+static IssueSeverity toSeverity(BadCondExpr::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADCONDEXPR_DEF(reason, severity, _)                           \
+    case BadCondExpr::reason:                                                  \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadCondExpr::BadCondExpr(Scope const* scope,
+                         ast::Conditional const* expr,
+                         Reason reason):
+    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
+
+void BadCondExpr::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADCONDEXPR_DEF(reason, _, message)                            \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+static IssueSeverity toSeverity(BadSubscript::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADSUBSCR_DEF(reason, severity, _)                             \
+    case BadSubscript::reason:                                                 \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadSubscript::BadSubscript(Scope const* scope,
+                           ast::CallLike const* expr,
+                           Reason reason):
+    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
+
+void BadSubscript::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADSUBSCR_DEF(reason, _, message)                              \
     case reason:                                                               \
         str << message;                                                        \
         break;
