@@ -15,12 +15,12 @@
 /// SemanticIssue
 /// ├─ BadStatement
 /// │  ├─ BadDeclaration
+/// │  │  ├─ GenericBadDecl
 /// │  │  ├─ Redefinition
-/// │  │  ├─ DeclInvalidInScope
 /// │  │  ├─ BadVarDecl
 /// │  │  ├─ BadParamDecl
 /// │  │  ├─ BadFuncDef
-/// │  │  ├─ BadStructDef
+/// │  │  └─ BadStructDef
 /// │  ├─ BadCompoundStatement ??
 /// │  ├─ BadExpressionStatement ??
 /// │  └─ BadControlFlowStatement
@@ -126,16 +126,6 @@ private:
     void format(std::ostream& str) const override;
 
     Entity const* _existing;
-};
-
-///
-class SCATHA_API DeclInvalidInScope: public BadDecl {
-public:
-    DeclInvalidInScope(Scope const* scope, ast::Declaration const* declaration):
-        BadDecl(scope, declaration, IssueSeverity::Error) {}
-
-private:
-    void format(std::ostream& str) const override;
 };
 
 ///

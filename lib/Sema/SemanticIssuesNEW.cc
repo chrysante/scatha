@@ -58,10 +58,6 @@ static std::string_view format(Scope const* scope) {
     }
 }
 
-void DeclInvalidInScope::format(std::ostream& str) const {
-    str << ::format(declaration()) << " invalid in " << ::format(scope());
-}
-
 static IssueSeverity toSeverity(GenericBadDecl::Reason reason) {
     switch (reason) {
 #define SC_SEMA_GENERICBADDECL_DEF(reason, severity, _)                        \

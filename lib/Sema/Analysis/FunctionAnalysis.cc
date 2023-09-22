@@ -106,7 +106,7 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        ctx.issue<DeclInvalidInScope>(&fn);
+        ctx.issue<GenericBadDecl>(&fn, GenericBadDecl::InvalidInScope);
         sym.declarePoison(std::string(fn.name()), EntityCategory::Value);
         return;
     }
@@ -199,7 +199,7 @@ void FuncBodyContext::analyzeImpl(ast::StructDefinition& def) {
     /// Function defintion is only allowed in the global scope, at namespace
     /// scope and structure scope.
     sym.declarePoison(std::string(def.name()), EntityCategory::Type);
-    ctx.issue<DeclInvalidInScope>(&def);
+    ctx.issue<GenericBadDecl>(&def, GenericBadDecl::InvalidInScope);
 }
 
 void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {

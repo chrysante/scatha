@@ -8,8 +8,13 @@
 #   define SC_SEMA_GENERICBADDECL_DEF(reason, severity, text)
 #endif
 
-SC_SEMA_GENERICBADDECL_DEF(ReservedIdentifier, Error, "Reserved identifier")
-SC_SEMA_GENERICBADDECL_DEF(InvalidInScope,     Error, "Invalid in this scope")
+SC_SEMA_GENERICBADDECL_DEF(ReservedIdentifier,
+                           Error,
+                           "Reserved identifier")
+SC_SEMA_GENERICBADDECL_DEF(InvalidInScope,
+                           Error,
+                           declaration()->nodeType() << " invalid in "
+                               << scope()->kind() << " scope")
 
 #undef SC_SEMA_GENERICBADDECL_DEF
 
