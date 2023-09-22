@@ -99,7 +99,7 @@ void Redefinition::format(std::ostream& str) const {
 }
 
 BadVarDecl::BadVarDecl(Scope const* scope,
-                       ast::VariableDeclaration const* vardecl,
+                       ast::VarDeclBase const* vardecl,
                        Reason reason,
                        Type const* type,
                        ast::Expression const* initExpr):

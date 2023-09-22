@@ -122,7 +122,7 @@ private:
     Entity const* _existing;
 };
 
-///
+/// Bad declaration of variable or function parameter
 class SCATHA_API BadVarDecl: public BadDecl {
 public:
     enum Reason {
@@ -132,7 +132,7 @@ public:
     SC_SEMA_ISSUE_REASON()
 
     BadVarDecl(Scope const* scope,
-               ast::VariableDeclaration const* vardecl,
+               ast::VarDeclBase const* vardecl,
                Reason reason,
                Type const* type = nullptr,
                ast::Expression const* initExpr = nullptr);

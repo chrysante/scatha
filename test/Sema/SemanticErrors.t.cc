@@ -354,3 +354,22 @@ fn main() {
     CHECK(issues.noneOnLine(9));
     CHECK(issues.noneOnLine(13));
 }
+
+TEST_CASE("Invalid this parameter", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+fn f(this) {}
+fn f(n: int, this) {}
+struct X {
+    fn f(n: int, this) {}
+}
+)");
+    auto* line2 = issues.findOnLine<BadVarDecl>(2);
+    REQUIRE(line2);
+    CHECK(line2->reason() == BadVarDecl::ThisInFreeFunction);
+    auto* line3 = issues.findOnLine<BadVarDecl>(3);
+    REQUIRE(line3);
+    CHECK(line3->reason() == BadVarDecl::ThisInFreeFunction);
+    auto* line5 = issues.findOnLine<BadVarDecl>(5);
+    REQUIRE(line5);
+    CHECK(line5->reason() == BadVarDecl::ThisPosition);
+}

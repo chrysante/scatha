@@ -187,6 +187,28 @@ public:
     /// \overload
     ASTNode const* parent() const { return _parent; }
 
+    /// Search the ancestors of this node for a node of type \p Node
+    /// \Returns that node if found, otherwise returns `nullptr`
+    template <typename Node>
+    Node* findAncestor() {
+        return const_cast<Node*>(std::as_const(*this).findAncestor<Node>());
+    }
+
+    /// \overload for const
+    template <typename Node>
+    Node const* findAncestor() const {
+        ASTNode const* node = this;
+        while (true) {
+            node = node->parent();
+            if (!node) {
+                return nullptr;
+            }
+            if (auto* result = dyncast<Node const*>(node)) {
+                return result;
+            }
+        }
+    }
+
     /// The children of this node
     template <typename AST = ASTNode>
     auto children() {

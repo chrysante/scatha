@@ -309,7 +309,6 @@ Temporary* SymbolTable::temporary(QualType type) {
 }
 
 void SymbolTable::declarePoison(std::string name, EntityCategory cat) {
-    using enum InvalidDeclaration::Reason;
     if (isKeyword(name) || currentScope().findEntity(name)) {
         return;
     }

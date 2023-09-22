@@ -74,11 +74,8 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push<InvalidDeclaration>(
-            &funcDef,
-            InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope());
-        return static_cast<size_t>(-1);
+        ctx.issue<GenericBadStmt>(&funcDef, GenericBadStmt::InvalidScope);
+        return InvalidIndex;
     }
     auto* function = sym.declareFuncName(&funcDef);
     if (!function) {

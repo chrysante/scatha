@@ -18,6 +18,7 @@
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SemanticIssuesNEW.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -188,11 +189,11 @@ void InstContext::instantiateStructureType(SDGNode& node) {
         if (!varDecl->type()) {
             continue;
         }
-        if (isa<ReferenceType>(*varDecl->type())) {
-            using enum InvalidDeclaration::Reason;
-            iss.push<InvalidDeclaration>(varDecl,
-                                         InvalidInCurrentScope,
-                                         structType);
+        if (isa<ReferenceType>(varDecl->type())) {
+            ctx.issue<BadVarDecl>(varDecl,
+                                  BadVarDecl::RefInStruct,
+                                  varDecl->type(),
+                                  varDecl->initExpr());
             continue;
         }
         auto* varType = varDecl->type();
@@ -308,18 +309,13 @@ Type const* InstContext::analyzeParameter(ast::ParameterDeclaration& param,
     if (!thisParam) {
         return analyzeTypeExpression(param.typeExpr(), ctx);
     }
-    if (index != 0) {
-        iss.push<InvalidDeclaration>(&param,
-                                     InvalidDeclaration::Reason::ThisParameter,
-                                     sym.currentScope());
+    auto* structure = param.findAncestor<ast::StructDefinition>();
+    if (!structure) {
+        ctx.issue<BadVarDecl>(&param, BadVarDecl::ThisInFreeFunction);
         return nullptr;
     }
-    auto* structure = dyncast<ast::StructDefinition const*>(
-        param.parent()->parent()->parent());
-    if (!structure) {
-        iss.push<InvalidDeclaration>(&param,
-                                     InvalidDeclaration::Reason::ThisParameter,
-                                     sym.currentScope());
+    if (index != 0) {
+        ctx.issue<BadVarDecl>(&param, BadVarDecl::ThisPosition);
         return nullptr;
     }
     auto* structType = cast<StructType const*>(structure->entity());
@@ -331,7 +327,7 @@ Type const* InstContext::analyzeParameter(ast::ParameterDeclaration& param,
 
 namespace {
 
-/// Wrapper around `std::array` that can be index by `SpecialLifetimeFunction`
+/// Wrapper around `std::array` that can be indexed by `SpecialLifetimeFunction`
 /// enum values
 struct SLFArray: std::array<Function*, EnumSize<SpecialLifetimeFunction>> {
     using Base = std::array<Function*, EnumSize<SpecialLifetimeFunction>>;

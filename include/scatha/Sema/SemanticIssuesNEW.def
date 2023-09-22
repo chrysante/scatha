@@ -35,6 +35,15 @@ SC_SEMA_BADVARDECL_DEF(ExpectedRefInit,
 SC_SEMA_BADVARDECL_DEF(CantInferType,
                        Error,
                        "Can't infer type")
+SC_SEMA_BADVARDECL_DEF(RefInStruct,
+                       Error,
+                       "Cannot declare variable references in structs")
+SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction,
+                       Error,
+                       "this-parameter can only be declared in member functions")
+SC_SEMA_BADVARDECL_DEF(ThisPosition,
+                       Error,
+                       "this-parameter can only be declared as the first parameter")
 
 #undef SC_SEMA_BADVARDECL_DEF
 

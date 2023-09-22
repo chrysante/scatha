@@ -168,10 +168,7 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
     if (!parentType) {
         return;
     }
-    if (thisParam.index() != 0) {
-        /// TODO: Push error here!
-        SC_UNIMPLEMENTED();
-    }
+    /// We already check the position during instantiation
     auto* param = [&] {
         if (thisParam.isReference()) {
             auto* type = sym.reference({ parentType, thisParam.mutability() });
