@@ -9,15 +9,15 @@
 using namespace scatha;
 using namespace sema;
 
-BadStatementNEW::BadStatementNEW(ast::Statement const* statement,
-                                 Scope const* scope,
+BadStatementNEW::BadStatementNEW(Scope const* scope,
+                                 ast::Statement const* statement,
                                  IssueSeverity severity):
     SemaIssue(scope, statement->sourceRange(), severity), stmt(statement) {}
 
-BadDecl::BadDecl(ast::Declaration const* declaration,
-                 Scope const* scope,
+BadDecl::BadDecl(Scope const* scope,
+                 ast::Declaration const* declaration,
                  IssueSeverity severity):
-    BadStatementNEW(declaration, scope, severity) {}
+    BadStatementNEW(scope, declaration, severity) {}
 
 ast::Declaration const* BadDecl::declaration() const {
     return cast<ast::Declaration const*>(statement());
@@ -33,26 +33,48 @@ static std::string_view format(ast::Declaration const* decl) {
         [](FunctionDefinition const&) { return "Function definition"sv; },
         [](StructDefinition const&) { return "Struct declaration"sv; },
         [](ASTNode const&) -> std::string_view { SC_UNREACHABLE(); },
-    }; // clang-format off
+    }; // clang-format on
 }
 
 static std::string_view format(Scope const* scope) {
     using enum ScopeKind;
-    switch(scope->kind()) {
-    case Global: return "";
-    case Namespace: return "";
-    case Variable: return "";
-    case Function: return "";
-    case Object: return "";
-    case Anonymous: return "";
-    case Invalid: return "";
-    case _count: return "";
+    switch (scope->kind()) {
+    case Global:
+        return "";
+    case Namespace:
+        return "";
+    case Variable:
+        return "";
+    case Function:
+        return "";
+    case Object:
+        return "";
+    case Anonymous:
+        return "";
+    case Invalid:
+        return "";
+    case _count:
+        return "";
     }
 }
 
 void DeclInvalidInScope::format(std::ostream& str) const {
     str << ::format(declaration()) << " invalid in " << ::format(scope());
 }
+
+static IssueSeverity toSeverity(GenericBadDecl::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_GENERICBADDECL_DEF(reason, severity, _)                        \
+    case GenericBadDecl::reason:                                               \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+GenericBadDecl::GenericBadDecl(Scope const* scope,
+                               ast::Declaration const* declaration,
+                               Reason reason):
+    BadDecl(scope, declaration, toSeverity(reason)), _reason(reason) {}
 
 static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
     switch (reason) {
@@ -63,12 +85,26 @@ static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
     }
 }
 
-BadVarDecl::BadVarDecl(ast::VariableDeclaration const* vardecl,
-                       Scope const* scope,
+void GenericBadDecl::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_GENERICBADDECL_DEF(reason, _, message)                         \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+void Redefinition::format(std::ostream& str) const {
+    str << "Redefinition of " << declaration()->name();
+}
+
+BadVarDecl::BadVarDecl(Scope const* scope,
+                       ast::VariableDeclaration const* vardecl,
                        Reason reason,
                        Type const* type,
                        ast::Expression const* initExpr):
-    BadDecl(vardecl, scope, toSeverity(reason)),
+    BadDecl(scope, vardecl, toSeverity(reason)),
     _reason(reason),
     _type(type),
     _initExpr(initExpr) {}
@@ -76,7 +112,7 @@ BadVarDecl::BadVarDecl(ast::VariableDeclaration const* vardecl,
 void BadVarDecl::format(std::ostream& str) const {
     switch (reason()) {
 #define SC_SEMA_BADVARDECL_DEF(reason, _, message)                             \
-    case BadVarDecl::reason:                                                   \
+    case reason:                                                               \
         str << message;                                                        \
         break;
 #include "Sema/SemanticIssuesNEW.def"
@@ -92,7 +128,7 @@ static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
     }
 }
 
-BadExpr::BadExpr(ast::Expression const* expression,
-                 Scope const* scope,
+BadExpr::BadExpr(Scope const* scope,
+                 ast::Expression const* expression,
                  IssueSeverity severity):
     SemaIssue(scope, expression->sourceRange(), severity), expr(expression) {}

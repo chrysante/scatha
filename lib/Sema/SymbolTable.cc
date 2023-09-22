@@ -6,10 +6,13 @@
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
+#include "AST/AST.h"
 #include "Common/Ranges.h"
 #include "Common/UniquePtr.h"
+#include "Issue/IssueHandler.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SemanticIssuesNEW.h"
 
 using namespace scatha;
 using namespace sema;
@@ -50,6 +53,17 @@ struct SymbolTable::Impl {
 
     /// ID counter for temporaries
     size_t temporaryID = 0;
+
+    /// The issue handler
+    IssueHandler* iss = nullptr;
+
+    /// Conveniece wrapper to emit issues
+    /// The same function exists in `AnalysisContext`, maybe we can merge them
+    template <typename I, typename... Args>
+    void issue(Args&&... args) {
+        SC_ASSERT(iss, "Forget to set issue handler?");
+        iss->push<I>(_currentScope, std::forward<Args>(args)...);
+    }
 
     /// Direct accessors to builtin types
     VoidType* _void;
@@ -121,20 +135,27 @@ SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
 
 SymbolTable::~SymbolTable() = default;
 
-Expected<StructType&, SemanticIssue*> SymbolTable::declareStructureType(
-    std::string name) {
-    using enum InvalidDeclaration::Reason;
+StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
+                                           std::string name) {
     if (isKeyword(name)) {
-        return new InvalidDeclaration(nullptr,
-                                      ReservedIdentifier,
-                                      currentScope());
+        impl->issue<GenericBadDecl>(def, GenericBadDecl::ReservedIdentifier);
+        return nullptr;
     }
     if (Entity* entity = currentScope().findEntity(name)) {
-        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
+        impl->issue<Redefinition>(def, entity);
+        return nullptr;
     }
     auto* type = impl->addEntity<StructType>(name, &currentScope());
     currentScope().add(type);
-    return *type;
+    return type;
+}
+
+StructType* SymbolTable::declareStructureType(ast::StructDefinition* def) {
+    return declareStructImpl(def, std::string(def->name()));
+}
+
+StructType* SymbolTable::declareStructureType(std::string name) {
+    return declareStructImpl(nullptr, std::move(name));
 }
 
 template <typename T, typename... Args>
@@ -369,6 +390,10 @@ Entity const* SymbolTable::lookup(std::string_view name) const {
 
 Function* SymbolTable::builtinFunction(size_t index) const {
     return impl->_builtinFunctions[index];
+}
+
+void SymbolTable::setIssueHandler(IssueHandler& issueHandler) {
+    impl->iss = &issueHandler;
 }
 
 Scope& SymbolTable::currentScope() { return *impl->_currentScope; }

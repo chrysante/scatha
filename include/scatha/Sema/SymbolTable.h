@@ -8,10 +8,15 @@
 
 #include <utl/scope_guard.hpp>
 
+#include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
+
+namespace scatha {
+class IssueHandler;
+}
 
 namespace scatha::sema {
 
@@ -43,11 +48,12 @@ public:
     /// For successful return the name must not have been declared
     /// before in the current scope.
     ///
-    /// \returns Reference to declared type if no error occurs or
-    /// `InvalidDeclaration` with reason `Redefinition` if declared
-    /// name is already in use in the current scope.
-    Expected<StructType&, SemanticIssue*> declareStructureType(
-        std::string name);
+    /// \returns a the declared type if no error occurs
+    /// Otherwise emits an error to the issue handler
+    StructType* declareStructureType(ast::StructDefinition* def);
+
+    /// \overload for use without AST
+    StructType* declareStructureType(std::string name);
 
     /// Declares a function to the current scope without signature.
     ///
@@ -217,6 +223,10 @@ public:
         return dyncast_or_null<E const*>(lookup(name));
     }
 
+    /// Set the issue handler for this symbol table.
+    /// Setting the issue handler is necessary for making declarations.
+    void setIssueHandler(IssueHandler& issueHandler);
+
     /// \Returns The builtin function at index \p index
     Function* builtinFunction(size_t index) const;
 
@@ -264,6 +274,8 @@ public:
 
 private:
     struct Impl;
+
+    StructType* declareStructImpl(ast::StructDefinition* def, std::string name);
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);

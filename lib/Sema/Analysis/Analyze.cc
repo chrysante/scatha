@@ -12,6 +12,7 @@ using namespace sema;
 AnalysisResult sema::analyze(ast::ASTNode& root,
                              SymbolTable& sym,
                              IssueHandler& iss) {
+    sym.setIssueHandler(iss);
     AnalysisContext ctx(sym, iss);
     auto names = gatherNames(root, ctx);
     auto structs = instantiateEntities(ctx, names.structs, names.functions);

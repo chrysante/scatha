@@ -53,10 +53,8 @@ public:
 
     /// Conveniece wrapper to emit issues
     template <typename I, typename... Args>
-    void issue(auto* astNode, Args&&... args) {
-        iss->push<I>(astNode,
-                     &sym->currentScope(),
-                     std::forward<Args>(args)...);
+    void issue(Args&&... args) {
+        iss->push<I>(&sym->currentScope(), std::forward<Args>(args)...);
     }
 
 private:

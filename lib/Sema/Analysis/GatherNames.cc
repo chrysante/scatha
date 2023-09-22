@@ -9,6 +9,7 @@
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SemanticIssuesNEW.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -21,7 +22,8 @@ namespace {
 /// Gathers all declarations and declares them in the symbol table. Also
 /// analyzes the dependencies of structs because they are trivial.
 struct GatherContext {
-    GatherContext(sema::AnalysisContext& ctx, GatherNamesResult& result):
+    GatherContext(AnalysisContext& ctx, GatherNamesResult& result):
+        ctx(ctx),
         sym(ctx.symbolTable()),
         iss(ctx.issueHandler()),
         dependencyGraph(result.structs),
@@ -38,6 +40,7 @@ struct GatherContext {
     size_t gatherImpl(ast::Statement&);
     size_t gatherImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
+    AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
     StructDependencyGraph& dependencyGraph;
@@ -92,42 +95,35 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     return ~size_t{};
 }
 
-size_t GatherContext::gatherImpl(ast::StructDefinition& s) {
+size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
                                                    sk != ScopeKind::Object)
     {
         /// Struct defintion is only allowed in the global scope, at namespace
-        /// scope and structure scope
-        iss.push<InvalidDeclaration>(
-            &s,
-            InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope());
+        /// scope and struct scope
+        ctx.issue<GenericBadDecl>(&def, GenericBadDecl::InvalidInScope);
         return InvalidIndex;
     }
-    Expected const declResult = sym.declareStructureType(std::string(s.name()));
-    if (!declResult) {
-        iss.push(declResult.error()->setStatement(s));
+    auto* type = sym.declareStructureType(&def);
+    if (!type) {
         return InvalidIndex;
     }
-    auto& objType = *declResult;
-    objType.setASTNode(&s);
-    s.decorateDecl(&objType);
-    s.body()->decorateScope(&objType);
+    type->setASTNode(&def);
+    def.decorateDecl(type);
+    def.body()->decorateScope(type);
     size_t const index =
-        dependencyGraph.add({ .entity = &objType, .astNode = &s });
+        dependencyGraph.add({ .entity = type, .astNode = &def });
     /// After we declared this type we gather all its members
-    sym.pushScope(&objType);
-    utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto* statement: s.body()->statements()) {
-        size_t const dependency = gather(*statement);
-        if (dependency != InvalidIndex) {
-            dependencyGraph[index].dependencies.push_back(
-                utl::narrow_cast<u16>(dependency));
+    sym.withScopePushed(type, [&] {
+        for (auto* statement: def.body()->statements()) {
+            size_t const dependency = gather(*statement);
+            if (dependency != InvalidIndex) {
+                dependencyGraph[index].dependencies.push_back(
+                    utl::narrow_cast<u16>(dependency));
+            }
         }
-    }
-    popScope.execute();
-    /// Now add this struct definition to the dependency graph
+    });
     return index;
 }
 

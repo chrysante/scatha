@@ -25,7 +25,8 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
         sym.setSignature(fnI,
                          sema::FunctionSignature({ sym.S64() }, sym.S64()));
     REQUIRE(overloadSuccessI);
-    auto* xType = &sym.declareStructureType("X").value();
+    auto* xType = sym.declareStructureType("X");
+    REQUIRE(xType);
     /// Begin `struct X`
     sym.pushScope(xType);
     /// Add member variable `i` to `X`

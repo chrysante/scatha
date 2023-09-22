@@ -95,6 +95,15 @@ public:
     /// Mark or unmark this entity as builtin
     void setBuiltin(bool value = true) { _isBuiltin = value; }
 
+    /// \Returns the corresponding AST node
+    ast::Declaration* astNode() { return _astNode; }
+
+    /// \overload
+    ast::Declaration const* astNode() const { return _astNode; }
+
+    /// TODO: Get rid of this and pass ast nodes through constructors
+    void setASTNode(ast::Declaration* node) { _astNode = node; }
+
 protected:
     explicit Entity(EntityType entityType, std::string name, Scope* parent):
         _entityType(entityType), _parent(parent), _names({ std::move(name) }) {}
@@ -109,6 +118,7 @@ private:
     Scope* _parent = nullptr;
     utl::small_vector<std::string, 1> _names;
     mutable std::string _mangledName;
+    ast::Declaration* _astNode = nullptr;
 };
 
 EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
@@ -282,15 +292,6 @@ public:
     /// \Returns A View over the entities in this scope
     auto entities() const { return _entities | ranges::views::values; }
 
-    /// \Returns the corresponding AST node
-    ast::Declaration* astNode() { return _astNode; }
-
-    /// \overload
-    ast::Declaration const* astNode() const { return _astNode; }
-
-    /// TODO: Get rid of this and pass ast nodes through constructors
-    void setASTNode(ast::Declaration* node) { _astNode = node; }
-
 protected:
     explicit Scope(EntityType entityType,
                    ScopeKind,
@@ -312,7 +313,6 @@ private:
 private:
     utl::hashset<Scope*> _children;
     utl::hashmap<std::string, Entity*> _entities;
-    ast::Declaration* _astNode = nullptr;
     ScopeKind _kind;
 };
 

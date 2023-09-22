@@ -45,6 +45,13 @@
 
 namespace scatha::sema {
 
+#define SC_SEMA_ISSUE_REASON()                                                 \
+private:                                                                       \
+    Reason _reason{};                                                          \
+                                                                               \
+public:                                                                        \
+    Reason reason() const { return _reason; }
+
 /// Base class of all semantic issues
 class SCATHA_API SemaIssue: public Issue {
 public:
@@ -67,8 +74,8 @@ public:
     ast::Statement const* statement() const { return stmt; }
 
 protected:
-    explicit BadStatementNEW(ast::Statement const* statement,
-                             Scope const* scope,
+    explicit BadStatementNEW(Scope const* scope,
+                             ast::Statement const* statement,
                              IssueSeverity severity);
 
 private:
@@ -78,37 +85,54 @@ private:
 /// Base class of all declaration related issues
 class SCATHA_API BadDecl: public BadStatementNEW {
 protected:
-    explicit BadDecl(ast::Declaration const* declaration,
-                     Scope const* scope,
+    explicit BadDecl(Scope const* scope,
+                     ast::Declaration const* declaration,
                      IssueSeverity severity);
 
     /// \Returns the erroneous declaration
     ast::Declaration const* declaration() const;
 };
 
+///
+class SCATHA_API GenericBadDecl: public BadDecl {
+public:
+    enum Reason {
+#define SC_SEMA_GENERICBADDECL_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    GenericBadDecl(Scope const* scope,
+                   ast::Declaration const* declaration,
+                   Reason reason);
+
+private:
+    void format(std::ostream& str) const override;
+};
+
 /// Declaration of a name that is already defined in the same scope
 class SCATHA_API Redefinition: public BadDecl {
 public:
-    Redefinition(ast::Declaration const* declaration,
-                 ast::Declaration const* prevDeclaration,
-                 Scope const* scope):
-        BadDecl(declaration, scope, IssueSeverity::Error),
-        prev(prevDeclaration) {}
+    Redefinition(Scope const* scope,
+                 ast::Declaration const* declaration,
+                 Entity const* existing):
+        BadDecl(scope, declaration, IssueSeverity::Error),
+        _existing(existing) {}
 
     /// \Returns the previous declaration of the same name
-    ast::Declaration const* previousDeclaration() const { return prev; }
+    Entity const* existing() const { return _existing; }
 
 private:
     void format(std::ostream& str) const override;
 
-    ast::Declaration const* prev;
+    Entity const* _existing;
 };
 
 ///
 class SCATHA_API DeclInvalidInScope: public BadDecl {
 public:
-    DeclInvalidInScope(ast::Declaration const* declaration, Scope const* scope):
-        BadDecl(declaration, scope, IssueSeverity::Error) {}
+    DeclInvalidInScope(Scope const* scope, ast::Declaration const* declaration):
+        BadDecl(scope, declaration, IssueSeverity::Error) {}
 
 private:
     void format(std::ostream& str) const override;
@@ -121,15 +145,13 @@ public:
 #define SC_SEMA_BADVARDECL_DEF(reason, _0, _1) reason,
 #include <scatha/Sema/SemanticIssuesNEW.def>
     };
+    SC_SEMA_ISSUE_REASON()
 
-    BadVarDecl(ast::VariableDeclaration const* vardecl,
-               Scope const* scope,
+    BadVarDecl(Scope const* scope,
+               ast::VariableDeclaration const* vardecl,
                Reason reason,
                Type const* type = nullptr,
                ast::Expression const* initExpr = nullptr);
-
-    ///
-    Reason reason() const { return _reason; }
 
     ///
     Type const* type() const { return _type; }
@@ -140,7 +162,6 @@ public:
 private:
     void format(std::ostream& str) const override;
 
-    Reason _reason;
     Type const* _type;
     ast::Expression const* _initExpr;
 };
@@ -160,18 +181,14 @@ public:
 #define SC_SEMA_BADFUNCDEF_DEF(reason, _0, _1) reason,
 #include <scatha/Sema/SemanticIssuesNEW.def>
     };
+    SC_SEMA_ISSUE_REASON()
 
-    BadFuncDef(ast::FunctionDefinition const* funcdef,
-               Scope const* scope,
+    BadFuncDef(Scope const* scope,
+               ast::FunctionDefinition const* funcdef,
                Reason reason);
-
-    ///
-    Reason reason() const { return _reason; }
 
 private:
     void format(std::ostream& str) const override;
-
-    Reason _reason;
 };
 
 ///
@@ -189,8 +206,8 @@ public:
     ast::Expression const* expression() const { return expr; }
 
 protected:
-    explicit BadExpr(ast::Expression const* expression,
-                     Scope const* scope,
+    explicit BadExpr(Scope const* scope,
+                     ast::Expression const* expression,
                      IssueSeverity severity);
 
 private:
