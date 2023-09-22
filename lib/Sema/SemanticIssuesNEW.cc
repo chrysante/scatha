@@ -18,20 +18,6 @@ static SourceRange getSourceRange(ast::Statement const* statement) {
     return {};
 }
 
-BadStmt::BadStmt(Scope const* scope,
-                 ast::Statement const* statement,
-                 IssueSeverity severity):
-    SemaIssue(scope, getSourceRange(statement), severity), stmt(statement) {}
-
-static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, _)                        \
-    case GenericBadStmt::reason:                                               \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
 /// Used by `SC_SEMA_GENERICBADSTMT_DEF`
 static std::string_view format(ast::Statement const* stmt) {
     using namespace ast;
@@ -64,6 +50,86 @@ static std::string_view format(Scope const* scope) {
         return "struct scope";
     case Invalid:
         return "invalid scope";
+    }
+}
+
+static std::string_view format(ast::BinaryOperator op) {
+    using enum ast::BinaryOperator;
+    switch (op) {
+    case Multiplication:
+        return "Multiplication";
+    case Division:
+        return "Division";
+    case Remainder:
+        return "Remainder operation";
+    case Addition:
+        return "Addition";
+    case Subtraction:
+        return "Subtraction";
+    case LeftShift:
+        return "Left shift";
+    case RightShift:
+        return "Right shift";
+    case Less:
+        [[fallthrough]];
+    case LessEq:
+        [[fallthrough]];
+    case Greater:
+        [[fallthrough]];
+    case GreaterEq:
+        return "Relational comparison";
+    case Equals:
+        [[fallthrough]];
+    case NotEquals:
+        return "Equality comparison";
+    case BitwiseAnd:
+        return "Bitwise and";
+    case BitwiseXOr:
+        return "Bitwise xor";
+    case BitwiseOr:
+        return "Bitwise or";
+    case LogicalAnd:
+        return "Logical and";
+    case LogicalOr:
+        return "Logical and";
+    case Assignment:
+        return "Assignment";
+    case AddAssignment:
+        [[fallthrough]];
+    case SubAssignment:
+        [[fallthrough]];
+    case MulAssignment:
+        [[fallthrough]];
+    case DivAssignment:
+        [[fallthrough]];
+    case RemAssignment:
+        [[fallthrough]];
+    case LSAssignment:
+        [[fallthrough]];
+    case RSAssignment:
+        [[fallthrough]];
+    case AndAssignment:
+        [[fallthrough]];
+    case OrAssignment:
+        [[fallthrough]];
+    case XOrAssignment:
+        return "Arithmetic assignment";
+    case Comma:
+        return "Comma operation";
+    }
+}
+
+BadStmt::BadStmt(Scope const* scope,
+                 ast::Statement const* statement,
+                 IssueSeverity severity):
+    SemaIssue(scope, getSourceRange(statement), severity), stmt(statement) {}
+
+static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, _)                        \
+    case GenericBadStmt::reason:                                               \
+        return IssueSeverity::severity;
+#include "Sema/SemanticIssuesNEW.def"
     }
 }
 
@@ -199,217 +265,30 @@ void StructDefCycle::format(std::ostream& str) const {
     str << formatEntity(cycle().front());
 }
 
+static IssueSeverity toSeverity(BadExpr::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADEXPR_DEF(Type, Reason, Severity, Message)                   \
+    case BadExpr::Reason:                                                      \
+        return IssueSeverity::Severity;
+#include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
 BadExpr::BadExpr(Scope const* scope,
                  ast::Expression const* expr,
-                 IssueSeverity severity):
-    SemaIssue(scope, expr->sourceRange(), severity), _expr(expr) {}
+                 Reason reason):
+    SemaIssue(scope, expr->sourceRange(), toSeverity(reason)),
+    _reason(reason),
+    _expr(expr) {}
 
-static IssueSeverity toSeverity(BadIdentifier::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_BADID_DEF(reason, severity, _)                                 \
-    case BadIdentifier::reason:                                                \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-BadIdentifier::BadIdentifier(Scope const* scope,
-                             ast::Identifier const* id,
-                             Reason reason):
-    BadExpr(scope, id, toSeverity(reason)), _reason(reason) {}
-
-void BadIdentifier::format(std::ostream& str) const {
+void BadExpr::format(std::ostream& str) const {
     switch (reason()) {
-#define SC_SEMA_BADID_DEF(reason, _, message)                                  \
-    case reason:                                                               \
-        str << message;                                                        \
-        break;
-#include "Sema/SemanticIssuesNEW.def"
+#define SC_SEMA_BADEXPR_DEF(Type, Reason, Severity, Message)                   \
+    case Reason: {                                                             \
+        [[maybe_unused]] auto* expr = cast<ast::Type const*>(this->expr());    \
+        str << Message;                                                        \
+        break;                                                                 \
     }
-}
-
-static IssueSeverity toSeverity(BadUnaryExpr::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_BADUNEXPR_DEF(reason, severity, _)                             \
-    case BadUnaryExpr::reason:                                                 \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-BadUnaryExpr::BadUnaryExpr(Scope const* scope,
-                           ast::UnaryExpression const* expr,
-                           Reason reason):
-    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
-
-void BadUnaryExpr::format(std::ostream& str) const {
-    switch (reason()) {
-#define SC_SEMA_BADUNEXPR_DEF(reason, _, message)                              \
-    case reason:                                                               \
-        str << message;                                                        \
-        break;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-static IssueSeverity toSeverity(BadBinaryExpr::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_BADBINEXPR_DEF(reason, severity, _)                            \
-    case BadBinaryExpr::reason:                                                \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-static std::string_view format(ast::BinaryOperator op) {
-    using enum ast::BinaryOperator;
-    switch (op) {
-    case Multiplication:
-        return "Multiplication";
-    case Division:
-        return "Division";
-    case Remainder:
-        return "Remainder operation";
-    case Addition:
-        return "Addition";
-    case Subtraction:
-        return "Subtraction";
-    case LeftShift:
-        return "Left shift";
-    case RightShift:
-        return "Right shift";
-    case Less:
-        [[fallthrough]];
-    case LessEq:
-        [[fallthrough]];
-    case Greater:
-        [[fallthrough]];
-    case GreaterEq:
-        return "Relational comparison";
-    case Equals:
-        [[fallthrough]];
-    case NotEquals:
-        return "Equality comparison";
-    case BitwiseAnd:
-        return "Bitwise and";
-    case BitwiseXOr:
-        return "Bitwise xor";
-    case BitwiseOr:
-        return "Bitwise or";
-    case LogicalAnd:
-        return "Logical and";
-    case LogicalOr:
-        return "Logical and";
-    case Assignment:
-        return "Assignment";
-    case AddAssignment:
-        [[fallthrough]];
-    case SubAssignment:
-        [[fallthrough]];
-    case MulAssignment:
-        [[fallthrough]];
-    case DivAssignment:
-        [[fallthrough]];
-    case RemAssignment:
-        [[fallthrough]];
-    case LSAssignment:
-        [[fallthrough]];
-    case RSAssignment:
-        [[fallthrough]];
-    case AndAssignment:
-        [[fallthrough]];
-    case OrAssignment:
-        [[fallthrough]];
-    case XOrAssignment:
-        return "Arithmetic assignment";
-    case Comma:
-        return "Comma operation";
-    }
-}
-
-BadBinaryExpr::BadBinaryExpr(Scope const* scope,
-                             ast::BinaryExpression const* expr,
-                             Reason reason):
-    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
-
-void BadBinaryExpr::format(std::ostream& str) const {
-    switch (reason()) {
-#define SC_SEMA_BADBINEXPR_DEF(reason, _, message)                             \
-    case reason:                                                               \
-        str << message;                                                        \
-        break;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-static IssueSeverity toSeverity(BadMemAcc::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_BADMEMACC_DEF(reason, severity, _)                             \
-    case BadMemAcc::reason:                                                    \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-BadMemAcc::BadMemAcc(Scope const* scope,
-                     ast::MemberAccess const* expr,
-                     Reason reason):
-    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
-
-void BadMemAcc::format(std::ostream& str) const {
-    switch (reason()) {
-#define SC_SEMA_BADMEMACC_DEF(reason, _, message)                              \
-    case reason:                                                               \
-        str << message;                                                        \
-        break;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-static IssueSeverity toSeverity(BadCondExpr::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_BADCONDEXPR_DEF(reason, severity, _)                           \
-    case BadCondExpr::reason:                                                  \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-BadCondExpr::BadCondExpr(Scope const* scope,
-                         ast::Conditional const* expr,
-                         Reason reason):
-    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
-
-void BadCondExpr::format(std::ostream& str) const {
-    switch (reason()) {
-#define SC_SEMA_BADCONDEXPR_DEF(reason, _, message)                            \
-    case reason:                                                               \
-        str << message;                                                        \
-        break;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-static IssueSeverity toSeverity(BadSubscript::Reason reason) {
-    switch (reason) {
-#define SC_SEMA_BADSUBSCR_DEF(reason, severity, _)                             \
-    case BadSubscript::reason:                                                 \
-        return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
-    }
-}
-
-BadSubscript::BadSubscript(Scope const* scope,
-                           ast::CallLike const* expr,
-                           Reason reason):
-    BadExpr(scope, expr, toSeverity(reason)), _reason(reason) {}
-
-void BadSubscript::format(std::ostream& str) const {
-    switch (reason()) {
-#define SC_SEMA_BADSUBSCR_DEF(reason, _, message)                              \
-    case reason:                                                               \
-        str << message;                                                        \
-        break;
 #include "Sema/SemanticIssuesNEW.def"
     }
 }

@@ -24,6 +24,7 @@ using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
 using enum ConversionKind;
+using enum BadExpr::Reason;
 
 namespace {
 
@@ -194,21 +195,21 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
         [[fallthrough]];
     case ast::UnaryOperator::Negation:
         if (!isAny<IntType, FloatType>(type)) {
-            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
+            ctx.badExpr(&u, UnaryExprBadType);
             return nullptr;
         }
         u.decorateValue(sym.temporary(type), RValue);
         break;
     case ast::UnaryOperator::BitwiseNot:
         if (!isAny<ByteType, IntType>(type)) {
-            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
+            ctx.badExpr(&u, UnaryExprBadType);
             return nullptr;
         }
         u.decorateValue(sym.temporary(type), RValue);
         break;
     case ast::UnaryOperator::LogicalNot:
         if (!isAny<BoolType>(type)) {
-            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
+            ctx.badExpr(&u, UnaryExprBadType);
             return nullptr;
         }
         u.decorateValue(sym.temporary(type), RValue);
@@ -217,15 +218,15 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
         [[fallthrough]];
     case ast::UnaryOperator::Decrement: {
         if (!isAny<IntType>(type)) {
-            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Type);
+            ctx.badExpr(&u, UnaryExprBadType);
             return nullptr;
         }
         if (!u.operand()->isLValue()) {
-            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::ValueCat);
+            ctx.badExpr(&u, UnaryExprValueCat);
             return nullptr;
         }
         if (!u.operand()->type().isMut()) {
-            ctx.issue<BadUnaryExpr>(&u, BadUnaryExpr::Immutable);
+            ctx.badExpr(&u, UnaryExprImmutable);
             return nullptr;
         }
         switch (u.notation()) {
@@ -361,14 +362,14 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
     QualType commonType =
         sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
     if (!commonType) {
-        ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::NoCommonType);
+        ctx.badExpr(&expr, BinaryExprNoCommonType);
         return {};
     }
 
     /// Determine result type of operation
     auto* resultType = getResultType(sym, commonType.get(), expr.operation());
     if (!resultType) {
-        ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::BadType);
+        ctx.badExpr(&expr, BinaryExprBadType);
         return {};
     }
 
@@ -376,11 +377,11 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
     if (ast::isAssignment(expr.operation())) {
         QualType lhsType = expr.lhs()->type();
         if (expr.lhs()->valueCategory() != LValue) {
-            ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::ValueCatLHS);
+            ctx.badExpr(&expr, BinaryExprValueCatLHS);
             return {};
         }
         if (!expr.lhs()->type().isMut()) {
-            ctx.issue<BadBinaryExpr>(&expr, BadBinaryExpr::ImmutableLHS);
+            ctx.badExpr(&expr, BinaryExprImmutableLHS);
             return {};
         }
         if (!convert(Implicit, expr.rhs(), lhsType, RValue, *dtorStack, ctx)) {
@@ -408,7 +409,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
         }
     }();
     if (!entity) {
-        ctx.issue<BadIdentifier>(&id, BadIdentifier::Undeclared);
+        ctx.badExpr(&id, UndeclaredID);
         return nullptr;
     }
     // clang-format off
@@ -499,7 +500,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 return &ma;
             },
             [&](Type& type) {
-                ctx.issue<BadMemAcc>(&ma, BadMemAcc::NonStaticThroughType);
+                ctx.badExpr(&ma, MemAccTypeThroughValue);
                 return nullptr;
             },
             [&](Entity& type) -> ast::Expression* {
@@ -511,7 +512,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         // clang-format off
         return SC_MATCH (*ma.member()->entity()) {
             [&](Object& object) {
-                ctx.issue<BadMemAcc>(&ma, BadMemAcc::NonStaticThroughType);
+                ctx.badExpr(&ma, MemAccNonStaticThroughType);
                 return nullptr;
             },
             [&](OverloadSet& os) {
@@ -663,7 +664,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     QualType elseType = c.elseExpr()->type();
     QualType commonType = sema::commonType(sym, thenType, elseType);
     if (!commonType) {
-        ctx.issue<BadCondExpr>(&c, BadCondExpr::NoCommonType);
+        ctx.badExpr(&c, ConditionalNoCommonType);
         return nullptr;
     }
     auto commonValueCat = sema::commonValueCat(c.thenExpr()->valueCategory(),
@@ -696,7 +697,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         return nullptr;
     }
     if (expr.arguments().size() != 1) {
-        ctx.issue<BadSubscript>(&expr, BadSubscript::ArgCount);
+        ctx.badExpr(&expr, SubscriptArgCount);
         return nullptr;
     }
     convert(Implicit, expr.argument(0), sym.S64(), RValue, *dtorStack, ctx);
@@ -730,7 +731,7 @@ ArrayType const* ExprContext::analyzeSubscriptCommon(ast::CallLike& expr) {
     auto* accessedType = expr.callee()->type().get();
     auto* arrayType = dyncast<ArrayType const*>(accessedType);
     if (!arrayType) {
-        ctx.issue<BadSubscript>(&expr, BadSubscript::NoArray);
+        ctx.badExpr(&expr, SubscriptNoArray);
         return nullptr;
     }
     return arrayType;

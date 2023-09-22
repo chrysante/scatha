@@ -9,6 +9,8 @@
 
 namespace scatha::sema {
 
+class BadExpr;
+
 /// Semantic analysis context
 /// Has references to the symbol table and  the issue handler and stores some
 /// indermediate analysis data
@@ -55,6 +57,11 @@ public:
     template <typename I, typename... Args>
     void issue(Args&&... args) {
         iss->push<I>(&sym->currentScope(), std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    void badExpr(Args&&... args) {
+        iss->push<BadExpr>(&sym->currentScope(), std::forward<Args>(args)...);
     }
 
 private:

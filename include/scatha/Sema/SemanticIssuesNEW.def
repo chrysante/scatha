@@ -101,130 +101,92 @@ SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue,
 #undef SC_SEMA_BADRETURN_DEF
 
 // ===--------------------------------------------------------------------=== //
-// === List of all reasons for a bad identifier --------------------------=== //
+// === List of all reasons for a bad expression --------------------------=== //
 // ===--------------------------------------------------------------------=== //
 
-#ifndef SC_SEMA_BADID_DEF
-#   define SC_SEMA_BADID_DEF(reason, severity, text)
+#ifndef SC_SEMA_BADEXPR_DEF
+#   define SC_SEMA_BADEXPR_DEF(ExprType, Reason, Severity, Message)
 #endif
 
-SC_SEMA_BADID_DEF(Undeclared,
-                  Error,
-                  "Use of undeclared identifier '" << id()->value() << "'")
+SC_SEMA_BADEXPR_DEF(Identifier,
+                    UndeclaredID,
+                    Error,
+                    "Use of undeclared identifier '" << expr->value() << "'")
 
-#undef SC_SEMA_BADID_DEF
+SC_SEMA_BADEXPR_DEF(UnaryExpression,
+                    UnaryExprBadType,
+                    Error,
+                    "Operand type " << expr->operand()->type()->name()
+                        << " is invalid for unary operator " << expr->operation())
 
-// ===--------------------------------------------------------------------=== //
-// === List of all reasons for a bad unary expression --------------------=== //
-// ===--------------------------------------------------------------------=== //
+SC_SEMA_BADEXPR_DEF(UnaryExpression,
+                    UnaryExprValueCat,
+                    Error,
+                    expr->operand()->valueCategory()
+                            << " operand is invalid for unary operator "
+                            << expr->operation())
 
-#ifndef SC_SEMA_BADUNEXPR_DEF
-#   define SC_SEMA_BADUNEXPR_DEF(reason, severity, text)
-#endif
+SC_SEMA_BADEXPR_DEF(UnaryExpression,
+                    UnaryExprImmutable,
+                    Error,
+                    "Immutable operand is invalid for unary operator "
+                       << expr->operation())
 
-// TODO: Rename to BadType
-SC_SEMA_BADUNEXPR_DEF(Type,
-                      Error,
-                      "Operand type " << expr()->operand()->type()->name()
-                          << " is invalid for unary operator " << expr()->operation())
+SC_SEMA_BADEXPR_DEF(BinaryExpression,
+                    BinaryExprNoCommonType,
+                    Error,
+                    "Operand types " << expr->lhs()->type()->name()
+                        << " and " << expr->rhs()->type()->name()
+                        << " have no common type")
 
-SC_SEMA_BADUNEXPR_DEF(ValueCat,
-                      Error,
-                      expr()->operand()->valueCategory()
-                          << " operand is invalid for unary operator "
-                          << expr()->operation())
+SC_SEMA_BADEXPR_DEF(BinaryExpression,
+                    BinaryExprBadType,
+                    Error,
+                    ::format(expr->operation()) << " is not supported for operand types "
+                        << expr->lhs()->type()->name() << " and "
+                        << expr->rhs()->type()->name())
 
-SC_SEMA_BADUNEXPR_DEF(Immutable,
-                      Error,
-                      "Immutable operand is invalid for unary operator "
-                          << expr()->operation())
+SC_SEMA_BADEXPR_DEF(BinaryExpression,
+                    BinaryExprValueCatLHS,
+                    Error,
+                    expr->lhs()->valueCategory()
+                        << " operand is invalid in assignment expression")
 
-#undef SC_SEMA_BADUNEXPR_DEF
+SC_SEMA_BADEXPR_DEF(BinaryExpression,
+                    BinaryExprImmutableLHS,
+                    Error,
+                    "Immutable operand is invalid in assignment expression")
 
-// ===--------------------------------------------------------------------=== //
-// === List of all reasons for a bad binary expression -------------------=== //
-// ===--------------------------------------------------------------------=== //
+SC_SEMA_BADEXPR_DEF(MemberAccess,
+                    MemAccNonStaticThroughType,
+                    Error,
+                    "Cannot access non-static member "
+                        << expr->member()->value()
+                        << " without an object")
 
-#ifndef SC_SEMA_BADBINEXPR_DEF
-#   define SC_SEMA_BADBINEXPR_DEF(reason, severity, text)
-#endif
+SC_SEMA_BADEXPR_DEF(MemberAccess,
+                    MemAccTypeThroughValue,
+                    Error,
+                    "Cannot access non-static member "
+                        << expr->member()->value()
+                        << " without an object")
 
-SC_SEMA_BADBINEXPR_DEF(NoCommonType,
-                       Error,
-                       "Operand types " << expr()->lhs()->type()->name()
-                           << " and " << expr()->rhs()->type()->name()
-                           << " have no common type")
+SC_SEMA_BADEXPR_DEF(Conditional,
+                    ConditionalNoCommonType,
+                    Error,
+                    "Operand types " << expr->thenExpr()->type()->name()
+                        << " and " << expr->elseExpr()->type()->name()
+                        << " have no common type")
 
-SC_SEMA_BADBINEXPR_DEF(BadType,
-                       Error,
-                       ::format(expr()->operation()) << " is not supported for operand types "
-                           << expr()->lhs()->type()->name() << " and "
-                           << expr()->rhs()->type()->name())
+SC_SEMA_BADEXPR_DEF(CallLike,
+                    SubscriptNoArray,
+                    Error,
+                    "Subscript expression on non-array type "
+                        << expr->callee()->type()->name())
 
-SC_SEMA_BADBINEXPR_DEF(ValueCatLHS,
-                       Error,
-                       expr()->lhs()->valueCategory()
-                          << " operand is invalid in assignment expression")
+SC_SEMA_BADEXPR_DEF(Subscript,
+                    SubscriptArgCount,
+                    Error,
+                    "Subscript expression requires exactly one argument")
 
-SC_SEMA_BADBINEXPR_DEF(ImmutableLHS,
-                       Error,
-                       "Immutable operand is invalid in assignment expression")
-
-#undef SC_SEMA_BADBINEXPR_DEF
-
-// ===--------------------------------------------------------------------=== //
-// === List of all reasons for a bad member access expression ------------=== //
-// ===--------------------------------------------------------------------=== //
-
-#ifndef SC_SEMA_BADMEMACC_DEF
-#   define SC_SEMA_BADMEMACC_DEF(reason, severity, text)
-#endif
-
-SC_SEMA_BADMEMACC_DEF(NonStaticThroughType,
-                      Error,
-                      "Cannot access non-static member "
-                          << expr()->member()->value()
-                          << " without an object")
-
-SC_SEMA_BADMEMACC_DEF(TypeThroughValue,
-                      Error,
-                      "Cannot access non-static member "
-                          << expr()->member()->value()
-                          << " without an object")
-
-#undef SC_SEMA_BADMEMACC_DEF
-
-// ===--------------------------------------------------------------------=== //
-// === List of all reasons for a bad conditional expression --------------=== //
-// ===--------------------------------------------------------------------=== //
-
-#ifndef SC_SEMA_BADCONDEXPR_DEF
-#   define SC_SEMA_BADCONDEXPR_DEF(reason, severity, text)
-#endif
-
-SC_SEMA_BADCONDEXPR_DEF(NoCommonType,
-                        Error,
-                        "Operand types " << expr()->thenExpr()->type()->name()
-                            << " and " << expr()->elseExpr()->type()->name()
-                            << " have no common type")
-
-#undef SC_SEMA_BADCONDEXPR_DEF
-
-// ===--------------------------------------------------------------------=== //
-// === List of all reasons for a bad subscript (or slice) expression -----=== //
-// ===--------------------------------------------------------------------=== //
-
-#ifndef SC_SEMA_BADSUBSCR_DEF
-#   define SC_SEMA_BADSUBSCR_DEF(reason, severity, text)
-#endif
-
-SC_SEMA_BADSUBSCR_DEF(NoArray,
-                      Error,
-                      "Subscript expression on non-array type "
-                          << expr()->callee()->type()->name())
-
-SC_SEMA_BADSUBSCR_DEF(ArgCount,
-                      Error,
-                      "Subscript expression requires exactly one argument")
-
-#undef SC_SEMA_BADSUBSCR_DEF
+#undef SC_SEMA_BADEXPR_DEF

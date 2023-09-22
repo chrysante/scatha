@@ -8,6 +8,7 @@
 
 using namespace scatha;
 using namespace sema;
+using enum BadExpr::Reason;
 
 TEST_CASE("Use of undeclared identifier", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
@@ -18,11 +19,11 @@ fn h() { 1 + x; }
 fn i() { let y: X.Z; }
 struct X { struct Y {} }
 )");
-    CHECK(issues.findOnLine<BadIdentifier>(2));
-    CHECK(issues.findOnLine<BadIdentifier>(3));
-    CHECK(issues.findOnLine<BadIdentifier>(4));
-    CHECK(issues.findOnLine<BadIdentifier>(5));
-    CHECK(issues.findOnLine<BadIdentifier>(6));
+    CHECK(issues.findOnLine<BadExpr>(2, UndeclaredID));
+    CHECK(issues.findOnLine<BadExpr>(3, UndeclaredID));
+    CHECK(issues.findOnLine<BadExpr>(4, UndeclaredID));
+    CHECK(issues.findOnLine<BadExpr>(5, UndeclaredID));
+    CHECK(issues.findOnLine<BadExpr>(6, UndeclaredID));
 }
 
 TEST_CASE("Bad symbol reference", "[sema][issue]") {
@@ -78,22 +79,10 @@ fn main(i: int) -> bool {
 /* 5 */ ++i;
 /* 6 */ --0;
 })");
-    {
-        auto const issue = issues.findOnLine<BadUnaryExpr>(3);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadUnaryExpr::Type);
-    }
+    CHECK(issues.findOnLine<BadExpr>(3, UnaryExprBadType));
     CHECK(issues.noneOnLine(4));
-    {
-        auto const issue = issues.findOnLine<BadUnaryExpr>(5);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadUnaryExpr::Immutable);
-    }
-    {
-        auto const issue = issues.findOnLine<BadUnaryExpr>(6);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadUnaryExpr::ValueCat);
-    }
+    CHECK(issues.findOnLine<BadExpr>(5, UnaryExprImmutable));
+    CHECK(issues.findOnLine<BadExpr>(6, UnaryExprValueCat));
 }
 
 TEST_CASE("Bad operands for binary expression", "[sema][issue]") {
@@ -105,31 +94,11 @@ fn main(i: int, f: double) -> bool {
 /* 6 */ i *= 2;
 /* 7 */ 2 *= 2;
 })");
-    {
-        auto const issue = issues.findOnLine<BadBinaryExpr>(3);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadBinaryExpr::NoCommonType);
-    }
-    {
-        auto const issue = issues.findOnLine<BadBinaryExpr>(4);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadBinaryExpr::NoCommonType);
-    }
-    {
-        auto const issue = issues.findOnLine<BadBinaryExpr>(5);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadBinaryExpr::BadType);
-    }
-    {
-        auto const issue = issues.findOnLine<BadBinaryExpr>(6);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadBinaryExpr::ImmutableLHS);
-    }
-    {
-        auto const issue = issues.findOnLine<BadBinaryExpr>(7);
-        REQUIRE(issue);
-        CHECK(issue->reason() == BadBinaryExpr::ValueCatLHS);
-    }
+    CHECK(issues.findOnLine<BadExpr>(3, BinaryExprNoCommonType));
+    CHECK(issues.findOnLine<BadExpr>(4, BinaryExprNoCommonType));
+    CHECK(issues.findOnLine<BadExpr>(5, BinaryExprBadType));
+    CHECK(issues.findOnLine<BadExpr>(6, BinaryExprImmutableLHS));
+    CHECK(issues.findOnLine<BadExpr>(7, BinaryExprValueCatLHS));
 }
 
 TEST_CASE("Bad function call expression", "[sema][issue]") {
@@ -156,7 +125,7 @@ fn main() {
 }
 struct X { let data: float; }
 )");
-    CHECK(issues.findOnLine<BadMemAcc>(3, BadMemAcc::NonStaticThroughType));
+    CHECK(issues.findOnLine<BadExpr>(3, MemAccNonStaticThroughType));
 }
 
 TEST_CASE("Invalid function redefinition", "[sema][issue]") {

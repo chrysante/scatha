@@ -54,12 +54,6 @@ public:                                                                        \
         return cast_or_null<T const*>(BadStmt::statement());                   \
     }
 
-#define SC_SEMA_DERIVED_EXPR(Type, Name)                                       \
-    template <typename T = ast::Type>                                          \
-    T const* Name() const {                                                    \
-        return cast_or_null<T const*>(BadExpr::expr());                        \
-    }
-
 /// Base class of all semantic issues
 class SCATHA_API SemaIssue: public Issue {
 public:
@@ -228,136 +222,28 @@ private:
 /// Base class of all statement related issues
 class SCATHA_API BadExpr: public SemaIssue {
 public:
+    enum Reason {
+#define SC_SEMA_BADEXPR_DEF(Type, Reason, Severity, Message) Reason,
+#include <scatha/Sema/SemanticIssuesNEW.def>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    explicit BadExpr(Scope const* scope,
+                     ast::Expression const* expr,
+                     Reason reason);
+
     /// \Returns the erroneous expression
     ast::Expression const* expr() const { return _expr; }
 
-protected:
-    explicit BadExpr(Scope const* scope,
-                     ast::Expression const* expr,
-                     IssueSeverity severity);
-
 private:
+    void format(std::ostream&) const override;
+
     ast::Expression const* _expr;
-};
-
-///
-class SCATHA_API BadIdentifier: public BadExpr {
-public:
-    enum Reason {
-#define SC_SEMA_BADID_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemanticIssuesNEW.def>
-    };
-    SC_SEMA_ISSUE_REASON()
-
-    explicit BadIdentifier(Scope const* scope,
-                           ast::Identifier const* id,
-                           Reason reason);
-
-    SC_SEMA_DERIVED_EXPR(Identifier, id)
-
-private:
-    void format(std::ostream& str) const override;
-};
-
-///
-class SCATHA_API BadUnaryExpr: public BadExpr {
-public:
-    enum Reason {
-#define SC_SEMA_BADUNEXPR_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemanticIssuesNEW.def>
-    };
-    SC_SEMA_ISSUE_REASON()
-
-    explicit BadUnaryExpr(Scope const* scope,
-                          ast::UnaryExpression const* expr,
-                          Reason reason);
-
-    SC_SEMA_DERIVED_EXPR(UnaryExpression, expr)
-
-private:
-    void format(std::ostream& str) const override;
-};
-
-///
-class SCATHA_API BadBinaryExpr: public BadExpr {
-public:
-    enum Reason {
-#define SC_SEMA_BADBINEXPR_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemanticIssuesNEW.def>
-    };
-    SC_SEMA_ISSUE_REASON()
-
-    explicit BadBinaryExpr(Scope const* scope,
-                           ast::BinaryExpression const* expr,
-                           Reason reason);
-
-    SC_SEMA_DERIVED_EXPR(BinaryExpression, expr)
-
-private:
-    void format(std::ostream& str) const override;
-};
-
-///
-class SCATHA_API BadMemAcc: public BadExpr {
-public:
-    enum Reason {
-#define SC_SEMA_BADMEMACC_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemanticIssuesNEW.def>
-    };
-    SC_SEMA_ISSUE_REASON()
-
-    explicit BadMemAcc(Scope const* scope,
-                       ast::MemberAccess const* expr,
-                       Reason reason);
-
-    SC_SEMA_DERIVED_EXPR(MemberAccess, expr)
-
-private:
-    void format(std::ostream& str) const override;
-};
-
-///
-class SCATHA_API BadCondExpr: public BadExpr {
-public:
-    enum Reason {
-#define SC_SEMA_BADCONDEXPR_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemanticIssuesNEW.def>
-    };
-    SC_SEMA_ISSUE_REASON()
-
-    explicit BadCondExpr(Scope const* scope,
-                         ast::Conditional const* expr,
-                         Reason reason);
-
-    SC_SEMA_DERIVED_EXPR(Conditional, expr)
-
-private:
-    void format(std::ostream& str) const override;
-};
-
-///
-class SCATHA_API BadSubscript: public BadExpr {
-public:
-    enum Reason {
-#define SC_SEMA_BADSUBSCR_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemanticIssuesNEW.def>
-    };
-    SC_SEMA_ISSUE_REASON()
-
-    explicit BadSubscript(Scope const* scope,
-                          ast::CallLike const* expr,
-                          Reason reason);
-
-    SC_SEMA_DERIVED_EXPR(CallLike, expr)
-
-private:
-    void format(std::ostream& str) const override;
 };
 
 } // namespace scatha::sema
 
 #undef SC_SEMA_ISSUE_REASON
 #undef SC_SEMA_DERIVED_STMT
-#undef SC_SEMA_DERIVED_EXPR
 
 #endif // SCATHA_SEMA_SEMANTICISSUES_H_
