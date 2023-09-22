@@ -308,20 +308,13 @@ Temporary* SymbolTable::temporary(QualType type) {
     return temp;
 }
 
-Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(
-    std::string name, EntityCategory cat) {
+void SymbolTable::declarePoison(std::string name, EntityCategory cat) {
     using enum InvalidDeclaration::Reason;
-    if (isKeyword(name)) {
-        return new InvalidDeclaration(nullptr,
-                                      ReservedIdentifier,
-                                      currentScope());
+    if (isKeyword(name) || currentScope().findEntity(name)) {
+        return;
     }
-    if (auto* entity = currentScope().findEntity(name)) {
-        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
-    }
-    auto* entity = impl->addEntity<PoisonEntity>(name, cat, &currentScope());
-    currentScope().add(entity);
-    return *entity;
+    auto* poison = impl->addEntity<PoisonEntity>(name, cat, &currentScope());
+    currentScope().add(poison);
 }
 
 Scope* SymbolTable::addAnonymousScope() {

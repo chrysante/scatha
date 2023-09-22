@@ -122,11 +122,7 @@ public:
     Scope* addAnonymousScope();
 
     /// Declares a poison entity to the current scope.
-    ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
-    /// name is already in use in the current scope.
-    Expected<PoisonEntity&, SemanticIssue*> declarePoison(
-        std::string name, EntityCategory category);
+    void declarePoison(std::string name, EntityCategory category);
 
     /// Makes scope \p scope the current scope.
     ///
