@@ -108,6 +108,11 @@ SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue,
 #   define SC_SEMA_BADEXPR_DEF(ExprType, Reason, Severity, Message)
 #endif
 
+SC_SEMA_BADEXPR_DEF(Expression,
+                    BadExprNone,
+                    Error,
+                    "No issue")
+
 /// This should only be used for temporary language constructs for which it is
 /// not worthwhile to make special errors
 SC_SEMA_BADEXPR_DEF(Expression,

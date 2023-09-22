@@ -104,7 +104,7 @@ std::vector<StructType const*> InstContext::instantiateTypes(
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
         auto* type = sym.withScopeCurrent(node.entity->parent(), [&] {
-            return analyzeTypeExpression(var.typeExpr(), ctx);
+            return analyzeTypeExpr(var.typeExpr(), ctx);
         });
         if (type && isUserDefined(type)) {
             node.dependencies.push_back(
@@ -218,7 +218,7 @@ void InstContext::instantiateVariable(SDGNode& node) {
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto* type = analyzeTypeExpression(varDecl.typeExpr(), ctx);
+    auto* type = analyzeTypeExpr(varDecl.typeExpr(), ctx);
     /// Here we set the TypeID of the variable in the symbol table.
     auto* variable = cast<Variable*>(node.entity);
     variable->setType(type);
@@ -286,7 +286,7 @@ FunctionSignature InstContext::analyzeSignature(
     /// If the return type is not specified it will be deduced during function
     /// analysis
     auto* returnType = decl.returnTypeExpr() ?
-                           analyzeTypeExpression(decl.returnTypeExpr(), ctx) :
+                           analyzeTypeExpr(decl.returnTypeExpr(), ctx) :
                            nullptr;
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
@@ -295,7 +295,7 @@ Type const* InstContext::analyzeParameter(ast::ParameterDeclaration& param,
                                           size_t index) const {
     auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
     if (!thisParam) {
-        return analyzeTypeExpression(param.typeExpr(), ctx);
+        return analyzeTypeExpr(param.typeExpr(), ctx);
     }
     auto* structure = param.findAncestor<ast::StructDefinition>();
     if (!structure) {

@@ -37,12 +37,12 @@ fn main() -> int {
 fn f() -> 0 {}
 fn f(i: 0) {}
 )");
-    CHECK(issues.findOnLine<BadSymbolReference>(3));
-    CHECK(issues.findOnLine<BadSymbolReference>(4));
-    CHECK(issues.findOnLine<BadSymbolReference>(5));
-    CHECK(issues.findOnLine<BadSymbolReference>(6));
-    CHECK(issues.findOnLine<BadSymbolReference>(8));
-    CHECK(issues.findOnLine<BadSymbolReference>(9));
+    CHECK(issues.findOnLine<BadSymRef>(3));
+    CHECK(issues.findOnLine<BadSymRef>(4));
+    CHECK(issues.findOnLine<BadSymRef>(5));
+    CHECK(issues.findOnLine<BadSymRef>(6));
+    CHECK(issues.findOnLine<BadSymRef>(8));
+    CHECK(issues.findOnLine<BadSymRef>(9));
 }
 
 TEST_CASE("Invalid redefinition of builtin types", "[sema][issue]") {
@@ -108,9 +108,9 @@ fn g() { X.callee(0); }
 struct X {
 	fn callee(a: string) {}
 })");
-    auto const line2 = issues.findOnLine<NoMatchingFunction>(2);
+    auto const line2 = issues.findOnLine<ORError>(2, ORError::NoMatch);
     CHECK(line2);
-    auto const line3 = issues.findOnLine<NoMatchingFunction>(3);
+    auto const line3 = issues.findOnLine<ORError>(3, ORError::NoMatch);
     CHECK(line3);
 }
 
@@ -185,11 +185,11 @@ TEST_CASE("Invalid variable declaration", "[sema][issue]") {
     // let v;
     CHECK(issues.findOnLine<BadVarDecl>(3, BadVarDecl::CantInferType));
     CHECK(issues.noneOnLine(4));
-    auto const line5 = issues.findOnLine<BadSymbolReference>(5);
+    auto const line5 = issues.findOnLine<BadSymRef>(5);
     REQUIRE(line5);
     CHECK(line5->have() == EntityCategory::Value);
     CHECK(line5->expected() == EntityCategory::Type);
-    auto const line6 = issues.findOnLine<BadSymbolReference>(6);
+    auto const line6 = issues.findOnLine<BadSymRef>(6);
     REQUIRE(line6);
     CHECK(line6->have() == EntityCategory::Type);
     CHECK(line6->expected() == EntityCategory::Value);
@@ -308,11 +308,11 @@ fn main() {
 })");
 
     CHECK(issues.findOnLine<BadExpr>(3, ListExprNoCommonType));
-    auto badSymRef = issues.findOnLine<BadSymbolReference>(4);
+    auto badSymRef = issues.findOnLine<BadSymRef>(4);
     REQUIRE(badSymRef);
     CHECK(badSymRef->have() == EntityCategory::Type);
     CHECK(badSymRef->expected() == EntityCategory::Value);
-    CHECK(issues.findOnLine<BadVarDecl>(5, BadVarDecl::CantInferType));
+    CHECK(issues.findOnLine<BadExpr>(5, GenericBadExpr));
     CHECK(issues.findOnLine<BadExpr>(6, ListExprTypeExcessElements));
 }
 

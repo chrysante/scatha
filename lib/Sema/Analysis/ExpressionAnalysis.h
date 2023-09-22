@@ -17,11 +17,16 @@ ast::Expression* analyzeExpression(ast::Expression* expression,
                                    DTorStack& dtorStack,
                                    AnalysisContext& context);
 
+/// Same as `analyzeExpression()` but ensures that the expression refers to a
+/// value
+ast::Expression* analyzeValueExpr(ast::Expression* expression,
+                                  DTorStack& dtorStack,
+                                  AnalysisContext& context);
+
 /// Analyses the expression \p expr and returns the type it refers to. If \p
 /// expr does not refer to a type, this function will push an error to the issue
 /// handler
-Type const* analyzeTypeExpression(ast::Expression* expr,
-                                  AnalysisContext& context);
+Type const* analyzeTypeExpr(ast::Expression* expr, AnalysisContext& context);
 
 } // namespace scatha::sema
 

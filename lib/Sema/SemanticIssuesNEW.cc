@@ -11,9 +11,9 @@
 using namespace scatha;
 using namespace sema;
 
-static SourceRange getSourceRange(ast::Statement const* statement) {
-    if (statement) {
-        return statement->sourceRange();
+static SourceRange getSourceRange(ast::ASTNode const* node) {
+    if (node) {
+        return node->sourceRange();
     }
     return {};
 }
@@ -277,8 +277,15 @@ static IssueSeverity toSeverity(BadExpr::Reason reason) {
 BadExpr::BadExpr(Scope const* scope,
                  ast::Expression const* expr,
                  Reason reason):
-    SemaIssue(scope, expr->sourceRange(), toSeverity(reason)),
+    SemaIssue(scope, getSourceRange(expr), toSeverity(reason)),
     _reason(reason),
+    _expr(expr) {}
+
+BadExpr::BadExpr(Scope const* scope,
+                 ast::Expression const* expr,
+                 IssueSeverity severity):
+    SemaIssue(scope, getSourceRange(expr), severity),
+    _reason(BadExprNone),
     _expr(expr) {}
 
 void BadExpr::format(std::ostream& str) const {
@@ -290,6 +297,35 @@ void BadExpr::format(std::ostream& str) const {
         break;                                                                 \
     }
 #include "Sema/SemanticIssuesNEW.def"
+    }
+}
+
+BadSymRef::BadSymRef(Scope const* scope,
+                     ast::Expression const* expr,
+                     EntityCategory expected):
+    BadExpr(scope, expr, IssueSeverity::Error), _expected(expected) {}
+
+EntityCategory BadSymRef::have() const {
+    if (!expr() || !expr()->entity()) {
+        return EntityCategory::Indeterminate;
+    }
+    return expr()->entity()->category();
+}
+
+EntityCategory BadSymRef::expected() const { return _expected; }
+
+void BadSymRef::format(std::ostream& str) const {
+    using enum EntityCategory;
+    switch (expected()) {
+    case Value:
+        str << "Expected a value";
+        break;
+    case Type:
+        str << "Expected a type";
+        break;
+    case Indeterminate:
+        str << "Internal compiler error (Invalid BadSymRef)";
+        break;
     }
 }
 

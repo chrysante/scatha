@@ -98,35 +98,41 @@ static bool isAny(T const& t) {
 ast::Expression* sema::analyzeExpression(ast::Expression* expr,
                                          DTorStack& dtorStack,
                                          AnalysisContext& ctx) {
-    if (!expr) {
-        return nullptr;
-    }
     return ExprContext(ctx, dtorStack).analyze(expr);
 }
 
-Type const* sema::analyzeTypeExpression(ast::Expression* expr,
+ast::Expression* sema::analyzeValueExpr(ast::Expression* expr,
+                                        DTorStack& dtorStack,
                                         AnalysisContext& ctx) {
-    DTorStack dtorStack;
-    expr = sema::analyzeExpression(expr, dtorStack, ctx);
-    SC_ASSERT(dtorStack.empty(), "");
-    if (!expr) {
+    ExprContext exprCtx(ctx, dtorStack);
+    expr = exprCtx.analyze(expr);
+    if (!exprCtx.expectValue(expr)) {
         return nullptr;
     }
-    if (!expr->isType()) {
-        ctx.issueHandler().push<BadSymbolReference>(*expr,
-                                                    EntityCategory::Type);
+    return expr;
+}
+
+Type const* sema::analyzeTypeExpr(ast::Expression* expr, AnalysisContext& ctx) {
+    DTorStack dtorStack;
+    ExprContext exprCtx(ctx, dtorStack);
+    expr = exprCtx.analyze(expr);
+    SC_ASSERT(dtorStack.empty(),
+              "Type expression cannot trigger destructor calls");
+    if (!exprCtx.expectType(expr)) {
         return nullptr;
     }
     return cast<Type const*>(expr->entity());
 }
 
 ast::Expression* ExprContext::analyze(ast::Expression* expr) {
+    if (!expr) {
+        return nullptr;
+    }
     if (expr->isDecorated()) {
+        // TODO: Check if we ever hit this branch
         return expr;
     }
-    expr = visit(*expr, [this](auto&& e) { return this->analyzeImpl(e); });
-    SC_ASSERT(true, "");
-    return expr;
+    return visit(*expr, [this](auto&& e) { return this->analyzeImpl(e); });
 }
 
 ast::Expression* ExprContext::analyzeValue(ast::Expression* expr) {
@@ -867,7 +873,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         return nullptr;
     }
     if (list.elements().empty()) {
-        list.decorateValue(sym.temporary(nullptr), RValue);
+        /// For now until we implement another way to deduce list types
+        /// The problem is if we don't push an error here, a variable with an
+        /// empty list expression as it's initializer would not emit an error,
+        /// as we try to avoid emitting duplicate errors.
+        ctx.badExpr(&list, GenericBadExpr);
         return nullptr;
     }
     auto* first = list.elements().front();
@@ -929,8 +939,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         list.decorateType(const_cast<ArrayType*>(arrayType));
         return &list;
     }
-    default:
-        ctx.badExpr(&list, ListExprBadEntity);
+    case EntityCategory::Indeterminate:
         return nullptr;
     }
 }
@@ -949,23 +958,25 @@ Type const* ExprContext::getReturnType(Function* function) {
 }
 
 bool ExprContext::expectValue(ast::Expression const* expr) {
-    if (!expr->isDecorated()) {
+    if (!expr || !expr->isDecorated()) {
         return false;
     }
     if (!expr->isValue()) {
-        iss.push<BadSymbolReference>(*expr, EntityCategory::Value);
+        ctx.issue<BadSymRef>(expr, EntityCategory::Value);
         return false;
     }
     if (!expr->type()) {
-        iss.push<BadSymbolReference>(*expr, EntityCategory::Value);
         return false;
     }
     return true;
 }
 
 bool ExprContext::expectType(ast::Expression const* expr) {
+    if (!expr || !expr->isDecorated()) {
+        return false;
+    }
     if (!expr->isType()) {
-        iss.push<BadSymbolReference>(*expr, EntityCategory::Type);
+        ctx.issue<BadSymRef>(expr, EntityCategory::Type);
         return false;
     }
     return true;

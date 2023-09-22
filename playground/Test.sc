@@ -1,11 +1,10 @@
 fn main() {
-/* 3 */ X.data;
-/* 4 */
-/* 5 */
-/* 6 */
-/* 7 */
+
+
+let c = [];
+
 }
-struct X { let data: float; }
+
 
 
 

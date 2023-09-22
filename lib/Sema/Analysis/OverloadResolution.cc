@@ -104,8 +104,9 @@ OverloadResolutionResult sema::performOverloadResolution(
                         return std::pair{ expr->type(), expr->valueCategory() };
                     }) |
                     ranges::to<std::vector>;
-        auto functions = results | ranges::views::transform([](auto& r) {
-                             return std::as_const(r).function;
+        auto functions = results |
+                         ranges::views::transform([](auto& r) -> auto const* {
+                             return r.function;
                          }) |
                          ranges::to<std::vector>;
         return makeError<ORError>(overloadSet,

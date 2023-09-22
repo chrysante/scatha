@@ -26,6 +26,7 @@
 /// │  │  └─ StructDefCycle
 /// │  └─ BadReturnStatement
 /// ├─ BadExpression
+/// │  └─ BadSymRef
 /// └─ ORError
 /// ```
 
@@ -228,15 +229,39 @@ public:
     /// \Returns the erroneous expression
     ast::Expression const* expr() const { return _expr; }
 
+protected:
+    explicit BadExpr(Scope const* scope,
+                     ast::Expression const* expr,
+                     IssueSeverity severity);
+
 private:
     void format(std::ostream&) const override;
 
     ast::Expression const* _expr;
 };
 
-/// Base class of all statement related issues
+///
+class SCATHA_API BadSymRef: public BadExpr {
+public:
+    explicit BadSymRef(Scope const* scope,
+                       ast::Expression const* expression,
+                       EntityCategory expected);
+
+    EntityCategory have() const;
+
+    EntityCategory expected() const;
+
+private:
+    void format(std::ostream&) const override;
+
+    EntityCategory _expected;
+};
+
+/// Overload resolution error
 class SCATHA_API ORError: public SemaIssue {
 public:
+    enum Reason { NoMatch, Ambiguous };
+
     explicit ORError(
         OverloadSet const* os,
         std::vector<std::pair<QualType, ValueCategory>> argTypes = {},
@@ -246,6 +271,8 @@ public:
         setScope(scope);
         setSourceRange(sourceRange);
     }
+
+    Reason reason() const { return matches.empty() ? NoMatch : Ambiguous; }
 
 private:
     void format(std::ostream&) const override;

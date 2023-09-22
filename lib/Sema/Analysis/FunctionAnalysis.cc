@@ -74,8 +74,12 @@ struct FuncBodyContext {
     void analyzeImpl(ast::EmptyStatement&) {}
     void analyzeImpl(ast::ASTNode& node) { SC_UNREACHABLE(); }
 
-    ast::Expression* analyzeExpr(ast::Expression* expr, DTorStack& dtorStack) {
-        return sema::analyzeExpression(expr, dtorStack, ctx);
+    ast::Expression* analyzeValue(ast::Expression* expr, DTorStack& dtorStack) {
+        return sema::analyzeValueExpr(expr, dtorStack, ctx);
+    }
+
+    Type const* analyzeType(ast::Expression* expr) {
+        return sema::analyzeTypeExpr(expr, ctx);
     }
 
     sema::AnalysisContext& ctx;
@@ -205,32 +209,22 @@ void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
     });
 }
 
-static bool isPoison(ast::Expression* expr) {
-    if (!expr || !expr->isDecorated()) {
-        return false;
-    }
-    return isa_or_null<PoisonEntity>(expr->entity());
-}
-
 void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(!varDecl.isDecorated(),
               "We should not have handled local variables in prepass.");
-    auto* initExpr = analyzeExpr(varDecl.initExpr(), varDecl.dtorStack());
-    auto declType = analyzeTypeExpression(varDecl.typeExpr(), ctx);
-    auto initType = initExpr ? initExpr->type().get() : nullptr;
-    if (initExpr && !initExpr->isValue()) {
-        iss.push<BadSymbolReference>(*initExpr, EntityCategory::Value);
-        return;
-    }
-    if (!declType && !initType) {
+    if (!varDecl.initExpr() && !varDecl.typeExpr()) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
-        if (isPoison(varDecl.typeExpr()) && !isPoison(initExpr)) {
-            return;
-        }
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
         return;
     }
+    auto* initExpr = analyzeValue(varDecl.initExpr(), varDecl.dtorStack());
+    auto declType = analyzeType(varDecl.typeExpr());
+    auto initType = initExpr ? initExpr->type().get() : nullptr;
     auto type = declType ? declType : initType;
+    if (!type) {
+        sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
+        return;
+    }
     if (!type->isComplete()) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         ctx.issue<BadVarDecl>(&varDecl,
@@ -278,7 +272,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
 
 void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
     SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
-    analyzeExpr(es.expression(), es.dtorStack());
+    analyzeValue(es.expression(), es.dtorStack());
 }
 
 void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
@@ -291,15 +285,11 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     /// We gather parent destructors here because `analyzeExpr()` may add more
     /// constructors and the parent destructors must be lower in the stack
     gatherParentDestructors(rs);
-    if (!analyzeExpr(rs.expression(), rs.dtorStack())) {
+    if (!analyzeValue(rs.expression(), rs.dtorStack())) {
         return;
     }
     if (isa_or_null<VoidType>(returnType)) {
         ctx.issue<BadReturnStmt>(&rs, BadReturnStmt::VoidMustNotReturnValue);
-        return;
-    }
-    if (!rs.expression()->isValue()) {
-        iss.push<BadSymbolReference>(*rs.expression(), EntityCategory::Value);
         return;
     }
     if (returnType) {
@@ -330,7 +320,7 @@ void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
         ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
         return;
     }
-    if (analyzeExpr(stmt.condition(), stmt.dtorStack())) {
+    if (analyzeValue(stmt.condition(), stmt.dtorStack())) {
         convert(Implicit,
                 stmt.condition(),
                 sym.Bool(),
@@ -354,7 +344,7 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
     if (stmt.varDecl()) {
         analyze(*stmt.varDecl());
     }
-    if (analyzeExpr(stmt.condition(), stmt.conditionDtorStack())) {
+    if (analyzeValue(stmt.condition(), stmt.conditionDtorStack())) {
         convert(Implicit,
                 stmt.condition(),
                 sym.Bool(),
@@ -363,7 +353,7 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
                 ctx);
     }
     if (stmt.increment()) {
-        analyzeExpr(stmt.increment(), stmt.incrementDtorStack());
+        analyzeValue(stmt.increment(), stmt.incrementDtorStack());
     }
     sym.popScope(); /// The block will push its scope again.
     analyze(*stmt.block());
