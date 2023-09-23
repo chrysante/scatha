@@ -65,6 +65,37 @@ struct Y { let x: X; }
 
 /// List of test cases for all errors:
 
+/// Bad variable declaration
+/// IncompleteType
+fn main() {
+    let data: [int];
+}
+/// ExpectedRefInit
+fn main() {
+    let data: & int;
+}
+/// CantInferType
+fn main() {
+    let data;
+}
+/// RefInStruct
+struct X {
+    var bar: &int;
+}
+/// ThisInFreeFunction
+fn free(this) {
+
+}
+/// ThisPosition
+struct Y {
+    fn foo(d: double, &this) {}
+}
+
+
+
+
+
+
 /// Bad return type deduction
 fn test() {
     return 0;
@@ -72,4 +103,12 @@ fn test() {
     
     // do other stuff
     return;
+}
+
+/// Struct definition cycle
+struct X {
+    var y: Y;
+}
+struct Y {
+    var x: X;
 }
