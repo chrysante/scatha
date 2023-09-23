@@ -6,6 +6,8 @@
 
 #include "AST/AST.h"
 #include "Sema/Entity.h"
+#include "Sema/SemaIssues.h"
+#include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
 using namespace scatha;
@@ -337,4 +339,49 @@ struct W {
     auto* w = sym.lookup<StructType>("W");
     CHECK(w->size() == 16);
     CHECK(w->align() == 8);
+}
+
+TEST_CASE("Return type deduction", "[sema]") {
+    SECTION("Successful") {
+        auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+fn f(cond: bool) {
+    if cond {
+        return 1;
+    }
+    return 0;
+})");
+        REQUIRE(iss.empty());
+        auto* f = sym.lookup<OverloadSet>("f")->front();
+        REQUIRE(f);
+        CHECK(f->returnType() == sym.S64());
+    }
+    SECTION("Successful void") {
+        auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+fn f(cond: bool) {
+    if cond {
+        return;
+    }
+    return;
+})");
+        REQUIRE(iss.empty());
+        auto* f = sym.lookup<OverloadSet>("f")->front();
+        REQUIRE(f);
+        CHECK(f->returnType() == sym.Void());
+    }
+    SECTION("Conflicting") {
+        auto const issues = test::getSemaIssues(R"(
+/* 2 */ fn f(cond: bool) {
+/* 3 */     return 1;
+/* 4 */     return;
+})");
+        CHECK(!issues.empty());
+        auto* issue = issues.findOnLine<BadReturnTypeDeduction>(4);
+        REQUIRE(issue);
+        auto* tu = cast<ast::TranslationUnit*>(issues.ast.get());
+        auto* f = tu->declaration<ast::FunctionDefinition>(0);
+        auto* ret1 = f->body()->statement<ast::ReturnStatement>(0);
+        auto* ret2 = f->body()->statement<ast::ReturnStatement>(1);
+        CHECK(issue->statement() == ret2);
+        CHECK(issue->conflicting() == ret1);
+    }
 }

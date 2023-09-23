@@ -81,12 +81,16 @@ struct FuncBodyContext {
         return sema::analyzeTypeExpr(expr, ctx);
     }
 
+    void deduceReturnTypeTo(ast::ReturnStatement const* stmt,
+                            sema::Type const* type);
+
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
     ast::FunctionDefinition& currentFunction;
     /// Only needed if return type is not specified
     sema::Type const* deducedReturnType = nullptr;
+    ast::ReturnStatement const* lastReturn = nullptr;
 };
 
 } // namespace
@@ -276,14 +280,21 @@ void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
 
 void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
-    Type const* returnType = currentFunction.returnType();
-    if (!rs.expression() && !isa_or_null<VoidType>(returnType)) {
-        ctx.issue<BadReturnStmt>(&rs, BadReturnStmt::NonVoidMustReturnValue);
-        return;
-    }
-    /// We gather parent destructors here because `analyzeExpr()` may add more
+    /// We gather parent destructors here because `analyzeValue()` may add more
     /// constructors and the parent destructors must be lower in the stack
     gatherParentDestructors(rs);
+    Type const* returnType = currentFunction.returnType();
+    if (!rs.expression()) {
+        if (!returnType) {
+            deduceReturnTypeTo(&rs, sym.Void());
+        }
+        else if (!isa<VoidType>(returnType)) {
+            ctx.issue<BadReturnStmt>(&rs,
+                                     BadReturnStmt::NonVoidMustReturnValue);
+        }
+        /// Else we have void and function shall return void
+        return;
+    }
     if (!analyzeValue(rs.expression(), rs.dtorStack())) {
         return;
     }
@@ -300,16 +311,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
                 ctx);
     }
     else {
-        returnType = rs.expression()->type().get();
-        if (!deducedReturnType) {
-            deducedReturnType = returnType;
-        }
-        if (deducedReturnType != returnType) {
-            /// TODO: Push error here.
-            /// For return type deduction all return statements must return the
-            /// same type
-            SC_UNIMPLEMENTED();
-        }
+        deduceReturnTypeTo(&rs, rs.expression()->type().get());
     }
     popTopLevelDtor(rs.expression(), rs.dtorStack());
 }
@@ -371,4 +373,15 @@ void FuncBodyContext::analyzeImpl(ast::JumpStatement& stmt) {
         parent = parent->parent();
     }
     gatherParentDestructors(stmt);
+}
+
+void FuncBodyContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,
+                                         sema::Type const* type) {
+    if (!deducedReturnType) {
+        deducedReturnType = type;
+    }
+    if (deducedReturnType != type) {
+        ctx.issue<BadReturnTypeDeduction>(stmt, lastReturn);
+    }
+    lastReturn = stmt;
 }

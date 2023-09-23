@@ -239,6 +239,31 @@ void BadReturnStmt::format(std::ostream& str) const {
     }
 }
 
+BadReturnTypeDeduction::BadReturnTypeDeduction(
+    Scope const* scope,
+    ast::ReturnStatement const* statement,
+    ast::ReturnStatement const* confl):
+    BadStmt(scope, statement, IssueSeverity::Error), confl(confl) {}
+
+static constexpr utl::streammanip formatRetType =
+    [](std::ostream& str, ast::Expression const* expr) {
+    if (!expr) {
+        str << "void";
+    }
+    else {
+        str << expr->type()->name();
+    }
+};
+
+void BadReturnTypeDeduction::format(std::ostream& str) const {
+    str << "Function "
+        << statement()->findAncestor<ast::FunctionDefinition>()->name()
+        << " is here deduced to return "
+        << formatRetType(statement()->expression())
+        << " but was previously deduced to return "
+        << formatRetType(conflicting()->expression()) << "\n";
+}
+
 StructDefCycle::StructDefCycle(Scope const* scope,
                                std::vector<Entity const*> cycle):
     BadDecl(scope, nullptr, IssueSeverity::Error), _cycle(std::move(cycle)) {}

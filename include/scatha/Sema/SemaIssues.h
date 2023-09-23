@@ -24,7 +24,8 @@
 /// │  │  ├─ BadParamDecl
 /// │  │  ├─ BadSMF
 /// │  │  └─ StructDefCycle
-/// │  └─ BadReturnStatement
+/// │  ├─ BadReturnStmt
+/// │  └─ BadReturnTypeDeduction
 /// ├─ BadExpr
 /// │  ├─ BadSymRef
 /// │  ├─ BadTypeConv
@@ -202,6 +203,25 @@ public:
 
 private:
     void format(std::ostream& str) const override;
+};
+
+///
+class SCATHA_API BadReturnTypeDeduction: public BadStmt {
+public:
+    SC_SEMA_DERIVED_STMT(ReturnStatement, statement)
+
+    BadReturnTypeDeduction(Scope const* scope,
+                           ast::ReturnStatement const* statement,
+                           ast::ReturnStatement const* conflictingReturn);
+
+    /// The conflicting return statement if this error is a return type
+    /// deduction error
+    ast::ReturnStatement const* conflicting() const { return confl; }
+
+private:
+    void format(std::ostream& str) const override;
+
+    ast::ReturnStatement const* confl = nullptr;
 };
 
 /// Error due to cyclic struct definition
