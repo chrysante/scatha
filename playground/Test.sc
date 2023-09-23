@@ -1,16 +1,16 @@
-fn main() {
 
 
-    int + float;
 
+
+
+struct X {
+    var int: int;
 }
 
-
-
-
-
-
-
+fn main() {
+    let x = X(1);
+    return x;
+}
 
 
 

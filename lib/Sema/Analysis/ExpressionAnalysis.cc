@@ -62,6 +62,12 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::ListExpression&);
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
+    /// If \p expr is a pointer, inserts a `DereferenceExpression` as its parent.
+    /// Expects \p expr to be analyzed.
+    /// This is used to implicitly dereference pointers in member access and
+    /// subscript expressions
+    void dereferencePointer(ast::Expression* expr);
+
     /// Access the return type of a \p function
     /// If necessary this deduces the return type by calling `analyzeFunction()`
     /// \Returns `nullptr` if return type deduction failed
@@ -464,20 +470,10 @@ static Scope* findLookupTargetScope(ast::Expression& expr) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
-    /// For an expression of the kind `obj->member` we simply rewrite the AST so
-    /// the expression becomes `(*obj).member`
-    /// TODO: Rewrite this
-    if (ma.operation() == ast::MemberAccessOperation::Pointer) {
-        auto accessed = ma.accessed()->extractFromParent();
-        auto deref =
-            allocate<ast::DereferenceExpression>(std::move(accessed),
-                                                 Mutability::Const,
-                                                 accessed->sourceRange());
-        ma.setAccessed(std::move(deref));
-    }
     if (!analyze(ma.accessed())) {
         return nullptr;
     }
+    dereferencePointer(ma.accessed());
     restrictNameLookup(findLookupTargetScope(*ma.accessed()));
     if (!analyze(ma.member())) {
         return nullptr;
@@ -724,6 +720,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
 
 ArrayType const* ExprContext::analyzeSubscriptCommon(ast::CallLike& expr) {
     bool success = !!analyzeValue(expr.callee());
+    dereferencePointer(expr.callee());
     for (auto* arg: expr.arguments()) {
         success &= !!analyzeValue(arg);
     }
@@ -938,6 +935,23 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     case EntityCategory::Indeterminate:
         return nullptr;
     }
+}
+
+void ExprContext::dereferencePointer(ast::Expression* expr) {
+    SC_ASSERT(expr->isDecorated(), "");
+    if (!isa_or_null<PointerType const*>(expr->type().get())) {
+        return;
+    }
+    SC_ASSERT(expr->isValue(), "");
+    auto* parent = expr->parent();
+    SC_ASSERT(parent, "");
+    size_t index = expr->indexInParent();
+    auto deref = allocate<ast::DereferenceExpression>(expr->extractFromParent(),
+                                                      Mutability::Const,
+                                                      expr->sourceRange());
+    bool result = analyzeValue(deref.get());
+    SC_ASSERT(result, "How can a pointer dereference fail?");
+    parent->setChild(index, std::move(deref));
 }
 
 Type const* ExprContext::getReturnType(Function* function) {

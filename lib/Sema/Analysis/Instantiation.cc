@@ -181,6 +181,9 @@ void InstContext::instantiateStructureType(SDGNode& node) {
                                        Filter<ast::VariableDeclaration> |
                                        ranges::views::enumerate)
     {
+        if (!varDecl->isDecorated()) {
+            continue;
+        }
         auto& var = *varDecl->variable();
         structType.addMemberVariable(&var);
         if (!varDecl->type()) {

@@ -127,7 +127,7 @@ size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(varDecl.typeExpr(),
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");
-    auto* variable = sym.declareVariable(std::string(varDecl.name()));
+    auto* variable = sym.declareVariable(&varDecl);
     if (!variable) {
         return InvalidIndex;
     }

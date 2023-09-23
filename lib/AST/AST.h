@@ -515,13 +515,11 @@ class SCATHA_API MemberAccess: public Expression {
 public:
     explicit MemberAccess(UniquePtr<Expression> object,
                           UniquePtr<Identifier> member,
-                          SourceRange sourceRange,
-                          MemberAccessOperation operation):
+                          SourceRange sourceRange):
         Expression(NodeType::MemberAccess,
                    sourceRange,
                    std::move(object),
-                   std::move(member)),
-        _operation(operation) {}
+                   std::move(member)) {}
 
     AST_DERIVED_COMMON(MemberAccess)
 
@@ -530,12 +528,6 @@ public:
 
     /// The identifier to access the object.
     AST_PROPERTY(1, Identifier, member, Member)
-
-    /// Member access operator, i.e. `.` or `->`
-    MemberAccessOperation operation() const { return _operation; }
-
-private:
-    MemberAccessOperation _operation;
 };
 
 template <NodeType Type>

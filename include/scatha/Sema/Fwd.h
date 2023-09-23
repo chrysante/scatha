@@ -76,7 +76,6 @@ enum class ScopeKind {
     Invalid,
     Global,
     Namespace,
-//    Variable,
     Function,
     Type,
 };

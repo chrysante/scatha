@@ -177,7 +177,7 @@ fn main() -> int {
     var b: *[int] = &a;
     let c = [1, 2];
     b = &c;
-    return b->count;
+    return b.count;
 })");
 }
 
@@ -194,7 +194,7 @@ fn main() -> int {
     var a = [1, 2];
     var x: X;
     x.r = &mut a;
-    ++(*x.r)[0];
+    ++x.r[0];
     return x.sum;
 })");
 }

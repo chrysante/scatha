@@ -90,9 +90,6 @@ bool isArithmeticAssignment(BinaryOperator op);
 BinaryOperator toNonAssignment(BinaryOperator op);
 
 ///
-enum class MemberAccessOperation { Direct, Pointer };
-
-///
 enum class LoopKind { For, While, DoWhile };
 
 std::string_view toString(LoopKind loopKind);
