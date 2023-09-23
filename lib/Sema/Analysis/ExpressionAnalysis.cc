@@ -45,8 +45,6 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
-    std::tuple<Object*, ValueCategory, QualType> analyzeBinaryExpr(
-        ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* rewritePropertyCall(ast::MemberAccess&);
@@ -258,24 +256,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
     return &u;
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& b) {
-    bool success = true;
-    success &= !!analyzeValue(b.lhs());
-    success &= !!analyzeValue(b.rhs());
-    if (!success) {
-        return nullptr;
-    }
-    auto [object, valueCat, type] = analyzeBinaryExpr(b);
-    if (!object) {
-        return nullptr;
-    }
-    b.decorateValue(object, valueCat, type);
-    b.setConstantValue(evalBinary(b.operation(),
-                                  b.lhs()->constantValue(),
-                                  b.rhs()->constantValue()));
-    return &b;
-}
-
 static ObjectType const* getResultType(SymbolTable& sym,
                                        ObjectType const* type,
                                        ast::BinaryOperator op) {
@@ -361,13 +341,27 @@ static ObjectType const* getResultType(SymbolTable& sym,
     }
 }
 
-std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
-    ast::BinaryExpression& expr) {
+static void setConstantValue(ast::BinaryExpression& expr) {
+    expr.setConstantValue(evalBinary(expr.operation(),
+                                     expr.lhs()->constantValue(),
+                                     expr.rhs()->constantValue()));
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
+    bool argsAnalyzed = true;
+    argsAnalyzed &= !!analyzeValue(expr.lhs());
+    argsAnalyzed &= !!analyzeValue(expr.rhs());
+    if (!argsAnalyzed) {
+        return nullptr;
+    }
+
     /// Handle comma operator separately
     if (expr.operation() == ast::BinaryOperator::Comma) {
-        return { expr.rhs()->object(),
-                 expr.rhs()->valueCategory(),
-                 expr.rhs()->type() };
+        expr.decorateValue(expr.rhs()->object(),
+                           expr.rhs()->valueCategory(),
+                           expr.rhs()->type());
+        setConstantValue(expr);
+        return &expr;
     }
 
     /// Determine common type of operands
@@ -375,40 +369,51 @@ std::tuple<Object*, ValueCategory, QualType> ExprContext::analyzeBinaryExpr(
         sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
     if (!commonType) {
         ctx.badExpr(&expr, BinaryExprNoCommonType);
-        return {};
+        return nullptr;
     }
 
-    /// Determine result type of operation
+    /// Determine result type of operation. We do this before we handle
+    /// assignments because arithmetic assignment may be invalid for the operand
+    /// types
     auto* resultType = getResultType(sym, commonType.get(), expr.operation());
     if (!resultType) {
         ctx.badExpr(&expr, BinaryExprBadType);
-        return {};
+        return nullptr;
     }
 
     /// Handle assignment seperately
     if (ast::isAssignment(expr.operation())) {
         QualType lhsType = expr.lhs()->type();
+        if (!lhsType->hasTrivialLifetime()) {
+            SC_UNIMPLEMENTED();
+        }
         if (expr.lhs()->valueCategory() != LValue) {
             ctx.badExpr(&expr, BinaryExprValueCatLHS);
-            return {};
+            return nullptr;
         }
         if (!expr.lhs()->type().isMut()) {
             ctx.badExpr(&expr, BinaryExprImmutableLHS);
-            return {};
+            return nullptr;
         }
         if (!convert(Implicit, expr.rhs(), lhsType, RValue, *dtorStack, ctx)) {
-            return {};
+            return nullptr;
         }
-        return { sym.temporary(sym.Void()), RValue, sym.Void() };
+        expr.decorateValue(sym.temporary(sym.Void()), RValue);
+        setConstantValue(expr);
+        return &expr;
     }
 
     /// Convert the operands to common type
-    if (convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx) &&
-        convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx))
-    {
-        return { sym.temporary(resultType), RValue, resultType };
-    }
-    return {};
+    bool argsConv = true;
+    argsConv &=
+        !!convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx);
+    argsConv &=
+        !!convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx);
+    SC_ASSERT(argsConv,
+              "Conversion must succeed because we have a common type");
+    expr.decorateValue(sym.temporary(resultType), RValue);
+    setConstantValue(expr);
+    return &expr;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
