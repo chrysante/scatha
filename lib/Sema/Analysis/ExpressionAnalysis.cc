@@ -62,10 +62,9 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::ListExpression&);
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
-    /// If \p expr is a pointer, inserts a `DereferenceExpression` as its parent.
-    /// Expects \p expr to be analyzed.
-    /// This is used to implicitly dereference pointers in member access and
-    /// subscript expressions
+    /// If \p expr is a pointer, inserts a `DereferenceExpression` as its
+    /// parent. Expects \p expr to be analyzed. This is used to implicitly
+    /// dereference pointers in member access and subscript expressions
     void dereferencePointer(ast::Expression* expr);
 
     /// Access the return type of a \p function
