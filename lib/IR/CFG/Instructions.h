@@ -95,19 +95,17 @@ public:
                          std::move(name)),
         conv(conv) {}
 
-    /// \Returns The conversion this instruction performs.
+    /// \Returns the conversion this instruction performs.
     Conversion conversion() const { return conv; }
 
-    /// \Returns The type of this value and the target type of the conversion.
+    /// \Returns the type of this value and the target type of the conversion.
     ArithmeticType const* type() const;
 
 private:
     Conversion conv;
 };
 
-/// `cmp` instruction.
-/// TODO: Rename to 'Compare' or find a uniform naming scheme across the IR
-/// module.
+/// `*cmp` instruction.
 class SCATHA_API CompareInst: public BinaryInstruction {
 public:
     explicit CompareInst(Context& context,

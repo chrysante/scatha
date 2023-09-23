@@ -58,6 +58,8 @@ struct ExprContext {
     ArrayType const* analyzeSubscriptCommon(ast::CallLike&);
     ast::Expression* analyzeImpl(ast::GenericExpression&);
     ast::Expression* analyzeImpl(ast::ListExpression&);
+    ast::Expression* analyzeImpl(ast::TrivialConstructExpr&);
+    ast::Expression* analyzeImpl(ast::NonTrivAssignExpr&);
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     /// If \p expr is a pointer, inserts a `DereferenceExpression` as its
@@ -385,7 +387,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
     if (ast::isAssignment(expr.operation())) {
         QualType lhsType = expr.lhs()->type();
         if (!lhsType->hasTrivialLifetime()) {
-            SC_UNIMPLEMENTED();
+            auto assign = allocate<ast::NonTrivAssignExpr>(expr.extractLHS(),
+                                                           expr.extractRHS());
+            analyze(assign.get());
+            return expr.parent()->replaceChild(&expr, std::move(assign));
         }
         if (expr.lhs()->valueCategory() != LValue) {
             ctx.badExpr(&expr, BinaryExprValueCatLHS);
@@ -404,13 +409,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
     }
 
     /// Convert the operands to common type
-    bool argsConv = true;
-    argsConv &=
-        !!convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx);
-    argsConv &=
-        !!convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx);
-    SC_ASSERT(argsConv,
-              "Conversion must succeed because we have a common type");
+    bool cnv = true;
+    cnv &= !!convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx);
+    cnv &= !!convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx);
+    SC_ASSERT(cnv, "Conversion must succeed because we have a common type");
     expr.decorateValue(sym.temporary(resultType), RValue);
     setConstantValue(expr);
     return &expr;
@@ -940,6 +942,38 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     case EntityCategory::Indeterminate:
         return nullptr;
     }
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::TrivialConstructExpr& expr) {
+    SC_UNIMPLEMENTED();
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
+    bool argsAnalyzed = true;
+    argsAnalyzed &= !!analyzeValue(expr.dest());
+    argsAnalyzed &= !!analyzeValue(expr.source());
+    if (!argsAnalyzed) {
+        return nullptr;
+    }
+    if (expr.dest()->type().get() != expr.source()->type().get()) {
+        /// For now we only allow assignment of non-trivial type if both types
+        /// are the same
+        ctx.issue<BadExpr>(&expr, GenericBadExpr);
+        return nullptr;
+    }
+    using enum SpecialLifetimeFunction;
+    /// TODO: We will fail here with arrays
+    auto* type = cast<StructType const*>(expr.dest()->type().get());
+    auto* dtor = type->specialLifetimeFunction(Destructor);
+    auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
+    if (expr.source()->isLValue()) {
+        expr.decorateAssign(dtor, copyCtor);
+    }
+    else {
+        popTopLevelDtor(expr.source(), *dtorStack);
+        expr.decorateAssign(dtor, nullptr);
+    }
+    return &expr;
 }
 
 void ExprContext::dereferencePointer(ast::Expression* expr) {

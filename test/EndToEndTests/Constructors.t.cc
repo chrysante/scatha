@@ -31,6 +31,7 @@ struct X {
     fn delete(&mut this) {
         print("-");
         print(this.value);
+        this.value = -1;
     }
 
     var value: int;
@@ -53,6 +54,12 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
                 var x = X();
+            })");
+        test::checkPrints("+0-0", CommonDefs + R"(
+            fn main() {
+                var x = X();
+                return; // We had an issue where explicit returns would
+                        // prevent destructors being called
             })");
         test::checkPrints("+2+3-3-2", CommonDefs + R"(
             fn main() {
@@ -113,6 +120,40 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
         test::checkPrints("+0+1+2-2-1-0", CommonDefs + R"(
             fn main() {
                 X(X(X()));
+            })");
+
+        /// Assignments
+        test::checkPrints("+0-0+0-0", CommonDefs + R"(
+            fn main() {
+                var x = X();
+                x = X();
+            })");
+        test::checkPrints("+0+1-0+2-1-2", CommonDefs + R"(
+            fn main() {
+                var x = X(0);
+                var y = X(1);
+                x = y;
+            })");
+        test::checkPrints("+0-0", CommonDefs + R"(
+            fn main() {
+                var x = X();
+                x = x;
+            })");
+        test::checkPrints("+0-0", CommonDefs + R"(
+            fn assign(lhs: &mut X, rhs: &X) {
+                lhs = rhs;
+            }
+            fn main() {
+                var x = X();
+                assign(x, x);
+            })");
+        test::checkPrints("+0+0-0+1-0-1", CommonDefs + R"(
+            fn assign(lhs: &mut X, rhs: &X) {
+                lhs = rhs;
+            }
+            fn main() {
+                var x = X();
+                assign(x, X());
             })");
     }
 }

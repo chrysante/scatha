@@ -28,7 +28,8 @@ UniquePtr<T> allocate(Args&&... args) {
 }
 
 template <typename Derived, typename Base>
-    requires std::derived_from<Derived, Base>
+    requires std::derived_from<Derived, Base> ||
+             std::convertible_to<Base*, Derived*>
 UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
     auto* d = cast<Derived*>(p.release());
     return UniquePtr<Derived>(d);

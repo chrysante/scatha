@@ -85,7 +85,8 @@ struct FuncGenContext: ir::FunctionBuilder {
     void generateImpl(ast::JumpStatement const&);
 
     /// # Statement specific utilities
-    void emitDestructorCalls(sema::DTorStack const& dtorStack);
+    void callDtor(sema::Object const* object, sema::Function const* dtor);
+    void emitDtorCalls(sema::DTorStack const& dtorStack);
 
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
@@ -115,6 +116,7 @@ struct FuncGenContext: ir::FunctionBuilder {
     Value getValueImpl(ast::UninitTemporary const&);
     Value getValueImpl(ast::ConstructorCall const&);
     Value getValueImpl(ast::TrivialConstructExpr const&);
+    Value getValueImpl(ast::NonTrivAssignExpr const&);
 
     /// # Expression specific utilities
     void generateArgument(PassingConvention const& PC,
@@ -189,7 +191,7 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     for (auto* statement: cmpStmt.statements()) {
         generate(*statement);
     }
-    emitDestructorCalls(cmpStmt.dtorStack());
+    emitDtorCalls(cmpStmt.dtorStack());
 }
 
 void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
@@ -290,44 +292,39 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
         generateVarDeclArraySize(&varDecl, initExpr->object());
     }
     else if (initExpr) {
+        /// If we have non-trivial types sema ensures that we always have an
+        /// init-expr in memory
         auto value = getValue(initExpr);
-        ir::Value* address = nullptr;
-        /// The test for trivial lifetime is temporary. We should find a better
-        /// solution but for now it works. It works because for trivial lifetime
-        /// types
-        if (value.isMemory() && initExpr->isRValue()) {
-            address = toMemory(value);
-            address->setName(name);
-        }
-        else {
-            address = storeToMemory(toRegister(value), name);
-        }
+        auto* address = toMemory(value);
+        address->setName(name);
         valueMap.insert(varDecl.variable(),
                         Value(address, value.type(), Memory));
         generateVarDeclArraySize(&varDecl, initExpr->object());
     }
     else {
+        /// Here we could initialize the memory
         auto* type = typeMap(varDecl.type());
         auto* address = makeLocalVariable(type, name);
         valueMap.insert(varDecl.variable(), Value(address, type, Memory));
         generateVarDeclArraySize(&varDecl, nullptr);
     }
-    emitDestructorCalls(dtorStack);
+    emitDtorCalls(dtorStack);
 }
 
 void FuncGenContext::generateImpl(
     ast::ExpressionStatement const& exprStatement) {
     (void)getValue(exprStatement.expression());
-    emitDestructorCalls(exprStatement.dtorStack());
+    emitDtorCalls(exprStatement.dtorStack());
 }
 
 void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
     if (!retStmt.expression()) {
+        emitDtorCalls(retStmt.dtorStack());
         add<ir::Return>(ctx.voidValue());
         return;
     }
     auto retval = getValue(retStmt.expression());
-    emitDestructorCalls(retStmt.dtorStack());
+    emitDtorCalls(retStmt.dtorStack());
     auto retvalLocation = getCC(&semaFn).returnValue().location();
     switch (retvalLocation) {
     case Register: {
@@ -369,7 +366,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
 
 void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
     auto* condition = getValue<Register>(stmt.condition());
-    emitDestructorCalls(stmt.dtorStack());
+    emitDtorCalls(stmt.dtorStack());
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
     auto* endBlock = newBlock("if.end");
@@ -398,7 +395,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Register>(loopStmt.condition());
-        emitDestructorCalls(loopStmt.conditionDtorStack());
+        emitDtorCalls(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push({ .header = loopHeader,
                          .body = loopBody,
@@ -413,7 +410,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Inc
         add(loopInc);
         getValue(loopStmt.increment());
-        emitDestructorCalls(loopStmt.incrementDtorStack());
+        emitDtorCalls(loopStmt.incrementDtorStack());
         add<ir::Goto>(loopHeader);
 
         /// End
@@ -431,7 +428,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Register>(loopStmt.condition());
-        emitDestructorCalls(loopStmt.conditionDtorStack());
+        emitDtorCalls(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push(
             { .header = loopHeader, .body = loopBody, .end = loopEnd });
@@ -463,7 +460,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Footer
         add(loopFooter);
         auto* condition = getValue<Register>(loopStmt.condition());
-        emitDestructorCalls(loopStmt.conditionDtorStack());
+        emitDtorCalls(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
 
         /// End
@@ -472,11 +469,11 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         break;
     }
     }
-    emitDestructorCalls(loopStmt.dtorStack());
+    emitDtorCalls(loopStmt.dtorStack());
 }
 
 void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
-    emitDestructorCalls(jump.dtorStack());
+    emitDtorCalls(jump.dtorStack());
     auto* dest = [&] {
         auto& currentLoop = loopStack.top();
         switch (jump.kind()) {
@@ -1404,15 +1401,63 @@ Value FuncGenContext::getValueImpl(ast::TrivialConstructExpr const& expr) {
     }; // clang-format on
 }
 
+Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
+    if (auto* copyCtor = expr.copyCtor()) {
+        /// We have an lvalue right hand side. If the values are different, we
+        /// call the destructor of LHS and the copy constructor of LHS with RHS
+        /// as argument. If the values are the same we do nothing
+        auto dest = getValue(expr.dest());
+        auto source = getValue(expr.source());
+        SC_ASSERT(dest.isMemory(), "");
+        SC_ASSERT(source.isMemory(), "");
+        /// We branch here because the values might be the same.
+        auto* addrEq = add<ir::CompareInst>(dest.get(),
+                                            source.get(),
+                                            ir::CompareMode::Unsigned,
+                                            ir::CompareOperation::NotEqual,
+                                            "addr.eq");
+        auto* assignBlock = newBlock("assign");
+        auto* endBlock = newBlock("assign.end");
+        add<ir::Branch>(addrEq, assignBlock, endBlock);
+        add(assignBlock);
+        callDtor(expr.dest()->object(), expr.dtor());
+        auto* function = getFunction(copyCtor);
+        add<ir::Call>(function,
+                      std::array{ dest.get(), source.get() },
+                      std::string{});
+        add<ir::Goto>(endBlock);
+        add(endBlock);
+    }
+    else {
+        /// We have an rvalue right hand side. We call the destructor of LHS and
+        /// generate the value of RHS in place of LHS
+        auto dest = getValue(expr.dest());
+        SC_ASSERT(dest.isMemory(), "");
+        callDtor(expr.dest()->object(), expr.dtor());
+        auto source = getValue(expr.source());
+        ;
+        SC_ASSERT(source.isMemory(), "");
+        SC_ASSERT(isa<ir::Alloca>(source.get()),
+                  "How can an rvalue in memory not be stack memory?");
+        source.get()->replaceAllUsesWith(dest.get());
+    }
+    return Value();
+}
+
 /// MARK: - General utilities
 
-void FuncGenContext::emitDestructorCalls(sema::DTorStack const& dtorStack) {
+void FuncGenContext::callDtor(sema::Object const* object,
+                              sema::Function const* dtor) {
+    auto* function = getFunction(dtor);
+    auto value = valueMap(object);
+    SC_ASSERT(value.isMemory(),
+              "Objects with non trivial lifetime must be in memory");
+    add<ir::Call>(function, std::array{ value.get() }, std::string{});
+}
+
+void FuncGenContext::emitDtorCalls(sema::DTorStack const& dtorStack) {
     for (auto call: dtorStack) {
-        auto* function = getFunction(call.destructor);
-        auto object = valueMap(call.object);
-        SC_ASSERT(object.isMemory(),
-                  "Objects with non trivial lifetime must be in memory");
-        add<ir::Call>(function, std::array{ object.get() }, std::string{});
+        callDtor(call.object, call.destructor);
     }
 }
 

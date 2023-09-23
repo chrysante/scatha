@@ -28,12 +28,14 @@ UniquePtr<ASTNode> ASTNode::extractFromParent() {
     return parent()->extractChild(indexInParent());
 }
 
-void ASTNode::replaceChild(ASTNode const* old, UniquePtr<ASTNode> repl) {
-    auto itr = ranges::find_if(_children,
-                               [&](auto& child) { return child.get() == old; });
-    SC_ASSERT(itr != ranges::end(_children), "`old` is not a child of this");
+ASTNode* ASTNode::replaceChild(ASTNode const* old, UniquePtr<ASTNode> repl) {
+    SC_ASSERT(old->parent() == this, "old is not a child of this");
+    SC_ASSERT(!repl->parent(), "repl already has a parent");
+    size_t index = old->indexInParent();
     repl->_parent = this;
-    *itr = std::move(repl);
+    auto* result = repl.get();
+    _children[index] = std::move(repl);
+    return result;
 }
 
 size_t ASTNode::indexOf(ASTNode const* child) const {

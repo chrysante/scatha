@@ -263,7 +263,15 @@ public:
     /// Replace the child \p old with new node \p repl
     /// The old child is destroyed
     /// \pre \p old must be a child of this node
-    void replaceChild(ASTNode const* old, UniquePtr<ASTNode> repl);
+    /// \Returns \p repl as a raw pointer
+    ASTNode* replaceChild(ASTNode const* old, UniquePtr<ASTNode> repl);
+
+    /// \overload for generic type
+    template <typename T>
+    T* replaceChild(ASTNode const* old, UniquePtr<T> repl) {
+        return cast<T*>(
+            replaceChild(old, uniquePtrCast<ASTNode>(std::move(repl))));
+    }
 
     /// Get the index of child \p child
     /// \pre \p child must be a child of this node
@@ -1356,6 +1364,48 @@ public:
 
 private:
     sema::ObjectType const* constrType;
+};
+
+/// Concrete node representing an assignment of a non-trivial value
+/// We need this node to tell the IR generator to invoke the destructor of the
+/// value before calling the copy constructor again
+class SCATHA_API NonTrivAssignExpr: public Expression {
+public:
+    explicit NonTrivAssignExpr(UniquePtr<Expression> dest,
+                               UniquePtr<Expression> source):
+        Expression(NodeType::NonTrivAssignExpr,
+                   merge(source->sourceRange(), dest->sourceRange()),
+                   std::move(dest),
+                   std::move(source)) {}
+
+    AST_DERIVED_COMMON(NonTrivAssignExpr)
+
+    /// The object that is assigned to
+    AST_PROPERTY(0, Expression, dest, Dest)
+
+    /// The object that is assigned from
+    AST_PROPERTY(1, Expression, source, Source)
+
+    /// **Decoration provided by semantic analysis**
+
+    /// Decorate this node
+    void decorateAssign(sema::Function const* dtor,
+                        sema::Function const* copyCtor) {
+        _dtor = dtor;
+        _copyCtor = copyCtor;
+    }
+
+    /// The destructor to be called
+    sema::Function const* dtor() const { return _dtor; }
+
+    /// The constructor to be called. If this is null after semantic analysis
+    /// that means we have an rvalue source and can directly construct the
+    /// rvalue in our memory
+    sema::Function const* copyCtor() const { return _copyCtor; }
+
+private:
+    sema::Function const* _dtor = nullptr;
+    sema::Function const* _copyCtor = nullptr;
 };
 
 } // namespace scatha::ast
