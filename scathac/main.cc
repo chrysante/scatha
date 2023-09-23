@@ -172,7 +172,8 @@ int main(int argc, char* argv[]) {
 
     /// We emit the executable
     if (options.bindir.empty()) {
-        options.bindir = filepath.stem();
+        options.bindir = filepath;
+        options.bindir.replace_extension();
     }
     emitFile(options.bindir, program, /* executable = */ !options.binaryOnly);
     return 0;

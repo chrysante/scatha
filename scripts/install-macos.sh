@@ -4,8 +4,8 @@ PROJ_DIR="$SCRIPT_DIR/.."
 
 premake5 xcode4 --file=$PROJ_DIR/premake5.lua
 
-xcodebuild -project "$PROJ_DIR/scathac.xcodeproj" -configuration Release
-xcodebuild -project "$PROJ_DIR/svm.xcodeproj" -configuration Release
+xcodebuild -project "$PROJ_DIR/scathac.xcodeproj" -configuration Release -quiet
+xcodebuild -project "$PROJ_DIR/svm.xcodeproj" -configuration Release -quiet
 
 cp "$PROJ_DIR/build/bin/Release/scathac" "/usr/local/bin"
 cp "$PROJ_DIR/build/bin/Release/libscatha.dylib" "/usr/local/bin"
