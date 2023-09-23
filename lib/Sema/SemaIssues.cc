@@ -9,9 +9,11 @@
 
 #include "AST/AST.h"
 #include "Sema/Entity.h"
+#include "Sema/Format.h"
 
 using namespace scatha;
 using namespace sema;
+using namespace tfmt::modifiers;
 using enum HighlightKind;
 
 static SourceRange getSourceRange(ast::ASTNode const* node) {
@@ -210,8 +212,6 @@ BadVarDecl::BadVarDecl(Scope const* _scope,
     }
 }
 
-void BadVarDecl::format(std::ostream& str) const {}
-
 static IssueSeverity toSeverity(BadSMF::Reason reason) {
     switch (reason) {
 #define SC_SEMA_BADSMF_DEF(reason, severity, _)                                \
@@ -268,10 +268,10 @@ void BadReturnStmt::format(std::ostream& str) const {
 static constexpr utl::streammanip formatRetType =
     [](std::ostream& str, ast::ReturnStatement const* stmt) {
     if (auto* expr = stmt->expression()) {
-        str << expr->type()->name();
+        str << format(expr->type());
     }
     else {
-        str << "void";
+        str << tfmt::format(Bold | Magenta, "void");
     }
 };
 
@@ -299,14 +299,6 @@ BadReturnTypeDeduction::BadReturnTypeDeduction(
         str << "Here return type was deduced as "
             << formatRetType(conflicting());
     });
-}
-
-void BadReturnTypeDeduction::format(std::ostream& str) const {
-    str << "Function "
-        << statement()->findAncestor<ast::FunctionDefinition>()->name()
-        << " is here deduced to return " << formatRetType(statement())
-        << " but was previously deduced to return "
-        << formatRetType(conflicting()) << "\n";
 }
 
 static constexpr utl::streammanip formatEntity =
@@ -347,6 +339,37 @@ void StructDefCycle::format(std::ostream& str) const {
         str << formatEntity(entity) << " -> ";
     }
     str << formatEntity(cycle().front());
+}
+
+BadPassedType::BadPassedType(Scope const* scope,
+                             ast::Expression const* expr,
+                             Reason reason):
+    SemaIssue(scope, expr->sourceRange(), IssueSeverity::Error), r(reason) {
+    switch (reason) {
+    case Argument:
+        header("Cannot pass parameter of incomplete type");
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << "Parameter of incomplete type "
+                << sema::format(cast<Type const*>(expr->entity()))
+                << " declared here";
+        });
+        break;
+    case Return:
+        header("Cannot return value of incomplete type");
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << "Incomplete return type "
+                << sema::format(cast<Type const*>(expr->entity()))
+                << " declared here";
+        });
+        break;
+    case ReturnDeduced:
+        header("Cannot return value of incomplete type");
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << "Incomplete return type " << sema::formatType(expr)
+                << " deduced here";
+        });
+        break;
+    }
 }
 
 static IssueSeverity toSeverity(BadExpr::Reason reason) {

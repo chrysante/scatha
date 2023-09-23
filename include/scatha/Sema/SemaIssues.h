@@ -21,11 +21,11 @@
 /// │  ├─ BadDecl
 /// │  │  ├─ Redefinition
 /// │  │  ├─ BadVarDecl
-/// │  │  ├─ BadParamDecl
 /// │  │  ├─ BadSMF
 /// │  │  └─ StructDefCycle
 /// │  ├─ BadReturnStmt
 /// │  └─ BadReturnTypeDeduction
+/// ├─ BadPassedType
 /// ├─ BadExpr
 /// │  ├─ BadSymRef
 /// │  ├─ BadTypeConv
@@ -66,6 +66,8 @@ public:
     void setScope(Scope const* scope) { _scope = scope; }
 
 private:
+    void format(std::ostream&) const override {}
+
     Scope const* _scope = nullptr;
 };
 
@@ -153,8 +155,6 @@ public:
     ast::Expression const* initExpr() const { return _initExpr; }
 
 private:
-    void format(std::ostream& str) const override;
-
     Type const* _type;
     ast::Expression const* _initExpr;
 };
@@ -219,8 +219,6 @@ public:
     ast::ReturnStatement const* conflicting() const { return confl; }
 
 private:
-    void format(std::ostream& str) const override;
-
     ast::ReturnStatement const* confl = nullptr;
 };
 
@@ -236,6 +234,21 @@ private:
     void format(std::ostream& str) const override;
 
     std::vector<Entity const*> _cycle;
+};
+
+/// Error class for using invalid types as function paramaters or return types
+class SCATHA_API BadPassedType: public SemaIssue {
+public:
+    enum Reason { Argument, Return, ReturnDeduced };
+
+    explicit BadPassedType(Scope const* scope,
+                           ast::Expression const* expr,
+                           Reason reason);
+
+    Reason reason() const { return r; }
+
+private:
+    Reason r;
 };
 
 /// Base class of all statement related issues

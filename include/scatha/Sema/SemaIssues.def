@@ -29,8 +29,11 @@ SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
 SC_SEMA_BADVARDECL_DEF(IncompleteType, Error,
 {
     header("Cannot declare variable of incomplete type");
-    primary(declaration()->typeExpr()->sourceRange(), [=](std::ostream& str) {
-        str << type()->name() << " is incomplete";
+    auto* decl = declaration();
+    auto range = decl->typeExpr() ? decl->typeExpr()->sourceRange() :
+                                    decl->sourceRange();
+    primary(range, [=](std::ostream& str) {
+        str << sema::format(type()) << " is incomplete";
     });
 })
 SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error,
@@ -54,8 +57,8 @@ SC_SEMA_BADVARDECL_DEF(RefInStruct, Error,
     header("Cannot declare variable of reference type in struct");
     auto* var = cast<ast::VariableDeclaration const*>(declaration());
     primary(var->typeExpr()->sourceRange(), [=](std::ostream& str) {
-        str << "Variable " << var->name() << " of type " << var->type()->name()
-            << " declared here";
+        str << "Variable " << var->name() << " of type "
+            << sema::format(var->type()) << " declared here";
     });
 })
 SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error,

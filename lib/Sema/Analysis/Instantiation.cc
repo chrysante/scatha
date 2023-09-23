@@ -42,8 +42,9 @@ struct InstContext {
 
     FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
 
-    Type const* analyzeParameter(ast::ParameterDeclaration&,
-                                 size_t index) const;
+    Type const* analyzeParam(ast::ParameterDeclaration&) const;
+
+    Type const* analyzeThisParam(ast::ThisParameter&) const;
 
     void generateSLFs(StructType& type);
 
@@ -152,9 +153,6 @@ std::vector<StructType const*> InstContext::instantiateTypes(
     }
     return sortedStructTypes;
 }
-
-void InstContext::instantiateFunctions(
-    std::span<ast::FunctionDefinition*> functions) {}
 
 static std::optional<SpecialMemberFunction> toSMF(
     ast::FunctionDefinition const& funcDef) {
@@ -288,36 +286,49 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
 
 FunctionSignature InstContext::analyzeSignature(
     ast::FunctionDefinition& decl) const {
-    utl::small_vector<Type const*> argumentTypes;
-    for (auto [index, param]: decl.parameters() | ranges::views::enumerate) {
-        argumentTypes.push_back(analyzeParameter(*param, index));
-    }
+    auto argumentTypes = decl.parameters() |
+                         ranges::views::transform([&](auto* param) {
+                             return analyzeParam(*param);
+                         }) |
+                         ToSmallVector<>;
     /// If the return type is not specified it will be deduced during function
     /// analysis
     auto* returnType = decl.returnTypeExpr() ?
                            analyzeTypeExpr(decl.returnTypeExpr(), ctx) :
                            nullptr;
+    if (returnType && returnType != sym.Void() && !returnType->isComplete()) {
+        ctx.issue<BadPassedType>(decl.returnTypeExpr(), BadPassedType::Return);
+    }
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 
-Type const* InstContext::analyzeParameter(ast::ParameterDeclaration& param,
-                                          size_t index) const {
-    auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
-    if (!thisParam) {
-        return analyzeTypeExpr(param.typeExpr(), ctx);
+Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {
+    if (auto* thisParam = dyncast<ast::ThisParameter*>(&param)) {
+        return analyzeThisParam(*thisParam);
     }
+    auto* type = analyzeTypeExpr(param.typeExpr(), ctx);
+    if (!type) {
+        return nullptr;
+    }
+    if (!type->isComplete()) {
+        ctx.issue<BadPassedType>(param.typeExpr(), BadPassedType::Argument);
+    }
+    return type;
+}
+
+Type const* InstContext::analyzeThisParam(ast::ThisParameter& param) const {
     auto* structure = param.findAncestor<ast::StructDefinition>();
     if (!structure) {
         ctx.issue<BadVarDecl>(&param, BadVarDecl::ThisInFreeFunction);
         return nullptr;
     }
-    if (index != 0) {
+    if (param.index() != 0) {
         ctx.issue<BadVarDecl>(&param, BadVarDecl::ThisPosition);
         return nullptr;
     }
     auto* structType = cast<StructType const*>(structure->entity());
-    if (thisParam->isReference()) {
-        return sym.reference(QualType(structType, thisParam->mutability()));
+    if (param.isReference()) {
+        return sym.reference(QualType(structType, param.mutability()));
     }
     return structType;
 }

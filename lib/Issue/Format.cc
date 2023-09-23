@@ -120,6 +120,13 @@ static int lineProj(SourceHighlight& h) { return h.position.begin().line - 1; }
 void SrcHighlightCtx::run() {
     ranges::sort(highlights, ranges::less{}, lineProj);
     ranges::unique(highlights, ranges::less{}, lineProj);
+    auto validEnd = ranges::remove_if(highlights, [](auto& H) {
+        return !H.position.valid();
+    });
+    highlights.erase(validEnd, highlights.end());
+    if (highlights.empty()) {
+        return;
+    }
 
     int const paddingLines = 1;
     int const innerPaddingLines = 1;
@@ -184,7 +191,7 @@ void SrcHighlightCtx::printMessage(size_t currentColumn,
     std::stringstream sstr;
     tfmt::copyFormatFlags(str, sstr);
     auto fmtFlags =
-        highlight.kind == HighlightKind::Primary ? BrightBlue | Italic : Italic;
+        highlight.kind == HighlightKind::Primary ? Italic : BrightGrey | Italic;
     sstr << tfmt::format(fmtFlags, highlight.message);
     auto text = std::move(sstr).str();
     auto words = splitText(text, ' ');

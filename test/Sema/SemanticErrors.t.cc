@@ -400,3 +400,24 @@ struct X {
     CHECK(issues.findOnLine<BadExpr>(4, BadExpr::ExplicitSMFCall));
     CHECK(issues.findOnLine<BadExpr>(6, BadExpr::ExplicitSMFCall));
 }
+
+TEST_CASE("Illegal value passing", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+/*  2 */ fn foo(n: void) {}
+/*  3 */ fn bar(n: [int]) { bar(); }
+/*  4 */ fn baz() -> [int] {}
+/*  5 */ fn quux() {
+/*  6 */     let data = [1, 2, 3];
+/*  7 */     let p: *[int] = &data;
+/*  8 */     return *p;
+/*  9 */ }
+/* 10 */ fn quuz() { return; }
+/* 11 */ fn frob() -> void {}
+)");
+    CHECK(issues.findOnLine<BadPassedType>(2, BadPassedType::Argument));
+    CHECK(issues.findOnLine<BadPassedType>(3, BadPassedType::Argument));
+    CHECK(issues.findOnLine<BadPassedType>(4, BadPassedType::Return));
+    CHECK(issues.findOnLine<BadPassedType>(8, BadPassedType::ReturnDeduced));
+    CHECK(issues.noneOnLine(10));
+    CHECK(issues.noneOnLine(11));
+}

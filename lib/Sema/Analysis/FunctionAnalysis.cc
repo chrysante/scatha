@@ -89,7 +89,7 @@ struct FuncBodyContext {
     IssueHandler& iss;
     ast::FunctionDefinition& currentFunction;
     /// Only needed if return type is not specified
-    sema::Type const* deducedReturnType = nullptr;
+    sema::Type const* deducedRetTy = nullptr;
     ast::ReturnStatement const* lastReturn = nullptr;
 };
 
@@ -144,15 +144,19 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     });
     /// The function body compound statement pushes the scope again
     analyze(*fn.body());
-    /// If we have deduced a return type in the return statements we set it here
-    if (!semaFn->returnType()) {
-        if (deducedReturnType) {
-            semaFn->setDeducedReturnType(deducedReturnType);
-        }
-        else {
-            semaFn->setDeducedReturnType(sym.Void());
-        }
+    /// If we have deduced a return type in the return statements we set it now
+    if (semaFn->returnType()) {
+        return;
     }
+    if (!deducedRetTy) {
+        semaFn->setDeducedReturnType(sym.Void());
+        return;
+    }
+    if (deducedRetTy != sym.Void() && !deducedRetTy->isComplete()) {
+        ctx.issue<BadPassedType>(lastReturn->expression(),
+                                 BadPassedType::ReturnDeduced);
+    }
+    semaFn->setDeducedReturnType(deducedRetTy);
 }
 
 void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
@@ -377,10 +381,10 @@ void FuncBodyContext::analyzeImpl(ast::JumpStatement& stmt) {
 
 void FuncBodyContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,
                                          sema::Type const* type) {
-    if (!deducedReturnType) {
-        deducedReturnType = type;
+    if (!deducedRetTy) {
+        deducedRetTy = type;
     }
-    if (deducedReturnType != type) {
+    if (deducedRetTy != type) {
         ctx.issue<BadReturnTypeDeduction>(stmt, lastReturn);
     }
     lastReturn = stmt;
