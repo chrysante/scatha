@@ -15,12 +15,13 @@
 namespace scatha {
 
 ///
-void highlightSource(SourceStructure const& source, SourceRange sourceRange);
+void SCTEST_API highlightSource(SourceStructure const& source,
+                                SourceRange sourceRange);
 
 ///
-void highlightSource(SourceStructure const& source,
-                     SourceRange sourceRange,
-                     std::ostream& ostream);
+void SCTEST_API highlightSource(SourceStructure const& source,
+                                SourceRange sourceRange,
+                                std::ostream& ostream);
 
 ///
 struct SourceHighlight {
@@ -29,9 +30,9 @@ struct SourceHighlight {
 };
 
 ///
-void highlightSource(SourceStructure const& source,
-                     std::span<SourceHighlight const>,
-                     std::ostream& ostream);
+void SCTEST_API highlightSource(SourceStructure const& source,
+                                std::vector<SourceHighlight>,
+                                std::ostream& ostream);
 
 } // namespace scatha
 
