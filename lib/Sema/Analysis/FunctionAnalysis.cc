@@ -84,6 +84,17 @@ struct FuncBodyContext {
     void deduceReturnTypeTo(ast::ReturnStatement const* stmt,
                             sema::Type const* type);
 
+    /// \Returns `true` if the current function returns by reference. In that
+    /// case we don't pop destructor for our return value
+    bool returnsRef() const {
+        /// For now! If we add slim ref qualifiers with type deduction this
+        /// needs to change
+        if (!currentFunction.returnType()) {
+            return false;
+        }
+        return isa<ReferenceType>(currentFunction.returnType());
+    }
+
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
@@ -317,7 +328,9 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     else {
         deduceReturnTypeTo(&rs, rs.expression()->type().get());
     }
-    popTopLevelDtor(rs.expression(), rs.dtorStack());
+    if (!returnsRef()) {
+        popTopLevelDtor(rs.expression(), rs.dtorStack());
+    }
 }
 
 void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
