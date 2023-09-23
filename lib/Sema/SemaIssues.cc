@@ -41,9 +41,6 @@ static std::string_view format(Scope const* scope) {
         return "global scope";
     case Namespace:
         return "namespace scope";
-    case Variable:
-#warning
-        return "???";
     case Function:
         return "function scope";
     case Type:
@@ -340,7 +337,8 @@ void BadValueCatConv::format(std::ostream& str) const {
 }
 
 void BadMutConv::format(std::ostream& str) const {
-#warning
+    str << "Cannot convert " << expr()->type().mutability() << " value of type "
+        << expr()->type()->name() << " to " << to();
 }
 
 ORError::ORError(OverloadSet const* os,
@@ -349,8 +347,7 @@ ORError::ORError(OverloadSet const* os,
     SemaIssue(nullptr, {}, IssueSeverity::Error),
     os(os),
     argTypes(std::move(argTypes)),
-    matches(std::move(matches)) {
-}
+    matches(std::move(matches)) {}
 
 void ORError::format(std::ostream& str) const {
     if (matches.empty()) {

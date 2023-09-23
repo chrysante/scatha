@@ -33,9 +33,9 @@ std::string_view sema::toString(ValueCategory cat) {
     using enum ValueCategory;
     switch (cat) {
     case LValue:
-        return "LValue";
+        return "lvalue";
     case RValue:
-        return "RValue";
+        return "rvalue";
     }
 }
 
@@ -50,6 +50,20 @@ ValueCategory sema::commonValueCat(ValueCategory a, ValueCategory b) {
     return ValueCategory::RValue;
 }
 
+std::string_view sema::toString(Mutability mut) {
+    using enum Mutability;
+    switch (mut) {
+    case Mutable:
+        return "mutable";
+    case Const:
+        return "immutable";
+    }
+}
+
+std::ostream& sema::operator<<(std::ostream& str, Mutability mut) {
+    return str << toString(mut);
+}
+
 std::string_view sema::toString(ScopeKind kind) {
     switch (kind) {
     case ScopeKind::Invalid:
@@ -58,8 +72,6 @@ std::string_view sema::toString(ScopeKind kind) {
         return "Global";
     case ScopeKind::Namespace:
         return "Namespace";
-    case ScopeKind::Variable:
-        return "Variable";
     case ScopeKind::Function:
         return "Function";
     case ScopeKind::Type:

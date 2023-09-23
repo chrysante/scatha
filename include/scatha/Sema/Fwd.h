@@ -64,12 +64,19 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ValueCategory);
 /// `RValue`
 ValueCategory commonValueCat(ValueCategory a, ValueCategory b);
 
+/// Mutability qualifiers of `QualType`
+enum class Mutability { Const, Mutable };
+
+SCATHA_API std::string_view toString(Mutability);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, Mutability);
+
 ///
 enum class ScopeKind {
     Invalid,
     Global,
     Namespace,
-    Variable,
+//    Variable,
     Function,
     Type,
 };
@@ -109,9 +116,6 @@ enum class BinaryVisibility : uint8_t { Export, Internal };
 
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };
-
-/// Mutability qualifiers of `QualType`
-enum class Mutability { Const, Mutable };
 
 /// Special member functions
 /// These are all constructors, destructor, and perhaps more to come
