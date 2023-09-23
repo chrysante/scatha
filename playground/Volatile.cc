@@ -7,6 +7,7 @@
 #include <range/v3/view.hpp>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
+#include <termfmt/termfmt.h>
 #include <utl/stdio.hpp>
 #include <utl/strcat.hpp>
 
@@ -246,37 +247,43 @@ static void run(ir::Module const& mod) {
     std::vector<SourceHighlight> highlights;
     int index = 0;
     for (auto* issue: issues) {
-        auto message =
-            index != 1 ?
-                utl::strcat("Message ", index) :
-                "This is an absurdly long and verbose error message that "
-                "for sure will not fit on a single line. "
-                "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, "
-                "sed diam nonumy eirmod tempor invidunt ut labore et "
-                "dolore magna aliquyam erat, sed diam voluptua. At vero "
-                "eos et accusam et justo duo dolores et ea rebum. Stet "
-                "clita kasd gubergren, no sea takimata sanctus est Lorem "
-                "ipsum dolor sit amet. Lorem ipsum dolor sit amet, "
-                "consetetur sadipscing elitr, sed diam nonumy eirmod "
-                "tempor invidunt ut labore et dolore magna aliquyam erat, "
-                "sed diam voluptua. At vero eos et accusam et justo duo "
-                "dolores et ea rebum. Stet clita kasd gubergren, no sea "
-                "takimata sanctus est Lorem ipsum dolor sit amet. Lorem "
-                "ipsum dolor sit amet, consetetur sadipscing elitr, sed "
-                "diam nonumy eirmod tempor invidunt ut labore et dolore "
-                "magna aliquyam erat, sed diam voluptua. At vero eos et "
-                "accusam et justo duo dolores et ea rebum. Stet clita kasd "
-                "gubergren, no sea takimata sanctus est Lorem ipsum dolor "
-                "sit amet. "
-                "Duis autem vel eum iriure dolor in hendrerit in vulputate "
-                "velit esse molestie consequat, vel illum dolore eu "
-                "feugiat nulla facilisis at vero eros et accumsan et iusto "
-                "odio dignissim qui blandit praesent luptatum zzril "
-                "delenit augue duis dolore te feugait nulla facilisi. "
-                "Lorem ipsum dolor sit amet.";
-
         ++index;
-        highlights.push_back({ issue->sourceRange(), message });
+        if (index != 2) {
+            highlights.push_back(
+                { issue->sourceRange(), utl::strcat("Message ", index) });
+            continue;
+        }
+        using namespace tfmt::modifiers;
+        highlights.push_back({ issue->sourceRange(),
+                               [](std::ostream& str) {
+            str << "This is an absurdly long and verbose error message that "
+                << "for sure will not fit on a single line. "
+                << "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, "
+                << tfmt::format(Green | Bold,
+                                "sed diam nonumy eirmod tempor invidunt ut "
+                                "labore et ")
+                << "dolore magna aliquyam erat, sed diam voluptua. At vero "
+                << "eos et accusam et justo duo dolores et ea rebum. Stet "
+                << "clita kasd gubergren, no sea takimata sanctus est Lorem "
+                << "ipsum dolor sit amet. Lorem ipsum dolor sit amet, "
+                << "consetetur sadipscing elitr, sed diam nonumy eirmod "
+                << "tempor invidunt ut labore et dolore magna aliquyam erat, "
+                << "sed diam voluptua. At vero eos et accusam et justo duo "
+                << "dolores et ea rebum. Stet clita kasd gubergren, no sea "
+                << "takimata sanctus est Lorem ipsum dolor sit amet. Lorem "
+                << "ipsum dolor sit amet, consetetur sadipscing elitr, sed "
+                << "diam nonumy eirmod tempor invidunt ut labore et dolore "
+                << "magna aliquyam erat, sed diam voluptua. At vero eos et "
+                << "accusam et justo duo dolores et ea rebum. Stet clita kasd "
+                << "gubergren, no sea takimata sanctus est Lorem ipsum dolor "
+                << "sit amet. "
+                << "Duis autem vel eum iriure dolor in hendrerit in vulputate "
+                << "velit esse molestie consequat, vel illum dolore eu "
+                << "feugiat nulla facilisis at vero eros et accumsan et iusto "
+                << "odio dignissim qui blandit praesent luptatum zzril "
+                << "delenit augue duis dolore te feugait nulla facilisi. "
+                << "Lorem ipsum dolor sit amet.";
+                              } });
     }
     highlightSource(SourceStructure(source), highlights, std::cout);
 }

@@ -10,6 +10,7 @@
 
 #include "Common/Base.h"
 #include "Common/SourceLocation.h"
+#include "Issue/Message.h"
 #include "Issue/SourceStructure.h"
 
 namespace scatha {
@@ -22,12 +23,6 @@ void SCTEST_API highlightSource(SourceStructure const& source,
 void SCTEST_API highlightSource(SourceStructure const& source,
                                 SourceRange sourceRange,
                                 std::ostream& ostream);
-
-///
-struct SourceHighlight {
-    SourceRange position;
-    std::string message;
-};
 
 ///
 void SCTEST_API highlightSource(SourceStructure const& source,

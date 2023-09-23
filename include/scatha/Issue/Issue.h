@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include <scatha/Common/SourceLocation.h>
+#include <scatha/Issue/Message.h>
 #include <scatha/Issue/SourceStructure.h>
 
 namespace scatha {

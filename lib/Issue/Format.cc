@@ -11,6 +11,8 @@
 #include <utl/utility.hpp>
 
 #include "Common/Base.h"
+#include "Issue/Message.h"
+#include "Issue/SourceStructure.h"
 
 using namespace scatha;
 using namespace tfmt::modifiers;
@@ -28,6 +30,9 @@ static std::vector<std::string_view> splitText(std::string_view text,
 
 SourceStructure::SourceStructure(std::string_view text):
     source(text), lines(splitText(text, '\n')) {}
+
+IssueMessage::IssueMessage(std::string msg):
+    IssueMessage([=](std::ostream& str) { str << msg; }) {}
 
 static constexpr size_t LineNumChars = 6;
 
@@ -83,9 +88,9 @@ struct SrcHighlightCtx {
 
     void run();
 
-    void printErrorLine(SourceRange range, std::string_view message);
+    void printErrorLine(SourceRange range, IssueMessage const& message);
 
-    void printMessage(size_t currentColumn, std::string_view message);
+    void printMessage(size_t currentColumn, IssueMessage const& message);
 
     void printLines(int index, int count);
 };
@@ -141,7 +146,7 @@ void SrcHighlightCtx::run() {
 }
 
 void SrcHighlightCtx::printErrorLine(SourceRange range,
-                                     std::string_view message) {
+                                     IssueMessage const& message) {
     SC_ASSERT(range.valid(), "");
     auto const sl = range.begin();
     int const line = sl.line - 1;
@@ -151,7 +156,6 @@ void SrcHighlightCtx::printErrorLine(SourceRange range,
     size_t const endcol = range.begin().line == range.end().line ?
                               utl::narrow_cast<size_t>(range.end().column - 1) :
                               lineText.size();
-
     str << lineNumber(sl.line)
         << highlightLineRange(source[line], ucolumn, endcol) << "\n";
     str << lineNumber(-1) << blank(column) << squiggle(endcol - ucolumn);
@@ -159,15 +163,33 @@ void SrcHighlightCtx::printErrorLine(SourceRange range,
     str << "\n";
 }
 
+static size_t wordlength(std::string_view word) {
+    size_t size = 0;
+    for (size_t i = 0; i < word.size(); ++i) {
+        if (word[i] == '\033') {
+            while (i < word.size() && word[i] != 'm') {
+                ++i;
+            }
+            continue;
+        }
+        ++size;
+    }
+    return size;
+}
+
 void SrcHighlightCtx::printMessage(size_t currentColumn,
-                                   std::string_view message) {
-    auto words = splitText(message, ' ');
-    tfmt::FormatGuard format(Blue | Italic, str);
+                                   IssueMessage const& message) {
+    std::stringstream sstr;
+    tfmt::copyFormatFlags(str, sstr);
+    sstr << tfmt::format(Blue | Italic, message);
+    auto text = std::move(sstr).str();
+    auto words = splitText(text, ' ');
     size_t width = tfmt::getWidth(str).value_or(80);
     for (auto word: words) {
-        currentColumn += word.size();
+        size_t size = wordlength(word);
+        currentColumn += size;
         if (currentColumn >= width) {
-            currentColumn = LineNumChars + word.size();
+            currentColumn = LineNumChars + size;
             str << '\n' << blank(LineNumChars);
         }
         else {
