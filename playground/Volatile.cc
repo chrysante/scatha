@@ -8,6 +8,7 @@
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
 #include <utl/stdio.hpp>
+#include <utl/strcat.hpp>
 
 #include "AST/Print.h"
 #include "Assembly/Assembler.h"
@@ -221,6 +222,65 @@ static void run(ir::Module const& mod) {
     }
 }
 
+[[maybe_unused]] static void formatPlayground(std::filesystem::path path) {
+    std::fstream file(path);
+    if (!file) {
+        throw;
+    }
+    std::stringstream sstr;
+    sstr << file.rdbuf();
+    auto source = sstr.str();
+
+    IssueHandler issues;
+    auto root = parser::parse(source, issues);
+    if (!issues.empty()) {
+        issues.print(source);
+    }
+    if (issues.haveErrors()) {
+        return;
+    }
+    issues.clear();
+    sema::SymbolTable sym;
+    auto analysisResult = sema::analyze(*root, sym, issues);
+
+    std::vector<SourceHighlight> highlights;
+    int index = 0;
+    for (auto* issue: issues) {
+        auto message =
+            index != 1 ?
+                utl::strcat("Message ", index) :
+                "This is an absurdly long and verbose error message that "
+                "for sure will not fit on a single line. "
+                "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, "
+                "sed diam nonumy eirmod tempor invidunt ut labore et "
+                "dolore magna aliquyam erat, sed diam voluptua. At vero "
+                "eos et accusam et justo duo dolores et ea rebum. Stet "
+                "clita kasd gubergren, no sea takimata sanctus est Lorem "
+                "ipsum dolor sit amet. Lorem ipsum dolor sit amet, "
+                "consetetur sadipscing elitr, sed diam nonumy eirmod "
+                "tempor invidunt ut labore et dolore magna aliquyam erat, "
+                "sed diam voluptua. At vero eos et accusam et justo duo "
+                "dolores et ea rebum. Stet clita kasd gubergren, no sea "
+                "takimata sanctus est Lorem ipsum dolor sit amet. Lorem "
+                "ipsum dolor sit amet, consetetur sadipscing elitr, sed "
+                "diam nonumy eirmod tempor invidunt ut labore et dolore "
+                "magna aliquyam erat, sed diam voluptua. At vero eos et "
+                "accusam et justo duo dolores et ea rebum. Stet clita kasd "
+                "gubergren, no sea takimata sanctus est Lorem ipsum dolor "
+                "sit amet. "
+                "Duis autem vel eum iriure dolor in hendrerit in vulputate "
+                "velit esse molestie consequat, vel illum dolore eu "
+                "feugiat nulla facilisis at vero eros et accumsan et iusto "
+                "odio dignissim qui blandit praesent luptatum zzril "
+                "delenit augue duis dolore te feugait nulla facilisi. "
+                "Lorem ipsum dolor sit amet.";
+
+        ++index;
+        highlights.push_back({ issue->sourceRange(), message });
+    }
+    highlightSource(SourceStructure(source), highlights, std::cout);
+}
+
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    formatPlayground(path);
 }
