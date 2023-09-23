@@ -48,11 +48,26 @@ protected:
     explicit Issue(SourceRange sourceRange, IssueSeverity severity):
         sourceRng(sourceRange), sev(severity) {}
 
+    /// Define the header message of this issue
+    void header(IssueMessage msg) { _header = std::move(msg); }
+
+    /// Define a solution hint for this issue
+    void hint(IssueMessage msg) { _hint = std::move(msg); }
+
+    /// Add a source highlight message
+    void highlight(HighlightKind kind,
+                   SourceRange position,
+                   IssueMessage message) {
+        highlights.push_back({ kind, position, std::move(message) });
+    }
+
 private:
     virtual void format(std::ostream&) const = 0;
 
     SourceRange sourceRng;
     IssueSeverity sev;
+    IssueMessage _header, _hint;
+    std::vector<SourceHighlight> highlights;
 };
 
 } // namespace scatha

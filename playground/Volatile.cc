@@ -249,12 +249,14 @@ static void run(ir::Module const& mod) {
     for (auto* issue: issues) {
         ++index;
         if (index != 2) {
-            highlights.push_back(
-                { issue->sourceRange(), utl::strcat("Message ", index) });
+            highlights.push_back({ HighlightKind::Primary,
+                                   issue->sourceRange(),
+                                   utl::strcat("Message ", index) });
             continue;
         }
         using namespace tfmt::modifiers;
-        highlights.push_back({ issue->sourceRange(),
+        highlights.push_back({ HighlightKind::Primary,
+                               issue->sourceRange(),
                                [](std::ostream& str) {
             str << "This is an absurdly long and verbose error message that "
                 << "for sure will not fit on a single line. "
@@ -289,5 +291,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    formatPlayground(path);
+    frontendPlayground(path);
 }

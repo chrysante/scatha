@@ -60,3 +60,16 @@ fn main() {
 
 struct X { let y: Y; }
 struct Y { let x: X; }
+
+
+
+/// List of test cases for all errors:
+
+/// Bad return type deduction
+fn test() {
+    return 0;
+    // do some stuff
+    
+    // do other stuff
+    return;
+}

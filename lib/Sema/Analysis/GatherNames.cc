@@ -131,6 +131,7 @@ size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
     if (!variable) {
         return InvalidIndex;
     }
+    variable->setASTNode(&varDecl);
     return dependencyGraph.add({ .entity = variable, .astNode = &varDecl });
 }
 

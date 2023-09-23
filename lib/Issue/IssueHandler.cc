@@ -18,5 +18,6 @@ void IssueHandler::print(std::string_view text, std::ostream& ostream) const {
     SourceStructure source(text);
     for (auto* issue: *this) {
         issue->print(source, ostream);
+        ostream << "\n";
     }
 }

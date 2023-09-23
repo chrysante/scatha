@@ -3,6 +3,7 @@
 #include <ostream>
 #include <string_view>
 
+#include <termfmt/termfmt.h>
 #include <utl/streammanip.hpp>
 
 #include "AST/AST.h"
@@ -10,6 +11,7 @@
 
 using namespace scatha;
 using namespace sema;
+using enum HighlightKind;
 
 static SourceRange getSourceRange(ast::ASTNode const* node) {
     if (node) {
@@ -166,24 +168,31 @@ void Redefinition::format(std::ostream& str) const {
     }
 }
 
-BadVarDecl::BadVarDecl(Scope const* scope,
-                       ast::VarDeclBase const* vardecl,
-                       Reason reason,
-                       Type const* type,
-                       ast::Expression const* initExpr):
-    BadDecl(scope, vardecl, toSeverity(reason)),
-    _reason(reason),
-    _type(type),
-    _initExpr(initExpr) {}
-
-void BadVarDecl::format(std::ostream& str) const {
+BadVarDecl::BadVarDecl(Scope const* _scope,
+                       ast::VarDeclBase const* _vardecl,
+                       Reason _reason,
+                       Type const* _type,
+                       ast::Expression const* _initExpr):
+    BadDecl(_scope, _vardecl, toSeverity(_reason)),
+    _reason(_reason),
+    _type(_type),
+    _initExpr(_initExpr) {
     switch (reason()) {
-#define SC_SEMA_BADVARDECL_DEF(reason, _, message)                             \
-    case reason:                                                               \
-        str << message;                                                        \
+#define SC_SEMA_BADVARDECL_DEF(REASON, SEVERITY, MESSAGE)                      \
+    case REASON:                                                               \
+        MESSAGE;                                                               \
         break;
 #include "Sema/SemaIssues.def"
     }
+}
+
+void BadVarDecl::format(std::ostream& str) const {
+    //    switch (reason()) {
+    // #define SC_SEMA_BADVARDECL_DEF(reason, _, message) \
+//    case reason: \
+//        str << message; \ break;
+    // #include "Sema/SemaIssues.def"
+    //    }
 }
 
 static IssueSeverity toSeverity(BadSMF::Reason reason) {
@@ -239,34 +248,48 @@ void BadReturnStmt::format(std::ostream& str) const {
     }
 }
 
-BadReturnTypeDeduction::BadReturnTypeDeduction(
-    Scope const* scope,
-    ast::ReturnStatement const* statement,
-    ast::ReturnStatement const* confl):
-    BadStmt(scope, statement, IssueSeverity::Error), confl(confl) {}
-
 static constexpr utl::streammanip formatRetType =
-    [](std::ostream& str, ast::Expression const* expr) {
-    if (!expr) {
-        str << "void";
-    }
-    else {
+    [](std::ostream& str, ast::ReturnStatement const* stmt) {
+    if (auto* expr = stmt->expression()) {
         str << expr->type()->name();
     }
+    else {
+        str << "void";
+    }
 };
+
+static SourceRange getRetSR(ast::ReturnStatement const* stmt) {
+    if (auto* expr = stmt->expression()) {
+        return expr->sourceRange();
+    }
+    return stmt->sourceRange();
+}
+
+BadReturnTypeDeduction::BadReturnTypeDeduction(
+    Scope const* scope,
+    ast::ReturnStatement const* stmt,
+    ast::ReturnStatement const* confl):
+    BadStmt(scope, stmt, IssueSeverity::Error), confl(confl) {
+    header([=](std::ostream& str) {
+        str << "Conflicting return type deduction in function '"
+            << statement()->findAncestor<ast::FunctionDefinition>()->name()
+            << "'";
+    });
+    highlight(Primary, getRetSR(statement()), [=](std::ostream& str) {
+        str << "Here return type is deduced as " << formatRetType(statement());
+    });
+    highlight(Secondary, getRetSR(conflicting()), [=](std::ostream& str) {
+        str << "Return type was deduced as " << formatRetType(conflicting());
+    });
+}
 
 void BadReturnTypeDeduction::format(std::ostream& str) const {
     str << "Function "
         << statement()->findAncestor<ast::FunctionDefinition>()->name()
-        << " is here deduced to return "
-        << formatRetType(statement()->expression())
+        << " is here deduced to return " << formatRetType(statement())
         << " but was previously deduced to return "
-        << formatRetType(conflicting()->expression()) << "\n";
+        << formatRetType(conflicting()) << "\n";
 }
-
-StructDefCycle::StructDefCycle(Scope const* scope,
-                               std::vector<Entity const*> cycle):
-    BadDecl(scope, nullptr, IssueSeverity::Error), _cycle(std::move(cycle)) {}
 
 static constexpr utl::streammanip formatEntity =
     [](std::ostream& str, Entity const* e) {
@@ -278,6 +301,27 @@ static constexpr utl::streammanip formatEntity =
     }; // clang-format on
     str << " " << e->name();
 };
+
+StructDefCycle::StructDefCycle(Scope const* _scope,
+                               std::vector<Entity const*> _cycle):
+    BadDecl(_scope, nullptr, IssueSeverity::Error), _cycle(std::move(_cycle)) {
+    header("Cyclic struct definition");
+    hint("Declare data members as pointers to avoid strong cyclic dependecies");
+    for (auto [index, entity]: cycle() | ranges::views::enumerate) {
+        highlight(Primary,
+                  entity->astNode()->sourceRange(),
+                  [=, entity = entity, index = index + 1](std::ostream& str) {
+            if (auto* var = dyncast<Variable const*>(entity)) {
+                auto* type = cast<Type const*>(cycle()[index % cycle().size()]);
+                str << index << ". Member " << var->name() << " of type "
+                    << type->name() << " defined here";
+            }
+            else if (auto* type = dyncast<StructType const*>(entity)) {
+                str << index << ". Struct " << type->name() << " defined here";
+            }
+        });
+    }
+}
 
 void StructDefCycle::format(std::ostream& str) const {
     str << "Cyclic struct definition\nDefinition cycle is: ";

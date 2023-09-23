@@ -23,12 +23,18 @@ SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_BADVARDECL_DEF
-#   define SC_SEMA_BADVARDECL_DEF(reason, severity, text)
+#   define SC_SEMA_BADVARDECL_DEF(Reason, Severity, Message)
 #endif
 
 SC_SEMA_BADVARDECL_DEF(IncompleteType,
                        Error,
-                       "Cannot declare variable of incomplete type " << type()->name())
+{
+    header("Cannot declare variable of incomplete type");
+    highlight(Primary, declaration()->typeExpr()->sourceRange(), [=](std::ostream& str) {
+        str << type()->name() << " is incomplete";
+    });
+})
+
 SC_SEMA_BADVARDECL_DEF(ExpectedRefInit,
                        Error,
                        "An lvalue expression is required to initialize variable reference")

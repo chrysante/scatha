@@ -88,9 +88,9 @@ struct SrcHighlightCtx {
 
     void run();
 
-    void printErrorLine(SourceRange range, IssueMessage const& message);
+    void printErrorLine(SourceHighlight const& highlight);
 
-    void printMessage(size_t currentColumn, IssueMessage const& message);
+    void printMessage(size_t currentColumn, SourceHighlight const& highlight);
 
     void printLines(int index, int count);
 };
@@ -104,7 +104,9 @@ void scatha::highlightSource(SourceStructure const& source,
 void scatha::highlightSource(SourceStructure const& source,
                              SourceRange sourceRange,
                              std::ostream& str) {
-    highlightSource(source, { { sourceRange, {} } }, str);
+    highlightSource(source,
+                    { { HighlightKind::Primary, sourceRange, {} } },
+                    str);
 }
 
 void scatha::highlightSource(SourceStructure const& source,
@@ -126,7 +128,7 @@ void SrcHighlightCtx::run() {
     printLines(lineProj(highlights.front()) - paddingLines, paddingLines);
     for (auto itr = highlights.begin(); itr != highlights.end(); ++itr) {
         auto& H = *itr;
-        printErrorLine(H.position, H.message);
+        printErrorLine(H);
         auto next = std::next(itr);
         if (next == highlights.end()) {
             continue;
@@ -145,8 +147,8 @@ void SrcHighlightCtx::run() {
     printLines(lineProj(highlights.back()) + 1, paddingLines);
 }
 
-void SrcHighlightCtx::printErrorLine(SourceRange range,
-                                     IssueMessage const& message) {
+void SrcHighlightCtx::printErrorLine(SourceHighlight const& highlight) {
+    auto range = highlight.position;
     SC_ASSERT(range.valid(), "");
     auto const sl = range.begin();
     int const line = sl.line - 1;
@@ -159,7 +161,7 @@ void SrcHighlightCtx::printErrorLine(SourceRange range,
     str << lineNumber(sl.line)
         << highlightLineRange(source[line], ucolumn, endcol) << "\n";
     str << lineNumber(-1) << blank(column) << squiggle(endcol - ucolumn);
-    printMessage(endcol + LineNumChars, message);
+    printMessage(endcol + LineNumChars, highlight);
     str << "\n";
 }
 
@@ -178,10 +180,12 @@ static size_t wordlength(std::string_view word) {
 }
 
 void SrcHighlightCtx::printMessage(size_t currentColumn,
-                                   IssueMessage const& message) {
+                                   SourceHighlight const& highlight) {
     std::stringstream sstr;
     tfmt::copyFormatFlags(str, sstr);
-    sstr << tfmt::format(Blue | Italic, message);
+    auto fmtFlags =
+        highlight.kind == HighlightKind::Primary ? BrightBlue | Italic : Italic;
+    sstr << tfmt::format(fmtFlags, highlight.message);
     auto text = std::move(sstr).str();
     auto words = splitText(text, ' ');
     size_t width = tfmt::getWidth(str).value_or(80);
