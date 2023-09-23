@@ -122,8 +122,10 @@ ast::Expression* ExprContext::analyze(ast::Expression* expr) {
     if (!expr) {
         return nullptr;
     }
+    /// This check is helpful for some AST rewrites. This way we can just call
+    /// `analyze()` on the inserted parent expression and already analyzed
+    /// children will be ignored.
     if (expr->isDecorated()) {
-        // TODO: Check if we ever hit this branch
         return expr;
     }
     return visit(*expr, [this](auto&& e) { return this->analyzeImpl(e); });
@@ -833,7 +835,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     /// Perform overload resolution
-    // TODO: Rewrite this to return a function and push errors itself
     auto result = performOverloadResolution(overloadSet,
                                             fc.arguments() | ToSmallVector<>,
                                             orKind);

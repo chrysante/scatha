@@ -215,12 +215,19 @@ void InstContext::instantiateStructureType(SDGNode& node) {
     structType.setAlign(objectAlign);
 }
 
+static Type const* getType(ast::Expression const* expr) {
+    if (!expr || !expr->isDecorated() || !expr->isType()) {
+        return nullptr;
+    }
+    return cast<Type const*>(expr->entity());
+}
+
 void InstContext::instantiateVariable(SDGNode& node) {
     ast::VariableDeclaration& varDecl =
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto* type = analyzeTypeExpr(varDecl.typeExpr(), ctx);
+    auto* type = getType(varDecl.typeExpr());
     /// Here we set the TypeID of the variable in the symbol table.
     auto* variable = cast<Variable*>(node.entity);
     variable->setType(type);
@@ -385,7 +392,7 @@ static bool computeDefaultConstructible(StructType& type, SLFArray const& SLF) {
     /// variables are default constructible
     if (!overloadSet || (overloadSet->size() == 1 && SLF[CopyConstructor])) {
         return ranges::all_of(type.memberVariables(), [](auto* var) {
-            return var->type()->isDefaultConstructible();
+            return !var->type() || var->type()->isDefaultConstructible();
         });
     }
     /// Otherwise we are not default constructible
@@ -396,7 +403,7 @@ static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
     using enum SpecialLifetimeFunction;
     return !SLF[CopyConstructor] && !SLF[MoveConstructor] && !SLF[Destructor] &&
            ranges::all_of(type.memberVariables(), [](auto* var) {
-               return var->type()->hasTrivialLifetime();
+               return !var->type() || var->type()->hasTrivialLifetime();
            });
 }
 
@@ -410,7 +417,7 @@ void InstContext::generateSLFs(StructType& type) {
     if (isDefaultConstructible && !SLF[DefaultConstructor]) {
         bool anyMemberHasDefCtor = ranges::any_of(type.memberVariables(),
                                                   [](auto* var) {
-            auto* type = dyncast<StructType const*>(var->type());
+            auto* type = dyncast_or_null<StructType const*>(var->type());
             return type && type->specialLifetimeFunction(DefaultConstructor);
         });
         if (anyMemberHasDefCtor) {

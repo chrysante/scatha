@@ -11,18 +11,21 @@ using enum BadExpr::Reason;
 
 TEST_CASE("Use of undeclared identifier", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-fn f() -> int { return x; }
-fn f(param: UnknownID) {}
-fn g() { let v: UnknownType; }
-fn h() { 1 + x; }
-fn i() { let y: X.Z; }
-struct X { struct Y {} }
+/* 2 */ fn f() -> int { return x; }
+/* 3 */ fn f(param: UnknownID) {}
+/* 4 */ fn g() { let v: UnknownType; }
+/* 5 */ fn h() { 1 + x; }
+/* 6 */ fn i() { let y: X.Z; }
+/* 7 */ struct X { struct Y {} }
+/* 8 */ struct Z { var i: in; }
 )");
     CHECK(issues.findOnLine<BadExpr>(2, UndeclaredID));
     CHECK(issues.findOnLine<BadExpr>(3, UndeclaredID));
     CHECK(issues.findOnLine<BadExpr>(4, UndeclaredID));
     CHECK(issues.findOnLine<BadExpr>(5, UndeclaredID));
     CHECK(issues.findOnLine<BadExpr>(6, UndeclaredID));
+    CHECK(issues.noneOnLine(7));
+    CHECK(issues.findOnLine<BadExpr>(8, UndeclaredID));
 }
 
 TEST_CASE("Bad symbol reference", "[sema][issue]") {
