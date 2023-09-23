@@ -6,11 +6,10 @@
 
 using namespace scatha;
 
-static size_t const width = 80;
-
 void logging::line(std::string_view msg) { line(msg, std::cout); }
 
 void logging::line(std::string_view msg, std::ostream& str) {
+    size_t const width = tfmt::getWidth(str).value_or(80);
     auto impl = [&](size_t width) {
         tfmt::FormatGuard grey(tfmt::BrightGrey);
         for (size_t i = 0; i < width; ++i) {

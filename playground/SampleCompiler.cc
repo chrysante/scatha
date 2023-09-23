@@ -13,6 +13,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
 #include "CodeGen/CodeGen.h"
+#include "Common/Logging.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -24,10 +25,10 @@
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/SymbolTable.h"
-#include "Util.h"
 
 using namespace scatha;
 using namespace scatha::parser;
+using namespace scatha::logging;
 
 void playground::compile(std::filesystem::path filepath) {
     std::fstream file(filepath);

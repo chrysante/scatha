@@ -19,6 +19,7 @@
 #include "CodeGen/ISelTest.h"
 #include "CodeGen/Passes.h"
 #include "Common/Base.h"
+#include "Common/Logging.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
@@ -48,10 +49,10 @@
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SymbolTable.h"
-#include "Util.h"
 
 using namespace scatha;
 using namespace playground;
+using namespace scatha::logging;
 
 static void run(Asm::AssemblyStream const& assembly) {
     auto [program, symbolTable] = Asm::assemble(assembly);

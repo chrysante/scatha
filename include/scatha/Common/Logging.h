@@ -4,19 +4,21 @@
 #include <iosfwd>
 #include <string_view>
 
+#include <scatha/Common/Base.h>
+
 namespace scatha::logging {
 
-void line(std::string_view msg = {});
+void SCATHA_API line(std::string_view msg = {});
 
-void line(std::string_view msg, std::ostream& ostream);
+void SCATHA_API line(std::string_view msg, std::ostream& ostream);
 
-void header(std::string_view title);
+void SCATHA_API header(std::string_view title);
 
-void header(std::string_view title, std::ostream& ostream);
+void SCATHA_API header(std::string_view title, std::ostream& ostream);
 
-void subHeader(std::string_view title = {});
+void SCATHA_API subHeader(std::string_view title = {});
 
-void subHeader(std::string_view title, std::ostream& ostream);
+void SCATHA_API subHeader(std::string_view title, std::ostream& ostream);
 
 } // namespace scatha::logging
 
