@@ -1,7 +1,7 @@
 #include <Catch/Catch2.hpp>
 
 #include "Sema/Entity.h"
-#include "Sema/SemanticIssuesNEW.h"
+#include "Sema/SemaIssues.h"
 #include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
 

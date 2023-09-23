@@ -1,7 +1,7 @@
 fn main() {
 
 
-let c = [];
+    int + float;
 
 }
 

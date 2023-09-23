@@ -17,7 +17,7 @@
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
-#include "Sema/SemanticIssuesNEW.h"
+#include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;

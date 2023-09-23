@@ -1,4 +1,4 @@
-#include "Sema/SemanticIssuesNEW.h"
+#include "Sema/SemaIssues.h"
 
 #include <ostream>
 #include <string_view>
@@ -129,7 +129,7 @@ static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
 #define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, _)                        \
     case GenericBadStmt::reason:                                               \
         return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -144,7 +144,7 @@ void GenericBadStmt::format(std::ostream& str) const {
     case reason:                                                               \
         str << message;                                                        \
         break;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -153,7 +153,7 @@ static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
 #define SC_SEMA_BADVARDECL_DEF(reason, severity, _)                            \
     case BadVarDecl::reason:                                                   \
         return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -185,7 +185,7 @@ void BadVarDecl::format(std::ostream& str) const {
     case reason:                                                               \
         str << message;                                                        \
         break;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -194,7 +194,7 @@ static IssueSeverity toSeverity(BadSMF::Reason reason) {
 #define SC_SEMA_BADSMF_DEF(reason, severity, _)                                \
     case BadSMF::reason:                                                       \
         return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -214,7 +214,7 @@ void BadSMF::format(std::ostream& str) const {
     case reason:                                                               \
         str << message;                                                        \
         break;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -223,7 +223,7 @@ static IssueSeverity toSeverity(BadReturnStmt::Reason reason) {
 #define SC_SEMA_BADRETURN_DEF(reason, severity, _)                             \
     case BadReturnStmt::reason:                                                \
         return IssueSeverity::severity;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -238,7 +238,7 @@ void BadReturnStmt::format(std::ostream& str) const {
     case reason:                                                               \
         str << message;                                                        \
         break;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -270,7 +270,7 @@ static IssueSeverity toSeverity(BadExpr::Reason reason) {
 #define SC_SEMA_BADEXPR_DEF(Type, Reason, Severity, Message)                   \
     case BadExpr::Reason:                                                      \
         return IssueSeverity::Severity;
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -296,7 +296,7 @@ void BadExpr::format(std::ostream& str) const {
         str << Message;                                                        \
         break;                                                                 \
     }
-#include "Sema/SemanticIssuesNEW.def"
+#include "Sema/SemaIssues.def"
     }
 }
 
@@ -329,13 +329,28 @@ void BadSymRef::format(std::ostream& str) const {
     }
 }
 
+void BadTypeConv::format(std::ostream& str) const {
+    str << "Cannot convert value of type " << expr()->type()->name() << " to "
+        << to()->name();
+}
+
+void BadValueCatConv::format(std::ostream& str) const {
+    str << "Cannot convert " << expr()->valueCategory() << " of type "
+        << expr()->type()->name() << " to " << to();
+}
+
+void BadMutConv::format(std::ostream& str) const {
+#warning
+}
+
 ORError::ORError(OverloadSet const* os,
                  std::vector<std::pair<QualType, ValueCategory>> argTypes,
                  std::vector<Function const*> matches):
     SemaIssue(nullptr, {}, IssueSeverity::Error),
     os(os),
     argTypes(std::move(argTypes)),
-    matches(std::move(matches)) {}
+    matches(std::move(matches)) {
+}
 
 void ORError::format(std::ostream& str) const {
     if (matches.empty()) {

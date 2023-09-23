@@ -10,7 +10,7 @@
 #include "Sema/Analysis/DTorStack.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
-#include "Sema/SemanticIssuesNEW.h"
+#include "Sema/SemaIssues.h"
 
 namespace scatha::sema {
 

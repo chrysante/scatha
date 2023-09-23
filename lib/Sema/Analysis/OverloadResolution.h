@@ -10,7 +10,7 @@
 #include "Common/Expected.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Fwd.h"
-#include "Sema/SemanticIssuesNEW.h"
+#include "Sema/SemaIssues.h"
 
 namespace scatha::sema {
 

@@ -8,7 +8,7 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Entity.h"
-#include "Sema/SemanticIssuesNEW.h"
+#include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
