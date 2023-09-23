@@ -80,7 +80,6 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     if (!function) {
         return InvalidIndex;
     }
-    function->setASTNode(&funcDef);
     funcDef.decorateDecl(function);
     funcDef.body()->decorateScope(function);
     /// Now add this function definition to the dependency graph
@@ -102,7 +101,6 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
     if (!type) {
         return InvalidIndex;
     }
-    type->setASTNode(&def);
     def.decorateDecl(type);
     def.body()->decorateScope(type);
     size_t const index =
@@ -131,7 +129,6 @@ size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
     if (!variable) {
         return InvalidIndex;
     }
-    variable->setASTNode(&varDecl);
     return dependencyGraph.add({ .entity = variable, .astNode = &varDecl });
 }
 

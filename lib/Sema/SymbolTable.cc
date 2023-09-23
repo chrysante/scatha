@@ -144,7 +144,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
         impl->issue<Redefinition>(def, entity);
         return nullptr;
     }
-    auto* type = impl->addEntity<StructType>(name, &currentScope());
+    auto* type = impl->addEntity<StructType>(name, &currentScope(), def);
     currentScope().add(type);
     return type;
 }
@@ -192,7 +192,8 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
     Function* function = impl->addEntity<Function>(name,
                                                    overloadSet,
                                                    &currentScope(),
-                                                   FunctionAttribute::None);
+                                                   FunctionAttribute::None,
+                                                   def);
     currentScope().add(function);
     impl->_functions.push_back(function);
     return function;
@@ -257,7 +258,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
         impl->issue<Redefinition>(vardecl, existing);
         return nullptr;
     }
-    auto* variable = impl->addEntity<Variable>(name, &currentScope());
+    auto* variable = impl->addEntity<Variable>(name, &currentScope(), vardecl);
     currentScope().add(variable);
     return variable;
 }

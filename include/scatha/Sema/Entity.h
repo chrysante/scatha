@@ -49,6 +49,16 @@
 /// └─ PoisonEntity
 /// ```
 
+#define SC_ASTNODE_DERIVED(Name, Type)                                         \
+    template <typename T = ast::Type>                                          \
+    T const* Name() const {                                                    \
+        return cast<T const*>(astNode());                                      \
+    }                                                                          \
+    template <typename T = ast::Type>                                          \
+    T* Name() {                                                                \
+        return cast<T*>(astNode());                                            \
+    }
+
 namespace scatha::sema {
 
 /// # Base
@@ -68,7 +78,8 @@ public:
     /// `true` if this entity is unnamed
     bool isAnonymous() const { return name().empty(); }
 
-    /// The parent scope of this entity
+    /// The parent scope of this entity. Not all entities have a parent scope so
+    /// this may be null
     Scope* parent() { return _parent; }
 
     /// \overload
@@ -96,31 +107,37 @@ public:
     void setBuiltin(bool value = true) { _isBuiltin = value; }
 
     /// \Returns the corresponding AST node
-    ast::Declaration* astNode() { return _astNode; }
+    ast::ASTNode* astNode() { return _astNode; }
 
     /// \overload
-    ast::Declaration const* astNode() const { return _astNode; }
-
-    /// TODO: Get rid of this and pass ast nodes through constructors
-    void setASTNode(ast::Declaration* node) { _astNode = node; }
+    ast::ASTNode const* astNode() const { return _astNode; }
 
 protected:
-    explicit Entity(EntityType entityType, std::string name, Scope* parent):
-        _entityType(entityType), _parent(parent), _names({ std::move(name) }) {}
+    explicit Entity(EntityType entityType,
+                    std::string name,
+                    Scope* parent,
+                    ast::ASTNode* astNode = nullptr):
+        _entityType(entityType),
+        _parent(parent),
+        _names({ std::move(name) }),
+        _astNode(astNode) {}
 
 private:
+    /// Default implementation of `category()`
     EntityCategory categoryImpl() const {
         return EntityCategory::Indeterminate;
     }
 
+    /// Type ID used by `dyncast`
     EntityType _entityType;
     bool _isBuiltin = false;
     Scope* _parent = nullptr;
     utl::small_vector<std::string, 1> _names;
     mutable std::string _mangledName;
-    ast::Declaration* _astNode = nullptr;
+    ast::ASTNode* _astNode = nullptr;
 };
 
+/// Customization point for the `dyncast` facilities
 EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
     return entity.entityType();
 }
@@ -128,7 +145,7 @@ EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
 /// Represents an object
 class SCATHA_API Object: public Entity {
 public:
-    SC_MOVEONLY(Object);
+    Object(Object const&) = delete;
 
     ~Object();
 
@@ -164,7 +181,8 @@ protected:
                     std::string name,
                     Scope* parentScope,
                     Type const* type,
-                    Mutability mutability);
+                    Mutability mutability,
+                    ast::ASTNode* astNode = nullptr);
 
     void setMutability(Mutability mut) { _mut = mut; }
 
@@ -180,12 +198,16 @@ private:
 /// Represents a variable
 class SCATHA_API Variable: public Object {
 public:
-    SC_MOVEONLY(Variable);
+    Variable(Variable const&) = delete;
 
     explicit Variable(std::string name,
                       Scope* parentScope,
+                      ast::ASTNode* astNode,
                       Type const* type = nullptr,
                       Mutability mutability = {});
+
+    /// The AST node that corresponds to this variable
+    SC_ASTNODE_DERIVED(declaration, VarDeclBase)
 
     /// Set the offset of this variable.
     void setOffset(size_t offset) { _offset = offset; }
@@ -241,9 +263,9 @@ private:
 /// Represents a temporary object
 class SCATHA_API Temporary: public Object {
 public:
-    SC_MOVEONLY(Temporary);
-
     explicit Temporary(size_t id, Scope* parentScope, QualType type);
+
+    Temporary(Temporary const&) = delete;
 
     /// The ID of this temporary
     size_t id() const { return _id; }
@@ -296,7 +318,8 @@ protected:
     explicit Scope(EntityType entityType,
                    ScopeKind,
                    std::string name,
-                   Scope* parent);
+                   Scope* parent,
+                   ast::ASTNode* astNode = nullptr);
 
 private:
     friend class SymbolTable;
@@ -378,13 +401,18 @@ public:
     explicit Function(std::string name,
                       OverloadSet* overloadSet,
                       Scope* parentScope,
-                      FunctionAttribute attrs):
+                      FunctionAttribute attrs,
+                      ast::ASTNode* astNode):
         Scope(EntityType::Function,
               ScopeKind::Function,
               std::move(name),
-              parentScope),
+              parentScope,
+              astNode),
         _overloadSet(overloadSet),
         attrs(attrs) {}
+
+    /// The definition of this function in the AST
+    SC_ASTNODE_DERIVED(definition, FunctionDefinition)
 
     /// \Returns The type ID of this function.
     Type const* type() const { return signature().type(); }
@@ -543,8 +571,9 @@ protected:
     explicit Type(EntityType entityType,
                   ScopeKind scopeKind,
                   std::string name,
-                  Scope* parent):
-        Scope(entityType, scopeKind, std::move(name), parent) {}
+                  Scope* parent,
+                  ast::ASTNode* astNode = nullptr):
+        Scope(entityType, scopeKind, std::move(name), parent, astNode) {}
 
 private:
     friend class Entity;
@@ -564,8 +593,9 @@ public:
                         std::string name,
                         Scope* parent,
                         size_t size,
-                        size_t align):
-        Type(entityType, scopeKind, std::move(name), parent),
+                        size_t align,
+                        ast::ASTNode* astNode = nullptr):
+        Type(entityType, scopeKind, std::move(name), parent, astNode),
         _size(size),
         _align(align) {}
 
@@ -668,6 +698,7 @@ class SCATHA_API StructType: public ObjectType {
 public:
     explicit StructType(std::string name,
                         Scope* parentScope,
+                        ast::ASTNode* astNode,
                         size_t size = InvalidSize,
                         size_t align = InvalidSize):
         ObjectType(EntityType::StructType,
@@ -675,7 +706,11 @@ public:
                    std::move(name),
                    parentScope,
                    size,
-                   align) {}
+                   align,
+                   astNode) {}
+
+    /// The AST node that defines this type
+    SC_ASTNODE_DERIVED(definition, StructDefinition)
 
     /// The member variables of this type in the order of declaration.
     std::span<Variable* const> memberVariables() { return _memberVars; }
@@ -829,11 +864,11 @@ class SCATHA_API OverloadSet:
     public Entity,
     private utl::small_vector<Function*, 8> {
 public:
-    SC_MOVEONLY(OverloadSet);
-
     /// Construct an empty overload set.
     explicit OverloadSet(std::string name, Scope* parentScope):
         Entity(EntityType::OverloadSet, std::move(name), parentScope) {}
+
+    OverloadSet(OverloadSet const&) = delete;
 
     /// Add a function to this overload set.
     /// \returns `nullptr` if \p function is a legal
@@ -910,5 +945,7 @@ private:
 };
 
 } // namespace scatha::sema
+
+#undef SC_ASTNODE_DERIVED
 
 #endif // SCATHA_SEMA_ENTITY_H_

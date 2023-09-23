@@ -47,8 +47,11 @@ Object::Object(EntityType entityType,
                std::string name,
                Scope* parentScope,
                Type const* type,
-               Mutability mut):
-    Entity(entityType, std::move(name), parentScope), _type(type), _mut(mut) {}
+               Mutability mut,
+               ast::ASTNode* astNode):
+    Entity(entityType, std::move(name), parentScope, astNode),
+    _type(type),
+    _mut(mut) {}
 
 Object::~Object() = default;
 
@@ -69,9 +72,15 @@ void Object::setConstantValue(UniquePtr<Value> value) {
 
 Variable::Variable(std::string name,
                    Scope* parentScope,
+                   ast::ASTNode* astNode,
                    Type const* type,
                    Mutability mut):
-    Object(EntityType::Variable, std::move(name), parentScope, type, mut) {}
+    Object(EntityType::Variable,
+           std::move(name),
+           parentScope,
+           type,
+           mut,
+           astNode) {}
 
 bool Variable::isLocal() const {
     return parent()->kind() == ScopeKind::Function;
@@ -96,8 +105,9 @@ Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
 Scope::Scope(EntityType entityType,
              ScopeKind kind,
              std::string name,
-             Scope* parent):
-    Entity(entityType, std::move(name), parent), _kind(kind) {}
+             Scope* parent,
+             ast::ASTNode* astNode):
+    Entity(entityType, std::move(name), parent, astNode), _kind(kind) {}
 
 Entity const* Scope::findEntity(std::string_view name) const {
     auto const itr = _entities.find(name);

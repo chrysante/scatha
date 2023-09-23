@@ -26,7 +26,8 @@ struct TestOS {
             auto f = allocate<Function>(name,
                                         result.overloadSet.get(),
                                         nullptr,
-                                        FunctionAttribute::None);
+                                        FunctionAttribute::None,
+                                        nullptr);
             f->setSignature(FunctionSignature(types, sym.Void()));
             result.overloadSet->add(f.get());
             result.functions.push_back(std::move(f));
