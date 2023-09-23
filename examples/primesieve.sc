@@ -36,16 +36,16 @@ struct Sieve {
 
 	fn setFalse(&mut this, index: int, stride: int) {
 		for i = index; i < this.size; i += stride {
-			(*this.flags)[i] = false;
+			this.flags[i] = false;
 		}
 	}
 
 	fn isSet(&this, index: int) -> bool {
-		return (*this.flags)[index];
+		return this.flags[index];
 	}
 
 	fn size(&this) -> int {
-		return this.flags->count;
+		return this.flags.count;
 	}
 
 	fn run(&mut this) {
@@ -78,7 +78,7 @@ struct Sieve {
 		print("\n");
 		printPrime(2);
 		var numPrimes = 1;
-		for i = 3; i < this.size(); i+=2 {
+		for i = 3; i < this.size(); i += 2 {
 			if this.isSet(i) {
 				++numPrimes;
 				printPrime(i);

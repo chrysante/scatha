@@ -1,5 +1,5 @@
 
-fn sum(data: &[int]) -> int {
+fn sum(data: &[int]) {
     var acc = 0;
     for i = 0; i < data.count; ++i {
         acc += data[i];
@@ -20,16 +20,16 @@ struct IntVector {
     }
 
     fn push_back(&mut this, value: int) {
-        (*this.mData)[this.numElems] = value;
+        this.mData[this.numElems] = value;
         ++this.numElems;
     }
 
     fn at(&mut this, index: int) -> &mut int {
-        return (*this.mData)[index];
+        return this.mData[index];
     }
 
     fn at(&this, index: int) -> &int {
-        return (*this.mData)[index];
+        return this.mData[index];
     }
 
     fn data(&mut this) -> &mut [int] {
@@ -40,12 +40,12 @@ struct IntVector {
         return *this.mData;
     }
 
-    fn count(&this) -> int {
+    fn count(&this) {
         return this.numElems;
     }
 
-    fn capacity(&this) -> int {
-        return this.mData->count;
+    fn capacity(&this) {
+        return this.mData.count;
     }
 
     var numElems: int;
