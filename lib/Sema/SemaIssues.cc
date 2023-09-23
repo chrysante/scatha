@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include <termfmt/termfmt.h>
+#include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
 #include "AST/AST.h"
@@ -33,6 +34,29 @@ static std::string_view format(ast::Statement const* stmt) {
         [](ReturnStatement const&) { return "Return statement"sv; },
         [](Statement const&) { return "Statement"sv; },
     }; // clang-format on
+}
+
+static std::string formatOrdinal(size_t index) {
+    if (index < 9) {
+        static std::string const Small[9] = {
+            "first", "second",  "third",  "forth", "fifth",
+            "sixth", "seventh", "eighth", "ninth",
+        };
+        return Small[index];
+    }
+    if (index < 20) {
+        return utl::strcat(index + 1, "th");
+    }
+    switch (index % 10) {
+    case 0:
+        return utl::strcat(index + 1, "st");
+    case 1:
+        return utl::strcat(index + 1, "nd");
+    case 2:
+        return utl::strcat(index + 1, "rd");
+    default:
+        return utl::strcat(index + 1, "th");
+    }
 }
 
 /// Used by `SC_SEMA_GENERICBADSTMT_DEF`
@@ -186,14 +210,7 @@ BadVarDecl::BadVarDecl(Scope const* _scope,
     }
 }
 
-void BadVarDecl::format(std::ostream& str) const {
-    //    switch (reason()) {
-    // #define SC_SEMA_BADVARDECL_DEF(reason, _, message) \
-//    case reason: \
-//        str << message; \ break;
-    // #include "Sema/SemaIssues.def"
-    //    }
-}
+void BadVarDecl::format(std::ostream& str) const {}
 
 static IssueSeverity toSeverity(BadSMF::Reason reason) {
     switch (reason) {
@@ -279,7 +296,8 @@ BadReturnTypeDeduction::BadReturnTypeDeduction(
         str << "Here return type is deduced as " << formatRetType(statement());
     });
     highlight(Secondary, getRetSR(conflicting()), [=](std::ostream& str) {
-        str << "Return type was deduced as " << formatRetType(conflicting());
+        str << "Here return type was deduced as "
+            << formatRetType(conflicting());
     });
 }
 

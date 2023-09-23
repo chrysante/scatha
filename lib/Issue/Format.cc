@@ -56,9 +56,9 @@ static constexpr utl::streammanip lineNumber =
 
 static constexpr utl::streammanip highlightLineRange =
     [](std::ostream& str, std::string_view text, size_t begin, size_t end) {
-    str << text.substr(0, begin);
-    str << tfmt::format(Bold, text.substr(begin, end - begin));
-    str << text.substr(end, text.size() - end);
+    str << tfmt::format(BrightGrey, text.substr(0, begin));
+    str << tfmt::format(None, text.substr(begin, end - begin));
+    str << tfmt::format(BrightGrey, text.substr(end, text.size() - end));
 };
 
 static constexpr utl::streammanip squiggle =

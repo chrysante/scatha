@@ -26,30 +26,58 @@ SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
 #   define SC_SEMA_BADVARDECL_DEF(Reason, Severity, Message)
 #endif
 
-SC_SEMA_BADVARDECL_DEF(IncompleteType,
-                       Error,
+SC_SEMA_BADVARDECL_DEF(IncompleteType, Error,
 {
     header("Cannot declare variable of incomplete type");
-    highlight(Primary, declaration()->typeExpr()->sourceRange(), [=](std::ostream& str) {
+    primary(declaration()->typeExpr()->sourceRange(), [=](std::ostream& str) {
         str << type()->name() << " is incomplete";
     });
 })
-
-SC_SEMA_BADVARDECL_DEF(ExpectedRefInit,
-                       Error,
-                       "An lvalue expression is required to initialize variable reference")
-SC_SEMA_BADVARDECL_DEF(CantInferType,
-                       Error,
-                       "Can't infer type")
-SC_SEMA_BADVARDECL_DEF(RefInStruct,
-                       Error,
-                       "Cannot declare variable references in structs")
-SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction,
-                       Error,
-                       "this-parameter can only be declared in member functions")
-SC_SEMA_BADVARDECL_DEF(ThisPosition,
-                       Error,
-                       "this-parameter can only be declared as the first parameter")
+SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error,
+{
+    header("Reference declaration requires initializer");
+    primary(declaration()->sourceRange(), [=](std::ostream& str) {
+        str << "Reference '" << declaration()->name()
+            << "' declared here without initializer";
+    });
+})
+SC_SEMA_BADVARDECL_DEF(CantInferType, Error,
+{
+    header("Cannot infer type");
+    primary(declaration()->sourceRange(), [=](std::ostream& str) {
+        str << "Variable '" << declaration()->name()
+            << "' declared without type and initializer";
+    });
+})
+SC_SEMA_BADVARDECL_DEF(RefInStruct, Error,
+{
+    header("Cannot declare variable of reference type in struct");
+    auto* var = cast<ast::VariableDeclaration const*>(declaration());
+    primary(var->typeExpr()->sourceRange(), [=](std::ostream& str) {
+        str << "Variable " << var->name() << " of type " << var->type()->name()
+            << " declared here";
+    });
+})
+SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error,
+{
+    header("'this' parameter can only be declared in member functions");
+    primary(declaration()->sourceRange(), [=](std::ostream& str) {
+        auto* function = declaration()->findAncestor<ast::FunctionDefinition>();
+        str << "'this' parameter in free function '" << function->name()
+            << "' declared here";
+    });
+})
+SC_SEMA_BADVARDECL_DEF(ThisPosition, Error,
+{
+    header("'this' parameter can only be declared as the first parameter");
+    auto* param = cast<ast::ParameterDeclaration const*>(declaration());
+    primary(param->sourceRange(), [=](std::ostream& str) {
+        auto* function = param->findAncestor<ast::FunctionDefinition>();
+        str << "'this' parameter in function '" << function->name()
+            << "' declared as " << formatOrdinal(param->index())
+            << " parameter here";
+    });
+})
 
 #undef SC_SEMA_BADVARDECL_DEF
 

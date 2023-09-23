@@ -61,6 +61,16 @@ protected:
         highlights.push_back({ kind, position, std::move(message) });
     }
 
+    /// Add a primary source highlight message
+    void primary(SourceRange position, IssueMessage message) {
+        highlight(HighlightKind::Primary, position, std::move(message));
+    }
+
+    /// Add a secondary source highlight message
+    void secondary(SourceRange position, IssueMessage message) {
+        highlight(HighlightKind::Secondary, position, std::move(message));
+    }
+
 private:
     virtual void format(std::ostream&) const = 0;
 

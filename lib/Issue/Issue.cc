@@ -26,11 +26,16 @@ static constexpr utl::streammanip label([](std::ostream& str,
     }
 });
 
+static constexpr utl::streammanip location([](std::ostream& str,
+                                              SourceLocation loc) {
+    str << tfmt::format(BrightGrey, "Line: ") << loc.line << " "
+        << tfmt::format(BrightGrey, "Column: ") << loc.column << " ";
+});
+
 void Issue::print(SourceStructure const& source, std::ostream& str) const {
     str << label(severity());
     if (sourceLocation().valid()) {
-        str << "L:" << sourceLocation().line << " C:" << sourceLocation().column
-            << " : ";
+        str << location(sourceLocation());
     }
     if (highlights.empty()) {
         format(str);
@@ -41,7 +46,7 @@ void Issue::print(SourceStructure const& source, std::ostream& str) const {
     }
     else {
         if (_header) {
-            str << _header;
+            str << tfmt::format(BrightBlue | Italic, _header);
         }
         str << "\n";
         highlightSource(source, highlights, str);
