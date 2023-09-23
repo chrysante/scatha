@@ -1,20 +1,19 @@
 // No include guards
+// This file is has .h extension so it will be caught by our formatting script
 
 // ===--------------------------------------------------------------------=== //
 // === List of all reasons for a generic bad statement -------------------=== //
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_GENERICBADSTMT_DEF
-#   define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, text)
+#define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, text)
 #endif
 
-SC_SEMA_GENERICBADSTMT_DEF(ReservedIdentifier,
-                           Error,
-                           "Reserved identifier")
+SC_SEMA_GENERICBADSTMT_DEF(ReservedIdentifier, Error, "Reserved identifier")
 SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
                            Error,
-                           ::format(statement()) << " is invalid in "
-                               << ::format(scope()))
+                           ::format(statement())
+                               << " is invalid in " << ::format(scope()))
 
 #undef SC_SEMA_GENERICBADSTMT_DEF
 
@@ -23,11 +22,10 @@ SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_BADVARDECL_DEF
-#   define SC_SEMA_BADVARDECL_DEF(Reason, Severity, Message)
+#define SC_SEMA_BADVARDECL_DEF(Reason, Severity, Message)
 #endif
 
-SC_SEMA_BADVARDECL_DEF(IncompleteType, Error,
-{
+SC_SEMA_BADVARDECL_DEF(IncompleteType, Error, {
     header("Cannot declare variable of incomplete type");
     auto* decl = declaration();
     auto range = decl->typeExpr() ? decl->typeExpr()->sourceRange() :
@@ -36,24 +34,21 @@ SC_SEMA_BADVARDECL_DEF(IncompleteType, Error,
         str << sema::format(type()) << " is incomplete";
     });
 })
-SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error,
-{
+SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error, {
     header("Reference declaration requires initializer");
     primary(declaration()->sourceRange(), [=](std::ostream& str) {
         str << "Reference '" << declaration()->name()
             << "' declared here without initializer";
     });
 })
-SC_SEMA_BADVARDECL_DEF(CantInferType, Error,
-{
+SC_SEMA_BADVARDECL_DEF(CantInferType, Error, {
     header("Cannot infer type");
     primary(declaration()->sourceRange(), [=](std::ostream& str) {
         str << "Variable '" << declaration()->name()
             << "' declared without type and initializer";
     });
 })
-SC_SEMA_BADVARDECL_DEF(RefInStruct, Error,
-{
+SC_SEMA_BADVARDECL_DEF(RefInStruct, Error, {
     header("Cannot declare variable of reference type in struct");
     auto* var = cast<ast::VariableDeclaration const*>(declaration());
     primary(var->typeExpr()->sourceRange(), [=](std::ostream& str) {
@@ -61,8 +56,7 @@ SC_SEMA_BADVARDECL_DEF(RefInStruct, Error,
             << sema::format(var->type()) << " declared here";
     });
 })
-SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error,
-{
+SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error, {
     header("'this' parameter can only be declared in member functions");
     primary(declaration()->sourceRange(), [=](std::ostream& str) {
         auto* function = declaration()->findAncestor<ast::FunctionDefinition>();
@@ -70,8 +64,7 @@ SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error,
             << "' declared here";
     });
 })
-SC_SEMA_BADVARDECL_DEF(ThisPosition, Error,
-{
+SC_SEMA_BADVARDECL_DEF(ThisPosition, Error, {
     header("'this' parameter can only be declared as the first parameter");
     auto* param = cast<ast::ParameterDeclaration const*>(declaration());
     primary(param->sourceRange(), [=](std::ostream& str) {
@@ -89,7 +82,7 @@ SC_SEMA_BADVARDECL_DEF(ThisPosition, Error,
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_BADSMF_DEF
-#   define SC_SEMA_BADSMF_DEF(reason, severity, text)
+#define SC_SEMA_BADSMF_DEF(reason, severity, text)
 #endif
 
 SC_SEMA_BADSMF_DEF(HasReturnType,
@@ -101,17 +94,17 @@ SC_SEMA_BADSMF_DEF(NotInStruct,
 SC_SEMA_BADSMF_DEF(NoParams,
                    Error,
                    "Function '" << SMF()
-                       << "' must have at least one parameter of type "
-                       << "&mut " << parent()->name())
+                                << "' must have at least one parameter of type "
+                                << "&mut " << parent()->name())
 SC_SEMA_BADSMF_DEF(BadFirstParam,
                    Error,
-                   "The first parameter to function '" << SMF()
-                       << "' must be of type "
+                   "The first parameter to function '"
+                       << SMF() << "' must be of type "
                        << "&mut " << parent()->name())
 SC_SEMA_BADSMF_DEF(MoveSignature,
                    Error,
-                   "The parameters types of function '" << SMF()
-                       << "' must be "
+                   "The parameters types of function '"
+                       << SMF() << "' must be "
                        << "&mut " << parent()->name() << ", "
                        << "&mut " << parent()->name())
 SC_SEMA_BADSMF_DEF(DeleteSignature,
@@ -125,7 +118,7 @@ SC_SEMA_BADSMF_DEF(DeleteSignature,
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_BADRETURN_DEF
-#   define SC_SEMA_BADRETURN_DEF(reason, severity, text)
+#define SC_SEMA_BADRETURN_DEF(reason, severity, text)
 #endif
 
 SC_SEMA_BADRETURN_DEF(NonVoidMustReturnValue,
@@ -142,20 +135,14 @@ SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue,
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_BADEXPR_DEF
-#   define SC_SEMA_BADEXPR_DEF(ExprType, Reason, Severity, Message)
+#define SC_SEMA_BADEXPR_DEF(ExprType, Reason, Severity, Message)
 #endif
 
-SC_SEMA_BADEXPR_DEF(Expression,
-                    BadExprNone,
-                    Error,
-                    "No issue")
+SC_SEMA_BADEXPR_DEF(Expression, BadExprNone, Error, "No issue")
 
 /// This should only be used for temporary language constructs for which it is
 /// not worthwhile to make special errors
-SC_SEMA_BADEXPR_DEF(Expression,
-                    GenericBadExpr,
-                    Error,
-                    "Bad expression")
+SC_SEMA_BADEXPR_DEF(Expression, GenericBadExpr, Error, "Bad expression")
 
 SC_SEMA_BADEXPR_DEF(Identifier,
                     UndeclaredID,
@@ -166,32 +153,34 @@ SC_SEMA_BADEXPR_DEF(UnaryExpression,
                     UnaryExprBadType,
                     Error,
                     "Operand type " << expr->operand()->type()->name()
-                        << " is invalid for unary operator " << expr->operation())
+                                    << " is invalid for unary operator "
+                                    << expr->operation())
 
 SC_SEMA_BADEXPR_DEF(UnaryExpression,
                     UnaryExprValueCat,
                     Error,
                     expr->operand()->valueCategory()
-                            << " operand is invalid for unary operator "
-                            << expr->operation())
+                        << " operand is invalid for unary operator "
+                        << expr->operation())
 
 SC_SEMA_BADEXPR_DEF(UnaryExpression,
                     UnaryExprImmutable,
                     Error,
                     "Immutable operand is invalid for unary operator "
-                       << expr->operation())
+                        << expr->operation())
 
 SC_SEMA_BADEXPR_DEF(BinaryExpression,
                     BinaryExprNoCommonType,
                     Error,
-                    "Operand types " << expr->lhs()->type()->name()
-                        << " and " << expr->rhs()->type()->name()
-                        << " have no common type")
+                    "Operand types " << expr->lhs()->type()->name() << " and "
+                                     << expr->rhs()->type()->name()
+                                     << " have no common type")
 
 SC_SEMA_BADEXPR_DEF(BinaryExpression,
                     BinaryExprBadType,
                     Error,
-                    ::format(expr->operation()) << " is not supported for operand types "
+                    ::format(expr->operation())
+                        << " is not supported for operand types "
                         << expr->lhs()->type()->name() << " and "
                         << expr->rhs()->type()->name())
 
@@ -210,22 +199,21 @@ SC_SEMA_BADEXPR_DEF(MemberAccess,
                     MemAccNonStaticThroughType,
                     Error,
                     "Cannot access non-static member "
-                        << expr->member()->value()
-                        << " without an object")
+                        << expr->member()->value() << " without an object")
 
 SC_SEMA_BADEXPR_DEF(MemberAccess,
                     MemAccTypeThroughValue,
                     Error,
                     "Cannot access non-static member "
-                        << expr->member()->value()
-                        << " without an object")
+                        << expr->member()->value() << " without an object")
 
 SC_SEMA_BADEXPR_DEF(Conditional,
                     ConditionalNoCommonType,
                     Error,
                     "Operand types " << expr->thenExpr()->type()->name()
-                        << " and " << expr->elseExpr()->type()->name()
-                        << " have no common type")
+                                     << " and "
+                                     << expr->elseExpr()->type()->name()
+                                     << " have no common type")
 
 SC_SEMA_BADEXPR_DEF(DereferenceExpression,
                     DerefNoPtr,
@@ -256,12 +244,12 @@ SC_SEMA_BADEXPR_DEF(Subscript,
                     Error,
                     "Subscript expression requires exactly one argument")
 
-SC_SEMA_BADEXPR_DEF(FunctionCall,
-                    ExplicitSMFCall,
-                    Error,
-                    "Cannot explicitly call special member function '"
-                        << cast<OverloadSet const*>(expr->callee()->entity())->SMFKind()
-                        << "'")
+SC_SEMA_BADEXPR_DEF(
+    FunctionCall,
+    ExplicitSMFCall,
+    Error,
+    "Cannot explicitly call special member function '"
+        << cast<OverloadSet const*>(expr->callee()->entity())->SMFKind() << "'")
 
 SC_SEMA_BADEXPR_DEF(FunctionCall,
                     ObjectNotCallable,

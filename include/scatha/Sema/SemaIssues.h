@@ -91,7 +91,7 @@ class SCATHA_API GenericBadStmt: public BadStmt {
 public:
     enum Reason {
 #define SC_SEMA_GENERICBADSTMT_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemaIssues.def>
+#include <scatha/Sema/SemaIssues.def.h>
     };
     SC_SEMA_ISSUE_REASON()
 
@@ -136,7 +136,7 @@ class SCATHA_API BadVarDecl: public BadDecl {
 public:
     enum Reason {
 #define SC_SEMA_BADVARDECL_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemaIssues.def>
+#include <scatha/Sema/SemaIssues.def.h>
     };
     SC_SEMA_ISSUE_REASON()
 
@@ -163,7 +163,7 @@ class SCATHA_API BadSMF: public BadDecl {
 public:
     enum Reason {
 #define SC_SEMA_BADSMF_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemaIssues.def>
+#include <scatha/Sema/SemaIssues.def.h>
     };
     SC_SEMA_ISSUE_REASON()
 
@@ -191,7 +191,7 @@ class SCATHA_API BadReturnStmt: public BadStmt {
 public:
     enum Reason {
 #define SC_SEMA_BADRETURN_DEF(reason, _0, _1) reason,
-#include <scatha/Sema/SemaIssues.def>
+#include <scatha/Sema/SemaIssues.def.h>
     };
     SC_SEMA_ISSUE_REASON()
 
@@ -256,7 +256,7 @@ class SCATHA_API BadExpr: public SemaIssue {
 public:
     enum Reason {
 #define SC_SEMA_BADEXPR_DEF(Type, Reason, Severity, Message) Reason,
-#include <scatha/Sema/SemaIssues.def>
+#include <scatha/Sema/SemaIssues.def.h>
     };
     SC_SEMA_ISSUE_REASON()
 

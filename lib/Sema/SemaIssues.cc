@@ -154,7 +154,7 @@ static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
 #define SC_SEMA_GENERICBADSTMT_DEF(reason, severity, _)                        \
     case GenericBadStmt::reason:                                               \
         return IssueSeverity::severity;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -169,7 +169,7 @@ void GenericBadStmt::format(std::ostream& str) const {
     case reason:                                                               \
         str << message;                                                        \
         break;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -178,7 +178,7 @@ static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
 #define SC_SEMA_BADVARDECL_DEF(reason, severity, _)                            \
     case BadVarDecl::reason:                                                   \
         return IssueSeverity::severity;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -208,7 +208,7 @@ BadVarDecl::BadVarDecl(Scope const* _scope,
     case REASON:                                                               \
         MESSAGE;                                                               \
         break;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -217,7 +217,7 @@ static IssueSeverity toSeverity(BadSMF::Reason reason) {
 #define SC_SEMA_BADSMF_DEF(reason, severity, _)                                \
     case BadSMF::reason:                                                       \
         return IssueSeverity::severity;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -237,7 +237,7 @@ void BadSMF::format(std::ostream& str) const {
     case reason:                                                               \
         str << message;                                                        \
         break;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -246,7 +246,7 @@ static IssueSeverity toSeverity(BadReturnStmt::Reason reason) {
 #define SC_SEMA_BADRETURN_DEF(reason, severity, _)                             \
     case BadReturnStmt::reason:                                                \
         return IssueSeverity::severity;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -261,7 +261,7 @@ void BadReturnStmt::format(std::ostream& str) const {
     case reason:                                                               \
         str << message;                                                        \
         break;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -378,7 +378,7 @@ static IssueSeverity toSeverity(BadExpr::Reason reason) {
 #define SC_SEMA_BADEXPR_DEF(Type, Reason, Severity, Message)                   \
     case BadExpr::Reason:                                                      \
         return IssueSeverity::Severity;
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
@@ -404,7 +404,7 @@ void BadExpr::format(std::ostream& str) const {
         str << Message;                                                        \
         break;                                                                 \
     }
-#include "Sema/SemaIssues.def"
+#include "Sema/SemaIssues.def.h"
     }
 }
 
