@@ -23,7 +23,7 @@
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;

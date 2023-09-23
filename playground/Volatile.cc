@@ -30,6 +30,7 @@
 #include "IR/Validate.h"
 #include "IRDump.h"
 #include "IRGen/IRGen.h"
+#include "Issue/Format.h"
 #include "Issue/IssueHandler.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"

@@ -9,7 +9,9 @@
 
 using namespace scatha;
 
-void Issue::print(std::string_view source) const { print(source, std::cout); }
+void Issue::print(SourceStructure const& source) const {
+    print(source, std::cout);
+}
 
 static constexpr utl::streammanip label([](std::ostream& str,
                                            IssueSeverity severity) {
@@ -23,7 +25,7 @@ static constexpr utl::streammanip label([](std::ostream& str,
     }
 });
 
-void Issue::print(std::string_view source, std::ostream& str) const {
+void Issue::print(SourceStructure const& source, std::ostream& str) const {
     str << label(severity());
     if (sourceLocation().valid()) {
         str << "L:" << sourceLocation().line << " C:" << sourceLocation().column

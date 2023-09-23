@@ -14,7 +14,8 @@ void IssueHandler::print(std::string_view source) const {
     print(source, std::cout);
 }
 
-void IssueHandler::print(std::string_view source, std::ostream& ostream) const {
+void IssueHandler::print(std::string_view text, std::ostream& ostream) const {
+    SourceStructure source(text);
     for (auto* issue: *this) {
         issue->print(source, ostream);
     }

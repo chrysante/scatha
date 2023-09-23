@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include <scatha/Common/SourceLocation.h>
+#include <scatha/Issue/SourceStructure.h>
 
 namespace scatha {
 
@@ -35,9 +36,9 @@ public:
 
     void setSourceRange(SourceRange sourceRange) { sourceRng = sourceRange; }
 
-    void print(std::string_view source) const;
+    void print(SourceStructure const& source) const;
 
-    void print(std::string_view source, std::ostream& ostream) const;
+    void print(SourceStructure const& source, std::ostream& ostream) const;
 
 protected:
     explicit Issue(SourceLocation sourceLoc, IssueSeverity severity):
