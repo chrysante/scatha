@@ -93,6 +93,13 @@ static bool isUserDefined(Type const* type) {
     }; // clang-format on
 }
 
+static Type const* stripArray(Type const* type) {
+    if (auto* array = dyncast<ArrayType const*>(type)) {
+        return array->elementType();
+    }
+    return type;
+}
+
 std::vector<StructType const*> InstContext::instantiateTypes(
     StructDependencyGraph& dependencyGraph) {
     /// After gather name phase we have the names of all types in the symbol
@@ -107,8 +114,11 @@ std::vector<StructType const*> InstContext::instantiateTypes(
             return analyzeTypeExpr(var.typeExpr(), ctx);
         });
         if (type && isUserDefined(type)) {
-            node.dependencies.push_back(
-                utl::narrow_cast<u16>(dependencyGraph.index(type)));
+            /// Because type instantiations depend on the element type, but
+            /// array types are not in the dependency graph, we strip array
+            /// types here
+            size_t index = dependencyGraph.index(stripArray(type));
+            node.dependencies.push_back(utl::narrow_cast<u16>(index));
         }
     }
     /// Check for cycles

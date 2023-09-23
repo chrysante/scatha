@@ -323,11 +323,12 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
                   [=, entity = entity, index = index + 1](std::ostream& str) {
             if (auto* var = dyncast<Variable const*>(entity)) {
                 auto* type = cast<Type const*>(cycle()[index % cycle().size()]);
-                str << index << ". Member " << var->name() << " of type "
-                    << type->name() << " defined here";
+                str << index << ". Member " << var->name()
+                    << " depends on definition of type " << sema::format(type);
             }
             else if (auto* type = dyncast<StructType const*>(entity)) {
-                str << index << ". Struct " << type->name() << " defined here";
+                str << index << ". Struct " << sema::format(type)
+                    << " defined here";
             }
         });
     }

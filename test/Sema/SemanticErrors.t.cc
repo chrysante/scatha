@@ -241,7 +241,7 @@ struct X {
     CHECK(issues.noneOnLine(9)); // fn f() { {} }
 }
 
-TEST_CASE("Cyclic dependency in struct definition - 1", "[sema][issue]") {
+TEST_CASE("Cyclic dependency in struct definition", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 struct X { var y: Y; }
 struct Y { var x: X; }
@@ -257,20 +257,23 @@ struct Y { var x: *X; }
     CHECK(issues.empty());
 }
 
-TEST_CASE("Cyclic dependency in struct definition - 2", "[sema][issue]") {
+TEST_CASE("Cyclic dependency in struct definition (larger cycle)",
+          "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-struct X {
-    var y: Y;
+struct X { var y: Y; }
+struct Y { var z: Z; }
+struct Z { var w: W; }
+struct W { var x: X; }
+)");
+    CHECK(issues.findOnLine<StructDefCycle>(0));
 }
-struct Y {
-    var z: Z;
-}
-struct Z {
-    var w: W;
-}
-struct W {
-    var x: X;
-})");
+
+TEST_CASE("Cyclic dependency in struct definition with arrays",
+          "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+struct X { var y: [Y, 2]; }
+struct Y { var x: [X, 1]; }
+)");
     CHECK(issues.findOnLine<StructDefCycle>(0));
 }
 
