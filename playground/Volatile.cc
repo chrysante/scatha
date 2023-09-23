@@ -44,7 +44,6 @@
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
-#include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
 #include "Util.h"
 

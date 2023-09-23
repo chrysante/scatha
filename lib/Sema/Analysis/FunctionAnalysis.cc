@@ -14,7 +14,6 @@
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
-#include "Sema/SemanticIssue.h"
 #include "Sema/SemanticIssuesNEW.h"
 #include "Sema/SymbolTable.h"
 

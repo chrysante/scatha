@@ -21,11 +21,8 @@
 #include "IRGen/IRGen.h"
 #include "Opt/Optimizer.h"
 #include "Parser/Lexer.h"
-#include "Parser/LexicalIssue.h"
 #include "Parser/Parser.h"
-#include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
-#include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
 #include "Util.h"
 

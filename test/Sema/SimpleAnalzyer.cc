@@ -1,10 +1,10 @@
 #include "SimpleAnalzyer.h"
 
 #include "Common/UniquePtr.h"
+#include "Issue/IssueHandler.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
-#include "Sema/SemanticIssue.h"
 
 namespace scatha::test {
 

@@ -31,7 +31,6 @@
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
-#include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
 #include "test/CoutRerouter.h"
 #include "test/Options.h"

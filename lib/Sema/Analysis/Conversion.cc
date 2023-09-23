@@ -11,7 +11,6 @@
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
-#include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;

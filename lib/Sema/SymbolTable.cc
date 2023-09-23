@@ -11,7 +11,6 @@
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Entity.h"
-#include "Sema/SemanticIssue.h"
 #include "Sema/SemanticIssuesNEW.h"
 
 using namespace scatha;

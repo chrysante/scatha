@@ -2,7 +2,6 @@
 
 #include "Issue/IssueHandler.h"
 #include "Sema/Entity.h"
-#include "Sema/SemanticIssue.h"
 #include "Sema/SemanticIssuesNEW.h"
 #include "Sema/SymbolTable.h"
 

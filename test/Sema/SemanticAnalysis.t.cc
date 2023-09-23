@@ -6,7 +6,6 @@
 
 #include "AST/AST.h"
 #include "Sema/Entity.h"
-#include "Sema/SemanticIssue.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
 using namespace scatha;
