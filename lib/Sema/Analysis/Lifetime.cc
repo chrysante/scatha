@@ -70,6 +70,29 @@ static bool canConstructTrivialType(
     return false;
 }
 
+/// Decides whether the constructor call is a pseudo destructor call or an
+/// actual destructor call. This is probably a half baked solution and should be
+/// revisited.
+static bool ctorIsPseudo(Type const* type, auto const& args) {
+    auto* structType = dyncast<StructType const*>(type);
+    /// Non struct types are always trivial. This will not hold true for arrays
+    /// of non-trivial type though.
+    if (!structType) {
+        return true;
+    }
+    /// Non-trivial lifetime case
+    if (!structType->hasTrivialLifetime()) {
+        return false;
+    }
+    /// Trivial lifetime copy constructor call
+    if (args.size() == 1 && args.front()->type().get() == type) {
+        return true;
+    }
+    /// Trivial lifetime general constructor call
+    using enum SpecialMemberFunction;
+    return structType->specialMemberFunction(New) == nullptr;
+}
+
 UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
     sema::ObjectType const* type,
     UniquePtr<ast::Expression> objectArgument,
@@ -83,7 +106,7 @@ UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
     auto& sym = ctx.symbolTable();
     auto& iss = ctx.issueHandler();
     auto* structType = dyncast<StructType const*>(type);
-    if (!structType || !structType->specialLifetimeFunction(CopyConstructor)) {
+    if (ctorIsPseudo(type, arguments)) {
         if (canConstructTrivialType(type, arguments, dtors, ctx)) {
             auto expr =
                 allocate<ast::TrivialConstructExpr>(std::move(arguments),

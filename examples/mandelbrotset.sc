@@ -58,6 +58,10 @@ fn clamp(x: double, min: double, max: double) -> double {
     return x < min ? min : x > max ? max : x;
 }
 
+fn sqrt(x: double) -> double {
+    return __builtin_sqrt_f64(x);
+}
+
 fn toAsciiShade(x: double) -> byte {
     return " .-:=+*#%@"[int(10.0 * clamp(x, 0.0, 1.0))];
 }
@@ -66,6 +70,20 @@ fn print(b: byte) {
     __builtin_putchar(b);
 }
 
-fn sqrt(x: double) -> double {
-    return __builtin_sqrt_f64(x);
+/// We'll just leave these print functions here for future debugging
+fn print(z: double) {
+    __builtin_putf64(z);
+    __builtin_putstr("\n");
+}
+
+fn print(t: &str) {
+    __builtin_putstr(t);
+}
+
+fn print(z: Complex) {
+    __builtin_putstr("(");
+    __builtin_putf64(z.x);
+    __builtin_putstr(", ");
+    __builtin_putf64(z.y);
+    __builtin_putstr(")\n");
 }
