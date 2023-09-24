@@ -53,6 +53,7 @@
 ///    │  ├─ ConstructorCall
 ///    │  └─ Subscript
 ///    ├─ TrivialConstructExpr
+///    ├─ NonTrivAssignExpr
 ///    ├─ AddressOfExpression
 ///    ├─ DereferenceExpression
 ///    └─ Conversion

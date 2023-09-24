@@ -57,11 +57,6 @@ struct Context {
     UniquePtr<ast::Expression> parseAdditive();
     UniquePtr<ast::Expression> parseMultiplicative();
     UniquePtr<ast::Expression> parsePrefix();
-    template <typename Expr>
-    UniquePtr<ast::Expression> parseRefImpl(
-        utl::function_view<UniquePtr<ast::Expression>()> base, TokenKind op);
-    UniquePtr<ast::Expression> parseDereference();
-    UniquePtr<ast::Expression> parseReference();
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parseGeneric();
     UniquePtr<ast::Expression> parsePrimary();

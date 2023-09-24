@@ -614,7 +614,7 @@ UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
 // MARK: - Expressions
 
 UniquePtr<ast::Expression> Context::parseTypeExpression() {
-    return parseDereference();
+    return parsePrefix();
 }
 
 UniquePtr<ast::Expression> Context::parseComma() {
@@ -730,11 +730,11 @@ UniquePtr<ast::Expression> Context::parseMultiplicative() {
 }
 
 UniquePtr<ast::Expression> Context::parsePrefix() {
-    if (auto deref = parseDereference()) {
+    if (auto deref = parsePostfix()) {
         return deref;
     }
     Token const token = tokens.peek();
-    auto makeResult = [&](ast::UnaryOperator operatorType) {
+    auto parseArith = [&](ast::UnaryOperator operatorType) {
         Token const unaryToken = tokens.peek();
         auto unary = parsePrefix();
         if (!unary) {
@@ -746,53 +746,38 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
             std::move(unary),
             token.sourceRange());
     };
+    auto parseRef = [&]<typename Expr> {
+        auto mutQual = eatMut();
+        return allocate<Expr>(parsePrefix(), mutQual, token.sourceRange());
+    };
     switch (token.kind()) {
     case Plus:
         tokens.eat();
-        return makeResult(ast::UnaryOperator::Promotion);
+        return parseArith(ast::UnaryOperator::Promotion);
     case Minus:
         tokens.eat();
-        return makeResult(ast::UnaryOperator::Negation);
+        return parseArith(ast::UnaryOperator::Negation);
     case Tilde:
         tokens.eat();
-        return makeResult(ast::UnaryOperator::BitwiseNot);
+        return parseArith(ast::UnaryOperator::BitwiseNot);
     case Exclam:
         tokens.eat();
-        return makeResult(ast::UnaryOperator::LogicalNot);
+        return parseArith(ast::UnaryOperator::LogicalNot);
     case Increment:
         tokens.eat();
-        return makeResult(ast::UnaryOperator::Increment);
+        return parseArith(ast::UnaryOperator::Increment);
     case Decrement:
         tokens.eat();
-        return makeResult(ast::UnaryOperator::Decrement);
+        return parseArith(ast::UnaryOperator::Decrement);
+    case Multiplies:
+        tokens.eat();
+        return parseRef.operator()<ast::DereferenceExpression>();
+    case BitAnd:
+        tokens.eat();
+        return parseRef.operator()<ast::AddressOfExpression>();
     default:
         return nullptr;
     }
-}
-
-template <typename Expr>
-UniquePtr<ast::Expression> Context::parseRefImpl(
-    utl::function_view<UniquePtr<ast::Expression>()> parseBase, TokenKind op) {
-    Token const token = tokens.peek();
-    if (token.kind() != op) {
-        return parseBase();
-    }
-    tokens.eat();
-    using enum sema::Mutability;
-    auto mutQual = eatMut();
-    auto ref = parsePrefix();
-    return allocate<Expr>(std::move(ref), mutQual, token.sourceRange());
-}
-
-UniquePtr<ast::Expression> Context::parseDereference() {
-    return parseRefImpl<ast::DereferenceExpression>(
-        [this] { return parseReference(); },
-        Multiplies);
-}
-
-UniquePtr<ast::Expression> Context::parseReference() {
-    return parseRefImpl<
-        ast::AddressOfExpression>([this] { return parsePostfix(); }, BitAnd);
 }
 
 UniquePtr<ast::Expression> Context::parsePostfix() {
