@@ -698,7 +698,31 @@ Value* InstCombineCtx::visitImpl(Select* inst) {
     return nullptr;
 }
 
-Value* InstCombineCtx::visitImpl(CompareInst* inst) { return nullptr; }
+Value* InstCombineCtx::visitImpl(CompareInst* inst) {
+    using enum CompareOperation;
+    bool isAlloca = isa<Alloca>(inst->lhs()) && isa<Alloca>(inst->rhs());
+    switch (inst->operation()) {
+    case Equal:
+        if (inst->lhs() == inst->rhs()) {
+            return irCtx.boolConstant(true);
+        }
+        if (isAlloca && inst->lhs() != inst->rhs()) {
+            return irCtx.boolConstant(false);
+        }
+        return nullptr;
+    case NotEqual:
+        if (inst->lhs() == inst->rhs()) {
+            return irCtx.boolConstant(false);
+        }
+        if (isAlloca && inst->lhs() != inst->rhs()) {
+            return irCtx.boolConstant(true);
+        }
+        return nullptr;
+    default:
+        return nullptr;
+    }
+    return nullptr;
+}
 
 Value* InstCombineCtx::visitImpl(UnaryArithmeticInst* inst) {
     using enum UnaryArithmeticOperation;
