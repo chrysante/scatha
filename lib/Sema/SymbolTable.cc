@@ -26,10 +26,10 @@ static bool isKeyword(std::string_view id) {
 
 struct SymbolTable::Impl {
     /// The currently active scope
-    Scope* _currentScope = nullptr;
+    Scope* currentScope = nullptr;
 
     /// Owning list of all entities in this symbol table
-    utl::vector<UniquePtr<Entity>> _entities;
+    utl::vector<UniquePtr<Entity>> entities;
 
     /// Map of instantiated `PointerType`'s
     utl::hashmap<QualType, PointerType const*> ptrTypes;
@@ -39,16 +39,16 @@ struct SymbolTable::Impl {
 
     /// Map of instantiated `ArrayTypes`'s
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
-        _arrayTypes;
+        arrayTypes;
 
     /// List of all functions
-    utl::small_vector<Function*> _functions;
+    utl::small_vector<Function*> functions;
 
     /// List of all builtin functions
-    utl::vector<Function*> _builtinFunctions;
+    utl::vector<Function*> builtinFunctions;
 
     /// The global scope
-    GlobalScope* _globalScope = nullptr;
+    GlobalScope* globalScope = nullptr;
 
     /// ID counter for temporaries
     size_t temporaryID = 0;
@@ -61,56 +61,56 @@ struct SymbolTable::Impl {
     template <typename I, typename... Args>
     void issue(Args&&... args) {
         SC_ASSERT(iss, "Forget to set issue handler?");
-        iss->push<I>(_currentScope, std::forward<Args>(args)...);
+        iss->push<I>(currentScope, std::forward<Args>(args)...);
     }
 
     /// Direct accessors to builtin types
-    VoidType* _void;
-    ByteType* _byte;
-    BoolType* _bool;
-    IntType* _s8;
-    IntType* _s16;
-    IntType* _s32;
-    IntType* _s64;
-    IntType* _u8;
-    IntType* _u16;
-    IntType* _u32;
-    IntType* _u64;
-    FloatType* _f32;
-    FloatType* _f64;
-    ArrayType* _str;
+    VoidType* Void;
+    ByteType* Byte;
+    BoolType* Bool;
+    IntType* S8;
+    IntType* S16;
+    IntType* S32;
+    IntType* S64;
+    IntType* U8;
+    IntType* U16;
+    IntType* U32;
+    IntType* U64;
+    FloatType* F32;
+    FloatType* F64;
+    ArrayType* Str;
 
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);
 };
 
 SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
-    impl->_currentScope = impl->_globalScope = impl->addEntity<GlobalScope>();
+    impl->currentScope = impl->globalScope = impl->addEntity<GlobalScope>();
 
     using enum Signedness;
-    impl->_void = declareBuiltinType<VoidType>();
-    impl->_byte = declareBuiltinType<ByteType>();
-    impl->_bool = declareBuiltinType<BoolType>();
-    impl->_s8 = declareBuiltinType<IntType>(8u, Signed);
-    impl->_s16 = declareBuiltinType<IntType>(16u, Signed);
-    impl->_s32 = declareBuiltinType<IntType>(32u, Signed);
-    impl->_s64 = declareBuiltinType<IntType>(64u, Signed);
-    impl->_u8 = declareBuiltinType<IntType>(8u, Unsigned);
-    impl->_u16 = declareBuiltinType<IntType>(16u, Unsigned);
-    impl->_u32 = declareBuiltinType<IntType>(32u, Unsigned);
-    impl->_u64 = declareBuiltinType<IntType>(64u, Unsigned);
-    impl->_f32 = declareBuiltinType<FloatType>(32u);
-    impl->_f64 = declareBuiltinType<FloatType>(64u);
-    impl->_str = const_cast<ArrayType*>(arrayType(Byte()));
+    impl->Void = declareBuiltinType<VoidType>();
+    impl->Byte = declareBuiltinType<ByteType>();
+    impl->Bool = declareBuiltinType<BoolType>();
+    impl->S8 = declareBuiltinType<IntType>(8u, Signed);
+    impl->S16 = declareBuiltinType<IntType>(16u, Signed);
+    impl->S32 = declareBuiltinType<IntType>(32u, Signed);
+    impl->S64 = declareBuiltinType<IntType>(64u, Signed);
+    impl->U8 = declareBuiltinType<IntType>(8u, Unsigned);
+    impl->U16 = declareBuiltinType<IntType>(16u, Unsigned);
+    impl->U32 = declareBuiltinType<IntType>(32u, Unsigned);
+    impl->U64 = declareBuiltinType<IntType>(64u, Unsigned);
+    impl->F32 = declareBuiltinType<FloatType>(32u);
+    impl->F64 = declareBuiltinType<FloatType>(64u);
+    impl->Str = const_cast<ArrayType*>(arrayType(Byte()));
 
-    impl->_s64->addAlternateName("int");
-    impl->_f32->addAlternateName("float");
-    impl->_f64->addAlternateName("double");
-    globalScope().add(impl->_str);
-    impl->_str->addAlternateName("str");
+    impl->S64->addAlternateName("int");
+    impl->F32->addAlternateName("float");
+    impl->F64->addAlternateName("double");
+    globalScope().add(impl->Str);
+    impl->Str->addAlternateName("str");
 
     /// Declare builtin functions
-    impl->_builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
+    impl->builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareSpecialFunction(FunctionKind::Foreign,                              \
                            "__builtin_" #name,                                 \
@@ -197,7 +197,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                                    FunctionAttribute::None,
                                                    def);
     currentScope().add(function);
-    impl->_functions.push_back(function);
+    impl->functions.push_back(function);
     return function;
 }
 
@@ -243,7 +243,7 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
         if (kind == FunctionKind::Foreign && slot == svm::BuiltinFunctionSlot) {
             function.setBuiltin();
             function.overloadSet()->setBuiltin();
-            impl->_builtinFunctions[index] = &function;
+            impl->builtinFunctions[index] = &function;
         }
         return true;
     });
@@ -328,12 +328,12 @@ Scope* SymbolTable::addAnonymousScope() {
 ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                                         size_t size) {
     std::pair key = { elementType, size };
-    auto itr = impl->_arrayTypes.find(key);
-    if (itr != impl->_arrayTypes.end()) {
+    auto itr = impl->arrayTypes.find(key);
+    if (itr != impl->arrayTypes.end()) {
         return itr->second;
     }
     auto* arrayType = impl->addEntity<ArrayType>(elementType, size);
-    impl->_arrayTypes.insert({ key, arrayType });
+    impl->arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
         auto* arraySize = addProperty(PropertyKind::ArraySize, S64());
         arrayType->setCountProperty(arraySize);
@@ -384,7 +384,7 @@ ReferenceType const* SymbolTable::reference(QualType referred) {
 void SymbolTable::pushScope(Scope* scope) {
     SC_ASSERT(currentScope().isChildScope(scope),
               "Scope must be a child of the current scope");
-    impl->_currentScope = scope;
+    impl->currentScope = scope;
 }
 
 bool SymbolTable::pushScope(std::string_view name) {
@@ -396,10 +396,10 @@ bool SymbolTable::pushScope(std::string_view name) {
     return true;
 }
 
-void SymbolTable::popScope() { impl->_currentScope = currentScope().parent(); }
+void SymbolTable::popScope() { impl->currentScope = currentScope().parent(); }
 
 void SymbolTable::makeScopeCurrent(Scope* scope) {
-    impl->_currentScope = scope ? scope : &globalScope();
+    impl->currentScope = scope ? scope : &globalScope();
 }
 
 Entity const* SymbolTable::lookup(std::string_view name) const {
@@ -414,65 +414,65 @@ Entity const* SymbolTable::lookup(std::string_view name) const {
 }
 
 Function* SymbolTable::builtinFunction(size_t index) const {
-    return impl->_builtinFunctions[index];
+    return impl->builtinFunctions[index];
 }
 
 void SymbolTable::setIssueHandler(IssueHandler& issueHandler) {
     impl->iss = &issueHandler;
 }
 
-Scope& SymbolTable::currentScope() { return *impl->_currentScope; }
+Scope& SymbolTable::currentScope() { return *impl->currentScope; }
 
-Scope const& SymbolTable::currentScope() const { return *impl->_currentScope; }
+Scope const& SymbolTable::currentScope() const { return *impl->currentScope; }
 
-GlobalScope& SymbolTable::globalScope() { return *impl->_globalScope; }
+GlobalScope& SymbolTable::globalScope() { return *impl->globalScope; }
 
 GlobalScope const& SymbolTable::globalScope() const {
-    return *impl->_globalScope;
+    return *impl->globalScope;
 }
 
-VoidType const* SymbolTable::Void() const { return impl->_void; }
+VoidType const* SymbolTable::Void() const { return impl->Void; }
 
-ByteType const* SymbolTable::Byte() const { return impl->_byte; }
+ByteType const* SymbolTable::Byte() const { return impl->Byte; }
 
-BoolType const* SymbolTable::Bool() const { return impl->_bool; }
+BoolType const* SymbolTable::Bool() const { return impl->Bool; }
 
-IntType const* SymbolTable::S8() const { return impl->_s8; }
+IntType const* SymbolTable::S8() const { return impl->S8; }
 
-IntType const* SymbolTable::S16() const { return impl->_s16; }
+IntType const* SymbolTable::S16() const { return impl->S16; }
 
-IntType const* SymbolTable::S32() const { return impl->_s32; }
+IntType const* SymbolTable::S32() const { return impl->S32; }
 
-IntType const* SymbolTable::S64() const { return impl->_s64; }
+IntType const* SymbolTable::S64() const { return impl->S64; }
 
-IntType const* SymbolTable::U8() const { return impl->_u8; }
+IntType const* SymbolTable::U8() const { return impl->U8; }
 
-IntType const* SymbolTable::U16() const { return impl->_u16; }
+IntType const* SymbolTable::U16() const { return impl->U16; }
 
-IntType const* SymbolTable::U32() const { return impl->_u32; }
+IntType const* SymbolTable::U32() const { return impl->U32; }
 
-IntType const* SymbolTable::U64() const { return impl->_u64; }
+IntType const* SymbolTable::U64() const { return impl->U64; }
 
-FloatType const* SymbolTable::F32() const { return impl->_f32; }
+FloatType const* SymbolTable::F32() const { return impl->F32; }
 
-FloatType const* SymbolTable::F64() const { return impl->_f64; }
+FloatType const* SymbolTable::F64() const { return impl->F64; }
 
-ArrayType const* SymbolTable::Str() const { return impl->_str; }
+ArrayType const* SymbolTable::Str() const { return impl->Str; }
 
-std::span<Function* const> SymbolTable::functions() { return impl->_functions; }
+std::span<Function* const> SymbolTable::functions() { return impl->functions; }
 
 std::span<Function const* const> SymbolTable::functions() const {
-    return impl->_functions;
+    return impl->functions;
 }
 
 std::vector<Entity const*> SymbolTable::entities() const {
-    return impl->_entities | ToConstAddress | ranges::to<std::vector>;
+    return impl->entities | ToConstAddress | ranges::to<std::vector>;
 }
 
 template <typename E, typename... Args>
 E* SymbolTable::Impl::addEntity(Args&&... args) {
     auto owner = allocate<E>(std::forward<Args>(args)...);
     auto* result = owner.get();
-    _entities.push_back(std::move(owner));
+    entities.push_back(std::move(owner));
     return result;
 }
