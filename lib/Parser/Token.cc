@@ -45,6 +45,8 @@ bool parser::isID(TokenKind kind) {
         [[fallthrough]];
     case TokenKind::Double:
         [[fallthrough]];
+    case TokenKind::Reinterpret:
+        [[fallthrough]];
     case TokenKind::Identifier:
         return true;
     default:
@@ -54,9 +56,6 @@ bool parser::isID(TokenKind kind) {
 
 bool parser::isExtendedID(TokenKind kind) {
     switch (kind) {
-        [[fallthrough]];
-    case TokenKind::Reinterpret:
-        [[fallthrough]];
     case TokenKind::Move:
         return true;
     default:

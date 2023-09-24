@@ -168,7 +168,9 @@ T* SymbolTable::declareBuiltinType(Args&&... args) {
 
 Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                        std::string name) {
-    if (isKeyword(name)) {
+    /// FIXME: This is a quick and dirty solution, we need to find a more
+    /// general way to handle this
+    if (isKeyword(name) && name != "move") {
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
