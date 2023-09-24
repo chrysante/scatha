@@ -16,6 +16,8 @@ void checkIRReturns(u64 value, std::string_view text);
 
 void checkCompiles(std::string_view text);
 
+void checkIRCompiles(std::string_view text);
+
 void compileAndRun(std::string_view text);
 
 void checkPrints(std::string_view printed, std::string_view source);

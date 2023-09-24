@@ -186,6 +186,13 @@ void test::checkCompiles(std::string_view text) {
     }());
 }
 
+void test::checkIRCompiles(std::string_view text) {
+    CHECK_NOTHROW([=] {
+        auto [ctx, mod] = makeIRGenerator(text)();
+        opt::optimize(ctx, mod, 1);
+    }());
+}
+
 void test::compileAndRun(std::string_view text) {
     auto [ctx, mod] = makeScathaGenerator(text)();
     ::run(mod);

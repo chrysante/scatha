@@ -134,17 +134,12 @@ public:
 
     /// \Returns The operand at index \p index
     /// Possibly cast to derived value type `V`
-    template <typename V = Value>
-    V* operandAt(size_t index) {
-        return const_cast<V*>(
-            static_cast<Instruction const*>(this)->operandAt<V>(index));
+    Value* operandAt(size_t index) {
+        return const_cast<Value*>(std::as_const(*this).operandAt(index));
     }
 
     /// \overload
-    template <typename V = Value>
-    V const* operandAt(size_t index) const {
-        return cast_or_null<V const*>(ops[index]);
-    }
+    Value const* operandAt(size_t index) const { return ops[index]; }
 
     /// \Returns A view of pointers to the operands of this instruction
     std::span<Value* const> operands() { return ops; }

@@ -219,3 +219,37 @@ fn main() -> int {
     return reinterpret<&[byte]>(data).count;
 })");
 }
+
+TEST_CASE("Return non-trivial type by reference") {
+    test::checkReturns(1, R"(
+struct X {
+    fn new(&mut this, n: int) { this.value = n; }
+    fn new(&mut this, rhs: &X) {}
+    fn delete(&mut this) {}
+    var value: int;
+}
+fn pass(value: &X) -> &X { return value; }
+fn main() {
+    return pass(X(1)).value;
+})");
+}
+
+TEST_CASE("Codegen bug with transitive consversions of constants") {
+    test::checkIRReturns(2, R"(
+func i64 @main() {
+    %entry:
+    %trunc = trunc i64 1 to i8
+    %zext = zext i8 %trunc to i64
+    %sum = add i64 1, i64 %zext
+    return i64 %sum
+})");
+}
+
+TEST_CASE("Codegen bug with extract_value from undef") {
+    test::checkIRCompiles(R"(
+func i32 @main() {
+  %entry:
+    %res = extract_value { i32, i64 } undef, 0
+    return i32 %res
+})");
+}

@@ -324,21 +324,27 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
     case ir::Conversion::Trunc:
         [[fallthrough]];
     case ir::Conversion::Bitcast: {
-        /// These are no-ops, we just return the original register.
-        if (isa<ir::Instruction>(inst.operand()) ||
-            isa<ir::Parameter>(inst.operand()))
-        {
-            valueMap.insert({ &inst, resolve(inst.operand()) });
+        auto* operand = resolve(inst.operand());
+        if (auto* constant = dyncast<mir::Constant*>(operand)) {
+            size_t fromWidth =
+                cast<ir::ArithmeticType const*>(inst.operand()->type())
+                    ->bitwidth();
+            size_t toWidth =
+                cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
+            APInt value = APInt(constant->value(), fromWidth);
+            value.zext(toWidth);
+            valueMap.insert({ &inst,
+                              result.constant(value.to<uint64_t>(),
+                                              utl::ceil_divide(toWidth, 8)) });
+        }
+        else if (auto* undef = dyncast<mir::UndefValue*>(operand)) {
+            valueMap.insert({ &inst, operand });
+        }
+        else {
+            SC_ASSERT(isa<mir::Register>(operand), "");
+            valueMap.insert({ &inst, operand });
             return;
         }
-        size_t const width =
-            cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
-        APInt value =
-            getConstantValue(cast<ir::Constant const*>(inst.operand()));
-        value.zext(width);
-        valueMap.insert({ &inst,
-                          result.constant(value.to<uint64_t>(),
-                                          utl::ceil_divide(width, 8)) });
         return;
     }
     case ir::Conversion::Sext:
@@ -552,18 +558,27 @@ static uint64_t makeWordMask(size_t leadingZeroBytes, size_t oneBytes) {
 }
 
 void CodeGenContext::genInst(ir::ExtractValue const& extract) {
-    mir::Register* source = resolve<mir::Register>(extract.baseValue());
+    auto* source = resolve(extract.baseValue());
+    if (auto* constant = dyncast<mir::Constant*>(source)) {
+        SC_UNIMPLEMENTED();
+        return;
+    }
+    if (auto* undef = dyncast<mir::UndefValue*>(source)) {
+        valueMap.insert({ &extract, undef });
+        return;
+    }
+    mir::Register* srcreg = cast<mir::Register*>(source);
     ir::Type const* const outerType = extract.baseValue()->type();
     auto const [innerType, innerByteBegin] =
         computeInnerTypeAndByteOffset(outerType, extract.memberIndices());
     size_t const innerWordBegin = innerByteBegin / 8;
     size_t const innerByteOffset = innerByteBegin % 8;
     size_t const innerSize = innerType->size();
-    source = advance(source, innerWordBegin);
+    srcreg = advance(srcreg, innerWordBegin);
     /// If `innerByteOffset` is 0 i.e. we don't need any bit shifts or masking,
     /// we directly associate the source register with the dest register.
     if (innerByteOffset == 0) {
-        valueMap.insert({ &extract, source });
+        valueMap.insert({ &extract, srcreg });
         return;
     }
     SC_ASSERT(innerByteOffset + innerSize <= 8,
@@ -572,7 +587,7 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
     auto* shiftOffset = result.constant(8 * innerByteOffset, 1);
     addNewInst(mir::InstCode::Arithmetic,
                sourceShifted,
-               { source, shiftOffset },
+               { srcreg, shiftOffset },
                mir::ArithmeticOperation::LShR);
     auto* sourceMask = result.constant(makeWordMask(0, innerSize), 8);
     mir::Register* dest = resolve(&extract);
