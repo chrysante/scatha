@@ -1,13 +1,5 @@
 ## Language
 
-### Array pointers should be automatically dereferenced when accessing them, i.e.
-```
-let ptr = &mut myArray;
-ptr[0] = 42;          // Now (*ptr)[42] is required which is unnecessary 
-let size = ptr.count; // Now (*ptr).count or ptr->count is required
-```
-Then we can also remove the `->` member access operator
-
 ### Add move semantics
 
 ### Add dynamic memory allocation in the language 
@@ -29,7 +21,3 @@ Then we can also remove the `->` member access operator
 ## Backend
 
 ### Write selection DAG based code generation algorithm
-
-## Other
-
-### Consider testing for null in `dyncast` and removing `dyncast_or_null`
