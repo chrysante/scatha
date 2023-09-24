@@ -78,11 +78,12 @@ UniquePtr<ast::Expression> sema::makePseudoConstructorCall(
     AnalysisContext& ctx,
     SourceRange sourceRange) {
     using enum SpecialMemberFunction;
+    using enum SpecialLifetimeFunction;
 
     auto& sym = ctx.symbolTable();
     auto& iss = ctx.issueHandler();
     auto* structType = dyncast<StructType const*>(type);
-    if (!structType || !structType->specialMemberFunction(New)) {
+    if (!structType || !structType->specialLifetimeFunction(CopyConstructor)) {
         if (canConstructTrivialType(type, arguments, dtors, ctx)) {
             auto expr =
                 allocate<ast::TrivialConstructExpr>(std::move(arguments),

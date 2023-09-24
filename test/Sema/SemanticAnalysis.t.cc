@@ -385,3 +385,19 @@ fn f(cond: bool) {
         CHECK(issue->conflicting() == ret1);
     }
 }
+
+TEST_CASE("Copy value with function new but no SLFs", "[sema][regression]") {
+    /// Here we just test successful analysis
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+/// Has constructors but no special lifetime functions
+struct X {
+    fn new(&mut this) {}
+    fn new(&mut this, n: int) {}
+}
+fn byValue(x: X) {}
+fn main() {
+    let x = X();
+    byValue(x);
+})");
+    CHECK(iss.empty());
+}
