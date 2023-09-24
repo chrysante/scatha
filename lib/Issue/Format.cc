@@ -135,6 +135,9 @@ void SrcHighlightCtx::run() {
     printLines(lineProj(highlights.front()) - paddingLines, paddingLines);
     for (auto itr = highlights.begin(); itr != highlights.end(); ++itr) {
         auto& H = *itr;
+        if (lineProj(H) >= source.size()) {
+            continue;
+        }
         printErrorLine(H);
         auto next = std::next(itr);
         if (next == highlights.end()) {
