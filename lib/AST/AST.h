@@ -48,6 +48,7 @@
 ///    ├─ BinaryExpression
 ///    ├─ MemberAccess
 ///    ├─ Conditional
+///    ├─ MoveExpr
 ///    ├─ CallLike
 ///    │  ├─ FunctionCall
 ///    │  ├─ ConstructorCall
@@ -613,6 +614,18 @@ public:
 
 private:
     sema::DTorStack branchDtors[2];
+};
+
+/// Move expression
+class SCATHA_API MoveExpr: public Expression {
+public:
+    explicit MoveExpr(UniquePtr<Expression> value, SourceRange sourceRange):
+        Expression(NodeType::MoveExpr, sourceRange, std::move(value)) {}
+
+    AST_DERIVED_COMMON(MoveExpr)
+
+    /// The moved value
+    AST_PROPERTY(0, Expression, value, Value)
 };
 
 /// MARK: More Complex Expressions

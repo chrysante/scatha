@@ -32,7 +32,13 @@ inline bool isAccessSpec(TokenKind kind) {
            static_cast<int>(kind) <= static_cast<int>(TokenKind::Private);
 }
 
-bool isIdentifier(TokenKind kind);
+/// \Returns `true` if this token is an identifier or a the name of a builtin
+/// type
+bool isID(TokenKind kind);
+
+/// \Returns `true` if this token is an identifier or a keyword that may denote
+/// a name in certain contexts like `move`
+bool isExtendedID(TokenKind kind);
 
 struct SCATHA_API Token {
     Token() = default;

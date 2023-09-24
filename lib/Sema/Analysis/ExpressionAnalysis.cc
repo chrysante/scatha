@@ -51,6 +51,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
     ast::Expression* analyzeImpl(ast::Conditional&);
+    ast::Expression* analyzeImpl(ast::MoveExpr&);
     ast::Expression* analyzeImpl(ast::FunctionCall&);
     ast::Expression* rewriteMemberCall(ast::FunctionCall&);
     ast::Expression* analyzeImpl(ast::Subscript&);
@@ -695,6 +696,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
                                        c.thenExpr()->constantValue(),
                                        c.elseExpr()->constantValue()));
     return &c;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
+    SC_UNIMPLEMENTED();
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {

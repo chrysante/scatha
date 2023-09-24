@@ -60,7 +60,8 @@ struct Context {
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parseGeneric();
     UniquePtr<ast::Expression> parsePrimary();
-    UniquePtr<ast::Identifier> parseIdentifier();
+    UniquePtr<ast::Identifier> parseID();
+    UniquePtr<ast::Identifier> parseExtID();
     UniquePtr<ast::Literal> parseLiteral();
 
     // Helpers

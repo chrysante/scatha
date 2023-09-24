@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace parser;
 
-bool parser::isIdentifier(TokenKind kind) {
+bool parser::isID(TokenKind kind) {
     switch (kind) {
     case TokenKind::Void:
         [[fallthrough]];
@@ -45,12 +45,22 @@ bool parser::isIdentifier(TokenKind kind) {
         [[fallthrough]];
     case TokenKind::Double:
         [[fallthrough]];
-    case TokenKind::Reinterpret:
-        [[fallthrough]];
     case TokenKind::Identifier:
         return true;
     default:
         return false;
+    }
+}
+
+bool parser::isExtendedID(TokenKind kind) {
+    switch (kind) {
+        [[fallthrough]];
+    case TokenKind::Reinterpret:
+        [[fallthrough]];
+    case TokenKind::Move:
+        return true;
+    default:
+        return isID(kind);
     }
 }
 

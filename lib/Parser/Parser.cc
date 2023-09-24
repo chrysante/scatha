@@ -112,12 +112,12 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
         return nullptr;
     }
     tokens.eat();
-    auto identifier = parseIdentifier();
+    auto identifier = parseExtID();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(tokens.peek());
         bool const recovered = recover(
             std::pair{ [&](Token const&) { return true; },
-                       [&] { return bool(identifier = parseIdentifier()); } });
+                       [&] { return bool(identifier = parseExtID()); } });
         if (!recovered) {
             return nullptr;
         }
@@ -210,7 +210,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
                                             /* isRef = */ true,
                                             sourceRange);
     }
-    auto identifier = parseIdentifier();
+    auto identifier = parseID();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(idToken);
         /// Custom recovery mechanism
@@ -274,7 +274,7 @@ UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
         return nullptr;
     }
     tokens.eat();
-    auto identifier = parseIdentifier();
+    auto identifier = parseID();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(tokens.peek());
         bool const recovered =
@@ -309,7 +309,7 @@ UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
 
 UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     sema::Mutability mutability, std::optional<Token> declarator) {
-    auto identifier = parseIdentifier();
+    auto identifier = parseID();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(tokens.current());
         panic(tokens);
@@ -775,6 +775,15 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     case BitAnd:
         tokens.eat();
         return parseRef.operator()<ast::AddressOfExpression>();
+    case Move: {
+        tokens.eat();
+        auto value = parseMemberAccess(parseID());
+        if (!value) {
+            issues.push<ExpectedIdentifier>(tokens.peek());
+            return nullptr;
+        }
+        return allocate<ast::MoveExpr>(std::move(value), token.sourceRange());
+    }
     default:
         return nullptr;
     }
@@ -842,7 +851,7 @@ UniquePtr<ast::Expression> Context::parseGeneric() {
 }
 
 UniquePtr<ast::Expression> Context::parsePrimary() {
-    if (auto result = parseIdentifier()) {
+    if (auto result = parseID()) {
         return result;
     }
     if (auto result = parseLiteral()) {
@@ -885,9 +894,18 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
     return nullptr;
 }
 
-UniquePtr<ast::Identifier> Context::parseIdentifier() {
+UniquePtr<ast::Identifier> Context::parseID() {
     Token const token = tokens.peek();
-    if (!isIdentifier(token.kind())) {
+    if (!isID(token.kind())) {
+        return nullptr;
+    }
+    tokens.eat();
+    return allocate<ast::Identifier>(token.sourceRange(), token.id());
+}
+
+UniquePtr<ast::Identifier> Context::parseExtID() {
+    Token const token = tokens.peek();
+    if (!isExtendedID(token.kind())) {
         return nullptr;
     }
     tokens.eat();
@@ -1062,14 +1080,13 @@ UniquePtr<ast::FunctionCall> Context::parseFunctionCall(
 
 UniquePtr<ast::Expression> Context::parseMemberAccess(
     UniquePtr<ast::Expression> left) {
-    SC_ASSERT(tokens.peek().kind() == Dot, "");
     while (true) {
         auto const& token = tokens.peek();
         if (token.kind() != Dot) {
             return left;
         }
         tokens.eat();
-        auto right = parseIdentifier();
+        auto right = parseID();
         if (!right) {
             issues.push<ExpectedExpression>(tokens.peek());
         }

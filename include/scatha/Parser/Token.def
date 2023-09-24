@@ -53,6 +53,7 @@ SC_KEYWORD_TOKEN_DEF(Continue,    "continue")
 /// ## Operators
 SC_KEYWORD_TOKEN_DEF(Unique,      "unique")
 SC_KEYWORD_TOKEN_DEF(Reinterpret, "reinterpret")
+SC_KEYWORD_TOKEN_DEF(Move,        "move")
 
 /// ## Constants
 SC_KEYWORD_TOKEN_DEF(False,       "false")
