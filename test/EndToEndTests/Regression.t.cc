@@ -253,3 +253,12 @@ func i32 @main() {
     return i32 %res
 })");
 }
+
+TEST_CASE("Codegen bug with gep from undef") {
+    test::checkCompiles(R"(
+struct X { var value: int; }
+fn getRef() -> &mut X {}
+fn main() {
+    return getRef().value;
+})");
+}

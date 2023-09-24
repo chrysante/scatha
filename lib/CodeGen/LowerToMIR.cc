@@ -285,9 +285,12 @@ void CodeGenContext::genInst(ir::Store const& store) {
 
 void CodeGenContext::genInst(ir::Load const& load) {
     mir::MemoryAddress src = computeAddress(load.address());
+    auto* dest = resolve(&load);
+    if (!src.addressRegister()) {
+        return;
+    }
     size_t numBytes = load.type()->size();
     size_t numWords = utl::ceil_divide(numBytes, 8);
-    auto* dest = resolve(&load);
     auto addrConstData = src.constantData();
     for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
         addNewInst(mir::InstCode::Load,
@@ -297,24 +300,6 @@ void CodeGenContext::genInst(ir::Load const& load) {
                    sliceWidth(numBytes, i, numWords));
         addrConstData.offsetTerm += 8;
     }
-}
-
-static APInt getConstantValue(ir::Constant const* constant) {
-    // clang-format off
-    return visit(*constant, utl::overload{
-        [](ir::IntegralConstant const& constant) {
-            return constant.value();
-        },
-        [](ir::FloatingPointConstant const& constant) {
-            return bitcast<APInt>(constant.value());
-        },
-        [&](ir::UndefValue const& undef) {
-            return APInt(0xdeadbeef, 8 * constant->type()->size());
-        },
-        [](ir::Constant const& constant) -> APInt {
-            SC_UNREACHABLE();
-        }
-    }); // clang-format on
 }
 
 void CodeGenContext::genInst(ir::ConversionInst const& inst) {
@@ -739,7 +724,14 @@ mir::MemoryAddress CodeGenContext::computeAddress(ir::Value const* value) {
 
 mir::MemoryAddress CodeGenContext::computeGep(
     ir::GetElementPointer const* gep) {
-    mir::Register* basePtr = cast<mir::Register*>(resolve(gep->basePointer()));
+    auto* base = resolve(gep->basePointer());
+    if (auto* undef = dyncast<mir::UndefValue*>(base)) {
+        return mir::MemoryAddress(nullptr, nullptr, 0, 0);
+    }
+    if (auto* constant = dyncast<mir::Constant*>(base)) {
+        SC_UNIMPLEMENTED();
+    }
+    mir::Register* basereg = cast<mir::Register*>(base);
     mir::Register* dynFactor = [&]() -> mir::Register* {
         auto* constIndex =
             dyncast<ir::IntegralConstant const*>(gep->arrayIndex());
@@ -758,7 +750,7 @@ mir::MemoryAddress CodeGenContext::computeGep(
     size_t const elemSize = accessedType->size();
     auto [innerType, innerOffset] =
         computeInnerTypeAndByteOffset(accessedType, gep->memberIndices());
-    return mir::MemoryAddress(basePtr,
+    return mir::MemoryAddress(basereg,
                               dynFactor,
                               utl::narrow_cast<uint32_t>(elemSize),
                               utl::narrow_cast<uint32_t>(innerOffset));
