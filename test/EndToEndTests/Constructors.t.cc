@@ -155,6 +155,19 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
                 var x = X();
                 assign(x, X());
             })");
+        test::checkReturns(8, R"(
+        struct X {
+            fn new(&mut this) { this.value = 8; }
+            fn new(&mut this, rhs: &X) { this.value = rhs.value; }
+            fn delete(&mut this) { this.value = -1; }
+            var value: int;
+        }
+        fn pass(x: &X) -> &X { return x; }
+        fn main() {
+            var x = X();
+            x = pass(X());
+            return x.value;
+        })");
     }
 }
 

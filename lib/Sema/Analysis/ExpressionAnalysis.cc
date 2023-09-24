@@ -767,9 +767,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto orKind = ORKind::FreeFunction;
     /// We analyze all the arguments
     for (size_t i = 0; i < fc.arguments().size(); ++i) {
-        if (!analyzeValue(fc.argument(i))) {
-            success = false;
-        }
+        success &= !!analyzeValue(fc.argument(i));
     }
     if (!success) {
         return nullptr;
@@ -860,7 +858,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
     fc.decorateCall(sym.temporary(type), valueCat, type, function);
     convertArguments(fc, result, *dtorStack, ctx);
-    dtorStack->push(fc.object());
+    if (valueCat == RValue) {
+        dtorStack->push(fc.object());
+    }
     return &fc;
 }
 

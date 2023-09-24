@@ -324,7 +324,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         return;
     }
     auto retval = getValue(retStmt.expression());
-    emitDtorCalls(retStmt.dtorStack());
+    ir::Value* actualRetval = nullptr;
     auto retvalLocation = getCC(&semaFn).returnValue().location();
     switch (retvalLocation) {
     case Register: {
@@ -336,12 +336,11 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
             auto size = valueMap.arraySize(retStmt.expression()->object());
             std::array elems = { toValueLocation(valueLocation, retval),
                                  toRegister(size) };
-            auto* structRet =
+            actualRetval =
                 buildStructure(makeArrayViewType(ctx), elems, "retval");
-            add<ir::Return>(structRet);
         }
         else {
-            add<ir::Return>(toValueLocation(valueLocation, retval));
+            actualRetval = toValueLocation(valueLocation, retval);
         }
         break;
     }
@@ -358,10 +357,14 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         else {
             add<ir::Store>(retvalDest, toRegister(retval));
         }
-        add<ir::Return>(ctx.voidValue());
+        actualRetval = ctx.voidValue();
         break;
     }
     }
+    /// We call destructors as the very last step before issuing the return
+    /// instruction
+    emitDtorCalls(retStmt.dtorStack());
+    add<ir::Return>(actualRetval);
 }
 
 void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
