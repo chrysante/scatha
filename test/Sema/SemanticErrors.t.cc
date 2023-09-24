@@ -424,3 +424,14 @@ TEST_CASE("Illegal value passing", "[sema][issue]") {
     CHECK(issues.noneOnLine(10));
     CHECK(issues.noneOnLine(11));
 }
+
+TEST_CASE("Illegal value passing", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+struct X {
+    fn new(&mut this, n: int) {}
+}
+fn main() {
+/* 6 */ let x: X;
+})");
+    CHECK(issues.findOnLine<ORError>(6));
+}

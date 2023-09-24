@@ -234,28 +234,33 @@ public:
     /// \overload
     template <typename AST = ASTNode>
     AST const* child(size_t index) const {
-        return cast_or_null<AST const*>(
-            children()[utl::narrow_cast<ssize_t>(index)]);
+        return cast<AST const*>(children()[utl::narrow_cast<ssize_t>(index)]);
     }
 
     /// Extract the the child at index \p index
     template <typename AST = ASTNode>
     UniquePtr<AST> extractChild(size_t index) {
         auto* child = _children[index].release();
-        child->_parent = nullptr;
-        return UniquePtr<AST>(cast_or_null<AST*>(child));
+        if (child) {
+            child->_parent = nullptr;
+        }
+        return UniquePtr<AST>(cast<AST*>(child));
     }
 
     /// Insert node \p child at position \p index
     /// Children at indices equal to and above \p index will be moved up
     void insertChild(size_t index, UniquePtr<ASTNode> child) {
-        child->_parent = this;
+        if (child) {
+            child->_parent = this;
+        }
         _children.insert(_children.begin() + index, std::move(child));
     }
 
     /// Set the the child at index \p index to \p child
     void setChild(size_t index, UniquePtr<ASTNode> child) {
-        child->_parent = this;
+        if (child) {
+            child->_parent = this;
+        }
         _children[index] = std::move(child);
     }
 
