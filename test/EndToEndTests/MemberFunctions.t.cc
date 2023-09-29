@@ -35,7 +35,7 @@ struct X {
 fn main() -> int {
     var x: X;
     x.value = 42;
-    let result = x.getValue;
+    let result = x.getValue();
     return result;
 })");
 }

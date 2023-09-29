@@ -195,7 +195,7 @@ fn main() -> int {
     var x: X;
     x.r = &mut a;
     ++x.r[0];
-    return x.sum;
+    return x.sum();
 })");
 }
 

@@ -28,11 +28,13 @@ using enum BadExpr::Reason;
 namespace {
 
 struct ExprContext {
+    DTorStack* dtorStack;
+    sema::AnalysisContext& ctx;
+    SymbolTable& sym;
+    Scope* restrictedLookupScope = nullptr;
+
     ExprContext(sema::AnalysisContext& ctx, DTorStack* dtorStack):
-        dtorStack(dtorStack),
-        ctx(ctx),
-        sym(ctx.symbolTable()),
-        iss(ctx.issueHandler()) {}
+        dtorStack(dtorStack), ctx(ctx), sym(ctx.symbolTable()) {}
 
     ast::Expression* analyze(ast::Expression*);
 
@@ -47,7 +49,6 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
-    ast::Expression* rewritePropertyCall(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
     ast::Expression* analyzeImpl(ast::Conditional&);
@@ -81,10 +82,6 @@ struct ExprContext {
     /// returns `false`
     bool expectType(ast::Expression const* expr);
 
-    DTorStack* dtorStack;
-    sema::AnalysisContext& ctx;
-    SymbolTable& sym;
-    IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
     /// unset by Identifier
     void restrictNameLookup(Scope* scope) { restrictedLookupScope = scope; }
@@ -93,7 +90,6 @@ struct ExprContext {
         restrictedLookupScope = nullptr;
         return scope;
     }
-    Scope* restrictedLookupScope = nullptr;
 };
 
 } // namespace
@@ -487,11 +483,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(ma.member())) {
         return nullptr;
     }
-    if (isa<OverloadSet>(ma.member()->entity()) &&
-        !isa<ast::FunctionCall>(ma.parent()))
-    {
-        return rewritePropertyCall(ma);
-    }
     /// Double dispatch table on the entity categories of the accessed object
     /// and the member
     switch (ma.accessed()->entityCategory()) {
@@ -540,50 +531,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     case EntityCategory::Indeterminate:
         return nullptr;
     }
-}
-
-ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
-    SC_ASSERT(!isa<ast::FunctionCall>(ma.parent()), "Precondition");
-    /// We reference an overload set, so since our parent is not a call
-    /// expression we rewrite the AST here
-    auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
-    auto funcRes = performOverloadResolution(overloadSet,
-                                             std::array{ ma.accessed() },
-                                             ORKind::MemberFunction);
-    if (funcRes.error) {
-        funcRes.error->setSourceRange(ma.sourceRange());
-        iss.push(std::move(funcRes.error));
-        return nullptr;
-    }
-    auto* func = funcRes.function;
-    utl::small_vector<UniquePtr<ast::Expression>> args;
-    args.push_back(ma.extractAccessed());
-    auto call = allocate<ast::FunctionCall>(ma.extractMember(),
-                                            std::move(args),
-                                            ma.sourceRange());
-    auto* returnType = getReturnType(func);
-    if (!returnType) {
-        ctx.badExpr(&ma, CantDeduceReturnType);
-        return nullptr;
-    }
-    QualType type = getQualType(returnType);
-    auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
-    auto* temp = sym.temporary(type);
-    call->decorateCall(temp, valueCat, type, func);
-    dtorStack->push(temp);
-    bool const convSucc = convert(Explicit,
-                                  call->argument(0),
-                                  getQualType(func->argumentType(0)),
-                                  refToLValue(func->argumentType(0)),
-                                  *dtorStack,
-                                  ctx);
-    SC_ASSERT(convSucc,
-              "If overload resolution succeeds conversion must not fail");
-
-    /// Now `ma` goes out of scope
-    auto* result = call.get();
-    ma.parent()->replaceChild(&ma, std::move(call));
-    return result;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
@@ -850,7 +797,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                                             orKind);
     if (result.error) {
         result.error->setSourceRange(fc.sourceRange());
-        iss.push(std::move(result.error));
+        ctx.issueHandler().push(std::move(result.error));
         return nullptr;
     }
     auto* function = result.function;
