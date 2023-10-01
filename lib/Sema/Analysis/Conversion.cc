@@ -525,12 +525,6 @@ ast::Expression* sema::convert(ConversionKind kind,
     return insertConversion(expr, convres.value(), dtors, ctx);
 }
 
-/// TODO: Evaluate if we need this
-ast::Expression* sema::dereference(ast::Expression* expr,
-                                   AnalysisContext& ctx) {
-    return expr;
-}
-
 static std::optional<size_t> nextBitwidth(size_t width) {
     switch (width) {
     case 8:
