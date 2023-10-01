@@ -64,7 +64,8 @@ public:
     /// The type of the value after the conversion
     QualType targetType() const { return to; }
 
-    /// The conversion between value categories
+    /// The conversion between value categories.
+    /// This only differs from `None` if no object conversion occurs
     ValueCatConversion valueCatConversion() const { return valueCatConv; }
 
     /// The mutability conversion kind
@@ -73,8 +74,8 @@ public:
     /// The object conversion kind
     ObjectTypeConversion objectConversion() const { return objConv; }
 
-    /// \Returns `true` if all of the specified conversions are `None`
-    bool isNoop() const;
+    /// \Returns `true` if any of the specified conversions is not `None`
+    explicit operator bool() const;
 
 private:
     QualType from;
@@ -137,8 +138,9 @@ SCTEST_API QualType
 /// \p expr a child of the new node.
 /// \Returns a pointer to the added conversion node
 SCTEST_API ast::Expression* insertConversion(ast::Expression* expr,
-                                             sema::Conversion const& conv,
-                                             SymbolTable& sym);
+                                             sema::Conversion conv,
+                                             DTorStack& dtors,
+                                             AnalysisContext& ctx);
 
 } // namespace scatha::sema
 

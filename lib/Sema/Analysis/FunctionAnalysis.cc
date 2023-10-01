@@ -11,7 +11,6 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/DTorStack.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
@@ -262,25 +261,21 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     varDecl.decorateVarDecl(variable);
     if (initExpr) {
-        convert(Implicit,
-                initExpr,
-                variable->getQualType(),
-                refToLValue(type),
-                varDecl.dtorStack(),
-                ctx);
+        initExpr = convert(Implicit,
+                           initExpr,
+                           variable->getQualType(),
+                           refToLValue(type),
+                           varDecl.dtorStack(),
+                           ctx);
         popTopLevelDtor(initExpr, varDecl.dtorStack());
     }
     else {
-        auto call = makePseudoConstructorCall(cast<ObjectType const*>(type),
-                                              nullptr,
-                                              {},
-                                              varDecl.dtorStack(),
-                                              ctx,
-                                              varDecl.sourceRange());
-        /// We don't need to declare poison here if there is no matching
-        /// constructor because the type is explicitly declared. We will get an
-        /// error but we can analyze uses of this variable.
-        varDecl.setInitExpr(std::move(call));
+        auto* objType = cast<ObjectType const*>(type);
+        auto constructExpr =
+            allocate<ast::ConstructExpr>(objType, varDecl.sourceRange());
+        initExpr = varDecl.setInitExpr(std::move(constructExpr));
+        analyzeValue(initExpr, varDecl.dtorStack());
+        popTopLevelDtor(initExpr, varDecl.dtorStack());
     }
     if (variable->isConst() && initExpr) {
         variable->setConstantValue(clone(initExpr->constantValue()));

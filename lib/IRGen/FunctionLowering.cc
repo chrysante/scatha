@@ -34,7 +34,7 @@ struct Loop {
 };
 
 struct FuncGenContext: ir::FunctionBuilder {
-    // Global references
+    /// Global references
     sema::Function const& semaFn;
     ir::Function& irFn;
     ir::Context& ctx;
@@ -114,8 +114,7 @@ struct FuncGenContext: ir::FunctionBuilder {
     Value getValueImpl(ast::ListExpression const&);
     Value getValueImpl(ast::Conversion const&);
     Value getValueImpl(ast::UninitTemporary const&);
-    Value getValueImpl(ast::ConstructorCall const&);
-    Value getValueImpl(ast::TrivialConstructExpr const&);
+    Value getValueImpl(ast::ConstructExpr const&);
     Value getValueImpl(ast::NonTrivAssignExpr const&);
 
     /// # Expression specific utilities
@@ -1315,76 +1314,67 @@ Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
     return Value(address, type, Memory);
 }
 
-Value FuncGenContext::getValueImpl(ast::ConstructorCall const& call) {
-    using enum sema::SpecialMemberFunction;
-    switch (call.kind()) {
-    case New: {
-        auto* type = typeMap(call.constructedType());
-        auto* function = getFunction(call.function());
-        auto CC = getCC(call.function());
+Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
+    /// If we have a constructor we just call that
+    if (!expr.isTrivial()) {
+        auto* type = typeMap(expr.constructedType());
+        auto* function = getFunction(expr.function());
+        auto CC = getCC(expr.function());
         utl::small_vector<ir::Value*> irArguments;
         auto PCsAndArgs = ranges::views::zip(CC.arguments(),
-                                             call.function()->argumentTypes(),
-                                             call.arguments());
+                                             expr.function()->argumentTypes(),
+                                             expr.arguments());
         for (auto [PC, paramType, argExpr]: PCsAndArgs) {
             generateArgument(PC, paramType, argExpr, irArguments);
         }
         SC_ASSERT(!irArguments.empty(),
                   "Must have at least the object argument");
         auto* address = irArguments.front();
-        valueMap.insert(call.object(), Value(address, type, Memory));
+        valueMap.insert(expr.object(), Value(address, type, Memory));
         add<ir::Call>(function, irArguments, std::string{});
         return Value(address, type, Memory);
     }
-    case Move:
-        SC_UNIMPLEMENTED();
-    default:
-        SC_UNREACHABLE();
-    }
-}
-
-Value FuncGenContext::getValueImpl(ast::TrivialConstructExpr const& expr) {
-    // clang-format off
-    return SC_MATCH (*expr.type()) {
+    ///
+    return SC_MATCH (*expr.type()){
         [&](sema::ObjectType const& type) {
-            if (expr.arguments().empty()) {
-                auto* value = ctx.undef(typeMap(expr.type()));
-                return Value(value, Register);
-            }
-            else {
-                SC_ASSERT(expr.arguments().size() == 1, "");
-                auto* arg = expr.arguments().front();
-                auto value = getValue(arg);
-                valueMap.insertArraySizeOf(expr.object(), arg->object());
-                return Value(toRegister(value), Register);
-            }
+        if (expr.arguments().empty()) {
+            auto* value = ctx.undef(typeMap(expr.type()));
+            return Value(value, Register);
+        }
+        else {
+            SC_ASSERT(expr.arguments().size() == 1, "");
+            auto* arg = expr.arguments().front();
+            auto value = getValue(arg);
+            valueMap.insertArraySizeOf(expr.object(), arg->object());
+            return Value(toRegister(value), Register);
+        }
         },
         [&](sema::StructType const& type) {
-            if (expr.arguments().empty()) {
-                auto* value = ctx.undef(typeMap(expr.type()));
-                return Value(value, Register);
-            }
-            else if (expr.arguments().size() == 1 &&
-                     expr.arguments().front()->type().get() ==
-                         expr.type().get())
+        if (expr.arguments().empty()) {
+            auto* value = ctx.undef(typeMap(expr.type()));
+            return Value(value, Register);
+        }
+        else if (expr.arguments().size() == 1 &&
+                 expr.arguments().front()->type().get() == expr.type().get())
+        {
+            auto* arg = expr.arguments().front();
+            auto value = getValue(arg);
+            valueMap.insertArraySizeOf(expr.object(), arg->object());
+            return Value(toRegister(value), Register);
+        }
+        else {
+            ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
+            for (auto [index, arg]: expr.arguments() | ranges::views::enumerate)
             {
-                auto* arg = expr.arguments().front();
-                auto value = getValue(arg);
-                valueMap.insertArraySizeOf(expr.object(), arg->object());
-                return Value(toRegister(value), Register);
+                auto* member = getValue<Register>(arg);
+                aggregate = add<ir::InsertValue>(aggregate,
+                                                 member,
+                                                 std::array{ index },
+                                                 "aggregate");
             }
-            else {
-                ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
-                for (auto [index, arg]: expr.arguments() | ranges::views::enumerate) {
-                    auto* member = getValue<Register>(arg);
-                    aggregate = add<ir::InsertValue>(aggregate,
-                                                     member,
-                                                     std::array{ index },
-                                                     "aggregate");
-                }
-                return Value(aggregate, Register);
-            }
-        },
+            return Value(aggregate, Register);
+        }
+    },
         [&](sema::ArrayType const& type) -> Value {
             SC_ASSERT(expr.arguments().size() == 1, "");
             auto* arg = expr.arguments().front();
@@ -1401,7 +1391,7 @@ Value FuncGenContext::getValueImpl(ast::TrivialConstructExpr const& expr) {
                 return Value(array, arrayType, Memory);
             }
         },
-    }; // clang-format on
+        }; // clang-format on
 }
 
 Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {

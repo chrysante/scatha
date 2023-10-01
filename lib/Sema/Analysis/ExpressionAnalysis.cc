@@ -12,7 +12,6 @@
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/FunctionAnalysis.h"
-#include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
@@ -59,8 +58,9 @@ struct ExprContext {
     ArrayType const* analyzeSubscriptCommon(ast::CallLike&);
     ast::Expression* analyzeImpl(ast::GenericExpression&);
     ast::Expression* analyzeImpl(ast::ListExpression&);
-    ast::Expression* analyzeImpl(ast::TrivialConstructExpr&);
     ast::Expression* analyzeImpl(ast::NonTrivAssignExpr&);
+    ast::Expression* analyzeImpl(ast::Conversion&);
+    ast::Expression* analyzeImpl(ast::ConstructExpr&);
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     /// If \p expr is a pointer, inserts a `DereferenceExpression` as its
@@ -708,6 +708,15 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
     return &expr;
 }
 
+static void convertArguments(auto const& arguments,
+                             auto const& conversions,
+                             DTorStack& dtors,
+                             AnalysisContext& ctx) {
+    for (auto [arg, conv]: ranges::views::zip(arguments, conversions)) {
+        insertConversion(arg, conv, dtors, ctx);
+    }
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     bool success = analyze(fc.callee());
     auto orKind = ORKind::FreeFunction;
@@ -763,19 +772,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                         return arg->extractFromParent();
                     }) |
                     ToSmallVector<>;
-        auto ctorCall = makePseudoConstructorCall(targetType,
-                                                  nullptr,
-                                                  std::move(args),
-                                                  *dtorStack,
-                                                  ctx,
+        auto owner = allocate<ast::ConstructExpr>(std::move(args),
+                                                  targetType,
                                                   fc.sourceRange());
-        if (!ctorCall) {
-            return nullptr;
-        }
-        dtorStack->push(ctorCall->object());
-        auto* result = ctorCall.get();
-        fc.parent()->setChild(fc.indexInParent(), std::move(ctorCall));
-        return result;
+        auto* constructExpr = fc.parent()->replaceChild(&fc, std::move(owner));
+        return analyzeValue(constructExpr);
     }
 
     /// Make sure we have an overload set as our called object
@@ -803,7 +804,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     QualType type = getQualType(returnType);
     auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
     fc.decorateCall(sym.temporary(type), valueCat, type, function);
-    convertArguments(fc, result, *dtorStack, ctx);
+    convertArguments(fc.arguments(), result.conversions, *dtorStack, ctx);
     if (valueCat == RValue) {
         dtorStack->push(fc.object());
     }
@@ -890,10 +891,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     }
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::TrivialConstructExpr& expr) {
-    SC_UNIMPLEMENTED();
-}
-
 ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
     bool argsAnalyzed = true;
     argsAnalyzed &= !!analyzeValue(expr.dest());
@@ -919,6 +916,144 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
         popTopLevelDtor(expr.source(), *dtorStack);
         expr.decorateAssign(dtor, nullptr);
     }
+    return &expr;
+}
+
+static Entity* getConvertedEntity(Entity* original,
+                                  Conversion const& conv,
+                                  SymbolTable& sym) {
+    if (conv.objectConversion() == ObjectTypeConversion::None) {
+        return original;
+    }
+    return sym.temporary(conv.targetType());
+}
+
+static ValueCategory getValueCat(ValueCategory original,
+                                 ValueCatConversion conv) {
+    using enum ValueCatConversion;
+    switch (conv) {
+    case None:
+        return original;
+    case LValueToRValue:
+        return RValue;
+    case MaterializeTemporary:
+        return LValue;
+    }
+}
+
+/// Guaranteed to succeed because we only insert conversion nodes if conversions
+/// are valid
+ast::Expression* ExprContext::analyzeImpl(ast::Conversion& expr) {
+    auto* conv = expr.conversion();
+    auto* entity = getConvertedEntity(expr.expression()->entity(), *conv, sym);
+    expr.decorateValue(entity,
+                       getValueCat(expr.valueCategory(),
+                                   conv->valueCatConversion()),
+                       conv->targetType());
+    expr.setConstantValue(
+        evalConversion(conv, expr.expression()->constantValue()));
+    return &expr;
+}
+
+/// Decides whether the constructor call is a pseudo constructor call or an
+/// actual constructor call. This is probably a half baked solution and should
+/// be revisited.
+static bool ctorIsPseudo(Type const* type, auto const& args) {
+    auto* structType = dyncast<StructType const*>(type);
+    /// Non struct types are always trivial. This will not hold true for arrays
+    /// of non-trivial type though.
+    if (!structType) {
+        return true;
+    }
+    /// Non-trivial lifetime type has no pseudo constructors
+    if (!structType->hasTrivialLifetime()) {
+        return false;
+    }
+    /// Trivial lifetime copy constructor call
+    if (args.size() == 1 && args.front()->type().get() == type) {
+        return true;
+    }
+    /// Trivial lifetime general constructor call
+    using enum SpecialMemberFunction;
+    return structType->specialMemberFunction(New) == nullptr;
+}
+
+static bool canConstructTrivialType(ObjectType const* type,
+                                    auto const& arguments,
+                                    DTorStack& dtors,
+                                    AnalysisContext& ctx) {
+    if (arguments.size() == 0) {
+        return true;
+    }
+    if (arguments.size() == 1 &&
+        (!isa<StructType>(type) || type == arguments.front()->type().get()))
+    {
+        /// We convert explicitly here because it allows expressions like
+        /// `int(1.0)`
+        return !!convert(Explicit,
+                         arguments.front(),
+                         getQualType(type, Mutability::Const),
+                         LValue, // So we don't end up in infinite recursion :/
+                         dtors,
+                         ctx);
+    }
+    if (auto* structType = dyncast<StructType const*>(type)) {
+        if (arguments.size() != structType->members().size()) {
+            return false;
+        }
+        bool success = true;
+        for (auto [arg, type]:
+             ranges::views::zip(arguments, structType->members()))
+        {
+            success &= !!convert(Implicit,
+                                 arg,
+                                 getQualType(type, Mutability::Const),
+                                 RValue,
+                                 dtors,
+                                 ctx);
+        }
+        return success;
+    }
+    return false;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
+    auto* type = expr.constructedType();
+    ///
+    if (ctorIsPseudo(type, expr.arguments())) {
+        if (!canConstructTrivialType(type, expr.arguments(), *dtorStack, ctx)) {
+            /// TODO: Push an error here!
+            SC_UNIMPLEMENTED();
+            return nullptr;
+        }
+        expr.decorateConstruct(sym.temporary(type), nullptr);
+        return &expr;
+    }
+    /// Non-trivial case
+    /// TODO: Cast to common base class of array and struct type
+    if (expr.arguments().empty() ||
+        !isa<ast::UninitTemporary>(expr.argument(0)))
+    {
+        auto obj = allocate<ast::UninitTemporary>(expr.sourceRange());
+        obj->decorateValue(sym.temporary(type), LValue);
+        expr.insertArgument(0, std::move(obj));
+    }
+    auto* compoundType = cast<StructType const*>(type);
+    using enum SpecialMemberFunction;
+    auto* ctorSet = compoundType->specialMemberFunction(New);
+    SC_ASSERT(ctorSet, "Trivial lifetime case is handled above");
+    auto result = performOverloadResolution(ctorSet,
+                                            expr.arguments() | ToAddress |
+                                                ToSmallVector<>,
+                                            ORKind::MemberFunction);
+    if (result.error) {
+        result.error->setSourceRange(expr.sourceRange());
+        ctx.issueHandler().push(std::move(result.error));
+        return nullptr;
+    }
+    convertArguments(expr.arguments(), result.conversions, *dtorStack, ctx);
+    expr.decorateConstruct(sym.temporary(type), result.function);
+    dtorStack->push(expr.object());
     return &expr;
 }
 

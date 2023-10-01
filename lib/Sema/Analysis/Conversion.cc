@@ -9,6 +9,7 @@
 #include "Common/Ranges.h"
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
+#include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -51,10 +52,10 @@ std::ostream& sema::operator<<(std::ostream& ostream,
     return ostream << toString(conv);
 }
 
-bool Conversion::isNoop() const {
-    return valueCatConversion() == ValueCatConversion::None &&
-           mutConversion() == MutConversion::None &&
-           objectConversion() == ObjectTypeConversion::None;
+Conversion::operator bool() const {
+    return valueCatConversion() != ValueCatConversion::None ||
+           mutConversion() != MutConversion::None ||
+           objectConversion() != ObjectTypeConversion::None;
 }
 
 static std::optional<ObjectTypeConversion> implicitIntConversion(
@@ -525,24 +526,12 @@ ast::Expression* sema::convert(ConversionKind kind,
                                ValueCategory toValueCat,
                                DTorStack& dtors,
                                AnalysisContext& ctx) {
-    /// If we want to invoke a copy constructor, we convert the argument to
-    /// const lvalue. This is a preliminary hack
-    bool const makeCopy = expr->valueCategory() == LValue &&
-                          toValueCat == RValue;
-    if (makeCopy) {
-        to = to.toConst();
-        toValueCat = LValue;
-    }
-    auto conversion = computeConversion(kind, expr, to, toValueCat);
-    if (!conversion) {
-        ctx.issueHandler().push(std::move(conversion).error());
+    auto convres = computeConversion(kind, expr, to, toValueCat);
+    if (!convres) {
+        ctx.issueHandler().push(std::move(convres).error());
         return nullptr;
     }
-    auto* converted = insertConversion(expr, *conversion, ctx.symbolTable());
-    if (makeCopy) {
-        return copyValue(converted, dtors, ctx);
-    }
-    return converted;
+    return insertConversion(expr, convres.value(), dtors, ctx);
 }
 
 ast::Expression* sema::dereference(ast::Expression* expr,
@@ -653,58 +642,29 @@ QualType sema::commonType(SymbolTable& sym,
                            }) | ToSmallVector<>);
 }
 
-static Entity* getConvertedEntity(Entity* original,
-                                  Conversion const& conv,
-                                  SymbolTable& sym) {
-    if (conv.objectConversion() == ObjectTypeConversion::None) {
-        return original;
-    }
-    return sym.temporary(conv.targetType());
-}
-
-static ValueCategory getValueCat(ValueCategory original,
-                                 ValueCatConversion conv) {
-    using enum ValueCatConversion;
-    switch (conv) {
-    case None:
-        return original;
-    case LValueToRValue:
-        return RValue;
-    case MaterializeTemporary:
-        return LValue;
-    }
-}
-
 ast::Expression* sema::insertConversion(ast::Expression* expr,
-                                        Conversion const& conv,
-                                        SymbolTable& sym) {
-    if (conv.isNoop()) {
+                                        Conversion conv,
+                                        DTorStack& dtors,
+                                        AnalysisContext& ctx) {
+    if (!conv) {
         return expr;
     }
-    ast::Conversion* converted = nullptr;
-    if (!expr->parent()) {
-        converted =
-            allocate<ast::Conversion>(UniquePtr<ast::Expression>(expr),
-                                      std::make_unique<Conversion>(conv))
-                .release();
+    if (conv.valueCatConversion() == ValueCatConversion::LValueToRValue) {
+        conv.valueCatConv = ValueCatConversion::None;
+        ast::Expression* converted =
+            ast::insertNode<ast::Conversion>(expr,
+                                             std::make_unique<Conversion>(
+                                                 conv));
+        /// Guaranteed to succeed
+        converted = analyzeValueExpr(converted, dtors, ctx);
+        auto* constr = ast::insertNode<ast::ConstructExpr>(converted);
+        return analyzeValueExpr(constr, dtors, ctx);
     }
     else {
-        size_t const indexInParent = expr->indexInParent();
-        auto* parent = expr->parent();
-        auto owner =
-            allocate<ast::Conversion>(expr->extractFromParent(),
-                                      std::make_unique<Conversion>(conv));
-        converted = owner.get();
-        parent->setChild(indexInParent, std::move(owner));
+        auto* converted =
+            ast::insertNode<ast::Conversion>(expr,
+                                             std::make_unique<Conversion>(
+                                                 conv));
+        return analyzeValueExpr(converted, dtors, ctx);
     }
-    auto targetType = conv.targetType();
-    auto* entity = getConvertedEntity(expr->entity(), conv, sym);
-    converted->decorateValue(entity,
-                             getValueCat(expr->valueCategory(),
-                                         conv.valueCatConversion()),
-                             targetType);
-    converted->setConstantValue(
-        evalConversion(converted->conversion(),
-                       converted->expression()->constantValue()));
-    return converted;
 }

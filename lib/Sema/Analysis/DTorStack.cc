@@ -3,7 +3,6 @@
 #include <optional>
 
 #include "AST/AST.h"
-#include "Sema/Analysis/Lifetime.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;

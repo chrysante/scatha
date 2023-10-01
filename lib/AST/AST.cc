@@ -95,10 +95,6 @@ sema::QualType Conversion::targetType() const {
     return conversion()->targetType();
 }
 
-sema::ObjectType const* ConstructorCall::constructedType() const {
-    return cast<sema::ObjectType const*>(function()->parent());
-}
-
 void VarDeclBase::decorateVarDecl(sema::Entity* entity) {
     if (auto* object = dyncast_or_null<sema::Object*>(entity)) {
         _type = object->type();

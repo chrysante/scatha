@@ -21,32 +21,6 @@ ValueCategory refToLValue(Type const* type);
 /// nonesuch exists
 ast::Statement* parentStatement(ast::ASTNode* node);
 
-/// Insert the conversions necessary to make the call to the function selected
-/// by overload resolution
-SCTEST_API void convertArguments(ast::FunctionCall& fc,
-                                 OverloadResolutionResult const& orResult,
-                                 DTorStack& dtors,
-                                 AnalysisContext& ctx);
-
-/// \overload for constructors
-/// Constructors need certain care because the object argument is part of the
-/// overload resolution result, but is not part of the arguments so it needs to
-/// be dropped from the OR result
-SCTEST_API void convertArguments(ast::ConstructorCall& cc,
-                                 OverloadResolutionResult const& orResult,
-                                 DTorStack& dtors,
-                                 AnalysisContext& ctx);
-
-/// Makes a copy of the value of \p expr
-/// If the type of \p expr has a copy constructor, the copy constructor is
-/// invoked, the AST is rewritten accordingly and a pointer to the
-/// `ast::ConstructorCall` is returned.
-/// Otherwise the expression is returned as is
-/// \Note \p dtors may be null, in that case no destructor call will be emitted
-SCTEST_API ast::Expression* copyValue(ast::Expression* expr,
-                                      DTorStack& dtors,
-                                      AnalysisContext& ctx);
-
 /// \returns \p type downcast to `StructType`, if \p type is a struct type
 /// with non-trivial lifetime Otherwise returns `nullptr`
 StructType const* nonTrivialLifetimeType(ObjectType const* type);

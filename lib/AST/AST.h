@@ -51,9 +51,8 @@
 ///    ├─ MoveExpr
 ///    ├─ CallLike
 ///    │  ├─ FunctionCall
-///    │  ├─ ConstructorCall
-///    │  └─ Subscript
-///    ├─ TrivialConstructExpr
+///    │  ├─ Subscript
+///    │  └─ ConstructExpr
 ///    ├─ NonTrivAssignExpr
 ///    ├─ AddressOfExpression
 ///    ├─ DereferenceExpression
@@ -89,7 +88,7 @@
         return this->ASTNode::extractChild<TYPE>(Index);                       \
     }                                                                          \
                                                                                \
-    void set##CapName(UniquePtr<Type> node) {                                  \
+    Type* set##CapName(UniquePtr<Type> node) {                                 \
         return this->ASTNode::setChild(Index, std::move(node));                \
     }
 
@@ -121,7 +120,7 @@
         return this->ASTNode::extractChild<TYPE>(BeginIndex + index);          \
     }                                                                          \
                                                                                \
-    void set##CapName(size_t index, UniquePtr<Type> node) {                    \
+    Type* set##CapName(size_t index, UniquePtr<Type> node) {                   \
         return this->ASTNode::setChild(BeginIndex + index, std::move(node));   \
     }
 
@@ -249,19 +248,25 @@ public:
 
     /// Insert node \p child at position \p index
     /// Children at indices equal to and above \p index will be moved up
-    void insertChild(size_t index, UniquePtr<ASTNode> child) {
+    template <typename AST = ASTNode>
+    AST* insertChild(size_t index, UniquePtr<AST> child) {
         if (child) {
             child->_parent = this;
         }
+        auto* result = child.get();
         _children.insert(_children.begin() + index, std::move(child));
+        return result;
     }
 
     /// Set the the child at index \p index to \p child
-    void setChild(size_t index, UniquePtr<ASTNode> child) {
+    template <typename AST = ASTNode>
+    AST* setChild(size_t index, UniquePtr<AST> child) {
         if (child) {
             child->_parent = this;
         }
+        auto* result = child.get();
         _children[index] = std::move(child);
+        return result;
     }
 
     /// Extract this node from its parent
@@ -324,6 +329,26 @@ private:
 // For `dyncast` compatibilty
 NodeType dyncast_get_type(std::derived_from<ASTNode> auto const& node) {
     return node.nodeType();
+}
+
+/// Allocates an AST node of type \p T and inserts it as the parent of \p node
+/// \p node is extracted and used as the first argument to construct \p T
+/// \p args are the remaining arguments to construction of \p T
+/// \Returns the allocated node
+template <std::derived_from<ast::ASTNode> T, typename Node, typename... Args>
+    requires std::constructible_from<T, UniquePtr<Node>, Args...>
+T* insertNode(Node* node, Args&&... args) {
+    if (!node->parent()) {
+        return allocate<T>(UniquePtr<Node>(node), std::forward<Args>(args)...)
+            .release();
+    }
+    else {
+        auto* parent = node->parent();
+        size_t index = node->indexInParent();
+        auto newNode =
+            allocate<T>(node->extractFromParent(), std::forward<Args>(args)...);
+        return parent->setChild(index, std::move(newNode));
+    }
 }
 
 /// MARK: Expressions
@@ -1333,56 +1358,55 @@ public:
     AST_DERIVED_COMMON(UninitTemporary)
 };
 
-/// Concrete node representing a lifetime function call
-class SCATHA_API ConstructorCall: public CallLike {
+/// ...
+class SCATHA_API ConstructExpr: public CallLike {
 public:
-    explicit ConstructorCall(utl::small_vector<UniquePtr<Expression>> arguments,
-                             SourceRange sourceRange,
-                             sema::Function* lifetimeFunction,
-                             sema::SpecialMemberFunction kind):
-        CallLike(NodeType::ConstructorCall,
+    /// Construct object from arbitrary arguments
+    explicit ConstructExpr(utl::small_vector<UniquePtr<Expression>> arguments,
+                           sema::ObjectType const* constructedType,
+                           SourceRange sourceRange):
+        CallLike(NodeType::ConstructExpr,
                  nullptr,
                  std::move(arguments),
                  sourceRange),
-        _function(lifetimeFunction),
-        _kind(kind) {}
+        constrType(constructedType) {}
 
-    AST_DERIVED_COMMON(ConstructorCall)
+    /// Default construct object
+    explicit ConstructExpr(sema::ObjectType const* constructedType,
+                           SourceRange sourceRange):
+        ConstructExpr({}, constructedType, sourceRange) {}
 
-    /// The lifetime function to call
-    sema::Function* function() const { return _function; }
+    /// Copy construct object
+    explicit ConstructExpr(UniquePtr<Expression> argument):
+        ConstructExpr(std::move(argument), argument.get()) {}
 
-    /// The type being constructed.
-    /// \Returns `cast<ObjectType const*>(function()->parent())`
-    sema::ObjectType const* constructedType() const;
+    AST_DERIVED_COMMON(ConstructExpr)
 
-    /// The kind of lifetime function
-    sema::SpecialMemberFunction kind() const { return _kind; }
-
-private:
-    sema::Function* _function;
-    sema::SpecialMemberFunction _kind;
-};
-
-/// Concrete node representing a copy of a trivial value
-class SCATHA_API TrivialConstructExpr: public CallLike {
-public:
-    explicit TrivialConstructExpr(
-        utl::small_vector<UniquePtr<Expression>> arguments,
-        sema::ObjectType const* constructedType,
-        SourceRange sourceRange):
-        CallLike(NodeType::TrivialConstructExpr,
-                 nullptr,
-                 std::move(arguments),
-                 sourceRange) {}
-
-    AST_DERIVED_COMMON(TrivialConstructExpr)
+    /// Decorates this `ConstructExpr`
+    void decorateConstruct(sema::Entity* entity, sema::Function* function) {
+        _function = function;
+        decorateValue(entity, sema::ValueCategory::RValue);
+    }
 
     /// The type being constructed.
     sema::ObjectType const* constructedType() const { return constrType; }
 
+    /// \Returns `true` if the constructed type does not have trivial lifetime
+    bool isTrivial() const { return !function(); }
+
+    /// The lifetime function to call. This is only non-null if the contructed
+    /// type does have trivial lifetime
+    sema::Function* function() const { return _function; }
+
 private:
+    /// Helper for "Copy object"
+    explicit ConstructExpr(auto&& rangeArg, auto* arg):
+        ConstructExpr(toSmallVector(std::move(rangeArg)),
+                      arg->type().get(),
+                      arg->sourceRange()) {}
+
     sema::ObjectType const* constrType;
+    sema::Function* _function;
 };
 
 /// Concrete node representing an assignment of a non-trivial value

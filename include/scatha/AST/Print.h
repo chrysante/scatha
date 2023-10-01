@@ -8,12 +8,6 @@
 
 namespace scatha::ast {
 
-SCATHA_API std::string toString(Expression const&);
-
-SCATHA_API void printExpression(Expression const&);
-
-SCATHA_API void printExpression(Expression const&, std::ostream&);
-
 SCATHA_API void printTree(ASTNode const&);
 
 SCATHA_API void printTree(ASTNode const&, std::ostream&);
