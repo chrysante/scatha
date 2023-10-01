@@ -55,7 +55,8 @@ std::ostream& sema::operator<<(std::ostream& ostream,
 Conversion::operator bool() const {
     return valueCatConversion() != ValueCatConversion::None ||
            mutConversion() != MutConversion::None ||
-           objectConversion() != ObjectTypeConversion::None;
+           objectConversion() != ObjectTypeConversion::None ||
+           isObjectConstruction();
 }
 
 static std::optional<ObjectTypeConversion> implicitIntConversion(
@@ -317,21 +318,6 @@ static std::optional<MutConversion> determineMutConv(ConversionKind kind,
     }
 }
 
-bool isCompatible(ValueCatConversion valueCatConv,
-                  ObjectTypeConversion objConv) {
-    using enum ObjectTypeConversion;
-    switch (valueCatConv) {
-    case ValueCatConversion::None:
-        return true;
-
-    case ValueCatConversion::LValueToRValue:
-        return true;
-
-    case ValueCatConversion::MaterializeTemporary:
-        return true;
-    }
-}
-
 static int getRank(ValueCatConversion conv) {
     return std::array{
 #define SC_VALUECATCONV_DEF(Name, Rank) Rank,
@@ -512,12 +498,17 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     if (!objConv) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
     }
-    if (!isCompatible(*valueCatConv, *objConv)) {
-        // FIXME: Do we need this case?
-        SC_UNREACHABLE();
-        return nullptr;
+    bool isObjConstr = false;
+    if (*valueCatConv == ValueCatConversion::LValueToRValue) {
+        *valueCatConv = ValueCatConversion::None;
+        isObjConstr = true;
     }
-    return Conversion(expr->type(), to, *valueCatConv, *mutConv, *objConv);
+    return Conversion(expr->type(),
+                      to,
+                      *valueCatConv,
+                      *mutConv,
+                      *objConv,
+                      isObjConstr);
 }
 
 ast::Expression* sema::convert(ConversionKind kind,
@@ -534,6 +525,7 @@ ast::Expression* sema::convert(ConversionKind kind,
     return insertConversion(expr, convres.value(), dtors, ctx);
 }
 
+/// TODO: Evaluate if we need this
 ast::Expression* sema::dereference(ast::Expression* expr,
                                    AnalysisContext& ctx) {
     return expr;
@@ -649,22 +641,12 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
     if (!conv) {
         return expr;
     }
-    if (conv.valueCatConversion() == ValueCatConversion::LValueToRValue) {
-        conv.valueCatConv = ValueCatConversion::None;
-        ast::Expression* converted =
-            ast::insertNode<ast::Conversion>(expr,
-                                             std::make_unique<Conversion>(
-                                                 conv));
-        /// Guaranteed to succeed
-        converted = analyzeValueExpr(converted, dtors, ctx);
-        auto* constr = ast::insertNode<ast::ConstructExpr>(converted);
-        return analyzeValueExpr(constr, dtors, ctx);
+    expr = ast::insertNode<ast::Conversion>(expr,
+                                            std::make_unique<Conversion>(conv));
+    expr = analyzeValueExpr(expr, dtors, ctx);
+    if (conv.isObjectConstruction()) {
+        expr = ast::insertNode<ast::ConstructExpr>(expr);
+        expr = analyzeValueExpr(expr, dtors, ctx);
     }
-    else {
-        auto* converted =
-            ast::insertNode<ast::Conversion>(expr,
-                                             std::make_unique<Conversion>(
-                                                 conv));
-        return analyzeValueExpr(converted, dtors, ctx);
-    }
+    return expr;
 }

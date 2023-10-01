@@ -51,12 +51,14 @@ public:
                QualType toType,
                ValueCatConversion valueCatConv,
                MutConversion mutConv,
-               ObjectTypeConversion objConv):
+               ObjectTypeConversion objConv,
+               bool isObjectConstruction):
         from(fromType),
         to(toType),
         valueCatConv(valueCatConv),
         mutConv(mutConv),
-        objConv(objConv) {}
+        objConv(objConv),
+        isObjConstr(isObjectConstruction) {}
 
     /// The type of the value before the conversion
     QualType originType() const { return from; }
@@ -74,15 +76,21 @@ public:
     /// The object conversion kind
     ObjectTypeConversion objectConversion() const { return objConv; }
 
+    /// \Returns `true` if this conversion constructs a new object. This flag
+    /// should be removed in favor of a better solution since it is only used
+    /// temporarily during analysis.
+    bool isObjectConstruction() const { return isObjConstr; }
+
     /// \Returns `true` if any of the specified conversions is not `None`
     explicit operator bool() const;
 
 private:
     QualType from;
     QualType to;
-    ValueCatConversion valueCatConv;
-    MutConversion mutConv;
-    ObjectTypeConversion objConv;
+    ValueCatConversion valueCatConv{};
+    MutConversion mutConv{};
+    ObjectTypeConversion objConv{};
+    bool isObjConstr{};
 };
 
 /// Different kinds of conversion, used to select appropriate conversion
