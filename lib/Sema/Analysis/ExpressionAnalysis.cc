@@ -941,9 +941,12 @@ static ValueCategory getValueCat(ValueCategory original,
     }
 }
 
-/// Guaranteed to succeed because we only insert conversion nodes if conversions
-/// are valid
+/// Guaranteed to succeed as long as the converted value has no issues because
+/// we only insert conversion nodes if conversions are valid
 ast::Expression* ExprContext::analyzeImpl(ast::Conversion& expr) {
+    if (!analyzeValue(expr.expression())) {
+        return nullptr;
+    }
     auto* conv = expr.conversion();
     auto* entity = getConvertedEntity(expr.expression()->entity(), *conv, sym);
     expr.decorateValue(entity,
@@ -1018,6 +1021,13 @@ static bool canConstructTrivialType(ObjectType const* type,
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
+    bool success = true;
+    for (auto* arg: expr.arguments()) {
+        success &= !!analyzeValue(arg);
+    }
+    if (!success) {
+        return nullptr;
+    }
     auto* type = expr.constructedType();
     ///
     if (ctorIsPseudo(type, expr.arguments())) {
