@@ -33,19 +33,20 @@
 /// │  ├─ AnonymousScope
 /// │  ├─ Function
 /// │  └─ Type
-/// │     ├─ ObjectType
-/// │     │  ├─ BuiltinType
-/// │     │  │  ├─ VoidType
-/// │     │  │  └─ ArithmeticType
-/// │     │  │     ├─ BoolType
-/// │     │  │     ├─ ByteType
-/// │     │  │     ├─ IntType
-/// │     │  │     └─ FloatType
-/// │     │  ├─ StructType
-/// │     │  ├─ ArrayType
-/// │     │  └─ PointerType
 /// │     ├─ ReferenceType
-/// │     └─ FunctionType [??, does not exist]
+/// │     ├─ FunctionType [Does not exist yet]
+/// │     └─ ObjectType
+/// │        ├─ PointerType
+/// │        ├─ BuiltinType
+/// │        │  ├─ VoidType
+/// │        │  └─ ArithmeticType
+/// │        │     ├─ BoolType
+/// │        │     ├─ ByteType
+/// │        │     ├─ IntType
+/// │        │     └─ FloatType
+/// │        └─ CompoundType
+/// │           ├─ StructType
+/// │           └─ ArrayType
 /// └─ PoisonEntity
 /// ```
 
@@ -693,42 +694,9 @@ public:
     explicit FloatType(size_t bitwidth, Scope* parentScope);
 };
 
-/// Concrete class representing the type of a structure
-class SCATHA_API StructType: public ObjectType {
+/// Abstract base class of `StructType` and `ArrayType`
+class SCATHA_API CompoundType: public ObjectType {
 public:
-    explicit StructType(std::string name,
-                        Scope* parentScope,
-                        ast::ASTNode* astNode,
-                        size_t size = InvalidSize,
-                        size_t align = InvalidSize):
-        ObjectType(EntityType::StructType,
-                   ScopeKind::Type,
-                   std::move(name),
-                   parentScope,
-                   size,
-                   align,
-                   astNode) {}
-
-    /// The AST node that defines this type
-    SC_ASTNODE_DERIVED(definition, StructDefinition)
-
-    /// The member variables of this type in the order of declaration.
-    std::span<Variable* const> memberVariables() { return _memberVars; }
-
-    /// \overload
-    std::span<Variable const* const> memberVariables() const {
-        return _memberVars;
-    }
-
-    /// \Returns a view over the member types in this struct
-    auto members() const {
-        return memberVariables() |
-               ranges::views::transform([](auto* var) { return var->type(); });
-    }
-
-    /// Adds a variable to the list of member variables of this structure
-    void addMemberVariable(Variable* var) { _memberVars.push_back(var); }
-
     ///
     void addSpecialMemberFunction(SpecialMemberFunction kind,
                                   OverloadSet* overloadSet) {
@@ -764,35 +732,80 @@ public:
         specialLifetimeFunctions = SLF;
     }
 
+protected:
+    using ObjectType::ObjectType;
+
 private:
     friend class Type;
+    friend class StructType;
     bool isDefaultConstructible() const { return _isDefaultConstructible; }
+
+    utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
+    std::array<Function*, EnumSize<SpecialLifetimeFunction>>
+        specialLifetimeFunctions = {};
+    bool _hasTrivialLifetime     : 1 = true; // Only used by structs
+    bool _isDefaultConstructible : 1 = true;
+};
+
+/// Concrete class representing the type of a structure
+class SCATHA_API StructType: public CompoundType {
+public:
+    explicit StructType(std::string name,
+                        Scope* parentScope,
+                        ast::ASTNode* astNode,
+                        size_t size = InvalidSize,
+                        size_t align = InvalidSize):
+        CompoundType(EntityType::StructType,
+                     ScopeKind::Type,
+                     std::move(name),
+                     parentScope,
+                     size,
+                     align,
+                     astNode) {}
+
+    /// The AST node that defines this type
+    SC_ASTNODE_DERIVED(definition, StructDefinition)
+
+    /// The member variables of this type in the order of declaration.
+    std::span<Variable* const> memberVariables() { return _memberVars; }
+
+    /// \overload
+    std::span<Variable const* const> memberVariables() const {
+        return _memberVars;
+    }
+
+    /// \Returns a view over the member types in this struct
+    auto members() const {
+        return memberVariables() |
+               ranges::views::transform([](auto* var) { return var->type(); });
+    }
+
+    /// Adds a variable to the list of member variables of this structure
+    void addMemberVariable(Variable* var) { _memberVars.push_back(var); }
+
+private:
+    friend class Type;
     /// Structure type has trivial lifetime if no user defined copy constructor,
     /// move constructor or destructor are present and all member types are
     /// trivial
     bool hasTrivialLifetimeImpl() const { return _hasTrivialLifetime; }
 
     utl::small_vector<Variable*> _memberVars;
-    utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
-    std::array<Function*, EnumSize<SpecialLifetimeFunction>>
-        specialLifetimeFunctions = {};
-    bool _hasTrivialLifetime     : 1 = false;
-    bool _isDefaultConstructible : 1 = true;
 };
 
 /// Concrete class representing the type of an array
-class SCATHA_API ArrayType: public ObjectType {
+class SCATHA_API ArrayType: public CompoundType {
 public:
     static constexpr size_t DynamicCount = ~size_t(0);
 
     explicit ArrayType(ObjectType const* elementType, size_t count):
-        ObjectType(EntityType::ArrayType,
-                   ScopeKind::Type,
-                   makeName(elementType, count),
-                   const_cast<Scope*>(elementType->parent()),
-                   count != DynamicCount ? count * elementType->size() :
-                                           InvalidSize,
-                   elementType->align()),
+        CompoundType(EntityType::ArrayType,
+                     ScopeKind::Type,
+                     makeName(elementType, count),
+                     const_cast<Scope*>(elementType->parent()),
+                     count != DynamicCount ? count * elementType->size() :
+                                             InvalidSize,
+                     elementType->align()),
         elemType(elementType),
         _count(count) {
         setBuiltin(elementType->isBuiltin());
@@ -813,14 +826,12 @@ public:
     void setCountProperty(Property* prop) { countProp = prop; }
 
 private:
+    static std::string makeName(ObjectType const* elemType, size_t size);
+
     friend class Type;
-    bool isDefaultConstructibleImpl() const {
-        return elementType()->isDefaultConstructible();
-    }
     bool hasTrivialLifetimeImpl() const {
         return elementType()->hasTrivialLifetime();
     }
-    static std::string makeName(ObjectType const* elemType, size_t size);
 
     ObjectType const* elemType;
     Property* countProp = nullptr;
