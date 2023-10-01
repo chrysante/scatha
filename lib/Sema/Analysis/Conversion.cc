@@ -519,13 +519,12 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     return Conversion(expr->type(), to, *valueCatConv, *mutConv, *objConv);
 }
 
-/// Implementation of the `convert*` functions
-static ast::Expression* convertImpl(ConversionKind kind,
-                                    ast::Expression* expr,
-                                    QualType to,
-                                    ValueCategory toValueCat,
-                                    DTorStack* dtors,
-                                    AnalysisContext& ctx) {
+ast::Expression* sema::convert(ConversionKind kind,
+                               ast::Expression* expr,
+                               QualType to,
+                               ValueCategory toValueCat,
+                               DTorStack& dtors,
+                               AnalysisContext& ctx) {
     /// If we want to invoke a copy constructor, we convert the argument to
     /// const lvalue. This is a preliminary hack
     bool const makeCopy = expr->valueCategory() == LValue &&
@@ -541,18 +540,9 @@ static ast::Expression* convertImpl(ConversionKind kind,
     }
     auto* converted = insertConversion(expr, *conversion, ctx.symbolTable());
     if (makeCopy) {
-        return copyValue(converted, *dtors, ctx);
+        return copyValue(converted, dtors, ctx);
     }
     return converted;
-}
-
-ast::Expression* sema::convert(ConversionKind kind,
-                               ast::Expression* expr,
-                               QualType to,
-                               ValueCategory toValueCat,
-                               DTorStack& dtors,
-                               AnalysisContext& ctx) {
-    return convertImpl(kind, expr, to, toValueCat, &dtors, ctx);
 }
 
 ast::Expression* sema::dereference(ast::Expression* expr,
