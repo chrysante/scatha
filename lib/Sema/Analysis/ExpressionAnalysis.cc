@@ -31,7 +31,6 @@ struct ExprContext {
     DTorStack* dtorStack;
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
-    Scope* restrictedLookupScope = nullptr;
 
     ExprContext(sema::AnalysisContext& ctx, DTorStack* dtorStack):
         dtorStack(dtorStack), ctx(ctx), sym(ctx.symbolTable()) {}
@@ -81,15 +80,6 @@ struct ExprContext {
     /// \Returns `true` if \p expr is a type. Otherwise submits an error and
     /// returns `false`
     bool expectType(ast::Expression const* expr);
-
-    /// Will be set by MemberAccess when right hand side is an identifier and
-    /// unset by Identifier
-    void restrictNameLookup(Scope* scope) { restrictedLookupScope = scope; }
-    Scope* getRestrictedLookupScope() {
-        auto* scope = restrictedLookupScope;
-        restrictedLookupScope = nullptr;
-        return scope;
-    }
 };
 
 } // namespace
@@ -415,9 +405,26 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
     return &expr;
 }
 
+static Scope* findMALookupScope(ast::Identifier& id) {
+    auto* maParent = dyncast<ast::MemberAccess*>(id.parent());
+    if (!maParent || maParent->member() != &id) {
+        return nullptr;
+    }
+    auto& accessed = *maParent->accessed();
+    switch (accessed.entityCategory()) {
+    case EntityCategory::Value: {
+        return const_cast<ObjectType*>(accessed.type().get());
+    }
+    case EntityCategory::Type:
+        return cast<Scope*>(accessed.entity());
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     auto* entity = [&] {
-        if (auto* scope = getRestrictedLookupScope()) {
+        if (auto* scope = findMALookupScope(id)) {
             return scope->findEntity(id.value());
         }
         else {
@@ -462,24 +469,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     }; // clang-format on
 }
 
-static Scope* findLookupTargetScope(ast::Expression& expr) {
-    switch (expr.entityCategory()) {
-    case EntityCategory::Value: {
-        return const_cast<ObjectType*>(expr.type().get());
-    }
-    case EntityCategory::Type:
-        return cast<Scope*>(expr.entity());
-    default:
-        SC_UNREACHABLE();
-    }
-}
-
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(ma.accessed())) {
         return nullptr;
     }
     dereferencePointer(ma.accessed());
-    restrictNameLookup(findLookupTargetScope(*ma.accessed()));
     if (!analyze(ma.member())) {
         return nullptr;
     }
