@@ -1,4 +1,4 @@
-#include "IRGen/GenerateFunction.h"
+#include "IRGen/FunctionLowering.h"
 
 #include <svm/Builtin.h>
 #include <utl/function_view.hpp>
@@ -160,7 +160,7 @@ struct FuncGenContext: ir::FunctionBuilder {
 
 } // namespace
 
-utl::small_vector<sema::Function const*> irgen::generateFunction(
+utl::small_vector<sema::Function const*> irgen::lowerFunction(
     ast::FunctionDefinition const& funcDecl,
     ir::Function& irFn,
     ir::Context& ctx,

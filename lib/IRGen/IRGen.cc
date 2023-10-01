@@ -11,7 +11,7 @@
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
-#include "IRGen/GenerateFunction.h"
+#include "IRGen/FunctionLowering.h"
 #include "IRGen/GlobalDecls.h"
 #include "IRGen/Maps.h"
 #include "IRGen/MetaData.h"
@@ -47,13 +47,13 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
         queue.pop_front();
         auto* irFn = functionMap(semaFn);
         auto* def = cast<ast::FunctionDefinition const*>(semaFn->astNode());
-        auto decls = generateFunction(*def,
-                                      cast<ir::Function&>(*irFn),
-                                      ctx,
-                                      mod,
-                                      sym,
-                                      typeMap,
-                                      functionMap);
+        auto decls = lowerFunction(*def,
+                                   cast<ir::Function&>(*irFn),
+                                   ctx,
+                                   mod,
+                                   sym,
+                                   typeMap,
+                                   functionMap);
         ranges::copy(decls, std::back_inserter(queue));
     }
     ir::assertInvariants(ctx, mod);

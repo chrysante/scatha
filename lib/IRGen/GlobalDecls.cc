@@ -10,6 +10,7 @@
 #include "IRGen/CallingConvention.h"
 #include "IRGen/Maps.h"
 #include "IRGen/MetaData.h"
+#include "IRGen/SyntheticFunction.h"
 #include "IRGen/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
@@ -154,7 +155,15 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     }
 
     case sema::FunctionKind::Generated:
-        SC_UNIMPLEMENTED();
+        auto fn =
+            allocate<ir::Function>(functionType,
+                                   irReturnType,
+                                   irArgTypes,
+                                   semaFn->mangledName(),
+                                   mapFuncAttrs(semaFn->attributes()),
+                                   mapVisibility(semaFn->binaryVisibility()));
+        generateSyntheticFunction(semaFn, fn.get(), ctx);
+        irFn = std::move(fn);
     }
     functionMap.insert(semaFn, irFn.get(), std::move(metaData));
     auto* result = irFn.get();
