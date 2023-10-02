@@ -2,7 +2,6 @@
 
 #include <array>
 
-#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/graph.hpp>
 #include <utl/scope_guard.hpp>
@@ -29,7 +28,7 @@ struct InstContext {
     InstContext(sema::AnalysisContext& ctx):
         ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
 
-    std::vector<StructType const*> instantiateTypes(
+    utl::vector<StructType const*> instantiateTypes(
         StructDependencyGraph& typeDependencies);
 
     void instantiateFunctions(std::span<ast::FunctionDefinition*> functions);
@@ -45,13 +44,6 @@ struct InstContext {
     Type const* analyzeParam(ast::ParameterDeclaration&) const;
 
     Type const* analyzeThisParam(ast::ThisParameter&) const;
-
-    void generateSLFs(StructType& type);
-
-    Function* generateSLF(SpecialLifetimeFunction key, StructType& type) const;
-
-    FunctionSignature makeLifetimeSignature(
-        StructType& type, SpecialLifetimeFunction function) const;
 
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
@@ -70,10 +62,13 @@ utl::vector<StructType const*> sema::instantiateEntities(
         instCtx.instantiateFunction(*def);
     }
     /// `structs` is topologically sorted, so each invocation of
-    /// `generateSLFs()` can assume that the types of all
+    /// `declareSpecialLifetimeFunctions()` can assume that the types of all
     /// data members already have been analyzed for lifetime triviality
     for (auto* type: structs) {
-        instCtx.generateSLFs(const_cast<StructType&>(*type));
+        /// Const cast is fine because we just have the pointers as const to
+        /// return them soon, they all have mutable origin.
+        auto* mutType = const_cast<StructType*>(type);
+        declareSpecialLifetimeFunctions(*mutType, ctx.symbolTable());
     }
     return structs;
 }
@@ -100,7 +95,7 @@ static Type const* stripArray(Type const* type) {
     return type;
 }
 
-std::vector<StructType const*> InstContext::instantiateTypes(
+utl::vector<StructType const*> InstContext::instantiateTypes(
     StructDependencyGraph& dependencyGraph) {
     /// After gather name phase we have the names of all types in the symbol
     /// table and we gather the dependencies of variable declarations in
@@ -341,159 +336,4 @@ Type const* InstContext::analyzeThisParam(ast::ThisParameter& param) const {
         return sym.reference(QualType(structType, param.mutability()));
     }
     return structType;
-}
-
-namespace {
-
-/// Wrapper around `std::array` that can be indexed by `SpecialLifetimeFunction`
-/// enum values
-struct SLFArray: std::array<Function*, EnumSize<SpecialLifetimeFunction>> {
-    using Base = std::array<Function*, EnumSize<SpecialLifetimeFunction>>;
-    auto& operator[](SpecialLifetimeFunction index) {
-        return Base::operator[](static_cast<size_t>(index));
-    }
-    auto const& operator[](SpecialLifetimeFunction index) const {
-        return Base::operator[](static_cast<size_t>(index));
-    }
-};
-
-} // namespace
-
-static SLFArray getDefinedSLFs(SymbolTable& sym, StructType& type) {
-    using enum SpecialMemberFunction;
-    using enum SpecialLifetimeFunction;
-    SLFArray result{};
-    Type const* mutRef = sym.reference(QualType::Mut(&type));
-    Type const* constRef = sym.reference(QualType::Const(&type));
-    if (auto* constructor = type.specialMemberFunction(New)) {
-        for (auto* F: *constructor) {
-            switch (F->argumentCount()) {
-            case 1: {
-                if (F->argumentType(0) == mutRef) {
-                    result[DefaultConstructor] = F;
-                }
-                break;
-            }
-            case 2: {
-                if (F->argumentType(0) == mutRef &&
-                    F->argumentType(1) == constRef)
-                {
-                    result[CopyConstructor] = F;
-                }
-                break;
-            }
-            default:
-                break;
-            }
-        }
-    }
-    if (auto* os = type.specialMemberFunction(Move)) {
-        if (auto* move = os->find(std::array{ mutRef, mutRef })) {
-            result[MoveConstructor] = move;
-        }
-    }
-    if (auto* os = type.specialMemberFunction(Delete)) {
-        if (auto* del = os->find(std::array{ mutRef })) {
-            result[Destructor] = del;
-        }
-    }
-    return result;
-}
-
-static bool computeDefaultConstructible(StructType& type, SLFArray const& SLF) {
-    using enum SpecialLifetimeFunction;
-    using enum SpecialMemberFunction;
-    /// If we have a default constructor we are clearly default constructible
-    if (SLF[DefaultConstructor]) {
-        return true;
-    }
-    auto* overloadSet = type.specialMemberFunction(New);
-    /// If no constructors are defined or if the only defined constructor is the
-    /// copy constructor, then the type is default constructible iff. all member
-    /// variables are default constructible
-    if (!overloadSet || (overloadSet->size() == 1 && SLF[CopyConstructor])) {
-        return ranges::all_of(type.memberVariables(), [](auto* var) {
-            return !var->type() || var->type()->isDefaultConstructible();
-        });
-    }
-    /// Otherwise we are not default constructible
-    return false;
-}
-
-static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
-    using enum SpecialLifetimeFunction;
-    return !SLF[CopyConstructor] && !SLF[MoveConstructor] && !SLF[Destructor] &&
-           ranges::all_of(type.memberVariables(), [](auto* var) {
-               return !var->type() || var->type()->hasTrivialLifetime();
-           });
-}
-
-void InstContext::generateSLFs(StructType& type) {
-    using enum SpecialLifetimeFunction;
-    auto SLF = getDefinedSLFs(sym, type);
-    bool const isDefaultConstructible = computeDefaultConstructible(type, SLF);
-    bool const hasTrivialLifetime = computeTrivialLifetime(type, SLF);
-    type.setIsDefaultConstructible(isDefaultConstructible);
-    type.setHasTrivialLifetime(hasTrivialLifetime);
-    if (isDefaultConstructible && !SLF[DefaultConstructor]) {
-        bool anyMemberHasDefCtor = ranges::any_of(type.memberVariables(),
-                                                  [](auto* var) {
-            auto* type = dyncast_or_null<StructType const*>(var->type());
-            return type && type->specialLifetimeFunction(DefaultConstructor);
-        });
-        if (anyMemberHasDefCtor) {
-            SLF[DefaultConstructor] = generateSLF(DefaultConstructor, type);
-        }
-    }
-    if (!hasTrivialLifetime) {
-        if (!SLF[CopyConstructor]) {
-            SLF[CopyConstructor] = generateSLF(CopyConstructor, type);
-        }
-        if (!SLF[MoveConstructor]) {
-            SLF[MoveConstructor] = generateSLF(MoveConstructor, type);
-        }
-        if (!SLF[Destructor]) {
-            SLF[Destructor] = generateSLF(Destructor, type);
-        }
-    }
-    for (auto kind: EnumRange<SpecialLifetimeFunction>()) {
-        if (SLF[kind]) {
-            SLF[kind]->setSLFKind(kind);
-        }
-    }
-    type.setSpecialLifetimeFunctions(SLF);
-}
-
-Function* InstContext::generateSLF(SpecialLifetimeFunction key,
-                                   StructType& type) const {
-    auto SMFKind = toSMF(key);
-    Function* function = sym.withScopeCurrent(&type, [&] {
-        return sym.declareFuncName(std::string(toString(SMFKind)));
-    });
-    SC_ASSERT(function, "Name can't be used by other symbol");
-    bool result = sym.setFuncSig(function, makeLifetimeSignature(type, key));
-    SC_ASSERT(result, "Can't be defined because we checked in getDefinedSLFs");
-    function->setKind(FunctionKind::Generated);
-    function->setIsMember();
-    function->setSMFKind(SMFKind);
-    type.addSpecialMemberFunction(SMFKind, function->overloadSet());
-    return function;
-}
-
-FunctionSignature InstContext::makeLifetimeSignature(
-    StructType& type, SpecialLifetimeFunction function) const {
-    auto* self = sym.reference(QualType::Mut(&type));
-    auto* rhs = sym.reference(QualType::Const(&type));
-    auto* ret = sym.Void();
-    using enum SpecialLifetimeFunction;
-    switch (function) {
-    case DefaultConstructor:
-        return FunctionSignature({ self }, ret);
-    case CopyConstructor:
-        return FunctionSignature({ self, rhs }, ret);
-    case MoveConstructor:
-        return FunctionSignature({ self, rhs }, ret);
-    case Destructor:
-        return FunctionSignature({ self }, ret);
-    }
 }

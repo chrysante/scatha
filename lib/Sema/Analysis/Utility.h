@@ -29,6 +29,11 @@ StructType const* nonTrivialLifetimeType(ObjectType const* type);
 /// pops the top element off the destructor stack \p dtors
 void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors);
 
+/// Declares the appropriate special lifetime functions of \p type
+/// This is used by Instantiation to analyze structs and by symbol table to
+/// generate array types.
+void declareSpecialLifetimeFunctions(CompoundType& type, SymbolTable& sym);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_UTILITY_H_

@@ -10,6 +10,7 @@
 #include "Common/Ranges.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
 
@@ -344,6 +345,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
         auto* arraySize = addProperty(PropertyKind::ArraySize, S64());
         arrayType->setCountProperty(arraySize);
     });
+    declareSpecialLifetimeFunctions(*arrayType, *this);
     return arrayType;
 }
 
