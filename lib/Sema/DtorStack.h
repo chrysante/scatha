@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_ANALYSIS_OBJECTSTACK_H_
-#define SCATHA_SEMA_ANALYSIS_OBJECTSTACK_H_
+#ifndef SCATHA_SEMA_DTORSTACK_H_
+#define SCATHA_SEMA_DTORSTACK_H_
 
 #include <range/v3/view.hpp>
 #include <utl/stack.hpp>
@@ -47,4 +47,4 @@ private:
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_ANALYSIS_OBJECTSTACK_H_
+#endif // SCATHA_SEMA_DTORSTACK_H_

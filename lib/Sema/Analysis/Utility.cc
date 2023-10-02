@@ -7,6 +7,7 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/OverloadResolution.h"
+#include "Sema/DtorStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -15,39 +16,30 @@ using namespace sema;
 using enum ValueCategory;
 using enum ConversionKind;
 
-QualType sema::getQualType(Type const* type, Mutability mut) {
-    if (auto* ref = dyncast<ReferenceType const*>(type)) {
-        return ref->base();
+/// # Destructos
+/// We also implement DtorStack here to save a .cc file
+
+static std::optional<DestructorCall> makeDTorCall(Object* obj) {
+    auto* type = obj->type();
+    auto* compType = dyncast<CompoundType const*>(type);
+    if (!compType) {
+        return std::nullopt;
     }
-    return { cast<ObjectType const*>(type), mut };
+    using enum SpecialLifetimeFunction;
+    auto* dtor = compType->specialLifetimeFunction(Destructor);
+    if (!dtor) {
+        return std::nullopt;
+    }
+    return DestructorCall{ obj, dtor };
 }
 
-ValueCategory sema::refToLValue(Type const* type) {
-    if (isa<ReferenceType>(type)) {
-        return LValue;
-    }
-    return RValue;
-}
-
-ast::Statement* sema::parentStatement(ast::ASTNode* node) {
-    while (true) {
-        if (!node) {
-            return nullptr;
-        }
-        if (auto* stmt = dyncast<ast::Statement*>(node)) {
-            return stmt;
-        }
-        node = node->parent();
+void DTorStack::push(Object* obj) {
+    if (auto dtorCall = makeDTorCall(obj)) {
+        push(*dtorCall);
     }
 }
 
-StructType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
-    auto structType = dyncast<StructType const*>(type);
-    if (!structType || structType->hasTrivialLifetime()) {
-        return nullptr;
-    }
-    return structType;
-}
+void DTorStack::push(DestructorCall dtorCall) { dtorCalls.push(dtorCall); }
 
 void sema::popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
     if (!expr || !expr->isDecorated()) {
@@ -240,4 +232,40 @@ static void declareSLFs(ArrayType& type, SymbolTable& sym) {
 void sema::declareSpecialLifetimeFunctions(CompoundType& type,
                                            SymbolTable& sym) {
     visit(type, [&](auto& type) { declareSLFs(type, sym); });
+}
+
+/// # Other utils
+
+QualType sema::getQualType(Type const* type, Mutability mut) {
+    if (auto* ref = dyncast<ReferenceType const*>(type)) {
+        return ref->base();
+    }
+    return { cast<ObjectType const*>(type), mut };
+}
+
+ValueCategory sema::refToLValue(Type const* type) {
+    if (isa<ReferenceType>(type)) {
+        return LValue;
+    }
+    return RValue;
+}
+
+ast::Statement* sema::parentStatement(ast::ASTNode* node) {
+    while (true) {
+        if (!node) {
+            return nullptr;
+        }
+        if (auto* stmt = dyncast<ast::Statement*>(node)) {
+            return stmt;
+        }
+        node = node->parent();
+    }
+}
+
+StructType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
+    auto structType = dyncast<StructType const*>(type);
+    if (!structType || structType->hasTrivialLifetime()) {
+        return nullptr;
+    }
+    return structType;
 }

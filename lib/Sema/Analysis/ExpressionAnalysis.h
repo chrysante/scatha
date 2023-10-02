@@ -3,7 +3,6 @@
 
 #include "AST/Fwd.h"
 #include "Issue/IssueHandler.h"
-#include "Sema/Analysis/DTorStack.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {
