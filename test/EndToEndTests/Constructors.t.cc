@@ -8,7 +8,7 @@ using namespace scatha;
 
 /// Since we don't have libraries or multi file compilation we just paste the
 /// code here
-static const std::string CommonDefs = R"(
+std::string const CommonDefs = R"(
 struct X {
     fn new(&mut this) {
         this.value = 0;
@@ -207,4 +207,13 @@ fn main() {
 })";
     test::checkReturns(7, text);
     test::checkPrints("+0+1-1-0", text);
+}
+
+TEST_CASE("Don't pop destructors in reference variables",
+          "[end-to-end][constructors]") {
+    test::checkPrints("+4+7-7-4", CommonDefs + R"(
+fn main() {
+    var x = X(4);
+    var ref: &X = (X(7).value, x);
+})");
 }

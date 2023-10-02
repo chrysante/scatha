@@ -229,6 +229,7 @@ void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
 void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(!varDecl.isDecorated(),
               "We should not have handled local variables in prepass.");
+    /// We need at least one of init expression and type specifier
     if (!varDecl.initExpr() && !varDecl.typeExpr()) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
@@ -238,10 +239,12 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     auto declType = analyzeType(varDecl.typeExpr());
     auto initType = initExpr ? initExpr->type().get() : nullptr;
     auto type = declType ? declType : initType;
+    /// We cannot deduce the type of the variable
     if (!type) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         return;
     }
+    /// The type must be complete, that means no `void` and no dynamic arrays
     if (!type->isComplete()) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         ctx.issue<BadVarDecl>(&varDecl,
@@ -250,16 +253,20 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
                               initExpr);
         return;
     }
+    /// Reference variables must be initalized explicitly
     if (isa<ReferenceType>(type) && !initExpr) {
         sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ExpectedRefInit);
         return;
     }
+    /// If the symbol table complains we also return early
     auto* variable = sym.defineVariable(&varDecl, type, varDecl.mutability());
     if (!variable) {
         return;
     }
     varDecl.decorateVarDecl(variable);
+    /// If we have an init expression we convert it to the type of the variable.
+    /// If the type is derived from the init expression then this is a no-op
     if (initExpr) {
         initExpr = convert(Implicit,
                            initExpr,
@@ -267,20 +274,27 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
                            refToLValue(type),
                            varDecl.dtorStack(),
                            ctx);
-        popTopLevelDtor(initExpr, varDecl.dtorStack());
     }
+    /// Otherwise we construct an object of the declared type without arguments
     else {
         auto* objType = cast<ObjectType const*>(type);
         auto constructExpr =
             allocate<ast::ConstructExpr>(objType, varDecl.sourceRange());
         initExpr = varDecl.setInitExpr(std::move(constructExpr));
-        analyzeValue(initExpr, varDecl.dtorStack());
-        popTopLevelDtor(initExpr, varDecl.dtorStack());
+        initExpr = analyzeValue(initExpr, varDecl.dtorStack());
     }
+    /// If our variable is of object type, we pop the last destructor _in the
+    /// stack of this declaration_ because it corresponds to the object whose
+    /// lifetime this variable shall extend. Then we push the destructor to the
+    /// stack of the parent statement.
+    if (!isa<ReferenceType>(varDecl.type())) {
+        popTopLevelDtor(initExpr, varDecl.dtorStack());
+        cast<ast::Statement*>(varDecl.parent())->pushDtor(variable);
+    }
+    /// Propagate constant value
     if (variable->isConst() && initExpr) {
         variable->setConstantValue(clone(initExpr->constantValue()));
     }
-    cast<ast::Statement*>(varDecl.parent())->pushDtor(variable);
 }
 
 void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
