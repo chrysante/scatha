@@ -7,7 +7,7 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
-#include "Sema/Analysis/DTorStack.h"
+#include "Sema/Analysis/DtorStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -101,7 +101,7 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
             ->value();
     };
 
-    DTorStack dtors;
+    DtorStack dtors;
 
     /// # Widening
     SECTION("u32(5) to u64") {

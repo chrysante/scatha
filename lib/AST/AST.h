@@ -634,16 +634,16 @@ public:
     /// Expression to evaluate if condition is false
     AST_PROPERTY(2, Expression, elseExpr, ElseExpr)
 
-    sema::DTorStack& branchDTorStack(size_t index) {
+    sema::DtorStack& branchDTorStack(size_t index) {
         return branchDtors[index];
     }
 
-    sema::DTorStack const& branchDTorStack(size_t index) const {
+    sema::DtorStack const& branchDTorStack(size_t index) const {
         return branchDtors[index];
     }
 
 private:
-    sema::DTorStack branchDtors[2];
+    sema::DtorStack branchDtors[2];
 };
 
 /// Move expression
@@ -795,13 +795,13 @@ public:
     void pushDtor(sema::DestructorCall dtorCall) { _dtorStack.push(dtorCall); }
 
     /// \Returns the destructor stack associated with this statement
-    sema::DTorStack const& dtorStack() const { return _dtorStack; }
+    sema::DtorStack const& dtorStack() const { return _dtorStack; }
 
     /// \overload
-    sema::DTorStack& dtorStack() { return _dtorStack; }
+    sema::DtorStack& dtorStack() { return _dtorStack; }
 
 private:
-    sema::DTorStack _dtorStack;
+    sema::DtorStack _dtorStack;
 };
 
 /// Abstract node representing a declaration.
@@ -1289,21 +1289,21 @@ public:
     LoopKind kind() const { return _kind; }
 
     /// The destructor stack of the loop condition
-    sema::DTorStack& conditionDtorStack() { return _condDtors; }
+    sema::DtorStack& conditionDtorStack() { return _condDtors; }
 
     /// \overload
-    sema::DTorStack const& conditionDtorStack() const { return _condDtors; }
+    sema::DtorStack const& conditionDtorStack() const { return _condDtors; }
 
     /// The destructor stack of the loop increment expression
-    sema::DTorStack& incrementDtorStack() { return _incDtors; }
+    sema::DtorStack& incrementDtorStack() { return _incDtors; }
 
     /// \overload
-    sema::DTorStack const& incrementDtorStack() const { return _incDtors; }
+    sema::DtorStack const& incrementDtorStack() const { return _incDtors; }
 
 private:
     LoopKind _kind;
-    sema::DTorStack _condDtors;
-    sema::DTorStack _incDtors;
+    sema::DtorStack _condDtors;
+    sema::DtorStack _incDtors;
 };
 
 /// Represents a `break` or `continue` statement.

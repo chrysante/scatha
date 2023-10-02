@@ -58,7 +58,7 @@ struct FuncGenContext: FuncGenContextBase {
 
     /// # Statement specific utilities
     void callDtor(sema::Object const* object, sema::Function const* dtor);
-    void emitDtorCalls(sema::DTorStack const& dtorStack);
+    void emitDtorCalls(sema::DtorStack const& dtorStack);
 
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
@@ -1404,7 +1404,7 @@ void FuncGenContext::callDtor(sema::Object const* object,
     add<ir::Call>(function, std::array{ value.get() }, std::string{});
 }
 
-void FuncGenContext::emitDtorCalls(sema::DTorStack const& dtorStack) {
+void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack) {
     for (auto call: dtorStack) {
         callDtor(call.object, call.destructor);
     }

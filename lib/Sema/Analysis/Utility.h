@@ -11,7 +11,7 @@ namespace scatha::sema {
 
 /// If the expression \p expr is of non-trivial lifetime type, this function
 /// pops the top element off the destructor stack \p dtors
-void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors);
+void popTopLevelDtor(ast::Expression* expr, DtorStack& dtors);
 
 /// # Special lifetime functions
 

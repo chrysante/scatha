@@ -33,15 +33,15 @@ static std::optional<DestructorCall> makeDTorCall(Object* obj) {
     return DestructorCall{ obj, dtor };
 }
 
-void DTorStack::push(Object* obj) {
+void DtorStack::push(Object* obj) {
     if (auto dtorCall = makeDTorCall(obj)) {
         push(*dtorCall);
     }
 }
 
-void DTorStack::push(DestructorCall dtorCall) { dtorCalls.push(dtorCall); }
+void DtorStack::push(DestructorCall dtorCall) { dtorCalls.push(dtorCall); }
 
-void sema::popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
+void sema::popTopLevelDtor(ast::Expression* expr, DtorStack& dtors) {
     if (!expr || !expr->isDecorated()) {
         return;
     }

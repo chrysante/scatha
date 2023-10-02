@@ -27,11 +27,11 @@ using enum BadExpr::Reason;
 namespace {
 
 struct ExprContext {
-    DTorStack* dtorStack;
+    DtorStack* dtorStack;
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
 
-    ExprContext(sema::AnalysisContext& ctx, DTorStack* dtorStack):
+    ExprContext(sema::AnalysisContext& ctx, DtorStack* dtorStack):
         dtorStack(dtorStack), ctx(ctx), sym(ctx.symbolTable()) {}
 
     ast::Expression* analyze(ast::Expression*);
@@ -90,13 +90,13 @@ static bool isAny(T const& t) {
 }
 
 ast::Expression* sema::analyzeExpression(ast::Expression* expr,
-                                         DTorStack& dtorStack,
+                                         DtorStack& dtorStack,
                                          AnalysisContext& ctx) {
     return ExprContext(ctx, &dtorStack).analyze(expr);
 }
 
 ast::Expression* sema::analyzeValueExpr(ast::Expression* expr,
-                                        DTorStack& dtorStack,
+                                        DtorStack& dtorStack,
                                         AnalysisContext& ctx) {
     return ExprContext(ctx, &dtorStack).analyzeValue(expr);
 }
@@ -128,7 +128,7 @@ ast::Expression* ExprContext::analyzeValue(ast::Expression* expr) {
 
 Type const* ExprContext::analyzeType(ast::Expression* expr) {
     auto* stashed = dtorStack;
-    DTorStack tmpDtorStack;
+    DtorStack tmpDtorStack;
     dtorStack = &tmpDtorStack;
     expr = analyze(expr);
     SC_ASSERT(dtorStack->empty(),
@@ -710,7 +710,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
 
 static void convertArguments(auto const& arguments,
                              auto const& conversions,
-                             DTorStack& dtors,
+                             DtorStack& dtors,
                              AnalysisContext& ctx) {
     for (auto [arg, conv]: ranges::views::zip(arguments, conversions)) {
         insertConversion(arg, conv, dtors, ctx);
@@ -981,7 +981,7 @@ static bool ctorIsPseudo(Type const* type, auto const& args) {
 
 static bool canConstructTrivialType(ObjectType const* type,
                                     auto const& arguments,
-                                    DTorStack& dtors,
+                                    DtorStack& dtors,
                                     AnalysisContext& ctx) {
     if (arguments.size() == 0) {
         return true;

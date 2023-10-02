@@ -13,13 +13,13 @@ class ExpressionAnalysisResult;
 /// nodes.
 /// Creates entries in the symbol table for defined entities.
 ast::Expression* analyzeExpression(ast::Expression* expression,
-                                   DTorStack& dtorStack,
+                                   DtorStack& dtorStack,
                                    AnalysisContext& context);
 
 /// Same as `analyzeExpression()` but ensures that the expression refers to a
 /// value
 ast::Expression* analyzeValueExpr(ast::Expression* expression,
-                                  DTorStack& dtorStack,
+                                  DtorStack& dtorStack,
                                   AnalysisContext& context);
 
 /// Analyses the expression \p expr and returns the type it refers to. If \p

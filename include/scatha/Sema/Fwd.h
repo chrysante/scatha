@@ -15,7 +15,7 @@ class Conversion;
 class FunctionSignature;
 class SemanticIssue;
 class SymbolTable;
-class DTorStack;
+class DtorStack;
 
 ///
 /// # Forward Declaration of all entity types

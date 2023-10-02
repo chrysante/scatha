@@ -72,7 +72,7 @@ struct FuncBodyContext {
     void analyzeImpl(ast::EmptyStatement&) {}
     void analyzeImpl(ast::ASTNode& node) { SC_UNREACHABLE(); }
 
-    ast::Expression* analyzeValue(ast::Expression* expr, DTorStack& dtorStack) {
+    ast::Expression* analyzeValue(ast::Expression* expr, DtorStack& dtorStack) {
         return sema::analyzeValueExpr(expr, dtorStack, ctx);
     }
 
