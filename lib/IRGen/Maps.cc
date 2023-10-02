@@ -223,7 +223,7 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
             SC_UNREACHABLE("Undeclared structure type");
         },
         [&](sema::ArrayType const& arrayType) -> ir::Type const* {
-            return ctx->arrayType(get(arrayType.elementType()),
+            return ctx->arrayType((*this)(arrayType.elementType()),
                                   arrayType.count());
         },
         [&](sema::PointerType const&) -> ir::Type const* {
