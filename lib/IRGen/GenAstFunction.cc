@@ -1,6 +1,5 @@
-#include "IRGen/FunctionLowering.h"
+#include "IRGen/FunctionGeneration.h"
 
-#include <svm/Builtin.h>
 #include <utl/function_view.hpp>
 #include <utl/strcat.hpp>
 
@@ -33,39 +32,12 @@ struct Loop {
     ir::BasicBlock* end = nullptr;
 };
 
-struct FuncGenContext: ir::FunctionBuilder {
-    /// Global references
-    sema::Function const& semaFn;
-    ir::Function& irFn;
-    ir::Context& ctx;
-    ir::Module& mod;
-    sema::SymbolTable const& symbolTable;
-    TypeMap const& typeMap;
-    FunctionMap& functionMap;
-    utl::vector<sema::Function const*>& declaredFunctions;
-
+struct FuncGenContext: FuncGenContextBase {
     /// Local state
     ValueMap valueMap;
     utl::stack<Loop, 4> loopStack;
 
-    FuncGenContext(sema::Function const& semaFn,
-                   ir::Function& irFn,
-                   ir::Context& ctx,
-                   ir::Module& mod,
-                   sema::SymbolTable const& symbolTable,
-                   TypeMap const& typeMap,
-                   FunctionMap& functionMap,
-                   utl::vector<sema::Function const*>& declaredFunctions):
-        FunctionBuilder(ctx, &irFn),
-        semaFn(semaFn),
-        irFn(irFn),
-        ctx(ctx),
-        mod(mod),
-        symbolTable(symbolTable),
-        typeMap(typeMap),
-        functionMap(functionMap),
-        declaredFunctions(declaredFunctions),
-        valueMap(ctx) {}
+    FuncGenContext(auto&... args): FuncGenContextBase(args...), valueMap(ctx) {}
 
     /// # Statements
     void generate(ast::Statement const&);
@@ -139,27 +111,11 @@ struct FuncGenContext: ir::FunctionBuilder {
     /// \Returns `toRegister(value)` or `toMemory(value)` depending on \p
     /// location
     ir::Value* toValueLocation(ValueLocation location, Value value);
-
-    /// Map \p semaFn to the corresponding IR function. If the function is not
-    /// declared it will be declared.
-    ir::Callable* getFunction(sema::Function const* semaFn);
-
-    ///
-    ir::ForeignFunction* getMemcpy();
-
-    /// Emit a call to `memcpy`
-    void callMemcpy(ir::Value* dest, ir::Value* source, ir::Value* numBytes);
-
-    /// \overload for `size_t numBytes`
-    void callMemcpy(ir::Value* dest, ir::Value* source, size_t numBytes);
-
-    /// Get the calling convention of \p function
-    CallingConvention const& getCC(sema::Function const* function);
 };
 
 } // namespace
 
-utl::small_vector<sema::Function const*> irgen::lowerFunction(
+utl::small_vector<sema::Function const*> irgen::generateAstFunction(
     ast::FunctionDefinition const& funcDecl,
     ir::Function& irFn,
     ir::Context& ctx,
@@ -1486,39 +1442,4 @@ ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
     case Memory:
         return toMemory(value);
     }
-}
-
-ir::Callable* FuncGenContext::getFunction(sema::Function const* semaFunction) {
-    if (auto* irFunction = functionMap.tryGet(semaFunction)) {
-        return irFunction;
-    }
-    if (semaFunction->isNative()) {
-        declaredFunctions.push_back(semaFunction);
-    }
-    return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
-}
-
-ir::ForeignFunction* FuncGenContext::getMemcpy() {
-    size_t index = static_cast<size_t>(svm::Builtin::memcpy);
-    auto* semaMemcpy = symbolTable.builtinFunction(index);
-    auto* irMemcpy = getFunction(semaMemcpy);
-    return cast<ir::ForeignFunction*>(irMemcpy);
-}
-
-void FuncGenContext::callMemcpy(ir::Value* dest,
-                                ir::Value* source,
-                                ir::Value* numBytes) {
-    auto* memcpy = getMemcpy();
-    std::array args = { dest, numBytes, source, numBytes };
-    add<ir::Call>(memcpy, args, std::string{});
-}
-
-void FuncGenContext::callMemcpy(ir::Value* dest,
-                                ir::Value* source,
-                                size_t numBytes) {
-    callMemcpy(dest, source, ctx.intConstant(numBytes, 64));
-}
-
-CallingConvention const& FuncGenContext::getCC(sema::Function const* function) {
-    return functionMap.metaData(function).CC;
 }

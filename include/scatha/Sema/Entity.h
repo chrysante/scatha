@@ -456,11 +456,14 @@ public:
     /// \Returns `kind() == FunctionKind::Native`
     bool isNative() const { return kind() == FunctionKind::Native; }
 
-    /// \Returns `isForeign() && slot() == svm::BuiltinFunctionSlot`
-    bool isBuiltin() const;
+    /// \Returns `kind() == FunctionKind::Generated`
+    bool isGenerated() const { return kind() == FunctionKind::Generated; }
 
     /// \Returns `kind() == FunctionKind::Foreign`
     bool isForeign() const { return kind() == FunctionKind::Foreign; }
+
+    /// \Returns `isForeign() && slot() == svm::BuiltinFunctionSlot`
+    bool isBuiltin() const;
 
     /// \Returns `binaryVisibility() == BinaryVisibility::Export`
     bool isBinaryVisible() const {
@@ -479,6 +482,16 @@ public:
 
     /// Set the kind of special member function this function is
     void setSMFKind(SpecialMemberFunction kind) { _smfKind = kind; }
+
+    /// \Returns `true` if this function is a special lifetime function
+    bool isSpecialLifetimeFunction() const { return _slfKind.has_value(); }
+
+    /// \Returns the kind of special lifetime function if this function is a
+    /// special lifetime function
+    SpecialLifetimeFunction SLFKind() const { return *_slfKind; }
+
+    /// Set the kind of special member function this function is
+    void setSLFKind(SpecialLifetimeFunction kind) { _slfKind = kind; }
 
     /// \returns Slot of extern function table.
     ///
@@ -537,6 +550,7 @@ private:
     AccessSpecifier accessSpec = AccessSpecifier::Private;
     BinaryVisibility binaryVis = BinaryVisibility::Internal;
     std::optional<SpecialMemberFunction> _smfKind;
+    std::optional<SpecialLifetimeFunction> _slfKind;
     FunctionKind _kind = FunctionKind::Native;
     bool _isMember          : 1 = false;
     bool _haveBinaryAddress : 1 = false;
@@ -693,6 +707,14 @@ class SCATHA_API FloatType: public ArithmeticType {
 public:
     explicit FloatType(size_t bitwidth, Scope* parentScope);
 };
+
+/// ## About trivial lifetime
+/// Types are said to have _trivial lifetime_ if the destructor, the copy
+/// constructor and the move constructor are _trivial_. The lifetime functions
+/// of builtin types are always trivial. For struct types a lifetime function is
+/// trivial if it is not user defined and the corresponding lifetime function is
+/// trivial for all data members. For array types a lifetime function is trivial
+/// if the corresponding lifetime function of the element type is trivial.
 
 /// Abstract base class of `StructType` and `ArrayType`
 class SCATHA_API CompoundType: public ObjectType {

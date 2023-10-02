@@ -10,7 +10,6 @@
 #include "IRGen/CallingConvention.h"
 #include "IRGen/Maps.h"
 #include "IRGen/MetaData.h"
-#include "IRGen/SyntheticFunction.h"
 #include "IRGen/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
@@ -130,7 +129,9 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     ir::FunctionType const* const functionType = nullptr;
     UniquePtr<ir::Callable> irFn;
     switch (semaFn->kind()) {
-    case sema::FunctionKind::Native: {
+    case sema::FunctionKind::Native:
+        [[fallthrough]];
+    case sema::FunctionKind::Generated: {
         irFn =
             allocate<ir::Function>(functionType,
                                    irReturnType,
@@ -153,17 +154,6 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                           mapFuncAttrs(semaFn->attributes()));
         break;
     }
-
-    case sema::FunctionKind::Generated:
-        auto fn =
-            allocate<ir::Function>(functionType,
-                                   irReturnType,
-                                   irArgTypes,
-                                   semaFn->mangledName(),
-                                   mapFuncAttrs(semaFn->attributes()),
-                                   mapVisibility(semaFn->binaryVisibility()));
-        generateSyntheticFunction(semaFn, fn.get(), ctx);
-        irFn = std::move(fn);
     }
     functionMap.insert(semaFn, irFn.get(), std::move(metaData));
     auto* result = irFn.get();

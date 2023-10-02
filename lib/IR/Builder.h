@@ -1,9 +1,11 @@
 #ifndef SCATHA_IR_BUILDER_H_
 #define SCATHA_IR_BUILDER_H_
 
+#include <concepts>
 #include <span>
 #include <string>
 
+#include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
 #include "Common/UniquePtr.h"
@@ -78,6 +80,18 @@ public:
     /// Access the currently active basic block, i.e. the block that was added
     /// last to the function
     BasicBlock& currentBlock() const { return *currentBB; }
+
+    ///
+    void makeBlockCurrent(BasicBlock* BB) { currentBB = BB; }
+
+    ///
+    template <std::invocable F>
+    decltype(auto) withBlockCurrent(BasicBlock* BB, F&& f) {
+        auto* stashed = &currentBlock();
+        utl::scope_guard guard([&] { makeBlockCurrent(stashed); });
+        makeBlockCurrent(BB);
+        return std::invoke(std::forward<F>(f));
+    }
 
     /// Creates a new basic block with name \p name without adding it to the
     /// current function

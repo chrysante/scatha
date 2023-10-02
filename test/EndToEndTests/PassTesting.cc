@@ -172,10 +172,12 @@ struct Impl {
 } // namespace
 
 void test::checkReturns(uint64_t expectedResult, std::string_view source) {
+    test::CoutRerouter rerouter;
     Impl::get().runTest(makeScathaGenerator(source), expectedResult);
 }
 
 void test::checkIRReturns(uint64_t expectedResult, std::string_view source) {
+    test::CoutRerouter rerouter;
     Impl::get().runTest(makeIRGenerator(source), expectedResult);
 }
 

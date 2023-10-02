@@ -52,7 +52,8 @@ void StructType::computeSizeAndAlign() {
     }
     /// Empty types have a size of 1 to give objects address identity (and also
     /// because it solves many issues)
-    setSize(size() == 0 ? 1 : utl::round_up(size(), align()));
+    setAlign(std::max(align(), size_t{ 1 }));
+    setSize(utl::round_up(std::max(size(), size_t{ 1 }), align()));
 }
 
 ArrayType::ArrayType(Type const* elementType, size_t count):

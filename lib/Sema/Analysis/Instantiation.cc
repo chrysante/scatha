@@ -219,8 +219,8 @@ void InstContext::instantiateStructureType(SDGNode& node) {
     if (objectAlign > 0) {
         objectSize = utl::round_up(objectSize, objectAlign);
     }
-    structType.setSize(objectSize);
-    structType.setAlign(objectAlign);
+    structType.setSize(std::max(objectSize, size_t{ 1 }));
+    structType.setAlign(std::max(objectAlign, size_t{ 1 }));
 }
 
 static Type const* getType(ast::Expression const* expr) {
@@ -454,6 +454,11 @@ void InstContext::generateSLFs(StructType& type) {
         }
         if (!SLF[Destructor]) {
             SLF[Destructor] = generateSLF(Destructor, type);
+        }
+    }
+    for (auto kind: EnumRange<SpecialLifetimeFunction>()) {
+        if (SLF[kind]) {
+            SLF[kind]->setSLFKind(kind);
         }
     }
     type.setSpecialLifetimeFunctions(SLF);

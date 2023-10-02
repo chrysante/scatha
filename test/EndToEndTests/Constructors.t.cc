@@ -187,3 +187,24 @@ fn main() -> int {
     return x.i + int(x.f) + x.y.k + int(x.y.b);
 })");
 }
+
+TEST_CASE("Generated constructors", "[end-to-end][constructors]") {
+    auto text = CommonDefs + R"(
+struct Z {
+    fn new(&mut this) { this.n = 3; }
+    var n: int;
+}
+struct Y {
+    var n: int;
+    var x: X;
+    var z: Z;
+}
+fn main() {
+    var x = Y();
+    x.n = 1;
+    var y = x;
+    return x.z.n + y.z.n + y.n;
+})";
+    test::checkReturns(7, text);
+    test::checkPrints("+0+1-1-0", text);
+}
