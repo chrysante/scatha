@@ -11,6 +11,12 @@ using namespace irgen;
 
 namespace {
 
+struct Loop {
+    ir::BasicBlock* body;
+    ir::Value* index;
+    ir::Instruction const* insertPoint;
+};
+
 struct FuncGenContext: FuncGenContextBase {
     sema::CompoundType const* parentType;
     sema::SpecialLifetimeFunction kind;
@@ -25,14 +31,17 @@ struct FuncGenContext: FuncGenContextBase {
     void genImpl(sema::StructType const& type);
     void genImpl(sema::ArrayType const& type);
 
-    void genMemberCall(sema::ObjectType const& memberType, ir::Value* index);
+    void genMemberCall(ir::Instruction const* before,
+                       sema::ObjectType const& memberType,
+                       ir::Value* index);
 
     ///
-    utl::small_vector<ir::Value*, 2> genArguments(ir::Type const* inType,
+    utl::small_vector<ir::Value*, 2> genArguments(ir::Instruction const* before,
+                                                  ir::Type const* inType,
                                                   ir::Value* index);
 
-    /// \Returns the loop body and the loop index
-    std::pair<ir::BasicBlock*, ir::Value*> loop(size_t count);
+    /// \Returns the loop structure
+    Loop genLoop(size_t count);
 };
 
 } // namespace
@@ -71,7 +80,8 @@ void FuncGenContext::generate() {
 void FuncGenContext::genImpl(sema::StructType const& type) {
     for (auto* var: type.memberVariables()) {
         /// `cast` is safe here because data member must be of object type
-        genMemberCall(*cast<sema::ObjectType const*>(var->type()),
+        genMemberCall(currentBlock().end().to_address(),
+                      *cast<sema::ObjectType const*>(var->type()),
                       ctx.intConstant(var->index(), 64));
     }
 }
@@ -83,20 +93,22 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
     SC_ASSERT(!elemType->hasTrivialLifetime(),
               "We should not generate lifetime functions for arrays of trivial "
               "lifetime types");
-    auto [body, index] = loop(type.count());
-    if (!body) {
+    auto loop = genLoop(type.count());
+    if (!loop.body) {
         return;
     }
-    withBlockCurrent(body,
-                     [&, index = index] { genMemberCall(*elemType, index); });
+    withBlockCurrent(loop.body, [&] {
+        genMemberCall(loop.insertPoint, *elemType, loop.index);
+    });
 }
 
-void FuncGenContext::genMemberCall(sema::ObjectType const& type,
+void FuncGenContext::genMemberCall(ir::Instruction const* before,
+                                   sema::ObjectType const& type,
                                    ir::Value* index) {
-    auto arguments = genArguments(typeMap(&type), index);
+    auto arguments = genArguments(before, typeMap(&type), index);
     if (auto* compType = dyncast<sema::CompoundType const*>(&type)) {
         if (auto* f = compType->specialLifetimeFunction(kind)) {
-            add<ir::Call>(getFunction(f), arguments);
+            insert<ir::Call>(before, getFunction(f), arguments);
             return;
         }
     }
@@ -112,8 +124,8 @@ void FuncGenContext::genMemberCall(sema::ObjectType const& type,
         [[fallthrough]];
     case CopyConstructor: {
         auto* irType = typeMap(&type);
-        auto* value = add<ir::Load>(arguments[1], irType, "value");
-        add<ir::Store>(arguments[0], value);
+        auto* value = insert<ir::Load>(before, arguments[1], irType, "value");
+        insert<ir::Store>(before, arguments[0], value);
         break;
     }
     case Destructor:
@@ -122,34 +134,34 @@ void FuncGenContext::genMemberCall(sema::ObjectType const& type,
 }
 
 utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
-    ir::Type const* inType, ir::Value* index) {
+    ir::Instruction const* before, ir::Type const* inType, ir::Value* index) {
     return irFn.parameters() | TakeAddress |
            ranges::views::transform([&](auto* param) {
-               return add<ir::GetElementPointer>(inType,
-                                                 param,
-                                                 index,
-                                                 std::array<size_t, 0>{},
-                                                 "mem.acc");
+               return insert<ir::GetElementPointer>(before,
+                                                    inType,
+                                                    param,
+                                                    index,
+                                                    std::array<size_t, 0>{},
+                                                    "mem.acc");
            }) |
            ranges::to<utl::small_vector<ir::Value*, 2>>;
 }
 
-std::pair<ir::BasicBlock*, ir::Value*> FuncGenContext::loop(size_t count) {
+Loop FuncGenContext::genLoop(size_t count) {
     if (count == 0) {
         return {};
     }
+    auto* pred = &currentBlock();
     auto* body = newBlock("loop.body");
-    auto* footer = newBlock("loop.footer");
     auto* end = newBlock("loop.end");
 
+    add<ir::Goto>(body);
     add(body);
+
     auto* phi =
-        add<ir::Phi>(std::array{ ir::PhiMapping{ &currentBlock(),
-                                                 ctx.intConstant(0, 64) },
-                                 ir::PhiMapping{ &currentBlock(), nullptr } },
+        add<ir::Phi>(std::array{ ir::PhiMapping{ pred, ctx.intConstant(0, 64) },
+                                 ir::PhiMapping{ body, nullptr } },
                      "counter");
-    add<ir::Goto>(footer);
-    add(footer);
     auto* inc = add<ir::ArithmeticInst>(phi,
                                         ctx.intConstant(1, 64),
                                         ir::ArithmeticOperation::Add,
@@ -162,5 +174,6 @@ std::pair<ir::BasicBlock*, ir::Value*> FuncGenContext::loop(size_t count) {
                                       "loop.test");
     add<ir::Branch>(cond, end, body);
     add(end);
-    return { body, phi };
+
+    return Loop{ body, phi, inc };
 }
