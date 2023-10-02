@@ -1290,47 +1290,48 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
         add<ir::Call>(function, irArguments, std::string{});
         return Value(address, type, Memory);
     }
-    ///
+    // clang-format off
     return SC_MATCH (*expr.type()){
         [&](sema::ObjectType const& type) {
-        if (expr.arguments().empty()) {
-            auto* value = ctx.undef(typeMap(expr.type()));
-            return Value(value, Register);
-        }
-        else {
-            SC_ASSERT(expr.arguments().size() == 1, "");
-            auto* arg = expr.arguments().front();
-            auto value = getValue(arg);
-            valueMap.insertArraySizeOf(expr.object(), arg->object());
-            return Value(toRegister(value), Register);
-        }
+            if (expr.arguments().empty()) {
+                auto* value = ctx.undef(typeMap(expr.type()));
+                return Value(value, Register);
+            }
+            else {
+                SC_ASSERT(expr.arguments().size() == 1, "");
+                auto* arg = expr.arguments().front();
+                auto value = getValue(arg);
+                valueMap.insertArraySizeOf(expr.object(), arg->object());
+                return Value(toRegister(value), Register);
+            }
         },
         [&](sema::StructType const& type) {
-        if (expr.arguments().empty()) {
-            auto* value = ctx.undef(typeMap(expr.type()));
-            return Value(value, Register);
-        }
-        else if (expr.arguments().size() == 1 &&
-                 expr.arguments().front()->type().get() == expr.type().get())
-        {
-            auto* arg = expr.arguments().front();
-            auto value = getValue(arg);
-            valueMap.insertArraySizeOf(expr.object(), arg->object());
-            return Value(toRegister(value), Register);
-        }
-        else {
-            ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
-            for (auto [index, arg]: expr.arguments() | ranges::views::enumerate)
-            {
-                auto* member = getValue<Register>(arg);
-                aggregate = add<ir::InsertValue>(aggregate,
-                                                 member,
-                                                 std::array{ index },
-                                                 "aggregate");
+            if (expr.arguments().empty()) {
+                auto* value = ctx.undef(typeMap(expr.type()));
+                return Value(value, Register);
             }
-            return Value(aggregate, Register);
-        }
-    },
+            else if (expr.arguments().size() == 1 &&
+                     expr.arguments().front()->type().get() == expr.type().get())
+            {
+                auto* arg = expr.arguments().front();
+                auto value = getValue(arg);
+                valueMap.insertArraySizeOf(expr.object(), arg->object());
+                return Value(toRegister(value), Register);
+            }
+            else {
+                ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
+                for (auto [index, arg]: expr.arguments() |
+                                        ranges::views::enumerate)
+                {
+                    auto* member = getValue<Register>(arg);
+                    aggregate = add<ir::InsertValue>(aggregate,
+                                                     member,
+                                                     std::array{ index },
+                                                     "aggregate");
+                }
+                return Value(aggregate, Register);
+            }
+        },
         [&](sema::ArrayType const& type) -> Value {
             SC_ASSERT(expr.arguments().size() == 1, "");
             auto* arg = expr.arguments().front();
@@ -1347,7 +1348,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                 return Value(array, arrayType, Memory);
             }
         },
-        }; // clang-format on
+    }; // clang-format on
 }
 
 Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
@@ -1384,7 +1385,6 @@ Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
         SC_ASSERT(dest.isMemory(), "");
         callDtor(expr.dest()->object(), expr.dtor());
         auto source = getValue(expr.source());
-        ;
         SC_ASSERT(source.isMemory(), "");
         SC_ASSERT(isa<ir::Alloca>(source.get()),
                   "How can an rvalue in memory not be stack memory?");
