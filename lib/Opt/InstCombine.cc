@@ -393,6 +393,7 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
 /// c = a + 2
 /// ```
 void InstCombineCtx::mergeArithmetic(ArithmeticInst* inst) {
+    /// TODO: Handle the case where arguments are undef
     auto* rhs = dyncast<Constant*>(inst->rhs());
     if (!rhs) {
         return;
