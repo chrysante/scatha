@@ -332,7 +332,13 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     if (itr != impl->arrayTypes.end()) {
         return itr->second;
     }
-    auto* arrayType = impl->addEntity<ArrayType>(elementType, size);
+    /// Const casting is fine because
+    /// - the symbol table is the only factory of types so we can guarantee that
+    ///   all types are inherently mutable and
+    /// - we return the array type as const and the `elementType()` accessor on
+    ///   `ArrayType` propagates const-ness.
+    auto* arrayType =
+        impl->addEntity<ArrayType>(const_cast<ObjectType*>(elementType), size);
     impl->arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
         auto* arraySize = addProperty(PropertyKind::ArraySize, S64());
