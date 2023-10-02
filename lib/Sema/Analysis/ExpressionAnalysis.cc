@@ -905,10 +905,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
         return nullptr;
     }
     using enum SpecialLifetimeFunction;
-    /// TODO: We will fail here with arrays
-    auto* type = cast<StructType const*>(expr.dest()->type().get());
-    auto* dtor = type->specialLifetimeFunction(Destructor);
-    auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
+    auto* compType = cast<CompoundType const*>(expr.dest()->type().get());
+    auto* dtor = compType->specialLifetimeFunction(Destructor);
+    auto* copyCtor = compType->specialLifetimeFunction(CopyConstructor);
     if (expr.source()->isLValue()) {
         expr.decorateAssign(dtor, copyCtor);
     }
@@ -1040,7 +1039,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         return &expr;
     }
     /// Non-trivial case
-    /// TODO: Cast to common base class of array and struct type
     if (expr.arguments().empty() ||
         !isa<ast::UninitTemporary>(expr.argument(0)))
     {
@@ -1048,9 +1046,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         obj->decorateValue(sym.temporary(type), LValue);
         expr.insertArgument(0, std::move(obj));
     }
-    auto* compoundType = cast<StructType const*>(type);
+    auto* compType = cast<CompoundType const*>(type);
     using enum SpecialMemberFunction;
-    auto* ctorSet = compoundType->specialMemberFunction(New);
+    auto* ctorSet = compType->specialMemberFunction(New);
     SC_ASSERT(ctorSet, "Trivial lifetime case is handled above");
     auto result = performOverloadResolution(ctorSet,
                                             expr.arguments() | ToAddress |

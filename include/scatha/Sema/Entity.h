@@ -820,11 +820,11 @@ class SCATHA_API ArrayType: public CompoundType {
 public:
     static constexpr size_t DynamicCount = ~size_t(0);
 
-    explicit ArrayType(ObjectType const* elementType, size_t count):
+    explicit ArrayType(ObjectType* elementType, size_t count):
         CompoundType(EntityType::ArrayType,
                      ScopeKind::Type,
                      makeName(elementType, count),
-                     const_cast<Scope*>(elementType->parent()),
+                     elementType->parent(),
                      count != DynamicCount ? count * elementType->size() :
                                              InvalidSize,
                      elementType->align()),
@@ -834,6 +834,9 @@ public:
     }
 
     /// Type of the elements in this array
+    ObjectType* elementType() { return elemType; }
+
+    /// \overload
     ObjectType const* elementType() const { return elemType; }
 
     /// Number of elements in this array
@@ -855,7 +858,7 @@ private:
         return elementType()->hasTrivialLifetime();
     }
 
-    ObjectType const* elemType;
+    ObjectType* elemType;
     Property* countProp = nullptr;
     size_t _count;
 };
