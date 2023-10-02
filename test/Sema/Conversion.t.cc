@@ -7,7 +7,7 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
-#include "Sema/Analysis/DtorStack.h"
+#include "Sema/DtorStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
