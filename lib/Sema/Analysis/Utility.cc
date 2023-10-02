@@ -52,12 +52,15 @@ void sema::popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
     if (!expr || !expr->isDecorated()) {
         return;
     }
-    auto* structType = dyncast<StructType const*>(expr->type().get());
-    if (!structType) {
+    auto* compType = dyncast<CompoundType const*>(expr->type().get());
+    if (!compType) {
         return;
     }
     using enum SpecialLifetimeFunction;
-    if (structType->specialLifetimeFunction(Destructor)) {
+    if (compType->specialLifetimeFunction(Destructor)) {
+        SC_ASSERT(expr->object() == dtors.top().object,
+                  "We want to prolong the lifetime of the object defined by "
+                  "expr, so that object better be on top of the stack");
         dtors.pop();
     }
 }

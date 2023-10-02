@@ -961,14 +961,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conversion& expr) {
 /// actual constructor call. This is probably a half baked solution and should
 /// be revisited.
 static bool ctorIsPseudo(Type const* type, auto const& args) {
-    auto* structType = dyncast<StructType const*>(type);
-    /// Non struct types are always trivial. This will not hold true for arrays
-    /// of non-trivial type though.
-    if (!structType) {
+    auto* compType = dyncast<CompoundType const*>(type);
+    /// Non compound types are always trivial
+    if (!compType) {
         return true;
     }
     /// Non-trivial lifetime type has no pseudo constructors
-    if (!structType->hasTrivialLifetime()) {
+    if (!compType->hasTrivialLifetime()) {
         return false;
     }
     /// Trivial lifetime copy constructor call
@@ -977,7 +976,7 @@ static bool ctorIsPseudo(Type const* type, auto const& args) {
     }
     /// Trivial lifetime general constructor call
     using enum SpecialMemberFunction;
-    return structType->specialMemberFunction(New) == nullptr;
+    return compType->specialMemberFunction(New) == nullptr;
 }
 
 static bool canConstructTrivialType(ObjectType const* type,

@@ -2,7 +2,6 @@
 
 #include <optional>
 
-#include "AST/AST.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -10,23 +9,21 @@ using namespace sema;
 
 static std::optional<DestructorCall> makeDTorCall(Object* obj) {
     auto* type = obj->type();
-    auto* structType = dyncast<StructType const*>(type);
-    if (!structType) {
+    auto* compType = dyncast<CompoundType const*>(type);
+    if (!compType) {
         return std::nullopt;
     }
-    using enum SpecialMemberFunction;
-    auto* dtorSet = structType->specialMemberFunction(Delete);
-    if (!dtorSet) {
+    using enum SpecialLifetimeFunction;
+    auto* dtor = compType->specialLifetimeFunction(Destructor);
+    if (!dtor) {
         return std::nullopt;
     }
-    SC_ASSERT(dtorSet->size() == 1, "Destructors cannot be overloaded");
-    auto* function = dtorSet->front();
-    return DestructorCall{ obj, function };
+    return DestructorCall{ obj, dtor };
 }
 
 void DTorStack::push(Object* obj) {
     if (auto dtorCall = makeDTorCall(obj)) {
-        dtorCalls.push(*dtorCall);
+        push(*dtorCall);
     }
 }
 
