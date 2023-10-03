@@ -217,3 +217,34 @@ fn main() {
     var ref: &X = (X(7).value, x);
 })");
 }
+
+TEST_CASE("Array default constructor", "[end-to-end][constructors]") {
+    test::checkPrints("+0+0+0-0-0-0", CommonDefs + R"(
+fn main() {
+    var a: [X, 3];
+})");
+}
+
+TEST_CASE("Array copy constructor", "[end-to-end][constructors]") {
+    test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
+fn main() {
+    var a: [X, 2];
+    var b = a;
+})");
+}
+
+/// FIXME: This fails
+/// This fails because there is still a major problem regarding lifetimes:
+/// __ Non-trivial lifetime does not imply that we don't have compiler generated
+/// constructors __ A type can very well not have trivial lifetime, but still be
+/// a "POD-type", for example `struct X { var mem: NonTrivial; };` or
+/// `[NonTrivial, 2]`
+TEST_CASE("Copy array to function", "[end-to-end][constructors]") {
+    return;
+    test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
+fn f(data: [X, 2]) {}
+fn main() {
+    var a: [X, 2];
+    f(a);
+})");
+}
