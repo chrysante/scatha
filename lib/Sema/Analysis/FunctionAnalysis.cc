@@ -308,6 +308,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     /// constructors and the parent destructors must be lower in the stack
     gatherParentDestructors(rs);
     Type const* returnType = currentFunction.returnType();
+    /// "Naked" `return;` case
     if (!rs.expression()) {
         if (!returnType) {
             deduceReturnTypeTo(&rs, sym.Void());
@@ -316,9 +317,10 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
             ctx.issue<BadReturnStmt>(&rs,
                                      BadReturnStmt::NonVoidMustReturnValue);
         }
-        /// Else we have void and function shall return void
+        /// Else we return `void` as expected
         return;
     }
+    /// We return an expression
     if (!analyzeValue(rs.expression(), rs.dtorStack())) {
         return;
     }
