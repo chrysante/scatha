@@ -1,4 +1,156 @@
+// clang-format off
+
+///
+/// ## Grammar
+///
+/// ```
+/// <translation-unit>              ::= {<external-declaration>}*
+/// <external-declaration>          ::= [<access-spec>] <function-definition>
+///                                   | [<access-spec>] <struct-definition>
+/// <function-definition>           ::= "fn" <identifier>
+///                                          "(" {<parameter-declaration>}* ")"
+///                                          ["->" <type-expression>]
+///                                          <compound-statement>
+/// <parameter-declaration>         ::= <identifier> ":" <type-expression>
+///                                   | "this"
+///                                   | "& this"
+///                                   | "& mut this"
+/// <struct-definition>             ::= "struct" <identifier> <compound-statement>
+/// <variable-declaration>          ::= ("var"|"let") <short-var-declaration>
+/// <short-var-declaration>         ::= <identifier> [":" <type-expression>]
+///                                                  ["=" <assignment-expression>] ";"
+/// <statement>                     ::= <external-declaration>
+///                                   | <variable-declaration>
+///                                   | <control-flow-statement>
+///                                   | <compound-statement>
+///                                   | <expression-statement>
+///                                   | ";"
+/// <expression-statement>          ::= <commma-expression> ";"
+/// <compound-statement>            ::= "{" {<statement>}* "}"
+/// <control-flow-statement>        ::= <return statement>
+///                                   | <if-statement>
+///                                   | <while-statement>
+///                                   | <do-while-statement>
+///                                   | <for-statement>
+/// <return-statement>              ::= "return" [<comma-expression>] ";"
+/// <if-statement>                  ::= "if" <comma-expression> <compound-statement> ["else" (<if-statement> | <compound-statement>)]
+/// <while-statement>               ::= "while" <comma-expression> <compound-statement>
+/// <do-while-statement>            ::= "do" <compound-statement> "while" <comma-expression> ";"
+/// <for-statement>                 ::= "for" <short-var-declaration> <comma-expression> ";" <comma-expression> <compound-statement>
+/// <break-statement>               ::= "break;"
+/// <continue-statement>            ::= "continue;"
+///
+/// <type-expression>               ::= <prefix-expression>
+///
+/// <comma-expression>              ::= <assignment-expression>
+///                                   | <comma-expression> "," <assignment-expression>
+/// <assignment-expression>         ::= <conditional-expression>
+///                                   | <conditional-expression> "=, *=, ..." <assignment-expression>
+/// <conditional-expression>        ::= <logical-or-expression>
+///                                   | <logical-or-expression> "?" <comma-expression> ":" <conditional-expression>
+/// <logical-or-expression>         ::= <logical-and-expression>
+///                                   | <logical-or-expression> "||" <logical-and-expression>
+/// <logical-and-expression>        ::= <inclusive-or-expression>
+///                                   | <logical-and-expression> "&&" <inclusive-or-expression>
+/// <inclusive-or-expression>       ::= <exclusive-or-expression>
+///                                   | <inclusive-or-expression> "|" <exclusive-or-expression>
+/// <exclusive-or-expression>       ::= <and-expression>
+///                                   | <exclusive-or-expression> "^" <and-expression>
+/// <and-expression>                ::= <equality-expression>
+///                                   | <and-expression> "&" <equality-expression>
+/// <equality-expression>           ::= <relational-expression>
+///                                   | <equality-expression> "==" <relational-expression>
+///                                   | <equality-expression> "!=" <relational-expression>
+/// <relational-expression>         ::= <shift-expression>
+///                                   | <relational-expression> "<"  <shift-expression>
+///                                   | <relational-expression> ">" <shift-expression>
+///                                   | <relational-expression> "<=" <shift-expression>
+///                                   | <relational-expression> ">=" <shift-expression>
+/// <shift-expression>              ::= <additive-expression>
+///                                   | <shift-expression> "<<" <additive-expression>
+///                                   | <shift-expression> ">>" <additive-expression>
+/// <additive-expression>           ::= <multiplicative-expression>
+///                                   | <additive-expression> "+" <multiplicative-expression>
+///                                   | <additive-expression> "-" <multiplicative-expression>
+/// <multiplicative-expression>     ::= <prefix-expression>
+///                                   | <multiplicative-expression> "*" <prefix-expression>
+///                                   | <multiplicative-expression> "/" <prefix-expression>
+///                                   | <multiplicative-expression> "%" <prefix-expression>
+/// <prefix-expression>              ::= <postfix-expression>
+///                                   | "+" <prefix-expression>
+///                                   | "-" <prefix-expression>
+///                                   | "~" <prefix-expression>
+///                                   | "!" <prefix-expression>
+///                                   | "++" <prefix-expression>
+///                                   | "--" <prefix-expression>
+///                                   | "*" ["mut"] <prefix-expression>
+///                                   | "&" ["mut"] <prefix-expression>
+///                                   | "move" <prefix-expression>
+/// <postfix-expression>            ::= <generic-expression>
+///                                   | <postfix-expression> "++"
+///                                   | <postfix-expression> "--"
+///                                   | <postfix-expression> "[" {<assignment-expression>} ":" {<assignment-expression>} "]"
+///                                   | <postfix-expression> "[" {<assignment-expression>}* "]"
+///                                   | <postfix-expression> "(" {<assignment-expression>}* ")"
+///                                   | <postfix-expression> "." <identifier>
+/// <generic-expression>            ::= <primary-expression>
+///                                   | <generic-id> "<" {<additive-expression>}* ">"
+/// <primary-expression>            ::= <identifier>
+///                                   | <integer-literal>
+///                                   | <boolean-literal>
+///                                   | <floating-point-literal>
+///                                   | "this"
+///                                   | <string-literal>
+///                                   | "(" <comma-expression> ")"
+///                                   | "[" {<conditional-expression>}* "]"
+/// <access-spec>                   ::= "public" | "private"
+/// ```
+///
+/// ## Operator precedence
+///
+/// ```
+/// ┌────────────┬──────────────┬──────────────────────────────┬──────────────────┐
+/// │ Precedence │ Operator     │ Description                  │ Associativity    │
+/// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
+/// │  1         │ ()           │ Function call                │ Left to right -> │
+/// │            │ []           │ Subscript                    │                  │
+/// │            │ .            │ Member access                │                  │
+/// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
+/// │  2         │ +, -         │ Unary plus and minus         │ Right to left <- │
+/// │            │ !, ~         │ Logical and bitwise NOT      │                  │
+/// │            │ &            │ Reference                    │                  │
+/// │            │ unique       │ Dynamic memory allocation    │                  │
+/// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
+/// │  3         │ *, /, %      │ Multiplication, division     │ Left to right -> │
+/// │            │              │ and remainder                │                  │
+/// │  4         │ +, -         │ Addition and subtraction     │                  │
+/// │  5         │ <<, >>       │ Bitwise left and right shift │                  │
+/// │  6         │ <, <=, >, >= │ Relational operators         │                  │
+/// │  7         │ ==, !=       │ Equality operators           │                  │
+/// │  8         │ &            │ Bitwise AND                  │                  │
+/// │  9         │ ^            │ Bitwise XOR                  │                  │
+/// │ 10         │ |            │ Bitwise OR                   │                  │
+/// │ 11         │ &&           │ Logical AND                  │                  │
+/// │ 12         │ ||           │ Logical OR                   │                  │
+/// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
+/// │ 13         │ ?:           │ Conditional                  │ Right to left <- │
+/// │            │ =, +=, -=    │ Assignment                   │ Right to left <- │
+/// │            │ *=, /=, %=   │                              │                  │
+/// │            │ <<=, >>=,    │                              │                  │
+/// │            │ &=, |=,      │                              │                  │
+/// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
+/// │ 14         │ ,            │ Comma operator               │ Left to right -> │
+/// └────────────┴──────────────┴──────────────────────────────┴──────────────────┘
+/// ```
+
+// clang-format on
+
 #include "Parser/Parser.h"
+
+#include <concepts>
+
+#include <utl/concepts.hpp>
+#include <utl/function_view.hpp>
 
 #include "AST/AST.h"
 #include "Common/Base.h"
@@ -6,14 +158,112 @@
 #include "Parser/BracketCorrection.h"
 #include "Parser/Lexer.h"
 #include "Parser/Panic.h"
-#include "Parser/ParserImpl.h"
 #include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
 
 using namespace scatha;
 using namespace parser;
-
 using enum TokenKind;
+
+namespace {
+
+struct Context {
+    TokenStream tokens;
+    IssueHandler& issues;
+
+    UniquePtr<ast::ASTNode> run();
+
+    UniquePtr<ast::TranslationUnit> parseTranslationUnit();
+    UniquePtr<ast::Declaration> parseExternalDeclaration();
+    UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
+    UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration(
+        size_t index);
+    UniquePtr<ast::StructDefinition> parseStructDefinition();
+    UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
+    UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
+        sema::Mutability mutability,
+        std::optional<Token> declarator = std::nullopt);
+    UniquePtr<ast::Statement> parseStatement();
+    UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
+    UniquePtr<ast::EmptyStatement> parseEmptyStatement();
+    UniquePtr<ast::CompoundStatement> parseCompoundStatement();
+    UniquePtr<ast::ControlFlowStatement> parseControlFlowStatement();
+    UniquePtr<ast::ReturnStatement> parseReturnStatement();
+    UniquePtr<ast::IfStatement> parseIfStatement();
+    UniquePtr<ast::LoopStatement> parseWhileStatement();
+    UniquePtr<ast::LoopStatement> parseDoWhileStatement();
+    UniquePtr<ast::LoopStatement> parseForStatement();
+    UniquePtr<ast::JumpStatement> parseJumpStatement();
+
+    // Expressions
+    UniquePtr<ast::Expression> parseTypeExpression();
+    UniquePtr<ast::Expression> parseComma();
+    UniquePtr<ast::Expression> parseAssignment();
+    UniquePtr<ast::Expression> parseConditional();
+    UniquePtr<ast::Expression> parseLogicalOr();
+    UniquePtr<ast::Expression> parseLogicalAnd();
+    UniquePtr<ast::Expression> parseInclusiveOr();
+    UniquePtr<ast::Expression> parseExclusiveOr();
+    UniquePtr<ast::Expression> parseAnd();
+    UniquePtr<ast::Expression> parseEquality();
+    UniquePtr<ast::Expression> parseRelational();
+    UniquePtr<ast::Expression> parseShift();
+    UniquePtr<ast::Expression> parseAdditive();
+    UniquePtr<ast::Expression> parseMultiplicative();
+    UniquePtr<ast::Expression> parsePrefix();
+    UniquePtr<ast::Expression> parsePostfix();
+    UniquePtr<ast::Expression> parseGeneric();
+    UniquePtr<ast::Expression> parsePrimary();
+    UniquePtr<ast::Identifier> parseID();
+    UniquePtr<ast::Identifier> parseExtID();
+    UniquePtr<ast::Literal> parseLiteral();
+
+    // Helpers
+    sema::Mutability eatMut();
+
+    void pushExpectedExpression(Token const&);
+
+    template <utl::invocable_r<bool, Token const&>... Cond, std::predicate... F>
+    bool recover(std::pair<Cond, F>... retry);
+
+    template <std::predicate... F>
+    bool recover(std::pair<TokenKind, F>... retry);
+
+    template <typename Expr>
+    UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
+                                          TokenKind open,
+                                          TokenKind close);
+
+    template <typename Expr>
+    UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
+                                          TokenKind open,
+                                          TokenKind close,
+                                          auto parseCallback);
+
+    template <typename List, typename DList = std::decay_t<List>>
+    std::optional<DList> parseList(TokenKind open,
+                                   TokenKind close,
+                                   TokenKind delimiter,
+                                   auto parseCallback);
+
+    UniquePtr<ast::UnaryExpression> parseUnaryPostfix(
+        ast::UnaryOperator op, UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::CallLike> parseSubscript(UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::FunctionCall> parseFunctionCall(
+        UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::Expression> parseMemberAccess(
+        UniquePtr<ast::Expression> primary);
+
+    template <ast::BinaryOperator...>
+    UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);
+
+    template <ast::BinaryOperator...>
+    UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
+
+    void expectDelimiter(TokenKind delimiter);
+};
+
+} // namespace
 
 UniquePtr<ast::ASTNode> parser::parse(std::string_view source,
                                       IssueHandler& issueHandler) {
