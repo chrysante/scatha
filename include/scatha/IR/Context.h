@@ -46,6 +46,12 @@ public:
     /// \returns The structure type with members \p members
     StructType const* anonymousStruct(std::span<Type const* const> members);
 
+    /// \returns The structure type with members \p members
+    StructType const* anonymousStruct(
+        std::initializer_list<Type const*> members) {
+        return anonymousStruct(std::span<Type const* const>(members));
+    }
+
     /// \returns The array type of \p elementType with \p count elements
     ArrayType const* arrayType(Type const* elementType, size_t count);
 
