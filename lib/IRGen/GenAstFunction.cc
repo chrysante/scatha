@@ -1333,19 +1333,30 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             }
         },
         [&](sema::ArrayType const& type) -> Value {
-            SC_ASSERT(expr.arguments().size() == 1, "");
-            auto* arg = expr.arguments().front();
-            if (type.size() <= 64) {
-                auto value = getValue(arg);
-                return Value(toRegister(value), Register);
+            switch (expr.arguments().size()) {
+            case 0: {
+                auto* irType = typeMap(&type);
+                auto* addr = makeLocalVariable(irType, "tmp.array");
+                /// TODO: Zero the memory here and also rewrite this
+                return Value(addr, irType, Memory);
             }
-            else {
-                auto source = getValue(arg);
-                SC_ASSERT(source.isMemory(), "");
-                auto* arrayType = typeMap(&type);
-                auto* array = makeLocalVariable(arrayType, "list");
-                callMemcpy(array, source.get(), type.size());
-                return Value(array, arrayType, Memory);
+            case 1: {
+                auto* arg = expr.arguments().front();
+                if (type.size() <= 64) {
+                    auto value = getValue(arg);
+                    return Value(toRegister(value), Register);
+                }
+                else {
+                    auto source = getValue(arg);
+                    SC_ASSERT(source.isMemory(), "");
+                    auto* arrayType = typeMap(&type);
+                    auto* array = makeLocalVariable(arrayType, "list");
+                    callMemcpy(array, source.get(), type.size());
+                    return Value(array, arrayType, Memory);
+                }
+            }
+            default:
+                SC_UNIMPLEMENTED();
             }
         },
     }; // clang-format on
