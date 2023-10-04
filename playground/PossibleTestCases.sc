@@ -1,4 +1,30 @@
 
+/// Reference deduction syntax
+
+fn test(n: &int) -> & { // Cannot resolve as mut
+    return n; // Returns n as &int
+}
+
+fn test(n: &mut int) -> & {
+    return n; // Returns n as &int. No implicit mut here
+}
+
+fn test(n: &mut int) -> &mut {
+    return n; // Returns n as &mut int
+}
+
+fn main(n: int) {
+    var m = 0;
+    
+    var i: & = n; // Error. n cannot bind to mutable reference
+    let i: & = n; // Fine
+    
+    var i: & = m; // Fine. Resolves as &mut int
+    let i: & = m; // Fine. Resolves as &int
+}
+
+
+
 /// Unreachable loop. Computation of LNF deadlocks
 
 fn main() -> int {
