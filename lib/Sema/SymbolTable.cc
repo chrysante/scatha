@@ -10,6 +10,7 @@
 #include "Common/Ranges.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
@@ -341,10 +342,15 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType =
         impl->addEntity<ArrayType>(const_cast<ObjectType*>(elementType), size);
     impl->arrayTypes.insert({ key, arrayType });
-    withScopeCurrent(arrayType, [&] {
-        auto* arraySize = addProperty(PropertyKind::ArraySize, S64());
-        arrayType->setCountProperty(arraySize);
+    auto* arraySize = withScopeCurrent(arrayType, [&] {
+        return addProperty(PropertyKind::ArraySize, S64());
     });
+    arrayType->setCountProperty(arraySize);
+    if (size != ArrayType::DynamicCount) {
+        auto constSize = allocate<IntValue>(APInt(size, 64),
+                                            /* isSigned = */ true);
+        arraySize->setConstantValue(std::move(constSize));
+    }
     declareSpecialLifetimeFunctions(*arrayType, *this);
     return arrayType;
 }

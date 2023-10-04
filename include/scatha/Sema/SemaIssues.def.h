@@ -276,17 +276,17 @@ SC_SEMA_BADEXPR_DEF(ListExpression,
                     Error,
                     "Too many arguments in array type expression")
 
-SC_SEMA_BADEXPR_DEF(ListExpression,
+SC_SEMA_BADEXPR_DEF(Expression,
                     ListExprNoIntSize,
                     Error,
                     "Array type expression requires integral size")
 
-SC_SEMA_BADEXPR_DEF(ListExpression,
+SC_SEMA_BADEXPR_DEF(Expression,
                     ListExprNoConstSize,
                     Error,
                     "Array type expression requires constant size")
 
-SC_SEMA_BADEXPR_DEF(ListExpression,
+SC_SEMA_BADEXPR_DEF(Expression,
                     ListExprNegativeSize,
                     Error,
                     "Array type expression requires non-negative size")

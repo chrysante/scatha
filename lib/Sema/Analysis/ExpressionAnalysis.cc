@@ -444,6 +444,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
         },
         [&](Property& prop) {
             id.decorateValue(&prop, prop.valueCategory());
+            id.setConstantValue(clone(prop.constantValue()));
             return &id;
         },
         [&](ObjectType& type) {
@@ -488,6 +489,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 auto type = ma.member()->type().to(mut);
                 ma.decorateValue(sym.temporary(type),
                                  ma.member()->valueCategory());
+                ma.setConstantValue(clone(ma.member()->constantValue()));
                 return &ma;
             },
             [&](OverloadSet& os) {
