@@ -49,6 +49,5 @@ std::optional<size_t> irgen::getStaticArraySize(sema::Type const* type) {
 /// # THESE ARE OLD
 
 ir::StructType const* irgen::makeArrayViewType(ir::Context& ctx) {
-    std::array<ir::Type const*, 2> members = { ctx.ptrType(), ctx.intType(64) };
-    return ctx.anonymousStruct(members);
+    return ctx.anonymousStruct({ ctx.ptrType(), ctx.intType(64) });
 }

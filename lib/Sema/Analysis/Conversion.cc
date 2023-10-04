@@ -558,9 +558,29 @@ static Mutability commonMutability(Mutability a, Mutability b) {
     return a == Mutability::Mutable ? b : a;
 }
 
+static PointerType const* commonPointer(SymbolTable& sym,
+                                        QualType aBase,
+                                        QualType bBase) {
+    SC_ASSERT(aBase != bBase, "");
+    // clang-format off
+    return SC_MATCH (*aBase, *bBase) {
+        [&](ArrayType const& a, ArrayType const& b) -> PointerType const* {
+            if (a.elementType() != b.elementType()) {
+                return nullptr;
+            }
+            SC_ASSERT(a.count() != b.count(), "Case a == b handled earlier");
+            auto* dynArray = sym.arrayType(a.elementType());
+            auto mut = commonMutability(aBase.mutability(),
+                                        bBase.mutability());
+            return sym.pointer(QualType(dynArray, mut));
+        },
+        [&](ObjectType const&, ObjectType const&) {
+            return nullptr;
+        }
+    }; // clang-format on
+}
+
 QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
-    SC_ASSERT(!isa<ReferenceType>(*a), "");
-    SC_ASSERT(!isa<ReferenceType>(*b), "");
     auto commonMut = commonMutability(a.mutability(), b.mutability());
     if (a.get() == b.get()) {
         return QualType(a.get(), commonMut);
@@ -594,11 +614,10 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             return nullptr;
         },
         [&](PointerType const& a, PointerType const& b) -> PointerType const* {
-            auto commonPointeeType = commonType(sym, a.base(), b.base());
-            if (!commonPointeeType) {
-                return nullptr;
+            if (a.base() == b.base()) {
+                return &a;
             }
-            return sym.pointer(commonPointeeType);
+            return commonPointer(sym, a.base(), b.base());
         },
         [&](ObjectType const& a, ObjectType const& b) -> ObjectType const* {
             return nullptr;

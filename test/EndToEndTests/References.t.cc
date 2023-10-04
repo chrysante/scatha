@@ -365,3 +365,18 @@ fn main() {
     return sum;
 })");
 }
+
+TEST_CASE("Array of array pointers", "[end-to-end][arrays][pointers]") {
+    test::checkReturns(6, R"(
+fn main() {
+    var  a: [int, 1];
+    var  b: [int, 2];
+    var  c: [int, 3];
+    var ptrs = [&a, &b, &c];
+    var sum = 0;
+    for i = 0; i < ptrs.count; ++i {
+       sum += ptrs[i].count;
+    }
+    return sum;
+})");
+}

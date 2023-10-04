@@ -94,6 +94,7 @@ struct FuncGenContext: FuncGenContextBase {
                           sema::Type const* paramType,
                           ast::Expression const* expr,
                           utl::vector<ir::Value*>& irArgsOut);
+    ir::ArrayType const* getListType(ast::ListExpression const& list);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
     void genListDataFallback(ast::ListExpression const& list, ir::Alloca* dest);
 
@@ -994,18 +995,38 @@ void FuncGenContext::generateArgument(PassingConvention const& PC,
 
 Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
-    auto* elemType = typeMap(arrayType->elementType());
-    auto array = getValue(expr.callee());
+    auto array = getValue<Memory>(expr.callee());
     /// Right now we don't use the size but here we could issue a call to an
     /// assertion function
     [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object());
     auto index = getValue<Register>(expr.arguments().front());
-    auto* addr = add<ir::GetElementPointer>(elemType,
-                                            toMemory(array),
-                                            index,
-                                            std::initializer_list<size_t>{},
-                                            "elem.ptr");
-    return Value(addr, elemType, Memory);
+    if (isPtrOrRefToDynArray(arrayType->elementType())) {
+        auto* elemType = makeArrayViewType(ctx);
+        auto* addr = add<ir::GetElementPointer>(elemType,
+                                                array,
+                                                index,
+                                                std::array{ size_t{ 0 } },
+                                                "elem");
+        Value result(addr, elemType->elementAt(0), Memory);
+        valueMap.insertArraySize(expr.object(), [=] {
+            auto* addr = add<ir::GetElementPointer>(elemType,
+                                                    array,
+                                                    index,
+                                                    std::array{ size_t{ 1 } },
+                                                    "elem.size");
+            return Value(addr, elemType->elementAt(1), Memory);
+        });
+        return result;
+    }
+    else {
+        auto* elemType = typeMap(arrayType->elementType());
+        auto* addr = add<ir::GetElementPointer>(elemType,
+                                                array,
+                                                index,
+                                                std::initializer_list<size_t>{},
+                                                "elem.ptr");
+        return Value(addr, elemType, Memory);
+    }
 }
 
 Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
@@ -1043,6 +1064,16 @@ static bool evalConstant(ast::Expression const* expr, utl::vector<u8>& dest) {
     return true;
 }
 
+ir::ArrayType const* FuncGenContext::getListType(
+    ast::ListExpression const& list) {
+    auto* semaType = cast<sema::ArrayType const*>(list.type().get());
+    SC_ASSERT(!semaType->isDynamic(), "");
+    if (isPtrOrRefToDynArray(semaType->elementType())) {
+        return ctx.arrayType(makeArrayViewType(ctx), semaType->count());
+    }
+    return cast<ir::ArrayType const*>(typeMap(semaType));
+}
+
 bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
                                        ir::Alloca* dest) {
     auto* type = cast<sema::ArrayType const*>(list.type().get());
@@ -1069,20 +1100,40 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
 void FuncGenContext::genListDataFallback(ast::ListExpression const& list,
                                          ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
-    auto* elemType = typeMap(arrayType->elementType());
+    auto* elemType = getListType(list)->elementType();
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
-        auto* gep = add<ir::GetElementPointer>(elemType,
-                                               dest,
-                                               ctx.intConstant(index, 32),
-                                               std::initializer_list<size_t>{},
-                                               "elem.ptr");
-        add<ir::Store>(gep, getValue<Register>(elem));
+        if (isPtrOrRefToDynArray(arrayType->elementType())) {
+            auto* ptr =
+                add<ir::GetElementPointer>(elemType,
+                                           dest,
+                                           ctx.intConstant(index, 32),
+                                           std::array{ size_t{ 0 } },
+                                           utl::strcat("elem.ptr.", index));
+            add<ir::Store>(ptr, getValue<Register>(elem));
+            auto* size =
+                add<ir::GetElementPointer>(elemType,
+                                           dest,
+                                           ctx.intConstant(index, 32),
+                                           std::array{ size_t{ 1 } },
+                                           utl::strcat("elem.size.", index));
+            add<ir::Store>(size,
+                           toRegister(valueMap.arraySize(elem->object())));
+        }
+        else {
+            auto* gep =
+                add<ir::GetElementPointer>(elemType,
+                                           dest,
+                                           ctx.intConstant(index, 32),
+                                           std::initializer_list<size_t>{},
+                                           utl::strcat("elem.", index));
+            add<ir::Store>(gep, getValue<Register>(elem));
+        }
     }
 }
 
 Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
-    auto* irType = typeMap(semaType);
+    auto* irType = getListType(list);
     auto* array = makeLocalVariable(irType, "list");
     Value size(ctx.intConstant(list.children().size(), 64), Register);
     /// We try to insert because a list expression of the same type might have
