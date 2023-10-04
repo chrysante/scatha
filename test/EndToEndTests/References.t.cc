@@ -346,3 +346,22 @@ fn main() -> int {
     return ref[0];
 })");
 }
+
+TEST_CASE("Array of pointers", "[end-to-end][arrays][pointers]") {
+    test::checkReturns(10, R"(
+fn main() {
+    var data: [int, 5];
+    var ptrs: [*mut int, data.count];
+    for i = 0; i < ptrs.count; ++i {
+        ptrs[i] = &mut data[i];
+    }
+    for i = 0; i < ptrs.count; ++i {
+        *ptrs[i] = i;
+    }
+    var sum = 0;
+    for i = 0; i < data.count; ++i {
+        sum += data[i];
+    }
+    return sum;
+})");
+}
