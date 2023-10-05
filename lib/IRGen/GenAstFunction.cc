@@ -1480,9 +1480,11 @@ void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack) {
 }
 
 ir::Value* FuncGenContext::toRegister(Value value) {
-    auto* semaType = typeMap(value.type());
-    SC_ASSERT(!semaType || semaType->hasTrivialLifetime(),
-              "We can only have trivial lifetime types in registers");
+    if (isa<ir::RecordType>(value.type())) {
+        auto* semaType = typeMap(value.type());
+        SC_ASSERT(!semaType || semaType->hasTrivialLifetime(),
+                  "We can only have trivial lifetime types in registers");
+    }
     switch (value.location()) {
     case Register:
         return value.get();
