@@ -15,6 +15,11 @@ VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
     registers.resize(numRegisters, utl::no_init);
     stack.resize(stackSize, utl::no_init);
     setFunctionTableSlot(BuiltinFunctionSlot, makeBuiltinTable());
+    currentFrame = execFrames.push(
+        { .regPtr = registers.data() - MaxCallframeRegisterCount,
+          .bottomReg = registers.data() - MaxCallframeRegisterCount,
+          .iptr = nullptr,
+          .stackPtr = stack.data() });
 }
 
 void VirtualMachine::loadBinary(u8 const* progData) {
@@ -57,7 +62,7 @@ void VirtualMachine::setFunction(size_t slot,
 
 void VirtualMachine::printRegisters(size_t n) const {
     for (size_t i = 0; i < n; ++i) {
-        std::cout << "%" << i << ": " << std::hex << frame.regPtr[i]
+        std::cout << "%" << i << ": " << std::hex << currentFrame.regPtr[i]
                   << std::endl;
     }
 }

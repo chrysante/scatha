@@ -109,7 +109,7 @@ private:
     utl::stack<ExecutionFrame, 4> execFrames;
 
     /// The currently active execution frame
-    ExecutionFrame frame;
+    ExecutionFrame currentFrame;
 
     /// Statistics
     VMStats stats;

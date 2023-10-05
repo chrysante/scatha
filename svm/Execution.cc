@@ -114,10 +114,12 @@ ALWAYS_INLINE static void condMoveRM(u8 const* i, u64* reg, bool cond) {
 }
 
 template <OpCode C>
-ALWAYS_INLINE static void jump(u8 const* i, ExecutionFrame& frame, bool cond) {
+ALWAYS_INLINE static void jump(u8 const* i,
+                               ExecutionFrame& currentFrame,
+                               bool cond) {
     i32 const offset = load<i32>(&i[0]);
     if (cond) {
-        frame.iptr += offset - static_cast<i64>(ExecCodeSize<C>);
+        currentFrame.iptr += offset - static_cast<i64>(ExecCodeSize<C>);
     }
 }
 
@@ -210,25 +212,27 @@ ALWAYS_INLINE static bool greaterEq(VMFlags f) { return !f.less; }
 
 u64 const* VirtualMachine::execute(size_t start,
                                    std::span<u64 const> arguments) {
-    auto const lastframe = execFrames.top() = frame;
+    auto const lastframe = execFrames.top() = currentFrame;
     /// We add `MaxCallframeRegisterCount` to the register pointer because
     /// we have no way of knowing how many registers the currently running
-    /// execution frame uses, so we have to assume the worst.
-    frame = execFrames.push(ExecutionFrame{
+    /// execution currentFrame uses, so we have to assume the worst.
+    currentFrame = execFrames.push(ExecutionFrame{
         .regPtr = lastframe.regPtr + MaxCallframeRegisterCount,
         .bottomReg = lastframe.regPtr + MaxCallframeRegisterCount,
         .iptr = text.data() + start,
         .stackPtr = lastframe.stackPtr });
-    std::memcpy(frame.regPtr, arguments.data(), arguments.size() * sizeof(u64));
+    std::memcpy(currentFrame.regPtr,
+                arguments.data(),
+                arguments.size() * sizeof(u64));
 
     /// The main loop of the execution
-    while (frame.iptr < programBreak) {
-        OpCode const opcode = load<OpCode>(frame.iptr);
+    while (currentFrame.iptr < programBreak) {
+        OpCode const opcode = load<OpCode>(currentFrame.iptr);
         assert(utl::to_underlying(opcode) <
                    utl::to_underlying(OpCode::_count) &&
                "Invalid op-code");
-        auto* const i = frame.iptr + sizeof(OpCode);
-        auto* const regPtr = frame.regPtr;
+        auto* const i = currentFrame.iptr + sizeof(OpCode);
+        auto* const regPtr = currentFrame.regPtr;
         [[maybe_unused]] static constexpr u64 InvalidCodeOffset =
             0xdadadadadadadada;
         size_t codeOffset;
@@ -250,24 +254,24 @@ u64 const* VirtualMachine::execute(size_t start,
         INSTRUCTION(call, {
             i32 const offset       = load<i32>(i);
             size_t const regOffset = i[4];
-            frame.regPtr += regOffset;
-            frame.regPtr[-3] = utl::bit_cast<u64>(frame.stackPtr);
-            frame.regPtr[-2] = regOffset;
-            frame.regPtr[-1] = utl::bit_cast<u64>(frame.iptr + codeSize(call));
-            frame.iptr += offset;
+            currentFrame.regPtr += regOffset;
+            currentFrame.regPtr[-3] = utl::bit_cast<u64>(currentFrame.stackPtr);
+            currentFrame.regPtr[-2] = regOffset;
+            currentFrame.regPtr[-1] = utl::bit_cast<u64>(currentFrame.iptr + codeSize(call));
+            currentFrame.iptr += offset;
         });
 
         INSTRUCTION(ret, {
-            if UTL_UNLIKELY (frame.bottomReg == regPtr) {
+            if UTL_UNLIKELY (currentFrame.bottomReg == regPtr) {
                 /// Meaning we are the root of the call tree aka. the main/start
                 /// function, so we set the instruction pointer to the program
                 /// break to terminate execution.
-                frame.iptr = programBreak;
+                currentFrame.iptr = programBreak;
             }
             else {
-                frame.iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
-                frame.regPtr -= regPtr[-2];
-                frame.stackPtr = utl::bit_cast<u8*>(regPtr[-3]);
+                currentFrame.iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
+                currentFrame.regPtr -= regPtr[-2];
+                currentFrame.stackPtr = utl::bit_cast<u8*>(regPtr[-3]);
             }
         });
 
@@ -279,7 +283,7 @@ u64 const* VirtualMachine::execute(size_t start,
             etxFunction.invoke(regPtr + regPtrOffset, this);
         });
 
-        INSTRUCTION(terminate, { frame.iptr = programBreak; });
+        INSTRUCTION(terminate, { currentFrame.iptr = programBreak; });
 
             /// ## Loads and storeRegs
         INSTRUCTION(mov64RR, {
@@ -350,8 +354,8 @@ u64 const* VirtualMachine::execute(size_t start,
             size_t const destRegIdx = load<u8>(i);
             size_t const offset     = load<u16>(i + 1);
             SVM_ASSERT(offset % 8 == 0);
-            regPtr[destRegIdx] = utl::bit_cast<u64>(frame.stackPtr);
-            frame.stackPtr += offset;
+            regPtr[destRegIdx] = utl::bit_cast<u64>(currentFrame.stackPtr);
+            currentFrame.stackPtr += offset;
         });
 
         /// ## Address calculation
@@ -369,13 +373,13 @@ u64 const* VirtualMachine::execute(size_t start,
         });
 
         /// ## Jumps
-        INSTRUCTION(jmp, jump<jmp>(i, frame, true));
-        INSTRUCTION(je, jump<je>(i, frame, equal(flags)));
-        INSTRUCTION(jne, jump<jne>(i, frame, notEqual(flags)));
-        INSTRUCTION(jl, jump<jl>(i, frame, less(flags)));
-        INSTRUCTION(jle, jump<jle>(i, frame, lessEq(flags)));
-        INSTRUCTION(jg, jump<jg>(i, frame, greater(flags)));
-        INSTRUCTION(jge, jump<jge>(i, frame, greaterEq(flags)));
+        INSTRUCTION(jmp, jump<jmp>(i, currentFrame, true));
+        INSTRUCTION(je, jump<je>(i, currentFrame, equal(flags)));
+        INSTRUCTION(jne, jump<jne>(i, currentFrame, notEqual(flags)));
+        INSTRUCTION(jl, jump<jl>(i, currentFrame, less(flags)));
+        INSTRUCTION(jle, jump<jle>(i, currentFrame, lessEq(flags)));
+        INSTRUCTION(jg, jump<jg>(i, currentFrame, greater(flags)));
+        INSTRUCTION(jge, jump<jge>(i, currentFrame, greaterEq(flags)));
 
         /// ## Comparison
         INSTRUCTION(ucmp8RR, compareRR<u8>(i, regPtr, flags));
@@ -617,13 +621,13 @@ u64 const* VirtualMachine::execute(size_t start,
             SVM_UNREACHABLE();
         }
         SVM_ASSERT(codeOffset != InvalidCodeOffset);
-        frame.iptr += codeOffset;
+        currentFrame.iptr += codeOffset;
         ++stats.executedInstructions;
     }
 
-    assert(frame.iptr == programBreak);
+    assert(currentFrame.iptr == programBreak);
     execFrames.pop();
-    auto* result = frame.regPtr;
-    frame = lastframe;
+    auto* result = currentFrame.regPtr;
+    currentFrame = lastframe;
     return result;
 }
