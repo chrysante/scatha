@@ -453,6 +453,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
         },
         [&](OverloadSet& overloadSet) {
             id.decorateValue(&overloadSet, LValue);
+            if (!isa<ast::FunctionCall>(id.parent()) &&
+                !isa<ast::MemberAccess>(id.parent()))
+            {
+                ctx.badExpr(&id, BadExpr::GenericBadExpr);
+            }
             return &id;
         },
         [&](Generic& generic) {
@@ -494,6 +499,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
             },
             [&](OverloadSet& os) {
                 ma.decorateValue(&os, LValue);
+                if (!isa<ast::FunctionCall>(ma.parent())) {
+                    ctx.badExpr(&ma, BadExpr::GenericBadExpr);
+                }
                 return &ma;
             },
             [&](Type& type) {
