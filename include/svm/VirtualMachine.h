@@ -52,6 +52,9 @@ public:
     /// Load a program into memory
     void loadBinary(u8 const* data);
 
+    /// Allocates a memory region in the current stack frame.
+    u8* allocateStackMemory(size_t numBytes);
+
     /// Start execution at the program's start address
     u64 const* execute(std::span<u64 const> arguments);
 
@@ -84,7 +87,7 @@ public:
     std::span<u8 const> stackData() const { return stack; }
 
 private:
-    /// Print the value in the first \p n registers of the current execution
+    /// Print the values in the first \p n registers of the current execution
     /// frame
     void printRegisters(size_t n) const;
 

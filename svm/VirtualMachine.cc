@@ -28,11 +28,13 @@ void VirtualMachine::loadBinary(u8 const* progData) {
     data = std::move(program.data);
     startAddress = program.startAddress;
     programBreak = text.data() + text.size();
-    frame = execFrames.push(
-        { .regPtr = registers.data() - MaxCallframeRegisterCount,
-          .bottomReg = registers.data() - MaxCallframeRegisterCount,
-          .iptr = nullptr,
-          .stackPtr = stack.data() });
+}
+
+u8* VirtualMachine::allocateStackMemory(size_t numBytes) {
+    /// TODO: Align the memory to something
+    auto* result = currentFrame.stackPtr;
+    currentFrame.stackPtr += numBytes;
+    return result;
 }
 
 u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
