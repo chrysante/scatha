@@ -2,6 +2,13 @@
 #include <fstream>
 #include <iostream>
 
+#include <array>
+#include <span>
+#include <string>
+#include <string_view>
+
+#include <range/v3/algorithm.hpp>
+#include <range/v3/view.hpp>
 #include <svm/VirtualMachine.h>
 #include <utl/format_time.hpp>
 #include <utl/utility.hpp>
@@ -33,6 +40,24 @@ std::span<uint8_t const> seekBinary(std::span<uint8_t const> file) {
     return std::span(data, end);
 }
 
+struct ArgRange {
+    size_t offset, size;
+};
+
+struct Arguments {
+    utl::small_vector<ArgRange> pointers;
+    utl::vector<u8> data;
+};
+
+static Arguments generateArguments(std::span<std::string const> args) {
+    Arguments result;
+    for (auto& arg: args) {
+        result.pointers.push_back({ result.data.size(), arg.size() });
+        ranges::copy(arg, std::back_inserter(result.data));
+    }
+    return result;
+}
+
 int main(int argc, char* argv[]) {
     Options options = parseCLI(argc, argv);
     std::string progName = options.filepath.stem();
@@ -56,18 +81,32 @@ int main(int argc, char* argv[]) {
     VirtualMachine vm;
     vm.loadBinary(seekBinary(executable).data());
 
-    if (!options.arguments.empty()) {
-        std::cout << "Passed arguments are: ";
-        for (auto& arg: options.arguments) {
-            std::cout << arg << " ";
-        }
-        std::cout << "\n"
-                  << "Warning: For now arguments are ignored and not passed to "
-                     "main.\n";
-    }
+    /// Copy arguments onto the stack below the stack frame of `main()`
+    auto arguments = generateArguments(options.arguments);
+    size_t argPointersSize = arguments.pointers.size() * 16;
+    size_t stringDataSize = arguments.data.size();
+    size_t totalArgSize = argPointersSize + stringDataSize;
+    auto* argStackData = vm.allocateStackMemory(totalArgSize);
+    struct StringPointer {
+        void* ptr;
+        uint64_t size;
+    };
+    auto argPointers =
+        arguments.pointers | ranges::views::transform([&](auto arg) {
+            return StringPointer{ argStackData + argPointersSize + arg.offset,
+                                  arg.size };
+        }) |
+        ranges::to<utl::small_vector<StringPointer>>;
+    std::memcpy(argStackData, argPointers.data(), 16 * argPointers.size());
+    std::memcpy(argStackData + argPointersSize,
+                arguments.data.data(),
+                stringDataSize);
+    std::array<u64, 2> actualArgument = { reinterpret_cast<u64>(argStackData),
+                                          argPointers.size() };
 
+    /// Excute the program
     auto const beginTime = std::chrono::high_resolution_clock::now();
-    vm.execute({});
+    vm.execute(actualArgument);
     auto const endTime = std::chrono::high_resolution_clock::now();
     u64 const exitCode = vm.getRegister(0);
     if (options.time) {
