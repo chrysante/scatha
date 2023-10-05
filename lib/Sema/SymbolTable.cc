@@ -108,7 +108,6 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->S64->addAlternateName("int");
     impl->F32->addAlternateName("float");
     impl->F64->addAlternateName("double");
-    globalScope().add(impl->Str);
     impl->Str->addAlternateName("str");
 
     /// Declare builtin functions
@@ -163,7 +162,7 @@ template <typename T, typename... Args>
 T* SymbolTable::declareBuiltinType(Args&&... args) {
     auto* type =
         impl->addEntity<T>(std::forward<Args>(args)..., &currentScope());
-    currentScope().add(type);
+    globalScope().add(type);
     type->setBuiltin();
     return type;
 }
@@ -352,6 +351,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
         arraySize->setConstantValue(std::move(constSize));
     }
     declareSpecialLifetimeFunctions(*arrayType, *this);
+    const_cast<ObjectType*>(elementType)->parent()->add(arrayType);
     return arrayType;
 }
 
@@ -382,6 +382,7 @@ PointerType const* SymbolTable::pointer(QualType pointee) {
     }
     auto* ptrType = impl->addEntity<PointerType>(pointee);
     impl->ptrTypes.insert({ pointee, ptrType });
+    const_cast<ObjectType*>(pointee.get())->parent()->add(ptrType);
     return ptrType;
 }
 
@@ -392,6 +393,7 @@ ReferenceType const* SymbolTable::reference(QualType referred) {
     }
     auto* refType = impl->addEntity<ReferenceType>(referred);
     impl->refTypes.insert({ referred, refType });
+    const_cast<ObjectType*>(referred.get())->parent()->add(refType);
     return refType;
 }
 

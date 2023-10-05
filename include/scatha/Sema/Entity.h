@@ -603,6 +603,11 @@ private:
 /// Abstract class representing the type of an object
 class SCATHA_API ObjectType: public Type {
 public:
+    void setSize(size_t value) { _size = value; }
+
+    void setAlign(size_t value) { _align = value; }
+
+protected:
     explicit ObjectType(EntityType entityType,
                         ScopeKind scopeKind,
                         std::string name,
@@ -613,10 +618,6 @@ public:
         Type(entityType, scopeKind, std::move(name), parent, astNode),
         _size(size),
         _align(align) {}
-
-    void setSize(size_t value) { _size = value; }
-
-    void setAlign(size_t value) { _align = value; }
 
 private:
     friend class Type;

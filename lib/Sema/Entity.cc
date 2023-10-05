@@ -115,7 +115,7 @@ Entity const* Scope::findEntity(std::string_view name) const {
 }
 
 void Scope::add(Entity* entity) {
-    /// We add all scopes to our list of child scopes
+    /// Each scope that we add we add to to our list of child scopes
     if (auto* scope = dyncast<Scope*>(entity)) {
         bool const success = _children.insert(scope).second;
         SC_ASSERT(success, "Failed to add child");
@@ -262,7 +262,7 @@ PointerType::PointerType(QualType base):
     ObjectType(EntityType::PointerType,
                ScopeKind::Invalid,
                makeIndirectName("*", base),
-               nullptr,
+               const_cast<Scope*>(base->parent()),
                ptrSize(base),
                ptrAlign()),
     PtrRefTypeBase(base) {}
@@ -271,7 +271,7 @@ ReferenceType::ReferenceType(QualType base):
     Type(EntityType::ReferenceType,
          ScopeKind::Invalid,
          makeIndirectName("&", base),
-         nullptr),
+         const_cast<Scope*>(base->parent())),
     PtrRefTypeBase(base) {}
 
 void Function::setDeducedReturnType(Type const* type) {
