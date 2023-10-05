@@ -42,7 +42,7 @@ fn mandelbrotSet(c: Complex) -> double {
     let limit = 200;
     for i = 0; i < limit; ++i {
         z = next(z, c);
-        if z.length > 2.0 {
+        if z.length() > 2.0 {
             return double(i) / double(limit);
         }
     }

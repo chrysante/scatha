@@ -35,7 +35,7 @@ struct Sieve {
 	}
 
 	fn setFalse(&mut this, index: int, stride: int) {
-		for i = index; i < this.size; i += stride {
+		for i = index; i < this.size(); i += stride {
 			this.flags[i] = false;
 		}
 	}
@@ -53,7 +53,7 @@ struct Sieve {
 		var factor = 3;
         var q = int(sqrt(double(this.size())));	
         while factor <= q {
-            for num = factor; num < this.size; num += 2 {
+            for num = factor; num < this.size(); num += 2 {
                 if this.isSet(num) {
                     factor = num;
                     break;
