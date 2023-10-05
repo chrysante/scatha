@@ -114,6 +114,7 @@ externalincludedirs {
     "include",
     "external/utility/include",
     "external/cli11/include",
+    "external/range-v3/include",
 }
 
 links "svm-lib"
