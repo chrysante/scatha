@@ -390,7 +390,7 @@ public:
 private:
     friend class Function; /// To set deduced return type
     utl::small_vector<Type const*> _argumentTypes;
-    Type const* _returnType;
+    Type const* _returnType = nullptr;
 };
 
 /// \Returns `true` if \p a and \p b have the same argument types

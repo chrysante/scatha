@@ -220,7 +220,7 @@ static void declareSLFs(ArrayType& type, SymbolTable& sym) {
     if (!elemType) {
         return;
     }
-    SLFArray SLF;
+    SLFArray SLF{};
     for (auto key: EnumRange<SpecialLifetimeFunction>()) {
         if (elemType->specialLifetimeFunction(key)) {
             SLF[key] = generateSLF(key, type, sym);
