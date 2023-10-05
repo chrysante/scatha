@@ -18,14 +18,15 @@
 
 using namespace scatha;
 using namespace ast;
+using namespace tfmt::modifiers;
 
 void ast::printTree(ASTNode const& root) { printTree(root, std::cout); }
 
 static utl::vstreammanip<> formatType(sema::Type const* type) {
     return [=](std::ostream& str) {
-        str << " " << tfmt::format(tfmt::BrightGrey, "Type: ");
+        str << " " << tfmt::format(BrightGrey, "Type: ");
         if (!type) {
-            str << tfmt::format(tfmt::Red, "NULL");
+            str << tfmt::format(Red, "NULL");
             return;
         }
         str << type->name();
@@ -34,14 +35,14 @@ static utl::vstreammanip<> formatType(sema::Type const* type) {
 
 static constexpr utl::streammanip nodeType([](std::ostream& str,
                                               ASTNode const* node) {
-    tfmt::FormatGuard common(tfmt::Italic);
+    tfmt::FormatGuard common(Italic);
     // clang-format off
     visit(*node, utl::overload{
         [&](ASTNode const& node) {
             str << node.nodeType();
         },
         [&](Statement const& node) {
-            str << tfmt::format(tfmt::BrightBlue, node.nodeType());
+            str << tfmt::format(BrightBlue, node.nodeType());
         }
     }); // clang-format on
     str << ": ";
@@ -59,7 +60,7 @@ static constexpr utl::streammanip nodeHeader([](std::ostream& str,
     if (auto* expr = dyncast<Expression const*>(node); expr && expr->isValue())
     {
         str << formatType(expr->type().get()) << " "
-            << tfmt::format(tfmt::BrightGrey, expr->valueCategory());
+            << tfmt::format(BrightGrey, expr->valueCategory());
     }
     else if (auto* decl = dyncast<VarDeclBase const*>(node)) {
         str << formatType(decl->type());
@@ -70,7 +71,7 @@ static constexpr utl::streammanip nodeHeader([](std::ostream& str,
     }
     formatter->push(node->children().empty() ? Level::Free : Level::Occupied);
     str << "\n"
-        << formatter->beginLine() << tfmt::format(tfmt::BrightGrey, "Value: ");
+        << formatter->beginLine() << tfmt::format(BrightGrey, "Value: ");
     // clang-format off
     SC_MATCH (*expr->constantValue()) {
         [&](sema::IntValue const& node) {
@@ -87,6 +88,7 @@ static constexpr utl::streammanip nodeHeader([](std::ostream& str,
 
 static constexpr utl::streammanip funcDecl([](std::ostream& str,
                                               sema::Function const* func) {
+    tfmt::FormatGuard bold(Bold);
     str << func->name() << "(";
     for (bool first = true; auto type: func->argumentTypes()) {
         str << (first ? first = false, "" : ", ");
@@ -167,7 +169,7 @@ struct PrintCtx {
                 str << nodeHeader(&formatter, &node, formatLit(&lit)) << '\n';
             },
             [&](Identifier const& id) {
-                auto value = tfmt::format(tfmt::Green | tfmt::Bold, id.value());
+                auto value = tfmt::format(Green | Bold, id.value());
                 str << nodeHeader(&formatter, &node, value) << '\n';
             },
             [&](UnaryExpression const& expr) {
@@ -177,7 +179,7 @@ struct PrintCtx {
                 str << nodeHeader(&formatter, &node, expr.operation()) << '\n';
             },
             [&](Declaration const& decl) {
-                auto name = tfmt::format(tfmt::Green | tfmt::Bold, decl.name());
+                auto name = tfmt::format(Green | Bold, decl.name());
                 str << nodeHeader(&formatter, &node, name) << '\n';
             },
             [&](FunctionDefinition const& func) {
