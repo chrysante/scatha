@@ -816,7 +816,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
 ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     bool success = true;
     for (auto* expr: list.elements()) {
-        success &= !!analyze(expr);
+        expr = analyze(expr);
+        success &= !!expr;
+        popTopLevelDtor(expr, *dtorStack);
     }
     if (!success) {
         return nullptr;
@@ -856,6 +858,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         auto* arrayType =
             sym.arrayType(commonType.get(), list.elements().size());
         list.decorateValue(sym.temporary(arrayType), RValue);
+        dtorStack->push(list.object());
         return &list;
     }
     case EntityCategory::Type: {

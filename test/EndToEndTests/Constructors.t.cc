@@ -248,3 +248,23 @@ fn main() {
     f(a);
 })");
 }
+
+TEST_CASE("List expression of non-trivial type", "[end-to-end][constructors]") {
+    test::checkPrints("+1+2-1-2", CommonDefs + R"(
+fn main() {
+    var data = [X(1), X(2)];
+})");
+}
+
+TEST_CASE("List expression of trivial type", "[end-to-end][constructors]") {
+    test::checkPrints("+1+2", R"(
+struct Y {
+    fn new(&mut this, n: int) {
+        __builtin_putstr("+");
+        __builtin_puti64(n);
+    }
+}
+fn main() {
+    var data = [Y(1), Y(2)];
+})");
+}

@@ -96,7 +96,7 @@ struct FuncGenContext: FuncGenContextBase {
                           utl::vector<ir::Value*>& irArgsOut);
     ir::ArrayType const* getListType(ast::ListExpression const& list);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
-    void genListDataFallback(ast::ListExpression const& list, ir::Alloca* dest);
+    void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
 
     /// # General utilities
 
@@ -1097,8 +1097,8 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
     return true;
 }
 
-void FuncGenContext::genListDataFallback(ast::ListExpression const& list,
-                                         ir::Alloca* dest) {
+void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
+                                        ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = getListType(list)->elementType();
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
@@ -1126,7 +1126,14 @@ void FuncGenContext::genListDataFallback(ast::ListExpression const& list,
                                            ctx.intConstant(index, 32),
                                            std::initializer_list<size_t>{},
                                            utl::strcat("elem.", index));
-            add<ir::Store>(gep, getValue<Register>(elem));
+            auto value = getValue(elem);
+
+            if (arrayType->elementType()->hasTrivialLifetime()) {
+                add<ir::Store>(gep, toRegister(value));
+            }
+            else {
+                toMemory(value)->replaceAllUsesWith(gep);
+            }
         }
     }
 }
@@ -1141,7 +1148,7 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     valueMap.tryInsert(semaType->countProperty(), size);
     auto value = Value(array, irType, Memory);
     if (!genStaticListData(list, array)) {
-        genListDataFallback(list, array);
+        genDynamicListData(list, array);
     }
     valueMap.insertArraySize(list.object(), size);
     return value;
