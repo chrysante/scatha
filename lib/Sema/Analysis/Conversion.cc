@@ -147,8 +147,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             }
             auto* fromArray = dyncast<ArrayType const*>(from.base().get());
             auto* toArray = dyncast<ArrayType const*>(to.base().get());
-            if (fromArray && toArray) {
-                return determineObjConv(kind, fromArray, toArray);
+            if (fromArray || toArray) {
+                return determineObjConv(kind,
+                                        from.base().get(),
+                                        to.base().get());
             }
             return std::nullopt;
         }
@@ -259,6 +261,26 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                     return std::nullopt;
                 }
                 return Reinterpret_Value;
+            },
+            [&](ArrayType const& from, ObjectType const& to) -> RetType {
+                auto* fromElem = from.elementType();
+                if (!isa<ByteType>(fromElem)) {
+                    return std::nullopt;
+                }
+                if (!from.isDynamic() && from.count() != to.size()) {
+                    return std::nullopt;
+                }
+                return Reinterpret_Value_FromByteArray;
+            },
+            [&](ObjectType const& from, ArrayType const& to) -> RetType {
+                auto* toElem = to.elementType();
+                if (!isa<ByteType>(toElem)) {
+                    return std::nullopt;
+                }
+                if (!to.isDynamic() && to.count() != from.size()) {
+                    return std::nullopt;
+                }
+                return Reinterpret_Value_ToByteArray;
             },
             [&](ArrayType const& from, ArrayType const& to) -> RetType {
                 if (!to.isDynamic() && from.isDynamic()) {

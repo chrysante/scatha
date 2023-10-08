@@ -307,7 +307,10 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
 static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
                                          IntValue const* operand) {
     SC_ASSERT(operand, "");
-    auto* to = cast<ArithmeticType const*>(conv->targetType().get());
+    auto* to = dyncast<ArithmeticType const*>(conv->targetType().get());
+    if (!to) {
+        return nullptr;
+    }
     APInt value = operand->value();
 
     using enum ObjectTypeConversion;
