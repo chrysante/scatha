@@ -89,6 +89,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::Subscript const&);
     Value getValueImpl(ast::SubscriptSlice const&);
     Value getValueImpl(ast::ListExpression const&);
+    Value getValueImpl(ast::MoveExpr const&);
     Value getValueImpl(ast::Conversion const&);
     Value getValueImpl(ast::UninitTemporary const&);
     Value getValueImpl(ast::ConstructExpr const&);
@@ -1213,6 +1214,22 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     }
     valueMap.insertArraySize(list.object(), size);
     return value;
+}
+
+Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
+    auto value = getValue(expr.value());
+    auto* ctor = expr.function();
+    if (!ctor) {
+        return value;
+    }
+    auto* type = typeMap(expr.type());
+    auto* function = getFunction(ctor);
+    auto* dest =
+        makeLocalVariable(type, utl::strcat(value.get()->name(), ".moved"));
+    add<ir::Call>(function,
+                  std::array<ir::Value*, 2>{ dest, toMemory(value) },
+                  std::string{});
+    return Value(dest, type, Memory);
 }
 
 static sema::ArrayType const* toArrayStripPtr(sema::Type const* type) {
