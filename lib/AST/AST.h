@@ -656,6 +656,16 @@ public:
 
     /// The moved value
     AST_PROPERTY(0, Expression, value, Value)
+
+    /// The constructor invoked by this move expression. This will be null for
+    /// trivial lifetime types
+    sema::Function const* function() const { return ctor; }
+
+    /// Sets the invoked constructor. Used by semanic analysis.
+    void setFunction(sema::Function const* ctor) { this->ctor = ctor; }
+
+private:
+    sema::Function const* ctor = nullptr;
 };
 
 /// MARK: More Complex Expressions
