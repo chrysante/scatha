@@ -162,17 +162,11 @@ static bool computeDefaultConstructible(StructType& type, SLFArray const& SLF) {
     if (SLF[DefaultConstructor]) {
         return true;
     }
-    auto* overloadSet = type.specialMemberFunction(New);
-    /// If no constructors are defined or if the only defined constructor is the
-    /// copy constructor, then the type is default constructible iff. all member
-    /// variables are default constructible
-    if (!overloadSet || (overloadSet->size() == 1 && SLF[CopyConstructor])) {
-        return ranges::all_of(type.memberVariables(), [](auto* var) {
-            return !var->type() || var->type()->isDefaultConstructible();
-        });
-    }
-    /// Otherwise we are not default constructible
-    return false;
+    /// Otherwise we are only default constructible if no special member
+    /// functions are user defined
+    return !type.specialMemberFunction(New) &&
+           !type.specialMemberFunction(Move) &&
+           !type.specialMemberFunction(Delete);
 }
 
 static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
@@ -183,7 +177,23 @@ static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
            });
 }
 
+static bool allMembersHave(StructType& type, SpecialLifetimeFunction fn) {
+    SC_ASSERT(fn != SpecialLifetimeFunction::DefaultConstructor,
+              "This function is only for copy/move constructor and destructor");
+    return ranges::all_of(type.members(), [&](auto* type) {
+        if (!type) {
+            return true;
+        }
+        if (type->hasTrivialLifetime()) {
+            return true;
+        }
+        auto* compType = cast<CompoundType const*>(type);
+        return compType->specialLifetimeFunction(fn) != nullptr;
+    });
+}
+
 static void declareSLFs(StructType& type, SymbolTable& sym) {
+    using enum SpecialMemberFunction;
     using enum SpecialLifetimeFunction;
     auto SLF = getDefinedSLFs(sym, type);
     bool const isDefaultConstructible = computeDefaultConstructible(type, SLF);
@@ -191,24 +201,45 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
     type.setIsDefaultConstructible(isDefaultConstructible);
     type.setHasTrivialLifetime(hasTrivialLifetime);
     if (isDefaultConstructible && !SLF[DefaultConstructor]) {
-        bool anyMemberHasDefCtor = ranges::any_of(type.memberVariables(),
-                                                  [](auto* var) {
-            auto* type = dyncast_or_null<StructType const*>(var->type());
-            return type && type->specialLifetimeFunction(DefaultConstructor);
+        /// We generate the default constructor if it is necessary and possible
+        bool anyMemberHasUserDefinedDefCtor = ranges::any_of(type.members(),
+                                                             [](auto* type) {
+            auto* compType = dyncast<CompoundType const*>(type);
+            return compType &&
+                   compType->specialLifetimeFunction(DefaultConstructor);
         });
-        if (anyMemberHasDefCtor) {
+        bool allMembersAreDefaultConstructible =
+            ranges::all_of(type.members(), [&](auto* type) {
+                auto* compType = dyncast<CompoundType const*>(type);
+                if (!compType) {
+                    return true;
+                }
+                if (compType->hasTrivialLifetime() &&
+                    !compType->specialMemberFunction(New))
+                {
+                    return true;
+                }
+                return compType->specialLifetimeFunction(DefaultConstructor) !=
+                       nullptr;
+            });
+        if (anyMemberHasUserDefinedDefCtor && allMembersAreDefaultConstructible)
+        {
             SLF[DefaultConstructor] =
                 generateSLF(DefaultConstructor, type, sym);
         }
     }
-    if (!hasTrivialLifetime) {
-        if (!SLF[CopyConstructor]) {
+    /// We generate SLFs if we have nontrivial lifetime and no SLFs are user
+    /// defined
+    if (!hasTrivialLifetime && !SLF[CopyConstructor] && !SLF[MoveConstructor] &&
+        !SLF[Destructor])
+    {
+        if (allMembersHave(type, CopyConstructor)) {
             SLF[CopyConstructor] = generateSLF(CopyConstructor, type, sym);
         }
-        if (!SLF[MoveConstructor]) {
+        if (allMembersHave(type, MoveConstructor)) {
             SLF[MoveConstructor] = generateSLF(MoveConstructor, type, sym);
         }
-        if (!SLF[Destructor]) {
+        if (allMembersHave(type, Destructor)) {
             SLF[Destructor] = generateSLF(Destructor, type, sym);
         }
     }
