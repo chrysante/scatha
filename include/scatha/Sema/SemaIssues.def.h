@@ -296,4 +296,24 @@ SC_SEMA_BADEXPR_DEF(ListExpression,
                     Error,
                     "Invalid entity for array expression")
 
+SC_SEMA_BADEXPR_DEF(MoveExpr,
+                    MoveExprConst,
+                    Error,
+                    "Cannot move immutable object")
+
+SC_SEMA_BADEXPR_DEF(MoveExpr,
+                    MoveExprImmovable,
+                    Error,
+                    "Cannot move immovable object")
+
+SC_SEMA_BADEXPR_DEF(MoveExpr,
+                    MoveExprRValue,
+                    Warning,
+                    "Moving rvalue object has no effect")
+
+SC_SEMA_BADEXPR_DEF(MoveExpr,
+                    MoveExprCopies,
+                    Warning,
+                    "Moving object without move constructor results in a copy")
+
 #undef SC_SEMA_BADEXPR_DEF
