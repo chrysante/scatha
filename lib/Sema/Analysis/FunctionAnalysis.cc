@@ -265,13 +265,18 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     varDecl.decorateVarDecl(variable);
     /// If we have an init expression we convert it to the type of the variable.
     /// If the type is derived from the init expression then this is a no-op
-    if (initExpr) {
-        initExpr = convert(Implicit,
-                           initExpr,
-                           variable->getQualType(),
-                           refToLValue(type),
-                           varDecl.dtorStack(),
-                           ctx);
+    if (varDecl.initExpr()) {
+        /// Test `initExpr` because the variable may have an invalid init
+        /// expression, in this case `varDecl.initExpr()` is not null but
+        /// `initExpr` is.
+        if (initExpr) {
+            initExpr = convert(Implicit,
+                               initExpr,
+                               variable->getQualType(),
+                               refToLValue(type),
+                               varDecl.dtorStack(),
+                               ctx);
+        }
     }
     /// Otherwise we construct an object of the declared type without arguments
     else {
