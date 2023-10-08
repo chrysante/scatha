@@ -1027,9 +1027,9 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
         return parseRef.operator()<ast::AddressOfExpression>();
     case Move: {
         tokens.eat();
-        auto value = parseMemberAccess(parseID());
+        auto value = parsePrefix();
         if (!value) {
-            issues.push<ExpectedIdentifier>(tokens.peek());
+            issues.push<ExpectedExpression>(tokens.peek());
             return nullptr;
         }
         return allocate<ast::MoveExpr>(std::move(value), token.sourceRange());
