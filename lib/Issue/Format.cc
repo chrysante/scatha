@@ -62,8 +62,8 @@ static constexpr utl::streammanip highlightLineRange =
 };
 
 static constexpr utl::streammanip squiggle =
-    [](std::ostream& str, size_t numChars) {
-    tfmt::format(Red | Bold, [&] {
+    [](std::ostream& str, tfmt::Modifier mod, size_t numChars) {
+    tfmt::format(mod, [&] {
         for (size_t i = 0; i < std::max(size_t{ 1 }, numChars); ++i) {
 #if SC_UNICODE_TERMINAL
             str << "˜";
@@ -80,15 +80,17 @@ struct SrcHighlightCtx {
     std::ostream& str;
     SourceStructure const& source;
     std::vector<SourceHighlight>& highlights;
+    IssueSeverity severity;
 
     SrcHighlightCtx(std::ostream& str,
                     SourceStructure const& source,
-                    std::vector<SourceHighlight>& highlights):
-        str(str), source(source), highlights(highlights) {}
+                    std::vector<SourceHighlight>& highlights,
+                    IssueSeverity severity):
+        str(str), source(source), highlights(highlights), severity(severity) {}
 
     void run();
 
-    void printErrorLine(SourceHighlight const& highlight);
+    void printHighlightLine(SourceHighlight const& highlight);
 
     void printMessage(size_t currentColumn, SourceHighlight const& highlight);
 
@@ -97,22 +99,26 @@ struct SrcHighlightCtx {
 
 } // namespace
 void scatha::highlightSource(SourceStructure const& source,
-                             SourceRange sourceRange) {
-    highlightSource(source, sourceRange, std::cout);
+                             SourceRange sourceRange,
+                             IssueSeverity severity) {
+    highlightSource(source, sourceRange, severity, std::cout);
 }
 
 void scatha::highlightSource(SourceStructure const& source,
                              SourceRange sourceRange,
+                             IssueSeverity severity,
                              std::ostream& str) {
     highlightSource(source,
                     { { HighlightKind::Primary, sourceRange, {} } },
+                    severity,
                     str);
 }
 
 void scatha::highlightSource(SourceStructure const& source,
                              std::vector<SourceHighlight> highlights,
+                             IssueSeverity severity,
                              std::ostream& str) {
-    SrcHighlightCtx(str, source, highlights).run();
+    SrcHighlightCtx(str, source, highlights, severity).run();
 }
 
 static int lineProj(SourceHighlight& h) { return h.position.begin().line - 1; }
@@ -138,7 +144,7 @@ void SrcHighlightCtx::run() {
         if (lineProj(H) >= source.size()) {
             continue;
         }
-        printErrorLine(H);
+        printHighlightLine(H);
         auto next = std::next(itr);
         if (next == highlights.end()) {
             continue;
@@ -157,7 +163,17 @@ void SrcHighlightCtx::run() {
     printLines(lineProj(highlights.back()) + 1, paddingLines);
 }
 
-void SrcHighlightCtx::printErrorLine(SourceHighlight const& highlight) {
+static auto toMod(IssueSeverity severity) {
+    using enum IssueSeverity;
+    switch (severity) {
+    case Warning:
+        return Yellow | Bold;
+    case Error:
+        return Red | Bold;
+    }
+}
+
+void SrcHighlightCtx::printHighlightLine(SourceHighlight const& highlight) {
     auto range = highlight.position;
     SC_ASSERT(range.valid(), "");
     auto const sl = range.begin();
@@ -170,7 +186,8 @@ void SrcHighlightCtx::printErrorLine(SourceHighlight const& highlight) {
                               lineText.size();
     str << lineNumber(sl.line)
         << highlightLineRange(source[line], ucolumn, endcol) << "\n";
-    str << lineNumber(-1) << blank(column) << squiggle(endcol - ucolumn);
+    str << lineNumber(-1) << blank(column)
+        << squiggle(toMod(severity), endcol - ucolumn);
     printMessage(endcol + LineNumChars, highlight);
     str << "\n";
 }

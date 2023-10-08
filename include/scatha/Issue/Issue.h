@@ -5,12 +5,11 @@
 #include <string_view>
 
 #include <scatha/Common/SourceLocation.h>
+#include <scatha/Issue/IssueSeverity.h>
 #include <scatha/Issue/Message.h>
 #include <scatha/Issue/SourceStructure.h>
 
 namespace scatha {
-
-enum class IssueSeverity { Error, Warning };
 
 /// Base class of all compilation issues
 class SCATHA_API Issue {

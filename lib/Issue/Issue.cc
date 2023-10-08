@@ -37,19 +37,21 @@ void Issue::print(SourceStructure const& source, std::ostream& str) const {
     if (sourceLocation().valid()) {
         str << location(sourceLocation());
     }
+    /// The old issue highlight style
     if (highlights.empty()) {
         format(str);
         str << "\n";
         if (sourceRange().valid()) {
-            highlightSource(source, sourceRange(), str);
+            highlightSource(source, sourceRange(), severity(), str);
         }
     }
+    /// New style
     else {
         if (_header) {
             str << tfmt::format(BrightBlue | Italic, _header);
         }
         str << "\n";
-        highlightSource(source, highlights, str);
+        highlightSource(source, highlights, severity(), str);
         if (_hint) {
             str << tfmt::format(Green | Bold, "Hint: ") << _hint << "\n";
         }
