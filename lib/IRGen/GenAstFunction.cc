@@ -843,13 +843,11 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
     case ArraySize: {
         auto* arrayType =
             cast<sema::ArrayType const*>(expr.accessed()->type().get());
+        /// If the array is dynamic we must generate its value to get the size
         if (arrayType->isDynamic()) {
             getValue(expr.accessed());
-            return valueMap.arraySize(expr.accessed()->object());
         }
-        else {
-            return Value(ctx.intConstant(arrayType->count(), 64), Register);
-        }
+        return valueMap.arraySize(expr.accessed()->object());
     }
     case ArrayEmpty: {
         auto* arrayType =
@@ -866,6 +864,48 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         }
         else {
             return Value(ctx.boolConstant(arrayType->count() == 0), Register);
+        }
+    }
+    case ArrayFront:
+        [[fallthrough]];
+    case ArrayBack: {
+        // TODO: Check that array is not empty
+        auto* arrayType =
+            cast<sema::ArrayType const*>(expr.accessed()->type().get());
+        auto array = getValue(expr.accessed());
+        switch (array.location()) {
+        case Register: {
+            SC_ASSERT(!arrayType->isDynamic(),
+                      "Can't have dynamic array in register");
+            size_t index = prop.kind() == ArrayFront ? 0 :
+                                                       arrayType->count() - 1;
+            auto* elem = add<ir::ExtractValue>(array.get(),
+                                               std::array{ index },
+                                               "array.front");
+            return Value(elem, Register);
+        }
+        case Memory: {
+            auto* irElemType = typeMap(arrayType->elementType());
+            auto* index = [&]() -> ir::Value* {
+                if (prop.kind() == ArrayFront) {
+                    return ctx.intConstant(0, 64);
+                }
+                if (!arrayType->isDynamic()) {
+                    return ctx.intConstant(arrayType->count() - 1, 64);
+                }
+                auto count = valueMap.arraySize(expr.accessed()->object());
+                return add<ir::ArithmeticInst>(toRegister(count),
+                                               ctx.intConstant(1, 64),
+                                               ir::ArithmeticOperation::Sub,
+                                               "back.index");
+            }();
+            auto* elem = add<ir::GetElementPointer>(irElemType,
+                                                    array.get(),
+                                                    index,
+                                                    std::array<size_t, 0>{},
+                                                    "array.front");
+            return Value(elem, irElemType, Memory);
+        }
         }
     }
     default:

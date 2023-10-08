@@ -266,7 +266,7 @@ fn main() -> bool {
 }
 
 fn sort(data: &mut [int]) -> void {
-    if data.count == 0 {
+    if data.empty {
         return;
     }
     let p = partition(data);
@@ -277,7 +277,7 @@ fn sort(data: &mut [int]) -> void {
 fn partition(data: &mut [int]) -> int {
     var i = 0;
     var j = data.count - 2;
-    let pivot = data[data.count - 1];
+    let pivot = data.back;
     while i < j {
         while i < j && data[i] <= pivot {
             ++i;
@@ -292,7 +292,7 @@ fn partition(data: &mut [int]) -> int {
     if data[i] <= pivot {
         return data.count - 1; // index of pivot
     }
-    swap(data[i], data[data.count - 1]);
+    swap(data[i], data.back);
     return i;
 }
 

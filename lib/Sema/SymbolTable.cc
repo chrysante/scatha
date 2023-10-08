@@ -362,6 +362,14 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                                                  /* isSigned = */ false);
             arrayEmpty->setConstantValue(std::move(constEmpty));
         }
+        addProperty(PropertyKind::ArrayFront,
+                    arrayType->elementType(),
+                    Mutable,
+                    LValue);
+        addProperty(PropertyKind::ArrayBack,
+                    arrayType->elementType(),
+                    Mutable,
+                    LValue);
     });
     declareSpecialLifetimeFunctions(*arrayType, *this);
     const_cast<ObjectType*>(elementType)->parent()->add(arrayType);
