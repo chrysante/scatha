@@ -77,6 +77,11 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::UnaryExpression const&);
     Value getValueImpl(ast::BinaryExpression const&);
     Value getValueImpl(ast::MemberAccess const&);
+    Value genMemberAccess(ast::MemberAccess const&, sema::Variable const&);
+    Value genMemberAccess(ast::MemberAccess const&, sema::Property const&);
+    Value genMemberAccess(ast::MemberAccess const&, sema::Temporary const&) {
+        SC_UNREACHABLE();
+    }
     Value getValueImpl(ast::DereferenceExpression const&);
     Value getValueImpl(ast::AddressOfExpression const&);
     Value getValueImpl(ast::Conditional const&);
@@ -493,7 +498,7 @@ Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
     /// Because identifier expressions always have reference type, we take the
     /// address of the referred to value and put it in a register
     Value value = valueMap(id.object());
-    return value; // Value(value.get(), Register);
+    return value;
 }
 
 Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
@@ -785,13 +790,59 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
-    if (auto value = valueMap.tryGet(expr.member()->object())) {
-        return *value;
+    return visit(*expr.member()->object(),
+                 [&](auto& obj) { return genMemberAccess(expr, obj); });
+}
+
+Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
+                                      sema::Variable const& var) {
+    Value base = getValue(expr.accessed());
+    auto const& metaData = typeMap.metaData(expr.accessed()->type().get());
+    size_t const irIndex = metaData.indexMap[var.index()];
+    switch (base.location()) {
+    case Register: {
+        if (isPtrOrRefToDynArray(expr.type().get())) {
+            valueMap.insertArraySize(expr.object(), [=] {
+                auto* result = add<ir::ExtractValue>(base.get(),
+                                                     std::array{ irIndex + 1 },
+                                                     "mem.acc.size");
+                return Value(result, Register);
+            });
+        }
+        auto* result =
+            add<ir::ExtractValue>(base.get(), std::array{ irIndex }, "mem.acc");
+        return Value(result, Register);
     }
-    if (auto* arrayType =
-            dyncast<sema::ArrayType const*>(expr.accessed()->type().get()))
-    {
-        SC_ASSERT(expr.member()->value() == "count", "What else?");
+    case Memory: {
+        if (isPtrOrRefToDynArray(expr.type().get())) {
+            valueMap.insertArraySize(expr.object(), [=] {
+                auto* result =
+                    add<ir::GetElementPointer>(base.type(),
+                                               base.get(),
+                                               ctx.intConstant(0, 64),
+                                               std::array{ irIndex + 1 },
+                                               "mem.acc.size");
+                return Value(result, ctx.intType(64), Memory);
+            });
+        }
+        auto* result = add<ir::GetElementPointer>(base.type(),
+                                                  base.get(),
+                                                  ctx.intConstant(0, 64),
+                                                  std::array{ irIndex },
+                                                  "mem.acc");
+        auto* accessedType = typeMap(var.type());
+        return Value(result, accessedType, Memory);
+    }
+    }
+}
+
+Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
+                                      sema::Property const& prop) {
+    using enum sema::PropertyKind;
+    switch (prop.kind()) {
+    case ArraySize: {
+        auto* arrayType =
+            cast<sema::ArrayType const*>(expr.accessed()->type().get());
         if (arrayType->isDynamic()) {
             getValue(expr.accessed());
             return valueMap.arraySize(expr.accessed()->object());
@@ -800,57 +851,9 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
             return Value(ctx.intConstant(arrayType->count(), 64), Register);
         }
     }
-
-    Value base = getValue(expr.accessed());
-    auto* var = cast<sema::Variable const*>(expr.member()->entity());
-
-    Value value;
-
-    auto const& metaData = typeMap.metaData(expr.accessed()->type().get());
-    size_t const irIndex = metaData.indexMap[var->index()];
-    switch (base.location()) {
-    case Register: {
-        auto* result =
-            add<ir::ExtractValue>(base.get(), std::array{ irIndex }, "mem.acc");
-        value = Value(result, Register);
-        break;
+    default:
+        SC_UNREACHABLE();
     }
-    case Memory: {
-        auto* baseType = typeMap(expr.accessed()->type());
-        auto* result = add<ir::GetElementPointer>(baseType,
-                                                  base.get(),
-                                                  ctx.intConstant(0, 64),
-                                                  std::array{ irIndex },
-                                                  "mem.acc");
-        auto* accessedType = typeMap(var->type());
-        value = Value(result, accessedType, Memory);
-        break;
-    }
-    }
-    sema::QualType memType = expr.type();
-    if (isPtrOrRefToDynArray(memType.get())) {
-        auto lazySize = [this, base, sizeIndex = irIndex + 1] {
-            switch (base.location()) {
-            case Register: {
-                auto* result = add<ir::ExtractValue>(base.get(),
-                                                     std::array{ sizeIndex },
-                                                     "mem.acc.size");
-                return Value(result, Register);
-            }
-            case Memory: {
-                auto* result =
-                    add<ir::GetElementPointer>(base.type(),
-                                               base.get(),
-                                               ctx.intConstant(0, 64),
-                                               std::array{ sizeIndex },
-                                               "mem.acc.size");
-                return Value(result, ctx.intType(64), Memory);
-            }
-            }
-        };
-        valueMap.insertArraySize(expr.object(), lazySize);
-    }
-    return value;
 }
 
 Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {

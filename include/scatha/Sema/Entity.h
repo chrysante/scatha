@@ -25,6 +25,7 @@
 /// Entity
 /// ├─ Object
 /// │  ├─ Variable
+/// │  ├─ Property
 /// │  └─ Temporary
 /// ├─ OverloadSet
 /// ├─ Generic
