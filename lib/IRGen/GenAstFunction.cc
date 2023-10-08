@@ -1271,49 +1271,48 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case Reinterpret_Array_FromByte: {
         auto* fromType = toArrayStripPtr(expr->type().get());
         auto* toType = toArrayStripPtr(conv.type().get());
-        size_t fromCount = fromType->elementType()->size();
-        size_t toCount = toType->elementType()->size();
+        size_t fromElemSize = fromType->elementType()->size();
+        size_t toElemSize = toType->elementType()->size();
         auto data = refConvResult;
-        if (toType->isDynamic()) {
-            if (fromType->isDynamic()) {
-                auto count = valueMap.arraySize(expr->object());
-                if (conv.conversion()->objectConversion() ==
-                    Reinterpret_Array_ToByte)
-                {
-                    auto* newCount =
-                        add<ir::ArithmeticInst>(toRegister(count),
-                                                ctx.intConstant(fromCount, 64),
-                                                ir::ArithmeticOperation::Mul,
-                                                "reinterpret.count");
-                    count = Value(newCount, Register);
-                }
-                else {
-                    auto* newCount =
-                        add<ir::ArithmeticInst>(toRegister(count),
-                                                ctx.intConstant(toCount, 64),
-                                                ir::ArithmeticOperation::SDiv,
-                                                "reinterpret.count");
-                    count = Value(newCount, Register);
-                }
-                valueMap.insertArraySize(conv.object(), count);
+        if (!toType->isDynamic()) {
+            SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
+            return data;
+        }
+        if (fromType->isDynamic()) {
+            auto count = valueMap.arraySize(expr->object());
+            if (conv.conversion()->objectConversion() ==
+                Reinterpret_Array_ToByte)
+            {
+                auto* newCount =
+                    add<ir::ArithmeticInst>(toRegister(count),
+                                            ctx.intConstant(fromElemSize, 64),
+                                            ir::ArithmeticOperation::Mul,
+                                            "reinterpret.count");
+                count = Value(newCount, Register);
             }
             else {
-                size_t count = fromType->count();
-                switch (conv.conversion()->objectConversion()) {
-                case Reinterpret_Array_ToByte:
-                    count *= fromType->elementType()->size();
-                    break;
-                case Reinterpret_Array_FromByte:
-                    count /= toType->elementType()->size();
-                    break;
-                default:
-                    SC_UNREACHABLE();
-                }
-                valueMap.insertArraySize(conv.object(), count);
+                auto* newCount =
+                    add<ir::ArithmeticInst>(toRegister(count),
+                                            ctx.intConstant(toElemSize, 64),
+                                            ir::ArithmeticOperation::SDiv,
+                                            "reinterpret.count");
+                count = Value(newCount, Register);
             }
+            valueMap.insertArraySize(conv.object(), count);
         }
         else {
-            SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
+            switch (conv.conversion()->objectConversion()) {
+            case Reinterpret_Array_ToByte:
+                valueMap.insertArraySize(conv.object(),
+                                         fromType->count() * fromElemSize);
+                break;
+            case Reinterpret_Array_FromByte:
+                valueMap.insertArraySize(conv.object(),
+                                         fromType->count() / toElemSize);
+                break;
+            default:
+                SC_UNREACHABLE();
+            }
         }
         return data;
     }
