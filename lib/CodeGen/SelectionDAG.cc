@@ -17,6 +17,15 @@ using namespace scatha;
 using namespace cg;
 using namespace ir;
 
+static bool isCritical(ir::Instruction const& inst) {
+    if (opt::hasSideEffects(&inst)) {
+        return true;
+    }
+    return ranges::any_of(inst.users(), [&](auto* user) {
+        return user->parent() != inst.parent();
+    });
+}
+
 SelectionDAG SelectionDAG::build(ir::BasicBlock const& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
@@ -26,7 +35,7 @@ SelectionDAG SelectionDAG::build(ir::BasicBlock const& BB) {
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
         instNode->setIndex(index++);
-        if (opt::hasSideEffects(&inst)) {
+        if (isCritical(inst)) {
             DAG.critical.push_back(&inst);
         }
         for (auto* operand: inst.operands()) {
