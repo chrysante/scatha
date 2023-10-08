@@ -316,4 +316,9 @@ SC_SEMA_BADEXPR_DEF(MoveExpr,
                     Warning,
                     "Moving object without move constructor results in a copy")
 
+SC_SEMA_BADEXPR_DEF(UniqueExpr,
+                    UniqueExprNoConstruct,
+                    Error,
+                    "Unique expression must construct a value")
+
 #undef SC_SEMA_BADEXPR_DEF

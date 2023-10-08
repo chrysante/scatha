@@ -1,6 +1,7 @@
 #ifndef SCATHA_IRGEN_FUNCTIONGENERATION_H_
 #define SCATHA_IRGEN_FUNCTIONGENERATION_H_
 
+#include <svm/Builtin.h>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
@@ -82,7 +83,7 @@ struct FuncGenContextBase: ir::FunctionBuilder {
     ir::Callable* getFunction(sema::Function const* semaFn);
 
     ///
-    ir::ForeignFunction* getMemcpy();
+    ir::ForeignFunction* getBuiltin(svm::Builtin builtin);
 
     /// Emit a call to `memcpy`
     void callMemcpy(ir::Value* dest, ir::Value* source, ir::Value* numBytes);

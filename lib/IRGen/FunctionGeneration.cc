@@ -1,7 +1,5 @@
 #include "IRGen/FunctionGeneration.h"
 
-#include <svm/Builtin.h>
-
 #include "AST/AST.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -52,17 +50,17 @@ ir::Callable* FuncGenContextBase::getFunction(
     return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
 }
 
-ir::ForeignFunction* FuncGenContextBase::getMemcpy() {
-    size_t index = static_cast<size_t>(svm::Builtin::memcpy);
-    auto* semaMemcpy = symbolTable.builtinFunction(index);
-    auto* irMemcpy = getFunction(semaMemcpy);
-    return cast<ir::ForeignFunction*>(irMemcpy);
+ir::ForeignFunction* FuncGenContextBase::getBuiltin(svm::Builtin builtin) {
+    size_t index = static_cast<size_t>(builtin);
+    auto* semaBuiltin = symbolTable.builtinFunction(index);
+    auto* irBuiltin = getFunction(semaBuiltin);
+    return cast<ir::ForeignFunction*>(irBuiltin);
 }
 
 void FuncGenContextBase::callMemcpy(ir::Value* dest,
                                     ir::Value* source,
                                     ir::Value* numBytes) {
-    auto* memcpy = getMemcpy();
+    auto* memcpy = getBuiltin(svm::Builtin::memcpy);
     std::array args = { dest, numBytes, source, numBytes };
     add<ir::Call>(memcpy, args, std::string{});
 }

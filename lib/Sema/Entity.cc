@@ -122,7 +122,7 @@ Property const* Scope::findProperty(PropertyKind kind) const {
     return itr == _properties.end() ? nullptr : itr->second;
 }
 
-void Scope::add(Entity* entity) {
+void Scope::addChild(Entity* entity) {
     /// Each scope that we add we add to to our list of child scopes
     if (auto* scope = dyncast<Scope*>(entity)) {
         bool const success = _children.insert(scope).second;

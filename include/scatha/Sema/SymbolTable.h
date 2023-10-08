@@ -179,13 +179,14 @@ public:
     /// \Returns the `IntType` with size \p size and signedness \p signedness
     IntType const* intType(size_t width, Signedness signedness);
 
-    /// \Returns the `PointerType` to the pointee type \p pointee and
-    /// reference qualifier \p ref
+    /// \Returns the `PointerType` to the pointee type \p pointee
     PointerType const* pointer(QualType pointee);
 
-    /// \Returns the `ReferenceType` to the referred type \p referred and
-    /// reference qualifier \p ref
+    /// \Returns the `ReferenceType` to the referred type \p referred
     ReferenceType const* reference(QualType referred);
+
+    /// \Returns the `UniquePtrType` to the pointee type \p pointee
+    UniquePtrType const* uniquePointer(QualType pointee);
 
     /// ## Queries
 

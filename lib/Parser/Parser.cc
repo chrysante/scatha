@@ -86,6 +86,7 @@
 ///                                   | "*" ["mut"] <prefix-expression>
 ///                                   | "&" ["mut"] <prefix-expression>
 ///                                   | "move" <prefix-expression>
+///                                   | "unique" <prefix-expression>
 /// <postfix-expression>            ::= <generic-expression>
 ///                                   | <postfix-expression> "++"
 ///                                   | <postfix-expression> "--"
@@ -1033,6 +1034,15 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
             return nullptr;
         }
         return allocate<ast::MoveExpr>(std::move(value), token.sourceRange());
+    }
+    case Unique: {
+        tokens.eat();
+        auto value = parsePrefix();
+        if (!value) {
+            issues.push<ExpectedExpression>(tokens.peek());
+            return nullptr;
+        }
+        return allocate<ast::UniqueExpr>(std::move(value), token.sourceRange());
     }
     default:
         return nullptr;

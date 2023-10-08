@@ -90,6 +90,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::SubscriptSlice const&);
     Value getValueImpl(ast::ListExpression const&);
     Value getValueImpl(ast::MoveExpr const&);
+    Value getValueImpl(ast::UniqueExpr const&);
     Value getValueImpl(ast::Conversion const&);
     Value getValueImpl(ast::UninitTemporary const&);
     Value getValueImpl(ast::ConstructExpr const&);
@@ -1231,6 +1232,21 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
                   std::array<ir::Value*, 2>{ dest, toMemory(value) },
                   std::string{});
     return Value(dest, type, Memory);
+}
+
+Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
+    auto* alloc = getBuiltin(svm::Builtin::alloc);
+    auto* baseType =
+        cast<sema::UniquePtrType const&>(*expr.type()).base().get();
+    std::array<ir::Value*, 2> args = { ctx.intConstant(baseType->size(), 64),
+                                       ctx.intConstant(baseType->align(), 64) };
+    auto* fatPtr = add<ir::Call>(alloc, args, "alloc");
+    auto* ptr =
+        add<ir::ExtractValue>(fatPtr, std::array{ size_t{ 0 } }, "pointer");
+    auto* addr = getValue<Memory>(expr.value());
+    SC_ASSERT(isa<ir::Alloca>(addr), "");
+    addr->replaceAllUsesWith(ptr);
+    return Value(storeToMemory(ptr), ctx.ptrType(), Memory);
 }
 
 static sema::ObjectType const* stripPtr(sema::ObjectType const* type) {

@@ -330,6 +330,10 @@ public:
     /// \Returns A View over the entities in this scope
     auto entities() const { return _entities | ranges::views::values; }
 
+    /// Add \p entity as a child of this scope. This function is used by the
+    /// symbol table and should ideally be private
+    void addChild(Entity* entity);
+
 protected:
     explicit Scope(EntityType entityType,
                    ScopeKind,
@@ -340,10 +344,6 @@ protected:
 private:
     friend class SymbolTable;
     friend class Entity;
-
-    /// Add \p entity as a child of this scope. This function is called by
-    /// `SymbolTable`, thus it is a friend
-    void add(Entity* entity);
 
     /// Callback for `Entity::addAlternateName()` to register the new name in
     /// our symbol table Does nothing if \p child is not a child of this scope
@@ -916,6 +916,11 @@ private:
 class SCATHA_API UniquePtrType: public CompoundType, public PtrRefTypeBase {
 public:
     explicit UniquePtrType(QualType base);
+
+private:
+    friend class Type;
+    bool isDefaultConstructibleImpl() const { return true; }
+    bool hasTrivialLifetimeImpl() const { return false; }
 };
 
 /// # OverloadSet

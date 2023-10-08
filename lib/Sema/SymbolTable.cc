@@ -34,10 +34,13 @@ struct SymbolTable::Impl {
     utl::vector<UniquePtr<Entity>> entities;
 
     /// Map of instantiated `PointerType`'s
-    utl::hashmap<QualType, PointerType const*> ptrTypes;
+    utl::hashmap<QualType, PointerType*> ptrTypes;
 
     /// Map of instantiated `ReferenceType`'s
-    utl::hashmap<QualType, ReferenceType const*> refTypes;
+    utl::hashmap<QualType, ReferenceType*> refTypes;
+
+    /// Map of instantiated `UniquePtrType`'s
+    utl::hashmap<QualType, UniquePtrType*> uniquePtrTypes;
 
     /// Map of instantiated `ArrayTypes`'s
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
@@ -85,6 +88,9 @@ struct SymbolTable::Impl {
 
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);
+
+    template <typename T>
+    T* ptrLikeImpl(utl::hashmap<QualType, T*>& map, QualType pointee);
 };
 
 SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
@@ -128,7 +134,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     auto* reinterpret =
         impl->addEntity<Generic>("reinterpret", 1u, &globalScope());
     reinterpret->setBuiltin();
-    globalScope().add(reinterpret);
+    globalScope().addChild(reinterpret);
 }
 
 SymbolTable::SymbolTable(SymbolTable&&) noexcept = default;
@@ -148,7 +154,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
         return nullptr;
     }
     auto* type = impl->addEntity<StructType>(name, &currentScope(), def);
-    currentScope().add(type);
+    currentScope().addChild(type);
     return type;
 }
 
@@ -164,7 +170,7 @@ template <typename T, typename... Args>
 T* SymbolTable::declareBuiltinType(Args&&... args) {
     auto* type =
         impl->addEntity<T>(std::forward<Args>(args)..., &currentScope());
-    globalScope().add(type);
+    globalScope().addChild(type);
     type->setBuiltin();
     return type;
 }
@@ -182,7 +188,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
         if (!entity) {
             auto* overloadSet =
                 impl->addEntity<OverloadSet>(name, &currentScope());
-            currentScope().add(overloadSet);
+            currentScope().addChild(overloadSet);
             return overloadSet;
         }
         if (auto* os = dyncast<OverloadSet*>(entity)) {
@@ -199,7 +205,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                                    &currentScope(),
                                                    FunctionAttribute::None,
                                                    def);
-    currentScope().add(function);
+    currentScope().addChild(function);
     impl->functions.push_back(function);
     return function;
 }
@@ -264,7 +270,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
         return nullptr;
     }
     auto* variable = impl->addEntity<Variable>(name, &currentScope(), vardecl);
-    currentScope().add(variable);
+    currentScope().addChild(variable);
     return variable;
 }
 
@@ -307,7 +313,7 @@ Property* SymbolTable::addProperty(PropertyKind kind,
                                    ValueCategory valueCat) {
     auto* prop =
         impl->addEntity<Property>(kind, &currentScope(), type, mut, valueCat);
-    currentScope().add(prop);
+    currentScope().addChild(prop);
     return prop;
 }
 
@@ -322,13 +328,13 @@ void SymbolTable::declarePoison(std::string name, EntityCategory cat) {
         return;
     }
     auto* poison = impl->addEntity<PoisonEntity>(name, cat, &currentScope());
-    currentScope().add(poison);
+    currentScope().addChild(poison);
 }
 
 Scope* SymbolTable::addAnonymousScope() {
     auto* scope =
         impl->addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
-    currentScope().add(scope);
+    currentScope().addChild(scope);
     return scope;
 }
 
@@ -374,7 +380,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                     LValue);
     });
     declareSpecialLifetimeFunctions(*arrayType, *this);
-    const_cast<ObjectType*>(elementType)->parent()->add(arrayType);
+    const_cast<ObjectType*>(elementType)->parent()->addChild(arrayType);
     return arrayType;
 }
 
@@ -398,26 +404,31 @@ IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
     }
 }
 
-PointerType const* SymbolTable::pointer(QualType pointee) {
-    auto itr = impl->ptrTypes.find(pointee);
-    if (itr != impl->ptrTypes.end()) {
+template <typename T>
+T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
+                                  QualType pointee) {
+    auto itr = map.find(pointee);
+    if (itr != map.end()) {
         return itr->second;
     }
-    auto* ptrType = impl->addEntity<PointerType>(pointee);
-    impl->ptrTypes.insert({ pointee, ptrType });
-    const_cast<ObjectType*>(pointee.get())->parent()->add(ptrType);
+    auto* ptrType = addEntity<T>(pointee);
+    map.insert({ pointee, ptrType });
+    const_cast<ObjectType*>(pointee.get())->parent()->addChild(ptrType);
     return ptrType;
 }
 
+PointerType const* SymbolTable::pointer(QualType pointee) {
+    return impl->ptrLikeImpl(impl->ptrTypes, pointee);
+}
+
 ReferenceType const* SymbolTable::reference(QualType referred) {
-    auto itr = impl->refTypes.find(referred);
-    if (itr != impl->refTypes.end()) {
-        return itr->second;
-    }
-    auto* refType = impl->addEntity<ReferenceType>(referred);
-    impl->refTypes.insert({ referred, refType });
-    const_cast<ObjectType*>(referred.get())->parent()->add(refType);
-    return refType;
+    return impl->ptrLikeImpl(impl->refTypes, referred);
+}
+
+UniquePtrType const* SymbolTable::uniquePointer(QualType pointee) {
+    auto* type = impl->ptrLikeImpl(impl->uniquePtrTypes, pointee);
+    declareSpecialLifetimeFunctions(*type, *this);
+    return type;
 }
 
 void SymbolTable::pushScope(Scope* scope) {

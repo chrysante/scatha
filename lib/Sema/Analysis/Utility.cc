@@ -261,7 +261,13 @@ static void declareSLFs(ArrayType& type, SymbolTable& sym) {
 }
 
 static void declareSLFs(UniquePtrType& type, SymbolTable& sym) {
-    SC_UNIMPLEMENTED();
+    using enum SpecialLifetimeFunction;
+    SLFArray SLF{};
+    SLF[DefaultConstructor] = generateSLF(DefaultConstructor, type, sym);
+    SLF[CopyConstructor] = nullptr;
+    SLF[MoveConstructor] = generateSLF(MoveConstructor, type, sym);
+    SLF[Destructor] = generateSLF(Destructor, type, sym);
+    type.setSpecialLifetimeFunctions(SLF);
 }
 
 void sema::declareSpecialLifetimeFunctions(CompoundType& type,

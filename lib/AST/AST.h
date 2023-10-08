@@ -668,6 +668,18 @@ private:
     sema::Function const* ctor = nullptr;
 };
 
+/// Unique expression
+class SCATHA_API UniqueExpr: public Expression {
+public:
+    explicit UniqueExpr(UniquePtr<Expression> value, SourceRange sourceRange):
+        Expression(NodeType::UniqueExpr, sourceRange, std::move(value)) {}
+
+    AST_DERIVED_COMMON(UniqueExpr)
+
+    /// The moved value
+    AST_PROPERTY(0, Expression, value, Value)
+};
+
 /// MARK: More Complex Expressions
 
 /// Abstract node representing a function-call-like expression.

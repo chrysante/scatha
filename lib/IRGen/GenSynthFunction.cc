@@ -3,6 +3,7 @@
 #include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Sema/Entity.h"
 
@@ -104,7 +105,53 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
 }
 
 void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
-    SC_UNIMPLEMENTED();
+    using enum sema::SpecialLifetimeFunction;
+    switch (kind) {
+    case DefaultConstructor: {
+        auto* self = &irFn.parameters().front();
+        add<ir::Store>(self, ctx.nullpointer());
+        break;
+    }
+    case CopyConstructor:
+        SC_UNREACHABLE();
+    case MoveConstructor: {
+        auto* self = &irFn.parameters().front();
+        auto* rhs = &irFn.parameters().back();
+        add<ir::Store>(self, add<ir::Load>(rhs, ctx.ptrType(), "rhs"));
+        add<ir::Store>(rhs, ctx.nullpointer());
+        break;
+    }
+    case Destructor: {
+        auto* self = &irFn.parameters().front();
+        auto* ptr = add<ir::Load>(self, ctx.ptrType(), "ptr");
+        auto* cond = add<ir::CompareInst>(ptr,
+                                          ctx.nullpointer(),
+                                          ir::CompareMode::Unsigned,
+                                          ir::CompareOperation::Equal,
+                                          "ptr.null");
+        auto* then = newBlock("delete");
+        auto* end = newBlock("end");
+        add<ir::Branch>(cond, end, then);
+
+        add(then);
+        auto* compBase = dyncast<sema::CompoundType const*>(type.base().get());
+        if (compBase && compBase->specialLifetimeFunction(Destructor)) {
+            auto* dtor = compBase->specialLifetimeFunction(Destructor);
+            add<ir::Call>(getFunction(dtor), std::array<ir::Value*, 1>{ ptr });
+        }
+        auto* dealloc = getBuiltin(svm::Builtin::dealloc);
+        std::array<ir::Value*, 3> args = {
+            ptr,
+            ctx.intConstant(type.base()->size(), 64),
+            ctx.intConstant(type.base()->align(), 64)
+        };
+        add<ir::Call>(dealloc, args);
+        add<ir::Goto>(end);
+
+        add(end);
+        break;
+    }
+    }
 }
 
 void FuncGenContext::genMemberCall(ir::Instruction const* before,

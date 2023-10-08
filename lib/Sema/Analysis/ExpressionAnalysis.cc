@@ -51,6 +51,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
     ast::Expression* analyzeImpl(ast::Conditional&);
     ast::Expression* analyzeImpl(ast::MoveExpr&);
+    ast::Expression* analyzeImpl(ast::UniqueExpr&);
     ast::Expression* analyzeImpl(ast::FunctionCall&);
     ast::Expression* rewriteMemberCall(ast::FunctionCall&);
     ast::Expression* analyzeImpl(ast::Subscript&);
@@ -548,6 +549,17 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     }
 }
 
+///
+static QualType getPtrBase(ObjectType const* type) {
+    if (auto* ptrType = dyncast<PointerType const*>(type)) {
+        return ptrType->base();
+    }
+    if (auto* ptrType = dyncast<UniquePtrType const*>(type)) {
+        return ptrType->base();
+    }
+    return nullptr;
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     if (!analyze(expr.referred())) {
         return nullptr;
@@ -555,13 +567,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     auto* pointer = expr.referred();
     switch (pointer->entityCategory()) {
     case EntityCategory::Value: {
-        auto* ptrType =
-            dyncast_or_null<PointerType const*>(pointer->type().get());
-        if (!ptrType) {
+        auto baseType = getPtrBase(pointer->type().get());
+        if (!baseType) {
             ctx.badExpr(&expr, DerefNoPtr);
             return nullptr;
         }
-        expr.decorateValue(sym.temporary(ptrType->base()), LValue);
+        expr.decorateValue(sym.temporary(baseType), LValue);
         return &expr;
     }
     case EntityCategory::Type: {
@@ -690,6 +701,20 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
         expr.setFunction(ctor);
     }
     expr.decorateValue(sym.temporary(expr.value()->type()), RValue);
+    dtorStack->push(expr.object());
+    return &expr;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
+    if (!analyzeValue(expr.value())) {
+        return nullptr;
+    }
+    if (!isa<ast::ConstructExpr>(expr.value())) {
+        ctx.badExpr(&expr, UniqueExprNoConstruct);
+        return nullptr;
+    }
+    auto* type = sym.uniquePointer(expr.value()->type());
+    expr.decorateValue(sym.temporary(type), RValue);
     dtorStack->push(expr.object());
     return &expr;
 }
