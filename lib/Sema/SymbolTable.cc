@@ -299,8 +299,12 @@ Variable* SymbolTable::defineVariable(std::string name,
     return defineVarImpl(nullptr, std::move(name), type, mut);
 }
 
-Property* SymbolTable::addProperty(PropertyKind kind, Type const* type) {
-    auto* prop = impl->addEntity<Property>(kind, &currentScope(), type);
+Property* SymbolTable::addProperty(PropertyKind kind,
+                                   Type const* type,
+                                   Mutability mut,
+                                   ValueCategory valueCat) {
+    auto* prop =
+        impl->addEntity<Property>(kind, &currentScope(), type, mut, valueCat);
     currentScope().add(prop);
     return prop;
 }
@@ -342,13 +346,17 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
         impl->addEntity<ArrayType>(const_cast<ObjectType*>(elementType), size);
     impl->arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
-        auto* arraySize = addProperty(PropertyKind::ArraySize, S64());
+        using enum Mutability;
+        using enum ValueCategory;
+        auto* arraySize =
+            addProperty(PropertyKind::ArraySize, S64(), Const, RValue);
         if (size != ArrayType::DynamicCount) {
             auto constSize = allocate<IntValue>(APInt(size, 64),
                                                 /* isSigned = */ true);
             arraySize->setConstantValue(std::move(constSize));
         }
-        auto* arrayEmpty = addProperty(PropertyKind::ArrayEmpty, Bool());
+        auto* arrayEmpty =
+            addProperty(PropertyKind::ArrayEmpty, Bool(), Const, RValue);
         if (size != ArrayType::DynamicCount) {
             auto constEmpty = allocate<IntValue>(APInt(size == 0, 1),
                                                  /* isSigned = */ false);

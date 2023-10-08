@@ -436,8 +436,8 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
 
 UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
     size_t index) {
-    Token const idToken = tokens.peek();
     auto thisMutQual = eatMut();
+    Token const idToken = tokens.peek();
     if (idToken.kind() == This) {
         tokens.eat();
         return allocate<ast::ThisParameter>(index,

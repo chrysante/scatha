@@ -112,7 +112,10 @@ public:
     ///
     ///
     ///
-    Property* addProperty(PropertyKind kind, Type const* type);
+    Property* addProperty(PropertyKind kind,
+                          Type const* type,
+                          Mutability mut,
+                          ValueCategory valueCat);
 
     /// Creates a new unique temporary object of type \p type
     Temporary* temporary(QualType type);

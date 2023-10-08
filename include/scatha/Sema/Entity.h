@@ -246,7 +246,11 @@ private:
 /// of arrays
 class SCATHA_API Property: public Object {
 public:
-    explicit Property(PropertyKind kind, Scope* parentScope, Type const* type);
+    explicit Property(PropertyKind kind,
+                      Scope* parentScope,
+                      Type const* type,
+                      Mutability mut,
+                      ValueCategory valueCat);
 
     /// The kind of property
     PropertyKind kind() const { return _kind; }
@@ -259,7 +263,7 @@ private:
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
     PropertyKind _kind;
-    ValueCategory _valueCat{};
+    ValueCategory _valueCat;
 };
 
 /// Represents a temporary object

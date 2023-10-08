@@ -86,13 +86,18 @@ bool Variable::isLocal() const {
     return parent()->kind() == ScopeKind::Function;
 }
 
-Property::Property(PropertyKind kind, Scope* parentScope, Type const* type):
+Property::Property(PropertyKind kind,
+                   Scope* parentScope,
+                   Type const* type,
+                   Mutability mut,
+                   ValueCategory valueCat):
     Object(EntityType::Property,
            std::string(toString(kind)),
            parentScope,
            type,
-           {}),
-    _kind(kind) {}
+           mut),
+    _kind(kind),
+    _valueCat(valueCat) {}
 
 Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
     Object(EntityType::Temporary,

@@ -443,7 +443,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
             return &id;
         },
         [&](Property& prop) {
-            id.decorateValue(&prop, prop.valueCategory());
+            id.decorateValue(&prop, prop.valueCategory(), prop.getQualType());
             id.setConstantValue(clone(prop.constantValue()));
             return &id;
         },

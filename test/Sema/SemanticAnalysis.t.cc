@@ -401,3 +401,34 @@ fn main() {
 })");
     CHECK(iss.empty());
 }
+
+TEST_CASE("This parameter by value", "[sema]") {
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct X {
+    fn byValue(mut this) {
+        this.value = 2;
+        return this.value;
+    }
+    var value: int;
+}
+fn main() {
+    var x = X(1);
+    x.byValue();
+})");
+    CHECK(iss.empty());
+}
+
+TEST_CASE("This parameter by constant value", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+struct X {
+    fn byValue(this) {
+        this.value = 2;
+    }
+    var value: int;
+}
+fn main() {
+    var x = X(1);
+    x.byValue();
+})");
+    CHECK(iss.findOnLine<BadExpr>(4, BadExpr::BinaryExprImmutableLHS));
+}
