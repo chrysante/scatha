@@ -1233,11 +1233,11 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     return Value(dest, type, Memory);
 }
 
-static sema::ArrayType const* toArrayStripPtr(sema::Type const* type) {
+static sema::ObjectType const* stripPtr(sema::ObjectType const* type) {
     if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
-        type = ptrType->base().get();
+        return ptrType->base().get();
     }
-    return cast<sema::ArrayType const*>(type);
+    return type;
 }
 
 Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
@@ -1269,8 +1269,10 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case Reinterpret_Array_ToByte:
         [[fallthrough]];
     case Reinterpret_Array_FromByte: {
-        auto* fromType = toArrayStripPtr(expr->type().get());
-        auto* toType = toArrayStripPtr(conv.type().get());
+        auto* fromType =
+            cast<sema::ArrayType const*>(stripPtr(expr->type().get()));
+        auto* toType =
+            cast<sema::ArrayType const*>(stripPtr(conv.type().get()));
         size_t fromElemSize = fromType->elementType()->size();
         size_t toElemSize = toType->elementType()->size();
         auto data = refConvResult;
@@ -1279,26 +1281,27 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
             return data;
         }
         if (fromType->isDynamic()) {
-            auto count = valueMap.arraySize(expr->object());
+            auto fromCount = valueMap.arraySize(expr->object());
             if (conv.conversion()->objectConversion() ==
                 Reinterpret_Array_ToByte)
             {
                 auto* newCount =
-                    add<ir::ArithmeticInst>(toRegister(count),
+                    add<ir::ArithmeticInst>(toRegister(fromCount),
                                             ctx.intConstant(fromElemSize, 64),
                                             ir::ArithmeticOperation::Mul,
                                             "reinterpret.count");
-                count = Value(newCount, Register);
+                valueMap.insertArraySize(conv.object(),
+                                         Value(newCount, Register));
             }
             else {
                 auto* newCount =
-                    add<ir::ArithmeticInst>(toRegister(count),
+                    add<ir::ArithmeticInst>(toRegister(fromCount),
                                             ctx.intConstant(toElemSize, 64),
                                             ir::ArithmeticOperation::SDiv,
                                             "reinterpret.count");
-                count = Value(newCount, Register);
+                valueMap.insertArraySize(conv.object(),
+                                         Value(newCount, Register));
             }
-            valueMap.insertArraySize(conv.object(), count);
         }
         else {
             switch (conv.conversion()->objectConversion()) {
@@ -1316,7 +1319,29 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         }
         return data;
     }
-
+    case Reinterpret_Value_ToByteArray: {
+        auto data = refConvResult;
+        auto* fromType = stripPtr(expr->type().get());
+        auto* toType =
+            cast<sema::ArrayType const*>(stripPtr(conv.type().get()));
+        if (toType->isDynamic()) {
+            valueMap.insertArraySize(conv.object(), fromType->size());
+        }
+        return data;
+    }
+    case Reinterpret_Value_FromByteArray: {
+        auto data = refConvResult;
+        auto* fromType =
+            cast<sema::ArrayType const*>(stripPtr(expr->type().get()));
+        auto* toType = stripPtr(conv.type().get());
+        if (!fromType->isDynamic()) {
+            SC_ASSERT(fromType->size() == toType->size(), "Size mismatch");
+        }
+        else {
+            // TODO: Insert runtime check that size is equal
+        }
+        return data;
+    }
     case Reinterpret_Value: {
         auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
                                                typeMap(conv.type()),
