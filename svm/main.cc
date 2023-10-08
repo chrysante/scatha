@@ -79,8 +79,13 @@ int main(int argc, char* argv[]) {
     }
 
     VirtualMachine vm;
-    vm.loadBinary(seekBinary(executable).data());
-
+    try {
+        vm.loadBinary(seekBinary(executable).data());
+    }
+    catch (std::exception const& e) {
+        std::cout << e.what() << std::endl;
+        return 1;
+    }
     /// Copy arguments onto the stack below the stack frame of `main()`
     auto arguments = generateArguments(options.arguments);
     size_t argPointersSize = arguments.pointers.size() * 16;

@@ -1,37 +1,50 @@
 #include "CLIParse.h"
 
 #include <cstdlib>
+#include <iostream>
+#include <string_view>
 
 #include <CLI/CLI11.hpp>
 
 using namespace svm;
 
+static int fileArgIndex(int argc, char* argv[]) {
+    for (int i = 0; i < argc; ++i) {
+        std::string_view arg = argv[i];
+        if (!arg.starts_with("--binary")) {
+            continue;
+        }
+        if (arg != "--binary" && arg != "--binary=") {
+            return i;
+        }
+        if (i + 1 == argc) {
+            std::cout << "Expected file argument after --binary.\n";
+            std::exit(1);
+        }
+        return i + 1;
+    }
+    return argc;
+}
+
 Options svm::parseCLI(int argc, char* argv[]) {
+    int const optionsArgC = fileArgIndex(argc, argv) + 1;
     Options result;
     CLI::App app{ "Scatha Virtual Machine" };
     std::filesystem::path filepath, objpath;
     CLI::Option const* time =
         app.add_flag("-t,--time", "Measure execution time");
-    app.add_option("arguments",
-                   result.arguments,
-                   "Executable file and arguments to pass to the executable");
+    app.add_option("--binary", result.filepath, "Executable file")
+        ->check(CLI::ExistingFile);
     try {
-        app.parse(argc, argv);
+        app.parse(optionsArgC, argv);
     }
     catch (CLI::ParseError const& e) {
         int const exitCode = app.exit(e);
         std::exit(exitCode);
     }
     result.time = !!*time;
-    if (result.arguments.empty()) {
-        std::cout << "No executable\n";
-        std::exit(-1);
+    for (int i = optionsArgC; i < argc; ++i) {
+        result.arguments.push_back(argv[i]);
     }
-    result.filepath = result.arguments.front();
-    if (!std::filesystem::exists(result.filepath)) {
-        std::cout << "Not a file: " << result.filepath << "\n";
-        std::exit(-1);
-    }
-    result.arguments.erase(result.arguments.begin());
     return result;
 }
