@@ -106,7 +106,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     ctx.run();
     std::span<u8 const> dataSection = astr.dataSection();
     svm::ProgramHeader const header{
-        .versionString = {},
+        .versionString = { svm::GlobalProgID },
         .size = sizeof(svm::ProgramHeader) + dataSection.size() +
                 ctx.instructions.size(),
         .dataOffset = sizeof(svm::ProgramHeader),

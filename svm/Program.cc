@@ -4,6 +4,7 @@
 #include <iostream>
 #include <ostream>
 #include <span>
+#include <stdexcept>
 
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
@@ -16,6 +17,9 @@ using namespace svm;
 Program::Program(u8 const* prog) {
     ProgramHeader header;
     std::memcpy(&header, prog, sizeof(header));
+    if (header.versionString[0] != GlobalProgID) {
+        throw std::runtime_error("Invalid version string");
+    }
     size_t const dataSize = header.textOffset - header.dataOffset;
     data.resize(dataSize, utl::no_init);
     std::memcpy(data.data(), prog + header.dataOffset, dataSize);
