@@ -650,7 +650,35 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
-    SC_UNIMPLEMENTED();
+    if (!analyzeValue(expr.value())) {
+        return nullptr;
+    }
+    auto type = expr.value()->type();
+    if (type.isConst()) {
+        ctx.badExpr(&expr, BadExpr::MoveExprConst);
+        return nullptr;
+    }
+    if (expr.value()->isRValue()) {
+        ctx.badExpr(&expr, BadExpr::MoveExprRValue);
+    }
+    if (!type->hasTrivialLifetime()) {
+        auto* compType = cast<CompoundType const*>(type.get());
+        using enum SpecialLifetimeFunction;
+        auto* moveCtor = compType->specialLifetimeFunction(MoveConstructor);
+        auto* copyCtor = compType->specialLifetimeFunction(CopyConstructor);
+        auto* ctor = moveCtor ? moveCtor : copyCtor;
+        if (!ctor) {
+            ctx.badExpr(&expr, BadExpr::MoveExprImmovable);
+            return nullptr;
+        }
+        if (ctor == copyCtor) {
+            ctx.badExpr(&expr, BadExpr::MoveExprCopies);
+        }
+        expr.setFunction(ctor);
+    }
+    expr.decorateValue(sym.temporary(expr.value()->type()), RValue);
+    dtorStack->push(expr.object());
+    return &expr;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
