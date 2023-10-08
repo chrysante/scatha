@@ -1085,6 +1085,15 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
         }
         return value;
     }
+    case TokenKind::NullLiteral:
+        if constexpr (std::convertible_to<V*, BasicBlock*> ||
+                      std::convertible_to<V*, Callable*>)
+        {
+            reportSyntaxIssue(token);
+        }
+        else {
+            return irCtx.nullpointer();
+        }
     case TokenKind::UndefLiteral:
         if constexpr (std::convertible_to<V*, BasicBlock*> ||
                       std::convertible_to<V*, Callable*>)

@@ -51,6 +51,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "func", TokenKind::Function },
         { "void", TokenKind::Void },
         { "ptr", TokenKind::Ptr },
+        { "null", TokenKind::NullLiteral },
         { "undef", TokenKind::UndefLiteral },
         { "alloca", TokenKind::Alloca },
         { "load", TokenKind::Load },

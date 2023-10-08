@@ -40,6 +40,15 @@ private:
     APFloat _value;
 };
 
+/// Represents the value of a null pointer
+class SCATHA_API NullPointerConstant: public Constant {
+public:
+    explicit NullPointerConstant(PointerType const* ptrType);
+
+    /// \Returns The type of this constant as `PointerType`.
+    PointerType const* type() const;
+};
+
 /// Represents an `undef` value.
 class SCATHA_API UndefValue: public Constant {
 public:

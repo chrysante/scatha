@@ -22,10 +22,10 @@ struct Context::Impl {
     /// of different widths may not be possible. **
     utl::hashmap<std::pair<size_t, APInt>, UniquePtr<IntegralConstant>>
         _integralConstants;
-    /// We use `std::map` here because floats are not really hashable.
     utl::hashmap<std::pair<size_t, APFloat>, UniquePtr<FloatingPointConstant>>
         _floatConstants;
     utl::hashmap<Type const*, UniquePtr<UndefValue>> _undefConstants;
+    UniquePtr<NullPointerConstant> nullptrConstant;
 
     /// ## Types
     utl::vector<UniquePtr<Type>> _types;
@@ -48,6 +48,7 @@ Context::Context(): impl(std::make_unique<Impl>()) {
     auto pt = allocate<PointerType>();
     impl->_ptrType = pt.get();
     impl->_types.push_back(std::move(pt));
+    impl->nullptrConstant = allocate<NullPointerConstant>(ptrType());
 }
 
 Context::Context(Context&&) noexcept = default;
@@ -186,6 +187,10 @@ Constant* Context::arithmeticConstant(APInt value) {
 
 Constant* Context::arithmeticConstant(APFloat value) {
     return floatConstant(value);
+}
+
+NullPointerConstant* Context::nullpointer() {
+    return impl->nullptrConstant.get();
 }
 
 UndefValue* Context::undef(Type const* type) {

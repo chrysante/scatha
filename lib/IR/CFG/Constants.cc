@@ -23,6 +23,13 @@ FloatType const* FloatingPointConstant::type() const {
     return cast<FloatType const*>(Value::type());
 }
 
+NullPointerConstant::NullPointerConstant(PointerType const* ptrType):
+    Constant(NodeType::NullPointerConstant, ptrType) {}
+
+PointerType const* NullPointerConstant::type() const {
+    return cast<PointerType const*>(Value::type());
+}
+
 ConstantData::ConstantData(ir::Context& ctx,
                            Type const* dataType,
                            utl::vector<uint8_t> data,

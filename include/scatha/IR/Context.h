@@ -85,6 +85,9 @@ public:
     /// \returns The floating point constant with value \p value
     Constant* arithmeticConstant(APFloat value);
 
+    /// \Returns the null pointer constant
+    NullPointerConstant* nullpointer();
+
     /// \returns The `undef` constant of type \p type
     UndefValue* undef(Type const* type);
 

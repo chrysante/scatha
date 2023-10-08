@@ -173,6 +173,9 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
         [&](ir::FloatingPointConstant const& value) {
             str << formatNumLiteral(value.value().toString());
         },
+        [&](ir::NullPointerConstant const&) {
+            str << formatKeyword("null");
+        },
         [&](ir::UndefValue const& value) {
             str << formatKeyword("undef");
         },
