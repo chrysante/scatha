@@ -671,6 +671,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
     }
     if (expr.value()->isRValue()) {
         ctx.badExpr(&expr, BadExpr::MoveExprRValue);
+        expr.decorateValue(expr.value()->object(), RValue);
+        return &expr;
     }
     if (!type->hasTrivialLifetime()) {
         auto* compType = cast<CompoundType const*>(type.get());
