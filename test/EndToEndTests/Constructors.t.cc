@@ -268,3 +268,40 @@ fn main() {
     var data = [Y(1), Y(2)];
 })");
 }
+
+TEST_CASE("First move constructor", "[end-to-end][constructors]") {
+    test::checkReturns(10, R"(
+struct UniquePtr {
+    fn new(&mut this) { this.ptr = null; }
+    fn new(&mut this, ptr: *mut int) { this.ptr = ptr; }
+    fn move(&mut this, rhs: &mut UniquePtr) {
+        this.ptr = rhs.ptr;
+        rhs.ptr = null;
+    }
+    fn delete(&mut this) {
+        this.reset();
+    }
+    fn reset(&mut this) {
+        if this.ptr == null {
+            return;
+        }
+        let bytePtr = reinterpret<*mut [byte]>(this.ptr);
+        __builtin_dealloc(bytePtr, 8);
+        this.ptr = null;
+    }
+    fn get(&this) { return this.ptr; }
+    var ptr: *mut int;
+}
+
+fn allocate() -> UniquePtr {
+    let ptr = __builtin_alloc(8, 8);
+    return UniquePtr(reinterpret<*mut int>(ptr));
+}
+
+fn main() {
+    var p = allocate();
+    let q = move p;
+    *q.get() = 10;
+    return *q.get();
+})");
+}
