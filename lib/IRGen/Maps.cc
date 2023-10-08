@@ -219,6 +219,9 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
         [&](sema::FloatType const& floatType) -> ir::Type const* {
             return ctx->floatType(floatType.bitwidth());
         },
+        [&](sema::NullPtrType const&) -> ir::Type const* {
+            return ctx->ptrType();
+        },
         [&](sema::StructType const& structType) -> ir::Type const* {
             SC_UNREACHABLE("Undeclared structure type");
         },
@@ -402,6 +405,9 @@ ir::CompareMode irgen::mapCompareMode(sema::BuiltinType const* type) {
         },
         [](sema::FloatType const&) {
             return ir::CompareMode::Float;
+        },
+        [](sema::NullPtrType const&) -> ir::CompareMode {
+            SC_UNIMPLEMENTED();
         },
     }); // clang-format on
 }

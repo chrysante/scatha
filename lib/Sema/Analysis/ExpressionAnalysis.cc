@@ -160,6 +160,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         lit.setConstantValue(allocate<FloatValue>(lit.value<APFloat>()));
         return &lit;
 
+    case Null:
+        lit.decorateValue(sym.temporary(sym.NullPtrType()), RValue);
+        return &lit;
+
     case This: {
         auto* scope = &sym.currentScope();
         while (!isa<Function>(scope)) {

@@ -1182,6 +1182,10 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::FloatingPoint,
                                       token.toFloat(APFloatPrec::Double));
+    case Null:
+        tokens.eat();
+        return allocate<ast::Literal>(token.sourceRange(),
+                                      ast::LiteralKind::Null);
     case This:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),

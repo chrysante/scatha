@@ -37,14 +37,15 @@
 /// │     ├─ ReferenceType
 /// │     ├─ FunctionType [Does not exist yet]
 /// │     └─ ObjectType
-/// │        ├─ PointerType
 /// │        ├─ BuiltinType
 /// │        │  ├─ VoidType
-/// │        │  └─ ArithmeticType
-/// │        │     ├─ BoolType
-/// │        │     ├─ ByteType
-/// │        │     ├─ IntType
-/// │        │     └─ FloatType
+/// │        │  ├─ ArithmeticType
+/// │        │  │  ├─ BoolType
+/// │        │  │  ├─ ByteType
+/// │        │  │  ├─ IntType
+/// │        │  │  └─ FloatType
+/// │        │  └─ NullPtrType
+/// │        ├─ PointerType
 /// │        └─ CompoundType
 /// │           ├─ StructType
 /// │           └─ ArrayType
@@ -721,6 +722,13 @@ public:
 class SCATHA_API FloatType: public ArithmeticType {
 public:
     explicit FloatType(size_t bitwidth, Scope* parentScope);
+};
+
+/// Concrete class the type of the `null` literal. This type only has a single
+/// value `null`
+class SCATHA_API NullPtrType: public BuiltinType {
+public:
+    explicit NullPtrType(Scope* parent);
 };
 
 /// ## About trivial lifetime

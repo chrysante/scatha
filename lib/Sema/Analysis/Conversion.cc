@@ -252,6 +252,9 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             }
             }
         },
+        [&](NullPtrType const& from, PointerType const& to) -> RetType {
+            return None;
+        },
         [&](PointerType const& from, PointerType const& to) -> RetType {
             if (from.base().isConst() && to.base().isMut()) {
                 return std::nullopt;

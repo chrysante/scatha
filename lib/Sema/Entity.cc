@@ -253,6 +253,9 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Invalid width");
 }
 
+NullPtrType::NullPtrType(Scope* parent):
+    BuiltinType(EntityType::NullPtrType, "<null-type>", parent, 1, 1) {}
+
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     std::stringstream sstr;
     sstr << "[" << elemType->name();

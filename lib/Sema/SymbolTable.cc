@@ -81,6 +81,7 @@ struct SymbolTable::Impl {
     FloatType* F32;
     FloatType* F64;
     ArrayType* Str;
+    sema::NullPtrType* NullPtrType;
 
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);
@@ -104,6 +105,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->F32 = declareBuiltinType<FloatType>(32u);
     impl->F64 = declareBuiltinType<FloatType>(64u);
     impl->Str = const_cast<ArrayType*>(arrayType(Byte()));
+    impl->NullPtrType = declareBuiltinType<sema::NullPtrType>();
 
     impl->S64->addAlternateName("int");
     impl->F32->addAlternateName("float");
@@ -495,6 +497,10 @@ FloatType const* SymbolTable::F32() const { return impl->F32; }
 FloatType const* SymbolTable::F64() const { return impl->F64; }
 
 ArrayType const* SymbolTable::Str() const { return impl->Str; }
+
+NullPtrType const* SymbolTable::NullPtrType() const {
+    return impl->NullPtrType;
+}
 
 std::span<Function* const> SymbolTable::functions() { return impl->functions; }
 

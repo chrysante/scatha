@@ -463,11 +463,11 @@ private:
 /// Concrete node representing a literal.
 class SCATHA_API Literal: public Expression {
 public:
-    using ValueType = std::variant<APInt, APFloat, std::string>;
+    using ValueType = std::variant<std::monostate, APInt, APFloat, std::string>;
 
     explicit Literal(SourceRange sourceRange,
                      LiteralKind kind,
-                     ValueType value):
+                     ValueType value = std::monostate{}):
         Expression(NodeType::Literal, sourceRange),
         _kind(kind),
         _value(std::move(value)) {}

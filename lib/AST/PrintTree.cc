@@ -124,6 +124,9 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
     case LiteralKind::FloatingPoint:
         str << lit->value<APFloat>().toString();
         break;
+    case LiteralKind::Null:
+        str << "null";
+        break;
     case LiteralKind::This:
         str << "this";
         break;

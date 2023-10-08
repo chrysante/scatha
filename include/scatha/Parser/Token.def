@@ -58,6 +58,7 @@ SC_KEYWORD_TOKEN_DEF(Move,        "move")
 /// ## Constants
 SC_KEYWORD_TOKEN_DEF(False,       "false")
 SC_KEYWORD_TOKEN_DEF(True,        "true")
+SC_KEYWORD_TOKEN_DEF(Null,        "null")
 SC_KEYWORD_TOKEN_DEF(This,        "this")
 
 /// ## Specifiers

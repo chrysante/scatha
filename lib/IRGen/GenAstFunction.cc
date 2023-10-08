@@ -511,6 +511,8 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         return Value(ctx.intConstant(lit.value<APInt>()), Register);
     case FloatingPoint:
         return Value(ctx.floatConstant(lit.value<APFloat>()), Register);
+    case Null:
+        return Value(ctx.nullpointer(), Register);
     case This:
         return valueMap(lit.object());
     case String: {

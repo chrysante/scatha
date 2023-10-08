@@ -267,6 +267,8 @@ public:
 
     ArrayType const* Str() const;
 
+    NullPtrType const* NullPtrType() const;
+
 private:
     struct Impl;
 
