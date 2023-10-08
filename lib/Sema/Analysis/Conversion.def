@@ -37,7 +37,7 @@ SC_MUTCONV_DEF(MutToConst,   1)
 
 SC_OBJTYPECONV_DEF(None,                          0)
 
-/// # Only valid for reference target types
+/// # Only valid for reference and pointer target types
     
 SC_OBJTYPECONV_DEF(Array_FixedToDynamic,          1)
 

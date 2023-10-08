@@ -125,110 +125,142 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         return None;
     }
     using RetType = std::optional<ObjectTypeConversion>;
-    // clang-format off
-    return visit(*from, *to, utl::overload{
-        [&](IntType const& from, ByteType const& to) -> RetType {
-            switch (kind) {
-            case ConversionKind::Implicit:
+    auto implAndExplArrayToArrayConv = [](ArrayType const& from,
+                                          ArrayType const& to) -> RetType {
+        if (from.elementType() == to.elementType() && !from.isDynamic() &&
+            to.isDynamic())
+        {
+            return Array_FixedToDynamic;
+        }
+        return std::nullopt;
+    };
+    auto pointerConv = utl::overload{
+        [&](NullPtrType const& from, PointerType const& to) -> RetType {
+            return None;
+        },
+        [&](PointerType const& from, PointerType const& to) -> RetType {
+            if (from.base().isConst() && to.base().isMut()) {
                 return std::nullopt;
-            case ConversionKind::Explicit:
+            }
+            if (from.base().get() == to.base().get()) {
+                return None;
+            }
+            auto* fromArray = dyncast<ArrayType const*>(from.base().get());
+            auto* toArray = dyncast<ArrayType const*>(to.base().get());
+            if (fromArray && toArray) {
+                return determineObjConv(kind, fromArray, toArray);
+            }
+            return std::nullopt;
+        }
+    };
+
+    switch (kind) {
+    case ConversionKind::Implicit:
+        // clang-format off
+        return SC_MATCH (*from, *to) {
+            [&](IntType const& from, ByteType const& to) -> RetType {
+                return std::nullopt;
+            },
+            [&](ByteType const& from, IntType const& to) -> RetType {
+                return std::nullopt;
+            },
+            [&](IntType const& from, IntType const& to) -> RetType {
+                return implicitIntConversion(from, to);
+            },
+            [&](FloatType const& from, FloatType const& to) -> RetType {
+                if (from.bitwidth() <= to.bitwidth()) {
+                    return Float_Widen;
+                }
+                return std::nullopt;
+            },
+            [&](IntType const& from, FloatType const& to) -> RetType {
+                return std::nullopt;
+            },
+            [&](FloatType const& from, IntType const& to) -> RetType {
+                return std::nullopt;
+            },
+            implAndExplArrayToArrayConv,
+            pointerConv,
+            [&](ObjectType const& from, ObjectType const& to) -> RetType {
+                return std::nullopt;
+            }
+        }; // clang-format on
+    case ConversionKind::Explicit:
+        // clang-format off
+        return SC_MATCH (*from, *to) {
+            [&](IntType const& from, ByteType const& to) -> RetType {
                 if (from.isSigned()) {
                     return from.size() == to.size() ? SU_Widen : SU_Trunc;
                 }
                 return from.size() == to.size() ? UU_Widen : UU_Trunc;
-            case ConversionKind::Reinterpret:
-                if (from.size() != to.size()) {
-                    return Reinterpret_Value;
-                }
-                return None;
-            }
-        },
-        [&](ByteType const& from, IntType const& to) -> RetType {
-            switch (kind) {
-            case ConversionKind::Implicit:
-                return std::nullopt;
-            case ConversionKind::Explicit:
+            },
+            [&](ByteType const& from, IntType const& to) -> RetType {
                 if (to.isSigned()) {
                     return US_Widen;
                 }
                 return UU_Widen;
-            case ConversionKind::Reinterpret:
-                if (from.size() != to.size()) {
-                    return std::nullopt;
-                }
-                return Reinterpret_Value;
-            }
-        },
-        [&](IntType const& from, IntType const& to) -> RetType {
-            switch (kind) {
-            case ConversionKind::Implicit:
-                return implicitIntConversion(from, to);
-            case ConversionKind::Explicit:
+            },
+            [&](IntType const& from, IntType const& to) -> RetType {
                 return explicitIntConversion(from, to);
-            case ConversionKind::Reinterpret:
-                if (from.bitwidth() != to.bitwidth()) {
-                    return std::nullopt;
-                }
-                return Reinterpret_Value;
-            }
-        },
-        [&](FloatType const& from, FloatType const& to) -> RetType {
-            switch (kind) {
-            case ConversionKind::Implicit:
-                if (from.bitwidth() <= to.bitwidth()) {
-                    return Float_Widen;
-                }
-                return std::nullopt;
-            case ConversionKind::Explicit:
+            },
+            [&](FloatType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() <= to.bitwidth()) {
                     return Float_Widen;
                 }
                 return Float_Trunc;
-            case ConversionKind::Reinterpret:
+            },
+            [&](IntType const& from, FloatType const& to) -> RetType {
+                return from.isSigned() ? SignedToFloat : UnsignedToFloat;
+            },
+            [&](FloatType const& from, IntType const& to) -> RetType {
+                return to.isSigned() ? FloatToSigned : FloatToUnsigned;
+            },
+            implAndExplArrayToArrayConv,
+            pointerConv,
+            [&](ObjectType const& from, ObjectType const& to) -> RetType {
+                return std::nullopt;
+            }
+        }; // clang-format on
+    case ConversionKind::Reinterpret:
+        // clang-format off
+        return SC_MATCH (*from, *to) {
+            [&](IntType const& from, ByteType const& to) -> RetType {
+                if (from.size() != to.size()) {
+                    return Reinterpret_Value;
+                }
+                return None;
+            },
+            [&](ByteType const& from, IntType const& to) -> RetType {
+                if (from.size() != to.size()) {
+                    return std::nullopt;
+                }
+                return Reinterpret_Value;
+            },
+            [&](IntType const& from, IntType const& to) -> RetType {
+                if (from.bitwidth() != to.bitwidth()) {
+                    return std::nullopt;
+                }
+                return Reinterpret_Value;
+            },
+            [&](FloatType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
                 return None;
-            }
-        },
-        [&](IntType const& from, FloatType const& to) -> RetType {
-            switch (kind) {
-            case ConversionKind::Implicit:
-                return std::nullopt;
-            case ConversionKind::Explicit:
-                return from.isSigned() ? SignedToFloat : UnsignedToFloat;
-            case ConversionKind::Reinterpret:
+            },
+            [&](IntType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
                 return Reinterpret_Value;
-            }
-        },
-        [&](FloatType const& from, IntType const& to) -> RetType {
-            switch (kind) {
-            case ConversionKind::Implicit:
-                return std::nullopt;
-            case ConversionKind::Explicit:
-                return to.isSigned() ? FloatToSigned : FloatToUnsigned;
-            case ConversionKind::Reinterpret:
+            },
+            [&](FloatType const& from, IntType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
                 return Reinterpret_Value;
-            }
-        },
-        [&](ArrayType const& from, ArrayType const& to) -> RetType {
-            switch (kind) {
-            case ConversionKind::Implicit:
-                [[fallthrough]];
-            case ConversionKind::Explicit:
-                if (from.elementType() == to.elementType() &&
-                    !from.isDynamic() && to.isDynamic())
-                {
-                    return Array_FixedToDynamic;
-                }
-                return std::nullopt;
-            case ConversionKind::Reinterpret: {
+            },
+            [&](ArrayType const& from, ArrayType const& to) -> RetType {
                 if (!to.isDynamic() && from.isDynamic()) {
                     return std::nullopt;
                 }
@@ -249,30 +281,13 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                         return std::nullopt;
                     }
                 });
-            }
-            }
-        },
-        [&](NullPtrType const& from, PointerType const& to) -> RetType {
-            return None;
-        },
-        [&](PointerType const& from, PointerType const& to) -> RetType {
-            if (from.base().isConst() && to.base().isMut()) {
+            },
+            pointerConv,
+            [&](ObjectType const& from, ObjectType const& to) -> RetType {
                 return std::nullopt;
             }
-            if (from.base().get() == to.base().get()) {
-                return None;
-            }
-            auto* fromArray = dyncast<ArrayType const*>(from.base().get());
-            auto* toArray = dyncast<ArrayType const*>(to.base().get());
-            if (fromArray && toArray) {
-                return determineObjConv(kind, fromArray, toArray);
-            }
-            return std::nullopt;
-        },
-        [&](ObjectType const& from, ObjectType const& to) -> RetType {
-            return std::nullopt;
-        }
-    }); // clang-format on
+        }; // clang-format on
+    }
 }
 
 static std::optional<ValueCatConversion> determineValueCatConv(
