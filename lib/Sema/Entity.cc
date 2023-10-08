@@ -11,6 +11,7 @@
 #include <utl/utility.hpp>
 
 #include "Sema/Analysis/ConstantExpressions.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/NameMangling.h"
 
 using namespace scatha;
@@ -56,10 +57,7 @@ Object::Object(EntityType entityType,
 Object::~Object() = default;
 
 QualType Object::getQualType() const {
-    if (auto* ref = dyncast_or_null<ReferenceType const*>(type())) {
-        return ref->base();
-    }
-    return QualType(cast_or_null<ObjectType const*>(type()), mutability());
+    return sema::getQualType(type(), mutability());
 }
 
 void Object::setConstantValue(UniquePtr<Value> value) {
