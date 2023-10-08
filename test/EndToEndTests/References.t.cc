@@ -380,3 +380,27 @@ fn main() {
     return sum;
 })");
 }
+
+TEST_CASE("Compare pointers", "[end-to-end][pointers]") {
+    test::checkReturns(false, R"(
+fn main() {
+    var a = 0;
+    return &a == null;
+})");
+    test::checkReturns(true, R"(
+fn main() {
+    var a: *int = null;
+    return a == null;
+})");
+    test::checkReturns(true, R"(
+fn main() {
+    var a = 0;
+    return &a == &a;
+})");
+    test::checkReturns(false, R"(
+fn main() {
+    var a = 0;
+    var b = 0;
+    return &a == &b;
+})");
+}

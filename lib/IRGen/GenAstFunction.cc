@@ -653,8 +653,7 @@ static std::string getResultName(ast::BinaryOperator op) {
 }
 
 Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
-    auto* builtinType =
-        dyncast<sema::BuiltinType const*>(expr.lhs()->type().get());
+    auto* type = expr.lhs()->type().get();
     auto resName = getResultName(expr.operation());
     using enum ast::BinaryOperator;
     switch (expr.operation()) {
@@ -679,7 +678,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case BitwiseOr: {
         auto* lhs = getValue<Register>(expr.lhs());
         auto* rhs = getValue<Register>(expr.rhs());
-        auto operation = mapArithmeticOp(builtinType, expr.operation());
+        auto operation = mapArithmeticOp(type, expr.operation());
         auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, resName);
         return Value(result, Register);
     }
@@ -736,7 +735,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case NotEquals: {
         auto* result = add<ir::CompareInst>(getValue<Register>(expr.lhs()),
                                             getValue<Register>(expr.rhs()),
-                                            mapCompareMode(builtinType),
+                                            mapCompareMode(type),
                                             mapCompareOp(expr.operation()),
                                             resName);
         return Value(result, Register);
@@ -783,8 +782,8 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         auto lhs = getValue(expr.lhs());
         SC_ASSERT(lhs.isMemory(), "");
         auto rhs = getValue<Register>(expr.rhs());
-        SC_ASSERT(builtinType == expr.rhs()->type().get(), "");
-        auto operation = mapArithmeticAssignOp(builtinType, expr.operation());
+        SC_ASSERT(type == expr.rhs()->type().get(), "");
+        auto operation = mapArithmeticAssignOp(type, expr.operation());
         rhs = add<ir::ArithmeticInst>(toRegister(lhs), rhs, operation, resName);
         add<ir::Store>(lhs.get(), rhs);
         return Value();

@@ -133,13 +133,13 @@ ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryOperator op);
 
 ir::CompareOperation mapCompareOp(ast::BinaryOperator op);
 
-ir::ArithmeticOperation mapArithmeticOp(sema::BuiltinType const* type,
+ir::ArithmeticOperation mapArithmeticOp(sema::ObjectType const* type,
                                         ast::BinaryOperator op);
 
-ir::ArithmeticOperation mapArithmeticAssignOp(sema::BuiltinType const* type,
+ir::ArithmeticOperation mapArithmeticAssignOp(sema::ObjectType const* type,
                                               ast::BinaryOperator op);
 
-ir::CompareMode mapCompareMode(sema::BuiltinType const* type);
+ir::CompareMode mapCompareMode(sema::ObjectType const* type);
 
 ir::FunctionAttribute mapFuncAttrs(sema::FunctionAttribute attr);
 

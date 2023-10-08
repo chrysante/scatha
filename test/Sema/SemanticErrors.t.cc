@@ -387,6 +387,7 @@ TEST_CASE("Invalid special member functions", "[sema][issue]") {
 }
 
 TEST_CASE("Explicit calls to SMFs", "[sema][issue]") {
+#warning
     return;
     auto const issues = test::getSemaIssues(R"(
 fn main() {
@@ -434,4 +435,14 @@ fn main() {
 /* 6 */ let x: X;
 })");
     CHECK(issues.findOnLine<ORError>(6));
+}
+
+TEST_CASE("Compare pointers of different types", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+fn main() {
+    var a = 0;
+    var b = 0.0;
+    &a == &b;
+})");
+    CHECK(issues.findOnLine<BadExpr>(5, BadExpr::BinaryExprNoCommonType));
 }

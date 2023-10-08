@@ -268,7 +268,7 @@ ir::CompareOperation irgen::mapCompareOp(ast::BinaryOperator op) {
     }
 }
 
-ir::ArithmeticOperation irgen::mapArithmeticOp(sema::BuiltinType const* type,
+ir::ArithmeticOperation irgen::mapArithmeticOp(sema::ObjectType const* type,
                                                ast::BinaryOperator op) {
     switch (op) {
     case ast::BinaryOperator::Multiplication:
@@ -280,7 +280,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::BuiltinType const* type,
             [](sema::FloatType const&) {
                 return ir::ArithmeticOperation::FMul;
             },
-            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+            [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
         }); // clang-format on
@@ -296,7 +296,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::BuiltinType const* type,
             [](sema::FloatType const&) {
                 return ir::ArithmeticOperation::FDiv;
             },
-            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+            [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
         }); // clang-format on
@@ -315,7 +315,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::BuiltinType const* type,
             [](sema::FloatType const&) {
                 return ir::ArithmeticOperation::FAdd;
             },
-            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+            [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
         }); // clang-format on
@@ -329,7 +329,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::BuiltinType const* type,
             [](sema::FloatType const&) {
                 return ir::ArithmeticOperation::FSub;
             },
-            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+            [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
         }); // clang-format on
@@ -355,38 +355,11 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::BuiltinType const* type,
 }
 
 ir::ArithmeticOperation irgen::mapArithmeticAssignOp(
-    sema::BuiltinType const* type, ast::BinaryOperator op) {
-    auto nonAssign = [&] {
-        using enum ast::BinaryOperator;
-        switch (op) {
-        case AddAssignment:
-            return Addition;
-        case SubAssignment:
-            return Subtraction;
-        case MulAssignment:
-            return Multiplication;
-        case DivAssignment:
-            return Division;
-        case RemAssignment:
-            return Remainder;
-        case LSAssignment:
-            return LeftShift;
-        case RSAssignment:
-            return RightShift;
-        case AndAssignment:
-            return BitwiseAnd;
-        case OrAssignment:
-            return BitwiseOr;
-        case XOrAssignment:
-            return BitwiseXOr;
-        default:
-            SC_UNREACHABLE("Only handle arithmetic assign operations here.");
-        }
-    }();
-    return mapArithmeticOp(type, nonAssign);
+    sema::ObjectType const* type, ast::BinaryOperator op) {
+    return mapArithmeticOp(type, toNonAssignment(op));
 }
 
-ir::CompareMode irgen::mapCompareMode(sema::BuiltinType const* type) {
+ir::CompareMode irgen::mapCompareMode(sema::ObjectType const* type) {
     // clang-format off
     return visit(*type, utl::overload{
         [](sema::VoidType const&) -> ir::CompareMode {
@@ -406,9 +379,15 @@ ir::CompareMode irgen::mapCompareMode(sema::BuiltinType const* type) {
         [](sema::FloatType const&) {
             return ir::CompareMode::Float;
         },
-        [](sema::NullPtrType const&) -> ir::CompareMode {
-            SC_UNIMPLEMENTED();
+        [](sema::NullPtrType const&) {
+            return ir::CompareMode::Unsigned;
         },
+        [](sema::PointerType const&) {
+            return ir::CompareMode::Unsigned;
+        },
+        [](sema::CompoundType const&) -> ir::CompareMode {
+            SC_UNREACHABLE();
+        }
     }); // clang-format on
 }
 

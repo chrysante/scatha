@@ -835,7 +835,7 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             return mirConst;
         },
         [&](ir::NullPointerConstant const&) -> mir::Value* {
-            return result.constant(0, 64);
+            return result.constant(0, 8);
         },
         [&](ir::UndefValue const&) -> mir::Value* {
             return result.undefValue();

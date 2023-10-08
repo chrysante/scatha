@@ -616,6 +616,12 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             }
             return nullptr;
         },
+        [&](PointerType const& a, NullPtrType const& b) {
+            return &a;
+        },
+        [&](NullPtrType const& a, PointerType const& b) {
+            return &b;
+        },
         [&](PointerType const& a, PointerType const& b) -> PointerType const* {
             if (a.base() == b.base()) {
                 return &a;

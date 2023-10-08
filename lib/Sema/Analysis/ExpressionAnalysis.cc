@@ -297,7 +297,8 @@ static ObjectType const* getResultType(SymbolTable& sym,
     case Greater:
         [[fallthrough]];
     case GreaterEq:
-        if (isAny<ByteType, IntType, FloatType>(type)) {
+        if (isAny<ByteType, IntType, FloatType, NullPtrType, PointerType>(type))
+        {
             return sym.Bool();
         }
         return nullptr;
@@ -305,7 +306,13 @@ static ObjectType const* getResultType(SymbolTable& sym,
     case Equals:
         [[fallthrough]];
     case NotEquals:
-        if (isAny<ByteType, BoolType, IntType, FloatType>(type)) {
+        if (isAny<ByteType,
+                  BoolType,
+                  IntType,
+                  FloatType,
+                  NullPtrType,
+                  PointerType>(type))
+        {
             return sym.Bool();
         }
         return nullptr;
