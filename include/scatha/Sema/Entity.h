@@ -48,7 +48,8 @@
 /// │        ├─ PointerType
 /// │        └─ CompoundType
 /// │           ├─ StructType
-/// │           └─ ArrayType
+/// │           ├─ ArrayType
+/// │           └─ UniquePtrType
 /// └─ PoisonEntity
 /// ```
 
@@ -909,6 +910,12 @@ private:
     size_t sizeImpl() const { return 0; }
     size_t alignImpl() const { return 0; }
     bool isDefaultConstructibleImpl() const { return false; }
+};
+
+///
+class SCATHA_API UniquePtrType: public CompoundType, public PtrRefTypeBase {
+public:
+    explicit UniquePtrType(QualType base);
 };
 
 /// # OverloadSet

@@ -47,6 +47,13 @@ utl::vstreammanip<> sema::format(Type const* type) {
                 }
                 str << format(type.base().get());
             },
+            [&](UniquePtrType const& type) {
+                str << tfmt::format(None, "*unique ");
+                if (type.base().isMut()) {
+                    str << tfmt::format(BrightBlue, "mut ");
+                }
+                str << format(type.base().get());
+            },
         }; // clang-format on
     };
 }

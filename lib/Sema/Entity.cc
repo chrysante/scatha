@@ -291,6 +291,15 @@ ReferenceType::ReferenceType(QualType base):
          const_cast<Scope*>(base->parent())),
     PtrRefTypeBase(base) {}
 
+UniquePtrType::UniquePtrType(QualType base):
+    CompoundType(EntityType::UniquePtrType,
+                 ScopeKind::Invalid,
+                 makeIndirectName("*unique ", base),
+                 const_cast<Scope*>(base->parent()),
+                 ptrSize(base),
+                 ptrAlign()),
+    PtrRefTypeBase(base) {}
+
 void Function::setDeducedReturnType(Type const* type) {
     SC_ASSERT(!returnType(), "Already set");
     _sig._returnType = type;

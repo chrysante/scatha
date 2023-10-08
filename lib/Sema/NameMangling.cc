@@ -45,6 +45,10 @@ static std::string impl(ReferenceType const* type) {
     return utl::strcat("&", impl(type->base()));
 }
 
+static std::string impl(UniquePtrType const* type) {
+    return utl::strcat("*unique-", impl(type->base()));
+}
+
 static std::string impl(Function const* func) {
     std::stringstream sstr;
     sstr << baseImpl(func);

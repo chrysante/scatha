@@ -30,6 +30,7 @@ struct FuncGenContext: FuncGenContextBase {
 
     void genImpl(sema::StructType const& type);
     void genImpl(sema::ArrayType const& type);
+    void genImpl(sema::UniquePtrType const& type);
 
     void genMemberCall(ir::Instruction const* before,
                        sema::ObjectType const& memberType,
@@ -100,6 +101,10 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
     withBlockCurrent(loop.body, [&] {
         genMemberCall(loop.insertPoint, *elemType, loop.index);
     });
+}
+
+void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
+    SC_UNIMPLEMENTED();
 }
 
 void FuncGenContext::genMemberCall(ir::Instruction const* before,

@@ -260,6 +260,10 @@ static void declareSLFs(ArrayType& type, SymbolTable& sym) {
     type.setSpecialLifetimeFunctions(SLF);
 }
 
+static void declareSLFs(UniquePtrType& type, SymbolTable& sym) {
+    SC_UNIMPLEMENTED();
+}
+
 void sema::declareSpecialLifetimeFunctions(CompoundType& type,
                                            SymbolTable& sym) {
     visit(type, [&](auto& type) { declareSLFs(type, sym); });
