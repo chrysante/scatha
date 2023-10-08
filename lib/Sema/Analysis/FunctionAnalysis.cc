@@ -191,15 +191,8 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
     }
     /// We already check the position during instantiation
     auto* param = [&] {
-        if (thisParam.isReference()) {
-            auto* type = sym.reference({ parentType, thisParam.mutability() });
-            return sym.defineVariable("__this", type, Mutability::Const);
-        }
-        else {
-            return sym.defineVariable("__this",
-                                      parentType,
-                                      thisParam.mutability());
-        }
+        auto* type = sym.reference({ parentType, thisParam.mutability() });
+        return sym.addProperty(PropertyKind::This, type);
     }();
     if (param) {
         function->setIsMember();

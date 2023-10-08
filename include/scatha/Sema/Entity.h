@@ -305,6 +305,14 @@ public:
         return dyncast_or_null<E const*>(findEntity(name));
     }
 
+    /// Find the property \p prop in this scope
+    Property* findProperty(PropertyKind prop) {
+        return const_cast<Property*>(std::as_const(*this).findProperty(prop));
+    }
+
+    /// \overload
+    Property const* findProperty(PropertyKind kind) const;
+
     /// \Returns `true` if \p scope is a child scope of this
     bool isChildScope(Scope const* scope) const {
         return _children.contains(scope);
@@ -338,6 +346,7 @@ private:
 private:
     utl::hashset<Scope*> _children;
     utl::hashmap<std::string, Entity*> _entities;
+    utl::hashmap<PropertyKind, Property*> _properties;
     ScopeKind _kind;
 };
 
@@ -847,11 +856,6 @@ public:
     /// Shorthand for `count() == DynamicCount`
     bool isDynamic() const { return count() == DynamicCount; }
 
-    /// Member variable that stores the count
-    Property const* countProperty() const { return countProp; }
-
-    void setCountProperty(Property* prop) { countProp = prop; }
-
 private:
     static std::string makeName(ObjectType const* elemType, size_t size);
 
@@ -861,7 +865,6 @@ private:
     }
 
     ObjectType* elemType;
-    Property* countProp = nullptr;
     size_t _count;
 };
 

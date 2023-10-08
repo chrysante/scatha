@@ -341,15 +341,20 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType =
         impl->addEntity<ArrayType>(const_cast<ObjectType*>(elementType), size);
     impl->arrayTypes.insert({ key, arrayType });
-    auto* arraySize = withScopeCurrent(arrayType, [&] {
-        return addProperty(PropertyKind::ArraySize, S64());
+    withScopeCurrent(arrayType, [&] {
+        auto* arraySize = addProperty(PropertyKind::ArraySize, S64());
+        if (size != ArrayType::DynamicCount) {
+            auto constSize = allocate<IntValue>(APInt(size, 64),
+                                                /* isSigned = */ true);
+            arraySize->setConstantValue(std::move(constSize));
+        }
+        auto* arrayEmpty = addProperty(PropertyKind::ArrayEmpty, Bool());
+        if (size != ArrayType::DynamicCount) {
+            auto constEmpty = allocate<IntValue>(APInt(size == 0, 1),
+                                                 /* isSigned = */ false);
+            arrayEmpty->setConstantValue(std::move(constEmpty));
+        }
     });
-    arrayType->setCountProperty(arraySize);
-    if (size != ArrayType::DynamicCount) {
-        auto constSize = allocate<IntValue>(APInt(size, 64),
-                                            /* isSigned = */ true);
-        arraySize->setConstantValue(std::move(constSize));
-    }
     declareSpecialLifetimeFunctions(*arrayType, *this);
     const_cast<ObjectType*>(elementType)->parent()->add(arrayType);
     return arrayType;

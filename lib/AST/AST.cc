@@ -106,6 +106,10 @@ sema::Variable const* VarDeclBase::variable() const {
     return cast<sema::Variable const*>(entity());
 }
 
+sema::Object const* VarDeclBase::object() const {
+    return cast<sema::Object const*>(entity());
+}
+
 sema::Function const* FunctionDefinition::function() const {
     return cast<sema::Function const*>(entity());
 }

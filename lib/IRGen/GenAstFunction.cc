@@ -179,7 +179,7 @@ void FuncGenContext::generateParameter(
     auto* irParam = irParamItr.to_address();
     auto* irType = typeMap(paramDecl->type());
     std::string name(paramDecl->name());
-    auto* paramVar = paramDecl->variable();
+    auto* paramObj = paramDecl->object();
     switch (pc.location()) {
     case Register: {
         bool const isDynArray = isPtrOrRefToDynArray(semaType);
@@ -189,17 +189,17 @@ void FuncGenContext::generateParameter(
         /// other case we store it to memory. Seems to complicated to merge the
         /// cases.
         if (refType) {
-            valueMap.insert(paramVar,
+            valueMap.insert(paramObj,
                             Value(irParam, typeMap(refType->base()), Memory));
             ++irParamItr;
             if (isDynArray) {
                 Value size(irParam->next(), Register);
-                valueMap.insertArraySize(paramVar, size);
+                valueMap.insertArraySize(paramObj, size);
                 ++irParamItr;
             }
         }
         else {
-            valueMap.insert(paramVar,
+            valueMap.insert(paramObj,
                             Value(storeToMemory(irParam, name),
                                   irType,
                                   Memory));
@@ -208,7 +208,7 @@ void FuncGenContext::generateParameter(
                 Value size(storeToMemory(irParam->next()),
                            irParam->next()->type(),
                            Memory);
-                valueMap.insertArraySize(paramVar, size);
+                valueMap.insertArraySize(paramObj, size);
                 ++irParamItr;
             }
         }
@@ -217,7 +217,7 @@ void FuncGenContext::generateParameter(
 
     case Memory: {
         Value data(irParam, irType, Memory);
-        valueMap.insert(paramVar, data);
+        valueMap.insert(paramObj, data);
         ++irParamItr;
         break;
     }
@@ -851,6 +851,23 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             return Value(ctx.intConstant(arrayType->count(), 64), Register);
         }
     }
+    case ArrayEmpty: {
+        auto* arrayType =
+            cast<sema::ArrayType const*>(expr.accessed()->type().get());
+        if (arrayType->isDynamic()) {
+            getValue(expr.accessed());
+            auto size = valueMap.arraySize(expr.accessed()->object());
+            auto* empty = add<ir::CompareInst>(toRegister(size),
+                                               ctx.intConstant(0, 64),
+                                               ir::CompareMode::Signed,
+                                               ir::CompareOperation::Equal,
+                                               "empty");
+            return Value(empty, Register);
+        }
+        else {
+            return Value(ctx.boolConstant(arrayType->count() == 0), Register);
+        }
+    }
     default:
         SC_UNREACHABLE();
     }
@@ -1148,7 +1165,8 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     Value size(ctx.intConstant(list.children().size(), 64), Register);
     /// We try to insert because a list expression of the same type might have
     /// already added the value here
-    valueMap.tryInsert(semaType->countProperty(), size);
+    valueMap.tryInsert(semaType->findProperty(sema::PropertyKind::ArraySize),
+                       size);
     auto value = Value(array, irType, Memory);
     if (!genStaticListData(list, array)) {
         genDynamicListData(list, array);

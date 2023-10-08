@@ -166,7 +166,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
             scope = scope->parent();
         }
         auto* function = cast<Function*>(scope);
-        auto* thisEntity = function->findEntity<Variable>("__this");
+        auto* thisEntity = function->findProperty(PropertyKind::This);
         lit.decorateValue(thisEntity, LValue, thisEntity->getQualType());
         return &lit;
     }

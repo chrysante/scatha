@@ -114,11 +114,21 @@ Entity const* Scope::findEntity(std::string_view name) const {
     return itr == _entities.end() ? nullptr : itr->second;
 }
 
+Property const* Scope::findProperty(PropertyKind kind) const {
+    auto const itr = _properties.find(kind);
+    return itr == _properties.end() ? nullptr : itr->second;
+}
+
 void Scope::add(Entity* entity) {
     /// Each scope that we add we add to to our list of child scopes
     if (auto* scope = dyncast<Scope*>(entity)) {
         bool const success = _children.insert(scope).second;
         SC_ASSERT(success, "Failed to add child");
+    }
+    if (auto* prop = dyncast<Property*>(entity)) {
+        SC_ASSERT(!_properties.contains(prop->kind()),
+                  "Property already exists in this scope");
+        _properties.insert({ prop->kind(), prop });
     }
     /// We add the entity to our own symbol table
     /// We don't add anonymous entities because entities are keyed by their name
@@ -128,8 +138,9 @@ void Scope::add(Entity* entity) {
         return;
     }
     for (auto& name: entity->alternateNames()) {
-        auto const [itr, success] = _entities.insert({ name, entity });
-        SC_ASSERT(success, "Failed to add name");
+        SC_ASSERT(!_entities.contains(name),
+                  "Name already exists in this scope");
+        _entities.insert({ name, entity });
     }
 }
 

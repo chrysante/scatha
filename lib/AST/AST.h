@@ -879,13 +879,22 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// Declared variable
+    /// Declared variable. In most cases this is the object but in some cases
+    /// the object is not a variable
     sema::Variable* variable() {
         return const_cast<sema::Variable*>(std::as_const(*this).variable());
     }
 
     /// \overload
     sema::Variable const* variable() const;
+
+    /// Declared object
+    sema::Object* object() {
+        return const_cast<sema::Object*>(std::as_const(*this).object());
+    }
+
+    /// \overload
+    sema::Object const* object() const;
 
     /// Type of the declaration
     sema::Type const* type() const {

@@ -46,6 +46,10 @@ SC_SEMA_ENTITY_DEF(PoisonEntity,   CONCRETE) // Warning: Update last definition 
 #endif
 
 SC_SEMA_PROPERTY_KIND(ArraySize, "count")
+SC_SEMA_PROPERTY_KIND(ArrayEmpty, "empty")
+SC_SEMA_PROPERTY_KIND(ArrayFront, "front")
+SC_SEMA_PROPERTY_KIND(ArrayBack, "back")
+SC_SEMA_PROPERTY_KIND(This, "this")
 
 #undef SC_SEMA_PROPERTY_KIND
 
