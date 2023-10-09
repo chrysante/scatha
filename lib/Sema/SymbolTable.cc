@@ -1,6 +1,7 @@
 #include "Sema/SymbolTable.h"
 
 #include <svm/Builtin.h>
+#include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 #include <utl/utility.hpp>
@@ -90,7 +91,9 @@ struct SymbolTable::Impl {
     E* addEntity(Args&&... args);
 
     template <typename T>
-    T* ptrLikeImpl(utl::hashmap<QualType, T*>& map, QualType pointee);
+    T* ptrLikeImpl(utl::hashmap<QualType, T*>& map,
+                   QualType pointee,
+                   utl::function_view<void(T*)> continuation = {});
 };
 
 SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
@@ -406,7 +409,8 @@ IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
 
 template <typename T>
 T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
-                                  QualType pointee) {
+                                  QualType pointee,
+                                  utl::function_view<void(T*)> continuation) {
     auto itr = map.find(pointee);
     if (itr != map.end()) {
         return itr->second;
@@ -414,6 +418,9 @@ T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
     auto* ptrType = addEntity<T>(pointee);
     map.insert({ pointee, ptrType });
     const_cast<ObjectType*>(pointee.get())->parent()->addChild(ptrType);
+    if (continuation) {
+        continuation(ptrType);
+    }
     return ptrType;
 }
 
@@ -426,9 +433,11 @@ ReferenceType const* SymbolTable::reference(QualType referred) {
 }
 
 UniquePtrType const* SymbolTable::uniquePointer(QualType pointee) {
-    auto* type = impl->ptrLikeImpl(impl->uniquePtrTypes, pointee);
-    declareSpecialLifetimeFunctions(*type, *this);
-    return type;
+    return impl->ptrLikeImpl<UniquePtrType>(impl->uniquePtrTypes,
+                                            pointee,
+                                            [&](UniquePtrType* type) {
+        declareSpecialLifetimeFunctions(*type, *this);
+    });
 }
 
 void SymbolTable::pushScope(Scope* scope) {
