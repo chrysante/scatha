@@ -1,5 +1,7 @@
 #include "Sema/Analysis/Utility.h"
 
+#include <iostream>
+
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 
@@ -40,6 +42,24 @@ void DtorStack::push(Object* obj) {
 }
 
 void DtorStack::push(DestructorCall dtorCall) { dtorCalls.push(dtorCall); }
+
+void sema::print(DtorStack const& stack, std::ostream& str) {
+    for (auto& call: stack) {
+        // clang-format off
+        SC_MATCH (*call.object) {
+            [&](Variable const& var) {
+                str << var.name();
+            },
+            [&](Temporary const& tmp) {
+                str << "tmp[" << tmp.id() << "]";
+            },
+            [&](Property const&) { SC_UNREACHABLE(); },
+        }; // clang-format on
+        str << std::endl;
+    }
+}
+
+void sema::print(DtorStack const& stack) { print(stack, std::cout); }
 
 void sema::popTopLevelDtor(ast::Expression* expr, DtorStack& dtors) {
     if (!expr || !expr->isDecorated()) {

@@ -1,6 +1,8 @@
 #ifndef SCATHA_SEMA_DTORSTACK_H_
 #define SCATHA_SEMA_DTORSTACK_H_
 
+#include <iosfwd>
+
 #include <range/v3/view.hpp>
 #include <utl/stack.hpp>
 
@@ -44,6 +46,12 @@ public:
 private:
     utl::stack<DestructorCall> dtorCalls;
 };
+
+///
+void SCTEST_API print(DtorStack const& stack, std::ostream& str);
+
+///
+void SCTEST_API print(DtorStack const& stack);
 
 } // namespace scatha::sema
 
