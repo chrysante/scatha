@@ -24,7 +24,7 @@ void ast::printTree(ASTNode const& root) { printTree(root, std::cout); }
 
 static utl::vstreammanip<> formatType(sema::Type const* type) {
     return [=](std::ostream& str) {
-        str << " " << tfmt::format(BrightGrey, "Type: ");
+        str << tfmt::format(BrightGrey, "Type: ");
         if (!type) {
             str << tfmt::format(Red, "NULL");
             return;
@@ -54,11 +54,17 @@ static constexpr utl::streammanip nodeHeader([](std::ostream& str,
                                                 auto... args) {
     str << formatter->beginLine() << nodeType(node);
     ((str << args), ...);
+    if (sizeof...(args) > 0) {
+        str << ", ";
+    }
     if (!node->isDecorated()) {
         return;
     }
     if (auto* expr = dyncast<Expression const*>(node); expr && expr->isValue())
     {
+        if (auto* tmp = dyncast<sema::Temporary const*>(expr->entity())) {
+            str << "tmp[" << tmp->id() << "] ";
+        }
         str << formatType(expr->type().get()) << " "
             << tfmt::format(BrightGrey, expr->valueCategory());
     }
@@ -193,8 +199,8 @@ struct PrintCtx {
             },
             [&](Conversion const& conv) {
                 str << nodeHeader(&formatter, &node,
-                              conv.conversion()->valueCatConversion(), ", ",
-                              conv.conversion()->objectConversion()) << '\n';
+                                  conv.conversion()->valueCatConversion(), ", ",
+                                  conv.conversion()->objectConversion()) << '\n';
             }
         }); // clang-format on
 
