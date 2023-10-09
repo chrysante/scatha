@@ -25,6 +25,7 @@ function format() {
 #       for file in $(git status --porcelain | awk 'match($1, "M"){print $2}'); do
 #   This formats all files in given directory
     for entry in $1/*; do
+        # Recursively search subdirectories
         if [[ -d $entry ]]; then
             format $entry
             continue
@@ -32,8 +33,7 @@ function format() {
         if [[ $entry != *.h ]] && [[ $entry != *.cc ]] && [[ $entry != *.hpp ]] && [[ $entry != *.cpp ]]; then
             continue
         fi
-        echo "format ${entry}";
-        ${FMT} -i ${entry};
+        ${FMT} -i ${entry} &
     done
 }
 
