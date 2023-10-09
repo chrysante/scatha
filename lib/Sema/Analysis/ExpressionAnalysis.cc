@@ -720,8 +720,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
     if (!analyzeValue(expr.value())) {
         return nullptr;
     }
-    if (!isa<ast::ConstructExpr>(expr.value())) {
-        ctx.badExpr(&expr, UniqueExprNoConstruct);
+    if (!expr.value()->isRValue()) {
+        ctx.badExpr(&expr, UniqueExprNoRValue);
         return nullptr;
     }
     auto* type = sym.uniquePointer(expr.value()->type());

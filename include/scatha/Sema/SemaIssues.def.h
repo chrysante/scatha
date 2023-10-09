@@ -317,8 +317,8 @@ SC_SEMA_BADEXPR_DEF(MoveExpr,
                     "Moving object without move constructor results in a copy")
 
 SC_SEMA_BADEXPR_DEF(UniqueExpr,
-                    UniqueExprNoConstruct,
+                    UniqueExprNoRValue,
                     Error,
-                    "Unique expression must construct a value")
+                    "Unique expression must be an rvalue")
 
 #undef SC_SEMA_BADEXPR_DEF
