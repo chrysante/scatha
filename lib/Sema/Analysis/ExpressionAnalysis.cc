@@ -1069,10 +1069,11 @@ static bool ctorIsPseudo(Type const* type, auto const& args) {
     return compType->specialMemberFunction(New) == nullptr;
 }
 
-static bool canConstructTrivialType(ObjectType const* type,
-                                    auto const& arguments,
+static bool canConstructTrivialType(ast::ConstructExpr& expr,
                                     DtorStack& dtors,
                                     AnalysisContext& ctx) {
+    auto* type = expr.constructedType();
+    auto arguments = expr.arguments();
     if (arguments.size() == 0) {
         return true;
     }
@@ -1090,6 +1091,7 @@ static bool canConstructTrivialType(ObjectType const* type,
     }
     if (auto* structType = dyncast<StructType const*>(type)) {
         if (arguments.size() != structType->members().size()) {
+            ctx.badExpr(&expr, CannotConstructType);
             return false;
         }
         bool success = true;
@@ -1119,9 +1121,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
     auto* type = expr.constructedType();
     ///
     if (ctorIsPseudo(type, expr.arguments())) {
-        if (!canConstructTrivialType(type, expr.arguments(), *dtorStack, ctx)) {
-            /// TODO: Push an error here!
-            SC_UNIMPLEMENTED();
+        if (!canConstructTrivialType(expr, *dtorStack, ctx)) {
             return nullptr;
         }
         expr.decorateConstruct(sym.temporary(type), nullptr);

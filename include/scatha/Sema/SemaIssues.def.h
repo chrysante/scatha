@@ -261,6 +261,11 @@ SC_SEMA_BADEXPR_DEF(FunctionCall,
                     Error,
                     "Cannot deduce return type on recursive function")
 
+SC_SEMA_BADEXPR_DEF(ConstructExpr,
+                    CannotConstructType,
+                    Error,
+                    "Cannot construct type")
+
 SC_SEMA_BADEXPR_DEF(ListExpression,
                     ListExprNoCommonType,
                     Error,
