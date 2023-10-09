@@ -1471,22 +1471,20 @@ public:
 
     /// Decorate this node
     void decorateAssign(sema::Function const* dtor,
-                        sema::Function const* copyCtor) {
+                        sema::Function const* ctor) {
         _dtor = dtor;
-        _copyCtor = copyCtor;
+        _ctor = ctor;
     }
 
     /// The destructor to be called
     sema::Function const* dtor() const { return _dtor; }
 
-    /// The constructor to be called. If this is null after semantic analysis
-    /// that means we have an rvalue source and can directly construct the
-    /// rvalue in our memory
-    sema::Function const* copyCtor() const { return _copyCtor; }
+    /// The constructor to be called.
+    sema::Function const* ctor() const { return _ctor; }
 
 private:
     sema::Function const* _dtor = nullptr;
-    sema::Function const* _copyCtor = nullptr;
+    sema::Function const* _ctor = nullptr;
 };
 
 } // namespace scatha::ast

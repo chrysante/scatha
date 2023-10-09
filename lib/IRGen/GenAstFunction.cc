@@ -1544,44 +1544,30 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
-    if (auto* copyCtor = expr.copyCtor()) {
-        /// We have an lvalue right hand side. If the values are different, we
-        /// call the destructor of LHS and the copy constructor of LHS with RHS
-        /// as argument. If the values are the same we do nothing
-        auto dest = getValue(expr.dest());
-        auto source = getValue(expr.source());
-        SC_ASSERT(dest.isMemory(), "");
-        SC_ASSERT(source.isMemory(), "");
-        /// We branch here because the values might be the same.
-        auto* addrEq = add<ir::CompareInst>(dest.get(),
-                                            source.get(),
-                                            ir::CompareMode::Unsigned,
-                                            ir::CompareOperation::NotEqual,
-                                            "addr.eq");
-        auto* assignBlock = newBlock("assign");
-        auto* endBlock = newBlock("assign.end");
-        add<ir::Branch>(addrEq, assignBlock, endBlock);
-        add(assignBlock);
-        callDtor(expr.dest()->object(), expr.dtor());
-        auto* function = getFunction(copyCtor);
-        add<ir::Call>(function,
-                      std::array{ dest.get(), source.get() },
-                      std::string{});
-        add<ir::Goto>(endBlock);
-        add(endBlock);
-    }
-    else {
-        /// We have an rvalue right hand side. We call the destructor of LHS and
-        /// generate the value of RHS in place of LHS
-        auto dest = getValue(expr.dest());
-        SC_ASSERT(dest.isMemory(), "");
-        callDtor(expr.dest()->object(), expr.dtor());
-        auto source = getValue(expr.source());
-        SC_ASSERT(source.isMemory(), "");
-        SC_ASSERT(isa<ir::Alloca>(source.get()),
-                  "How can an rvalue in memory not be stack memory?");
-        source.get()->replaceAllUsesWith(dest.get());
-    }
+    /// If the values are different, we  call the destructor of LHS and the copy
+    /// or move constructor of LHS with RHS as argument. If the values are the
+    /// same we do nothing
+    auto dest = getValue(expr.dest());
+    auto source = getValue(expr.source());
+    SC_ASSERT(dest.isMemory(), "");
+    SC_ASSERT(source.isMemory(), "");
+    /// We branch here because the values might be the same.
+    auto* addrEq = add<ir::CompareInst>(dest.get(),
+                                        source.get(),
+                                        ir::CompareMode::Unsigned,
+                                        ir::CompareOperation::NotEqual,
+                                        "addr.eq");
+    auto* assignBlock = newBlock("assign");
+    auto* endBlock = newBlock("assign.end");
+    add<ir::Branch>(addrEq, assignBlock, endBlock);
+    add(assignBlock);
+    callDtor(expr.dest()->object(), expr.dtor());
+    auto* function = getFunction(expr.ctor());
+    add<ir::Call>(function,
+                  std::array{ dest.get(), source.get() },
+                  std::string{});
+    add<ir::Goto>(endBlock);
+    add(endBlock);
     return Value();
 }
 

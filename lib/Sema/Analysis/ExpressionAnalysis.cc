@@ -999,14 +999,23 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
     }
     using enum SpecialLifetimeFunction;
     auto* compType = cast<CompoundType const*>(expr.dest()->type().get());
-    auto* dtor = compType->specialLifetimeFunction(Destructor);
     auto* copyCtor = compType->specialLifetimeFunction(CopyConstructor);
+    auto* moveCtor = compType->specialLifetimeFunction(MoveConstructor);
+    auto* dtor = compType->specialLifetimeFunction(Destructor);
     if (expr.source()->isLValue()) {
+        if (!copyCtor) {
+            ctx.issue<BadExpr>(&expr, CannotAssignUncopyableType);
+            return nullptr;
+        }
         expr.decorateAssign(dtor, copyCtor);
     }
     else {
-        popTopLevelDtor(expr.source(), *dtorStack);
-        expr.decorateAssign(dtor, nullptr);
+        auto* ctor = moveCtor ? moveCtor : copyCtor;
+        if (!ctor) {
+            ctx.issue<BadExpr>(&expr, CannotAssignUncopyableType);
+            return nullptr;
+        }
+        expr.decorateAssign(dtor, ctor);
     }
     return &expr;
 }

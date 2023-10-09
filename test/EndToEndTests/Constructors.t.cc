@@ -123,7 +123,7 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
             })");
 
         /// Assignments
-        test::checkPrints("+0-0+0-0", CommonDefs + R"(
+        test::checkPrints("+0+0-0+1-0-1", CommonDefs + R"(
             fn main() {
                 var x = X();
                 x = X();

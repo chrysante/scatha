@@ -266,6 +266,11 @@ SC_SEMA_BADEXPR_DEF(ConstructExpr,
                     Error,
                     "Cannot construct type")
 
+SC_SEMA_BADEXPR_DEF(NonTrivAssignExpr,
+                    CannotAssignUncopyableType,
+                    Error,
+                    "Cannot assign uncopyable type")
+
 SC_SEMA_BADEXPR_DEF(ListExpression,
                     ListExprNoCommonType,
                     Error,
