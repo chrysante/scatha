@@ -156,7 +156,17 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                                         to.base().get());
             }
             return std::nullopt;
-        }
+        },
+        /// Yes, we allow implicit conversion from `*unique T` to `*T`
+        [&](UniquePtrType const& from, PointerType const& to) -> RetType {
+            if (from.base().isConst() && to.base().isMut()) {
+                return std::nullopt;
+            }
+            if (from.base().get() == to.base().get()) {
+                return None;
+            }
+            return std::nullopt;
+        },
     };
 
     switch (kind) {
