@@ -327,21 +327,20 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     if (!analyzeValue(rs.expression(), rs.dtorStack())) {
         return;
     }
-    if (isa_or_null<VoidType>(returnType)) {
+    if (isa<VoidType>(returnType)) {
         ctx.issue<BadReturnStmt>(&rs, BadReturnStmt::VoidMustNotReturnValue);
         return;
     }
-    if (returnType) {
-        convert(Implicit,
-                rs.expression(),
-                getQualType(returnType),
-                refToLValue(returnType),
-                rs.dtorStack(),
-                ctx);
-    }
-    else {
-        deduceReturnTypeTo(&rs, rs.expression()->type().get());
-    }
+    if (!returnType) {
+        returnType = rs.expression()->type().get();
+        deduceReturnTypeTo(&rs, returnType);
+    }    
+    convert(Implicit,
+            rs.expression(),
+            getQualType(returnType),
+            refToLValue(returnType),
+            rs.dtorStack(),
+            ctx);
     if (!returnsRef()) {
         popTopLevelDtor(rs.expression(), rs.dtorStack());
     }
