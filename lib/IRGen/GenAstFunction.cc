@@ -1283,7 +1283,13 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         using enum sema::ObjectTypeConversion;
     case None:
         return refConvResult;
-
+    case NullPtrToPtr:
+        return refConvResult;
+    case NullPtrToUniquePtr: {
+        return Value(toMemory(refConvResult), refConvResult.type(), Memory);
+    }
+    case UniquePtrToPtr:
+        return refConvResult;
     case Array_FixedToDynamic: {
         valueMap.insertArraySize(conv.object(),
                                  valueMap.arraySize(expr->object()));

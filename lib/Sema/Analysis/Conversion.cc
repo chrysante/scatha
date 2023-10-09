@@ -136,10 +136,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
     };
     auto pointerConv = utl::overload{
         [&](NullPtrType const& from, PointerType const& to) -> RetType {
-            return None;
+            return NullPtrToPtr;
         },
         [&](NullPtrType const& from, UniquePtrType const& to) -> RetType {
-            return None;
+            return NullPtrToUniquePtr;
         },
         [&](PointerType const& from, PointerType const& to) -> RetType {
             if (from.base().isConst() && to.base().isMut()) {
@@ -163,7 +163,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 return std::nullopt;
             }
             if (from.base().get() == to.base().get()) {
-                return None;
+                return UniquePtrToPtr;
             }
             return std::nullopt;
         },
