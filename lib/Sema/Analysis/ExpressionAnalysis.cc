@@ -1156,7 +1156,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
 
 void ExprContext::dereferencePointer(ast::Expression* expr) {
     SC_ASSERT(expr->isDecorated(), "");
-    if (!isa_or_null<PointerType const*>(expr->type().get())) {
+    auto* type = expr->type().get();
+    if (!isa<PointerType const*>(type) && !isa<UniquePtrType const*>(type)) {
         return;
     }
     SC_ASSERT(expr->isValue(), "");
