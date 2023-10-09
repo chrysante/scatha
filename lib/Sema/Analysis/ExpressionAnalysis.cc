@@ -1053,7 +1053,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conversion& expr) {
     auto* conv = expr.conversion();
     auto* entity = getConvertedEntity(expr.expression()->entity(), *conv, sym);
     expr.decorateValue(entity,
-                       getValueCat(expr.valueCategory(),
+                       getValueCat(expr.expression()->valueCategory(),
                                    conv->valueCatConversion()),
                        conv->targetType());
     expr.setConstantValue(
