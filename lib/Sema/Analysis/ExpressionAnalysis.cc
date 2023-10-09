@@ -1009,7 +1009,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
             ctx.issue<BadExpr>(&expr, CannotAssignUncopyableType);
             return nullptr;
         }
-        expr.decorateAssign(dtor, copyCtor);
+        expr.decorateAssign(sym.temporary(sym.Void()), dtor, copyCtor);
     }
     else {
         auto* ctor = moveCtor ? moveCtor : copyCtor;
@@ -1017,7 +1017,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
             ctx.issue<BadExpr>(&expr, CannotAssignUncopyableType);
             return nullptr;
         }
-        expr.decorateAssign(dtor, ctor);
+        expr.decorateAssign(sym.temporary(sym.Void()), dtor, ctor);
     }
     return &expr;
 }

@@ -1470,8 +1470,10 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Decorate this node
-    void decorateAssign(sema::Function const* dtor,
+    void decorateAssign(sema::Entity* entity,
+                        sema::Function const* dtor,
                         sema::Function const* ctor) {
+        decorateValue(entity, sema::ValueCategory::RValue);
         _dtor = dtor;
         _ctor = ctor;
     }
