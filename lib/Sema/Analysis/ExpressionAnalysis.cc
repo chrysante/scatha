@@ -724,6 +724,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
         ctx.badExpr(&expr, UniqueExprNoRValue);
         return nullptr;
     }
+    /// We pop the top level dtor because unique ptr extends the lifetime of the
+    /// object
+    popTopLevelDtor(expr.value(), *dtorStack);
     auto* type = sym.uniquePointer(expr.value()->type());
     expr.decorateValue(sym.temporary(type), RValue);
     dtorStack->push(expr.object());
