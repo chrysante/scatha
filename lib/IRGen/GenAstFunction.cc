@@ -1222,6 +1222,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     auto value = getValue(expr.value());
     auto* ctor = expr.function();
     if (!ctor) {
+        valueMap.insert(expr.object(), value);
         return value;
     }
     auto* type = typeMap(expr.type());
@@ -1231,7 +1232,9 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     add<ir::Call>(function,
                   std::array<ir::Value*, 2>{ dest, toMemory(value) },
                   std::string{});
-    return Value(dest, type, Memory);
+    Value result(dest, type, Memory);
+    valueMap.insert(expr.object(), result);
+    return result;
 }
 
 Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
