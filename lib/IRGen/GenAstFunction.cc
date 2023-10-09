@@ -1246,7 +1246,11 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     auto* addr = getValue<Memory>(expr.value());
     SC_ASSERT(isa<ir::Alloca>(addr), "");
     addr->replaceAllUsesWith(ptr);
-    return Value(storeToMemory(ptr), ctx.ptrType(), Memory);
+    Value result(storeToMemory(ptr), ctx.ptrType(), Memory);
+    if (isPtrOrRefToDynArray(expr.type().get())) {
+        valueMap.insertArraySizeOf(expr.object(), expr.value()->object());
+    }
+    return result;
 }
 
 static sema::ObjectType const* stripPtr(sema::ObjectType const* type) {
