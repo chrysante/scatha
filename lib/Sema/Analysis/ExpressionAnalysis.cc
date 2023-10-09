@@ -994,10 +994,15 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
         return nullptr;
     }
     if (expr.dest()->type().get() != expr.source()->type().get()) {
-        /// For now we only allow assignment of non-trivial type if both types
-        /// are the same
-        ctx.issue<BadExpr>(&expr, GenericBadExpr);
-        return nullptr;
+        auto* conv = convert(Implicit,
+                             expr.source(),
+                             expr.dest()->type(),
+                             RValue,
+                             *dtorStack,
+                             ctx);
+        if (!conv) {
+            return nullptr;
+        }
     }
     using enum SpecialLifetimeFunction;
     auto* compType = cast<CompoundType const*>(expr.dest()->type().get());
