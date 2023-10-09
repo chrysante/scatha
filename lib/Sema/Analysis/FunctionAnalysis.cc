@@ -334,7 +334,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     if (!returnType) {
         returnType = rs.expression()->type().get();
         deduceReturnTypeTo(&rs, returnType);
-    }    
+    }
     convert(Implicit,
             rs.expression(),
             getQualType(returnType),
