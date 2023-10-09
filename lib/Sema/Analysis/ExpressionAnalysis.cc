@@ -572,13 +572,24 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
             ctx.badExpr(&expr, DerefNoPtr);
             return nullptr;
         }
+        if (expr.unique()) {
+            ctx.badExpr(&expr, GenericBadExpr);
+            return nullptr;
+        }
         expr.decorateValue(sym.temporary(baseType), LValue);
         return &expr;
     }
     case EntityCategory::Type: {
         auto* type = cast<ObjectType*>(pointer->entity());
-        auto* ptrType = sym.pointer(QualType(type, expr.mutability()));
-        expr.decorateType(const_cast<PointerType*>(ptrType));
+        auto pointee = QualType(type, expr.mutability());
+        if (expr.unique()) {
+            auto* ptrType = sym.uniquePointer(pointee);
+            expr.decorateType(const_cast<UniquePtrType*>(ptrType));
+        }
+        else {
+            auto* ptrType = sym.pointer(pointee);
+            expr.decorateType(const_cast<PointerType*>(ptrType));
+        }
         return &expr;
     }
     default:
@@ -1154,6 +1165,7 @@ void ExprContext::dereferencePointer(ast::Expression* expr) {
     size_t index = expr->indexInParent();
     auto deref = allocate<ast::DereferenceExpression>(expr->extractFromParent(),
                                                       Mutability::Const,
+                                                      /* unique = */ false,
                                                       expr->sourceRange());
     bool result = analyzeValue(deref.get());
     SC_ASSERT(result, "How can a pointer dereference fail?");

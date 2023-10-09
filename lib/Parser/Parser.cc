@@ -997,9 +997,12 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
             std::move(unary),
             token.sourceRange());
     };
-    auto parseRef = [&]<typename Expr> {
+    auto parseRef = [&]<typename Expr>(auto... args) {
         auto mutQual = eatMut();
-        return allocate<Expr>(parsePrefix(), mutQual, token.sourceRange());
+        return allocate<Expr>(parsePrefix(),
+                              mutQual,
+                              args...,
+                              token.sourceRange());
     };
     switch (token.kind()) {
     case Plus:
@@ -1020,9 +1023,15 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     case Decrement:
         tokens.eat();
         return parseArith(ast::UnaryOperator::Decrement);
-    case Multiplies:
+    case Multiplies: {
         tokens.eat();
-        return parseRef.operator()<ast::DereferenceExpression>();
+        bool unique = false;
+        if (tokens.peek().kind() == Unique) {
+            unique = true;
+            tokens.eat();
+        }
+        return parseRef.operator()<ast::DereferenceExpression>(unique);
+    }
     case BitAnd:
         tokens.eat();
         return parseRef.operator()<ast::AddressOfExpression>();

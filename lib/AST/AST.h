@@ -593,19 +593,26 @@ private:
 /// Concrete node representing a reference expression.
 class SCATHA_API AddressOfExpression:
     public RefExprBase<NodeType::AddressOfExpression> {
-    using Base = RefExprBase<NodeType::AddressOfExpression>;
-
 public:
-    using Base::Base;
+    using RefExprBase::RefExprBase;
 };
 
 /// Concrete node representing a dereference expression.
 class SCATHA_API DereferenceExpression:
     public RefExprBase<NodeType::DereferenceExpression> {
-    using Base = RefExprBase<NodeType::DereferenceExpression>;
-
 public:
-    using Base::Base;
+    explicit DereferenceExpression(UniquePtr<Expression> referred,
+                                   sema::Mutability mut,
+                                   bool unique,
+                                   SourceRange sourceRange):
+        RefExprBase(std::move(referred), mut, sourceRange), _unique(unique) {}
+
+    /// \Returns `true` if this dereference expression has a `unique` token
+    /// attached to it
+    bool unique() const { return _unique; }
+
+private:
+    bool _unique;
 };
 
 /// MARK: Ternary Expressions
