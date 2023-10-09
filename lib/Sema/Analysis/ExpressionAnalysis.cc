@@ -367,7 +367,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
 
     /// Determine common type of operands
     QualType commonType =
-        sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
+        ast::isAssignment(expr.operation()) ?
+            expr.lhs()->type() :
+            sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
     if (!commonType) {
         ctx.badExpr(&expr, BinaryExprNoCommonType);
         return nullptr;
