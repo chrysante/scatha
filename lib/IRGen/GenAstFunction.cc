@@ -487,8 +487,9 @@ Value FuncGenContext::getValue(ast::Expression const* expr) {
         }); // clang-format on
     }
 #endif
-    return visit(*expr,
-                 [this](auto const& expr) { return getValueImpl(expr); });
+    auto result = visit(*expr, [&](auto& expr) { return getValueImpl(expr); });
+    valueMap.tryInsert(expr->object(), result);
+    return result;
 }
 
 template <ValueLocation Loc>
@@ -1033,7 +1034,6 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
         break;
     }
     }
-    valueMap.insert(call.object(), value);
     return value;
 }
 
@@ -1222,7 +1222,6 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     auto value = getValue(expr.value());
     auto* ctor = expr.function();
     if (!ctor) {
-        valueMap.insert(expr.object(), value);
         return value;
     }
     auto* type = typeMap(expr.type());
@@ -1233,7 +1232,6 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
                   std::array<ir::Value*, 2>{ dest, toMemory(value) },
                   std::string{});
     Value result(dest, type, Memory);
-    valueMap.insert(expr.object(), result);
     return result;
 }
 
@@ -1476,7 +1474,6 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
         SC_ASSERT(!irArguments.empty(),
                   "Must have at least the object argument");
         auto* address = irArguments.front();
-        valueMap.insert(expr.object(), Value(address, type, Memory));
         add<ir::Call>(function, irArguments, std::string{});
         return Value(address, type, Memory);
     }
