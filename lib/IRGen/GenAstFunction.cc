@@ -1480,17 +1480,37 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
     // clang-format off
     return SC_MATCH (*expr.type()){
         [&](sema::ObjectType const& type) {
-            if (expr.arguments().empty()) {
-                auto* value = ctx.undef(typeMap(expr.type()));
-                return Value(value, Register);
-            }
-            else {
+            if (!expr.arguments().empty()) {
                 SC_ASSERT(expr.arguments().size() == 1, "");
                 auto* arg = expr.arguments().front();
                 auto value = getValue(arg);
                 valueMap.insertArraySizeOf(expr.object(), arg->object());
                 return Value(toRegister(value), Register);
             }
+            auto* value = SC_MATCH (type) {
+                [&](sema::BoolType const& type) {
+                    return ctx.boolConstant(false);
+                },
+                [&](sema::ByteType const& type) {
+                    return ctx.intConstant(0, 8);
+                },
+                [&](sema::IntType const& type) {
+                    return ctx.intConstant(0, type.bitwidth());
+                },
+                [&](sema::FloatType const& type) {
+                    return ctx.floatConstant(0, type.bitwidth());
+                },
+                [&](sema::NullPtrType const& type) {
+                    return ctx.nullpointer();
+                },
+                [&](sema::RawPtrType const& type) {
+                    return ctx.nullpointer();
+                },
+                [&](sema::ObjectType const& type) -> ir::Value* {
+                    SC_UNREACHABLE();
+                },
+            };
+            return Value(value, Register);
         },
         [&](sema::StructType const& type) {
             if (expr.arguments().empty()) {
