@@ -75,6 +75,10 @@ inline constexpr auto TakeAddress = ranges::views::transform(
 inline constexpr auto Dereference = ranges::views::transform(
     []<typename T>(T&& t) -> decltype(auto) { return *std::forward<T>(t); });
 
+/// Filter view to ignore null pointers
+inline constexpr auto NonNull =
+    ranges::views::filter([](auto const& ptr) { return ptr != nullptr; });
+
 /// Turn any range into an opaquely typed range
 inline constexpr auto Opaque =
     ranges::views::transform([]<typename T>(T&& value) -> decltype(auto) {
