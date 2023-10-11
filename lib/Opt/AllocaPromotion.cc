@@ -359,7 +359,9 @@ static uint64_t extendByteToWord(int64_t value) {
     return result;
 }
 
-static APInt extendByteToBitWidth(int64_t value, size_t bitwidth) {
+/// We will need this function when we promote memsets of value other than zero
+[[maybe_unused]] static APInt extendByteToBitWidth(int64_t value,
+                                                   size_t bitwidth) {
     size_t numWords = utl::ceil_divide(bitwidth, 64);
     uint64_t const extWord = extendByteToWord(value);
     utl::small_vector<uint64_t> ext(numWords, extWord);
@@ -393,7 +395,6 @@ bool VariableInfo::renameDef(Instruction* inst) {
     }
     if (isMemset(call)) {
         BasicBlockBuilder builder(ctx, inst->parent());
-        int64_t const byteVal = memsetConstValue(call);
         auto* loadedType = getLoadedType(address);
         auto* value = ctx.nullConstant(loadedType);
         genName(value);
