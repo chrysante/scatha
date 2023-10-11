@@ -28,10 +28,13 @@ SVM_BUILTIN_DEF(acos_f64,  Const, { F64() }, F64())
 SVM_BUILTIN_DEF(atan_f64,  Const, { F64() }, F64())
 
 /// ## Memory Management
-/// IR signature: void(ptr, ptr, i64)
 SVM_BUILTIN_DEF(memcpy,  None,  {
     pointer(QualType::Mut(arrayType(Byte()))),
     pointer(QualType::Const(arrayType(Byte())))
+}, Void())
+SVM_BUILTIN_DEF(memset,  None,  {
+    pointer(QualType::Mut(arrayType(Byte()))),
+    S64()
 }, Void())
 SVM_BUILTIN_DEF(alloc, None, { S64(), S64() },
                 pointer(QualType::Mut(arrayType(Byte()))))
