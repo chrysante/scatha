@@ -35,6 +35,62 @@ fn main() -> int {
 }
 
 
+/// Unique ptr tree example
+fn print(text: &str) {
+    __builtin_putstr(text);
+}
+
+fn print(value: int) {
+    __builtin_puti64(value);
+}
+
+struct Node {
+    fn new(&mut this, n: int) {
+        this.value = n;
+        this.left = null;
+        this.right = null;
+    }
+    
+    var value: int;
+    
+    var left: *unique mut Node;
+    var right: *unique mut Node;
+}
+fn insert(root: mut *unique mut Node,
+          newNode: mut *unique mut Node) {
+    var y: *mut Node = null;
+    var x: *mut Node = root;
+    while x != null {
+        y = x;
+        if newNode.value < x.value {
+            x = x.left;
+        }
+        else {
+            x = x.right;
+        }
+     }
+     if y == null {
+        return move newNode;
+     }
+     else if newNode.value < y.value {
+        y.left = move newNode;
+        return move root;
+     }
+     else {
+        y.right = move newNode;
+        return move root;
+     }
+}
+
+fn main() {
+    var root: *unique mut Node = null;
+    let data = [1, 5, 2, 7, 9, 3, 8, 12];
+    for i = 0; i < data.count; ++i {
+        root = insert(move root, unique Node(data[i]));
+    }
+}
+
+
 
 /// Smashes the stack while parsing :)
 fn main() {
@@ -117,11 +173,6 @@ struct Y {
     fn foo(d: double, &this) {}
 }
 
-
-
-
-
-
 /// Bad return type deduction
 fn test() {
     return 0;
@@ -138,3 +189,4 @@ struct X {
 struct Y {
     var x: X;
 }
+
