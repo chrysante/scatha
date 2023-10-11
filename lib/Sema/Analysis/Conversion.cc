@@ -52,11 +52,10 @@ std::ostream& sema::operator<<(std::ostream& ostream,
     return ostream << toString(conv);
 }
 
-Conversion::operator bool() const {
-    return valueCatConversion() != ValueCatConversion::None ||
-           mutConversion() != MutConversion::None ||
-           objectConversion() != ObjectTypeConversion::None ||
-           isObjectConstruction();
+bool Conversion::isNoop() const {
+    return valueCatConversion() == ValueCatConversion::None &&
+           mutConversion() == MutConversion::None &&
+           objectConversion() == ObjectTypeConversion::None;
 }
 
 static std::optional<ObjectTypeConversion> implicitIntConversion(
@@ -551,10 +550,9 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     if (!objConv) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
     }
-    bool isObjConstr = false;
-    if (*valueCatConv == ValueCatConversion::LValueToRValue) {
+    bool isObjConstr = *valueCatConv == ValueCatConversion::LValueToRValue;
+    if (isObjConstr) {
         *valueCatConv = ValueCatConversion::None;
-        isObjConstr = true;
     }
     return Conversion(expr->type(),
                       to,
@@ -710,12 +708,12 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
                                         Conversion conv,
                                         DtorStack& dtors,
                                         AnalysisContext& ctx) {
-    if (!conv) {
-        return expr;
+    if (!conv.isNoop()) {
+        expr = ast::insertNode<ast::Conversion>(expr,
+                                                std::make_unique<Conversion>(
+                                                    conv));
+        expr = analyzeValueExpr(expr, dtors, ctx);
     }
-    expr = ast::insertNode<ast::Conversion>(expr,
-                                            std::make_unique<Conversion>(conv));
-    expr = analyzeValueExpr(expr, dtors, ctx);
     if (conv.isObjectConstruction()) {
         expr = ast::insertNode<ast::ConstructExpr>(expr);
         expr = analyzeValueExpr(expr, dtors, ctx);

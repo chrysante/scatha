@@ -80,8 +80,8 @@ public:
     /// temporarily during analysis.
     bool isObjectConstruction() const { return isObjConstr; }
 
-    /// \Returns `true` if any of the specified conversions is not `None`
-    explicit operator bool() const;
+    /// \Returns `true` if all of the conversions are `None`
+    bool isNoop() const;
 
 private:
     QualType from;
