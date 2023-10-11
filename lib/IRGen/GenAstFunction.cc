@@ -1477,6 +1477,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
         add<ir::Call>(function, irArguments, std::string{});
         return Value(address, type, Memory);
     }
+    /// Here we construct trivial types
     // clang-format off
     return SC_MATCH (*expr.type()){
         [&](sema::ObjectType const& type) {
@@ -1514,8 +1515,10 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
         },
         [&](sema::StructType const& type) {
             if (expr.arguments().empty()) {
-                auto* value = ctx.undef(typeMap(expr.type()));
-                return Value(value, Register);
+                auto* irType = typeMap(&type);
+                auto* addr = makeLocalVariable(irType, "tmp");
+                callMemset(addr, irType->size(), 0);
+                return Value(addr, irType, Memory);
             }
             else if (expr.arguments().size() == 1 &&
                      expr.arguments().front()->type().get() == expr.type().get())
@@ -1544,7 +1547,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             case 0: {
                 auto* irType = typeMap(&type);
                 auto* addr = makeLocalVariable(irType, "tmp.array");
-                /// TODO: Zero the memory here and also rewrite this
+                callMemset(addr, irType->size(), 0);
                 return Value(addr, irType, Memory);
             }
             case 1: {

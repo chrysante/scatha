@@ -91,6 +91,12 @@ struct FuncGenContextBase: ir::FunctionBuilder {
     /// \overload for `size_t numBytes`
     void callMemcpy(ir::Value* dest, ir::Value* source, size_t numBytes);
 
+    /// Emit a call to `memset`
+    void callMemset(ir::Value* dest, ir::Value* numBytes, int value);
+
+    /// \overload for `size_t numBytes`
+    void callMemset(ir::Value* dest, size_t numBytes, int value);
+
     /// Get the calling convention of \p function
     CallingConvention const& getCC(sema::Function const* function);
 };

@@ -71,6 +71,21 @@ void FuncGenContextBase::callMemcpy(ir::Value* dest,
     callMemcpy(dest, source, ctx.intConstant(numBytes, 64));
 }
 
+void FuncGenContextBase::callMemset(ir::Value* dest,
+                                    ir::Value* numBytes,
+                                    int value) {
+    auto* memset = getBuiltin(svm::Builtin::memset);
+    ir::Value* irVal = ctx.intConstant(utl::narrow_cast<uint64_t>(value), 64);
+    std::array args = { dest, numBytes, irVal };
+    add<ir::Call>(memset, args, std::string{});
+}
+
+void FuncGenContextBase::callMemset(ir::Value* dest,
+                                    size_t numBytes,
+                                    int value) {
+    callMemset(dest, ctx.intConstant(numBytes, 64), value);
+}
+
 CallingConvention const& FuncGenContextBase::getCC(
     sema::Function const* function) {
     return functionMap.metaData(function).CC;
