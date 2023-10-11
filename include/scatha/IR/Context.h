@@ -85,8 +85,25 @@ public:
     /// \returns The floating point constant with value \p value
     Constant* arithmeticConstant(APFloat value);
 
+    /// \Returns the record object of type \p type with constant elements
+    /// \p elems
+    RecordConstant* recordConstant(std::span<ir::Constant* const> elems,
+                                   RecordType const* type);
+
+    /// \Returns the struct object of type \p type with constant elements
+    /// \p elems
+    StructConstant* structConstant(std::span<ir::Constant* const> elems,
+                                   StructType const* type);
+
+    /// \Returns the array of type \p type with constant elements \p elems
+    ArrayConstant* arrayConstant(std::span<ir::Constant* const> elems,
+                                 ArrayType const* type);
+
     /// \Returns the null pointer constant
     NullPointerConstant* nullpointer();
+
+    /// \Returns the zero constant of type \p type
+    Constant* nullConstant(Type const* type);
 
     /// \returns The `undef` constant of type \p type
     UndefValue* undef(Type const* type);

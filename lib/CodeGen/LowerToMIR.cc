@@ -834,8 +834,23 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
-        [&](ir::NullPointerConstant const&) -> mir::Value* {
-            return result.constant(0, 8);
+        [&](ir::NullPointerConstant const& constant) -> mir::Value* {
+            auto* mirConstant = result.constant(0, 8);
+            valueMap.insert({ &constant, mirConstant });
+            return mirConstant;
+        },
+        [&](ir::RecordConstant const& value) -> mir::Value* {
+            size_t numWords = this->numWords(value.type());
+            utl::small_vector<uint64_t> words(numWords);
+            value.writeValueTo(words.data());
+            auto* reg = nextRegister(numWords);
+            for (auto* dest = reg; auto word: words) {
+                addNewInst(mir::InstCode::Copy,
+                           dest,
+                           { result.constant(word, 8) });
+                dest = dest->next();
+            }
+            return reg;
         },
         [&](ir::UndefValue const&) -> mir::Value* {
             return result.undefValue();

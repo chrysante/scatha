@@ -105,6 +105,10 @@ bool isMemset(ir::Instruction const* inst);
 /// constant value argument
 bool isConstMemset(ir::Instruction const* inst);
 
+/// \Returns `true` if \p inst is a call to memset with a constant size and
+/// constant value argument equal to zero
+bool isConstZeroMemset(ir::Instruction const* inst);
+
 /// \Returns the destination pointer of a call to memcpy
 ir::Value const* memsetDest(ir::Instruction const* call);
 

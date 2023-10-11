@@ -3,6 +3,7 @@
 #include <string>
 
 #include <range/v3/algorithm.hpp>
+#include <utl/functional.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
@@ -36,9 +37,15 @@ bool opt::isPromotable(Alloca const* allocaInst) {
                    store.value()->type()->size() == size;
         },
         [&](Call const& call) {
-            return isConstSizeMemcpy(&call) &&
-                   memcpySize(&call) == size &&
-                   memcpyDest(&call) != memcpySource(&call);
+            if (isConstSizeMemcpy(&call)) {
+                return memcpySize(&call) == size &&
+                       memcpyDest(&call) != memcpySource(&call);
+            }
+            /// Technically we could allow any constant memset call but I can't be bothered to implement this right now.
+            if (isConstZeroMemset(&call)) {
+                return memsetSize(&call) == size;
+            }
+            return false;
         },
         [&](Instruction const&) {
             return false;
@@ -166,17 +173,27 @@ VariableInfo::VariableInfo(Alloca& allocaInst,
                 usingBlocks.insert(load.parent());
             },
             [&](Call& call) {
-                SC_ASSERT(isConstSizeMemcpy(&call), "Not promotable");
-                auto* dest = memcpyDest(&call);
-                auto* source = memcpySource(&call);
-                SC_ASSERT(dest == address || source || dest, "Not promotable");
-                if (dest == address) {
+                if (isMemcpy(&call)) {
+                    auto* dest = memcpyDest(&call);
+                    auto* source = memcpySource(&call);
+                    SC_ASSERT(dest == address || source == address, "Not promotable");
+                    if (dest == address) {
+                        defs.push_back(&call);
+                        definingBlocks.insert(call.parent());
+                    }
+                    else {
+                        uses.push_back(&call);
+                        usingBlocks.insert(call.parent());
+                    }
+                }
+                else if (isMemset(&call)) {
+                    auto* dest = memsetDest(&call);
+                    SC_ASSERT(dest == address, "Not promotable");
                     defs.push_back(&call);
                     definingBlocks.insert(call.parent());
                 }
                 else {
-                    uses.push_back(&call);
-                    usingBlocks.insert(call.parent());
+                    SC_UNREACHABLE();
                 }
             },
             [&](Instruction const& inst) { SC_UNREACHABLE("Not promotable"); }
@@ -190,6 +207,9 @@ static Value const* definingAddress(Instruction const* inst) {
     }
     if (isMemcpy(inst)) {
         return memcpyDest(inst);
+    }
+    if (isMemset(inst)) {
+        return memsetDest(inst);
     }
     return nullptr;
 }
@@ -330,21 +350,56 @@ Value* VariableInfo::bitcast(Value* value,
                                           "prom.bitcast");
 }
 
+static uint64_t extendByteToWord(int64_t value) {
+    uint64_t byte = static_cast<uint64_t>(value) & 0xFF;
+    uint64_t result = 0;
+    for (int i = 0; i < 8; ++i) {
+        result |= byte << i * 8;
+    }
+    return result;
+}
+
+static APInt extendByteToBitWidth(int64_t value, size_t bitwidth) {
+    size_t numWords = utl::ceil_divide(bitwidth, 64);
+    uint64_t const extWord = extendByteToWord(value);
+    utl::small_vector<uint64_t> ext(numWords, extWord);
+    return APInt(ext, bitwidth);
+}
+
+static Type const* getLoadedType(Alloca const* address) {
+    Type const* type = address->allocatedType();
+    for (auto* load: address->users() | Filter<Load>) {
+        type = load->type();
+        break;
+    }
+    return type;
+}
+
 bool VariableInfo::renameDef(Instruction* inst) {
     if (definingAddress(inst) != address) {
         return false;
     }
     if (auto* store = dyncast<Store*>(inst)) {
         genName(store->value());
+        return true;
     }
-    else {
-        auto* call = cast<Call*>(inst);
-        auto* source = memcpySource(call);
+    auto* call = cast<Call*>(inst);
+    if (isMemcpy(call)) {
         BasicBlockBuilder builder(ctx, inst->parent());
+        auto* source = memcpySource(call);
         auto* value = builder.insert<Load>(call, source, type, "prom.memcpy");
         genName(value);
+        return true;
     }
-    return true;
+    if (isMemset(call)) {
+        BasicBlockBuilder builder(ctx, inst->parent());
+        int64_t const byteVal = memsetConstValue(call);
+        auto* loadedType = getLoadedType(address);
+        auto* value = ctx.nullConstant(loadedType);
+        genName(value);
+        return true;
+    }
+    SC_UNREACHABLE();
 }
 
 bool VariableInfo::renameUse(Instruction* inst) {
@@ -360,17 +415,25 @@ bool VariableInfo::renameUse(Instruction* inst) {
             value = ctx.undef(load->type());
         }
         load->replaceAllUsesWith(bitcast(value, load, load->type()));
+        return true;
     }
-    else {
-        if (!value) {
-            value = ctx.undef(type);
-        }
-        auto* call = cast<Call*>(inst);
+    if (!value) {
+        value = ctx.undef(type);
+    }
+    auto* call = cast<Call*>(inst);
+    if (isMemcpy(call)) {
         auto* dest = memcpyDest(call);
         BasicBlockBuilder builder(ctx, inst->parent());
         builder.insert<Store>(call, dest, value);
+        return true;
     }
-    return true;
+    if (isMemset(call)) {
+        auto* dest = memsetDest(call);
+        BasicBlockBuilder builder(ctx, inst->parent());
+        builder.insert<Store>(call, dest, value);
+        return true;
+    }
+    SC_UNREACHABLE();
 }
 
 void VariableInfo::rename(BasicBlock* BB) {

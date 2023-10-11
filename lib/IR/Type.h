@@ -82,7 +82,12 @@ public:
 /// Base class of `Integral` and `FloatingPoint` types.
 class ArithmeticType: public Type {
 public:
+    /// Width of this integer in bits
     size_t bitwidth() const { return _bitWidth; }
+
+    /// Width of this integer in bytes. This is bitwidth divided by 8 and always
+    /// rounded up.
+    size_t bytewidth() const { return utl::ceil_divide(bitwidth(), 8); }
 
 protected:
     explicit ArithmeticType(std::string_view typenamePrefix,
@@ -114,6 +119,11 @@ public:
 
 /// Common interface of `StructType` and `ArrayType`
 class SCTEST_API RecordType: public Type {
+    auto rangeImpl(auto f) const {
+        return ranges::views::iota(size_t{ 0 }, numElements()) |
+               ranges::views::transform(f);
+    }
+
 public:
     struct Member {
         Type const* type;
@@ -133,6 +143,21 @@ public:
 
     /// \Returns the number of elements in this struct
     size_t numElements() const;
+
+    /// \Returns a view over the members (type, offset) of this type
+    auto members() const {
+        return rangeImpl([this](size_t index) { return memberAt(index); });
+    }
+
+    /// \Returns a view over the member types of this type
+    auto elements() const {
+        return rangeImpl([this](size_t index) { return elementAt(index); });
+    }
+
+    /// \Returns a view over the member offsets of this type
+    auto offsets() const {
+        return rangeImpl([this](size_t index) { return offsetAt(index); });
+    }
 };
 
 /// Represents a (user defined) structure type.

@@ -12,11 +12,15 @@ SC_CGFNODE_DEF(Value,                 ABSTRACT)
 SC_CGFNODE_DEF(Parameter,             CONCRETE)
 SC_CGFNODE_DEF(User,                  ABSTRACT)
 
+/// Constants
 SC_CGFNODE_DEF(Constant,              ABSTRACT)
 SC_CGFNODE_DEF(IntegralConstant,      CONCRETE)
 SC_CGFNODE_DEF(FloatingPointConstant, CONCRETE)
 SC_CGFNODE_DEF(NullPointerConstant,   CONCRETE)
 SC_CGFNODE_DEF(UndefValue,            CONCRETE)
+SC_CGFNODE_DEF(RecordConstant,        ABSTRACT)
+SC_CGFNODE_DEF(StructConstant,        CONCRETE)
+SC_CGFNODE_DEF(ArrayConstant,         CONCRETE)
 SC_CGFNODE_DEF(ConstantData,          CONCRETE)
 
 SC_CGFNODE_DEF(Callable,              ABSTRACT)

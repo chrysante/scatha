@@ -257,6 +257,10 @@ bool opt::isConstMemset(ir::Instruction const* inst) {
            isa<IntegralConstant>(call->argumentAt(2));
 }
 
+bool opt::isConstZeroMemset(ir::Instruction const* inst) {
+    return isConstMemset(inst) && memsetConstValue(inst) == 0;
+}
+
 ir::Value const* opt::memsetDest(ir::Instruction const* call) {
     SC_ASSERT(isMemset(call), "Invalid");
     return cast<Call const*>(call)->argumentAt(0);

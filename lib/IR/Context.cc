@@ -6,15 +6,43 @@
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
-#include "IR/StructHash.h"
 #include "IR/Type.h"
+#include "IR/VectorHash.h"
 
 using namespace scatha;
-
 using namespace ir;
 
 using StructKey = utl::small_vector<Type const*>;
+using StructHash = VectorHash<Type const*>;
+using StructEqual = VectorEqual<Type const*>;
+
 using ArrayKey = std::pair<Type const*, size_t>;
+
+namespace {
+
+/// Helper class to store struct and array constants
+struct RecordConstantMap {
+    using RecordConstantKey = utl::small_vector<Constant*>;
+    using RecordConstantHash = VectorHash<Constant*>;
+    using RecordConstantEqual = VectorEqual<Constant*>;
+
+    template <typename ConstType, typename IRType>
+    ConstType* get(IRType const* type, std::span<Constant* const> elems) {
+        auto itr = map.find(elems);
+        if (itr == map.end()) {
+            itr = map.insert({ elems, allocate<ConstType>(elems, type) }).first;
+        }
+        return cast<ConstType*>(itr->second.get());
+    }
+
+    utl::hashmap<RecordConstantKey,
+                 UniquePtr<RecordConstant>,
+                 RecordConstantHash,
+                 RecordConstantEqual>
+        map;
+};
+
+} // namespace
 
 struct Context::Impl {
     /// ## Constants
@@ -25,6 +53,7 @@ struct Context::Impl {
     utl::hashmap<std::pair<size_t, APFloat>, UniquePtr<FloatingPointConstant>>
         _floatConstants;
     utl::hashmap<Type const*, UniquePtr<UndefValue>> _undefConstants;
+    utl::hashmap<RecordType const*, RecordConstantMap> recordConstants;
     UniquePtr<NullPointerConstant> nullptrConstant;
 
     /// ## Types
@@ -33,10 +62,7 @@ struct Context::Impl {
     PointerType const* _ptrType;
     utl::hashmap<uint32_t, IntegralType const*> _intTypes;
     utl::hashmap<uint32_t, FloatType const*> _floatTypes;
-    utl::hashmap<StructKey,
-                 StructType const*,
-                 internal::StructHash,
-                 internal::StructEqual>
+    utl::hashmap<StructKey, StructType const*, StructHash, StructEqual>
         _anonymousStructs;
     utl::hashmap<ArrayKey, ArrayType const*> _arrayTypes;
 };
@@ -189,8 +215,64 @@ Constant* Context::arithmeticConstant(APFloat value) {
     return floatConstant(value);
 }
 
+RecordConstant* Context::recordConstant(std::span<ir::Constant* const> elems,
+                                        RecordType const* type) {
+    // clang-format off
+    return SC_MATCH (*type) {
+        [&](StructType const& type) -> RecordConstant* {
+            return structConstant(elems, &type);
+        },
+        [&](ArrayType const& type) -> RecordConstant* {
+            return arrayConstant(elems, &type);
+        },
+    }; // clang-format on
+}
+
+template <typename ConstType, typename IRType>
+static ConstType* recordConstantImpl(auto& constantMap,
+                                     IRType const* type,
+                                     std::span<ir::Constant* const> elems) {
+    return constantMap[type].template get<ConstType>(type, elems);
+}
+
+StructConstant* Context::structConstant(std::span<ir::Constant* const> elems,
+                                        StructType const* type) {
+    return recordConstantImpl<StructConstant>(impl->recordConstants,
+                                              type,
+                                              elems);
+}
+
+ArrayConstant* Context::arrayConstant(std::span<ir::Constant* const> elems,
+                                      ArrayType const* type) {
+    return recordConstantImpl<ArrayConstant>(impl->recordConstants,
+                                             type,
+                                             elems);
+}
+
 NullPointerConstant* Context::nullpointer() {
     return impl->nullptrConstant.get();
+}
+
+Constant* Context::nullConstant(Type const* type) {
+    // clang-format off
+    return SC_MATCH (*type) {
+        [&](ArithmeticType const& type) {
+            return arithmeticConstant(0, &type);
+        },
+        [&](PointerType const& type) {
+            return nullpointer();
+        },
+        [&](RecordType const& type) {
+            auto elems = type.elements() |
+                         ranges::views::transform([&](auto* type) {
+                             return nullConstant(type);
+                         }) | ToSmallVector<>;
+            return recordConstant(elems, &type);
+        },
+        [&](Type const& type) -> Constant* {
+            SC_UNREACHABLE();
+        },
+    }; // clang-format on
 }
 
 UndefValue* Context::undef(Type const* type) {
