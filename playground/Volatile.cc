@@ -175,7 +175,7 @@ static void run(ir::Module const& mod) {
     header("Symbol Table");
     sema::print(sym);
 
-    if (!issues.empty()) {
+    if (issues.haveErrors()) {
         return;
     }
 
@@ -288,7 +288,10 @@ static void run(ir::Module const& mod) {
                 << "Lorem ipsum dolor sit amet.";
                               } });
     }
-    highlightSource(SourceStructure(source), highlights, std::cout);
+    highlightSource(SourceStructure(source),
+                    highlights,
+                    IssueSeverity::Error,
+                    std::cout);
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
