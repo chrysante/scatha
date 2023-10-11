@@ -188,6 +188,19 @@ fn main() -> int {
 })");
 }
 
+TEST_CASE("Pseudo constructors zero init", "[end-to-end][constructors]") {
+    test::checkReturns(true, R"(
+struct X {
+    var f: double;
+    var i: int;
+    var p: *int;
+}
+fn main() -> bool {
+    let x: X;
+    return x.f == 0.0 && x.i == 0 && x.p == null;
+})");
+}
+
 TEST_CASE("Generated constructors", "[end-to-end][constructors]") {
     auto text = CommonDefs + R"(
 struct Z {
