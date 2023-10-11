@@ -37,7 +37,7 @@ static std::string impl(ArrayType const* type) {
     return utl::strcat("[", impl(type->elementType()), "]");
 }
 
-static std::string impl(PointerType const* type) {
+static std::string impl(RawPtrType const* type) {
     return utl::strcat("*", impl(type->base()));
 }
 

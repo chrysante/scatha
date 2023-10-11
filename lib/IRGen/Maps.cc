@@ -232,9 +232,6 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
         [&](sema::PointerType const&) -> ir::Type const* {
             return ctx->ptrType();
         },
-        [&](sema::UniquePtrType const&) -> ir::Type const* {
-            return ctx->ptrType();
-        },
         [&](sema::ReferenceType const&) -> ir::Type const* {
             return ctx->ptrType();
         },

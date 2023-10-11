@@ -35,6 +35,9 @@ utl::vstreammanip<> sema::format(Type const* type) {
             },
             [&](PointerType const& type) {
                 str << tfmt::format(None, "*");
+                if (isa<UniquePtrType>(type)) {
+                    str << tfmt::format(None, "unique ");
+                }
                 if (type.base().isMut()) {
                     str << tfmt::format(BrightBlue, "mut ");
                 }

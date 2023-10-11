@@ -18,7 +18,7 @@ void popTopLevelDtor(ast::Expression* expr, DtorStack& dtors);
 /// Declares the appropriate special lifetime functions of \p type
 /// This is used by Instantiation to analyze structs and by symbol table to
 /// generate array types.
-void declareSpecialLifetimeFunctions(CompoundType& type, SymbolTable& sym);
+void declareSpecialLifetimeFunctions(ObjectType& type, SymbolTable& sym);
 
 /// # Other utils
 

@@ -19,12 +19,12 @@ struct Loop {
 };
 
 struct FuncGenContext: FuncGenContextBase {
-    sema::CompoundType const* parentType;
+    sema::ObjectType const* parentType;
     sema::SpecialLifetimeFunction kind;
 
     FuncGenContext(auto&... args):
         FuncGenContextBase(args...),
-        parentType(cast<sema::CompoundType const*>(semaFn.parent())),
+        parentType(cast<sema::ObjectType const*>(semaFn.parent())),
         kind(semaFn.SLFKind()) {}
 
     void generate();
@@ -32,6 +32,7 @@ struct FuncGenContext: FuncGenContextBase {
     void genImpl(sema::StructType const& type);
     void genImpl(sema::ArrayType const& type);
     void genImpl(sema::UniquePtrType const& type);
+    void genImpl(sema::ObjectType const& type) { SC_UNREACHABLE(); }
 
     void genMemberCall(ir::Instruction const* before,
                        sema::ObjectType const& memberType,
@@ -75,7 +76,6 @@ utl::small_vector<sema::Function const*> irgen::generateSynthFunction(
 
 void FuncGenContext::generate() {
     addNewBlock("entry");
-    auto* parentType = cast<sema::CompoundType const*>(semaFn.parent());
     visit(*parentType, [&](auto& type) { genImpl(type); });
 }
 
@@ -134,9 +134,8 @@ void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
         add<ir::Branch>(cond, end, then);
 
         add(then);
-        auto* compBase = dyncast<sema::CompoundType const*>(type.base().get());
-        if (compBase && compBase->specialLifetimeFunction(Destructor)) {
-            auto* dtor = compBase->specialLifetimeFunction(Destructor);
+        auto* baseType = type.base().get();
+        if (auto* dtor = baseType->specialLifetimeFunction(Destructor)) {
             add<ir::Call>(getFunction(dtor), std::array<ir::Value*, 1>{ ptr });
         }
         auto* dealloc = getBuiltin(svm::Builtin::dealloc);
@@ -158,11 +157,9 @@ void FuncGenContext::genMemberCall(ir::Instruction const* before,
                                    sema::ObjectType const& type,
                                    ir::Value* index) {
     auto arguments = genArguments(before, typeMap(&type), index);
-    if (auto* compType = dyncast<sema::CompoundType const*>(&type)) {
-        if (auto* f = compType->specialLifetimeFunction(kind)) {
-            insert<ir::Call>(before, getFunction(f), arguments);
-            return;
-        }
+    if (auto* f = type.specialLifetimeFunction(kind)) {
+        insert<ir::Call>(before, getFunction(f), arguments);
+        return;
     }
     SC_ASSERT(type.hasTrivialLifetime(),
               "This function cannot be generated if the member type does not "

@@ -134,13 +134,14 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         return std::nullopt;
     };
     auto pointerConv = utl::overload{
-        [&](NullPtrType const& from, PointerType const& to) -> RetType {
+        [&](NullPtrType const& from, RawPtrType const& to) -> RetType {
             return NullPtrToPtr;
         },
         [&](NullPtrType const& from, UniquePtrType const& to) -> RetType {
             return NullPtrToUniquePtr;
         },
-        [&](PointerType const& from, PointerType const& to) -> RetType {
+        /// Yes, we allow implicit conversion from `*unique T` to `*T`
+        [&](PointerType const& from, RawPtrType const& to) -> RetType {
             if (from.base().isConst() && to.base().isMut()) {
                 return std::nullopt;
             }
@@ -153,16 +154,6 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 return determineObjConv(kind,
                                         from.base().get(),
                                         to.base().get());
-            }
-            return std::nullopt;
-        },
-        /// Yes, we allow implicit conversion from `*unique T` to `*T`
-        [&](UniquePtrType const& from, PointerType const& to) -> RetType {
-            if (from.base().isConst() && to.base().isMut()) {
-                return std::nullopt;
-            }
-            if (from.base().get() == to.base().get()) {
-                return UniquePtrToPtr;
             }
             return std::nullopt;
         },
@@ -609,13 +600,13 @@ static Mutability commonMutability(Mutability a, Mutability b) {
     return a == Mutability::Mutable ? b : a;
 }
 
-static PointerType const* commonPointer(SymbolTable& sym,
-                                        QualType aBase,
-                                        QualType bBase) {
+static RawPtrType const* commonPointer(SymbolTable& sym,
+                                       QualType aBase,
+                                       QualType bBase) {
     SC_ASSERT(aBase != bBase, "");
     // clang-format off
     return SC_MATCH (*aBase, *bBase) {
-        [&](ArrayType const& a, ArrayType const& b) -> PointerType const* {
+        [&](ArrayType const& a, ArrayType const& b) -> RawPtrType const* {
             if (a.elementType() != b.elementType()) {
                 return nullptr;
             }
@@ -664,13 +655,13 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             }
             return nullptr;
         },
-        [&](PointerType const& a, NullPtrType const& b) {
+        [&](RawPtrType const& a, NullPtrType const& b) {
             return &a;
         },
-        [&](NullPtrType const& a, PointerType const& b) {
+        [&](NullPtrType const& a, RawPtrType const& b) {
             return &b;
         },
-        [&](PointerType const& a, PointerType const& b) -> PointerType const* {
+        [&](RawPtrType const& a, RawPtrType const& b) -> RawPtrType const* {
             if (a.base() == b.base()) {
                 return &a;
             }

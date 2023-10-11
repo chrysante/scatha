@@ -22,13 +22,12 @@ using enum ConversionKind;
 /// We also implement DtorStack here to save a .cc file
 
 static std::optional<DestructorCall> makeDTorCall(Object* obj) {
-    auto* type = obj->type();
-    auto* compType = dyncast<CompoundType const*>(type);
-    if (!compType) {
+    using enum SpecialLifetimeFunction;
+    auto* type = dyncast<ObjectType const*>(obj->type());
+    if (!type) {
         return std::nullopt;
     }
-    using enum SpecialLifetimeFunction;
-    auto* dtor = compType->specialLifetimeFunction(Destructor);
+    auto* dtor = type->specialLifetimeFunction(Destructor);
     if (!dtor) {
         return std::nullopt;
     }
@@ -65,12 +64,9 @@ void sema::popTopLevelDtor(ast::Expression* expr, DtorStack& dtors) {
     if (!expr || !expr->isDecorated()) {
         return;
     }
-    auto* compType = dyncast<CompoundType const*>(expr->type().get());
-    if (!compType) {
-        return;
-    }
+    auto* type = expr->type().get();
     using enum SpecialLifetimeFunction;
-    if (compType->specialLifetimeFunction(Destructor)) {
+    if (type && type->specialLifetimeFunction(Destructor)) {
         SC_ASSERT(expr->object() == dtors.top().object,
                   "We want to prolong the lifetime of the object defined by "
                   "expr, so that object better be on top of the stack");
@@ -116,7 +112,7 @@ static FunctionSignature makeLifetimeSignature(SpecialLifetimeFunction key,
 }
 
 static Function* generateSLF(SpecialLifetimeFunction key,
-                             CompoundType& type,
+                             ObjectType& type,
                              SymbolTable& sym) {
     auto SMFKind = toSMF(key);
     Function* function = sym.withScopeCurrent(&type, [&] {
@@ -207,9 +203,13 @@ static bool allMembersHave(StructType& type, SpecialLifetimeFunction fn) {
         if (type->hasTrivialLifetime()) {
             return true;
         }
-        auto* compType = cast<CompoundType const*>(type);
-        return compType->specialLifetimeFunction(fn) != nullptr;
+        auto* objType = cast<ObjectType const*>(type);
+        return objType->specialLifetimeFunction(fn) != nullptr;
     });
+}
+
+static void declareSLFs(ObjectType& type, SymbolTable& sym) {
+    SC_UNREACHABLE();
 }
 
 static void declareSLFs(StructType& type, SymbolTable& sym) {
@@ -224,22 +224,22 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
         /// We generate the default constructor if it is necessary and possible
         bool anyMemberHasUserDefinedDefCtor = ranges::any_of(type.members(),
                                                              [](auto* type) {
-            auto* compType = dyncast<CompoundType const*>(type);
-            return compType &&
-                   compType->specialLifetimeFunction(DefaultConstructor);
+            auto* objType = cast<ObjectType const*>(type);
+            return objType &&
+                   objType->specialLifetimeFunction(DefaultConstructor);
         });
         bool allMembersAreDefaultConstructible =
             ranges::all_of(type.members(), [&](auto* type) {
-                auto* compType = dyncast<CompoundType const*>(type);
-                if (!compType) {
+                auto* objType = cast<ObjectType const*>(type);
+                if (!objType) {
                     return true;
                 }
-                if (compType->hasTrivialLifetime() &&
-                    !compType->specialMemberFunction(New))
+                if (objType->hasTrivialLifetime() &&
+                    !objType->specialMemberFunction(New))
                 {
                     return true;
                 }
-                return compType->specialLifetimeFunction(DefaultConstructor) !=
+                return objType->specialLifetimeFunction(DefaultConstructor) !=
                        nullptr;
             });
         if (anyMemberHasUserDefinedDefCtor && allMembersAreDefaultConstructible)
@@ -267,10 +267,7 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
 }
 
 static void declareSLFs(ArrayType& type, SymbolTable& sym) {
-    auto* elemType = dyncast<CompoundType*>(type.elementType());
-    if (!elemType) {
-        return;
-    }
+    auto* elemType = type.elementType();
     SLFArray SLF{};
     for (auto key: EnumRange<SpecialLifetimeFunction>()) {
         if (elemType->specialLifetimeFunction(key)) {
@@ -290,8 +287,7 @@ static void declareSLFs(UniquePtrType& type, SymbolTable& sym) {
     type.setSpecialLifetimeFunctions(SLF);
 }
 
-void sema::declareSpecialLifetimeFunctions(CompoundType& type,
-                                           SymbolTable& sym) {
+void sema::declareSpecialLifetimeFunctions(ObjectType& type, SymbolTable& sym) {
     visit(type, [&](auto& type) { declareSLFs(type, sym); });
 }
 

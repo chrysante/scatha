@@ -16,9 +16,6 @@ sema::ObjectType const* irgen::getPtrOrRefBase(sema::Type const* type) {
         [](sema::PointerType const& type) {
             return type.base().get();
         },
-        [](sema::UniquePtrType const& type) {
-            return type.base().get();
-        },
         [](sema::Type const& type) {
             return nullptr;
         }

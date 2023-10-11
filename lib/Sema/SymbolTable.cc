@@ -34,8 +34,8 @@ struct SymbolTable::Impl {
     /// Owning list of all entities in this symbol table
     utl::vector<UniquePtr<Entity>> entities;
 
-    /// Map of instantiated `PointerType`'s
-    utl::hashmap<QualType, PointerType*> ptrTypes;
+    /// Map of instantiated `RawPtrType`'s
+    utl::hashmap<QualType, RawPtrType*> ptrTypes;
 
     /// Map of instantiated `ReferenceType`'s
     utl::hashmap<QualType, ReferenceType*> refTypes;
@@ -424,7 +424,7 @@ T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
     return ptrType;
 }
 
-PointerType const* SymbolTable::pointer(QualType pointee) {
+RawPtrType const* SymbolTable::pointer(QualType pointee) {
     return impl->ptrLikeImpl(impl->ptrTypes, pointee);
 }
 

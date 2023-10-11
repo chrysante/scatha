@@ -46,10 +46,11 @@
 /// │        │  │  └─ FloatType
 /// │        │  └─ NullPtrType
 /// │        ├─ PointerType
+/// │        │  ├─ RawPtrType
+/// │        │  └─ UniquePtrType
 /// │        └─ CompoundType
 /// │           ├─ StructType
-/// │           ├─ ArrayType
-/// │           └─ UniquePtrType
+/// │           └─ ArrayType
 /// └─ PoisonEntity
 /// ```
 
@@ -623,6 +624,41 @@ public:
 
     void setAlign(size_t value) { _align = value; }
 
+    ///
+    void addSpecialMemberFunction(SpecialMemberFunction kind,
+                                  OverloadSet* overloadSet) {
+        specialMemberFunctions[kind] = overloadSet;
+    }
+
+    ///
+    OverloadSet* specialMemberFunction(SpecialMemberFunction kind) const {
+        auto itr = specialMemberFunctions.find(kind);
+        if (itr != specialMemberFunctions.end()) {
+            return itr->second;
+        }
+        return nullptr;
+    }
+
+    ///
+    Function* specialLifetimeFunction(SpecialLifetimeFunction kind) const {
+        return specialLifetimeFunctions[static_cast<size_t>(kind)];
+    }
+
+    /// These functions should be only accessible by the implementation of
+    /// `instantiateEntities()` but it's just to cumbersome to make it private
+    void setIsDefaultConstructible(bool value) {
+        _isDefaultConstructible = value;
+    }
+
+    /// See above
+    void setHasTrivialLifetime(bool value) { _hasTrivialLifetime = value; }
+
+    /// See above
+    void setSpecialLifetimeFunctions(
+        std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLF) {
+        specialLifetimeFunctions = SLF;
+    }
+
 protected:
     explicit ObjectType(EntityType entityType,
                         ScopeKind scopeKind,
@@ -637,11 +673,18 @@ protected:
 
 private:
     friend class Type;
+    friend class StructType;
     size_t sizeImpl() const { return _size; }
     size_t alignImpl() const { return _align; }
+    bool isDefaultConstructible() const { return _isDefaultConstructible; }
 
     size_t _size;
     size_t _align;
+    utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
+    std::array<Function*, EnumSize<SpecialLifetimeFunction>>
+        specialLifetimeFunctions = {};
+    bool _hasTrivialLifetime     : 1 = true; // Only used by structs
+    bool _isDefaultConstructible : 1 = true;
 };
 
 /// Concrete class representing a builtin type
@@ -742,55 +785,8 @@ public:
 
 /// Abstract base class of `StructType` and `ArrayType`
 class SCATHA_API CompoundType: public ObjectType {
-public:
-    ///
-    void addSpecialMemberFunction(SpecialMemberFunction kind,
-                                  OverloadSet* overloadSet) {
-        specialMemberFunctions[kind] = overloadSet;
-    }
-
-    ///
-    OverloadSet* specialMemberFunction(SpecialMemberFunction kind) const {
-        auto itr = specialMemberFunctions.find(kind);
-        if (itr != specialMemberFunctions.end()) {
-            return itr->second;
-        }
-        return nullptr;
-    }
-
-    ///
-    Function* specialLifetimeFunction(SpecialLifetimeFunction kind) const {
-        return specialLifetimeFunctions[static_cast<size_t>(kind)];
-    }
-
-    /// These functions should be only accessible by the implementation of
-    /// `instantiateEntities()` but it's just to cumbersome to make it private
-    void setIsDefaultConstructible(bool value) {
-        _isDefaultConstructible = value;
-    }
-
-    /// See above
-    void setHasTrivialLifetime(bool value) { _hasTrivialLifetime = value; }
-
-    /// See above
-    void setSpecialLifetimeFunctions(
-        std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLF) {
-        specialLifetimeFunctions = SLF;
-    }
-
 protected:
     using ObjectType::ObjectType;
-
-private:
-    friend class Type;
-    friend class StructType;
-    bool isDefaultConstructible() const { return _isDefaultConstructible; }
-
-    utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
-    std::array<Function*, EnumSize<SpecialLifetimeFunction>>
-        specialLifetimeFunctions = {};
-    bool _hasTrivialLifetime     : 1 = true; // Only used by structs
-    bool _isDefaultConstructible : 1 = true;
 };
 
 /// Concrete class representing the type of a structure
@@ -894,10 +890,29 @@ private:
     QualType _base;
 };
 
-/// Represents a pointer type
+/// Abstract base class of raw pointer and unique pointer
 class SCATHA_API PointerType: public ObjectType, public PtrRefTypeBase {
+protected:
+    explicit PointerType(EntityType entityType,
+                         QualType base,
+                         std::string name);
+};
+
+/// Represents a raw pointer type
+class SCATHA_API RawPtrType: public PointerType {
 public:
-    explicit PointerType(QualType base);
+    explicit RawPtrType(QualType base);
+};
+
+/// Represents a unique pointer type
+class SCATHA_API UniquePtrType: public PointerType {
+public:
+    explicit UniquePtrType(QualType base);
+
+private:
+    friend class Type;
+    bool isDefaultConstructibleImpl() const { return true; }
+    bool hasTrivialLifetimeImpl() const { return false; }
 };
 
 /// Represents a reference type
@@ -910,17 +925,6 @@ private:
     size_t sizeImpl() const { return 0; }
     size_t alignImpl() const { return 0; }
     bool isDefaultConstructibleImpl() const { return false; }
-};
-
-///
-class SCATHA_API UniquePtrType: public CompoundType, public PtrRefTypeBase {
-public:
-    explicit UniquePtrType(QualType base);
-
-private:
-    friend class Type;
-    bool isDefaultConstructibleImpl() const { return true; }
-    bool hasTrivialLifetimeImpl() const { return false; }
 };
 
 /// # OverloadSet

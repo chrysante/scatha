@@ -556,9 +556,6 @@ static QualType getPtrBase(ObjectType const* type) {
     if (auto* ptrType = dyncast<PointerType const*>(type)) {
         return ptrType->base();
     }
-    if (auto* ptrType = dyncast<UniquePtrType const*>(type)) {
-        return ptrType->base();
-    }
     return nullptr;
 }
 
@@ -590,7 +587,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
         }
         else {
             auto* ptrType = sym.pointer(pointee);
-            expr.decorateType(const_cast<PointerType*>(ptrType));
+            expr.decorateType(const_cast<RawPtrType*>(ptrType));
         }
         return &expr;
     }
@@ -1176,7 +1173,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
 void ExprContext::dereferencePointer(ast::Expression* expr) {
     SC_ASSERT(expr->isDecorated(), "");
     auto* type = expr->type().get();
-    if (!isa<PointerType const*>(type) && !isa<UniquePtrType const*>(type)) {
+    if (!isa<PointerType const*>(type)) {
         return;
     }
     SC_ASSERT(expr->isValue(), "");

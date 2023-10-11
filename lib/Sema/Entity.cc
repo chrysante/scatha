@@ -275,29 +275,30 @@ static std::string makeIndirectName(std::string_view indirection,
     return utl::strcat(indirection, base.qualName());
 }
 
-PointerType::PointerType(QualType base):
-    ObjectType(EntityType::PointerType,
+PointerType::PointerType(EntityType entityType,
+                         QualType base,
+                         std::string name):
+    ObjectType(entityType,
                ScopeKind::Invalid,
-               makeIndirectName("*", base),
+               std::move(name),
                const_cast<Scope*>(base->parent()),
                ptrSize(base),
                ptrAlign()),
     PtrRefTypeBase(base) {}
+
+RawPtrType::RawPtrType(QualType base):
+    PointerType(EntityType::RawPtrType, base, makeIndirectName("*", base)) {}
+
+UniquePtrType::UniquePtrType(QualType base):
+    PointerType(EntityType::UniquePtrType,
+                base,
+                makeIndirectName("*unique ", base)) {}
 
 ReferenceType::ReferenceType(QualType base):
     Type(EntityType::ReferenceType,
          ScopeKind::Invalid,
          makeIndirectName("&", base),
          const_cast<Scope*>(base->parent())),
-    PtrRefTypeBase(base) {}
-
-UniquePtrType::UniquePtrType(QualType base):
-    CompoundType(EntityType::UniquePtrType,
-                 ScopeKind::Invalid,
-                 makeIndirectName("*unique ", base),
-                 const_cast<Scope*>(base->parent()),
-                 ptrSize(base),
-                 ptrAlign()),
     PtrRefTypeBase(base) {}
 
 void Function::setDeducedReturnType(Type const* type) {
