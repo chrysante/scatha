@@ -14,6 +14,11 @@ SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
                            Error,
                            ::format(statement())
                                << " is invalid in " << ::format(scope()))
+SC_SEMA_GENERICBADSTMT_DEF(
+    MainMustReturnTrivial,
+    Error,
+    "main function cannot return non-trivial type " << sema::format(
+        cast<ast::FunctionDefinition const*>(statement())->returnType()))
 
 #undef SC_SEMA_GENERICBADSTMT_DEF
 

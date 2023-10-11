@@ -52,13 +52,15 @@ struct FuncBodyContext {
         ctx(ctx),
         sym(ctx.symbolTable()),
         iss(ctx.issueHandler()),
-        currentFunction(function) {}
+        currentFunction(function),
+        semaFn(function.function()) {}
 
     void run() { analyze(currentFunction); }
 
     void analyze(ast::ASTNode&);
 
     void analyzeImpl(ast::FunctionDefinition&);
+    void analyzeMainFunction();
     void analyzeImpl(ast::ParameterDeclaration&);
     void analyzeImpl(ast::ThisParameter&);
     void analyzeImpl(ast::StructDefinition&);
@@ -80,8 +82,12 @@ struct FuncBodyContext {
         return sema::analyzeTypeExpr(expr, ctx);
     }
 
+    /// Used by return statement case to add a type to return type deduction
     void deduceReturnTypeTo(ast::ReturnStatement const* stmt,
                             sema::Type const* type);
+
+    /// Called by function definition case after analyzing the body
+    void setDeducedReturnType();
 
     /// \Returns `true` if the current function returns by reference. In that
     /// case we don't pop destructor for our return value
@@ -98,6 +104,7 @@ struct FuncBodyContext {
     SymbolTable& sym;
     IssueHandler& iss;
     ast::FunctionDefinition& currentFunction;
+    sema::Function* semaFn;
     /// Only needed if return type is not specified
     sema::Type const* deducedRetTy = nullptr;
     ast::ReturnStatement const* lastReturn = nullptr;
@@ -116,22 +123,21 @@ void FuncBodyContext::analyze(ast::ASTNode& node) {
     visit(node, [this](auto& node) { this->analyzeImpl(node); });
 }
 
-void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
+void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
                                                    sk != ScopeKind::Type)
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        ctx.issue<GenericBadStmt>(&fn, GenericBadStmt::InvalidScope);
-        sym.declarePoison(std::string(fn.name()), EntityCategory::Value);
+        ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
+        sym.declarePoison(std::string(def.name()), EntityCategory::Value);
         return;
     }
-    SC_ASSERT(&fn == &currentFunction,
+    SC_ASSERT(&def == &currentFunction,
               "We only analyze one function per context object");
     /// Here the AST node is partially decorated: `entity()` is already set by
     /// `gatherNames()` phase, now we complete the decoration.
-    auto* semaFn = fn.function();
     if (ctx.isAnalyzed(semaFn) || ctx.isAnalyzing(semaFn)) {
         /// We don't emit errors here if the function is currently analyzing
         /// because the error should appear at the callsite
@@ -139,34 +145,34 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     }
     ctx.beginAnalyzing(semaFn);
     utl::scope_guard guard([&] { ctx.endAnalyzing(semaFn); });
-    fn.decorateFunction(semaFn, semaFn->returnType());
-    fn.body()->decorateScope(semaFn);
-    semaFn->setBinaryVisibility(fn.binaryVisibility());
-    /// Maybe try to abstract this later and perform some more checks on main,
-    /// but for now we just do this here
-    if (semaFn->name() == "main") {
-        semaFn->setBinaryVisibility(BinaryVisibility::Export);
-    }
+    def.decorateFunction(semaFn, semaFn->returnType());
+    def.body()->decorateScope(semaFn);
+    semaFn->setBinaryVisibility(def.binaryVisibility());
     sym.withScopePushed(semaFn, [&] {
-        for (auto* param: fn.parameters()) {
+        for (auto* param: def.parameters()) {
             analyze(*param);
         }
     });
     /// The function body compound statement pushes the scope again
-    analyze(*fn.body());
-    /// If we have deduced a return type in the return statements we set it now
-    if (semaFn->returnType()) {
-        return;
+    analyze(*def.body());
+    setDeducedReturnType();
+    /// We perform the extra checks on main in the end because here we have
+    /// deduced the return type
+    if (semaFn->name() == "main") {
+        analyzeMainFunction();
     }
-    if (!deducedRetTy) {
-        semaFn->setDeducedReturnType(sym.Void());
-        return;
+}
+
+/// Here we perform all checks and transforms on `main` that make it special
+void FuncBodyContext::analyzeMainFunction() {
+    semaFn->setBinaryVisibility(BinaryVisibility::Export);
+    auto* retType = semaFn->returnType();
+    /// We might require main to return int at some point, but right now there
+    /// are many test cases where main returns bool or double
+    if (!retType->hasTrivialLifetime()) {
+        ctx.issue<GenericBadStmt>(&currentFunction,
+                                  GenericBadStmt::MainMustReturnTrivial);
     }
-    if (deducedRetTy != sym.Void() && !deducedRetTy->isComplete()) {
-        ctx.issue<BadPassedType>(lastReturn->expression(),
-                                 BadPassedType::ReturnDeduced);
-    }
-    semaFn->setDeducedReturnType(deducedRetTy);
 }
 
 void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
@@ -414,4 +420,19 @@ void FuncBodyContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,
         ctx.issue<BadReturnTypeDeduction>(stmt, lastReturn);
     }
     lastReturn = stmt;
+}
+
+void FuncBodyContext::setDeducedReturnType() {
+    if (semaFn->returnType()) {
+        return;
+    }
+    if (!deducedRetTy) {
+        semaFn->setDeducedReturnType(sym.Void());
+        return;
+    }
+    if (deducedRetTy != sym.Void() && !deducedRetTy->isComplete()) {
+        ctx.issue<BadPassedType>(lastReturn->expression(),
+                                 BadPassedType::ReturnDeduced);
+    }
+    semaFn->setDeducedReturnType(deducedRetTy);
 }

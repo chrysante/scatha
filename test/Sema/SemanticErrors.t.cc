@@ -444,5 +444,19 @@ fn main() {
     var b = 0.0;
     &a == &b;
 })");
-    CHECK(issues.findOnLine<BadExpr>(5, BadExpr::BinaryExprNoCommonType));
+    CHECK(issues.findOnLine<BadExpr>(5, BinaryExprNoCommonType));
+}
+
+TEST_CASE("Main must return trivial", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+struct X {
+    fn new(&mut this) {}
+    fn new(&mut this, rhs: &X) {}
+    fn delete(&mut this) {}
+}
+fn main() {
+    return X();
+})");
+    using enum GenericBadStmt::Reason;
+    CHECK(issues.findOnLine<GenericBadStmt>(7, MainMustReturnTrivial));
 }
