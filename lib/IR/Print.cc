@@ -131,26 +131,33 @@ static std::string replaceSubstrings(
     return text;
 }
 
-static constexpr utl::streammanip formatName([](std::ostream& str,
-                                                Value const* value) {
-    auto htmlName =
-        [escapeSymbols = tfmt::isHTMLFormattable(str)](Value const& value) {
-        if (!escapeSymbols) {
-            return std::string(value.name());
-        }
-        else {
-            using namespace std::literals;
-            return replaceSubstrings(std::string(value.name()),
-                                     std::array{ "<"sv, ">"sv, "&"sv },
-                                     std::array{ "&lt;"sv,
-                                                 "&gt;"sv,
-                                                 "&amp;"sv });
-        }
-    };
+static std::string htmlNameImpl(std::ostream const& str, Value const& value) {
+    if (!tfmt::isHTMLFormattable(str)) {
+        return std::string(value.name());
+    }
+    using namespace std::literals;
+    return replaceSubstrings(std::string(value.name()),
+                             std::array{ "<"sv, ">"sv, "&"sv },
+                             std::array{ "&lt;"sv, "&gt;"sv, "&amp;"sv });
+};
+
+static std::array<char const*, 2> recordBrackets(
+    ir::RecordConstant const& value) {
+    // clang-format off
+    return SC_MATCH (value) {
+        [](ir::StructConstant const& value) { return std::array{ "{ ", " }" }; },
+        [](ir::ArrayConstant const& value) { return std::array{ "[", "]" }; },
+    }; // clang-format on
+}
+
+static void formatValueImpl(std::ostream& str, Value const* value) {
     if (!value) {
         str << tfmt::format(BrightWhite | BGBrightRed | Bold, "<NULL>");
         return;
     }
+    auto htmlName = [&](Value const& value) {
+        return htmlNameImpl(str, value);
+    };
     // clang-format off
     visit(*value, utl::overload{
         [&](ir::Constant const& constant) {
@@ -176,6 +183,19 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
         [&](ir::NullPointerConstant const&) {
             str << formatKeyword("null");
         },
+        [&](ir::RecordConstant const& value) {
+            auto brackets = recordBrackets(value);
+            str << brackets[0];
+            bool first = true;
+            for (auto* elem: value.elements()) {
+                if (!first) {
+                    str << ", ";
+                }
+                first = false;
+                formatValueImpl(str, elem);
+            }
+            str << brackets[1];
+        },
         [&](ir::UndefValue const& value) {
             str << formatKeyword("undef");
         },
@@ -183,6 +203,11 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
             str << tfmt::format(BGMagenta, "???");
         },
     }); // clang-format on
+}
+
+static constexpr utl::streammanip formatName([](std::ostream& str,
+                                                Value const* value) {
+    formatValueImpl(str, value);
 });
 
 static auto equals() {
