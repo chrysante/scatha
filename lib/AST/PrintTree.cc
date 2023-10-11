@@ -164,7 +164,7 @@ struct PrintCtx {
     explicit PrintCtx(std::ostream& str): str(str) {}
 
     void print(ASTNode const& node) {
-        if (!node.isDecorated()) {
+        if (!node.isDecorated() && !isa<TranslationUnit>(node)) {
             str << nodeHeader(&formatter, &node) << '\n';
             goto end;
         }
@@ -174,6 +174,7 @@ struct PrintCtx {
             [&](ASTNode const& node) {
                 str << nodeHeader(&formatter, &node) << '\n';
             },
+            [&](TranslationUnit const& node) {},
             [&](Literal const& lit) {
                 str << nodeHeader(&formatter, &node, formatLit(&lit)) << '\n';
             },
@@ -199,8 +200,16 @@ struct PrintCtx {
             },
             [&](Conversion const& conv) {
                 str << nodeHeader(&formatter, &node,
-                                  conv.conversion()->valueCatConversion(), ", ",
-                                  conv.conversion()->objectConversion()) << '\n';
+                                  utl::streammanip([&](std::ostream&  str) {
+                    auto printEnum = [&, first = true](auto val) mutable {
+                        if (val == decltype(val)::None) { return; }
+                        if (!first) { first = true; str << ", "; }
+                        str << val;
+                    };
+                    printEnum(conv.conversion()->valueCatConversion());
+                    printEnum(conv.conversion()->objectConversion());
+                    printEnum(conv.conversion()->mutConversion());
+                })) << '\n';
             }
         }); // clang-format on
 
@@ -210,6 +219,12 @@ end:
 
     void printChildren(ASTNode const& node) {
         printChildrenImpl(node.children());
+    }
+
+    void printChildren(TranslationUnit const& node) {
+        for (auto* child: node.children() | NonNull) {
+            print(*child);
+        }
     }
 
     void printChildren(FunctionDefinition const& node) {
