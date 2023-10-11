@@ -213,12 +213,12 @@ bool opt::isConstSizeMemcpy(Instruction const* inst) {
         return false;
     }
     auto* call = cast<Call const*>(inst);
-    return isa_or_null<IntegralConstant>(call->argumentAt(1)) &&
-           isa_or_null<IntegralConstant>(call->argumentAt(3));
+    return isa<IntegralConstant>(call->argumentAt(1)) &&
+           isa<IntegralConstant>(call->argumentAt(3));
 }
 
 Value const* opt::memcpyDest(Instruction const* call) {
-    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    SC_ASSERT(isMemcpy(call), "Invalid");
     return cast<Call const*>(call)->argumentAt(0);
 }
 
@@ -242,4 +242,46 @@ void opt::setMemcpyDest(Instruction* call, Value* dest) {
 void opt::setMemcpySource(Instruction* call, Value* source) {
     SC_ASSERT(isMemcpy(call), "Invalid");
     cast<Call*>(call)->setArgument(2, source);
+}
+
+bool opt::isMemset(ir::Instruction const* inst) {
+    return isBuiltinCall(inst, static_cast<size_t>(svm::Builtin::memset));
+}
+
+bool opt::isConstMemset(ir::Instruction const* inst) {
+    if (!isMemset(inst)) {
+        return false;
+    }
+    auto* call = cast<Call const*>(inst);
+    return isa<IntegralConstant>(call->argumentAt(1)) &&
+           isa<IntegralConstant>(call->argumentAt(2));
+}
+
+ir::Value const* opt::memsetDest(ir::Instruction const* call) {
+    SC_ASSERT(isMemset(call), "Invalid");
+    return cast<Call const*>(call)->argumentAt(0);
+}
+
+void opt::setMemsetDest(ir::Instruction* call, ir::Value* dest) {
+    SC_ASSERT(isMemset(call), "Invalid");
+    cast<Call*>(call)->setArgument(0, dest);
+}
+
+size_t opt::memsetSize(ir::Instruction const* inst) {
+    SC_ASSERT(isConstMemset(inst), "Invalid");
+    auto* call = cast<Call const*>(inst);
+    auto* size = cast<IntegralConstant const*>(call->argumentAt(1));
+    return size->value().to<size_t>();
+}
+
+ir::Value const* opt::memsetValue(ir::Instruction const* inst) {
+    SC_ASSERT(isMemset(inst), "Invalid");
+    auto* call = cast<Call const*>(inst);
+    return call->argumentAt(2);
+}
+
+int64_t opt::memsetConstValue(ir::Instruction const* inst) {
+    SC_ASSERT(isConstMemset(inst), "Invalid");
+    auto* size = cast<IntegralConstant const*>(memsetValue(inst));
+    return size->value().to<int64_t>();
 }

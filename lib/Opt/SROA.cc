@@ -137,8 +137,11 @@ struct Variable {
     /// alloca and we keep it here to generate new calls to memcpy
     Callable* memcpy = nullptr;
 
-    /// All instructions (loads, stores and memcpys) that directly or indirectly
-    /// read or wrote parts of our alloca region
+    /// Global memset function, analogous to memcpy.
+    Callable* memset = nullptr;
+
+    /// All instructions (loads, stores, memcpys and memsets) that directly or
+    /// indirectly read or wrote parts of our alloca region
     utl::hashset<Instruction*> accesses;
 
     /// All the GEPs that compute pointers into our alloca
@@ -274,6 +277,8 @@ struct Variable {
     bool analyzeImpl(Load* load);
     bool analyzeImpl(Store* store);
     bool analyzeImpl(Call* call);
+    bool analyzeMemcpy(Call* call);
+    bool analyzeMemset(Call* call);
     bool analyzeImpl(GetElementPointer* gep);
     bool analyzeImpl(Phi* phi);
 
@@ -304,6 +309,11 @@ struct Variable {
     bool replaceBySlices(Load* load);
     bool replaceBySlices(Store* store);
     bool replaceBySlices(Call* call);
+    bool replaceMemcpyBySlices(Call* call);
+    bool replaceMemcpyBySlicesWithin(Call* call);
+    bool replaceMemcpyBySlicesDest(Call* call);
+    bool replaceMemcpyBySlicesSource(Call* call);
+    bool replaceMemsetBySlices(Call* call);
     bool replaceBySlices(Instruction* inst) { SC_UNREACHABLE(); }
 
     /// We try to promote all the slices
@@ -402,9 +412,16 @@ bool Variable::analyzeImpl(Store* store) {
 }
 
 bool Variable::analyzeImpl(Call* call) {
-    if (!isConstSizeMemcpy(call)) {
-        return false;
+    if (isConstSizeMemcpy(call)) {
+        return analyzeMemcpy(call);
     }
+    if (isConstMemset(call)) {
+        return analyzeMemset(call);
+    }
+    return false;
+}
+
+bool Variable::analyzeMemcpy(Call* call) {
     bool destIsAllocaPtr = isPointerToOurAlloca(memcpyDest(call));
     bool sourceIsAllocaPtr = isPointerToOurAlloca(memcpySource(call));
     if (!destIsAllocaPtr && !sourceIsAllocaPtr) {
@@ -420,6 +437,18 @@ bool Variable::analyzeImpl(Call* call) {
         return false;
     }
     memcpy = call->function();
+    memorize(call);
+    return true;
+}
+
+bool Variable::analyzeMemset(Call* call) {
+    if (!isPointerToOurAlloca(memsetDest(call))) {
+        return false;
+    }
+    if (!pointerUsePostdominatesPhi(call, memsetDest(call))) {
+        return false;
+    }
+    memset = call->function();
     memorize(call);
     return true;
 }
@@ -672,8 +701,8 @@ bool Variable::computeSlices() {
     /// at all offsets of siblings in the member tree of that node to be able to
     /// store all siblings
     for (auto* inst: accesses) {
-        /// Calls to memcpy don't define critical positions because they have no
-        /// structure
+        /// Calls to memcpy and memset don't define critical positions because
+        /// they have no structure
         if (isa<Call>(inst)) {
             continue;
         }
@@ -751,15 +780,21 @@ utl::small_vector<Subrange, 2> Variable::getAccessedSubranges(
             return { { offset, offset + store.value()->type()->size() } };
         },
         [&](Call const& call) -> Ret {
-            SC_ASSERT(isConstSizeMemcpy(&call), "");
-            Ret result;
-            if (auto offset = tryGetPtrOffset(memcpyDest(&call))) {
-                result.push_back({ *offset, *offset + memcpySize(&call) });
+            if (isMemcpy(&call)) {
+                Ret result;
+                if (auto offset = tryGetPtrOffset(memcpyDest(&call))) {
+                    result.push_back({ *offset, *offset + memcpySize(&call) });
+                }
+                if (auto offset = tryGetPtrOffset(memcpySource(&call))) {
+                    result.push_back({ *offset, *offset + memcpySize(&call) });
+                }
+                return result;
             }
-            if (auto offset = tryGetPtrOffset(memcpySource(&call))) {
-                result.push_back({ *offset, *offset + memcpySize(&call) });
+            if (isMemset(&call)) {
+                size_t offset = getPtrOffset(memsetDest(&call));
+                return { { offset, offset + memsetSize(&call) } };
             }
-            return result;
+            SC_UNREACHABLE();
         },
         [&](Instruction const& inst) -> Ret {
             SC_UNREACHABLE();
@@ -903,66 +938,111 @@ bool Variable::replaceBySlices(Store* store) {
 }
 
 bool Variable::replaceBySlices(Call* call) {
-    SC_ASSERT(isConstSizeMemcpy(call), "");
-    auto subranges = getAccessedSubranges(call);
+    if (isMemcpy(call)) {
+        return replaceMemcpyBySlices(call);
+    }
+    if (isMemset(call)) {
+        return replaceMemsetBySlices(call);
+    }
+    SC_UNREACHABLE();
+}
+
+bool Variable::replaceMemcpyBySlices(Call* call) {
     auto* dest = memcpyDest(call);
     auto* source = memcpySource(call);
-    auto* byteType = ctx.intType(8);
-    BasicBlockBuilder builder(ctx, call->parent());
     SC_ASSERT(isPointerToOurAlloca(dest) || isPointerToOurAlloca(source),
               "One of them must point to our alloca");
     if (isPointerToOurAlloca(dest) && isPointerToOurAlloca(source)) {
-        /// This is the hard case where we copy within our alloca region
-        SC_UNIMPLEMENTED();
+        return replaceMemcpyBySlicesWithin(call);
     }
     else if (isPointerToOurAlloca(dest)) {
-        auto slices = getSubslices(subranges.front());
-        SC_ASSERT(!slices.empty(), "");
-        if (slices.size() == 1) {
-            setMemcpyDest(call, slices.front().newAlloca());
-            return false;
-        }
-        for (auto slice: slices) {
-            auto* gepIndex = ctx.intConstant(slice.begin(), 32);
-            auto* sourceSlicePtr =
-                builder.insert<GetElementPointer>(call,
-                                                  byteType,
-                                                  source,
-                                                  gepIndex,
-                                                  std::array<size_t, 0>{},
-                                                  "sroa.gep");
-            auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
-            Value* args[] = { slice.newAlloca(), size, sourceSlicePtr, size };
-            SC_ASSERT(memcpy, "Must be set to generate call to memcpy");
-            builder.insert<Call>(call, memcpy, std::span(args));
-        }
-        call->parent()->erase(call);
-        return true;
+        return replaceMemcpyBySlicesDest(call);
     }
     else /* isPointerToOurAlloca(source) */ {
-        auto slices = getSubslices(subranges.front());
-        SC_ASSERT(!slices.empty(), "");
-        if (slices.size() == 1) {
-            setMemcpySource(call, slices.front().newAlloca());
-            return false;
-        }
-        for (auto slice: slices) {
-            auto* gepIndex = ctx.intConstant(slice.begin(), 32);
-            auto* destSlicePtr =
-                builder.insert<GetElementPointer>(call,
-                                                  byteType,
-                                                  dest,
-                                                  gepIndex,
-                                                  std::array<size_t, 0>{},
-                                                  "sroa.gep");
-            auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
-            Value* args[] = { destSlicePtr, size, slice.newAlloca(), size };
-            SC_ASSERT(memcpy, "Must be set to generate call to memcpy");
-            builder.insert<Call>(call, memcpy, std::span(args));
-        }
-        call->parent()->erase(call);
-        return true;
+        return replaceMemcpyBySlicesSource(call);
     }
+}
+
+bool Variable::replaceMemcpyBySlicesWithin(Call* call) {
+    /// This is the hard case where we copy within our alloca region
+    SC_UNIMPLEMENTED();
+}
+
+bool Variable::replaceMemcpyBySlicesDest(Call* call) {
+    BasicBlockBuilder builder(ctx, call->parent());
+    auto subranges = getAccessedSubranges(call);
+    auto* byteType = ctx.intType(8);
+    auto* source = memcpySource(call);
+    auto slices = getSubslices(subranges.front());
+    SC_ASSERT(!slices.empty(), "");
+    if (slices.size() == 1) {
+        setMemcpyDest(call, slices.front().newAlloca());
+        return false;
+    }
+    for (auto slice: slices) {
+        auto* gepIndex = ctx.intConstant(slice.begin(), 32);
+        auto* sourceSlicePtr =
+            builder.insert<GetElementPointer>(call,
+                                              byteType,
+                                              source,
+                                              gepIndex,
+                                              std::array<size_t, 0>{},
+                                              "sroa.gep");
+        auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
+        Value* args[] = { slice.newAlloca(), size, sourceSlicePtr, size };
+        SC_ASSERT(memcpy, "Must be set to generate call to memcpy");
+        builder.insert<Call>(call, memcpy, std::span(args));
+    }
+    call->parent()->erase(call);
+    return true;
+}
+
+bool Variable::replaceMemcpyBySlicesSource(Call* call) {
+    BasicBlockBuilder builder(ctx, call->parent());
+    auto subranges = getAccessedSubranges(call);
+    auto* byteType = ctx.intType(8);
+    auto* dest = memcpyDest(call);
+    auto slices = getSubslices(subranges.front());
+    SC_ASSERT(!slices.empty(), "");
+    if (slices.size() == 1) {
+        setMemcpySource(call, slices.front().newAlloca());
+        return false;
+    }
+    for (auto slice: slices) {
+        auto* gepIndex = ctx.intConstant(slice.begin(), 32);
+        auto* destSlicePtr =
+            builder.insert<GetElementPointer>(call,
+                                              byteType,
+                                              dest,
+                                              gepIndex,
+                                              std::array<size_t, 0>{},
+                                              "sroa.gep");
+        auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
+        Value* args[] = { destSlicePtr, size, slice.newAlloca(), size };
+        SC_ASSERT(memcpy, "Must be set to generate call to memcpy");
+        builder.insert<Call>(call, memcpy, std::span(args));
+    }
+    call->parent()->erase(call);
+    return true;
+}
+
+bool Variable::replaceMemsetBySlices(Call* call) {
+    BasicBlockBuilder builder(ctx, call->parent());
+    auto subranges = getAccessedSubranges(call);
+    auto slices = getSubslices(subranges.front());
+    SC_ASSERT(!slices.empty(), "");
+    if (slices.size() == 1) {
+        setMemsetDest(call, slices.front().newAlloca());
+        return false;
+    }
+    for (auto slice: slices) {
+        auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
+        Value* args[] = { slice.newAlloca(), size, memsetValue(call) };
+        SC_ASSERT(memset, "Must be set to generate call to memset");
+        builder.insert<Call>(call, memset, std::span(args));
+    }
+    call->parent()->erase(call);
+    return true;
 }
 
 bool Variable::promoteSlices() {

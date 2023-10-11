@@ -87,14 +87,48 @@ inline ir::Value* memcpySource(ir::Instruction* call) {
     return const_cast<ir::Value*>(memcpySource(&std::as_const(*call)));
 }
 
-/// \Returns the destination pointer of the memcpy operation
+/// \Returns the size of the memcpy operation
 size_t memcpySize(ir::Instruction const* call);
 
 /// Sets the destination pointer of the call to memcpy \p call to \p dest
 void setMemcpyDest(ir::Instruction* call, ir::Value* dest);
 
-/// Sets the destination pointer of the call to memcpy \p call to \p source
+/// Sets the source pointer of the call to memcpy \p call to \p source
 void setMemcpySource(ir::Instruction* call, ir::Value* source);
+
+/// # Memset related queries
+
+/// \Returns `true` if \p inst is a call to memset
+bool isMemset(ir::Instruction const* inst);
+
+/// \Returns `true` if \p inst is a call to memset with a constant size and
+/// constant value argument
+bool isConstMemset(ir::Instruction const* inst);
+
+/// \Returns the destination pointer of a call to memcpy
+ir::Value const* memsetDest(ir::Instruction const* call);
+
+/// \overload for non-const argument
+inline ir::Value* memsetDest(ir::Instruction* call) {
+    return const_cast<ir::Value*>(memsetDest(&std::as_const(*call)));
+}
+
+/// Sets the destination pointer of the call to memset \p call to \p dest
+void setMemsetDest(ir::Instruction* call, ir::Value* dest);
+
+/// \Returns the size of the memset operation
+size_t memsetSize(ir::Instruction const* call);
+
+/// \Returns the size of the memset operation
+ir::Value const* memsetValue(ir::Instruction const* call);
+
+/// \overload for non-const argument
+inline ir::Value* memsetValue(ir::Instruction* call) {
+    return const_cast<ir::Value*>(memsetValue(&std::as_const(*call)));
+}
+
+/// \Returns the size of the memset operation as constant
+int64_t memsetConstValue(ir::Instruction const* call);
 
 } // namespace scatha::opt
 
