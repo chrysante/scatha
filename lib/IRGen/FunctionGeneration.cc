@@ -3,6 +3,7 @@
 #include "AST/AST.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Validate.h"
 #include "IRGen/GlobalDecls.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -10,33 +11,16 @@
 using namespace scatha;
 using namespace irgen;
 
-utl::small_vector<sema::Function const*> irgen::generateFunction(
-    sema::Function const& semaFn,
-    ir::Function& irFn,
-    ir::Context& ctx,
-    ir::Module& mod,
-    sema::SymbolTable const& symbolTable,
-    TypeMap const& typeMap,
-    FunctionMap& functionMap) {
-    if (semaFn.isNative()) {
-        return generateAstFunction(*semaFn.definition(),
-                                   irFn,
-                                   ctx,
-                                   mod,
-                                   symbolTable,
-                                   typeMap,
-                                   functionMap);
+void irgen::generateFunction(FuncGenParameters params) {
+    if (params.semaFn.isNative()) {
+        generateAstFunction(params);
     }
     else {
-        SC_ASSERT(semaFn.isGenerated(), "");
-        return generateSynthFunction(semaFn,
-                                     irFn,
-                                     ctx,
-                                     mod,
-                                     symbolTable,
-                                     typeMap,
-                                     functionMap);
+        SC_ASSERT(params.semaFn.isGenerated(), "");
+        generateSynthFunction(params);
     }
+    ir::setupInvariants(params.ctx, params.irFn);
+    ir::assertInvariants(params.ctx, params.irFn);
 }
 
 ir::Callable* FuncGenContextBase::getFunction(
@@ -45,7 +29,7 @@ ir::Callable* FuncGenContextBase::getFunction(
         return irFunction;
     }
     if (semaFunction->isNative() || semaFunction->isGenerated()) {
-        declaredFunctions.push_back(semaFunction);
+        declQueue.push_back(semaFunction);
     }
     return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
 }

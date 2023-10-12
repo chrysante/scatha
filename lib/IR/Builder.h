@@ -123,8 +123,8 @@ public:
                           std::string name);
 
     /// Finish construction of the function by inserting all alloca instruction
-    /// into the entry block and calling `setupInvariants()`
-    void finish();
+    /// into the entry block
+    void insertAllocas();
 
 private:
     Function& function;

@@ -1,6 +1,8 @@
 #ifndef SCATHA_IRGEN_FUNCTIONGENERATION_H_
 #define SCATHA_IRGEN_FUNCTIONGENERATION_H_
 
+#include <deque>
+
 #include <svm/Builtin.h>
 #include <utl/vector.hpp>
 
@@ -13,39 +15,30 @@
 
 namespace scatha::irgen {
 
+///
+struct FuncGenParameters {
+    sema::Function const& semaFn;
+    ir::Function& irFn;
+    ir::Context& ctx;
+    ir::Module& mod;
+    sema::SymbolTable const& symbolTable;
+    TypeMap const& typeMap;
+    FunctionMap& functionMap;
+    std::deque<sema::Function const*>& declQueue;
+};
+
 /// Generates IR for the function \p semaFn
 /// Dispatches to `generateAstFunction()` or `generateSynthFunction()`
-utl::small_vector<sema::Function const*> generateFunction(
-    sema::Function const& semaFn,
-    ir::Function& irFn,
-    ir::Context& ctx,
-    ir::Module& mod,
-    sema::SymbolTable const& symbolTable,
-    TypeMap const& typeMap,
-    FunctionMap& functionMap);
+void generateFunction(FuncGenParameters);
 
 /// Lowers the user defined function \p funcDecl from AST representation into
 /// IR. The result is written into \p irFn
 /// \Returns a list of functions called by the lowered function that are not yet
 /// defined. This mechanism is part of lazy function generation.
-utl::small_vector<sema::Function const*> generateAstFunction(
-    ast::FunctionDefinition const& funcDecl,
-    ir::Function& irFn,
-    ir::Context& ctx,
-    ir::Module& mod,
-    sema::SymbolTable const& symbolTable,
-    TypeMap const& typeMap,
-    FunctionMap& functionMap);
+void generateAstFunction(FuncGenParameters);
 
 /// Generates IR for the compiler generated function \p semaFn
-utl::small_vector<sema::Function const*> generateSynthFunction(
-    sema::Function const& semaFn,
-    ir::Function& irFn,
-    ir::Context& ctx,
-    ir::Module& mod,
-    sema::SymbolTable const& symbolTable,
-    TypeMap const& typeMap,
-    FunctionMap& functionMap);
+void generateSynthFunction(FuncGenParameters);
 
 /// Base class of context objects for function generation of both user defined
 /// and compiler generated functions
@@ -58,25 +51,18 @@ struct FuncGenContextBase: ir::FunctionBuilder {
     sema::SymbolTable const& symbolTable;
     TypeMap const& typeMap;
     FunctionMap& functionMap;
-    utl::vector<sema::Function const*>& declaredFunctions;
+    std::deque<sema::Function const*>& declQueue;
 
-    FuncGenContextBase(sema::Function const& semaFn,
-                       ir::Function& irFn,
-                       ir::Context& ctx,
-                       ir::Module& mod,
-                       sema::SymbolTable const& symbolTable,
-                       TypeMap const& typeMap,
-                       FunctionMap& functionMap,
-                       utl::vector<sema::Function const*>& declaredFunctions):
-        FunctionBuilder(ctx, &irFn),
-        semaFn(semaFn),
-        irFn(irFn),
-        ctx(ctx),
-        mod(mod),
-        symbolTable(symbolTable),
-        typeMap(typeMap),
-        functionMap(functionMap),
-        declaredFunctions(declaredFunctions) {}
+    FuncGenContextBase(FuncGenParameters params):
+        FunctionBuilder(params.ctx, &params.irFn),
+        semaFn(params.semaFn),
+        irFn(params.irFn),
+        ctx(params.ctx),
+        mod(params.mod),
+        symbolTable(params.symbolTable),
+        typeMap(params.typeMap),
+        functionMap(params.functionMap),
+        declQueue(params.declQueue) {}
 
     /// Map \p semaFn to the corresponding IR function. If the function is not
     /// declared it will be declared.

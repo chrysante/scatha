@@ -123,25 +123,9 @@ struct FuncGenContext: FuncGenContextBase {
 
 } // namespace
 
-utl::small_vector<sema::Function const*> irgen::generateAstFunction(
-    ast::FunctionDefinition const& funcDecl,
-    ir::Function& irFn,
-    ir::Context& ctx,
-    ir::Module& mod,
-    sema::SymbolTable const& symbolTable,
-    TypeMap const& typeMap,
-    FunctionMap& functionMap) {
-    utl::small_vector<sema::Function const*> declaredFunctions;
-    FuncGenContext funcCtx(*funcDecl.function(),
-                           irFn,
-                           ctx,
-                           mod,
-                           symbolTable,
-                           typeMap,
-                           functionMap,
-                           declaredFunctions);
-    funcCtx.generate(funcDecl);
-    return declaredFunctions;
+void irgen::generateAstFunction(FuncGenParameters params) {
+    FuncGenContext funcCtx(params);
+    funcCtx.generate(*params.semaFn.definition());
 }
 
 /// MARK: - Statements
@@ -158,7 +142,10 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
 }
 
 void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
+
     addNewBlock("entry");
+    /// Here we add all parameters to our value map and store possibly mutable
+    /// parameters (everything that's not a reference) to the stack
     auto CC = getCC(&semaFn);
     auto irParamItr = irFn.parameters().begin();
     if (CC.returnValue().location() == Memory) {
@@ -170,7 +157,7 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
         generateParameter(paramDecl, pc, irParamItr);
     }
     generate(*def.body());
-    finish();
+    insertAllocas();
 }
 
 void FuncGenContext::generateParameter(

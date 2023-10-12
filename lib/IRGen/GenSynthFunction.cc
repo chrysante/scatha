@@ -49,29 +49,9 @@ struct FuncGenContext: FuncGenContextBase {
 
 } // namespace
 
-utl::small_vector<sema::Function const*> irgen::generateSynthFunction(
-    sema::Function const& semaFn,
-    ir::Function& irFn,
-    ir::Context& ctx,
-    ir::Module& mod,
-    sema::SymbolTable const& symbolTable,
-    TypeMap const& typeMap,
-    FunctionMap& functionMap) {
-    SC_ASSERT(semaFn.isSpecialLifetimeFunction(),
-              "We only generate special lifetime functions here");
-    utl::small_vector<sema::Function const*> declaredFunctions;
-    FuncGenContext synthContext(semaFn,
-                                irFn,
-                                ctx,
-                                mod,
-                                symbolTable,
-                                typeMap,
-                                functionMap,
-                                declaredFunctions);
+void irgen::generateSynthFunction(FuncGenParameters params) {
+    FuncGenContext synthContext(params);
     synthContext.generate();
-    ir::setupInvariants(ctx, irFn);
-    ir::assertInvariants(ctx, irFn);
-    return declaredFunctions;
 }
 
 void FuncGenContext::generate() {

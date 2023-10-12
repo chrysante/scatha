@@ -46,14 +46,14 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
         auto* semaFn = queue.front();
         queue.pop_front();
         auto* irFn = functionMap(semaFn);
-        auto decls = generateFunction(*semaFn,
-                                      *cast<ir::Function*>(irFn),
-                                      ctx,
-                                      mod,
-                                      sym,
-                                      typeMap,
-                                      functionMap);
-        ranges::copy(decls, std::back_inserter(queue));
+        generateFunction({ .semaFn = *semaFn,
+                           .irFn = *cast<ir::Function*>(irFn),
+                           .ctx = ctx,
+                           .mod = mod,
+                           .symbolTable = sym,
+                           .typeMap = typeMap,
+                           .functionMap = functionMap,
+                           .declQueue = queue });
     }
     ir::assertInvariants(ctx, mod);
     return { std::move(ctx), std::move(mod) };

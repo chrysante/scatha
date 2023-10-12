@@ -7,7 +7,6 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
-#include "IR/Validate.h"
 
 using namespace scatha;
 using namespace ir;
@@ -73,7 +72,7 @@ Value* FunctionBuilder::buildStructure(StructType const* type,
     return value;
 }
 
-void FunctionBuilder::finish() {
+void FunctionBuilder::insertAllocas() {
     auto& entry = function.entry();
     auto before = entry.begin();
     for (auto& allocaInst: allocas) {
@@ -81,5 +80,4 @@ void FunctionBuilder::finish() {
             entry.insert(before, allocaInst.release());
         }
     }
-    setupInvariants(ctx, function);
 }
