@@ -384,4 +384,16 @@ fn main() {
     give();
 })");
     }
+    SECTION("Construct and destroy type with unique ptr member") {
+        test::checkPrints("+1-1", CommonDefs + R"(
+struct P {
+    fn new(&mut this, n: int) { this.p = unique X(n); }
+    fn delete(&mut this) { } // We have an empty user defined destructor to
+                             // test if the unique pointer still gets destroyed
+    var p: *unique X;
+}
+fn main() {
+    var p = P(1);
+})");
+    }
 }
