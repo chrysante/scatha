@@ -147,10 +147,10 @@ void FuncGenContext::genMemberConstruction(ir::Instruction const* before,
         insert<ir::Call>(before, getFunction(f), arguments);
         return;
     }
-    /// Trivial case
     SC_ASSERT(type.hasTrivialLifetime(),
               "This function cannot be generated if the member type does not "
               "support the operation");
+    /// Trivial case
     using enum sema::SpecialLifetimeFunction;
     switch (kind) {
     case DefaultConstructor: {
