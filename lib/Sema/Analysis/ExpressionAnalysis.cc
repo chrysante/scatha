@@ -696,10 +696,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
         return &expr;
     }
     if (!type->hasTrivialLifetime()) {
-        auto* compType = cast<CompoundType const*>(type.get());
         using enum SpecialLifetimeFunction;
-        auto* moveCtor = compType->specialLifetimeFunction(MoveConstructor);
-        auto* copyCtor = compType->specialLifetimeFunction(CopyConstructor);
+        auto* moveCtor = type->specialLifetimeFunction(MoveConstructor);
+        auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
         auto* ctor = moveCtor ? moveCtor : copyCtor;
         if (!ctor) {
             ctx.badExpr(&expr, BadExpr::MoveExprImmovable);
@@ -1066,14 +1065,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conversion& expr) {
 /// Decides whether the constructor call is a pseudo constructor call or an
 /// actual constructor call. This is probably a half baked solution and should
 /// be revisited.
-static bool ctorIsPseudo(Type const* type, auto const& args) {
-    auto* compType = dyncast<CompoundType const*>(type);
-    /// Non compound types are always trivial
-    if (!compType) {
+static bool ctorIsPseudo(ObjectType const* type, auto const& args) {
+    /// We just assume pseudo constructor instead of asserting non-null
+    if (!type) {
         return true;
     }
     /// Non-trivial lifetime type has no pseudo constructors
-    if (!compType->hasTrivialLifetime()) {
+    if (!type->hasTrivialLifetime()) {
         return false;
     }
     /// Trivial lifetime copy constructor call
@@ -1082,7 +1080,7 @@ static bool ctorIsPseudo(Type const* type, auto const& args) {
     }
     /// Trivial lifetime general constructor call
     using enum SpecialMemberFunction;
-    return compType->specialMemberFunction(New) == nullptr;
+    return type->specialMemberFunction(New) == nullptr;
 }
 
 static bool canConstructTrivialType(ast::ConstructExpr& expr,
@@ -1135,7 +1133,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         return nullptr;
     }
     auto* type = expr.constructedType();
-    ///
+    /// Trivial case
     if (ctorIsPseudo(type, expr.arguments())) {
         if (!canConstructTrivialType(expr, *dtorStack, ctx)) {
             return nullptr;
@@ -1151,9 +1149,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         obj->decorateValue(sym.temporary(type), LValue);
         expr.insertArgument(0, std::move(obj));
     }
-    auto* compType = cast<CompoundType const*>(type);
     using enum SpecialMemberFunction;
-    auto* ctorSet = compType->specialMemberFunction(New);
+    auto* ctorSet = type->specialMemberFunction(New);
     SC_ASSERT(ctorSet, "Trivial lifetime case is handled above");
     auto result = performOverloadResolution(ctorSet,
                                             expr.arguments() | ToAddress |
