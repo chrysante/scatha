@@ -145,8 +145,8 @@ static std::array<char const*, 2> recordBrackets(
     ir::RecordConstant const& value) {
     // clang-format off
     return SC_MATCH (value) {
-        [](ir::StructConstant const& value) { return std::array{ "{ ", " }" }; },
-        [](ir::ArrayConstant const& value) { return std::array{ "[", "]" }; },
+        [](ir::StructConstant const&) { return std::array{ "{ ", " }" }; },
+        [](ir::ArrayConstant const&) { return std::array{ "[", "]" }; },
     }; // clang-format on
 }
 
@@ -192,6 +192,7 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
                     str << ", ";
                 }
                 first = false;
+                str << formatType(elem->type()) << " ";
                 formatValueImpl(str, elem);
             }
             str << brackets[1];

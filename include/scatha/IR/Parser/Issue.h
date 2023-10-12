@@ -41,6 +41,7 @@ public:
         Redeclaration,
         UnexpectedID,
         ExpectedType,
+        ExpectedConstantValue,
         _count
     };
 
