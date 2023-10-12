@@ -318,3 +318,70 @@ fn main() {
     return *q.get();
 })");
 }
+
+TEST_CASE("Unique ptr to non-trivial type", "[end-to-end][constructors]") {
+    SECTION("Construct and destroy") {
+        test::checkPrints("+0-0", CommonDefs + R"(
+fn main() {
+    var p = unique X();
+})");
+        test::checkPrints("+1-1", CommonDefs + R"(
+fn main() {
+    var p = unique X(1);
+})");
+    }
+    SECTION("Construct, move destroy") {
+        test::checkPrints("+1-1", CommonDefs + R"(
+fn main() {
+    var p = unique X(1);
+    var q = move p;
+})");
+    }
+    SECTION("Pass to function") {
+        test::checkPrints("+1-1", CommonDefs + R"(
+fn take(p: *unique X) {}
+fn main() {
+    take(unique X(1));
+})");
+        test::checkPrints("+1-1", CommonDefs + R"(
+fn take(p: *unique X) {}
+fn main() {
+    var p = unique X(1);
+    take(move p);
+})");
+    }
+    SECTION("Return from function") {
+        test::checkPrints("+1-1", CommonDefs + R"(
+fn give() -> *unique X { return unique X(1); }
+fn main() {
+    give();
+})");
+    }
+    SECTION("Array of unique pointers") {
+        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+fn main() {
+    let arr = [unique X(1), unique X(2), unique X(3)];
+})");
+        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+fn take(arr: [*unique mut X, 3]) {}
+fn main() {
+    var arr = [unique X(1), unique X(2), unique X(3)];
+    take(move arr);
+})");
+        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+fn give() {
+    return [unique X(1), unique X(2), unique X(3)];
+}
+fn main() {
+    give();
+})");
+        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+fn give() {
+    var arr = [unique X(1), unique X(2), unique X(3)];
+    return move arr;
+}
+fn main() {
+    give();
+})");
+    }
+}
