@@ -141,9 +141,25 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     emitDtorCalls(cmpStmt.dtorStack());
 }
 
-void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
+static sema::SpecialLifetimeFunction toSLFKindToGenerate(
+    sema::SpecialMemberFunction kind) {
+    using enum sema::SpecialMemberFunction;
+    using enum sema::SpecialLifetimeFunction;
+    if (kind == Delete) {
+        return Destructor;
+    }
+    return DefaultConstructor;
+}
 
-    addNewBlock("entry");
+void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
+    if (semaFn.isSpecialMemberFunction()) {
+        auto kind = toSLFKindToGenerate(semaFn.SMFKind());
+        generateSynthFunctionAs(kind, *this);
+        makeBlockCurrent(&irFn.back());
+    }
+    else {
+        addNewBlock("entry");
+    }
     /// Here we add all parameters to our value map and store possibly mutable
     /// parameters (everything that's not a reference) to the stack
     auto CC = getCC(&semaFn);

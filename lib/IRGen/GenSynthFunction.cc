@@ -22,10 +22,10 @@ struct FuncGenContext: FuncGenContextBase {
     sema::ObjectType const* parentType;
     sema::SpecialLifetimeFunction kind;
 
-    FuncGenContext(auto&... args):
+    FuncGenContext(sema::SpecialLifetimeFunction kind, auto&... args):
         FuncGenContextBase(args...),
         parentType(cast<sema::ObjectType const*>(semaFn.parent())),
-        kind(semaFn.SLFKind()) {}
+        kind(kind) {}
 
     void generate();
 
@@ -50,7 +50,12 @@ struct FuncGenContext: FuncGenContextBase {
 } // namespace
 
 void irgen::generateSynthFunction(FuncGenParameters params) {
-    FuncGenContext synthContext(params);
+    generateSynthFunctionAs(params.semaFn.SLFKind(), params);
+}
+
+void irgen::generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
+                                    FuncGenParameters params) {
+    FuncGenContext synthContext(kind, params);
     synthContext.generate();
 }
 
@@ -162,18 +167,37 @@ void FuncGenContext::genMemberCall(ir::Instruction const* before,
     }
 }
 
+static size_t SLFKindNumPtrParams(sema::SpecialLifetimeFunction kind) {
+    using enum sema::SpecialLifetimeFunction;
+    switch (kind) {
+    case DefaultConstructor:
+        return 1;
+    case CopyConstructor:
+        return 2;
+    case MoveConstructor:
+        return 2;
+    case Destructor:
+        return 1;
+    }
+}
+
 utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
     ir::Instruction const* before, ir::Type const* inType, ir::Value* index) {
-    return irFn.parameters() | TakeAddress |
-           ranges::views::transform([&](auto* param) {
-               return insert<ir::GetElementPointer>(before,
+    utl::small_vector<ir::Value*, 2> args;
+    size_t numParams = SLFKindNumPtrParams(kind);
+    for (auto& param: irFn.parameters() | ranges::views::take(numParams)) {
+        SC_ASSERT(isa<ir::PointerType>(param.type()),
+                  "First one or two arguments of constructor or destructor "
+                  "must be pointers");
+        auto* value = insert<ir::GetElementPointer>(before,
                                                     inType,
-                                                    param,
+                                                    &param,
                                                     index,
                                                     std::array<size_t, 0>{},
                                                     "mem.acc");
-           }) |
-           ranges::to<utl::small_vector<ir::Value*, 2>>;
+        args.push_back(value);
+    }
+    return args;
 }
 
 Loop FuncGenContext::genLoop(size_t count) {

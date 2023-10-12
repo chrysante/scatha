@@ -40,29 +40,20 @@ void generateAstFunction(FuncGenParameters);
 /// Generates IR for the compiler generated function \p semaFn
 void generateSynthFunction(FuncGenParameters);
 
+/// Generates IR for the function \p semaFn as if it were a special lifetime
+/// function of kind \p kind
+/// This is used to generate default construction and destruction of member
+/// objects in user defined lifetime functions
+void generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
+                             FuncGenParameters);
+
 /// Base class of context objects for function generation of both user defined
 /// and compiler generated functions
-struct FuncGenContextBase: ir::FunctionBuilder {
-    /// Global references
-    sema::Function const& semaFn;
-    ir::Function& irFn;
-    ir::Context& ctx;
-    ir::Module& mod;
-    sema::SymbolTable const& symbolTable;
-    TypeMap const& typeMap;
-    FunctionMap& functionMap;
-    std::deque<sema::Function const*>& declQueue;
+struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
+    using FuncGenParameters::ctx;
 
     FuncGenContextBase(FuncGenParameters params):
-        FunctionBuilder(params.ctx, &params.irFn),
-        semaFn(params.semaFn),
-        irFn(params.irFn),
-        ctx(params.ctx),
-        mod(params.mod),
-        symbolTable(params.symbolTable),
-        typeMap(params.typeMap),
-        functionMap(params.functionMap),
-        declQueue(params.declQueue) {}
+        FuncGenParameters(params), FunctionBuilder(params.ctx, &params.irFn) {}
 
     /// Map \p semaFn to the corresponding IR function. If the function is not
     /// declared it will be declared.
