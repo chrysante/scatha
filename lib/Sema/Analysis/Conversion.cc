@@ -140,17 +140,22 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         [&](NullPtrType const& from, UniquePtrType const& to) -> RetType {
             return NullPtrToUniquePtr;
         },
-        /// Yes, we allow implicit conversion from `*unique T` to `*T`
-        [&](PointerType const& from, RawPtrType const& to) -> RetType {
+        [&](PointerType const& from, PointerType const& to) -> RetType {
             if (from.base().isConst() && to.base().isMut()) {
                 return std::nullopt;
             }
             if (from.base().get() == to.base().get()) {
-                return None;
+                return SC_MATCH (from, to){
+                    [](PointerType const&,
+                       PointerType const&) { return std::optional(None); },
+                    [](UniquePtrType const&, RawPtrType const&) {
+                return std::optional(UniquePtrToPtr);
+                    },
+                    [](RawPtrType const&, UniquePtrType const&) {
+                return std::nullopt;
+                } };
             }
-            auto* fromArray = dyncast<ArrayType const*>(from.base().get());
-            auto* toArray = dyncast<ArrayType const*>(to.base().get());
-            if (fromArray || toArray) {
+            if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
                 return determineObjConv(kind,
                                         from.base().get(),
                                         to.base().get());
