@@ -86,7 +86,9 @@ void JumpElimContext::DFS(mir::BasicBlock* BB) {
         BB->pushBack(newTerm);
         next->removePredecessor(BB);
         BB->removeSuccessor(next);
-        if (isJump(newTerm->instcode())) {
+        if (isJump(newTerm->instcode()) &&
+            isa<mir::BasicBlock>(newTerm->operandAt(0)))
+        {
             auto* dest = cast<mir::BasicBlock*>(newTerm->operandAt(0));
             dest->addPredecessor(BB);
             BB->addSuccessor(dest);

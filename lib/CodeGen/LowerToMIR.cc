@@ -450,6 +450,9 @@ void CodeGenContext::genInst(ir::Call const& call) {
     auto* mirCall =
         addNewInst(instcode, nullptr, std::move(args), callData).inst;
     mirCall->setDest(dest, numDests);
+    /// We set this to null because function calls clobber the CPUs compare
+    /// flags
+    lastEmittedCompare = nullptr;
 }
 
 void CodeGenContext::genInst(ir::Return const& ret) {
