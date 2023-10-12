@@ -145,15 +145,18 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 return std::nullopt;
             }
             if (from.base().get() == to.base().get()) {
+                // clang-format off
                 return SC_MATCH (from, to){
-                    [](PointerType const&,
-                       PointerType const&) { return std::optional(None); },
+                    [](PointerType const&, PointerType const&) {
+                        return std::optional(None);
+                    },
                     [](UniquePtrType const&, RawPtrType const&) {
-                return std::optional(UniquePtrToPtr);
+                        return std::optional(UniquePtrToPtr);
                     },
                     [](RawPtrType const&, UniquePtrType const&) {
-                return std::nullopt;
-                } };
+                        return std::nullopt;
+                    }
+                }; // clang-format on
             }
             if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
                 return determineObjConv(kind,
@@ -546,7 +549,9 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     if (!objConv) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
     }
-    bool isObjConstr = *valueCatConv == ValueCatConversion::LValueToRValue;
+    /// Kind of hacky but for now we exclude unique pointers from this
+    bool isObjConstr = *valueCatConv == ValueCatConversion::LValueToRValue &&
+                       !isa<UniquePtrType>(*to);
     if (isObjConstr) {
         *valueCatConv = ValueCatConversion::None;
     }
@@ -660,10 +665,10 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             }
             return nullptr;
         },
-        [&](RawPtrType const& a, NullPtrType const& b) {
+        [&](PointerType const& a, NullPtrType const& b) {
             return &a;
         },
-        [&](NullPtrType const& a, RawPtrType const& b) {
+        [&](NullPtrType const& a, PointerType const& b) {
             return &b;
         },
         [&](RawPtrType const& a, RawPtrType const& b) -> RawPtrType const* {

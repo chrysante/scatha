@@ -1001,10 +1001,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
         }
     }
     using enum SpecialLifetimeFunction;
-    auto* compType = cast<CompoundType const*>(expr.dest()->type().get());
-    auto* copyCtor = compType->specialLifetimeFunction(CopyConstructor);
-    auto* moveCtor = compType->specialLifetimeFunction(MoveConstructor);
-    auto* dtor = compType->specialLifetimeFunction(Destructor);
+    auto* type = expr.dest()->type().get();
+    auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
+    auto* moveCtor = type->specialLifetimeFunction(MoveConstructor);
+    auto* dtor = type->specialLifetimeFunction(Destructor);
     if (expr.source()->isLValue()) {
         if (!copyCtor) {
             ctx.issue<BadExpr>(&expr, CannotAssignUncopyableType);
@@ -1023,11 +1023,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
     return &expr;
 }
 
-static Entity* getConvertedEntity(Entity* original,
+static Object* getConvertedEntity(Entity* original,
                                   Conversion const& conv,
                                   SymbolTable& sym) {
     if (conv.objectConversion() == ObjectTypeConversion::None) {
-        return original;
+        return cast<Object*>(original);
     }
     return sym.temporary(conv.targetType());
 }
@@ -1057,6 +1057,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conversion& expr) {
                        getValueCat(expr.expression()->valueCategory(),
                                    conv->valueCatConversion()),
                        conv->targetType());
+    if (conv->objectConversion() == ObjectTypeConversion::NullPtrToUniquePtr) {
+        dtorStack->push(entity);
+    }
     expr.setConstantValue(
         evalConversion(conv, expr.expression()->constantValue()));
     return &expr;
