@@ -34,9 +34,9 @@ struct FuncGenContext: FuncGenContextBase {
     void genImpl(sema::UniquePtrType const& type);
     void genImpl(sema::ObjectType const& type) { SC_UNREACHABLE(); }
 
-    void genMemberCall(ir::Instruction const* before,
-                       sema::ObjectType const& memberType,
-                       ir::Value* index);
+    void genMemberConstruction(ir::Instruction const* before,
+                               sema::ObjectType const& memberType,
+                               ir::Value* index);
 
     ///
     utl::small_vector<ir::Value*, 2> genArguments(ir::Instruction const* before,
@@ -67,9 +67,9 @@ void FuncGenContext::generate() {
 void FuncGenContext::genImpl(sema::StructType const& type) {
     for (auto* var: type.memberVariables()) {
         /// `cast` is safe here because data member must be of object type
-        genMemberCall(currentBlock().end().to_address(),
-                      *cast<sema::ObjectType const*>(var->type()),
-                      ctx.intConstant(var->index(), 64));
+        genMemberConstruction(currentBlock().end().to_address(),
+                              *cast<sema::ObjectType const*>(var->type()),
+                              ctx.intConstant(var->index(), 64));
     }
 }
 
@@ -85,7 +85,7 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
         return;
     }
     withBlockCurrent(loop.body, [&] {
-        genMemberCall(loop.insertPoint, *elemType, loop.index);
+        genMemberConstruction(loop.insertPoint, *elemType, loop.index);
     });
 }
 
@@ -138,22 +138,30 @@ void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
     }
 }
 
-void FuncGenContext::genMemberCall(ir::Instruction const* before,
-                                   sema::ObjectType const& type,
-                                   ir::Value* index) {
+void FuncGenContext::genMemberConstruction(ir::Instruction const* before,
+                                           sema::ObjectType const& type,
+                                           ir::Value* index) {
     auto arguments = genArguments(before, typeMap(&type), index);
+    /// Non-trivial case
     if (auto* f = type.specialLifetimeFunction(kind)) {
         insert<ir::Call>(before, getFunction(f), arguments);
         return;
     }
+    /// Trivial case
     SC_ASSERT(type.hasTrivialLifetime(),
               "This function cannot be generated if the member type does not "
               "support the operation");
     using enum sema::SpecialLifetimeFunction;
     switch (kind) {
-    case DefaultConstructor:
-        /// TODO: Zero the memory here
+    case DefaultConstructor: {
+        auto* memset = getBuiltin(svm::Builtin::memset);
+        ir::Value* irZero = ctx.intConstant(0, 64);
+        std::array<ir::Value*, 3> args = { arguments[0],
+                                           ctx.intConstant(type.size(), 64),
+                                           irZero };
+        insert<ir::Call>(before, memset, args, std::string{});
         break;
+    }
     case MoveConstructor:
         [[fallthrough]];
     case CopyConstructor: {
