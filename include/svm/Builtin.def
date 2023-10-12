@@ -49,6 +49,7 @@ SVM_BUILTIN_DEF(puti64,    None,  { S64() }, Void())
 SVM_BUILTIN_DEF(putf64,    None,  { F64() }, Void())
 SVM_BUILTIN_DEF(putstr,    None,
                 { reference(QualType::Const(arrayType(Byte()))) }, Void())
+SVM_BUILTIN_DEF(putptr,    None,  { pointer(Byte()) }, Void())
 
 /// ##
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())

@@ -103,6 +103,7 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
         size_t const size = load<size_t>(regPtr + 1);
         std::cout << std::string_view(data, size);
     };
+    at(Builtin::putptr) = printVal<void*>();
 
     /// ##
     at(Builtin::trap) = [](u64*, VirtualMachine*, void*) {
