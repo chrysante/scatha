@@ -214,21 +214,12 @@ public:
     /// The AST node that corresponds to this variable
     SC_ASTNODE_DERIVED(declaration, VarDeclBase)
 
-    /// Set the offset of this variable.
-    void setOffset(size_t offset) { _offset = offset; }
-
-    /// Set the index of this variable.
-    void setIndex(size_t index) { _index = index; }
-
-    /// Offset into the struct this variable is a member of. If this is not a
-    /// member variable then offset() == 0.
-    [[deprecated("Use index() instead")]] size_t offset() const {
-        return _offset;
-    }
-
     /// If this variable is a member of a struct, this is the position of this
     /// variable in the struct.
     size_t index() const { return _index; }
+
+    /// Set the index of this variable.
+    void setIndex(size_t index) { _index = index; }
 
     /// Wether this variable is local to a function or potentially globally
     /// visible.
@@ -241,7 +232,6 @@ private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
-    size_t _offset = 0;
     size_t _index = 0;
 };
 

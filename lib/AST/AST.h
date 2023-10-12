@@ -985,33 +985,6 @@ public:
 
     /// Expression to initialize this variable. May be null.
     AST_PROPERTY(2, Expression, initExpr, InitExpr)
-
-    /// **Decoration provided by semantic analysis**
-
-    /// Offset of the variable in bytes from the beginning of the structure if
-    /// this is a struct member. Always zero otherwise.
-    size_t offset() const {
-        expectDecorated();
-        return _offset;
-    }
-
-    /// Index of the variable if this is a struct member. Always zero otherwise.
-    size_t index() const {
-        expectDecorated();
-        return _index;
-    }
-
-    /// Used by instantiation
-    void setOffset(size_t offset) {
-        _offset = utl::narrow_cast<uint32_t>(offset);
-    }
-
-    /// Used by instantiation
-    void setIndex(size_t index) { _index = utl::narrow_cast<uint32_t>(index); }
-
-private:
-    uint32_t _offset = 0;
-    uint32_t _index : 31 = 0;
 };
 
 /// Concrete node representing a parameter declaration.

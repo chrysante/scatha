@@ -139,18 +139,12 @@ struct X {
     auto* iDecl = xDef->body()->statement<VariableDeclaration>(0);
     CHECK(iDecl->name() == "i");
     CHECK(iDecl->type() == sym.F32());
-    CHECK(iDecl->offset() == 0);
-    CHECK(iDecl->index() == 0);
     auto* jDecl = xDef->body()->statement<VariableDeclaration>(1);
     CHECK(jDecl->name() == "j");
     CHECK(jDecl->type() == sym.S64());
-    CHECK(jDecl->offset() == 8);
-    CHECK(jDecl->index() == 1);
     auto* b2Decl = xDef->body()->statement<VariableDeclaration>(3);
     CHECK(b2Decl->name() == "b2");
     CHECK(b2Decl->type() == sym.Bool());
-    CHECK(b2Decl->offset() == 17);
-    CHECK(b2Decl->index() == 3);
     auto* fDef = xDef->body()->statement<FunctionDefinition>(4);
     CHECK(fDef->name() == "f");
     CHECK(fDef->returnType() == sym.Byte());

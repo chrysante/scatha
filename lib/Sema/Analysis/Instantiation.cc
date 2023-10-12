@@ -204,10 +204,6 @@ void InstContext::instantiateStructureType(SDGNode& node) {
         SC_ASSERT(varType->size() % varType->align() == 0,
                   "size must be a multiple of align");
         objectSize = utl::round_up_pow_two(objectSize, varType->align());
-        size_t const currentOffset = objectSize;
-        varDecl->setOffset(currentOffset);
-        varDecl->setIndex(varIndex);
-        var.setOffset(currentOffset);
         var.setIndex(varIndex);
         objectSize += varType->size();
     }
