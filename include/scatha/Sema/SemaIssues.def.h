@@ -154,6 +154,12 @@ SC_SEMA_BADEXPR_DEF(Identifier,
                     Error,
                     "Use of undeclared identifier '" << expr->value() << "'")
 
+SC_SEMA_BADEXPR_DEF(Identifier,
+                    AccessedMemberWithoutObject,
+                    Error,
+                    "Cannot access member '" << expr->value()
+                                             << "' without an object argument")
+
 SC_SEMA_BADEXPR_DEF(UnaryExpression,
                     UnaryExprBadType,
                     Error,

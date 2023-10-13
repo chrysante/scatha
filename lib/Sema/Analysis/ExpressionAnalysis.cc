@@ -451,14 +451,15 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     }
     // clang-format off
     return SC_MATCH (*entity) {
-        [&](Variable& var) {
-            id.decorateValue(&var, LValue, var.getQualType());
+        [&](VarBase& var) -> ast::Expression* {
+            if (isa<Type>(var.parent()) &&
+                !isa<ast::MemberAccess>(id.parent()))
+            {
+                ctx.badExpr(&id, AccessedMemberWithoutObject);
+                return nullptr;
+            }
+            id.decorateValue(&var, var.valueCategory(), var.getQualType());
             id.setConstantValue(clone(var.constantValue()));
-            return &id;
-        },
-        [&](Property& prop) {
-            id.decorateValue(&prop, prop.valueCategory(), prop.getQualType());
-            id.setConstantValue(clone(prop.constantValue()));
             return &id;
         },
         [&](ObjectType& type) {

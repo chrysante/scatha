@@ -460,3 +460,12 @@ fn main() {
     using enum GenericBadStmt::Reason;
     CHECK(issues.findOnLine<GenericBadStmt>(7, MainMustReturnTrivial));
 }
+
+TEST_CASE("Access data member without object", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+struct S {
+    fn f() { i = 0; }
+    var i: int;
+})");
+    CHECK(issues.findOnLine<BadExpr>(3, AccessedMemberWithoutObject));
+}
