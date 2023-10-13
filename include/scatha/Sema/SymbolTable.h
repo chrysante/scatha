@@ -238,37 +238,24 @@ public:
     /// \overload
     GlobalScope const& globalScope() const;
 
-    /// ## Getters for builtin types
-
+    /// Getters for builtin types
+    /// @{
     VoidType const* Void() const;
-
     ByteType const* Byte() const;
-
     BoolType const* Bool() const;
-
     IntType const* S8() const;
-
     IntType const* S16() const;
-
     IntType const* S32() const;
-
     IntType const* S64() const;
-
     IntType const* U8() const;
-
     IntType const* U16() const;
-
     IntType const* U32() const;
-
     IntType const* U64() const;
-
     FloatType const* F32() const;
-
     FloatType const* F64() const;
-
     ArrayType const* Str() const;
-
     NullPtrType const* NullPtrType() const;
+    /// @}
 
     ///
     std::string serialize() const;
