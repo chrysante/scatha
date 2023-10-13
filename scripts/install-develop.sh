@@ -10,5 +10,5 @@ cd "build"
 cmake -DYAML_BUILD_SHARED_LIBS=ON ..
 make -j config=release
 cd "$PROJ_DIR"
-cp "external/yaml-cpp/build/libyaml-cpp.dylib" "build/bin/Debug/libyaml-cpp.dylib"
-cp "external/yaml-cpp/build/libyaml-cpp.dylib" "build/bin/Release/libyaml-cpp.dylib"
+mkdir -p build/bin/{Debug,Release}
+cp external/yaml-cpp/build/libyaml-cpp* build/bin/{Debug,Release}
