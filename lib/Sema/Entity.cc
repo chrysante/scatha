@@ -162,11 +162,13 @@ AnonymousScope::AnonymousScope(ScopeKind scopeKind, Scope* parent):
     Scope(EntityType::AnonymousScope, scopeKind, std::string{}, parent) {}
 
 GlobalScope::GlobalScope():
-    Scope(EntityType::GlobalScope,
-          ScopeKind::Global,
-          "__GLOBAL__",
+    Scope(EntityType::GlobalScope, ScopeKind::Global, "__GLOBAL__", nullptr) {}
 
-          nullptr) {}
+FileScope::FileScope(std::string filename, Scope* parent):
+    Scope(EntityType::FileScope,
+          ScopeKind::Global,
+          std::move(filename),
+          parent) {}
 
 /// # Types
 

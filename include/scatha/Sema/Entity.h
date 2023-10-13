@@ -31,6 +31,7 @@
 /// ├─ Generic
 /// ├─ Scope
 /// │  ├─ GlobalScope
+/// │  ├─ FileScope
 /// │  ├─ AnonymousScope
 /// │  ├─ Function
 /// │  └─ Type
@@ -365,6 +366,12 @@ public:
 class SCATHA_API GlobalScope: public Scope {
 public:
     explicit GlobalScope();
+};
+
+/// Represents a file scope
+class SCATHA_API FileScope: public Scope {
+public:
+    explicit FileScope(std::string filename, Scope* parent);
 };
 
 /// # Function
