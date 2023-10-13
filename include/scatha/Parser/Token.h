@@ -22,6 +22,9 @@ enum class TokenKind {
     _count
 };
 
+/// Write token kind \p kind to \p ostream
+SCATHA_API std::ostream& operator<<(std::ostream& ostream, TokenKind tokenKind);
+
 inline bool isDeclarator(TokenKind kind) {
     return static_cast<int>(kind) >= static_cast<int>(TokenKind::Module) &&
            static_cast<int>(kind) <= static_cast<int>(TokenKind::Let);
