@@ -1,12 +1,22 @@
 #ifndef SCATHA_PARSER_TOKENSTREAM_H_
 #define SCATHA_PARSER_TOKENSTREAM_H_
 
+#include <iosfwd>
+
 #include <utl/vector.hpp>
 
 #include "Common/Base.h"
 #include "Parser/Token.h"
 
 namespace scatha::parser {
+
+class TokenStream;
+
+/// 
+SCTEST_API void print(TokenStream const& tokens);
+
+///
+SCTEST_API void print(TokenStream const& tokens, std::ostream& ostream);
 
 /// A stream  of tokens to be used by the parser.
 /// Expands a range of Token's into TokenEx's.
@@ -59,11 +69,15 @@ public:
     /// 2. Always returns the same token when called in a loop.
     Token const& current();
 
+    ///
     ssize_t index() const { return _index; }
 
+    ///
     ssize_t size() const { return utl::narrow_cast<ssize_t>(tokens.size()); }
 
 private:
+    friend void print(TokenStream const& tokens, std::ostream& ostream);
+
     Token const& eatImpl(ssize_t*);
 
 private:

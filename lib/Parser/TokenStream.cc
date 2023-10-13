@@ -1,5 +1,7 @@
 #include "Parser/TokenStream.h"
 
+#include <iostream>
+
 namespace scatha::parser {
 
 TokenStream::TokenStream(utl::vector<Token> tokens):
@@ -40,8 +42,15 @@ Token const& TokenStream::eatImpl(ssize_t* i) {
         _index = utl::narrow_cast<ssize_t>(tokens.size());
         return tokens.back();
     }
-    //    SC_ASSERT(*i < (ssize_t)tokens.size() - 1, "");
     return tokens[utl::narrow_cast<size_t>(++*i)];
+}
+
+void print(TokenStream const& tokens) { print(tokens, std::cout); }
+
+void print(TokenStream const& tokStr, std::ostream& str) {
+    for (auto& tok: tokStr.tokens) {
+        str << tok.kind() << " (" << tok.id() << ")\n";
+    }
 }
 
 } // namespace scatha::parser
