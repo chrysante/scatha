@@ -6,6 +6,7 @@
 #include <utl/hashset.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include "AST/AST.h"
 #include "Common/Ranges.h"
@@ -539,3 +540,7 @@ E* SymbolTable::Impl::addEntity(Args&&... args) {
     entities.push_back(std::move(owner));
     return result;
 }
+
+std::string SymbolTable::serialize() const { YAML::Node root; }
+
+SymbolTable SymbolTable::deserialize(std::string_view data) {}

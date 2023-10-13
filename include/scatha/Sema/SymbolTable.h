@@ -270,6 +270,12 @@ public:
 
     NullPtrType const* NullPtrType() const;
 
+    ///
+    std::string serialize() const;
+
+    ///
+    static SymbolTable deserialize(std::string_view data);
+
 private:
     struct Impl;
 
