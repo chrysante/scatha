@@ -170,11 +170,12 @@ namespace {
 
 struct Context {
     TokenStream tokens;
+    std::string filename;
     IssueHandler& issues;
 
-    UniquePtr<ast::ASTNode> run();
+    UniquePtr<ast::SourceFile> run();
 
-    UniquePtr<ast::TranslationUnit> parseTranslationUnit();
+    UniquePtr<ast::SourceFile> parseSourceFile(std::string filename);
     UniquePtr<ast::Declaration> parseExternalDeclaration();
     UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
     UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration(
@@ -266,22 +267,33 @@ struct Context {
 
 } // namespace
 
-UniquePtr<ast::ASTNode> parser::parse(std::string_view source,
+UniquePtr<ast::ASTNode> parser::parse(std::span<SourceFile const> sourceFiles,
                                       IssueHandler& issueHandler) {
-    auto tokens = lex(source, issueHandler);
-    if (issueHandler.haveErrors()) {
-        return nullptr;
+    utl::small_vector<UniquePtr<ast::SourceFile>> parsedFiles;
+    for (auto& file: sourceFiles) {
+        auto tokens = lex(file.text(), issueHandler);
+        if (issueHandler.haveErrors()) {
+            return nullptr;
+        }
+        bracketCorrection(tokens, issueHandler);
+        Context ctx{ .tokens{ std::move(tokens) },
+                     .filename = file.path(),
+                     .issues = issueHandler };
+        parsedFiles.push_back(ctx.run());
     }
-    bracketCorrection(tokens, issueHandler);
-    Context ctx{ .tokens{ std::move(tokens) }, .issues = issueHandler };
-    return ctx.run();
+    return allocate<ast::TranslationUnit>(std::move(parsedFiles));
 }
 
-UniquePtr<ast::ASTNode> Context::run() { return parseTranslationUnit(); }
+UniquePtr<ast::ASTNode> parser::parse(std::string_view source,
+                                      IssueHandler& issueHandler) {
+    utl::small_vector<SourceFile> files = { SourceFile::make(
+        std::string(source)) };
+    return parse(files, issueHandler);
+}
 
-// MARK: -  RDP
+UniquePtr<ast::SourceFile> Context::run() { return parseSourceFile(filename); }
 
-UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
+UniquePtr<ast::SourceFile> Context::parseSourceFile(std::string filename) {
     utl::small_vector<UniquePtr<ast::Declaration>> decls;
     while (true) {
         Token const token = tokens.peek();
@@ -304,7 +316,7 @@ UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
         }
         decls.push_back(std::move(decl));
     }
-    return allocate<ast::TranslationUnit>(std::move(decls));
+    return allocate<ast::SourceFile>(std::move(filename), std::move(decls));
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
