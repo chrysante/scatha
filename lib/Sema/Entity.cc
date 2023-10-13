@@ -68,32 +68,32 @@ void Object::setConstantValue(UniquePtr<Value> value) {
     constVal = std::move(value);
 }
 
+ValueCategory VarBase::valueCategory() const {
+    return visit(*this, [](auto& derived) { return derived.valueCatImpl(); });
+}
+
 Variable::Variable(std::string name,
                    Scope* parentScope,
                    ast::ASTNode* astNode,
                    Type const* type,
                    Mutability mut):
-    Object(EntityType::Variable,
-           std::move(name),
-           parentScope,
-           type,
-           mut,
-           astNode) {}
-
-bool Variable::isLocal() const {
-    return parent()->kind() == ScopeKind::Function;
-}
+    VarBase(EntityType::Variable,
+            std::move(name),
+            parentScope,
+            type,
+            mut,
+            astNode) {}
 
 Property::Property(PropertyKind kind,
                    Scope* parentScope,
                    Type const* type,
                    Mutability mut,
                    ValueCategory valueCat):
-    Object(EntityType::Property,
-           std::string(toString(kind)),
-           parentScope,
-           type,
-           mut),
+    VarBase(EntityType::Property,
+            std::string(toString(kind)),
+            parentScope,
+            type,
+            mut),
     _kind(kind),
     _valueCat(valueCat) {}
 

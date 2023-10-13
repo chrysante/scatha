@@ -200,8 +200,19 @@ private:
     UniquePtr<Value> constVal;
 };
 
+/// Common base class of `Variable` and `Property`
+class SCATHA_API VarBase: public Object {
+public:
+    /// The value category of this variable or property. For variables this is
+    /// always lvalue but for properties it varies
+    ValueCategory valueCategory() const;
+
+protected:
+    using Object::Object;
+};
+
 /// Represents a variable
-class SCATHA_API Variable: public Object {
+class SCATHA_API Variable: public VarBase {
 public:
     Variable(Variable const&) = delete;
 
@@ -221,23 +232,21 @@ public:
     /// Set the index of this variable.
     void setIndex(size_t index) { _index = index; }
 
-    /// Wether this variable is local to a function or potentially globally
-    /// visible.
-    bool isLocal() const;
-
     /// For the symbol table
     using Object::setMutability;
 
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
+    friend class VarBase;
+    ValueCategory valueCatImpl() const { return ValueCategory::LValue; }
 
     size_t _index = 0;
 };
 
 /// Represents a computed property such as `.count`, `.front` and `.back` member
 /// of arrays
-class SCATHA_API Property: public Object {
+class SCATHA_API Property: public VarBase {
 public:
     explicit Property(PropertyKind kind,
                       Scope* parentScope,
@@ -248,12 +257,11 @@ public:
     /// The kind of property
     PropertyKind kind() const { return _kind; }
 
-    /// The value category of this property
-    ValueCategory valueCategory() const { return _valueCat; }
-
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
+    friend class VarBase;
+    ValueCategory valueCatImpl() const { return _valueCat; }
 
     PropertyKind _kind;
     ValueCategory _valueCat;
