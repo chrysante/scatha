@@ -10,9 +10,9 @@ namespace scatha::sema {
 
 /// Semantically analyzes and decorates the abstract syntax tree.
 ///
-/// \param root Root of the tree to analyze.
+/// \param TU Translation unit to analyze
 /// \param symbolTable Symbol table to populate.
-SCATHA_API AnalysisResult analyze(ast::ASTNode& root,
+SCATHA_API AnalysisResult analyze(ast::ASTNode& TU,
                                   SymbolTable& symbolTable,
                                   IssueHandler&);
 

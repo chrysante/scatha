@@ -33,11 +33,12 @@ struct GatherContext {
     size_t gather(ast::ASTNode& node);
 
     size_t gatherImpl(ast::TranslationUnit&);
+    size_t gatherImpl(ast::SourceFile&);
     size_t gatherImpl(ast::FunctionDefinition&);
     size_t gatherImpl(ast::StructDefinition&);
     size_t gatherImpl(ast::VariableDeclaration&);
     size_t gatherImpl(ast::Statement& stmt);
-    size_t gatherImpl(ast::Expression&) { SC_UNREACHABLE(); }
+    size_t gatherImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     AnalysisContext& ctx;
     SymbolTable& sym;
@@ -48,10 +49,10 @@ struct GatherContext {
 
 } // namespace
 
-GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& root,
+GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& TU,
                                             AnalysisContext& ctx) {
     GatherNamesResult result;
-    GatherContext(ctx, result).gather(root);
+    GatherContext(ctx, result).gather(TU);
     return result;
 }
 
@@ -59,8 +60,16 @@ size_t GatherContext::gather(ast::ASTNode& node) {
     return visit(node, [this](auto& node) { return this->gatherImpl(node); });
 }
 
-size_t GatherContext::gatherImpl(ast::TranslationUnit& tu) {
-    for (auto* decl: tu.declarations()) {
+size_t GatherContext::gatherImpl(ast::TranslationUnit& TU) {
+    for (auto* file: TU.sourceFiles()) {
+        auto* scope = sym.declareFileScope(file->name());
+        sym.withScopeCurrent(scope, [&] { gather(*file); });
+    }
+    return InvalidIndex;
+}
+
+size_t GatherContext::gatherImpl(ast::SourceFile& file) {
+    for (auto* decl: file.declarations()) {
         gather(*decl);
     }
     return InvalidIndex;

@@ -1,5 +1,6 @@
 #include "Sema/Analyze.h"
 
+#include "AST/AST.h"
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/FunctionAnalysis.h"
 #include "Sema/Analysis/GatherNames.h"
@@ -9,12 +10,12 @@
 using namespace scatha;
 using namespace sema;
 
-AnalysisResult sema::analyze(ast::ASTNode& root,
+AnalysisResult sema::analyze(ast::ASTNode& TU,
                              SymbolTable& sym,
                              IssueHandler& iss) {
     sym.setIssueHandler(iss);
     AnalysisContext ctx(sym, iss);
-    auto names = gatherNames(root, ctx);
+    auto names = gatherNames(TU, ctx);
     auto structs = instantiateEntities(ctx, names.structs, names.functions);
     for (auto* def: names.functions) {
         analyzeFunction(ctx, def);

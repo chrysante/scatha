@@ -30,7 +30,7 @@ struct GatherNamesResult {
 /// declarations in the program.
 ///
 /// \returns (Incomplete) dependency graph
-SCATHA_API GatherNamesResult gatherNames(ast::ASTNode& astRoot,
+SCATHA_API GatherNamesResult gatherNames(ast::ASTNode& TU,
                                          AnalysisContext& context);
 
 } // namespace scatha::sema
