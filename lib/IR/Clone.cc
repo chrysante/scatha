@@ -115,7 +115,9 @@ static InsertValue* doClone(Context& context, InsertValue* inst) {
 }
 
 static Instruction* cloneRaw(Context& context, Instruction* inst) {
-    return visit(*inst, [&](auto& inst) { return doClone(context, &inst); });
+    return visit(*inst, [&](auto& inst) -> Instruction* {
+        return doClone(context, &inst);
+    });
 }
 
 static BasicBlock* cloneRaw(Context& context,
