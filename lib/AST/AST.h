@@ -885,18 +885,39 @@ private:
     sema::Entity* _entity = nullptr;
 };
 
-/// Concrete node representing a translation unit.
+/// Concrete node representing the root of every AST
 class SCATHA_API TranslationUnit: public ASTNode {
 public:
-    TranslationUnit(utl::small_vector<UniquePtr<Declaration>> declarations):
-        ASTNode(NodeType::TranslationUnit,
-                SourceRange{},
-                std::move(declarations)) {}
+    TranslationUnit(UniquePtr<SourceFile> file):
+        TranslationUnit(toSmallVector(std::move(file))) {}
+
+    TranslationUnit(utl::small_vector<UniquePtr<SourceFile>> files):
+        ASTNode(NodeType::TranslationUnit, SourceRange{}, std::move(files)) {}
 
     AST_DERIVED_COMMON(TranslationUnit)
 
+    /// List of source files in the translation unit.
+    AST_RANGE_PROPERTY(0, SourceFile, sourceFile, SourceFile)
+};
+
+/// Concrete node representing a source file
+class SCATHA_API SourceFile: public ASTNode {
+public:
+    SourceFile(std::string filename,
+               utl::small_vector<UniquePtr<Declaration>> declarations):
+        ASTNode(NodeType::SourceFile, SourceRange{}, std::move(declarations)),
+        _name(std::move(filename)) {}
+
+    AST_DERIVED_COMMON(SourceFile)
+
     /// List of declarations in the translation unit.
     AST_RANGE_PROPERTY(0, Declaration, declaration, Declaration)
+
+    /// \Returns the name of this source file
+    std::string const& name() const { return _name; }
+
+private:
+    std::string _name;
 };
 
 /// Abstract base class of `VariableDeclaration` and `ParameterDeclaration`
