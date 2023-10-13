@@ -24,15 +24,15 @@ class FunctionSignature;
 
 class SCATHA_API SymbolTable {
 public:
-    static constexpr size_t InvalidSize = static_cast<size_t>(-1);
-
-public:
     SymbolTable();
     SymbolTable(SymbolTable&&) noexcept;
     SymbolTable& operator=(SymbolTable&&) noexcept;
     ~SymbolTable();
 
     /// # Modifiers
+
+    ///
+    FileScope* declareFileScope(std::string filename);
 
     /// Declares a struct to the current scope without specifying size and
     /// alignment.
@@ -276,6 +276,8 @@ private:
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);
+
+    void addToCurrentScope(Entity* entity);
 
     std::unique_ptr<Impl> impl;
 };

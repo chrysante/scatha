@@ -147,6 +147,12 @@ SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
 
 SymbolTable::~SymbolTable() = default;
 
+FileScope* SymbolTable::declareFileScope(std::string filename) {
+    auto* file = impl->addEntity<FileScope>(filename, &globalScope());
+    globalScope().addChild(file);
+    return file;
+}
+
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
                                            std::string name) {
     if (isKeyword(name)) {
@@ -158,7 +164,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
         return nullptr;
     }
     auto* type = impl->addEntity<StructType>(name, &currentScope(), def);
-    currentScope().addChild(type);
+    addToCurrentScope(type);
     return type;
 }
 
@@ -192,7 +198,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
         if (!entity) {
             auto* overloadSet =
                 impl->addEntity<OverloadSet>(name, &currentScope());
-            currentScope().addChild(overloadSet);
+            addToCurrentScope(overloadSet);
             return overloadSet;
         }
         if (auto* os = dyncast<OverloadSet*>(entity)) {
@@ -209,7 +215,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                                    &currentScope(),
                                                    FunctionAttribute::None,
                                                    def);
-    currentScope().addChild(function);
+    addToCurrentScope(function);
     impl->functions.push_back(function);
     return function;
 }
@@ -274,7 +280,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
         return nullptr;
     }
     auto* variable = impl->addEntity<Variable>(name, &currentScope(), vardecl);
-    currentScope().addChild(variable);
+    addToCurrentScope(variable);
     return variable;
 }
 
@@ -317,7 +323,7 @@ Property* SymbolTable::addProperty(PropertyKind kind,
                                    ValueCategory valueCat) {
     auto* prop =
         impl->addEntity<Property>(kind, &currentScope(), type, mut, valueCat);
-    currentScope().addChild(prop);
+    addToCurrentScope(prop);
     return prop;
 }
 
@@ -332,13 +338,13 @@ void SymbolTable::declarePoison(std::string name, EntityCategory cat) {
         return;
     }
     auto* poison = impl->addEntity<PoisonEntity>(name, cat, &currentScope());
-    currentScope().addChild(poison);
+    addToCurrentScope(poison);
 }
 
 Scope* SymbolTable::addAnonymousScope() {
     auto* scope =
         impl->addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
-    currentScope().addChild(scope);
+    addToCurrentScope(scope);
     return scope;
 }
 
@@ -541,6 +547,18 @@ E* SymbolTable::Impl::addEntity(Args&&... args) {
     return result;
 }
 
-std::string SymbolTable::serialize() const { YAML::Node root; }
+void SymbolTable::addToCurrentScope(Entity* entity) {
+    currentScope().addChild(entity);
+    if (isa<FileScope>(&currentScope()) && /* entity is public decl */ true) {
+        globalScope().addChild(entity);
+    }
+}
 
-SymbolTable SymbolTable::deserialize(std::string_view data) {}
+std::string SymbolTable::serialize() const {
+    YAML::Node root;
+    SC_UNIMPLEMENTED();
+}
+
+SymbolTable SymbolTable::deserialize(std::string_view data) {
+    SC_UNIMPLEMENTED();
+}
