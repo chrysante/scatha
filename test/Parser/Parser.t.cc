@@ -15,9 +15,9 @@ fn mul(a: int, b: X.Y.Z) -> int {
 })";
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
-    auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations().size() == 1);
-    auto* const function = tu->declaration<FunctionDefinition>(0);
+    auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+    REQUIRE(file->declarations().size() == 1);
+    auto* const function = file->declaration<FunctionDefinition>(0);
     CHECK(function->name() == "mul");
     REQUIRE(function->parameters().size() == 2);
     CHECK(function->parameters()[0]->name() == "a");
@@ -55,9 +55,9 @@ fn main() -> void {
 })";
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
-    auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations().size() == 1);
-    auto* const function = tu->declaration<FunctionDefinition>(0);
+    auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+    REQUIRE(file->declarations().size() == 1);
+    auto* const function = file->declaration<FunctionDefinition>(0);
     CHECK(function->name() == "main");
     auto* const aDecl =
         cast<VariableDeclaration*>(function->body()->statements()[0]);
@@ -92,9 +92,9 @@ fn test() {
 })";
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
-    auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations().size() == 1);
-    auto* const function = tu->declaration<FunctionDefinition>(0);
+    auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+    REQUIRE(file->declarations().size() == 1);
+    auto* const function = file->declaration<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
     CompoundStatement* const body = function->body();
@@ -131,9 +131,9 @@ fn test() {
 })";
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
-    auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations().size() == 1);
-    auto* const function = tu->declaration<FunctionDefinition>(0);
+    auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+    REQUIRE(file->declarations().size() == 1);
+    auto* const function = file->declaration<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
     CompoundStatement* const body = function->body();
@@ -170,9 +170,9 @@ fn test() {
 })";
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
-    auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations().size() == 1);
-    auto* const function = tu->declaration<FunctionDefinition>(0);
+    auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+    REQUIRE(file->declarations().size() == 1);
+    auto* const function = file->declaration<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
     CompoundStatement* const body = function->body();
