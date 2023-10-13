@@ -1,0 +1,14 @@
+#!/bin/bash
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PROJ_DIR="$SCRIPT_DIR/.."
+
+# Build yaml-cpp
+cd "$PROJ_DIR/external/yaml-cpp"
+mkdir "build"
+cd "build"
+cmake -DYAML_BUILD_SHARED_LIBS=ON ..
+make -j config=release
+cd "$PROJ_DIR"
+cp "external/yaml-cpp/build/libyaml-cpp.dylib" "build/bin/Debug/libyaml-cpp.dylib"
+cp "external/yaml-cpp/build/libyaml-cpp.dylib" "build/bin/Release/libyaml-cpp.dylib"

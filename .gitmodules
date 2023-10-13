@@ -13,3 +13,6 @@
 [submodule "external/graphgen"]
 	path = external/graphgen
 	url = https://github.com/chrysante/graphgen
+[submodule "external/yaml-cpp"]
+	path = external/yaml-cpp
+	url = https://github.com/chrysante/yaml-cpp
