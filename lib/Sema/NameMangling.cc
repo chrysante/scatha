@@ -14,7 +14,10 @@ static std::string baseImpl(Entity const* entity) {
     std::string result = std::string(entity->name());
     Scope const* scope = entity->parent();
     SC_ASSERT(scope, "");
-    while (!isa<GlobalScope>(scope)) {
+    while (true) {
+        if (scope->kind() == ScopeKind::Global) {
+            break;
+        }
         result = utl::strcat(scope->name(), ".", result);
         scope = scope->parent();
         SC_ASSERT(scope, "");
