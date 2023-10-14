@@ -5,9 +5,11 @@
 #include <sstream>
 #include <string>
 
+#include <range/v3/view.hpp>
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
+#include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
 #include <scatha/IRGen/IRGen.h>
@@ -128,23 +130,18 @@ int main(int argc, char* argv[]) {
         std::cout << Error << "No input files" << std::endl;
         return -1;
     }
-    if (options.files.size() > 1) {
-        std::cout << Warning
-                  << "All input files except the first are ignored for now\n";
-    }
-    auto const filepath = options.files.front();
-    std::fstream file(filepath, std::ios::in);
-    assert(file && "CLI11 library should have caught this");
-    std::stringstream sstr;
-    sstr << file.rdbuf();
-    std::string const text = std::move(sstr).str();
+    auto sourceFiles = options.files |
+                       ranges::views::transform([](auto const& path) {
+                           return SourceFile::load(path);
+                       }) |
+                       ranges::to<std::vector>;
 
     /// Now we compile the program
     auto const compileBeginTime = std::chrono::high_resolution_clock::now();
     IssueHandler issueHandler;
-    auto ast = parser::parse(text, issueHandler);
+    auto ast = parser::parse(sourceFiles, issueHandler);
     if (!issueHandler.empty()) {
-        issueHandler.print(text);
+        issueHandler.print(sourceFiles);
     }
     if (!ast) {
         return -1;
@@ -152,7 +149,7 @@ int main(int argc, char* argv[]) {
     sema::SymbolTable semaSym;
     auto analysisResult = sema::analyze(*ast, semaSym, issueHandler);
     if (!issueHandler.empty()) {
-        issueHandler.print(text);
+        issueHandler.print(sourceFiles);
     }
     if (issueHandler.haveErrors()) {
         return -1;
@@ -172,8 +169,7 @@ int main(int argc, char* argv[]) {
 
     /// We emit the executable
     if (options.bindir.empty()) {
-        options.bindir = filepath;
-        options.bindir.replace_extension();
+        options.bindir = "out";
     }
     emitFile(options.bindir, program, /* executable = */ !options.binaryOnly);
     return 0;
