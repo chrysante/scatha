@@ -23,19 +23,30 @@ static constexpr utl::streammanip label([](std::ostream& str,
 });
 
 static constexpr utl::streammanip location([](std::ostream& str,
+                                              SourceStructureMap& sourceMap,
                                               SourceLocation loc) {
-    str << tfmt::format(BrightGrey, "Line: ") << loc.line << " "
-        << tfmt::format(BrightGrey, "Column: ") << loc.column << " ";
+    auto format = tfmt::FormatGuard(BrightGrey);
+    size_t index = loc.fileIndex;
+    auto name = sourceMap(index).name();
+    if (!name.empty()) {
+        str << name << " ";
+    }
+    else {
+        str << "File " << index + 1 << " ";
+    }
+    if (!loc.valid()) {
+        return;
+    }
+    str << "Line: " << loc.line << ", "
+        << "Column: " << loc.column << " ";
 });
 
 void Issue::print(SourceStructureMap& sourceMap, std::ostream& str) const {
-    str << label(severity());
-    if (sourceLocation().valid()) {
-        str << location(sourceLocation());
-    }
     /// The old issue highlight style
     if (highlights.empty()) {
+        str << label(severity());
         format(str);
+        str << " " << location(sourceMap, sourceLocation());
         str << "\n";
         if (sourceRange().valid()) {
             highlightSource(sourceMap, sourceRange(), severity(), str);
@@ -43,9 +54,11 @@ void Issue::print(SourceStructureMap& sourceMap, std::ostream& str) const {
     }
     /// New style
     else {
+        str << label(severity());
         if (_header) {
-            str << tfmt::format(BrightBlue | Italic, _header);
+            str << tfmt::format(BrightBlue | Italic, _header) << " ";
         }
+        str << location(sourceMap, sourceLocation());
         str << "\n";
         highlightSource(sourceMap, highlights, severity(), str);
         if (_hint) {

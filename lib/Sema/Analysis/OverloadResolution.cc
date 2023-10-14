@@ -57,6 +57,7 @@ static OverloadResolutionResult makeError(Args&&... args) {
 }
 
 OverloadResolutionResult sema::performOverloadResolution(
+    ast::Expression const* parentExpr,
     std::span<Function* const> overloadSet,
     std::span<ast::Expression const* const> arguments,
     ORKind kind) {
@@ -78,7 +79,7 @@ OverloadResolutionResult sema::performOverloadResolution(
         }
     }
     if (results.empty()) {
-        return makeError<ORError>(overloadSet);
+        return makeError<ORError>(parentExpr, overloadSet);
     }
     if (results.size() == 1) {
         return std::move(results.front());
@@ -106,7 +107,8 @@ OverloadResolutionResult sema::performOverloadResolution(
                              return r.function;
                          }) |
                          ranges::to<std::vector>;
-        return makeError<ORError>(overloadSet,
+        return makeError<ORError>(parentExpr,
+                                  overloadSet,
                                   std::move(args),
                                   std::move(functions));
     }

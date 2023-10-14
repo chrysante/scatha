@@ -28,10 +28,19 @@ public:
 
     ///
     SourceStructure const& operator()(size_t index) {
+        /// TODO: Remove this.
+        /// This is a preliminary hack because we still support calling the
+        /// issue `print()` functions with a single string view for a source
+        /// file
+        if (files.size() == 1) {
+            index = 0;
+        }
         auto itr = map.find(index);
         if (itr == map.end()) {
-            itr = map.insert({ index, SourceStructure(files[index].text()) })
-                      .first;
+            auto& file = files[index];
+            itr =
+                map.insert({ index, SourceStructure(file.path(), file.text()) })
+                    .first;
         }
         return itr->second;
     }

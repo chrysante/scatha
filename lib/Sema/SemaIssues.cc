@@ -318,9 +318,8 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
     header("Cyclic struct definition");
     hint("Declare data members as pointers to avoid strong cyclic dependecies");
     for (auto [index, entity]: cycle() | ranges::views::enumerate) {
-        highlight(Primary,
-                  entity->astNode()->sourceRange(),
-                  [=, entity = entity, index = index + 1](std::ostream& str) {
+        primary(entity->astNode()->sourceRange(),
+                [=, entity = entity, index = index + 1](std::ostream& str) {
             if (auto* var = dyncast<Variable const*>(entity)) {
                 auto* type = cast<Type const*>(cycle()[index % cycle().size()]);
                 str << index << ". Member " << var->name()
@@ -452,13 +451,36 @@ void BadMutConv::format(std::ostream& str) const {
         << expr()->type()->name() << " to " << to();
 }
 
-ORError::ORError(std::span<Function const* const> os,
+ORError::ORError(ast::Expression const* expr,
+                 std::span<Function const* const> os,
                  std::vector<std::pair<QualType, ValueCategory>> argTypes,
                  std::vector<Function const*> matches):
-    SemaIssue(nullptr, {}, IssueSeverity::Error),
+    SemaIssue(nullptr, getSourceRange(expr), IssueSeverity::Error),
     os(os | ranges::to<std::vector>),
     argTypes(std::move(argTypes)),
-    matches(std::move(matches)) {}
+    matches(std::move(matches)) {
+    header("Cannot resolve function call");
+    switch (reason()) {
+    case NoMatch:
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << "No matching function to call for " << os.front()->name();
+        });
+        for (auto* function: os) {
+            secondary(function->definition()->sourceRange(),
+                      [=](std::ostream& str) { str << "Cannot call this"; });
+        }
+        break;
+    case Ambiguous:
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << "Ambiguous function call to " << os.front()->name();
+        });
+        for (auto* function: this->matches) {
+            secondary(function->definition()->sourceRange(),
+                      [=](std::ostream& str) { str << "Candidate function"; });
+        }
+        break;
+    }
+}
 
 void ORError::format(std::ostream& str) const {
     if (os.empty()) {

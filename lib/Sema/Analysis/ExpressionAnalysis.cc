@@ -891,7 +891,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     /// Perform overload resolution
-    auto result = performOverloadResolution(*overloadSet,
+    auto result = performOverloadResolution(&fc,
+                                            *overloadSet,
                                             fc.arguments() | ToSmallVector<>,
                                             orKind);
     if (result.error) {
@@ -1177,7 +1178,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
     using enum SpecialMemberFunction;
     auto ctorSet = type->specialMemberFunctions(New);
     SC_ASSERT(!ctorSet.empty(), "Trivial lifetime case is handled above");
-    auto result = performOverloadResolution(ctorSet,
+    auto result = performOverloadResolution(&expr,
+                                            ctorSet,
                                             expr.arguments() | ToAddress |
                                                 ToSmallVector<>,
                                             ORKind::MemberFunction);

@@ -65,7 +65,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("1") {
         // clang-format off
-        auto result = performOverloadResolution(*f.overloadSet, std::array{
+        auto result = performOverloadResolution(nullptr, *f.overloadSet, std::array{
             makeExpr(sym.S64(), LValue),
             makeExpr(sym.arrayType(sym.S64(), 3), LValue)
         }, ORKind::FreeFunction); // clang-format on
@@ -76,7 +76,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("2") {
         // clang-format off
-        auto result = performOverloadResolution(*f.overloadSet, std::array{
+        auto result = performOverloadResolution(nullptr, *f.overloadSet, std::array{
             makeExpr(QualType::Const(sym.S64()), RValue),
             makeExpr(QualType::Const(sym.arrayType(sym.S64())), LValue)
         }, ORKind::FreeFunction); // clang-format on
@@ -86,7 +86,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("3") {
         // clang-format off
-        auto result = performOverloadResolution(*f.overloadSet, std::array{
+        auto result = performOverloadResolution(nullptr, *f.overloadSet, std::array{
             makeExpr(sym.S32(), LValue),
             makeExpr(sym.arrayType(sym.S64(), 4), LValue)
         }, ORKind::FreeFunction); // clang-format on
@@ -102,7 +102,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("4") {
         // clang-format off
-        auto result = performOverloadResolution(*g.overloadSet, std::array{
+        auto result = performOverloadResolution(nullptr, *g.overloadSet, std::array{
             makeExpr(sym.Str(), LValue)
         }, ORKind::FreeFunction); // clang-format on
         REQUIRE(!result.error);

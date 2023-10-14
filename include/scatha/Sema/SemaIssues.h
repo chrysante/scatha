@@ -349,14 +349,10 @@ public:
     enum Reason { NoMatch, Ambiguous };
 
     explicit ORError(
+        ast::Expression const* expr,
         std::span<Function const* const> os,
         std::vector<std::pair<QualType, ValueCategory>> argTypes = {},
         std::vector<Function const*> matches = {});
-
-    void decorate(Scope const* scope, SourceRange sourceRange) {
-        setScope(scope);
-        setSourceRange(sourceRange);
-    }
 
     Reason reason() const { return matches.empty() ? NoMatch : Ambiguous; }
 
