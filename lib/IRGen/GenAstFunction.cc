@@ -1153,7 +1153,7 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
         }
     }
     auto* irType = ctx.arrayType(typeMap(elemType), list.elements().size());
-    auto [index, line, column] = list.sourceLocation();
+    auto [index, fileIndex, line, column] = list.sourceLocation();
     auto name = utl::strcat("array.at[", line, ":", column, "]");
     auto constData =
         allocate<ir::ConstantData>(ctx, irType, std::move(data), name);
