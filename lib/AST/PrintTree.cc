@@ -164,7 +164,7 @@ struct PrintCtx {
     explicit PrintCtx(std::ostream& str): str(str) {}
 
     void print(ASTNode const& node) {
-        if (!node.isDecorated() && !isa<TranslationUnit>(node)) {
+        if (!node.isDecorated()) {
             str << nodeHeader(&formatter, &node) << '\n';
             goto end;
         }
@@ -174,7 +174,10 @@ struct PrintCtx {
             [&](ASTNode const& node) {
                 str << nodeHeader(&formatter, &node) << '\n';
             },
-            [&](TranslationUnit const& node) {},
+            [&](TranslationUnit const& TU) {},
+            [&](ast::SourceFile const& file) {
+                str << nodeHeader(&formatter, &file, file.name()) << '\n';
+            },
             [&](Literal const& lit) {
                 str << nodeHeader(&formatter, &node, formatLit(&lit)) << '\n';
             },
