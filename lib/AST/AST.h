@@ -892,7 +892,9 @@ public:
         TranslationUnit(toSmallVector(std::move(file))) {}
 
     TranslationUnit(utl::small_vector<UniquePtr<SourceFile>> files):
-        ASTNode(NodeType::TranslationUnit, SourceRange{}, std::move(files)) {}
+        ASTNode(NodeType::TranslationUnit, SourceRange{}, std::move(files)) {
+        markDecorated();
+    }
 
     AST_DERIVED_COMMON(TranslationUnit)
 
@@ -906,7 +908,9 @@ public:
     SourceFile(std::string filename,
                utl::small_vector<UniquePtr<Declaration>> declarations):
         ASTNode(NodeType::SourceFile, SourceRange{}, std::move(declarations)),
-        _name(std::move(filename)) {}
+        _name(std::move(filename)) {
+        markDecorated();
+    }
 
     AST_DERIVED_COMMON(SourceFile)
 
