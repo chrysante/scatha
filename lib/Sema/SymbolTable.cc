@@ -7,7 +7,6 @@
 #include <utl/hashset.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
-#include <yaml-cpp/yaml.h>
 
 #include "AST/AST.h"
 #include "Common/Ranges.h"
@@ -562,10 +561,7 @@ bool SymbolTable::checkRedef(std::string_view name,
     return false;
 }
 
-std::string SymbolTable::serialize() const {
-    YAML::Node root;
-    SC_UNIMPLEMENTED();
-}
+std::string SymbolTable::serialize() const { SC_UNIMPLEMENTED(); }
 
 SymbolTable SymbolTable::deserialize(std::string_view data) {
     SC_UNIMPLEMENTED();
