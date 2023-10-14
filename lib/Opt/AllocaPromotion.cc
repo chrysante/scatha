@@ -369,12 +369,12 @@ static uint64_t extendByteToWord(int64_t value) {
 }
 
 static Type const* getLoadedType(Alloca const* address) {
-    Type const* type = address->allocatedType();
-    for (auto* load: address->users() | Filter<Load>) {
-        type = load->type();
-        break;
+    auto users = address->users();
+    auto loadItr = ranges::find_if(users, isa<Load>);
+    if (loadItr != users.end()) {
+        return (*loadItr)->type();
     }
-    return type;
+    return address->allocatedType();
 }
 
 bool VariableInfo::renameDef(Instruction* inst) {
