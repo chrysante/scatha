@@ -156,10 +156,9 @@ static void run(ir::Module const& mod) {
     sstr << file.rdbuf();
     auto source = sstr.str();
 
-    std::vector files = {
-        SourceFile::load("/Users/indigo/dev/scatha/playground/module-test.sc"),
-        SourceFile::load("/Users/indigo/dev/scatha/playground/Test.sc")
-    };
+    std::vector files = { SourceFile::load(path.parent_path() /
+                                           "ModuleTest.sc"),
+                          SourceFile::load(path) };
     IssueHandler issues;
     auto TU = parser::parse(files, issues);
     if (!issues.empty()) {
