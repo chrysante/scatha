@@ -40,26 +40,27 @@ using namespace test;
 
 using Generator = utl::unique_function<std::pair<ir::Context, ir::Module>()>;
 
-[[noreturn]] static void throwIssue(std::string_view source,
-                                    Issue const& issue) {
+static void validateEmpty(std::span<SourceFile const> sources,
+                          IssueHandler const& issues) {
+    if (issues.empty()) {
+        return;
+    }
     std::stringstream sstr;
-    issue.print(source, sstr);
+    issues.print(sources, sstr);
     throw std::runtime_error(sstr.str());
 }
 
-static void validateEmpty(std::string_view source, IssueHandler const& issues) {
-    if (!issues.empty()) {
-        throwIssue(source, issues.front());
-    }
-}
-
-static Generator makeScathaGenerator(std::string_view text) {
+static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
     IssueHandler issues;
-    auto ast = parser::parse(text, issues);
-    validateEmpty(text, issues);
+    auto sourceFiles = sourceTexts | ranges::views::transform([](auto& text) {
+                           return SourceFile::make(std::move(text));
+                       }) |
+                       ranges::to<std::vector>;
+    auto ast = parser::parse(sourceFiles, issues);
+    validateEmpty(sourceFiles, issues);
     sema::SymbolTable sym;
     auto analysisResult = sema::analyze(*ast, sym, issues);
-    validateEmpty(text, issues);
+    validateEmpty(sourceFiles, issues);
     return [ast = std::move(ast),
             sym = std::move(sym),
             analysisResult = std::move(analysisResult)] {
@@ -171,9 +172,11 @@ struct Impl {
 
 } // namespace
 
-void test::checkReturns(uint64_t expectedResult, std::string_view source) {
+void test::checkReturns(uint64_t expectedResult,
+                        std::vector<std::string> sourceTexts) {
     test::CoutRerouter rerouter;
-    Impl::get().runTest(makeScathaGenerator(source), expectedResult);
+    Impl::get().runTest(makeScathaGenerator(std::move(sourceTexts)),
+                        expectedResult);
 }
 
 void test::checkIRReturns(uint64_t expectedResult, std::string_view source) {
@@ -181,9 +184,9 @@ void test::checkIRReturns(uint64_t expectedResult, std::string_view source) {
     Impl::get().runTest(makeIRGenerator(source), expectedResult);
 }
 
-void test::checkCompiles(std::string_view text) {
+void test::checkCompiles(std::string text) {
     CHECK_NOTHROW([=] {
-        auto [ctx, mod] = makeScathaGenerator(text)();
+        auto [ctx, mod] = makeScathaGenerator({ std::move(text) })();
         opt::optimize(ctx, mod, 1);
     }());
 }
@@ -195,12 +198,12 @@ void test::checkIRCompiles(std::string_view text) {
     }());
 }
 
-void test::compileAndRun(std::string_view text) {
-    auto [ctx, mod] = makeScathaGenerator(text)();
+void test::compileAndRun(std::string text) {
+    auto [ctx, mod] = makeScathaGenerator({ std::move(text) })();
     ::run(mod);
 }
 
-void test::checkPrints(std::string_view printed, std::string_view source) {
+void test::checkPrints(std::string_view printed, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRun(source);
     CHECK(rerouter.str() == printed);
