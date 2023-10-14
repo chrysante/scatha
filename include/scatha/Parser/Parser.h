@@ -5,9 +5,9 @@
 
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
+#include <scatha/Common/SourceFile.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Issue/IssueHandler.h>
-#include <scatha/Parser/SourceFile.h>
 #include <scatha/Parser/Token.h>
 
 namespace scatha::parser {

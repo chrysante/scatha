@@ -1,4 +1,4 @@
-#include "Parser/SourceFile.h"
+#include "Common/SourceFile.h"
 
 #include <fstream>
 #include <sstream>
@@ -6,7 +6,6 @@
 #include <utl/strcat.hpp>
 
 using namespace scatha;
-using namespace parser;
 
 SourceFile SourceFile::load(std::filesystem::path path) {
     std::fstream file(path);

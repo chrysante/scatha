@@ -1,12 +1,12 @@
-#ifndef SCATHA_PARSER_SOURCEFILE_H_
-#define SCATHA_PARSER_SOURCEFILE_H_
+#ifndef SCATHA_COMMON_SOURCEFILE_H_
+#define SCATHA_COMMON_SOURCEFILE_H_
 
 #include <filesystem>
 #include <string>
 
 #include <scatha/Common/Base.h>
 
-namespace scatha::parser {
+namespace scatha {
 
 /// Represents a source file that is potentially loaded into memory
 class SCATHA_API SourceFile {
@@ -30,6 +30,6 @@ private:
     std::string _text;
 };
 
-} // namespace scatha::parser
+} // namespace scatha
 
-#endif // SCATHA_PARSER_SOURCEFILE_H_
+#endif // SCATHA_COMMON_SOURCEFILE_H_
