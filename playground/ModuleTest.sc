@@ -1,4 +1,8 @@
 
-fn print(text: &str) {
-    __builtin_putstr(text);
+private struct f {
+    var i: int;
+}
+
+fn main() {
+    return f().i;
 }

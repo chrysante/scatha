@@ -1,10 +1,5 @@
 
-fn main() {
-    X().print();
+export fn f() {
+    return 1;
 }
 
-struct X {
-    fn print(&this) {
-        print("This is an X\n");
-    }
-}
