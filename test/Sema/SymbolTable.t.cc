@@ -11,7 +11,7 @@ using enum sema::Mutability;
 TEST_CASE("SymbolTable lookup", "[sema]") {
     sema::SymbolTable sym;
     auto* var = sym.defineVariable("x", sym.S64(), Mutable);
-    CHECK(var == sym.lookup("x").front());
+    CHECK(var == sym.unqualifiedLookup("x").front());
 }
 
 TEST_CASE("SymbolTable define custom type", "[sema]") {
@@ -26,10 +26,10 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
         return sym.defineVariable("i", sym.S64(), Mutable);
     });
     xType->setSize(8);
-    auto overloadSet = sym.lookup("i");
+    auto overloadSet = sym.unqualifiedLookup("i");
     REQUIRE(!overloadSet.empty());
     sym.pushScope(xType);
-    auto* memberVar = sym.lookup("i").front();
+    auto* memberVar = sym.unqualifiedLookup("i").front();
     CHECK(memberI == memberVar);
     sym.popScope();
 }

@@ -203,7 +203,7 @@ fn f() {
 	fn g() {}
 	struct X {}
 })");
-    auto const* f = issues.sym.lookup("f").front();
+    auto const* f = issues.sym.unqualifiedLookup("f").front();
     auto const line3 = issues.findOnLine<GenericBadStmt>(3);
     REQUIRE(line3);
     CHECK(line3->scope() == f);
@@ -225,7 +225,7 @@ struct X {
 	{}
 	fn f() { {} }
 })");
-    auto const* x = issues.sym.lookup("X").front();
+    auto const* x = issues.sym.unqualifiedLookup("X").front();
     auto checkLine = [&](int line) {
         auto const issue = issues.findOnLine<GenericBadStmt>(line);
         REQUIRE(issue);

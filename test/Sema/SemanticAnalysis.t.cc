@@ -24,7 +24,7 @@ auto* findEntity(Scope* scope, std::string_view name) {
 
 template <typename T>
 auto* lookup(SymbolTable& sym, std::string_view name) {
-    auto entities = sym.lookup(name);
+    auto entities = sym.unqualifiedLookup(name);
     REQUIRE(entities.size() == 1);
     return dyncast<T*>(entities.front());
 }

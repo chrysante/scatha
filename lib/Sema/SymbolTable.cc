@@ -457,7 +457,8 @@ void SymbolTable::makeScopeCurrent(Scope* scope) {
     impl->currentScope = scope ? scope : &globalScope();
 }
 
-utl::small_vector<Entity*> SymbolTable::lookup(std::string_view name) {
+utl::small_vector<Entity*> SymbolTable::unqualifiedLookup(
+    std::string_view name) {
     utl::hashset<Entity*> result;
     for (auto* scope = &currentScope(); scope != nullptr;
          scope = scope->parent())

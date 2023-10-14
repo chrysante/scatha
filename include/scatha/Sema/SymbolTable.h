@@ -201,7 +201,7 @@ public:
     std::vector<Entity const*> entities() const;
 
     /// Find entity by name within the current scope
-    utl::small_vector<Entity*> lookup(std::string_view name);
+    utl::small_vector<Entity*> unqualifiedLookup(std::string_view name);
 
     /// Set the issue handler for this symbol table.
     /// Setting the issue handler is necessary for making declarations.

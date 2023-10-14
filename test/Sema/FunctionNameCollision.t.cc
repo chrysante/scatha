@@ -16,10 +16,10 @@ fn g(x: int) -> int {
 	return 1;
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    auto* f = sym.lookup("f").front();
+    auto* f = sym.unqualifiedLookup("f").front();
     CHECK(isa<Function>(f));
     CHECK(f->name() == "f");
-    auto* g = sym.lookup("g").front();
+    auto* g = sym.unqualifiedLookup("g").front();
     CHECK(isa<Function>(g));
     CHECK(g->name() == "g");
 }

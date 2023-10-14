@@ -462,7 +462,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
             return scope->findEntities(idExpr.value()) | ToSmallVector<>;
         }
         else {
-            return sym.lookup(idExpr.value());
+            return sym.unqualifiedLookup(idExpr.value());
         }
     }();
     auto* entity = toSingleEntity(idExpr, entities, ctx);
