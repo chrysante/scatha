@@ -458,15 +458,20 @@ void SymbolTable::makeScopeCurrent(Scope* scope) {
 }
 
 utl::small_vector<Entity*> SymbolTable::lookup(std::string_view name) {
-    auto* scope = &currentScope();
-    while (scope != nullptr) {
+    utl::hashset<Entity*> result;
+    for (auto* scope = &currentScope(); scope != nullptr;
+         scope = scope->parent())
+    {
         auto entities = scope->findEntities(name);
-        if (!entities.empty()) {
+        if (entities.empty()) {
+            continue;
+        }
+        if (!isa<Function>(entities.front()) && result.empty()) {
             return entities | ToSmallVector<>;
         }
-        scope = scope->parent();
+        result.insert(entities.begin(), entities.end());
     }
-    return {};
+    return result | ToSmallVector<>;
 }
 
 Function* SymbolTable::builtinFunction(size_t index) const {
