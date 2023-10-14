@@ -13,7 +13,7 @@ namespace scatha {
 class SCATHA_API SourceStructure {
 public:
     explicit SourceStructure(std::string filename, std::string_view text);
-    
+
     /// The name of this soure file
     std::string_view name() const { return _name; }
 
