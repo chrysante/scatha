@@ -549,7 +549,10 @@ E* SymbolTable::Impl::addEntity(Args&&... args) {
 
 void SymbolTable::addToCurrentScope(Entity* entity) {
     currentScope().addChild(entity);
-    if (isa<FileScope>(&currentScope()) && /* entity is public decl */ true) {
+    using enum AccessSpecifier;
+    bool isPublic = entity->accessSpec().value_or(Public) == Public;
+    // FIXME: Remove || true
+    if (isa<FileScope>(&currentScope()) && (isPublic || true)) {
         globalScope().addChild(entity);
     }
 }

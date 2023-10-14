@@ -10,6 +10,7 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "AST/AST.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/NameMangling.h"
@@ -35,6 +36,13 @@ std::string const& Entity::mangledName() const {
 
 EntityCategory Entity::category() const {
     return visit(*this, [](auto& derived) { return derived.categoryImpl(); });
+}
+
+std::optional<AccessSpecifier> Entity::accessSpec() const {
+    if (auto* decl = dyncast<ast::Declaration const*>(astNode())) {
+        return decl->accessSpec();
+    }
+    return std::nullopt;
 }
 
 void Entity::addAlternateName(std::string name) {

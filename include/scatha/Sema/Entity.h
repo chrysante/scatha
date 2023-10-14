@@ -118,6 +118,9 @@ public:
     /// \overload
     ast::ASTNode const* astNode() const { return _astNode; }
 
+    /// \Returns the access spec if this entity is a declaration
+    std::optional<AccessSpecifier> accessSpec() const;
+
 protected:
     explicit Entity(EntityType entityType,
                     std::string name,
