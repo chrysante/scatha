@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include <termfmt/termfmt.h>
+#include <utl/scope_guard.hpp>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
@@ -92,7 +93,7 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
             return;
         }
         // clang-format off
-        visit(*type, utl::overload{
+        SC_MATCH (*type) {
             [&](StructType const& type) {
                 if (!type.name().empty()) {
                     str << tfmt::format(Green, "@", type.name());
@@ -112,7 +113,7 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
             [&](Type const& type) {
                 str << tfmt::format(BrightBlue, type.name());
             }
-        }); // clang-format on
+        }; // clang-format on
     };
 }
 
@@ -488,14 +489,19 @@ void PrintCtx::printImpl(Select const& select) {
 }
 
 void PrintCtx::print(StructType const& structure) {
-    str << formatKeyword("struct") << " " << formatType(&structure) << " {\n";
+    str << formatKeyword("struct") << " " << formatType(&structure) << " {";
+    utl::scope_guard closeBrace = [&] { str << "}\n\n"; };
+    if (structure.members().empty()) {
+        return;
+    }
+    str << "\n";
     indent.increase();
     for (bool first = true; auto [type, offset]: structure.members()) {
         str << (first ? (first = false), "" : ",\n") << indent;
         str << formatType(type);
     }
     indent.decrease();
-    str << "\n}\n\n";
+    str << "\n";
 }
 
 void PrintCtx::print(ConstantData const& constData) {
