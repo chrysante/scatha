@@ -104,7 +104,6 @@ SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
 
 /// `public` or `private`. Defines whether the name is allowed to be referenced
 /// in a specific context.
-/// This is not implemented yet
 enum class AccessSpecifier : uint8_t { Public, Private };
 
 /// `export` or `internal`. Defines whether a function or member functions of a
