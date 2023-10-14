@@ -12,11 +12,11 @@ namespace scatha::parser {
 
 class TokenStream;
 
-/// 
-SCTEST_API void print(TokenStream const& tokens);
-
-///
+/// Prints the token stream \p tokens to \p ostream
 SCTEST_API void print(TokenStream const& tokens, std::ostream& ostream);
+
+/// \overload for `std::cout` as ostream
+SCTEST_API void print(TokenStream const& tokens);
 
 /// A stream  of tokens to be used by the parser.
 /// Expands a range of Token's into TokenEx's.
