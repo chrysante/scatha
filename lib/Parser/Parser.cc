@@ -149,6 +149,9 @@
 #include "Parser/Parser.h"
 
 #include <concepts>
+#include <optional>
+#include <tuple>
+#include <variant>
 
 #include <utl/concepts.hpp>
 #include <utl/function_view.hpp>
@@ -167,6 +170,16 @@ using namespace parser;
 using enum TokenKind;
 
 namespace {
+
+template <typename>
+struct ToVariant;
+
+template <typename... T>
+struct ToVariant<std::tuple<T...>>: std::type_identity<std::variant<T...>> {};
+
+using SpecList = std::tuple<sema::AccessSpecifier, sema::BinaryVisibility>;
+
+using SpecVar = ToVariant<SpecList>::type;
 
 struct Context {
     TokenStream tokens;
@@ -222,6 +235,7 @@ struct Context {
 
     // Helpers
     sema::Mutability eatMut();
+    SpecList parseSpecList();
 
     void pushExpectedExpression(Token const&);
 
@@ -320,16 +334,14 @@ UniquePtr<ast::SourceFile> Context::parseSourceFile(std::string filename) {
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
-    sema::BinaryVisibility binaryVis = sema::BinaryVisibility::Internal;
-    if (tokens.peek().kind() == Export) {
-        Token const token = tokens.eat();
-        binaryVis = sema::BinaryVisibility::Export;
-    }
+    auto [accessSpec, binaryVis] = parseSpecList();
     if (auto funcDef = parseFunctionDefinition()) {
+        funcDef->setAccessSpec(accessSpec);
         funcDef->setBinaryVisibility(binaryVis);
         return funcDef;
     }
     if (auto structDef = parseStructDefinition()) {
+        structDef->setAccessSpec(accessSpec);
         structDef->setBinaryVisibility(binaryVis);
         return structDef;
     }
@@ -1388,6 +1400,38 @@ sema::Mutability Context::eatMut() {
         return sema::Mutability::Mutable;
     }
     return sema::Mutability::Const;
+}
+
+static SpecList defaultSpecList() {
+    return { sema::AccessSpecifier::Public, sema::BinaryVisibility::Internal };
+}
+
+SpecList Context::parseSpecList() {
+    using sema::AccessSpecifier;
+    using sema::BinaryVisibility;
+    auto parse = [&]() -> std::optional<SpecVar> {
+        switch (tokens.peek().kind()) {
+        case Public:
+            return AccessSpecifier::Public;
+        case Private:
+            return AccessSpecifier::Private;
+        case Export:
+            return BinaryVisibility::Export;
+        default:
+            return std::nullopt;
+        }
+    };
+    SpecList result = defaultSpecList();
+    while (true) {
+        auto spec = parse();
+        if (!spec) {
+            break;
+        }
+        tokens.eat();
+        std::visit([&]<typename T>(T spec) { std::get<T>(result) = spec; },
+                   *spec);
+    }
+    return result;
 }
 
 void Context::pushExpectedExpression(Token const& token) {
