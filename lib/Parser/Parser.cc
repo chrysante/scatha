@@ -270,8 +270,8 @@ struct Context {
 UniquePtr<ast::ASTNode> parser::parse(std::span<SourceFile const> sourceFiles,
                                       IssueHandler& issueHandler) {
     utl::small_vector<UniquePtr<ast::SourceFile>> parsedFiles;
-    for (auto& file: sourceFiles) {
-        auto tokens = lex(file.text(), issueHandler);
+    for (auto [index, file]: sourceFiles | ranges::views::enumerate) {
+        auto tokens = lex(file.text(), issueHandler, index);
         if (issueHandler.haveErrors()) {
             return nullptr;
         }

@@ -13,13 +13,15 @@ struct SourceLocation {
     /// \Returns `true` if this object represents a valid source location
     bool valid() const { return line > 0 && column > 0; }
 
-    i64 index = 0;
+    i64 index        : 44 = 0;
+    size_t fileIndex : 20 = 0;
     i32 line = 0, column = 0;
 };
 
 inline bool operator==(SourceLocation const& lhs,
                        SourceLocation const& rhs) noexcept {
-    bool const result = lhs.index == rhs.index;
+    bool const result = lhs.index == rhs.index &&
+                        lhs.fileIndex == rhs.fileIndex;
     if (result) {
         SC_ASSERT(lhs.line == rhs.line,
                   "Line number must match for the same index.");
@@ -31,7 +33,15 @@ inline bool operator==(SourceLocation const& lhs,
 
 inline std::strong_ordering operator<=>(SourceLocation const& lhs,
                                         SourceLocation const& rhs) noexcept {
-    return lhs.index <=> rhs.index;
+    auto idx = lhs.index <=> rhs.index;
+    if (idx != std::strong_ordering::equal) {
+        return idx;
+    }
+    /// We have to do the static cast here because of a weird bug in clang where
+    /// it selects `operator<=>(int, int)` when the bitfield has less than 33
+    /// bits
+    return static_cast<size_t>(lhs.fileIndex) <=>
+           static_cast<size_t>(rhs.fileIndex);
 }
 
 SCATHA_API std::ostream& operator<<(std::ostream&, SourceLocation const&);

@@ -11,8 +11,10 @@
 
 namespace scatha::parser {
 
-SCATHA_API utl::vector<Token> lex(std::string_view text,
-                                  IssueHandler& issueHandler);
+///
+SCTEST_API utl::vector<Token> lex(std::string_view text,
+                                  IssueHandler& issueHandler,
+                                  size_t fileIndex = 0);
 
 } // namespace scatha::parser
 

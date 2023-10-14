@@ -44,14 +44,17 @@ struct Context {
     std::optional<char> next(ssize_t offset = 1) const;
 
     std::string_view text;
+    size_t fileIndex;
     IssueHandler& issues;
-    SourceLocation currentLocation{ 0, 1, 1 };
+    SourceLocation currentLocation{ 0, fileIndex, 1, 1 };
 };
 
 } // namespace
 
-utl::vector<Token> parser::lex(std::string_view text, IssueHandler& issues) {
-    Context ctx{ text, issues };
+utl::vector<Token> parser::lex(std::string_view text,
+                               IssueHandler& issues,
+                               size_t fileIndex) {
+    Context ctx{ text, fileIndex, issues };
     return ctx.run();
 }
 
@@ -200,7 +203,7 @@ std::optional<Token> Context::getPunctuation() {
 }
 
 static TokenKind toOperator(std::string_view str) {
-    if (false) (void)0; /// To make following chained `if/else` cases work
+    if ((false)) (void)0; /// To make following chained `if/else` cases work
 #define SC_OPERATOR_TOKEN_DEF(Token, op)                                       \
     else if (str == op) { return TokenKind::Token; }
 #include "Parser/Token.def"
