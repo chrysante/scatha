@@ -452,19 +452,24 @@ void BadMutConv::format(std::ostream& str) const {
         << expr()->type()->name() << " to " << to();
 }
 
-ORError::ORError(OverloadSet const* os,
+ORError::ORError(std::span<Function const* const> os,
                  std::vector<std::pair<QualType, ValueCategory>> argTypes,
                  std::vector<Function const*> matches):
     SemaIssue(nullptr, {}, IssueSeverity::Error),
-    os(os),
+    os(os | ranges::to<std::vector>),
     argTypes(std::move(argTypes)),
     matches(std::move(matches)) {}
 
 void ORError::format(std::ostream& str) const {
+    if (os.empty()) {
+        str << "Invalid OR Error (ICE)";
+        return;
+    }
+    auto name = os.front()->name();
     if (matches.empty()) {
-        str << "No matching function to call for " << os->name();
+        str << "No matching function to call for " << name;
     }
     else {
-        str << "Ambiguous function call to " << os->name();
+        str << "Ambiguous function call to " << name;
     }
 }

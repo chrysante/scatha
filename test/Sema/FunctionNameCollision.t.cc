@@ -15,11 +15,11 @@ fn f(x: int) -> int {
 fn g(x: int) -> int {
 	return 1;
 })";
-    auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    auto* f = sym.lookup("f");
-    CHECK(isa<OverloadSet>(f));
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+    auto* f = sym.lookup("f").front();
+    CHECK(isa<Function>(f));
     CHECK(f->name() == "f");
-    auto* g = sym.lookup("g");
-    CHECK(isa<OverloadSet>(g));
+    auto* g = sym.lookup("g").front();
+    CHECK(isa<Function>(g));
     CHECK(g->name() == "g");
 }

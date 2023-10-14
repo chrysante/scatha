@@ -246,11 +246,11 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
         return;
     }
     auto* type = dyncast<StructType*>(F->parent());
-    type->addSpecialMemberFunction(*SMF, F->overloadSet());
     if (!type) {
         ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, *SMF, type);
         return;
     }
+    type->addSpecialMemberFunction(*SMF, F);
     F->setSMFKind(*SMF);
     if (def.returnTypeExpr()) {
         ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, *SMF, type);

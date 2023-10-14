@@ -419,9 +419,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
     return &expr;
 }
 
-static Scope* findMALookupScope(ast::Identifier& id) {
-    auto* maParent = dyncast<ast::MemberAccess*>(id.parent());
-    if (!maParent || maParent->member() != &id) {
+static Scope* findMALookupScope(ast::Identifier& idExpr) {
+    auto* maParent = dyncast<ast::MemberAccess*>(idExpr.parent());
+    if (!maParent || maParent->member() != &idExpr) {
         return nullptr;
     }
     auto& accessed = *maParent->accessed();
@@ -436,51 +436,72 @@ static Scope* findMALookupScope(ast::Identifier& id) {
     }
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
-    auto* entity = [&] {
-        if (auto* scope = findMALookupScope(id)) {
-            return scope->findEntity(id.value());
+static Entity* toSingleEntity(ast::Identifier const& idExpr,
+                              std::span<Entity* const> entities,
+                              AnalysisContext& ctx) {
+    if (entities.empty()) {
+        return nullptr;
+    }
+    // TODO: Remove the check for !isa<Function>
+    if (entities.size() == 1 && !isa<Function>(entities.front())) {
+        return entities.front();
+    }
+    if (!ranges::all_of(entities, isa<Function>)) {
+        // TODO: Push error
+        SC_UNIMPLEMENTED();
+    }
+    auto functions = entities | ranges::views::transform(cast<Function*>) |
+                     ToSmallVector<>;
+    return ctx.symbolTable().addOverloadSet(idExpr.sourceRange(),
+                                            std::move(functions));
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
+    auto entities = [&] {
+        if (auto* scope = findMALookupScope(idExpr)) {
+            return scope->findEntities(idExpr.value()) | ToSmallVector<>;
         }
         else {
-            return sym.lookup(id.value());
+            return sym.lookup(idExpr.value());
         }
     }();
+    auto* entity = toSingleEntity(idExpr, entities, ctx);
     if (!entity) {
-        ctx.badExpr(&id, UndeclaredID);
+        ctx.badExpr(&idExpr, UndeclaredID);
         return nullptr;
     }
     // clang-format off
     return SC_MATCH (*entity) {
         [&](VarBase& var) -> ast::Expression* {
             if (isa<Type>(var.parent()) &&
-                !isa<ast::MemberAccess>(id.parent()))
+                !isa<ast::MemberAccess>(idExpr.parent()))
             {
-                ctx.badExpr(&id, AccessedMemberWithoutObject);
+                ctx.badExpr(&idExpr, AccessedMemberWithoutObject);
                 return nullptr;
             }
-            id.decorateValue(&var, var.valueCategory(), var.getQualType());
-            id.setConstantValue(clone(var.constantValue()));
-            return &id;
+            idExpr.decorateValue(&var, var.valueCategory(), var.getQualType());
+            idExpr.setConstantValue(clone(var.constantValue()));
+            return &idExpr;
         },
         [&](ObjectType& type) {
-            id.decorateType(&type);
-            return &id;
+            idExpr.decorateType(&type);
+            return &idExpr;
         },
         [&](OverloadSet& overloadSet) {
-            id.decorateValue(&overloadSet, LValue);
-            if (!isa<ast::FunctionCall>(id.parent()) &&
-                !isa<ast::MemberAccess>(id.parent()))
+            idExpr.decorateValue(&overloadSet, LValue);
+            if (!isa<ast::FunctionCall>(idExpr.parent()) &&
+                !isa<ast::MemberAccess>(idExpr.parent()))
             {
-                ctx.badExpr(&id, BadExpr::GenericBadExpr);
+                ctx.badExpr(&idExpr, BadExpr::GenericBadExpr);
             }
-            return &id;
+            return &idExpr;
         },
         [&](Generic& generic) {
-            id.decorateValue(&generic, LValue);
-            return &id;
+            idExpr.decorateValue(&generic, LValue);
+            return &idExpr;
         },
         [&](PoisonEntity& poison) {
-            id.decorateValue(&poison, RValue);
+            idExpr.decorateValue(&poison, RValue);
             return nullptr;
         },
         [&](Entity const& entity) -> ast::Expression* {
@@ -823,16 +844,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     {
         auto memberAccess = fc.extractCallee<ast::MemberAccess>();
         auto memFunc = memberAccess->extractMember();
-        auto* os = dyncast<OverloadSet*>(memFunc->entity());
         auto objectArg = memberAccess->extractAccessed();
         fc.insertArgument(0, std::move(objectArg));
         fc.setCallee(std::move(memFunc));
         orKind = ORKind::MemberFunction;
-        /// Cannot explicitly call special member functions
-        if (os && os->isSpecialMemberFunction()) {
-            ctx.badExpr(&fc, ExplicitSMFCall);
-            return nullptr;
-        }
     }
 
     /// If our callee is a generic expression, we assert that it is a
@@ -869,14 +884,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     /// Make sure we have an overload set as our called object
-    auto* overloadSet = dyncast_or_null<OverloadSet*>(fc.callee()->entity());
+    auto* overloadSet = dyncast<OverloadSet*>(fc.callee()->entity());
     if (!overloadSet) {
         ctx.badExpr(&fc, ObjectNotCallable);
         return nullptr;
     }
 
     /// Perform overload resolution
-    auto result = performOverloadResolution(overloadSet,
+    auto result = performOverloadResolution(*overloadSet,
                                             fc.arguments() | ToSmallVector<>,
                                             orKind);
     if (result.error) {
@@ -885,6 +900,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         return nullptr;
     }
     auto* function = result.function;
+    /// Cannot explicitly call special member functions
+    if (function->isSpecialMemberFunction()) {
+        ctx.badExpr(&fc, ExplicitSMFCall);
+        return nullptr;
+    }
+    /// Check if return type deduction succeeded
     auto* returnType = getReturnType(function);
     if (!returnType) {
         ctx.badExpr(&fc, CantDeduceReturnType);
@@ -1084,7 +1105,7 @@ static bool ctorIsPseudo(ObjectType const* type, auto const& args) {
     }
     /// Trivial lifetime general constructor call
     using enum SpecialMemberFunction;
-    return type->specialMemberFunction(New) == nullptr;
+    return type->specialMemberFunctions(New).empty();
 }
 
 static bool canConstructTrivialType(ast::ConstructExpr& expr,
@@ -1154,8 +1175,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         expr.insertArgument(0, std::move(obj));
     }
     using enum SpecialMemberFunction;
-    auto* ctorSet = type->specialMemberFunction(New);
-    SC_ASSERT(ctorSet, "Trivial lifetime case is handled above");
+    auto ctorSet = type->specialMemberFunctions(New);
+    SC_ASSERT(!ctorSet.empty(), "Trivial lifetime case is handled above");
     auto result = performOverloadResolution(ctorSet,
                                             expr.arguments() | ToAddress |
                                                 ToSmallVector<>,

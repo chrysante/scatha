@@ -1,5 +1,6 @@
 #include "Sema/SymbolTable.h"
 
+#include <range/v3/algorithm.hpp>
 #include <svm/Builtin.h>
 #include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
@@ -159,8 +160,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (Entity* entity = currentScope().findEntity(name)) {
-        impl->issue<Redefinition>(def, entity);
+    if (!checkRedef(name, def)) {
         return nullptr;
     }
     auto* type = impl->addEntity<StructType>(name, &currentScope(), def);
@@ -193,25 +193,15 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    OverloadSet* overloadSet = [&]() -> OverloadSet* {
-        auto* entity = currentScope().findEntity(name);
-        if (!entity) {
-            auto* overloadSet =
-                impl->addEntity<OverloadSet>(name, &currentScope());
-            addToCurrentScope(overloadSet);
-            return overloadSet;
-        }
-        if (auto* os = dyncast<OverloadSet*>(entity)) {
-            return os;
-        }
-        impl->issue<Redefinition>(def, entity);
-        return nullptr;
-    }();
-    if (!overloadSet) {
+    auto entities = currentScope().findEntities(name);
+    auto existing = ranges::find_if(entities, [](auto* entity) {
+        return !isa<Function>(entity);
+    });
+    if (existing != entities.end()) {
+        impl->issue<Redefinition>(def, *existing);
         return nullptr;
     }
     Function* function = impl->addEntity<Function>(name,
-                                                   overloadSet,
                                                    &currentScope(),
                                                    FunctionAttribute::None,
                                                    def);
@@ -228,17 +218,27 @@ Function* SymbolTable::declareFuncName(std::string name) {
     return declareFuncImpl(nullptr, name);
 }
 
+OverloadSet* SymbolTable::addOverloadSet(
+    SourceRange sourceRange, utl::small_vector<Function*> functions) {
+    SC_ASSERT(!functions.empty(), "");
+    auto name = std::string(functions.front()->name());
+    return impl->addEntity<OverloadSet>(sourceRange,
+                                        std::move(name),
+                                        functions);
+}
+
 bool SymbolTable::setFuncSig(Function* function, FunctionSignature sig) {
-    function->setSignature(std::move(sig));
-    auto* overloadSet = function->overloadSet();
-    auto* existing = overloadSet->add(function);
-    if (!existing) {
-        return true;
+    auto entities = function->parent()->findEntities(function->name());
+    auto overloadSet = entities | ranges::views::transform(cast<Function*>) |
+                       ToSmallVector<>;
+    auto* existing = OverloadSet::find(std::span<Function* const>(overloadSet),
+                                       sig.argumentTypes());
+    if (existing && existing != function) {
+        impl->issue<Redefinition>(function->definition(), existing);
+        return false;
     }
-    impl->issue<Redefinition>(cast_or_null<ast::Declaration*>(
-                                  function->astNode()),
-                              existing);
-    return false;
+    function->setSignature(std::move(sig));
+    return true;
 }
 
 bool SymbolTable::declareSpecialFunction(FunctionKind kind,
@@ -261,7 +261,6 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
         function._index = utl::narrow_cast<u32>(index);
         if (kind == FunctionKind::Foreign && slot == svm::BuiltinFunctionSlot) {
             function.setBuiltin();
-            function.overloadSet()->setBuiltin();
             impl->builtinFunctions[index] = &function;
         }
         return true;
@@ -275,8 +274,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
                                     GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (auto* existing = currentScope().findEntity(name)) {
-        impl->issue<Redefinition>(vardecl, existing);
+    if (!checkRedef(name, vardecl)) {
         return nullptr;
     }
     auto* variable = impl->addEntity<Variable>(name, &currentScope(), vardecl);
@@ -334,7 +332,7 @@ Temporary* SymbolTable::temporary(QualType type) {
 }
 
 void SymbolTable::declarePoison(std::string name, EntityCategory cat) {
-    if (isKeyword(name) || currentScope().findEntity(name)) {
+    if (isKeyword(name) || !currentScope().findEntities(name).empty()) {
         return;
     }
     auto* poison = impl->addEntity<PoisonEntity>(name, cat, &currentScope());
@@ -453,30 +451,22 @@ void SymbolTable::pushScope(Scope* scope) {
     impl->currentScope = scope;
 }
 
-bool SymbolTable::pushScope(std::string_view name) {
-    auto* scope = currentScope().findEntity<Scope>(name);
-    if (!scope) {
-        return false;
-    }
-    pushScope(scope);
-    return true;
-}
-
 void SymbolTable::popScope() { impl->currentScope = currentScope().parent(); }
 
 void SymbolTable::makeScopeCurrent(Scope* scope) {
     impl->currentScope = scope ? scope : &globalScope();
 }
 
-Entity const* SymbolTable::lookup(std::string_view name) const {
-    Scope const* scope = &currentScope();
+utl::small_vector<Entity*> SymbolTable::lookup(std::string_view name) {
+    auto* scope = &currentScope();
     while (scope != nullptr) {
-        if (auto* entity = scope->findEntity(name)) {
-            return entity;
+        auto entities = scope->findEntities(name);
+        if (!entities.empty()) {
+            return entities | ToSmallVector<>;
         }
         scope = scope->parent();
     }
-    return nullptr;
+    return {};
 }
 
 Function* SymbolTable::builtinFunction(size_t index) const {
@@ -555,6 +545,16 @@ void SymbolTable::addToCurrentScope(Entity* entity) {
     if (isa<FileScope>(&currentScope()) && (isPublic || true)) {
         globalScope().addChild(entity);
     }
+}
+
+bool SymbolTable::checkRedef(std::string_view name,
+                             ast::Declaration const* decl) {
+    auto entities = currentScope().findEntities(name);
+    if (entities.empty()) {
+        return true;
+    }
+    impl->issue<Redefinition>(decl, entities.front());
+    return false;
 }
 
 std::string SymbolTable::serialize() const {

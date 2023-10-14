@@ -33,7 +33,7 @@ enum class ORKind { FreeFunction, MemberFunction };
 
 /// Performs overload resolution
 SCTEST_API OverloadResolutionResult
-    performOverloadResolution(OverloadSet* overloadSet,
+    performOverloadResolution(std::span<Function* const> overloadSet,
                               std::span<ast::Expression const* const> arguments,
                               ORKind kind = ORKind::FreeFunction);
 

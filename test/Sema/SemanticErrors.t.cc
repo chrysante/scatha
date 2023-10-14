@@ -172,7 +172,7 @@ struct g{}
     CHECK(isa<StructType>(line3->existing()));
     auto const line5 = issues.findOnLine<Redefinition>(5);
     REQUIRE(line5);
-    CHECK(isa<OverloadSet>(line5->existing()));
+    CHECK(isa<Function>(line5->existing()));
 }
 
 TEST_CASE("Invalid variable declaration", "[sema][issue]") {
@@ -198,12 +198,12 @@ TEST_CASE("Invalid variable declaration", "[sema][issue]") {
 }
 
 TEST_CASE("Invalid declaration", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn f() {
 	fn g() {}
 	struct X {}
 })");
-    Function const* f = issues.sym.lookup<OverloadSet>("f")->front();
+    auto const* f = issues.sym.lookup("f").front();
     auto const line3 = issues.findOnLine<GenericBadStmt>(3);
     REQUIRE(line3);
     CHECK(line3->scope() == f);
@@ -215,7 +215,7 @@ fn f() {
 }
 
 TEST_CASE("Invalid statement at struct scope", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X {
 	return 0;
 	1;
@@ -225,7 +225,7 @@ struct X {
 	{}
 	fn f() { {} }
 })");
-    auto const* x = issues.sym.lookup<ObjectType>("X");
+    auto const* x = issues.sym.lookup("X").front();
     auto checkLine = [&](int line) {
         auto const issue = issues.findOnLine<GenericBadStmt>(line);
         REQUIRE(issue);

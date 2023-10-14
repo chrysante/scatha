@@ -120,9 +120,13 @@ Scope::Scope(EntityType entityType,
              ast::ASTNode* astNode):
     Entity(entityType, std::move(name), parent, astNode), _kind(kind) {}
 
-Entity const* Scope::findEntity(std::string_view name) const {
-    auto const itr = _entities.find(name);
-    return itr == _entities.end() ? nullptr : itr->second;
+std::span<Entity const* const> Scope::findEntities(
+    std::string_view name) const {
+    auto const itr = _names.find(name);
+    if (itr != _names.end()) {
+        return itr->second;
+    }
+    return {};
 }
 
 Property const* Scope::findProperty(PropertyKind kind) const {
@@ -143,27 +147,21 @@ void Scope::addChild(Entity* entity) {
     }
     /// We add the entity to our own symbol table
     /// We don't add anonymous entities because entities are keyed by their name
-    /// We don't add functions because their names collide with their overload
-    /// sets
-    if (entity->isAnonymous() || isa<Function>(entity)) {
+    if (entity->isAnonymous()) {
         return;
     }
     for (auto& name: entity->alternateNames()) {
-        SC_ASSERT(!_entities.contains(name),
-                  "Name already exists in this scope");
-        _entities.insert({ name, entity });
+        _names[name].push_back(entity);
     }
 }
 
 void Scope::addAlternateChildName(Entity* child, std::string name) {
-    if (!_children.contains(child)) {
+    if (child->isAnonymous() || !_children.contains(child)) {
         return;
     }
-    if (child->isAnonymous() || isa<Function>(child)) {
-        return;
-    }
-    auto const [itr, success] = _entities.insert({ name, child });
-    SC_ASSERT(success, "Failed to add new name");
+    auto& list = _names[name];
+    SC_ASSERT(list.empty(), "Failed to add new name");
+    list.push_back(child);
 }
 
 AnonymousScope::AnonymousScope(ScopeKind scopeKind, Scope* parent):
@@ -320,20 +318,14 @@ bool Function::isBuiltin() const {
     return isForeign() && slot() == svm::BuiltinFunctionSlot;
 }
 
-Function* OverloadSet::add(Function* F) {
-    auto itr = ranges::find_if(*this, [&](Function const* G) {
-        return ranges::equal(F->argumentTypes(), G->argumentTypes());
-    });
-    if (itr == end()) {
-        push_back(F);
-        return nullptr;
-    }
-    return *itr;
+Function const* OverloadSet::find(std::span<Type const* const> types) const {
+    return find(std::span<Function const* const>(*this), types);
 }
 
-Function const* OverloadSet::find(std::span<Type const* const> types) const {
-    auto itr = ranges::find_if(*this, [&](auto* function) {
+Function const* OverloadSet::find(std::span<Function const* const> set,
+                                  std::span<Type const* const> types) {
+    auto itr = ranges::find_if(set, [&](auto* function) {
         return ranges::equal(function->argumentTypes(), types);
     });
-    return itr != end() ? *itr : nullptr;
+    return itr != set.end() ? *itr : nullptr;
 }

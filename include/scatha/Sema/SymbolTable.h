@@ -7,10 +7,12 @@
 #include <vector>
 
 #include <utl/scope_guard.hpp>
+#include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
+#include <scatha/Common/SourceLocation.h>
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
 
@@ -58,6 +60,11 @@ public:
 
     /// \overload for use without AST
     Function* declareFuncName(std::string name);
+
+    /// Add an overload set to the symbol table. This actually just exists so
+    /// the symbol table owns the overload set and we have a stable address.
+    OverloadSet* addOverloadSet(SourceRange sourceRange,
+                                utl::small_vector<Function*> functions);
 
     /// Add signature to declared function.
     ///
@@ -131,12 +138,6 @@ public:
     /// \p scope must be a child scope of the current scope.
     void pushScope(Scope* scope);
 
-    /// Makes scope with name \p name the current scope.
-    ///
-    /// \Returns `false` if \p name is not the same of a child scope of the
-    /// current scope, `true` otherwise
-    bool pushScope(std::string_view name);
-
     /// Makes current the parent scope of the current scope.
     ///
     /// \warning Current scope must not be the global scope.
@@ -200,24 +201,7 @@ public:
     std::vector<Entity const*> entities() const;
 
     /// Find entity by name within the current scope
-    Entity* lookup(std::string_view name) {
-        return const_cast<Entity*>(std::as_const(*this).lookup(name));
-    }
-
-    /// \overload
-    Entity const* lookup(std::string_view name) const;
-
-    /// Lookup entity and `dyncast` to type `E`
-    template <std::derived_from<Entity> E>
-    E* lookup(std::string_view name) {
-        return const_cast<E*>(std::as_const(*this).lookup<E>(name));
-    }
-
-    /// \overload
-    template <std::derived_from<Entity> E>
-    E const* lookup(std::string_view name) const {
-        return dyncast_or_null<E const*>(lookup(name));
-    }
+    utl::small_vector<Entity*> lookup(std::string_view name);
 
     /// Set the issue handler for this symbol table.
     /// Setting the issue handler is necessary for making declarations.
@@ -278,6 +262,8 @@ private:
     T* declareBuiltinType(Args&&... args);
 
     void addToCurrentScope(Entity* entity);
+
+    bool checkRedef(std::string_view name, ast::Declaration const* declaration);
 
     std::unique_ptr<Impl> impl;
 };

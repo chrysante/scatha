@@ -255,12 +255,11 @@ SC_SEMA_BADEXPR_DEF(Subscript,
                     Error,
                     "Subscript expression requires exactly one argument")
 
-SC_SEMA_BADEXPR_DEF(
-    FunctionCall,
-    ExplicitSMFCall,
-    Error,
-    "Cannot explicitly call special member function '"
-        << cast<OverloadSet const*>(expr->callee()->entity())->SMFKind() << "'")
+SC_SEMA_BADEXPR_DEF(FunctionCall,
+                    ExplicitSMFCall,
+                    Error,
+                    "Cannot explicitly call special member function '"
+                        << expr->function()->SMFKind() << "'")
 
 SC_SEMA_BADEXPR_DEF(FunctionCall,
                     ObjectNotCallable,

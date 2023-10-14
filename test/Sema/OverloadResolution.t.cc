@@ -21,21 +21,21 @@ struct TestOS {
                        std::initializer_list<std::initializer_list<Type const*>>
                            paramTypeLists) {
         TestOS result;
-        result.overloadSet = allocate<OverloadSet>(name, nullptr);
         for (auto types: paramTypeLists) {
             auto f = allocate<Function>(name,
-                                        result.overloadSet.get(),
                                         nullptr,
                                         FunctionAttribute::None,
                                         nullptr);
             f->setSignature(FunctionSignature(types, sym.Void()));
-            result.overloadSet->add(f.get());
             result.functions.push_back(std::move(f));
         }
+        result.overloadSet =
+            sym.addOverloadSet({},
+                               result.functions | ToAddress | ToSmallVector<>);
         return result;
     }
 
-    UniquePtr<OverloadSet> overloadSet;
+    OverloadSet* overloadSet;
     utl::small_vector<UniquePtr<Function>> functions;
 };
 
@@ -65,7 +65,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("1") {
         // clang-format off
-        auto result = performOverloadResolution(f.overloadSet.get(), std::array{
+        auto result = performOverloadResolution(*f.overloadSet, std::array{
             makeExpr(sym.S64(), LValue),
             makeExpr(sym.arrayType(sym.S64(), 3), LValue)
         }, ORKind::FreeFunction); // clang-format on
@@ -76,7 +76,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("2") {
         // clang-format off
-        auto result = performOverloadResolution(f.overloadSet.get(), std::array{
+        auto result = performOverloadResolution(*f.overloadSet, std::array{
             makeExpr(QualType::Const(sym.S64()), RValue),
             makeExpr(QualType::Const(sym.arrayType(sym.S64())), LValue)
         }, ORKind::FreeFunction); // clang-format on
@@ -86,7 +86,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("3") {
         // clang-format off
-        auto result = performOverloadResolution(f.overloadSet.get(), std::array{
+        auto result = performOverloadResolution(*f.overloadSet, std::array{
             makeExpr(sym.S32(), LValue),
             makeExpr(sym.arrayType(sym.S64(), 4), LValue)
         }, ORKind::FreeFunction); // clang-format on
@@ -102,7 +102,7 @@ TEST_CASE("Overload resolution", "[sema]") {
 
     SECTION("4") {
         // clang-format off
-        auto result = performOverloadResolution(g.overloadSet.get(), std::array{
+        auto result = performOverloadResolution(*g.overloadSet, std::array{
             makeExpr(sym.Str(), LValue)
         }, ORKind::FreeFunction); // clang-format on
         REQUIRE(!result.error);

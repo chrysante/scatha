@@ -57,7 +57,7 @@ static OverloadResolutionResult makeError(Args&&... args) {
 }
 
 OverloadResolutionResult sema::performOverloadResolution(
-    OverloadSet* overloadSet,
+    std::span<Function* const> overloadSet,
     std::span<ast::Expression const* const> arguments,
     ORKind kind) {
     utl::small_vector<OverloadResolutionResult, 4> results;
@@ -68,7 +68,7 @@ OverloadResolutionResult sema::performOverloadResolution(
         uint32_t index;
     };
     utl::small_vector<RankIndexPair> ranks;
-    for (auto* F: *overloadSet) {
+    for (auto* F: overloadSet) {
         OverloadResolutionResult match{ .function = F };
         auto rank = signatureMatch(match, arguments, F->argumentTypes(), kind);
         if (rank) {

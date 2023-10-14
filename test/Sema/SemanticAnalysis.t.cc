@@ -15,6 +15,20 @@ using namespace sema;
 using namespace ast;
 using enum ValueCategory;
 
+template <typename T>
+auto* findEntity(Scope* scope, std::string_view name) {
+    auto entities = scope->findEntities(name);
+    REQUIRE(entities.size() == 1);
+    return dyncast<T*>(entities.front());
+}
+
+template <typename T>
+auto* lookup(SymbolTable& sym, std::string_view name) {
+    auto entities = sym.lookup(name);
+    REQUIRE(entities.size() == 1);
+    return dyncast<T*>(entities.front());
+}
+
 TEST_CASE("Registration in SymbolTable", "[sema]") {
     auto const text = R"(
 fn mul(a: int, b: int, c: double) -> int {
@@ -23,23 +37,21 @@ fn mul(a: int, b: int, c: double) -> int {
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto* mul = sym.lookup<OverloadSet>("mul");
+    auto* mul = lookup<Function>(sym, "mul");
     REQUIRE(mul);
-    auto const* mulFn = mul->front();
-    REQUIRE(mulFn);
-    auto const& fnType = mulFn->signature();
+    auto const& fnType = mul->signature();
     CHECK(fnType.returnType() == sym.S64());
     REQUIRE(fnType.argumentCount() == 3);
     CHECK(fnType.argumentType(0) == sym.S64());
     CHECK(fnType.argumentType(1) == sym.S64());
     CHECK(fnType.argumentType(2) == sym.F64());
-    auto* a = mulFn->findEntity<Variable>("a");
+    auto* a = findEntity<Variable>(mul, "a");
     CHECK(a->type() == sym.S64());
-    auto* b = mulFn->findEntity<Variable>("b");
+    auto* b = findEntity<Variable>(mul, "b");
     CHECK(b->type() == sym.S64());
-    auto const c = mulFn->findEntity<Variable>("c");
+    auto const c = findEntity<Variable>(mul, "c");
     CHECK(c->type() == sym.F64());
-    auto* result = mulFn->findEntity<Variable>("result");
+    auto* result = findEntity<Variable>(mul, "result");
     CHECK(result->type() == sym.S64());
 }
 
@@ -116,10 +128,8 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
     CHECK(resultDecl->initExpr()->type().get() == sym.F32());
     auto* fnCallExpr = cast<ast::FunctionCall*>(resultDecl->initExpr());
-    auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
-    REQUIRE(calleeOverloadSet);
-    auto* calleeFunction = calleeOverloadSet->front();
-    CHECK(fnCallExpr->function() == calleeFunction);
+    auto* calleeFn = lookup<Function>(sym, "callee");
+    CHECK(fnCallExpr->function() == calleeFn);
 }
 
 TEST_CASE("Decoration of the AST with struct definition", "[sema]") {
@@ -276,12 +286,10 @@ struct X {
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto* x = sym.lookup<Scope>("X");
+    auto* x = lookup<Scope>(sym, "X");
     sym.pushScope(x);
-    auto* fOS = sym.lookup<OverloadSet>("f");
-    auto const* fFn = fOS->front();
-    /// Finding `f` in the overload set with `X.Y` as argument shall succeed.
-    CHECK(fFn->argumentType(0)->parent()->name() == "X");
+    auto* f = lookup<Function>(sym, "f");
+    CHECK(f->argumentType(0)->parent()->name() == "X");
     sym.popScope();
 }
 
@@ -321,16 +329,16 @@ struct W {
     var n: s64;
 })");
     REQUIRE(iss.empty());
-    auto* x = sym.lookup<StructType>("X");
+    auto* x = lookup<StructType>(sym, "X");
     CHECK(x->size() == 8);
     CHECK(x->align() == 8);
-    auto* y = sym.lookup<StructType>("Y");
+    auto* y = lookup<StructType>(sym, "Y");
     CHECK(y->size() == 16);
     CHECK(y->align() == 8);
-    auto* z = sym.lookup<StructType>("Z");
+    auto* z = lookup<StructType>(sym, "Z");
     CHECK(z->size() == 7);
     CHECK(z->align() == 1);
-    auto* w = sym.lookup<StructType>("W");
+    auto* w = lookup<StructType>(sym, "W");
     CHECK(w->size() == 16);
     CHECK(w->align() == 8);
 }
@@ -345,8 +353,7 @@ fn f(cond: bool) {
     return 0;
 })");
         REQUIRE(iss.empty());
-        auto* f = sym.lookup<OverloadSet>("f")->front();
-        REQUIRE(f);
+        auto* f = lookup<Function>(sym, "f");
         CHECK(f->returnType() == sym.S64());
     }
     SECTION("Successful void") {
@@ -358,8 +365,7 @@ fn f(cond: bool) {
     return;
 })");
         REQUIRE(iss.empty());
-        auto* f = sym.lookup<OverloadSet>("f")->front();
-        REQUIRE(f);
+        auto* f = lookup<Function>(sym, "f");
         CHECK(f->returnType() == sym.Void());
     }
     SECTION("Conflicting") {

@@ -126,7 +126,7 @@ static Function* generateSLF(SpecialLifetimeFunction key,
     function->setIsMember();
     function->setSLFKind(key);
     function->setSMFKind(SMFKind);
-    type.addSpecialMemberFunction(SMFKind, function->overloadSet());
+    type.addSpecialMemberFunction(SMFKind, function);
     return function;
 }
 
@@ -136,38 +136,38 @@ static SLFArray getDefinedSLFs(SymbolTable& sym, StructType& type) {
     SLFArray result{};
     Type const* mutRef = sym.reference(QualType::Mut(&type));
     Type const* constRef = sym.reference(QualType::Const(&type));
-    if (auto* constructor = type.specialMemberFunction(New)) {
-        for (auto* F: *constructor) {
-            switch (F->argumentCount()) {
-            case 1: {
-                if (F->argumentType(0) == mutRef) {
-                    result[DefaultConstructor] = F;
-                }
-                break;
+    auto ctors = type.specialMemberFunctions(New);
+    for (auto* F: ctors) {
+        switch (F->argumentCount()) {
+        case 1: {
+            if (F->argumentType(0) == mutRef) {
+                result[DefaultConstructor] = F;
             }
-            case 2: {
-                if (F->argumentType(0) == mutRef &&
-                    F->argumentType(1) == constRef)
-                {
-                    result[CopyConstructor] = F;
-                }
-                break;
+            break;
+        }
+        case 2: {
+            if (F->argumentType(0) == mutRef && F->argumentType(1) == constRef)
+            {
+                result[CopyConstructor] = F;
             }
-            default:
-                break;
-            }
+            break;
+        }
+        default:
+            break;
         }
     }
-    if (auto* os = type.specialMemberFunction(Move)) {
-        if (auto* move = os->find(std::array{ mutRef, mutRef })) {
-            result[MoveConstructor] = move;
-        }
+
+    auto moveCtors = type.specialMemberFunctions(Move);
+    if (auto* move = OverloadSet::find(moveCtors, std::array{ mutRef, mutRef }))
+    {
+        result[MoveConstructor] = move;
     }
-    if (auto* os = type.specialMemberFunction(Delete)) {
-        if (auto* del = os->find(std::array{ mutRef })) {
-            result[Destructor] = del;
-        }
+
+    auto dtors = type.specialMemberFunctions(Delete);
+    if (auto* del = OverloadSet::find(dtors, std::array{ mutRef })) {
+        result[Destructor] = del;
     }
+
     return result;
 }
 
@@ -180,9 +180,9 @@ static bool computeDefaultConstructible(StructType& type, SLFArray const& SLF) {
     }
     /// Otherwise we are only default constructible if no special member
     /// functions are user defined
-    return !type.specialMemberFunction(New) &&
-           !type.specialMemberFunction(Move) &&
-           !type.specialMemberFunction(Delete);
+    return type.specialMemberFunctions(New).empty() &&
+           type.specialMemberFunctions(Move).empty() &&
+           type.specialMemberFunctions(Delete).empty();
 }
 
 static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
@@ -235,7 +235,7 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
                     return true;
                 }
                 if (objType->hasTrivialLifetime() &&
-                    !objType->specialMemberFunction(New))
+                    objType->specialMemberFunctions(New).empty())
                 {
                     return true;
                 }

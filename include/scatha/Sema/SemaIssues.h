@@ -349,7 +349,7 @@ public:
     enum Reason { NoMatch, Ambiguous };
 
     explicit ORError(
-        OverloadSet const* os,
+        std::span<Function const* const> os,
         std::vector<std::pair<QualType, ValueCategory>> argTypes = {},
         std::vector<Function const*> matches = {});
 
@@ -363,7 +363,7 @@ public:
 private:
     void format(std::ostream&) const override;
 
-    OverloadSet const* os;
+    std::vector<Function const*> os;
     std::vector<std::pair<QualType, ValueCategory>> argTypes;
     std::vector<Function const*> matches;
 };

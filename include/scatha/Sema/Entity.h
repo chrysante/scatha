@@ -15,6 +15,7 @@
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Ranges.h>
+#include <scatha/Common/SourceLocation.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
@@ -294,25 +295,14 @@ public:
     /// The kind of this scope
     ScopeKind kind() const { return _kind; }
 
-    /// Find entity by name within this scope
-    Entity* findEntity(std::string_view name) {
-        return const_cast<Entity*>(std::as_const(*this).findEntity(name));
+    /// Find entities by name within this scope
+    std::span<Entity* const> findEntities(std::string_view name) {
+        auto ret = std::as_const(*this).findEntities(name);
+        return { const_cast<Entity* const*>(ret.data()), ret.size() };
     }
 
     /// \overload
-    Entity const* findEntity(std::string_view name) const;
-
-    /// Find entity by name and `dyncast` to type `E`
-    template <std::derived_from<Entity> E>
-    E* findEntity(std::string_view name) {
-        return const_cast<E*>(std::as_const(*this).findEntity<E>(name));
-    }
-
-    /// \overload
-    template <std::derived_from<Entity> E>
-    E const* findEntity(std::string_view name) const {
-        return dyncast_or_null<E const*>(findEntity(name));
-    }
+    std::span<Entity const* const> findEntities(std::string_view name) const;
 
     /// Find the property \p prop in this scope
     Property* findProperty(PropertyKind prop) {
@@ -331,7 +321,9 @@ public:
     auto children() const { return _children | Opaque; }
 
     /// \Returns A View over the entities in this scope
-    auto entities() const { return _entities | ranges::views::values; }
+    auto entities() const {
+        return _names | ranges::views::values | ranges::views::join;
+    }
 
     /// Add \p entity as a child of this scope. This function is used by the
     /// symbol table and should ideally be private
@@ -354,7 +346,7 @@ private:
 
 private:
     utl::hashset<Scope*> _children;
-    utl::hashmap<std::string, Entity*> _entities;
+    utl::hashmap<std::string, utl::small_vector<Entity*, 1>> _names;
     utl::hashmap<PropertyKind, Property*> _properties;
     ScopeKind _kind;
 };
@@ -425,7 +417,6 @@ bool argumentsEqual(FunctionSignature const& a, FunctionSignature const& b);
 class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
-                      OverloadSet* overloadSet,
                       Scope* parentScope,
                       FunctionAttribute attrs,
                       ast::ASTNode* astNode):
@@ -434,7 +425,6 @@ public:
               std::move(name),
               parentScope,
               astNode),
-        _overloadSet(overloadSet),
         attrs(attrs) {}
 
     /// The definition of this function in the AST
@@ -442,12 +432,6 @@ public:
 
     /// \Returns The type ID of this function.
     Type const* type() const { return signature().type(); }
-
-    /// \Returns The overload set of this function.
-    OverloadSet* overloadSet() { return _overloadSet; }
-
-    /// \overload
-    OverloadSet const* overloadSet() const { return _overloadSet; }
 
     /// Set the signature of this function
     void setSignature(FunctionSignature sig) { _sig = std::move(sig); }
@@ -570,7 +554,6 @@ private:
 
     friend class SymbolTable;
     FunctionSignature _sig;
-    OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
     BinaryVisibility binaryVis = BinaryVisibility::Internal;
@@ -634,22 +617,23 @@ public:
 
     ///
     void addSpecialMemberFunction(SpecialMemberFunction kind,
-                                  OverloadSet* overloadSet) {
-        specialMemberFunctions[kind] = overloadSet;
+                                  Function* function) {
+        SMFs[kind].push_back(function);
     }
 
     ///
-    OverloadSet* specialMemberFunction(SpecialMemberFunction kind) const {
-        auto itr = specialMemberFunctions.find(kind);
-        if (itr != specialMemberFunctions.end()) {
+    std::span<Function* const> specialMemberFunctions(
+        SpecialMemberFunction kind) const {
+        auto itr = SMFs.find(kind);
+        if (itr != SMFs.end()) {
             return itr->second;
         }
-        return nullptr;
+        return {};
     }
 
     ///
     Function* specialLifetimeFunction(SpecialLifetimeFunction kind) const {
-        return specialLifetimeFunctions[static_cast<size_t>(kind)];
+        return SLFs[static_cast<size_t>(kind)];
     }
 
     /// These functions should be only accessible by the implementation of
@@ -663,8 +647,8 @@ public:
 
     /// See above
     void setSpecialLifetimeFunctions(
-        std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLF) {
-        specialLifetimeFunctions = SLF;
+        std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLFs) {
+        this->SLFs = SLFs;
     }
 
 protected:
@@ -688,9 +672,8 @@ private:
 
     size_t _size;
     size_t _align;
-    utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
-    std::array<Function*, EnumSize<SpecialLifetimeFunction>>
-        specialLifetimeFunctions = {};
+    utl::hashmap<SpecialMemberFunction, utl::small_vector<Function*, 1>> SMFs;
+    std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLFs = {};
     bool _hasTrivialLifetime     : 1 = true; // Only used by structs
     bool _isDefaultConstructible : 1 = true;
 };
@@ -939,19 +922,16 @@ private:
 
 class SCATHA_API OverloadSet:
     public Entity,
-    private utl::small_vector<Function*, 8> {
+    private utl::small_vector<Function*> {
 public:
-    /// Construct an empty overload set.
-    explicit OverloadSet(std::string name, Scope* parentScope):
-        Entity(EntityType::OverloadSet, std::move(name), parentScope) {}
+    explicit OverloadSet(SourceRange loc,
+                         std::string name,
+                         utl::small_vector<Function*> functions):
+        Entity(EntityType::OverloadSet, std::move(name), nullptr),
+        small_vector(std::move(functions)),
+        loc(loc) {}
 
     OverloadSet(OverloadSet const&) = delete;
-
-    /// Add a function to this overload set.
-    /// \returns `nullptr` if \p function is a legal
-    /// overload. Otherwise returns the existing function that conflicts with
-    /// the overload
-    Function* add(Function* function);
 
     /// \Returns the function in this overload set that exactly matches the
     /// parameter types \p paramTypes
@@ -962,16 +942,19 @@ public:
     /// \overload for const
     Function const* find(std::span<Type const* const> paramTypes) const;
 
-    /// \Returns `true` is this overload set is a set of special member
-    /// functions
-    bool isSpecialMemberFunction() const {
-        /// Either all functions are SMFs or none is
-        return front()->isSpecialMemberFunction();
+    /// \overload
+    static Function* find(std::span<Function* const> set,
+                          std::span<Type const* const> paramTypes) {
+        std::span<Function const* const> cSet(set.data(), set.size());
+        return const_cast<Function*>(find(cSet, paramTypes));
     }
 
-    /// \Returns the kind of special member function if this overload set is a
-    /// set of special member functions
-    SpecialMemberFunction SMFKind() const { return front()->SMFKind(); }
+    /// \overload
+    static Function const* find(std::span<Function const* const> set,
+                                std::span<Type const* const> paramTypes);
+
+    /// The location where this overload set ist formed
+    SourceRange sourceRange() const { return loc; }
 
     /// Inherit interface from `utl::vector`
     using small_vector::begin;
@@ -985,6 +968,8 @@ public:
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
+
+    SourceRange loc;
 };
 
 /// # Generic
