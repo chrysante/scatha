@@ -28,8 +28,8 @@ static std::vector<std::string_view> splitText(std::string_view text,
         ranges::to<std::vector>;
 }
 
-SourceStructure::SourceStructure(std::string_view text):
-    source(text), lines(splitText(text, '\n')) {}
+SourceStructure::SourceStructure(std::string filename, std::string_view text):
+    _name(std::move(filename)), source(text), lines(splitText(text, '\n')) {}
 
 IssueMessage::IssueMessage(std::string msg):
     IssueMessage([=](std::ostream& str) { str << msg; }) {}

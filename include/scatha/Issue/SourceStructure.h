@@ -1,6 +1,7 @@
 #ifndef SCATHA_ISSUE_SOURCESTRUCTURE_H_
 #define SCATHA_ISSUE_SOURCESTRUCTURE_H_
 
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -11,7 +12,10 @@ namespace scatha {
 /// View over the lines of a source text
 class SCATHA_API SourceStructure {
 public:
-    explicit SourceStructure(std::string_view text);
+    explicit SourceStructure(std::string filename, std::string_view text);
+    
+    /// The name of this soure file
+    std::string_view name() const { return _name; }
 
     /// The underlying source text
     std::string_view text() const { return source; }
@@ -33,6 +37,7 @@ public:
     /// @}
 
 private:
+    std::string _name;
     std::string_view source;
     std::vector<std::string_view> lines;
 };
