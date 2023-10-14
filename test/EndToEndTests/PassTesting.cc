@@ -43,7 +43,7 @@ using Generator = utl::unique_function<std::pair<ir::Context, ir::Module>()>;
 [[noreturn]] static void throwIssue(std::string_view source,
                                     Issue const& issue) {
     std::stringstream sstr;
-    issue.print(SourceStructure(source), sstr);
+    issue.print(source, sstr);
     throw std::runtime_error(sstr.str());
 }
 

@@ -4,18 +4,20 @@
 #include <concepts>
 #include <iosfwd>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include <range/v3/view.hpp>
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Ranges.h>
+#include <scatha/Common/SourceFile.h>
 #include <scatha/Issue/Issue.h>
 
 namespace scatha {
 
-/// Utility class to gather issues in the front-end. Several compilation steps
-/// accept an issue handler to submit issues to.
+/// Utility class to gather issues in the front-end. All compilation steps in
+/// the front end accept an issue handler to submit issues to.
 class SCATHA_API IssueHandler {
     /// \Returns A views over all issues
     auto issueView() const { return _issues | ToConstAddress; }
@@ -71,10 +73,16 @@ public:
     /// \Returns `true` if any errors have occured
     bool haveErrors() const;
 
-    /// Print all issues
+    /// Print all issues to \p ostream
+    void print(std::span<SourceFile const> source, std::ostream& ostream) const;
+
+    /// \overload for `std::cout` as ostream
+    void print(std::span<SourceFile const> source) const;
+
+    /// Legacy interface
     void print(std::string_view source) const;
 
-    /// Print all issues to \p ostream
+    /// \overload for `std::cout` as ostream
     void print(std::string_view source, std::ostream& ostream) const;
 
 private:

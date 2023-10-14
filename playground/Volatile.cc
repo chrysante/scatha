@@ -156,22 +156,26 @@ static void run(ir::Module const& mod) {
     sstr << file.rdbuf();
     auto source = sstr.str();
 
+    std::vector files = {
+        SourceFile::load("/Users/indigo/dev/scatha/playground/module-test.sc"),
+        SourceFile::load("/Users/indigo/dev/scatha/playground/Test.sc")
+    };
     IssueHandler issues;
-    auto root = parser::parse(source, issues);
+    auto TU = parser::parse(files, issues);
     if (!issues.empty()) {
-        issues.print(source);
+        issues.print(files);
     }
     if (issues.haveErrors()) {
         return;
     }
     issues.clear();
     sema::SymbolTable sym;
-    auto analysisResult = sema::analyze(*root, sym, issues);
+    auto analysisResult = sema::analyze(*TU, sym, issues);
     if (!issues.empty()) {
-        issues.print(source);
+        issues.print(files);
     }
     header("AST");
-    ast::printTree(*root);
+    ast::printTree(*TU);
     header("Symbol Table");
     sema::print(sym);
 
@@ -180,7 +184,7 @@ static void run(ir::Module const& mod) {
     }
 
     header("IR Module");
-    auto [ctx, mod] = irgen::generateIR(*root, sym, analysisResult);
+    auto [ctx, mod] = irgen::generateIR(*TU, sym, analysisResult);
     ir::print(mod);
 
     run(mod);
@@ -222,76 +226,6 @@ static void run(ir::Module const& mod) {
     catch (opt::PipelineError const& e) {
         std::cout << e.what() << std::endl;
     }
-}
-
-[[maybe_unused]] static void formatPlayground(std::filesystem::path path) {
-    std::fstream file(path);
-    if (!file) {
-        throw;
-    }
-    std::stringstream sstr;
-    sstr << file.rdbuf();
-    auto source = sstr.str();
-
-    IssueHandler issues;
-    auto root = parser::parse(source, issues);
-    if (!issues.empty()) {
-        issues.print(source);
-    }
-    if (issues.haveErrors()) {
-        return;
-    }
-    issues.clear();
-    sema::SymbolTable sym;
-    auto analysisResult = sema::analyze(*root, sym, issues);
-
-    std::vector<SourceHighlight> highlights;
-    int index = 0;
-    for (auto* issue: issues) {
-        ++index;
-        if (index != 2) {
-            highlights.push_back({ HighlightKind::Primary,
-                                   issue->sourceRange(),
-                                   utl::strcat("Message ", index) });
-            continue;
-        }
-        using namespace tfmt::modifiers;
-        highlights.push_back({ HighlightKind::Primary,
-                               issue->sourceRange(),
-                               [](std::ostream& str) {
-            str << "This is an absurdly long and verbose error message that "
-                << "for sure will not fit on a single line. "
-                << "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, "
-                << tfmt::format(Green | Bold,
-                                "sed diam nonumy eirmod tempor invidunt ut "
-                                "labore et ")
-                << "dolore magna aliquyam erat, sed diam voluptua. At vero "
-                << "eos et accusam et justo duo dolores et ea rebum. Stet "
-                << "clita kasd gubergren, no sea takimata sanctus est Lorem "
-                << "ipsum dolor sit amet. Lorem ipsum dolor sit amet, "
-                << "consetetur sadipscing elitr, sed diam nonumy eirmod "
-                << "tempor invidunt ut labore et dolore magna aliquyam erat, "
-                << "sed diam voluptua. At vero eos et accusam et justo duo "
-                << "dolores et ea rebum. Stet clita kasd gubergren, no sea "
-                << "takimata sanctus est Lorem ipsum dolor sit amet. Lorem "
-                << "ipsum dolor sit amet, consetetur sadipscing elitr, sed "
-                << "diam nonumy eirmod tempor invidunt ut labore et dolore "
-                << "magna aliquyam erat, sed diam voluptua. At vero eos et "
-                << "accusam et justo duo dolores et ea rebum. Stet clita kasd "
-                << "gubergren, no sea takimata sanctus est Lorem ipsum dolor "
-                << "sit amet. "
-                << "Duis autem vel eum iriure dolor in hendrerit in vulputate "
-                << "velit esse molestie consequat, vel illum dolore eu "
-                << "feugiat nulla facilisis at vero eros et accumsan et iusto "
-                << "odio dignissim qui blandit praesent luptatum zzril "
-                << "delenit augue duis dolore te feugait nulla facilisi. "
-                << "Lorem ipsum dolor sit amet.";
-                              } });
-    }
-    highlightSource(SourceStructure(source),
-                    highlights,
-                    IssueSeverity::Error,
-                    std::cout);
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {

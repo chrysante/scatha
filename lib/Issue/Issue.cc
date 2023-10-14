@@ -10,10 +10,6 @@
 using namespace scatha;
 using namespace tfmt::modifiers;
 
-void Issue::print(SourceStructure const& source) const {
-    print(source, std::cout);
-}
-
 static constexpr utl::streammanip label([](std::ostream& str,
                                            IssueSeverity severity) {
     switch (severity) {
@@ -32,7 +28,7 @@ static constexpr utl::streammanip location([](std::ostream& str,
         << tfmt::format(BrightGrey, "Column: ") << loc.column << " ";
 });
 
-void Issue::print(SourceStructure const& source, std::ostream& str) const {
+void Issue::print(SourceStructureMap& sourceMap, std::ostream& str) const {
     str << label(severity());
     if (sourceLocation().valid()) {
         str << location(sourceLocation());
@@ -42,7 +38,7 @@ void Issue::print(SourceStructure const& source, std::ostream& str) const {
         format(str);
         str << "\n";
         if (sourceRange().valid()) {
-            highlightSource(source, sourceRange(), severity(), str);
+            highlightSource(sourceMap, sourceRange(), severity(), str);
         }
     }
     /// New style
@@ -51,9 +47,21 @@ void Issue::print(SourceStructure const& source, std::ostream& str) const {
             str << tfmt::format(BrightBlue | Italic, _header);
         }
         str << "\n";
-        highlightSource(source, highlights, severity(), str);
+        highlightSource(sourceMap, highlights, severity(), str);
         if (_hint) {
             str << tfmt::format(Green | Bold, "Hint: ") << _hint << "\n";
         }
     }
 }
+
+void Issue::print(SourceStructureMap& sourceMap) const {
+    print(sourceMap, std::cout);
+}
+
+void Issue::print(std::string_view source, std::ostream& ostream) const {
+    auto file = SourceFile::make(std::string(source));
+    SourceStructureMap sourceMap(std::span(&file, 1));
+    print(sourceMap, ostream);
+}
+
+void Issue::print(std::string_view source) const { print(source, std::cout); }

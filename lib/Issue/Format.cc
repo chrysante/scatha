@@ -78,33 +78,32 @@ namespace {
 
 struct SrcHighlightCtx {
     std::ostream& str;
-    SourceStructure const& source;
+    SourceStructureMap& sourceMap;
     std::vector<SourceHighlight>& highlights;
     IssueSeverity severity;
 
     SrcHighlightCtx(std::ostream& str,
-                    SourceStructure const& source,
+                    SourceStructureMap& sourceMap,
                     std::vector<SourceHighlight>& highlights,
                     IssueSeverity severity):
-        str(str), source(source), highlights(highlights), severity(severity) {}
+        str(str),
+        sourceMap(sourceMap),
+        highlights(highlights),
+        severity(severity) {}
 
     void run();
 
-    void printHighlightLine(SourceHighlight const& highlight);
+    void printHighlightLine(SourceHighlight const& highlight,
+                            SourceStructure const& source);
 
     void printMessage(size_t currentColumn, SourceHighlight const& highlight);
 
-    void printLines(int index, int count);
+    void printLines(int index, int count, SourceStructure const& source);
 };
 
 } // namespace
-void scatha::highlightSource(SourceStructure const& source,
-                             SourceRange sourceRange,
-                             IssueSeverity severity) {
-    highlightSource(source, sourceRange, severity, std::cout);
-}
 
-void scatha::highlightSource(SourceStructure const& source,
+void scatha::highlightSource(SourceStructureMap& source,
                              SourceRange sourceRange,
                              IssueSeverity severity,
                              std::ostream& str) {
@@ -114,53 +113,36 @@ void scatha::highlightSource(SourceStructure const& source,
                     str);
 }
 
-void scatha::highlightSource(SourceStructure const& source,
+void scatha::highlightSource(SourceStructureMap& source,
                              std::vector<SourceHighlight> highlights,
                              IssueSeverity severity,
                              std::ostream& str) {
     SrcHighlightCtx(str, source, highlights, severity).run();
 }
 
+void scatha::highlightSource(SourceStructureMap& source,
+                             SourceRange sourceRange,
+                             IssueSeverity severity) {
+    highlightSource(source, sourceRange, severity, std::cout);
+}
+
 static int lineProj(SourceHighlight& h) { return h.position.begin().line - 1; }
 
 void SrcHighlightCtx::run() {
-    ranges::sort(highlights, ranges::less{}, lineProj);
-    ranges::unique(highlights, ranges::less{}, lineProj);
-    auto validEnd = ranges::remove_if(highlights, [](auto& H) {
-        return !H.position.valid();
-    });
-    highlights.erase(validEnd, highlights.end());
-    if (highlights.empty()) {
-        return;
+    int const PaddingLines = 1;
+    for (auto& H: highlights) {
+        auto& source = sourceMap(H.position.begin().fileIndex);
+        int line = lineProj(H);
+        if (line >= source.size()) {
+            continue;
+        }
+        /// Begin padding lines
+        printLines(line - PaddingLines, PaddingLines, source);
+        ///
+        printHighlightLine(H, source);
+        /// End padding lines
+        printLines(line + 1, PaddingLines, source);
     }
-
-    int const paddingLines = 1;
-    int const innerPaddingLines = 1;
-
-    /// Begin padding lines
-    printLines(lineProj(highlights.front()) - paddingLines, paddingLines);
-    for (auto itr = highlights.begin(); itr != highlights.end(); ++itr) {
-        auto& H = *itr;
-        if (lineProj(H) >= source.size()) {
-            continue;
-        }
-        printHighlightLine(H);
-        auto next = std::next(itr);
-        if (next == highlights.end()) {
-            continue;
-        }
-        /// In-between lines
-        int numInBetween = lineProj(*next) - lineProj(H) - 1;
-        if (numInBetween <= 2 * innerPaddingLines) {
-            printLines(lineProj(H) + 1, numInBetween);
-            continue;
-        }
-        printLines(lineProj(H) + 1, innerPaddingLines);
-        str << tfmt::format(BrightGrey, "[...]") << "\n";
-        printLines(lineProj(*next) - 1, innerPaddingLines);
-    }
-    /// End padding lines
-    printLines(lineProj(highlights.back()) + 1, paddingLines);
 }
 
 static auto toMod(IssueSeverity severity) {
@@ -173,7 +155,8 @@ static auto toMod(IssueSeverity severity) {
     }
 }
 
-void SrcHighlightCtx::printHighlightLine(SourceHighlight const& highlight) {
+void SrcHighlightCtx::printHighlightLine(SourceHighlight const& highlight,
+                                         SourceStructure const& source) {
     auto range = highlight.position;
     SC_ASSERT(range.valid(), "");
     auto const sl = range.begin();
@@ -231,7 +214,9 @@ void SrcHighlightCtx::printMessage(size_t currentColumn,
     }
 }
 
-void SrcHighlightCtx::printLines(int userIdx, int count) {
+void SrcHighlightCtx::printLines(int userIdx,
+                                 int count,
+                                 SourceStructure const& source) {
     int index = std::clamp(userIdx, 0, int(source.size()));
     int end = std::clamp(userIdx + count, 0, int(source.size()));
     for (; index < end; ++index) {

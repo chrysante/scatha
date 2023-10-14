@@ -11,6 +11,10 @@
 
 namespace scatha {
 
+/// This class is not exposed in public headers but forward declared here for
+/// the `print()` method
+class SourceStructureMap;
+
 /// Base class of all compilation issues
 class SCATHA_API Issue {
 public:
@@ -30,15 +34,25 @@ public:
     /// Shorthand for `severity() == Warning`
     bool isWarning() const { return severity() == IssueSeverity::Warning; }
 
+    ///
     void setSourceLocation(SourceLocation sourceLocation) {
         setSourceRange({ sourceLocation, sourceLocation });
     }
 
+    ///
     void setSourceRange(SourceRange sourceRange) { sourceRng = sourceRange; }
 
-    void print(SourceStructure const& source) const;
+    /// Print interface meant to be used by `IssueHandler`
+    void print(SourceStructureMap& sourceMap, std::ostream& ostream) const;
 
-    void print(SourceStructure const& source, std::ostream& ostream) const;
+    /// \overload for `std::cout` as ostream
+    void print(SourceStructureMap& sourceMap) const;
+
+    /// Convenience print interface for use with single source files
+    void print(std::string_view source, std::ostream& ostream) const;
+
+    /// \overload for `std::cout` as ostream
+    void print(std::string_view source) const;
 
 protected:
     explicit Issue(SourceLocation sourceLoc, IssueSeverity severity):
