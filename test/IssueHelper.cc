@@ -8,11 +8,17 @@
 
 using namespace scatha;
 
-static void testPrinting(IssueHandler const& iss, std::string_view source) {
+static void testPrinting(IssueHandler const& iss,
+                         std::span<SourceFile const> sources) {
     /// We print all issues to a string that we'll discard to make sure that
     /// printing does not crash
     std::stringstream sstr;
-    iss.print(source, sstr);
+    iss.print(sources, sstr);
+}
+
+static void testPrinting(IssueHandler const& iss, std::string_view text) {
+    auto source = SourceFile::make(std::string(text));
+    testPrinting(iss, std::span(&source, 1));
 }
 
 test::IssueHelper test::getLexicalIssues(std::string_view source) {
@@ -29,8 +35,8 @@ test::IssueHelper test::getSyntaxIssues(std::string_view source) {
     return { std::move(iss), std::move(ast) };
 }
 
-test::IssueHelper test::getSemaIssues(std::string_view source) {
-    auto [ast, sym, iss] = produceDecoratedASTAndSymTable(source);
-    testPrinting(iss, source);
+test::IssueHelper test::getSemaIssues(std::span<SourceFile const> sources) {
+    auto [ast, sym, iss] = produceDecoratedASTAndSymTable(std::move(sources));
+    testPrinting(iss, sources);
     return { std::move(iss), std::move(ast), std::move(sym) };
 }

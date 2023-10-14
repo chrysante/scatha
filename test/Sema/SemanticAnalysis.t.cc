@@ -433,3 +433,8 @@ fn main() {
 })");
     CHECK(iss.findOnLine<BadExpr>(4, BadExpr::BinaryExprImmutableLHS));
 }
+
+TEST_CASE("Redefinition in different module", "[sema]") {
+    auto iss = test::getSemaIssues("fn f() {}", "struct f {}");
+    CHECK(iss.findOnLine<Redefinition>(1));
+}

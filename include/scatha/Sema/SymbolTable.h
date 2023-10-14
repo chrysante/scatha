@@ -24,8 +24,13 @@ namespace scatha::sema {
 
 class FunctionSignature;
 
+/// Container of all entities in the program.
+/// This als performs semantic checks on declarations such as redefinitions.
 class SCATHA_API SymbolTable {
 public:
+    /// This is public so static functions in the implementation can name it
+    struct Impl;
+
     SymbolTable();
     SymbolTable(SymbolTable&&) noexcept;
     SymbolTable& operator=(SymbolTable&&) noexcept;
@@ -248,8 +253,6 @@ public:
     static SymbolTable deserialize(std::string_view data);
 
 private:
-    struct Impl;
-
     StructType* declareStructImpl(ast::StructDefinition* def, std::string name);
     Function* declareFuncImpl(ast::FunctionDefinition* def, std::string name);
     Variable* declareVarImpl(ast::VarDeclBase* vardecl, std::string name);
@@ -263,7 +266,9 @@ private:
 
     void addToCurrentScope(Entity* entity);
 
-    bool checkRedef(std::string_view name, ast::Declaration const* declaration);
+    bool checkRedef(int kind,
+                    std::string_view name,
+                    ast::Declaration const* declaration);
 
     std::unique_ptr<Impl> impl;
 };

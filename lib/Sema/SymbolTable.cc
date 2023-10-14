@@ -28,6 +28,9 @@ static bool isKeyword(std::string_view id) {
     return std::find(keywords.begin(), keywords.end(), id) != keywords.end();
 }
 
+/// Discriminator for `checkRedef()`
+enum Redef { Redef_Function, Redef_Other };
+
 struct SymbolTable::Impl {
     /// The currently active scope
     Scope* currentScope = nullptr;
@@ -159,7 +162,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(name, def)) {
+    if (!checkRedef(Redef_Other, name, def)) {
         return nullptr;
     }
     auto* type = impl->addEntity<StructType>(name, &currentScope(), def);
@@ -192,12 +195,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    auto entities = currentScope().findEntities(name);
-    auto existing = ranges::find_if(entities, [](auto* entity) {
-        return !isa<Function>(entity);
-    });
-    if (existing != entities.end()) {
-        impl->issue<Redefinition>(def, *existing);
+    if (!checkRedef(Redef_Function, name, def)) {
         return nullptr;
     }
     Function* function = impl->addEntity<Function>(name,
@@ -273,7 +271,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
                                     GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(name, vardecl)) {
+    if (!checkRedef(Redef_Other, name, vardecl)) {
         return nullptr;
     }
     auto* variable = impl->addEntity<Variable>(name, &currentScope(), vardecl);
@@ -458,7 +456,7 @@ void SymbolTable::makeScopeCurrent(Scope* scope) {
 
 utl::small_vector<Entity*> SymbolTable::unqualifiedLookup(
     std::string_view name) {
-    utl::hashset<Entity*> result;
+    utl::hashset<Entity*> overloadSet;
     for (auto* scope = &currentScope(); scope != nullptr;
          scope = scope->parent())
     {
@@ -466,12 +464,21 @@ utl::small_vector<Entity*> SymbolTable::unqualifiedLookup(
         if (entities.empty()) {
             continue;
         }
-        if (!isa<Function>(entities.front()) && result.empty()) {
+        SC_ASSERT(ranges::all_of(entities, isa<Function>) ||
+                      ranges::none_of(entities, isa<Function>),
+                  "If any entity with this name is a function all must be "
+                  "functions");
+        /// If we have functions we build up the overload set
+        if (isa<Function>(entities.front())) {
+            overloadSet.insert(entities.begin(), entities.end());
+            continue;
+        }
+        /// Otherwise if this is the first entity we find we return that
+        if (overloadSet.empty()) {
             return entities | ToSmallVector<>;
         }
-        result.insert(entities.begin(), entities.end());
     }
-    return result | ToSmallVector<>;
+    return overloadSet | ToSmallVector<>;
 }
 
 Function* SymbolTable::builtinFunction(size_t index) const {
@@ -551,14 +558,39 @@ void SymbolTable::addToCurrentScope(Entity* entity) {
     }
 }
 
-bool SymbolTable::checkRedef(std::string_view name,
-                             ast::Declaration const* decl) {
-    auto entities = currentScope().findEntities(name);
-    if (entities.empty()) {
-        return true;
+static bool checkRedefImpl(SymbolTable::Impl& impl,
+                           Redef kind,
+                           Scope const* scope,
+                           std::string_view name,
+                           ast::Declaration const* decl) {
+    auto entities = scope->findEntities(name);
+    switch (kind) {
+    case Redef_Function:
+        if (ranges::all_of(entities, isa<Function>)) {
+            return true;
+        }
+        break;
+    case Redef_Other:
+        if (entities.empty()) {
+            return true;
+        }
+        break;
     }
-    impl->issue<Redefinition>(decl, entities.front());
+    impl.issue<Redefinition>(decl, entities.front());
     return false;
+}
+
+/// \Returns `true` if no redefinition occured
+bool SymbolTable::checkRedef(int kind,
+                             std::string_view name,
+                             ast::Declaration const* decl) {
+    if (!checkRedefImpl(*impl, Redef(kind), &currentScope(), name, decl)) {
+        return false;
+    }
+    if (isa<FileScope>(currentScope()) && decl->isPublic()) {
+        return checkRedefImpl(*impl, Redef(kind), &globalScope(), name, decl);
+    }
+    return true;
 }
 
 std::string SymbolTable::serialize() const { SC_UNIMPLEMENTED(); }

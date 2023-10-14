@@ -187,11 +187,19 @@ BadDecl::BadDecl(Scope const* scope,
                  IssueSeverity severity):
     BadStmt(scope, declaration, severity) {}
 
-void Redefinition::format(std::ostream& str) const {
-    str << "Redefinition";
-    if (declaration()) {
-        str << " of " << declaration()->name();
-    }
+Redefinition::Redefinition(Scope const* scope,
+                           ast::Declaration const* declaration,
+                           Entity const* existing):
+    BadDecl(scope, declaration, IssueSeverity::Error), _existing(existing) {
+    primary(sourceRange(), [=](std::ostream& str) {
+        str << "Redefinition";
+        if (declaration) {
+            str << " of " << declaration->name();
+        }
+    });
+    secondary(getSourceRange(existing->astNode()), [=](std::ostream& str) {
+        str << "Existing declaration is here";
+    });
 }
 
 BadVarDecl::BadVarDecl(Scope const* _scope,
@@ -333,14 +341,6 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
     }
 }
 
-void StructDefCycle::format(std::ostream& str) const {
-    str << "Cyclic struct definition\nDefinition cycle is: ";
-    for (auto* entity: cycle()) {
-        str << formatEntity(entity) << " -> ";
-    }
-    str << formatEntity(cycle().front());
-}
-
 BadPassedType::BadPassedType(Scope const* scope,
                              ast::Expression const* expr,
                              Reason reason):
@@ -479,19 +479,5 @@ ORError::ORError(ast::Expression const* expr,
                       [=](std::ostream& str) { str << "Candidate function"; });
         }
         break;
-    }
-}
-
-void ORError::format(std::ostream& str) const {
-    if (os.empty()) {
-        str << "Invalid OR Error (ICE)";
-        return;
-    }
-    auto name = os.front()->name();
-    if (matches.empty()) {
-        str << "No matching function to call for " << name;
-    }
-    else {
-        str << "Ambiguous function call to " << name;
     }
 }

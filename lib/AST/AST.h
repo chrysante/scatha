@@ -850,6 +850,11 @@ public:
     /// Access specifier. Defaults to`Public`
     sema::AccessSpecifier accessSpec() const { return _accessSpec; }
 
+    /// Shorthand for `accessSpec() == sema::AccessSpecifier::Public`
+    bool isPublic() const {
+        return accessSpec() == sema::AccessSpecifier::Public;
+    }
+
     void setAccessSpec(sema::AccessSpecifier spec) { _accessSpec = spec; }
 
     /// Binary visibility specifier. Defaults to `Internal`

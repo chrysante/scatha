@@ -118,16 +118,12 @@ class SCATHA_API Redefinition: public BadDecl {
 public:
     Redefinition(Scope const* scope,
                  ast::Declaration const* declaration,
-                 Entity const* existing):
-        BadDecl(scope, declaration, IssueSeverity::Error),
-        _existing(existing) {}
+                 Entity const* existing);
 
     /// \Returns the previous declaration of the same name
     Entity const* existing() const { return _existing; }
 
 private:
-    void format(std::ostream& str) const override;
-
     Entity const* _existing;
 };
 
@@ -231,8 +227,6 @@ public:
     std::span<Entity const* const> cycle() const { return _cycle; }
 
 private:
-    void format(std::ostream& str) const override;
-
     std::vector<Entity const*> _cycle;
 };
 
@@ -357,8 +351,6 @@ public:
     Reason reason() const { return matches.empty() ? NoMatch : Ambiguous; }
 
 private:
-    void format(std::ostream&) const override;
-
     std::vector<Function const*> os;
     std::vector<std::pair<QualType, ValueCategory>> argTypes;
     std::vector<Function const*> matches;
