@@ -156,7 +156,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto callData = inst.instDataAs<mir::CallInstData>();
         auto* callee = cast<mir::Function const*>(inst.operandAt(0));
         currentBlock->insertBack(
-            CallInst(getLabelID(*callee), callData.regOffset));
+            CallInst(LabelPosition(getLabelID(*callee)), callData.regOffset));
         break;
     }
     case mir::InstCode::CallExt: {

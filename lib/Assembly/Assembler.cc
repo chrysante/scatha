@@ -56,7 +56,6 @@ struct Context {
     void translate(CMoveInst const&);
     void translate(JumpInst const&);
     void translate(CallInst const&);
-    void translate(ICallInst const&);
     void translate(CallExtInst const&);
     void translate(ReturnInst const&);
     void translate(TerminateInst const&);
@@ -204,15 +203,9 @@ void Context::translate(JumpInst const& jmp) {
 }
 
 void Context::translate(CallInst const& call) {
-    put(OpCode::call);
-    put(LabelPlaceholder{}, call.function(), StaticAddressWidth);
-    put<u8>(call.regPtrOffset());
-}
-
-void Context::translate(ICallInst const& call) {
-    OpCode const opcode = mapICall(call.destAddr().valueType());
+    OpCode const opcode = mapCall(call.dest().valueType());
     put(opcode);
-    dispatch(call.destAddr());
+    dispatch(call.dest());
     put<u8>(call.regPtrOffset());
 }
 
@@ -417,7 +410,16 @@ void Context::translate(Value32 const& value) { put<u32>(value.value()); }
 void Context::translate(Value64 const& value) { put<u64>(value.value()); }
 
 void Context::translate(LabelPosition const& pos) {
-    put(LabelPlaceholder{}, pos.ID(), DynamicAddressWidth);
+    auto width = [&] {
+        using enum LabelPosition::Kind;
+        switch (pos.kind()) {
+        case Static:
+            return StaticAddressWidth;
+        case Dynamic:
+            return DynamicAddressWidth;
+        }
+    }();
+    put(LabelPlaceholder{}, pos.ID(), width);
 }
 
 template <typename T>

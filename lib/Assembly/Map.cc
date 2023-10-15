@@ -221,8 +221,10 @@ OpCode Asm::mapJump(CompareOperation condition) {
     }); // clang-format on
 }
 
-OpCode Asm::mapICall(ValueType type) {
+OpCode Asm::mapCall(ValueType type) {
     switch (type) {
+    case ValueType::LabelPosition:
+        return OpCode::call;
     case ValueType::RegisterIndex:
         return OpCode::icallr;
     case ValueType::MemoryAddress:

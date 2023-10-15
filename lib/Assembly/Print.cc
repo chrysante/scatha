@@ -115,12 +115,7 @@ struct PrintCtx {
     }
 
     void printImpl(CallInst const& call) {
-        str << instName("call") << " " << label(call.function()) << ", "
-            << call.regPtrOffset();
-    }
-
-    void printImpl(ICallInst const& call) {
-        str << instName("icall") << " " << call.destAddr() << ", "
+        str << instName("call") << " " << call.dest() << ", "
             << call.regPtrOffset();
     }
 

@@ -23,7 +23,7 @@ std::pair<svm::OpCode, size_t> mapCMove(CompareOperation cmpOp,
 
 svm::OpCode mapJump(CompareOperation condition);
 
-svm::OpCode mapICall(ValueType destType);
+svm::OpCode mapCall(ValueType destType);
 
 svm::OpCode mapCompare(Type type,
                        ValueType lhs,

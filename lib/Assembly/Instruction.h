@@ -103,30 +103,17 @@ private:
     u64 _regPtrOffset;
 };
 
-/// Represents a `call` instruction.
+/// Represents a `*call*` instruction.
 class CallInst: public CallBase {
 public:
-    explicit CallInst(LabelID function, size_t regPtrOffset):
-        CallBase(regPtrOffset), _function(function) {}
+    explicit CallInst(Value dest, size_t regPtrOffset):
+        CallBase(regPtrOffset), _dest(dest) {}
 
-    /// \Returns The ID of the label to jump to
-    LabelID function() const { return _function; }
-
-private:
-    LabelID _function;
-};
-
-/// Represents a `icall` instruction.
-class ICallInst: public CallBase {
-public:
-    explicit ICallInst(Value destAddr, size_t regPtrOffset):
-        CallBase(regPtrOffset), _destAddr(destAddr) {}
-
-    /// \Returns The index of the register that holds the dest address
-    Value destAddr() const { return _destAddr; }
+    /// \Returns The callee to jump to
+    Value dest() const { return _dest; }
 
 private:
-    Value _destAddr;
+    Value _dest;
 };
 
 /// Represents a `call ext` instruction.

@@ -82,11 +82,37 @@ public:
 /// the program is assembled
 class LabelPosition: public ValueBase {
 public:
-    explicit LabelPosition(LabelID labelID):
-        ValueBase(utl::tag<u64>{}, utl::to_underlying(labelID)) {}
+    enum Kind { Static, Dynamic };
+
+    struct Structure {
+        LabelID labelID : 63;
+        Kind kind       : 1;
+    };
+
+    static u64 compose(LabelID ID, Kind kind) {
+        Structure value{ ID, kind };
+        return utl::bit_cast<u64>(value);
+    }
+
+    static std::pair<LabelID, Kind> decompose(u64 value) {
+        auto s = utl::bit_cast<Structure>(value);
+        return { LabelID{ s.labelID }, Kind{ s.kind } };
+    }
+
+    explicit LabelPosition(LabelID labelID, Kind kind = Static):
+        ValueBase(utl::tag<u64>{}, compose(labelID, kind)) {}
 
     ///
-    LabelID ID() const { return LabelID{ value() }; }
+    Kind kind() const {
+        auto [ID, kind] = decompose(value());
+        return kind;
+    }
+
+    ///
+    LabelID ID() const {
+        auto [ID, kind] = decompose(value());
+        return ID;
+    }
 };
 
 inline Value64 ValueBase::widen() const { return Value64(value()); }

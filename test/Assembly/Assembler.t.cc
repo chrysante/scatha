@@ -76,7 +76,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     a.add(Block(main, "main", {
         MoveInst(RegisterIndex(3), Value64(54), 8), // a = 54
         MoveInst(RegisterIndex(4), Value64(24), 8), // b = 24
-        CallInst(gcd, 3),
+        CallInst(LabelPosition(gcd), 3),
         TerminateInst()
     }));
     // GCD function
@@ -108,7 +108,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
     a.add(Block(main, "main", {
         MoveInst(RegisterIndex(3), Value64(1023534), 8), // R[2] = arg0
         MoveInst(RegisterIndex(4), Value64(213588), 8),  // R[2] = arg1
-        CallInst(gcd, 3),
+        CallInst(LabelPosition(gcd), 3),
         TerminateInst(),
     }));
     a.add(Block(gcd, "gcd", {
@@ -127,7 +127,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
         MoveInst(RegisterIndex(6), RegisterIndex(0), 8),                                  // R[6] = a
         ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(6), RegisterIndex(1), 8), // R[6] %= b
         MoveInst(RegisterIndex(5), RegisterIndex(1), 8),                                  // R[5] = b
-        CallInst(gcd, 5),                                // Deliberately no tail call
+        CallInst(LabelPosition(gcd), 5),                 // Deliberately no tail call
         MoveInst(RegisterIndex(0), RegisterIndex(5), 8), // R[0] = R[5] to move the result to the expected register
         ReturnInst(),
     })); // clang-format on
@@ -405,10 +405,12 @@ TEST_CASE("icall register instruction", "[assembly][vm]") {
     // Main function
     // clang-format off
     a.add(Block(main, "main", {
-        MoveInst(RegisterIndex(1), LabelPosition(func), 8),
+        MoveInst(RegisterIndex(1),
+                 LabelPosition(func, LabelPosition::Dynamic),
+                 8),
         MoveInst(RegisterIndex(3), Value64(13), 8),
         MoveInst(RegisterIndex(4), Value64(29), 8),
-        ICallInst(RegisterIndex(1), 3),
+        CallInst(RegisterIndex(1), 3),
         MoveInst(RegisterIndex(0), RegisterIndex(3), 8), 
         TerminateInst()
     }));
@@ -432,11 +434,13 @@ TEST_CASE("icall memory instruction", "[assembly][vm]") {
     // clang-format off
     a.add(Block(main, "main", {
         LIncSPInst(RegisterIndex(0), Value16(16)), // %0 = alloca(8)
-        MoveInst(RegisterIndex(1), LabelPosition(func), 8),
+        MoveInst(RegisterIndex(1),
+                 LabelPosition(func, LabelPosition::Dynamic),
+                 8),
         MoveInst(MemoryAddress(0, 0xFF, 0, 8), RegisterIndex(1), 8),
         MoveInst(RegisterIndex(3), Value64(13), 8),
         MoveInst(RegisterIndex(4), Value64(29), 8),
-        ICallInst(MemoryAddress(0, 0xFF, 0, 8), 3),
+        CallInst(MemoryAddress(0, 0xFF, 0, 8), 3),
         MoveInst(RegisterIndex(0), RegisterIndex(3), 8),
         TerminateInst()
     }));
