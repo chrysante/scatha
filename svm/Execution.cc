@@ -253,17 +253,29 @@ u64 const* VirtualMachine::execute(size_t start,
         codeOffset = InvalidCodeOffset;
 #endif
 
-        switch (opcode) {
-            using enum OpCode;
+        /// The `INST_LIST_BEGIN()` and `INST_LIST_END()` macros exist to avoid
+        /// indentation in the switch statement and therefore better formatting.
+        /// Kinda hacky but it works nicely.
+#define INST_LIST_BEGIN()                                                      \
+    switch (opcode) {                                                          \
+        using enum OpCode;
 
-#define INSTRUCTION(instcode)                                                  \
+#define INST_LIST_END()                                                        \
     break;                                                                     \
-    case instcode:                                                             \
-        codeOffset = ExecCodeSize<instcode>;
+    case _count:                                                               \
+        SVM_UNREACHABLE();                                                     \
+        }
 
-            // clang-format off
-            
-        INSTRUCTION(call) {
+        /// Every opcode must be listed with `INST(opcode)` followed by a
+        /// statement that is executed for that opcode.
+#define INST(opcode)                                                           \
+    break;                                                                     \
+    case opcode:                                                               \
+        codeOffset = ExecCodeSize<opcode>;
+
+        INST_LIST_BEGIN()
+
+        INST(call) {
             u32 const dest = load<u32>(i);
             size_t const regOffset = i[4];
             currentFrame.regPtr += regOffset;
@@ -274,7 +286,7 @@ u64 const* VirtualMachine::execute(size_t start,
             currentFrame.iptr = text.data() + dest;
         }
 
-        INSTRUCTION(ret) {
+        INST(ret) {
             if UTL_UNLIKELY (currentFrame.bottomReg == regPtr) {
                 /// Meaning we are the root of the call tree aka. the main/start
                 /// function, so we set the instruction pointer to the program
@@ -288,378 +300,338 @@ u64 const* VirtualMachine::execute(size_t start,
             }
         }
 
-        INSTRUCTION(callExt) {
+        INST(callExt) {
             size_t const regPtrOffset = i[0];
-            size_t const tableIdx     = i[1];
+            size_t const tableIdx = i[1];
             size_t const idxIntoTable = load<u16>(&i[2]);
             auto const etxFunction = extFunctionTable[tableIdx][idxIntoTable];
             etxFunction.invoke(regPtr + regPtrOffset, this);
         }
 
-        INSTRUCTION(terminate) { currentFrame.iptr = programBreak; }
+        INST(terminate) { currentFrame.iptr = programBreak; }
 
-            /// ## Loads and storeRegs
-        INSTRUCTION(mov64RR) {
-            size_t const destRegIdx   = i[0];
-            size_t const sourceRegIdx = i[1];
-            regPtr[destRegIdx]        = regPtr[sourceRegIdx];
-        }
-
-        INSTRUCTION(mov64RV) {
+        /// ## Loads and storeRegs
+        INST(mov64RR) {
             size_t const destRegIdx = i[0];
-            regPtr[destRegIdx]      = load<u64>(i + 1);
+            size_t const sourceRegIdx = i[1];
+            regPtr[destRegIdx] = regPtr[sourceRegIdx];
         }
-            
-        INSTRUCTION(mov8MR) { moveMR<1>(i, regPtr); }
-        INSTRUCTION(mov16MR) { moveMR<2>(i, regPtr); }
-        INSTRUCTION(mov32MR) { moveMR<4>(i, regPtr); }
-        INSTRUCTION(mov64MR) { moveMR<8>(i, regPtr); }
-        INSTRUCTION(mov8RM) { moveRM<1>(i, regPtr); }
-        INSTRUCTION(mov16RM) { moveRM<2>(i, regPtr); }
-        INSTRUCTION(mov32RM) { moveRM<4>(i, regPtr); }
-        INSTRUCTION(mov64RM) { moveRM<8>(i, regPtr); }
+
+        INST(mov64RV) {
+            size_t const destRegIdx = i[0];
+            regPtr[destRegIdx] = load<u64>(i + 1);
+        }
+
+        INST(mov8MR) { moveMR<1>(i, regPtr); }
+        INST(mov16MR) { moveMR<2>(i, regPtr); }
+        INST(mov32MR) { moveMR<4>(i, regPtr); }
+        INST(mov64MR) { moveMR<8>(i, regPtr); }
+        INST(mov8RM) { moveRM<1>(i, regPtr); }
+        INST(mov16RM) { moveRM<2>(i, regPtr); }
+        INST(mov32RM) { moveRM<4>(i, regPtr); }
+        INST(mov64RM) { moveRM<8>(i, regPtr); }
 
         /// ## Conditional moves
-        INSTRUCTION(cmove64RR) { condMove64RR(i, regPtr, equal(flags)); }
-        INSTRUCTION(cmove64RV) { condMove64RV(i, regPtr, equal(flags)); }
-        INSTRUCTION(cmove8RM) { condMoveRM<1>(i, regPtr, equal(flags)); }
-        INSTRUCTION(cmove16RM) { condMoveRM<2>(i, regPtr, equal(flags)); }
-        INSTRUCTION(cmove32RM) { condMoveRM<4>(i, regPtr, equal(flags)); }
-        INSTRUCTION(cmove64RM) { condMoveRM<8>(i, regPtr, equal(flags)); }
+        INST(cmove64RR) { condMove64RR(i, regPtr, equal(flags)); }
+        INST(cmove64RV) { condMove64RV(i, regPtr, equal(flags)); }
+        INST(cmove8RM) { condMoveRM<1>(i, regPtr, equal(flags)); }
+        INST(cmove16RM) { condMoveRM<2>(i, regPtr, equal(flags)); }
+        INST(cmove32RM) { condMoveRM<4>(i, regPtr, equal(flags)); }
+        INST(cmove64RM) { condMoveRM<8>(i, regPtr, equal(flags)); }
 
-        INSTRUCTION(cmovne64RR) { condMove64RR(i, regPtr, notEqual(flags)); }
-        INSTRUCTION(cmovne64RV) { condMove64RV(i, regPtr, notEqual(flags)); }
-        INSTRUCTION(cmovne8RM) { condMoveRM<1>(i, regPtr, notEqual(flags)); }
-        INSTRUCTION(cmovne16RM) { condMoveRM<2>(i, regPtr, notEqual(flags)); }
-        INSTRUCTION(cmovne32RM) { condMoveRM<4>(i, regPtr, notEqual(flags)); }
-        INSTRUCTION(cmovne64RM) { condMoveRM<8>(i, regPtr, notEqual(flags)); }
+        INST(cmovne64RR) { condMove64RR(i, regPtr, notEqual(flags)); }
+        INST(cmovne64RV) { condMove64RV(i, regPtr, notEqual(flags)); }
+        INST(cmovne8RM) { condMoveRM<1>(i, regPtr, notEqual(flags)); }
+        INST(cmovne16RM) { condMoveRM<2>(i, regPtr, notEqual(flags)); }
+        INST(cmovne32RM) { condMoveRM<4>(i, regPtr, notEqual(flags)); }
+        INST(cmovne64RM) { condMoveRM<8>(i, regPtr, notEqual(flags)); }
 
-        INSTRUCTION(cmovl64RR) { condMove64RR(i, regPtr, less(flags)); }
-        INSTRUCTION(cmovl64RV) { condMove64RV(i, regPtr, less(flags)); }
-        INSTRUCTION(cmovl8RM) { condMoveRM<1>(i, regPtr, less(flags)); }
-        INSTRUCTION(cmovl16RM) { condMoveRM<2>(i, regPtr, less(flags)); }
-        INSTRUCTION(cmovl32RM) { condMoveRM<4>(i, regPtr, less(flags)); }
-        INSTRUCTION(cmovl64RM) { condMoveRM<8>(i, regPtr, less(flags)); }
+        INST(cmovl64RR) { condMove64RR(i, regPtr, less(flags)); }
+        INST(cmovl64RV) { condMove64RV(i, regPtr, less(flags)); }
+        INST(cmovl8RM) { condMoveRM<1>(i, regPtr, less(flags)); }
+        INST(cmovl16RM) { condMoveRM<2>(i, regPtr, less(flags)); }
+        INST(cmovl32RM) { condMoveRM<4>(i, regPtr, less(flags)); }
+        INST(cmovl64RM) { condMoveRM<8>(i, regPtr, less(flags)); }
 
-        INSTRUCTION(cmovle64RR) { condMove64RR(i, regPtr, lessEq(flags)); }
-        INSTRUCTION(cmovle64RV) { condMove64RV(i, regPtr, lessEq(flags)); }
-        INSTRUCTION(cmovle8RM) { condMoveRM<1>(i, regPtr, lessEq(flags)); }
-        INSTRUCTION(cmovle16RM) { condMoveRM<2>(i, regPtr, lessEq(flags)); }
-        INSTRUCTION(cmovle32RM) { condMoveRM<4>(i, regPtr, lessEq(flags)); }
-        INSTRUCTION(cmovle64RM) { condMoveRM<8>(i, regPtr, lessEq(flags)); }
+        INST(cmovle64RR) { condMove64RR(i, regPtr, lessEq(flags)); }
+        INST(cmovle64RV) { condMove64RV(i, regPtr, lessEq(flags)); }
+        INST(cmovle8RM) { condMoveRM<1>(i, regPtr, lessEq(flags)); }
+        INST(cmovle16RM) { condMoveRM<2>(i, regPtr, lessEq(flags)); }
+        INST(cmovle32RM) { condMoveRM<4>(i, regPtr, lessEq(flags)); }
+        INST(cmovle64RM) { condMoveRM<8>(i, regPtr, lessEq(flags)); }
 
-        INSTRUCTION(cmovg64RR) { condMove64RR(i, regPtr, greater(flags)); }
-        INSTRUCTION(cmovg64RV) { condMove64RV(i, regPtr, greater(flags)); }
-        INSTRUCTION(cmovg8RM) { condMoveRM<1>(i, regPtr, greater(flags)); }
-        INSTRUCTION(cmovg16RM) { condMoveRM<2>(i, regPtr, greater(flags)); }
-        INSTRUCTION(cmovg32RM) { condMoveRM<4>(i, regPtr, greater(flags)); }
-        INSTRUCTION(cmovg64RM) { condMoveRM<8>(i, regPtr, greater(flags)); }
+        INST(cmovg64RR) { condMove64RR(i, regPtr, greater(flags)); }
+        INST(cmovg64RV) { condMove64RV(i, regPtr, greater(flags)); }
+        INST(cmovg8RM) { condMoveRM<1>(i, regPtr, greater(flags)); }
+        INST(cmovg16RM) { condMoveRM<2>(i, regPtr, greater(flags)); }
+        INST(cmovg32RM) { condMoveRM<4>(i, regPtr, greater(flags)); }
+        INST(cmovg64RM) { condMoveRM<8>(i, regPtr, greater(flags)); }
 
-        INSTRUCTION(cmovge64RR) { condMove64RR(i, regPtr, greaterEq(flags)); }
-        INSTRUCTION(cmovge64RV) { condMove64RV(i, regPtr, greaterEq(flags)); }
-        INSTRUCTION(cmovge8RM) { condMoveRM<1>(i, regPtr, greaterEq(flags)); }
-        INSTRUCTION(cmovge16RM) { condMoveRM<2>(i, regPtr, greaterEq(flags)); }
-        INSTRUCTION(cmovge32RM) { condMoveRM<4>(i, regPtr, greaterEq(flags)); }
-        INSTRUCTION(cmovge64RM) { condMoveRM<8>(i, regPtr, greaterEq(flags)); }
+        INST(cmovge64RR) { condMove64RR(i, regPtr, greaterEq(flags)); }
+        INST(cmovge64RV) { condMove64RV(i, regPtr, greaterEq(flags)); }
+        INST(cmovge8RM) { condMoveRM<1>(i, regPtr, greaterEq(flags)); }
+        INST(cmovge16RM) { condMoveRM<2>(i, regPtr, greaterEq(flags)); }
+        INST(cmovge32RM) { condMoveRM<4>(i, regPtr, greaterEq(flags)); }
+        INST(cmovge64RM) { condMoveRM<8>(i, regPtr, greaterEq(flags)); }
 
         /// ## Stack pointer manipulation
-        INSTRUCTION(lincsp) {
+        INST(lincsp) {
             size_t const destRegIdx = load<u8>(i);
-            size_t const offset     = load<u16>(i + 1);
+            size_t const offset = load<u16>(i + 1);
             SVM_ASSERT(offset % 8 == 0);
             regPtr[destRegIdx] = utl::bit_cast<u64>(currentFrame.stackPtr);
             currentFrame.stackPtr += offset;
         }
 
         /// ## Address calculation
-        INSTRUCTION(lea) {
+        INST(lea) {
             size_t const destRegIdx = load<u8>(i);
-            u8* const ptr           = getPointer(regPtr, i + 1);
-            regPtr[destRegIdx]      = utl::bit_cast<u64>(ptr);
+            u8* const ptr = getPointer(regPtr, i + 1);
+            regPtr[destRegIdx] = utl::bit_cast<u64>(ptr);
         }
-            
-        INSTRUCTION(lda) {
+
+        INST(lda) {
             size_t const destRegIdx = load<u8>(i);
-            size_t const offset     = load<u32>(&i[1]);
-            u8* const address       = data.data() + offset;
-            regPtr[destRegIdx]      = utl::bit_cast<u64>(address);
+            size_t const offset = load<u32>(&i[1]);
+            u8* const address = data.data() + offset;
+            regPtr[destRegIdx] = utl::bit_cast<u64>(address);
         }
 
         /// ## Jumps
-        INSTRUCTION(jmp) {
-            jump<jmp>(i, text.data(), currentFrame, true);
-        }
-        INSTRUCTION(je) {
-            jump<je>(i, text.data(), currentFrame, equal(flags));
-        }
-        INSTRUCTION(jne) {
-            jump<jne>(i, text.data(), currentFrame, notEqual(flags));
-        }
-        INSTRUCTION(jl) {
-            jump<jl>(i, text.data(), currentFrame, less(flags));
-        }
-        INSTRUCTION(jle) {
-            jump<jle>(i, text.data(), currentFrame, lessEq(flags));
-        }
-        INSTRUCTION(jg) {
-            jump<jg>(i, text.data(), currentFrame, greater(flags));
-        }
-        INSTRUCTION(jge) {
-            jump<jge>(i, text.data(), currentFrame, greaterEq(flags));
-        }
+        INST(jmp) { jump<jmp>(i, text.data(), currentFrame, true); }
+        INST(je) { jump<je>(i, text.data(), currentFrame, equal(flags)); }
+        INST(jne) { jump<jne>(i, text.data(), currentFrame, notEqual(flags)); }
+        INST(jl) { jump<jl>(i, text.data(), currentFrame, less(flags)); }
+        INST(jle) { jump<jle>(i, text.data(), currentFrame, lessEq(flags)); }
+        INST(jg) { jump<jg>(i, text.data(), currentFrame, greater(flags)); }
+        INST(jge) { jump<jge>(i, text.data(), currentFrame, greaterEq(flags)); }
 
         /// ## Comparison
-        INSTRUCTION(ucmp8RR) { compareRR<u8>(i, regPtr, flags); }
-        INSTRUCTION(ucmp16RR) { compareRR<u16>(i, regPtr, flags); }
-        INSTRUCTION(ucmp32RR) { compareRR<u32>(i, regPtr, flags); }
-        INSTRUCTION(ucmp64RR) { compareRR<u64>(i, regPtr, flags); }
+        INST(ucmp8RR) { compareRR<u8>(i, regPtr, flags); }
+        INST(ucmp16RR) { compareRR<u16>(i, regPtr, flags); }
+        INST(ucmp32RR) { compareRR<u32>(i, regPtr, flags); }
+        INST(ucmp64RR) { compareRR<u64>(i, regPtr, flags); }
 
-        INSTRUCTION(scmp8RR) { compareRR<i8>(i, regPtr, flags); }
-        INSTRUCTION(scmp16RR) { compareRR<i16>(i, regPtr, flags); }
-        INSTRUCTION(scmp32RR) { compareRR<i32>(i, regPtr, flags); }
-        INSTRUCTION(scmp64RR) { compareRR<i64>(i, regPtr, flags); }
+        INST(scmp8RR) { compareRR<i8>(i, regPtr, flags); }
+        INST(scmp16RR) { compareRR<i16>(i, regPtr, flags); }
+        INST(scmp32RR) { compareRR<i32>(i, regPtr, flags); }
+        INST(scmp64RR) { compareRR<i64>(i, regPtr, flags); }
 
-        INSTRUCTION(ucmp8RV) { compareRV<u8>(i, regPtr, flags); }
-        INSTRUCTION(ucmp16RV) { compareRV<u16>(i, regPtr, flags); }
-        INSTRUCTION(ucmp32RV) { compareRV<u32>(i, regPtr, flags); }
-        INSTRUCTION(ucmp64RV) { compareRV<u64>(i, regPtr, flags); }
+        INST(ucmp8RV) { compareRV<u8>(i, regPtr, flags); }
+        INST(ucmp16RV) { compareRV<u16>(i, regPtr, flags); }
+        INST(ucmp32RV) { compareRV<u32>(i, regPtr, flags); }
+        INST(ucmp64RV) { compareRV<u64>(i, regPtr, flags); }
 
-        INSTRUCTION(scmp8RV) { compareRV<i8>(i, regPtr, flags); }
-        INSTRUCTION(scmp16RV) { compareRV<i16>(i, regPtr, flags); }
-        INSTRUCTION(scmp32RV) { compareRV<i32>(i, regPtr, flags); }
-        INSTRUCTION(scmp64RV) { compareRV<i64>(i, regPtr, flags); }
+        INST(scmp8RV) { compareRV<i8>(i, regPtr, flags); }
+        INST(scmp16RV) { compareRV<i16>(i, regPtr, flags); }
+        INST(scmp32RV) { compareRV<i32>(i, regPtr, flags); }
+        INST(scmp64RV) { compareRV<i64>(i, regPtr, flags); }
 
-        INSTRUCTION(fcmp32RR) { compareRR<f32>(i, regPtr, flags); }
-        INSTRUCTION(fcmp64RR) { compareRR<f64>(i, regPtr, flags); }
-        INSTRUCTION(fcmp32RV) { compareRV<f32>(i, regPtr, flags); }
-        INSTRUCTION(fcmp64RV) { compareRV<f64>(i, regPtr, flags); }
+        INST(fcmp32RR) { compareRR<f32>(i, regPtr, flags); }
+        INST(fcmp64RR) { compareRR<f64>(i, regPtr, flags); }
+        INST(fcmp32RV) { compareRV<f32>(i, regPtr, flags); }
+        INST(fcmp64RV) { compareRV<f64>(i, regPtr, flags); }
 
-        INSTRUCTION(stest8) { testR<i8>(i, regPtr, flags); }
-        INSTRUCTION(stest16) { testR<i16>(i, regPtr, flags); }
-        INSTRUCTION(stest32) { testR<i32>(i, regPtr, flags); }
-        INSTRUCTION(stest64) { testR<i64>(i, regPtr, flags); }
+        INST(stest8) { testR<i8>(i, regPtr, flags); }
+        INST(stest16) { testR<i16>(i, regPtr, flags); }
+        INST(stest32) { testR<i32>(i, regPtr, flags); }
+        INST(stest64) { testR<i64>(i, regPtr, flags); }
 
-        INSTRUCTION(utest8) { testR<u8>(i, regPtr, flags); }
-        INSTRUCTION(utest16) { testR<u16>(i, regPtr, flags); }
-        INSTRUCTION(utest32) { testR<u32>(i, regPtr, flags); }
-        INSTRUCTION(utest64) { testR<u64>(i, regPtr, flags); }
+        INST(utest8) { testR<u8>(i, regPtr, flags); }
+        INST(utest16) { testR<u16>(i, regPtr, flags); }
+        INST(utest32) { testR<u32>(i, regPtr, flags); }
+        INST(utest64) { testR<u64>(i, regPtr, flags); }
 
         /// ## load comparison results
-        INSTRUCTION(sete) { set(i, regPtr, equal(flags)); }
-        INSTRUCTION(setne) { set(i, regPtr, notEqual(flags)); }
-        INSTRUCTION(setl) { set(i, regPtr, less(flags)); }
-        INSTRUCTION(setle) { set(i, regPtr, lessEq(flags)); }
-        INSTRUCTION(setg) { set(i, regPtr, greater(flags)); }
-        INSTRUCTION(setge) { set(i, regPtr, greaterEq(flags)); }
+        INST(sete) { set(i, regPtr, equal(flags)); }
+        INST(setne) { set(i, regPtr, notEqual(flags)); }
+        INST(setl) { set(i, regPtr, less(flags)); }
+        INST(setle) { set(i, regPtr, lessEq(flags)); }
+        INST(setg) { set(i, regPtr, greater(flags)); }
+        INST(setge) { set(i, regPtr, greaterEq(flags)); }
 
         /// ## Unary operations
-        INSTRUCTION(lnt) { unaryR<u64>(i, regPtr, utl::logical_not); }
-        INSTRUCTION(bnt) { unaryR<u64>(i, regPtr, utl::bitwise_not); }
-        INSTRUCTION(neg8) { unaryR<i8>(i, regPtr, utl::negate); }
-        INSTRUCTION(neg16) { unaryR<i16>(i, regPtr, utl::negate); }
-        INSTRUCTION(neg32) { unaryR<i32>(i, regPtr, utl::negate); }
-        INSTRUCTION(neg64) { unaryR<i64>(i, regPtr, utl::negate); }
+        INST(lnt) { unaryR<u64>(i, regPtr, utl::logical_not); }
+        INST(bnt) { unaryR<u64>(i, regPtr, utl::bitwise_not); }
+        INST(neg8) { unaryR<i8>(i, regPtr, utl::negate); }
+        INST(neg16) { unaryR<i16>(i, regPtr, utl::negate); }
+        INST(neg32) { unaryR<i32>(i, regPtr, utl::negate); }
+        INST(neg64) { unaryR<i64>(i, regPtr, utl::negate); }
 
         /// ## 64 bit integral arithmetic
-        INSTRUCTION(add64RR) { arithmeticRR<u64>(i, regPtr, utl::plus); }
-        INSTRUCTION(add64RV) { arithmeticRV<u64>(i, regPtr, utl::plus); }
-        INSTRUCTION(add64RM) { arithmeticRM<u64>(i, regPtr, utl::plus); }
-        INSTRUCTION(sub64RR) { arithmeticRR<u64>(i, regPtr, utl::minus); }
-        INSTRUCTION(sub64RV) { arithmeticRV<u64>(i, regPtr, utl::minus); }
-        INSTRUCTION(sub64RM) { arithmeticRM<u64>(i, regPtr, utl::minus); }
-        INSTRUCTION(mul64RR) { arithmeticRR<u64>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(mul64RV) { arithmeticRV<u64>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(mul64RM) { arithmeticRM<u64>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(udiv64RR) { arithmeticRR<u64>(i, regPtr, utl::divides); }
-        INSTRUCTION(udiv64RV) { arithmeticRV<u64>(i, regPtr, utl::divides); }
-        INSTRUCTION(udiv64RM) { arithmeticRM<u64>(i, regPtr, utl::divides); }
-        INSTRUCTION(sdiv64RR) { arithmeticRR<i64>(i, regPtr, utl::divides); }
-        INSTRUCTION(sdiv64RV) { arithmeticRV<i64>(i, regPtr, utl::divides); }
-        INSTRUCTION(sdiv64RM) { arithmeticRM<i64>(i, regPtr, utl::divides); }
-        INSTRUCTION(urem64RR) { arithmeticRR<u64>(i, regPtr, utl::modulo); }
-        INSTRUCTION(urem64RV) { arithmeticRV<u64>(i, regPtr, utl::modulo); }
-        INSTRUCTION(urem64RM) { arithmeticRM<u64>(i, regPtr, utl::modulo); }
-        INSTRUCTION(srem64RR) { arithmeticRR<i64>(i, regPtr, utl::modulo); }
-        INSTRUCTION(srem64RV) { arithmeticRV<i64>(i, regPtr, utl::modulo); }
-        INSTRUCTION(srem64RM) { arithmeticRM<i64>(i, regPtr, utl::modulo); }
+        INST(add64RR) { arithmeticRR<u64>(i, regPtr, utl::plus); }
+        INST(add64RV) { arithmeticRV<u64>(i, regPtr, utl::plus); }
+        INST(add64RM) { arithmeticRM<u64>(i, regPtr, utl::plus); }
+        INST(sub64RR) { arithmeticRR<u64>(i, regPtr, utl::minus); }
+        INST(sub64RV) { arithmeticRV<u64>(i, regPtr, utl::minus); }
+        INST(sub64RM) { arithmeticRM<u64>(i, regPtr, utl::minus); }
+        INST(mul64RR) { arithmeticRR<u64>(i, regPtr, utl::multiplies); }
+        INST(mul64RV) { arithmeticRV<u64>(i, regPtr, utl::multiplies); }
+        INST(mul64RM) { arithmeticRM<u64>(i, regPtr, utl::multiplies); }
+        INST(udiv64RR) { arithmeticRR<u64>(i, regPtr, utl::divides); }
+        INST(udiv64RV) { arithmeticRV<u64>(i, regPtr, utl::divides); }
+        INST(udiv64RM) { arithmeticRM<u64>(i, regPtr, utl::divides); }
+        INST(sdiv64RR) { arithmeticRR<i64>(i, regPtr, utl::divides); }
+        INST(sdiv64RV) { arithmeticRV<i64>(i, regPtr, utl::divides); }
+        INST(sdiv64RM) { arithmeticRM<i64>(i, regPtr, utl::divides); }
+        INST(urem64RR) { arithmeticRR<u64>(i, regPtr, utl::modulo); }
+        INST(urem64RV) { arithmeticRV<u64>(i, regPtr, utl::modulo); }
+        INST(urem64RM) { arithmeticRM<u64>(i, regPtr, utl::modulo); }
+        INST(srem64RR) { arithmeticRR<i64>(i, regPtr, utl::modulo); }
+        INST(srem64RV) { arithmeticRV<i64>(i, regPtr, utl::modulo); }
+        INST(srem64RM) { arithmeticRM<i64>(i, regPtr, utl::modulo); }
 
         /// ## 32 bit integral arithmetic
-        INSTRUCTION(add32RR) { arithmeticRR<u32>(i, regPtr, utl::plus); }
-        INSTRUCTION(add32RV) { arithmeticRV<u32>(i, regPtr, utl::plus); }
-        INSTRUCTION(add32RM) { arithmeticRM<u32>(i, regPtr, utl::plus); }
-        INSTRUCTION(sub32RR) { arithmeticRR<u32>(i, regPtr, utl::minus); }
-        INSTRUCTION(sub32RV) { arithmeticRV<u32>(i, regPtr, utl::minus); }
-        INSTRUCTION(sub32RM) { arithmeticRM<u32>(i, regPtr, utl::minus); }
-        INSTRUCTION(mul32RR) { arithmeticRR<u32>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(mul32RV) { arithmeticRV<u32>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(mul32RM) { arithmeticRM<u32>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(udiv32RR) { arithmeticRR<u32>(i, regPtr, utl::divides); }
-        INSTRUCTION(udiv32RV) { arithmeticRV<u32>(i, regPtr, utl::divides); }
-        INSTRUCTION(udiv32RM) { arithmeticRM<u32>(i, regPtr, utl::divides); }
-        INSTRUCTION(sdiv32RR) { arithmeticRR<i32>(i, regPtr, utl::divides); }
-        INSTRUCTION(sdiv32RV) { arithmeticRV<i32>(i, regPtr, utl::divides); }
-        INSTRUCTION(sdiv32RM) { arithmeticRM<i32>(i, regPtr, utl::divides); }
-        INSTRUCTION(urem32RR) { arithmeticRR<u32>(i, regPtr, utl::modulo); }
-        INSTRUCTION(urem32RV) { arithmeticRV<u32>(i, regPtr, utl::modulo); }
-        INSTRUCTION(urem32RM) { arithmeticRM<u32>(i, regPtr, utl::modulo); }
-        INSTRUCTION(srem32RR) { arithmeticRR<i32>(i, regPtr, utl::modulo); }
-        INSTRUCTION(srem32RV) { arithmeticRV<i32>(i, regPtr, utl::modulo); }
-        INSTRUCTION(srem32RM) { arithmeticRM<i32>(i, regPtr, utl::modulo); }
+        INST(add32RR) { arithmeticRR<u32>(i, regPtr, utl::plus); }
+        INST(add32RV) { arithmeticRV<u32>(i, regPtr, utl::plus); }
+        INST(add32RM) { arithmeticRM<u32>(i, regPtr, utl::plus); }
+        INST(sub32RR) { arithmeticRR<u32>(i, regPtr, utl::minus); }
+        INST(sub32RV) { arithmeticRV<u32>(i, regPtr, utl::minus); }
+        INST(sub32RM) { arithmeticRM<u32>(i, regPtr, utl::minus); }
+        INST(mul32RR) { arithmeticRR<u32>(i, regPtr, utl::multiplies); }
+        INST(mul32RV) { arithmeticRV<u32>(i, regPtr, utl::multiplies); }
+        INST(mul32RM) { arithmeticRM<u32>(i, regPtr, utl::multiplies); }
+        INST(udiv32RR) { arithmeticRR<u32>(i, regPtr, utl::divides); }
+        INST(udiv32RV) { arithmeticRV<u32>(i, regPtr, utl::divides); }
+        INST(udiv32RM) { arithmeticRM<u32>(i, regPtr, utl::divides); }
+        INST(sdiv32RR) { arithmeticRR<i32>(i, regPtr, utl::divides); }
+        INST(sdiv32RV) { arithmeticRV<i32>(i, regPtr, utl::divides); }
+        INST(sdiv32RM) { arithmeticRM<i32>(i, regPtr, utl::divides); }
+        INST(urem32RR) { arithmeticRR<u32>(i, regPtr, utl::modulo); }
+        INST(urem32RV) { arithmeticRV<u32>(i, regPtr, utl::modulo); }
+        INST(urem32RM) { arithmeticRM<u32>(i, regPtr, utl::modulo); }
+        INST(srem32RR) { arithmeticRR<i32>(i, regPtr, utl::modulo); }
+        INST(srem32RV) { arithmeticRV<i32>(i, regPtr, utl::modulo); }
+        INST(srem32RM) { arithmeticRM<i32>(i, regPtr, utl::modulo); }
 
         /// ## 64 bit Floating point arithmetic
-        INSTRUCTION(fadd64RR) { arithmeticRR<f64>(i, regPtr, utl::plus); }
-        INSTRUCTION(fadd64RV) { arithmeticRV<f64>(i, regPtr, utl::plus); }
-        INSTRUCTION(fadd64RM) { arithmeticRM<f64>(i, regPtr, utl::plus); }
-        INSTRUCTION(fsub64RR) { arithmeticRR<f64>(i, regPtr, utl::minus); }
-        INSTRUCTION(fsub64RV) { arithmeticRV<f64>(i, regPtr, utl::minus); }
-        INSTRUCTION(fsub64RM) { arithmeticRM<f64>(i, regPtr, utl::minus); }
-        INSTRUCTION(fmul64RR) { arithmeticRR<f64>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(fmul64RV) { arithmeticRV<f64>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(fmul64RM) { arithmeticRM<f64>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(fdiv64RR) { arithmeticRR<f64>(i, regPtr, utl::divides); }
-        INSTRUCTION(fdiv64RV) { arithmeticRV<f64>(i, regPtr, utl::divides); }
-        INSTRUCTION(fdiv64RM) { arithmeticRM<f64>(i, regPtr, utl::divides); }
+        INST(fadd64RR) { arithmeticRR<f64>(i, regPtr, utl::plus); }
+        INST(fadd64RV) { arithmeticRV<f64>(i, regPtr, utl::plus); }
+        INST(fadd64RM) { arithmeticRM<f64>(i, regPtr, utl::plus); }
+        INST(fsub64RR) { arithmeticRR<f64>(i, regPtr, utl::minus); }
+        INST(fsub64RV) { arithmeticRV<f64>(i, regPtr, utl::minus); }
+        INST(fsub64RM) { arithmeticRM<f64>(i, regPtr, utl::minus); }
+        INST(fmul64RR) { arithmeticRR<f64>(i, regPtr, utl::multiplies); }
+        INST(fmul64RV) { arithmeticRV<f64>(i, regPtr, utl::multiplies); }
+        INST(fmul64RM) { arithmeticRM<f64>(i, regPtr, utl::multiplies); }
+        INST(fdiv64RR) { arithmeticRR<f64>(i, regPtr, utl::divides); }
+        INST(fdiv64RV) { arithmeticRV<f64>(i, regPtr, utl::divides); }
+        INST(fdiv64RM) { arithmeticRM<f64>(i, regPtr, utl::divides); }
 
         /// ## 32 bit Floating point arithmetic
-        INSTRUCTION(fadd32RR) { arithmeticRR<f32>(i, regPtr, utl::plus); }
-        INSTRUCTION(fadd32RV) { arithmeticRV<f32>(i, regPtr, utl::plus); }
-        INSTRUCTION(fadd32RM) { arithmeticRM<f32>(i, regPtr, utl::plus); }
-        INSTRUCTION(fsub32RR) { arithmeticRR<f32>(i, regPtr, utl::minus); }
-        INSTRUCTION(fsub32RV) { arithmeticRV<f32>(i, regPtr, utl::minus); }
-        INSTRUCTION(fsub32RM) { arithmeticRM<f32>(i, regPtr, utl::minus); }
-        INSTRUCTION(fmul32RR) { arithmeticRR<f32>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(fmul32RV) { arithmeticRV<f32>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(fmul32RM) { arithmeticRM<f32>(i, regPtr, utl::multiplies); }
-        INSTRUCTION(fdiv32RR) { arithmeticRR<f32>(i, regPtr, utl::divides); }
-        INSTRUCTION(fdiv32RV) { arithmeticRV<f32>(i, regPtr, utl::divides); }
-        INSTRUCTION(fdiv32RM) { arithmeticRM<f32>(i, regPtr, utl::divides); }
+        INST(fadd32RR) { arithmeticRR<f32>(i, regPtr, utl::plus); }
+        INST(fadd32RV) { arithmeticRV<f32>(i, regPtr, utl::plus); }
+        INST(fadd32RM) { arithmeticRM<f32>(i, regPtr, utl::plus); }
+        INST(fsub32RR) { arithmeticRR<f32>(i, regPtr, utl::minus); }
+        INST(fsub32RV) { arithmeticRV<f32>(i, regPtr, utl::minus); }
+        INST(fsub32RM) { arithmeticRM<f32>(i, regPtr, utl::minus); }
+        INST(fmul32RR) { arithmeticRR<f32>(i, regPtr, utl::multiplies); }
+        INST(fmul32RV) { arithmeticRV<f32>(i, regPtr, utl::multiplies); }
+        INST(fmul32RM) { arithmeticRM<f32>(i, regPtr, utl::multiplies); }
+        INST(fdiv32RR) { arithmeticRR<f32>(i, regPtr, utl::divides); }
+        INST(fdiv32RV) { arithmeticRV<f32>(i, regPtr, utl::divides); }
+        INST(fdiv32RM) { arithmeticRM<f32>(i, regPtr, utl::divides); }
 
         /// ## 64 bit logical shifts
-        INSTRUCTION(lsl64RR) { arithmeticRR<u64>(i, regPtr, utl::leftshift); }
-        INSTRUCTION(lsl64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::leftshift); }
-        INSTRUCTION(lsl64RM) { arithmeticRM<u64>(i, regPtr, utl::leftshift); }
-        INSTRUCTION(lsr64RR) { arithmeticRR<u64>(i, regPtr, utl::rightshift); }
-        INSTRUCTION(lsr64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::rightshift); }
-        INSTRUCTION(lsr64RM) { arithmeticRV<u64>(i, regPtr, utl::rightshift); }
+        INST(lsl64RR) { arithmeticRR<u64>(i, regPtr, utl::leftshift); }
+        INST(lsl64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::leftshift); }
+        INST(lsl64RM) { arithmeticRM<u64>(i, regPtr, utl::leftshift); }
+        INST(lsr64RR) { arithmeticRR<u64>(i, regPtr, utl::rightshift); }
+        INST(lsr64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::rightshift); }
+        INST(lsr64RM) { arithmeticRV<u64>(i, regPtr, utl::rightshift); }
 
         /// ## 32 bit logical shifts
-        INSTRUCTION(lsl32RR) { arithmeticRR<u32>(i, regPtr, utl::leftshift); }
-        INSTRUCTION(lsl32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::leftshift); }
-        INSTRUCTION(lsl32RM) { arithmeticRM<u32>(i, regPtr, utl::leftshift); }
-        INSTRUCTION(lsr32RR) { arithmeticRR<u32>(i, regPtr, utl::rightshift); }
-        INSTRUCTION(lsr32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::rightshift); }
-        INSTRUCTION(lsr32RM) { arithmeticRV<u32>(i, regPtr, utl::rightshift); }
+        INST(lsl32RR) { arithmeticRR<u32>(i, regPtr, utl::leftshift); }
+        INST(lsl32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::leftshift); }
+        INST(lsl32RM) { arithmeticRM<u32>(i, regPtr, utl::leftshift); }
+        INST(lsr32RR) { arithmeticRR<u32>(i, regPtr, utl::rightshift); }
+        INST(lsr32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::rightshift); }
+        INST(lsr32RM) { arithmeticRV<u32>(i, regPtr, utl::rightshift); }
 
         /// ## 64 bit arithmetic shifts
-        INSTRUCTION(asl64RR) {
-            arithmeticRR<u64>(i, regPtr, utl::arithmetic_leftshift);
-        }
-        INSTRUCTION(asl64RV) {
-            arithmeticRV<u64, u8>(i, regPtr, utl::arithmetic_leftshift);
-        }
-        INSTRUCTION(asl64RM) {
-            arithmeticRM<u64>(i, regPtr, utl::arithmetic_leftshift);
-        }
-        INSTRUCTION(asr64RR) {
-            arithmeticRR<u64>(i, regPtr, utl::arithmetic_rightshift);
-        }
-        INSTRUCTION(asr64RV) {
-            arithmeticRV<u64, u8>(i, regPtr, utl::arithmetic_rightshift);
-        }
-        INSTRUCTION(asr64RM) {
-            arithmeticRV<u64>(i, regPtr, utl::arithmetic_rightshift);
-        }
+#define ASL = utl::arithmetic_leftshift
+#define ASR = utl::arithmetic_rightshift
+        INST(asl64RR) { arithmeticRR<u64>(i, regPtr, ASL); }
+        INST(asl64RV) { arithmeticRV<u64, u8>(i, regPtr, ASL); }
+        INST(asl64RM) { arithmeticRM<u64>(i, regPtr, ASL); }
+        INST(asr64RR) { arithmeticRR<u64>(i, regPtr, ASR); }
+        INST(asr64RV) { arithmeticRV<u64, u8>(i, regPtr, ASR); }
+        INST(asr64RM) { arithmeticRV<u64>(i, regPtr, ASR); }
 
         /// ## 32 bit arithmetic shifts
-        INSTRUCTION(asl32RR) {
-            arithmeticRR<u32>(i, regPtr, utl::arithmetic_leftshift);
-        }
-        INSTRUCTION(asl32RV) {
-            arithmeticRV<u32, u8>(i, regPtr, utl::arithmetic_leftshift);
-        }
-        INSTRUCTION(asl32RM) {
-            arithmeticRM<u32>(i, regPtr, utl::arithmetic_leftshift);
-        }
-        INSTRUCTION(asr32RR) {
-            arithmeticRR<u32>(i, regPtr, utl::arithmetic_rightshift);
-        }
-        INSTRUCTION(asr32RV) {
-            arithmeticRV<u32, u8>(i, regPtr, utl::arithmetic_rightshift);
-        }
-        INSTRUCTION(asr32RM) {
-            arithmeticRV<u32>(i, regPtr, utl::arithmetic_rightshift);
-        }
+        INST(asl32RR) { arithmeticRR<u32>(i, regPtr, ASL); }
+        INST(asl32RV) { arithmeticRV<u32, u8>(i, regPtr, ASL); }
+        INST(asl32RM) { arithmeticRM<u32>(i, regPtr, ASL); }
+        INST(asr32RR) { arithmeticRR<u32>(i, regPtr, ASR); }
+        INST(asr32RV) { arithmeticRV<u32, u8>(i, regPtr, ASR); }
+        INST(asr32RM) { arithmeticRV<u32>(i, regPtr, ASR); }
 
         /// ## 64 bit bitwise operations
-        INSTRUCTION(and64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_and); }
-        INSTRUCTION(and64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_and); }
-        INSTRUCTION(and64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_and); }
-        INSTRUCTION(or64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_or); }
-        INSTRUCTION(or64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_or); }
-        INSTRUCTION(or64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_or); }
-        INSTRUCTION(xor64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_xor); }
-        INSTRUCTION(xor64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_xor); }
-        INSTRUCTION(xor64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_xor); }
+        INST(and64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_and); }
+        INST(and64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_and); }
+        INST(and64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_and); }
+        INST(or64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_or); }
+        INST(or64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_or); }
+        INST(or64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_or); }
+        INST(xor64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_xor); }
+        INST(xor64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_xor); }
+        INST(xor64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_xor); }
 
         /// ## 32 bit bitwise operations
-        INSTRUCTION(and32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_and); }
-        INSTRUCTION(and32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_and); }
-        INSTRUCTION(and32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_and); }
-        INSTRUCTION(or32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_or); }
-        INSTRUCTION(or32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_or); }
-        INSTRUCTION(or32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_or); }
-        INSTRUCTION(xor32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_xor); }
-        INSTRUCTION(xor32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_xor); }
-        INSTRUCTION(xor32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_xor); }
+        INST(and32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_and); }
+        INST(and32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_and); }
+        INST(and32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_and); }
+        INST(or32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_or); }
+        INST(or32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_or); }
+        INST(or32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_or); }
+        INST(xor32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_xor); }
+        INST(xor32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_xor); }
+        INST(xor32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_xor); }
 
         /// ## Conversion
-        INSTRUCTION(sext1) { ::sext1(i, regPtr); }
-        INSTRUCTION(sext8) {  convert<i8, i64>(i, regPtr); }
-        INSTRUCTION(sext16) { convert<i16, i64>(i, regPtr); }
-        INSTRUCTION(sext32) { convert<i32, i64>(i, regPtr); }
-        INSTRUCTION(fext) {   convert<f32, f64>(i, regPtr); }
-        INSTRUCTION(ftrunc) { convert<f64, f32>(i, regPtr); }
-            
-        INSTRUCTION(s8tof32) {  convert<i8, f32>(i, regPtr); }
-        INSTRUCTION(s16tof32) { convert<i16, f32>(i, regPtr); }
-        INSTRUCTION(s32tof32) { convert<i32, f32>(i, regPtr); }
-        INSTRUCTION(s64tof32) { convert<i64, f32>(i, regPtr); }
-        INSTRUCTION(u8tof32) {  convert<u8, f32>(i, regPtr); }
-        INSTRUCTION(u16tof32) { convert<u16, f32>(i, regPtr); }
-        INSTRUCTION(u32tof32) { convert<u32, f32>(i, regPtr); }
-        INSTRUCTION(u64tof32) { convert<u64, f32>(i, regPtr); }
-        INSTRUCTION(s8tof64) {  convert<i8, f64>(i, regPtr); }
-        INSTRUCTION(s16tof64) { convert<i16, f64>(i, regPtr); }
-        INSTRUCTION(s32tof64) { convert<i32, f64>(i, regPtr); }
-        INSTRUCTION(s64tof64) { convert<i64, f64>(i, regPtr); }
-        INSTRUCTION(u8tof64) {  convert<u8, f64>(i, regPtr); }
-        INSTRUCTION(u16tof64) { convert<u16, f64>(i, regPtr); }
-        INSTRUCTION(u32tof64) { convert<u32, f64>(i, regPtr); }
-        INSTRUCTION(u64tof64) { convert<u64, f64>(i, regPtr); }
-            
-        INSTRUCTION(f32tos8) {  convert<f32, i8>(i, regPtr); }
-        INSTRUCTION(f32tos16) { convert<f32, i16>(i, regPtr); }
-        INSTRUCTION(f32tos32) { convert<f32, i32>(i, regPtr); }
-        INSTRUCTION(f32tos64) { convert<f32, i64>(i, regPtr); }
-        INSTRUCTION(f32tou8) {  convert<f32, u8>(i, regPtr); }
-        INSTRUCTION(f32tou16) { convert<f32, u16>(i, regPtr); }
-        INSTRUCTION(f32tou32) { convert<f32, u32>(i, regPtr); }
-        INSTRUCTION(f32tou64) { convert<f32, u64>(i, regPtr); }
-        INSTRUCTION(f64tos8) {  convert<f64, i8>(i, regPtr); }
-        INSTRUCTION(f64tos16) { convert<f64, i16>(i, regPtr); }
-        INSTRUCTION(f64tos32) { convert<f64, i32>(i, regPtr); }
-        INSTRUCTION(f64tos64) { convert<f64, i64>(i, regPtr); }
-        INSTRUCTION(f64tou8) {  convert<f64, u8>(i, regPtr); }
-        INSTRUCTION(f64tou16) { convert<f64, u16>(i, regPtr); }
-        INSTRUCTION(f64tou32) { convert<f64, u32>(i, regPtr); }
-        INSTRUCTION(f64tou64) { convert<f64, u64>(i, regPtr); }
+        INST(sext1) { ::sext1(i, regPtr); }
+        INST(sext8) { convert<i8, i64>(i, regPtr); }
+        INST(sext16) { convert<i16, i64>(i, regPtr); }
+        INST(sext32) { convert<i32, i64>(i, regPtr); }
+        INST(fext) { convert<f32, f64>(i, regPtr); }
+        INST(ftrunc) { convert<f64, f32>(i, regPtr); }
 
-            // clang-format on
+        INST(s8tof32) { convert<i8, f32>(i, regPtr); }
+        INST(s16tof32) { convert<i16, f32>(i, regPtr); }
+        INST(s32tof32) { convert<i32, f32>(i, regPtr); }
+        INST(s64tof32) { convert<i64, f32>(i, regPtr); }
+        INST(u8tof32) { convert<u8, f32>(i, regPtr); }
+        INST(u16tof32) { convert<u16, f32>(i, regPtr); }
+        INST(u32tof32) { convert<u32, f32>(i, regPtr); }
+        INST(u64tof32) { convert<u64, f32>(i, regPtr); }
+        INST(s8tof64) { convert<i8, f64>(i, regPtr); }
+        INST(s16tof64) { convert<i16, f64>(i, regPtr); }
+        INST(s32tof64) { convert<i32, f64>(i, regPtr); }
+        INST(s64tof64) { convert<i64, f64>(i, regPtr); }
+        INST(u8tof64) { convert<u8, f64>(i, regPtr); }
+        INST(u16tof64) { convert<u16, f64>(i, regPtr); }
+        INST(u32tof64) { convert<u32, f64>(i, regPtr); }
+        INST(u64tof64) { convert<u64, f64>(i, regPtr); }
 
-            break;
-        case _count:
-            SVM_UNREACHABLE();
-        }
+        INST(f32tos8) { convert<f32, i8>(i, regPtr); }
+        INST(f32tos16) { convert<f32, i16>(i, regPtr); }
+        INST(f32tos32) { convert<f32, i32>(i, regPtr); }
+        INST(f32tos64) { convert<f32, i64>(i, regPtr); }
+        INST(f32tou8) { convert<f32, u8>(i, regPtr); }
+        INST(f32tou16) { convert<f32, u16>(i, regPtr); }
+        INST(f32tou32) { convert<f32, u32>(i, regPtr); }
+        INST(f32tou64) { convert<f32, u64>(i, regPtr); }
+        INST(f64tos8) { convert<f64, i8>(i, regPtr); }
+        INST(f64tos16) { convert<f64, i16>(i, regPtr); }
+        INST(f64tos32) { convert<f64, i32>(i, regPtr); }
+        INST(f64tos64) { convert<f64, i64>(i, regPtr); }
+        INST(f64tou8) { convert<f64, u8>(i, regPtr); }
+        INST(f64tou16) { convert<f64, u16>(i, regPtr); }
+        INST(f64tou32) { convert<f64, u32>(i, regPtr); }
+        INST(f64tou64) { convert<f64, u64>(i, regPtr); }
+
+        INST_LIST_END()
+
         SVM_ASSERT(codeOffset != InvalidCodeOffset);
         currentFrame.iptr += codeOffset;
         ++stats.executedInstructions;
