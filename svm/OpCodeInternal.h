@@ -27,8 +27,10 @@ inline constexpr size_t codeSize(OpCode code) {
         switch (code) {
         case OpCode::call:
             return sizeof(OpCode) + 4 + 1;
-        case OpCode::icall:
+        case OpCode::icallr:
             return sizeof(OpCode) + 1 + 1;
+        case OpCode::icallm:
+            return sizeof(OpCode) + 4 + 1;
         case OpCode::ret:
             return sizeof(OpCode);
         case OpCode::terminate:

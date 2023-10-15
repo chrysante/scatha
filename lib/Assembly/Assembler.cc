@@ -210,7 +210,8 @@ void Context::translate(CallInst const& call) {
 }
 
 void Context::translate(ICallInst const& call) {
-    put(OpCode::icall);
+    OpCode const opcode = mapICall(call.destAddr().valueType());
+    put(opcode);
     dispatch(call.destAddr());
     put<u8>(call.regPtrOffset());
 }

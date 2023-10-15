@@ -398,7 +398,7 @@ TEST_CASE("cmov instruction", "[assembly][vm]") {
     CHECK(load<u64>(&regs[0]) == 5);
 }
 
-TEST_CASE("icall instruction", "[assembly][vm]") {
+TEST_CASE("icall register instruction", "[assembly][vm]") {
     LabelID const main{ 0 };
     LabelID const func{ 1 };
     AssemblyStream a;
@@ -410,6 +410,34 @@ TEST_CASE("icall instruction", "[assembly][vm]") {
         MoveInst(RegisterIndex(4), Value64(29), 8),
         ICallInst(RegisterIndex(1), 3),
         MoveInst(RegisterIndex(0), RegisterIndex(3), 8), 
+        TerminateInst()
+    }));
+    // Callee
+    a.add(Block(func, "func", {
+        ArithmeticInst(ArithmeticOperation::Add,
+                       RegisterIndex(0),
+                       RegisterIndex(1), 8),
+        ReturnInst()
+    })); // clang-format on
+    auto const [regs, stack] = assembleAndExecute(a);
+    // 13 + 29 == 42
+    CHECK(regs[0] == 42);
+}
+
+TEST_CASE("icall memory instruction", "[assembly][vm]") {
+    LabelID const main{ 0 };
+    LabelID const func{ 1 };
+    AssemblyStream a;
+    // Main function
+    // clang-format off
+    a.add(Block(main, "main", {
+        LIncSPInst(RegisterIndex(0), Value16(16)), // %0 = alloca(8)
+        MoveInst(RegisterIndex(1), LabelPosition(func), 8),
+        MoveInst(MemoryAddress(0, 0xFF, 0, 8), RegisterIndex(1), 8),
+        MoveInst(RegisterIndex(3), Value64(13), 8),
+        MoveInst(RegisterIndex(4), Value64(29), 8),
+        ICallInst(MemoryAddress(0, 0xFF, 0, 8), 3),
+        MoveInst(RegisterIndex(0), RegisterIndex(3), 8),
         TerminateInst()
     }));
     // Callee

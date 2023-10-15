@@ -221,6 +221,18 @@ OpCode Asm::mapJump(CompareOperation condition) {
     }); // clang-format on
 }
 
+OpCode Asm::mapICall(ValueType type) {
+    switch (type) {
+    case ValueType::RegisterIndex:
+        return OpCode::icallr;
+    case ValueType::MemoryAddress:
+        return OpCode::icallm;
+    default:
+        /// No matching instruction.
+        SC_UNREACHABLE();
+    }
+}
+
 OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
         switch (width) {

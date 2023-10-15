@@ -41,7 +41,10 @@ static constexpr size_t execCodeSizeImpl(OpCode code) {
     if (code == OpCode::call) {
         return 0;
     }
-    if (code == OpCode::icall) {
+    if (code == OpCode::icallr) {
+        return 0;
+    }
+    if (code == OpCode::icallm) {
         return 0;
     }
     if (code == OpCode::ret) {
@@ -72,14 +75,15 @@ ALWAYS_INLINE static u8* getPointer(u64 const* reg, u8 const* i) {
     size_t const offsetCountRegIdx = i[1];
     i64 const constantOffsetMultiplier = i[2];
     i64 const constantInnerOffset = i[3];
-    u8* const offsetBaseptr =
-        utl::bit_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
+    i64 const offsetBaseptr =
+        static_cast<i64>(reg[baseptrRegIdx]) + constantInnerOffset;
     /// See documentation in "OpCode.h"
     if (offsetCountRegIdx == 0xFF) {
-        return offsetBaseptr;
+        return reinterpret_cast<u8*>(offsetBaseptr);
     }
     i64 const offsetCount = static_cast<i64>(reg[offsetCountRegIdx]);
-    return offsetBaseptr + offsetCount * constantOffsetMultiplier;
+    i64 const result = offsetBaseptr + offsetCount * constantOffsetMultiplier;
+    return reinterpret_cast<u8*>(result);
 }
 
 template <size_t Size>
@@ -131,13 +135,20 @@ ALWAYS_INLINE static void performCall(u8 const* i,
                                       ExecutionFrame& currentFrame) {
     auto const [dest, regOffset] = [&] {
         if constexpr (C == OpCode::call) {
+            /// Yes, unlike in the indirect call cases we load a 32 bit dest
+            /// address here
             return std::pair{ load<u32>(i), load<u8>(i + 4) };
         }
-        else {
-            static_assert(C == OpCode::icall);
+        else if constexpr (C == OpCode::icallr) {
             auto* reg = currentFrame.regPtr;
             u8 const idx = load<u8>(i);
-            return std::pair{ load<u32>(reg + idx), load<u8>(i + 1) };
+            return std::pair{ load<u64>(reg + idx), load<u8>(i + 1) };
+        }
+        else {
+            static_assert(C == OpCode::icallm);
+            auto* reg = currentFrame.regPtr;
+            auto* destAddr = getPointer(reg, i);
+            return std::pair{ load<u64>(destAddr), load<u8>(i + 4) };
         }
     }();
     currentFrame.regPtr += regOffset;
@@ -302,7 +313,8 @@ u64 const* VirtualMachine::execute(size_t start,
         INST_LIST_BEGIN()
 
         INST(call) { performCall<call>(i, text.data(), currentFrame); }
-        INST(icall) { performCall<icall>(i, text.data(), currentFrame); }
+        INST(icallr) { performCall<icallr>(i, text.data(), currentFrame); }
+        INST(icallm) { performCall<icallm>(i, text.data(), currentFrame); }
 
         INST(ret) {
             if UTL_UNLIKELY (currentFrame.bottomReg == regPtr) {

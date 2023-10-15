@@ -135,8 +135,17 @@ void svm::print(u8 const* progData, std::ostream& str) {
             case OpCode::lincsp:
                 str << "R[" << printAs<u8>(text, i + 1) << "], "
                     << printAs<u16>(i + 2);
+                break;
             case OpCode::call:
                 str << printAs<i32>(text, i + 1) << ", "
+                    << printAs<u8>(text, i + 5);
+                break;
+            case OpCode::icallr:
+                str << "R[" << printAs<u8>(text, i + 1) << "], "
+                    << printAs<u8>(text, i + 2);
+                break;
+            case OpCode::icallm:
+                str << memoryAcccess(text, i + 1) << ", "
                     << printAs<u8>(text, i + 5);
                 break;
             case OpCode::ret:
