@@ -474,7 +474,8 @@ TEST_CASE("Redefine entity in different module", "[sema]") {
     auto iss = test::getSemaIssues(R"(
 fn f() {}
 fn g() {}
-)", R"(
+)",
+                                   R"(
 struct f {}
 private struct g {} // Private declaration in a different file is not a
                     // redefinition
@@ -487,7 +488,8 @@ TEST_CASE("Redefine function in different module", "[sema]") {
     auto iss = test::getSemaIssues(R"(
 fn f(n: int) {}
 fn g(n: int) {}
-)", R"(
+)",
+                                   R"(
 fn f(m: int) {}
 private fn g(m: int) {}
 )");
