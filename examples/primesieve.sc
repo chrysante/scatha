@@ -15,7 +15,7 @@ fn print(text: &str) {
 	__builtin_putstr(text);
 }
 
-fn sqrt(value: double) -> double {
+fn sqrt(value: double) {
 	return __builtin_sqrt_f64(value);
 }
 
@@ -40,11 +40,11 @@ struct Sieve {
 		}
 	}
 
-	fn isSet(&this, index: int) -> bool {
+	fn isSet(&this, index: int) {
 		return this.flags[index];
 	}
 
-	fn size(&this) -> int {
+	fn size(&this) {
 		return this.flags.count;
 	}
 
@@ -64,39 +64,52 @@ struct Sieve {
         }
 	}
 
-	fn printPrime(p: int) {
-		return;
-		green();
-		print(p);
-		print(" is prime!\n");
-		reset();
-	}
-
-	fn report(&this) {
-		print("Sieve of size: ");
-		print(this.size());
-		print("\n");
-		printPrime(2);
+	fn count(&this) {
 		var numPrimes = 1;
 		for i = 3; i < this.size(); i += 2 {
 			if this.isSet(i) {
 				++numPrimes;
-				printPrime(i);
 			}
 		}
+		return numPrimes;
+	}
+
+	fn print(&this) {
 		print("Found ");
-		print(numPrimes);
+		print(this.count());
 		print(" prime numbers below ");
 		print(this.size());
+		print(":\n");
+		green();
+		print(2);
+		var numPrimes = 1;
+		for i = 3; i < this.size(); i += 2 {
+			if this.isSet(i) {
+				print(", ");
+				print(i);
+			}
+		}
+		reset();
 		print("\n");
 	}
 
 	var flags: *mut [bool];
 }
 
-fn main() {
-	let N = 10000000;
+fn main(args: &[*str]) {
+	if args.empty {
+		print("Please specify size of the sieve\n");
+		return 1;
+	}
+	var N: int;
+	if (!__builtin_strtos64(N, *args.front, 10)) {
+		print("Cannot convert \"");
+		print(*args.front);
+		print("\" to a number\n");
+		return 1;	
+	}
 	var sieve = Sieve(N);
 	sieve.run();
-  	sieve.report();
+  	sieve.print();
+  	return 0;
 }
