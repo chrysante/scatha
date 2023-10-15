@@ -14,11 +14,6 @@ SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
                            Error,
                            ::format(statement())
                                << " is invalid in " << ::format(scope()))
-SC_SEMA_GENERICBADSTMT_DEF(
-    MainMustReturnTrivial,
-    Error,
-    "main function cannot return non-trivial type " << sema::format(
-        cast<ast::FunctionDefinition const*>(statement())->returnType()))
 
 #undef SC_SEMA_GENERICBADSTMT_DEF
 
@@ -81,6 +76,27 @@ SC_SEMA_BADVARDECL_DEF(ThisPosition, Error, {
 })
 
 #undef SC_SEMA_BADVARDECL_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad function definition -----------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADFUNCDEF_DEF
+#define SC_SEMA_BADFUNCDEF_DEF(reason, severity, text)
+#endif
+
+SC_SEMA_BADFUNCDEF_DEF(MainMustReturnTrivial,
+                       Error,
+                       "Function 'main' cannot return non-trivial type "
+                           << sema::format(definition()->returnType()))
+
+SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments,
+                       Error,
+                       sema::format(definition()->function()->signature())
+                           << " is not a valid signature for 'main'. "
+                           << " Valid signatures are () and (&[*str])")
+
+#undef SC_SEMA_BADFUNCDEF_DEF
 
 // ===--------------------------------------------------------------------=== //
 // === List of all reasons for a bad special member function -------------=== //

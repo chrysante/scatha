@@ -295,7 +295,7 @@ struct X {
 
 TEST_CASE("Conditional operator", "[sema]") {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
-fn main(i: int) -> int {
+fn test(i: int) -> int {
 	let cond = i == 0;
 	let a = cond ? i : 1;
 })");

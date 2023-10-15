@@ -21,7 +21,8 @@
 /// │  ├─ BadDecl
 /// │  │  ├─ Redefinition
 /// │  │  ├─ BadVarDecl
-/// │  │  ├─ BadSMF
+/// │  │  ├─ BadFuncDef
+/// │  │  │  └─ BadSMF
 /// │  │  └─ StructDefCycle
 /// │  ├─ BadReturnStmt
 /// │  └─ BadReturnTypeDeduction
@@ -155,7 +156,36 @@ private:
     ast::Expression const* _initExpr;
 };
 
-class SCATHA_API BadSMF: public BadDecl {
+/// Invalid function signature. This includes invalid definitions of `main()`
+/// and invalid special member function signatures via the base class `BadSMF`
+class SCATHA_API BadFuncDef: public BadDecl {
+public:
+    enum Reason {
+#define SC_SEMA_BADFUNCDEF_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemaIssues.def.h>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    BadFuncDef(Scope const* scope,
+               ast::FunctionDefinition const* funcdef,
+               Reason reason);
+
+    SC_SEMA_DERIVED_STMT(FunctionDefinition, definition)
+
+protected:
+    struct InitAsBase {};
+    BadFuncDef(InitAsBase,
+               Scope const* scope,
+               ast::FunctionDefinition const* funcdef,
+               IssueSeverity severity,
+               Reason reason = {});
+
+private:
+    void format(std::ostream& str) const override;
+};
+
+/// Invalid signature of special member function
+class SCATHA_API BadSMF: public BadFuncDef {
 public:
     enum Reason {
 #define SC_SEMA_BADSMF_DEF(reason, _0, _1) reason,
@@ -168,8 +198,6 @@ public:
            Reason reason,
            SpecialMemberFunction SMF,
            StructType const* parent);
-
-    SC_SEMA_DERIVED_STMT(FunctionDefinition, definition)
 
     SpecialMemberFunction SMF() const { return smf; }
 

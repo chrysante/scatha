@@ -220,6 +220,37 @@ BadVarDecl::BadVarDecl(Scope const* _scope,
     }
 }
 
+static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADFUNCDEF_DEF(reason, severity, _)                            \
+    case BadFuncDef::reason:                                                   \
+        return IssueSeverity::severity;
+#include "Sema/SemaIssues.def.h"
+    }
+}
+
+BadFuncDef::BadFuncDef(Scope const* scope,
+                       ast::FunctionDefinition const* funcdef,
+                       Reason reason):
+    BadFuncDef(InitAsBase{}, scope, funcdef, toSeverity(reason), reason) {}
+
+BadFuncDef::BadFuncDef(InitAsBase,
+                       Scope const* scope,
+                       ast::FunctionDefinition const* funcdef,
+                       IssueSeverity severity,
+                       Reason reason):
+    BadDecl(scope, funcdef, severity), _reason(reason) {}
+
+void BadFuncDef::format(std::ostream& str) const {
+    switch (reason()) {
+#define SC_SEMA_BADFUNCDEF_DEF(reason, _, message)                             \
+    case reason:                                                               \
+        str << message;                                                        \
+        break;
+#include "Sema/SemaIssues.def.h"
+    }
+}
+
 static IssueSeverity toSeverity(BadSMF::Reason reason) {
     switch (reason) {
 #define SC_SEMA_BADSMF_DEF(reason, severity, _)                                \
@@ -234,7 +265,7 @@ BadSMF::BadSMF(Scope const* scope,
                Reason reason,
                SpecialMemberFunction SMF,
                StructType const* parent):
-    BadDecl(scope, funcdef, toSeverity(reason)),
+    BadFuncDef(InitAsBase{}, scope, funcdef, toSeverity(reason)),
     _reason(reason),
     smf(SMF),
     _parent(parent) {}

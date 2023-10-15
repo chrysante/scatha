@@ -178,7 +178,7 @@ fn r1(n: int) -> int {
 fn r2(n: int) -> int {
     return n + r1(n - 1);
 }
-fn main(n: int) -> int {
+fn main() -> int {
     return r1(1) + r1(10);
 })");
 }
@@ -194,7 +194,7 @@ fn ack(n: int, m: int) -> int {
     }
     return ack(n - 1, ack(n, m - 1));
 }
-fn main(n: int) -> int {
+fn main() -> int {
     return ack(3, 4);
 })");
 }
@@ -220,7 +220,7 @@ fn eval(expr: mut Expr) -> int {
     expr.rhs = -expr.rhs;
     return eval(expr);
 }
-fn main(n: int) -> int {
+fn main() -> int {
     var expr: Expr;
     expr.id = 2;
     expr.lhs = 5;

@@ -163,15 +163,39 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
     }
 }
 
+/// \Returns `true` if \p sig is either `() -> "any"` or `(&[*str]) -> "any"`
+static bool argumentsAreValidForMain(std::span<Type const* const> types,
+                                     SymbolTable& sym) {
+    switch (types.size()) {
+    case 0:
+        return true;
+    case 1: {
+        auto* type = types.front();
+        auto* constStrPtr = sym.pointer(QualType::Const(sym.Str()));
+        auto* array = sym.arrayType(constStrPtr);
+        auto* ref = sym.reference(QualType::Const(array));
+        return type == ref;
+    }
+    default:
+        return false;
+    }
+}
+
 /// Here we perform all checks and transforms on `main` that make it special
 void FuncBodyContext::analyzeMainFunction() {
+    /// main is always binary visible
     semaFn->setBinaryVisibility(BinaryVisibility::Export);
-    auto* retType = semaFn->returnType();
     /// We might require main to return int at some point, but right now there
     /// are many test cases where main returns bool or double
+    auto* retType = semaFn->returnType();
     if (!retType->hasTrivialLifetime()) {
-        ctx.issue<GenericBadStmt>(&currentFunction,
-                                  GenericBadStmt::MainMustReturnTrivial);
+        ctx.issue<BadFuncDef>(&currentFunction,
+                              BadFuncDef::MainMustReturnTrivial);
+    }
+    /// Only certain argument types are valid for main
+    if (!argumentsAreValidForMain(semaFn->argumentTypes(), sym)) {
+        ctx.issue<BadFuncDef>(&currentFunction,
+                              BadFuncDef::MainInvalidArguments);
     }
 }
 

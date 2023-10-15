@@ -457,8 +457,8 @@ struct X {
 fn main() {
     return X();
 })");
-    using enum GenericBadStmt::Reason;
-    CHECK(issues.findOnLine<GenericBadStmt>(7, MainMustReturnTrivial));
+    using enum BadFuncDef::Reason;
+    CHECK(issues.findOnLine<BadFuncDef>(7, MainMustReturnTrivial));
 }
 
 TEST_CASE("Access data member without object", "[sema][issue]") {
@@ -495,4 +495,14 @@ private fn g(m: int) {}
 )");
     CHECK(iss.findOnLine<Redefinition>(2));
     CHECK(iss.noneOnLine(3));
+}
+
+TEST_CASE("Main parameter validation", "[sema]") {
+    using enum BadFuncDef::Reason;
+    CHECK(test::getSemaIssues("fn main() {}").empty());
+    CHECK(test::getSemaIssues("fn main(args: &[*str]) {}").empty());
+    CHECK(test::getSemaIssues("fn main(n: int) {}")
+              .findOnLine<BadFuncDef>(1, MainInvalidArguments));
+    CHECK(test::getSemaIssues("fn main(f: float) {}")
+              .findOnLine<BadFuncDef>(1, MainInvalidArguments));
 }

@@ -89,13 +89,18 @@ fn main() -> int {
 
 TEST_CASE("Bug in simplifycfg", "[end-to-end][regression]") {
     test::checkReturns(10, R"(
-fn main(n: mut int, cond: bool) -> int {
+fn main() -> int {
+    var n = undefInt();
+    var cond = undefBool();
     if cond {}
     else {}
     n ^= n;
     n += 10;
     return n;
-})");
+}
+fn undefInt() -> int {}
+fn undefBool() -> bool {}
+)");
 }
 
 TEST_CASE("Size of array data member", "[end-to-end][regression]") {
@@ -103,7 +108,7 @@ TEST_CASE("Size of array data member", "[end-to-end][regression]") {
 struct X {
     var data: [int, 5];
 }
-fn main(cond: bool) -> int {
+fn main() -> int {
     var x: X;
     return x.data.count;
 })");

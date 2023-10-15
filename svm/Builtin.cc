@@ -38,7 +38,8 @@ static ExternalFunction::FuncPtr printVal() {
     };
 }
 
-/// Loads two consecutive registers as an array pointer structure `{ T*, size_t }`
+/// Loads two consecutive registers as an array pointer structure
+/// `{ T*, size_t }`
 template <typename T>
 static std::span<T> loadArray(u64* regPtr) {
     T* data = load<char*>(regPtr);
