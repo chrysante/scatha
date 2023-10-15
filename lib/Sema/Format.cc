@@ -1,6 +1,6 @@
 #include "Sema/Format.h"
 
-#include <ostream>
+#include <iostream>
 
 #include <termfmt/termfmt.h>
 
@@ -61,8 +61,35 @@ utl::vstreammanip<> sema::format(Type const* type) {
     };
 }
 
+void sema::print(Type const* type, std::ostream& str) {
+    str << format(type) << "\n";
+}
+
+void sema::print(Type const* type) { print(type, std::cout); }
+
 utl::vstreammanip<> sema::format(QualType type) { return format(type.get()); }
 
 utl::vstreammanip<> sema::formatType(ast::Expression const* expr) {
     return format(expr ? expr->type().get() : nullptr);
 }
+
+utl::vstreammanip<> sema::format(FunctionSignature const& sig) {
+    return [=](std::ostream& str) {
+        str << "(";
+        bool first = true;
+        for (auto* type: sig.argumentTypes()) {
+            if (!first) {
+                str << ", ";
+            }
+            first = false;
+            str << format(type);
+        }
+        str << ") -> " << format(sig.returnType());
+    };
+}
+
+void sema::print(FunctionSignature const& sig, std::ostream& str) {
+    str << format(sig) << "\n";
+}
+
+void sema::print(FunctionSignature const& sig) { print(sig, std::cout); }
