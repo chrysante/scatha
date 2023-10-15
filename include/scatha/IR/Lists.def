@@ -17,12 +17,16 @@ SC_CGFNODE_DEF(Constant,              ABSTRACT)
 SC_CGFNODE_DEF(IntegralConstant,      CONCRETE)
 SC_CGFNODE_DEF(FloatingPointConstant, CONCRETE)
 SC_CGFNODE_DEF(NullPointerConstant,   CONCRETE)
-SC_CGFNODE_DEF(UndefValue,            CONCRETE)
 SC_CGFNODE_DEF(RecordConstant,        ABSTRACT)
 SC_CGFNODE_DEF(StructConstant,        CONCRETE)
 SC_CGFNODE_DEF(ArrayConstant,         CONCRETE)
+SC_CGFNODE_DEF(UndefValue,            CONCRETE)
+
+// TODO: Remove this
 SC_CGFNODE_DEF(ConstantData,          CONCRETE)
 
+SC_CGFNODE_DEF(Global,                ABSTRACT)
+SC_CGFNODE_DEF(GlobalVar,             CONCRETE)
 SC_CGFNODE_DEF(Callable,              ABSTRACT)
 SC_CGFNODE_DEF(Function,              CONCRETE)
 SC_CGFNODE_DEF(ForeignFunction,       CONCRETE)

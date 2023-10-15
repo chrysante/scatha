@@ -41,7 +41,7 @@ Callable::Callable(NodeType nodeType,
                    std::string name,
                    FunctionAttribute attr,
                    Visibility vis):
-    Constant(nodeType, functionType, std::move(name)),
+    Global(nodeType, functionType, std::move(name)),
     _returnType(returnType),
     attrs(attr),
     vis(vis) {

@@ -7,7 +7,7 @@
 
 #include "Common/Base.h"
 #include "IR/CFG/BasicBlock.h"
-#include "IR/CFG/Constant.h"
+#include "IR/CFG/Global.h"
 #include "IR/Fwd.h"
 #include "IR/UniqueName.h"
 
@@ -44,7 +44,7 @@ private:
 
 /// Represents a callable.
 /// This is a base common class of `Function` and `ForeignFunction`.
-class SCATHA_API Callable: public Constant {
+class SCATHA_API Callable: public Global {
 public:
     /// \returns The function parameters
     List<Parameter>& parameters() { return params; }

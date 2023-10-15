@@ -144,10 +144,10 @@ bool FuncEqContext::typeEqual(ir::Type const* a, ir::Type const* b) const {
 
 EqResult FuncEqContext::valueEqual(ir::Value const* x,
                                    ir::Value const* y) const {
-    auto* xConst = dyncast<ir::Constant const*>(x);
-    auto* yConst = dyncast<ir::Constant const*>(y);
-    if (xConst && yConst) {
-        if (typeEqual(xConst->type(), yConst->type())) {
+    auto* xGlob = dyncast<ir::Global const*>(x);
+    auto* yGlob = dyncast<ir::Global const*>(y);
+    if (xGlob && yGlob) {
+        if (typeEqual(xGlob->type(), yGlob->type())) {
             return EqResult::Success;
         }
         return { x, y, "Type mismatch" };

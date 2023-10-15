@@ -161,9 +161,9 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
     };
     // clang-format off
     visit(*value, utl::overload{
-        [&](ir::Constant const& constant) {
+        [&](ir::Global const& global) {
             str << tfmt::format(Green,
-                                "@", htmlName(constant));
+                                "@", htmlName(global));
         },
         [&](ir::Parameter const& parameter) {
             str << tfmt::format(None, "%", htmlName(parameter));

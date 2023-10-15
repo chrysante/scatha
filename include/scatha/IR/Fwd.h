@@ -7,13 +7,19 @@
 /// ├─ Parameter
 /// ├─ BasicBlock
 /// └─ User
-///    ├─ Constant
-///    │  ├─ IntegralConstant
-///    │  ├─ FloatingPointConstant
-///    │  ├─ UndefValue
-///    │  └─ Callable
-///    │     ├─ Function
-///    │     └─ ForeignFunction
+///    ├─ Global
+///    │  ├─ GlobalVar
+///    │  ├─ Callable
+///    │  │  ├─ Function
+///    │  │  └─ ForeignFunction
+///    │  └─ Constant
+///    │     ├─ IntegralConstant
+///    │     ├─ FloatingPointConstant
+///    │     ├─ NullPointerConstant
+///    │     ├─ RecordConstant
+///    │     ├─ StructConstant
+///    │     ├─ ArrayConstant
+///    │     └─ UndefValue
 ///    └─ Instruction
 ///       ├─ Alloca
 ///       ├─ Store
