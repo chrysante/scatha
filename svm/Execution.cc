@@ -31,6 +31,12 @@
 
 using namespace svm;
 
+/// \Returns `codeSize(code)`  except for call and terminate instruction for
+/// which this function returns 0. This is used to advance the instruction
+/// pointer. Since these three instructions alter the instruction pointer we do
+/// not want to advance it any further.
+/// Jump instructions subtract the codesize from the target because we have
+/// conditional jumps and advance the instruction pointer unconditionally
 static constexpr size_t execCodeSizeImpl(OpCode code) {
     if (code == OpCode::call) {
         return 0;
@@ -48,6 +54,9 @@ static constexpr size_t execCodeSizeImpl(OpCode code) {
 /// compared to calling `execCodeSizeImpl()` directly.
 template <OpCode Code>
 static constexpr size_t ExecCodeSize = execCodeSizeImpl(Code);
+
+template <OpCode Code>
+static constexpr size_t CodeSize = codeSize(Code);
 
 template <typename T>
 ALWAYS_INLINE static void storeReg(u64* dest, T const& t) {
@@ -115,11 +124,15 @@ ALWAYS_INLINE static void condMoveRM(u8 const* i, u64* reg, bool cond) {
 
 template <OpCode C>
 ALWAYS_INLINE static void jump(u8 const* i,
+                               u8 const* text,
                                ExecutionFrame& currentFrame,
                                bool cond) {
-    i32 const offset = load<i32>(&i[0]);
+    u32 dest = load<u32>(&i[0]);
     if (cond) {
-        currentFrame.iptr += offset - static_cast<i64>(ExecCodeSize<C>);
+        /// `ExecCodeSize` is added to the instruction pointer after executing
+        /// any instruction. Because we want the instruction pointer to be
+        /// `text + dest` we subtract that number here.
+        currentFrame.iptr = text + dest - ExecCodeSize<C>;
     }
 }
 
@@ -252,13 +265,14 @@ u64 const* VirtualMachine::execute(size_t start,
             // clang-format off
             
         INSTRUCTION(call, {
-            i32 const offset       = load<i32>(i);
+            u32 const dest = load<u32>(i);
             size_t const regOffset = i[4];
             currentFrame.regPtr += regOffset;
             currentFrame.regPtr[-3] = utl::bit_cast<u64>(currentFrame.stackPtr);
             currentFrame.regPtr[-2] = regOffset;
-            currentFrame.regPtr[-1] = utl::bit_cast<u64>(currentFrame.iptr + codeSize(call));
-            currentFrame.iptr += offset;
+            auto* retAddr = currentFrame.iptr + CodeSize<call>;
+            currentFrame.regPtr[-1] = utl::bit_cast<u64>(retAddr);
+            currentFrame.iptr = text.data() + dest;
         });
 
         INSTRUCTION(ret, {
@@ -373,13 +387,13 @@ u64 const* VirtualMachine::execute(size_t start,
         });
 
         /// ## Jumps
-        INSTRUCTION(jmp, jump<jmp>(i, currentFrame, true));
-        INSTRUCTION(je, jump<je>(i, currentFrame, equal(flags)));
-        INSTRUCTION(jne, jump<jne>(i, currentFrame, notEqual(flags)));
-        INSTRUCTION(jl, jump<jl>(i, currentFrame, less(flags)));
-        INSTRUCTION(jle, jump<jle>(i, currentFrame, lessEq(flags)));
-        INSTRUCTION(jg, jump<jg>(i, currentFrame, greater(flags)));
-        INSTRUCTION(jge, jump<jge>(i, currentFrame, greaterEq(flags)));
+        INSTRUCTION(jmp, jump<jmp>(i, text.data(), currentFrame, true));
+        INSTRUCTION(je, jump<je>(i, text.data(), currentFrame, equal(flags)));
+        INSTRUCTION(jne, jump<jne>(i, text.data(), currentFrame, notEqual(flags)));
+        INSTRUCTION(jl, jump<jl>(i, text.data(), currentFrame, less(flags)));
+        INSTRUCTION(jle, jump<jle>(i, text.data(), currentFrame, lessEq(flags)));
+        INSTRUCTION(jg, jump<jg>(i, text.data(), currentFrame, greater(flags)));
+        INSTRUCTION(jge, jump<jge>(i, text.data(), currentFrame, greaterEq(flags)));
 
         /// ## Comparison
         INSTRUCTION(ucmp8RR, compareRR<u8>(i, regPtr, flags));

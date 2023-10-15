@@ -80,9 +80,13 @@ struct Context {
         put<u32>(~0u);
     }
 
+    /// Used when emitting a jump or call instruction. Stores the code position
+    /// of the destination and the target ID.
     void registerJumpSite(size_t offsetValuePos, u64 targetID);
 
-    void postProcess();
+    /// Traverses all registered jump sites after all instruction are emitted
+    /// and replaces placeholders with the actual code position of the target.
+    void setJumpDests();
 
     size_t currentPosition() const { return instructions.size(); }
 
@@ -137,7 +141,7 @@ void Context::run() {
             dispatch(inst);
         }
     }
-    postProcess();
+    setJumpDests();
 }
 
 void Context::dispatch(Instruction const& inst) {
@@ -388,14 +392,11 @@ static void store(void* dest, T const& t) {
     std::memcpy(dest, &t, sizeof(T));
 }
 
-void Context::postProcess() {
+void Context::setJumpDests() {
     for (auto const& [position, targetID]: jumpsites) {
         auto const itr = labels.find(targetID);
         SC_ASSERT(itr != labels.end(), "Use of undeclared label");
         size_t const targetPosition = itr->second;
-        i32 const offset = utl::narrow_cast<i32>(
-            static_cast<i64>(targetPosition) - static_cast<i64>(position));
-        store(&instructions[position],
-              offset + static_cast<i32>(sizeof(OpCode)));
+        store(&instructions[position], utl::narrow_cast<u32>(targetPosition));
     }
 }

@@ -95,9 +95,13 @@ private:
 
     VMFlags flags{};
 
-    utl::vector<u64> registers;
+    /// Executable code section
     utl::vector<u8> text;
+    /// Static data section
     utl::vector<u8> data;
+    /// Memory for registers
+    utl::vector<u64> registers;
+    /// Stack memory
     utl::vector<u8> stack;
 
     /// End of text section

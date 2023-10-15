@@ -15,9 +15,9 @@
 /// regPtr[-3] = stackPtr
 /// regPtr[-2] = regOffset
 /// regPtr[-1] = iptr
-/// jmp          offset
+/// jmp dest
 /// ```
-SVM_INSTRUCTION_DEF(call, Other) // (i32 offset, u8 regOffset)
+SVM_INSTRUCTION_DEF(call, Other) // (u32 dest, u8 regOffset)
 
 /// Return to caller. Effectively performs the following operations:
 /// ```
@@ -111,31 +111,29 @@ SVM_INSTRUCTION_DEF(lea, RM) // (u8 destRegIdx, MEMORY_POINTER)
 SVM_INSTRUCTION_DEF(lda, RV32) // (u8 destRegIdx, u32 offset);
 
 /// ## Jumps
-/// Jumps are performed by adding the `offset` argument to the instruction
+/// Jumps are performed by assigning the `dest` argument to the instruction
 /// pointer.
-/// This means a jump with `offset` 0 will jump to itself and thus enter an
-/// infinite loop.
 
 /// Jump to the specified offset.
-SVM_INSTRUCTION_DEF(jmp, Jump) // (i32 offset)
+SVM_INSTRUCTION_DEF(jmp, Jump) // (u32 dest)
 
 /// Jump to the specified offset if equal flag is set.
-SVM_INSTRUCTION_DEF(je,  Jump) // (i32 offset)
+SVM_INSTRUCTION_DEF(je,  Jump) // (u32 dest)
 
 /// Jump to the specified offset if equal flag is not set.
-SVM_INSTRUCTION_DEF(jne, Jump) // (i32 offset)
+SVM_INSTRUCTION_DEF(jne, Jump) // (u32 dest)
 
 /// Jump to the specified offset if less flag is set.
-SVM_INSTRUCTION_DEF(jl,  Jump) // (i32 offset)
+SVM_INSTRUCTION_DEF(jl,  Jump) // (u32 dest)
 
 /// Jump to the specified offset if less flag or equal flag is set.
-SVM_INSTRUCTION_DEF(jle, Jump) // (i32 offset)
+SVM_INSTRUCTION_DEF(jle, Jump) // (u32 dest)
 
 /// Jump to the specified offset if less flag and equal flag are not set.
-SVM_INSTRUCTION_DEF(jg,  Jump) // (i32 offset)
+SVM_INSTRUCTION_DEF(jg,  Jump) // (u32 dest)
 
 /// Jump to the specified offset if less flag is not set.
-SVM_INSTRUCTION_DEF(jge, Jump) // (i32 offset)
+SVM_INSTRUCTION_DEF(jge, Jump) // (u32 dest)
 
 /// ## Comparison
 /// Compare the operands and set flags accordingly
