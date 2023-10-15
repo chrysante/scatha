@@ -381,6 +381,19 @@ fn main() {
 })");
 }
 
+TEST_CASE("Array of array pointers with front/back",
+          "[end-to-end][arrays][pointers]") {
+    test::checkReturns(7, R"(
+fn f(args: &[*str]) {
+    return args.front.count + args.back.count;
+}
+fn main() {
+    let p = &"foo";
+    let q = &"quux";
+    return f([p, q]);
+})");
+}
+
 TEST_CASE("Compare pointers", "[end-to-end][pointers]") {
     test::checkReturns(false, R"(
 fn main() {

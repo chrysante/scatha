@@ -886,10 +886,25 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                       "Can't have dynamic array in register");
             size_t index = prop.kind() == ArrayFront ? 0 :
                                                        arrayType->count() - 1;
-            auto* elem = add<ir::ExtractValue>(array.get(),
-                                               std::array{ index },
-                                               "array.front");
-            return Value(elem, Register);
+
+            if (isPtrOrRefToDynArray(arrayType->elementType())) {
+                auto* data =
+                    add<ir::ExtractValue>(array.get(),
+                                          std::array{ index, size_t{ 0 } },
+                                          "array.front.data");
+                auto* size =
+                    add<ir::ExtractValue>(array.get(),
+                                          std::array{ index, size_t{ 1 } },
+                                          "array.front.size");
+                valueMap.insertArraySize(expr.object(), Value(size, Register));
+                return Value(data, Register);
+            }
+            else {
+                auto* elem = add<ir::ExtractValue>(array.get(),
+                                                   std::array{ index },
+                                                   "array.front");
+                return Value(elem, Register);
+            }
         }
         case Memory: {
             auto* irElemType = typeMap(arrayType->elementType());
@@ -906,12 +921,33 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                                ir::ArithmeticOperation::Sub,
                                                "back.index");
             }();
-            auto* elem = add<ir::GetElementPointer>(irElemType,
-                                                    array.get(),
-                                                    index,
-                                                    std::array<size_t, 0>{},
-                                                    "array.front");
-            return Value(elem, irElemType, Memory);
+            if (isPtrOrRefToDynArray(arrayType->elementType())) {
+                auto* arrayView = makeArrayViewType(ctx);
+                auto* irSizeType = ctx.intType(64);
+                auto* data =
+                    add<ir::GetElementPointer>(arrayView,
+                                               array.get(),
+                                               index,
+                                               std::array{ size_t{ 0 } },
+                                               "array.front.data");
+                auto* size =
+                    add<ir::GetElementPointer>(arrayView,
+                                               array.get(),
+                                               index,
+                                               std::array{ size_t{ 1 } },
+                                               "array.front.size");
+                valueMap.insertArraySize(expr.object(),
+                                         Value(size, irSizeType, Memory));
+                return Value(data, irElemType, Memory);
+            }
+            else {
+                auto* elem = add<ir::GetElementPointer>(irElemType,
+                                                        array.get(),
+                                                        index,
+                                                        std::array<size_t, 0>{},
+                                                        "array.front");
+                return Value(elem, irElemType, Memory);
+            }
         }
         }
     }

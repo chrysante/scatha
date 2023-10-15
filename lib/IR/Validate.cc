@@ -258,7 +258,7 @@ void AssertContext::assertSpecialInvariants(Store const& store) {
 void AssertContext::assertSpecialInvariants(GetElementPointer const& gep) {
     CHECK(gep.basePointer()->type() == ctx.ptrType(),
           "Base pointer must be of pointer type");
-    if (!isa<StructType>(gep.inboundsType())) {
+    if (!isa<RecordType>(gep.inboundsType())) {
         CHECK(gep.memberIndices().empty(),
               "We can only have member indices if "
               "we are accessing a structure");
