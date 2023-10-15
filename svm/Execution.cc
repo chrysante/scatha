@@ -41,6 +41,9 @@ static constexpr size_t execCodeSizeImpl(OpCode code) {
     if (code == OpCode::call) {
         return 0;
     }
+    if (code == OpCode::icall) {
+        return 0;
+    }
     if (code == OpCode::ret) {
         return 0;
     }
@@ -120,6 +123,29 @@ ALWAYS_INLINE static void condMoveRM(u8 const* i, u64* reg, bool cond) {
         reg[destRegIdx] = 0;
         std::memcpy(&reg[destRegIdx], ptr, Size);
     }
+}
+
+template <OpCode C>
+ALWAYS_INLINE static void performCall(u8 const* i,
+                                      u8 const* text,
+                                      ExecutionFrame& currentFrame) {
+    auto const [dest, regOffset] = [&] {
+        if constexpr (C == OpCode::call) {
+            return std::pair{ load<u32>(i), load<u8>(i + 4) };
+        }
+        else {
+            static_assert(C == OpCode::icall);
+            auto* reg = currentFrame.regPtr;
+            u8 const idx = load<u8>(i);
+            return std::pair{ load<u32>(reg + idx), load<u8>(i + 1) };
+        }
+    }();
+    currentFrame.regPtr += regOffset;
+    currentFrame.regPtr[-3] = utl::bit_cast<u64>(currentFrame.stackPtr);
+    currentFrame.regPtr[-2] = regOffset;
+    auto* retAddr = currentFrame.iptr + CodeSize<C>;
+    currentFrame.regPtr[-1] = utl::bit_cast<u64>(retAddr);
+    currentFrame.iptr = text + dest;
 }
 
 template <OpCode C>
@@ -228,7 +254,7 @@ u64 const* VirtualMachine::execute(size_t start,
     auto const lastframe = execFrames.top() = currentFrame;
     /// We add `MaxCallframeRegisterCount` to the register pointer because
     /// we have no way of knowing how many registers the currently running
-    /// execution currentFrame uses, so we have to assume the worst.
+    /// execution frame uses, so we have to assume the worst.
     currentFrame = execFrames.push(ExecutionFrame{
         .regPtr = lastframe.regPtr + MaxCallframeRegisterCount,
         .bottomReg = lastframe.regPtr + MaxCallframeRegisterCount,
@@ -275,16 +301,8 @@ u64 const* VirtualMachine::execute(size_t start,
 
         INST_LIST_BEGIN()
 
-        INST(call) {
-            u32 const dest = load<u32>(i);
-            size_t const regOffset = i[4];
-            currentFrame.regPtr += regOffset;
-            currentFrame.regPtr[-3] = utl::bit_cast<u64>(currentFrame.stackPtr);
-            currentFrame.regPtr[-2] = regOffset;
-            auto* retAddr = currentFrame.iptr + CodeSize<call>;
-            currentFrame.regPtr[-1] = utl::bit_cast<u64>(retAddr);
-            currentFrame.iptr = text.data() + dest;
-        }
+        INST(call) { performCall<call>(i, text.data(), currentFrame); }
+        INST(icall) { performCall<icall>(i, text.data(), currentFrame); }
 
         INST(ret) {
             if UTL_UNLIKELY (currentFrame.bottomReg == regPtr) {
@@ -549,8 +567,8 @@ u64 const* VirtualMachine::execute(size_t start,
         INST(lsr32RM) { arithmeticRV<u32>(i, regPtr, utl::rightshift); }
 
         /// ## 64 bit arithmetic shifts
-#define ASL = utl::arithmetic_leftshift
-#define ASR = utl::arithmetic_rightshift
+#define ASL utl::arithmetic_leftshift
+#define ASR utl::arithmetic_rightshift
         INST(asl64RR) { arithmeticRR<u64>(i, regPtr, ASL); }
         INST(asl64RV) { arithmeticRV<u64, u8>(i, regPtr, ASL); }
         INST(asl64RM) { arithmeticRM<u64>(i, regPtr, ASL); }

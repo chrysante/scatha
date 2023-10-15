@@ -45,11 +45,11 @@ struct CoutRestore {
 
 struct PrintCtx {
     std::ostream& str;
-    utl::hashmap<uint64_t, Block const*> blockIDMap;
+    utl::hashmap<LabelID, Block const*> blockIDMap;
 
     /// Prints the name of the target block if it exists in the map, otherwise
     /// prints the ID
-    auto label(uint64_t ID) {
+    auto label(LabelID ID) {
         return utl::streammanip([this, ID](std::ostream& str) {
             auto itr = blockIDMap.find(ID);
             if (itr != blockIDMap.end()) {
@@ -57,7 +57,7 @@ struct PrintCtx {
                 str << block->name();
             }
             else {
-                str << "Label: " << ID;
+                str << "Label: " << utl::to_underlying(ID);
             }
         });
     }
@@ -74,7 +74,8 @@ struct PrintCtx {
     }
 
     void print(Block const& block) {
-        std::cout << block.name() << ": ID: " << block.id() << "\n";
+        std::cout << block.name() << ": ID: " << utl::to_underlying(block.id())
+                  << "\n";
         for (auto& inst: block) {
             print(inst);
             str << "\n";
@@ -110,11 +111,16 @@ struct PrintCtx {
 
     void printImpl(JumpInst const& jmp) {
         str << instName(toJumpInstName(jmp.condition())) << " "
-            << label(jmp.targetLabelID());
+            << label(jmp.target());
     }
 
     void printImpl(CallInst const& call) {
-        str << instName("call") << " " << label(call.functionLabelID()) << ", "
+        str << instName("call") << " " << label(call.function()) << ", "
+            << call.regPtrOffset();
+    }
+
+    void printImpl(ICallInst const& call) {
+        str << instName("icall") << " " << call.destAddr() << ", "
             << call.regPtrOffset();
     }
 
@@ -205,6 +211,11 @@ struct PrintCtx {
     void printImpl(Value64 const& value) {
         CoutRestore r;
         str << "0x" << std::hex << value.value() << "_u64";
+    }
+
+    void printImpl(LabelPosition const& pos) {
+        CoutRestore r;
+        str << label(pos.ID());
     }
 
     void printImpl(RegisterIndex const& regIdx) {

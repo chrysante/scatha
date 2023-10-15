@@ -19,6 +19,11 @@
 /// ```
 SVM_INSTRUCTION_DEF(call, Other) // (u32 dest, u8 regOffset)
 
+/// Indirect call
+/// Performs the same operations as call except that the `dest` argument is
+/// not hardcoded but loaded from the register `destRegIdx`
+SVM_INSTRUCTION_DEF(icall, Other) // (u8 destRegIdx, u8 regOffset)
+
 /// Return to caller. Effectively performs the following operations:
 /// ```
 /// iptr     = regPtr[-1]

@@ -17,15 +17,15 @@ public:
     using Iterator = utl::vector<Instruction>::iterator;
     using ConstIterator = utl::vector<Instruction>::const_iterator;
 
-    explicit Block(size_t id, std::string name):
+    explicit Block(LabelID id, std::string name):
         Block(id, std::move(name), {}) {}
 
-    explicit Block(size_t id,
+    explicit Block(LabelID id,
                    std::string name,
                    std::initializer_list<Instruction> instructions):
         _id(id), _name(std::move(name)), instructions(instructions) {}
 
-    size_t id() const { return _id; }
+    LabelID id() const { return _id; }
 
     /// \Returns `true` if the address of this block should appear in the
     /// global symbol table.
@@ -57,7 +57,7 @@ public:
     }
 
 private:
-    size_t _id   : 63;
+    LabelID _id  : 63;
     bool _extern : 1 = false;
     std::string _name;
     utl::vector<Instruction> instructions;

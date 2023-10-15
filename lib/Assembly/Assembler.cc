@@ -20,11 +20,26 @@ using namespace Asm;
 
 using svm::OpCode;
 
+/// 4 bytes will always suffice to store code addresses unless we have binaries
+/// greater than 4GB in size.
+static constexpr size_t StaticAddressWidth = 4;
+
+/// We store dynamic addresses with 8 bytes to conveniently fill one register.
+static constexpr size_t DynamicAddressWidth = 8;
+
 namespace {
 
+/// A position in the code from where a jump occurs or where a label address is
+/// stored
 struct Jumpsite {
+    /// The position where the dest address will be stored to
     size_t codePosition;
-    u64 targetID;
+
+    /// The ID of the dest address
+    LabelID targetID;
+
+    /// The width with which we store the dest address.
+    size_t width;
 };
 
 struct LabelPlaceholder {};
@@ -41,6 +56,7 @@ struct Context {
     void translate(CMoveInst const&);
     void translate(JumpInst const&);
     void translate(CallInst const&);
+    void translate(ICallInst const&);
     void translate(CallExtInst const&);
     void translate(ReturnInst const&);
     void translate(TerminateInst const&);
@@ -62,6 +78,7 @@ struct Context {
     void translate(Value16 const&);
     void translate(Value32 const&);
     void translate(Value64 const&);
+    void translate(LabelPosition const&);
 
     void put(svm::OpCode o) {
         SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
@@ -75,14 +92,26 @@ struct Context {
         }
     }
 
-    void put(LabelPlaceholder) {
-        /// Labels have a size of 4.
-        put<u32>(~0u);
+    /// Emit a placeholder for a label address and register a jumpsite for
+    /// postprocessing
+    void put(LabelPlaceholder, LabelID targetID, size_t width) {
+        registerJumpSite(currentPosition(), targetID, width);
+        for (size_t i = 0; i < width; ++i) {
+            instructions.push_back(0xFF);
+        }
     }
 
     /// Used when emitting a jump or call instruction. Stores the code position
     /// of the destination and the target ID.
-    void registerJumpSite(size_t offsetValuePos, u64 targetID);
+    void registerJumpSite(size_t offsetValuePos,
+                          LabelID targetID,
+                          size_t width) {
+        jumpsites.push_back({
+            .codePosition = offsetValuePos,
+            .targetID = targetID,
+            .width = width,
+        });
+    }
 
     /// Traverses all registered jump sites after all instruction are emitted
     /// and replaces placeholders with the actual code position of the target.
@@ -95,7 +124,7 @@ struct Context {
     utl::vector<u8> instructions;
 
     /// Maps Label ID to Code position
-    utl::hashmap<u64, size_t> labels;
+    utl::hashmap<LabelID, size_t> labels;
     /// List of all code position with a jump site
     utl::vector<Jumpsite> jumpsites;
     /// Address of the `start` or `main` function.
@@ -170,15 +199,19 @@ void Context::translate(CMoveInst const& cmov) {
 void Context::translate(JumpInst const& jmp) {
     OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
-    registerJumpSite(currentPosition(), jmp.targetLabelID());
-    put(LabelPlaceholder{});
+    put(LabelPlaceholder{}, jmp.target(), StaticAddressWidth);
     return;
 }
 
 void Context::translate(CallInst const& call) {
     put(OpCode::call);
-    registerJumpSite(currentPosition(), call.functionLabelID());
-    put(LabelPlaceholder{});
+    put(LabelPlaceholder{}, call.function(), StaticAddressWidth);
+    put<u8>(call.regPtrOffset());
+}
+
+void Context::translate(ICallInst const& call) {
+    put(OpCode::icall);
+    dispatch(call.destAddr());
     put<u8>(call.regPtrOffset());
 }
 
@@ -382,9 +415,8 @@ void Context::translate(Value32 const& value) { put<u32>(value.value()); }
 
 void Context::translate(Value64 const& value) { put<u64>(value.value()); }
 
-void Context::registerJumpSite(size_t offsetValuePos, u64 targetID) {
-    jumpsites.push_back(
-        { .codePosition = offsetValuePos, .targetID = targetID });
+void Context::translate(LabelPosition const& pos) {
+    put(LabelPlaceholder{}, pos.ID(), DynamicAddressWidth);
 }
 
 template <typename T>
@@ -393,10 +425,10 @@ static void store(void* dest, T const& t) {
 }
 
 void Context::setJumpDests() {
-    for (auto const& [position, targetID]: jumpsites) {
+    for (auto const& [position, targetID, width]: jumpsites) {
         auto const itr = labels.find(targetID);
         SC_ASSERT(itr != labels.end(), "Use of undeclared label");
         size_t const targetPosition = itr->second;
-        store(&instructions[position], utl::narrow_cast<u32>(targetPosition));
+        std::memcpy(&instructions[position], &targetPosition, width);
     }
 }

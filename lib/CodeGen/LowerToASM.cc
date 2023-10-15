@@ -22,9 +22,9 @@ struct CGContext {
     void genBlock(mir::BasicBlock const& block);
     void genInst(mir::Instruction const& inst);
 
-    size_t getLabelID(mir::Value const& value) {
+    LabelID getLabelID(mir::Value const& value) {
         auto [itr, success] =
-            labelIndices.insert({ &value, labelIndexCounter });
+            labelIndices.insert({ &value, LabelID{ labelIndexCounter } });
         if (success) {
             ++labelIndexCounter;
         }
@@ -71,7 +71,7 @@ struct CGContext {
     mir::Function const* currentFunction = nullptr;
 
     /// Maps basic blocks and functions to label IDs
-    utl::hashmap<mir::Value const*, size_t> labelIndices;
+    utl::hashmap<mir::Value const*, LabelID> labelIndices;
     size_t labelIndexCounter = 0;
 };
 

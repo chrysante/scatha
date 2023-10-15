@@ -8,6 +8,9 @@
 
 namespace scatha::Asm {
 
+/// Strong integer typedef to disambiguate label IDs from other integers
+enum class LabelID : u64 {};
+
 /// Value types in asm. There are exactly 3 types: signed, unsigned and float
 enum class Type : u8 { Signed, Unsigned, Float, _count };
 

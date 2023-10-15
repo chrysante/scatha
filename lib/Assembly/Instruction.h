@@ -6,6 +6,7 @@
 
 #include "Assembly/Common.h"
 #include "Assembly/Value.h"
+#include "Common/Base.h"
 
 namespace scatha::Asm {
 
@@ -70,36 +71,62 @@ private:
 /// Represents a `jump` instruction
 class JumpInst: public InstructionBase {
 public:
-    explicit JumpInst(CompareOperation condition, u64 targetLabelID):
-        _cond(condition), _target(targetLabelID) {}
+    explicit JumpInst(CompareOperation condition, LabelID target):
+        _cond(condition), _target(target) {}
 
-    explicit JumpInst(u64 targetLabelID):
+    explicit JumpInst(LabelID targetLabelID):
         JumpInst(CompareOperation::None, targetLabelID) {}
 
     CompareOperation condition() const { return _cond; }
 
-    u64 targetLabelID() const { return _target; }
+    LabelID target() const { return _target; }
 
-    void setTarget(u64 targetLabelID) { _target = targetLabelID; }
+    void setTarget(LabelID targetLabelID) { _target = targetLabelID; }
 
 private:
     CompareOperation _cond;
-    u64 _target;
+    LabelID _target;
 };
 
-/// Represents a `call` instruction.
-class CallInst: public InstructionBase {
+/// Common base class of `CallInst` and `ICallInst`
+class CallBase: public InstructionBase {
 public:
-    explicit CallInst(u64 functionLabelID, size_t regPtrOffset):
-        _functionID(functionLabelID), _regPtrOffset(regPtrOffset) {}
+    explicit CallBase(size_t regPtrOffset): _regPtrOffset(regPtrOffset) {
+        SC_ASSERT(regPtrOffset >= 3,
+                  "We require three registers to store call metadata");
+    }
 
-    u64 functionLabelID() const { return _functionID; }
-
+    /// \Returns the offset to be added to the register pointer
     size_t regPtrOffset() const { return _regPtrOffset; }
 
 private:
-    u64 _functionID;
     u64 _regPtrOffset;
+};
+
+/// Represents a `call` instruction.
+class CallInst: public CallBase {
+public:
+    explicit CallInst(LabelID function, size_t regPtrOffset):
+        CallBase(regPtrOffset), _function(function) {}
+
+    /// \Returns The ID of the label to jump to
+    LabelID function() const { return _function; }
+
+private:
+    LabelID _function;
+};
+
+/// Represents a `icall` instruction.
+class ICallInst: public CallBase {
+public:
+    explicit ICallInst(Value destAddr, size_t regPtrOffset):
+        CallBase(regPtrOffset), _destAddr(destAddr) {}
+
+    /// \Returns The index of the register that holds the dest address
+    Value destAddr() const { return _destAddr; }
+
+private:
+    Value _destAddr;
 };
 
 /// Represents a `call ext` instruction.

@@ -38,7 +38,7 @@ static auto assembleAndExecute(AssemblyStream const& str) {
 TEST_CASE("Alloca implementation", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(128), 8),     // a = 128
         LIncSPInst(RegisterIndex(1), Value16(8)),        // ptr = alloca(8)
         MoveInst(MemoryAddress(1), RegisterIndex(0), 8), // *ptr = a
@@ -53,7 +53,7 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
     size_t const offset = GENERATE(0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u);
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(1), 8),      // a = 128
         LIncSPInst(RegisterIndex(1), Value16(8)),       // ptr = alloca(8)
         MoveInst(MemoryAddress(1, MemoryAddress::InvalidRegisterIndex.value(), 0, offset),
@@ -66,7 +66,9 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
 }
 
 TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
-    enum { main, gcd, gcd_else };
+    LabelID const main{ 0 };
+    LabelID const gcd{ 1 };
+    LabelID const gcd_else{ 2 };
     AssemblyStream a;
     // Main function
     // Should hold the result in R[3]
@@ -97,7 +99,9 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
 }
 
 TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
-    enum { main, gcd, gcd_else };
+    LabelID const main{ 0 };
+    LabelID const gcd{ 1 };
+    LabelID const gcd_else{ 2 };
     AssemblyStream a;
     // Should hold the result in R[3]
     // clang-format off
@@ -138,7 +142,7 @@ static void testArithmeticRR(ArithmeticOperation operation,
                              auto reference) {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
         ArithmeticInst(operation, RegisterIndex(0), RegisterIndex(1), 8),
@@ -154,7 +158,7 @@ static void testArithmeticRV(ArithmeticOperation operation,
                              auto reference) {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         ArithmeticInst(operation, RegisterIndex(0), Value64(arg2), 8),
         TerminateInst(),
@@ -169,7 +173,7 @@ static void testArithmeticRM(ArithmeticOperation operation,
                              auto reference) {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
         LIncSPInst(RegisterIndex(2), Value16(8)),
@@ -223,69 +227,70 @@ TEST_CASE("Arithmetic", "[assembly][vm]") {
 }
 
 TEST_CASE("Unconditional jump", "[assembly][vm]") {
-    u64 const value = GENERATE(1u, 2u, 3u, 4u);
+    LabelID const dest{ GENERATE(1u, 2u, 3u, 4u) };
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
-        JumpInst(value)
+    a.add(Block(LabelID{ 0 }, "start", {
+        JumpInst(dest)
     }));
-    a.add(Block(1, "1", {
+    a.add(Block(LabelID{ 1 }, "1", {
         MoveInst(RegisterIndex(0), Value64(1), 8),
         TerminateInst()
     }));
-    a.add(Block(2, "2", {
+    a.add(Block(LabelID{ 2 }, "2", {
         MoveInst(RegisterIndex(0), Value64(2), 8),
         TerminateInst()
     }));
-    a.add(Block(3, "3", {
+    a.add(Block(LabelID{ 3 }, "3", {
         MoveInst(RegisterIndex(0), Value64(3), 8),
         TerminateInst()
     }));
-    a.add(Block(4, "4", {
+    a.add(Block(LabelID{ 4 }, "4", {
         MoveInst(RegisterIndex(0), Value64(4), 8),
         TerminateInst(),
     })); // clang-format on
     auto const [regs, stack] = assembleAndExecute(a);
-    CHECK(regs[0] == value);
+    CHECK(regs[0] == utl::to_underlying(dest));
 }
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {
-    u64 const value = GENERATE(1u, 2u, 3u, 4u);
+    LabelID const dest{ GENERATE(1u, 2u, 3u, 4u) };
     i64 const arg1 = GENERATE(-2, 0, 5, 100);
     i64 const arg2 = GENERATE(-100, -3, 0, 7);
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         CompareInst(Type::Signed, RegisterIndex(0), Value64(arg2), 8),
-        JumpInst(CompareOperation::LessEq, value),
+        JumpInst(CompareOperation::LessEq, dest),
         MoveInst(RegisterIndex(1), Value64(-1), 8),
         TerminateInst(),
     }));
-    a.add(Block(1, "1", {
+    a.add(Block(LabelID{ 1 }, "1", {
         MoveInst(RegisterIndex(1), Value64(1), 8),
         TerminateInst(),
     }));
-    a.add(Block(2, "2", {
+    a.add(Block(LabelID{ 2 }, "2", {
         MoveInst(RegisterIndex(1), Value64(2), 8),
         TerminateInst()
     }));
-    a.add(Block(3, "3", {
+    a.add(Block(LabelID{ 3 }, "3", {
         MoveInst(RegisterIndex(1), Value64(3), 8),
         TerminateInst()
     }));
-    a.add(Block(4, "4", {
+    a.add(Block(LabelID{ 4 }, "4", {
         MoveInst(RegisterIndex(1), Value64(4), 8),
         TerminateInst(),
     })); // clang-format on
     auto const [regs, stack] = assembleAndExecute(a);
-    CHECK(load<u64>(&regs[1]) == (arg1 <= arg2 ? value : static_cast<u64>(-1)));
+    CHECK(load<u64>(&regs[1]) ==
+          (arg1 <= arg2 ? utl::to_underlying(dest) : static_cast<u64>(-1)));
 }
 
 TEST_CASE("itest, set*", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         TestInst(Type::Signed, RegisterIndex(0), 8),
         SetInst(RegisterIndex(0), CompareOperation::Eq),
@@ -308,7 +313,7 @@ TEST_CASE("itest, set*", "[assembly][vm]") {
 TEST_CASE("callExt", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         CallExtInst(/* regPtrOffset = */ 0,
                     svm::BuiltinFunctionSlot,
@@ -339,7 +344,7 @@ TEST_CASE("callExt", "[assembly][vm]") {
 TEST_CASE("callExt with return value", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(2.0), 8),
         CallExtInst(/* regPtrOffset = */ 0,
                     svm::BuiltinFunctionSlot,
@@ -353,7 +358,7 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
 TEST_CASE("Conditional move", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(2), 8),
         MoveInst(RegisterIndex(1), Value64(0), 8),
         TestInst(Type::Unsigned, RegisterIndex(1), 8),
@@ -367,7 +372,7 @@ TEST_CASE("Conditional move", "[assembly][vm]") {
 TEST_CASE("LEA instruction", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         LIncSPInst(RegisterIndex(0), Value16(80)),
         MoveInst(RegisterIndex(1), Value64(2), 8),
         LEAInst(RegisterIndex(2), MemoryAddress(0, 1, 16, 8)),
@@ -382,7 +387,7 @@ TEST_CASE("LEA instruction", "[assembly][vm]") {
 TEST_CASE("cmov instruction", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off
-    a.add(Block(0, "start", {
+    a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(5), 8),
         MoveInst(RegisterIndex(1), Value64(7), 8),
         CompareInst(Type::Signed, RegisterIndex(0), Value64(0), 8),
@@ -391,4 +396,30 @@ TEST_CASE("cmov instruction", "[assembly][vm]") {
     })); // clang-format on
     auto const [regs, stack] = assembleAndExecute(a);
     CHECK(load<u64>(&regs[0]) == 5);
+}
+
+TEST_CASE("icall instruction", "[assembly][vm]") {
+    LabelID const main{ 0 };
+    LabelID const func{ 1 };
+    AssemblyStream a;
+    // Main function
+    // clang-format off
+    a.add(Block(main, "main", {
+        MoveInst(RegisterIndex(1), LabelPosition(func), 8),
+        MoveInst(RegisterIndex(3), Value64(13), 8),
+        MoveInst(RegisterIndex(4), Value64(29), 8),
+        ICallInst(RegisterIndex(1), 3),
+        MoveInst(RegisterIndex(0), RegisterIndex(3), 8), 
+        TerminateInst()
+    }));
+    // Callee
+    a.add(Block(func, "func", {
+        ArithmeticInst(ArithmeticOperation::Add,
+                       RegisterIndex(0),
+                       RegisterIndex(1), 8),
+        ReturnInst()
+    })); // clang-format on
+    auto const [regs, stack] = assembleAndExecute(a);
+    // 13 + 29 == 42
+    CHECK(regs[0] == 42);
 }

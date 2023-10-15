@@ -77,6 +77,18 @@ public:
     explicit Value64(f64 value): ValueBase(utl::tag<f64>{}, value) {}
 };
 
+/// Represents a position in the code. This exists so we can specify the ID of
+/// the label here and the assembler will translate to the code position once
+/// the program is assembled
+class LabelPosition: public ValueBase {
+public:
+    explicit LabelPosition(LabelID labelID):
+        ValueBase(utl::tag<u64>{}, utl::to_underlying(labelID)) {}
+
+    ///
+    LabelID ID() const { return LabelID{ value() }; }
+};
+
 inline Value64 ValueBase::widen() const { return Value64(value()); }
 
 /// Represents a register index.

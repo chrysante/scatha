@@ -17,6 +17,7 @@ size_t Asm::sizeOf(ValueType type) {
         { ValueType::Value16,       2 },
         { ValueType::Value32,       4 },
         { ValueType::Value64,       8 },
+        { ValueType::LabelPosition, 4 },
     });
     // clang-format on
 }

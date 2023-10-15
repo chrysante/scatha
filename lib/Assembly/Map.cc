@@ -34,6 +34,8 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
         case ValueType::Value32:
             [[fallthrough]];
         case ValueType::Value64:
+            [[fallthrough]];
+        case ValueType::LabelPosition:
             return { OpCode::mov64RV, 8 };
         default:
             /// No matching instruction
