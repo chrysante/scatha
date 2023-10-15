@@ -469,3 +469,28 @@ struct S {
 })");
     CHECK(issues.findOnLine<BadExpr>(3, AccessedMemberWithoutObject));
 }
+
+TEST_CASE("Redefine entity in different module", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+fn f() {}
+fn g() {}
+)", R"(
+struct f {}
+private struct g {} // Private declaration in a different file is not a
+                    // redefinition
+)");
+    CHECK(iss.findOnLine<Redefinition>(2));
+    CHECK(iss.noneOnLine(3));
+}
+
+TEST_CASE("Redefine function in different module", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+fn f(n: int) {}
+fn g(n: int) {}
+)", R"(
+fn f(m: int) {}
+private fn g(m: int) {}
+)");
+    CHECK(iss.findOnLine<Redefinition>(2));
+    CHECK(iss.noneOnLine(3));
+}

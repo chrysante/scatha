@@ -224,17 +224,30 @@ OverloadSet* SymbolTable::addOverloadSet(
                                         functions);
 }
 
+/// \Returns the set of functions with the same name as \p ref in all parent
+/// scopes of \p ref that already have a signature
+static utl::small_vector<Function const*> findScopeOS(Function const* ref) {
+    utl::hashset<Function const*> set;
+    for (auto* parent: ref->parents()) {
+        auto entities = parent->findEntities(ref->name());
+        auto functions = entities |
+                         ranges::views::transform(cast<Function const*>) |
+                         ranges::views::filter(&Function::hasSignature);
+        set.insert(functions.begin(), functions.end());
+    }
+    set.erase(ref);
+    return set | ToSmallVector<>;
+}
+
 bool SymbolTable::setFuncSig(Function* function, FunctionSignature sig) {
-    auto entities = function->parent()->findEntities(function->name());
-    auto overloadSet = entities | ranges::views::transform(cast<Function*>) |
-                       ToSmallVector<>;
-    auto* existing = OverloadSet::find(std::span<Function* const>(overloadSet),
-                                       sig.argumentTypes());
-    if (existing && existing != function) {
+    function->setSignature(sig); /// We don't move `sig` here because we use it
+                                 /// later in this function
+    auto overloadSet = findScopeOS(function);
+    auto* existing = OverloadSet::find(overloadSet, sig.argumentTypes());
+    if (existing) {
         impl->issue<Redefinition>(function->definition(), existing);
         return false;
     }
-    function->setSignature(std::move(sig));
     return true;
 }
 

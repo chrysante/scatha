@@ -86,11 +86,21 @@ public:
     bool isAnonymous() const { return name().empty(); }
 
     /// The parent scope of this entity. Not all entities have a parent scope so
-    /// this may be null
-    Scope* parent() { return _parent; }
+    /// this may be null.
+    /// This is the first and primary parent. Entities may have multiple
+    /// parents.
+    Scope* parent() { return _parents.front(); }
 
     /// \overload
-    Scope const* parent() const { return _parent; }
+    Scope const* parent() const { return _parents.front(); }
+
+    /// The complete list of parent scopes. Entities can have multiple scopes to
+    /// make public symbol visible in the global scope and to allow using
+    /// directives
+    std::span<Scope* const> parents() { return _parents; }
+
+    /// \overload
+    std::span<Scope const* const> parents() const { return _parents; }
 
     /// The runtime type of this entity class
     EntityType entityType() const { return _entityType; }
@@ -128,11 +138,15 @@ protected:
                     Scope* parent,
                     ast::ASTNode* astNode = nullptr):
         _entityType(entityType),
-        _parent(parent),
+        _parents({ parent }),
         _names({ std::move(name) }),
         _astNode(astNode) {}
 
 private:
+    friend class Scope;
+    /// To be used by scope
+    void addParent(Scope* parent);
+
     /// Default implementation of `category()`
     EntityCategory categoryImpl() const {
         return EntityCategory::Indeterminate;
@@ -141,7 +155,7 @@ private:
     /// Type ID used by `dyncast`
     EntityType _entityType;
     bool _isBuiltin = false;
-    Scope* _parent = nullptr;
+    utl::small_vector<Scope*, 2> _parents;
     utl::small_vector<std::string, 1> _names;
     mutable std::string _mangledName;
     ast::ASTNode* _astNode = nullptr;
@@ -430,17 +444,26 @@ public:
     /// The definition of this function in the AST
     SC_ASTNODE_DERIVED(definition, FunctionDefinition)
 
-    /// \Returns The type ID of this function.
+    /// \Returns The type of this function.
     Type const* type() const { return signature().type(); }
 
     /// Set the signature of this function
-    void setSignature(FunctionSignature sig) { _sig = std::move(sig); }
+    void setSignature(FunctionSignature sig) {
+        _hasSig = true;
+        _sig = std::move(sig);
+    }
 
     /// \Returns The signature of this function.
-    FunctionSignature const& signature() const { return _sig; }
+    FunctionSignature const& signature() const {
+        SC_ASSERT(hasSignature(), "");
+        return _sig;
+    }
+
+    /// \Returns `true` if the signature of this function has been set
+    bool hasSignature() const { return _hasSig; }
 
     /// Return type
-    Type const* returnType() const { return _sig.returnType(); }
+    Type const* returnType() const { return signature().returnType(); }
 
     /// Sets the return type to \p type
     /// Must only be called if the return type of this function is yet unknown
@@ -448,19 +471,21 @@ public:
 
     /// Argument types
     std::span<Type const* const> argumentTypes() const {
-        return _sig.argumentTypes();
+        return signature().argumentTypes();
     }
 
     /// Argument type at index \p index
     Type const* argumentType(size_t index) const {
-        return _sig.argumentType(index);
+        return signature().argumentType(index);
     }
 
     /// Number of arguments
-    size_t argumentCount() const { return _sig.argumentCount(); }
+    size_t argumentCount() const { return signature().argumentCount(); }
 
     /// Kind of this function
     FunctionKind kind() const { return _kind; }
+
+    void setKind(FunctionKind kind) { _kind = kind; }
 
     /// \Returns `kind() == FunctionKind::Native`
     bool isNative() const { return kind() == FunctionKind::Native; }
@@ -482,25 +507,39 @@ public:
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
 
+    void setIsMember(bool value = true) { _isMember = value; }
+
     /// \Returns `true` if this function is a special member function
-    bool isSpecialMemberFunction() const { return _smfKind.has_value(); }
+    bool isSpecialMemberFunction() const { return _isSMF; }
 
     /// \Returns the kind of special member function if this function is a
     /// special member function
-    SpecialMemberFunction SMFKind() const { return *_smfKind; }
+    SpecialMemberFunction SMFKind() const {
+        SC_ASSERT(_isSMF, "");
+        return _smfKind;
+    }
 
     /// Set the kind of special member function this function is
-    void setSMFKind(SpecialMemberFunction kind) { _smfKind = kind; }
+    void setSMFKind(SpecialMemberFunction kind) {
+        _isSMF = true;
+        _smfKind = kind;
+    }
 
     /// \Returns `true` if this function is a special lifetime function
-    bool isSpecialLifetimeFunction() const { return _slfKind.has_value(); }
+    bool isSpecialLifetimeFunction() const { return _isSLF; }
 
     /// \Returns the kind of special lifetime function if this function is a
     /// special lifetime function
-    SpecialLifetimeFunction SLFKind() const { return *_slfKind; }
+    SpecialLifetimeFunction SLFKind() const {
+        SC_ASSERT(_isSLF, "");
+        return _slfKind;
+    }
 
     /// Set the kind of special member function this function is
-    void setSLFKind(SpecialLifetimeFunction kind) { _slfKind = kind; }
+    void setSLFKind(SpecialLifetimeFunction kind) {
+        _isSLF = true;
+        _slfKind = kind;
+    }
 
     /// \returns Slot of extern function table.
     ///
@@ -516,26 +555,26 @@ public:
     /// Only has a value if this function is declared externally visible and
     /// program has been compiled
     std::optional<size_t> binaryAddress() const {
-        return _haveBinaryAddress ? std::optional(_binaryAddress) :
-                                    std::nullopt;
+        return _hasBinaryAddress ? std::optional(_binaryAddress) : std::nullopt;
     }
 
-    /// \returns Bitfield of function attributes
-    FunctionAttribute attributes() const { return attrs; }
+    void setBinaryAddress(size_t addr) {
+        _hasBinaryAddress = true;
+        _binaryAddress = addr;
+    }
 
     /// See Sema/Fwd.h
     AccessSpecifier accessSpecifier() const { return accessSpec; }
 
+    void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
+
     /// See Sema/Fwd.h
     BinaryVisibility binaryVisibility() const { return binaryVis; }
 
-    void setKind(FunctionKind kind) { _kind = kind; }
-
-    void setIsMember(bool value = true) { _isMember = value; }
-
-    void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
-
     void setBinaryVisibility(BinaryVisibility vis) { binaryVis = vis; }
+
+    /// \returns Bitfield of function attributes
+    FunctionAttribute attributes() const { return attrs; }
 
     /// Set attribute \p attr to `true`.
     void setAttribute(FunctionAttribute attr) { attrs |= attr; }
@@ -543,27 +582,27 @@ public:
     /// Set attribute \p attr to `false`.
     void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
-    void setBinaryAddress(size_t addr) {
-        _haveBinaryAddress = true;
-        _binaryAddress = addr;
-    }
-
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
     friend class SymbolTable;
     FunctionSignature _sig;
-    FunctionAttribute attrs;
-    AccessSpecifier accessSpec = AccessSpecifier::Private;
-    BinaryVisibility binaryVis = BinaryVisibility::Internal;
-    std::optional<SpecialMemberFunction> _smfKind;
-    std::optional<SpecialLifetimeFunction> _slfKind;
-    FunctionKind _kind = FunctionKind::Native;
-    bool _isMember          : 1 = false;
-    bool _haveBinaryAddress : 1 = false;
+    FunctionAttribute attrs;                                         // 4 bytes
+    AccessSpecifier accessSpec       : 4 = AccessSpecifier::Private; // 4 bits
+    BinaryVisibility binaryVis       : 4 = BinaryVisibility::Internal; // 4 bits
+    SpecialMemberFunction _smfKind   : 4 = {};                         // 4 bits
+    SpecialLifetimeFunction _slfKind : 4 = {};                         // 4 bits
+    FunctionKind _kind               : 4 = FunctionKind::Native;       // 4 bits
+    bool _isSMF                      : 1 = false;
+    bool _isSLF                      : 1 = false;
+    bool _hasSig                     : 1 = false;
+    bool _isMember                   : 1 = false;
+    bool _hasBinaryAddress           : 1 = false;
+    /// For foreign functions
     u16 _slot = 0;
     u32 _index = 0;
+    /// For binary visible functions to be set after compilation
     size_t _binaryAddress = 0;
 };
 

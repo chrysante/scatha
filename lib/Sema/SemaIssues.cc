@@ -309,17 +309,6 @@ BadReturnTypeDeduction::BadReturnTypeDeduction(
     });
 }
 
-static constexpr utl::streammanip formatEntity =
-    [](std::ostream& str, Entity const* e) {
-    // clang-format off
-    SC_MATCH (*e) {
-        [&](StructType const&) { str << "struct"; },
-        [&](Variable const& var) { str << (var.isMut() ? "var" : "let"); },
-        [&](Entity const&) { str << "<unknown-decl>"; },
-    }; // clang-format on
-    str << " " << e->name();
-};
-
 StructDefCycle::StructDefCycle(Scope const* _scope,
                                std::vector<Entity const*> _cycle):
     BadDecl(_scope, nullptr, IssueSeverity::Error), _cycle(std::move(_cycle)) {
@@ -466,7 +455,7 @@ ORError::ORError(ast::Expression const* expr,
             str << "No matching function to call for " << os.front()->name();
         });
         for (auto* function: os) {
-            secondary(function->definition()->sourceRange(),
+            secondary(getSourceRange(function->definition()),
                       [=](std::ostream& str) { str << "Cannot call this"; });
         }
         break;

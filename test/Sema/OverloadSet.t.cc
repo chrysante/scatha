@@ -7,7 +7,7 @@
 
 using namespace scatha;
 
-TEST_CASE("OverloadSet") {
+TEST_CASE("OverloadSet", "[sema]") {
     IssueHandler iss;
     sema::SymbolTable sym;
     sym.setIssueHandler(iss);

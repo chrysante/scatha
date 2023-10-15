@@ -52,6 +52,13 @@ void Entity::addAlternateName(std::string name) {
     }
 }
 
+void Entity::addParent(Scope* parent) {
+    if (ranges::contains(_parents, parent)) {
+        return;
+    }
+    _parents.push_back(parent);
+}
+
 Object::Object(EntityType entityType,
                std::string name,
                Scope* parentScope,
@@ -135,6 +142,7 @@ Property const* Scope::findProperty(PropertyKind kind) const {
 }
 
 void Scope::addChild(Entity* entity) {
+    entity->addParent(this);
     /// Each scope that we add we add to to our list of child scopes
     if (auto* scope = dyncast<Scope*>(entity)) {
         bool const success = _children.insert(scope).second;
