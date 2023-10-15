@@ -43,7 +43,7 @@ namespace svm {
 /// the next instruction.
 enum class OpCode : u8 {
 #define SVM_INSTRUCTION_DEF(inst, class) inst,
-#include <svm/Lists.def>
+#include <svm/OpCode.def>
     _count
 };
 
