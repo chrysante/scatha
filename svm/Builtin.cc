@@ -1,9 +1,11 @@
 #include "svm/BuiltinInternal.h"
 
 #include <cassert>
+#include <charconv>
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <string>
 #include <string_view>
 
 #include <svm/Common.h>
@@ -34,6 +36,14 @@ static ExternalFunction::FuncPtr printVal() {
         T const value = load<T>(regPtr);
         std::cout << value;
     };
+}
+
+/// Loads two consecutive registers as an array pointer structure `{ T*, size_t }`
+template <typename T>
+static std::span<T> loadArray(u64* regPtr) {
+    T* data = load<char*>(regPtr);
+    size_t size = load<u64>(regPtr + 1);
+    return std::span<T>(data, size);
 }
 
 utl::vector<ExternalFunction> svm::makeBuiltinTable() {
@@ -104,6 +114,51 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
         std::cout << std::string_view(data, size);
     };
     at(Builtin::putptr) = printVal<void*>();
+
+    /// ## Console input
+    at(Builtin::readline) = [](u64* regPtr, VirtualMachine* vm, void*) {
+        std::string line;
+        std::getline(std::cin, line);
+        auto* buffer = std::malloc(line.size());
+        std::memcpy(buffer, line.data(), line.size());
+        store(regPtr, buffer);
+        store(regPtr + 1, line.size());
+    };
+
+    /// ## String conversion
+    at(Builtin::strtos64) = [](u64* regPtr, VirtualMachine* vm, void*) {
+        auto dest = load<void*>(regPtr);
+        auto text = loadArray<char>(regPtr + 1);
+        auto base = load<int>(regPtr + 3);
+        i64 value = 0;
+        auto result = std::from_chars(text.data(),
+                                      text.data() + text.size(),
+                                      value,
+                                      base);
+        if (result.ec == std::errc{}) {
+            store(regPtr, u64{ 1 });
+            store(dest, value);
+        }
+        else {
+            store(regPtr, u64{ 0 });
+        }
+    };
+
+    at(Builtin::strtof64) = [](u64* regPtr, VirtualMachine* vm, void*) {
+        auto dest = load<void*>(regPtr);
+        auto text = loadArray<char>(regPtr + 1);
+        /// We copy the text into a `std::string` to make it null-terminated :(
+        auto strText = std::string(text.begin(), text.end());
+        char* strEnd = nullptr;
+        double value = std::strtod(strText.data(), &strEnd);
+        if (strEnd != strText.data()) {
+            store(regPtr, u64{ 1 });
+            store(dest, value);
+        }
+        else {
+            store(regPtr, u64{ 0 });
+        }
+    };
 
     /// ##
     at(Builtin::trap) = [](u64*, VirtualMachine*, void*) {

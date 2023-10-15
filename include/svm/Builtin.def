@@ -51,6 +51,30 @@ SVM_BUILTIN_DEF(putstr,    None,
                 { reference(QualType::Const(arrayType(Byte()))) }, Void())
 SVM_BUILTIN_DEF(putptr,    None,  { pointer(Byte()) }, Void())
 
+/// ## Console Input
+/// Allocates memory using `__builtin_alloc()` and thus requires the caller to
+/// free the memory using `__builtin_dealloc()`
+/// Signature: `() -> *mut [byte]`
+SVM_BUILTIN_DEF(readline,   None, {},
+                pointer(QualType::Mut(arrayType(Byte()))))
+
+/// ## String conversion
+
+/// Returns true on successful conversion
+/// Signature: `(result: &mut int, text: &[byte], base: int) -> bool`
+SVM_BUILTIN_DEF(strtos64,    None, {
+    reference(QualType::Mut(S64())),
+    reference(QualType::Const(arrayType(Byte()))),
+    S64()
+}, Bool())
+
+/// Returns true on successful conversion
+/// Signature: `(result: &mut double, text: &[byte]) -> bool`
+SVM_BUILTIN_DEF(strtof64,    None, {
+    reference(QualType::Mut(F64())),
+    reference(QualType::Const(arrayType(Byte())))
+}, Bool())
+
 /// ##
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())
 

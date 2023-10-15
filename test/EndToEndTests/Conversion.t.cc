@@ -56,3 +56,81 @@ fn main(n: int) -> byte {
     g(100);
 })");
 }
+
+TEST_CASE("String conversions to int", "[end-to-end]") {
+    test::checkReturns(123, R"(
+fn main() {
+    var value: int;
+    if __builtin_strtos64(value, "123", 10) {
+        return value;
+    }
+    return -1;
+})");
+    test::checkReturns(u64(-123), R"(
+fn main() {
+    var value: int;
+    if __builtin_strtos64(value, "-123", 10) {
+        return value;
+    }
+    return -1;
+})");
+    test::checkReturns(256, R"(
+fn main() {
+    var value: int;
+    if __builtin_strtos64(value, "100", 16) {
+        return value;
+    }
+    return -1;
+})");
+    test::checkReturns(0b1010, R"(
+fn main() {
+    var value: int;
+    if __builtin_strtos64(value, "1010", 2) {
+        return value;
+    }
+    return -1;
+})");
+    test::checkReturns(u64(-1), R"(
+fn main() {
+    var value: int;
+    if __builtin_strtos64(value, "abc", 10) {
+        return value;
+    }
+    return -1;
+})");
+}
+
+TEST_CASE("String conversions to double", "[end-to-end]") {
+    test::checkReturns(utl::bit_cast<u64>(123.0), R"(
+fn main() {
+    var value: double;
+    if __builtin_strtof64(value, "123") {
+        return value;
+    }
+    return 0.0;
+})");
+    test::checkReturns(utl::bit_cast<u64>(0.0), R"(
+fn main() {
+    var value: double;
+    if __builtin_strtof64(value, "0.0") {
+        return value;
+    }
+    return -1.0;
+})");
+    test::checkReturns(utl::bit_cast<u64>(-1.0), R"(
+fn main() {
+    var value: double;
+    if __builtin_strtof64(value, "-1") {
+        return value;
+    }
+    return 0.0;
+})");
+    test::checkReturns(utl::bit_cast<u64>(0.0), R"(
+fn main() {
+    var value: double;
+    if __builtin_strtof64(value, "abc") {
+        return value;
+    }
+    return 0.0;
+})");
+}
