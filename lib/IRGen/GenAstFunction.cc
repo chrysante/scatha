@@ -23,6 +23,11 @@ using namespace scatha;
 using namespace irgen;
 using enum ValueLocation;
 
+static std::string nameFromSourceLoc(std::string_view name,
+                                     SourceLocation loc) {
+    return utl::strcat(name, ".at[", loc.line, ":", loc.column, "]");
+}
+
 namespace {
 
 struct Loop {
@@ -521,16 +526,16 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     case This:
         return valueMap(lit.object());
     case String: {
-        std::string const& sourceText = lit.value<std::string>();
-        size_t size = sourceText.size();
-        utl::vector<u8> text(sourceText.begin(), sourceText.end());
-        auto* type = ctx.arrayType(ctx.intType(8), size);
-        auto staticData =
-            allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
-        auto data = Value(staticData.get(), staticData.get()->type(), Memory);
-        mod.addConstantData(std::move(staticData));
-        valueMap.insertArraySize(lit.object(), size);
-        return data;
+        auto const& text = lit.value<std::string>();
+        auto global = allocate<ir::GlobalVariable>(
+            ctx,
+            ir::GlobalVariable::Const,
+            ctx.stringLiteral(text),
+            nameFromSourceLoc("string", lit.sourceLocation()));
+        auto* data = mod.addGlobal(std::move(global));
+        auto value = Value(data, data->initializer()->type(), Memory);
+        valueMap.insertArraySize(lit.object(), text.size());
+        return value;
     }
     case Char:
         return Value(ctx.intConstant(lit.value<APInt>()), Register);
@@ -1152,20 +1157,6 @@ Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
     return result;
 }
 
-static bool evalConstant(ast::Expression const* expr, utl::vector<u8>& dest) {
-    auto* val = dyncast_or_null<sema::IntValue const*>(expr->constantValue());
-    if (!val) {
-        return false;
-    }
-    auto value = val->value();
-    size_t const elemSize = expr->type()->size();
-    auto* data = reinterpret_cast<u8 const*>(value.limbs().data());
-    for (auto* end = data + elemSize; data < end; ++data) {
-        dest.push_back(*data);
-    }
-    return true;
-}
-
 ir::ArrayType const* FuncGenContext::getListType(
     ast::ListExpression const& list) {
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
@@ -1176,26 +1167,38 @@ ir::ArrayType const* FuncGenContext::getListType(
     return cast<ir::ArrayType const*>(typeMap(semaType));
 }
 
+static ir::Constant* evalConstant(ir::Context& ctx,
+                                  ast::Expression const* expr) {
+    if (auto* val = dyncast<sema::IntValue const*>(expr->constantValue())) {
+        return ctx.intConstant(val->value());
+    }
+    return nullptr;
+}
+
 bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
                                        ir::Alloca* dest) {
     auto* type = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = type->elementType();
-    utl::small_vector<u8> data;
-    data.reserve(type->size());
+    utl::small_vector<ir::Constant*> elems;
+    elems.reserve(type->size());
     for (auto* expr: list.elements()) {
         SC_ASSERT(elemType == expr->type().get(), "Invalid type");
-        if (!evalConstant(expr, data)) {
+        auto* constant = evalConstant(ctx, expr);
+        if (!constant) {
             return false;
         }
+        elems.push_back(constant);
     }
     auto* irType = ctx.arrayType(typeMap(elemType), list.elements().size());
-    auto [index, fileIndex, line, column] = list.sourceLocation();
-    auto name = utl::strcat("array.at[", line, ":", column, "]");
-    auto constData =
-        allocate<ir::ConstantData>(ctx, irType, std::move(data), name);
-    auto* source = constData.get();
-    mod.addConstantData(std::move(constData));
-    callMemcpy(dest, source, list.elements().size() * elemType->size());
+    auto* array = ctx.arrayConstant(elems, irType);
+    auto global =
+        allocate<ir::GlobalVariable>(ctx,
+                                     ir::GlobalVariable::Const,
+                                     array,
+                                     nameFromSourceLoc("array",
+                                                       list.sourceLocation()));
+    auto* source = mod.addGlobal(std::move(global));
+    callMemcpy(dest, source, irType->size());
     return true;
 }
 

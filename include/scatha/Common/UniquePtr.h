@@ -7,6 +7,7 @@
 #include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
+#include <scatha/Common/Dyncast.h>
 
 namespace scatha::internal {
 

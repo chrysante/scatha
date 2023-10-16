@@ -6,9 +6,9 @@ using namespace scatha;
 
 TEST_CASE("Static data - 1", "[end-to-end][static-data]") {
     test::checkIRReturns(7, R"(
-@const_data = [i32, 3] [i32 1, i32 2, i32 3]
+@const_data = constant [i32, 3] [i32 1, i32 2, i32 3]
 
-@other_data = i32 1
+@other_data = global i32 1
 
 func i32 @main() {
   %entry:
@@ -17,8 +17,8 @@ func i32 @main() {
     %t0 = load i32, ptr %p
     %q = getelementptr inbounds i32, ptr @const_data, i32 1
     %t1 = load i32, ptr %q
-    %r = getelementptr inbounds i32, ptr @const_data, i32 2
-    %t2 = load i32, ptr %r
+    store ptr @other_data, i32 3
+    %t2 = load i32, ptr @other_data
     %s0 = add i32 %t0, i32 %t1
     %s1 = add i32 %s0, i32 %t2
     %s2 = add i32 %s1, i32 %1
@@ -30,7 +30,7 @@ TEST_CASE("Static data - 2", "[end-to-end][static-data]") {
     test::checkIRReturns(6, R"(
 ext func void @__builtin_memcpy(ptr, i64, ptr, i64)
 
-@global.data = [i32, 3] [i32 1, i32 2, i32 3]
+@global.data = constant [i32, 3] [i32 1, i32 2, i32 3]
 
 func i32 @main() {
   %entry:

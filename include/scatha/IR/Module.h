@@ -50,10 +50,16 @@ public:
     ForeignFunction* builtinFunction(svm::Builtin builtin);
 
     /// Add a structure type to this module
-    void addStructure(UniquePtr<StructType> structure);
+    StructType const* addStructure(UniquePtr<StructType> structure);
 
     /// Add a global value to this module
-    void addGlobal(UniquePtr<Global> value);
+    Global* addGlobal(UniquePtr<Global> value);
+
+    /// \overload that down casts to the given type
+    template <std::derived_from<Global> G>
+    G* addGlobal(UniquePtr<G> value) {
+        return cast<G*>(addGlobal(uniquePtrCast<Global>(std::move(value))));
+    }
 
     /// Add static constant data to this module
     void addConstantData(UniquePtr<ConstantData> value);

@@ -99,6 +99,9 @@ public:
     ArrayConstant* arrayConstant(std::span<ir::Constant* const> elems,
                                  ArrayType const* type);
 
+    /// \Returns the array of type \p type with constant elements \p text
+    ArrayConstant* stringLiteral(std::string_view text);
+
     /// \Returns the null pointer constant
     NullPointerConstant* nullpointer();
 

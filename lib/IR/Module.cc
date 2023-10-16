@@ -21,11 +21,14 @@ ForeignFunction* Module::builtinFunction(svm::Builtin builtin) {
     return extFunction(svm::BuiltinFunctionSlot, static_cast<size_t>(builtin));
 }
 
-void Module::addStructure(UniquePtr<StructType> structure) {
+StructType const* Module::addStructure(UniquePtr<StructType> structure) {
+    auto* result = structure.get();
     structs.push_back(std::move(structure));
+    return result;
 }
 
-void Module::addGlobal(UniquePtr<Global> value) {
+Global* Module::addGlobal(UniquePtr<Global> value) {
+    auto* result = value.get();
     // clang-format off
     SC_MATCH (*value) {
         [&](ForeignFunction& func) {
@@ -41,6 +44,7 @@ void Module::addGlobal(UniquePtr<Global> value) {
             _globals.push_back(std::move(value));
         },
     }; // clang-format on
+    return result;
 }
 
 void Module::addConstantData(UniquePtr<ConstantData> value) {
