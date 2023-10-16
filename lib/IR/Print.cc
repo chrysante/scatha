@@ -1,6 +1,7 @@
 #include "IR/Print.h"
 
 #include <iostream>
+#include <optional>
 #include <sstream>
 
 #include <termfmt/termfmt.h>
@@ -152,6 +153,20 @@ static std::array<char const*, 2> recordBrackets(
     }; // clang-format on
 }
 
+static std::optional<std::string> asStringLiteral(RecordConstant const* value) {
+    auto* array = dyncast<ArrayConstant const*>(value);
+    if (!array) {
+        return std::nullopt;
+    }
+    auto* intType = dyncast<IntegralType const*>(array->type()->elementType());
+    if (!intType || intType->bitwidth() != 8) {
+        return std::nullopt;
+    }
+    std::string result(array->elements().size(), '\0');
+    array->writeValueTo(result.data());
+    return result;
+}
+
 static void formatValueImpl(std::ostream& str, Value const* value) {
     if (!value) {
         str << tfmt::format(BrightWhite | BGBrightRed | Bold, "<NULL>");
@@ -191,6 +206,14 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
             str << formatKeyword("null");
         },
         [&](ir::RecordConstant const& value) {
+            if (auto text = asStringLiteral(&value)) {
+                tfmt::format(Red, [&]{
+                    str << '\"';
+                    printWithEscapeSeqs(str, *text);
+                    str << '\"';
+                });
+                return;
+            }
             auto brackets = recordBrackets(value);
             str << brackets[0];
             bool first = true;

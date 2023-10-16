@@ -64,13 +64,42 @@ std::optional<char> scatha::fromEscapeSequence(char seq) {
     }
 }
 
-void scatha::printWithEscapeSeqs(std::ostream& str, std::string_view text) {
+std::string scatha::toEscapeLiteral(std::string_view text) {
+    std::string result;
+    result.reserve(text.size());
     for (char c: text) {
-        if (auto raw = fromEscapeSequence(c)) {
-            str << '\\' << *raw;
+        if (auto literal = fromEscapeSequence(c)) {
+            result.push_back('\\');
+            result.push_back(*literal);
         }
         else {
-            str << c;
+            result.push_back(c);
         }
     }
+    return result;
+}
+
+/// Inverser of `toEscapeLiteral()`
+std::string scatha::toEscapedValue(std::string_view text) {
+    std::string result;
+    result.reserve(text.size());
+    for (size_t i = 0; i < text.size(); ++i) {
+        if (text[i] == '\\') {
+            ++i;
+            if (i == text.size()) {
+                break;
+            }
+            if (auto value = toEscapeSequence(text[i])) {
+                result.push_back(*value);
+                continue;
+            }
+            result.push_back(text[i]);
+        }
+        result.push_back(text[i]);
+    }
+    return result;
+}
+
+void scatha::printWithEscapeSeqs(std::ostream& str, std::string_view text) {
+    str << toEscapeLiteral(text);
 }

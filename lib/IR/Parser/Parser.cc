@@ -9,6 +9,7 @@
 #include <utl/vector.hpp>
 
 #include "Common/APInt.h"
+#include "Common/EscapeSequence.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -1157,6 +1158,20 @@ OptValue ParseContext::parseValue(Type const* type) {
             elems.push_back(value);
         }
         return { token, irCtx.recordConstant(elems, recordType) };
+    }
+    case TokenKind::StringLiteral: {
+        auto text = toEscapedValue(token.id());
+        auto elems = text | ranges::views::transform([&](char c) -> Constant* {
+            return irCtx.intConstant(static_cast<unsigned>(c), 8);
+        }) | ToSmallVector<>;
+        auto* arrayType = dyncast<ArrayType const*>(type);
+        if (!arrayType ||
+            arrayType->elementType() != irCtx.intType(8) ||
+            arrayType->count() != elems.size())
+        {
+            reportSemaIssue(token, SemanticIssue::TypeMismatch);
+        }
+        return { token, irCtx.arrayConstant(elems, arrayType) };
     }
     default:
         reportSemaIssue(token, SemanticIssue::UnexpectedID);

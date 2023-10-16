@@ -171,6 +171,18 @@ Expected<Token, LexicalIssue> Lexer::next() {
             return Token(first, i, beginSL, TokenKind::FloatLiteral);
         }
     }
+    // String literal
+    if (*i == '\"') {
+        SourceLocation const beginSL = loc;
+        inc();
+        auto* begin = i;
+        while (i != end && *i != '\"') {
+            inc();
+        }
+        auto* end = i;
+        inc();
+        return Token(begin, end, beginSL, TokenKind::StringLiteral);
+    }
     // Punctuation
     if (auto kind = getPunctuation(*i)) {
         SourceLocation const beginSL = loc;

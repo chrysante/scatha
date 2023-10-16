@@ -253,6 +253,10 @@ void AssertContext::assertSpecialInvariants(Load const& load) {
 void AssertContext::assertSpecialInvariants(Store const& store) {
     CHECK(store.address()->type() == ctx.ptrType(),
           "Address must be of pointer type");
+    if (auto* global = dyncast<GlobalVariable const*>(store.address())) {
+        CHECK(global->isMutable(),
+              "Cannot write into constant global variable");
+    }
 }
 
 void AssertContext::assertSpecialInvariants(GetElementPointer const& gep) {

@@ -824,7 +824,7 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                     return itr->second;
                 }
                 size_t const offset = staticData.size();
-                staticData.resize(offset + var.type()->size());
+                staticData.resize(offset + var.initializer()->type()->size());
                 var.initializer()->writeValueTo(staticData.data() + offset);
                 staticDataOffsets[&var] = offset;
                 return offset;

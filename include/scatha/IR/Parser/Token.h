@@ -33,6 +33,7 @@ enum class TokenKind {
     FloatLiteral,
     NullLiteral,
     UndefLiteral,
+    StringLiteral,
 
     GlobalIdentifier,
     LocalIdentifier,
