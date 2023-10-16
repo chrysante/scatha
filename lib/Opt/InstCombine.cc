@@ -625,7 +625,7 @@ Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
             }
         }
         else if (auto* load = dyncast<Load*>(inst->operand())) {
-            BasicBlockBuilder builder(irCtx, inst->parent());
+            BasicBlockBuilder builder(irCtx, load->parent());
             return builder.insert<Load>(load,
                                         load->address(),
                                         inst->type(),
