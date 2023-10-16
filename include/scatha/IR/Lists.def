@@ -10,6 +10,7 @@
 
 SC_CGFNODE_DEF(Value,                 ABSTRACT)
 SC_CGFNODE_DEF(Parameter,             CONCRETE)
+SC_CGFNODE_DEF(BasicBlock,            CONCRETE)
 SC_CGFNODE_DEF(User,                  ABSTRACT)
 
 /// Constants
@@ -26,11 +27,12 @@ SC_CGFNODE_DEF(UndefValue,            CONCRETE)
 SC_CGFNODE_DEF(ConstantData,          CONCRETE)
 
 SC_CGFNODE_DEF(Global,                ABSTRACT)
+SC_CGFNODE_DEF(GlobalVarBase,         ABSTRACT)
 SC_CGFNODE_DEF(GlobalVar,             CONCRETE)
+SC_CGFNODE_DEF(GlobalConst,           CONCRETE)
 SC_CGFNODE_DEF(Callable,              ABSTRACT)
 SC_CGFNODE_DEF(Function,              CONCRETE)
 SC_CGFNODE_DEF(ForeignFunction,       CONCRETE)
-SC_CGFNODE_DEF(BasicBlock,            CONCRETE)
 
 /// Instruction base classes
 SC_CGFNODE_DEF(Instruction,           ABSTRACT)

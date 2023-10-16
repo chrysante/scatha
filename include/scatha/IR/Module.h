@@ -53,7 +53,7 @@ public:
     void addStructure(UniquePtr<StructType> structure);
 
     /// Add a global value to this module
-    void addGlobal(UniquePtr<Value> value);
+    void addGlobal(UniquePtr<Global> value);
 
     /// Add static constant data to this module
     void addConstantData(UniquePtr<ConstantData> value);
@@ -77,7 +77,7 @@ public:
 
 private:
     utl::vector<UniquePtr<StructType>> structs;
-    utl::vector<UniquePtr<Value>> _globals;
+    utl::vector<UniquePtr<Global>> _globals;
     utl::vector<UniquePtr<ConstantData>> _constantData;
     utl::hashmap<std::pair<size_t, size_t>, ForeignFunction*> _extFunctions;
     List<Function> funcs;

@@ -25,7 +25,7 @@ void Module::addStructure(UniquePtr<StructType> structure) {
     structs.push_back(std::move(structure));
 }
 
-void Module::addGlobal(UniquePtr<Value> value) {
+void Module::addGlobal(UniquePtr<Global> value) {
     // clang-format off
     SC_MATCH (*value) {
         [&](ForeignFunction& func) {
@@ -37,7 +37,7 @@ void Module::addGlobal(UniquePtr<Value> value) {
             func.set_parent(this);
             funcs.push_back(&func);
         },
-        [&](Value&) {
+        [&](Global&) {
             _globals.push_back(std::move(value));
         },
     }; // clang-format on

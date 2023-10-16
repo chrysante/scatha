@@ -8,18 +8,20 @@
 /// ├─ BasicBlock
 /// └─ User
 ///    ├─ Global
-///    │  ├─ GlobalVar
-///    │  ├─ Callable
-///    │  │  ├─ Function
-///    │  │  └─ ForeignFunction
-///    │  └─ Constant
-///    │     ├─ IntegralConstant
-///    │     ├─ FloatingPointConstant
-///    │     ├─ NullPointerConstant
-///    │     ├─ RecordConstant
-///    │     ├─ StructConstant
-///    │     ├─ ArrayConstant
-///    │     └─ UndefValue
+///    │  ├─ GlobalVarBase
+///    │  │  ├─ GlobalVar
+///    │  │  └─ GlobalConst
+///    │  └─ Callable
+///    │     ├─ Function
+///    │     └─ ForeignFunction
+///    ├─ Constant
+///    │  ├─ IntegralConstant
+///    │  ├─ FloatingPointConstant
+///    │  ├─ NullPointerConstant
+///    │  ├─ RecordConstant
+///    │  ├─ StructConstant
+///    │  ├─ ArrayConstant
+///    │  └─ UndefValue
 ///    └─ Instruction
 ///       ├─ Alloca
 ///       ├─ Store
