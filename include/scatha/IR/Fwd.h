@@ -7,12 +7,12 @@
 /// ├─ Parameter
 /// ├─ BasicBlock
 /// └─ User
-///    ├─ Global
-///    │  ├─ GlobalVariable
-///    │  └─ Callable
-///    │     ├─ Function
-///    │     └─ ForeignFunction
 ///    ├─ Constant
+///    │  ├─ Global
+///    │  │  ├─ GlobalVariable
+///    │  │  └─ Callable
+///    │  │     ├─ Function
+///    │  │     └─ ForeignFunction
 ///    │  ├─ IntegralConstant
 ///    │  ├─ FloatingPointConstant
 ///    │  ├─ NullPointerConstant

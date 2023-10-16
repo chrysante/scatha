@@ -1,14 +1,14 @@
 #ifndef SCATHA_IR_CFG_GLOBAL_H_
 #define SCATHA_IR_CFG_GLOBAL_H_
 
-#include "IR/CFG/User.h"
+#include "IR/CFG/Constant.h"
 
 namespace scatha::ir {
 
 /// Represents a global value
-class SCATHA_API Global: public User {
+class SCATHA_API Global: public Constant {
 protected:
-    using User::User;
+    using Constant::Constant;
 };
 
 } // namespace scatha::ir
