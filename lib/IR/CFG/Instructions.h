@@ -291,29 +291,47 @@ public:
 /// starting from index 1.
 class SCATHA_API Call: public Instruction {
 public:
-    explicit Call(Callable* function, std::string name = {});
+    /// Construct call to function without arguments
+    explicit Call(Type const* returnType,
+                  Value* function,
+                  std::string name = {});
 
+    /// Construct call to arbitrary target with return type
+    explicit Call(Type const* returnType,
+                  Value* function,
+                  std::span<Value* const> arguments,
+                  std::string name = {});
+
+    /// Construct statically bound call with return type deduced form the
+    /// function
     explicit Call(Callable* function,
                   std::span<Value* const> arguments,
                   std::string name = {});
 
-    Callable* function() {
-        return const_cast<Callable*>(
-            static_cast<Call const*>(this)->function());
+    /// \Returns the called function
+    Value* function() {
+        return const_cast<Value*>(std::as_const(*this).function());
     }
 
-    Callable const* function() const;
+    /// \overload
+    Value const* function() const { return operandAt(0); }
 
-    void setFunction(Callable* function);
+    /// Set the called function to \p function
+    void setFunction(Value* function);
 
+    /// \Returns a view over the arguments of this function call
     auto arguments() { return operands() | ranges::views::drop(1); }
 
+    /// \overload
     auto arguments() const { return operands() | ranges::views::drop(1); }
 
+    /// \Returns the argument at position \p index
     Value* argumentAt(size_t index) { return operandAt(index + 1); }
 
+    /// \overload
     Value const* argumentAt(size_t index) const { return operandAt(index + 1); }
 
+    /// Sets the argument at position \p index to \p value
     void setArgument(size_t index, Value* value) {
         setOperand(1 + index, value);
     }

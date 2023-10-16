@@ -219,7 +219,10 @@ void AssertContext::assertSpecialInvariants(Phi const& phi) {
 }
 
 void AssertContext::assertSpecialInvariants(Call const& call) {
-    auto* func = call.function();
+    auto* func = dyncast<Callable const*>(call.function());
+    if (!func) {
+        return;
+    }
     CHECK(call.type() == func->returnType(), "Return type mismatch");
     CHECK(ranges::distance(func->parameters()) == call.arguments().size(),
           "We need an argument for every parameter");

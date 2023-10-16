@@ -137,7 +137,7 @@ struct SCCPContext {
                                    FormalValue const& lhs,
                                    FormalValue const& rhs);
 
-    FormalValue evaluateCall(Callable const* function,
+    FormalValue evaluateCall(Value const* target,
                              std::span<FormalValue const> args);
 
     bool isExpression(Instruction const* inst) const {
@@ -671,10 +671,10 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
     }, lhs, rhs); // clang-format on
 }
 
-FormalValue SCCPContext::evaluateCall(Callable const* function,
+FormalValue SCCPContext::evaluateCall(Value const* target,
                                       std::span<FormalValue const> args) {
     /// Right now we can atmost evaluate certain builtin functions.
-    auto* extFn = dyncast<ForeignFunction const*>(function);
+    auto* extFn = dyncast<ForeignFunction const*>(target);
     if (!extFn) {
         return Inevaluable{};
     }

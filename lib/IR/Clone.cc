@@ -9,8 +9,6 @@
 using namespace scatha;
 using namespace ir;
 
-static Instruction* doClone(Context&, Instruction*) { SC_UNREACHABLE(); }
-
 static Alloca* doClone(Context& context, Alloca* allc) {
     return new Alloca(context,
                       allc->allocatedType(),
@@ -72,7 +70,8 @@ static Return* doClone(Context& context, Return* inst) {
 }
 
 static Call* doClone(Context& context, Call* inst) {
-    return new Call(inst->function(),
+    return new Call(inst->type(),
+                    inst->function(),
                     inst->arguments(),
                     std::string(inst->name()));
 }

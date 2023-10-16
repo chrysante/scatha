@@ -177,10 +177,17 @@ BasicBlock* opt::addJoiningPredecessor(Context& ctx,
     return preheader;
 }
 
+static bool callCasSideEffects(Call const* call) {
+    auto* function = dyncast<Callable const*>(call->function());
+    if (!function) {
+        return true;
+    }
+    return !function->hasAttribute(FunctionAttribute::Memory_WriteNone);
+}
+
 bool opt::hasSideEffects(Instruction const* inst) {
     if (auto* call = dyncast<Call const*>(inst)) {
-        return !call->function()->hasAttribute(
-            FunctionAttribute::Memory_WriteNone);
+        return callCasSideEffects(call);
     }
     if (isa<Store>(inst)) {
         return true;

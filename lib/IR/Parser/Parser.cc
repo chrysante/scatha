@@ -682,15 +682,16 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
             args.push_back({ argType, arg });
         }
         utl::small_vector<Value*> nullArgs(args.size());
-        auto result = allocate<Call>(nullptr, nullArgs, nameOrEmpty());
-        addValueLink<Callable>(result.get(),
-                               nullptr,
-                               funcName,
-                               [=](Call* call, Callable* func) {
-            if (retType != func->returnType()) {
+        auto result = allocate<Call>(retType, nullptr, nullArgs, nameOrEmpty());
+        addValueLink(result.get(),
+                     nullptr,
+                     funcName,
+                     [=](Call* call, Value* value) {
+            auto* func = dyncast<Callable const*>(value);
+            if (func && func->returnType() != retType) {
                 reportSemaIssue(retTypeName, SemanticIssue::TypeMismatch);
             }
-            call->setFunction(func);
+            call->setFunction(value);
         });
         /// We set the type manually. If the called function is not parsed yet
         /// but we try to access the type, i.e. because an ExtractValue
@@ -1084,7 +1085,8 @@ OptValue ParseContext::parseValue(Type const* type) {
         auto closeTok = token.kind() == TokenKind::OpenBrace ?
                             TokenKind::CloseBrace :
                             TokenKind::CloseBracket;
-        utl::small_vector<Constant*> elems;
+
+        utl::small_vector<OptValue> elems;
         while (true) {
             if (peekToken().kind() == closeTok) {
                 eatToken();
@@ -1094,14 +1096,21 @@ OptValue ParseContext::parseValue(Type const* type) {
                 expect(eatToken(), TokenKind::Comma);
             }
             auto* type = parseType();
-            auto valueTok = peekToken();
-            auto* value = dyncast<Constant*>(parseValue(type).value());
-            if (!value) {
-                reportSemaIssue(valueTok, SemanticIssue::ExpectedConstantValue);
-            }
-            elems.push_back(value);
+            auto val = parseValue(type);
+            elems.push_back(val);
         }
-        return { token, irCtx.recordConstant(elems, recordType) };
+        auto* aggrValue =
+            irCtx.recordConstant(utl::small_vector<Constant*>(elems.size()),
+                                 recordType);
+        for (auto [index, elem]: elems | ranges::views::enumerate) {
+            addValueLink<Constant>(aggrValue,
+                                   nullptr,
+                                   elem,
+                                   [index = index](User* u, Constant* c) {
+                u->setOperand(index, c);
+            });
+        }
+        return { token, aggrValue };
     }
     case TokenKind::StringLiteral: {
         auto text = toEscapedValue(token.id());

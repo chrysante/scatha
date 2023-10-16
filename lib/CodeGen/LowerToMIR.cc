@@ -425,7 +425,7 @@ void CodeGenContext::genInst(ir::Call const& call) {
     utl::small_vector<mir::Value*, 16> args;
     mir::CallInstData callData{};
     // clang-format off
-    mir::InstCode const instcode = visit(*call.function(), utl::overload{
+    mir::InstCode const instcode = SC_MATCH (*call.function()) {
         [&](ir::Function const& func) {
             args.push_back(resolve(&func));
             return mir::InstCode::Call;
@@ -437,7 +437,10 @@ void CodeGenContext::genInst(ir::Call const& call) {
             };
             return mir::InstCode::CallExt;
         },
-    }); // clang-format on
+        [&](ir::Value const& value) -> mir::InstCode {
+            SC_UNIMPLEMENTED();
+        },
+    }; // clang-format on
     for (auto* arg: call.arguments()) {
         auto* mirArg = resolve(arg);
         size_t const numWords = this->numWords(arg->type());

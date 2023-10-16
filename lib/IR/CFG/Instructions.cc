@@ -149,15 +149,14 @@ void TerminatorInst::setTarget(size_t index, BasicBlock* bb) {
 
 Return::Return(Context& context): Return(context, context.voidValue()) {}
 
-Call::Call(Callable* function, std::string name):
-    Call(function, std::span<Value* const>{}, std::move(name)) {}
+Call::Call(Type const* returnType, Value* function, std::string name):
+    Call(returnType, function, std::span<Value* const>{}, std::move(name)) {}
 
-Call::Call(Callable* function,
+Call::Call(Type const* returnType,
+           Value* function,
            std::span<Value* const> arguments,
            std::string name):
-    Instruction(NodeType::Call,
-                function ? function->returnType() : nullptr,
-                std::move(name)) {
+    Instruction(NodeType::Call, returnType, std::move(name)) {
     utl::small_vector<Value*> args;
     args.reserve(1 + arguments.size());
     args.push_back(function);
@@ -165,14 +164,12 @@ Call::Call(Callable* function,
     setOperands(std::move(args));
 }
 
-void Call::setFunction(Callable* function) {
-    setType(function ? function->returnType() : nullptr);
-    setOperand(0, function);
-}
+Call::Call(Callable* function,
+           std::span<Value* const> arguments,
+           std::string name):
+    Call(function->returnType(), function, arguments, std::move(name)) {}
 
-Callable const* Call::function() const {
-    return cast<Callable const*>(operands()[0]);
-}
+void Call::setFunction(Value* function) { setOperand(0, function); }
 
 template <typename E>
 static auto extract(std::span<PhiMapping const> args, E extractor) {

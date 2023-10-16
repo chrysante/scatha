@@ -436,7 +436,7 @@ bool Variable::analyzeMemcpy(Call* call) {
     {
         return false;
     }
-    memcpy = call->function();
+    memcpy = cast<Callable*>(call->function());
     memorize(call);
     return true;
 }
@@ -448,7 +448,7 @@ bool Variable::analyzeMemset(Call* call) {
     if (!pointerUsePostdominatesPhi(call, memsetDest(call))) {
         return false;
     }
-    memset = call->function();
+    memset = cast<Callable*>(call->function());
     memorize(call);
     return true;
 }

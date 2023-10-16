@@ -57,7 +57,9 @@ RecordConstant::RecordConstant(NodeType nodeType,
              elems | ranges::views::transform(cast<Value*>) | ToSmallVector<>) {
     SC_ASSERT(elems.size() == type->numElements(), "Element count mismatch");
     for (auto [index, elem]: elems | ranges::views::enumerate) {
-        SC_ASSERT(elem->type() == type->elementAt(index), "Type mismatch");
+        /// Initializing with null pointer is allowed for the parser
+        SC_ASSERT(!elem || elem->type() == type->elementAt(index),
+                  "Type mismatch");
     }
 }
 
