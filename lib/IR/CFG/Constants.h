@@ -79,8 +79,15 @@ public:
     /// \Returns The type of this constant as `RecordType`.
     RecordType const* type() const;
 
-    ///
-    std::span<ir::Constant* const> elements() const { return _elems; }
+    /// \Returns a view over the elements as constants
+    auto elements() {
+        return operands() | ranges::views::transform(cast<Constant*>);
+    }
+
+    /// \overload
+    auto elements() const {
+        return operands() | ranges::views::transform(cast<Constant const*>);
+    }
 
 protected:
     explicit RecordConstant(NodeType nodeType,
@@ -90,8 +97,6 @@ protected:
 private:
     friend class Constant;
     void writeValueToImpl(void* dest) const;
-
-    utl::small_vector<ir::Constant*> _elems;
 };
 
 /// Represents a constant struct
