@@ -108,7 +108,7 @@ struct ParseContext {
     UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructType> parseStructure();
-    UniquePtr<ConstantData> parseConstant();
+    UniquePtr<GlobalVariable> parseGlobal();
     void parseConstantData(Type const* type, utl::vector<u8>& data);
 
     void parseTypeDefinition();
@@ -384,8 +384,8 @@ void ParseContext::parse() {
             mod.addStructure(std::move(s));
             continue;
         }
-        if (auto c = parseConstant()) {
-            mod.addConstantData(std::move(c));
+        if (auto c = parseGlobal()) {
+            mod.addGlobal(std::move(c));
             continue;
         }
         if (auto fn = parseCallable()) {
@@ -941,24 +941,39 @@ UniquePtr<StructType> ParseContext::parseStructure() {
     return structure;
 }
 
-UniquePtr<ConstantData> ParseContext::parseConstant() {
+UniquePtr<GlobalVariable> ParseContext::parseGlobal() {
     Token const name = peekToken();
     if (name.kind() != TokenKind::GlobalIdentifier) {
         return nullptr;
     }
     eatToken();
     expectNext(TokenKind::Assign);
+    auto mut = [&] {
+        using enum GlobalVariable::Mutability;
+        auto kind = eatToken();
+        switch (kind.kind()) {
+        case TokenKind::Global:
+            return Mutable;
+        case TokenKind::Constant:
+            return Const;
+        default:
+            reportSemaIssue(kind, SemanticIssue::ExpectedGlobalKind);
+        }
+    }();
     auto* type = parseType();
-    utl::small_vector<u8> data;
-    parseConstantData(type, data);
-    auto result =
-        allocate<ConstantData>(irCtx, type, data, std::string(name.id()));
+    auto value = parseValue(type);
+    auto global =
+        allocate<GlobalVariable>(irCtx, mut, nullptr, std::string(name.id()));
+    addValueLink<Constant>(global.get(),
+                           type,
+                           value,
+                           &GlobalVariable::setInitializer);
     bool success =
-        globals.insert({ std::string(name.id()), result.get() }).second;
+        globals.insert({ std::string(name.id()), global.get() }).second;
     if (!success) {
         reportSemaIssue(name, SemanticIssue::Redeclaration);
     }
-    return result;
+    return global;
 }
 
 void ParseContext::parseConstantData(Type const* type, utl::vector<u8>& data) {

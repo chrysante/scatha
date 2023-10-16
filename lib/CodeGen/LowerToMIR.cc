@@ -817,6 +817,24 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             valueMap.insert({ &inst, reg });
             return reg;
         },
+        [&](ir::GlobalVariable const& var) -> mir::Register* {
+            size_t const offset = [&] {
+                auto itr = staticDataOffsets.find(&var);
+                if (itr != staticDataOffsets.end()) {
+                    return itr->second;
+                }
+                size_t const offset = staticData.size();
+                staticData.resize(offset + var.type()->size());
+                var.initializer()->writeValueTo(staticData.data() + offset);
+                staticDataOffsets[&var] = offset;
+                return offset;
+            }();
+            auto* dest = nextRegister();
+            addNewInst(mir::InstCode::LDA,
+                       dest,
+                       { result.constant(offset, 4) });
+            return dest;
+        },
         [&](ir::IntegralConstant const& constant) {
             SC_ASSERT(constant.type()->bitwidth() <= 64, "");
             uint64_t value = constant.value().to<uint64_t>();

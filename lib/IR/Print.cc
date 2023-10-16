@@ -27,6 +27,7 @@ struct PrintCtx {
     void print(Value const&);
 
     void printImpl(Value const&) { SC_UNREACHABLE(); }
+    void printImpl(GlobalVariable const&);
     void printImpl(Function const&);
     void printImpl(ForeignFunction const&);
     void printImpl(BasicBlock const&);
@@ -162,6 +163,11 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
     // clang-format off
     visit(*value, utl::overload{
         [&](ir::Global const& global) {
+            str << tfmt::format(Green,
+                                "@", htmlName(global));
+        },
+        // For now!
+        [&](ir::ConstantData const& global) {
             str << tfmt::format(Green,
                                 "@", htmlName(global));
         },
@@ -315,6 +321,14 @@ void PrintCtx::print(Value const& value) {
         instDecl(inst);
     }
     visit(value, [this](auto const& value) { printImpl(value); });
+}
+
+void PrintCtx::printImpl(GlobalVariable const& var) {
+    str << formatName(&var) << equals();
+    keyword(var.isMutable() ? "global" : "constant");
+    str << " ";
+    typedName(var.initializer());
+    str << "\n\n";
 }
 
 void PrintCtx::printImpl(Function const& function) {

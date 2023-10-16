@@ -34,6 +34,8 @@ void ir::print(ParseIssue const& issue, std::ostream& str) {
                 { SemanticIssue::UnexpectedID,              "Unexpected ID" },
                 { SemanticIssue::ExpectedType,              "Expected type" },
                 { SemanticIssue::ExpectedConstantValue,     "Expected value constant" },
+                { SemanticIssue::ExpectedGlobalKind,        "Expected 'global' or 'constant' keyword" },
+                
             });
             auto sl = issue.sourceLocation();
             str << "Semantic issue: " << sl << ": " << reasonStr << "\n";

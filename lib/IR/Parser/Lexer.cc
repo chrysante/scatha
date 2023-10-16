@@ -49,6 +49,8 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
     static constexpr std::pair<std::string_view, TokenKind> values[] = {
         { "struct", TokenKind::Structure },
         { "func", TokenKind::Function },
+        { "global", TokenKind::Global },
+        { "constant", TokenKind::Constant },
         { "void", TokenKind::Void },
         { "ptr", TokenKind::Ptr },
         { "null", TokenKind::NullLiteral },

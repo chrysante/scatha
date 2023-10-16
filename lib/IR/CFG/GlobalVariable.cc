@@ -7,7 +7,7 @@
 using namespace scatha;
 using namespace ir;
 
-GlobalVariable::GlobalVariable(ir::Context& ctx,
+GlobalVariable::GlobalVariable(Context& ctx,
                                Mutability mut,
                                Constant* init,
                                std::string name):
@@ -17,6 +17,8 @@ GlobalVariable::GlobalVariable(ir::Context& ctx,
 Constant const* GlobalVariable::initializer() const {
     return cast<Constant const*>(operandAt(0));
 }
+
+void GlobalVariable::setInitializer(Constant* init) { setOperand(0, init); }
 
 PointerType const* GlobalVariable::type() const {
     return cast<PointerType const*>(Value::type());

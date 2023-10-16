@@ -12,7 +12,7 @@ public:
     enum Mutability { Mutable, Const };
 
     ///
-    GlobalVariable(ir::Context& ctx,
+    GlobalVariable(Context& ctx,
                    Mutability mutability,
                    Constant* initializer,
                    std::string name);
@@ -25,6 +25,9 @@ public:
 
     /// \overload
     Constant const* initializer() const;
+
+    /// Setter for two step initialization (the parser needs this)
+    void setInitializer(Constant* init);
 
     /// Global variables are always of type `ptr`
     PointerType const* type() const;

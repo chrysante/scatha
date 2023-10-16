@@ -42,6 +42,7 @@ public:
         UnexpectedID,
         ExpectedType,
         ExpectedConstantValue,
+        ExpectedGlobalKind,
         _count
     };
 

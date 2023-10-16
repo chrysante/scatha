@@ -11,6 +11,8 @@ namespace scatha::ir {
 enum class TokenKind {
     Structure,
     Function,
+    Global,
+    Constant,
 
     OpenParan,
     CloseParan,
