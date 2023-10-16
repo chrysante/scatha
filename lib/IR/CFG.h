@@ -6,7 +6,7 @@
 #include "IR/CFG/Constants.h"
 #include "IR/CFG/Function.h"
 #include "IR/CFG/Global.h"
-#include "IR/CFG/GlobalVar.h"
+#include "IR/CFG/GlobalVariable.h"
 #include "IR/CFG/Instruction.h"
 #include "IR/CFG/Instructions.h"
 #include "IR/CFG/User.h"

@@ -8,9 +8,7 @@
 /// ├─ BasicBlock
 /// └─ User
 ///    ├─ Global
-///    │  ├─ GlobalVarBase
-///    │  │  ├─ GlobalVar
-///    │  │  └─ GlobalConst
+///    │  ├─ GlobalVariable
 ///    │  └─ Callable
 ///    │     ├─ Function
 ///    │     └─ ForeignFunction
