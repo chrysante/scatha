@@ -47,10 +47,6 @@ Global* Module::addGlobal(UniquePtr<Global> value) {
     return result;
 }
 
-void Module::addConstantData(UniquePtr<ConstantData> value) {
-    _constantData.push_back(std::move(value));
-}
-
 void Module::eraseFunction(Function* function) {
     eraseFunction(List<Function>::iterator(function));
 }

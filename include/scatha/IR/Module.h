@@ -24,9 +24,6 @@ public:
     Module& operator=(Module&& rhs) noexcept;
     ~Module();
 
-    /// View over the static constant data objects in this module
-    auto constantData() const { return _constantData | ToConstAddress; }
-
     ///
     auto structures() { return structs | Opaque; }
 
@@ -61,9 +58,6 @@ public:
         return cast<G*>(addGlobal(uniquePtrCast<Global>(std::move(value))));
     }
 
-    /// Add static constant data to this module
-    void addConstantData(UniquePtr<ConstantData> value);
-
     ///
     void eraseFunction(Function* function);
 
@@ -84,7 +78,6 @@ public:
 private:
     utl::vector<UniquePtr<StructType>> structs;
     utl::vector<UniquePtr<Global>> _globals;
-    utl::vector<UniquePtr<ConstantData>> _constantData;
     utl::hashmap<std::pair<size_t, size_t>, ForeignFunction*> _extFunctions;
     List<Function> funcs;
 };

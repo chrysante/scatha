@@ -876,25 +876,6 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
         [&](ir::UndefValue const&) -> mir::Value* {
             return result.undefValue();
         },
-        [&](ir::ConstantData const& constData) -> mir::Value* {
-            size_t const offset = [&] {
-                auto itr = staticDataOffsets.find(&constData);
-                if (itr != staticDataOffsets.end()) {
-                    return itr->second;
-                }
-                size_t const offset = staticData.size();
-                for (u8 byte: constData.data()) {
-                    staticData.push_back(byte);
-                }
-                staticDataOffsets[&constData] = offset;
-                return offset;
-            }();
-            auto* dest = nextRegister();
-            addNewInst(mir::InstCode::LDA,
-                       dest,
-                       { result.constant(offset, 4) });
-            return dest;
-        },
         [](ir::Value const& value) -> mir::Value* {
             SC_UNREACHABLE("Everything else shall be forward declared");
         }

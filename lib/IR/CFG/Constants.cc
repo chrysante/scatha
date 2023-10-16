@@ -85,11 +85,3 @@ ArrayConstant::ArrayConstant(std::span<ir::Constant* const> elems,
 ArrayType const* ArrayConstant::type() const {
     return cast<ArrayType const*>(Value::type());
 }
-
-ConstantData::ConstantData(ir::Context& ctx,
-                           Type const* dataType,
-                           utl::vector<uint8_t> data,
-                           std::string name):
-    Constant(NodeType::ConstantData, ctx.ptrType(), std::move(name)),
-    _dataType(dataType),
-    _data(std::move(data)) {}

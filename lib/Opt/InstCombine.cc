@@ -589,9 +589,14 @@ Value* InstCombineCtx::visitImpl(Load* load) {
     if (!pointer) {
         return nullptr;
     }
-    if (auto* constData = dyncast<ConstantData*>(pointer)) {
-        auto data = constData->data().subspan(offset, load->type()->size());
-        return makeValueFromConstantData(irCtx, data, load->type());
+    if (auto* global = dyncast<GlobalVariable*>(pointer);
+        global && global->isConst())
+    {
+        auto* init = global->initializer();
+        utl::small_vector<uint8_t> data(init->type()->size());
+        init->writeValueTo(data.data());
+        std::span subregion(data.data() + offset, load->type()->size());
+        return makeValueFromConstantData(irCtx, subregion, load->type());
     }
     return nullptr;
 }

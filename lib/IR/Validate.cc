@@ -84,14 +84,6 @@ void ir::assertInvariants(Context& ctx, Function const& function) {
 }
 
 void AssertContext::assertInvariants(Module const& mod) {
-    for (auto* constData: mod.constantData()) {
-        CHECK(isa<PointerType>(constData->type()),
-              "ConstantData must be of type `ptr`");
-        if (!isa<VoidType>(constData->dataType())) {
-            CHECK(constData->data().size() == constData->dataType()->size(),
-                  "Const data must be the same size as its type");
-        }
-    }
     for (auto& function: mod) {
         assertInvariants(function);
     }

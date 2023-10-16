@@ -110,8 +110,6 @@ struct ParseContext {
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructType> parseStructure();
     UniquePtr<GlobalVariable> parseGlobal();
-    void parseConstantData(Type const* type, utl::vector<u8>& data);
-
     void parseTypeDefinition();
 
     /// Try to parse a type, return `nullptr` if no type could be parsed
@@ -977,60 +975,6 @@ UniquePtr<GlobalVariable> ParseContext::parseGlobal() {
     return global;
 }
 
-void ParseContext::parseConstantData(Type const* type, utl::vector<u8>& data) {
-    using enum SemanticIssue::Reason;
-    // clang-format off
-    visit(*type, utl::overload{
-        [&](StructType const& type) { SC_UNIMPLEMENTED(); },
-        [&](ArrayType const& type) {
-            expect(eatToken(), TokenKind::OpenBracket);
-            for (size_t i = 0; i < type.count(); ++i) {
-                if (i != 0) {
-                    expect(eatToken(), TokenKind::Comma);
-                }
-                Token typeTok  = peekToken();
-                auto* elemType = parseType();
-                if (elemType != type.elementType()) {
-                    reportSemaIssue(typeTok, InvalidType);
-                }
-                parseConstantData(elemType, data);
-            }
-            expect(eatToken(), TokenKind::CloseBracket);
-        },
-        [&](IntegralType const& type) {
-            size_t const bitwidth = type.bitwidth();
-            SC_ASSERT(bitwidth % 8 == 0, "");
-            Token const token = eatToken();
-            expect(token, TokenKind::IntLiteral);
-            auto value = parseInt(token, &type);
-            auto* ptr  = reinterpret_cast<u8 const*>(value.limbs().data());
-            for (size_t i = 0; i < bitwidth / 8; ++i, ++ptr) {
-                data.push_back(*ptr);
-            }
-        },
-        [&](FloatType const& type) {
-            Token const token = eatToken();
-            expect(token, TokenKind::FloatLiteral);
-            auto value = parseFloat(token, &type);
-            if (value.precision() == APFloatPrec::Single) {
-                float f    = value.to<float>();
-                auto bytes = std::bit_cast<std::array<u8, 4>>(f);
-                for (u8 b: bytes) {
-                    data.push_back(b);
-                }
-            }
-            else {
-                double d   = value.to<double>();
-                auto bytes = std::bit_cast<std::array<u8, 8>>(d);
-                for (u8 b: bytes) {
-                    data.push_back(b);
-                }
-            }
-        },
-        [&](Type const& type) { reportSemaIssue(peekToken(), UnexpectedID); },
-    }); // clang-format off
-}
-
 Type const* ParseContext::tryParseType() {
     Token const token = peekToken();
     switch (token.kind()) {
@@ -1043,7 +987,7 @@ Type const* ParseContext::tryParseType() {
     case TokenKind::GlobalIdentifier: {
         eatToken();
         auto structures = mod.structures();
-        auto itr        = ranges::find_if(structures, [&](auto&& type) {
+        auto itr = ranges::find_if(structures, [&](auto&& type) {
             // TODO: Handle '@' and '%' prefixes
             return type->name() == token.id();
         });
@@ -1066,7 +1010,7 @@ Type const* ParseContext::tryParseType() {
         utl::small_vector<Type const*> members;
         while (true) {
             Token const typeTok = peekToken();
-            auto* type          = parseType();
+            auto* type = parseType();
             if (!type) {
                 reportSemaIssue(typeTok, SemanticIssue::UnexpectedID);
             }
@@ -1081,7 +1025,7 @@ Type const* ParseContext::tryParseType() {
     case TokenKind::OpenBracket: {
         eatToken();
         Token const typeTok = peekToken();
-        auto* type          = parseType();
+        auto* type = parseType();
         if (!type) {
             reportSemaIssue(typeTok, SemanticIssue::UnexpectedID);
         }
@@ -1120,7 +1064,7 @@ OptValue ParseContext::parseValue(Type const* type) {
             reportSemaIssue(token, SemanticIssue::InvalidType);
         }
         auto value = parseInt(token, intType);
-        return {token, irCtx.intConstant(value)};
+        return { token, irCtx.intConstant(value) };
     }
     case TokenKind::FloatLiteral: {
         auto* floatType = dyncast<FloatType const*>(type);
@@ -1128,7 +1072,7 @@ OptValue ParseContext::parseValue(Type const* type) {
             reportSemaIssue(token, SemanticIssue::InvalidType);
         }
         auto value = parseFloat(token, floatType);
-        return {token, irCtx.floatConstant(value)};
+        return { token, irCtx.floatConstant(value) };
     }
     case TokenKind::OpenBrace:
         [[fallthrough]];
@@ -1138,8 +1082,8 @@ OptValue ParseContext::parseValue(Type const* type) {
             reportSemaIssue(token, SemanticIssue::UnexpectedID);
         }
         auto closeTok = token.kind() == TokenKind::OpenBrace ?
-                        TokenKind::CloseBrace :
-                        TokenKind::CloseBracket;
+                            TokenKind::CloseBrace :
+                            TokenKind::CloseBracket;
         utl::small_vector<Constant*> elems;
         while (true) {
             if (peekToken().kind() == closeTok) {
@@ -1162,11 +1106,11 @@ OptValue ParseContext::parseValue(Type const* type) {
     case TokenKind::StringLiteral: {
         auto text = toEscapedValue(token.id());
         auto elems = text | ranges::views::transform([&](char c) -> Constant* {
-            return irCtx.intConstant(static_cast<unsigned>(c), 8);
-        }) | ToSmallVector<>;
+                         return irCtx.intConstant(static_cast<unsigned>(c), 8);
+                     }) |
+                     ToSmallVector<>;
         auto* arrayType = dyncast<ArrayType const*>(type);
-        if (!arrayType ||
-            arrayType->elementType() != irCtx.intType(8) ||
+        if (!arrayType || arrayType->elementType() != irCtx.intType(8) ||
             arrayType->count() != elems.size())
         {
             reportSemaIssue(token, SemanticIssue::TypeMismatch);
@@ -1184,8 +1128,8 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
     case TokenKind::LocalIdentifier:
         [[fallthrough]];
     case TokenKind::GlobalIdentifier: {
-        auto& values =
-            token.kind() == TokenKind::LocalIdentifier ? locals : globals;
+        auto& values = token.kind() == TokenKind::LocalIdentifier ? locals :
+                                                                    globals;
         auto const itr = values.find(token.id());
         if (itr == values.end()) {
             return nullptr;

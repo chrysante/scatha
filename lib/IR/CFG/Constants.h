@@ -114,29 +114,6 @@ public:
     ArrayType const* type() const;
 };
 
-/// Represents constant data
-class SCATHA_API ConstantData: public Constant {
-public:
-    ConstantData(ir::Context& ctx,
-                 Type const* dataType,
-                 utl::vector<uint8_t> data,
-                 std::string name);
-
-    /// The constant data
-    std::span<uint8_t const> data() const { return _data; }
-
-    /// The type of this value is `ptr`, so this exists to query the type of the
-    /// data
-    ir::Type const* dataType() const { return _dataType; }
-
-private:
-    friend class Constant;
-    void writeValueToImpl(void* dest) const { SC_UNREACHABLE(); }
-
-    Type const* _dataType = nullptr;
-    utl::vector<uint8_t> _data;
-};
-
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_CFG_CONSTANTS_H_

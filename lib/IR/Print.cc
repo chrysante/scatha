@@ -4,6 +4,7 @@
 #include <optional>
 #include <sstream>
 
+#include <range/v3/algorithm.hpp>
 #include <termfmt/termfmt.h>
 #include <utl/scope_guard.hpp>
 #include <utl/strcat.hpp>
@@ -51,8 +52,6 @@ struct PrintCtx {
     void printImpl(Select const&);
 
     void print(StructType const& structure);
-
-    void print(ConstantData const& constData);
 
     void printDataAs(Type const* type, std::span<u8 const> data);
 
@@ -181,11 +180,6 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
             str << tfmt::format(Green,
                                 "@", htmlName(global));
         },
-        // For now!
-        [&](ir::ConstantData const& global) {
-            str << tfmt::format(Green,
-                                "@", htmlName(global));
-        },
         [&](ir::Parameter const& parameter) {
             str << tfmt::format(None, "%", htmlName(parameter));
         },
@@ -256,10 +250,9 @@ void ir::print(Module const& mod, std::ostream& str) {
     for (auto& structure: mod.structures()) {
         ctx.print(*structure);
     }
-    for (auto* constData: mod.constantData()) {
-        ctx.print(*constData);
-    }
-    for (auto* global: mod.globals()) {
+    auto globals = mod.globals() | ToSmallVector<>;
+    ranges::partition(globals, isa<GlobalVariable>);
+    for (auto* global: globals) {
         ctx.print(*global);
     }
     for (auto& function: mod) {
@@ -539,12 +532,6 @@ void PrintCtx::print(StructType const& structure) {
     }
     indent.decrease();
     str << "\n";
-}
-
-void PrintCtx::print(ConstantData const& constData) {
-    str << formatName(&constData) << equals();
-    printDataAs(constData.dataType(), constData.data());
-    str << "\n\n";
 }
 
 void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {

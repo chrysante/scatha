@@ -23,9 +23,7 @@ SC_CGFNODE_DEF(StructConstant,        CONCRETE)
 SC_CGFNODE_DEF(ArrayConstant,         CONCRETE)
 SC_CGFNODE_DEF(UndefValue,            CONCRETE)
 
-// TODO: Remove this
-SC_CGFNODE_DEF(ConstantData,          CONCRETE)
-
+/// Globals
 SC_CGFNODE_DEF(Global,                ABSTRACT)
 SC_CGFNODE_DEF(GlobalVariable,        CONCRETE)
 SC_CGFNODE_DEF(Callable,              ABSTRACT)
