@@ -24,7 +24,11 @@ void checkIRCompiles(std::string_view text);
 
 void compileAndRun(std::string text);
 
+void compileAndRunIR(std::string text);
+
 void checkPrints(std::string_view printed, std::string source);
+
+void checkIRPrints(std::string_view printed, std::string source);
 
 } // namespace scatha::test
 

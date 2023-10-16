@@ -55,3 +55,17 @@ func i32 @main() {
     return i32 %s
 })");
 }
+
+TEST_CASE("Static data - 3", "[end-to-end][static-data]") {
+    test::checkIRPrints("Hello World!", R"(
+@my_global = global [i8, 12] "Cello World!" # sic!
+
+ext func void @__builtin_putstr(ptr, i64)
+
+func i32 @main() {
+%entry:
+    store ptr @my_global, i8 72 # 72 == 'H'
+    call void @__builtin_putstr, ptr @my_global, i64 12
+    return i32 0
+})");
+}

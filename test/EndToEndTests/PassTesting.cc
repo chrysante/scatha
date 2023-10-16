@@ -203,8 +203,19 @@ void test::compileAndRun(std::string text) {
     ::run(mod);
 }
 
+void test::compileAndRunIR(std::string text) {
+    auto [ctx, mod] = makeIRGenerator({ std::move(text) })();
+    ::run(mod);
+}
+
 void test::checkPrints(std::string_view printed, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRun(source);
+    CHECK(rerouter.str() == printed);
+}
+
+void test::checkIRPrints(std::string_view printed, std::string source) {
+    test::CoutRerouter rerouter;
+    compileAndRunIR(source);
     CHECK(rerouter.str() == printed);
 }
