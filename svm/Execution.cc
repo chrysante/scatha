@@ -269,7 +269,7 @@ u64 const* VirtualMachine::execute(size_t start,
     currentFrame = execFrames.push(ExecutionFrame{
         .regPtr = lastframe.regPtr + MaxCallframeRegisterCount,
         .bottomReg = lastframe.regPtr + MaxCallframeRegisterCount,
-        .iptr = text.data() + start,
+        .iptr = binary.data() + start,
         .stackPtr = lastframe.stackPtr });
     std::memcpy(currentFrame.regPtr,
                 arguments.data(),
@@ -312,9 +312,9 @@ u64 const* VirtualMachine::execute(size_t start,
 
         INST_LIST_BEGIN()
 
-        INST(call) { performCall<call>(i, text.data(), currentFrame); }
-        INST(icallr) { performCall<icallr>(i, text.data(), currentFrame); }
-        INST(icallm) { performCall<icallm>(i, text.data(), currentFrame); }
+        INST(call) { performCall<call>(i, binary.data(), currentFrame); }
+        INST(icallr) { performCall<icallr>(i, binary.data(), currentFrame); }
+        INST(icallm) { performCall<icallm>(i, binary.data(), currentFrame); }
 
         INST(ret) {
             if UTL_UNLIKELY (currentFrame.bottomReg == regPtr) {
@@ -423,18 +423,22 @@ u64 const* VirtualMachine::execute(size_t start,
         INST(lda) {
             size_t const destRegIdx = load<u8>(i);
             size_t const offset = load<u32>(&i[1]);
-            u8* const address = data.data() + offset;
+            u8* const address = binary.data() + offset;
             regPtr[destRegIdx] = utl::bit_cast<u64>(address);
         }
 
         /// ## Jumps
-        INST(jmp) { jump<jmp>(i, text.data(), currentFrame, true); }
-        INST(je) { jump<je>(i, text.data(), currentFrame, equal(flags)); }
-        INST(jne) { jump<jne>(i, text.data(), currentFrame, notEqual(flags)); }
-        INST(jl) { jump<jl>(i, text.data(), currentFrame, less(flags)); }
-        INST(jle) { jump<jle>(i, text.data(), currentFrame, lessEq(flags)); }
-        INST(jg) { jump<jg>(i, text.data(), currentFrame, greater(flags)); }
-        INST(jge) { jump<jge>(i, text.data(), currentFrame, greaterEq(flags)); }
+        INST(jmp) { jump<jmp>(i, binary.data(), currentFrame, true); }
+        INST(je) { jump<je>(i, binary.data(), currentFrame, equal(flags)); }
+        INST(jne) {
+            jump<jne>(i, binary.data(), currentFrame, notEqual(flags));
+        }
+        INST(jl) { jump<jl>(i, binary.data(), currentFrame, less(flags)); }
+        INST(jle) { jump<jle>(i, binary.data(), currentFrame, lessEq(flags)); }
+        INST(jg) { jump<jg>(i, binary.data(), currentFrame, greater(flags)); }
+        INST(jge) {
+            jump<jge>(i, binary.data(), currentFrame, greaterEq(flags));
+        }
 
         /// ## Comparison
         INST(ucmp8RR) { compareRR<u8>(i, regPtr, flags); }

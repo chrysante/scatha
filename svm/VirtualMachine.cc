@@ -23,11 +23,11 @@ VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
 }
 
 void VirtualMachine::loadBinary(u8 const* progData) {
-    Program program(progData);
-    text = std::move(program.instructions);
-    data = std::move(program.data);
+    ProgramView program(progData);
+    binary.assign(program.binary.begin(), program.binary.end());
+    text = binary.data() + program.data.size();
+    programBreak = text + program.text.size();
     startAddress = program.startAddress;
-    programBreak = text.data() + text.size();
 }
 
 u8* VirtualMachine::allocateStackMemory(size_t numBytes) {

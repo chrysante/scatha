@@ -14,19 +14,20 @@
 
 using namespace svm;
 
-Program::Program(u8 const* prog) {
+ProgramView::ProgramView(u8 const* prog) {
     ProgramHeader header;
     std::memcpy(&header, prog, sizeof(header));
     if (header.versionString[0] != GlobalProgID) {
         throw std::runtime_error("Invalid version string");
     }
-    size_t const dataSize = header.textOffset - header.dataOffset;
-    data.resize(dataSize, utl::no_init);
-    std::memcpy(data.data(), prog + header.dataOffset, dataSize);
-    size_t const textSize = header.size - header.textOffset;
-    instructions.resize(textSize, utl::no_init);
-    std::memcpy(instructions.data(), prog + header.textOffset, textSize);
-    startAddress = header.startAddress;
+    auto* binaryBegin = prog + header.dataOffset;
+    size_t dataSize = header.textOffset - header.dataOffset;
+    size_t textSize = header.size - header.textOffset;
+    size_t binarySize = dataSize + textSize;
+    this->binary = std::span(binaryBegin, binarySize);
+    this->data = std::span(binaryBegin, dataSize);
+    this->text = std::span(binaryBegin + dataSize, textSize);
+    this->startAddress = header.startAddress;
 }
 
 void svm::print(u8 const* program) { svm::print(program, std::cout); }
@@ -79,20 +80,19 @@ static constexpr utl::streammanip memoryAcccess([](std::ostream& str,
 });
 
 void svm::print(u8 const* progData, std::ostream& str) {
-    Program const p(progData);
+    ProgramView const p(progData);
 
     str << ".data:\n";
-    std::span<u8 const> data = p.data;
-    for (unsigned b: data) {
+    for (unsigned b: p.data) {
         str << std::hex << b;
     }
-    if (!data.empty()) {
+    if (!p.data.empty()) {
         str << "\n";
     }
     str << "\n";
 
     str << ".text:\n";
-    std::span<u8 const> text = p.instructions;
+    auto text = p.text;
     for (size_t i = 0; i < text.size();) {
         OpCode const opcode = static_cast<OpCode>(text[i]);
         str << std::setw(3) << i << ": " << opcode << " ";
