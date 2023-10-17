@@ -69,3 +69,55 @@ func i32 @main() {
     return i32 0
 })");
 }
+
+TEST_CASE("Static data alignment", "[end-to-end][static-data]") {
+    test::checkIRReturns(2, R"(
+@a = global i16 1
+@b = global i32 2
+
+func i32 @main() {
+%entry:
+    %e = load i16, ptr @a
+    %f = load i32, ptr @b
+    return i32 %f
+})");
+}
+
+TEST_CASE("First vtable", "[end-to-end][static-data]") {
+    test::checkIRPrints("Hello World!", R"(
+@vtable = global [ptr, 3] [ptr @f1, ptr @f2, ptr @f3]
+
+@string = constant [i8, 12] "Hello World!"
+
+func i32 @f1() {
+%entry:
+    return i32 1
+}
+
+func i32 @f2() {
+%entry:
+    return i32 2
+}
+
+ext func void @__builtin_putstr(ptr %data, i64 %size)
+
+func i32 @f3() {
+%entry:
+    call void @__builtin_putstr, ptr @string, i64 12
+    return i32 3
+}
+
+func i32 @main() {
+%entry:
+    %p = getelementptr inbounds ptr, ptr @vtable, i32 2
+    %f = load ptr, ptr %p
+    %r = call i32 @call, ptr %f
+    return i32 %r
+}
+
+func i32 @call(ptr %callback) {
+%entry:
+    %res = call i32 %callback
+    return i32 %res
+})");
+}

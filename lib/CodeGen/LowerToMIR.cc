@@ -840,7 +840,7 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                 auto callback = [&, data = data, offset = offset]
                                 (ir::Constant const* value, void* dest) {
                     auto* function = cast<ir::Function const*>(value);
-                    result.addAddressPlaceholder(getOffset(data, dest),
+                    result.addAddressPlaceholder(offset + getOffset(data, dest),
                                                  resolve(function));
                 };
                 var.initializer()->writeValueTo(data, callback);

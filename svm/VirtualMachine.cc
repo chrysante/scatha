@@ -25,6 +25,9 @@ VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
 void VirtualMachine::loadBinary(u8 const* progData) {
     ProgramView program(progData);
     binary.assign(program.binary.begin(), program.binary.end());
+    assert(reinterpret_cast<uintptr_t>(binary.data()) % 16 == 0 &&
+           "We just hope this is correctly aligned, if not we'll have to "
+           "figure something out");
     text = binary.data() + program.data.size();
     programBreak = text + program.text.size();
     startAddress = program.startAddress;

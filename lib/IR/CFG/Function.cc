@@ -157,7 +157,9 @@ void Function::eraseCallback(BasicBlock const& bb) {
 void Function::writeValueToImpl(
     void* dest,
     utl::function_view<void(Constant const*, void*)> callback) const {
-    std::memset(dest, 0, 8);
+    /// For debug reasons
+    uint64_t const placeholder = 0xDeadBeefAbbaACDC;
+    std::memcpy(dest, &placeholder, 8);
     SC_ASSERT(callback,
               "We need a callback that registers this label placeholder");
     callback(this, dest);
