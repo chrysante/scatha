@@ -64,19 +64,27 @@ static auto printAs(std::span<u8 const> data, size_t offset) {
     return printAs<T>(readAs<T>(data, offset));
 }
 
+static constexpr utl::streammanip reg([](std::ostream& str,
+                                         std::span<u8 const> text,
+                                         size_t i) {
+    str << "%" << +readAs<u8>(text, i);
+});
+
 static constexpr utl::streammanip memoryAcccess([](std::ostream& str,
                                                    std::span<u8 const> text,
                                                    size_t i) {
-    size_t const baseptrRegisterIndex = readAs<u8>(text, i);
     size_t const offsetCountRegisterIndex = readAs<u8>(text, i + 1);
     u8 const constantOffsetMultiplier = readAs<u8>(text, i + 2);
     u8 const constantInnerOffset = readAs<u8>(text, i + 3);
-    str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
+    str << "[ " << reg(text, i);
     if (offsetCountRegisterIndex != 0xFF) {
-        str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * "
+        str << " + " << reg(text, i + 1) << " * "
             << printAs<u8>(constantOffsetMultiplier);
     }
-    str << " + " << printAs<u8>(constantInnerOffset);
+    if (constantInnerOffset > 0) {
+        str << " + " << printAs<u8>(constantInnerOffset);
+    }
+    str << " ]";
 });
 
 void svm::print(u8 const* progData, std::ostream& str) {
@@ -101,31 +109,25 @@ void svm::print(u8 const* progData, std::ostream& str) {
         switch (opcodeClass) {
             using enum OpCodeClass;
         case RR:
-            str << "R[" << printAs<u8>(text, i + 1) << "], R["
-                << printAs<u8>(text, i + 2) << "]";
+            str << reg(text, i + 1) << ", " << reg(text, i + 2);
             break;
         case RV64:
-            str << "R[" << printAs<u8>(text, i + 1) << "], "
-                << printAs<u64>(text, i + 2);
+            str << reg(text, i + 1) << ", " << printAs<u64>(text, i + 2);
             break;
         case RV32:
-            str << "R[" << printAs<u8>(text, i + 1) << "], "
-                << printAs<u32>(text, i + 2);
+            str << reg(text, i + 1) << ", " << printAs<u32>(text, i + 2);
             break;
         case RV8:
-            str << "R[" << printAs<u8>(text, i + 1) << "], "
-                << printAs<u8>(text, i + 2);
+            str << reg(text, i + 1) << ", " << printAs<u8>(text, i + 2);
             break;
         case RM:
-            str << "R[" << printAs<u8>(text, i + 1) << "], "
-                << memoryAcccess(text, i + 2);
+            str << reg(text, i + 1) << ", " << memoryAcccess(text, i + 2);
             break;
         case MR:
-            str << memoryAcccess(text, i + 1) << ", R["
-                << printAs<u8>(text, i + 4) << "]";
+            str << memoryAcccess(text, i + 1) << ", " << reg(text, i + 4);
             break;
         case R:
-            str << "R[" << printAs<u8>(text, i + 1) << "]";
+            str << reg(text, i + 1);
             break;
         case Jump:
             str << printAs<i32>(text, i + 1);
@@ -133,16 +135,14 @@ void svm::print(u8 const* progData, std::ostream& str) {
         case Other:
             switch (opcode) {
             case OpCode::lincsp:
-                str << "R[" << printAs<u8>(text, i + 1) << "], "
-                    << printAs<u16>(i + 2);
+                str << reg(text, i + 1) << ", " << printAs<u16>(i + 2);
                 break;
             case OpCode::call:
                 str << printAs<i32>(text, i + 1) << ", "
                     << printAs<u8>(text, i + 5);
                 break;
             case OpCode::icallr:
-                str << "R[" << printAs<u8>(text, i + 1) << "], "
-                    << printAs<u8>(text, i + 2);
+                str << reg(text, i + 1) << ", " << printAs<u8>(text, i + 2);
                 break;
             case OpCode::icallm:
                 str << memoryAcccess(text, i + 1) << ", "
