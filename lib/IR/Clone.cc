@@ -166,7 +166,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
         function->parameters() |
         ranges::views::transform([](Parameter const& p) { return p.type(); }) |
         ToSmallVector<>;
-    auto result = allocate<Function>(nullptr,
+    auto result = allocate<Function>(context,
                                      function->returnType(),
                                      paramTypes,
                                      std::string(function->name()),

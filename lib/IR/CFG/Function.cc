@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
 #include "IR/Type.h"
@@ -20,14 +21,14 @@ static utl::small_vector<Parameter*> toParameters(
 }
 
 Callable::Callable(NodeType nodeType,
-                   FunctionType const* functionType,
+                   Context& ctx,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
                    std::string name,
                    FunctionAttribute attr,
                    Visibility vis):
     Callable(nodeType,
-             functionType,
+             ctx,
              returnType,
              toParameters(parameterTypes, this),
              std::move(name),
@@ -35,13 +36,13 @@ Callable::Callable(NodeType nodeType,
              vis) {}
 
 Callable::Callable(NodeType nodeType,
-                   FunctionType const* functionType,
+                   Context& ctx,
                    Type const* returnType,
                    std::span<Parameter* const> parameters,
                    std::string name,
                    FunctionAttribute attr,
                    Visibility vis):
-    Global(nodeType, functionType, std::move(name)),
+    Global(nodeType, ctx.ptrType(), std::move(name)),
     _returnType(returnType),
     attrs(attr),
     vis(vis) {
@@ -65,14 +66,14 @@ static void uniqueParams(auto&& params, auto&& nameFac) {
     }
 }
 
-Function::Function(FunctionType const* functionType,
+Function::Function(Context& ctx,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
                    std::string name,
                    FunctionAttribute attr,
                    Visibility vis):
     Callable(NodeType::Function,
-             functionType,
+             ctx,
              returnType,
              parameterTypes,
              std::move(name),
@@ -83,14 +84,14 @@ Function::Function(FunctionType const* functionType,
     uniqueParams(parameters(), nameFac);
 }
 
-Function::Function(FunctionType const* functionType,
+Function::Function(Context& ctx,
                    Type const* returnType,
                    std::span<Parameter* const> parameters,
                    std::string name,
                    FunctionAttribute attr,
                    Visibility vis):
     Callable(NodeType::Function,
-             functionType,
+             ctx,
              returnType,
              parameters,
              std::move(name),
@@ -153,7 +154,7 @@ void Function::eraseCallback(BasicBlock const& bb) {
     }
 }
 
-ForeignFunction::ForeignFunction(FunctionType const* functionType,
+ForeignFunction::ForeignFunction(Context& ctx,
                                  Type const* returnType,
                                  std::span<Type const* const> parameterTypes,
                                  std::string name,
@@ -161,7 +162,7 @@ ForeignFunction::ForeignFunction(FunctionType const* functionType,
                                  uint32_t index,
                                  FunctionAttribute attr):
     Callable(NodeType::ForeignFunction,
-             functionType,
+             ctx,
              returnType,
              parameterTypes,
              std::move(name),
@@ -170,7 +171,7 @@ ForeignFunction::ForeignFunction(FunctionType const* functionType,
     _slot(slot),
     _index(index) {}
 
-ForeignFunction::ForeignFunction(FunctionType const* functionType,
+ForeignFunction::ForeignFunction(Context& ctx,
                                  Type const* returnType,
                                  std::span<Parameter* const> parameters,
                                  std::string name,
@@ -178,7 +179,7 @@ ForeignFunction::ForeignFunction(FunctionType const* functionType,
                                  uint32_t index,
                                  FunctionAttribute attr):
     Callable(NodeType::ForeignFunction,
-             functionType,
+             ctx,
              returnType,
              parameters,
              std::move(name),

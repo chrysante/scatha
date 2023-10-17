@@ -125,15 +125,13 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
         }
     }
 
-    // TODO: Generate proper function type here
-    ir::FunctionType const* const functionType = nullptr;
     UniquePtr<ir::Callable> irFn;
     switch (semaFn->kind()) {
     case sema::FunctionKind::Native:
         [[fallthrough]];
     case sema::FunctionKind::Generated: {
         irFn =
-            allocate<ir::Function>(functionType,
+            allocate<ir::Function>(ctx,
                                    irReturnType,
                                    irArgTypes,
                                    semaFn->mangledName(),
@@ -143,7 +141,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     }
     case sema::FunctionKind::Foreign: {
         irFn =
-            allocate<ir::ForeignFunction>(functionType,
+            allocate<ir::ForeignFunction>(ctx,
                                           irReturnType,
                                           irArgTypes,
                                           std::string(semaFn->name()),

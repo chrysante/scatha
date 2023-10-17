@@ -74,7 +74,7 @@ public:
 
 protected:
     explicit Callable(NodeType nodeType,
-                      FunctionType const* functionType,
+                      Context& ctx,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
                       std::string name,
@@ -82,7 +82,7 @@ protected:
                       Visibility vis);
 
     explicit Callable(NodeType nodeType,
-                      FunctionType const* functionType,
+                      Context& ctx,
                       Type const* returnType,
                       std::span<Parameter* const>,
                       std::string name,
@@ -127,7 +127,7 @@ public:
                                           BasicBlock::ConstIterator>;
 
     /// Construct a function with parameter types.
-    explicit Function(FunctionType const* functionType,
+    explicit Function(Context& ctx,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
                       std::string name,
@@ -135,7 +135,7 @@ public:
                       Visibility vis = Visibility::Internal);
 
     /// Construct a function with explicit parameters.
-    explicit Function(FunctionType const* functionType,
+    explicit Function(Context& ctx,
                       Type const* returnType,
                       std::span<Parameter* const> parameters,
                       std::string name,
@@ -218,7 +218,7 @@ private:
 /// Represents a foreign function.
 class SCATHA_API ForeignFunction: public Callable {
 public:
-    explicit ForeignFunction(FunctionType const* functionType,
+    explicit ForeignFunction(Context& ctx,
                              Type const* returnType,
                              std::span<Type const* const> parameterTypes,
                              std::string name,
@@ -226,7 +226,7 @@ public:
                              uint32_t index,
                              FunctionAttribute attr);
 
-    explicit ForeignFunction(FunctionType const* functionType,
+    explicit ForeignFunction(Context& ctx,
                              Type const* returnType,
                              std::span<Parameter* const> parameters,
                              std::string name,

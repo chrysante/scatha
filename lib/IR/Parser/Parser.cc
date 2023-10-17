@@ -432,7 +432,7 @@ UniquePtr<Callable> ParseContext::parseCallable() {
         return result;
     }
     auto result =
-        allocate<Function>(nullptr,
+        allocate<Function>(irCtx,
                            returnType,
                            parameters,
                            std::string(name.id()),
@@ -490,7 +490,7 @@ UniquePtr<ForeignFunction> ParseContext::makeForeignFunction(
     Type const* returnType, utl::small_vector<Parameter*> params, Token name) {
     if (name.id().starts_with("__builtin_")) {
         if (auto index = builtinIndex(name.id())) {
-            return allocate<ForeignFunction>(nullptr,
+            return allocate<ForeignFunction>(irCtx,
                                              returnType,
                                              params,
                                              std::string(name.id()),
@@ -1104,7 +1104,7 @@ OptValue ParseContext::parseValue(Type const* type) {
                                  recordType);
         for (auto [index, elem]: elems | ranges::views::enumerate) {
             addValueLink<Constant>(aggrValue,
-                                   nullptr,
+                                   recordType->elementAt(index),
                                    elem,
                                    [index = index](User* u, Constant* c) {
                 u->setOperand(index, c);
