@@ -131,7 +131,7 @@ ALWAYS_INLINE static void condMoveRM(u8 const* i, u64* reg, bool cond) {
 
 template <OpCode C>
 ALWAYS_INLINE static void performCall(u8 const* i,
-                                      u8 const* text,
+                                      u8 const* binary,
                                       ExecutionFrame& currentFrame) {
     auto const [dest, regOffset] = [&] {
         if constexpr (C == OpCode::call) {
@@ -156,20 +156,20 @@ ALWAYS_INLINE static void performCall(u8 const* i,
     currentFrame.regPtr[-2] = regOffset;
     auto* retAddr = currentFrame.iptr + CodeSize<C>;
     currentFrame.regPtr[-1] = utl::bit_cast<u64>(retAddr);
-    currentFrame.iptr = text + dest;
+    currentFrame.iptr = binary + dest;
 }
 
 template <OpCode C>
 ALWAYS_INLINE static void jump(u8 const* i,
-                               u8 const* text,
+                               u8 const* binary,
                                ExecutionFrame& currentFrame,
                                bool cond) {
     u32 dest = load<u32>(&i[0]);
     if (cond) {
         /// `ExecCodeSize` is added to the instruction pointer after executing
         /// any instruction. Because we want the instruction pointer to be
-        /// `text + dest` we subtract that number here.
-        currentFrame.iptr = text + dest - ExecCodeSize<C>;
+        /// `binary + dest` we subtract that number here.
+        currentFrame.iptr = binary + dest - ExecCodeSize<C>;
     }
 }
 
