@@ -11,6 +11,7 @@
 namespace scatha::Asm {
 
 class Block;
+struct Jumpsite;
 
 class SCATHA_API AssemblyStream {
 public:
@@ -33,6 +34,10 @@ public:
     std::span<u8 const> dataSection() const;
 
     void setDataSection(std::vector<u8> data);
+
+    void setJumpSites(std::vector<Jumpsite> data);
+
+    std::span<Jumpsite const> jumpSites() const;
 
 private:
     struct Impl;

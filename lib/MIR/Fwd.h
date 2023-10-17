@@ -106,15 +106,18 @@ class MemoryAddress {
 public:
     /// Constant factor and term of the address calculation
     struct ConstantData {
-        uint32_t offsetFactor;
-        uint32_t offsetTerm;
+        uint8_t offsetFactor;
+        uint8_t offsetTerm;
     };
 
     explicit MemoryAddress(Register* addrReg,
                            Register* offsetReg,
                            uint32_t offsetFactor,
                            uint32_t offsetTerm):
-        MemoryAddress(addrReg, offsetReg, { offsetFactor, offsetTerm }) {}
+        MemoryAddress(addrReg,
+                      offsetReg,
+                      { utl::narrow_cast<uint8_t>(offsetFactor),
+                        utl::narrow_cast<uint8_t>(offsetTerm) }) {}
 
     explicit MemoryAddress(Register* addrReg,
                            Register* offsetReg,
@@ -160,13 +163,20 @@ struct ExtFuncAddress {
 
 /// `InstData` for call instructions.
 struct CallInstData {
-    uint32_t regOffset;
+    ///
+    uint32_t regOffset{};
 
     /// Only used by `callext` instructions.
-    ExtFuncAddress extFuncAddress;
+    ExtFuncAddress extFuncAddress{};
+
+    ///
+    bool isMemoryCall{};
+
+    ///
+    MemoryAddress::ConstantData addressData{};
 };
 
-static_assert(sizeof(CallInstData) == 8,
+static_assert(sizeof(CallInstData) <= 16,
               "Must fit into `instdata` field of Instruction class");
 
 } // namespace scatha::mir

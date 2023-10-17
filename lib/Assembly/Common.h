@@ -11,6 +11,19 @@ namespace scatha::Asm {
 /// Strong integer typedef to disambiguate label IDs from other integers
 enum class LabelID : u64 {};
 
+/// A position in the code from where a jump occurs or where a label address is
+/// stored
+struct Jumpsite {
+    /// The position where the dest address will be stored to
+    size_t codePosition;
+
+    /// The ID of the dest address
+    LabelID targetID;
+
+    /// The width with which we store the dest address.
+    size_t width;
+};
+
 /// Value types in asm. There are exactly 3 types: signed, unsigned and float
 enum class Type : u8 { Signed, Unsigned, Float, _count };
 

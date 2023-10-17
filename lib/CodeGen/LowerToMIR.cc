@@ -436,7 +436,9 @@ void CodeGenContext::genInst(ir::Call const& call) {
             return mir::InstCode::CallExt;
         },
         [&](ir::Value const& value) -> mir::InstCode {
-            SC_UNIMPLEMENTED();
+            auto* mirVal = resolve(&value);
+            args.push_back(mirVal);
+            return mir::InstCode::Call;
         },
     }; // clang-format on
     for (auto* arg: call.arguments()) {

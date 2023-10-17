@@ -29,26 +29,27 @@ SC_MIR_CFGNODE_DEF(Function,            CONCRETE)
 #   define SC_MIR_INSTRUCTION_DEF(node, name)
 #endif
 
-SC_MIR_INSTRUCTION_DEF(Store,           "store")      // (<Ptr> dest, Value source) [Data = const-ptr-data]
-SC_MIR_INSTRUCTION_DEF(Load,            "load")       // (<Ptr> source)             [Data = const-ptr-data]
+SC_MIR_INSTRUCTION_DEF(Store,           "store")      // (<Ptr> dest, Value source) [Data[0] = const-ptr-data]
+SC_MIR_INSTRUCTION_DEF(Load,            "load")       // (<Ptr> source)             [Data[0] = const-ptr-data]
 SC_MIR_INSTRUCTION_DEF(Copy,            "copy")       // (Value source)
-SC_MIR_INSTRUCTION_DEF(Call,            "call")       // (Function callee)          [Data = CallInstData]
-SC_MIR_INSTRUCTION_DEF(CallExt,         "callext")    // ()                         [Data = CallInstData]
-SC_MIR_INSTRUCTION_DEF(CondCopy,        "<cond-cpy>") // (Value source)             [Data = condition]
+SC_MIR_INSTRUCTION_DEF(Call,            "call")       // (Value callee)             [Data[0] = CallInstData,
+                                                      //                             Data[1] = { bool is-memory-call, const-ptr-data }]
+SC_MIR_INSTRUCTION_DEF(CallExt,         "callext")    // ()                         [Data[0] = CallInstData]
+SC_MIR_INSTRUCTION_DEF(CondCopy,        "<cond-cpy>") // (Value source)             [Data[0] = condition]
 
 SC_MIR_INSTRUCTION_DEF(LIncSP,          "incsp")      // (Constant numBytes)
-SC_MIR_INSTRUCTION_DEF(LEA,             "lea")        // (<Ptr> address)            [Data = const-ptr-data]
+SC_MIR_INSTRUCTION_DEF(LEA,             "lea")        // (<Ptr> address)            [Data[0] = const-ptr-data]
 SC_MIR_INSTRUCTION_DEF(LDA,             "lda")        // (Value offset)
-SC_MIR_INSTRUCTION_DEF(Compare,         "<compare>")  // (Value lhs, Value rhs)     [Data = mode]
-SC_MIR_INSTRUCTION_DEF(Test,            "<test>")     // (Value operand)            [Data = mode]
-SC_MIR_INSTRUCTION_DEF(Set,             "<set-inst>") // ()                         [Data = condition]
-SC_MIR_INSTRUCTION_DEF(UnaryArithmetic, "<un-arith>") // (Value operand)            [Data = operation]
-SC_MIR_INSTRUCTION_DEF(Arithmetic,      "<arith>")    // (Value lhs, Value rhs)     [Data = operation]
-SC_MIR_INSTRUCTION_DEF(Conversion,      "<conv>")     // (Register operand)         [Data = conversion]
+SC_MIR_INSTRUCTION_DEF(Compare,         "<compare>")  // (Value lhs, Value rhs)     [Data[0] = mode]
+SC_MIR_INSTRUCTION_DEF(Test,            "<test>")     // (Value operand)            [Data[0] = mode]
+SC_MIR_INSTRUCTION_DEF(Set,             "<set-inst>") // ()                         [Data[0] = condition]
+SC_MIR_INSTRUCTION_DEF(UnaryArithmetic, "<un-arith>") // (Value operand)            [Data[0] = operation]
+SC_MIR_INSTRUCTION_DEF(Arithmetic,      "<arith>")    // (Value lhs, Value rhs)     [Data[0] = operation]
+SC_MIR_INSTRUCTION_DEF(Conversion,      "<conv>")     // (Register operand)         [Data[0] = conversion]
 SC_MIR_INSTRUCTION_DEF(Jump,            "jmp")        // (BasicBlock target)
-SC_MIR_INSTRUCTION_DEF(CondJump,        "<cond-jmp>") // (BasicBlock target)        [Data = condition]
+SC_MIR_INSTRUCTION_DEF(CondJump,        "<cond-jmp>") // (BasicBlock target)        [Data[0] = condition]
 SC_MIR_INSTRUCTION_DEF(Return,          "ret")        // ()
 SC_MIR_INSTRUCTION_DEF(Phi,             "phi")        // (Value...) // One Value entry per predecessor
-SC_MIR_INSTRUCTION_DEF(Select,          "sel")        // (Value, Value)             [Data = condition] // Condition to take first value
+SC_MIR_INSTRUCTION_DEF(Select,          "sel")        // (Value, Value)             [Data[0] = condition] // Condition to take first value
 
 #undef SC_MIR_INSTRUCTION_DEF

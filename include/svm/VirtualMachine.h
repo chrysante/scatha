@@ -95,15 +95,15 @@ private:
 
     VMFlags flags{};
 
-    /// Executable code section
-    utl::vector<u8> text;
-    /// Static data section
-    utl::vector<u8> data;
+    /// Executable data and code
+    utl::vector<u8> binary;
     /// Memory for registers
     utl::vector<u64> registers;
     /// Stack memory
     utl::vector<u8> stack;
 
+    /// Begin of the executable section
+    u8 const* text;
     /// End of text section
     u8 const* programBreak = nullptr;
 

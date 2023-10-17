@@ -1,6 +1,7 @@
 #ifndef SCATHA_MIR_CFG_H_
 #define SCATHA_MIR_CFG_H_
 
+#include <array>
 #include <span>
 
 #include <range/v3/view.hpp>
@@ -19,15 +20,15 @@ namespace scatha::mir {
 
 template <typename T>
 concept InstructionData =
-    sizeof(T) <= sizeof(uint64_t) && std::is_trivially_copyable_v<T>;
+    sizeof(T) <= 2 * sizeof(uint64_t) && std::is_trivially_copyable_v<T>;
 
 /// Represents an instruction.
 class Instruction:
     public ListNode<Instruction>,
     public ParentedNode<BasicBlock> {
     template <typename T>
-    static uint64_t convInstData(T data) {
-        uint64_t res = 0;
+    static std::array<uint64_t, 2> convInstData(T data) {
+        std::array<uint64_t, 2> res{};
         std::memcpy(&res, &data, sizeof(T));
         return res;
     }
@@ -57,7 +58,7 @@ public:
     explicit Instruction(InstCode opcode,
                          Register* dest,
                          utl::small_vector<Value*> operands = {},
-                         uint64_t instData = 0,
+                         std::array<uint64_t, 2> instData = {},
                          size_t width = 8);
 
     /// Set the register that this instruction defines to \p dest
@@ -154,7 +155,7 @@ public:
     }
 
     /// \Returns The constant instruction data
-    uint64_t instData() const { return _instData; }
+    uint64_t instData(size_t index = 0) const { return _instData[index]; }
 
     /// \Returns The constant instruction data interpreted as type`T`
     template <InstructionData T>
@@ -176,7 +177,7 @@ private:
     uint32_t _index = ~0u;
     Register* _dest = nullptr;
     utl::small_vector<Value*> ops;
-    uint64_t _instData;
+    uint64_t _instData[2];
     uint16_t _numDests = 0;
 };
 

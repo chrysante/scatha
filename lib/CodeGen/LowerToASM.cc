@@ -24,7 +24,7 @@ struct CGContext {
 
     LabelID getLabelID(mir::Value const& value) {
         auto [itr, success] =
-            labelIndices.insert({ &value, LabelID{ labelIndexCounter } });
+            labelIDs.insert({ &value, LabelID{ labelIndexCounter } });
         if (success) {
             ++labelIndexCounter;
         }
@@ -71,7 +71,7 @@ struct CGContext {
     mir::Function const* currentFunction = nullptr;
 
     /// Maps basic blocks and functions to label IDs
-    utl::hashmap<mir::Value const*, LabelID> labelIndices;
+    utl::hashmap<mir::Value const*, LabelID> labelIDs;
     size_t labelIndexCounter = 0;
 };
 
@@ -79,7 +79,6 @@ struct CGContext {
 
 Asm::AssemblyStream cg::lowerToASM(mir::Module const& mod) {
     Asm::AssemblyStream result;
-    result.setDataSection(mod.dataSection());
     CGContext ctx(result);
     ctx.run(mod);
     return result;
@@ -89,6 +88,14 @@ void CGContext::run(mir::Module const& mod) {
     for (auto& F: mod) {
         genFunction(F);
     }
+    result.setDataSection(mod.dataSection());
+    auto jumpsites = mod.addressPlaceholders() |
+                     ranges::views::transform([&](auto p) {
+                         auto [offset, function] = p;
+                         return Jumpsite{ offset, getLabelID(*function), 8 };
+                     }) |
+                     ranges::to<std::vector>;
+    result.setJumpSites(std::move(jumpsites));
 }
 
 void CGContext::genFunction(mir::Function const& F) {
@@ -154,9 +161,22 @@ void CGContext::genInst(mir::Instruction const& inst) {
     }
     case mir::InstCode::Call: {
         auto callData = inst.instDataAs<mir::CallInstData>();
-        auto* callee = cast<mir::Function const*>(inst.operandAt(0));
-        currentBlock->insertBack(
-            CallInst(LabelPosition(getLabelID(*callee)), callData.regOffset));
+        // clang-format off
+        SC_MATCH (*inst.operandAt(0)) {
+            [&](mir::Function const& callee) {
+                auto inst = CallInst(LabelPosition(getLabelID(callee)),
+                                     callData.regOffset);
+                currentBlock->insertBack(inst);
+            },
+            [&](mir::Register const& reg) {
+                auto inst = CallInst(RegisterIndex(reg.index()),
+                                     callData.regOffset);
+                currentBlock->insertBack(inst);
+            },
+            [&](mir::Value const& value) {
+                SC_UNREACHABLE();
+            },
+        }; // clang-format on
         break;
     }
     case mir::InstCode::CallExt: {

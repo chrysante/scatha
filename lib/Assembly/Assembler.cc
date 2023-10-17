@@ -29,25 +29,12 @@ static constexpr size_t DynamicAddressWidth = 8;
 
 namespace {
 
-/// A position in the code from where a jump occurs or where a label address is
-/// stored
-struct Jumpsite {
-    /// The position where the dest address will be stored to
-    size_t codePosition;
-
-    /// The ID of the dest address
-    LabelID targetID;
-
-    /// The width with which we store the dest address.
-    size_t width;
-};
-
 struct LabelPlaceholder {};
 
 struct Context {
     explicit Context(AssemblyStream const& stream,
                      std::unordered_map<std::string, size_t>& sym):
-        stream(stream), sym(sym) {}
+        stream(stream), sym(sym), jumpsites(stream.jumpSites()) {}
 
     void run();
 
@@ -87,7 +74,7 @@ struct Context {
     template <typename T>
     void put(u64 value) {
         for (auto byte: decompose(utl::narrow_cast<T>(value))) {
-            instructions.push_back(byte);
+            binary.push_back(byte);
         }
     }
 
@@ -96,7 +83,7 @@ struct Context {
     void put(LabelPlaceholder, LabelID targetID, size_t width) {
         registerJumpSite(currentPosition(), targetID, width);
         for (size_t i = 0; i < width; ++i) {
-            instructions.push_back(0xFF);
+            binary.push_back(0xFF);
         }
     }
 
@@ -116,11 +103,11 @@ struct Context {
     /// and replaces placeholders with the actual code position of the target.
     void setJumpDests();
 
-    size_t currentPosition() const { return instructions.size(); }
+    size_t currentPosition() const { return binary.size(); }
 
     AssemblyStream const& stream;
     std::unordered_map<std::string, size_t>& sym;
-    utl::vector<u8> instructions;
+    utl::vector<u8> binary;
 
     /// Maps Label ID to Code position
     utl::hashmap<LabelID, size_t> labels;
@@ -136,27 +123,25 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     AssemblerResult result;
     Context ctx(astr, result.symbolTable);
     ctx.run();
-    std::span<u8 const> dataSection = astr.dataSection();
+    size_t dataSecSize = astr.dataSection().size();
     svm::ProgramHeader const header{
         .versionString = { svm::GlobalProgID },
-        .size = sizeof(svm::ProgramHeader) + dataSection.size() +
-                ctx.instructions.size(),
+        .size = sizeof(svm::ProgramHeader) + ctx.binary.size(),
         .dataOffset = sizeof(svm::ProgramHeader),
-        .textOffset = sizeof(svm::ProgramHeader) + dataSection.size(),
+        .textOffset = sizeof(svm::ProgramHeader) + dataSecSize,
         .startAddress = ctx.startAddress
     };
     result.program.resize(header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
     std::memcpy(result.program.data() + header.dataOffset,
-                astr.dataSection().data(),
-                astr.dataSection().size());
-    std::memcpy(result.program.data() + header.textOffset,
-                ctx.instructions.data(),
-                ctx.instructions.size());
+                ctx.binary.data(),
+                ctx.binary.size());
     return result;
 }
 
 void Context::run() {
+    /// We write the static data in the front of the binary
+    binary = stream.dataSection();
     for (auto& block: stream) {
         if (block.isExternallyVisible()) {
             sym.insert({ std::string(block.name()), currentPosition() });
@@ -432,6 +417,6 @@ void Context::setJumpDests() {
         auto const itr = labels.find(targetID);
         SC_ASSERT(itr != labels.end(), "Use of undeclared label");
         size_t const targetPosition = itr->second;
-        std::memcpy(&instructions[position], &targetPosition, width);
+        std::memcpy(&binary[position], &targetPosition, width);
     }
 }

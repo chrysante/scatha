@@ -93,7 +93,8 @@ public:
     void addAddressPlaceholder(size_t offset, Function const* function);
 
     ///
-    std::span<std::pair<size_t, Function const*> const> addressPlaceholders() {
+    std::span<std::pair<size_t, Function const*> const> addressPlaceholders()
+        const {
         return addrPlaceholders;
     }
 

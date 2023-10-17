@@ -8,6 +8,7 @@ using namespace Asm;
 struct AssemblyStream::Impl {
     std::list<Block> blocks;
     std::vector<u8> data;
+    std::vector<Jumpsite> jumpsites;
 };
 
 AssemblyStream::AssemblyStream(): impl(std::make_unique<Impl>()) {}
@@ -39,4 +40,12 @@ std::span<u8 const> AssemblyStream::dataSection() const { return impl->data; }
 
 void AssemblyStream::setDataSection(std::vector<u8> data) {
     impl->data = std::move(data);
+}
+
+void AssemblyStream::setJumpSites(std::vector<Jumpsite> jumpsites) {
+    impl->jumpsites = std::move(jumpsites);
+}
+
+std::span<Jumpsite const> AssemblyStream::jumpSites() const {
+    return impl->jumpsites;
 }

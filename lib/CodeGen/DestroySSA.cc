@@ -9,6 +9,11 @@ using namespace scatha;
 using namespace cg;
 
 static bool isTailCall(mir::Instruction const& call) {
+    /// For now we don't tail call indirectly because we don't have indirect
+    /// jump instruction
+    if (!isa<mir::Function>(call.operandAt(0))) {
+        return false;
+    }
     auto& ret = *call.next();
     if (ret.instcode() != mir::InstCode::Return) {
         return false;
