@@ -87,7 +87,7 @@ public:
     /// \Returns pair of pointer to the data and the offset from the start of
     /// the data section where this allocation is placed Returned pointer will
     /// be valid until the next call to this function
-    std::pair<void*, size_t> allocateStaticData(size_t size);
+    std::pair<void*, size_t> allocateStaticData(size_t size, size_t align);
 
     ///
     void addAddressPlaceholder(size_t offset, Function const* function);

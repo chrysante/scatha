@@ -1,5 +1,7 @@
 #include "MIR/Module.h"
 
+#include <utl/utility.hpp>
+
 #include "MIR/CFG.h"
 
 using namespace scatha;
@@ -24,9 +26,9 @@ Constant* Module::constant(uint64_t value, size_t width) {
     return &itr->second;
 }
 
-std::pair<void*, size_t> Module::allocateStaticData(size_t size) {
-    size_t offset = staticData.size();
-    staticData.resize(staticData.size() + size);
+std::pair<void*, size_t> Module::allocateStaticData(size_t size, size_t align) {
+    size_t offset = utl::round_up(staticData.size(), align);
+    staticData.resize(offset + size);
     return { staticData.data() + offset, offset };
 }
 

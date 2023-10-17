@@ -835,9 +835,10 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                 }
                 auto* value = var.initializer();
                 size_t size = value->type()->size();
-                auto [data, offset] = result.allocateStaticData(size);
-                auto callback = [&, data = data](ir::Constant const* value,
-                                                 void* dest) {
+                size_t align = value->type()->align();
+                auto [data, offset] = result.allocateStaticData(size, align);
+                auto callback = [&, data = data, offset = offset]
+                                (ir::Constant const* value, void* dest) {
                     auto* function = cast<ir::Function const*>(value);
                     result.addAddressPlaceholder(getOffset(data, dest),
                                                  resolve(function));
