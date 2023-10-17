@@ -204,10 +204,14 @@ private:
     void insertCallback(BasicBlock&);
     void eraseCallback(BasicBlock const&);
 
-private:
     /// For access to `nameFac`
     friend class Value;
     friend class BasicBlock;
+
+    friend class Constant;
+    void writeValueToImpl(
+        void* dest,
+        utl::function_view<void(Constant const*, void*)> callback) const;
 
     struct AnalysisData;
 
@@ -241,6 +245,11 @@ public:
     size_t index() const { return _index; }
 
 private:
+    friend class Constant;
+    void writeValueToImpl(
+        void* dest,
+        utl::function_view<void(Constant const*, void*)> callback) const;
+
     uint32_t _slot, _index;
 };
 

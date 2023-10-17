@@ -26,7 +26,9 @@ public:
 
 private:
     friend class Constant;
-    void writeValueToImpl(void* dest) const;
+    void writeValueToImpl(
+        void* dest,
+        utl::function_view<void(Constant const*, void*)> callback) const;
 
     APInt _value;
 };
@@ -44,7 +46,9 @@ public:
 
 private:
     friend class Constant;
-    void writeValueToImpl(void* dest) const;
+    void writeValueToImpl(
+        void* dest,
+        utl::function_view<void(Constant const*, void*)> callback) const;
 
     APFloat _value;
 };
@@ -59,7 +63,9 @@ public:
 
 private:
     friend class Constant;
-    void writeValueToImpl(void* dest) const;
+    void writeValueToImpl(
+        void* dest,
+        utl::function_view<void(Constant const*, void*)> callback) const;
 };
 
 /// Represents an `undef` value.
@@ -70,7 +76,9 @@ public:
 
 private:
     friend class Constant;
-    void writeValueToImpl(void* dest) const {}
+    void writeValueToImpl(
+        void* dest,
+        utl::function_view<void(Constant const*, void*)> callback) const {}
 };
 
 /// Represents a constant record
@@ -96,7 +104,9 @@ protected:
 
 private:
     friend class Constant;
-    void writeValueToImpl(void* dest) const;
+    void writeValueToImpl(
+        void* dest,
+        utl::function_view<void(Constant const*, void*)> callback) const;
 };
 
 /// Represents a constant struct

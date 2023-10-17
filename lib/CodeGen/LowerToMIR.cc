@@ -177,7 +177,6 @@ struct CodeGenContext {
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
     utl::hashmap<ir::Value const*, size_t> staticDataOffsets;
-    std::vector<u8> staticData;
 
     ir::CompareInst const* lastEmittedCompare = nullptr;
 };
@@ -198,7 +197,6 @@ void CodeGenContext::run(ir::Module const& mod) {
     for (auto& function: mod) {
         genFunction(function);
     }
-    result.setDataSection(std::move(staticData));
 }
 
 void CodeGenContext::declareFunction(ir::Function const& function) {
@@ -805,6 +803,13 @@ mir::CompareOperation CodeGenContext::readCondition(
     return mir::CompareOperation::NotEqual;
 }
 
+static size_t getOffset(void const* begin, void const* end) {
+    auto* a = static_cast<char const*>(begin);
+    auto* b = static_cast<char const*>(end);
+    SC_ASSERT(a <= b, "");
+    return static_cast<size_t>(b - a);
+}
+
 mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
     auto itr = valueMap.find(value);
     if (itr != valueMap.end()) {
@@ -826,9 +831,16 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                 if (itr != staticDataOffsets.end()) {
                     return itr->second;
                 }
-                size_t const offset = staticData.size();
-                staticData.resize(offset + var.initializer()->type()->size());
-                var.initializer()->writeValueTo(staticData.data() + offset);
+                auto* value = var.initializer();
+                size_t size = value->type()->size();
+                auto [data, offset] = result.allocateStaticData(size);
+                auto callback = [&, data = data](ir::Constant const* value,
+                                                 void* dest) {
+                    auto* function = cast<ir::Function const*>(value);
+                    result.addAddressPlaceholder(getOffset(data, dest),
+                                                 resolve(function));
+                };
+                var.initializer()->writeValueTo(data, callback);
                 staticDataOffsets[&var] = offset;
                 return offset;
             }();

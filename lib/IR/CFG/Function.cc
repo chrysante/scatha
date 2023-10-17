@@ -154,6 +154,15 @@ void Function::eraseCallback(BasicBlock const& bb) {
     }
 }
 
+void Function::writeValueToImpl(
+    void* dest,
+    utl::function_view<void(Constant const*, void*)> callback) const {
+    std::memset(dest, 0, 8);
+    SC_ASSERT(callback,
+              "We need a callback that registers this label placeholder");
+    callback(this, dest);
+}
+
 ForeignFunction::ForeignFunction(Context& ctx,
                                  Type const* returnType,
                                  std::span<Type const* const> parameterTypes,
@@ -187,3 +196,10 @@ ForeignFunction::ForeignFunction(Context& ctx,
              Visibility::Internal),
     _slot(slot),
     _index(index) {}
+
+void ForeignFunction::writeValueToImpl(
+    void* dest,
+    utl::function_view<void(Constant const*, void*)> callback) const {
+    SC_UNREACHABLE("We cannot write the address because foreign functions are "
+                   "not addressable");
+}

@@ -16,7 +16,9 @@ IntegralType const* IntegralConstant::type() const {
     return cast<IntegralType const*>(Value::type());
 }
 
-void IntegralConstant::writeValueToImpl(void* dest) const {
+void IntegralConstant::writeValueToImpl(
+    void* dest,
+    utl::function_view<void(Constant const*, void*)> callback) const {
     std::memcpy(dest, value().limbs().data(), type()->bytewidth());
 }
 
@@ -29,7 +31,9 @@ FloatType const* FloatingPointConstant::type() const {
     return cast<FloatType const*>(Value::type());
 }
 
-void FloatingPointConstant::writeValueToImpl(void* dest) const {
+void FloatingPointConstant::writeValueToImpl(
+    void* dest,
+    utl::function_view<void(Constant const*, void*)> callback) const {
     std::memcpy(dest, value().limbs().data(), type()->bytewidth());
 }
 
@@ -40,7 +44,9 @@ PointerType const* NullPointerConstant::type() const {
     return cast<PointerType const*>(Value::type());
 }
 
-void NullPointerConstant::writeValueToImpl(void* dest) const {
+void NullPointerConstant::writeValueToImpl(
+    void* dest,
+    utl::function_view<void(Constant const*, void*)> callback) const {
     std::memset(dest, 0, 8);
 }
 
@@ -67,11 +73,13 @@ static void* advance(void* ptr, size_t offset) {
     return static_cast<char*>(ptr) + offset;
 }
 
-void RecordConstant::writeValueToImpl(void* dest) const {
+void RecordConstant::writeValueToImpl(
+    void* dest,
+    utl::function_view<void(Constant const*, void*)> callback) const {
     for (auto [value, offset]:
          ranges::views::zip(elements(), type()->offsets()))
     {
-        value->writeValueTo(advance(dest, offset));
+        value->writeValueTo(advance(dest, offset), callback);
     }
 }
 
