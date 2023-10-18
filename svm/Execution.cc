@@ -6,6 +6,7 @@
 
 #include "svm/Memory.h"
 #include "svm/OpCodeInternal.h"
+#include "svm/VMImpl.h"
 
 #if defined(__GNUC__)
 
@@ -260,15 +261,15 @@ ALWAYS_INLINE static bool lessEq(VMFlags f) { return f.less || f.equal; }
 ALWAYS_INLINE static bool greater(VMFlags f) { return !f.less && !f.equal; }
 ALWAYS_INLINE static bool greaterEq(VMFlags f) { return !f.less; }
 
-u64 const* VirtualMachine::execute(size_t start,
-                                   std::span<u64 const> arguments) {
+u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     auto const lastframe = execFrames.top() = currentFrame;
     /// We add `MaxCallframeRegisterCount` to the register pointer because
     /// we have no way of knowing how many registers the currently running
     /// execution frame uses, so we have to assume the worst.
     currentFrame = execFrames.push(ExecutionFrame{
-        .regPtr = lastframe.regPtr + MaxCallframeRegisterCount,
-        .bottomReg = lastframe.regPtr + MaxCallframeRegisterCount,
+        .regPtr = lastframe.regPtr + VirtualMachine::MaxCallframeRegisterCount,
+        .bottomReg =
+            lastframe.regPtr + VirtualMachine::MaxCallframeRegisterCount,
         .iptr = binary.data() + start,
         .stackPtr = lastframe.stackPtr });
     std::memcpy(currentFrame.regPtr,
@@ -335,7 +336,7 @@ u64 const* VirtualMachine::execute(size_t start,
             size_t const tableIdx = i[1];
             size_t const idxIntoTable = load<u16>(&i[2]);
             auto const etxFunction = extFunctionTable[tableIdx][idxIntoTable];
-            etxFunction.invoke(regPtr + regPtrOffset, this);
+            etxFunction.invoke(regPtr + regPtrOffset, parent);
         }
 
         INST(terminate) { currentFrame.iptr = programBreak; }

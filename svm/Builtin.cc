@@ -47,8 +47,8 @@ static std::span<T> loadArray(u64* regPtr) {
     return std::span<T>(data, size);
 }
 
-utl::vector<ExternalFunction> svm::makeBuiltinTable() {
-    utl::vector<ExternalFunction> result(static_cast<size_t>(Builtin::_count));
+std::vector<ExternalFunction> svm::makeBuiltinTable() {
+    std::vector<ExternalFunction> result(static_cast<size_t>(Builtin::_count));
     size_t k = 0;
     auto at = [&](Builtin index) -> auto& {
         size_t const i = static_cast<size_t>(index);
