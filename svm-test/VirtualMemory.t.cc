@@ -1,5 +1,8 @@
 #include <Catch/Catch2.hpp>
 
+#include <algorithm>
+#include <random>
+
 #include "VirtualMemory.h"
 
 using namespace svm;
@@ -38,6 +41,40 @@ TEST_CASE("Virtual memory") {
         }
         int n = static_cast<int>(ptrs.size()) - 1;
         CHECK(sum == n * (n + 1) / 2);
+    }
+}
+
+TEST_CASE("Virtual memory allocations and deallocations") {
+    static constexpr std::array<size_t, 3> alignments = { 4, 8, 16 };
+    size_t seed = GENERATE(0u, 123u, 12456434u, 7564534u);
+    std::mt19937_64 rng(seed);
+    std::vector<int> runs;
+    std::generate_n(std::back_inserter(runs), 10, [&] {
+        return std::uniform_int_distribution<int>(10, 30)(rng);
+    });
+    runs.reserve(2 * runs.size());
+    std::copy(runs.begin(), runs.end(), std::back_inserter(runs));
+    std::shuffle(runs.begin(), runs.end(), rng);
+    VirtualMemory mem(128);
+    for (int run: runs) {
+        struct Block {
+            VirtualPointer ptr;
+            size_t size;
+            size_t align;
+        };
+        std::vector<Block> blocks;
+        for (int i = 0; i < run; ++i) {
+            size_t size = std::uniform_int_distribution<size_t>(5, 10'000)(rng);
+            size_t alignIdx =
+                std::uniform_int_distribution<size_t>(0, alignments.size() - 1)(
+                    rng);
+            size_t align = alignments[alignIdx];
+            auto ptr = mem.allocate(size, align);
+            blocks.push_back({ ptr, size, align });
+        }
+        for (auto block: blocks) {
+            CHECK_NOTHROW(mem.deallocate(block.ptr, block.size, block.align));
+        }
     }
 }
 

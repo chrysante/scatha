@@ -36,7 +36,7 @@ public:
     enum Reason {
         /// Tried to dereference a pointer that has not been allocated before
         MemoryNotAllocated,
-        
+
         /// Tried to dereference a pointer beyond its valid range
         DerefRangeTooBig
     };
@@ -118,11 +118,13 @@ private:
     size_t freelistBegin = 0;
 };
 
-/// Represents an unbounded region of memory from which we can allocate blocks
-/// The first slot is the 'static slot' where we allocate static data, byte code and stack memory
+/// Represents an unbounded region of memory from which we can allocate blocks.
+/// The first slot is the 'static slot' where we allocate static data, byte code
+/// and stack memory
 class VirtualMemory {
 public:
-    /// Construct a virtual memory region with a static block size of \p staticSlotSize
+    /// Construct a virtual memory region with a static block size of \p
+    /// staticSlotSize
     explicit VirtualMemory(size_t staticSlotSize);
 
     /// Allocates a block of memory of size \p size and alignment \p align
