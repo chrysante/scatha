@@ -20,8 +20,8 @@ struct VirtualPointer {
         return *this;
     }
 
-    uint64_t slotIndex : 16;
     uint64_t offset    : 48;
+    uint64_t slotIndex : 16;
 };
 
 inline VirtualPointer operator+(VirtualPointer p, std::integral auto offset) {

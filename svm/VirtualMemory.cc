@@ -88,7 +88,7 @@ VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
     if (size <= MaxPoolSize) {
         auto [slotIndex, pool] = getPool(size, align);
         size_t offset = pool.allocate(slots[slotIndex]);
-        return { slotIndex, offset };
+        return { .offset = offset, .slotIndex = slotIndex };
     }
     if (!freeSlots.empty()) {
         size_t slotIndex = freeSlots.back();
@@ -97,13 +97,13 @@ VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
         if (size > slot.size()) {
             slot.grow(size);
         }
-        return { slotIndex, 0 };
+        return { .offset = 0, .slotIndex = slotIndex };
     }
     else {
         size_t slotIndex = slots.size();
         slots.emplace_back(size);
         assert(slotIndex < (1 << 16) && "Maximum slot number exceeded");
-        return { slotIndex, 0 };
+        return { .offset = 0, .slotIndex = slotIndex };
     }
 }
 

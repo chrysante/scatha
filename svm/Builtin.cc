@@ -26,7 +26,7 @@ static void* deref(VirtualMachine* vm, VirtualPointer ptr, size_t size) {
 }
 
 template <typename T>
-static T* deref(VirtualMachine* vm, VirtualPointer ptr, size_t size) {
+static T* deref(VirtualMachine* vm, VirtualPointer ptr, size_t size, int = 0) {
     return reinterpret_cast<T*>(deref(vm, ptr, size));
 }
 
@@ -102,7 +102,7 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
         auto dest = load<VirtualPointer>(regPtr);
         auto size = load<size_t>(regPtr + 1);
         auto value = load<int64_t>(regPtr + 2);
-        std::memset(deref(vm, dest, size), utl::narrow_cast<int>(value), size);
+        std::memset(deref(vm, dest, size), static_cast<int>(value), size);
     };
     /// ## Allocation
     at(Builtin::alloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
