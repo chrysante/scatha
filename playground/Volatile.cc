@@ -141,10 +141,12 @@ static void run(ir::Module const& mod) {
     header(toString(pipeline));
     pipeline(ctx, mod);
     print(mod);
+    run(mod);
+    return;
+
     header(toString(pipeline));
     pipeline(ctx, mod);
     print(mod);
-    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
@@ -228,5 +230,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    irPlayground(path);
 }
