@@ -6,7 +6,8 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
-#include <svm/Common.h>
+#include "svm/Common.h"
+#include "svm/VirtualMemory.h"
 
 namespace svm {
 
@@ -22,7 +23,7 @@ struct ExecutionFrame {
     u64* regPtr = nullptr;
     u64* bottomReg = nullptr;
     u8 const* iptr = nullptr;
-    u8* stackPtr = nullptr;
+    VirtualPointer stackPtr{};
 };
 
 struct VMStats {
@@ -37,16 +38,19 @@ struct VMImpl {
 
     VMFlags flags{};
 
-    /// Executable data and code
-    utl::vector<u8> binary;
+    /// Stack pointer. Will be set when a binary is loaded.
+    u8* stackPtr = nullptr;
+
+    /// Stack size of this VM. Will be set on construction
+    size_t stackSize = 0;
+
     /// Memory for registers
     utl::vector<u64> registers;
-    /// Stack memory
-    utl::vector<u8> stack;
 
-    /// Begin of the executable section
-    u8 const* text;
-    /// End of text section
+    /// Begin of the binary section
+    u8 const* binary;
+
+    /// End of binary section
     u8 const* programBreak = nullptr;
 
     /// Optional address of the `main`/`start` function.
@@ -62,6 +66,10 @@ struct VMImpl {
 
     /// Statistics
     VMStats stats;
+
+    /// Memory of this VM. All memory that the program uses is allocated through
+    /// this as well as static memory and stack memory.
+    VirtualMemory memory;
 
     ///
     u64 const* execute(size_t startAddress, std::span<u64 const> arguments);

@@ -1,6 +1,9 @@
 #include <svm/VirtualMachine.h>
 
+#include <bit>
 #include <iostream>
+
+#include <utl/utility.hpp>
 
 #include "svm/BuiltinInternal.h"
 #include "svm/Memory.h"
@@ -14,14 +17,15 @@ VirtualMachine::VirtualMachine():
 
 VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
     impl = std::make_unique<VMImpl>();
+    impl->parent = this;
     impl->registers.resize(numRegisters, utl::no_init);
-    impl->stack.resize(stackSize, utl::no_init);
+    impl->stackSize = stackSize;
     setFunctionTableSlot(BuiltinFunctionSlot, makeBuiltinTable());
     impl->currentFrame = impl->execFrames.push(
         { .regPtr = impl->registers.data() - MaxCallframeRegisterCount,
           .bottomReg = impl->registers.data() - MaxCallframeRegisterCount,
           .iptr = nullptr,
-          .stackPtr = impl->stack.data() });
+          .stackPtr = {} });
 }
 
 VirtualMachine::VirtualMachine(VirtualMachine&& rhs) noexcept:
@@ -39,20 +43,20 @@ VirtualMachine::~VirtualMachine() = default;
 
 void VirtualMachine::loadBinary(u8 const* progData) {
     ProgramView program(progData);
-    impl->binary.assign(program.binary.begin(), program.binary.end());
-    assert(reinterpret_cast<uintptr_t>(impl->binary.data()) % 16 == 0 &&
+    size_t binSize = utl::round_up(program.binary.size(), 16);
+    impl->memory.resizeStaticSlot(binSize + impl->stackSize);
+    VirtualPointer staticData{ 0, 0 };
+    u8* rawStaticData = &impl->memory.derefAs<u8>(staticData, 0);
+    assert(reinterpret_cast<uintptr_t>(rawStaticData) % 16 == 0 &&
            "We just hope this is correctly aligned, if not we'll have to "
            "figure something out");
-    impl->text = impl->binary.data() + program.data.size();
-    impl->programBreak = impl->text + program.text.size();
-    impl->startAddress = program.startAddress;
-}
+    std::memcpy(rawStaticData, program.binary.data(), program.binary.size());
 
-u8* VirtualMachine::allocateStackMemory(size_t numBytes) {
-    /// TODO: Align the memory to something
-    auto* result = impl->currentFrame.stackPtr;
-    impl->currentFrame.stackPtr += numBytes;
-    return result;
+    impl->binary = rawStaticData;
+    impl->programBreak = impl->binary + program.binary.size();
+    impl->startAddress = program.startAddress;
+    impl->stackPtr = rawStaticData + binSize;
+    impl->currentFrame.stackPtr = staticData + binSize;
 }
 
 u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
@@ -93,11 +97,33 @@ u64 VirtualMachine::getRegister(size_t index) const {
     return impl->registers[index];
 }
 
-std::span<u8 const> VirtualMachine::stackData() const { return impl->stack; }
+std::span<u8 const> VirtualMachine::stackData() const {
+    return std::span(impl->stackPtr, impl->stackSize);
+}
 
 void VirtualMachine::printRegisters(size_t n) const {
     for (size_t i = 0; i < n; ++i) {
         std::cout << "%" << i << ": " << std::hex
                   << impl->currentFrame.regPtr[i] << std::endl;
     }
+}
+
+uint64_t VirtualMachine::allocateStackMemory(size_t numBytes) {
+    /// TODO: Align the memory to something
+    auto result = impl->currentFrame.stackPtr;
+    impl->currentFrame.stackPtr += numBytes;
+    return std::bit_cast<uint64_t>(result);
+}
+
+uint64_t VirtualMachine::allocateMemory(size_t size, size_t align) {
+    return std::bit_cast<uint64_t>(impl->memory.allocate(size, align));
+}
+
+void VirtualMachine::deallocateMemory(uint64_t ptr, size_t size, size_t align) {
+    impl->memory.deallocate(std::bit_cast<VirtualPointer>(ptr), size, align);
+}
+
+void* VirtualMachine::derefPointer(uint64_t ptr, size_t numBytes) const {
+    return impl->memory.dereference(std::bit_cast<VirtualPointer>(ptr),
+                                    numBytes);
 }

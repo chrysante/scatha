@@ -10,9 +10,37 @@ namespace svm {
 
 /// A virtual memory pointer
 struct VirtualPointer {
+    VirtualPointer& operator+=(std::integral auto offset) {
+        this->offset += static_cast<uint64_t>(offset);
+        return *this;
+    }
+
+    VirtualPointer& operator-=(std::integral auto offset) {
+        this->offset -= static_cast<uint64_t>(offset);
+        return *this;
+    }
+
     uint64_t slotIndex : 16;
     uint64_t offset    : 48;
 };
+
+inline VirtualPointer operator+(VirtualPointer p, std::integral auto offset) {
+    p += offset;
+    return p;
+}
+
+inline VirtualPointer operator-(VirtualPointer p, std::integral auto offset) {
+    p -= offset;
+    return p;
+}
+
+inline ptrdiff_t operator-(VirtualPointer p, VirtualPointer q) {
+    return static_cast<ptrdiff_t>(p.offset) - static_cast<ptrdiff_t>(q.offset);
+}
+
+inline bool isAligned(VirtualPointer p, size_t align) {
+    return p.offset % align == 0;
+}
 
 static_assert(sizeof(VirtualPointer) == 8,
               "Pointers must be exactly 8 bytes in size because we expose them "
@@ -87,6 +115,9 @@ public:
     /// The size of the buffer
     size_t size() const { return buffer.size(); }
 
+    /// Set the size of the buffer to \p size
+    void resize(size_t size) { buffer.resize(size); }
+
     /// Grow the buffer by a geometric factor
     void grow(size_t minSize) {
         buffer.resize(std::max(minSize, buffer.size() * 2));
@@ -125,7 +156,7 @@ class VirtualMemory {
 public:
     /// Construct a virtual memory region with a static block size of \p
     /// staticSlotSize
-    explicit VirtualMemory(size_t staticSlotSize);
+    explicit VirtualMemory(size_t staticSlotSize = 0);
 
     /// Allocates a block of memory of size \p size and alignment \p align
     /// \p align must be a power of two
@@ -133,6 +164,9 @@ public:
 
     /// Deallocates the block at address \p ptr
     void deallocate(VirtualPointer ptr, size_t size, size_t align);
+
+    ///
+    void resizeStaticSlot(size_t size);
 
     /// Converts the virtual pointer \p ptr to an actual pointer. \p size is the
     /// amount of bytes at which \p ptr will be dereferencable

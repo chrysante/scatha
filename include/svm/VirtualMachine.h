@@ -40,9 +40,6 @@ public:
     /// Load a program into memory
     void loadBinary(u8 const* data);
 
-    /// Allocates a memory region in the current stack frame.
-    u8* allocateStackMemory(size_t numBytes);
-
     /// Start execution at the program's start address
     u64 const* execute(std::span<u64 const> arguments);
 
@@ -71,11 +68,34 @@ public:
     /// \Returns A view of the data on the stack of the VM
     std::span<u8 const> stackData() const;
 
-private:
+    /// # Memory
+
+    /// Allocates a memory region in the current stack frame.
+    uint64_t allocateStackMemory(size_t numBytes);
+
+    /// Allocates virtual memory on the heap
+    uint64_t allocateMemory(size_t size, size_t align);
+
+    /// Deallocates memory allocated with `allocateMemory()`
+    void deallocateMemory(uint64_t ptr, size_t size, size_t align);
+
+    /// Converts an opaque virtual pointer into a raw pointer.
+    /// The pointer must be dereferenceable at \p numBytes bytes
+    void* derefPointer(uint64_t ptr, size_t numBytes) const;
+
+    /// Converts a virtual pointer into a reference to type `T`
+    template <typename T>
+    T& derefPointer(uint64_t ptr) const {
+        return *reinterpret_cast<T*>(derefPointer(ptr, sizeof(T)));
+    }
+
     /// Print the values in the first \p n registers of the current execution
     /// frame
     void printRegisters(size_t n) const;
 
+    /// This is not private because many internal outside of this class
+    /// reference this but it is effectively private because the type `VMImpl`
+    /// is internal
     std::unique_ptr<VMImpl> impl;
 };
 

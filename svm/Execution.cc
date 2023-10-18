@@ -71,37 +71,36 @@ ALWAYS_INLINE static void storeReg(u64* dest, T const& t) {
     std::memcpy(dest, &t, sizeof(T));
 }
 
-ALWAYS_INLINE static u8* getPointer(u64 const* reg, u8 const* i) {
-    size_t const baseptrRegIdx = i[0];
-    size_t const offsetCountRegIdx = i[1];
-    i64 const constantOffsetMultiplier = i[2];
-    i64 const constantInnerOffset = i[3];
-    i64 const offsetBaseptr =
-        static_cast<i64>(reg[baseptrRegIdx]) + constantInnerOffset;
+ALWAYS_INLINE static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
+    uint64_t baseptrRegIdx = i[0];
+    uint64_t offsetCountRegIdx = i[1];
+    i64 constantOffsetMultiplier = i[2];
+    i64 constantInnerOffset = i[3];
+    VirtualPointer offsetBaseptr =
+        std::bit_cast<VirtualPointer>(reg[baseptrRegIdx]) + constantInnerOffset;
     /// See documentation in "OpCode.h"
     if (offsetCountRegIdx == 0xFF) {
-        return reinterpret_cast<u8*>(offsetBaseptr);
+        return offsetBaseptr;
     }
-    i64 const offsetCount = static_cast<i64>(reg[offsetCountRegIdx]);
-    i64 const result = offsetBaseptr + offsetCount * constantOffsetMultiplier;
-    return reinterpret_cast<u8*>(result);
+    i64 offsetCount = static_cast<i64>(reg[offsetCountRegIdx]);
+    return offsetBaseptr + offsetCount * constantOffsetMultiplier;
 }
 
 template <size_t Size>
-ALWAYS_INLINE static void moveMR(u8 const* i, u64* reg) {
-    u8* const ptr = getPointer(reg, i);
+ALWAYS_INLINE static void moveMR(VirtualMemory& memory, u8 const* i, u64* reg) {
+    VirtualPointer ptr = getPointer(reg, i);
     size_t const sourceRegIdx = i[4];
-    SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
-    std::memcpy(ptr, &reg[sourceRegIdx], Size);
+    SVM_ASSERT(isAligned(ptr, Size));
+    std::memcpy(memory.dereference(ptr, Size), &reg[sourceRegIdx], Size);
 }
 
 template <size_t Size>
-ALWAYS_INLINE static void moveRM(u8 const* i, u64* reg) {
+ALWAYS_INLINE static void moveRM(VirtualMemory& memory, u8 const* i, u64* reg) {
     size_t const destRegIdx = i[0];
-    u8* const ptr = getPointer(reg, i + 1);
-    SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
+    VirtualPointer ptr = getPointer(reg, i + 1);
+    SVM_ASSERT(isAligned(ptr, Size));
     reg[destRegIdx] = 0;
-    std::memcpy(&reg[destRegIdx], ptr, Size);
+    std::memcpy(&reg[destRegIdx], memory.dereference(ptr, Size), Size);
 }
 
 ALWAYS_INLINE static void condMove64RR(u8 const* i, u64* reg, bool cond) {
@@ -120,18 +119,22 @@ ALWAYS_INLINE static void condMove64RV(u8 const* i, u64* reg, bool cond) {
 }
 
 template <size_t Size>
-ALWAYS_INLINE static void condMoveRM(u8 const* i, u64* reg, bool cond) {
+ALWAYS_INLINE static void condMoveRM(VirtualMemory& memory,
+                                     u8 const* i,
+                                     u64* reg,
+                                     bool cond) {
     size_t const destRegIdx = i[0];
-    u8* const ptr = getPointer(reg, i + 1);
-    SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
+    VirtualPointer ptr = getPointer(reg, i + 1);
+    SVM_ASSERT(isAligned(ptr, Size));
     if (cond) {
         reg[destRegIdx] = 0;
-        std::memcpy(&reg[destRegIdx], ptr, Size);
+        std::memcpy(&reg[destRegIdx], memory.dereference(ptr, Size), Size);
     }
 }
 
 template <OpCode C>
-ALWAYS_INLINE static void performCall(u8 const* i,
+ALWAYS_INLINE static void performCall(VirtualMemory& memory,
+                                      u8 const* i,
                                       u8 const* binary,
                                       ExecutionFrame& currentFrame) {
     auto const [dest, regOffset] = [&] {
@@ -148,8 +151,9 @@ ALWAYS_INLINE static void performCall(u8 const* i,
         else {
             static_assert(C == OpCode::icallm);
             auto* reg = currentFrame.regPtr;
-            auto* destAddr = getPointer(reg, i);
-            return std::pair{ load<u64>(destAddr), load<u8>(i + 4) };
+            VirtualPointer destAddr = getPointer(reg, i);
+            return std::pair{ load<u64>(memory.dereference(destAddr, 8)),
+                              load<u8>(i + 4) };
         }
     }();
     currentFrame.regPtr += regOffset;
@@ -231,12 +235,15 @@ ALWAYS_INLINE static void arithmeticRV(u8 const* i, u64* reg, auto operation) {
 }
 
 template <typename T>
-ALWAYS_INLINE static void arithmeticRM(u8 const* i, u64* reg, auto operation) {
+ALWAYS_INLINE static void arithmeticRM(VirtualMemory& memory,
+                                       u8 const* i,
+                                       u64* reg,
+                                       auto operation) {
     size_t const regIdxA = i[0];
-    u8* const ptr = getPointer(reg, i + 1);
-    SVM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
+    VirtualPointer ptr = getPointer(reg, i + 1);
+    SVM_ASSERT(isAligned(ptr, alignof(T)));
     auto const a = load<T>(&reg[regIdxA]);
-    auto const b = load<T>(ptr);
+    auto const b = load<T>(memory.dereference(ptr, sizeof(T)));
     storeReg(&reg[regIdxA], decltype(operation)()(a, b));
 }
 
@@ -270,7 +277,7 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
         .regPtr = lastframe.regPtr + VirtualMachine::MaxCallframeRegisterCount,
         .bottomReg =
             lastframe.regPtr + VirtualMachine::MaxCallframeRegisterCount,
-        .iptr = binary.data() + start,
+        .iptr = binary + start,
         .stackPtr = lastframe.stackPtr });
     std::memcpy(currentFrame.regPtr,
                 arguments.data(),
@@ -313,9 +320,9 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 
         INST_LIST_BEGIN()
 
-        INST(call) { performCall<call>(i, binary.data(), currentFrame); }
-        INST(icallr) { performCall<icallr>(i, binary.data(), currentFrame); }
-        INST(icallm) { performCall<icallm>(i, binary.data(), currentFrame); }
+        INST(call) { performCall<call>(memory, i, binary, currentFrame); }
+        INST(icallr) { performCall<icallr>(memory, i, binary, currentFrame); }
+        INST(icallm) { performCall<icallm>(memory, i, binary, currentFrame); }
 
         INST(ret) {
             if UTL_UNLIKELY (currentFrame.bottomReg == regPtr) {
@@ -327,7 +334,8 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
             else {
                 currentFrame.iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
                 currentFrame.regPtr -= regPtr[-2];
-                currentFrame.stackPtr = utl::bit_cast<u8*>(regPtr[-3]);
+                currentFrame.stackPtr =
+                    utl::bit_cast<VirtualPointer>(regPtr[-3]);
             }
         }
 
@@ -353,57 +361,57 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
             regPtr[destRegIdx] = load<u64>(i + 1);
         }
 
-        INST(mov8MR) { moveMR<1>(i, regPtr); }
-        INST(mov16MR) { moveMR<2>(i, regPtr); }
-        INST(mov32MR) { moveMR<4>(i, regPtr); }
-        INST(mov64MR) { moveMR<8>(i, regPtr); }
-        INST(mov8RM) { moveRM<1>(i, regPtr); }
-        INST(mov16RM) { moveRM<2>(i, regPtr); }
-        INST(mov32RM) { moveRM<4>(i, regPtr); }
-        INST(mov64RM) { moveRM<8>(i, regPtr); }
+        INST(mov8MR) { moveMR<1>(memory, i, regPtr); }
+        INST(mov16MR) { moveMR<2>(memory, i, regPtr); }
+        INST(mov32MR) { moveMR<4>(memory, i, regPtr); }
+        INST(mov64MR) { moveMR<8>(memory, i, regPtr); }
+        INST(mov8RM) { moveRM<1>(memory, i, regPtr); }
+        INST(mov16RM) { moveRM<2>(memory, i, regPtr); }
+        INST(mov32RM) { moveRM<4>(memory, i, regPtr); }
+        INST(mov64RM) { moveRM<8>(memory, i, regPtr); }
 
         /// ## Conditional moves
         INST(cmove64RR) { condMove64RR(i, regPtr, equal(flags)); }
         INST(cmove64RV) { condMove64RV(i, regPtr, equal(flags)); }
-        INST(cmove8RM) { condMoveRM<1>(i, regPtr, equal(flags)); }
-        INST(cmove16RM) { condMoveRM<2>(i, regPtr, equal(flags)); }
-        INST(cmove32RM) { condMoveRM<4>(i, regPtr, equal(flags)); }
-        INST(cmove64RM) { condMoveRM<8>(i, regPtr, equal(flags)); }
+        INST(cmove8RM) { condMoveRM<1>(memory, i, regPtr, equal(flags)); }
+        INST(cmove16RM) { condMoveRM<2>(memory, i, regPtr, equal(flags)); }
+        INST(cmove32RM) { condMoveRM<4>(memory, i, regPtr, equal(flags)); }
+        INST(cmove64RM) { condMoveRM<8>(memory, i, regPtr, equal(flags)); }
 
         INST(cmovne64RR) { condMove64RR(i, regPtr, notEqual(flags)); }
         INST(cmovne64RV) { condMove64RV(i, regPtr, notEqual(flags)); }
-        INST(cmovne8RM) { condMoveRM<1>(i, regPtr, notEqual(flags)); }
-        INST(cmovne16RM) { condMoveRM<2>(i, regPtr, notEqual(flags)); }
-        INST(cmovne32RM) { condMoveRM<4>(i, regPtr, notEqual(flags)); }
-        INST(cmovne64RM) { condMoveRM<8>(i, regPtr, notEqual(flags)); }
+        INST(cmovne8RM) { condMoveRM<1>(memory, i, regPtr, notEqual(flags)); }
+        INST(cmovne16RM) { condMoveRM<2>(memory, i, regPtr, notEqual(flags)); }
+        INST(cmovne32RM) { condMoveRM<4>(memory, i, regPtr, notEqual(flags)); }
+        INST(cmovne64RM) { condMoveRM<8>(memory, i, regPtr, notEqual(flags)); }
 
         INST(cmovl64RR) { condMove64RR(i, regPtr, less(flags)); }
         INST(cmovl64RV) { condMove64RV(i, regPtr, less(flags)); }
-        INST(cmovl8RM) { condMoveRM<1>(i, regPtr, less(flags)); }
-        INST(cmovl16RM) { condMoveRM<2>(i, regPtr, less(flags)); }
-        INST(cmovl32RM) { condMoveRM<4>(i, regPtr, less(flags)); }
-        INST(cmovl64RM) { condMoveRM<8>(i, regPtr, less(flags)); }
+        INST(cmovl8RM) { condMoveRM<1>(memory, i, regPtr, less(flags)); }
+        INST(cmovl16RM) { condMoveRM<2>(memory, i, regPtr, less(flags)); }
+        INST(cmovl32RM) { condMoveRM<4>(memory, i, regPtr, less(flags)); }
+        INST(cmovl64RM) { condMoveRM<8>(memory, i, regPtr, less(flags)); }
 
         INST(cmovle64RR) { condMove64RR(i, regPtr, lessEq(flags)); }
         INST(cmovle64RV) { condMove64RV(i, regPtr, lessEq(flags)); }
-        INST(cmovle8RM) { condMoveRM<1>(i, regPtr, lessEq(flags)); }
-        INST(cmovle16RM) { condMoveRM<2>(i, regPtr, lessEq(flags)); }
-        INST(cmovle32RM) { condMoveRM<4>(i, regPtr, lessEq(flags)); }
-        INST(cmovle64RM) { condMoveRM<8>(i, regPtr, lessEq(flags)); }
+        INST(cmovle8RM) { condMoveRM<1>(memory, i, regPtr, lessEq(flags)); }
+        INST(cmovle16RM) { condMoveRM<2>(memory, i, regPtr, lessEq(flags)); }
+        INST(cmovle32RM) { condMoveRM<4>(memory, i, regPtr, lessEq(flags)); }
+        INST(cmovle64RM) { condMoveRM<8>(memory, i, regPtr, lessEq(flags)); }
 
         INST(cmovg64RR) { condMove64RR(i, regPtr, greater(flags)); }
         INST(cmovg64RV) { condMove64RV(i, regPtr, greater(flags)); }
-        INST(cmovg8RM) { condMoveRM<1>(i, regPtr, greater(flags)); }
-        INST(cmovg16RM) { condMoveRM<2>(i, regPtr, greater(flags)); }
-        INST(cmovg32RM) { condMoveRM<4>(i, regPtr, greater(flags)); }
-        INST(cmovg64RM) { condMoveRM<8>(i, regPtr, greater(flags)); }
+        INST(cmovg8RM) { condMoveRM<1>(memory, i, regPtr, greater(flags)); }
+        INST(cmovg16RM) { condMoveRM<2>(memory, i, regPtr, greater(flags)); }
+        INST(cmovg32RM) { condMoveRM<4>(memory, i, regPtr, greater(flags)); }
+        INST(cmovg64RM) { condMoveRM<8>(memory, i, regPtr, greater(flags)); }
 
         INST(cmovge64RR) { condMove64RR(i, regPtr, greaterEq(flags)); }
         INST(cmovge64RV) { condMove64RV(i, regPtr, greaterEq(flags)); }
-        INST(cmovge8RM) { condMoveRM<1>(i, regPtr, greaterEq(flags)); }
-        INST(cmovge16RM) { condMoveRM<2>(i, regPtr, greaterEq(flags)); }
-        INST(cmovge32RM) { condMoveRM<4>(i, regPtr, greaterEq(flags)); }
-        INST(cmovge64RM) { condMoveRM<8>(i, regPtr, greaterEq(flags)); }
+        INST(cmovge8RM) { condMoveRM<1>(memory, i, regPtr, greaterEq(flags)); }
+        INST(cmovge16RM) { condMoveRM<2>(memory, i, regPtr, greaterEq(flags)); }
+        INST(cmovge32RM) { condMoveRM<4>(memory, i, regPtr, greaterEq(flags)); }
+        INST(cmovge64RM) { condMoveRM<8>(memory, i, regPtr, greaterEq(flags)); }
 
         /// ## Stack pointer manipulation
         INST(lincsp) {
@@ -417,29 +425,25 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
         /// ## Address calculation
         INST(lea) {
             size_t const destRegIdx = load<u8>(i);
-            u8* const ptr = getPointer(regPtr, i + 1);
+            VirtualPointer ptr = getPointer(regPtr, i + 1);
             regPtr[destRegIdx] = utl::bit_cast<u64>(ptr);
         }
 
         INST(lda) {
-            size_t const destRegIdx = load<u8>(i);
-            size_t const offset = load<u32>(&i[1]);
-            u8* const address = binary.data() + offset;
+            size_t destRegIdx = load<u8>(i);
+            size_t offset = load<u32>(&i[1]);
+            auto address = VirtualPointer{ 0, 0 } + offset;
             regPtr[destRegIdx] = utl::bit_cast<u64>(address);
         }
 
         /// ## Jumps
-        INST(jmp) { jump<jmp>(i, binary.data(), currentFrame, true); }
-        INST(je) { jump<je>(i, binary.data(), currentFrame, equal(flags)); }
-        INST(jne) {
-            jump<jne>(i, binary.data(), currentFrame, notEqual(flags));
-        }
-        INST(jl) { jump<jl>(i, binary.data(), currentFrame, less(flags)); }
-        INST(jle) { jump<jle>(i, binary.data(), currentFrame, lessEq(flags)); }
-        INST(jg) { jump<jg>(i, binary.data(), currentFrame, greater(flags)); }
-        INST(jge) {
-            jump<jge>(i, binary.data(), currentFrame, greaterEq(flags));
-        }
+        INST(jmp) { jump<jmp>(i, binary, currentFrame, true); }
+        INST(je) { jump<je>(i, binary, currentFrame, equal(flags)); }
+        INST(jne) { jump<jne>(i, binary, currentFrame, notEqual(flags)); }
+        INST(jl) { jump<jl>(i, binary, currentFrame, less(flags)); }
+        INST(jle) { jump<jle>(i, binary, currentFrame, lessEq(flags)); }
+        INST(jg) { jump<jg>(i, binary, currentFrame, greater(flags)); }
+        INST(jge) { jump<jge>(i, binary, currentFrame, greaterEq(flags)); }
 
         /// ## Comparison
         INST(ucmp8RR) { compareRR<u8>(i, regPtr, flags); }
@@ -496,81 +500,85 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
         /// ## 64 bit integral arithmetic
         INST(add64RR) { arithmeticRR<u64>(i, regPtr, utl::plus); }
         INST(add64RV) { arithmeticRV<u64>(i, regPtr, utl::plus); }
-        INST(add64RM) { arithmeticRM<u64>(i, regPtr, utl::plus); }
+        INST(add64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::plus); }
         INST(sub64RR) { arithmeticRR<u64>(i, regPtr, utl::minus); }
         INST(sub64RV) { arithmeticRV<u64>(i, regPtr, utl::minus); }
-        INST(sub64RM) { arithmeticRM<u64>(i, regPtr, utl::minus); }
+        INST(sub64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::minus); }
         INST(mul64RR) { arithmeticRR<u64>(i, regPtr, utl::multiplies); }
         INST(mul64RV) { arithmeticRV<u64>(i, regPtr, utl::multiplies); }
-        INST(mul64RM) { arithmeticRM<u64>(i, regPtr, utl::multiplies); }
+        INST(mul64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::multiplies); }
         INST(udiv64RR) { arithmeticRR<u64>(i, regPtr, utl::divides); }
         INST(udiv64RV) { arithmeticRV<u64>(i, regPtr, utl::divides); }
-        INST(udiv64RM) { arithmeticRM<u64>(i, regPtr, utl::divides); }
+        INST(udiv64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::divides); }
         INST(sdiv64RR) { arithmeticRR<i64>(i, regPtr, utl::divides); }
         INST(sdiv64RV) { arithmeticRV<i64>(i, regPtr, utl::divides); }
-        INST(sdiv64RM) { arithmeticRM<i64>(i, regPtr, utl::divides); }
+        INST(sdiv64RM) { arithmeticRM<i64>(memory, i, regPtr, utl::divides); }
         INST(urem64RR) { arithmeticRR<u64>(i, regPtr, utl::modulo); }
         INST(urem64RV) { arithmeticRV<u64>(i, regPtr, utl::modulo); }
-        INST(urem64RM) { arithmeticRM<u64>(i, regPtr, utl::modulo); }
+        INST(urem64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::modulo); }
         INST(srem64RR) { arithmeticRR<i64>(i, regPtr, utl::modulo); }
         INST(srem64RV) { arithmeticRV<i64>(i, regPtr, utl::modulo); }
-        INST(srem64RM) { arithmeticRM<i64>(i, regPtr, utl::modulo); }
+        INST(srem64RM) { arithmeticRM<i64>(memory, i, regPtr, utl::modulo); }
 
         /// ## 32 bit integral arithmetic
         INST(add32RR) { arithmeticRR<u32>(i, regPtr, utl::plus); }
         INST(add32RV) { arithmeticRV<u32>(i, regPtr, utl::plus); }
-        INST(add32RM) { arithmeticRM<u32>(i, regPtr, utl::plus); }
+        INST(add32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::plus); }
         INST(sub32RR) { arithmeticRR<u32>(i, regPtr, utl::minus); }
         INST(sub32RV) { arithmeticRV<u32>(i, regPtr, utl::minus); }
-        INST(sub32RM) { arithmeticRM<u32>(i, regPtr, utl::minus); }
+        INST(sub32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::minus); }
         INST(mul32RR) { arithmeticRR<u32>(i, regPtr, utl::multiplies); }
         INST(mul32RV) { arithmeticRV<u32>(i, regPtr, utl::multiplies); }
-        INST(mul32RM) { arithmeticRM<u32>(i, regPtr, utl::multiplies); }
+        INST(mul32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::multiplies); }
         INST(udiv32RR) { arithmeticRR<u32>(i, regPtr, utl::divides); }
         INST(udiv32RV) { arithmeticRV<u32>(i, regPtr, utl::divides); }
-        INST(udiv32RM) { arithmeticRM<u32>(i, regPtr, utl::divides); }
+        INST(udiv32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::divides); }
         INST(sdiv32RR) { arithmeticRR<i32>(i, regPtr, utl::divides); }
         INST(sdiv32RV) { arithmeticRV<i32>(i, regPtr, utl::divides); }
-        INST(sdiv32RM) { arithmeticRM<i32>(i, regPtr, utl::divides); }
+        INST(sdiv32RM) { arithmeticRM<i32>(memory, i, regPtr, utl::divides); }
         INST(urem32RR) { arithmeticRR<u32>(i, regPtr, utl::modulo); }
         INST(urem32RV) { arithmeticRV<u32>(i, regPtr, utl::modulo); }
-        INST(urem32RM) { arithmeticRM<u32>(i, regPtr, utl::modulo); }
+        INST(urem32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::modulo); }
         INST(srem32RR) { arithmeticRR<i32>(i, regPtr, utl::modulo); }
         INST(srem32RV) { arithmeticRV<i32>(i, regPtr, utl::modulo); }
-        INST(srem32RM) { arithmeticRM<i32>(i, regPtr, utl::modulo); }
+        INST(srem32RM) { arithmeticRM<i32>(memory, i, regPtr, utl::modulo); }
 
         /// ## 64 bit Floating point arithmetic
         INST(fadd64RR) { arithmeticRR<f64>(i, regPtr, utl::plus); }
         INST(fadd64RV) { arithmeticRV<f64>(i, regPtr, utl::plus); }
-        INST(fadd64RM) { arithmeticRM<f64>(i, regPtr, utl::plus); }
+        INST(fadd64RM) { arithmeticRM<f64>(memory, i, regPtr, utl::plus); }
         INST(fsub64RR) { arithmeticRR<f64>(i, regPtr, utl::minus); }
         INST(fsub64RV) { arithmeticRV<f64>(i, regPtr, utl::minus); }
-        INST(fsub64RM) { arithmeticRM<f64>(i, regPtr, utl::minus); }
+        INST(fsub64RM) { arithmeticRM<f64>(memory, i, regPtr, utl::minus); }
         INST(fmul64RR) { arithmeticRR<f64>(i, regPtr, utl::multiplies); }
         INST(fmul64RV) { arithmeticRV<f64>(i, regPtr, utl::multiplies); }
-        INST(fmul64RM) { arithmeticRM<f64>(i, regPtr, utl::multiplies); }
+        INST(fmul64RM) {
+            arithmeticRM<f64>(memory, i, regPtr, utl::multiplies);
+        }
         INST(fdiv64RR) { arithmeticRR<f64>(i, regPtr, utl::divides); }
         INST(fdiv64RV) { arithmeticRV<f64>(i, regPtr, utl::divides); }
-        INST(fdiv64RM) { arithmeticRM<f64>(i, regPtr, utl::divides); }
+        INST(fdiv64RM) { arithmeticRM<f64>(memory, i, regPtr, utl::divides); }
 
         /// ## 32 bit Floating point arithmetic
         INST(fadd32RR) { arithmeticRR<f32>(i, regPtr, utl::plus); }
         INST(fadd32RV) { arithmeticRV<f32>(i, regPtr, utl::plus); }
-        INST(fadd32RM) { arithmeticRM<f32>(i, regPtr, utl::plus); }
+        INST(fadd32RM) { arithmeticRM<f32>(memory, i, regPtr, utl::plus); }
         INST(fsub32RR) { arithmeticRR<f32>(i, regPtr, utl::minus); }
         INST(fsub32RV) { arithmeticRV<f32>(i, regPtr, utl::minus); }
-        INST(fsub32RM) { arithmeticRM<f32>(i, regPtr, utl::minus); }
+        INST(fsub32RM) { arithmeticRM<f32>(memory, i, regPtr, utl::minus); }
         INST(fmul32RR) { arithmeticRR<f32>(i, regPtr, utl::multiplies); }
         INST(fmul32RV) { arithmeticRV<f32>(i, regPtr, utl::multiplies); }
-        INST(fmul32RM) { arithmeticRM<f32>(i, regPtr, utl::multiplies); }
+        INST(fmul32RM) {
+            arithmeticRM<f32>(memory, i, regPtr, utl::multiplies);
+        }
         INST(fdiv32RR) { arithmeticRR<f32>(i, regPtr, utl::divides); }
         INST(fdiv32RV) { arithmeticRV<f32>(i, regPtr, utl::divides); }
-        INST(fdiv32RM) { arithmeticRM<f32>(i, regPtr, utl::divides); }
+        INST(fdiv32RM) { arithmeticRM<f32>(memory, i, regPtr, utl::divides); }
 
         /// ## 64 bit logical shifts
         INST(lsl64RR) { arithmeticRR<u64>(i, regPtr, utl::leftshift); }
         INST(lsl64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::leftshift); }
-        INST(lsl64RM) { arithmeticRM<u64>(i, regPtr, utl::leftshift); }
+        INST(lsl64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::leftshift); }
         INST(lsr64RR) { arithmeticRR<u64>(i, regPtr, utl::rightshift); }
         INST(lsr64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::rightshift); }
         INST(lsr64RM) { arithmeticRV<u64>(i, regPtr, utl::rightshift); }
@@ -578,7 +586,7 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
         /// ## 32 bit logical shifts
         INST(lsl32RR) { arithmeticRR<u32>(i, regPtr, utl::leftshift); }
         INST(lsl32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::leftshift); }
-        INST(lsl32RM) { arithmeticRM<u32>(i, regPtr, utl::leftshift); }
+        INST(lsl32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::leftshift); }
         INST(lsr32RR) { arithmeticRR<u32>(i, regPtr, utl::rightshift); }
         INST(lsr32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::rightshift); }
         INST(lsr32RM) { arithmeticRV<u32>(i, regPtr, utl::rightshift); }
@@ -588,7 +596,7 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 #define ASR utl::arithmetic_rightshift
         INST(asl64RR) { arithmeticRR<u64>(i, regPtr, ASL); }
         INST(asl64RV) { arithmeticRV<u64, u8>(i, regPtr, ASL); }
-        INST(asl64RM) { arithmeticRM<u64>(i, regPtr, ASL); }
+        INST(asl64RM) { arithmeticRM<u64>(memory, i, regPtr, ASL); }
         INST(asr64RR) { arithmeticRR<u64>(i, regPtr, ASR); }
         INST(asr64RV) { arithmeticRV<u64, u8>(i, regPtr, ASR); }
         INST(asr64RM) { arithmeticRV<u64>(i, regPtr, ASR); }
@@ -596,7 +604,7 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
         /// ## 32 bit arithmetic shifts
         INST(asl32RR) { arithmeticRR<u32>(i, regPtr, ASL); }
         INST(asl32RV) { arithmeticRV<u32, u8>(i, regPtr, ASL); }
-        INST(asl32RM) { arithmeticRM<u32>(i, regPtr, ASL); }
+        INST(asl32RM) { arithmeticRM<u32>(memory, i, regPtr, ASL); }
         INST(asr32RR) { arithmeticRR<u32>(i, regPtr, ASR); }
         INST(asr32RV) { arithmeticRV<u32, u8>(i, regPtr, ASR); }
         INST(asr32RM) { arithmeticRV<u32>(i, regPtr, ASR); }

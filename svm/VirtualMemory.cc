@@ -122,6 +122,8 @@ void VirtualMemory::deallocate(VirtualPointer ptr, size_t size, size_t align) {
     freeSlots.push_back(ptr.slotIndex);
 }
 
+void VirtualMemory::resizeStaticSlot(size_t size) { slots[0].resize(size); }
+
 std::pair<size_t, PoolAllocator&> VirtualMemory::getPool(size_t size,
                                                          size_t align) {
     assert(size <= MaxPoolSize);

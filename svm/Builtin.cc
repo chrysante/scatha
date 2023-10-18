@@ -14,8 +14,21 @@
 #include <utl/utility.hpp>
 
 #include "svm/Memory.h"
+#include "svm/VMImpl.h"
 
 using namespace svm;
+
+/// We can change this to proper error reporting later
+#define ENSURE(...) assert(__VA_ARGS__)
+
+static void* deref(VirtualMachine* vm, VirtualPointer ptr, size_t size) {
+    return vm->impl->memory.dereference(ptr, size);
+}
+
+template <typename T>
+static T* deref(VirtualMachine* vm, VirtualPointer ptr, size_t size) {
+    return reinterpret_cast<T*>(deref(vm, ptr, size));
+}
 
 template <typename T, size_t N>
 using wrap = T;
@@ -80,29 +93,38 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
 
     /// ## Memory
     at(Builtin::memcpy) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        void* const dest = load<void*>(regPtr);
-        size_t const size = load<size_t>(regPtr + 1);
-        void* const source = load<void*>(regPtr + 2);
-        std::memcpy(dest, source, size);
+        auto dest = load<VirtualPointer>(regPtr);
+        auto size = load<size_t>(regPtr + 1);
+        auto source = load<VirtualPointer>(regPtr + 2);
+        std::memcpy(deref(vm, dest, size), deref(vm, source, size), size);
     };
     at(Builtin::memset) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        void* const dest = load<void*>(regPtr);
-        size_t const size = load<size_t>(regPtr + 1);
-        int64_t const value = load<int64_t>(regPtr + 2);
-        std::memset(dest, utl::narrow_cast<int>(value), size);
+        auto dest = load<VirtualPointer>(regPtr);
+        auto size = load<size_t>(regPtr + 1);
+        auto value = load<int64_t>(regPtr + 2);
+        std::memset(deref(vm, dest, size), utl::narrow_cast<int>(value), size);
     };
     /// ## Allocation
     at(Builtin::alloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        i64 const size = load<i64>(regPtr);
-        [[maybe_unused]] i64 const align = load<i64>(regPtr + 1);
-        auto* addr = std::malloc(utl::narrow_cast<u64>(size));
+        i64 size = load<i64>(regPtr);
+        i64 align = load<i64>(regPtr + 1);
+        ENSURE(size >= 0);
+        ENSURE(align >= 0);
+        VirtualPointer addr =
+            vm->impl->memory.allocate(static_cast<size_t>(size),
+                                      static_cast<size_t>(align));
         store(regPtr, addr);
         store(regPtr + 1, size);
     };
     at(Builtin::dealloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        void* const addr = load<void*>(regPtr);
-        [[maybe_unused]] size_t const align = load<size_t>(regPtr + 1);
-        std::free(addr);
+        auto addr = load<VirtualPointer>(regPtr);
+        auto size = load<i64>(regPtr + 1);
+        auto align = load<i64>(regPtr + 2);
+        ENSURE(size >= 0);
+        ENSURE(align >= 0);
+        vm->impl->memory.deallocate(addr,
+                                    static_cast<size_t>(size),
+                                    static_cast<size_t>(align));
     };
 
     /// ## Console output
@@ -110,9 +132,9 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     at(Builtin::puti64) = printVal<i64>();
     at(Builtin::putf64) = printVal<f64>();
     at(Builtin::putstr) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        char* const data = load<char*>(regPtr);
-        size_t const size = load<size_t>(regPtr + 1);
-        std::cout << std::string_view(data, size);
+        auto data = load<VirtualPointer>(regPtr);
+        size_t size = load<size_t>(regPtr + 1);
+        std::cout << std::string_view(deref<char>(vm, data, size), size);
     };
     at(Builtin::putptr) = printVal<void*>();
 
@@ -120,25 +142,24 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     at(Builtin::readline) = [](u64* regPtr, VirtualMachine* vm, void*) {
         std::string line;
         std::getline(std::cin, line);
-        auto* buffer = std::malloc(line.size());
-        std::memcpy(buffer, line.data(), line.size());
+        auto buffer = vm->impl->memory.allocate(line.size(), 8);
+        std::memcpy(deref(vm, buffer, line.size()), line.data(), line.size());
         store(regPtr, buffer);
         store(regPtr + 1, line.size());
     };
 
     /// ## String conversion
     at(Builtin::strtos64) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        auto dest = load<void*>(regPtr);
-        auto text = loadArray<char>(regPtr + 1);
+        auto dest = load<VirtualPointer>(regPtr);
+        auto data = load<VirtualPointer>(regPtr + 1);
+        auto size = load<size_t>(regPtr + 2);
         auto base = load<int>(regPtr + 3);
         i64 value = 0;
-        auto result = std::from_chars(text.data(),
-                                      text.data() + text.size(),
-                                      value,
-                                      base);
+        auto* text = deref<char>(vm, data, size);
+        auto result = std::from_chars(text, text + size, value, base);
         if (result.ec == std::errc{}) {
             store(regPtr, u64{ 1 });
-            store(dest, value);
+            store(deref(vm, dest, sizeof(value)), value);
         }
         else {
             store(regPtr, u64{ 0 });
@@ -146,15 +167,17 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     };
 
     at(Builtin::strtof64) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        auto dest = load<void*>(regPtr);
-        auto text = loadArray<char>(regPtr + 1);
+        auto dest = load<VirtualPointer>(regPtr);
+        auto data = load<VirtualPointer>(regPtr + 1);
+        auto size = load<size_t>(regPtr + 2);
+        std::string_view text(deref<char>(vm, data, size), size);
         /// We copy the text into a `std::string` to make it null-terminated :(
         auto strText = std::string(text.begin(), text.end());
         char* strEnd = nullptr;
         double value = std::strtod(strText.data(), &strEnd);
         if (strEnd != strText.data()) {
             store(regPtr, u64{ 1 });
-            store(dest, value);
+            store(deref(vm, dest, sizeof(value)), value);
         }
         else {
             store(regPtr, u64{ 0 });
