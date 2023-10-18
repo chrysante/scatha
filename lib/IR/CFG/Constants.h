@@ -97,6 +97,19 @@ public:
         return operands() | ranges::views::transform(cast<Constant const*>);
     }
 
+    /// \Returns the number of members or array elements
+    size_t numElements() const { return numOperands(); }
+
+    /// \Returns the member or array element at index \p index
+    Constant* elementAt(size_t index) {
+        return const_cast<Constant*>(std::as_const(*this).elementAt(index));
+    }
+
+    /// \overload
+    Constant const* elementAt(size_t index) const {
+        return elements()[utl::narrow_cast<ssize_t>(index)];
+    }
+
 protected:
     explicit RecordConstant(NodeType nodeType,
                             std::span<ir::Constant* const> elems,

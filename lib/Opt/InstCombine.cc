@@ -559,7 +559,18 @@ bool InstCombineCtx::tryMergeNegate(ArithmeticInst* inst) {
     return false;
 }
 
-static std::pair<Value*, size_t> recursiveGepBaseAndOffset(Value* pointer) {
+namespace {
+
+struct GepInfo {
+    Value* basePtr;
+    size_t byteOffset;
+    utl::small_vector<GetElementPointer*> geps;
+};
+
+} // namespace
+
+static std::pair<Value*, size_t> recGepBaseAndOffsetImpl(
+    Value* pointer, utl::vector<GetElementPointer*>& geps) {
     auto* gep = dyncast<GetElementPointer*>(pointer);
     if (!gep) {
         return { pointer, 0 };
@@ -567,8 +578,52 @@ static std::pair<Value*, size_t> recursiveGepBaseAndOffset(Value* pointer) {
     if (!gep->hasConstantArrayIndex()) {
         return { nullptr, 0 };
     }
-    auto [base, offset] = recursiveGepBaseAndOffset(gep->basePointer());
+    geps.push_back(gep);
+    auto [base, offset] = recGepBaseAndOffsetImpl(gep->basePointer(), geps);
     return { base, offset + *gep->constantByteOffset() };
+}
+
+static GepInfo recursiveGepBaseAndOffset(Value* pointer) {
+    GepInfo result;
+    auto [base, offset] = recGepBaseAndOffsetImpl(pointer, result.geps);
+    result.basePtr = base;
+    result.byteOffset = offset;
+    return result;
+}
+
+static Constant* extractElement(Constant* base,
+                                std::span<GetElementPointer* const> geps) {
+    for (size_t i = 0; i < geps.size(); ++i) {
+        size_t arrayIndex = geps[i]->constantArrayIndex().value();
+        while (i + 1 < geps.size() &&
+               geps[i]->inboundsType() == geps[i + 1]->inboundsType())
+        {
+            SC_ASSERT(geps[i]->memberIndices().empty(),
+                      "Must be empty if the next gep accesses same type");
+            arrayIndex += geps[i + 1]->constantArrayIndex().value();
+            ++i;
+        }
+        if (auto* array = dyncast<ArrayConstant*>(base)) {
+            if (array->type()->elementType() != geps[i]->inboundsType()) {
+                return nullptr;
+            }
+            base = array->elementAt(arrayIndex);
+        }
+        else if (arrayIndex != 0) {
+            return nullptr;
+        }
+        for (size_t index: geps[i]->memberIndices()) {
+            auto* record = dyncast<RecordConstant*>(base);
+            if (!record) {
+                return nullptr;
+            }
+            if (index >= record->numElements()) {
+                return nullptr;
+            }
+            base = record->elementAt(index);
+        }
+    }
+    return base;
 }
 
 static Value* makeValueFromConstantData(Context& ctx,
@@ -584,21 +639,38 @@ static Value* makeValueFromConstantData(Context& ctx,
     return nullptr;
 }
 
+/// This case performs call devirtualization among other things
 Value* InstCombineCtx::visitImpl(Load* load) {
-    auto [pointer, offset] = recursiveGepBaseAndOffset(load->address());
+    auto [pointer, byteOffset, geps] =
+        recursiveGepBaseAndOffset(load->address());
     if (!pointer) {
         return nullptr;
     }
-    if (auto* global = dyncast<GlobalVariable*>(pointer);
-        global && global->isConst())
-    {
+    auto* global = dyncast<GlobalVariable*>(pointer);
+    if (!global || !global->isConst()) {
+        return nullptr;
+    }
+    /// If the geps don't do any type punning we can direct extract the accessed
+    /// constant
+    if (auto* elem = extractElement(global->initializer(), geps)) {
+        return elem;
+    }
+    /// Otherwise we write the constant data to a buffer and construct a new
+    /// constant from that
+    else {
         auto* init = global->initializer();
         utl::small_vector<uint8_t> data(init->type()->size());
-        init->writeValueTo(data.data());
-        std::span subregion(data.data() + offset, load->type()->size());
+        bool haveFuncPtrs = false;
+        init->writeValueTo(data.data(), [&](Constant const* value, void* dest) {
+            haveFuncPtrs |= isa<Function>(value);
+        });
+        /// We cannot evaluate function pointers this way though
+        if (haveFuncPtrs) {
+            return nullptr;
+        }
+        std::span subregion(data.data() + byteOffset, load->type()->size());
         return makeValueFromConstantData(irCtx, subregion, load->type());
     }
-    return nullptr;
 }
 
 Value* InstCombineCtx::visitImpl(ConversionInst* inst) {

@@ -321,3 +321,45 @@ func i32 @main(i1 %cond) {
 }
 )");
 }
+
+TEST_CASE("Devirtualization", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+@vtable = constant [ptr, 2] [ptr @f1, ptr @f2]
+
+func i32 @main() {
+%entry:
+    %p = getelementptr inbounds ptr, ptr @vtable, i32 1
+    %f = load ptr, ptr %p
+    %r = call i32 %f
+    return i32 %r
+}
+
+func i32 @f1() {
+%entry:
+    return i32 0
+}
+
+func i32 @f2() {
+%entry:
+    return i32 1
+})",
+                   R"(
+@vtable = constant [ptr, 2] [ptr @f1, ptr @f2]
+
+func i32 @main() {
+%entry:
+    %r = call i32 @f2
+    return i32 %r
+}
+
+func i32 @f1() {
+%entry:
+    return i32 0
+}
+
+func i32 @f2() {
+%entry:
+    return i32 1
+})");
+}

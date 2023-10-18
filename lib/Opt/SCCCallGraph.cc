@@ -254,6 +254,11 @@ SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
     Function* caller, Function const* callee, Call const* callInst) {
     auto& callerNode = findMut(caller);
     auto& calleeNode = findMut(callee);
+    /// For calls devirtualized in local optimizations the call relation will
+    /// not be reflected in the graph
+    if (!callerNode.isPredecessor(&calleeNode)) {
+        return RemoveCallEdgeResult::None;
+    }
     /// We remove `call` from our list of call sites
     auto callsitesItr = callerNode._callsites.find(&calleeNode);
     SC_ASSERT(callsitesItr != callerNode._callsites.end(), "");
