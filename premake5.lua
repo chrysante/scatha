@@ -120,6 +120,22 @@ externalincludedirs {
 links "svm-lib"
 
 ------------------------------------------
+project "svm-test"
+kind "ConsoleApp"
+
+includedirs { "svm" }
+
+externalincludedirs {
+    "include",
+    "external/utility/include",
+    "external/Catch",
+    "external/range-v3/include",
+}
+
+addCppFiles "svm-test"
+links "svm-lib"
+
+------------------------------------------
 project "scatha-test"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
