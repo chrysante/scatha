@@ -1,5 +1,6 @@
 #include "IRGen/Utility.h"
 
+#include "AST/AST.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
 #include "Sema/Entity.h"
@@ -30,9 +31,13 @@ bool irgen::isPtrOrRefToArray(sema::Type const* type) {
     return ptrOrRefToArrayImpl(type) != nullptr;
 }
 
-bool irgen::isPtrOrRefToDynArray(sema::Type const* type) {
+bool irgen::isFatPointer(sema::Type const* type) {
     auto* AT = ptrOrRefToArrayImpl(type);
     return AT && AT->isDynamic();
+}
+
+bool irgen::isFatPointer(ast::Expression const* expr) {
+    return isFatPointer(expr->type().get());
 }
 
 std::optional<size_t> irgen::getStaticArraySize(sema::Type const* type) {
@@ -50,4 +55,8 @@ std::optional<size_t> irgen::getStaticArraySize(sema::Type const* type) {
 
 ir::StructType const* irgen::makeArrayViewType(ir::Context& ctx) {
     return ctx.anonymousStruct({ ctx.ptrType(), ctx.intType(64) });
+}
+
+ValueLocation irgen::commonLocation(ValueLocation a, ValueLocation b) {
+    return a == b ? a : ValueLocation::Register;
 }

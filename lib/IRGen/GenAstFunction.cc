@@ -192,7 +192,6 @@ void FuncGenContext::generateParameter(
     auto* paramObj = paramDecl->object();
     switch (pc.location()) {
     case Register: {
-        bool const isDynArray = isPtrOrRefToDynArray(semaType);
         auto* refType = dyncast<sema::ReferenceType const*>(paramDecl->type());
         /// It's kind of annoying that we still need two cases here, but in one
         /// case we keep the pointer and the array size in a register and in the
@@ -202,7 +201,7 @@ void FuncGenContext::generateParameter(
             valueMap.insert(paramObj,
                             Value(irParam, typeMap(refType->base()), Memory));
             ++irParamItr;
-            if (isDynArray) {
+            if (isFatPointer(semaType)) {
                 Value size(irParam->next(), Register);
                 valueMap.insertArraySize(paramObj, size);
                 ++irParamItr;
@@ -214,7 +213,7 @@ void FuncGenContext::generateParameter(
                                   irType,
                                   Memory));
             ++irParamItr;
-            if (isDynArray) {
+            if (isFatPointer(semaType)) {
                 Value size(storeToMemory(irParam->next()),
                            irParam->next()->type(),
                            Memory);
@@ -236,7 +235,7 @@ void FuncGenContext::generateParameter(
 
 void FuncGenContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
                                               sema::Object const* initObject) {
-    if (!isPtrOrRefToDynArray(varDecl->type())) {
+    if (!isFatPointer(varDecl->type())) {
         return;
     }
     auto size = valueMap.arraySize(initObject);
@@ -303,7 +302,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         /// value in memory
         auto valueLocation =
             isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
-        if (isPtrOrRefToDynArray(semaFn.returnType())) {
+        if (isFatPointer(semaFn.returnType())) {
             auto size = valueMap.arraySize(retStmt.expression()->object());
             std::array elems = { toValueLocation(valueLocation, retval),
                                  toRegister(size) };
@@ -761,7 +760,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         add<ir::Store>(lhs, rhs);
         /// It is never a reference because expressions don't have reference
         /// type
-        if (isPtrOrRefToDynArray(expr.lhs()->type().get())) {
+        if (isFatPointer(expr.lhs())) {
             auto lhsSize = valueMap.arraySize(expr.lhs()->object());
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
@@ -813,7 +812,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
     size_t const irIndex = metaData.indexMap[var.index()];
     switch (base.location()) {
     case Register: {
-        if (isPtrOrRefToDynArray(expr.type().get())) {
+        if (isFatPointer(&expr)) {
             valueMap.insertArraySize(expr.object(), [=] {
                 auto* result = add<ir::ExtractValue>(base.get(),
                                                      std::array{ irIndex + 1 },
@@ -826,7 +825,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         return Value(result, Register);
     }
     case Memory: {
-        if (isPtrOrRefToDynArray(expr.type().get())) {
+        if (isFatPointer(&expr)) {
             valueMap.insertArraySize(expr.object(), [=] {
                 auto* result =
                     add<ir::GetElementPointer>(base.type(),
@@ -892,7 +891,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             size_t index = prop.kind() == ArrayFront ? 0 :
                                                        arrayType->count() - 1;
 
-            if (isPtrOrRefToDynArray(arrayType->elementType())) {
+            if (isFatPointer(arrayType->elementType())) {
                 auto* data =
                     add<ir::ExtractValue>(array.get(),
                                           std::array{ index, size_t{ 0 } },
@@ -926,7 +925,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                                ir::ArithmeticOperation::Sub,
                                                "back.index");
             }();
-            if (isPtrOrRefToDynArray(arrayType->elementType())) {
+            if (isFatPointer(arrayType->elementType())) {
                 auto* arrayView = makeArrayViewType(ctx);
                 auto* irSizeType = ctx.intType(64);
                 auto* data =
@@ -978,11 +977,19 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     auto* thenBlock = newBlock("cond.then");
     auto* elseBlock = newBlock("cond.else");
     auto* endBlock = newBlock("cond.end");
+
+    ir::Value* thenSize = nullptr;
+    ir::Value* elseSize = nullptr;
+
     add<ir::Branch>(cond, thenBlock, elseBlock);
 
     /// Generate then block.
     add(thenBlock);
     auto thenVal = getValue(condExpr.thenExpr());
+    if (isFatPointer(&condExpr)) {
+        thenSize =
+            toRegister(valueMap.arraySize(condExpr.thenExpr()->object()));
+    }
     thenBlock = &currentBlock(); /// Nested `?:` operands etc. may have changed
                                  /// `currentBlock`
     add<ir::Goto>(endBlock);
@@ -990,17 +997,30 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     /// Generate else block.
     add(elseBlock);
     auto elseVal = getValue(condExpr.elseExpr());
+    if (isFatPointer(&condExpr)) {
+        elseSize =
+            toRegister(valueMap.arraySize(condExpr.elseExpr()->object()));
+    }
     elseBlock = &currentBlock();
     add<ir::Goto>(endBlock);
 
     /// Generate end block.
     add(endBlock);
-    std::array phiArgs = { ir::PhiMapping{ thenBlock, thenVal.get() },
-                           ir::PhiMapping{ elseBlock, elseVal.get() } };
-    auto* result = add<ir::Phi>(phiArgs, "cond");
-    SC_ASSERT(thenVal.location() == elseVal.location(),
-              "Must be the same if we phi them here");
-    return Value(result, typeMap(condExpr.type()), thenVal.location());
+    auto loc = commonLocation(thenVal.location(), elseVal.location());
+    std::array phiArgs = {
+        ir::PhiMapping{ thenBlock, toValueLocation(loc, thenVal) },
+        ir::PhiMapping{ elseBlock, toValueLocation(loc, elseVal) }
+    };
+    auto* phi = add<ir::Phi>(phiArgs, "cond");
+    Value value(phi, typeMap(condExpr.type()), loc);
+    if (isFatPointer(&condExpr)) {
+        std::array phiArgs = { ir::PhiMapping{ thenBlock, thenSize },
+                               ir::PhiMapping{ elseBlock, elseSize } };
+        auto* sizePhi = add<ir::Phi>(phiArgs, "cond");
+        Value size(sizePhi, Register);
+        valueMap.insertArraySize(condExpr.object(), size);
+    }
+    return value;
 }
 
 static sema::Type const* stripRef(sema::Type const* type) {
@@ -1034,7 +1054,7 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     switch (retvalLocation) {
     case Register: {
         auto* refType = dyncast<sema::ReferenceType const*>(semaRetType);
-        if (isPtrOrRefToDynArray(semaRetType)) {
+        if (isFatPointer(semaRetType)) {
             auto* data =
                 add<ir::ExtractValue>(inst, std::array{ size_t{ 0 } }, "data");
             auto* size =
@@ -1107,7 +1127,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     /// assertion function
     [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object());
     auto index = getValue<Register>(expr.arguments().front());
-    if (isPtrOrRefToDynArray(arrayType->elementType())) {
+    if (isFatPointer(arrayType->elementType())) {
         auto* elemType = makeArrayViewType(ctx);
         auto* addr = add<ir::GetElementPointer>(elemType,
                                                 array,
@@ -1161,7 +1181,7 @@ ir::ArrayType const* FuncGenContext::getListType(
     ast::ListExpression const& list) {
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
     SC_ASSERT(!semaType->isDynamic(), "");
-    if (isPtrOrRefToDynArray(semaType->elementType())) {
+    if (isFatPointer(semaType->elementType())) {
         return ctx.arrayType(makeArrayViewType(ctx), semaType->count());
     }
     return cast<ir::ArrayType const*>(typeMap(semaType));
@@ -1207,7 +1227,7 @@ void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
     auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = getListType(list)->elementType();
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
-        if (isPtrOrRefToDynArray(arrayType->elementType())) {
+        if (isFatPointer(arrayType->elementType())) {
             auto* ptr =
                 add<ir::GetElementPointer>(elemType,
                                            dest,
@@ -1290,7 +1310,7 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     SC_ASSERT(isa<ir::Alloca>(addr), "");
     addr->replaceAllUsesWith(ptr);
     Value result(storeToMemory(ptr), ctx.ptrType(), Memory);
-    if (isPtrOrRefToDynArray(expr.type().get())) {
+    if (isFatPointer(&expr)) {
         valueMap.insertArraySizeOf(expr.object(), expr.value()->object());
     }
     return result;

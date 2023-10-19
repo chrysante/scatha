@@ -31,7 +31,7 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
         metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
         /// Pointer to array data members need a second field in the IR struct
         /// to store the size of the array
-        if (isPtrOrRefToDynArray(member->type())) {
+        if (isFatPointer(member->type())) {
             structType->pushMember(ctx.intType(64));
             ++irIndex;
         }
@@ -49,7 +49,7 @@ static bool isTrivial(sema::Type const* type) {
 static const size_t maxRegPassingSize = 16;
 
 static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
-    if (isPtrOrRefToDynArray(type)) {
+    if (isFatPointer(type)) {
         return PassingConvention(Register, isRetval ? 0 : 2);
     }
     bool const isSmall = isa<sema::ReferenceType>(type) ||
@@ -91,7 +91,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     auto retvalPC = CC.returnValue();
     switch (retvalPC.location()) {
     case Register: {
-        if (isPtrOrRefToDynArray(semaFn->returnType())) {
+        if (isFatPointer(semaFn->returnType())) {
             irReturnType = makeArrayViewType(ctx);
         }
         else {

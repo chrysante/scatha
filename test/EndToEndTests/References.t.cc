@@ -417,3 +417,15 @@ fn main() {
     return &a == &b;
 })");
 }
+
+TEST_CASE("Conditional expr with array pointers", "[end-to-end][pointers]") {
+    test::checkReturns(2, R"(
+fn cond() { return false; }
+fn main() {
+    let data = [1, 2, 3];
+    let p = &data;
+    let q = &p[0:2];
+    let r = cond() ? p : q;
+    return r.count;
+})");
+}
