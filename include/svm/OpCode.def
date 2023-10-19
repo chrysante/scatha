@@ -116,10 +116,6 @@ SVM_INSTRUCTION_DEF(lincsp, Other)  // (u8 destRegIdx, u16 offset)
 /// and store it in register `destRegIdx`
 SVM_INSTRUCTION_DEF(lea, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
-/// Load data address. Loads the address at offset `offset` of the data section
-/// of the program into register `destRegIdx`
-SVM_INSTRUCTION_DEF(lda, RV32) // (u8 destRegIdx, u32 offset);
-
 /// ## Jumps
 /// Jumps are performed by assigning the `dest` argument to the instruction
 /// pointer.

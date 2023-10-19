@@ -48,7 +48,6 @@ struct Context {
     void translate(TerminateInst const&);
     void translate(LIncSPInst const&);
     void translate(LEAInst const&);
-    void translate(LDAInst const&);
     void translate(CompareInst const&);
     void translate(TestInst const&);
     void translate(SetInst const&);
@@ -215,12 +214,6 @@ void Context::translate(LEAInst const& lea) {
     put(OpCode::lea);
     dispatch(lea.dest());
     dispatch(lea.address());
-}
-
-void Context::translate(LDAInst const& lda) {
-    put(OpCode::lda);
-    dispatch(lda.dest());
-    dispatch(lda.offset());
 }
 
 void Context::translate(CompareInst const& cmp) {

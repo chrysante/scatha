@@ -827,7 +827,7 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             valueMap.insert({ &inst, reg });
             return reg;
         },
-        [&](ir::GlobalVariable const& var) -> mir::Register* {
+        [&](ir::GlobalVariable const& var) {
             size_t const offset = [&] {
                 auto itr = staticDataOffsets.find(&var);
                 if (itr != staticDataOffsets.end()) {
@@ -848,9 +848,9 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                 return offset;
             }();
             auto* dest = nextRegister();
-            addNewInst(mir::InstCode::LDA,
+            addNewInst(mir::InstCode::Copy,
                        dest,
-                       { result.constant(offset, 4) });
+                       { result.constant(offset, 8) });
             return dest;
         },
         [&](ir::IntegralConstant const& constant) {

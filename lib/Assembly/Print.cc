@@ -137,10 +137,6 @@ struct PrintCtx {
         str << instName("lea") << " " << lea.dest() << ", " << lea.address();
     }
 
-    void printImpl(LDAInst const& lda) {
-        str << instName("lda") << " " << lda.dest() << ", " << lda.offset();
-    }
-
     void printImpl(CompareInst const& cmp) {
         // clang-format off
         auto name = UTL_MAP_ENUM(cmp.type(), std::string_view, {

@@ -429,13 +429,6 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
             regPtr[destRegIdx] = utl::bit_cast<u64>(ptr);
         }
 
-        INST(lda) {
-            size_t destRegIdx = load<u8>(i);
-            size_t offset = load<u32>(&i[1]);
-            auto address = VirtualPointer{ 0, 0 } + offset;
-            regPtr[destRegIdx] = utl::bit_cast<u64>(address);
-        }
-
         /// ## Jumps
         INST(jmp) { jump<jmp>(i, binary, currentFrame, true); }
         INST(je) { jump<je>(i, binary, currentFrame, equal(flags)); }

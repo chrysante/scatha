@@ -209,12 +209,6 @@ void CGContext::genInst(mir::Instruction const& inst) {
         currentBlock->insertBack(LEAInst(dest, address));
         break;
     }
-    case mir::InstCode::LDA: {
-        auto dest = toRegIdx(inst.dest());
-        auto offset = std::get<Asm::Value32>(toValue(inst.operandAt(0)));
-        currentBlock->insertBack(LDAInst(dest, offset));
-        break;
-    }
     case mir::InstCode::Compare: {
         auto LHS = toValue(inst.operandAt(0));
         auto RHS = toValue(inst.operandAt(1));
