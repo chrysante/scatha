@@ -78,6 +78,32 @@ TEST_CASE("Virtual memory allocations and deallocations") {
     }
 }
 
+TEST_CASE("Virtual memory fuzz invalid accesses") {
+    size_t seed = GENERATE(0u, 123u, 7564534u);
+    size_t numAllocs = GENERATE(0u, 1u, 1000u);
+    std::mt19937_64 rng(seed);
+    std::vector<std::pair<size_t, size_t>> sizes;
+    std::generate_n(std::back_inserter(sizes), numAllocs, [&] {
+        static constexpr std::array<size_t, 3> Aligns = { 4, 8, 16 };
+        std::uniform_int_distribution<size_t> sizeDist(10, 2000);
+        std::uniform_int_distribution<size_t> alignDist(0, Aligns.size() - 1);
+        return std::pair{ sizeDist(rng), Aligns[alignDist(rng)] };
+    });
+    VirtualMemory mem;
+    for (auto [size, align]: sizes) {
+        (void)mem.allocate(size, align);
+    }
+    std::uniform_int_distribution<size_t> range(0, 1000);
+    for (size_t i = 0; i < 10'000; ++i) {
+        try {
+            mem.dereference(std::bit_cast<VirtualPointer>(rng()), range(rng));
+        }
+        catch (MemoryAccessError const& e) {
+            (void)e;
+        }
+    }
+}
+
 TEST_CASE("Virtual memory deallocate invalid pointer") {
     VirtualMemory mem(128);
     auto ptr = mem.allocate(32, 8);
