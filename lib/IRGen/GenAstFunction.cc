@@ -1344,15 +1344,23 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case None:
         return refConvResult;
     case NullPtrToPtr:
+        if (isFatPointer(&conv)) {
+            valueMap.insertArraySize(conv.object(),
+                                     Value(ctx.intConstant(0, 64), Register));
+        }
         return refConvResult;
     case NullPtrToUniquePtr: {
-        return Value(toMemory(refConvResult), refConvResult.type(), Memory);
+        Value value(toMemory(refConvResult), refConvResult.type(), Memory);
+        if (isFatPointer(&conv)) {
+            valueMap.insertArraySize(conv.object(),
+                                     Value(ctx.intConstant(0, 64), Register));
+        }
+        return value;
     }
     case UniquePtrToPtr:
         return refConvResult;
     case Array_FixedToDynamic: {
-        valueMap.insertArraySize(conv.object(),
-                                 valueMap.arraySize(expr->object()));
+        valueMap.insertArraySizeOf(conv.object(), expr->object());
         return refConvResult;
     }
     case Reinterpret_Array_ToByte:
@@ -1638,13 +1646,11 @@ Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
     /// If the values are different, we  call the destructor of LHS and the copy
     /// or move constructor of LHS with RHS as argument. If the values are the
     /// same we do nothing
-    auto dest = getValue(expr.dest());
-    auto source = getValue(expr.source());
-    SC_ASSERT(dest.isMemory(), "");
-    SC_ASSERT(source.isMemory(), "");
+    auto* dest = getValue<Memory>(expr.dest());
+    auto* source = getValue<Memory>(expr.source());
     /// We branch here because the values might be the same.
-    auto* addrEq = add<ir::CompareInst>(dest.get(),
-                                        source.get(),
+    auto* addrEq = add<ir::CompareInst>(dest,
+                                        source,
                                         ir::CompareMode::Unsigned,
                                         ir::CompareOperation::NotEqual,
                                         "addr.eq");
@@ -1654,9 +1660,7 @@ Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
     add(assignBlock);
     callDtor(expr.dest()->object(), expr.dtor());
     auto* function = getFunction(expr.ctor());
-    add<ir::Call>(function,
-                  std::array{ dest.get(), source.get() },
-                  std::string{});
+    add<ir::Call>(function, std::array{ dest, source }, std::string{});
     add<ir::Goto>(endBlock);
     add(endBlock);
     return Value();
@@ -1667,10 +1671,8 @@ Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
 void FuncGenContext::callDtor(sema::Object const* object,
                               sema::Function const* dtor) {
     auto* function = getFunction(dtor);
-    auto value = valueMap(object);
-    SC_ASSERT(value.isMemory(),
-              "Objects with non trivial lifetime must be in memory");
-    add<ir::Call>(function, std::array{ value.get() }, std::string{});
+    auto* value = toMemory(valueMap(object));
+    add<ir::Call>(function, std::array{ value }, std::string{});
 }
 
 void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack) {

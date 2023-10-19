@@ -48,6 +48,9 @@ void ValueMap::insertArraySize(sema::Object const* object, LazyArraySize size) {
 
 void ValueMap::insertArraySizeOf(sema::Object const* newObj,
                                  sema::Object const* original) {
+    if (newObj == original) {
+        return;
+    }
     auto itr = arraySizes.find(original);
     if (itr != arraySizes.end()) {
         insertArraySize(newObj, itr->second);

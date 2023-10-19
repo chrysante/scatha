@@ -1049,7 +1049,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
 static Object* getConvertedEntity(Entity* original,
                                   Conversion const& conv,
                                   SymbolTable& sym) {
-    if (conv.objectConversion() == ObjectTypeConversion::None) {
+    if (conv.objectConversion() == ObjectTypeConversion::None ||
+        conv.objectConversion() == ObjectTypeConversion::Array_FixedToDynamic)
+    {
         return cast<Object*>(original);
     }
     return sym.temporary(conv.targetType());
