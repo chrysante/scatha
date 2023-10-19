@@ -22,14 +22,19 @@ using namespace tfmt::modifiers;
 
 void ast::printTree(ASTNode const& root) { printTree(root, std::cout); }
 
-static utl::vstreammanip<> formatType(sema::Type const* type) {
+static utl::vstreammanip<> formatTypeName(sema::Type const* type) {
     return [=](std::ostream& str) {
-        str << tfmt::format(BrightGrey, "Type: ");
         if (!type) {
             str << tfmt::format(Red, "NULL");
             return;
         }
         str << type->name();
+    };
+}
+
+static utl::vstreammanip<> formatType(sema::Type const* type) {
+    return [=](std::ostream& str) {
+        str << tfmt::format(BrightGrey, "Type: ") << formatTypeName(type);
     };
 }
 
@@ -98,9 +103,9 @@ static constexpr utl::streammanip funcDecl([](std::ostream& str,
     str << func->name() << "(";
     for (bool first = true; auto type: func->argumentTypes()) {
         str << (first ? first = false, "" : ", ");
-        str << (type ? type->name() : "NULL");
+        str << formatTypeName(type);
     }
-    str << ") -> " << func->returnType()->name();
+    str << ") -> " << formatTypeName(func->returnType());
 });
 
 static constexpr utl::streammanip formatLit([](std::ostream& str,
