@@ -104,7 +104,7 @@ private:
     template <typename Self>
     static decltype(auto) getValueImpl(Self&& self) {
         if (!self._e.has_value()) {
-            throw std::move(self).error();
+            throw std::move(self.error());
         }
         return *std::forward<Self>(self)._e;
     }

@@ -698,6 +698,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     dest = genCopy(dest,
                    source,
                    utl::round_up(outerType->size(), 8) - 8 * innerWordEnd);
+    (void)dest;
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {

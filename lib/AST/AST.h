@@ -293,19 +293,18 @@ public:
     size_t indexInParent() const { return parent()->indexOf(this); }
 
 protected:
-    explicit ASTNode(NodeType type,
-                     SourceRange sourceRange,
-                     auto&&... children):
+    template <typename... C>
+    explicit ASTNode(NodeType type, SourceRange sourceRange, C&&... children):
         _type(type), _sourceRange(sourceRange) {
-        (addChildren(std::move(children)), ...);
+        (addChildren(std::forward<C>(children)), ...);
     }
 
     void setSourceRange(SourceRange sourceRange) { _sourceRange = sourceRange; }
 
 private:
-    template <typename T>
-    void addChildren(T&& child) {
-        if constexpr (ranges::range<T>) {
+    template <typename C>
+    void addChildren(C&& child) {
+        if constexpr (ranges::range<C>) {
             for (auto&& c: child) {
                 addChildren(std::move(c));
             }
@@ -314,7 +313,7 @@ private:
             if (child) {
                 child->_parent = this;
             }
-            _children.push_back(std::move(child));
+            _children.push_back(std::forward<C>(child));
         }
     }
 
@@ -1441,8 +1440,9 @@ public:
 
 private:
     /// Helper for "Copy object"
-    explicit ConstructExpr(auto&& rangeArg, auto* arg):
-        ConstructExpr(toSmallVector(std::move(rangeArg)),
+    template <typename R>
+    explicit ConstructExpr(R&& rangeArg, auto* arg):
+        ConstructExpr(toSmallVector(std::forward<R>(rangeArg)),
                       arg->type().get(),
                       arg->sourceRange()) {}
 
