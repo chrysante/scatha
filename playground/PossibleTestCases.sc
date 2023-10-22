@@ -14,6 +14,41 @@ fn main() {
 */
 
 
+/// Traits sketch
+trait Common {
+    fn foo(&mut this, n: int);
+}
+
+struct X {
+
+}
+
+struct Y {
+
+}
+
+impl Common for X {
+    fn foo(&this, n: int) {
+    
+    }
+}
+
+impl Common for Y {
+    fn foo(&this, n: int) {
+    
+    }
+}
+
+fn bar(value: &dyn Common) {
+
+}
+
+fn main() {
+    
+}
+
+
+
 /// Reference deduction syntax
 
 fn test(n: &int) -> & { // Cannot resolve as mut
