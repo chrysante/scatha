@@ -108,22 +108,23 @@ void VirtualMachine::printRegisters(size_t n) const {
     }
 }
 
-uint64_t VirtualMachine::allocateStackMemory(size_t numBytes) {
+VirtualPointer VirtualMachine::allocateStackMemory(size_t numBytes) {
     /// TODO: Align the memory to something
     auto result = impl->currentFrame.stackPtr;
     impl->currentFrame.stackPtr += numBytes;
-    return std::bit_cast<uint64_t>(result);
+    return result;
 }
 
-uint64_t VirtualMachine::allocateMemory(size_t size, size_t align) {
-    return std::bit_cast<uint64_t>(impl->memory.allocate(size, align));
+VirtualPointer VirtualMachine::allocateMemory(size_t size, size_t align) {
+    return impl->memory.allocate(size, align);
 }
 
-void VirtualMachine::deallocateMemory(uint64_t ptr, size_t size, size_t align) {
-    impl->memory.deallocate(std::bit_cast<VirtualPointer>(ptr), size, align);
+void VirtualMachine::deallocateMemory(VirtualPointer ptr,
+                                      size_t size,
+                                      size_t align) {
+    impl->memory.deallocate(ptr, size, align);
 }
 
-void* VirtualMachine::derefPointer(uint64_t ptr, size_t numBytes) const {
-    return impl->memory.dereference(std::bit_cast<VirtualPointer>(ptr),
-                                    numBytes);
+void* VirtualMachine::derefPointer(VirtualPointer ptr, size_t numBytes) const {
+    return impl->memory.dereference(ptr, numBytes);
 }

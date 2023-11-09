@@ -10,6 +10,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <svm/VirtualMachine.h>
+#include <svm/VirtualPointer.h>
 #include <utl/format_time.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
@@ -91,9 +92,9 @@ int main(int argc, char* argv[]) {
     size_t argPointersSize = arguments.pointers.size() * 16;
     size_t stringDataSize = arguments.data.size();
     size_t totalArgSize = argPointersSize + stringDataSize;
-    auto* argStackData = vm.allocateStackMemory(totalArgSize);
+    VirtualPointer argStackData = vm.allocateStackMemory(totalArgSize);
     struct StringPointer {
-        void* ptr;
+        VirtualPointer ptr;
         uint64_t size;
     };
     auto argPointers =
@@ -102,11 +103,13 @@ int main(int argc, char* argv[]) {
                                   arg.size };
         }) |
         ranges::to<utl::small_vector<StringPointer>>;
-    std::memcpy(argStackData, argPointers.data(), 16 * argPointers.size());
-    std::memcpy(argStackData + argPointersSize,
+    std::memcpy(vm.derefPointer(argStackData, argPointersSize),
+                argPointers.data(),
+                argPointersSize);
+    std::memcpy(vm.derefPointer(argStackData + argPointersSize, stringDataSize),
                 arguments.data.data(),
                 stringDataSize);
-    std::array<u64, 2> actualArgument = { reinterpret_cast<u64>(argStackData),
+    std::array<u64, 2> actualArgument = { std::bit_cast<u64>(argStackData),
                                           argPointers.size() };
 
     /// Excute the program

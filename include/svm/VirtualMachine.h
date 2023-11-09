@@ -7,6 +7,7 @@
 
 #include <svm/Common.h>
 #include <svm/ExternalFunction.h>
+#include <svm/VirtualPointer.h>
 
 namespace svm {
 
@@ -71,21 +72,21 @@ public:
     /// # Memory
 
     /// Allocates a memory region in the current stack frame.
-    uint64_t allocateStackMemory(size_t numBytes);
+    VirtualPointer allocateStackMemory(size_t numBytes);
 
     /// Allocates virtual memory on the heap
-    uint64_t allocateMemory(size_t size, size_t align);
+    VirtualPointer allocateMemory(size_t size, size_t align);
 
     /// Deallocates memory allocated with `allocateMemory()`
-    void deallocateMemory(uint64_t ptr, size_t size, size_t align);
+    void deallocateMemory(VirtualPointer ptr, size_t size, size_t align);
 
     /// Converts an opaque virtual pointer into a raw pointer.
     /// The pointer must be dereferenceable at \p numBytes bytes
-    void* derefPointer(uint64_t ptr, size_t numBytes) const;
+    void* derefPointer(VirtualPointer ptr, size_t numBytes) const;
 
     /// Converts a virtual pointer into a reference to type `T`
     template <typename T>
-    T& derefPointer(uint64_t ptr) const {
+    T& derefPointer(VirtualPointer ptr) const {
         return *reinterpret_cast<T*>(derefPointer(ptr, sizeof(T)));
     }
 
