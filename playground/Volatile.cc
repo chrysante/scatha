@@ -116,7 +116,6 @@ static void run(ir::Module const& mod) {
 [[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
     header("IR Module");
-    opt::PassManager::makePipeline("inline, splitreturns").execute(ctx, irMod);
     print(irMod);
     auto mod = cg::codegen(irMod, *std::make_unique<cg::DebugLogger>());
     header("Assembly");
@@ -230,5 +229,5 @@ static void run(ir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    mirPlayground(path);
 }
