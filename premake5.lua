@@ -174,6 +174,21 @@ files { "runtime/**.h", "runtime/**.cc" }
 links { "termfmt" }
 
 ------------------------------------------
+project "sdb"
+kind "ConsoleApp"
+
+externalincludedirs {
+    "external/utility/include",
+    "external/range-v3/include",
+    "external/FTXUI/include",
+}
+includedirs { "sdb/src" }
+
+files { "sdb/src/**.h", "sdb/src/**.cc" }
+
+links { "ftxui-component", "ftxui-dom", "ftxui-screen" }
+
+------------------------------------------
 project "playground"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
