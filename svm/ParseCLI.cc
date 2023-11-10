@@ -8,26 +8,26 @@
 
 using namespace svm;
 
-static int fileArgIndex(int argc, char* argv[]) {
+static int firstArgIndex(int argc, char* argv[]) {
     for (int i = 0; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (!arg.starts_with("--binary")) {
             continue;
         }
         if (arg != "--binary" && arg != "--binary=") {
-            return i;
+            return i + 1;
         }
         if (i + 1 == argc) {
             std::cout << "Expected file argument after --binary.\n";
             std::exit(1);
         }
-        return i + 1;
+        return i + 2;
     }
     return argc;
 }
 
 Options svm::parseCLI(int argc, char* argv[]) {
-    int const optionsArgC = fileArgIndex(argc, argv) + 1;
+    int const optionsArgC = firstArgIndex(argc, argv);
     Options result;
     CLI::App app{ "Scatha Virtual Machine" };
     std::filesystem::path filepath, objpath;
