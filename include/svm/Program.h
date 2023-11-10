@@ -2,6 +2,7 @@
 #define SVM_PROGRAM_H_
 
 #include <iosfwd>
+#include <span>
 
 #include <svm/Common.h>
 
@@ -11,6 +12,7 @@ namespace svm {
 /// verify it is a correct program
 inline const u64 GlobalProgID = 0x5CBF;
 
+///
 struct ProgramHeader {
     /// Arbitrary version string. Not yet sure what to put in here.
     u64 versionString[2];
@@ -30,8 +32,32 @@ struct ProgramHeader {
     u64 startAddress;
 };
 
+///
+class ProgramView {
+public:
+    explicit ProgramView(u8 const* data);
+
+    ///
+    ProgramHeader header;
+
+    /// View over the entire binary section of the program, i.e. `data` and
+    /// `text` adjacently combined
+    std::span<u8 const> binary;
+
+    /// View over the static data section of the program
+    std::span<u8 const> data;
+
+    /// View over the code of the program
+    std::span<u8 const> text;
+
+    /// Address of the 'start' label
+    size_t startAddress = 0;
+};
+
+///
 void print(u8 const* program);
 
+///
 void print(u8 const* program, std::ostream&);
 
 } // namespace svm

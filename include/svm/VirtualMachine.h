@@ -48,6 +48,27 @@ public:
     /// \Returns Bottom register pointer of the run execution frame
     u64 const* execute(size_t startAddress, std::span<u64 const> arguments);
 
+    /// # Stepwise execution / debugger implementation
+    /// @{
+    /// Start stepwise execution of the loaded program
+    void beginExecution(size_t startAddress, std::span<u64 const> arguments);
+
+    /// \Returns `true` if the current execution of the machine is runnning
+    bool running() const;
+
+    /// Execute one instruction.
+    /// \pre `beginExecution()` has been called and `running()` returns `true`
+    void stepExecution();
+
+    /// Ends stepwise execution
+    /// \pre `running()` returns `false`
+    u64 const* endExecution();
+
+    /// \Returns the instruction pointer offset from the beginning of the binary
+    size_t instructionPointerOffset() const;
+
+    /// @} Stepwise execution
+
     /// Set a slot of the external function table
     ///
     /// Slot 0 and 1 are reserved for builtin functions

@@ -71,8 +71,15 @@ struct VMImpl {
     /// this as well as static memory and stack memory.
     VirtualMemory memory;
 
-    ///
+    /// See documentation in "VirtualMachine.h"
+    /// @{
     u64 const* execute(size_t startAddress, std::span<u64 const> arguments);
+    void beginExecution(size_t startAddress, std::span<u64 const> arguments);
+    bool running() const;
+    void stepExecution();
+    u64 const* endExecution();
+    size_t instructionPointerOffset() const;
+    /// @}
 };
 
 } // namespace svm

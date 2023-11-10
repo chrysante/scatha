@@ -51,9 +51,68 @@ enum class OpCode : u8 {
     _count
 };
 
+///
 std::string_view toString(OpCode);
 
+///
 std::ostream& operator<<(std::ostream&, OpCode);
+
+///
+enum class OpCodeClass { RR, RV64, RV32, RV8, RM, MR, R, Jump, Other, _count };
+
+/// Maps opcodes to their class
+inline constexpr OpCodeClass classify(OpCode code) {
+    return std::array{
+#define SVM_INSTRUCTION_DEF(inst, class) OpCodeClass::class,
+#include <svm/OpCode.def>
+    }[static_cast<size_t>(code)];
+};
+
+/// \Returns The offset in bytes to the next instruction.
+inline constexpr size_t codeSize(OpCode code) {
+    using enum OpCodeClass;
+    auto const opCodeClass = classify(code);
+    if (opCodeClass == Other) {
+        switch (code) {
+        case OpCode::call:
+            return sizeof(OpCode) + 4 + 1;
+        case OpCode::icallr:
+            return sizeof(OpCode) + 1 + 1;
+        case OpCode::icallm:
+            return sizeof(OpCode) + 4 + 1;
+        case OpCode::ret:
+            return sizeof(OpCode);
+        case OpCode::terminate:
+            return sizeof(OpCode);
+        case OpCode::callExt:
+            return sizeof(OpCode) + 1 + 1 + 2;
+        case OpCode::lincsp:
+            return sizeof(OpCode) + 1 + 2;
+        default:
+            assert(false);
+        }
+    }
+    switch (opCodeClass) {
+    case OpCodeClass::RR:
+        return sizeof(OpCode) + 1 + 1;
+    case OpCodeClass::RV64:
+        return sizeof(OpCode) + 1 + 8;
+    case OpCodeClass::RV32:
+        return sizeof(OpCode) + 1 + 4;
+    case OpCodeClass::RV8:
+        return sizeof(OpCode) + 1 + 1;
+    case OpCodeClass::RM:
+        return sizeof(OpCode) + 1 + 4;
+    case OpCodeClass::MR:
+        return sizeof(OpCode) + 4 + 1;
+    case OpCodeClass::R:
+        return sizeof(OpCode) + 1;
+    case OpCodeClass::Jump:
+        return sizeof(OpCode) + 4;
+    case OpCodeClass::Other:
+        assert(false);
+    }
+}
 
 } // namespace svm
 

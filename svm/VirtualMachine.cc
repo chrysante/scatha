@@ -7,7 +7,7 @@
 
 #include "svm/BuiltinInternal.h"
 #include "svm/Memory.h"
-#include "svm/ProgramInternal.h"
+#include "svm/Program.h"
 #include "svm/VMImpl.h"
 
 using namespace svm;
@@ -66,6 +66,21 @@ u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
 u64 const* VirtualMachine::execute(size_t startAddress,
                                    std::span<u64 const> arguments) {
     return impl->execute(startAddress, arguments);
+}
+
+void VirtualMachine::beginExecution(size_t startAddress,
+                                    std::span<u64 const> arguments) {
+    return impl->beginExecution(startAddress, arguments);
+}
+
+bool VirtualMachine::running() const { return impl->running(); }
+
+void VirtualMachine::stepExecution() { impl->stepExecution(); }
+
+u64 const* VirtualMachine::endExecution() { return impl->endExecution(); }
+
+size_t VirtualMachine::instructionPointerOffset() const {
+    return impl->instructionPointerOffset();
 }
 
 void VirtualMachine::setFunctionTableSlot(

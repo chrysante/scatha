@@ -95,25 +95,26 @@ project "svm-lib"
 kind "StaticLib"
 
 addCppFiles "svm"
-removefiles { "svm/CLIParse.*", "svm/main.cc" }
+removefiles { "svm/main.cc" }
 files "include/svm/**"
 
 includedirs { "." }
 
 externalincludedirs {
     "include",
+    "external/cli11/include",
+    "external/range-v3/include",
     "external/utility/include",
 }
 
 ------------------------------------------
 project "svm"
 kind "ConsoleApp"
-files { "svm/CLIParse.*", "svm/main.cc" }
+files { "svm/main.cc" }
 
 externalincludedirs {
     "include",
     "external/utility/include",
-    "external/cli11/include",
     "external/range-v3/include",
 }
 
@@ -174,10 +175,11 @@ files { "runtime/**.h", "runtime/**.cc" }
 links { "termfmt" }
 
 ------------------------------------------
-project "sdb"
+project "sdb" -- Debugger
 kind "ConsoleApp"
 
 externalincludedirs {
+    "include",
     "external/utility/include",
     "external/range-v3/include",
     "external/FTXUI/include",
@@ -186,7 +188,7 @@ includedirs { "sdb/src" }
 
 files { "sdb/src/**.h", "sdb/src/**.cc" }
 
-links { "ftxui-component", "ftxui-dom", "ftxui-screen" }
+links { "svm-lib", "ftxui-component", "ftxui-dom", "ftxui-screen" }
 
 ------------------------------------------
 project "playground"

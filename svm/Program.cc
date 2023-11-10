@@ -1,4 +1,4 @@
-#include "svm/ProgramInternal.h"
+#include "svm/Program.h"
 
 #include <iomanip>
 #include <iostream>
@@ -10,7 +10,7 @@
 #include <utl/streammanip.hpp>
 
 #include "svm/Memory.h"
-#include "svm/OpCodeInternal.h"
+#include "svm/OpCode.h"
 
 using namespace svm;
 
@@ -24,6 +24,7 @@ ProgramView::ProgramView(u8 const* prog) {
     size_t dataSize = header.textOffset - header.dataOffset;
     size_t textSize = header.size - header.textOffset;
     size_t binarySize = dataSize + textSize;
+    this->header = header;
     this->binary = std::span(binaryBegin, binarySize);
     this->data = std::span(binaryBegin, dataSize);
     this->text = std::span(binaryBegin + dataSize, textSize);
