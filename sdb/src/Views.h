@@ -12,7 +12,12 @@ class Model;
 ///
 ///
 ///
-ftxui::Component ControlView(Model* model, std::function<void()> showSettings);
+ftxui::Component ToolbarView(Model* model, std::function<void()> showSettings);
+
+///
+///
+///
+ftxui::Component StepControlsView(Model* model);
 
 ///
 ///

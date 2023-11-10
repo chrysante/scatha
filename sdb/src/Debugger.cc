@@ -1,5 +1,6 @@
 #include "Debugger.h"
 
+#include "Common.h"
 #include "Model.h"
 #include "Views.h"
 
@@ -7,38 +8,40 @@ using namespace sdb;
 using namespace ftxui;
 
 Debugger::Debugger(Model* model):
-    model(model), screen(ScreenInteractive::Fullscreen()), regViewSize(29) {
+    model(model), screen(ScreenInteractive::Fullscreen()), sidebarSize(29) {
     model->setRefreshCallback(
         [this] { screen.PostEvent(Event::Special("Wakeup call")); });
     settings = SettingsView([this] { showSettings = false; });
-    auto sidebar = Container::Vertical({ FlagsView(model),
-                                         Renderer([] { return separator(); }),
-                                         RegisterView(model) });
-    root = ResizableSplitRight(sidebar, InstructionView(model), &regViewSize);
-    root = Container::Vertical({
-        Renderer([] { return separator(); }),
-        ControlView(
-            model,
-            [this] {
+    auto sidebar = Container::Vertical(
+        { FlagsView(model), sdb::separator(), RegisterView(model) });
+    auto centralSplit =
+        ResizableSplitRight(sidebar, InstructionView(model), &sidebarSize);
+    auto toolbar = ToolbarView(model, [this] {
         showSettings = true;
         settings->TakeFocus();
-            }),
-        Renderer([] { return separator(); }),
-        root | flex,
     });
-    root = ResizableSplitBottom(ConsoleView(model), root, &consoleViewSize);
-    root |= Modal(settings, &showSettings);
-    root |= CatchEvent([=](Event event) {
-        if (event.is_character()) {
-            for (auto& [key, command]: keyCommands) {
-                if (event.character() == key) {
-                    command();
-                    return true;
-                }
-            }
-        }
-        return false;
+    auto top = Container::Vertical({
+        sdb::separator(),
+        toolbar,
+        sdb::separator(),
+        centralSplit | flex,
     });
+
+    auto bottom = Container::Vertical(
+        { StepControlsView(model), sdb::separator(), ConsoleView(model) });
+
+    root = ResizableSplitBottom(bottom, top, &bottomSectionSize) |
+           Modal(settings, &showSettings) | CatchEvent([=](Event event) {
+               if (event.is_character()) {
+                   for (auto& [key, command]: keyCommands) {
+                       if (event.character() == key) {
+                           command();
+                           return true;
+                       }
+                   }
+               }
+               return false;
+           });
 
     addKeyCommand("q", [=] { screen.Exit(); });
     addKeyCommand("p", [=] { model->toggleExecution(); });

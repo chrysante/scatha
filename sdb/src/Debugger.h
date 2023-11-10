@@ -34,9 +34,8 @@ private:
     ftxui::Component root;
     ftxui::Component settings;
 
-    int regViewSize = 20;
-    int consoleViewSize = 10;
-    int memViewSize;
+    int sidebarSize = 20;
+    int bottomSectionSize = 10;
     bool showSettings = false;
 };
 

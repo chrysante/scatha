@@ -36,6 +36,9 @@ struct RegView: ScrollBase {
     }
 
     Element Render() override {
+        if (!model->isActive() || !model->isSleeping()) {
+            return text("");
+        }
         values = model->readRegisters(utl::narrow_cast<size_t>(maxReg));
         auto& vm = model->virtualMachine();
         auto execFrame = vm.getCurrentExecFrame();

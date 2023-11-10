@@ -24,7 +24,7 @@ Element ScrollBase::Render() {
     for (size_t index = begin; index < end; ++index) {
         elems.push_back(ChildAt(index)->Render());
     }
-    return vbox(std::move(elems)) | flex | vscroll_indicator | reflect(box);
+    return vbox(std::move(elems)) | flex | reflect(box);
 }
 
 bool ScrollBase::OnEvent(Event event) {

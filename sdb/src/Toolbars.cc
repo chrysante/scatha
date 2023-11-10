@@ -85,40 +85,32 @@ static ButtonInfo restartButton(Model* model) {
     return { ">R", [=] { return true; }, [=] { model->restart(); } };
 }
 
+static ButtonInfo switchModeButton() {
+    return { "Src", [=] { return false; }, [=] { beep(); } };
+}
+
 static ButtonInfo settingsButton(std::function<void()> showSettings) {
     return { "Settings", [=] { return true; }, showSettings };
 }
 
-static Component space() {
-    return Renderer([] { return separatorEmpty(); });
+Component sdb::ToolbarView(Model* model, std::function<void()> showSettings) {
+    return Container::Horizontal({
+        restartButton(model),
+        sdb::separatorEmpty(),
+        switchModeButton(),
+        spacer(),
+        settingsButton(showSettings),
+    });
 }
 
-namespace {
-
-struct CtrlView: ComponentBase {
-    CtrlView(Model* model, std::function<void()> showSettings): model(model) {
-        Add(Container::Horizontal({
-            restartButton(model),
-            space(),
-            runButton(model),
-            space(),
-            skipButton(model),
-            space(),
-            enterFunctionButton(model),
-            space(),
-            exitFunctionButton(model),
-            Renderer([] { return filler(); }),
-            settingsButton(showSettings),
-            space(),
-        }));
-    }
-
-    Model* model;
-};
-
-} // namespace
-
-ftxui::Component sdb::ControlView(Model* model,
-                                  std::function<void()> showSettings) {
-    return Make<CtrlView>(model, showSettings);
+Component sdb::StepControlsView(Model* model) {
+    return Container::Horizontal({
+        runButton(model),
+        sdb::separatorEmpty(),
+        skipButton(model),
+        sdb::separatorEmpty(),
+        enterFunctionButton(model),
+        sdb::separatorEmpty(),
+        exitFunctionButton(model),
+    });
 }

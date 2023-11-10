@@ -16,6 +16,7 @@ Model::Model(svm::VirtualMachine vm,
 Model::~Model() {
     {
         std::lock_guard lock(mutex);
+        execThreadRunning = false;
         send(Signal::Terminate);
     }
     if (executionThread.joinable()) {
