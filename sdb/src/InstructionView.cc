@@ -35,7 +35,7 @@ struct InstView: ComponentBase {
         {
             ButtonOption opt = ButtonOption::Ascii();
             opt.transform = [=, index = index](EntryState const& s) {
-                bool isCurrent = !model->running() &&
+                bool isCurrent = !model->isRunning() &&
                                  index == model->currentLine();
                 bool isBreakpoint = model->isBreakpoint(index);
                 std::string labelText(

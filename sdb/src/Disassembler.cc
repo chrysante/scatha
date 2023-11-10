@@ -8,7 +8,7 @@ Disassembly sdb::disassemble(uint8_t const* program) {
     ProgramView const p(program);
     auto text = p.text;
     for (size_t i = 0; i < text.size();) {
-        size_t binOffset = i + p.header.textOffset;
+        size_t binOffset = i + p.header.textOffset - sizeof(ProgramHeader);
         OpCode const opcode = static_cast<OpCode>(text[i]);
 
         result.offsetIndexMap.insert({ binOffset, result.insts.size() });

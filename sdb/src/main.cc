@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 
     auto execArg = setupArguments(vm, options.arguments);
 
-    Model model(std::move(vm), binary.data());
+    Model model(std::move(vm), binary.data(), execArg);
     Debugger debugger(&model);
     debugger.run();
 }

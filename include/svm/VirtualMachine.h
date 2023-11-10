@@ -51,6 +51,9 @@ public:
     /// # Stepwise execution / debugger implementation
     /// @{
     /// Start stepwise execution of the loaded program
+    void beginExecution(std::span<u64 const> arguments);
+
+    /// \overload
     void beginExecution(size_t startAddress, std::span<u64 const> arguments);
 
     /// \Returns `true` if the current execution of the machine is runnning

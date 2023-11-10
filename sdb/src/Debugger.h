@@ -26,6 +26,7 @@ public:
 private:
     void addKeyCommand(std::string key, std::function<void()> command);
 
+    Model* model;
     std::vector<KeyCommand> keyCommands;
 
     ftxui::ScreenInteractive screen;

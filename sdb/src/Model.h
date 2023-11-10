@@ -1,6 +1,7 @@
 #ifndef SDB_PROGRAM_H_
 #define SDB_PROGRAM_H_
 
+#include <atomic>
 #include <optional>
 #include <span>
 #include <string>
@@ -16,7 +17,12 @@ namespace sdb {
 
 class Model {
 public:
-    explicit Model(svm::VirtualMachine vm, uint8_t const* program);
+    explicit Model(svm::VirtualMachine vm,
+                   uint8_t const* program,
+                   std::array<uint64_t, 2> arguments);
+
+    ///
+    void startExecutionThread();
 
     ///
     void toggleExecution();
@@ -36,12 +42,10 @@ public:
     }
 
     ///
-    bool running() const { return vm.running(); }
+    bool isRunning();
 
     ///
-    std::optional<size_t> currentLine() const {
-        return disasm.instIndexAt(vm.instructionPointerOffset());
-    }
+    size_t currentLine() const { return currentIndex; }
 
     ///
     bool isBreakpoint(size_t line) const { return breakpoints.contains(line); }
@@ -63,9 +67,21 @@ public:
     }
 
 private:
+    enum class Signal { Sleep, Step, Run };
+
+    /// \Warning requires the calling thread to hold `mutex`
+    void send(Signal signal);
+
     std::thread executionThread;
+    std::condition_variable condVar;
+    std::mutex mutex;
+    Signal signal = Signal::Sleep;
+    std::atomic<bool> running = false;
+    std::atomic<size_t> currentIndex = 0;
+
     svm::VirtualMachine vm;
     Disassembly disasm;
+    std::array<uint64_t, 2> arguments;
     utl::hashset<size_t> breakpoints;
 };
 

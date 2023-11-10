@@ -68,6 +68,10 @@ u64 const* VirtualMachine::execute(size_t startAddress,
     return impl->execute(startAddress, arguments);
 }
 
+void VirtualMachine::beginExecution(std::span<u64 const> arguments) {
+    return impl->beginExecution(impl->startAddress, arguments);
+}
+
 void VirtualMachine::beginExecution(size_t startAddress,
                                     std::span<u64 const> arguments) {
     return impl->beginExecution(startAddress, arguments);

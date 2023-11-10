@@ -1,7 +1,5 @@
 #include "Debugger.h"
 
-#include <thread>
-
 #include "Model.h"
 #include "Views.h"
 
@@ -9,7 +7,7 @@ using namespace sdb;
 using namespace ftxui;
 
 Debugger::Debugger(Model* model):
-    screen(ScreenInteractive::Fullscreen()), regViewSize(20) {
+    model(model), screen(ScreenInteractive::Fullscreen()), regViewSize(20) {
     settings = SettingsView([this] { showSettings = false; });
     root = ResizableSplitRight(RegisterView(model),
                                InstructionView(model),
@@ -47,17 +45,11 @@ Debugger::Debugger(Model* model):
 }
 
 void Debugger::run() {
+    model->startExecutionThread();
     auto renderer = Renderer(root, [&] { return root->Render(); });
-    std::atomic_bool running = true;
-    std::thread bgThread([this, &running] {
-        while (running) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            screen.PostEvent(Event::Special("Wakeup call"));
-        }
-    });
     screen.Loop(renderer);
-    running = false;
-    bgThread.join();
+
+    //    screen.PostEvent(Event::Special("Wakeup call"));
 }
 
 void Debugger::addKeyCommand(std::string key, std::function<void()> command) {
