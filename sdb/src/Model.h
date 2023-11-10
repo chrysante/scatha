@@ -6,6 +6,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -43,35 +44,48 @@ public:
     void exitFunction();
 
     ///
+    void restart();
+
+    ///
     std::span<Instruction const> instructions() const {
         return disasm.instructions();
     }
 
     ///
-    bool isSleeping();
+    bool isSleeping() const;
 
     ///
-    bool isActive() { return execThreadRunning; }
+    bool isActive() const { return execThreadRunning; }
 
     ///
     size_t currentLine() const { return currentIndex; }
 
     ///
-    bool isBreakpoint(size_t line) const { return breakpoints.contains(line); }
+    bool isBreakpoint(size_t line) const {
+        std::lock_guard lock(mutex);
+        return isBreakpointImpl(line);
+    }
 
     ///
-    void addBreakpoint(size_t line) { breakpoints.insert(line); }
+    void addBreakpoint(size_t line) {
+        std::lock_guard lock(mutex);
+        addBreakpointImpl(line);
+    }
 
     ///
-    void removeBreakpoint(size_t line) { breakpoints.erase(line); }
+    void removeBreakpoint(size_t line) {
+        std::lock_guard lock(mutex);
+        removeBreakpointImpl(line);
+    }
 
     ///
     void toggleBreakpoint(size_t line) {
-        if (!isBreakpoint(line)) {
-            addBreakpoint(line);
+        std::lock_guard lock(mutex);
+        if (!isBreakpointImpl(line)) {
+            addBreakpointImpl(line);
         }
         else {
-            removeBreakpoint(line);
+            removeBreakpointImpl(line);
         }
     }
 
@@ -80,6 +94,9 @@ public:
 
     /// \overload
     svm::VirtualMachine const& virtualMachine() const { return vm; }
+
+    ///
+    std::vector<uint64_t> readRegisters(size_t numRegisters) const;
 
     ///
     Disassembly& disassembly() { return disasm; }
@@ -95,8 +112,24 @@ public:
     ///
     void setRefreshCallback(std::function<void()> fn) { refreshCallback = fn; }
 
+    ///
+    std::stringstream& standardout() { return _stdout; }
+
 private:
-    void refreshScreen();
+    bool isBreakpointImpl(size_t line) const {
+        return breakpoints.contains(line);
+    }
+    void addBreakpointImpl(size_t line) { breakpoints.insert(line); }
+    void removeBreakpointImpl(size_t line) { breakpoints.erase(line); }
+    /// Requires the VM to be currently executing
+    void updateInstIndex();
+
+    /// \Warning requires the calling thread to hold `mutex`
+    bool handlePausedOrBreakpoint();
+
+    void setScroll(size_t index);
+    enum SoftOrForce { SOFT, FORCE };
+    void refreshScreen(SoftOrForce = SOFT);
 
     enum class Signal { Sleep, Step, Run, Terminate };
 
@@ -105,7 +138,7 @@ private:
 
     std::thread executionThread;
     std::condition_variable condVar;
-    std::mutex mutex;
+    mutable std::mutex mutex;
     Signal signal = {};
     std::atomic<bool> execThreadRunning = false;
     std::atomic<size_t> currentIndex = 0;
@@ -120,6 +153,8 @@ private:
     std::function<void()> refreshCallback;
     std::chrono::time_point<std::chrono::steady_clock> lastRefresh =
         std::chrono::steady_clock::now();
+
+    std::stringstream _stdout;
 };
 
 } // namespace sdb

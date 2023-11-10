@@ -15,7 +15,7 @@ using namespace ftxui;
 
 static Element breakpointIndicator(bool isBreakpoint) {
     if (isBreakpoint) {
-        return text("> ") | color(Color::BlueLight) | bold;
+        return text(">>") | color(Color::BlueLight) | bold;
     }
     else {
         return text("  ");

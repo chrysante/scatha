@@ -2,6 +2,7 @@
 
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
+#include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
 using namespace sdb;
@@ -13,13 +14,17 @@ static int yExtend(Box box) {
 }
 
 Element ScrollBase::Render() {
+    if (box != lastBox) {
+        clampScroll();
+        lastBox = box;
+    }
     std::vector<Element> elems;
     size_t begin = utl::narrow_cast<size_t>(scrollPos);
     size_t end = ChildCount();
     for (size_t index = begin; index < end; ++index) {
         elems.push_back(ChildAt(index)->Render());
     }
-    return vbox(std::move(elems)) | flex | reflect(box);
+    return vbox(std::move(elems)) | flex | vscroll_indicator | reflect(box);
 }
 
 bool ScrollBase::OnEvent(Event event) {
@@ -84,9 +89,13 @@ bool ScrollBase::handleScroll(Event event) {
     return false;
 }
 
-void ScrollBase::clampScroll() { scrollPos = std::clamp(scrollPos, 0l, max()); }
+void ScrollBase::clampScroll() {
+    scrollPos = std::clamp(scrollPos, long{ 0 }, max());
+}
 
 long ScrollBase::max() const {
     long const overscroll = 0;
-    return static_cast<long>(ChildCount()) - yExtend(box) + overscroll;
+    return std::max(long{ 0 },
+                    static_cast<long>(ChildCount()) - yExtend(box) +
+                        overscroll);
 }

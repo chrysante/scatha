@@ -26,7 +26,7 @@ private:
     long max() const;
 
     long scrollPos = 0;
-    ftxui::Box box;
+    ftxui::Box box, lastBox;
 };
 
 } // namespace sdb

@@ -38,8 +38,6 @@ private:
     int consoleViewSize = 10;
     int memViewSize;
     bool showSettings = false;
-
-    std::stringstream standardout;
 };
 
 } // namespace sdb

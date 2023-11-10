@@ -10,7 +10,6 @@ Debugger::Debugger(Model* model):
     model(model), screen(ScreenInteractive::Fullscreen()), regViewSize(29) {
     model->setRefreshCallback(
         [this] { screen.PostEvent(Event::Special("Wakeup call")); });
-    model->virtualMachine().setIOStreams(nullptr, &standardout);
     settings = SettingsView([this] { showSettings = false; });
     auto sidebar = Container::Vertical({ FlagsView(model),
                                          Renderer([] { return separator(); }),
@@ -27,9 +26,7 @@ Debugger::Debugger(Model* model):
         Renderer([] { return separator(); }),
         root | flex,
     });
-    root = ResizableSplitBottom(ConsoleView(model, standardout),
-                                root,
-                                &consoleViewSize);
+    root = ResizableSplitBottom(ConsoleView(model), root, &consoleViewSize);
     root |= Modal(settings, &showSettings);
     root |= CatchEvent([=](Event event) {
         if (event.is_character()) {
@@ -48,6 +45,7 @@ Debugger::Debugger(Model* model):
     addKeyCommand("s", [=] { model->skipLine(); });
     addKeyCommand("e", [=] { model->enterFunction(); });
     addKeyCommand("l", [=] { model->exitFunction(); });
+    addKeyCommand("r", [=] { model->restart(); });
 }
 
 void Debugger::run() {
