@@ -1,5 +1,7 @@
 #include "Model.h"
 
+#include <ostream>
+
 #include "Common.h"
 
 using namespace sdb;
@@ -9,11 +11,23 @@ Model::Model(svm::VirtualMachine vm,
              std::array<uint64_t, 2> arguments):
     vm(std::move(vm)), disasm(disassemble(program)), arguments(arguments) {}
 
+Model::~Model() {
+    {
+        std::lock_guard lock(mutex);
+        send(Signal::Terminate);
+    }
+    if (executionThread.joinable()) {
+        executionThread.join();
+    }
+}
+
 void Model::startExecutionThread() {
-    running = true;
+    signal = Signal::Sleep;
+    execThreadRunning = true;
     executionThread = std::thread([this] {
         vm.beginExecution(arguments);
-        while (running) {
+        while (execThreadRunning) {
+            refreshScreen();
             std::unique_lock lock(mutex);
             condVar.wait(lock, [&] { return signal != Signal::Sleep; });
             auto sig = signal;
@@ -25,10 +39,7 @@ void Model::startExecutionThread() {
                 if (vm.running()) {
                     vm.stepExecution();
                 }
-                else {
-                    running = false;
-                    break;
-                }
+                execThreadRunning = vm.running();
                 std::lock_guard lock(mutex);
                 signal = Signal::Sleep;
                 currentIndex = disasm.instIndexAt(vm.instructionPointerOffset())
@@ -42,24 +53,31 @@ void Model::startExecutionThread() {
                     if (signal != Signal::Run) {
                         break;
                     }
+                    refreshScreen();
                     auto instIndex =
                         disasm.instIndexAt(vm.instructionPointerOffset());
                     if (instIndex && breakpoints.contains(*instIndex)) {
                         signal = Signal::Sleep;
+                        currentIndex = *instIndex;
                         break;
                     }
                 }
                 if (!vm.running()) {
-                    running = false;
+                    execThreadRunning = false;
                 }
                 std::lock_guard lock(mutex);
                 signal = Signal::Sleep;
                 break;
             }
+            case Signal::Terminate:
+                execThreadRunning = false;
+                break;
             }
         }
         if (!vm.running()) {
             vm.endExecution();
+            vm.ostream() << "Program returned with exit code: "
+                         << vm.getRegister(0) << std::endl;
         }
     });
 }
@@ -83,12 +101,25 @@ void Model::enterFunction() { beep(); }
 
 void Model::exitFunction() { beep(); }
 
-bool Model::isRunning() {
+bool Model::isSleeping() {
     std::lock_guard lock(mutex);
-    return signal == Signal::Run;
+    return signal == Signal::Sleep;
 }
 
 void Model::send(Signal signal) {
     this->signal = signal;
     condVar.notify_all();
+}
+
+void Model::refreshScreen() {
+    using namespace std::chrono;
+    auto now = steady_clock::now();
+    auto dur = now - lastRefresh;
+    if (duration_cast<milliseconds>(dur).count() < 60) {
+        return;
+    }
+    lastRefresh = now;
+    if (refreshScreenFn) {
+        refreshScreenFn();
+    }
 }

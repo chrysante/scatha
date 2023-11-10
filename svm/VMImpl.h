@@ -32,6 +32,8 @@ struct VMStats {
 
 /// Implementation details of the virtual machine
 struct VMImpl {
+    VMImpl();
+
     VirtualMachine* parent = nullptr;
 
     std::vector<std::vector<ExternalFunction>> extFunctionTable;
@@ -70,6 +72,10 @@ struct VMImpl {
     /// Memory of this VM. All memory that the program uses is allocated through
     /// this as well as static memory and stack memory.
     VirtualMemory memory;
+
+    std::istream* istream;
+
+    std::ostream* ostream;
 
     /// See documentation in "VirtualMachine.h"
     /// @{

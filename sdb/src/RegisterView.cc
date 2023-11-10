@@ -6,14 +6,12 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/table.hpp>
 
+#include "Model.h"
+
 using namespace sdb;
 using namespace ftxui;
 
 using TableEntry = std::vector<Element>;
-
-static TableEntry makeRegEntry(size_t index) {
-    return { text("%" + std::to_string(index)), text(std::to_string(rand())) };
-}
 
 namespace {
 
@@ -25,11 +23,15 @@ struct RegView: ftxui::ComponentBase {
                 registers.push_back(makeRegEntry(index));
             }
             auto table = Table(std::move(registers));
-            // table.SelectAll().Border(LIGHT);
-            //  Add border around the first column.
             table.SelectColumn(0).BorderRight();
             return table.Render();
         }));
+    }
+
+    TableEntry makeRegEntry(size_t index) const {
+        return { text("%" + std::to_string(index)),
+                 text(std::to_string(
+                     model->virtualMachine().getRegister(index))) };
     }
 
     Model* model;

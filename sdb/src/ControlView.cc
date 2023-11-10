@@ -57,26 +57,26 @@ struct ButtonInfo {
 } // namespace
 
 static ButtonInfo runButton(Model* model) {
-    return { [=] { return model->isRunning() ? text("||") : text("|>"); },
-             [=] { return true; },
+    return { [=] { return model->isSleeping() ? text("|>") : text("||"); },
+             [=] { return model->isActive(); },
              [=] { model->toggleExecution(); } };
 }
 
 static ButtonInfo skipButton(Model* model) {
     return { text(">_"),
-             [=] { return !model->isRunning(); },
+             [=] { return model->isActive() && model->isSleeping(); },
              [=] { model->skipLine(); } };
 }
 
 static ButtonInfo enterFunctionButton(Model* model) {
     return { text(">\\"),
-             [=] { return !model->isRunning(); },
+             [=] { return model->isActive() && model->isSleeping(); },
              [=] { model->enterFunction(); } };
 }
 
 static ButtonInfo exitFunctionButton(Model* model) {
     return { text("^|"),
-             [=] { return !model->isRunning(); },
+             [=] { return model->isActive() && model->isSleeping(); },
              [=] { model->exitFunction(); } };
 }
 

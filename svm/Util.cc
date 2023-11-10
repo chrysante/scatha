@@ -72,7 +72,7 @@ std::array<u64, 2> svm::setupArguments(VirtualMachine& vm,
     size_t argPointersSize = arguments.pointers.size() * 16;
     size_t stringDataSize = arguments.data.size();
     size_t totalArgSize = argPointersSize + stringDataSize;
-    VirtualPointer argStackData = vm.allocateStackMemory(totalArgSize);
+    VirtualPointer argStackData = vm.allocateStackMemory(totalArgSize, 8);
     struct StringPointer {
         VirtualPointer ptr;
         uint64_t size;

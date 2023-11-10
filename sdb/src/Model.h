@@ -2,6 +2,8 @@
 #define SDB_PROGRAM_H_
 
 #include <atomic>
+#include <chrono>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -20,6 +22,10 @@ public:
     explicit Model(svm::VirtualMachine vm,
                    uint8_t const* program,
                    std::array<uint64_t, 2> arguments);
+
+    Model(Model const&) = delete;
+
+    ~Model();
 
     ///
     void startExecutionThread();
@@ -42,7 +48,10 @@ public:
     }
 
     ///
-    bool isRunning();
+    bool isSleeping();
+
+    ///
+    bool isActive() { return execThreadRunning; }
 
     ///
     size_t currentLine() const { return currentIndex; }
@@ -66,8 +75,21 @@ public:
         }
     }
 
+    ///
+    svm::VirtualMachine& virtualMachine() { return vm; }
+
+    /// \overload
+    svm::VirtualMachine const& virtualMachine() const { return vm; }
+
+    ///
+    void setRefreshScreenClosure(std::function<void()> fn) {
+        refreshScreenFn = fn;
+    }
+
 private:
-    enum class Signal { Sleep, Step, Run };
+    void refreshScreen();
+
+    enum class Signal { Sleep, Step, Run, Terminate };
 
     /// \Warning requires the calling thread to hold `mutex`
     void send(Signal signal);
@@ -75,14 +97,18 @@ private:
     std::thread executionThread;
     std::condition_variable condVar;
     std::mutex mutex;
-    Signal signal = Signal::Sleep;
-    std::atomic<bool> running = false;
+    Signal signal = {};
+    std::atomic<bool> execThreadRunning = false;
     std::atomic<size_t> currentIndex = 0;
 
     svm::VirtualMachine vm;
     Disassembly disasm;
     std::array<uint64_t, 2> arguments;
     utl::hashset<size_t> breakpoints;
+
+    std::function<void()> refreshScreenFn;
+    std::chrono::time_point<std::chrono::steady_clock> lastRefresh =
+        std::chrono::steady_clock::now();
 };
 
 } // namespace sdb

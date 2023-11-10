@@ -47,7 +47,7 @@ template <typename T>
 static ExternalFunction::FuncPtr printVal() {
     return [](u64* regPtr, VirtualMachine* vm, void*) {
         T const value = load<T>(regPtr);
-        std::cout << value;
+        *vm->impl->ostream << value;
     };
 }
 
@@ -134,14 +134,15 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     at(Builtin::putstr) = [](u64* regPtr, VirtualMachine* vm, void*) {
         auto data = load<VirtualPointer>(regPtr);
         size_t size = load<size_t>(regPtr + 1);
-        std::cout << std::string_view(deref<char>(vm, data, size), size);
+        *vm->impl->ostream << std::string_view(deref<char>(vm, data, size),
+                                               size);
     };
     at(Builtin::putptr) = printVal<void*>();
 
     /// ## Console input
     at(Builtin::readline) = [](u64* regPtr, VirtualMachine* vm, void*) {
         std::string line;
-        std::getline(std::cin, line);
+        std::getline(*vm->impl->istream, line);
         auto buffer = vm->impl->memory.allocate(line.size(), 8);
         std::memcpy(deref(vm, buffer, line.size()), line.data(), line.size());
         store(regPtr, buffer);

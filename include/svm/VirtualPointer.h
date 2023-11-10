@@ -1,6 +1,8 @@
 #ifndef SVM_VIRTUALPOINTER_H_
 #define SVM_VIRTUALPOINTER_H_
 
+#include <bit>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -23,22 +25,35 @@ struct VirtualPointer {
     uint64_t slotIndex : 16;
 };
 
-inline VirtualPointer operator+(VirtualPointer p, std::integral auto offset) {
-    p += offset;
-    return p;
+/// \Returns `ptr + offset`
+inline VirtualPointer operator+(VirtualPointer ptr, std::integral auto offset) {
+    ptr += offset;
+    return ptr;
 }
 
-inline VirtualPointer operator-(VirtualPointer p, std::integral auto offset) {
-    p -= offset;
-    return p;
+/// \Returns `ptr - offset`
+inline VirtualPointer operator-(VirtualPointer ptr, std::integral auto offset) {
+    ptr -= offset;
+    return ptr;
 }
 
+/// \Returns `p - q`
 inline ptrdiff_t operator-(VirtualPointer p, VirtualPointer q) {
     return static_cast<ptrdiff_t>(p.offset) - static_cast<ptrdiff_t>(q.offset);
 }
 
-inline bool isAligned(VirtualPointer p, size_t align) {
-    return p.offset % align == 0;
+/// \Returns `true` if \p ptr is aligned to a boundary of \p align bytes
+inline bool isAligned(VirtualPointer ptr, size_t align) {
+    return ptr.offset % align == 0;
+}
+
+/// Adds the smallest number of bytes to \p ptr such that \p ptr is aligned to a
+/// boundary of \p align bytes
+inline void alignTo(VirtualPointer& ptr, size_t align) {
+    assert(std::popcount(align) == 1 && "Not a power of two");
+    if (!isAligned(ptr, align)) {
+        ptr.offset += align - ptr.offset % align;
+    }
 }
 
 static_assert(sizeof(VirtualPointer) == 8,

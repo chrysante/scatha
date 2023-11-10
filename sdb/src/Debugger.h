@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,8 @@ private:
     int consoleViewSize = 10;
     int memViewSize;
     bool showSettings = false;
+
+    std::stringstream standardout;
 };
 
 } // namespace sdb

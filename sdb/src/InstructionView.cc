@@ -35,11 +35,10 @@ struct InstView: ComponentBase {
         {
             ButtonOption opt = ButtonOption::Ascii();
             opt.transform = [=, index = index](EntryState const& s) {
-                bool isCurrent = !model->isRunning() &&
+                bool isCurrent = model->isActive() && model->isSleeping() &&
                                  index == model->currentLine();
                 bool isBreakpoint = model->isBreakpoint(index);
-                std::string labelText(
-                    svm::toString(model->instructions()[index].opcode));
+                std::string labelText(toString(model->instructions()[index]));
                 auto label =
                     hbox({ lineNumber(index, isCurrent), text(labelText) }) |
                     flex;

@@ -22,17 +22,11 @@ auto lines(std::string_view text) {
 namespace {
 
 struct ConsoleViewImpl: ComponentBase {
-    std::stringstream sstr;
+    std::stringstream& standardout;
 
-    ConsoleViewImpl() {
-        sstr << "Hello World!\n";
-        sstr << 23 << "\n";
-        sstr << 123 << std::endl;
-        sstr << 64 << "\n";
-        sstr << "Goodbye.\n";
-
+    ConsoleViewImpl(std::stringstream& out): standardout(out) {
         Add(Renderer([this] {
-            return vbox(lines(sstr.str()) |
+            return vbox(lines(standardout.str()) |
                         ranges::views::transform(
                             [](auto line) { return hflow(paragraph(line)); }) |
                         ranges::to<std::vector>);
@@ -42,6 +36,7 @@ struct ConsoleViewImpl: ComponentBase {
 
 } // namespace
 
-ftxui::Component sdb::ConsoleView(Model* model) {
-    return Make<ConsoleViewImpl>();
+ftxui::Component sdb::ConsoleView(Model* model,
+                                  std::stringstream& standardout) {
+    return Make<ConsoleViewImpl>(standardout);
 }

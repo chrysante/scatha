@@ -96,7 +96,7 @@ public:
     /// # Memory
 
     /// Allocates a memory region in the current stack frame.
-    VirtualPointer allocateStackMemory(size_t numBytes);
+    VirtualPointer allocateStackMemory(size_t numBytes, size_t align);
 
     /// Allocates virtual memory on the heap
     VirtualPointer allocateMemory(size_t size, size_t align);
@@ -118,7 +118,17 @@ public:
     /// frame
     void printRegisters(size_t n) const;
 
-    /// This is not private because many internal outside of this class
+    /// Set the standard input and output streams to \p in and \p out
+    /// If any of the arguments is null the respective stream is not modified
+    void setIOStreams(std::istream* in, std::ostream* out);
+
+    /// \Returns the currently set input stream
+    std::istream& istream() const;
+
+    /// \Returns the currently set output stream
+    std::ostream& ostream() const;
+
+    /// This is not private because many internals outside of this class
     /// reference this but it is effectively private because the type `VMImpl`
     /// is internal
     std::unique_ptr<VMImpl> impl;

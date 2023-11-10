@@ -2,6 +2,7 @@
 #define SDB_DISASSEMBLER_H_
 
 #include <optional>
+#include <string>
 #include <vector>
 
 #include <svm/OpCode.h>
@@ -13,9 +14,51 @@ namespace sdb {
 class Disassembly;
 
 ///
+struct Value {
+    enum Type {
+        RegisterIndex,
+        Address,
+        Value8,
+        Value16,
+        Value32,
+        Value64,
+    };
+
+    Type type;
+    uint64_t raw;
+};
+
+/// `Value` Constructors
+/// @{
+Value makeRegisterIndex(size_t index);
+Value makeAddress(uint8_t baseRegIdx,
+                  uint8_t offsetRegIdx,
+                  uint8_t offsetFactor,
+                  uint8_t offsetTerm);
+Value makeAddress(uint32_t value);
+Value makeValue8(uint64_t value);
+Value makeValue16(uint64_t value);
+Value makeValue32(uint64_t value);
+Value makeValue64(uint64_t value);
+/// @}
+
+///
+std::string toString(Value value);
+
+///
+std::ostream& operator<<(std::ostream& ostream, Value value);
+
+///
 struct Instruction {
     svm::OpCode opcode;
+    Value arg1, arg2;
 };
+
+///
+std::string toString(Instruction inst);
+
+///
+std::ostream& operator<<(std::ostream& ostream, Instruction inst);
 
 ///
 Disassembly disassemble(uint8_t const* program);

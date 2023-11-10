@@ -127,10 +127,12 @@ void VirtualMachine::printRegisters(size_t n) const {
     }
 }
 
-VirtualPointer VirtualMachine::allocateStackMemory(size_t numBytes) {
-    /// TODO: Align the memory to something
+VirtualPointer VirtualMachine::allocateStackMemory(size_t numBytes,
+                                                   size_t align) {
+    alignTo(impl->currentFrame.stackPtr, align);
     auto result = impl->currentFrame.stackPtr;
     impl->currentFrame.stackPtr += numBytes;
+    alignTo(impl->currentFrame.stackPtr, 8);
     return result;
 }
 
@@ -147,3 +149,18 @@ void VirtualMachine::deallocateMemory(VirtualPointer ptr,
 void* VirtualMachine::derefPointer(VirtualPointer ptr, size_t numBytes) const {
     return impl->memory.dereference(ptr, numBytes);
 }
+
+void VirtualMachine::setIOStreams(std::istream* in, std::ostream* out) {
+    if (in) {
+        impl->istream = in;
+    }
+    if (out) {
+        impl->ostream = out;
+    }
+}
+
+std::istream& VirtualMachine::istream() const { return *impl->istream; }
+
+std::ostream& VirtualMachine::ostream() const { return *impl->ostream; }
+
+VMImpl::VMImpl(): istream(&std::cin), ostream(&std::cout) {}
