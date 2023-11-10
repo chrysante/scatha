@@ -4,9 +4,11 @@
 
 #include <ftxui/dom/elements.hpp>
 #include <range/v3/view.hpp>
+#include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
 #include "Model.h"
+#include "ScrollBase.h"
 
 using namespace sdb;
 using namespace ftxui;
@@ -28,17 +30,30 @@ static Element lineNumber(size_t index, bool isCurrent) {
 
 namespace {
 
-struct InstView: ComponentBase {
+struct InstView: ScrollBase {
     InstView(Model* model): model(model) {
+        model->setScrollCallback([this](size_t index) {
+            index = indexMap[index];
+            if (!isInView(index)) {
+                center(index);
+            }
+        });
         for (auto [index, inst]:
              model->instructions() | ranges::views::enumerate)
         {
+            if (inst.labelID != 0) {
+                Add(Renderer(
+                    [ID = inst.labelID] { return text(labelName(ID)); }));
+            }
+
+            indexMap.push_back(ChildCount());
             ButtonOption opt = ButtonOption::Ascii();
             opt.transform = [=, index = index](EntryState const& s) {
                 bool isCurrent = model->isActive() && model->isSleeping() &&
                                  index == model->currentLine();
                 bool isBreakpoint = model->isBreakpoint(index);
-                std::string labelText(toString(model->instructions()[index]));
+                std::string labelText(toString(model->instructions()[index],
+                                               &model->disassembly()));
                 auto label =
                     hbox({ lineNumber(index, isCurrent), text(labelText) }) |
                     flex;
@@ -55,10 +70,9 @@ struct InstView: ComponentBase {
     }
 
     Model* model;
+    std::vector<size_t> indexMap;
 };
 
 } // namespace
 
-Component sdb::InstructionView(Model* model) {
-    return ScrollView(Make<InstView>(model));
-}
+Component sdb::InstructionView(Model* model) { return Make<InstView>(model); }

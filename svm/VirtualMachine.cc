@@ -122,6 +122,10 @@ std::span<u8 const> VirtualMachine::stackData() const {
 
 CompareFlags VirtualMachine::getCompareFlags() const { return impl->cmpFlags; }
 
+ExecutionFrame VirtualMachine::getCurrentExecFrame() const {
+    return impl->currentFrame;
+}
+
 void VirtualMachine::printRegisters(size_t n) const {
     for (size_t i = 0; i < n; ++i) {
         std::cout << "%" << i << ": " << std::hex

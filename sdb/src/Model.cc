@@ -44,21 +44,26 @@ void Model::startExecutionThread() {
                 signal = Signal::Sleep;
                 currentIndex = disasm.instIndexAt(vm.instructionPointerOffset())
                                    .value_or(0);
+                if (scrollCallback) {
+                    scrollCallback(currentIndex);
+                }
                 break;
             }
             case Signal::Run: {
                 while (vm.running()) {
                     vm.stepExecution();
                     std::lock_guard lock(mutex);
-                    if (signal != Signal::Run) {
-                        break;
-                    }
                     refreshScreen();
                     auto instIndex =
                         disasm.instIndexAt(vm.instructionPointerOffset());
-                    if (instIndex && breakpoints.contains(*instIndex)) {
+                    if ((instIndex && breakpoints.contains(*instIndex)) ||
+                        signal != Signal::Run)
+                    {
                         signal = Signal::Sleep;
-                        currentIndex = *instIndex;
+                        currentIndex = instIndex.value_or(0);
+                        if (scrollCallback) {
+                            scrollCallback(currentIndex);
+                        }
                         break;
                     }
                 }
@@ -119,7 +124,7 @@ void Model::refreshScreen() {
         return;
     }
     lastRefresh = now;
-    if (refreshScreenFn) {
-        refreshScreenFn();
+    if (refreshCallback) {
+        refreshCallback();
     }
 }

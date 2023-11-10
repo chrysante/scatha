@@ -7,24 +7,12 @@
 #include <utl/vector.hpp>
 
 #include "svm/Common.h"
-#include "svm/CompareFlags.h"
+#include "svm/VMData.h"
 #include "svm/VirtualMemory.h"
 
 namespace svm {
 
 class VirtualMachine;
-
-/// Represents the state of an invocation of the virtual machine.
-struct ExecutionFrame {
-    u64* regPtr = nullptr;
-    u64* bottomReg = nullptr;
-    u8 const* iptr = nullptr;
-    VirtualPointer stackPtr{};
-};
-
-struct VMStats {
-    size_t executedInstructions = 0;
-};
 
 /// Implementation details of the virtual machine
 struct VMImpl {

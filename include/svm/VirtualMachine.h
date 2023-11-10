@@ -6,8 +6,8 @@
 #include <vector>
 
 #include <svm/Common.h>
-#include <svm/CompareFlags.h>
 #include <svm/ExternalFunction.h>
+#include <svm/VMData.h>
 #include <svm/VirtualPointer.h>
 
 namespace svm {
@@ -96,6 +96,9 @@ public:
 
     ///
     CompareFlags getCompareFlags() const;
+
+    ///
+    ExecutionFrame getCurrentExecFrame() const;
 
     /// # Memory
 

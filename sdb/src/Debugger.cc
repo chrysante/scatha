@@ -7,8 +7,8 @@ using namespace sdb;
 using namespace ftxui;
 
 Debugger::Debugger(Model* model):
-    model(model), screen(ScreenInteractive::Fullscreen()), regViewSize(20) {
-    model->setRefreshScreenClosure(
+    model(model), screen(ScreenInteractive::Fullscreen()), regViewSize(29) {
+    model->setRefreshCallback(
         [this] { screen.PostEvent(Event::Special("Wakeup call")); });
     model->virtualMachine().setIOStreams(nullptr, &standardout);
     settings = SettingsView([this] { showSettings = false; });

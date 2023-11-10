@@ -3,6 +3,8 @@
 #include <bit>
 #include <sstream>
 
+#include <range/v3/algorithm.hpp>
+#include <range/v3/view.hpp>
 #include <utl/strcat.hpp>
 
 using namespace sdb;
@@ -29,7 +31,7 @@ std::ostream& sdb::operator<<(std::ostream& str, Value value) {
         auto addr = std::bit_cast<Addr>(static_cast<uint32_t>(value.raw));
         str << "[%" << +addr.baseRegIdx;
         if (addr.offsetRegIdx != 0xFF) {
-            str << " + " << +addr.offsetFactor << " * %" << addr.offsetRegIdx;
+            str << " + " << +addr.offsetFactor << " * %" << +addr.offsetRegIdx;
         }
         if (addr.offsetTerm != 0) {
             str << " + " << +addr.offsetTerm;
@@ -76,9 +78,22 @@ Value sdb::makeValue32(uint64_t value) { return { Value::Value32, value }; }
 
 Value sdb::makeValue64(uint64_t value) { return { Value::Value64, value }; }
 
-std::string sdb::toString(Instruction inst) { return utl::strcat(inst); }
+static std::string getLabelName(Disassembly const* disasm, Value offset) {
+    if (!disasm) {
+        return toString(offset);
+    }
+    assert(offset.type == Value::Value32);
+    auto destIndex = disasm->instIndexAt(offset.raw);
+    if (!destIndex) {
+        return toString(offset);
+    }
+    auto& destInst = disasm->instructions()[*destIndex];
+    return labelName(destInst.labelID);
+}
 
-std::ostream& sdb::operator<<(std::ostream& str, Instruction inst) {
+static void print(std::ostream& str,
+                  Instruction inst,
+                  Disassembly const* disasm) {
     str << toString(inst.opcode);
     using enum OpCodeClass;
     switch (classify(inst.opcode)) {
@@ -99,7 +114,7 @@ std::ostream& sdb::operator<<(std::ostream& str, Instruction inst) {
         str << " " << inst.arg1;
         break;
     case Jump:
-        str << " " << inst.arg1;
+        str << " " << getLabelName(disasm, inst.arg1);
         break;
     case Other:
         switch (inst.opcode) {
@@ -107,7 +122,7 @@ std::ostream& sdb::operator<<(std::ostream& str, Instruction inst) {
             str << " " << inst.arg1 << ", " << inst.arg2;
             break;
         case OpCode::call:
-            str << " " << inst.arg1 << ", " << inst.arg2;
+            str << " " << getLabelName(disasm, inst.arg1) << ", " << inst.arg2;
             break;
         case OpCode::icallr:
             str << " " << inst.arg1 << ", " << inst.arg2;
@@ -127,7 +142,22 @@ std::ostream& sdb::operator<<(std::ostream& str, Instruction inst) {
     case _count:
         assert(false);
     }
+}
+
+std::string sdb::toString(Instruction inst, Disassembly const* disasm) {
+    std::stringstream sstr;
+    print(sstr, inst, disasm);
+    return std::move(sstr).str();
+}
+
+std::ostream& sdb::operator<<(std::ostream& str, Instruction inst) {
+    print(str, inst, nullptr);
     return str;
+}
+
+std::string sdb::labelName(size_t ID) {
+    assert(ID != 0);
+    return utl::strcat(".L", ID);
 }
 
 template <typename T>
@@ -137,81 +167,113 @@ static T load(void const* src) {
     return t;
 }
 
+static Instruction readInstruction(uint8_t const* textPtr) {
+    OpCode const opcode = static_cast<OpCode>(*textPtr);
+    auto const opcodeClass = classify(opcode);
+    Value arg1{};
+    Value arg2{};
+    uint8_t const* argData = textPtr + sizeof(OpCode);
+    switch (opcodeClass) {
+        using enum OpCodeClass;
+    case RR:
+        arg1 = makeRegisterIndex(load<uint8_t>(argData));
+        arg2 = makeRegisterIndex(load<uint8_t>(argData + 1));
+        break;
+    case RV64:
+        arg1 = makeRegisterIndex(load<uint8_t>(argData));
+        arg2 = makeValue64(load<uint64_t>(argData + 1));
+        break;
+    case RV32:
+        arg1 = makeRegisterIndex(load<uint8_t>(argData));
+        arg2 = makeValue32(load<uint32_t>(argData + 1));
+        break;
+    case RV8:
+        arg1 = makeRegisterIndex(load<uint8_t>(argData));
+        arg2 = makeValue8(load<uint8_t>(argData + 1));
+        break;
+    case RM:
+        arg1 = makeRegisterIndex(load<uint8_t>(argData));
+        arg2 = makeAddress(load<uint32_t>(argData + 1));
+        break;
+    case MR:
+        arg1 = makeAddress(load<uint32_t>(argData));
+        arg2 = makeRegisterIndex(load<uint8_t>(argData + 4));
+        break;
+    case R:
+        arg1 = makeRegisterIndex(load<uint8_t>(argData));
+        break;
+    case Jump:
+        arg1 = makeValue32(load<uint32_t>(argData));
+        break;
+    case Other:
+        switch (opcode) {
+        case OpCode::lincsp:
+            arg1 = makeRegisterIndex(load<uint8_t>(argData));
+            arg2 = makeValue16(load<uint16_t>(argData + 1));
+            break;
+        case OpCode::call:
+            arg1 = makeValue32(load<uint32_t>(argData));
+            arg2 = makeValue8(load<uint8_t>(argData + 4));
+            break;
+        case OpCode::icallr:
+            arg1 = makeRegisterIndex(load<uint8_t>(argData));
+            arg2 = makeValue8(load<uint8_t>(argData + 1));
+            break;
+        case OpCode::icallm:
+            break;
+        case OpCode::ret:
+            break;
+        case OpCode::terminate:
+            break;
+        case OpCode::callExt:
+            break;
+        default:
+            assert(false);
+        }
+        break;
+    case _count:
+        assert(false);
+    }
+    return { opcode, arg1, arg2 };
+}
+
 Disassembly sdb::disassemble(uint8_t const* program) {
     Disassembly result;
     ProgramView const p(program);
     auto text = p.text;
+
+    /// Gather all instructions
     for (size_t i = 0; i < text.size();) {
         size_t binOffset = i + p.header.textOffset - sizeof(ProgramHeader);
-        OpCode const opcode = static_cast<OpCode>(text[i]);
-        auto const opcodeClass = classify(opcode);
-        Value arg1{};
-        Value arg2{};
-        uint8_t const* argData = &text[i] + sizeof(OpCode);
-        switch (opcodeClass) {
-            using enum OpCodeClass;
-        case RR:
-            arg1 = makeRegisterIndex(load<uint8_t>(argData));
-            arg2 = makeRegisterIndex(load<uint8_t>(argData + 1));
-            break;
-        case RV64:
-            arg1 = makeRegisterIndex(load<uint8_t>(argData));
-            arg2 = makeValue64(load<uint64_t>(argData + 1));
-            break;
-        case RV32:
-            arg1 = makeRegisterIndex(load<uint8_t>(argData));
-            arg2 = makeValue32(load<uint32_t>(argData + 1));
-            break;
-        case RV8:
-            arg1 = makeRegisterIndex(load<uint8_t>(argData));
-            arg2 = makeValue8(load<uint8_t>(argData + 1));
-            break;
-        case RM:
-            arg1 = makeRegisterIndex(load<uint8_t>(argData));
-            arg2 = makeAddress(load<uint32_t>(argData + 1));
-            break;
-        case MR:
-            arg1 = makeAddress(load<uint32_t>(argData));
-            arg2 = makeRegisterIndex(load<uint8_t>(argData + 4));
-            break;
-        case R:
-            arg1 = makeRegisterIndex(load<uint8_t>(argData));
-            break;
-        case Jump:
-            arg1 = makeValue32(load<uint32_t>(argData));
-            break;
-        case Other:
-            switch (opcode) {
-            case OpCode::lincsp:
-                arg1 = makeValue8(load<uint8_t>(argData));
-                arg2 = makeValue16(load<uint16_t>(argData + 1));
-                break;
-            case OpCode::call:
-                arg1 = makeValue32(load<uint32_t>(argData));
-                arg2 = makeValue8(load<uint8_t>(argData + 4));
-                break;
-            case OpCode::icallr:
-                arg1 = makeRegisterIndex(load<uint8_t>(argData));
-                arg2 = makeValue8(load<uint8_t>(argData + 1));
-                break;
-            case OpCode::icallm:
-                break;
-            case OpCode::ret:
-                break;
-            case OpCode::terminate:
-                break;
-            case OpCode::callExt:
-                break;
-            default:
-                assert(false);
-            }
-            break;
-        case _count:
-            assert(false);
-        }
+        auto inst = readInstruction(&text[i]);
         result.offsetIndexMap.insert({ binOffset, result.insts.size() });
-        result.insts.push_back({ opcode, arg1, arg2 });
-        i += codeSize(opcode);
+        result.insts.push_back(inst);
+        i += codeSize(inst.opcode);
     }
+
+    /// Gather indices of all labelled instructions, i.e. instructions that are
+    /// targets of jumps or calls
+    auto labelledInstructionIndices =
+        result.insts | ranges::views::enumerate |
+        ranges::views::filter([](auto p) {
+            auto [index, inst] = p;
+            return inst.opcode == OpCode::call ||
+                   classify(inst.opcode) == OpCodeClass::Jump;
+        }) |
+        ranges::views::values | ranges::views::transform([&](auto& inst) {
+            return result.instIndexAt(inst.arg1.raw).value();
+        }) |
+        ranges::to<std::vector>;
+
+    ranges::sort(labelledInstructionIndices);
+    ranges::unique(labelledInstructionIndices);
+
+    /// Assign ascending labels to all labelled instructions
+    size_t labelID = 1;
+    ranges::for_each(labelledInstructionIndices, [&](size_t index) {
+        auto& destInst = result.insts[index];
+        destInst.labelID = labelID++;
+    });
+
     return result;
 }

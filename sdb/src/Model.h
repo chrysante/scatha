@@ -82,9 +82,18 @@ public:
     svm::VirtualMachine const& virtualMachine() const { return vm; }
 
     ///
-    void setRefreshScreenClosure(std::function<void()> fn) {
-        refreshScreenFn = fn;
+    Disassembly& disassembly() { return disasm; }
+
+    /// \overload
+    Disassembly const& disassembly() const { return disasm; }
+
+    ///
+    void setScrollCallback(std::function<void(size_t)> fn) {
+        scrollCallback = fn;
     }
+
+    ///
+    void setRefreshCallback(std::function<void()> fn) { refreshCallback = fn; }
 
 private:
     void refreshScreen();
@@ -106,7 +115,9 @@ private:
     std::array<uint64_t, 2> arguments;
     utl::hashset<size_t> breakpoints;
 
-    std::function<void()> refreshScreenFn;
+    std::function<void(size_t)> scrollCallback;
+
+    std::function<void()> refreshCallback;
     std::chrono::time_point<std::chrono::steady_clock> lastRefresh =
         std::chrono::steady_clock::now();
 };

@@ -22,8 +22,8 @@ Component sdb::FlagsView(Model* model) {
             display("Equal", flags.equal),
             display("NotEqual", !flags.equal),
             display("Less", flags.less),
-            display("LessEq", flags.less && flags.equal),
-            display("Greater", !flags.less && !flags.equal),
+            display("LessEq", flags.less || flags.equal),
+            display("Greater", !flags.less || !flags.equal),
             display("GreaterEq", !flags.less),
         });
     });

@@ -48,27 +48,42 @@ std::string toString(Value value);
 ///
 std::ostream& operator<<(std::ostream& ostream, Value value);
 
-///
+/// Represents a single VM intruction
 struct Instruction {
+    /// The opcode of this instructions
     svm::OpCode opcode;
+
+    /// The arguments of this instruction. These can be empty depending on the
+    /// opcode
     Value arg1, arg2;
+
+    /// The ID of the label of this instruction. Zero means this instructions is
+    /// unlabelled
+    size_t labelID = 0;
 };
 
-///
-std::string toString(Instruction inst);
+/// Convert the instruction \p inst to a string. If \p disasm is non-null it is
+/// used to print prettier labels
+std::string toString(Instruction inst, Disassembly const* disasm = nullptr);
 
-///
+/// Print \p inst to \p ostream
 std::ostream& operator<<(std::ostream& ostream, Instruction inst);
 
-///
+/// Convert the label id \p ID to a name
+std::string labelName(size_t ID);
+
+/// Disassemble the program \p program
+/// Disassembling a program recomputes as much structure as possible to enable
+/// debugging
 Disassembly disassemble(uint8_t const* program);
 
-///
+/// Represents a disassembled program.
 class Disassembly {
 public:
     Disassembly() = default;
 
-    ///
+    /// \Returns the instruction at binary offset \p offset if there is an
+    /// instruction at that offset. Otherwise returns null
     Instruction const* instructionAt(size_t offset) const {
         if (auto index = instIndexAt(offset)) {
             return &insts[*index];
@@ -76,7 +91,8 @@ public:
         return nullptr;
     }
 
-    ///
+    /// \Returns the index of the instruction at binary offset \p offset if
+    /// possible
     std::optional<size_t> instIndexAt(size_t offset) const {
         auto itr = offsetIndexMap.find(offset);
         if (itr != offsetIndexMap.end()) {
@@ -85,6 +101,7 @@ public:
         return std::nullopt;
     }
 
+    /// \Returns a view over the instructions in this program
     std::span<Instruction const> instructions() const { return insts; }
 
 private:

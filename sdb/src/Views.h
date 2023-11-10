@@ -12,11 +12,6 @@ class Model;
 ///
 ///
 ///
-ftxui::Component ScrollView(ftxui::Component child);
-
-///
-///
-///
 ftxui::Component ControlView(Model* model, std::function<void()> showSettings);
 
 ///

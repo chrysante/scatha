@@ -33,37 +33,35 @@ struct ButtonInfo {
 
     operator Component() const {
         auto opt = ButtonOption::Simple();
-        opt.transform = [label = label, active = active](EntryState const&) {
+        opt.transform = [active = active, label = label](EntryState const&) {
             auto elem = label();
             if (!active()) {
-                elem |= color(Color::GrayLight);
+                elem |= color(Color::GrayDark);
             }
             return elem | center | size(WIDTH, EQUAL, 4);
         };
-        return Button(
-            "Button",
-            [active = active, action = action] {
+        auto callback = [active = active, action = action] {
             if (active()) {
                 action();
             }
             else {
                 beep();
             }
-            },
-            opt);
+        };
+        return Button("Button", callback, opt);
     }
 };
 
 } // namespace
 
 static ButtonInfo runButton(Model* model) {
-    return { [=] { return model->isSleeping() ? text("|>") : text("||"); },
+    return { [=] { return model->isSleeping() ? text(">_") : text("||"); },
              [=] { return model->isActive(); },
              [=] { model->toggleExecution(); } };
 }
 
 static ButtonInfo skipButton(Model* model) {
-    return { text(">_"),
+    return { text("⋀_"),
              [=] { return model->isActive() && model->isSleeping(); },
              [=] { model->skipLine(); } };
 }
