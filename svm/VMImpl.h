@@ -7,16 +7,12 @@
 #include <utl/vector.hpp>
 
 #include "svm/Common.h"
+#include "svm/CompareFlags.h"
 #include "svm/VirtualMemory.h"
 
 namespace svm {
 
 class VirtualMachine;
-
-struct VMFlags {
-    bool less  : 1;
-    bool equal : 1;
-};
 
 /// Represents the state of an invocation of the virtual machine.
 struct ExecutionFrame {
@@ -38,7 +34,7 @@ struct VMImpl {
 
     std::vector<std::vector<ExternalFunction>> extFunctionTable;
 
-    VMFlags flags{};
+    CompareFlags cmpFlags{};
 
     /// Stack pointer. Will be set when a binary is loaded.
     u8* stackPtr = nullptr;

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <svm/Common.h>
+#include <svm/CompareFlags.h>
 #include <svm/ExternalFunction.h>
 #include <svm/VirtualPointer.h>
 
@@ -92,6 +93,9 @@ public:
 
     /// \Returns A view of the data on the stack of the VM
     std::span<u8 const> stackData() const;
+
+    ///
+    CompareFlags getCompareFlags() const;
 
     /// # Memory
 

@@ -179,7 +179,9 @@ ALWAYS_INLINE static void jump(u8 const* i,
 }
 
 template <typename T>
-ALWAYS_INLINE static void compareRR(u8 const* i, u64* reg, VMFlags& flags) {
+ALWAYS_INLINE static void compareRR(u8 const* i,
+                                    u64* reg,
+                                    CompareFlags& flags) {
     size_t const regIdxA = i[0];
     size_t const regIdxB = i[1];
     T const a = load<T>(&reg[regIdxA]);
@@ -189,7 +191,9 @@ ALWAYS_INLINE static void compareRR(u8 const* i, u64* reg, VMFlags& flags) {
 }
 
 template <typename T>
-ALWAYS_INLINE static void compareRV(u8 const* i, u64* reg, VMFlags& flags) {
+ALWAYS_INLINE static void compareRV(u8 const* i,
+                                    u64* reg,
+                                    CompareFlags& flags) {
     size_t const regIdxA = i[0];
     T const a = load<T>(&reg[regIdxA]);
     T const b = load<T>(i + 1);
@@ -198,7 +202,7 @@ ALWAYS_INLINE static void compareRV(u8 const* i, u64* reg, VMFlags& flags) {
 }
 
 template <typename T>
-ALWAYS_INLINE static void testR(u8 const* i, u64* reg, VMFlags& flags) {
+ALWAYS_INLINE static void testR(u8 const* i, u64* reg, CompareFlags& flags) {
     size_t const regIdx = i[0];
     T const a = load<T>(&reg[regIdx]);
     flags.less = a < 0;
@@ -261,12 +265,14 @@ ALWAYS_INLINE static void convert(u8 const* i, u64* reg) {
 }
 
 /// ## Conditions
-ALWAYS_INLINE static bool equal(VMFlags f) { return f.equal; }
-ALWAYS_INLINE static bool notEqual(VMFlags f) { return !f.equal; }
-ALWAYS_INLINE static bool less(VMFlags f) { return f.less; }
-ALWAYS_INLINE static bool lessEq(VMFlags f) { return f.less || f.equal; }
-ALWAYS_INLINE static bool greater(VMFlags f) { return !f.less && !f.equal; }
-ALWAYS_INLINE static bool greaterEq(VMFlags f) { return !f.less; }
+ALWAYS_INLINE static bool equal(CompareFlags f) { return f.equal; }
+ALWAYS_INLINE static bool notEqual(CompareFlags f) { return !f.equal; }
+ALWAYS_INLINE static bool less(CompareFlags f) { return f.less; }
+ALWAYS_INLINE static bool lessEq(CompareFlags f) { return f.less || f.equal; }
+ALWAYS_INLINE static bool greater(CompareFlags f) {
+    return !f.less && !f.equal;
+}
+ALWAYS_INLINE static bool greaterEq(CompareFlags f) { return !f.less; }
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     beginExecution(start, arguments);
@@ -379,47 +385,47 @@ void VMImpl::stepExecution() {
     INST(mov64RM) { moveRM<8>(memory, i, regPtr); }
 
     /// ## Conditional moves
-    INST(cmove64RR) { condMove64RR(i, regPtr, equal(flags)); }
-    INST(cmove64RV) { condMove64RV(i, regPtr, equal(flags)); }
-    INST(cmove8RM) { condMoveRM<1>(memory, i, regPtr, equal(flags)); }
-    INST(cmove16RM) { condMoveRM<2>(memory, i, regPtr, equal(flags)); }
-    INST(cmove32RM) { condMoveRM<4>(memory, i, regPtr, equal(flags)); }
-    INST(cmove64RM) { condMoveRM<8>(memory, i, regPtr, equal(flags)); }
+    INST(cmove64RR) { condMove64RR(i, regPtr, equal(cmpFlags)); }
+    INST(cmove64RV) { condMove64RV(i, regPtr, equal(cmpFlags)); }
+    INST(cmove8RM) { condMoveRM<1>(memory, i, regPtr, equal(cmpFlags)); }
+    INST(cmove16RM) { condMoveRM<2>(memory, i, regPtr, equal(cmpFlags)); }
+    INST(cmove32RM) { condMoveRM<4>(memory, i, regPtr, equal(cmpFlags)); }
+    INST(cmove64RM) { condMoveRM<8>(memory, i, regPtr, equal(cmpFlags)); }
 
-    INST(cmovne64RR) { condMove64RR(i, regPtr, notEqual(flags)); }
-    INST(cmovne64RV) { condMove64RV(i, regPtr, notEqual(flags)); }
-    INST(cmovne8RM) { condMoveRM<1>(memory, i, regPtr, notEqual(flags)); }
-    INST(cmovne16RM) { condMoveRM<2>(memory, i, regPtr, notEqual(flags)); }
-    INST(cmovne32RM) { condMoveRM<4>(memory, i, regPtr, notEqual(flags)); }
-    INST(cmovne64RM) { condMoveRM<8>(memory, i, regPtr, notEqual(flags)); }
+    INST(cmovne64RR) { condMove64RR(i, regPtr, notEqual(cmpFlags)); }
+    INST(cmovne64RV) { condMove64RV(i, regPtr, notEqual(cmpFlags)); }
+    INST(cmovne8RM) { condMoveRM<1>(memory, i, regPtr, notEqual(cmpFlags)); }
+    INST(cmovne16RM) { condMoveRM<2>(memory, i, regPtr, notEqual(cmpFlags)); }
+    INST(cmovne32RM) { condMoveRM<4>(memory, i, regPtr, notEqual(cmpFlags)); }
+    INST(cmovne64RM) { condMoveRM<8>(memory, i, regPtr, notEqual(cmpFlags)); }
 
-    INST(cmovl64RR) { condMove64RR(i, regPtr, less(flags)); }
-    INST(cmovl64RV) { condMove64RV(i, regPtr, less(flags)); }
-    INST(cmovl8RM) { condMoveRM<1>(memory, i, regPtr, less(flags)); }
-    INST(cmovl16RM) { condMoveRM<2>(memory, i, regPtr, less(flags)); }
-    INST(cmovl32RM) { condMoveRM<4>(memory, i, regPtr, less(flags)); }
-    INST(cmovl64RM) { condMoveRM<8>(memory, i, regPtr, less(flags)); }
+    INST(cmovl64RR) { condMove64RR(i, regPtr, less(cmpFlags)); }
+    INST(cmovl64RV) { condMove64RV(i, regPtr, less(cmpFlags)); }
+    INST(cmovl8RM) { condMoveRM<1>(memory, i, regPtr, less(cmpFlags)); }
+    INST(cmovl16RM) { condMoveRM<2>(memory, i, regPtr, less(cmpFlags)); }
+    INST(cmovl32RM) { condMoveRM<4>(memory, i, regPtr, less(cmpFlags)); }
+    INST(cmovl64RM) { condMoveRM<8>(memory, i, regPtr, less(cmpFlags)); }
 
-    INST(cmovle64RR) { condMove64RR(i, regPtr, lessEq(flags)); }
-    INST(cmovle64RV) { condMove64RV(i, regPtr, lessEq(flags)); }
-    INST(cmovle8RM) { condMoveRM<1>(memory, i, regPtr, lessEq(flags)); }
-    INST(cmovle16RM) { condMoveRM<2>(memory, i, regPtr, lessEq(flags)); }
-    INST(cmovle32RM) { condMoveRM<4>(memory, i, regPtr, lessEq(flags)); }
-    INST(cmovle64RM) { condMoveRM<8>(memory, i, regPtr, lessEq(flags)); }
+    INST(cmovle64RR) { condMove64RR(i, regPtr, lessEq(cmpFlags)); }
+    INST(cmovle64RV) { condMove64RV(i, regPtr, lessEq(cmpFlags)); }
+    INST(cmovle8RM) { condMoveRM<1>(memory, i, regPtr, lessEq(cmpFlags)); }
+    INST(cmovle16RM) { condMoveRM<2>(memory, i, regPtr, lessEq(cmpFlags)); }
+    INST(cmovle32RM) { condMoveRM<4>(memory, i, regPtr, lessEq(cmpFlags)); }
+    INST(cmovle64RM) { condMoveRM<8>(memory, i, regPtr, lessEq(cmpFlags)); }
 
-    INST(cmovg64RR) { condMove64RR(i, regPtr, greater(flags)); }
-    INST(cmovg64RV) { condMove64RV(i, regPtr, greater(flags)); }
-    INST(cmovg8RM) { condMoveRM<1>(memory, i, regPtr, greater(flags)); }
-    INST(cmovg16RM) { condMoveRM<2>(memory, i, regPtr, greater(flags)); }
-    INST(cmovg32RM) { condMoveRM<4>(memory, i, regPtr, greater(flags)); }
-    INST(cmovg64RM) { condMoveRM<8>(memory, i, regPtr, greater(flags)); }
+    INST(cmovg64RR) { condMove64RR(i, regPtr, greater(cmpFlags)); }
+    INST(cmovg64RV) { condMove64RV(i, regPtr, greater(cmpFlags)); }
+    INST(cmovg8RM) { condMoveRM<1>(memory, i, regPtr, greater(cmpFlags)); }
+    INST(cmovg16RM) { condMoveRM<2>(memory, i, regPtr, greater(cmpFlags)); }
+    INST(cmovg32RM) { condMoveRM<4>(memory, i, regPtr, greater(cmpFlags)); }
+    INST(cmovg64RM) { condMoveRM<8>(memory, i, regPtr, greater(cmpFlags)); }
 
-    INST(cmovge64RR) { condMove64RR(i, regPtr, greaterEq(flags)); }
-    INST(cmovge64RV) { condMove64RV(i, regPtr, greaterEq(flags)); }
-    INST(cmovge8RM) { condMoveRM<1>(memory, i, regPtr, greaterEq(flags)); }
-    INST(cmovge16RM) { condMoveRM<2>(memory, i, regPtr, greaterEq(flags)); }
-    INST(cmovge32RM) { condMoveRM<4>(memory, i, regPtr, greaterEq(flags)); }
-    INST(cmovge64RM) { condMoveRM<8>(memory, i, regPtr, greaterEq(flags)); }
+    INST(cmovge64RR) { condMove64RR(i, regPtr, greaterEq(cmpFlags)); }
+    INST(cmovge64RV) { condMove64RV(i, regPtr, greaterEq(cmpFlags)); }
+    INST(cmovge8RM) { condMoveRM<1>(memory, i, regPtr, greaterEq(cmpFlags)); }
+    INST(cmovge16RM) { condMoveRM<2>(memory, i, regPtr, greaterEq(cmpFlags)); }
+    INST(cmovge32RM) { condMoveRM<4>(memory, i, regPtr, greaterEq(cmpFlags)); }
+    INST(cmovge64RM) { condMoveRM<8>(memory, i, regPtr, greaterEq(cmpFlags)); }
 
     /// ## Stack pointer manipulation
     INST(lincsp) {
@@ -439,56 +445,56 @@ void VMImpl::stepExecution() {
 
     /// ## Jumps
     INST(jmp) { jump<jmp>(i, binary, currentFrame, true); }
-    INST(je) { jump<je>(i, binary, currentFrame, equal(flags)); }
-    INST(jne) { jump<jne>(i, binary, currentFrame, notEqual(flags)); }
-    INST(jl) { jump<jl>(i, binary, currentFrame, less(flags)); }
-    INST(jle) { jump<jle>(i, binary, currentFrame, lessEq(flags)); }
-    INST(jg) { jump<jg>(i, binary, currentFrame, greater(flags)); }
-    INST(jge) { jump<jge>(i, binary, currentFrame, greaterEq(flags)); }
+    INST(je) { jump<je>(i, binary, currentFrame, equal(cmpFlags)); }
+    INST(jne) { jump<jne>(i, binary, currentFrame, notEqual(cmpFlags)); }
+    INST(jl) { jump<jl>(i, binary, currentFrame, less(cmpFlags)); }
+    INST(jle) { jump<jle>(i, binary, currentFrame, lessEq(cmpFlags)); }
+    INST(jg) { jump<jg>(i, binary, currentFrame, greater(cmpFlags)); }
+    INST(jge) { jump<jge>(i, binary, currentFrame, greaterEq(cmpFlags)); }
 
     /// ## Comparison
-    INST(ucmp8RR) { compareRR<u8>(i, regPtr, flags); }
-    INST(ucmp16RR) { compareRR<u16>(i, regPtr, flags); }
-    INST(ucmp32RR) { compareRR<u32>(i, regPtr, flags); }
-    INST(ucmp64RR) { compareRR<u64>(i, regPtr, flags); }
+    INST(ucmp8RR) { compareRR<u8>(i, regPtr, cmpFlags); }
+    INST(ucmp16RR) { compareRR<u16>(i, regPtr, cmpFlags); }
+    INST(ucmp32RR) { compareRR<u32>(i, regPtr, cmpFlags); }
+    INST(ucmp64RR) { compareRR<u64>(i, regPtr, cmpFlags); }
 
-    INST(scmp8RR) { compareRR<i8>(i, regPtr, flags); }
-    INST(scmp16RR) { compareRR<i16>(i, regPtr, flags); }
-    INST(scmp32RR) { compareRR<i32>(i, regPtr, flags); }
-    INST(scmp64RR) { compareRR<i64>(i, regPtr, flags); }
+    INST(scmp8RR) { compareRR<i8>(i, regPtr, cmpFlags); }
+    INST(scmp16RR) { compareRR<i16>(i, regPtr, cmpFlags); }
+    INST(scmp32RR) { compareRR<i32>(i, regPtr, cmpFlags); }
+    INST(scmp64RR) { compareRR<i64>(i, regPtr, cmpFlags); }
 
-    INST(ucmp8RV) { compareRV<u8>(i, regPtr, flags); }
-    INST(ucmp16RV) { compareRV<u16>(i, regPtr, flags); }
-    INST(ucmp32RV) { compareRV<u32>(i, regPtr, flags); }
-    INST(ucmp64RV) { compareRV<u64>(i, regPtr, flags); }
+    INST(ucmp8RV) { compareRV<u8>(i, regPtr, cmpFlags); }
+    INST(ucmp16RV) { compareRV<u16>(i, regPtr, cmpFlags); }
+    INST(ucmp32RV) { compareRV<u32>(i, regPtr, cmpFlags); }
+    INST(ucmp64RV) { compareRV<u64>(i, regPtr, cmpFlags); }
 
-    INST(scmp8RV) { compareRV<i8>(i, regPtr, flags); }
-    INST(scmp16RV) { compareRV<i16>(i, regPtr, flags); }
-    INST(scmp32RV) { compareRV<i32>(i, regPtr, flags); }
-    INST(scmp64RV) { compareRV<i64>(i, regPtr, flags); }
+    INST(scmp8RV) { compareRV<i8>(i, regPtr, cmpFlags); }
+    INST(scmp16RV) { compareRV<i16>(i, regPtr, cmpFlags); }
+    INST(scmp32RV) { compareRV<i32>(i, regPtr, cmpFlags); }
+    INST(scmp64RV) { compareRV<i64>(i, regPtr, cmpFlags); }
 
-    INST(fcmp32RR) { compareRR<f32>(i, regPtr, flags); }
-    INST(fcmp64RR) { compareRR<f64>(i, regPtr, flags); }
-    INST(fcmp32RV) { compareRV<f32>(i, regPtr, flags); }
-    INST(fcmp64RV) { compareRV<f64>(i, regPtr, flags); }
+    INST(fcmp32RR) { compareRR<f32>(i, regPtr, cmpFlags); }
+    INST(fcmp64RR) { compareRR<f64>(i, regPtr, cmpFlags); }
+    INST(fcmp32RV) { compareRV<f32>(i, regPtr, cmpFlags); }
+    INST(fcmp64RV) { compareRV<f64>(i, regPtr, cmpFlags); }
 
-    INST(stest8) { testR<i8>(i, regPtr, flags); }
-    INST(stest16) { testR<i16>(i, regPtr, flags); }
-    INST(stest32) { testR<i32>(i, regPtr, flags); }
-    INST(stest64) { testR<i64>(i, regPtr, flags); }
+    INST(stest8) { testR<i8>(i, regPtr, cmpFlags); }
+    INST(stest16) { testR<i16>(i, regPtr, cmpFlags); }
+    INST(stest32) { testR<i32>(i, regPtr, cmpFlags); }
+    INST(stest64) { testR<i64>(i, regPtr, cmpFlags); }
 
-    INST(utest8) { testR<u8>(i, regPtr, flags); }
-    INST(utest16) { testR<u16>(i, regPtr, flags); }
-    INST(utest32) { testR<u32>(i, regPtr, flags); }
-    INST(utest64) { testR<u64>(i, regPtr, flags); }
+    INST(utest8) { testR<u8>(i, regPtr, cmpFlags); }
+    INST(utest16) { testR<u16>(i, regPtr, cmpFlags); }
+    INST(utest32) { testR<u32>(i, regPtr, cmpFlags); }
+    INST(utest64) { testR<u64>(i, regPtr, cmpFlags); }
 
     /// ## load comparison results
-    INST(sete) { set(i, regPtr, equal(flags)); }
-    INST(setne) { set(i, regPtr, notEqual(flags)); }
-    INST(setl) { set(i, regPtr, less(flags)); }
-    INST(setle) { set(i, regPtr, lessEq(flags)); }
-    INST(setg) { set(i, regPtr, greater(flags)); }
-    INST(setge) { set(i, regPtr, greaterEq(flags)); }
+    INST(sete) { set(i, regPtr, equal(cmpFlags)); }
+    INST(setne) { set(i, regPtr, notEqual(cmpFlags)); }
+    INST(setl) { set(i, regPtr, less(cmpFlags)); }
+    INST(setle) { set(i, regPtr, lessEq(cmpFlags)); }
+    INST(setg) { set(i, regPtr, greater(cmpFlags)); }
+    INST(setge) { set(i, regPtr, greaterEq(cmpFlags)); }
 
     /// ## Unary operations
     INST(lnt) { unaryR<u64>(i, regPtr, utl::logical_not); }

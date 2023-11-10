@@ -12,9 +12,10 @@ Debugger::Debugger(Model* model):
         [this] { screen.PostEvent(Event::Special("Wakeup call")); });
     model->virtualMachine().setIOStreams(nullptr, &standardout);
     settings = SettingsView([this] { showSettings = false; });
-    root = ResizableSplitRight(RegisterView(model),
-                               InstructionView(model),
-                               &regViewSize);
+    auto sidebar = Container::Vertical({ FlagsView(model),
+                                         Renderer([] { return separator(); }),
+                                         RegisterView(model) });
+    root = ResizableSplitRight(sidebar, InstructionView(model), &regViewSize);
     root = Container::Vertical({
         Renderer([] { return separator(); }),
         ControlView(

@@ -120,6 +120,8 @@ std::span<u8 const> VirtualMachine::stackData() const {
     return std::span(impl->stackPtr, impl->stackSize);
 }
 
+CompareFlags VirtualMachine::getCompareFlags() const { return impl->cmpFlags; }
+
 void VirtualMachine::printRegisters(size_t n) const {
     for (size_t i = 0; i < n; ++i) {
         std::cout << "%" << i << ": " << std::hex

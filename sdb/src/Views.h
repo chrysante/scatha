@@ -32,6 +32,11 @@ ftxui::Component RegisterView(Model* model);
 ///
 ///
 ///
+ftxui::Component FlagsView(Model* model);
+
+///
+///
+///
 ftxui::Component ConsoleView(Model* model, std::stringstream& standardout);
 
 ///
