@@ -2,22 +2,31 @@
 
 #include <thread>
 
-#include "Program.h"
+#include "Model.h"
 #include "Views.h"
 
 using namespace sdb;
 using namespace ftxui;
 
-Debugger::Debugger(Program* prog):
-    prog(prog), screen(ScreenInteractive::Fullscreen()), regViewSize(20) {
-    root = ResizableSplitRight(RegisterView(prog),
-                               InstructionView(prog),
+Debugger::Debugger(Model* model):
+    screen(ScreenInteractive::Fullscreen()), regViewSize(20) {
+    settings = SettingsView([this] { showSettings = false; });
+    root = ResizableSplitRight(RegisterView(model),
+                               InstructionView(model),
                                &regViewSize);
     root = Container::Vertical({
-        root | flex,
         Renderer([] { return separator(); }),
-        ControlView(prog),
+        ControlView(
+            model,
+            [this] {
+        showSettings = true;
+        settings->TakeFocus();
+            }),
+        Renderer([] { return separator(); }),
+        root | flex,
     });
+    root = ResizableSplitBottom(ConsoleView(model), root, &consoleViewSize);
+    root |= Modal(settings, &showSettings);
     root |= CatchEvent([=](Event event) {
         if (event.is_character()) {
             for (auto& [key, command]: keyCommands) {
@@ -31,10 +40,10 @@ Debugger::Debugger(Program* prog):
     });
 
     addKeyCommand("q", [=] { screen.Exit(); });
-    addKeyCommand("p", [=] { prog->toggleExecution(); });
-    addKeyCommand("s", [=] { prog->skipLine(); });
-    addKeyCommand("e", [=] { prog->enterFunction(); });
-    addKeyCommand("l", [=] { prog->exitFunction(); });
+    addKeyCommand("p", [=] { model->toggleExecution(); });
+    addKeyCommand("s", [=] { model->skipLine(); });
+    addKeyCommand("e", [=] { model->enterFunction(); });
+    addKeyCommand("l", [=] { model->exitFunction(); });
 }
 
 void Debugger::run() {
@@ -42,7 +51,7 @@ void Debugger::run() {
     std::atomic_bool running = true;
     std::thread bgThread([this, &running] {
         while (running) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             screen.PostEvent(Event::Special("Wakeup call"));
         }
     });

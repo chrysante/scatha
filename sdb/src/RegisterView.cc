@@ -18,7 +18,7 @@ static TableEntry makeRegEntry(size_t index) {
 namespace {
 
 struct RegView: ftxui::ComponentBase {
-    RegView(Program* prog): prog(prog) {
+    RegView(Model* model): model(model) {
         Add(Renderer([this] {
             std::vector<TableEntry> registers;
             for (size_t index = 0; index < maxReg; ++index) {
@@ -32,12 +32,12 @@ struct RegView: ftxui::ComponentBase {
         }));
     }
 
-    Program* prog;
+    Model* model;
     size_t maxReg = 32;
 };
 
 } // namespace
 
-ftxui::Component sdb::RegisterView(Program* prog) {
-    return Make<RegView>(prog);
+ftxui::Component sdb::RegisterView(Model* model) {
+    return Make<RegView>(model);
 }

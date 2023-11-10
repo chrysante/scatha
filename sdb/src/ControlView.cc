@@ -1,68 +1,119 @@
 #include "Views.h"
 
+#include <functional>
+
 #include <ftxui/dom/elements.hpp>
 
-#include "Program.h"
+#include "Common.h"
+#include "Model.h"
 
 using namespace sdb;
 using namespace ftxui;
 
-static Component runButton(Program* prog) {
-    auto opt = ButtonOption::Border();
-    opt.transform = [=](EntryState const& s) {
-        Element elem = prog->running() ? text("||") : text("|>");
-        return elem | border;
-    };
-    return Button(
-        "Run",
-        [=] { prog->toggleExecution(); },
-        opt);
+namespace {
+
+struct ButtonInfo {
+    std::function<Element()> label;
+    std::function<bool()> active;
+    std::function<void()> action;
+
+    ButtonInfo(Element label,
+               std::function<bool()> active,
+               std::function<void()> action):
+        label([=] { return label; }),
+        active(std::move(active)),
+        action(std::move(action)) {}
+
+    ButtonInfo(std::function<Element()> label,
+               std::function<bool()> active,
+               std::function<void()> action):
+        label(std::move(label)),
+        active(std::move(active)),
+        action(std::move(action)) {}
+
+    operator Component() const {
+        auto opt = ButtonOption::Simple();
+        opt.transform = [label = label, active = active](EntryState const&) {
+            auto elem = label();
+            if (!active()) {
+                elem |= color(Color::GrayLight);
+            }
+            return elem | center | size(WIDTH, EQUAL, 4);
+        };
+        return Button(
+            "Button",
+            [active = active, action = action] {
+            if (active()) {
+                action();
+            }
+            else {
+                beep();
+            }
+            },
+            opt);
+    }
+};
+
+} // namespace
+
+static ButtonInfo runButton(Model* model) {
+    return { [=] { return model->running() ? text("||") : text("|>"); },
+             [=] { return true; },
+             [=] { model->toggleExecution(); } };
 }
 
-static Component skipButton(Program* prog) {
-    auto opt = ButtonOption::Border();
-    opt.transform = [=](EntryState const& s) { return text(">|") | border; };
-    return Button(
-        "Skip",
-        [=] { prog->skipLine(); },
-        opt);
+static ButtonInfo skipButton(Model* model) {
+    return { text(">_"),
+             [=] { return !model->running(); },
+             [=] { model->skipLine(); } };
 }
 
-static Component enterFunctionButton(Program* prog) {
-    auto opt = ButtonOption::Border();
-    opt.transform = [=](EntryState const& s) { return text("\\_") | border; };
-    return Button(
-        "Enter function",
-        [=] { prog->enterFunction(); },
-        opt);
+static ButtonInfo enterFunctionButton(Model* model) {
+    return { text(">\\"),
+             [=] { return !model->running(); },
+             [=] { model->enterFunction(); } };
 }
 
-static Component exitFunctionButton(Program* prog) {
-    auto opt = ButtonOption::Border();
-    opt.transform = [=](EntryState const& s) { return text("_/") | border; };
-    return Button(
-        "Exit function",
-        [=] { prog->exitFunction(); },
-        opt);
+static ButtonInfo exitFunctionButton(Model* model) {
+    return { text("^|"),
+             [=] { return !model->running(); },
+             [=] { model->exitFunction(); } };
+}
+
+static Component settingsButton(std::function<void()> showSettings) {
+    auto opt = ButtonOption::Simple();
+    opt.transform = [](EntryState const&) { return text("Settings"); };
+    return Button("", showSettings, opt);
+}
+
+static Component space() {
+    return Renderer([] { return separatorEmpty(); });
 }
 
 namespace {
 
 struct CtrlView: ComponentBase {
-    CtrlView(Program* prog): prog(prog) {
+    CtrlView(Model* model, std::function<void()> showSettings): model(model) {
         Add(Container::Horizontal({
-            runButton(prog),
-            skipButton(prog),
-            enterFunctionButton(prog),
-            exitFunctionButton(prog),
+            runButton(model),
+            space(),
+            skipButton(model),
+            space(),
+            enterFunctionButton(model),
+            space(),
+            exitFunctionButton(model),
+            Renderer([] { return filler(); }),
+            settingsButton(showSettings),
+            space(),
         }));
     }
 
-    Program* prog;
+    Model* model;
 };
 
 } // namespace
 
-ftxui::Component sdb::ControlView(Program* prog) {
-    return Make<CtrlView>(prog);
+ftxui::Component sdb::ControlView(Model* model,
+                                  std::function<void()> showSettings) {
+    return Make<CtrlView>(model, showSettings);
 }

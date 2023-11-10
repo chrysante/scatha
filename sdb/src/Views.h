@@ -1,26 +1,43 @@
 #ifndef SDB_VIEWS_H_
 #define SDB_VIEWS_H_
 
+#include <functional>
+
 #include <ftxui/component/component.hpp>
 
 namespace sdb {
 
-class Program;
+class Model;
 
 ///
 ///
 ///
-ftxui::Component ControlView(Program* prog);
+ftxui::Component ScrollView(ftxui::Component child);
 
 ///
 ///
 ///
-ftxui::Component InstructionView(Program* prog);
+ftxui::Component ControlView(Model* model, std::function<void()> showSettings);
 
 ///
 ///
 ///
-ftxui::Component RegisterView(Program* prog);
+ftxui::Component InstructionView(Model* model);
+
+///
+///
+///
+ftxui::Component RegisterView(Model* model);
+
+///
+///
+///
+ftxui::Component ConsoleView(Model* model);
+
+///
+///
+///
+ftxui::Component SettingsView(std::function<void()> hideSettings);
 
 } // namespace sdb
 

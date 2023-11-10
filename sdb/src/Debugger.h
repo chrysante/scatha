@@ -10,7 +10,7 @@
 
 namespace sdb {
 
-class Program;
+class Model;
 
 struct KeyCommand {
     std::string key;
@@ -19,7 +19,7 @@ struct KeyCommand {
 
 class Debugger {
 public:
-    explicit Debugger(Program* program);
+    explicit Debugger(Model* model);
 
     void run();
 
@@ -28,13 +28,14 @@ private:
 
     std::vector<KeyCommand> keyCommands;
 
-    Program* prog;
-
     ftxui::ScreenInteractive screen;
     ftxui::Component root;
+    ftxui::Component settings;
 
-    int regViewSize;
+    int regViewSize = 20;
+    int consoleViewSize = 10;
     int memViewSize;
+    bool showSettings = false;
 };
 
 } // namespace sdb
