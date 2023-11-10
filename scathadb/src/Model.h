@@ -47,6 +47,9 @@ public:
     void restart();
 
     ///
+    void shutdown();
+    
+    ///
     std::span<Instruction const> instructions() const {
         return disasm.instructions();
     }

@@ -13,9 +13,9 @@
 using namespace sdb;
 using namespace ftxui;
 
-static Element breakpointIndicator(bool isBreakpoint) {
+static Element breakpointIndicator(bool isBreakpoint, bool isCurrent) {
     if (isBreakpoint) {
-        return text(">>") | color(Color::BlueLight) | bold;
+        return text("*>") | color(isCurrent ? Color::White : Color::BlueLight) | bold;
     }
     else {
         return text("  ");
@@ -33,9 +33,9 @@ namespace {
 struct InstView: ScrollBase {
     InstView(Model* model): model(model) {
         model->setScrollCallback([this](size_t index) {
-            index = indexMap[index];
-            if (!isInView(index)) {
-                center(index);
+            size_t line = indexToLineMap[index];
+            if (!isInView(line)) {
+                center(line);
             }
         });
         for (auto [index, inst]:
@@ -43,12 +43,12 @@ struct InstView: ScrollBase {
         {
             if (inst.labelID != 0) {
                 Add(Renderer(
-                    [ID = inst.labelID] { return text(labelName(ID)); }));
+                    [ID = inst.labelID] { return text(labelName(ID)) | bold | color(Color::GrayDark); }));
             }
 
-            indexMap.push_back(ChildCount());
+            indexToLineMap.push_back(ChildCount());
             ButtonOption opt = ButtonOption::Ascii();
-            opt.transform = [=, index = index](EntryState const& s) {
+            opt.transform = [=, index = index](EntryState const&) {
                 bool isCurrent = model->isActive() && model->isSleeping() &&
                                  index == model->currentLine();
                 bool isBreakpoint = model->isBreakpoint(index);
@@ -57,10 +57,11 @@ struct InstView: ScrollBase {
                 auto label =
                     hbox({ lineNumber(index, isCurrent), text(labelText) }) |
                     flex;
+                auto line = hbox({ breakpointIndicator(isBreakpoint, isCurrent), label });
                 if (isCurrent) {
-                    label |= bgcolor(Color::Green);
+                    line |= bgcolor(Color::Green);
                 }
-                return hbox({ breakpointIndicator(isBreakpoint), label });
+                return line;
             };
             opt.on_click = [=, index = index] {
                 model->toggleBreakpoint(index);
@@ -70,7 +71,7 @@ struct InstView: ScrollBase {
     }
 
     Model* model;
-    std::vector<size_t> indexMap;
+    std::vector<size_t> indexToLineMap;
 };
 
 } // namespace

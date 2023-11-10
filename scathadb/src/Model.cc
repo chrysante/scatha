@@ -14,14 +14,7 @@ Model::Model(svm::VirtualMachine vm,
 }
 
 Model::~Model() {
-    {
-        std::lock_guard lock(mutex);
-        execThreadRunning = false;
-        send(Signal::Terminate);
-    }
-    if (executionThread.joinable()) {
-        executionThread.join();
-    }
+    shutdown();
 }
 
 void Model::startExecutionThread() {
@@ -116,8 +109,21 @@ void Model::restart() {
         std::lock_guard lock(mutex);
         send(Signal::Terminate);
     }
-    executionThread.join();
+    if (executionThread.joinable()) {
+        executionThread.join();        
+    }
     startExecutionThread();
+}
+
+void Model::shutdown() {
+    {
+        std::lock_guard lock(mutex);
+        execThreadRunning = false;
+        send(Signal::Terminate);
+    }
+    if (executionThread.joinable()) {
+        executionThread.join();
+    }
 }
 
 bool Model::isSleeping() const {

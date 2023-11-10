@@ -43,7 +43,7 @@ Debugger::Debugger(Model* model):
                return false;
            });
 
-    addKeyCommand("q", [=] { screen.Exit(); });
+    addKeyCommand("q", [=] { model->shutdown(); screen.Exit(); });
     addKeyCommand("p", [=] { model->toggleExecution(); });
     addKeyCommand("s", [=] { model->skipLine(); });
     addKeyCommand("e", [=] { model->enterFunction(); });
@@ -52,9 +52,7 @@ Debugger::Debugger(Model* model):
 }
 
 void Debugger::run() {
-    model->startExecutionThread();
-    auto renderer = Renderer(root, [&] { return root->Render(); });
-    screen.Loop(renderer);
+    screen.Loop(root);
 }
 
 void Debugger::addKeyCommand(std::string key, std::function<void()> command) {

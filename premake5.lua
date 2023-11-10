@@ -175,7 +175,7 @@ files { "runtime/**.h", "runtime/**.cc" }
 links { "termfmt" }
 
 ------------------------------------------
-project "sdb" -- Debugger
+project "scathadb" -- Debugger
 kind "ConsoleApp"
 
 externalincludedirs {
@@ -184,9 +184,9 @@ externalincludedirs {
     "external/range-v3/include",
     "external/FTXUI/include",
 }
-includedirs { "sdb/src" }
+includedirs { "scathadb/src" }
 
-files { "sdb/src/**.h", "sdb/src/**.cc" }
+files { "scathadb/src/**.h", "scathadb/src/**.cc" }
 
 links { "svm-lib", "ftxui-component", "ftxui-dom", "ftxui-screen" }
 
