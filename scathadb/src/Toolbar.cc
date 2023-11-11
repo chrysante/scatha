@@ -16,7 +16,7 @@ struct ToolbarBase: ComponentBase {
             Add(comp);
         }
     }
-    
+
     Element Render() override {
         std::vector<Element> elems;
         for (size_t i = 0; i < ChildCount(); ++i) {

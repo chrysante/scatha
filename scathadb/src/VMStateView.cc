@@ -62,6 +62,40 @@ Element RegEntry::Render() {
                       parent->values[utl::narrow_cast<size_t>(index)])) });
 }
 
-ftxui::Component sdb::RegisterView(Model* model) {
-    return Make<RegView>(model);
+static Component CompareFlagsView(Model* model) {
+    return Renderer([model] {
+        auto flags = model->VM().getCompareFlags();
+        bool active = model->isActive() && model->isSleeping();
+        auto display = [=](std::string name, bool cond) {
+            return text(name) | bold |
+                   color(!active ? Color::GrayDark :
+                         cond    ? Color::Green :
+                                   Color::Red) |
+                   center |
+                   size(WIDTH, EQUAL, utl::narrow_cast<int>(name.size() + 2));
+        };
+        return hbox({
+                   display("==", flags.equal),
+                   display("!=", !flags.equal),
+                   display("<", flags.less),
+                   display("<=", flags.less || flags.equal),
+                   display(">", !flags.less && !flags.equal),
+                   display(">=", !flags.less),
+               }) |
+               center;
+    });
+}
+
+ftxui::Component sdb::VMStateView(Model* model) {
+    auto cont = Container::Vertical({
+        Make<RegView>(model),
+        sdb::separator(),
+        CompareFlagsView(model),
+    });
+    return Renderer(cont, [=] {
+        if (!model->isActive()) {
+            return text("No Debug Session") | bold | dim | center;
+        }
+        return cont->Render();
+    });
 }

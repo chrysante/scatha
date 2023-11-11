@@ -86,15 +86,15 @@ Debugger::Debugger(Model* _model):
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
-    auto sidebar = Container::Vertical(
-        { FlagsView(model()), sdb::separator(), RegisterView(model()) });
+    auto sidebar = VMStateView(model());
     auto centralSplit = splitRight(sidebar, instView, 30);
     auto toolbar = Toolbar({
         ToolbarButton(this, QuitCmd),
         ToolbarButton(this, RunCmd),
         ToolbarButton(this, StopCmd),
         sdb::spacer(),
-        Renderer([=] { return text(model()->currentFilepath().string()) | flex; }),
+        Renderer(
+            [=] { return text(model()->currentFilepath().string()) | flex; }),
         sdb::spacer(),
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),

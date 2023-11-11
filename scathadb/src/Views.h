@@ -21,12 +21,7 @@ View InstructionView(Model* model);
 ///
 ///
 ///
-ftxui::Component RegisterView(Model* model);
-
-///
-///
-///
-ftxui::Component FlagsView(Model* model);
+ftxui::Component VMStateView(Model* model);
 
 ///
 ///
