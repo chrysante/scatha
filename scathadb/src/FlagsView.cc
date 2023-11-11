@@ -15,8 +15,12 @@ using namespace ftxui;
 Component sdb::FlagsView(Model* model) {
     return Renderer([model] {
         auto flags = model->virtualMachine().getCompareFlags();
-        auto display = [](std::string name, bool cond) {
-            return text(name) | bold | color(cond ? Color::Green : Color::Red) |
+        bool active = model->isActive() && model->isSleeping();
+        auto display = [=](std::string name, bool cond) {
+            return text(name) | bold |
+                   color(!active ? Color::GrayDark :
+                         cond    ? Color::Green :
+                                   Color::Red) |
                    center |
                    size(WIDTH, EQUAL, utl::narrow_cast<int>(name.size() + 2));
         };
