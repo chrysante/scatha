@@ -13,9 +13,7 @@ Model::Model(svm::VirtualMachine vm,
     virtualMachine().setIOStreams(nullptr, &standardout());
 }
 
-Model::~Model() {
-    shutdown();
-}
+Model::~Model() { shutdown(); }
 
 void Model::startExecutionThread() {
     signal = Signal::Run;
@@ -110,7 +108,7 @@ void Model::restart() {
         send(Signal::Terminate);
     }
     if (executionThread.joinable()) {
-        executionThread.join();        
+        executionThread.join();
     }
     startExecutionThread();
 }
@@ -157,9 +155,7 @@ void Model::setScroll(size_t index) {
         return;
     }
     scrollCallback(index);
-    if (refreshCallback) {
-        refreshCallback();
-    }
+    refreshScreen(FORCE);
 }
 
 void Model::refreshScreen(SoftOrForce mode) {

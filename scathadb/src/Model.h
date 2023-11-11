@@ -48,7 +48,7 @@ public:
 
     ///
     void shutdown();
-    
+
     ///
     std::span<Instruction const> instructions() const {
         return disasm.instructions();

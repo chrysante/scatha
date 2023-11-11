@@ -14,17 +14,20 @@ static int yExtend(Box box) {
 }
 
 Element ScrollBase::Render() {
-    if (box != lastBox) {
+    if (_box != _lastBox) {
         clampScroll();
-        lastBox = box;
+        _lastBox = _box;
     }
     std::vector<Element> elems;
     size_t begin = utl::narrow_cast<size_t>(scrollPos);
     size_t end = ChildCount();
+    for (size_t index = 0; index < begin; ++index) {
+        ChildAt(index)->Render();
+    }
     for (size_t index = begin; index < end; ++index) {
         elems.push_back(ChildAt(index)->Render());
     }
-    return vbox(std::move(elems)) | flex | reflect(box);
+    return vbox(std::move(elems)) | flex | reflect(_box);
 }
 
 bool ScrollBase::OnEvent(Event event) {
@@ -46,18 +49,18 @@ void ScrollBase::setScrollOffset(long offset) {
 
 bool ScrollBase::isInView(size_t index) const {
     long i = static_cast<long>(index);
-    return i >= scrollPos && i < scrollPos + box.y_max - 2;
+    return i >= scrollPos && i < scrollPos + _box.y_max - 2;
 }
 
 void ScrollBase::center(size_t index) {
-    setScroll(static_cast<long>(index) - box.y_max / 2);
+    setScroll(static_cast<long>(index) - _box.y_max / 2);
 }
 
 bool ScrollBase::isScrollUp(Event event) const {
     if (event.is_mouse() && event.mouse().motion == Mouse::Pressed &&
         event.mouse().button == Mouse::WheelUp)
     {
-        return box.Contain(event.mouse().x, event.mouse().y);
+        return _box.Contain(event.mouse().x, event.mouse().y);
     }
     if (event == Event::ArrowUp) {
         return true;
@@ -69,7 +72,7 @@ bool ScrollBase::isScrollDown(Event event) const {
     if (event.is_mouse() && event.mouse().motion == Mouse::Pressed &&
         event.mouse().button == Mouse::WheelDown)
     {
-        return box.Contain(event.mouse().x, event.mouse().y);
+        return _box.Contain(event.mouse().x, event.mouse().y);
     }
     if (event == Event::ArrowDown) {
         return true;
@@ -96,6 +99,6 @@ void ScrollBase::clampScroll() {
 long ScrollBase::max() const {
     long const overscroll = 0;
     return std::max(long{ 0 },
-                    static_cast<long>(ChildCount()) - yExtend(box) +
+                    static_cast<long>(ChildCount()) - yExtend(_box) +
                         overscroll);
 }

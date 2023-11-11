@@ -15,17 +15,18 @@ using namespace ftxui;
 
 static Element breakpointIndicator(bool isBreakpoint, bool isCurrent) {
     if (isBreakpoint) {
-        return text("*>") | color(isCurrent ? Color::White : Color::BlueLight) | bold;
+        return text("⫸  ") |
+               color(isCurrent ? Color::White : Color::BlueLight) | bold;
     }
     else {
-        return text("  ");
+        return text("   ");
     }
 }
 
 static Element lineNumber(size_t index, bool isCurrent) {
     return text(std::to_string(index + 1) + " ") | align_right |
            size(WIDTH, EQUAL, 5) |
-           color(isCurrent ? Color::White : Color::GrayLight);
+           color(isCurrent ? Color::White : Color::GrayDark);
 }
 
 namespace {
@@ -41,37 +42,60 @@ struct InstView: ScrollBase {
         for (auto [index, inst]:
              model->instructions() | ranges::views::enumerate)
         {
+            /// Add label renderer for labelled instructions
             if (inst.labelID != 0) {
-                Add(Renderer(
-                    [ID = inst.labelID] { return text(labelName(ID)) | bold | color(Color::GrayDark); }));
+                size_t lineNum = ChildCount();
+                std::string name = utl::strcat(labelName(inst.labelID), ":");
+                Add(Renderer([=] {
+                    return hbox(
+                        { lineNumber(lineNum, false), text(name) | bold });
+                }));
             }
-
-            indexToLineMap.push_back(ChildCount());
-            ButtonOption opt = ButtonOption::Ascii();
-            opt.transform = [=, index = index](EntryState const&) {
+            /// Add instruction renderer
+            size_t lineNum = ChildCount();
+            indexToLineMap.push_back(lineNum);
+            lineToIndexMap[lineNum] = index;
+            Add(Renderer([=, index = index]() {
                 bool isCurrent = model->isActive() && model->isSleeping() &&
                                  index == model->currentLine();
                 bool isBreakpoint = model->isBreakpoint(index);
                 std::string labelText(toString(model->instructions()[index],
                                                &model->disassembly()));
-                auto label =
-                    hbox({ lineNumber(index, isCurrent), text(labelText) }) |
-                    flex;
-                auto line = hbox({ breakpointIndicator(isBreakpoint, isCurrent), label });
+                auto line = hbox({ lineNumber(lineNum, isCurrent),
+                                   breakpointIndicator(isBreakpoint, isCurrent),
+                                   text(labelText) | flex });
                 if (isCurrent) {
                     line |= bgcolor(Color::Green);
                 }
                 return line;
-            };
-            opt.on_click = [=, index = index] {
-                model->toggleBreakpoint(index);
-            };
-            Add(Button(opt));
+            }));
         }
+    }
+
+    bool OnEvent(Event event) override {
+        if (handleScroll(event)) {
+            return true;
+        }
+        /// Custom button behaviour because the builtin button does not work
+        /// correctly with the scroll view
+        if (event.is_mouse() &&
+            box().Contain(event.mouse().x, event.mouse().y) &&
+            event.mouse().motion == Mouse::Released)
+        {
+            auto line = event.mouse().y - box().y_min + scrollPosition();
+            auto itr = lineToIndexMap.find(line);
+            if (itr != lineToIndexMap.end()) {
+                size_t index = itr->second;
+                model->toggleBreakpoint(index);
+            }
+            return true;
+        }
+        return false;
     }
 
     Model* model;
     std::vector<size_t> indexToLineMap;
+    utl::hashmap<size_t, size_t> lineToIndexMap;
 };
 
 } // namespace
