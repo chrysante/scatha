@@ -24,7 +24,9 @@ std::span<uint8_t const> svm::seekBinary(std::span<uint8_t const> file) {
             while (data < end && *data != '\n') {
                 ++data;
             }
-            ++data;
+            if (data < end) {
+                ++data;
+            }
         }
     }
     return std::span(data, end);
