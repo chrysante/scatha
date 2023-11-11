@@ -34,8 +34,6 @@ private:
     ftxui::Component root;
     ftxui::Component settings;
 
-    int sidebarSize = 20;
-    int bottomSectionSize = 10;
     bool showSettings = false;
 };
 
