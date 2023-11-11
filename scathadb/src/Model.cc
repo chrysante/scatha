@@ -10,7 +10,7 @@
 
 using namespace sdb;
 
-Model::Model() { virtualMachine().setIOStreams(nullptr, &standardout()); }
+Model::Model() { VM().setIOStreams(nullptr, &standardout()); }
 
 Model::~Model() { shutdown(); }
 
@@ -25,6 +25,7 @@ void Model::loadBinary(Options options) {
         throw std::runtime_error(msg);
     }
     vm.loadBinary(binary.data());
+    _currentFilepath = options.filepath;
     runArguments = std::move(options.arguments);
     disasm = disassemble(binary);
     if (reloadCallback) {

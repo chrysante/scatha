@@ -144,6 +144,9 @@ Options sdb::parseArguments(std::span<char*> args) {
     }
     Options options{};
     options.filepath = args.front();
+    if (std::filesystem::exists(options.filepath)) {
+        options.filepath = std::filesystem::absolute(options.filepath);
+    }
     for (auto* arg: args | ranges::views::drop(1)) {
         options.arguments.push_back(std::string(arg));
     }

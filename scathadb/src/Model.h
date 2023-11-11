@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <span>
@@ -98,11 +99,14 @@ public:
         breakpoints.clear();
     }
 
+    /// \Returns the path to the currently loaded binary file
+    std::filesystem::path currentFilepath() const { return _currentFilepath; }
+
     ///
-    svm::VirtualMachine& virtualMachine() { return vm; }
+    svm::VirtualMachine& VM() { return vm; }
 
     /// \overload
-    svm::VirtualMachine const& virtualMachine() const { return vm; }
+    svm::VirtualMachine const& VM() const { return vm; }
 
     ///
     std::vector<uint64_t> readRegisters(size_t numRegisters) const;
@@ -158,6 +162,7 @@ private:
     std::atomic<bool> execThreadRunning = false;
     std::atomic<size_t> currentIndex = 0;
 
+    std::filesystem::path _currentFilepath;
     svm::VirtualMachine vm;
     std::vector<std::string> runArguments;
     Disassembly disasm;
