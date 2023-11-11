@@ -7,25 +7,20 @@ using namespace sdb;
 using namespace ftxui;
 
 Debugger::Debugger(Model* model):
-    model(model), screen(ScreenInteractive::Fullscreen()) {
+    model(model),
+    screen(ScreenInteractive::Fullscreen()),
+    instView(InstructionView(model)),
+    fileOpenPanel(OpenFilePanel(model)),
+    settingsView(SettingsView()) {
     model->setRefreshCallback(
         [this] { screen.PostEvent(Event::Special("Wakeup call")); });
     model->setReloadCallback([this] { instView->refresh(); });
     auto sidebar = Container::Vertical(
         { FlagsView(model), sdb::separator(), RegisterView(model) });
-    instView = InstructionView(model);
-    fileOpenPanel = OpenFilePanel(model, &fileOpenPanelOpen);
-    settings = SettingsView(&settingsOpen);
     auto centralSplit = splitRight(sidebar, instView, 30);
-    auto openFileOpenPanelCmd = [this] {
-        fileOpenPanelOpen = true;
-        fileOpenPanel->TakeFocus();
-    };
-    auto openSettingsCmd = [this] {
-        settingsOpen = true;
-        settings->TakeFocus();
-    };
-    auto toolbar = ToolbarView(model, openFileOpenPanelCmd, openSettingsCmd);
+    auto toolbar = ToolbarView(model,
+                               fileOpenPanel.openCommand(),
+                               settingsView.openCommand());
     auto top = Container::Vertical({
         sdb::separator(),
         toolbar,
@@ -45,8 +40,7 @@ Debugger::Debugger(Model* model):
                }
                return false;
            }) |
-           Modal(fileOpenPanel, &fileOpenPanelOpen) |
-           Modal(settings, &settingsOpen);
+           fileOpenPanel.overlay() | settingsView.overlay();
 
     addKeyCommand("q", [=] {
         model->shutdown();
@@ -54,7 +48,7 @@ Debugger::Debugger(Model* model):
     });
     addKeyCommand("r", [=] { model->run(); });
     addKeyCommand("x", [=] { model->shutdown(); });
-    addKeyCommand("o", openFileOpenPanelCmd);
+    addKeyCommand("o", fileOpenPanel.openCommand());
     addKeyCommand("p", [=] { model->toggleExecution(); });
     addKeyCommand("s", [=] { model->skipLine(); });
     addKeyCommand("e", [=] { model->enterFunction(); });

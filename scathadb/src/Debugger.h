@@ -10,6 +10,7 @@
 #include <ftxui/component/screen_interactive.hpp>
 
 #include "Common.h"
+#include "ModalView.h"
 
 namespace sdb {
 
@@ -36,10 +37,8 @@ private:
     ftxui::Component root;
     std::shared_ptr<ViewBase> instView;
 
-    bool fileOpenPanelOpen = false;
-    ftxui::Component fileOpenPanel;
-    bool settingsOpen = false;
-    ftxui::Component settings;
+    ModalView fileOpenPanel;
+    ModalView settingsView;
 };
 
 } // namespace sdb

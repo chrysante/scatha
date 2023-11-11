@@ -44,49 +44,6 @@ Component sdb::splitBottom(Component main, Component back, int size) {
         { main, back, Direction::Down, size, [] { return defaultSep(); } });
 }
 
-namespace {
-
-struct ModalViewBase: ComponentBase {
-    ModalViewBase(std::string title, Component body, bool* open): open(open) {
-        auto closeOpt = ButtonOption::Simple();
-        closeOpt.transform = [](EntryState const&) { return text(" X "); };
-        closeOpt.on_click = [=] { *open = false; };
-        auto titlebar = Container::Horizontal(
-            { Button(closeOpt), sdb::separator(), Renderer([=] {
-                  return text(title) | bold | center | flex;
-              }) });
-        Add(titlebar);
-        Add(body);
-    }
-
-    Element Render() override {
-        return vbox({
-                   ChildAt(0)->Render(),
-                   defaultSep(),
-                   ChildAt(1)->Render(),
-               }) |
-               size(WIDTH, GREATER_THAN, 30) | borderStyled(Color::GrayDark);
-    }
-
-    bool OnEvent(Event event) override {
-        if (event == Event::Escape) {
-            *open = false;
-            return true;
-        }
-        return ComponentBase::OnEvent(event);
-    }
-
-    Component ActiveChild() override { return ChildAt(1); }
-
-    bool* open = nullptr;
-};
-
-} // namespace
-
-Component sdb::ModalView(std::string title, Component body, bool* open) {
-    return Make<ModalViewBase>(title, body, open);
-}
-
 static int yExtend(Box box) {
     int diff = box.y_max - box.y_min;
     return std::max(0, diff);

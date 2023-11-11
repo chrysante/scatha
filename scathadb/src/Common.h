@@ -40,11 +40,6 @@ ftxui::Component splitBottom(ftxui::Component main,
                              int size = 10);
 
 ///
-ftxui::Component ModalView(std::string title,
-                           ftxui::Component body,
-                           bool* open);
-
-///
 ///
 ///
 class ViewBase: public ftxui::ComponentBase {
@@ -52,6 +47,7 @@ public:
     virtual void refresh() {}
 };
 
+///
 using View = std::shared_ptr<ViewBase>;
 
 ///
@@ -96,8 +92,6 @@ private:
     long scrollPos = 0;
     ftxui::Box _box, _lastBox;
 };
-
-using OpenModalCommand = std::function<void()>;
 
 ///
 void beep();

@@ -23,8 +23,8 @@ static std::vector<std::string> splitArguments(std::string_view text) {
            ranges::to<std::vector>;
 }
 
-struct Panel: ComponentBase {
-    Panel(Model* model, bool* open) {
+struct OpenFilePanelBase: ComponentBase {
+    OpenFilePanelBase(Model* model, bool* open) {
         InputOption opt;
         opt.content = &content;
         opt.placeholder = &placeholder;
@@ -64,6 +64,9 @@ struct Panel: ComponentBase {
 
 } // namespace
 
-Component sdb::OpenFilePanel(Model* model, bool* open) {
-    return ModalView("Open...", Make<Panel>(model, open), open);
+ModalView sdb::OpenFilePanel(Model* model) {
+    auto state = ModalView::makeState();
+    return ModalView("Open...",
+                     Make<OpenFilePanelBase>(model, &state->open),
+                     state);
 }

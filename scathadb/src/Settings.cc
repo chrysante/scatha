@@ -8,8 +8,7 @@
 using namespace sdb;
 using namespace ftxui;
 
-Component sdb::SettingsView(bool* open) {
+ModalView sdb::SettingsView() {
     return ModalView("Settings",
-                     Renderer([] { return text("Nothing to see here yet"); }),
-                     open);
+                     Renderer([] { return text("Nothing to see here yet"); }));
 }

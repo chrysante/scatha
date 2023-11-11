@@ -6,6 +6,7 @@
 #include <ftxui/component/component.hpp>
 
 #include "Common.h"
+#include "ModalView.h"
 
 namespace sdb {
 
@@ -46,12 +47,12 @@ ftxui::Component ConsoleView(Model* model);
 ///
 ///
 ///
-ftxui::Component OpenFilePanel(Model* model, bool* open);
+ModalView OpenFilePanel(Model* model);
 
 ///
 ///
 ///
-ftxui::Component SettingsView(bool* open);
+ModalView SettingsView();
 
 } // namespace sdb
 
