@@ -93,6 +93,12 @@ public:
     }
 
     ///
+    void clearBreakpoints() {
+        std::lock_guard lock(mutex);
+        breakpoints.clear();
+    }
+
+    ///
     svm::VirtualMachine& virtualMachine() { return vm; }
 
     /// \overload

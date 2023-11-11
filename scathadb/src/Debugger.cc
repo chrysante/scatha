@@ -83,7 +83,6 @@ Debugger::Debugger(Model* _model):
         sdb::separatorEmpty(),
         ToolbarButton(this, SettingsCmd),
     });
-
     auto top = Container::Vertical({
         sdb::separator(),
         toolbar,

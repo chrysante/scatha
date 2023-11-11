@@ -11,6 +11,9 @@
 namespace sdb {
 
 ///
+int yExtend(ftxui::Box box);
+
+///
 ftxui::Component separator();
 
 ///
@@ -67,13 +70,13 @@ protected:
     void setScrollOffset(long offset);
 
     /// \Returns `true` if line \p line is currently in view
-    bool isInView(size_t line) const;
+    bool isInView(long line) const;
 
     /// Centers the view around line \p line
-    void center(size_t line);
+    void center(long line);
 
     /// Helper function to be used when overriding `OnEvent()`
-    bool handleScroll(ftxui::Event event);
+    bool handleScroll(ftxui::Event event, bool allowKeyScroll = true);
 
     /// \Returns the bounding box of this view
     ftxui::Box box() const { return _box; }
@@ -85,8 +88,8 @@ protected:
     long maxScrollPositition() const;
 
 private:
-    bool isScrollUp(ftxui::Event event) const;
-    bool isScrollDown(ftxui::Event event) const;
+    bool isScrollUp(ftxui::Event event, bool allowKeyScroll) const;
+    bool isScrollDown(ftxui::Event event, bool allowKeyScroll) const;
     void clampScroll();
 
     long scrollPos = 0;

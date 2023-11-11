@@ -44,7 +44,7 @@ Component sdb::splitBottom(Component main, Component back, int size) {
         { main, back, Direction::Down, size, [] { return defaultSep(); } });
 }
 
-static int yExtend(Box box) {
+int sdb::yExtend(Box box) {
     int diff = box.y_max - box.y_min;
     return std::max(0, diff);
 }
@@ -83,45 +83,42 @@ void ScrollBase::setScrollOffset(long offset) {
     clampScroll();
 }
 
-bool ScrollBase::isInView(size_t index) const {
-    long i = static_cast<long>(index);
-    return i >= scrollPos && i < scrollPos + _box.y_max - 2;
+bool ScrollBase::isInView(long line) const {
+    return line >= scrollPos && line < scrollPos + yExtend(_box);
 }
 
-void ScrollBase::center(size_t index) {
-    setScroll(static_cast<long>(index) - _box.y_max / 2);
-}
+void ScrollBase::center(long line) { setScroll(line - yExtend(_box) / 2); }
 
-bool ScrollBase::isScrollUp(Event event) const {
+bool ScrollBase::isScrollUp(Event event, bool allowKeyScroll) const {
     if (event.is_mouse() && event.mouse().motion == Mouse::Pressed &&
         event.mouse().button == Mouse::WheelUp)
     {
         return _box.Contain(event.mouse().x, event.mouse().y);
     }
-    if (event == Event::ArrowUp) {
+    if (allowKeyScroll && event == Event::ArrowUp) {
         return true;
     }
     return false;
 }
 
-bool ScrollBase::isScrollDown(Event event) const {
+bool ScrollBase::isScrollDown(Event event, bool allowKeyScroll) const {
     if (event.is_mouse() && event.mouse().motion == Mouse::Pressed &&
         event.mouse().button == Mouse::WheelDown)
     {
         return _box.Contain(event.mouse().x, event.mouse().y);
     }
-    if (event == Event::ArrowDown) {
+    if (allowKeyScroll && event == Event::ArrowDown) {
         return true;
     }
     return false;
 }
 
-bool ScrollBase::handleScroll(Event event) {
-    if (isScrollUp(event)) {
+bool ScrollBase::handleScroll(Event event, bool allowKeyScroll) {
+    if (isScrollUp(event, allowKeyScroll)) {
         setScrollOffset(-1);
         return true;
     }
-    if (isScrollDown(event)) {
+    if (isScrollDown(event, allowKeyScroll)) {
         setScrollOffset(1);
         return true;
     }

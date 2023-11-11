@@ -15,6 +15,8 @@ Model::Model() { virtualMachine().setIOStreams(nullptr, &standardout()); }
 Model::~Model() { shutdown(); }
 
 void Model::loadBinary(Options options) {
+    shutdown();
+    clearBreakpoints();
     auto binary = svm::readBinaryFromFile(options.filepath.string());
     if (binary.empty()) {
         std::string progName = options.filepath.stem();
