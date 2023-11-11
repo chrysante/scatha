@@ -18,7 +18,8 @@ ProgramView::ProgramView(u8 const* prog) {
     ProgramHeader header;
     std::memcpy(&header, prog, sizeof(header));
     if (header.versionString[0] != GlobalProgID) {
-        throw std::runtime_error("Invalid version string");
+        throw std::runtime_error(
+            "Invalid version string. Binary seems to be corrupted.");
     }
     auto* binaryBegin = prog + header.dataOffset;
     size_t dataSize = header.textOffset - header.dataOffset;
