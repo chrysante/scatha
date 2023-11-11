@@ -33,11 +33,13 @@ protected:
     /// \Returns the current scroll position
     long scrollPosition() const { return scrollPos; }
 
+    /// Maximum scroll position based on the current view contents
+    long maxScrollPositition() const;
+
 private:
     bool isScrollUp(ftxui::Event event) const;
     bool isScrollDown(ftxui::Event event) const;
     void clampScroll();
-    long max() const;
 
     long scrollPos = 0;
     ftxui::Box _box, _lastBox;

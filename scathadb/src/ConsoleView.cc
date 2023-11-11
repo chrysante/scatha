@@ -14,7 +14,7 @@
 using namespace sdb;
 using namespace ftxui;
 
-std::vector<std::string> lines(std::string_view text) {
+static std::vector<std::string> lines(std::string_view text) {
     return ranges::views::split(text, '\n') |
            ranges::views::transform(
                [](auto const& rng) { return rng | ranges::to<std::string>; }) |
@@ -40,11 +40,15 @@ struct ConsoleViewImpl: ScrollBase {
         if (hash != lastHash) {
             lastHash = hash;
             lines = ::lines(consoleText);
+            /// Compute before detaching children
+            bool isMaxScroll = scrollPosition() == maxScrollPositition();
             DetachAllChildren();
             for (auto& line: lines) {
                 Add(Renderer([=] { return text(line); }));
             }
-            setScroll(999999999);
+            if (isMaxScroll) {
+                setScroll(999999999);
+            }
         }
         return ScrollBase::Render();
     }

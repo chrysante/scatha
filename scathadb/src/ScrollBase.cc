@@ -93,10 +93,10 @@ bool ScrollBase::handleScroll(Event event) {
 }
 
 void ScrollBase::clampScroll() {
-    scrollPos = std::clamp(scrollPos, long{ 0 }, max());
+    scrollPos = std::clamp(scrollPos, long{ 0 }, maxScrollPositition());
 }
 
-long ScrollBase::max() const {
+long ScrollBase::maxScrollPositition() const {
     long const overscroll = 0;
     return std::max(long{ 0 },
                     static_cast<long>(ChildCount()) - yExtend(_box) +
