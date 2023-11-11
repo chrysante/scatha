@@ -40,7 +40,7 @@ struct RegView: ScrollBase {
             return text("");
         }
         values = model->readRegisters(utl::narrow_cast<size_t>(maxReg));
-        auto& vm = model->virtualMachine();
+        auto& vm = model->VM();
         auto execFrame = vm.getCurrentExecFrame();
         currentOffset = execFrame.regPtr - execFrame.bottomReg;
         return ScrollBase::Render();
