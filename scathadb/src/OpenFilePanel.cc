@@ -100,7 +100,10 @@ struct OpenFilePanelBase: ComponentBase {
             }
             return elem;
         };
-        opt.on_change = [=] { autoComplete.invalidate(); };
+        opt.on_change = [=] {
+            autoComplete.invalidate();
+            hideErrorMessage();
+        };
         opt.on_enter = [=] {
             if (content.back() == '\n') {
                 content.pop_back();
@@ -116,8 +119,7 @@ struct OpenFilePanelBase: ComponentBase {
                 *open = false;
             }
             catch (std::exception const& e) {
-                content.clear();
-                placeholder = e.what();
+                displayErrorMessage(e.what());
             }
         };
         opt.cursor_position = &cursor;
@@ -138,7 +140,30 @@ struct OpenFilePanelBase: ComponentBase {
         Add(input);
     }
 
+    Element Render() override {
+        std::vector<Element> elems;
+        for (size_t i = 0; i < ChildCount(); ++i) {
+            if (i > 0) {
+                elems.push_back(sdb::separator()->Render());
+            }
+            elems.push_back(ChildAt(i)->Render());
+        }
+        return vbox(std::move(elems));
+    }
+
     Component ActiveChild() override { return ChildAt(0); }
+
+    void displayErrorMessage(std::string msg) {
+        hideErrorMessage();
+        Add(Renderer([msg] { return text(msg) | color(Color::Red); }));
+    }
+
+    void hideErrorMessage() {
+        assert(ChildCount() <= 2);
+        if (ChildCount() == 2) {
+            ChildAt(1)->Detach();
+        }
+    }
 
     int cursor = 0;
     std::string content, placeholder = "executable-path";
