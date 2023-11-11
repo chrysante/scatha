@@ -127,18 +127,15 @@ struct InstView: ScrollBase {
             return handleMouse(event);
         }
         if (event == Event::ArrowUp) {
-
-            focusLine = std::clamp(focusLine - 1,
-                                   0l,
-                                   utl::narrow_cast<long>(ChildCount()) - 1);
-            scrollToLine(focusLine);
+            focusLineOffset(-1);
             return true;
         }
         if (event == Event::ArrowDown) {
-            focusLine = std::clamp(focusLine + 1,
-                                   0l,
-                                   utl::narrow_cast<long>(ChildCount()) - 1);
-            scrollToLine(focusLine);
+            focusLineOffset(1);
+            return true;
+        }
+        /// We eat these to prevent focus loss
+        if (event == Event::ArrowLeft || event == Event::ArrowRight) {
             return true;
         }
         if (event == Event::Character("b")) {
@@ -166,7 +163,15 @@ struct InstView: ScrollBase {
             TakeFocus();
         }
         if (mouse.button == Mouse::Left && mouse.motion == Mouse::Pressed) {
-            focusLine = event.mouse().y - box().y_min + scrollPosition();
+            long line = event.mouse().y - box().y_min + scrollPosition();
+            long column = event.mouse().x - box().x_min;
+            auto index = lineToIndex(line);
+            if (index && column < 8) {
+                model->toggleBreakpoint(*index);
+            }
+            else {
+                focusLine = event.mouse().y - box().y_min + scrollPosition();
+            }
             return true;
         }
         return false;
@@ -175,8 +180,14 @@ struct InstView: ScrollBase {
     void scrollToIndex(size_t index) { scrollToLine(indexToLineMap[index]); }
 
     void scrollToLine(long line) {
-        if (!isInView(line)) {
-            center(line);
+        if (isInView(line)) {
+            return;
+        }
+        if (line < scrollPosition()) {
+            center(line, 0.25);
+        }
+        else {
+            center(line, 0.75);
         }
     }
 
@@ -193,6 +204,13 @@ struct InstView: ScrollBase {
             return indexToLineMap[index];
         }
         return std::nullopt;
+    }
+
+    void focusLineOffset(long offset) {
+        focusLine = std::clamp(focusLine + offset,
+                               0l,
+                               utl::narrow_cast<long>(ChildCount()) - 1);
+        scrollToLine(focusLine);
     }
 
     Model* model;

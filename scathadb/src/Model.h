@@ -65,31 +65,31 @@ public:
     size_t currentLine() const { return currentIndex; }
 
     ///
-    bool isBreakpoint(size_t line) const {
+    bool isBreakpoint(size_t instIndex) const {
         std::lock_guard lock(mutex);
-        return isBreakpointImpl(line);
+        return isBreakpointImpl(instIndex);
     }
 
     ///
-    void addBreakpoint(size_t line) {
+    void addBreakpoint(size_t instIndex) {
         std::lock_guard lock(mutex);
-        addBreakpointImpl(line);
+        addBreakpointImpl(instIndex);
     }
 
     ///
-    void removeBreakpoint(size_t line) {
+    void removeBreakpoint(size_t instIndex) {
         std::lock_guard lock(mutex);
-        removeBreakpointImpl(line);
+        removeBreakpointImpl(instIndex);
     }
 
     ///
-    void toggleBreakpoint(size_t line) {
+    void toggleBreakpoint(size_t instIndex) {
         std::lock_guard lock(mutex);
-        if (!isBreakpointImpl(line)) {
-            addBreakpointImpl(line);
+        if (!isBreakpointImpl(instIndex)) {
+            addBreakpointImpl(instIndex);
         }
         else {
-            removeBreakpointImpl(line);
+            removeBreakpointImpl(instIndex);
         }
     }
 
@@ -135,11 +135,13 @@ private:
     ///
     void startExecutionThread(std::array<uint64_t, 2> arguments);
 
-    bool isBreakpointImpl(size_t line) const {
-        return breakpoints.contains(line);
+    bool isBreakpointImpl(size_t instIndex) const {
+        return breakpoints.contains(instIndex);
     }
-    void addBreakpointImpl(size_t line) { breakpoints.insert(line); }
-    void removeBreakpointImpl(size_t line) { breakpoints.erase(line); }
+    void addBreakpointImpl(size_t instIndex) { breakpoints.insert(instIndex); }
+    void removeBreakpointImpl(size_t instIndex) {
+        breakpoints.erase(instIndex);
+    }
     /// Requires the VM to be currently executing
     void updateInstIndex();
 

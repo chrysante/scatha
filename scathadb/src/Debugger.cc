@@ -67,7 +67,7 @@ auto const ToggleExecCmd = Command::Add({
 
 auto const StepCmd = Command::Add({
     "s",
-    [](Debugger const& db) { return ">."; },
+    [](Debugger const& db) { return ">_"; },
     [](Debugger const& db) {
         return db.model()->isActive() && db.model()->isSleeping();
     },

@@ -56,10 +56,21 @@ struct RegView: ScrollBase {
 
 Element RegEntry::Render() {
     auto* parent = dynamic_cast<RegView const*>(Parent());
+    std::stringstream sstr;
+    uint64_t value = parent->values[utl::narrow_cast<size_t>(index)];
+    auto ptr = std::bit_cast<svm::VirtualPointer>(value);
+    auto derefRange = parent->model->VM().validPtrRange(ptr);
+    if (derefRange >= 0) {
+        sstr << "0x" << std::hex << value << " [deref=" << std::dec
+             << derefRange << "]";
+    }
+    else {
+        sstr << value;
+    }
+    Element elem = text(sstr.str());
     return hbox({ text(utl::strcat("%", index - parent->currentOffset, " = ")) |
                       align_right | size(WIDTH, EQUAL, 8),
-                  text(std::to_string(
-                      parent->values[utl::narrow_cast<size_t>(index)])) });
+                  elem });
 }
 
 static Component CompareFlagsView(Model* model) {

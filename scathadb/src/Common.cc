@@ -84,10 +84,13 @@ void ScrollBase::setScrollOffset(long offset) {
 }
 
 bool ScrollBase::isInView(long line) const {
-    return line >= scrollPos && line < scrollPos + yExtend(_box);
+    return line >= scrollPos && line <= scrollPos + yExtend(_box);
 }
 
-void ScrollBase::center(long line) { setScroll(line - yExtend(_box) / 2); }
+void ScrollBase::center(long line, double ratio) {
+    ratio = std::clamp(ratio, 0.0, 1.0);
+    setScroll(line - static_cast<long>(yExtend(_box) * ratio));
+}
 
 bool ScrollBase::isScrollUp(Event event, bool allowKeyScroll) const {
     if (event.is_mouse() && event.mouse().motion == Mouse::Pressed &&

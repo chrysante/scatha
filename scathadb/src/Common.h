@@ -73,7 +73,7 @@ protected:
     bool isInView(long line) const;
 
     /// Centers the view around line \p line
-    void center(long line);
+    void center(long line, double ratio = 0.5);
 
     /// Helper function to be used when overriding `OnEvent()`
     bool handleScroll(ftxui::Event event, bool allowKeyScroll = true);
