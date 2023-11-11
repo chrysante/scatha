@@ -237,9 +237,13 @@ static Instruction readInstruction(uint8_t const* textPtr) {
     return { opcode, arg1, arg2 };
 }
 
-Disassembly sdb::disassemble(uint8_t const* program) {
+Disassembly sdb::disassemble(std::span<uint8_t const> program) {
+    if (program.empty()) {
+        return {};
+    }
+
     Disassembly result;
-    ProgramView const p(program);
+    ProgramView const p(program.data());
     auto text = p.text;
 
     /// Gather all instructions

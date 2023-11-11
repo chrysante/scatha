@@ -1,24 +1,66 @@
 #include "Model.h"
 
 #include <ostream>
+#include <stdexcept>
+
+#include <svm/Util.h>
+#include <utl/strcat.hpp>
 
 #include "Common.h"
 
 using namespace sdb;
 
-Model::Model(svm::VirtualMachine vm,
-             uint8_t const* program,
-             std::array<uint64_t, 2> arguments):
-    vm(std::move(vm)), disasm(disassemble(program)), arguments(arguments) {
-    virtualMachine().setIOStreams(nullptr, &standardout());
-}
+Model::Model() { virtualMachine().setIOStreams(nullptr, &standardout()); }
 
 Model::~Model() { shutdown(); }
 
-void Model::startExecutionThread() {
+void Model::loadBinary(Options options) {
+    auto binary = svm::readBinaryFromFile(options.filepath.string());
+    if (binary.empty()) {
+        std::string progName = options.filepath.stem();
+        auto msg =
+            utl::strcat("Failed to load ", progName, ". Binary is empty.\n");
+        throw std::runtime_error(msg);
+    }
+    vm.loadBinary(binary.data());
+    runArguments = std::move(options.arguments);
+    disasm = disassemble(binary);
+    if (reloadCallback) {
+        reloadCallback();
+    }
+}
+
+void Model::run() {
+    if (isActive()) {
+        shutdown();
+    }
+    _stdout.str({});
+    {
+        std::lock_guard lock(mutex);
+        send(Signal::Terminate);
+    }
+    if (executionThread.joinable()) {
+        executionThread.join();
+    }
+    auto execArg = setupArguments(vm, runArguments);
+    startExecutionThread(execArg);
+}
+
+void Model::shutdown() {
+    {
+        std::lock_guard lock(mutex);
+        execThreadRunning = false;
+        send(Signal::Terminate);
+    }
+    if (executionThread.joinable()) {
+        executionThread.join();
+    }
+}
+
+void Model::startExecutionThread(std::span<uint64_t const> arguments) {
     signal = Signal::Run;
     execThreadRunning = true;
-    executionThread = std::thread([this] {
+    executionThread = std::thread([=] {
         vm.beginExecution(arguments);
         updateInstIndex();
         handlePausedOrBreakpoint();
@@ -100,32 +142,6 @@ void Model::skipLine() {
 void Model::enterFunction() { beep(); }
 
 void Model::exitFunction() { beep(); }
-
-void Model::run() {
-    if (isActive()) {
-        shutdown();
-    }
-    _stdout.str({});
-    {
-        std::lock_guard lock(mutex);
-        send(Signal::Terminate);
-    }
-    if (executionThread.joinable()) {
-        executionThread.join();
-    }
-    startExecutionThread();
-}
-
-void Model::shutdown() {
-    {
-        std::lock_guard lock(mutex);
-        execThreadRunning = false;
-        send(Signal::Terminate);
-    }
-    if (executionThread.joinable()) {
-        executionThread.join();
-    }
-}
 
 bool Model::isSleeping() const {
     std::lock_guard lock(mutex);

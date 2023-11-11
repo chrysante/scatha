@@ -2,6 +2,7 @@
 #define SDB_DISASSEMBLER_H_
 
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -75,7 +76,7 @@ std::string labelName(size_t ID);
 /// Disassemble the program \p program
 /// Disassembling a program recomputes as much structure as possible to enable
 /// debugging
-Disassembly disassemble(uint8_t const* program);
+Disassembly disassemble(std::span<uint8_t const> program);
 
 /// Represents a disassembled program.
 class Disassembly {
@@ -105,7 +106,7 @@ public:
     std::span<Instruction const> instructions() const { return insts; }
 
 private:
-    friend Disassembly disassemble(uint8_t const*);
+    friend Disassembly sdb::disassemble(std::span<uint8_t const>);
 
     std::vector<Instruction> insts;
     /// Maps binary offsets to instruction indices

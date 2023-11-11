@@ -1,6 +1,5 @@
 #include "Debugger.h"
 
-#include "Common.h"
 #include "Model.h"
 #include "Views.h"
 
@@ -11,26 +10,21 @@ Debugger::Debugger(Model* model):
     model(model), screen(ScreenInteractive::Fullscreen()) {
     model->setRefreshCallback(
         [this] { screen.PostEvent(Event::Special("Wakeup call")); });
-    settings = SettingsView([this] { showSettings = false; });
+    model->setReloadCallback([this] { instView->refresh(); });
     auto sidebar = Container::Vertical(
         { FlagsView(model), sdb::separator(), RegisterView(model) });
-    auto centralSplit = splitRight(sidebar, InstructionView(model), 30);
-    auto toolbar = ToolbarView(model, [this] {
-        showSettings = true;
-        settings->TakeFocus();
-    });
+    instView = InstructionView(model);
+    auto centralSplit = splitRight(sidebar, instView, 30);
+    auto toolbar = ToolbarView(model, &settingsOpen, &filePanelOpen);
     auto top = Container::Vertical({
         sdb::separator(),
         toolbar,
         sdb::separator(),
         centralSplit | flex,
     });
-
     auto bottom = Container::Vertical(
         { StepControlsView(model), sdb::separator(), ConsoleView(model) });
-
-    root = splitBottom(bottom, top) | Modal(settings, &showSettings) |
-           CatchEvent([=](Event event) {
+    root = splitBottom(bottom, top) | CatchEvent([=](Event event) {
                if (event.is_character()) {
                    for (auto& [key, command]: keyCommands) {
                        if (event.character() == key) {
@@ -40,18 +34,21 @@ Debugger::Debugger(Model* model):
                    }
                }
                return false;
-           });
+           }) |
+           Modal(SettingsView(&settingsOpen), &settingsOpen) |
+           Modal(OpenFilePanel(model, &filePanelOpen), &filePanelOpen);
 
     addKeyCommand("q", [=] {
         model->shutdown();
         screen.Exit();
     });
+    addKeyCommand("r", [=] { model->run(); });
+    addKeyCommand("x", [=] { model->shutdown(); });
+    addKeyCommand("o", [=] { filePanelOpen = true; });
     addKeyCommand("p", [=] { model->toggleExecution(); });
     addKeyCommand("s", [=] { model->skipLine(); });
     addKeyCommand("e", [=] { model->enterFunction(); });
     addKeyCommand("l", [=] { model->exitFunction(); });
-    addKeyCommand("r", [=] { model->run(); });
-    addKeyCommand("x", [=] { model->shutdown(); });
 }
 
 void Debugger::run() { screen.Loop(root); }

@@ -7,15 +7,15 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "Common.h"
 #include "Model.h"
-#include "ScrollBase.h"
 
 using namespace sdb;
 using namespace ftxui;
 
 static Element breakpointIndicator(bool isBreakpoint, bool isCurrent) {
     if (isBreakpoint) {
-        return text("⫸  ") |
+        return text("*> ") |
                color(isCurrent ? Color::White : Color::BlueLight) | bold;
     }
     else {
@@ -32,7 +32,10 @@ static Element lineNumber(size_t index, bool isCurrent) {
 namespace {
 
 struct InstView: ScrollBase {
-    InstView(Model* model): model(model) {
+    InstView(Model* model): model(model) { InstView::refresh(); }
+
+    void refresh() override {
+        DetachAllChildren();
         model->setScrollCallback([this](size_t index) {
             size_t line = indexToLineMap[index];
             if (!isInView(line)) {
@@ -65,6 +68,7 @@ struct InstView: ScrollBase {
                                    breakpointIndicator(isBreakpoint, isCurrent),
                                    text(labelText) | flex });
                 if (isCurrent) {
+                    line |= color(Color::White);
                     line |= bgcolor(Color::Green);
                 }
                 return line;
@@ -100,4 +104,4 @@ struct InstView: ScrollBase {
 
 } // namespace
 
-Component sdb::InstructionView(Model* model) { return Make<InstView>(model); }
+View sdb::InstructionView(Model* model) { return Make<InstView>(model); }

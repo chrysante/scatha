@@ -18,18 +18,24 @@
 
 namespace sdb {
 
+struct Options;
+
 class Model {
 public:
-    explicit Model(svm::VirtualMachine vm,
-                   uint8_t const* program,
-                   std::array<uint64_t, 2> arguments);
+    Model();
 
     Model(Model const&) = delete;
 
     ~Model();
 
     ///
-    void startExecutionThread();
+    void loadBinary(Options options);
+
+    ///
+    void run();
+
+    ///
+    void shutdown();
 
     ///
     void toggleExecution();
@@ -42,12 +48,6 @@ public:
 
     ///
     void exitFunction();
-
-    ///
-    void run();
-
-    ///
-    void shutdown();
 
     ///
     std::span<Instruction const> instructions() const {
@@ -108,6 +108,9 @@ public:
     Disassembly const& disassembly() const { return disasm; }
 
     ///
+    void setReloadCallback(std::function<void()> fn) { reloadCallback = fn; }
+
+    ///
     void setScrollCallback(std::function<void(size_t)> fn) {
         scrollCallback = fn;
     }
@@ -119,6 +122,9 @@ public:
     std::stringstream& standardout() { return _stdout; }
 
 private:
+    ///
+    void startExecutionThread(std::span<uint64_t const> arguments);
+
     bool isBreakpointImpl(size_t line) const {
         return breakpoints.contains(line);
     }
@@ -147,12 +153,12 @@ private:
     std::atomic<size_t> currentIndex = 0;
 
     svm::VirtualMachine vm;
+    std::vector<std::string> runArguments;
     Disassembly disasm;
-    std::array<uint64_t, 2> arguments;
     utl::hashset<size_t> breakpoints;
 
+    std::function<void()> reloadCallback;
     std::function<void(size_t)> scrollCallback;
-
     std::function<void()> refreshCallback;
     std::chrono::time_point<std::chrono::steady_clock> lastRefresh =
         std::chrono::steady_clock::now();

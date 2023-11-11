@@ -1,34 +1,29 @@
-#include "Debugger.h"
-#include "Model.h"
+#include <span>
 
 #include <svm/ParseCLI.h>
 #include <svm/Util.h>
 #include <svm/VirtualMachine.h>
+#include <utl/utility.hpp>
+
+#include "Common.h"
+#include "Debugger.h"
+#include "Model.h"
 
 using namespace sdb;
 
 int main(int argc, char* argv[]) {
-    svm::Options options = svm::parseCLI(argc, argv);
-    std::string progName = options.filepath.stem();
-
-    svm::VirtualMachine vm;
-    std::vector<uint8_t> binary;
-    try {
-        binary = svm::readBinaryFromFile(options.filepath.string());
-        if (binary.empty()) {
-            std::cerr << "Failed to run " << progName << ". Binary is empty.\n";
-            return -1;
+    Options options =
+        parseArguments(std::span(argv + 1, utl::narrow_cast<size_t>(argc - 1)));
+    Model model;
+    if (options) {
+        try {
+            model.loadBinary(options);
         }
-        vm.loadBinary(binary.data());
+        catch (std::exception const& e) {
+            std::cerr << e.what() << std::endl;
+            return 1;
+        }
     }
-    catch (std::exception const& e) {
-        std::cout << e.what() << std::endl;
-        return 1;
-    }
-
-    auto execArg = setupArguments(vm, options.arguments);
-
-    Model model(std::move(vm), binary.data(), execArg);
     Debugger debugger(&model);
     debugger.run();
 }

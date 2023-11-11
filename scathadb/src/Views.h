@@ -5,6 +5,8 @@
 
 #include <ftxui/component/component.hpp>
 
+#include "Common.h"
+
 namespace sdb {
 
 class Model;
@@ -12,7 +14,9 @@ class Model;
 ///
 ///
 ///
-ftxui::Component ToolbarView(Model* model, std::function<void()> showSettings);
+ftxui::Component ToolbarView(Model* model,
+                             bool* settingsOpen,
+                             bool* filePanelOpen);
 
 ///
 ///
@@ -22,7 +26,7 @@ ftxui::Component StepControlsView(Model* model);
 ///
 ///
 ///
-ftxui::Component InstructionView(Model* model);
+View InstructionView(Model* model);
 
 ///
 ///
@@ -42,7 +46,12 @@ ftxui::Component ConsoleView(Model* model);
 ///
 ///
 ///
-ftxui::Component SettingsView(std::function<void()> hideSettings);
+ftxui::Component OpenFilePanel(Model* model, bool* open);
+
+///
+///
+///
+ftxui::Component SettingsView(bool* open);
 
 } // namespace sdb
 

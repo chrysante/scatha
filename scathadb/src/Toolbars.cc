@@ -95,11 +95,17 @@ static ButtonInfo switchModeButton() {
     return { "Src", [=] { return false; }, [=] { beep(); } };
 }
 
-static ButtonInfo settingsButton(std::function<void()> showSettings) {
-    return { "Settings", [=] { return true; }, showSettings };
+static ButtonInfo openFileButton(bool* filePanelOpen) {
+    return { "Open", [=] { return true; }, [=] { *filePanelOpen = true; } };
 }
 
-Component sdb::ToolbarView(Model* model, std::function<void()> showSettings) {
+static ButtonInfo settingsButton(bool* settingsOpen) {
+    return { "Settings", [=] { return true; }, [=] { *settingsOpen = true; } };
+}
+
+Component sdb::ToolbarView(Model* model,
+                           bool* settingsOpen,
+                           bool* filePanelOpen) {
     return Container::Horizontal({
         startButton(model),
         sdb::separatorEmpty(),
@@ -107,7 +113,9 @@ Component sdb::ToolbarView(Model* model, std::function<void()> showSettings) {
         sdb::separatorEmpty(),
         switchModeButton(),
         spacer(),
-        settingsButton(showSettings),
+        openFileButton(filePanelOpen),
+        sdb::separatorEmpty(),
+        settingsButton(settingsOpen),
     });
 }
 

@@ -8,8 +8,8 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "Common.h"
 #include "Model.h"
-#include "ScrollBase.h"
 
 using namespace sdb;
 using namespace ftxui;

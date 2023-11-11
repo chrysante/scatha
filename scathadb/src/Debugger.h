@@ -9,6 +9,8 @@
 
 #include <ftxui/component/screen_interactive.hpp>
 
+#include "Common.h"
+
 namespace sdb {
 
 class Model;
@@ -32,9 +34,10 @@ private:
 
     ftxui::ScreenInteractive screen;
     ftxui::Component root;
-    ftxui::Component settings;
+    std::shared_ptr<ViewBase> instView;
 
-    bool showSettings = false;
+    bool settingsOpen = false;
+    bool filePanelOpen = false;
 };
 
 } // namespace sdb
