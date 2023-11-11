@@ -2,6 +2,7 @@
 #define SDB_COMMON_H_
 
 #include <filesystem>
+#include <functional>
 #include <span>
 #include <string>
 
@@ -95,6 +96,8 @@ private:
     long scrollPos = 0;
     ftxui::Box _box, _lastBox;
 };
+
+using OpenModalCommand = std::function<void()>;
 
 ///
 void beep();

@@ -84,7 +84,8 @@ struct InstView: ScrollBase {
         /// correctly with the scroll view
         if (event.is_mouse() &&
             box().Contain(event.mouse().x, event.mouse().y) &&
-            event.mouse().motion == Mouse::Released)
+            event.mouse().button == Mouse::Left &&
+            event.mouse().motion == Mouse::Pressed)
         {
             auto line = event.mouse().y - box().y_min + scrollPosition();
             auto itr = lineToIndexMap.find(line);

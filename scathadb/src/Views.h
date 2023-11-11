@@ -15,8 +15,8 @@ class Model;
 ///
 ///
 ftxui::Component ToolbarView(Model* model,
-                             bool* settingsOpen,
-                             bool* filePanelOpen);
+                             OpenModalCommand settings,
+                             OpenModalCommand fileOpenPanel);
 
 ///
 ///

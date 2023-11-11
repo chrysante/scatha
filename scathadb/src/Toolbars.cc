@@ -95,17 +95,17 @@ static ButtonInfo switchModeButton() {
     return { "Src", [=] { return false; }, [=] { beep(); } };
 }
 
-static ButtonInfo openFileButton(bool* filePanelOpen) {
-    return { "Open", [=] { return true; }, [=] { *filePanelOpen = true; } };
+static ButtonInfo openFileButton(OpenModalCommand open) {
+    return { "Open", [=] { return true; }, open };
 }
 
-static ButtonInfo settingsButton(bool* settingsOpen) {
-    return { "Settings", [=] { return true; }, [=] { *settingsOpen = true; } };
+static ButtonInfo settingsButton(OpenModalCommand open) {
+    return { "Settings", [=] { return true; }, open };
 }
 
 Component sdb::ToolbarView(Model* model,
-                           bool* settingsOpen,
-                           bool* filePanelOpen) {
+                           OpenModalCommand openFileOpenPanel,
+                           OpenModalCommand openSettings) {
     return Container::Horizontal({
         startButton(model),
         sdb::separatorEmpty(),
@@ -113,9 +113,9 @@ Component sdb::ToolbarView(Model* model,
         sdb::separatorEmpty(),
         switchModeButton(),
         spacer(),
-        openFileButton(filePanelOpen),
+        openFileButton(openFileOpenPanel),
         sdb::separatorEmpty(),
-        settingsButton(settingsOpen),
+        settingsButton(openSettings),
     });
 }
 

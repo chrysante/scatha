@@ -57,6 +57,8 @@ struct Panel: ComponentBase {
         Add(Input(opt));
     }
 
+    Component ActiveChild() override { return ChildAt(0); }
+
     std::string content, placeholder = "executable-path";
 };
 

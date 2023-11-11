@@ -36,8 +36,10 @@ private:
     ftxui::Component root;
     std::shared_ptr<ViewBase> instView;
 
+    bool fileOpenPanelOpen = false;
+    ftxui::Component fileOpenPanel;
     bool settingsOpen = false;
-    bool filePanelOpen = false;
+    ftxui::Component settings;
 };
 
 } // namespace sdb
