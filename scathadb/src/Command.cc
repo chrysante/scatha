@@ -3,9 +3,17 @@
 #include <utl/utility.hpp>
 
 #include "Common.h"
+#include "HelpPanel.h"
 
 using namespace sdb;
 using namespace ftxui;
+
+Command const& Command::Add(Command cmd) {
+    addPanelCommandsInfo("Global commands",
+                         { .hotkey = cmd.hotkey, .message = cmd.description });
+    _all.push_back(std::move(cmd));
+    return _all.back();
+}
 
 ComponentDecorator Command::EventCatcher(Debugger* db) {
     return CatchEvent([=](Event event) {
@@ -31,11 +39,13 @@ ComponentDecorator Command::EventCatcher(Debugger* db) {
 Command::Command(std::string hotkey,
                  std::function<std::string(Debugger const&)> buttonLabel,
                  std::function<bool(Debugger const&)> isActive,
-                 std::function<void(Debugger&)> action):
+                 std::function<void(Debugger&)> action,
+                 std::string description):
     hotkey(std::move(hotkey)),
     buttonLabel(std::move(buttonLabel)),
     isActive(std::move(isActive)),
-    action(std::move(action)) {}
+    action(std::move(action)),
+    description(std::move(description)) {}
 
 std::vector<Command> Command::_all;
 

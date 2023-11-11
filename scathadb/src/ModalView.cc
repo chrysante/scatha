@@ -14,10 +14,10 @@ struct ModalViewBase: ComponentBase {
             return text(" X ") | bold;
         };
         closeOpt.on_click = [=] { *open = false; };
-        auto titlebar = Container::Horizontal(
-            { Button(closeOpt), sdb::separator(), Renderer([=] {
-                  return text(title) | bold | center | flex;
-              }) });
+        auto titlebar = Container::Stacked({
+            Renderer([=] { return text(title) | bold | center | flex; }),
+            Container::Horizontal({ Button(closeOpt), sdb::separator() }),
+        });
         Add(titlebar);
         Add(body);
     }

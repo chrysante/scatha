@@ -8,6 +8,7 @@
 #include <utl/utility.hpp>
 
 #include "Common.h"
+#include "HelpPanel.h"
 #include "Model.h"
 
 using namespace sdb;
@@ -38,6 +39,17 @@ static Element lineNumber(LineInfo line) {
            color(line.isCurrent ? Color::White : Color::GrayDark);
 }
 
+[[maybe_unused]] static int desc_init = [] {
+    setPanelCommandsInfo("Instruction viewer commands",
+                         {
+                             { "b",
+                               "Create or erase a breakpoint on the current "
+                               "line" },
+                             { "c", "Clear all breakpoints" },
+                         });
+    return 0;
+}();
+
 namespace {
 
 struct InstView: ScrollBase {
@@ -46,7 +58,7 @@ struct InstView: ScrollBase {
     LineInfo getLineInfo(long lineNum) const {
         auto index = lineToIndex(lineNum);
         return { .num = lineNum,
-                 .isFocused = Focused() && lineNum == focusLine,
+                 .isFocused = lineNum == focusLine,
                  .isCurrent = model->isActive() && model->isSleeping() &&
                               index && *index == model->currentLine(),
                  .isBreakpoint = index && model->isBreakpoint(*index) };

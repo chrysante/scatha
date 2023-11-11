@@ -18,10 +18,7 @@ struct Command {
     static std::span<Command const> All() { return _all; }
 
     ///
-    static Command const& Add(Command cmd) {
-        _all.push_back(std::move(cmd));
-        return _all.back();
-    }
+    static Command const& Add(Command cmd);
 
     ///
     static ftxui::ComponentDecorator EventCatcher(Debugger* db);
@@ -29,7 +26,8 @@ struct Command {
     Command(std::string hotkey,
             std::function<std::string(Debugger const&)> buttonLabel,
             std::function<bool(Debugger const&)> isActive,
-            std::function<void(Debugger&)> action);
+            std::function<void(Debugger&)> action,
+            std::string description);
 
     ///
     std::string hotkey;
@@ -42,6 +40,9 @@ struct Command {
 
     ///
     std::function<void(Debugger&)> action;
+
+    ///
+    std::string description;
 
 private:
     static std::vector<Command> _all;
