@@ -54,11 +54,13 @@ ModalView::ModalView(std::string title,
     _comp = Make<ModalViewBase>(title, body, &_state->open);
 }
 
+void ModalView::open() {
+    _state->open = true;
+    _comp->TakeFocus();
+}
+
 OpenModalCommand ModalView::openCommand() {
-    return [this] {
-        _state->open = true;
-        _comp->TakeFocus();
-    };
+    return [this] { open(); };
 }
 
 ComponentDecorator ModalView::overlay() {

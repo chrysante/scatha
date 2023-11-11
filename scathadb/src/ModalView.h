@@ -28,6 +28,9 @@ public:
     ftxui::Component component() { return _comp; }
 
     ///
+    void open();
+
+    ///
     OpenModalCommand openCommand();
 
     ///

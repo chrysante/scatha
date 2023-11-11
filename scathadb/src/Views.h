@@ -1,7 +1,7 @@
 #ifndef SDB_VIEWS_H_
 #define SDB_VIEWS_H_
 
-#include <functional>
+#include <vector>
 
 #include <ftxui/component/component.hpp>
 
@@ -11,18 +11,7 @@
 namespace sdb {
 
 class Model;
-
-///
-///
-///
-ftxui::Component ToolbarView(Model* model,
-                             OpenModalCommand settings,
-                             OpenModalCommand fileOpenPanel);
-
-///
-///
-///
-ftxui::Component StepControlsView(Model* model);
+class Debugger;
 
 ///
 ///
@@ -43,6 +32,11 @@ ftxui::Component FlagsView(Model* model);
 ///
 ///
 ftxui::Component ConsoleView(Model* model);
+
+///
+///
+///
+ftxui::Component Toolbar(std::vector<ftxui::Component> components);
 
 ///
 ///

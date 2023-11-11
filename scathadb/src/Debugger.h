@@ -21,24 +21,35 @@ struct KeyCommand {
     std::function<void()> command;
 };
 
+///
+///
 class Debugger {
 public:
     explicit Debugger(Model* model);
 
+    ///
     void run();
+
+    ///
+    Model* model() { return _model; }
+
+    /// \overload
+    Model const* model() const { return _model; }
 
 private:
     void addKeyCommand(std::string key, std::function<void()> command);
+    Model* _model;
 
-    Model* model;
-    std::vector<KeyCommand> keyCommands;
-
-    ftxui::ScreenInteractive screen;
-    ftxui::Component root;
-    std::shared_ptr<ViewBase> instView;
-
+public:
+    // Public for now
     ModalView fileOpenPanel;
     ModalView settingsView;
+    ftxui::ScreenInteractive screen;
+
+private:
+    std::vector<KeyCommand> keyCommands;
+    ftxui::Component root;
+    std::shared_ptr<ViewBase> instView;
 };
 
 } // namespace sdb
