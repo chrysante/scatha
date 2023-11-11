@@ -91,9 +91,7 @@ Debugger::Debugger(Model* _model):
     auto centralSplit = splitRight(sidebar, instView, 30);
     auto toolbar = Toolbar({
         ToolbarButton(this, QuitCmd),
-        sdb::separator(),
         ToolbarButton(this, RunCmd),
-        sdb::separatorEmpty(),
         ToolbarButton(this, StopCmd),
 
         sdb::spacer(),
@@ -103,9 +101,7 @@ Debugger::Debugger(Model* _model):
         sdb::spacer(),
 
         ToolbarButton(this, OpenCmd),
-        sdb::separatorEmpty(),
         ToolbarButton(this, SettingsCmd),
-        sdb::separatorEmpty(),
         ToolbarButton(this, HelpCmd),
     });
     auto top = Container::Vertical({
@@ -116,7 +112,6 @@ Debugger::Debugger(Model* _model):
     });
     auto dbgCtrlBar = Toolbar({
         ToolbarButton(this, ToggleExecCmd),
-        sdb::separatorEmpty(),
         ToolbarButton(this, StepCmd),
     });
     auto bottom = Container::Vertical(
