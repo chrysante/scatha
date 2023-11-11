@@ -11,7 +11,7 @@ using namespace ftxui;
 // clang-format off
 auto const QuitCmd = Command::Add({
     "q",
-    [](Debugger const& db) { return " X "; },
+    [](Debugger const& db) { return "Quit"; },
     [](Debugger const& db) { return true; },
     [](Debugger& db) { db.quit(); },
     "Quit the debugger"
@@ -67,7 +67,7 @@ auto const ToggleExecCmd = Command::Add({
 
 auto const StepCmd = Command::Add({
     "s",
-    [](Debugger const& db) { return ">_"; },
+    [](Debugger const& db) { return ">."; },
     [](Debugger const& db) {
         return db.model()->isActive() && db.model()->isSleeping();
     },
@@ -93,13 +93,9 @@ Debugger::Debugger(Model* _model):
         ToolbarButton(this, QuitCmd),
         ToolbarButton(this, RunCmd),
         ToolbarButton(this, StopCmd),
-
         sdb::spacer(),
-
-        Renderer([=] { return text(model()->currentFilepath().string()); }),
-
+        Renderer([=] { return text(model()->currentFilepath().string()) | flex; }),
         sdb::spacer(),
-
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),
         ToolbarButton(this, HelpCmd),

@@ -174,7 +174,7 @@ struct OpenFilePanelBase: ComponentBase {
 
 ModalView sdb::OpenFilePanel(Model* model) {
     auto state = ModalView::makeState();
-    return ModalView("Open...",
+    return ModalView("Open file",
                      Make<OpenFilePanelBase>(model, &state->open),
                      state);
 }

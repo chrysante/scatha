@@ -11,8 +11,12 @@ using namespace ftxui;
 namespace {
 
 struct ToolbarBase: ComponentBase {
-    using ComponentBase::ComponentBase;
-
+    explicit ToolbarBase(std::vector<Component> components) {
+        for (auto& comp: components) {
+            Add(comp);
+        }
+    }
+    
     Element Render() override {
         std::vector<Element> elems;
         for (size_t i = 0; i < ChildCount(); ++i) {
