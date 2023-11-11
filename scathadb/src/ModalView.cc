@@ -10,7 +10,9 @@ namespace {
 struct ModalViewBase: ComponentBase {
     ModalViewBase(std::string title, Component body, bool* open): open(open) {
         auto closeOpt = ButtonOption::Simple();
-        closeOpt.transform = [](EntryState const&) { return text(" X "); };
+        closeOpt.transform = [](EntryState const&) {
+            return text(" X ") | bold;
+        };
         closeOpt.on_click = [=] { *open = false; };
         auto titlebar = Container::Horizontal(
             { Button(closeOpt), sdb::separator(), Renderer([=] {
