@@ -8,70 +8,67 @@ using namespace sdb;
 using namespace ftxui;
 
 // clang-format off
-auto const QuitCmd = Command{
+auto const QuitCmd = Command::Add({
     "q",
     [](Debugger const& db) { return " X "; },
     [](Debugger const& db) { return true; },
-    [](Debugger& db) {
-        db.model()->shutdown();
-        db.screen.Exit();
-    }
-};
+    [](Debugger& db) { db.quit(); }
+});
 
-auto const RunCmd = Command{
+auto const RunCmd = Command::Add({
     "r",
     [](Debugger const& db) { return "Run"; },
     [](Debugger const& db) { return true; },
     [](Debugger& db) { db.model()->run(); }
-};
+});
 
-auto const StopCmd = Command{
+auto const StopCmd = Command::Add({
     "x",
     [](Debugger const& db) { return "Stop"; },
     [](Debugger const& db) { return db.model()->isActive(); },
     [](Debugger& db) { db.model()->shutdown(); }
-};
+});
 
-auto const OpenCmd = Command{
+auto const OpenCmd = Command::Add({
     "o",
     [](Debugger const& db) { return "Open"; },
     [](Debugger const& db) { return true; },
-    [](Debugger& db) { db.fileOpenPanel.open(); }
-};
+    [](Debugger& db) { db.openModal("file-open"); }
+});
 
-auto const SettingsCmd = Command{
+auto const SettingsCmd = Command::Add({
     ",",
     [](Debugger const& db) { return "Settings"; },
     [](Debugger const& db) { return true; },
-    [](Debugger& db) { db.settingsView.open(); }
-};
+    [](Debugger& db) { db.openModal("settings"); }
+});
 
-auto const ToggleExecCmd = Command{
+auto const ToggleExecCmd = Command::Add({
     "p",
     [](Debugger const& db) { return db.model()->isSleeping() ? "|>" : "||"; },
     [](Debugger const& db) { return db.model()->isActive(); },
     [](Debugger& db) { db.model()->toggleExecution(); },
-};
+});
 
-auto const StepCmd = Command{
+auto const StepCmd = Command::Add({
     "s",
     [](Debugger const& db) { return ">_"; },
     [](Debugger const& db) {
         return db.model()->isActive() && db.model()->isSleeping();
     },
     [](Debugger& db) { db.model()->skipLine(); }
-};
+});
 // clang-format on
 
 Debugger::Debugger(Model* _model):
-    _model(_model),
-    fileOpenPanel(OpenFilePanel(model())),
-    settingsView(SettingsView()),
     screen(ScreenInteractive::Fullscreen()),
+    _model(_model),
     instView(InstructionView(model())) {
     model()->setRefreshCallback(
         [this] { screen.PostEvent(Event::Special("Wakeup call")); });
     model()->setReloadCallback([this] { instView->refresh(); });
+    addModal("file-open", OpenFilePanel(model()));
+    addModal("settings", SettingsView());
     auto sidebar = Container::Vertical(
         { FlagsView(model()), sdb::separator(), RegisterView(model()) });
     auto centralSplit = splitRight(sidebar, instView, 30);
@@ -100,33 +97,16 @@ Debugger::Debugger(Model* _model):
     });
     auto bottom = Container::Vertical(
         { dbgCtrlBar, sdb::separator(), ConsoleView(model()) });
-    root = splitBottom(bottom, top) | CatchEvent([=](Event event) {
-               if (event.is_character()) {
-                   for (auto& [key, command]: keyCommands) {
-                       if (event.character() == key) {
-                           command();
-                           return true;
-                       }
-                   }
-               }
-               return false;
-           }) |
-           fileOpenPanel.overlay() | settingsView.overlay();
-
-    for (auto& cmd: Command::All()) {
-        addKeyCommand(cmd.hotkey, [=] {
-            if (cmd.isActive(*this)) {
-                cmd.action(*this);
-            }
-            else {
-                beep();
-            }
-        });
+    root = splitBottom(bottom, top);
+    root |= Command::EventCatcher(this);
+    for (auto& [name, panel]: modalViews) {
+        root |= panel.overlay();
     }
 }
 
 void Debugger::run() { screen.Loop(root); }
 
-void Debugger::addKeyCommand(std::string key, std::function<void()> command) {
-    keyCommands.push_back({ std::move(key), std::move(command) });
+void Debugger::quit() {
+    model()->shutdown();
+    screen.Exit();
 }

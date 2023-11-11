@@ -14,7 +14,17 @@ class Debugger;
 
 ///
 struct Command {
+    ///
     static std::span<Command const> All() { return _all; }
+
+    ///
+    static Command const& Add(Command cmd) {
+        _all.push_back(std::move(cmd));
+        return _all.back();
+    }
+
+    ///
+    static ftxui::ComponentDecorator EventCatcher(Debugger* db);
 
     Command(std::string hotkey,
             std::function<std::string(Debugger const&)> buttonLabel,

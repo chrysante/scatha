@@ -3,8 +3,10 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <ftxui/component/screen_interactive.hpp>
@@ -15,11 +17,6 @@
 namespace sdb {
 
 class Model;
-
-struct KeyCommand {
-    std::string key;
-    std::function<void()> command;
-};
 
 ///
 ///
@@ -36,18 +33,42 @@ public:
     /// \overload
     Model const* model() const { return _model; }
 
-private:
-    void addKeyCommand(std::string key, std::function<void()> command);
-    Model* _model;
+    ///
+    void quit();
 
-public:
-    // Public for now
-    ModalView fileOpenPanel;
-    ModalView settingsView;
+    ///
+    ModalView* getModal(std::string name) {
+        return const_cast<ModalView*>(std::as_const(*this).getModal(name));
+    }
+
+    /// \overload
+    ModalView const* getModal(std::string name) const {
+        auto itr = modalViews.find(name);
+        if (itr != modalViews.end()) {
+            return &itr->second;
+        }
+        return nullptr;
+    }
+
+    ///
+    void openModal(std::string name) {
+        auto* mod = getModal(name);
+        if (mod) {
+            mod->open();
+        }
+    }
+
+    ///
+    bool addModal(std::string name, ModalView modal) {
+        auto [itr, success] = modalViews.insert({ name, modal });
+        return success;
+    }
+
+private:
     ftxui::ScreenInteractive screen;
 
-private:
-    std::vector<KeyCommand> keyCommands;
+    Model* _model;
+    std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
     std::shared_ptr<ViewBase> instView;
 };
