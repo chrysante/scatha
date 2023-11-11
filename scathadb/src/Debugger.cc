@@ -86,7 +86,11 @@ Debugger::Debugger(Model* _model):
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
-    auto sidebar = VMStateView(model());
+    auto sidebar = TabView({ { " VM State ", VMStateView(model()) },
+                             { " Callstack ", Renderer([] {
+                                   return text("Not Implemented") | bold | dim |
+                                          center;
+                               }) } });
     auto centralSplit = splitRight(sidebar, instView, 30);
     auto toolbar = Toolbar({
         ToolbarButton(this, QuitCmd),
