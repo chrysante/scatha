@@ -45,7 +45,7 @@ void VirtualMachine::loadBinary(u8 const* progData) {
     ProgramView program(progData);
     size_t binSize = utl::round_up(program.binary.size(), 16);
     impl->memory.resizeStaticSlot(binSize + impl->stackSize);
-    VirtualPointer staticData{ 0, 0 };
+    auto staticData = VirtualMemory::MakeStaticDataPointer(0);
     u8* rawStaticData = &impl->memory.derefAs<u8>(staticData, 0);
     assert(reinterpret_cast<uintptr_t>(rawStaticData) % 16 == 0 &&
            "We just hope this is correctly aligned, if not we'll have to "
@@ -150,6 +150,10 @@ void VirtualMachine::deallocateMemory(VirtualPointer ptr,
                                       size_t size,
                                       size_t align) {
     impl->memory.deallocate(ptr, size, align);
+}
+
+ptrdiff_t VirtualMachine::validPtrRange(VirtualPointer ptr) const {
+    return impl->memory.validRange(ptr);
 }
 
 void* VirtualMachine::derefPointer(VirtualPointer ptr, size_t numBytes) const {

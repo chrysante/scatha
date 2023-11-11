@@ -4,6 +4,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/numeric.hpp>
+#include <svm/VirtualPointer.h>
 #include <utl/functional.hpp>
 
 #include "Common/Ranges.h"
@@ -176,7 +177,7 @@ struct CodeGenContext {
 
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
-    utl::hashmap<ir::Value const*, size_t> staticDataOffsets;
+    utl::hashmap<ir::Value const*, uint64_t> staticDataAddresses;
 
     ir::CompareInst const* lastEmittedCompare = nullptr;
 };
@@ -829,15 +830,16 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             return reg;
         },
         [&](ir::GlobalVariable const& var) {
-            size_t const offset = [&] {
-                auto itr = staticDataOffsets.find(&var);
-                if (itr != staticDataOffsets.end()) {
+            uint64_t const address = [&] {
+                auto itr = staticDataAddresses.find(&var);
+                if (itr != staticDataAddresses.end()) {
                     return itr->second;
                 }
                 auto* value = var.initializer();
                 size_t size = value->type()->size();
                 size_t align = value->type()->align();
                 auto [data, offset] = result.allocateStaticData(size, align);
+                /// Callback is only executed by function pointers
                 auto callback = [&, data = data, offset = offset]
                                 (ir::Constant const* value, void* dest) {
                     auto* function = cast<ir::Function const*>(value);
@@ -845,13 +847,15 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                                                  resolve(function));
                 };
                 var.initializer()->writeValueTo(data, callback);
-                staticDataOffsets[&var] = offset;
-                return offset;
+                /// FIXME: Slot index 1 is hard coded here.
+                auto address = utl::bit_cast<uint64_t>(svm::VirtualPointer{ .offset = offset, .slotIndex = 1 });
+                staticDataAddresses[&var] = address;
+                return address;
             }();
             auto* dest = nextRegister();
             addNewInst(mir::InstCode::Copy,
                        dest,
-                       { result.constant(offset, 8) });
+                       { result.constant(address, 8) });
             return dest;
         },
         [&](ir::IntegralConstant const& constant) {

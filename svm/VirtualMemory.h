@@ -118,6 +118,9 @@ private:
 /// and stack memory
 class VirtualMemory {
 public:
+    /// Create a pointer to static data from an offset
+    static VirtualPointer MakeStaticDataPointer(size_t offset);
+
     /// Construct a virtual memory region with a static block size of \p
     /// staticSlotSize
     explicit VirtualMemory(size_t staticSlotSize = 0);
@@ -131,6 +134,10 @@ public:
 
     ///
     void resizeStaticSlot(size_t size);
+    /// \Returns the number of bytes at which the pointer \p ptr is
+    /// dereferencable. If the pointer is not valid a negative number is
+    /// returned
+    ptrdiff_t validRange(VirtualPointer ptr) const;
 
     /// Converts the virtual pointer \p ptr to an actual pointer. \p size is the
     /// amount of bytes at which \p ptr will be dereferencable
@@ -158,9 +165,17 @@ private:
 
 /// # Inline implementation
 
+inline ptrdiff_t svm::VirtualMemory::validRange(VirtualPointer ptr) const {
+    if (ptr.slotIndex == 0 || ptr.slotIndex >= slots.size()) {
+        return -1;
+    }
+    auto& slot = slots[ptr.slotIndex];
+    return ptrdiff_t(slot.size()) - ptrdiff_t(ptr.offset);
+}
+
 inline void* svm::VirtualMemory::dereference(VirtualPointer ptr, size_t size) {
     using enum MemoryAccessError::Reason;
-    if (ptr.slotIndex >= slots.size()) {
+    if (ptr.slotIndex == 0 || ptr.slotIndex >= slots.size()) {
         reportAccessError(MemoryNotAllocated, ptr, size);
     }
     auto& slot = slots[ptr.slotIndex];

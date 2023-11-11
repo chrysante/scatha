@@ -55,8 +55,14 @@ bool PoolAllocator::deallocate(Slot& slot, size_t offset) {
     return true;
 }
 
-/// Below the pools we reserve one slot for the binary and for the stack
-static constexpr size_t FirstPoolIndex = 1;
+/// Slot index 0 is unused and invalid. This way the null pointer is trivially
+/// invalid
+
+/// Static data and stack memory goes into slot index 1.
+static constexpr size_t StaticDataIndex = 1;
+
+/// Pools start at index 2
+static constexpr size_t FirstPoolIndex = 2;
 
 /// Difference between two block sizes
 static constexpr size_t BlockSizeDiff = 16;
@@ -73,10 +79,16 @@ static size_t toPoolIndex(size_t size, size_t align) {
     return index;
 }
 
-VirtualMemory::VirtualMemory(size_t firstSlotSize) {
-    for (size_t i = 0; i < FirstPoolIndex; ++i) {
-        slots.emplace_back(firstSlotSize);
-    }
+VirtualPointer VirtualMemory::MakeStaticDataPointer(size_t offset) {
+    return { .offset = offset, .slotIndex = StaticDataIndex };
+}
+
+VirtualMemory::VirtualMemory(size_t staticDataSize) {
+    /// Index 0 is unsued
+    slots.emplace_back();
+    /// Static data
+    slots.emplace_back(staticDataSize);
+    /// Pools
     for (size_t i = BlockSizeDiff; i <= MaxPoolSize; i += BlockSizeDiff) {
         slots.emplace_back();
         pools.push_back(PoolAllocator(i));
@@ -122,7 +134,9 @@ void VirtualMemory::deallocate(VirtualPointer ptr, size_t size, size_t align) {
     freeSlots.push_back(ptr.slotIndex);
 }
 
-void VirtualMemory::resizeStaticSlot(size_t size) { slots[0].resize(size); }
+void VirtualMemory::resizeStaticSlot(size_t size) {
+    slots[StaticDataIndex].resize(size);
+}
 
 std::pair<size_t, PoolAllocator&> VirtualMemory::getPool(size_t size,
                                                          size_t align) {

@@ -111,6 +111,11 @@ public:
     /// Deallocates memory allocated with `allocateMemory()`
     void deallocateMemory(VirtualPointer ptr, size_t size, size_t align);
 
+    /// \Returns the number of bytes at which the pointer \p ptr is
+    /// dereferencable. If the pointer is not valid a negative number is
+    /// returned
+    ptrdiff_t validPtrRange(VirtualPointer ptr) const;
+
     /// Converts an opaque virtual pointer into a raw pointer.
     /// The pointer must be dereferenceable at \p numBytes bytes
     void* derefPointer(VirtualPointer ptr, size_t numBytes) const;
