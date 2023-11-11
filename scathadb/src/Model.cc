@@ -57,7 +57,7 @@ void Model::shutdown() {
     }
 }
 
-void Model::startExecutionThread(std::span<uint64_t const> arguments) {
+void Model::startExecutionThread(std::array<uint64_t, 2> arguments) {
     signal = Signal::Run;
     execThreadRunning = true;
     executionThread = std::thread([=] {

@@ -123,7 +123,7 @@ public:
 
 private:
     ///
-    void startExecutionThread(std::span<uint64_t const> arguments);
+    void startExecutionThread(std::array<uint64_t, 2> arguments);
 
     bool isBreakpointImpl(size_t line) const {
         return breakpoints.contains(line);
