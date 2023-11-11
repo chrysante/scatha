@@ -2,7 +2,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJ_DIR="$SCRIPT_DIR/.."
 
-$SCRIPT_DIR/install-develop.sh
+$SCRIPT_DIR/build-dependencies.sh
 
 xcodebuild -project "$PROJ_DIR/scathac.xcodeproj" -configuration Release -quiet
 xcodebuild -project "$PROJ_DIR/svm.xcodeproj" -configuration Release -quiet
