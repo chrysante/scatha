@@ -44,7 +44,7 @@ public:
     void exitFunction();
 
     ///
-    void restart();
+    void run();
 
     ///
     void shutdown();

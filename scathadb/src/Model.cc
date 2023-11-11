@@ -47,7 +47,7 @@ void Model::startExecutionThread() {
                     std::lock_guard lock(mutex);
                     vm.stepExecution();
                     updateInstIndex();
-                    if (handlePausedOrBreakpoint()) {
+                    if (handlePausedOrBreakpoint() || signal != Signal::Run) {
                         break;
                     }
                     refreshScreen();
@@ -74,7 +74,7 @@ void Model::startExecutionThread() {
 }
 
 bool Model::handlePausedOrBreakpoint() {
-    if (signal != Signal::Run || breakpoints.contains(currentIndex)) {
+    if (signal == Signal::Sleep || breakpoints.contains(currentIndex)) {
         signal = Signal::Sleep;
         setScroll(currentIndex);
         return true;
@@ -101,7 +101,10 @@ void Model::enterFunction() { beep(); }
 
 void Model::exitFunction() { beep(); }
 
-void Model::restart() {
+void Model::run() {
+    if (isActive()) {
+        shutdown();
+    }
     _stdout.str({});
     {
         std::lock_guard lock(mutex);

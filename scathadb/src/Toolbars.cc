@@ -57,7 +57,7 @@ struct ButtonInfo {
 
 } // namespace
 
-static ButtonInfo runButton(Model* model) {
+static ButtonInfo toggleButton(Model* model) {
     return { [=] { return model->isSleeping() ? "|>" : "||"; },
              [=] { return model->isActive(); },
              [=] { model->toggleExecution(); } };
@@ -81,8 +81,14 @@ static ButtonInfo exitFunctionButton(Model* model) {
              [=] { model->exitFunction(); } };
 }
 
-static ButtonInfo restartButton(Model* model) {
-    return { ">R", [=] { return true; }, [=] { model->restart(); } };
+static ButtonInfo startButton(Model* model) {
+    return { "Run", [=] { return true; }, [=] { model->run(); } };
+}
+
+static ButtonInfo stopButton(Model* model) {
+    return { "Stop",
+             [=] { return model->isActive(); },
+             [=] { model->shutdown(); } };
 }
 
 static ButtonInfo switchModeButton() {
@@ -95,7 +101,9 @@ static ButtonInfo settingsButton(std::function<void()> showSettings) {
 
 Component sdb::ToolbarView(Model* model, std::function<void()> showSettings) {
     return Container::Horizontal({
-        restartButton(model),
+        startButton(model),
+        sdb::separatorEmpty(),
+        stopButton(model),
         sdb::separatorEmpty(),
         switchModeButton(),
         spacer(),
@@ -105,7 +113,7 @@ Component sdb::ToolbarView(Model* model, std::function<void()> showSettings) {
 
 Component sdb::StepControlsView(Model* model) {
     return Container::Horizontal({
-        runButton(model),
+        toggleButton(model),
         sdb::separatorEmpty(),
         skipButton(model),
         sdb::separatorEmpty(),

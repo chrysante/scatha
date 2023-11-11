@@ -50,7 +50,8 @@ Debugger::Debugger(Model* model):
     addKeyCommand("s", [=] { model->skipLine(); });
     addKeyCommand("e", [=] { model->enterFunction(); });
     addKeyCommand("l", [=] { model->exitFunction(); });
-    addKeyCommand("r", [=] { model->restart(); });
+    addKeyCommand("r", [=] { model->run(); });
+    addKeyCommand("x", [=] { model->shutdown(); });
 }
 
 void Debugger::run() { screen.Loop(root); }
