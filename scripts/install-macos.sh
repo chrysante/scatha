@@ -6,7 +6,7 @@ $SCRIPT_DIR/build-dependencies.sh
 
 xcodebuild -project "$PROJ_DIR/scathac.xcodeproj" -configuration Release -quiet
 xcodebuild -project "$PROJ_DIR/svm.xcodeproj" -configuration Release -quiet
-xcodebuild -project "$PROJ_DIR/scathadb.xcodeproj" -configuration Release -quiet
+xcodebuild -project "$PROJ_DIR/scathadb/scathadb.xcodeproj" -configuration Release -quiet
 
 cp "$PROJ_DIR/build/bin/Release/scathac" "/usr/local/bin"
 cp "$PROJ_DIR/build/bin/Release/libscatha.dylib" "/usr/local/bin"
