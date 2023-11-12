@@ -239,7 +239,7 @@ fn main() {
 })");
 }
 
-TEST_CASE("Codegen bug with transitive consversions of constants") {
+TEST_CASE("Codegen bug with chained consversions of constants") {
     test::checkIRReturns(2, R"(
 func i64 @main() {
     %entry:

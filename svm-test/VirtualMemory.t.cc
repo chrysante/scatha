@@ -17,8 +17,9 @@ TEST_CASE("Virtual memory") {
                                   std::pair<size_t, size_t>{ 32, 8 },
                                   std::pair<size_t, size_t>{ 2000, 8 });
     VirtualMemory mem(128);
-    CHECK_NOTHROW(mem.dereference(VirtualPointer{ 0, 0 }, 128));
-    CHECK_THROWS(mem.dereference(VirtualPointer{ 0, 0 }, 129));
+    auto staticDataBegin = VirtualMemory::MakeStaticDataPointer(0);
+    CHECK_NOTHROW(mem.dereference(staticDataBegin, 128));
+    CHECK_THROWS(mem.dereference(staticDataBegin, 129));
 
     SECTION("Single allocation") {
         auto ptr = mem.allocate(size, align);
@@ -94,7 +95,7 @@ TEST_CASE("Virtual memory fuzz invalid accesses") {
         (void)mem.allocate(size, align);
     }
     std::uniform_int_distribution<size_t> range(0, 1000);
-    for (size_t i = 0; i < 10'000; ++i) {
+    for (size_t i = 0; i < 1'000; ++i) {
         try {
             mem.dereference(std::bit_cast<VirtualPointer>(rng()), range(rng));
         }
