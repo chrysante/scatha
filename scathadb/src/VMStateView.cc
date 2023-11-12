@@ -61,8 +61,7 @@ Element RegEntry::Render() {
     auto ptr = std::bit_cast<svm::VirtualPointer>(value);
     auto derefRange = parent->model->VM().validPtrRange(ptr);
     if (derefRange >= 0) {
-        sstr << "0x" << std::hex << value << " [deref=" << std::dec
-             << derefRange << "]";
+        sstr << "0x" << std::hex << value;
     }
     else {
         sstr << value;
@@ -105,7 +104,7 @@ ftxui::Component sdb::VMStateView(Model* model) {
     });
     return Renderer(cont, [=] {
         if (!model->isActive()) {
-            return text("No Debug Session") | bold | dim | center;
+            return placeholder("No Debug Session");
         }
         return cont->Render();
     });
