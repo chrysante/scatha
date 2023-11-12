@@ -175,22 +175,6 @@ files { "runtime/**.h", "runtime/**.cc" }
 links { "termfmt" }
 
 ------------------------------------------
-project "scathadb" -- Debugger
-kind "ConsoleApp"
-
-externalincludedirs {
-    "include",
-    "external/utility/include",
-    "external/range-v3/include",
-    "external/FTXUI/include",
-}
-includedirs { "scathadb/src" }
-
-files { "scathadb/src/**.h", "scathadb/src/**.cc" }
-
-links { "svm-lib", "ftxui-component", "ftxui-dom", "ftxui-screen" }
-
-------------------------------------------
 project "playground"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
@@ -223,6 +207,8 @@ filter {}
 
 ------------------------------------------
 
+-- Weirdly enough include "scathadb" gives a strange error
+include "scathadb/premake5.lua"
 include "passtool"
 
 include "external/termfmt/lib.lua"
