@@ -52,19 +52,27 @@ namespace {
 
 class AutoCompleter {
 public:
-    void operator()(std::string& input, int& cursor) {
+    std::vector<std::string> operator()(std::string& input, int& cursor) {
         if (!valid) {
             buildStructure(input);
         }
         if (matches.empty()) {
             beep();
-            return;
+            return {};
         }
+        /// `matchIndex == 1` here means we already inserted the completion
         if (matches.size() == 1 && matchIndex == 1) {
             beep();
             invalidate();
-            return;
+            return {};
         }
+        /// On the first hit we display suggestions if there is more than one
+        /// option
+        if (matches.size() > 1 && !hitBefore) {
+            hitBefore = true;
+            return matches;
+        }
+        /// Then we cycle through the suggestions
         matchIndex %= matches.size();
         auto completed = parent / matches[matchIndex++];
         if (std::filesystem::is_directory(completed)) {
@@ -72,9 +80,13 @@ public:
         }
         input = completed;
         cursor = static_cast<int>(input.size());
+        return {};
     }
 
-    void invalidate() { valid = false; }
+    void invalidate() {
+        valid = false;
+        hitBefore = false;
+    }
 
 private:
     void buildStructure(std::string input) {
@@ -94,6 +106,7 @@ private:
                                abs.parent_path(),
                                abs.filename().string() };
         }();
+        baseName = name;
         parent = relParent;
         for (auto& entry: std::filesystem::directory_iterator(absParent)) {
             if (isHidden(entry.path())) {
@@ -109,13 +122,17 @@ private:
     }
 
     std::string base;
+    std::string baseName;
     bool valid = false;
+    bool hitBefore = false;
     size_t matchIndex = 0;
     std::vector<std::string> matches;
     std::filesystem::path parent;
 };
 
 struct OpenFilePanelBase: ComponentBase {
+    enum MessageKind { DEFAULT, ERROR };
+
     OpenFilePanelBase(Model* model, bool* open) {
         InputOption opt;
         opt.content = &content;
@@ -129,7 +146,7 @@ struct OpenFilePanelBase: ComponentBase {
         };
         opt.on_change = [=] {
             autoComplete.invalidate();
-            hideErrorMessage();
+            hideMessage();
         };
         opt.on_enter = [=] {
             if (content.back() == '\n') {
@@ -142,14 +159,18 @@ struct OpenFilePanelBase: ComponentBase {
                 *open = false;
             }
             catch (std::exception const& e) {
-                displayErrorMessage(e.what());
+                displayMessage({ e.what() }, ERROR);
             }
         };
         opt.cursor_position = &cursor;
         auto input = Input(opt);
         input |= CatchEvent([this](Event event) {
             if (event == Event::Tab) {
-                autoComplete(content, cursor);
+                std::vector<std::string> suggestions =
+                    autoComplete(content, cursor);
+                if (!suggestions.empty()) {
+                    displayMessage(std::move(suggestions));
+                }
                 return true;
             }
             if (event == Event::ArrowLeft || event == Event::ArrowRight) {
@@ -176,12 +197,27 @@ struct OpenFilePanelBase: ComponentBase {
 
     Component ActiveChild() override { return ChildAt(0); }
 
-    void displayErrorMessage(std::string msg) {
-        hideErrorMessage();
-        Add(Renderer([msg] { return text(msg) | color(Color::Red); }));
+    void displayMessage(std::vector<std::string> msg,
+                        MessageKind kind = DEFAULT) {
+        hideMessage();
+        Add(Renderer([=] {
+            auto t = vbox(msg | ranges::views::transform([](auto const& str) {
+                              return text(str);
+                          }) |
+                          ranges::to<std::vector>);
+            switch (kind) {
+            case DEFAULT:
+                t |= dim;
+                break;
+            case ERROR:
+                t |= color(Color::Red);
+                break;
+            }
+            return t;
+        }));
     }
 
-    void hideErrorMessage() {
+    void hideMessage() {
         assert(ChildCount() <= 2);
         if (ChildCount() == 2) {
             ChildAt(1)->Detach();
