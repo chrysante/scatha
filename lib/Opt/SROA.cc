@@ -381,7 +381,7 @@ bool Variable::analyzeUsers(Instruction* inst) {
 bool Variable::analyzeImpl(Instruction* inst) { return false; }
 
 bool Variable::analyzeImpl(Alloca* allocaInst) {
-    SC_ASSERT(allocaInst == baseAlloca, "");
+    SC_EXPECT(allocaInst == baseAlloca);
     if (!isa<IntegralConstant>(allocaInst->count())) {
         return false;
     }

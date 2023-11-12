@@ -111,7 +111,7 @@ private:
 
     template <typename Self>
     static decltype(auto) getErrorImpl(Self&& self) {
-        SC_ASSERT(!self._e.has_value(), "");
+        SC_EXPECT(!self._e.has_value());
         return std::forward<Self>(self)._e.error();
     }
 
@@ -151,7 +151,7 @@ public:
 private:
     template <typename Self>
     static decltype(auto) getErrorImpl(Self&& self) {
-        SC_ASSERT(!self._e.has_value(), "");
+        SC_EXPECT(!self._e.has_value());
         return std::forward<Self>(self)._e.error();
     }
 
@@ -196,7 +196,7 @@ public:
 private:
     template <typename Self>
     static decltype(auto) getErrorImpl(Self&& self) {
-        SC_ASSERT(!self._e.has_value(), "");
+        SC_EXPECT(!self._e.has_value());
         return std::forward<Self>(self)._e.error();
     }
 

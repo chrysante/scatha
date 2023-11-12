@@ -223,7 +223,7 @@ void Ctx::eraseDeadBasicBlock(BasicBlock* bb) {
 }
 
 bool Ctx::merge(BasicBlock* pred, BasicBlock* via, BasicBlock* succ) {
-    SC_ASSERT(via->emptyExceptTerminator(), "");
+    SC_EXPECT(via->emptyExceptTerminator());
     auto doMerge = [&] {
         auto* predTerm = pred->terminator();
         pred->terminator()->updateTarget(via, succ);

@@ -289,7 +289,7 @@ void SCCPContext::visitExpressions(BasicBlock& basicBlock) {
 }
 
 void SCCPContext::visitExpression(Instruction& inst) {
-    SC_ASSERT(isExpression(&inst), "");
+    SC_EXPECT(isExpression(&inst));
     FormalValue const oldValue = formalValue(&inst);
     // clang-format off
     FormalValue const value = SC_MATCH (inst) {

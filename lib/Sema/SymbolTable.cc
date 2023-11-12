@@ -217,7 +217,7 @@ Function* SymbolTable::declareFuncName(std::string name) {
 
 OverloadSet* SymbolTable::addOverloadSet(
     SourceRange sourceRange, utl::small_vector<Function*> functions) {
-    SC_ASSERT(!functions.empty(), "");
+    SC_EXPECT(!functions.empty());
     auto name = std::string(functions.front()->name());
     return impl->addEntity<OverloadSet>(sourceRange,
                                         std::move(name),

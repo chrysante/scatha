@@ -541,7 +541,7 @@ static R* advance(R* r, size_t count) {
 }
 
 static uint64_t makeWordMask(size_t leadingZeroBytes, size_t oneBytes) {
-    SC_ASSERT(leadingZeroBytes + oneBytes <= 8, "");
+    SC_EXPECT(leadingZeroBytes + oneBytes <= 8);
     std::array<uint8_t, 8> mask{};
     for (size_t i = leadingZeroBytes; i < leadingZeroBytes + oneBytes; ++i) {
         mask[i] = 0xFF;
@@ -808,9 +808,9 @@ mir::CompareOperation CodeGenContext::readCondition(
 }
 
 static size_t getOffset(void const* begin, void const* end) {
+    SC_EXPECT(begin <= end);
     auto* a = static_cast<char const*>(begin);
     auto* b = static_cast<char const*>(end);
-    SC_ASSERT(a <= b, "");
     return static_cast<size_t>(b - a);
 }
 
@@ -859,14 +859,14 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             return dest;
         },
         [&](ir::IntegralConstant const& constant) {
-            SC_ASSERT(constant.type()->bitwidth() <= 64, "");
+            SC_ASSERT(constant.type()->bitwidth() <= 64, "Can't handle extended width integers");
             uint64_t value = constant.value().to<uint64_t>();
             auto* mirConst = result.constant(value, constant.type()->size());
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
         [&](ir::FloatingPointConstant const& constant) -> mir::Value* {
-            SC_ASSERT(constant.type()->bitwidth() <= 64, "");
+            SC_ASSERT(constant.type()->bitwidth() <= 64, "Can't handle extended width floats");
             uint64_t value = 0;
             if (constant.value().precision() == APFloatPrec::Single) {
                 value = utl::bit_cast<uint32_t>(constant.value().to<float>());

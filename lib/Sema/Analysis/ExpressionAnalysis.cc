@@ -1197,14 +1197,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
 }
 
 void ExprContext::dereferencePointer(ast::Expression* expr) {
-    SC_ASSERT(expr->isDecorated(), "");
+    SC_EXPECT(expr->isDecorated());
     auto* type = expr->type().get();
     if (!isa<PointerType const*>(type)) {
         return;
     }
-    SC_ASSERT(expr->isValue(), "");
+    SC_EXPECT(expr->isValue());
     auto* parent = expr->parent();
-    SC_ASSERT(parent, "");
+    SC_EXPECT(parent);
     size_t index = expr->indexInParent();
     auto deref = allocate<ast::DereferenceExpression>(expr->extractFromParent(),
                                                       Mutability::Const,

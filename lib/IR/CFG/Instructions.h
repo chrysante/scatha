@@ -385,13 +385,13 @@ public:
 
     /// Access argument pair at index \p index
     PhiMapping argumentAt(size_t index) {
-        SC_ASSERT(index < argumentCount(), "");
+        SC_EXPECT(index < argumentCount());
         return { _preds[index], operands()[index] };
     }
 
     /// \overload
     ConstPhiMapping argumentAt(size_t index) const {
-        SC_ASSERT(index < argumentCount(), "");
+        SC_EXPECT(index < argumentCount());
         return { _preds[index], operands()[index] };
     }
 

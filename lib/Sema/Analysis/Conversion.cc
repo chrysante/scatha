@@ -595,8 +595,8 @@ static std::optional<size_t> nextBitwidth(size_t width) {
 IntType const* commonTypeSignedUnsigned(SymbolTable& sym,
                                         IntType const* a,
                                         IntType const* b) {
-    SC_ASSERT(a->isSigned(), "");
-    SC_ASSERT(b->isUnsigned(), "");
+    SC_EXPECT(a->isSigned());
+    SC_EXPECT(b->isUnsigned());
     if (a->bitwidth() > b->bitwidth()) {
         return a;
     }
@@ -613,7 +613,7 @@ static Mutability commonMutability(Mutability a, Mutability b) {
 static RawPtrType const* commonPointer(SymbolTable& sym,
                                        QualType aBase,
                                        QualType bBase) {
-    SC_ASSERT(aBase != bBase, "");
+    SC_EXPECT(aBase != bBase);
     // clang-format off
     return SC_MATCH (*aBase, *bBase) {
         [&](ArrayType const& a, ArrayType const& b) -> RawPtrType const* {

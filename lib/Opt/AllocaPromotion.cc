@@ -338,10 +338,10 @@ void VariableInfo::genName(Value* value) {
 Value* VariableInfo::bitcast(Value* value,
                              Instruction* insertPoint,
                              Type const* type) {
+    SC_EXPECT(value->type()->size() == type->size());
     if (value->type() == type) {
         return value;
     }
-    SC_ASSERT(value->type()->size() == type->size(), "");
     BasicBlockBuilder builder(ctx, insertPoint->parent());
     return builder.insert<ConversionInst>(insertPoint,
                                           value,

@@ -45,7 +45,7 @@ public:
     /// \p inst is not added if it is already in the worklist or if it is in the
     /// erase list
     void push(Instruction* inst) {
-        SC_ASSERT(inst, "");
+        SC_EXPECT(inst);
         if (eraseList.contains(inst)) {
             return;
         }
@@ -533,9 +533,8 @@ static Value* negatedValue(Value* value) {
 /// `(-a) +   b  => b - a`
 /// `  a  - (-b) => a + b
 bool InstCombineCtx::tryMergeNegate(ArithmeticInst* inst) {
-    SC_ASSERT(inst->operation() == ArithmeticOperation::Add ||
-                  inst->operation() == ArithmeticOperation::Sub,
-              "");
+    SC_EXPECT(inst->operation() == ArithmeticOperation::Add ||
+              inst->operation() == ArithmeticOperation::Sub);
     if (auto* negated = negatedValue(inst->rhs())) {
         if (inst->operation() == ArithmeticOperation::Add) {
             inst->setOperation(ArithmeticOperation::Sub);

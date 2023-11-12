@@ -302,7 +302,7 @@ void Context::translate(TruncExtInst const& inst) {
             }
         }
         else {
-            SC_ASSERT(inst.type() == Type::Float, "");
+            SC_EXPECT(inst.type() == Type::Float);
             switch (inst.fromBits()) {
             case 32:
                 return OpCode::fext;

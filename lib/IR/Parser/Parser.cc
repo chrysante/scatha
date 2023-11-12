@@ -22,7 +22,7 @@ using namespace scatha;
 using namespace ir;
 
 static APInt parseInt(Token token, Type const* type) {
-    SC_ASSERT(token.kind() == TokenKind::IntLiteral, "");
+    SC_EXPECT(token.kind() == TokenKind::IntLiteral);
     auto value = APInt::parse(token.id(),
                               10,
                               cast<IntegralType const*>(type)->bitwidth());
@@ -33,9 +33,9 @@ static APInt parseInt(Token token, Type const* type) {
 }
 
 static APFloat parseFloat(Token token, Type const* type) {
-    SC_ASSERT(token.kind() == TokenKind::FloatLiteral, "");
+    SC_EXPECT(token.kind() == TokenKind::FloatLiteral);
     size_t bitwidth = cast<FloatType const*>(type)->bitwidth();
-    SC_ASSERT(bitwidth == 32 || bitwidth == 64, "");
+    SC_EXPECT(bitwidth == 32 || bitwidth == 64);
     auto value = APFloat::parse(token.id(),
                                 bitwidth == 32 ? APFloatPrec::Single :
                                                  APFloatPrec::Double);
@@ -180,7 +180,7 @@ struct ParseContext {
             return;
         }
         _addPendingUpdate(optVal.token(), [=](Value* v) {
-            SC_ASSERT(v, "");
+            SC_EXPECT(v);
             auto* value = dyncast<V*>(v);
             if (!value) {
                 reportSemaIssue(optVal.token(), SemanticIssue::InvalidEntity);
@@ -213,8 +213,8 @@ struct ParseContext {
     }
 
     Token peekToken(size_t i = 0) {
-        SC_ASSERT(i < 2, "We only have a look-ahead of 2");
-        SC_ASSERT(nextToken[i].has_value(), "");
+        SC_EXPECT(i < 2 && "We only have a look-ahead of 2");
+        SC_EXPECT(nextToken[i].has_value());
         return *nextToken[i];
     }
 
@@ -471,7 +471,7 @@ UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
 }
 
 static std::optional<uint32_t> builtinIndex(std::string_view name) {
-    SC_ASSERT(name.starts_with("__builtin_"), "");
+    SC_EXPECT(name.starts_with("__builtin_"));
     name.remove_prefix(std::string_view("__builtin_").size());
     for (uint32_t index = 0;
          index < static_cast<uint32_t>(svm::Builtin::_count);

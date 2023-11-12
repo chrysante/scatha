@@ -331,12 +331,12 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
 }
 
 void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
-    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
+    SC_EXPECT(sym.currentScope().kind() == ScopeKind::Function);
     analyzeValue(es.expression(), es.dtorStack());
 }
 
 void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
-    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
+    SC_EXPECT(sym.currentScope().kind() == ScopeKind::Function);
     /// We gather parent destructors here because `analyzeValue()` may add more
     /// constructors and the parent destructors must be lower in the stack
     gatherParentDestructors(rs);

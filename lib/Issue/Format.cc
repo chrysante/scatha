@@ -158,7 +158,7 @@ static auto toMod(IssueSeverity severity) {
 void SrcHighlightCtx::printHighlightLine(SourceHighlight const& highlight,
                                          SourceStructure const& source) {
     auto range = highlight.position;
-    SC_ASSERT(range.valid(), "");
+    SC_EXPECT(range.valid());
     auto const sl = range.begin();
     int const line = sl.line - 1;
     int const column = sl.column - 1;

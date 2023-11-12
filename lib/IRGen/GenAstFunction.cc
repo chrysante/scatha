@@ -466,7 +466,7 @@ static bool isIntType(size_t width, ir::Type const* type) {
 }
 
 Value FuncGenContext::getValue(ast::Expression const* expr) {
-    SC_ASSERT(expr, "");
+    SC_EXPECT(expr);
     /// Returning constants here if possible breaks when we take the address of
     /// a constant. A solution that also solves the array size problem could be
     /// to add additional optional data to values (other values) that could get

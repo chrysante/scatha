@@ -123,6 +123,9 @@
 #define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
 #endif // SC_DEBUG
 
+/// # SC_EXPECT
+#define SC_EXPECT(COND) SC_ASSERT(COND, "Precondition failed")
+
 /// Unicode symbols in terminal output
 #if defined(__APPLE__) /// MacOS supports unicode symbols in terminal
 #define SC_UNICODE_TERMINAL 1

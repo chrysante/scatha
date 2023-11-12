@@ -31,13 +31,13 @@ Token const& TokenStream::peek() {
 }
 
 Token const& TokenStream::current() {
-    SC_ASSERT(_index >= 0, "");
-    SC_ASSERT(_index < utl::narrow_cast<ssize_t>(tokens.size()), "");
+    SC_EXPECT(_index >= 0);
+    SC_EXPECT(_index < utl::narrow_cast<ssize_t>(tokens.size()));
     return tokens[utl::narrow_cast<size_t>(_index)];
 }
 
 Token const& TokenStream::eatImpl(ssize_t* i) {
-    SC_ASSERT(*i >= -1, "");
+    SC_EXPECT(*i >= -1);
     if (*i >= utl::narrow_cast<ssize_t>(tokens.size()) - 1) {
         _index = utl::narrow_cast<ssize_t>(tokens.size());
         return tokens.back();

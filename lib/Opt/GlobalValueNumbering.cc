@@ -208,7 +208,7 @@ public:
     /// computes the same value.
     [[nodiscard]] Instruction* insertOrExisting(size_t rank,
                                                 Instruction* inst) {
-        SC_ASSERT(inst != nullptr, "");
+        SC_EXPECT(inst);
         _maxRank = std::max(_maxRank, rank);
         auto& computations = rankMap[rank];
         auto [itr, success] = computations.insert(Computation(inst));
@@ -313,7 +313,7 @@ public:
 
     auto computationEqualTo(Instruction* inst) const {
         auto itr = compMap.find(Computation(inst));
-        SC_ASSERT(itr != compMap.end(), "");
+        SC_EXPECT(itr != compMap.end());
         return itr->second;
     }
 

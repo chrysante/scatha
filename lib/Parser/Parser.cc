@@ -1270,7 +1270,7 @@ UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
     TokenKind close,
     auto parseCallback) {
     auto const& openToken = tokens.peek();
-    SC_ASSERT(openToken.kind() == open, "");
+    SC_EXPECT(openToken.kind() == open);
     auto args =
         parseList<utl::small_vector<UniquePtr<ast::Expression>>>(open,
                                                                  close,
@@ -1330,7 +1330,7 @@ std::optional<List> Context::parseList(TokenKind open,
 UniquePtr<ast::UnaryExpression> Context::parseUnaryPostfix(
     ast::UnaryOperator op, UniquePtr<ast::Expression> primary) {
     auto token = tokens.eat();
-    SC_ASSERT(token.kind() == Increment || token.kind() == Decrement, "");
+    SC_EXPECT(token.kind() == Increment || token.kind() == Decrement);
     return allocate<ast::UnaryExpression>(op,
                                           ast::UnaryOperatorNotation::Postfix,
                                           std::move(primary),
@@ -1541,7 +1541,7 @@ template <ast::BinaryOperator... Op>
 UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
     auto&& parseOperand) {
     Token const& lhsToken = tokens.peek();
-    SC_ASSERT(lhsToken.kind() != EndOfFile, "");
+    SC_EXPECT(lhsToken.kind() != EndOfFile);
     UniquePtr<ast::Expression> left = parseOperand();
     Token const operatorToken = tokens.peek();
     auto parse = [&](ast::BinaryOperator op) {

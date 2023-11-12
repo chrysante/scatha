@@ -455,7 +455,7 @@ public:
 
     /// \Returns The signature of this function.
     FunctionSignature const& signature() const {
-        SC_ASSERT(hasSignature(), "");
+        SC_EXPECT(hasSignature());
         return _sig;
     }
 
@@ -515,7 +515,7 @@ public:
     /// \Returns the kind of special member function if this function is a
     /// special member function
     SpecialMemberFunction SMFKind() const {
-        SC_ASSERT(_isSMF, "");
+        SC_EXPECT(_isSMF);
         return _smfKind;
     }
 
@@ -531,7 +531,7 @@ public:
     /// \Returns the kind of special lifetime function if this function is a
     /// special lifetime function
     SpecialLifetimeFunction SLFKind() const {
-        SC_ASSERT(_isSLF, "");
+        SC_EXPECT(_isSLF);
         return _slfKind;
     }
 

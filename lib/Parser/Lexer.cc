@@ -488,7 +488,7 @@ bool Context::advance(size_t count) {
 }
 
 void Context::advanceToNextWhitespace() {
-    SC_ASSERT(currentLocation.index <= textSize(), "");
+    SC_EXPECT(currentLocation.index <= textSize());
     if (currentLocation.index == textSize()) {
         return;
     }

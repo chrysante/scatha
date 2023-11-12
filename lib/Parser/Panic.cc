@@ -5,7 +5,7 @@
 using namespace scatha;
 
 void parser::panic(TokenStream& tokens, PanicOptions const options) {
-    SC_ASSERT(tokens.index() < tokens.size(), "");
+    SC_EXPECT(tokens.index() < tokens.size());
 
     using enum TokenKind;
 

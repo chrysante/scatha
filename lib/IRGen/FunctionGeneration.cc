@@ -16,7 +16,7 @@ void irgen::generateFunction(FuncGenParameters params) {
         generateAstFunction(params);
     }
     else {
-        SC_ASSERT(params.semaFn.isGenerated(), "");
+        SC_EXPECT(params.semaFn.isGenerated());
         generateSynthFunction(params);
     }
     ir::setupInvariants(params.ctx, params.irFn);

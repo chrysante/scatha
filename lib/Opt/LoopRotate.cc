@@ -124,7 +124,7 @@ static bool isWhileLoop(LNFNode const* header, LoopNestingForest const& LNF) {
 
 /// Erases all phi instructions in a basic block with one predecessor
 static void eraseSingleValuePhiNodes(BasicBlock* BB) {
-    SC_ASSERT(BB->numPredecessors() == 1, "");
+    SC_EXPECT(BB->numPredecessors() == 1);
     while (true) {
         auto* phi = dyncast<Phi*>(&BB->front());
         if (!phi) {

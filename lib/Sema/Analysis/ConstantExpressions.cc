@@ -119,7 +119,7 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
         if (!lhs || !rhs) {
             return nullptr;
         }
-        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        SC_EXPECT(lhs->isSigned() == rhs->isSigned());
         return allocate<IntValue>(mul(lhs->value(), rhs->value()),
                                   lhs->isSigned());
 
@@ -127,7 +127,7 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
         if (!lhs || !rhs) {
             return nullptr;
         }
-        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        SC_EXPECT(lhs->isSigned() == rhs->isSigned());
         return allocate<IntValue>(lhs->isSigned() ?
                                       sdiv(lhs->value(), rhs->value()) :
                                       udiv(lhs->value(), rhs->value()),
@@ -137,7 +137,7 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
         if (!lhs || !rhs) {
             return nullptr;
         }
-        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        SC_EXPECT(lhs->isSigned() == rhs->isSigned());
         return allocate<IntValue>(lhs->isSigned() ?
                                       srem(lhs->value(), rhs->value()) :
                                       urem(lhs->value(), rhs->value()),
@@ -147,7 +147,7 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
         if (!lhs || !rhs) {
             return nullptr;
         }
-        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        SC_EXPECT(lhs->isSigned() == rhs->isSigned());
         return allocate<IntValue>(add(lhs->value(), rhs->value()),
                                   lhs->isSigned());
 
@@ -155,7 +155,7 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
         if (!lhs || !rhs) {
             return nullptr;
         }
-        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        SC_EXPECT(lhs->isSigned() == rhs->isSigned());
         return allocate<IntValue>(sub(lhs->value(), rhs->value()),
                                   lhs->isSigned());
 
@@ -163,14 +163,14 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
         if (!lhs || !rhs) {
             return nullptr;
         }
-        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        SC_EXPECT(lhs->isSigned() == rhs->isSigned());
         return allocate<IntValue>(lshl(lhs->value(), rhs->value().to<int>()),
                                   lhs->isSigned());
     case RightShift:
         if (!lhs || !rhs) {
             return nullptr;
         }
-        SC_ASSERT(lhs->isSigned() == rhs->isSigned(), "");
+        SC_EXPECT(lhs->isSigned() == rhs->isSigned());
         return allocate<IntValue>(lshr(lhs->value(), rhs->value().to<int>()),
                                   lhs->isSigned());
     case Less:
@@ -353,7 +353,7 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
 
 static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
                                          FloatValue const* operand) {
-    SC_ASSERT(operand, "");
+    SC_EXPECT(operand);
     auto* to = cast<ArithmeticType const*>(conv->targetType().get());
     APFloat value = operand->value();
 

@@ -23,7 +23,7 @@ using RemoveCallEdgeResult = SCCCallGraph::RemoveCallEdgeResult;
 
 static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
                                  Call const* call) {
-    SC_ASSERT(isa<Function>(call->function()), "");
+    SC_EXPECT(isa<Function>(call->function()));
     auto& caller = callGraph[call->parentFunction()];
     auto& callee = callGraph[cast<Function const*>(call->function())];
     /// Here we ignore inline direct recursion.

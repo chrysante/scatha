@@ -24,7 +24,6 @@ static std::optional<int> signatureMatch(
     if (args.size() != paramTypes.size()) {
         return std::nullopt;
     }
-    SC_ASSERT(args.size() == paramTypes.size(), "");
     int maxRank = 0;
     for (auto [index, expr, paramType]:
          ranges::views::zip(ranges::views::iota(0), args, paramTypes))
