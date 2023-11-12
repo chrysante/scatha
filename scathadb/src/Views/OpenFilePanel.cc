@@ -52,6 +52,7 @@ static std::string expandTilde(std::string input) {
 namespace {
 
 struct SuggestionResult {
+    std::string commonBegin;
     std::vector<std::filesystem::path> matches;
     std::optional<ssize_t> current = std::nullopt;
 };
@@ -80,7 +81,7 @@ public:
         if (matches.size() > 1 && !hitBefore) {
             hitBefore = true;
             fillCommon(input, cursor);
-            suggestion = { matches };
+            suggestion = { baseName, matches };
             return true;
         }
         /// Then we cycle through the suggestions
@@ -169,11 +170,13 @@ struct SuggestionView: ScrollBase {
              suggestion->matches | ranges::views::enumerate)
         {
             Add(Renderer([=, index = index, match = match] {
-                auto t = text(match);
+                auto begin = text(suggestion->commonBegin);
+                auto end = text(
+                    match.string().erase(0, suggestion->commonBegin.size()));
                 if (!suggestion->current || index != *suggestion->current) {
-                    t |= dim;
+                    end |= dim;
                 }
-                return t;
+                return hbox({ begin, end });
             }));
         }
     }
@@ -207,6 +210,11 @@ struct OpenFilePanelBase: ComponentBase {
         opt.on_enter = [=] {
             if (content.back() == '\n') {
                 content.pop_back();
+            }
+            if (std::filesystem::is_directory(content)) {
+                autoComplete.invalidate();
+                hideMessage();
+                return;
             }
             auto args = splitWords(expandTilde(content));
             auto options = parseArguments(args);
