@@ -243,7 +243,9 @@ void ScrollBase::clampScroll() {
 }
 
 long ScrollBase::maxScrollPositition() const {
-    long const overscroll = 0;
+    /// -1 means no overscroll. This way flexible views won't shrink when
+    /// scrolling down
+    long const overscroll = -1;
     return std::max(long{ 0 },
                     static_cast<long>(ChildCount()) - yExtend(_box) +
                         overscroll);

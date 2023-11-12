@@ -9,6 +9,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <utl/utility.hpp>
 
 #include "Model/Model.h"
 #include "Model/Options.h"
@@ -50,27 +51,36 @@ static std::string expandTilde(std::string input) {
 
 namespace {
 
+struct SuggestionResult {
+    std::vector<std::string> matches;
+    std::optional<size_t> current = std::nullopt;
+};
+
 class AutoCompleter {
 public:
-    std::vector<std::string> operator()(std::string& input, int& cursor) {
+    bool operator()(std::string& input,
+                    int& cursor,
+                    SuggestionResult& suggestion) {
         if (!valid) {
             buildStructure(input);
         }
         if (matches.empty()) {
             beep();
-            return {};
+            return false;
         }
         /// `matchIndex == 1` here means we already inserted the completion
         if (matches.size() == 1 && matchIndex == 1) {
             beep();
             invalidate();
-            return {};
+            return false;
         }
         /// On the first hit we display suggestions if there is more than one
         /// option
         if (matches.size() > 1 && !hitBefore) {
             hitBefore = true;
-            return matches;
+            fillCommon(input, cursor);
+            suggestion = { matches };
+            return true;
         }
         /// Then we cycle through the suggestions
         matchIndex %= matches.size();
@@ -80,7 +90,28 @@ public:
         }
         input = completed;
         cursor = static_cast<int>(input.size());
-        return {};
+        suggestion.current = matchIndex - 1;
+        return false;
+    }
+
+    void fillCommon(std::string& input, int& cursor) {
+        if (matches.empty()) {
+            return;
+        }
+        for (size_t index = baseName.size();; ++index) {
+            char ref = matches[0][index];
+            for (auto& match: matches) {
+                if (index >= match.size()) {
+                    return;
+                }
+                if (ref != match[index]) {
+                    return;
+                }
+            }
+            input.push_back(ref);
+            baseName.push_back(ref);
+            ++cursor;
+        }
     }
 
     void invalidate() {
@@ -130,9 +161,32 @@ private:
     std::filesystem::path parent;
 };
 
-struct OpenFilePanelBase: ComponentBase {
-    enum MessageKind { DEFAULT, ERROR };
+struct SuggestionView: ScrollBase {
+    SuggestionView(SuggestionResult* suggestion): suggestion(suggestion) {
+        for (auto [index, match]:
+             suggestion->matches | ranges::views::enumerate)
+        {
+            Add(Renderer([=, index = index, match = match] {
+                auto t = text(match);
+                if (!suggestion->current || index != *suggestion->current) {
+                    t |= dim;
+                }
+                return t;
+            }));
+        }
+    }
 
+    Element Render() override {
+        if (suggestion->current) {
+            center(utl::narrow_cast<long>(*suggestion->current));
+        }
+        return ScrollBase::Render();
+    }
+
+    SuggestionResult* suggestion;
+};
+
+struct OpenFilePanelBase: ComponentBase {
     OpenFilePanelBase(Model* model, bool* open) {
         InputOption opt;
         opt.content = &content;
@@ -159,17 +213,15 @@ struct OpenFilePanelBase: ComponentBase {
                 *open = false;
             }
             catch (std::exception const& e) {
-                displayMessage({ e.what() }, ERROR);
+                displayError(e.what());
             }
         };
         opt.cursor_position = &cursor;
         auto input = Input(opt);
         input |= CatchEvent([this](Event event) {
             if (event == Event::Tab) {
-                std::vector<std::string> suggestions =
-                    autoComplete(content, cursor);
-                if (!suggestions.empty()) {
-                    displayMessage(std::move(suggestions));
+                if (autoComplete(content, cursor, suggestion)) {
+                    displaySuggestions();
                 }
                 return true;
             }
@@ -197,24 +249,18 @@ struct OpenFilePanelBase: ComponentBase {
 
     Component ActiveChild() override { return ChildAt(0); }
 
-    void displayMessage(std::vector<std::string> msg,
-                        MessageKind kind = DEFAULT) {
+    void displayError(std::string msg) {
+        displayMessage(
+            Renderer([=]() { return text(msg) | color(Color::Red); }));
+    }
+
+    void displaySuggestions() {
+        displayMessage(Make<SuggestionView>(&suggestion) | flex);
+    }
+
+    void displayMessage(Component comp) {
         hideMessage();
-        Add(Renderer([=] {
-            auto t = vbox(msg | ranges::views::transform([](auto const& str) {
-                              return text(str);
-                          }) |
-                          ranges::to<std::vector>);
-            switch (kind) {
-            case DEFAULT:
-                t |= dim;
-                break;
-            case ERROR:
-                t |= color(Color::Red);
-                break;
-            }
-            return t;
-        }));
+        Add(comp);
     }
 
     void hideMessage() {
@@ -227,6 +273,7 @@ struct OpenFilePanelBase: ComponentBase {
     int cursor = 0;
     std::string content, placeholder = "executable-path";
     AutoCompleter autoComplete;
+    SuggestionResult suggestion;
 };
 
 } // namespace
