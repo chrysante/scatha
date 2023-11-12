@@ -8,16 +8,25 @@ using namespace ftxui;
 namespace {
 
 struct ModalViewBase: ComponentBase {
-    ModalViewBase(std::string title, Component body, bool* open): open(open) {
-        auto closeOpt = ButtonOption::Simple();
-        closeOpt.transform = [](EntryState const&) {
-            return text(" X ") | bold;
-        };
-        closeOpt.on_click = [=] { *open = false; };
-        auto titlebar = Container::Stacked({
-            Renderer([=] { return text(title) | bold | center | flex; }),
-            Container::Horizontal({ Button(closeOpt), sdb::Separator() }),
-        });
+    ModalViewBase(std::string title,
+                  Component body,
+                  ModalOptions options,
+                  bool* open):
+        open(open) {
+        auto titlebar = [&] {
+            auto bar = Container::Stacked({});
+            if (options.closeButton) {
+                auto closeOpt = ButtonOption::Simple();
+                closeOpt.transform = [](EntryState const&) {
+                    return text(" X ") | bold;
+                };
+                closeOpt.on_click = [=] { *open = false; };
+                bar->Add(Container::Horizontal(
+                    { Button(closeOpt), sdb::Separator() }));
+            }
+            bar->Add(Renderer([=] { return text(title) | center | flex; }));
+            return bar;
+        }();
         Add(titlebar);
         Add(body);
     }
@@ -46,14 +55,12 @@ struct ModalViewBase: ComponentBase {
 
 } // namespace
 
-ModalView::ModalView(std::string title,
-                     Component body,
-                     std::shared_ptr<State> state) {
-    if (!state) {
-        state = makeState();
+ModalView::ModalView(std::string title, Component body, ModalOptions options) {
+    if (!options.state) {
+        options.state = ModalState::make();
     }
-    _state = state;
-    _comp = Make<ModalViewBase>(title, body, &_state->open);
+    _state = std::move(options.state);
+    _comp = Make<ModalViewBase>(title, body, options, &_state->open);
 }
 
 void ModalView::open() {

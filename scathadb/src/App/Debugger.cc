@@ -15,7 +15,7 @@ auto const QuitCmd = Command::Add({
     "q",
     [](Debugger const& db) { return "Quit"; },
     [](Debugger const& db) { return true; },
-    [](Debugger& db) { db.quit(); },
+    [](Debugger& db) { db.openModal("quit-confirm"); },
     "Quit the debugger"
 });
 
@@ -112,6 +112,7 @@ Debugger::Debugger(Model* _model):
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
+    addModal("quit-confirm", QuitConfirm([=] { quit(); }));
     auto rightSidebar = TabView({ { " VM State ", VMStateView(model()) },
                                   { " Callstack ", Renderer([] {
                                         return placeholder("Not Implemented");

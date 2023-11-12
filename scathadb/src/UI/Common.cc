@@ -83,11 +83,17 @@ struct ToolbarBase: ComponentBase {
 
     Element Render() override {
         std::vector<Element> elems;
+        if (options.enclosingSeparators) {
+            elems.push_back(options.separator());
+        }
         for (size_t i = 0; i < ChildCount(); ++i) {
             if (i > 0 && options.separator) {
                 elems.push_back(options.separator());
             }
             elems.push_back(ChildAt(i)->Render());
+        }
+        if (options.enclosingSeparators) {
+            elems.push_back(options.separator());
         }
         return hbox(std::move(elems));
     }
@@ -132,9 +138,8 @@ struct TabViewBase: ComponentBase {
         auto tabs = names | ranges::views::enumerate |
                     ranges::views::transform(toTabButton) |
                     ranges::to<std::vector>;
-        tabs.insert(tabs.begin(), Spacer());
-        tabs.push_back(Spacer());
-        ToolbarOptions toolbarOpt{ .separator = [] { return spacer(); } };
+        ToolbarOptions toolbarOpt{ .separator = spacer,
+                                   .enclosingSeparators = true };
         auto tabBar = Toolbar(std::move(tabs), toolbarOpt);
         auto body = Container::Tab(std::move(bodies), &selector);
         auto main = Container::Vertical({

@@ -1,6 +1,7 @@
 #ifndef SDB_VIEWS_VIEWS_H_
 #define SDB_VIEWS_VIEWS_H_
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,9 @@ ModalView OpenFilePanel(Model* model);
 
 /// Display debugger settings
 ModalView SettingsView();
+
+/// Confirm quitting the app
+ModalView QuitConfirm(std::function<void()> doQuit);
 
 } // namespace sdb
 

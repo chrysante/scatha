@@ -9,24 +9,31 @@ namespace sdb {
 
 using OpenModalCommand = std::function<void()>;
 
+/// State structure of a modal view
+struct ModalState {
+    /// Manually create a shared state structure. This is useful if the modal
+    /// view wants to be able to close itself
+    static std::shared_ptr<ModalState> make() {
+        return std::make_shared<ModalState>();
+    }
+
+    /// Flag to indicate whether the modal is visible
+    bool open;
+};
+
+/// Constructor options for modal view
+struct ModalOptions {
+    std::shared_ptr<ModalState> state = nullptr;
+    bool closeButton = true;
+};
+
 /// Represents a modal view, i.e. an overlay popup window
 class ModalView {
 public:
-    /// State structure of a modal view
-    struct State {
-        bool open;
-    };
-
-    /// Manually create a shared state structure. This is useful if the modal
-    /// view wants to be able to close itself
-    static std::shared_ptr<State> makeState() {
-        return std::make_shared<State>();
-    }
-
     /// Construct a modal view
     explicit ModalView(std::string title,
                        ftxui::Component body,
-                       std::shared_ptr<State> = nullptr);
+                       ModalOptions options = {});
 
     /// \Returns The component of this modal
     ftxui::Component component() { return _comp; }
@@ -41,7 +48,7 @@ public:
     ftxui::ComponentDecorator overlay();
 
 private:
-    std::shared_ptr<State> _state;
+    std::shared_ptr<ModalState> _state;
     ftxui::Component _comp;
 };
 

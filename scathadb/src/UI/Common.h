@@ -64,6 +64,9 @@ struct ToolbarOptions {
     std::function<ftxui::Element()> separator = [] {
         return sdb::separatorBlank();
     };
+
+    /// Whether to render separators next to the left and right most elements
+    bool enclosingSeparators = false;
 };
 
 /// Toolbar with separators between elements
