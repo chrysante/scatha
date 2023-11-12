@@ -221,7 +221,7 @@ struct InstView: ScrollBase {
     }
 
     Model* model;
-    long focusLine = 0;
+    std::atomic<long> focusLine = 0;
     std::vector<long> indexToLineMap;
     utl::hashmap<long, size_t> lineToIndexMap;
 };
