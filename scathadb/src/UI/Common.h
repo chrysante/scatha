@@ -57,8 +57,17 @@ ftxui::Component SplitBottom(ftxui::Component main,
                              ftxui::Component back,
                              int size = 10);
 
-/// Toolbar with blank separators between elements
-ftxui::Component Toolbar(std::vector<ftxui::Component> components);
+/// Option struct for `Toolbar()`
+struct ToolbarOptions {
+    /// Separator element to draw between toolbar components
+    std::function<ftxui::Element()> separator = [] {
+        return sdb::separatorBlank();
+    };
+};
+
+/// Toolbar with separators between elements
+ftxui::Component Toolbar(std::vector<ftxui::Component> components,
+                         ToolbarOptions options = {});
 
 /// Groups components with a name used by `TabView()`
 struct NamedComponent {

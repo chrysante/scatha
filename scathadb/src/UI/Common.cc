@@ -69,7 +69,9 @@ Component sdb::SplitBottom(Component main, Component back, int size) {
 namespace {
 
 struct ToolbarBase: ComponentBase {
-    explicit ToolbarBase(std::vector<Component> components) {
+    explicit ToolbarBase(std::vector<Component> components,
+                         ToolbarOptions options):
+        options(options) {
         for (auto& comp: components) {
             Add(comp);
         }
@@ -78,19 +80,22 @@ struct ToolbarBase: ComponentBase {
     Element Render() override {
         std::vector<Element> elems;
         for (size_t i = 0; i < ChildCount(); ++i) {
-            if (i > 0) {
-                elems.push_back(sdb::SeparatorBlank()->Render());
+            if (i > 0 && options.separator) {
+                elems.push_back(options.separator());
             }
             elems.push_back(ChildAt(i)->Render());
         }
         return hbox(std::move(elems));
     }
+
+    ToolbarOptions options;
 };
 
 } // namespace
 
-Component sdb::Toolbar(std::vector<Component> components) {
-    return Make<ToolbarBase>(std::move(components));
+Component sdb::Toolbar(std::vector<Component> components,
+                       ToolbarOptions options) {
+    return Make<ToolbarBase>(std::move(components), options);
 }
 
 namespace {
@@ -120,9 +125,13 @@ struct TabViewBase: ComponentBase {
             opt.on_click = [=] { selector = index; };
             return Button(opt);
         };
-        auto tabBar = Toolbar(names | ranges::views::enumerate |
-                              ranges::views::transform(toTabButton) |
-                              ranges::to<std::vector>);
+        auto tabs = names | ranges::views::enumerate |
+                    ranges::views::transform(toTabButton) |
+                    ranges::to<std::vector>;
+        tabs.insert(tabs.begin(), Spacer());
+        tabs.push_back(Spacer());
+        ToolbarOptions toolbarOpt{ .separator = [] { return spacer(); } };
+        auto tabBar = Toolbar(std::move(tabs), toolbarOpt);
         auto body = Container::Tab(std::move(bodies), &selector);
         auto main = Container::Vertical({
             tabBar,
