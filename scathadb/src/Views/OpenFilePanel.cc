@@ -1,4 +1,4 @@
-#include "Views.h"
+#include "Views/Views.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -10,8 +10,9 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 
-#include "Common.h"
-#include "Model.h"
+#include "Model/Model.h"
+#include "Model/Options.h"
+#include "UI/Common.h"
 
 using namespace sdb;
 using namespace ftxui;
@@ -135,11 +136,7 @@ struct OpenFilePanelBase: ComponentBase {
                 content.pop_back();
             }
             auto args = splitWords(expandTilde(content));
-            auto cStyleArgs = args |
-                              ranges::views::transform(
-                                  [](std::string& str) { return str.data(); }) |
-                              ranges::to<std::vector>;
-            auto options = parseArguments(cStyleArgs);
+            auto options = parseArguments(args);
             try {
                 model->loadBinary(options);
                 *open = false;

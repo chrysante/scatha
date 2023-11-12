@@ -1,9 +1,9 @@
-#include "ModalView.h"
+#include "UI/ModalView.h"
 
 using namespace sdb;
 using namespace ftxui;
 
-#include "Common.h"
+#include "UI/Common.h"
 
 namespace {
 

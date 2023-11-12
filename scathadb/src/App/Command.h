@@ -1,5 +1,5 @@
-#ifndef SVM_COMMAND_H_
-#define SVM_COMMAND_H_
+#ifndef SVM_APP_COMMAND_H_
+#define SVM_APP_COMMAND_H_
 
 #include <functional>
 #include <span>
@@ -53,4 +53,4 @@ ftxui::Component ToolbarButton(Debugger* debugger, Command command);
 
 } // namespace sdb
 
-#endif // SVM_COMMAND_H_
+#endif // SVM_APP_COMMAND_H_

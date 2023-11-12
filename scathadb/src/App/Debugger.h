@@ -1,5 +1,5 @@
-#ifndef SDB_DEBUGGER_H_
-#define SDB_DEBUGGER_H_
+#ifndef SDB_APP_DEBUGGER_H_
+#define SDB_APP_DEBUGGER_H_
 
 #include <functional>
 #include <memory>
@@ -11,8 +11,8 @@
 
 #include <ftxui/component/screen_interactive.hpp>
 
-#include "Common.h"
-#include "ModalView.h"
+#include "UI/Common.h"
+#include "UI/ModalView.h"
 
 namespace sdb {
 
@@ -75,4 +75,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_DEBUGGER_H_
+#endif // SDB_APP_DEBUGGER_H_

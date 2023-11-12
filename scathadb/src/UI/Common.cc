@@ -1,4 +1,4 @@
-#include "Common.h"
+#include "UI/Common.h"
 
 #include <iostream>
 
@@ -40,6 +40,81 @@ Component sdb::splitTop(Component main, Component back, int size) {
 Component sdb::splitBottom(Component main, Component back, int size) {
     return ResizableSplit(
         { main, back, Direction::Down, size, [] { return defaultSep(); } });
+}
+
+namespace {
+
+struct ToolbarBase: ComponentBase {
+    explicit ToolbarBase(std::vector<Component> components) {
+        for (auto& comp: components) {
+            Add(comp);
+        }
+    }
+
+    Element Render() override {
+        std::vector<Element> elems;
+        for (size_t i = 0; i < ChildCount(); ++i) {
+            if (i > 0) {
+                elems.push_back(sdb::separatorEmpty()->Render());
+            }
+            elems.push_back(ChildAt(i)->Render());
+        }
+        return hbox(std::move(elems));
+    }
+};
+
+} // namespace
+
+Component sdb::Toolbar(std::vector<Component> components) {
+    return Make<ToolbarBase>(std::move(components));
+}
+
+namespace {
+
+struct TabViewBase: ComponentBase {
+    TabViewBase(std::vector<NamedComponent> children) {
+        auto names = children |
+                     ranges::views::transform(&NamedComponent::name) |
+                     ranges::to<std::vector>;
+        auto bodies = children |
+                      ranges::views::transform(&NamedComponent::component) |
+                      ranges::to<std::vector>;
+        auto toTabButton = [&](auto p) {
+            int index = utl::narrow_cast<int>(p.first);
+            auto name = p.second;
+            ButtonOption opt;
+            opt.transform = [=](EntryState const&) {
+                auto elem = text(name) | bold;
+                if (index == selector) {
+                    elem |= color(Color::BlueLight);
+                }
+                else {
+                    elem |= dim;
+                }
+                return elem;
+            };
+            opt.on_click = [=] { selector = index; };
+            return Button(opt);
+        };
+        auto tabBar = Toolbar(names | ranges::views::enumerate |
+                              ranges::views::transform(toTabButton) |
+                              ranges::to<std::vector>);
+        auto body = Container::Tab(std::move(bodies), &selector);
+        auto main = Container::Vertical({
+            tabBar,
+            sdb::separator(),
+            body | flex,
+        });
+        Add(main);
+    }
+
+    int selector = 0;
+};
+
+} // namespace
+
+Component sdb::TabView(std::vector<NamedComponent> children) {
+    return Make<TabViewBase>(std::move(children));
 }
 
 ftxui::Element sdb::placeholder(std::string message) {
@@ -142,18 +217,3 @@ long ScrollBase::maxScrollPositition() const {
 }
 
 void sdb::beep() { std::cout << "\007"; }
-
-Options sdb::parseArguments(std::span<char*> args) {
-    if (args.empty()) {
-        return {};
-    }
-    Options options{};
-    options.filepath = args.front();
-    if (std::filesystem::exists(options.filepath)) {
-        options.filepath = std::filesystem::absolute(options.filepath);
-    }
-    for (auto* arg: args | ranges::views::drop(1)) {
-        options.arguments.push_back(std::string(arg));
-    }
-    return options;
-}

@@ -1,10 +1,10 @@
-#ifndef SVM_HELPPANEL_H_
-#define SVM_HELPPANEL_H_
+#ifndef SVM_VIEWS_HELPPANEL_H_
+#define SVM_VIEWS_HELPPANEL_H_
 
 #include <string>
 #include <vector>
 
-#include "ModalView.h"
+#include "UI/ModalView.h"
 
 namespace sdb {
 
@@ -31,4 +31,4 @@ ModalView HelpPanel();
 
 } // namespace sdb
 
-#endif // SVM_HELPPANEL_H_
+#endif // SVM_VIEWS_HELPPANEL_H_

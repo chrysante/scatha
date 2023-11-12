@@ -1,4 +1,4 @@
-#include "Views.h"
+#include "Views/Views.h"
 
 #include <vector>
 
@@ -7,9 +7,9 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
-#include "Common.h"
-#include "HelpPanel.h"
-#include "Model.h"
+#include "Model/Model.h"
+#include "UI/Common.h"
+#include "Views/HelpPanel.h"
 
 using namespace sdb;
 using namespace ftxui;

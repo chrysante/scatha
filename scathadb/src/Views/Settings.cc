@@ -1,14 +1,14 @@
-#include "Views.h"
+#include "Views/Views.h"
 
 #include <ftxui/dom/elements.hpp>
 #include <range/v3/view.hpp>
 
-#include "Common.h"
+#include "UI/Common.h"
 
 using namespace sdb;
 using namespace ftxui;
 
 ModalView sdb::SettingsView() {
     return ModalView("Settings",
-                     Renderer([] { return text("Nothing to see here yet"); }));
+                     Renderer([] { return placeholder("Not Implemented"); }));
 }

@@ -1,4 +1,4 @@
-#include "Views.h"
+#include "Views/Views.h"
 
 #include <sstream>
 #include <string>
@@ -8,8 +8,8 @@
 #include <ftxui/dom/elements.hpp>
 #include <range/v3/view.hpp>
 
-#include "Common.h"
-#include "Model.h"
+#include "Model/Model.h"
+#include "UI/Common.h"
 
 using namespace sdb;
 using namespace ftxui;

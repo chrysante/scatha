@@ -1,9 +1,9 @@
-#include "Debugger.h"
+#include "App/Debugger.h"
 
-#include "Command.h"
-#include "HelpPanel.h"
-#include "Model.h"
-#include "Views.h"
+#include "App/Command.h"
+#include "Model/Model.h"
+#include "Views/HelpPanel.h"
+#include "Views/Views.h"
 
 using namespace sdb;
 using namespace ftxui;

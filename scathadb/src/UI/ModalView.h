@@ -1,5 +1,5 @@
-#ifndef SVM_MODALVIEW_H_
-#define SVM_MODALVIEW_H_
+#ifndef SVM_UI_MODALVIEW_H_
+#define SVM_UI_MODALVIEW_H_
 
 #include <string>
 
@@ -47,4 +47,4 @@ private:
 
 } // namespace sdb
 
-#endif // SVM_MODALVIEW_H_
+#endif // SVM_UI_MODALVIEW_H_

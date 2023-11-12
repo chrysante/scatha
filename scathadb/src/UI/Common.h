@@ -1,9 +1,6 @@
-#ifndef SDB_COMMON_H_
-#define SDB_COMMON_H_
+#ifndef SDB_UI_COMMON_H_
+#define SDB_UI_COMMON_H_
 
-#include <filesystem>
-#include <functional>
-#include <span>
 #include <string>
 
 #include <ftxui/component/component.hpp>
@@ -41,6 +38,18 @@ ftxui::Component splitTop(ftxui::Component main,
 ftxui::Component splitBottom(ftxui::Component main,
                              ftxui::Component back,
                              int size = 10);
+
+///
+ftxui::Component Toolbar(std::vector<ftxui::Component> components);
+
+/// Groups components with a name used by `TabView()`
+struct NamedComponent {
+    std::string name;
+    ftxui::Component component;
+};
+
+///
+ftxui::Component TabView(std::vector<NamedComponent> children);
 
 ///
 ftxui::Element placeholder(std::string message);
@@ -102,19 +111,6 @@ private:
 ///
 void beep();
 
-///
-struct Options {
-    std::filesystem::path filepath;
-    std::vector<std::string> arguments;
-
-    explicit operator bool() const {
-        return !filepath.empty() || !arguments.empty();
-    }
-};
-
-///
-Options parseArguments(std::span<char*> arguments);
-
 } // namespace sdb
 
-#endif // SDB_COMMON_H_
+#endif // SDB_UI_COMMON_H_

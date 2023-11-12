@@ -1,4 +1,4 @@
-#include "Model.h"
+#include "Model/Model.h"
 
 #include <ostream>
 #include <stdexcept>
@@ -6,7 +6,7 @@
 #include <svm/Util.h>
 #include <utl/strcat.hpp>
 
-#include "Common.h"
+#include "Model/Options.h"
 
 using namespace sdb;
 
@@ -142,9 +142,9 @@ void Model::skipLine() {
     send(Signal::Step);
 }
 
-void Model::enterFunction() { beep(); }
+void Model::enterFunction() { assert(false && "Unimplemented"); }
 
-void Model::exitFunction() { beep(); }
+void Model::exitFunction() { assert(false && "Unimplemented"); }
 
 bool Model::isSleeping() const {
     std::lock_guard lock(mutex);

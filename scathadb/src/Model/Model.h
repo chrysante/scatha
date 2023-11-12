@@ -1,5 +1,5 @@
-#ifndef SDB_PROGRAM_H_
-#define SDB_PROGRAM_H_
+#ifndef SDB_MODEL_MODEL_H_
+#define SDB_MODEL_MODEL_H_
 
 #include <atomic>
 #include <chrono>
@@ -15,7 +15,7 @@
 #include <svm/VirtualMachine.h>
 #include <utl/hashtable.hpp>
 
-#include "Disassembler.h"
+#include "Model/Disassembler.h"
 
 namespace sdb {
 
@@ -181,4 +181,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_PROGRAM_H_
+#endif // SDB_MODEL_MODEL_H_

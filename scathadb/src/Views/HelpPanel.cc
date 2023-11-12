@@ -1,11 +1,11 @@
-#include "HelpPanel.h"
+#include "Views/HelpPanel.h"
 
 #include <unordered_map>
 
 #include <ftxui/component/component.hpp>
 #include <range/v3/algorithm.hpp>
 
-#include "Common.h"
+#include "UI/Common.h"
 
 using namespace sdb;
 using namespace ftxui;

@@ -1,5 +1,5 @@
-#ifndef SDB_DISASSEMBLER_H_
-#define SDB_DISASSEMBLER_H_
+#ifndef SDB_MODEL_DISASSEMBLER_H_
+#define SDB_MODEL_DISASSEMBLER_H_
 
 #include <optional>
 #include <span>
@@ -118,4 +118,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_DISASSEMBLER_H_
+#endif // SDB_MODEL_DISASSEMBLER_H_
