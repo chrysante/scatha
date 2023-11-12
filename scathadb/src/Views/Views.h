@@ -14,29 +14,20 @@ namespace sdb {
 class Model;
 class Debugger;
 
-///
-///
-///
+/// Displays the disassembled instructions of the currently loaded program as
+/// well as execution stepping and allows settings breakpoints
 View InstructionView(Model* model);
 
-///
-///
-///
+/// Displays VM state like registers and compare flags
 ftxui::Component VMStateView(Model* model);
 
-///
-///
-///
+/// Displays stdout output of the running program
 ftxui::Component ConsoleView(Model* model);
 
-///
-///
-///
+/// Displays a file dialogue to load programs into the debugger
 ModalView OpenFilePanel(Model* model);
 
-///
-///
-///
+/// Display debugger settings
 ModalView SettingsView();
 
 } // namespace sdb

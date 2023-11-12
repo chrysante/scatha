@@ -8,36 +8,60 @@
 using namespace sdb;
 using namespace ftxui;
 
+int sdb::xExtend(Box box) {
+    int diff = box.x_max - box.x_min;
+    return std::max(0, diff);
+}
+
+int sdb::yExtend(Box box) {
+    int diff = box.y_max - box.y_min;
+    return std::max(0, diff);
+}
+
 static Element defaultSep() { return ftxui::separator() | dim; }
 
-Component sdb::separator() {
-    return Renderer([] { return defaultSep(); });
+Element sdb::separator() { return defaultSep(); }
+
+Element sdb::separatorBlank() { return ftxui::separatorEmpty(); }
+
+Element sdb::spacer() { return ftxui::filler(); }
+
+Element sdb::placeholder(std::string message) {
+    return text(message) | bold | dim | center;
 }
 
-Component sdb::separatorEmpty() {
-    return Renderer([] { return ftxui::separatorEmpty(); });
+Component sdb::Separator() {
+    return Renderer([] { return separator(); });
 }
 
-Component sdb::spacer() {
-    return Renderer([] { return ftxui::filler(); });
+Component sdb::SeparatorBlank() {
+    return Renderer([] { return separatorBlank(); });
 }
 
-Component sdb::splitLeft(Component main, Component back, int size) {
+Component sdb::Spacer() {
+    return Renderer([] { return spacer(); });
+}
+
+Component sdb::Placeholder(std::string message) {
+    return Renderer([=] { return placeholder(message); });
+}
+
+Component sdb::SplitLeft(Component main, Component back, int size) {
     return ResizableSplit(
         { main, back, Direction::Left, size, [] { return defaultSep(); } });
 }
 
-Component sdb::splitRight(Component main, Component back, int size) {
+Component sdb::SplitRight(Component main, Component back, int size) {
     return ResizableSplit(
         { main, back, Direction::Right, size, [] { return defaultSep(); } });
 }
 
-Component sdb::splitTop(Component main, Component back, int size) {
+Component sdb::SplitTop(Component main, Component back, int size) {
     return ResizableSplit(
         { main, back, Direction::Up, size, [] { return defaultSep(); } });
 }
 
-Component sdb::splitBottom(Component main, Component back, int size) {
+Component sdb::SplitBottom(Component main, Component back, int size) {
     return ResizableSplit(
         { main, back, Direction::Down, size, [] { return defaultSep(); } });
 }
@@ -55,7 +79,7 @@ struct ToolbarBase: ComponentBase {
         std::vector<Element> elems;
         for (size_t i = 0; i < ChildCount(); ++i) {
             if (i > 0) {
-                elems.push_back(sdb::separatorEmpty()->Render());
+                elems.push_back(sdb::SeparatorBlank()->Render());
             }
             elems.push_back(ChildAt(i)->Render());
         }
@@ -102,7 +126,7 @@ struct TabViewBase: ComponentBase {
         auto body = Container::Tab(std::move(bodies), &selector);
         auto main = Container::Vertical({
             tabBar,
-            sdb::separator(),
+            sdb::Separator(),
             body | flex,
         });
         Add(main);
@@ -115,15 +139,6 @@ struct TabViewBase: ComponentBase {
 
 Component sdb::TabView(std::vector<NamedComponent> children) {
     return Make<TabViewBase>(std::move(children));
-}
-
-ftxui::Element sdb::placeholder(std::string message) {
-    return text(message) | bold | dim | center;
-}
-
-int sdb::yExtend(Box box) {
-    int diff = box.y_max - box.y_min;
-    return std::max(0, diff);
 }
 
 Element ScrollBase::Render() {

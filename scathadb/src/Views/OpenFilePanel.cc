@@ -167,7 +167,7 @@ struct OpenFilePanelBase: ComponentBase {
         std::vector<Element> elems;
         for (size_t i = 0; i < ChildCount(); ++i) {
             if (i > 0) {
-                elems.push_back(sdb::separator()->Render());
+                elems.push_back(sdb::separator());
             }
             elems.push_back(ChildAt(i)->Render());
         }

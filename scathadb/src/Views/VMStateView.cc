@@ -99,7 +99,7 @@ static Component CompareFlagsView(Model* model) {
 ftxui::Component sdb::VMStateView(Model* model) {
     auto cont = Container::Vertical({
         Make<RegView>(model),
-        sdb::separator(),
+        sdb::Separator(),
         CompareFlagsView(model),
     });
     return Renderer(cont, [=] {

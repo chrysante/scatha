@@ -90,23 +90,23 @@ Debugger::Debugger(Model* _model):
                              { " Callstack ", Renderer([] {
                                    return placeholder("Not Implemented");
                                }) } });
-    auto centralSplit = splitRight(sidebar, instView, 30);
+    auto centralSplit = SplitRight(sidebar, instView, 30);
     auto toolbar = Toolbar({
         ToolbarButton(this, QuitCmd),
         ToolbarButton(this, RunCmd),
         ToolbarButton(this, StopCmd),
-        sdb::spacer(),
+        sdb::Spacer(),
         Renderer(
             [=] { return text(model()->currentFilepath().string()) | flex; }),
-        sdb::spacer(),
+        sdb::Spacer(),
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),
         ToolbarButton(this, HelpCmd),
     });
     auto top = Container::Vertical({
-        sdb::separator(),
+        sdb::Separator(),
         toolbar,
-        sdb::separator(),
+        sdb::Separator(),
         centralSplit | flex,
     });
     auto dbgCtrlBar = Toolbar({
@@ -114,8 +114,8 @@ Debugger::Debugger(Model* _model):
         ToolbarButton(this, StepCmd),
     });
     auto bottom = Container::Vertical(
-        { dbgCtrlBar, sdb::separator(), ConsoleView(model()) });
-    root = splitBottom(bottom, top);
+        { dbgCtrlBar, sdb::Separator(), ConsoleView(model()) });
+    root = SplitBottom(bottom, top);
     root |= Command::EventCatcher(this);
     for (auto& [name, panel]: modalViews) {
         root |= panel.overlay();

@@ -7,39 +7,57 @@
 
 namespace sdb {
 
-///
+/// Computes the horizontal extend of the box \p box
+int xExtend(ftxui::Box box);
+
+/// Computes the vertical extend of the box \p box
 int yExtend(ftxui::Box box);
 
-///
-ftxui::Component separator();
+/// Line separator element
+ftxui::Element separator();
+
+/// Blank separator element
+ftxui::Element separatorBlank();
+
+/// Element dynamically filling available space
+ftxui::Element spacer();
+
+/// Placeholder text element
+ftxui::Element placeholder(std::string message);
+
+/// Line separator component
+ftxui::Component Separator();
+
+/// Blank separator component
+ftxui::Component SeparatorBlank();
+
+/// Component dynamically filling available space
+ftxui::Component Spacer();
+
+/// Placeholder text component
+ftxui::Component Placeholder(std::string message);
 
 ///
-ftxui::Component separatorEmpty();
-
-///
-ftxui::Component spacer();
-
-///
-ftxui::Component splitLeft(ftxui::Component main,
+ftxui::Component SplitLeft(ftxui::Component main,
                            ftxui::Component back,
                            int size = 20);
 
 ///
-ftxui::Component splitRight(ftxui::Component main,
+ftxui::Component SplitRight(ftxui::Component main,
                             ftxui::Component back,
                             int size = 20);
 
 ///
-ftxui::Component splitTop(ftxui::Component main,
+ftxui::Component SplitTop(ftxui::Component main,
                           ftxui::Component back,
                           int size = 10);
 
 ///
-ftxui::Component splitBottom(ftxui::Component main,
+ftxui::Component SplitBottom(ftxui::Component main,
                              ftxui::Component back,
                              int size = 10);
 
-///
+/// Toolbar with blank separators between elements
 ftxui::Component Toolbar(std::vector<ftxui::Component> components);
 
 /// Groups components with a name used by `TabView()`
@@ -48,26 +66,20 @@ struct NamedComponent {
     ftxui::Component component;
 };
 
-///
+/// Automatically configured tab view
 ftxui::Component TabView(std::vector<NamedComponent> children);
 
-///
-ftxui::Element placeholder(std::string message);
-
-///
-///
-///
+/// Common base class for views in this project
 class ViewBase: public ftxui::ComponentBase {
 public:
+    /// Command to rebuild this view from scratch
     virtual void refresh() {}
 };
 
-///
+/// Analoguous to `ftxui::Component`
 using View = std::shared_ptr<ViewBase>;
 
-///
-///
-///
+/// Base class for scrollable views
 class ScrollBase: public ViewBase {
 public:
     ftxui::Element Render() override;
@@ -108,7 +120,7 @@ private:
     ftxui::Box _box, _lastBox;
 };
 
-///
+/// Makes the terminal emit a "beep" sound
 void beep();
 
 } // namespace sdb

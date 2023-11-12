@@ -16,7 +16,7 @@ struct ModalViewBase: ComponentBase {
         closeOpt.on_click = [=] { *open = false; };
         auto titlebar = Container::Stacked({
             Renderer([=] { return text(title) | bold | center | flex; }),
-            Container::Horizontal({ Button(closeOpt), sdb::separator() }),
+            Container::Horizontal({ Button(closeOpt), sdb::Separator() }),
         });
         Add(titlebar);
         Add(body);
@@ -25,7 +25,7 @@ struct ModalViewBase: ComponentBase {
     Element Render() override {
         return vbox({
                    ChildAt(0)->Render(),
-                   sdb::separator()->Render(),
+                   sdb::separator(),
                    ChildAt(1)->Render(),
                }) |
                size(WIDTH, GREATER_THAN, 30) | borderStyled(Color::GrayDark);

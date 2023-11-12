@@ -8,12 +8,12 @@
 
 namespace sdb {
 
-///
+/// Groups information about hotkey commands
 struct CommandInfo {
-    ///
+    /// The hotkey to execute this command
     std::string hotkey;
 
-    ///
+    /// A description of what this command does
     std::string message;
 };
 
