@@ -46,22 +46,26 @@ Component sdb::Placeholder(std::string message) {
     return Renderer([=] { return placeholder(message); });
 }
 
-Component sdb::SplitLeft(Component main, Component back, int size) {
+Component sdb::SplitLeft(Component main, Component back, ftxui::Ref<int> size) {
     return ResizableSplit(
         { main, back, Direction::Left, size, [] { return defaultSep(); } });
 }
 
-Component sdb::SplitRight(Component main, Component back, int size) {
+Component sdb::SplitRight(Component main,
+                          Component back,
+                          ftxui::Ref<int> size) {
     return ResizableSplit(
         { main, back, Direction::Right, size, [] { return defaultSep(); } });
 }
 
-Component sdb::SplitTop(Component main, Component back, int size) {
+Component sdb::SplitTop(Component main, Component back, ftxui::Ref<int> size) {
     return ResizableSplit(
         { main, back, Direction::Up, size, [] { return defaultSep(); } });
 }
 
-Component sdb::SplitBottom(Component main, Component back, int size) {
+Component sdb::SplitBottom(Component main,
+                           Component back,
+                           ftxui::Ref<int> size) {
     return ResizableSplit(
         { main, back, Direction::Down, size, [] { return defaultSep(); } });
 }

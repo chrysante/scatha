@@ -64,6 +64,12 @@ public:
         return success;
     }
 
+    ///
+    void toggleSidebar(size_t index);
+
+    ///
+    void toggleBottombar();
+
 private:
     ftxui::ScreenInteractive screen;
 
@@ -71,6 +77,10 @@ private:
     std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
     std::shared_ptr<ViewBase> instView;
+    int _sidebarSize[2] = { 30, 30 };
+    int _sidebarSizeBackup[2] = { 30, 30 };
+    int _bottombarSize = 10;
+    int _bottombarSizeBackup = 10;
 };
 
 } // namespace sdb

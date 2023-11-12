@@ -1,5 +1,7 @@
 #include "App/Debugger.h"
 
+#include <cassert>
+
 #include "App/Command.h"
 #include "Model/Model.h"
 #include "Views/HelpPanel.h"
@@ -57,6 +59,30 @@ auto const HelpCmd = Command::Add({
     "Show this help panel"
 });
 
+auto const ToggleLeftSidebarCmd = Command::Add({
+    "L",
+    [](Debugger const& db) { return "⌷⎕"; },
+    [](Debugger const& db) { return true; },
+    [](Debugger& db) { db.toggleSidebar(0); },
+    "Show or hide the left sidebar"
+});
+
+auto const ToggleRightSidebarCmd = Command::Add({
+    "R",
+    [](Debugger const& db) { return "⎕⌷"; },
+    [](Debugger const& db) { return true; },
+    [](Debugger& db) { db.toggleSidebar(1); },
+    "Show or hide the right sidebar"
+});
+
+auto const ToggleConsoleCmd = Command::Add({
+    "C",
+    [](Debugger const& db) { return "▂▂"; }, 
+    [](Debugger const& db) { return true; },
+    [](Debugger& db) { db.toggleBottombar(); },
+    "Show or hide the console"
+});
+
 auto const ToggleExecCmd = Command::Add({
     "p",
     [](Debugger const& db) { return db.model()->isSleeping() ? "|>" : "||"; },
@@ -86,11 +112,11 @@ Debugger::Debugger(Model* _model):
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
-    auto sidebar = TabView({ { " VM State ", VMStateView(model()) },
-                             { " Callstack ", Renderer([] {
-                                   return placeholder("Not Implemented");
-                               }) } });
-    auto centralSplit = SplitRight(sidebar, instView, 30);
+    auto rightSidebar = TabView({ { " VM State ", VMStateView(model()) },
+                                  { " Callstack ", Renderer([] {
+                                        return placeholder("Not Implemented");
+                                    }) } });
+    auto centralSplit = SplitRight(rightSidebar, instView, &_sidebarSize[1]);
     auto toolbar = Toolbar({
         ToolbarButton(this, QuitCmd),
         ToolbarButton(this, RunCmd),
@@ -102,6 +128,7 @@ Debugger::Debugger(Model* _model):
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),
         ToolbarButton(this, HelpCmd),
+        ToolbarButton(this, ToggleRightSidebarCmd),
     });
     auto top = Container::Vertical({
         sdb::Separator(),
@@ -112,10 +139,12 @@ Debugger::Debugger(Model* _model):
     auto dbgCtrlBar = Toolbar({
         ToolbarButton(this, ToggleExecCmd),
         ToolbarButton(this, StepCmd),
+        Spacer(),
+        ToolbarButton(this, ToggleConsoleCmd),
     });
     auto bottom = Container::Vertical(
         { dbgCtrlBar, sdb::Separator(), ConsoleView(model()) });
-    root = SplitBottom(bottom, top);
+    root = SplitBottom(bottom, top, &_bottombarSize);
     root |= Command::EventCatcher(this);
     for (auto& [name, panel]: modalViews) {
         root |= panel.overlay();
@@ -129,4 +158,33 @@ void Debugger::run() { screen.Loop(root); }
 void Debugger::quit() {
     model()->shutdown();
     screen.Exit();
+}
+
+void Debugger::toggleSidebar(size_t index) {
+    assert(index < 2);
+    int const min = -1;
+    if (_sidebarSizeBackup[index] <= min) {
+        _sidebarSizeBackup[index] = 30;
+    }
+    if (_sidebarSize[index] <= min) {
+        _sidebarSize[index] = _sidebarSizeBackup[index];
+    }
+    else {
+        _sidebarSizeBackup[index] = _sidebarSize[index];
+        _sidebarSize[index] = min;
+    }
+}
+
+void Debugger::toggleBottombar() {
+    int const min = 2;
+    if (_bottombarSizeBackup <= min) {
+        _bottombarSizeBackup = 10;
+    }
+    if (_bottombarSize <= min) {
+        _bottombarSize = _bottombarSizeBackup;
+    }
+    else {
+        _bottombarSizeBackup = _bottombarSize;
+        _bottombarSize = min;
+    }
 }
