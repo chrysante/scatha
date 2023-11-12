@@ -64,9 +64,12 @@ void Model::startExecutionThread(std::array<uint64_t, 2> arguments) {
     signal = Signal::Run;
     execThreadRunning = true;
     executionThread = std::thread([=] {
-        vm.beginExecution(arguments);
-        updateInstIndex();
-        handlePausedOrBreakpoint();
+        {
+            std::lock_guard lock(mutex);
+            vm.beginExecution(arguments);
+            updateInstIndex();
+            handlePausedOrBreakpoint();
+        }
         while (execThreadRunning) {
             refreshScreen();
             std::unique_lock lock(mutex);
@@ -109,12 +112,16 @@ void Model::startExecutionThread(std::array<uint64_t, 2> arguments) {
                 break;
             }
         }
-        if (!vm.running()) {
-            vm.endExecution();
-            vm.ostream() << "Program returned with exit code: "
-                         << vm.getRegister(0) << std::endl;
+        {
+            std::lock_guard lock(mutex);
+            if (!vm.running()) {
+                vm.endExecution();
+                vm.ostream()
+                    << "Program returned with exit code: " << vm.getRegister(0)
+                    << std::endl;
+            }
+            refreshScreen(FORCE);
         }
-        refreshScreen(FORCE);
     });
 }
 
