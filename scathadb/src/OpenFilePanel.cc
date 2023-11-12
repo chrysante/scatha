@@ -122,7 +122,7 @@ struct OpenFilePanelBase: ComponentBase {
         opt.transform = [](InputState state) {
             auto elem = state.element;
             if (state.is_placeholder) {
-                elem |= color(Color::GrayDark);
+                elem |= dim;
             }
             return elem;
         };

@@ -43,6 +43,9 @@ ftxui::Component splitBottom(ftxui::Component main,
                              int size = 10);
 
 ///
+ftxui::Element placeholder(std::string message);
+
+///
 ///
 ///
 class ViewBase: public ftxui::ComponentBase {

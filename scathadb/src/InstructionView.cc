@@ -115,6 +115,13 @@ struct InstView: ScrollBase {
         }
     }
 
+    Element Render() override {
+        if (model->disassembly().empty()) {
+            return placeholder("No Program Loaded");
+        }
+        return ScrollBase::Render();
+    }
+
     bool Focusable() const override { return true; }
 
     bool OnEvent(Event event) override {

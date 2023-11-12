@@ -8,9 +8,7 @@
 using namespace sdb;
 using namespace ftxui;
 
-static Element defaultSep() {
-    return ftxui::separator() | color(Color::GrayDark);
-}
+static Element defaultSep() { return ftxui::separator() | dim; }
 
 Component sdb::separator() {
     return Renderer([] { return defaultSep(); });
@@ -42,6 +40,10 @@ Component sdb::splitTop(Component main, Component back, int size) {
 Component sdb::splitBottom(Component main, Component back, int size) {
     return ResizableSplit(
         { main, back, Direction::Down, size, [] { return defaultSep(); } });
+}
+
+ftxui::Element sdb::placeholder(std::string message) {
+    return text(message) | bold | dim | center;
 }
 
 int sdb::yExtend(Box box) {

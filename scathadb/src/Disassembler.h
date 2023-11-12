@@ -105,6 +105,9 @@ public:
     /// \Returns a view over the instructions in this program
     std::span<Instruction const> instructions() const { return insts; }
 
+    /// \Returns `true` if instructions are empty
+    bool empty() const { return insts.empty(); }
+
 private:
     friend Disassembly sdb::disassemble(std::span<uint8_t const>);
 

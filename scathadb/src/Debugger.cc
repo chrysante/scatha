@@ -88,8 +88,7 @@ Debugger::Debugger(Model* _model):
     addModal("help", HelpPanel());
     auto sidebar = TabView({ { " VM State ", VMStateView(model()) },
                              { " Callstack ", Renderer([] {
-                                   return text("Not Implemented") | bold | dim |
-                                          center;
+                                   return placeholder("Not Implemented");
                                }) } });
     auto centralSplit = splitRight(sidebar, instView, 30);
     auto toolbar = Toolbar({

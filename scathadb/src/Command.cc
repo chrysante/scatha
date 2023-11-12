@@ -55,7 +55,7 @@ Component sdb::ToolbarButton(Debugger* debugger, Command command) {
         auto str = command.buttonLabel(*debugger);
         auto elem = text(str) | bold;
         if (!command.isActive(*debugger)) {
-            elem |= color(Color::GrayDark);
+            elem |= dim;
         }
         return elem | center |
                size(WIDTH, EQUAL, utl::narrow_cast<int>(str.size() + 2));
