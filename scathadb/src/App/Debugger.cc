@@ -20,7 +20,7 @@ auto const QuitCmd = Command::Add({
 auto const RunCmd = Command::Add({
     "r",
     [](Debugger const& db) { return "Run"; },
-    [](Debugger const& db) { return true; },
+    [](Debugger const& db) { return !db.model()->disassembly().empty(); },
     [](Debugger& db) { db.model()->run(); },
     "Run the currently loaded program"
 });
