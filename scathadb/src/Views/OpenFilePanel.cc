@@ -52,15 +52,16 @@ static std::string expandTilde(std::string input) {
 namespace {
 
 struct SuggestionResult {
-    std::vector<std::string> matches;
-    std::optional<size_t> current = std::nullopt;
+    std::vector<std::filesystem::path> matches;
+    std::optional<ssize_t> current = std::nullopt;
 };
 
 class AutoCompleter {
 public:
-    bool operator()(std::string& input,
-                    int& cursor,
-                    SuggestionResult& suggestion) {
+    bool next(std::string& input,
+              int& cursor,
+              SuggestionResult& suggestion,
+              int offset) {
         if (!valid) {
             buildStructure(input);
         }
@@ -83,14 +84,12 @@ public:
             return true;
         }
         /// Then we cycle through the suggestions
+        matchIndex += offset;
         matchIndex %= matches.size();
-        auto completed = parent / matches[matchIndex++];
-        if (std::filesystem::is_directory(completed)) {
-            completed /= {};
-        }
+        suggestion.current = matchIndex;
+        auto completed = parent / matches[size_t(matchIndex)];
         input = completed;
         cursor = static_cast<int>(input.size());
-        suggestion.current = matchIndex - 1;
         return false;
     }
 
@@ -99,12 +98,12 @@ public:
             return;
         }
         for (size_t index = baseName.size();; ++index) {
-            char ref = matches[0][index];
+            char ref = matches[0].string()[index];
             for (auto& match: matches) {
-                if (index >= match.size()) {
+                if (index >= match.string().size()) {
                     return;
                 }
-                if (ref != match[index]) {
+                if (ref != match.string()[index]) {
                     return;
                 }
             }
@@ -123,7 +122,6 @@ private:
     void buildStructure(std::string input) {
         valid = true;
         base = input;
-        matchIndex = 0;
         matches.clear();
         auto [relParent, absParent, name] = [&] {
             auto rel = std::filesystem::path(input);
@@ -143,12 +141,16 @@ private:
             if (isHidden(entry.path())) {
                 continue;
             }
-            auto filename = entry.path().filename().string();
-            if (!filename.starts_with(name)) {
+            auto filename = entry.path().filename();
+            if (!filename.string().starts_with(name)) {
                 continue;
+            }
+            if (std::filesystem::is_directory(entry.path())) {
+                filename /= {};
             }
             matches.push_back(filename);
         }
+        matchIndex = ssize_t(matches.size()) - 1;
         ranges::sort(matches);
     }
 
@@ -156,8 +158,8 @@ private:
     std::string baseName;
     bool valid = false;
     bool hitBefore = false;
-    size_t matchIndex = 0;
-    std::vector<std::string> matches;
+    ssize_t matchIndex = 0;
+    std::vector<std::filesystem::path> matches;
     std::filesystem::path parent;
 };
 
@@ -219,10 +221,12 @@ struct OpenFilePanelBase: ComponentBase {
         opt.cursor_position = &cursor;
         auto input = Input(opt);
         input |= CatchEvent([this](Event event) {
-            if (event == Event::Tab) {
-                if (autoComplete(content, cursor, suggestion)) {
-                    displaySuggestions();
-                }
+            if (event == Event::Tab || event == Event::ArrowDown) {
+                cycle();
+                return true;
+            }
+            if (event == Event::TabReverse || event == Event::ArrowUp) {
+                cycleBack();
                 return true;
             }
             if (event == Event::ArrowLeft || event == Event::ArrowRight) {
@@ -234,6 +238,18 @@ struct OpenFilePanelBase: ComponentBase {
             return false;
         });
         Add(input);
+    }
+
+    void cycle() {
+        if (autoComplete.next(content, cursor, suggestion, 1)) {
+            displaySuggestions();
+        }
+    }
+
+    void cycleBack() {
+        if (autoComplete.next(content, cursor, suggestion, -1)) {
+            displaySuggestions();
+        }
     }
 
     Element Render() override {
