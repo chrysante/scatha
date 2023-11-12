@@ -156,7 +156,7 @@ Element ScrollBase::Render() {
         _lastBox = _box;
     }
     std::vector<Element> elems;
-    size_t begin = utl::narrow_cast<size_t>(scrollPos);
+    size_t begin = utl::narrow_cast<size_t>(scrollPos.load());
     size_t end = ChildCount();
     for (size_t index = 0; index < begin; ++index) {
         ChildAt(index)->Render();
@@ -230,7 +230,7 @@ bool ScrollBase::handleScroll(Event event, bool allowKeyScroll) {
 }
 
 void ScrollBase::clampScroll() {
-    scrollPos = std::clamp(scrollPos, long{ 0 }, maxScrollPositition());
+    scrollPos = std::clamp(scrollPos.load(), long{ 0 }, maxScrollPositition());
 }
 
 long ScrollBase::maxScrollPositition() const {

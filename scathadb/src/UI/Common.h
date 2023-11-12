@@ -1,6 +1,7 @@
 #ifndef SDB_UI_COMMON_H_
 #define SDB_UI_COMMON_H_
 
+#include <atomic>
 #include <string>
 
 #include <ftxui/component/component.hpp>
@@ -125,7 +126,7 @@ private:
     bool isScrollDown(ftxui::Event event, bool allowKeyScroll) const;
     void clampScroll();
 
-    long scrollPos = 0;
+    std::atomic<long> scrollPos = 0;
     ftxui::Box _box, _lastBox;
 };
 
