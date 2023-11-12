@@ -13,7 +13,6 @@
 namespace sdb {
 
 class Model;
-class Debugger;
 
 /// Displays the disassembled instructions of the currently loaded program as
 /// well as execution stepping and allows settings breakpoints
