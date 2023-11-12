@@ -1,0 +1,15 @@
+#include "IR/PointerInfo.h"
+
+#include "IR/CFG.h"
+#include "IR/Type.h"
+
+using namespace scatha;
+using namespace ir;
+
+std::optional<PointerInfo> ir::getPointerInfo(Value const& value) {
+    SC_ASSERT(isa<PointerType>(value.type()), "");
+    // clang-format off
+    return SC_MATCH (value) {
+        [](Value const&) { return PointerInfo{}; }
+    }; // clang-format on
+}
