@@ -6,7 +6,7 @@
 using namespace scatha;
 using namespace ir;
 
-std::optional<PointerInfo> ir::getPointerInfo(Value const& value) {
+PointerInfo ir::getPointerInfo(Value const& value) {
     SC_EXPECT(isa<PointerType>(value.type()));
     // clang-format off
     return SC_MATCH (value) {

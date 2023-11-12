@@ -11,7 +11,8 @@ namespace scatha::ir {
 /// Statically known pointer meta data
 class PointerInfo {
 public:
-    PointerInfo(size_t minAlign, std::optional<size_t> range):
+    PointerInfo(size_t minAlign = 1,
+                std::optional<size_t> range = std::nullopt):
         _align(minAlign), _hasRange(range), _range(range.value_or(0)) {}
 
     /// The minimum alignment requirement that can be assumed for this pointer
@@ -20,7 +21,7 @@ public:
     /// The number of bytes which are dereferencable through this pointer if
     /// known statically
     std::optional<size_t> range() const {
-        return _hasRange ? _range : std::nullopt;
+        return _hasRange ? std::optional(_range) : std::nullopt;
     }
 
 private:
