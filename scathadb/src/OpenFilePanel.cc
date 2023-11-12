@@ -1,5 +1,6 @@
 #include "Views.h"
 
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -27,6 +28,23 @@ static std::vector<std::string> splitWords(std::string_view text) {
 static bool isHidden(std::filesystem::path const& path) {
     auto name = path.filename().string();
     return name.front() == '.' && name != ".." && name != ".";
+}
+
+static std::string expandTilde(std::string input) {
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (input[i] != '~') {
+            continue;
+        }
+        char const* home = std::getenv("HOME");
+        if (!home) {
+            break;
+        }
+        std::string Home(home);
+        input.erase(input.begin() + static_cast<long>(i));
+        input.insert(i, Home);
+        i += Home.size() - 1; // -1 to account for ++i;
+    }
+    return input;
 }
 
 namespace {
@@ -61,13 +79,22 @@ private:
     void buildStructure(std::string input) {
         valid = true;
         base = input;
-        std::filesystem::path inputPath = input;
-        parent = inputPath.parent_path();
-        std::string name = inputPath.filename().string();
+        matchIndex = 0;
         matches.clear();
-        for (auto& entry: std::filesystem::directory_iterator(
-                 std::filesystem::absolute(parent)))
-        {
+        auto [relParent, absParent, name] = [&] {
+            auto rel = std::filesystem::path(input);
+            auto abs = std::filesystem::absolute(expandTilde(input));
+            if (std::filesystem::exists(abs) &&
+                std::filesystem::is_directory(abs))
+            {
+                return std::tuple{ rel, abs, std::string{} };
+            }
+            return std::tuple{ rel.parent_path(),
+                               abs.parent_path(),
+                               abs.filename().string() };
+        }();
+        parent = relParent;
+        for (auto& entry: std::filesystem::directory_iterator(absParent)) {
             if (isHidden(entry.path())) {
                 continue;
             }
@@ -78,7 +105,6 @@ private:
             matches.push_back(filename);
         }
         ranges::sort(matches);
-        matchIndex = 0;
     }
 
     std::string base;
@@ -108,7 +134,7 @@ struct OpenFilePanelBase: ComponentBase {
             if (content.back() == '\n') {
                 content.pop_back();
             }
-            auto args = splitWords(content);
+            auto args = splitWords(expandTilde(content));
             auto cStyleArgs = args |
                               ranges::views::transform(
                                   [](std::string& str) { return str.data(); }) |
