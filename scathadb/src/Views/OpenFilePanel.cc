@@ -70,8 +70,8 @@ public:
             beep();
             return false;
         }
-        /// `matchIndex == 1` here means we already inserted the completion
-        if (matches.size() == 1 && matchIndex == 1) {
+        /// Having hit before means we already inserted the single completion
+        if (matches.size() == 1 && hitBefore) {
             beep();
             invalidate();
             return false;
@@ -91,6 +91,7 @@ public:
         auto completed = parent / matches[size_t(matchIndex)];
         input = completed;
         cursor = static_cast<int>(input.size());
+        hitBefore = true;
         return false;
     }
 
