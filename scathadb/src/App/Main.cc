@@ -1,8 +1,8 @@
-#include <vector>
 #include <string>
+#include <vector>
 
-#include <utl/utility.hpp>
 #include <range/v3/view.hpp>
+#include <utl/utility.hpp>
 
 #include "App/Debugger.h"
 #include "Model/Model.h"
@@ -11,13 +11,13 @@
 using namespace sdb;
 
 static std::vector<std::string> makeArgVector(int argc, char* argv[]) {
-    return std::span(argv, utl::narrow_cast<size_t>(argc)) | ranges::to<std::vector<std::string>>;
+    return std::span(argv, utl::narrow_cast<size_t>(argc)) |
+           ranges::to<std::vector<std::string>>;
 }
 
 int main(int argc, char* argv[]) {
     auto args = makeArgVector(argc, argv);
-    Options options =
-        parseArguments(std::span(args).subspan(1));
+    Options options = parseArguments(std::span(args).subspan(1));
     Model model;
     if (options) {
         try {
