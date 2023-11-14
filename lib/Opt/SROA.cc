@@ -36,8 +36,8 @@ using namespace opt;
 
 SC_REGISTER_PASS(opt::sroa, "sroa");
 
-/// Uniform interface to get the associated pointer and type the load or store
-/// instruction \p inst
+/// Uniform interface to get the associated pointer and type of the load or
+/// store instruction \p inst
 std::pair<Value const*, Type const*> getLSPointerAndType(
     Instruction const* inst) {
     using Ret = std::pair<Value const*, Type const*>;
@@ -58,7 +58,7 @@ namespace {
 /// Stores data that shall be available for the entire duration of the algorithm
 struct SROAContext {
     /// We cache all member trees because they are expensive to compute and may
-    /// used several types per type
+    /// be used several times per type
     std::unordered_map<Type const*, MemberTree> memberTrees;
 
     /// \Returns the existing member tree for \p type or creates a new one if
@@ -92,8 +92,12 @@ struct std::hash<AllocaRegion> {
 
 namespace {
 
-/// Represents a slice of an alloca instruction. Every slice will be temporarily
-/// associated with a new alloca instruction before it gets promoted
+/// Represents a slice of an alloca instruction. The set of _slices_ of an
+/// alloca region is the most fine grained partition necessary to make every
+/// access be a an access of one or multiple entire slices. This means after
+/// partitioning the alloca according to the slices we can get rid of all GEP
+/// instructions. Every slice will be temporarily associated with a new alloca
+/// instruction before it gets promoted
 struct Slice {
     Slice(size_t begin, size_t end, Alloca* newAlloca):
         _begin(begin), _end(end), _newAlloca(newAlloca) {}
@@ -125,7 +129,7 @@ private:
 using Subrange = std::pair<size_t, size_t>;
 
 /// Represents a variable (an alloca instruction) that we are trying to slice
-/// and promote This hold most relevant data of the algorithm
+/// and promote. This holds most relevant data of the algorithm
 struct Variable {
     SROAContext& sroa;
     Context& ctx;
@@ -141,7 +145,7 @@ struct Variable {
     Callable* memset = nullptr;
 
     /// All instructions (loads, stores, memcpys and memsets) that directly or
-    /// indirectly read or wrote parts of our alloca region
+    /// indirectly read or write parts of our alloca region
     utl::hashset<Instruction*> accesses;
 
     /// All the GEPs that compute pointers into our alloca
@@ -150,18 +154,22 @@ struct Variable {
     /// All the phis that (transitively) use our alloca
     utl::hashset<Phi*> phis;
 
-    /// Maps loads, stores and geps to the phi node that they (transitively) get
+    /// Maps loads, stores and GEPs to the phi node that they (transitively) get
     /// their pointer from
     utl::hashmap<Instruction*, Phi*> assocPhis;
 
-    /// Maps all pointer instructions to their offset into the alloca region
+    /// Maps all pointer instructions to their offset into the alloca region.
+    /// This stores `std::optional<size_t>` because for GEPs that derive from
+    /// phi nodes we cannot directly compute their offsets. This map is also the
+    /// place where we store all instructions that compute pointers into our
+    /// alloca.
     utl::hashmap<Instruction const*, std::optional<size_t>> ptrToOffsetMap;
 
     /// Maps subranges of the alloca region to lists of all slices in that
     /// subrange
-    utl::hashmap<Subrange, utl::small_vector<Slice>> sliceToSublices;
+    utl::hashmap<Subrange, utl::small_vector<Slice>> subrangeToSlices;
 
-    /// All intermediate alloca instructions created for our slices
+    /// All intermediate alloca instructions created for the slices
     utl::small_vector<Alloca*> insertedAllocas;
 
     /// Accessors for `ptrToOffsetMap` @{
@@ -204,10 +212,10 @@ struct Variable {
     }
     /// @}
 
-    /// Access the slices associated with the subregion \p region
+    /// Access the slices of the subregion \p region
     std::span<Slice const> getSubslices(Subrange subrange) const {
-        auto itr = sliceToSublices.find(subrange);
-        SC_ASSERT(itr != sliceToSublices.end(), "Not found");
+        auto itr = subrangeToSlices.find(subrange);
+        SC_ASSERT(itr != subrangeToSlices.end(), "Not found");
         return itr->second;
     }
 
@@ -457,13 +465,15 @@ bool Variable::analyzeImpl(GetElementPointer* gep) {
     if (!gep->hasConstantArrayIndex()) {
         return false;
     }
-    if (!isa<Phi>(gep->basePointer())) {
+    /// If our base pointer is a phi node we can't compute the constant offset
+    /// here, because the arguments of the phi node may have different offsets.
+    if (isa<Phi>(gep->basePointer())) {
+        addPointer(gep, std::nullopt);
+    }
+    else {
         size_t offset =
             getPtrOffset(gep->basePointer()) + *gep->constantByteOffset();
         addPointer(gep, offset);
-    }
-    else {
-        addPointer(gep, std::nullopt);
     }
     if (memorize(gep)) {
         return analyzeUsers(gep);
@@ -541,6 +551,8 @@ bool Variable::rewritePhis() {
     /// We split critical edges so we can safely copy users of phi instructions
     /// to predecessors of the phis without executing any instructions
     /// speculatively
+    /// TODO: We only need to split the edges along which we want to move
+    /// instructions, so split lazily
     splitCriticalEdges(ctx, function);
     utl::small_vector<Instruction*> toErase;
     utl::hashmap<std::pair<BasicBlock*, Value*>, Instruction*> toCopyMap;
@@ -555,7 +567,7 @@ bool Variable::rewritePhis() {
     reverseBFS(function, [&](BasicBlock* BB) {
         struct PhiInsertion {
             Phi* before;
-            Phi* inserted;
+            UniquePtr<Phi> inserted;
         };
         /// We batch the phi insertions to be able to traverse the block without
         /// iterator invalidations
@@ -630,28 +642,28 @@ bool Variable::rewritePhis() {
             /// If the instruction is a load we phi the copied loads together
             /// We also prune a little bit here to avoid adding unused phi nodes
             if (isa<Load>(inst) && inst.isUsed()) {
-                auto* newPhi =
-                    new Phi(newPhiArgs, utl::strcat(inst.name(), ".phi"));
-                inst.replaceAllUsesWith(newPhi);
-                phiInsertions.push_back({ .before = phi, .inserted = newPhi });
+                auto newPhi =
+                    allocate<Phi>(newPhiArgs, utl::strcat(inst.name(), ".phi"));
+                inst.replaceAllUsesWith(newPhi.get());
+                phiInsertions.push_back(
+                    { .before = phi, .inserted = std::move(newPhi) });
             }
             toErase.push_back(&inst);
         }
         /// After traversing one basic block we insert all the added phi
         /// instructions
-        for (auto [before, inserted]: phiInsertions) {
-            before->parent()->insert(before, inserted);
+        for (auto& [before, inserted]: phiInsertions) {
+            before->parent()->insert(before, inserted.release());
         }
     });
     for (auto* inst: toErase) {
         forget(inst);
         inst->parent()->erase(inst);
     }
-    /// At this stage the phi nodes should only be used by other phi nodes and
+    /// At this stage the phi nodes are only used by other phi nodes and
     /// we erase all of them
     for (auto* phi: phis) {
-        SC_ASSERT(ranges::all_of(phi->users(),
-                                 [](auto* user) { return isa<Phi>(user); }),
+        SC_ASSERT(ranges::all_of(phi->users(), isa<Phi>),
                   "All users of the phis must be other phis at this point");
         phi->parent()->erase(phi);
     }
@@ -760,7 +772,7 @@ bool Variable::computeSlices() {
     for (auto* inst: accesses) {
         for (auto subrange: getAccessedSubranges(inst)) {
             auto [begin, end] = subrange;
-            sliceToSublices[subrange] = slicesInRange(begin, end, slices);
+            subrangeToSlices[subrange] = slicesInRange(begin, end, slices);
         }
     }
     return modified;
