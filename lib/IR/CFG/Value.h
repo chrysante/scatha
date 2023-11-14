@@ -35,7 +35,7 @@ public:
     /// The name of this value.
     std::string_view name() const { return _name; }
 
-    /// Wether this value is named.
+    /// Whether this value is named.
     bool hasName() const { return !_name.empty(); }
 
     /// Set the name of this value.

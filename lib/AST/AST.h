@@ -361,7 +361,7 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// Wether the expression refers to a value or a type.
+    /// Whether the expression denotes a value or a type.
     sema::EntityCategory entityCategory() const;
 
     /// The entity in the symbol table that this expression refers to. This must

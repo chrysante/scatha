@@ -665,7 +665,7 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
     tokens.eat();
     utl::small_vector<UniquePtr<ast::Statement>> statements;
     while (true) {
-        /// This mechanism checks wether a failed statement parse has eaten any
+        /// This mechanism checks whether a failed statement parse has eaten any
         /// tokens. If it hasn't we eat one ourselves and try again.
         auto const lastIndex = tokens.index();
         Token const next = tokens.peek();

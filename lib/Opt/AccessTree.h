@@ -57,7 +57,7 @@ public:
     /// If any children have been allocated.
     bool hasChildren() const { return !isLeaf(); }
 
-    /// Wether this node is a leaf
+    /// Whether this node is a leaf
     bool isLeaf() const { return _children.empty(); }
 
     /// \Returns the sibling at offset \p offset if it exists, otherwise

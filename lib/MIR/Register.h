@@ -40,7 +40,7 @@ class Instruction;
 /// the hardware. This could be just an index.
 ///
 /// We could have a common interface `Register` that is used by the
-/// `Instruction` class, as the instructions do not care wether they are using
+/// `Instruction` class, as the instructions do not care whether they are using
 /// virtual or physical registers (except maybe for phi nodes, they should only
 /// use virtual registers).
 ///
@@ -72,11 +72,11 @@ public:
 
     void setIndex(size_t index) { idx = index; }
 
-    /// A register is *fixed* if it has a special meaning and may not be
+    /// A register is _fixed_ if its index has a special meaning and may not be
     /// replaced by another register with a different index.
     bool fixed() const { return _fixed; }
 
-    /// Set wether this register is fixed.
+    /// Set whether this register is fixed.
     void setFixed(bool value = true) { _fixed = value; }
 
     /// \Returns A view over pointers to instructions reading from this register
