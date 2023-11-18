@@ -85,8 +85,8 @@ public:
 
     /// \Returns the instruction at binary offset \p offset if there is an
     /// instruction at that offset. Otherwise returns null
-    Instruction const* instructionAt(size_t offset) const {
-        if (auto index = instIndexAt(offset)) {
+    Instruction const* offsetToInstruction(size_t offset) const {
+        if (auto index = offsetToIndex(offset)) {
             return &insts[*index];
         }
         return nullptr;
@@ -94,16 +94,30 @@ public:
 
     /// \Returns the index of the instruction at binary offset \p offset if
     /// possible
-    std::optional<size_t> instIndexAt(size_t offset) const {
-        auto itr = offsetIndexMap.find(offset);
-        if (itr != offsetIndexMap.end()) {
+    std::optional<size_t> offsetToIndex(size_t offset) const {
+        auto itr = offsetToIndexMap.find(offset);
+        if (itr != offsetToIndexMap.end()) {
             return itr->second;
         }
         return std::nullopt;
     }
 
+    /// \Returns the binary offset of the instruction at index \p index
+    size_t indexToOffset(size_t index) const {
+        assert(index < indexToOffsetMap.size());
+        return indexToOffsetMap[index];
+    }
+
+    size_t sourceLineToOffset(size_t line) const { assert(false); }
+
     /// \Returns a view over the instructions in this program
     std::span<Instruction const> instructions() const { return insts; }
+
+    ///
+    Instruction& instruction(size_t index) { return insts[index]; }
+
+    ///
+    Instruction const& instruction(size_t index) const { return insts[index]; }
 
     /// \Returns `true` if instructions are empty
     bool empty() const { return insts.empty(); }
@@ -113,7 +127,10 @@ private:
 
     std::vector<Instruction> insts;
     /// Maps binary offsets to instruction indices
-    utl::hashmap<size_t, size_t> offsetIndexMap;
+    utl::hashmap<size_t, size_t> offsetToIndexMap;
+
+    /// Maps instruction indices to binary offsets
+    std::vector<size_t> indexToOffsetMap;
 };
 
 } // namespace sdb

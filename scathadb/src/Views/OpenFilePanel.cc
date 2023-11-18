@@ -220,7 +220,8 @@ struct OpenFilePanelBase: ComponentBase {
             auto args = splitWords(expandTilde(content));
             auto options = parseArguments(args);
             try {
-                model->loadBinary(options);
+                model->loadProgram(options.filepath);
+                model->setArguments(options.arguments);
                 *open = false;
             }
             catch (std::exception const& e) {

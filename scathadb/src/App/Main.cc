@@ -21,7 +21,8 @@ int main(int argc, char* argv[]) {
     Model model;
     if (options) {
         try {
-            model.loadBinary(options);
+            model.loadProgram(options.filepath);
+            model.setArguments(options.arguments);
         }
         catch (std::exception const& e) {
             std::cerr << e.what() << std::endl;

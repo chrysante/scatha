@@ -83,7 +83,7 @@ static std::string getLabelName(Disassembly const* disasm, Value offset) {
         return toString(offset);
     }
     assert(offset.type == Value::Value32);
-    auto destIndex = disasm->instIndexAt(offset.raw);
+    auto destIndex = disasm->offsetToIndex(offset.raw);
     if (!destIndex) {
         return toString(offset);
     }
@@ -250,7 +250,8 @@ Disassembly sdb::disassemble(std::span<uint8_t const> program) {
     for (size_t i = 0; i < text.size();) {
         size_t binOffset = i + p.header.textOffset - sizeof(ProgramHeader);
         auto inst = readInstruction(&text[i]);
-        result.offsetIndexMap.insert({ binOffset, result.insts.size() });
+        result.offsetToIndexMap.insert({ binOffset, result.insts.size() });
+        result.indexToOffsetMap.push_back(binOffset);
         result.insts.push_back(inst);
         i += codeSize(inst.opcode);
     }
@@ -265,7 +266,7 @@ Disassembly sdb::disassemble(std::span<uint8_t const> program) {
                    classify(inst.opcode) == OpCodeClass::Jump;
         }) |
         ranges::views::values | ranges::views::transform([&](auto& inst) {
-            return result.instIndexAt(inst.arg1.raw).value();
+            return result.offsetToIndex(inst.arg1.raw).value();
         }) |
         ranges::to<std::vector>;
 

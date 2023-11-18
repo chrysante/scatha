@@ -16,11 +16,13 @@ using namespace ftxui;
 
 namespace {
 
+enum class BreakState : uint8_t { None, Step, Error };
+
 struct LineInfo {
-    long num          : 60;
+    long num;
     bool isFocused    : 1;
-    bool isCurrent    : 1;
     bool isBreakpoint : 1;
+    BreakState state  : 2;
 };
 
 } // namespace
@@ -29,14 +31,17 @@ static Element breakpointIndicator(LineInfo line) {
     if (!line.isBreakpoint) {
         return text("   ");
     }
-    return text("*> ") |
-           color(line.isCurrent ? Color::White : Color::BlueLight) | bold;
+    return text("-> ") |
+           color(line.state != BreakState::None ? Color::White :
+                                                  Color::BlueLight) |
+           bold;
 }
 
 static Element lineNumber(LineInfo line) {
     return text(std::to_string(line.num + 1) + " ") | align_right |
            size(WIDTH, EQUAL, 5) |
-           color(line.isCurrent ? Color::White : Color::GrayDark);
+           color(line.state != BreakState::None ? Color::White :
+                                                  Color::GrayDark);
 }
 
 [[maybe_unused]] static int desc_init = [] {
@@ -53,40 +58,56 @@ static Element lineNumber(LineInfo line) {
 namespace {
 
 struct InstView: ScrollBase {
-    InstView(Model* model): model(model) { InstView::refresh(); }
+    InstView(Model* model): model(model) { InstView::reload(); }
 
     LineInfo getLineInfo(long lineNum) const {
         auto index = lineToIndex(lineNum);
-        return { .num = lineNum,
-                 .isFocused = lineNum == focusLine,
-                 .isCurrent = model->isActive() && model->isSleeping() &&
-                              index && *index == model->currentLine(),
-                 .isBreakpoint = index && model->isBreakpoint(*index) };
+        BreakState state = [&] {
+            using enum BreakState;
+            if (!model->isPaused()) {
+                return None;
+            }
+            if (true /* !index || *index != model->currentInstIndex() */) {
+                return None;
+            }
+            return Step;
+        }();
+        return {
+            .num = lineNum,
+            .isFocused = lineNum == focusLine,
+            .isBreakpoint = false /* index && model->isBreakpoint(*index) */,
+            .state = state,
+        };
     };
 
     ElementDecorator lineModifier(LineInfo line) const {
-        if (line.isCurrent) {
+        using enum BreakState;
+        switch (line.state) {
+        case None:
+            if (line.isFocused) {
+                return color(Color::Black) | bgcolor(Color::GrayLight);
+            }
+            return nothing;
+        case Step:
             return color(Color::White) | bgcolor(Color::Green);
+        case Error:
+            return color(Color::White) | bgcolor(Color::RedLight);
         }
-        if (line.isFocused) {
-            return color(Color::Black) | bgcolor(Color::GrayLight);
-        }
-        return nothing;
     };
 
-    void refresh() override {
+    void reload() {
         DetachAllChildren();
         focusLine = 0;
         indexToLineMap.clear();
         lineToIndexMap.clear();
 
-        model->setScrollCallback([this](size_t index) {
-            focusLine = indexToLine(index).value();
-            scrollToIndex(index);
-        });
+        //        model->setScrollCallback([this](size_t index) {
+        //            focusLine = indexToLine(index).value();
+        //            scrollToIndex(index);
+        //        });
 
         for (auto [index, inst]:
-             model->instructions() | ranges::views::enumerate)
+             model->disassembly().instructions() | ranges::views::enumerate)
         {
             /// Add label renderer for labelled instructions
             if (inst.labelID != 0) {
@@ -105,8 +126,9 @@ struct InstView: ScrollBase {
             lineToIndexMap[lineNum] = index;
             Add(Renderer([=, index = index] {
                 auto line = getLineInfo(lineNum);
-                std::string labelText(toString(model->instructions()[index],
-                                               &model->disassembly()));
+                auto& disasm = model->disassembly();
+                std::string labelText(
+                    toString(disasm.instruction(index), &disasm));
                 return hbox({ lineNumber(line),
                               breakpointIndicator(line),
                               text(labelText) | flex }) |
@@ -125,6 +147,13 @@ struct InstView: ScrollBase {
     bool Focusable() const override { return true; }
 
     bool OnEvent(Event event) override {
+        if (event == Event::Special("Refresh")) {
+            return true;
+        }
+        if (event == Event::Special("Reload")) {
+            reload();
+            return true;
+        }
         if (handleScroll(event, /* allowKeyScroll = */ false)) {
             return true;
         }
@@ -147,7 +176,7 @@ struct InstView: ScrollBase {
         }
         if (event == Event::Character("b")) {
             if (auto index = lineToIndex(focusLine)) {
-                model->toggleBreakpoint(*index);
+                model->toggleInstBreakpoint(*index);
             }
             else {
                 beep();
@@ -174,7 +203,7 @@ struct InstView: ScrollBase {
             long column = event.mouse().x - box().x_min;
             auto index = lineToIndex(line);
             if (index && column < 8) {
-                model->toggleBreakpoint(*index);
+                model->toggleInstBreakpoint(*index);
             }
             else {
                 focusLine = event.mouse().y - box().y_min + scrollPosition();

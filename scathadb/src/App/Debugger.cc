@@ -23,15 +23,15 @@ auto const RunCmd = Command::Add({
     "r",
     [](Debugger const& db) { return "Run"; },
     [](Debugger const& db) { return !db.model()->disassembly().empty(); },
-    [](Debugger& db) { db.model()->run(); },
+    [](Debugger& db) { db.model()->start(); },
     "Run the currently loaded program"
 });
 
 auto const StopCmd = Command::Add({
     "x",
     [](Debugger const& db) { return "Stop"; },
-    [](Debugger const& db) { return db.model()->isActive(); },
-    [](Debugger& db) { db.model()->shutdown(); },
+    [](Debugger const& db) { return !db.model()->isStopped(); },
+    [](Debugger& db) { db.model()->stop(); },
     "Stop the currently running program"
 });
 
@@ -85,9 +85,9 @@ auto const ToggleConsoleCmd = Command::Add({
 
 auto const ToggleExecCmd = Command::Add({
     "p",
-    [](Debugger const& db) { return db.model()->isSleeping() ? "|>" : "||"; },
-    [](Debugger const& db) { return db.model()->isActive(); },
-    [](Debugger& db) { db.model()->toggleExecution(); },
+    [](Debugger const& db) { return db.model()->isPaused() ? "|>" : "||"; },
+    [](Debugger const& db) { return !db.model()->isStopped(); },
+    [](Debugger& db) { db.model()->toggle(); },
     "Toggle execution"
 });
 
@@ -95,20 +95,24 @@ auto const StepCmd = Command::Add({
     "s",
     [](Debugger const& db) { return ">_"; },
     [](Debugger const& db) {
-        return db.model()->isActive() && db.model()->isSleeping();
+        return db.model()->isPaused();
     },
-    [](Debugger& db) { db.model()->skipLine(); },
+    [](Debugger& db) { db.model()->stepInstruction(); },
     "Execute one execution step (one instruction)"
 });
 // clang-format on
 
+void DebuggerUIHandle::refresh() {
+    DB().screen().PostEvent(Event::Special("Refresh"));
+}
+
+void DebuggerUIHandle::reload() {
+    DB().screen().PostEvent(Event::Special("Reload"));
+}
+
 Debugger::Debugger(Model* _model):
-    screen(ScreenInteractive::Fullscreen()),
-    _model(_model),
-    instView(InstructionView(model())) {
-    model()->setRefreshCallback(
-        [this] { screen.PostEvent(Event::Special("Wakeup call")); });
-    model()->setReloadCallback([this] { instView->refresh(); });
+    _screen(ScreenInteractive::Fullscreen()), _model(_model), uiHandle(this) {
+    _model->setUIHandle(&uiHandle);
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
@@ -117,14 +121,16 @@ Debugger::Debugger(Model* _model):
                                   { " Callstack ", Renderer([] {
                                         return placeholder("Not Implemented");
                                     }) } });
+    auto instView = InstructionView(model());
     auto centralSplit = SplitRight(rightSidebar, instView, &_sidebarSize[1]);
     auto toolbar = Toolbar({
         ToolbarButton(this, QuitCmd),
         ToolbarButton(this, RunCmd),
         ToolbarButton(this, StopCmd),
         sdb::Spacer(),
-        Renderer(
-            [=] { return text(model()->currentFilepath().string()) | flex; }),
+        Renderer([=] {
+            return text("" /*model()->currentFilepath().string()*/) | flex;
+        }),
         sdb::Spacer(),
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),
@@ -154,11 +160,11 @@ Debugger::Debugger(Model* _model):
     instView->TakeFocus();
 }
 
-void Debugger::run() { screen.Loop(root); }
+void Debugger::run() { _screen.Loop(root); }
 
 void Debugger::quit() {
-    model()->shutdown();
-    screen.Exit();
+    model()->stop();
+    _screen.Exit();
 }
 
 void Debugger::toggleSidebar(size_t index) {

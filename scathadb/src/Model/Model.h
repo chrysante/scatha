@@ -1,115 +1,85 @@
-#ifndef SDB_MODEL_MODEL_H_
-#define SDB_MODEL_MODEL_H_
+#ifndef SDB_MODEL_EXECUTOR_H_
+#define SDB_MODEL_EXECUTOR_H_
 
-#include <atomic>
-#include <chrono>
 #include <filesystem>
-#include <functional>
-#include <optional>
-#include <span>
+#include <memory>
 #include <sstream>
-#include <string>
-#include <thread>
-#include <vector>
 
 #include <svm/VirtualMachine.h>
-#include <utl/hashtable.hpp>
 
+#include "Model/Breakpoint.h"
 #include "Model/Disassembler.h"
+#include "Model/UIHandle.h"
 
 namespace sdb {
 
-struct Options;
+/// Lists the possible states of the executor
+enum class ExecState {
+    ///
+    Starting,
 
+    /// Execution is running
+    Running,
+
+    /// Execution is paused
+    Paused,
+
+    ///
+    Stopping,
+
+    ///
+    Stopped,
+};
+
+///
 class Model {
 public:
-    Model();
-
-    Model(Model const&) = delete;
+    explicit Model(UIHandle* uiHandle = nullptr);
 
     ~Model();
 
-    ///
-    void loadBinary(Options options);
+    /// Load the program at \p filepath into the VM.
+    /// This unloads the currently active program
+    void loadProgram(std::filesystem::path filepath);
+
+    /// Unload the currently active program
+    void unloadProgram();
 
     ///
-    void run();
+    void setArguments(std::span<std::string const> arguments);
+
+    /// Start execution
+    void start();
+
+    /// Stop execution
+    void stop();
+
+    /// Toggle execution
+    void toggle();
+
+    /// \Returns the current state
+    ExecState state() const;
 
     ///
-    void shutdown();
+    bool isRunning() const { return state() == ExecState::Running; }
 
     ///
-    void toggleExecution();
+    bool isPaused() const { return state() == ExecState::Paused; }
 
     ///
-    void skipLine();
+    bool isStopped() const { return state() == ExecState::Stopped; }
 
-    ///
-    void enterFunction();
+    /// Step over the next instruction when paused
+    void stepInstruction();
 
-    ///
-    void exitFunction();
-
-    ///
-    std::span<Instruction const> instructions() const {
-        return disasm.instructions();
-    }
-
-    ///
-    bool isSleeping() const;
-
-    ///
-    bool isActive() const { return execThreadRunning; }
-
-    ///
-    size_t currentLine() const { return currentIndex; }
-
-    ///
-    bool isBreakpoint(size_t instIndex) const {
-        std::lock_guard lock(mutex);
-        return isBreakpointImpl(instIndex);
-    }
-
-    ///
-    void addBreakpoint(size_t instIndex) {
-        std::lock_guard lock(mutex);
-        addBreakpointImpl(instIndex);
-    }
-
-    ///
-    void removeBreakpoint(size_t instIndex) {
-        std::lock_guard lock(mutex);
-        removeBreakpointImpl(instIndex);
-    }
-
-    ///
-    void toggleBreakpoint(size_t instIndex) {
-        std::lock_guard lock(mutex);
-        if (!isBreakpointImpl(instIndex)) {
-            addBreakpointImpl(instIndex);
-        }
-        else {
-            removeBreakpointImpl(instIndex);
-        }
-    }
-
-    ///
-    void clearBreakpoints() {
-        std::lock_guard lock(mutex);
-        breakpoints.clear();
-    }
-
-    /// \Returns the path to the currently loaded binary file
-    std::filesystem::path currentFilepath() const { return _currentFilepath; }
+    /// Step over the next source line when paused
+    void stepSourceLine();
 
     ///
     svm::VirtualMachine& VM() { return vm; }
 
-    /// \overload
-    svm::VirtualMachine const& VM() const { return vm; }
-
     ///
-    std::vector<uint64_t> readRegisters(size_t numRegisters) const;
+    svm::VirtualMachine const& VM() const { return vm; }
 
     ///
     Disassembly& disassembly() { return disasm; }
@@ -118,67 +88,40 @@ public:
     Disassembly const& disassembly() const { return disasm; }
 
     ///
-    void setReloadCallback(std::function<void()> fn) { reloadCallback = fn; }
-
-    ///
-    void setScrollCallback(std::function<void(size_t)> fn) {
-        scrollCallback = fn;
-    }
-
-    ///
-    void setRefreshCallback(std::function<void()> fn) { refreshCallback = fn; }
-
-    ///
     std::stringstream& standardout() { return _stdout; }
 
-private:
     ///
-    void startExecutionThread(std::array<uint64_t, 2> arguments);
+    void toggleInstBreakpoint(size_t index);
 
-    bool isBreakpointImpl(size_t instIndex) const {
-        return breakpoints.contains(instIndex);
-    }
-    void addBreakpointImpl(size_t instIndex) { breakpoints.insert(instIndex); }
-    void removeBreakpointImpl(size_t instIndex) {
-        breakpoints.erase(instIndex);
-    }
-    /// Requires the VM to be currently executing
-    void updateInstIndex();
+    ///
+    void clearBreakpoints() { breakpoints.clear(); }
 
-    /// \Warning requires the calling thread to hold `mutex`
-    bool handlePausedOrBreakpoint();
+    ///
+    void setUIHandle(UIHandle* handle) { uiHandle = handle; }
 
-    void setScroll(size_t index);
-    enum SoftOrForce { SOFT, FORCE };
-    void refreshScreen(SoftOrForce = SOFT);
+private:
+    struct ExecThread;
 
-    enum class Signal { Sleep, Step, Run, Terminate };
+    ExecState starting();
+    ExecState running();
+    ExecState paused();
+    ExecState stopping();
 
-    /// \Warning requires the calling thread to hold `mutex`
-    void send(Signal signal);
+    ExecState doExecuteSteps();
+    ExecState doStepInstruction();
+    ExecState doStepSourceLine();
 
-    std::thread executionThread;
-    std::condition_variable condVar;
-    mutable std::mutex mutex;
-    Signal signal = {};
-    std::atomic<bool> execThreadRunning = false;
-    std::atomic<size_t> currentIndex = 0;
-
-    std::filesystem::path _currentFilepath;
+    std::array<uint64_t, 2> runArguments{};
+    std::unique_ptr<ExecThread> execThread;
     svm::VirtualMachine vm;
-    std::vector<std::string> runArguments;
     Disassembly disasm;
-    utl::hashset<size_t> breakpoints;
-
-    std::function<void()> reloadCallback;
-    std::function<void(size_t)> scrollCallback;
-    std::function<void()> refreshCallback;
-    std::chrono::time_point<std::chrono::steady_clock> lastRefresh =
-        std::chrono::steady_clock::now();
+    UIHandle* uiHandle;
+    std::mutex breakpointMutex;
+    BreakpointManager breakpoints;
 
     std::stringstream _stdout;
 };
 
 } // namespace sdb
 
-#endif // SDB_MODEL_MODEL_H_
+#endif // SDB_MODEL_EXECUTOR_H_

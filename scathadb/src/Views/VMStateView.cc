@@ -36,10 +36,10 @@ struct RegView: ScrollBase {
     }
 
     Element Render() override {
-        if (!model->isActive() || !model->isSleeping()) {
+        if (model->isRunning()) {
             return text("");
         }
-        values = model->readRegisters(utl::narrow_cast<size_t>(maxReg));
+        values = {}; // model->readRegisters(utl::narrow_cast<size_t>(maxReg));
         auto& vm = model->VM();
         auto execFrame = vm.getCurrentExecFrame();
         currentOffset = execFrame.regPtr - execFrame.bottomReg;
@@ -56,10 +56,14 @@ struct RegView: ScrollBase {
 
 Element RegEntry::Render() {
     auto* parent = dynamic_cast<RegView const*>(Parent());
-    std::stringstream sstr;
-    uint64_t value = parent->values[utl::narrow_cast<size_t>(index)];
+    auto& values = parent->values;
+    if (index >= values.size()) {
+        return text("");
+    }
+    uint64_t value = values[utl::narrow_cast<size_t>(index)];
     auto ptr = std::bit_cast<svm::VirtualPointer>(value);
     auto derefRange = parent->model->VM().validPtrRange(ptr);
+    std::stringstream sstr;
     if (derefRange >= 0) {
         sstr << "0x" << std::hex << value;
     }
@@ -75,7 +79,7 @@ Element RegEntry::Render() {
 static Component CompareFlagsView(Model* model) {
     return Renderer([model] {
         auto flags = model->VM().getCompareFlags();
-        bool active = model->isActive() && model->isSleeping();
+        bool active = model->isPaused();
         auto display = [=](std::string name, bool cond) {
             return text(name) | bold |
                    color(!active ? Color::GrayDark :
@@ -103,7 +107,7 @@ ftxui::Component sdb::VMStateView(Model* model) {
         CompareFlagsView(model),
     });
     return Renderer(cont, [=] {
-        if (!model->isActive()) {
+        if (model->isStopped()) {
             return placeholder("No Debug Session");
         }
         return cont->Render();

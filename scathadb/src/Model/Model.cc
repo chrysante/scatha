@@ -1,201 +1,251 @@
 #include "Model/Model.h"
 
-#include <ostream>
-#include <stdexcept>
+#include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
 
 #include <svm/Util.h>
 #include <utl/strcat.hpp>
 
-#include "Model/Options.h"
+#include "Model/InstructionBreakpoint.h"
 
 using namespace sdb;
 
-Model::Model() { VM().setIOStreams(nullptr, &standardout()); }
+namespace {
 
-Model::~Model() { shutdown(); }
+enum class ExecCommand {
+    None,
+    Start,
+    Stop,
+    Toggle,
+    StepInstruction,
+    StepSourceLine,
+};
 
-void Model::loadBinary(Options options) {
-    shutdown();
+} // namespace
+
+struct Model::ExecThread {
+    std::array<std::function<ExecState()>, 4> states;
+    std::thread thread;
+    std::mutex commandQueueMutex;
+    std::queue<ExecCommand> commands;
+    std::condition_variable condVar;
+    std::atomic<ExecState> atomicState;
+
+    explicit ExecThread(std::function<ExecState()> starting,
+                        std::function<ExecState()> running,
+                        std::function<ExecState()> paused,
+                        std::function<ExecState()> terminating):
+        states({
+            std::move(starting),
+            std::move(running),
+            std::move(paused),
+            std::move(terminating),
+        }) {}
+
+    /// To be called from the execution thread
+    ExecCommand popCommand() {
+        std::lock_guard lock(commandQueueMutex);
+        if (commands.empty()) {
+            return ExecCommand::None;
+        }
+        auto command = commands.front();
+        commands.pop();
+        return command;
+    }
+
+    /// To be called from the execution thread
+    ExecCommand waitCommand() {
+        std::unique_lock lock(commandQueueMutex);
+        condVar.wait(lock, [&] { return !commands.empty(); });
+        auto command = commands.front();
+        commands.pop();
+        return command;
+    }
+
+    /// To be called from the controlling thread
+    void sendCommand(ExecCommand command) {
+        using enum ExecCommand;
+        std::lock_guard lock(commandQueueMutex);
+        commands.push(command);
+        switch (command) {
+        case Start:
+            if (thread.joinable()) {
+                thread.join();
+            }
+            thread = std::thread([this] { threadFn(); });
+            break;
+        case Stop:
+            if (thread.joinable()) {
+                thread.join();
+            }
+            commands = {};
+            break;
+        default:
+            break;
+        }
+    }
+
+    /// Execution thread main function
+    void threadFn() {
+        using enum ExecState;
+        auto state = Starting;
+        atomicState = state;
+        while (state != Stopped) {
+            atomicState = state = states[static_cast<size_t>(state)]();
+        }
+    }
+};
+
+Model::Model(UIHandle* uiHandle):
+    execThread(std::make_unique<ExecThread>([this] { return starting(); },
+                                            [this] { return running(); },
+                                            [this] { return paused(); },
+                                            [this] { return stopping(); })),
+    uiHandle(uiHandle),
+    breakpoints(&disasm) {
+    vm.setIOStreams(nullptr, &_stdout);
+}
+
+Model::~Model() { stop(); }
+
+void Model::loadProgram(std::filesystem::path filepath) {
+    stop();
     clearBreakpoints();
-    auto binary = svm::readBinaryFromFile(options.filepath.string());
+    auto binary = svm::readBinaryFromFile(filepath.string());
     if (binary.empty()) {
-        std::string progName = options.filepath.stem();
+        std::string progName = filepath.stem();
         auto msg =
             utl::strcat("Failed to load ", progName, ". Binary is empty.\n");
         throw std::runtime_error(msg);
     }
     vm.loadBinary(binary.data());
-    _currentFilepath = options.filepath;
-    runArguments = std::move(options.arguments);
+    //    _currentFilepath = filepath;
     disasm = disassemble(binary);
-    if (reloadCallback) {
-        reloadCallback();
-    }
+    uiHandle->reload();
 }
 
-void Model::run() {
-    if (isActive()) {
-        shutdown();
-    }
-    _stdout.str({});
-    {
-        std::lock_guard lock(mutex);
-        send(Signal::Terminate);
-    }
-    if (executionThread.joinable()) {
-        executionThread.join();
-    }
-    auto execArg = setupArguments(vm, runArguments);
-    startExecutionThread(execArg);
+void Model::unloadProgram() {}
+
+void Model::setArguments(std::span<std::string const> arguments) {}
+
+void Model::start() {
+    using enum ExecCommand;
+    execThread->sendCommand(Start);
 }
 
-void Model::shutdown() {
-    {
-        std::lock_guard lock(mutex);
-        execThreadRunning = false;
-        send(Signal::Terminate);
-    }
-    if (executionThread.joinable()) {
-        executionThread.join();
-    }
+void Model::stop() {
+    using enum ExecCommand;
+    execThread->sendCommand(Stop);
 }
 
-void Model::startExecutionThread(std::array<uint64_t, 2> arguments) {
-    signal = Signal::Run;
-    execThreadRunning = true;
-    executionThread = std::thread([=] {
-        {
-            std::lock_guard lock(mutex);
-            vm.beginExecution(arguments);
-            updateInstIndex();
-            handlePausedOrBreakpoint();
-        }
-        while (execThreadRunning) {
-            refreshScreen();
-            std::unique_lock lock(mutex);
-            condVar.wait(lock, [&] { return signal != Signal::Sleep; });
-            auto sig = signal;
-            lock.unlock();
-            switch (sig) {
-            case Signal::Sleep:
-                break;
-            case Signal::Step: {
-                std::lock_guard lock(mutex);
-                if (vm.running()) {
-                    vm.stepExecution();
-                }
-                execThreadRunning = vm.running();
-                signal = Signal::Sleep;
-                updateInstIndex();
-                setScroll(currentIndex);
-                break;
-            }
-            case Signal::Run: {
-                while (vm.running()) {
-                    std::lock_guard lock(mutex);
-                    vm.stepExecution();
-                    updateInstIndex();
-                    if (handlePausedOrBreakpoint() || signal != Signal::Run) {
-                        break;
-                    }
-                    refreshScreen();
-                }
-                if (!vm.running()) {
-                    execThreadRunning = false;
-                }
-                std::lock_guard lock(mutex);
-                signal = Signal::Sleep;
-                break;
-            }
-            case Signal::Terminate:
-                execThreadRunning = false;
-                break;
-            }
-        }
-        {
-            std::lock_guard lock(mutex);
-            if (!vm.running()) {
-                vm.endExecution();
-                vm.ostream()
-                    << "Program returned with exit code: " << vm.getRegister(0)
-                    << std::endl;
-            }
-            refreshScreen(FORCE);
-        }
-    });
+void Model::toggle() {
+    using enum ExecCommand;
+    execThread->sendCommand(Toggle);
 }
 
-bool Model::handlePausedOrBreakpoint() {
-    if (signal == Signal::Sleep || breakpoints.contains(currentIndex)) {
-        signal = Signal::Sleep;
-        setScroll(currentIndex);
-        return true;
-    }
-    return false;
+ExecState Model::state() const { return execThread->atomicState; }
+
+void Model::stepInstruction() {
+    using enum ExecCommand;
+    execThread->sendCommand(StepInstruction);
 }
 
-void Model::toggleExecution() {
-    std::lock_guard lock(mutex);
-    if (signal == Signal::Sleep) {
-        send(Signal::Run);
+void Model::stepSourceLine() {
+    using enum ExecCommand;
+    execThread->sendCommand(StepSourceLine);
+}
+
+void Model::toggleInstBreakpoint(size_t index) {
+    size_t offset = disasm.indexToOffset(index);
+    if (breakpoints.at(offset)) {
+        breakpoints.erase(offset);
     }
     else {
-        send(Signal::Sleep);
+        breakpoints.add(offset, std::make_unique<InstructionBreakpoint>());
     }
 }
 
-void Model::skipLine() {
-    std::lock_guard lock(mutex);
-    send(Signal::Step);
-}
-
-void Model::enterFunction() { assert(false && "Unimplemented"); }
-
-void Model::exitFunction() { assert(false && "Unimplemented"); }
-
-bool Model::isSleeping() const {
-    std::lock_guard lock(mutex);
-    return signal == Signal::Sleep;
-}
-
-std::vector<uint64_t> Model::readRegisters(size_t numRegisters) const {
-    std::vector<uint64_t> result;
-    result.reserve(numRegisters);
-    std::lock_guard lock(mutex);
-    auto frame = vm.getCurrentExecFrame();
-    for (size_t i = 0; i < numRegisters; ++i) {
-        result.push_back(frame.bottomReg[i]);
+ExecState Model::starting() {
+    using enum ExecState;
+    execThread->popCommand();
+    vm.beginExecution({});
+    if (auto* BP = breakpoints.at(vm.instructionPointerOffset())) {
+        BP->onHit();
+        return Paused;
     }
-    return result;
+    return Running;
 }
 
-void Model::send(Signal signal) {
-    this->signal = signal;
-    condVar.notify_all();
-}
-
-void Model::updateInstIndex() {
-    currentIndex =
-        disasm.instIndexAt(vm.instructionPointerOffset()).value_or(0);
-}
-
-void Model::setScroll(size_t index) {
-    if (!scrollCallback) {
-        return;
-    }
-    scrollCallback(index);
-    refreshScreen(FORCE);
-}
-
-void Model::refreshScreen(SoftOrForce mode) {
-    using namespace std::chrono;
-    auto now = steady_clock::now();
-    auto dur = now - lastRefresh;
-    if (duration_cast<milliseconds>(dur).count() < 60 && mode != FORCE) {
-        return;
-    }
-    lastRefresh = now;
-    if (refreshCallback) {
-        refreshCallback();
+ExecState Model::running() {
+    using enum ExecCommand;
+    using enum ExecState;
+    switch (execThread->popCommand()) {
+    case None:
+        return doExecuteSteps();
+    case Stop:
+        return Stopping;
+    case Toggle:
+        return Paused;
+    default:
+        return Running;
     }
 }
+
+ExecState Model::paused() {
+    using enum ExecCommand;
+    using enum ExecState;
+    switch (execThread->waitCommand()) {
+    case Stop:
+        return Stopping;
+    case Toggle:
+        return Running;
+    case StepInstruction:
+        return doStepInstruction();
+    case StepSourceLine:
+        return doStepSourceLine();
+    default:
+        return Paused;
+    }
+}
+
+ExecState Model::stopping() {
+    using enum ExecState;
+    execThread->popCommand();
+    vm.endExecution();
+    vm.ostream() << "Program returned with exit code: " << vm.getRegister(0)
+                 << std::endl;
+    return Stopped;
+}
+
+ExecState Model::doExecuteSteps() {
+    using enum ExecState;
+    int const NumSteps = 20;
+    std::lock_guard lock(breakpointMutex);
+    for (int i = 0; i < NumSteps; ++i) {
+        if (!vm.running()) {
+            return Stopping;
+        }
+        vm.stepExecution();
+        if (auto* BP = breakpoints.at(vm.instructionPointerOffset())) {
+            BP->onHit();
+            return Paused;
+        }
+    }
+    return Running;
+}
+
+ExecState Model::doStepInstruction() {
+    assert(vm.running() && "Must be active to step");
+    using enum ExecState;
+    vm.stepExecution();
+    if (vm.running()) {
+        return Paused;
+    }
+    else {
+        return Stopping;
+    }
+}
+
+ExecState Model::doStepSourceLine() { assert(false); }

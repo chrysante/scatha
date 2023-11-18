@@ -11,12 +11,28 @@
 
 #include <ftxui/component/screen_interactive.hpp>
 
+#include "Model/UIHandle.h"
 #include "UI/Common.h"
 #include "UI/ModalView.h"
 
 namespace sdb {
 
 class Model;
+class Debugger;
+
+class DebuggerUIHandle: public UIHandle {
+public:
+    explicit DebuggerUIHandle(Debugger* db): _db(db) {}
+
+    Debugger& DB() const { return *_db; }
+
+    void refresh() override;
+
+    void reload() override;
+
+private:
+    Debugger* _db;
+};
 
 ///
 ///
@@ -70,13 +86,16 @@ public:
     ///
     void toggleBottombar();
 
+    ///
+    ftxui::ScreenInteractive& screen() { return _screen; }
+
 private:
-    ftxui::ScreenInteractive screen;
+    ftxui::ScreenInteractive _screen;
 
     Model* _model;
     std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
-    std::shared_ptr<ViewBase> instView;
+    DebuggerUIHandle uiHandle;
     int _sidebarSize[2] = { 30, 30 };
     int _sidebarSizeBackup[2] = { 30, 30 };
     int _bottombarSize = 10;
