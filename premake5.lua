@@ -58,6 +58,7 @@ files {
 }
 externalincludedirs { 
     "include",
+    "svm/include", -- We need some SVM headers but we don't link it
     "external/utility/include", 
     "external/gmp/build/include", 
     "external/mpfr/build/include",
