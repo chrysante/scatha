@@ -91,52 +91,6 @@ externalincludedirs {
 links { "scatha", "termfmt", "apmath" }
 
 ------------------------------------------
-project "svm-lib"
-kind "StaticLib"
-
-addCppFiles "svm"
-removefiles { "svm/main.cc" }
-files "include/svm/**"
-
-includedirs { "." }
-
-externalincludedirs {
-    "include",
-    "external/cli11/include",
-    "external/range-v3/include",
-    "external/utility/include",
-}
-
-------------------------------------------
-project "svm"
-kind "ConsoleApp"
-files { "svm/main.cc" }
-
-externalincludedirs {
-    "include",
-    "external/utility/include",
-    "external/range-v3/include",
-}
-
-links "svm-lib"
-
-------------------------------------------
-project "svm-test"
-kind "ConsoleApp"
-
-includedirs { "svm" }
-
-externalincludedirs {
-    "include",
-    "external/utility/include",
-    "external/Catch",
-    "external/range-v3/include",
-}
-
-addCppFiles "svm-test"
-links "svm-lib"
-
-------------------------------------------
 project "scatha-test"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
@@ -209,6 +163,7 @@ filter {}
 
 -- Weirdly enough include "scathadb" gives a strange error
 include "scathadb/premake5.lua"
+include "svm/premake5.lua"
 include "passtool"
 
 include "external/termfmt/lib.lua"

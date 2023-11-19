@@ -9,8 +9,8 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
-#include "svm/Memory.h"
-#include "svm/OpCode.h"
+#include "Memory.h"
+#include "OpCode.h"
 
 using namespace svm;
 

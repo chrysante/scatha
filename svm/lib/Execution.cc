@@ -1,12 +1,12 @@
-#include <svm/VirtualMachine.h>
+#include "VirtualMachine.h"
 
 #include <cassert>
 
 #include <utl/functional.hpp>
 
-#include "svm/Memory.h"
-#include "svm/OpCode.h"
-#include "svm/VMImpl.h"
+#include "Memory.h"
+#include "OpCode.h"
+#include "VMImpl.h"
 
 #if defined(__GNUC__)
 

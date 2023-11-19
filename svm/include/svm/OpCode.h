@@ -111,6 +111,8 @@ inline constexpr size_t codeSize(OpCode code) {
         return sizeof(OpCode) + 4;
     case OpCodeClass::Other:
         assert(false);
+    case _count:
+        assert(false);
     }
 }
 

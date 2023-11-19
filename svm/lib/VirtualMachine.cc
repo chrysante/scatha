@@ -1,14 +1,14 @@
-#include <svm/VirtualMachine.h>
+#include "VirtualMachine.h"
 
 #include <bit>
 #include <iostream>
 
 #include <utl/utility.hpp>
 
-#include "svm/BuiltinInternal.h"
-#include "svm/Memory.h"
-#include "svm/Program.h"
-#include "svm/VMImpl.h"
+#include "BuiltinInternal.h"
+#include "Memory.h"
+#include "Program.h"
+#include "VMImpl.h"
 
 using namespace svm;
 

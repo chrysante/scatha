@@ -1,4 +1,4 @@
-#include "svm/BuiltinInternal.h"
+#include "BuiltinInternal.h"
 
 #include <cassert>
 #include <charconv>
@@ -8,15 +8,15 @@
 #include <string>
 #include <string_view>
 
-#include <svm/Common.h>
-#include <svm/Errors.h>
-#include <svm/ExternalFunction.h>
-#include <svm/VirtualMachine.h>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
-#include "svm/Memory.h"
-#include "svm/VMImpl.h"
+#include "Memory.h"
+#include "VMImpl.h"
+#include "Common.h"
+#include "Errors.h"
+#include "ExternalFunction.h"
+#include "VirtualMachine.h"
 
 using namespace svm;
 
