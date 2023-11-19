@@ -121,10 +121,10 @@ void VirtualMemory::deallocate(VirtualPointer ptr, size_t size, size_t align) {
     if (size <= MaxPoolSize) {
         auto [slotIndex, pool] = getPool(size, align);
         if (slotIndex != ptr.slotIndex) {
-            throw DeallocationError(ptr, size, align);
+            reportDeallocationError(ptr, size, align);
         }
         if (!pool.deallocate(slots[slotIndex], ptr.offset)) {
-            throw DeallocationError(ptr, size, align);
+            reportDeallocationError(ptr, size, align);
         }
         return;
     }
@@ -146,4 +146,10 @@ void VirtualMemory::reportAccessError(MemoryAccessError::Reason reason,
                                       VirtualPointer ptr,
                                       size_t size) {
     throw RuntimeException(MemoryAccessError(reason, ptr, size));
+}
+
+void VirtualMemory::reportDeallocationError(VirtualPointer ptr,
+                                            size_t size,
+                                            size_t align) {
+    throw RuntimeException(DeallocationError(ptr, size, align));
 }

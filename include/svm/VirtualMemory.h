@@ -103,6 +103,10 @@ private:
     [[noreturn, gnu::noinline]] static void reportAccessError(
         MemoryAccessError::Reason reason, VirtualPointer ptr, size_t size);
 
+    /// \Throws a `DeallocationError` unconditionally
+    [[noreturn, gnu::noinline]] static void reportDeallocationError(
+        VirtualPointer ptr, size_t size, size_t align);
+
     std::vector<Slot> slots;
     std::vector<PoolAllocator> pools;
     std::vector<size_t> freeSlots;
