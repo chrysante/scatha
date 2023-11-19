@@ -9,13 +9,14 @@
 
 #include "Common/Base.h"
 #include "Common/List.h"
+#include "Common/Metadata.h"
 #include "MIR/Fwd.h"
 
 namespace scatha::mir {
 
 /// Represents one unit of translation
 /// Also acts as a constants pool
-class SCTEST_API Module {
+class SCTEST_API Module: public ObjectWithMetadata {
     template <typename T>
     static decltype(auto) asDerived(auto&& self) {
         return static_cast<T&>(self);

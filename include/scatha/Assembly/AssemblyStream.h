@@ -14,7 +14,7 @@ namespace scatha::Asm {
 class Block;
 struct Jumpsite;
 
-class SCATHA_API AssemblyStream {
+class SCATHA_API AssemblyStream: public ObjectWithMetadata {
 public:
     AssemblyStream();
 
@@ -39,10 +39,6 @@ public:
     void setJumpSites(std::vector<Jumpsite> data);
 
     std::span<Jumpsite const> jumpSites() const;
-
-    void setMetadata(std::vector<Metadata> metadata);
-
-    std::span<Metadata const> metadata();
 
 private:
     struct Impl;

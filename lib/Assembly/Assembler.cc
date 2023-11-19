@@ -2,6 +2,8 @@
 
 #include <span>
 
+#include <nlohmann/json.hpp>
+#include <range/v3/view.hpp>
 #include <svm/OpCode.h>
 #include <svm/Program.h>
 #include <utl/bit.hpp>
@@ -14,6 +16,8 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
+#include "Common/SourceFile.h"
+#include "Common/SourceLocation.h"
 
 using namespace scatha;
 using namespace Asm;
@@ -31,9 +35,9 @@ namespace {
 
 struct LabelPlaceholder {};
 
-struct Context {
-    explicit Context(AssemblyStream const& stream,
-                     std::unordered_map<std::string, size_t>& sym):
+struct AsmContext {
+    explicit AsmContext(AssemblyStream const& stream,
+                        std::unordered_map<std::string, size_t>& sym):
         stream(stream), sym(sym), jumpsites(stream.jumpSites()) {}
 
     void run();
@@ -120,7 +124,7 @@ struct Context {
 
 AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     AssemblerResult result;
-    Context ctx(astr, result.symbolTable);
+    AsmContext ctx(astr, result.symbolTable);
     ctx.run();
     size_t dataSecSize = astr.dataSection().size();
     svm::ProgramHeader const header{
@@ -138,7 +142,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     return result;
 }
 
-void Context::run() {
+void AsmContext::run() {
     /// We write the static data in the front of the binary
     binary = stream.dataSection();
     for (auto& block: stream) {
@@ -156,11 +160,11 @@ void Context::run() {
     setJumpDests();
 }
 
-void Context::dispatch(Instruction const& inst) {
+void AsmContext::dispatch(Instruction const& inst) {
     std::visit([this](auto& inst) { translate(inst); }, inst);
 }
 
-void Context::translate(MoveInst const& mov) {
+void AsmContext::translate(MoveInst const& mov) {
     auto const [opcode, size] = mapMove(mov.dest().valueType(),
                                         mov.source().valueType(),
                                         mov.numBytes());
@@ -169,7 +173,7 @@ void Context::translate(MoveInst const& mov) {
     dispatch(promote(mov.source(), size));
 }
 
-void Context::translate(CMoveInst const& cmov) {
+void AsmContext::translate(CMoveInst const& cmov) {
     auto const [opcode, size] = mapCMove(cmov.condition(),
                                          cmov.dest().valueType(),
                                          cmov.source().valueType(),
@@ -179,44 +183,46 @@ void Context::translate(CMoveInst const& cmov) {
     dispatch(promote(cmov.source(), size));
 }
 
-void Context::translate(JumpInst const& jmp) {
+void AsmContext::translate(JumpInst const& jmp) {
     OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
     put(LabelPlaceholder{}, jmp.target(), StaticAddressWidth);
     return;
 }
 
-void Context::translate(CallInst const& call) {
+void AsmContext::translate(CallInst const& call) {
     OpCode const opcode = mapCall(call.dest().valueType());
     put(opcode);
     dispatch(call.dest());
     put<u8>(call.regPtrOffset());
 }
 
-void Context::translate(CallExtInst const& call) {
+void AsmContext::translate(CallExtInst const& call) {
     put(OpCode::callExt);
     put<u8>(call.regPtrOffset());
     put<u8>(call.slot());
     put<u16>(call.index());
 }
 
-void Context::translate(ReturnInst const& ret) { put(OpCode::ret); }
+void AsmContext::translate(ReturnInst const& ret) { put(OpCode::ret); }
 
-void Context::translate(TerminateInst const& term) { put(OpCode::terminate); }
+void AsmContext::translate(TerminateInst const& term) {
+    put(OpCode::terminate);
+}
 
-void Context::translate(LIncSPInst const& lincsp) {
+void AsmContext::translate(LIncSPInst const& lincsp) {
     put(OpCode::lincsp);
     dispatch(lincsp.dest());
     dispatch(lincsp.offset());
 }
 
-void Context::translate(LEAInst const& lea) {
+void AsmContext::translate(LEAInst const& lea) {
     put(OpCode::lea);
     dispatch(lea.dest());
     dispatch(lea.address());
 }
 
-void Context::translate(CompareInst const& cmp) {
+void AsmContext::translate(CompareInst const& cmp) {
     OpCode const opcode = mapCompare(cmp.type(),
                                      promote(cmp.lhs().valueType(), 8),
                                      promote(cmp.rhs().valueType(), 8),
@@ -226,7 +232,7 @@ void Context::translate(CompareInst const& cmp) {
     dispatch(promote(cmp.rhs(), 8));
 }
 
-void Context::translate(TestInst const& test) {
+void AsmContext::translate(TestInst const& test) {
     OpCode const opcode = mapTest(test.type(), test.width());
     put(opcode);
     SC_ASSERT(test.operand().is<RegisterIndex>(),
@@ -234,13 +240,13 @@ void Context::translate(TestInst const& test) {
     dispatch(std::get<RegisterIndex>(test.operand()));
 }
 
-void Context::translate(SetInst const& set) {
+void AsmContext::translate(SetInst const& set) {
     OpCode const opcode = mapSet(set.operation());
     put(opcode);
     dispatch(set.dest());
 }
 
-void Context::translate(UnaryArithmeticInst const& inst) {
+void AsmContext::translate(UnaryArithmeticInst const& inst) {
     switch (inst.operation()) {
     case UnaryArithmeticOperation::LogicalNot:
         put(OpCode::lnt);
@@ -272,7 +278,7 @@ void Context::translate(UnaryArithmeticInst const& inst) {
     translate(inst.operand());
 }
 
-void Context::translate(ArithmeticInst const& inst) {
+void AsmContext::translate(ArithmeticInst const& inst) {
     OpCode const opcode = inst.width() == 4 ?
                               mapArithmetic32(inst.operation(),
                                               inst.dest().valueType(),
@@ -285,7 +291,7 @@ void Context::translate(ArithmeticInst const& inst) {
     dispatch(inst.source());
 }
 
-void Context::translate(TruncExtInst const& inst) {
+void AsmContext::translate(TruncExtInst const& inst) {
     auto const opcode = [&] {
         if (inst.type() == Type::Signed) {
             switch (inst.fromBits()) {
@@ -317,7 +323,7 @@ void Context::translate(TruncExtInst const& inst) {
     dispatch(inst.operand());
 }
 
-void Context::translate(ConvertInst const& inst) {
+void AsmContext::translate(ConvertInst const& inst) {
     auto const opcode = [&] {
 #define MAP_CONV(FromType, FromBits, ToType, ToBits)                           \
     if (inst.fromType() == Type::FromType && inst.fromBits() == FromBits &&    \
@@ -364,30 +370,30 @@ void Context::translate(ConvertInst const& inst) {
     dispatch(inst.operand());
 }
 
-void Context::dispatch(Value const& value) {
+void AsmContext::dispatch(Value const& value) {
     std::visit([this](auto& value) { translate(value); }, value);
 }
 
-void Context::translate(RegisterIndex const& regIdx) {
+void AsmContext::translate(RegisterIndex const& regIdx) {
     put<u8>(regIdx.value());
 }
 
-void Context::translate(MemoryAddress const& memAddr) {
+void AsmContext::translate(MemoryAddress const& memAddr) {
     put<u8>(memAddr.baseptrRegisterIndex());
     put<u8>(memAddr.offsetCountRegisterIndex());
     put<u8>(memAddr.constantOffsetMultiplier());
     put<u8>(memAddr.constantInnerOffset());
 }
 
-void Context::translate(Value8 const& value) { put<u8>(value.value()); }
+void AsmContext::translate(Value8 const& value) { put<u8>(value.value()); }
 
-void Context::translate(Value16 const& value) { put<u16>(value.value()); }
+void AsmContext::translate(Value16 const& value) { put<u16>(value.value()); }
 
-void Context::translate(Value32 const& value) { put<u32>(value.value()); }
+void AsmContext::translate(Value32 const& value) { put<u32>(value.value()); }
 
-void Context::translate(Value64 const& value) { put<u64>(value.value()); }
+void AsmContext::translate(Value64 const& value) { put<u64>(value.value()); }
 
-void Context::translate(LabelPosition const& pos) {
+void AsmContext::translate(LabelPosition const& pos) {
     auto width = [&] {
         using enum LabelPosition::Kind;
         switch (pos.kind()) {
@@ -405,11 +411,73 @@ static void store(void* dest, T const& t) {
     std::memcpy(dest, &t, sizeof(T));
 }
 
-void Context::setJumpDests() {
+void AsmContext::setJumpDests() {
     for (auto const& [position, targetID, width]: jumpsites) {
         auto const itr = labels.find(targetID);
         SC_ASSERT(itr != labels.end(), "Use of undeclared label");
         size_t const targetPosition = itr->second;
         std::memcpy(&binary[position], &targetPosition, width);
     }
+}
+
+namespace {
+
+struct DebugSymContext {
+    AssemblyStream const& stream;
+
+    explicit DebugSymContext(AssemblyStream const& stream): stream(stream) {}
+
+    nlohmann::json run();
+
+    nlohmann::json generateSourceFileList();
+
+    nlohmann::json generateSourceMap();
+};
+
+} // namespace
+
+std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {
+    DebugSymContext ctx(stream);
+    auto sym = ctx.run();
+    return sym.dump();
+}
+
+nlohmann::json DebugSymContext::run() {
+    return {
+        { "files", generateSourceFileList() },
+        { "sourcemap", generateSourceMap() },
+    };
+}
+
+nlohmann::json DebugSymContext::generateSourceFileList() {
+    nlohmann::json result;
+    auto* list =
+        std::any_cast<std::vector<std::filesystem::path>>(&stream.metadata());
+    if (!list) {
+        return result;
+    }
+    for (auto [index, path]: *list | ranges::views::enumerate) {
+        result[index] = path;
+    }
+    return result;
+}
+
+static nlohmann::json toJSON(SourceLocation loc) {
+    return { size_t(loc.fileIndex),
+             size_t(loc.index),
+             size_t(loc.line),
+             size_t(loc.column) };
+}
+
+nlohmann::json DebugSymContext::generateSourceMap() {
+    nlohmann::json result;
+    for (auto [index, inst]:
+         stream | ranges::views::join | ranges::views::enumerate)
+    {
+        auto& elem = result[index];
+        if (auto* sourceLoc = std::any_cast<SourceLocation>(&inst.metadata())) {
+            elem = toJSON(*sourceLoc);
+        }
+    }
+    return result;
 }

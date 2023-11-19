@@ -16,8 +16,10 @@ struct AssemblerResult {
     std::unordered_map<std::string, size_t> symbolTable;
 };
 
-[[nodiscard]] SCATHA_API AssemblerResult
-    assemble(AssemblyStream const& assemblyStream);
+SCATHA_API AssemblerResult assemble(AssemblyStream const& assemblyStream);
+
+SCATHA_API std::string generateDebugSymbols(
+    AssemblyStream const& assemblyStream);
 
 } // namespace scatha::Asm
 

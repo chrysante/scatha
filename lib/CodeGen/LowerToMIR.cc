@@ -202,6 +202,7 @@ mir::Module cg::lowerToMIR(ir::Module const& mod) {
     mir::Module result;
     CodeGenContext ctx(result);
     ctx.run(mod);
+    result.setMetadata(mod.metadata());
     return result;
 }
 

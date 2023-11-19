@@ -50,9 +50,3 @@ void AssemblyStream::setJumpSites(std::vector<Jumpsite> jumpsites) {
 std::span<Jumpsite const> AssemblyStream::jumpSites() const {
     return impl->jumpsites;
 }
-
-void AssemblyStream::setMetadata(std::vector<Metadata> metadata) {
-    impl->metadata = std::move(metadata);
-}
-
-std::span<Metadata const> AssemblyStream::metadata() { return impl->metadata; }

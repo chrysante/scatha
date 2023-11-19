@@ -7,11 +7,12 @@
 #include "Assembly/Common.h"
 #include "Assembly/Value.h"
 #include "Common/Base.h"
+#include "Common/Metadata.h"
 
 namespace scatha::Asm {
 
 /// Base class of all instructions in the assembly module.
-class InstructionBase {
+class InstructionBase: public ObjectWithMetadata {
 protected:
     InstructionBase() = default;
 };
@@ -363,6 +364,15 @@ public:
     using internal::InstructionVariantBase::InstructionVariantBase;
     InstructionType instructionType() const {
         return static_cast<InstructionType>(index());
+    }
+
+    Metadata const& metadata() const {
+        return std::visit(&InstructionBase::metadata, *this);
+    }
+
+    void setMetadata(Metadata metadata) {
+        std::visit([&](auto& inst) { inst.setMetadata(std::move(metadata)); },
+                   *this);
     }
 };
 

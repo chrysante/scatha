@@ -67,14 +67,13 @@ struct CGContext {
     }
 
     void addMetadata(mir::Instruction const& inst) {
-        metadata.push_back(inst.metadata());
+        SC_EXPECT(currentBlock);
+        currentBlock->back().setMetadata(inst.metadata());
     }
 
     Asm::AssemblyStream& result;
     Asm::Block* currentBlock = nullptr;
     mir::Function const* currentFunction = nullptr;
-
-    std::vector<Metadata> metadata;
 
     /// Maps basic blocks and functions to label IDs
     utl::hashmap<mir::Value const*, LabelID> labelIDs;
@@ -95,6 +94,7 @@ void CGContext::run(mir::Module const& mod) {
         genFunction(F);
     }
     result.setDataSection(mod.dataSection());
+    result.setMetadata(mod.metadata());
     auto jumpsites = mod.addressPlaceholders() |
                      ranges::views::transform([&](auto p) {
                          auto [offset, function] = p;
@@ -102,7 +102,6 @@ void CGContext::run(mir::Module const& mod) {
                      }) |
                      ranges::to<std::vector>;
     result.setJumpSites(std::move(jumpsites));
-    result.setMetadata(std::move(metadata));
 }
 
 void CGContext::genFunction(mir::Function const& F) {

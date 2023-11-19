@@ -44,6 +44,9 @@ public:
     auto end() { return instructions.end(); }
     auto end() const { return instructions.end(); }
 
+    auto& back() { return instructions.back(); }
+    auto& back() const { return instructions.back(); }
+
     void insertBack(Instruction const& instruction) {
         instructions.push_back(instruction);
     }

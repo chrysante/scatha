@@ -16,3 +16,6 @@
 [submodule "external/FTXUI"]
 	path = external/FTXUI
 	url = https://github.com/chrysante/FTXUI
+[submodule "external/nlohmann/json"]
+	path = external/nlohmann/json
+	url = https://github.com/nlohmann/json

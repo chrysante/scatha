@@ -66,6 +66,7 @@ externalincludedirs {
     "external/graphgen/include",
     "external/APMath/include",
     "external/range-v3/include",
+    "external/nlohmann/json/include",
 }
 includedirs { "lib", "include/scatha" }
 links { "apmath", "graphgen", "termfmt" }
