@@ -62,8 +62,11 @@ struct FuncGenContext: FuncGenContextBase {
     void generateImpl(ast::JumpStatement const&);
 
     /// # Statement specific utilities
-    void callDtor(sema::Object const* object, sema::Function const* dtor);
-    void emitDtorCalls(sema::DtorStack const& dtorStack);
+    void callDtor(sema::Object const* object,
+                  sema::Function const* dtor,
+                  ast::ASTNode const& sourceNode);
+    void emitDtorCalls(sema::DtorStack const& dtorStack,
+                       ast::ASTNode const& sourceNode);
 
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
@@ -114,19 +117,21 @@ struct FuncGenContext: FuncGenContextBase {
 
     /// If the value \p value is already in a register, returns that.
     /// Otherwise loads the value from memory and returns the `load` instruction
-    ir::Value* toRegister(Value value);
+    ir::Value* toRegister(Value value, ast::ASTNode const& sourceNode);
 
     /// If the value \p value is in memory, returns the address.
     /// Otherwise allocates stack memory, stores the value and returns the
     /// address
-    ir::Value* toMemory(Value value);
+    ir::Value* toMemory(Value value, ast::ASTNode const& sourceNode);
 
     /// \Returns `toRegister(value)` or `toMemory(value)` depending on \p
     /// location
-    ir::Value* toValueLocation(ValueLocation location, Value value);
+    ir::Value* toValueLocation(ValueLocation location,
+                               Value value,
+                               ast::ASTNode const& sourceNode);
 
     /// Add source location of \p expr to \p inst
-    void addSourceLoc(ir::Instruction* inst, ast::Expression const& expr);
+    void addSourceLoc(ir::Instruction* inst, ast::ASTNode const& sourceNode);
 };
 
 } // namespace
@@ -146,7 +151,7 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     for (auto* statement: cmpStmt.statements()) {
         generate(*statement);
     }
-    emitDtorCalls(cmpStmt.dtorStack());
+    emitDtorCalls(cmpStmt.dtorStack(), cmpStmt);
 }
 
 static sema::SpecialLifetimeFunction toSLFKindToGenerate(
@@ -244,10 +249,10 @@ void FuncGenContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
     auto size = valueMap.arraySize(initObject);
     if (isa<sema::ReferenceType>(varDecl->type())) {
         valueMap.insertArraySize(varDecl->variable(),
-                                 Value(toRegister(size), Register));
+                                 Value(toRegister(size, *varDecl), Register));
     }
     else {
-        auto* newSize = storeToMemory(toRegister(size),
+        auto* newSize = storeToMemory(toRegister(size, *varDecl),
                                       utl::strcat(varDecl->name(), ".size"));
         valueMap.insertArraySize(varDecl->variable(),
                                  Value(newSize, size.type(), Memory));
@@ -268,7 +273,7 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
         /// If we have non-trivial types sema ensures that we always have an
         /// init-expr in memory
         auto value = getValue(initExpr);
-        auto* address = toMemory(value);
+        auto* address = toMemory(value, varDecl);
         address->setName(name);
         valueMap.insert(varDecl.variable(),
                         Value(address, value.type(), Memory));
@@ -281,18 +286,18 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
         valueMap.insert(varDecl.variable(), Value(address, type, Memory));
         generateVarDeclArraySize(&varDecl, nullptr);
     }
-    emitDtorCalls(dtorStack);
+    emitDtorCalls(dtorStack, varDecl);
 }
 
 void FuncGenContext::generateImpl(
     ast::ExpressionStatement const& exprStatement) {
     (void)getValue(exprStatement.expression());
-    emitDtorCalls(exprStatement.dtorStack());
+    emitDtorCalls(exprStatement.dtorStack(), exprStatement);
 }
 
 void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
     if (!retStmt.expression()) {
-        emitDtorCalls(retStmt.dtorStack());
+        emitDtorCalls(retStmt.dtorStack(), retStmt);
         add<ir::Return>(ctx.voidValue());
         return;
     }
@@ -307,13 +312,15 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
             isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
         if (isFatPointer(semaFn.returnType())) {
             auto size = valueMap.arraySize(retStmt.expression()->object());
-            std::array elems = { toValueLocation(valueLocation, retval),
-                                 toRegister(size) };
+            std::array elems = {
+                toValueLocation(valueLocation, retval, retStmt),
+                toRegister(size, retStmt)
+            };
             actualRetval =
                 buildStructure(makeArrayViewType(ctx), elems, "retval");
         }
         else {
-            actualRetval = toValueLocation(valueLocation, retval);
+            actualRetval = toValueLocation(valueLocation, retval, retStmt);
         }
         break;
     }
@@ -324,11 +331,13 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
                 allocaInst->replaceAllUsesWith(retvalDest);
             }
             else {
-                callMemcpy(retvalDest, toMemory(retval), retval.type()->size());
+                callMemcpy(retvalDest,
+                           toMemory(retval, retStmt),
+                           retval.type()->size());
             }
         }
         else {
-            add<ir::Store>(retvalDest, toRegister(retval));
+            add<ir::Store>(retvalDest, toRegister(retval, retStmt));
         }
         actualRetval = ctx.voidValue();
         break;
@@ -336,13 +345,14 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
     }
     /// We call destructors as the very last step before issuing the return
     /// instruction
-    emitDtorCalls(retStmt.dtorStack());
-    add<ir::Return>(actualRetval);
+    emitDtorCalls(retStmt.dtorStack(), retStmt);
+    auto* retInst = add<ir::Return>(actualRetval);
+    addSourceLoc(retInst, retStmt);
 }
 
 void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
     auto* condition = getValue<Register>(stmt.condition());
-    emitDtorCalls(stmt.dtorStack());
+    emitDtorCalls(stmt.dtorStack(), stmt);
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
     auto* endBlock = newBlock("if.end");
@@ -371,7 +381,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Register>(loopStmt.condition());
-        emitDtorCalls(loopStmt.conditionDtorStack());
+        emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push({ .header = loopHeader,
                          .body = loopBody,
@@ -386,7 +396,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Inc
         add(loopInc);
         getValue(loopStmt.increment());
-        emitDtorCalls(loopStmt.incrementDtorStack());
+        emitDtorCalls(loopStmt.incrementDtorStack(), loopStmt);
         add<ir::Goto>(loopHeader);
 
         /// End
@@ -404,7 +414,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Register>(loopStmt.condition());
-        emitDtorCalls(loopStmt.conditionDtorStack());
+        emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push(
             { .header = loopHeader, .body = loopBody, .end = loopEnd });
@@ -436,7 +446,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Footer
         add(loopFooter);
         auto* condition = getValue<Register>(loopStmt.condition());
-        emitDtorCalls(loopStmt.conditionDtorStack());
+        emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
         add<ir::Branch>(condition, loopBody, loopEnd);
 
         /// End
@@ -445,11 +455,11 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         break;
     }
     }
-    emitDtorCalls(loopStmt.dtorStack());
+    emitDtorCalls(loopStmt.dtorStack(), loopStmt);
 }
 
 void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
-    emitDtorCalls(jump.dtorStack());
+    emitDtorCalls(jump.dtorStack(), jump);
     auto* dest = [&] {
         auto& currentLoop = loopStack.top();
         switch (jump.kind()) {
@@ -504,7 +514,7 @@ Value FuncGenContext::getValue(ast::Expression const* expr) {
 
 template <ValueLocation Loc>
 ir::Value* FuncGenContext::getValue(ast::Expression const* expr) {
-    return toValueLocation(Loc, getValue(expr));
+    return toValueLocation(Loc, getValue(expr), *expr);
 }
 
 Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
@@ -553,9 +563,9 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         Value operand = getValue(expr.operand());
         SC_ASSERT(operand.isMemory(),
                   "Operand must be in memory to be modified");
-        ir::Value* opAddr = toMemory(operand);
+        ir::Value* opAddr = toMemory(operand, expr);
         ir::Type const* operandType = typeMap(expr.operand()->type());
-        ir::Value* operandValue = toRegister(operand);
+        ir::Value* operandValue = toRegister(operand, expr);
         auto* newValue =
             add<ir::ArithmeticInst>(operandValue,
                                     ctx.arithmeticConstant(1, operandType),
@@ -576,7 +586,7 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         return getValue(expr.operand());
 
     case ast::UnaryOperator::Negation: {
-        auto* operand = toRegister(getValue(expr.operand()));
+        auto* operand = getValue<Register>(expr.operand());
         auto operation = isa<sema::IntType>(expr.operand()->type().get()) ?
                              ir::ArithmeticOperation::Sub :
                              ir::ArithmeticOperation::FSub;
@@ -589,7 +599,7 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
     }
 
     default:
-        auto* operand = toRegister(getValue(expr.operand()));
+        auto* operand = getValue<Register>(expr.operand());
         auto* newValue =
             add<ir::UnaryArithmeticInst>(operand,
                                          mapUnaryOp(expr.operation()),
@@ -768,7 +778,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
             auto rhsSize = valueMap.arraySize(expr.rhs()->object());
-            add<ir::Store>(lhsSize.get(), toRegister(rhsSize));
+            add<ir::Store>(lhsSize.get(), toRegister(rhsSize, expr));
         }
         return Value();
     }
@@ -796,7 +806,10 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         auto rhs = getValue<Register>(expr.rhs());
         SC_ASSERT(type == expr.rhs()->type().get(), "");
         auto operation = mapArithmeticAssignOp(type, expr.operation());
-        rhs = add<ir::ArithmeticInst>(toRegister(lhs), rhs, operation, resName);
+        rhs = add<ir::ArithmeticInst>(toRegister(lhs, expr),
+                                      rhs,
+                                      operation,
+                                      resName);
         add<ir::Store>(lhs.get(), rhs);
         return Value();
     }
@@ -845,6 +858,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                                   ctx.intConstant(0, 64),
                                                   std::array{ irIndex },
                                                   "mem.acc");
+        addSourceLoc(result, expr);
         auto* accessedType = typeMap(var.type());
         return Value(result, accessedType, Memory);
     }
@@ -870,7 +884,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         if (arrayType->isDynamic()) {
             getValue(expr.accessed());
             auto size = valueMap.arraySize(expr.accessed()->object());
-            auto* empty = add<ir::CompareInst>(toRegister(size),
+            auto* empty = add<ir::CompareInst>(toRegister(size, expr),
                                                ctx.intConstant(0, 64),
                                                ir::CompareMode::Signed,
                                                ir::CompareOperation::Equal,
@@ -924,7 +938,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                     return ctx.intConstant(arrayType->count() - 1, 64);
                 }
                 auto count = valueMap.arraySize(expr.accessed()->object());
-                return add<ir::ArithmeticInst>(toRegister(count),
+                return add<ir::ArithmeticInst>(toRegister(count, expr),
                                                ctx.intConstant(1, 64),
                                                ir::ArithmeticOperation::Sub,
                                                "back.index");
@@ -991,8 +1005,8 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     add(thenBlock);
     auto thenVal = getValue(condExpr.thenExpr());
     if (isFatPointer(&condExpr)) {
-        thenSize =
-            toRegister(valueMap.arraySize(condExpr.thenExpr()->object()));
+        thenSize = toRegister(valueMap.arraySize(condExpr.thenExpr()->object()),
+                              condExpr);
     }
     thenBlock = &currentBlock(); /// Nested `?:` operands etc. may have changed
                                  /// `currentBlock`
@@ -1002,8 +1016,8 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     add(elseBlock);
     auto elseVal = getValue(condExpr.elseExpr());
     if (isFatPointer(&condExpr)) {
-        elseSize =
-            toRegister(valueMap.arraySize(condExpr.elseExpr()->object()));
+        elseSize = toRegister(valueMap.arraySize(condExpr.elseExpr()->object()),
+                              condExpr);
     }
     elseBlock = &currentBlock();
     add<ir::Goto>(endBlock);
@@ -1012,8 +1026,8 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     add(endBlock);
     auto loc = commonLocation(thenVal.location(), elseVal.location());
     std::array phiArgs = {
-        ir::PhiMapping{ thenBlock, toValueLocation(loc, thenVal) },
-        ir::PhiMapping{ elseBlock, toValueLocation(loc, elseVal) }
+        ir::PhiMapping{ thenBlock, toValueLocation(loc, thenVal, condExpr) },
+        ir::PhiMapping{ elseBlock, toValueLocation(loc, elseVal, condExpr) }
     };
     auto* phi = add<ir::Phi>(phiArgs, "cond");
     Value value(phi, typeMap(condExpr.type()), loc);
@@ -1114,13 +1128,13 @@ void FuncGenContext::generateArgument(PassingConvention const& PC,
     if (isa<sema::ReferenceType>(paramType)) {
         SC_ASSERT(value.isMemory(),
                   "Need value in memory to pass by reference");
-        irArguments.push_back(toMemory(value));
+        irArguments.push_back(toMemory(value, *expr));
     }
     else {
-        irArguments.push_back(toValueLocation(PC.location(), value));
+        irArguments.push_back(toValueLocation(PC.location(), value, *expr));
     }
     if (PC.numParams() == 2) {
-        irArguments.push_back(toRegister(valueMap.arraySize(object)));
+        irArguments.push_back(toRegister(valueMap.arraySize(object), *expr));
     }
 }
 
@@ -1246,7 +1260,8 @@ void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
                                            std::array{ size_t{ 1 } },
                                            utl::strcat("elem.size.", index));
             add<ir::Store>(size,
-                           toRegister(valueMap.arraySize(elem->object())));
+                           toRegister(valueMap.arraySize(elem->object()),
+                                      list));
         }
         else {
             auto* gep =
@@ -1258,10 +1273,10 @@ void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
             auto value = getValue(elem);
 
             if (arrayType->elementType()->hasTrivialLifetime()) {
-                add<ir::Store>(gep, toRegister(value));
+                add<ir::Store>(gep, toRegister(value, list));
             }
             else {
-                toMemory(value)->replaceAllUsesWith(gep);
+                toMemory(value, list)->replaceAllUsesWith(gep);
             }
         }
     }
@@ -1295,7 +1310,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     auto* dest =
         makeLocalVariable(type, utl::strcat(value.get()->name(), ".moved"));
     add<ir::Call>(function,
-                  std::array<ir::Value*, 2>{ dest, toMemory(value) },
+                  std::array<ir::Value*, 2>{ dest, toMemory(value, expr) },
                   std::string{});
     Value result(dest, type, Memory);
     return result;
@@ -1338,7 +1353,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
 
         case sema::ValueCatConversion::MaterializeTemporary: {
             auto value = getValue(expr);
-            return Value(toMemory(value), value.type(), Memory);
+            return Value(toMemory(value, conv), value.type(), Memory);
         }
         }
     }();
@@ -1354,7 +1369,9 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         }
         return refConvResult;
     case NullPtrToUniquePtr: {
-        Value value(toMemory(refConvResult), refConvResult.type(), Memory);
+        Value value(toMemory(refConvResult, conv),
+                    refConvResult.type(),
+                    Memory);
         if (isFatPointer(&conv)) {
             valueMap.insertArraySize(conv.object(),
                                      Value(ctx.intConstant(0, 64), Register));
@@ -1387,7 +1404,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
                 Reinterpret_Array_ToByte)
             {
                 auto* newCount =
-                    add<ir::ArithmeticInst>(toRegister(fromCount),
+                    add<ir::ArithmeticInst>(toRegister(fromCount, conv),
                                             ctx.intConstant(fromElemSize, 64),
                                             ir::ArithmeticOperation::Mul,
                                             "reinterpret.count");
@@ -1396,7 +1413,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
             }
             else {
                 auto* newCount =
-                    add<ir::ArithmeticInst>(toRegister(fromCount),
+                    add<ir::ArithmeticInst>(toRegister(fromCount, conv),
                                             ctx.intConstant(toElemSize, 64),
                                             ir::ArithmeticOperation::SDiv,
                                             "reinterpret.count");
@@ -1444,7 +1461,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         return data;
     }
     case Reinterpret_Value: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::Bitcast,
                                                "reinterpret");
@@ -1457,7 +1474,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case US_Trunc:
         [[fallthrough]];
     case UU_Trunc: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::Trunc,
                                                "trunc");
@@ -1466,7 +1483,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case SS_Widen:
         [[fallthrough]];
     case SU_Widen: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::Sext,
                                                "sext");
@@ -1475,49 +1492,49 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case US_Widen:
         [[fallthrough]];
     case UU_Widen: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::Zext,
                                                "zext");
         return Value(result, Register);
     }
     case Float_Trunc: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::Ftrunc,
                                                "ftrunc");
         return Value(result, Register);
     }
     case Float_Widen: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::Fext,
                                                "fext");
         return Value(result, Register);
     }
     case SignedToFloat: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::StoF,
                                                "stof");
         return Value(result, Register);
     }
     case UnsignedToFloat: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::UtoF,
                                                "utof");
         return Value(result, Register);
     }
     case FloatToSigned: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::FtoS,
                                                "ftos");
         return Value(result, Register);
     }
     case FloatToUnsigned: {
-        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult, conv),
                                                typeMap(conv.type()),
                                                ir::Conversion::FtoU,
                                                "ftou");
@@ -1558,9 +1575,9 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             if (!expr.arguments().empty()) {
                 SC_ASSERT(expr.arguments().size() == 1, "");
                 auto* arg = expr.arguments().front();
-                auto value = getValue(arg);
+                auto* value = getValue<Register>(arg);
                 valueMap.insertArraySizeOf(expr.object(), arg->object());
-                return Value(toRegister(value), Register);
+                return Value(value, Register);
             }
             auto* value = SC_MATCH (type) {
                 [&](sema::BoolType const& type) {
@@ -1591,16 +1608,17 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             if (expr.arguments().empty()) {
                 auto* irType = typeMap(&type);
                 auto* addr = makeLocalVariable(irType, "tmp");
-                callMemset(addr, irType->size(), 0);
+                auto* call = callMemset(addr, irType->size(), 0);
+                addSourceLoc(call, expr);
                 return Value(addr, irType, Memory);
             }
             else if (expr.arguments().size() == 1 &&
                      expr.arguments().front()->type().get() == expr.type().get())
             {
                 auto* arg = expr.arguments().front();
-                auto value = getValue(arg);
+                auto* value = getValue<Register>(arg);
                 valueMap.insertArraySizeOf(expr.object(), arg->object());
-                return Value(toRegister(value), Register);
+                return Value(value, Register);
             }
             else {
                 ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
@@ -1608,10 +1626,12 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                                         ranges::views::enumerate)
                 {
                     auto* member = getValue<Register>(arg);
-                    aggregate = add<ir::InsertValue>(aggregate,
+                    auto* inst = add<ir::InsertValue>(aggregate,
                                                      member,
                                                      std::array{ index },
                                                      "aggregate");
+                    addSourceLoc(inst, *arg);
+                    aggregate = inst;
                 }
                 return Value(aggregate, Register);
             }
@@ -1627,8 +1647,8 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             case 1: {
                 auto* arg = expr.arguments().front();
                 if (type.size() <= 64) {
-                    auto value = getValue(arg);
-                    return Value(toRegister(value), Register);
+                    auto* value = getValue<Register>(arg);
+                    return Value(value, Register);
                 }
                 else {
                     auto source = getValue(arg);
@@ -1662,7 +1682,7 @@ Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
     auto* endBlock = newBlock("assign.end");
     add<ir::Branch>(addrEq, assignBlock, endBlock);
     add(assignBlock);
-    callDtor(expr.dest()->object(), expr.dtor());
+    callDtor(expr.dest()->object(), expr.dtor(), expr);
     auto* function = getFunction(expr.ctor());
     add<ir::Call>(function, std::array{ dest, source }, std::string{});
     add<ir::Goto>(endBlock);
@@ -1673,19 +1693,22 @@ Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
 /// MARK: - General utilities
 
 void FuncGenContext::callDtor(sema::Object const* object,
-                              sema::Function const* dtor) {
+                              sema::Function const* dtor,
+                              ast::ASTNode const& sourceNode) {
     auto* function = getFunction(dtor);
-    auto* value = toMemory(valueMap(object));
+    auto* value = toMemory(valueMap(object), sourceNode);
     add<ir::Call>(function, std::array{ value }, std::string{});
 }
 
-void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack) {
+void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack,
+                                   ast::ASTNode const& sourceNode) {
     for (auto call: dtorStack) {
-        callDtor(call.object, call.destructor);
+        callDtor(call.object, call.destructor, sourceNode);
     }
 }
 
-ir::Value* FuncGenContext::toRegister(Value value) {
+ir::Value* FuncGenContext::toRegister(Value value,
+                                      ast::ASTNode const& sourceNode) {
     if (isa<ir::RecordType>(value.type())) {
         auto* semaType = typeMap(value.type());
         SC_ASSERT(!semaType || semaType->hasTrivialLifetime(),
@@ -1695,13 +1718,16 @@ ir::Value* FuncGenContext::toRegister(Value value) {
     case Register:
         return value.get();
     case Memory:
-        return add<ir::Load>(value.get(),
-                             value.type(),
-                             std::string(value.get()->name()));
+        auto* load = add<ir::Load>(value.get(),
+                                   value.type(),
+                                   std::string(value.get()->name()));
+        addSourceLoc(load, sourceNode);
+        return load;
     }
 }
 
-ir::Value* FuncGenContext::toMemory(Value value) {
+ir::Value* FuncGenContext::toMemory(Value value,
+                                    ast::ASTNode const& sourceNode) {
     switch (value.location()) {
     case Register:
         return storeToMemory(value.get());
@@ -1712,19 +1738,20 @@ ir::Value* FuncGenContext::toMemory(Value value) {
 }
 
 ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
-                                           Value value) {
+                                           Value value,
+                                           ast::ASTNode const& sourceNode) {
     switch (location) {
     case Register:
-        return toRegister(value);
+        return toRegister(value, sourceNode);
     case Memory:
-        return toMemory(value);
+        return toMemory(value, sourceNode);
     }
 }
 
 void FuncGenContext::addSourceLoc(ir::Instruction* inst,
-                                  ast::Expression const& expr) {
+                                  ast::ASTNode const& sourceNode) {
     if (!config.generateDebugSymbols) {
         return;
     }
-    inst->setMetadata(expr.sourceRange().begin());
+    inst->setMetadata(sourceNode.sourceRange().begin());
 }
