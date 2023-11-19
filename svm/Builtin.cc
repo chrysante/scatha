@@ -11,6 +11,7 @@
 #include <svm/Common.h>
 #include <svm/ExternalFunction.h>
 #include <svm/VirtualMachine.h>
+#include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
 #include "svm/Memory.h"
@@ -68,44 +69,47 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
         assert(i == k++ && "Missing builtin function.");
         return result[i];
     };
-
+    auto set = [&](Builtin index, auto fn) {
+        at(index) = { utl::strcat("__builtin_", toString(index)), fn };
+    };
     /// ## Common math functions
 
 #define MATH_STD_IMPL(name) [](auto... args) { return std::name(args...); }
-    at(Builtin::abs_f64) = math<double, 1>(MATH_STD_IMPL(abs));
-    at(Builtin::exp_f64) = math<double, 1>(MATH_STD_IMPL(exp));
-    at(Builtin::exp2_f64) = math<double, 1>(MATH_STD_IMPL(exp2));
-    at(Builtin::exp10_f64) = math<double, 1>(
-        []<typename T>(T const& arg) { return std::pow(arg, T(10)); });
-    at(Builtin::log_f64) = math<double, 1>(MATH_STD_IMPL(log));
-    at(Builtin::log2_f64) = math<double, 1>(MATH_STD_IMPL(log2));
-    at(Builtin::log10_f64) = math<double, 1>(MATH_STD_IMPL(log10));
-    at(Builtin::pow_f64) = math<double, 2>(MATH_STD_IMPL(pow));
-    at(Builtin::sqrt_f64) = math<double, 1>(MATH_STD_IMPL(sqrt));
-    at(Builtin::cbrt_f64) = math<double, 1>(MATH_STD_IMPL(cbrt));
-    at(Builtin::hypot_f64) = math<double, 2>(MATH_STD_IMPL(hypot));
-    at(Builtin::sin_f64) = math<double, 1>(MATH_STD_IMPL(sin));
-    at(Builtin::cos_f64) = math<double, 1>(MATH_STD_IMPL(cos));
-    at(Builtin::tan_f64) = math<double, 1>(MATH_STD_IMPL(tan));
-    at(Builtin::asin_f64) = math<double, 1>(MATH_STD_IMPL(asin));
-    at(Builtin::acos_f64) = math<double, 1>(MATH_STD_IMPL(acos));
-    at(Builtin::atan_f64) = math<double, 1>(MATH_STD_IMPL(atan));
+    set(Builtin::abs_f64, math<double, 1>(MATH_STD_IMPL(abs)));
+    set(Builtin::exp_f64, math<double, 1>(MATH_STD_IMPL(exp)));
+    set(Builtin::exp2_f64, math<double, 1>(MATH_STD_IMPL(exp2)));
+    set(Builtin::exp10_f64, math<double, 1>([]<typename T>(T const& arg) {
+            return std::pow(arg, T(10));
+        }));
+    set(Builtin::log_f64, math<double, 1>(MATH_STD_IMPL(log)));
+    set(Builtin::log2_f64, math<double, 1>(MATH_STD_IMPL(log2)));
+    set(Builtin::log10_f64, math<double, 1>(MATH_STD_IMPL(log10)));
+    set(Builtin::pow_f64, math<double, 2>(MATH_STD_IMPL(pow)));
+    set(Builtin::sqrt_f64, math<double, 1>(MATH_STD_IMPL(sqrt)));
+    set(Builtin::cbrt_f64, math<double, 1>(MATH_STD_IMPL(cbrt)));
+    set(Builtin::hypot_f64, math<double, 2>(MATH_STD_IMPL(hypot)));
+    set(Builtin::sin_f64, math<double, 1>(MATH_STD_IMPL(sin)));
+    set(Builtin::cos_f64, math<double, 1>(MATH_STD_IMPL(cos)));
+    set(Builtin::tan_f64, math<double, 1>(MATH_STD_IMPL(tan)));
+    set(Builtin::asin_f64, math<double, 1>(MATH_STD_IMPL(asin)));
+    set(Builtin::acos_f64, math<double, 1>(MATH_STD_IMPL(acos)));
+    set(Builtin::atan_f64, math<double, 1>(MATH_STD_IMPL(atan)));
 
     /// ## Memory
-    at(Builtin::memcpy) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::memcpy, [](u64* regPtr, VirtualMachine* vm, void*) {
         auto dest = load<VirtualPointer>(regPtr);
         auto size = load<size_t>(regPtr + 1);
         auto source = load<VirtualPointer>(regPtr + 2);
         std::memcpy(deref(vm, dest, size), deref(vm, source, size), size);
-    };
-    at(Builtin::memset) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    });
+    set(Builtin::memset, [](u64* regPtr, VirtualMachine* vm, void*) {
         auto dest = load<VirtualPointer>(regPtr);
         auto size = load<size_t>(regPtr + 1);
         auto value = load<int64_t>(regPtr + 2);
         std::memset(deref(vm, dest, size), static_cast<int>(value), size);
-    };
+    });
     /// ## Allocation
-    at(Builtin::alloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::alloc, [](u64* regPtr, VirtualMachine* vm, void*) {
         i64 size = load<i64>(regPtr);
         i64 align = load<i64>(regPtr + 1);
         ENSURE(size >= 0);
@@ -115,8 +119,8 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
                                       static_cast<size_t>(align));
         store(regPtr, addr);
         store(regPtr + 1, size);
-    };
-    at(Builtin::dealloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    });
+    set(Builtin::dealloc, [](u64* regPtr, VirtualMachine* vm, void*) {
         auto addr = load<VirtualPointer>(regPtr);
         auto size = load<i64>(regPtr + 1);
         auto align = load<i64>(regPtr + 2);
@@ -125,32 +129,32 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
         vm->impl->memory.deallocate(addr,
                                     static_cast<size_t>(size),
                                     static_cast<size_t>(align));
-    };
+    });
 
     /// ## Console output
-    at(Builtin::putchar) = printVal<char>();
-    at(Builtin::puti64) = printVal<i64>();
-    at(Builtin::putf64) = printVal<f64>();
-    at(Builtin::putstr) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::putchar, printVal<char>());
+    set(Builtin::puti64, printVal<i64>());
+    set(Builtin::putf64, printVal<f64>());
+    set(Builtin::putstr, [](u64* regPtr, VirtualMachine* vm, void*) {
         auto data = load<VirtualPointer>(regPtr);
         size_t size = load<size_t>(regPtr + 1);
         *vm->impl->ostream << std::string_view(deref<char>(vm, data, size),
                                                size);
-    };
-    at(Builtin::putptr) = printVal<void*>();
+    });
+    set(Builtin::putptr, printVal<void*>());
 
     /// ## Console input
-    at(Builtin::readline) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::readline, [](u64* regPtr, VirtualMachine* vm, void*) {
         std::string line;
         std::getline(*vm->impl->istream, line);
         auto buffer = vm->impl->memory.allocate(line.size(), 8);
         std::memcpy(deref(vm, buffer, line.size()), line.data(), line.size());
         store(regPtr, buffer);
         store(regPtr + 1, line.size());
-    };
+    });
 
     /// ## String conversion
-    at(Builtin::strtos64) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::strtos64, [](u64* regPtr, VirtualMachine* vm, void*) {
         auto dest = load<VirtualPointer>(regPtr);
         auto data = load<VirtualPointer>(regPtr + 1);
         auto size = load<size_t>(regPtr + 2);
@@ -165,9 +169,9 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
         else {
             store(regPtr, u64{ 0 });
         }
-    };
+    });
 
-    at(Builtin::strtof64) = [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::strtof64, [](u64* regPtr, VirtualMachine* vm, void*) {
         auto dest = load<VirtualPointer>(regPtr);
         auto data = load<VirtualPointer>(regPtr + 1);
         auto size = load<size_t>(regPtr + 2);
@@ -183,10 +187,10 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
         else {
             store(regPtr, u64{ 0 });
         }
-    };
+    });
 
     /// ##
-    at(Builtin::trap) = [](u64*, VirtualMachine*, void*) {
+    set(Builtin::trap, [](u64*, VirtualMachine*, void*) {
 #if defined(__GNUC__)
         __builtin_trap();
 #elif defined(_MSC_VER)
@@ -194,14 +198,14 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
 #else
 #error Unsupported compiler
 #endif
-    };
+    });
 
     /// ## RNG
-    at(Builtin::rand_i64) = [](u64* regPtr, VirtualMachine*, void*) {
+    set(Builtin::rand_i64, [](u64* regPtr, VirtualMachine*, void*) {
         static thread_local std::mt19937_64 rng(std::random_device{}());
         u64 randomValue = rng();
         store(regPtr, randomValue);
-    };
+    });
 
     assert(static_cast<size_t>(Builtin::_count) == k &&
            "Missing builtin functions.");

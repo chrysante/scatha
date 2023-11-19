@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <concepts>
+#include <string>
 
 #include <svm/Common.h>
 
@@ -17,10 +18,16 @@ struct ExternalFunction {
 
     ExternalFunction() = default;
 
-    ExternalFunction(FuncPtr funcPtr, void* context = nullptr):
-        funcPtr(funcPtr), ctx(context) {}
+    ExternalFunction(std::string name,
+                     FuncPtr funcPtr,
+                     void* context = nullptr):
+        _name(std::move(name)), funcPtr(funcPtr), ctx(context) {}
 
-    ExternalFunction(std::convertible_to<FuncPtr> auto func): funcPtr(func) {}
+    ExternalFunction(std::string name, std::convertible_to<FuncPtr> auto func):
+        _name(std::move(name)), funcPtr(func) {}
+
+    /// \Returns the name of the function
+    std::string const& name() const { return _name; }
 
     /// Invoke function
     void invoke(u64* regPtr, VirtualMachine* vm) const {
@@ -35,6 +42,7 @@ struct ExternalFunction {
     void const* context() const { return ctx; }
 
 private:
+    std::string _name;
     FuncPtr funcPtr = nullptr;
     void* ctx = nullptr;
 };
