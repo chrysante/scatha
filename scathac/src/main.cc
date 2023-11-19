@@ -165,6 +165,12 @@ int main(int argc, char* argv[]) {
     }
     auto asmStream = cg::codegen(mod);
     auto [program, symbolTable] = Asm::assemble(asmStream);
+    std::string dsym = [&] {
+        if (!options.debug) {
+            return std::string{};
+        }
+        return Asm::generateDebugSymbols(asmStream);
+    }();
     auto const compileEndTime = std::chrono::high_resolution_clock::now();
     if (options.time) {
         std::cout << "Compilation took "
@@ -177,5 +183,15 @@ int main(int argc, char* argv[]) {
         options.bindir = "out";
     }
     emitFile(options.bindir, program, /* executable = */ !options.binaryOnly);
+    if (options.debug) {
+        auto path = options.bindir;
+        path += ".scdsym";
+        std::fstream file(path, std::ios::out | std::ios::trunc);
+        if (!file) {
+            std::cerr << "Failed to write debug symbols\n";
+            return 1;
+        }
+        file << dsym;
+    }
     return 0;
 }

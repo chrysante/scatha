@@ -27,7 +27,7 @@ Options scathac::parseCLI(int argc, char* argv[]) {
         result.optimize = !!*opt;
         result.time = !!*time;
         result.binaryOnly = !!*binonly;
-        result.debug = !!debug;
+        result.debug = !!*debug;
     }
     catch (CLI::ParseError const& e) {
         int const exitCode = app.exit(e);
