@@ -112,6 +112,11 @@ void VirtualMachine::setFunction(size_t slot,
     slotArray[index] = function;
 }
 
+std::span<ExternalFunction const> VirtualMachine::getExtFunctionTable(
+    size_t slot) const {
+    return impl->extFunctionTable[slot];
+}
+
 std::span<u64 const> VirtualMachine::registerData() const {
     return impl->registers;
 }
