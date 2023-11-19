@@ -18,12 +18,47 @@
 using namespace sdb;
 using namespace ftxui;
 
-static std::vector<std::string> splitWords(std::string_view text) {
-    return ranges::views::split(text, ' ') |
-           ranges::views::transform([](auto const& word) {
-               return word | ranges::to<std::string>;
-           }) |
-           ranges::to<std::vector>;
+static std::vector<std::string> tokenize(std::string_view text) {
+    std::vector<std::string> result;
+    enum State { Default, StringLit };
+    State state = Default;
+    size_t beginIdx = 0;
+    size_t currIdx = 0;
+    auto emitToken = [&] {
+        size_t count = currIdx - beginIdx;
+        if (count > 0) {
+            result.push_back(std::string(text.substr(beginIdx, count)));
+        }
+        beginIdx = currIdx + 1;
+    };
+    while (true) {
+        if (currIdx >= text.size()) {
+            emitToken();
+            break;
+        }
+        switch (state) {
+        case Default:
+            if (text[currIdx] == '\"') {
+                emitToken();
+                state = StringLit;
+                break;
+            }
+            if (!std::isspace(text[currIdx])) {
+                break;
+            }
+            emitToken();
+            break;
+        case StringLit:
+            if (text[currIdx] == '\"') {
+                emitToken();
+                state = Default;
+                break;
+            }
+            break;
+        }
+        ++currIdx;
+    }
+    return result;
 }
 
 /// https://stackoverflow.com/a/12737930/21285803
@@ -209,15 +244,16 @@ struct OpenFilePanelBase: ComponentBase {
             hideMessage();
         };
         opt.on_enter = [=] {
-            if (content.back() == '\n') {
-                content.pop_back();
-            }
+            size_t newlinePos = utl::narrow_cast<size_t>(cursor) - 1;
+            assert(content[newlinePos] == '\n');
+            content.erase(newlinePos, 1);
+            --cursor;
             if (std::filesystem::is_directory(content)) {
                 autoComplete.invalidate();
                 hideMessage();
                 return;
             }
-            auto args = splitWords(expandTilde(content));
+            auto args = tokenize(expandTilde(content));
             auto options = parseArguments(args);
             try {
                 model->loadProgram(options.filepath);

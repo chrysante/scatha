@@ -167,6 +167,7 @@ void Model::stepSourceLine() {
 ExecState Model::starting() {
     using enum ExecState;
     execThread->popCommand();
+    _stdout.str({});
     auto execArg = setupArguments(vm, runArguments);
     vm.beginExecution(execArg);
     size_t offset = vm.instructionPointerOffset();
