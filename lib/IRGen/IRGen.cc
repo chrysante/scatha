@@ -26,7 +26,7 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
     ast::ASTNode const& root,
     sema::SymbolTable const& sym,
     sema::AnalysisResult const& analysisResult,
-    std::span<SourceFile const> sourceFiles) {
+    Config config) {
     ir::Context ctx;
     ir::Module mod;
     TypeMap typeMap(ctx);
@@ -48,7 +48,8 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
         auto* semaFn = queue.front();
         queue.pop_front();
         auto* irFn = functionMap(semaFn);
-        generateFunction({ .semaFn = *semaFn,
+        generateFunction(config,
+                         { .semaFn = *semaFn,
                            .irFn = *cast<ir::Function*>(irFn),
                            .ctx = ctx,
                            .mod = mod,
@@ -58,7 +59,10 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
                            .declQueue = queue });
     }
     ir::assertInvariants(ctx, mod);
-    mod.setMetadata(sourceFiles | ranges::views::transform(&SourceFile::path) |
-                    ranges::to<std::vector>);
+    if (config.generateDebugSymbols) {
+        mod.setMetadata(config.sourceFiles |
+                        ranges::views::transform(&SourceFile::path) |
+                        ranges::to<std::vector>);
+    }
     return { std::move(ctx), std::move(mod) };
 }

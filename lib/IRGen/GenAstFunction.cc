@@ -124,12 +124,15 @@ struct FuncGenContext: FuncGenContextBase {
     /// \Returns `toRegister(value)` or `toMemory(value)` depending on \p
     /// location
     ir::Value* toValueLocation(ValueLocation location, Value value);
+
+    /// Add source location of \p expr to \p inst
+    void addSourceLoc(ir::Instruction* inst, ast::Expression const& expr);
 };
 
 } // namespace
 
-void irgen::generateAstFunction(FuncGenParameters params) {
-    FuncGenContext funcCtx(params);
+void irgen::generateAstFunction(Config config, FuncGenParameters params) {
+    FuncGenContext funcCtx(config, params);
     funcCtx.generate(*params.semaFn.definition());
 }
 
@@ -159,7 +162,7 @@ static sema::SpecialLifetimeFunction toSLFKindToGenerate(
 void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     if (semaFn.isSpecialMemberFunction()) {
         auto kind = toSLFKindToGenerate(semaFn.SMFKind());
-        generateSynthFunctionAs(kind, *this);
+        generateSynthFunctionAs(kind, config, *this);
         makeBlockCurrent(&irFn.back());
     }
     else {
@@ -822,7 +825,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         }
         auto* result =
             add<ir::ExtractValue>(base.get(), std::array{ irIndex }, "mem.acc");
-        result->setMetadata(expr.sourceRange().end());
+        addSourceLoc(result, expr);
         return Value(result, Register);
     }
     case Memory: {
@@ -1716,4 +1719,12 @@ ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
     case Memory:
         return toMemory(value);
     }
+}
+
+void FuncGenContext::addSourceLoc(ir::Instruction* inst,
+                                  ast::Expression const& expr) {
+    if (!config.generateDebugSymbols) {
+        return;
+    }
+    inst->setMetadata(expr.sourceRange().begin());
 }

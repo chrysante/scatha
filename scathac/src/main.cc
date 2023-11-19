@@ -155,7 +155,11 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     auto [context, mod] =
-        irgen::generateIR(*ast, semaSym, analysisResult, sourceFiles);
+        irgen::generateIR(*ast,
+                          semaSym,
+                          analysisResult,
+                          { .sourceFiles = sourceFiles,
+                            .generateDebugSymbols = options.debug });
     if (options.optimize) {
         opt::optimize(context, mod, 1);
     }

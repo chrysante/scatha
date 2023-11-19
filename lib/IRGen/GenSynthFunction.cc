@@ -49,13 +49,14 @@ struct FuncGenContext: FuncGenContextBase {
 
 } // namespace
 
-void irgen::generateSynthFunction(FuncGenParameters params) {
-    generateSynthFunctionAs(params.semaFn.SLFKind(), params);
+void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
+    generateSynthFunctionAs(params.semaFn.SLFKind(), config, params);
 }
 
 void irgen::generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
+                                    Config config,
                                     FuncGenParameters params) {
-    FuncGenContext synthContext(kind, params);
+    FuncGenContext synthContext(kind, config, params);
     synthContext.generate();
 }
 

@@ -10,6 +10,7 @@
 #include "IR/Builder.h"
 #include "IR/Fwd.h"
 #include "IRGen/CallingConvention.h"
+#include "IRGen/IRGen.h"
 #include "IRGen/Maps.h"
 #include "Sema/Fwd.h"
 
@@ -29,31 +30,36 @@ struct FuncGenParameters {
 
 /// Generates IR for the function \p semaFn
 /// Dispatches to `generateAstFunction()` or `generateSynthFunction()`
-void generateFunction(FuncGenParameters);
+void generateFunction(Config config, FuncGenParameters);
 
 /// Lowers the user defined function \p funcDecl from AST representation into
 /// IR. The result is written into \p irFn
 /// \Returns a list of functions called by the lowered function that are not yet
 /// defined. This mechanism is part of lazy function generation.
-void generateAstFunction(FuncGenParameters);
+void generateAstFunction(Config config, FuncGenParameters);
 
 /// Generates IR for the compiler generated function \p semaFn
-void generateSynthFunction(FuncGenParameters);
+void generateSynthFunction(Config config, FuncGenParameters);
 
 /// Generates IR for the function \p semaFn as if it were a special lifetime
 /// function of kind \p kind
 /// This is used to generate default construction and destruction of member
 /// objects in user defined lifetime functions
 void generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
+                             Config config,
                              FuncGenParameters);
 
 /// Base class of context objects for function generation of both user defined
 /// and compiler generated functions
 struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
+    Config config;
+
     using FuncGenParameters::ctx;
 
-    FuncGenContextBase(FuncGenParameters params):
-        FuncGenParameters(params), FunctionBuilder(params.ctx, &params.irFn) {}
+    FuncGenContextBase(Config config, FuncGenParameters params):
+        FuncGenParameters(params),
+        FunctionBuilder(params.ctx, &params.irFn),
+        config(config) {}
 
     /// Map \p semaFn to the corresponding IR function. If the function is not
     /// declared it will be declared.

@@ -12,11 +12,21 @@
 
 namespace scatha::irgen {
 
+/// Config options used by `generateIR()`
+struct Config {
+    /// The source files. Only used to generate debug symbols
+    std::span<SourceFile const> sourceFiles;
+
+    /// Set this to `true` to associate source locations with IR instructions
+    bool generateDebugSymbols = false;
+};
+
+/// Lower the front-end representation of the program to IR
 SCATHA_API std::pair<ir::Context, ir::Module> generateIR(
     ast::ASTNode const& ast,
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult,
-    std::span<SourceFile const> sourceFiles);
+    Config config);
 
 } // namespace scatha::irgen
 

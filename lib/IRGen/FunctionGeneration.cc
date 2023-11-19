@@ -11,13 +11,13 @@
 using namespace scatha;
 using namespace irgen;
 
-void irgen::generateFunction(FuncGenParameters params) {
+void irgen::generateFunction(Config config, FuncGenParameters params) {
     if (params.semaFn.isNative()) {
-        generateAstFunction(params);
+        generateAstFunction(config, params);
     }
     else {
         SC_EXPECT(params.semaFn.isGenerated());
-        generateSynthFunction(params);
+        generateSynthFunction(config, params);
     }
     ir::setupInvariants(params.ctx, params.irFn);
     ir::assertInvariants(params.ctx, params.irFn);
