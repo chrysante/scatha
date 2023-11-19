@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 #include <svm/VirtualMachine.h>
 
@@ -79,6 +80,11 @@ public:
     /// Step over the next source line when paused
     void stepSourceLine();
 
+    ///
+    [[nodiscard]] std::unique_lock<std::mutex> lockVM() {
+        return std::unique_lock(vmMutex);
+    }
+
     /// \Returns a reference to the VM
     svm::VirtualMachine& VM() { return vm; }
 
@@ -106,6 +112,10 @@ public:
     ///
     void setUIHandle(UIHandle* handle) { uiHandle = handle; }
 
+    /// Read \p count many registers out of the VM starting from index 0 (for
+    /// now)
+    std::vector<uint64_t> readRegisters(size_t count);
+
 private:
     struct ExecThread;
 
@@ -125,6 +135,7 @@ private:
 
     std::vector<std::string> runArguments;
     std::unique_ptr<ExecThread> execThread;
+    std::mutex vmMutex;
     svm::VirtualMachine vm;
     Disassembly disasm;
     UIHandle* uiHandle;

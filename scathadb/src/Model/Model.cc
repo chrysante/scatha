@@ -24,6 +24,11 @@ enum class ExecCommand {
 
 } // namespace
 
+static decltype(auto) locked(auto& mutex, auto&& fn) {
+    std::lock_guard lock(mutex);
+    return fn();
+}
+
 struct Model::ExecThread {
     std::array<std::function<ExecState()>, 5> states;
     std::thread thread;
@@ -47,13 +52,14 @@ struct Model::ExecThread {
 
     /// To be called from the execution thread
     ExecCommand popCommand() {
-        std::lock_guard lock(commandQueueMutex);
-        if (commands.empty()) {
-            return ExecCommand::None;
-        }
-        auto command = commands.front();
-        commands.pop();
-        return command;
+        return locked(commandQueueMutex, [&] {
+            if (commands.empty()) {
+                return ExecCommand::None;
+            }
+            auto command = commands.front();
+            commands.pop();
+            return command;
+        });
     }
 
     /// To be called from the execution thread
@@ -67,11 +73,10 @@ struct Model::ExecThread {
 
     /// To be called from the controlling thread
     void sendCommand(ExecCommand command) {
-        {
-            std::lock_guard lock(commandQueueMutex);
+        locked(commandQueueMutex, [&] {
             commands.push(command);
             condVar.notify_one();
-        }
+        });
         using enum ExecCommand;
         switch (command) {
         case Start:
@@ -164,10 +169,17 @@ void Model::stepSourceLine() {
     execThread->sendCommand(StepSourceLine);
 }
 
+std::vector<uint64_t> Model::readRegisters(size_t count) {
+    auto regs = vm.registerData();
+    return std::vector<uint64_t>(regs.data(), regs.data() + count);
+}
+
 ExecState Model::starting() {
     using enum ExecState;
     execThread->popCommand();
     _stdout.str({});
+    std::lock_guard lock(vmMutex);
+    vm.reset();
     auto execArg = setupArguments(vm, runArguments);
     vm.beginExecution(execArg);
     size_t offset = vm.instructionPointerOffset();
@@ -214,23 +226,27 @@ ExecState Model::stopping() {
     using enum ExecState;
     execThread->popCommand();
     vm.ostream() << "Program interrupted" << std::endl;
+    uiHandle->refresh();
     return Stopped;
 }
 
 ExecState Model::exiting() {
     using enum ExecState;
     execThread->popCommand();
+    std::lock_guard lock(vmMutex);
     vm.endExecution();
     vm.ostream() << "Program returned with exit code: " << vm.getRegister(0)
                  << std::endl;
+    uiHandle->refresh();
     return Stopped;
 }
 
 ExecState Model::doExecuteSteps() {
     using enum ExecState;
     int const NumSteps = 20;
-    std::lock_guard lock(breakpointMutex);
+    std::lock_guard bpLock(breakpointMutex);
     size_t offset = 0;
+    std::lock_guard vmLock(vmMutex);
     try {
         for (int i = 0; i < NumSteps; ++i) {
             if (!vm.running()) {
@@ -257,6 +273,7 @@ ExecState Model::doExecuteSteps() {
 ExecState Model::doStepInstruction() {
     assert(vm.running() && "Must be active to step");
     using enum ExecState;
+    std::lock_guard lock(vmMutex);
     size_t offset = vm.instructionPointerOffset();
     try {
         vm.stepExecution();

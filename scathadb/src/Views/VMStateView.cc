@@ -36,13 +36,15 @@ struct RegView: ScrollBase {
     }
 
     Element Render() override {
-        if (model->isRunning()) {
+        if (!model->isPaused()) {
             return text("");
         }
-        values = {}; // model->readRegisters(utl::narrow_cast<size_t>(maxReg));
+        auto lock = model->lockVM();
+        values = model->readRegisters(utl::narrow_cast<size_t>(maxReg));
         auto& vm = model->VM();
         auto execFrame = vm.getCurrentExecFrame();
         currentOffset = execFrame.regPtr - execFrame.bottomReg;
+        lock.unlock();
         return ScrollBase::Render();
     }
 
@@ -65,7 +67,8 @@ Element RegEntry::Render() {
     auto derefRange = parent->model->VM().validPtrRange(ptr);
     std::stringstream sstr;
     if (derefRange >= 0) {
-        sstr << "0x" << std::hex << value;
+        sstr << "[" << ptr.slotIndex << ":" << ptr.offset << ":" << derefRange
+             << "]";
     }
     else {
         sstr << value;
