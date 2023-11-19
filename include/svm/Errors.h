@@ -1,6 +1,7 @@
 #ifndef SVM_ERRORS_H_
 #define SVM_ERRORS_H_
 
+#include <concepts>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -19,6 +20,12 @@ protected:
 
 private:
     std::string msg;
+};
+
+/// Error class thrown when executing trap instruction
+class TrapError: public RuntimeError {
+public:
+    TrapError(): RuntimeError("Executed trap instruction") {}
 };
 
 /// Common base class of all memory errors
@@ -60,6 +67,32 @@ private:
     size_t _size;
 };
 
+/// Invalid arguments passed to `allocate()`
+class AllocationError: public MemoryError {
+public:
+    enum Reason { InvalidSize, InvalidAlign };
+
+    AllocationError(Reason reason, size_t size, size_t align):
+        MemoryError("AllocationError", {}),
+        _reason(reason),
+        _size(size),
+        _align(align) {}
+
+    /// \Returns the reason the allocation failed
+    Reason reason() const { return _reason; }
+
+    /// \Returns the size passed to `allocate()`
+    size_t size() const { return _size; }
+
+    /// \Returns the align passed to `allocate()`
+    size_t align() const { return _align; }
+
+private:
+    Reason _reason;
+    size_t _size;
+    size_t _align;
+};
+
 /// Tried to deallocate a block that has not been allocated before
 class DeallocationError: public MemoryError {
 public:
@@ -78,7 +111,11 @@ private:
 };
 
 /// Variant of all concrete error classes
-class ErrorVariant: public std::variant<MemoryAccessError, DeallocationError> {
+class ErrorVariant:
+    public std::variant<TrapError,
+                        MemoryAccessError,
+                        AllocationError,
+                        DeallocationError> {
 public:
     using variant::variant;
 
@@ -107,6 +144,13 @@ public:
 private:
     ErrorVariant err;
 };
+
+/// \Throws `Err` constructed by \p args... wrapped in a `RuntimeException`
+template <std::derived_from<RuntimeError> Err, typename... Args>
+    requires std::constructible_from<Err, Args...>
+[[noreturn]] void throwError(Args&&... args) {
+    throw RuntimeException(Err(std::forward<Args>(args)...));
+}
 
 } // namespace svm
 

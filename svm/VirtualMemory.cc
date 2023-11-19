@@ -145,11 +145,11 @@ std::pair<size_t, PoolAllocator&> VirtualMemory::getPool(size_t size,
 void VirtualMemory::reportAccessError(MemoryAccessError::Reason reason,
                                       VirtualPointer ptr,
                                       size_t size) {
-    throw RuntimeException(MemoryAccessError(reason, ptr, size));
+    throwError<MemoryAccessError>(reason, ptr, size);
 }
 
 void VirtualMemory::reportDeallocationError(VirtualPointer ptr,
                                             size_t size,
                                             size_t align) {
-    throw RuntimeException(DeallocationError(ptr, size, align));
+    throwError<DeallocationError>(ptr, size, align);
 }

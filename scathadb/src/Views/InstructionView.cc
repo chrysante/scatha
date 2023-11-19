@@ -102,8 +102,17 @@ struct InstView: ScrollBase {
             [&](svm::MemoryAccessError const& err) {
                 return utl::strcat("Bad access: ", err.pointer());
             },
-            [&](svm::DeallocationError const& err) -> std::string {
-                return "Bad deallocation";
+            [&](svm::AllocationError const& err) {
+                using enum svm::AllocationError::Reason;
+                switch (err.reason()) {
+                case InvalidSize:
+                    return utl::strcat("Invalid size: ", err.size());
+                case InvalidAlign:
+                    return utl::strcat("Invalid align: ", err.align());
+                }
+            },
+            [&](svm::RuntimeError const& err) {
+                return err.message();
             },
         }, *error); // clang-format on
     }

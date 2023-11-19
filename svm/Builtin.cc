@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include <svm/Common.h>
+#include <svm/Errors.h>
 #include <svm/ExternalFunction.h>
 #include <svm/VirtualMachine.h>
 #include <utl/strcat.hpp>
@@ -110,13 +111,19 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     });
     /// ## Allocation
     set(Builtin::alloc, [](u64* regPtr, VirtualMachine* vm, void*) {
-        i64 size = load<i64>(regPtr);
-        i64 align = load<i64>(regPtr + 1);
-        ENSURE(size >= 0);
-        ENSURE(align >= 0);
-        VirtualPointer addr =
-            vm->impl->memory.allocate(static_cast<size_t>(size),
-                                      static_cast<size_t>(align));
+        u64 size = load<u64>(regPtr);
+        u64 align = load<u64>(regPtr + 1);
+        if (size >= u64(1) << 48) {
+            throwError<AllocationError>(AllocationError::InvalidSize,
+                                        size,
+                                        align);
+        }
+        if (std::popcount(align) != 1 || size > align) {
+            throwError<AllocationError>(AllocationError::InvalidAlign,
+                                        size,
+                                        align);
+        }
+        VirtualPointer addr = vm->impl->memory.allocate(size, align);
         store(regPtr, addr);
         store(regPtr + 1, size);
     });
@@ -190,15 +197,8 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     });
 
     /// ##
-    set(Builtin::trap, [](u64*, VirtualMachine*, void*) {
-#if defined(__GNUC__)
-        __builtin_trap();
-#elif defined(_MSC_VER)
-        assert(false);
-#else
-#error Unsupported compiler
-#endif
-    });
+    set(Builtin::trap,
+        [](u64*, VirtualMachine*, void*) { throwError<TrapError>(); });
 
     /// ## RNG
     set(Builtin::rand_i64, [](u64* regPtr, VirtualMachine*, void*) {
