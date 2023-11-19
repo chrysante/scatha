@@ -17,10 +17,6 @@ ForeignFunction* Module::extFunction(size_t slot, size_t index) {
     return itr != _extFunctions.end() ? itr->second : nullptr;
 }
 
-ForeignFunction* Module::builtinFunction(svm::Builtin builtin) {
-    return extFunction(svm::BuiltinFunctionSlot, static_cast<size_t>(builtin));
-}
-
 StructType const* Module::addStructure(UniquePtr<StructType> structure) {
     auto* result = structure.get();
     structs.push_back(std::move(structure));

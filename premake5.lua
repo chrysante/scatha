@@ -75,32 +75,16 @@ buildoptions "-fvisibility=hidden"
 filter {}
 
 ------------------------------------------
-project "scathac" -- compiler executable
-kind "ConsoleApp"
-defines "SC_APIIMPORT"
-addCppFiles "scathac"
-
-externalincludedirs {
-    "include",
-    "external/utility/include",
-    "external/termfmt/include",
-    "external/cli11/include",
-    "external/APMath/include",
-    "external/range-v3/include",
-}
-
-links { "scatha", "termfmt", "apmath" }
-
-------------------------------------------
 project "scatha-test"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
 
+includedirs { "lib", "include/scatha" }
+
 externalincludedirs { 
     ".", 
     "include", 
-    "include/scatha", 
-    "lib",
+    "svm/include", 
     "external/utility/include", 
     "external/Catch",
     "external/APMath/include",
@@ -163,8 +147,9 @@ filter {}
 ------------------------------------------
 
 -- Weirdly enough include "scathadb" gives a strange error
-include "scathadb/premake5.lua"
 include "svm/premake5.lua"
+include "scathac/premake5.lua"
+include "scathadb/premake5.lua"
 include "passtool"
 
 include "external/termfmt/lib.lua"

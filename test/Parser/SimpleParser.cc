@@ -1,7 +1,7 @@
 #include "test/Parser/SimpleParser.h"
 
-#include <Parser/Lexer.h>
-#include <Parser/Parser.h>
+#include "Parser/Lexer.h"
+#include "Parser/Parser.h"
 
 using namespace scatha;
 

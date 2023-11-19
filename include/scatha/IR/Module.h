@@ -11,7 +11,6 @@
 #include <scatha/Common/Ranges.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
-#include <svm/Builtin.h>
 
 namespace scatha::ir {
 
@@ -41,10 +40,6 @@ public:
 
     /// \Returns The `ForeignFunction` in slot \p slot at index \p index
     ForeignFunction* extFunction(size_t slot, size_t index);
-
-    /// \Returns The `ForeignFunction` in slot `svm::BuiltinFunctionSlot` at
-    /// index \p builtin
-    ForeignFunction* builtinFunction(svm::Builtin builtin);
 
     /// Add a structure type to this module
     StructType const* addStructure(UniquePtr<StructType> structure);

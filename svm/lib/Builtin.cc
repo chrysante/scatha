@@ -11,11 +11,11 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
-#include "Memory.h"
-#include "VMImpl.h"
 #include "Common.h"
 #include "Errors.h"
 #include "ExternalFunction.h"
+#include "Memory.h"
+#include "VMImpl.h"
 #include "VirtualMachine.h"
 
 using namespace svm;
