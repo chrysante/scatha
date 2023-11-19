@@ -113,16 +113,6 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     set(Builtin::alloc, [](u64* regPtr, VirtualMachine* vm, void*) {
         u64 size = load<u64>(regPtr);
         u64 align = load<u64>(regPtr + 1);
-        if (size >= u64(1) << 48) {
-            throwError<AllocationError>(AllocationError::InvalidSize,
-                                        size,
-                                        align);
-        }
-        if (std::popcount(align) != 1 || size > align) {
-            throwError<AllocationError>(AllocationError::InvalidAlign,
-                                        size,
-                                        align);
-        }
         VirtualPointer addr = vm->impl->memory.allocate(size, align);
         store(regPtr, addr);
         store(regPtr + 1, size);

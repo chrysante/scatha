@@ -24,9 +24,6 @@ struct VMImpl {
 
     CompareFlags cmpFlags{};
 
-    /// Stack pointer. Will be set when a binary is loaded.
-    u8* stackPtr = nullptr;
-
     /// Stack size of this VM. Will be set on construction
     size_t stackSize = 0;
 
@@ -35,6 +32,9 @@ struct VMImpl {
 
     /// Begin of the binary section
     u8 const* binary;
+
+    /// Size of the binary section
+    size_t binarySize = 0;
 
     /// End of binary section
     u8 const* programBreak = nullptr;

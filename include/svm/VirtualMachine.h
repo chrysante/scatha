@@ -68,6 +68,9 @@ public:
     /// \pre `running()` returns `false`
     u64 const* endExecution();
 
+    /// Reset the VM to initial state
+    void reset();
+
     /// \Returns the instruction pointer offset from the beginning of the binary
     size_t instructionPointerOffset() const;
 

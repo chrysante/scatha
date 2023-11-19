@@ -21,11 +21,6 @@ VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
     impl->registers.resize(numRegisters, utl::no_init);
     impl->stackSize = stackSize;
     setFunctionTableSlot(BuiltinFunctionSlot, makeBuiltinTable());
-    impl->currentFrame = impl->execFrames.push(
-        { .regPtr = impl->registers.data() - MaxCallframeRegisterCount,
-          .bottomReg = impl->registers.data() - MaxCallframeRegisterCount,
-          .iptr = nullptr,
-          .stackPtr = {} });
 }
 
 VirtualMachine::VirtualMachine(VirtualMachine&& rhs) noexcept:
@@ -53,10 +48,10 @@ void VirtualMachine::loadBinary(u8 const* progData) {
     std::memcpy(rawStaticData, program.binary.data(), program.binary.size());
 
     impl->binary = rawStaticData;
+    impl->binarySize = binSize;
     impl->programBreak = impl->binary + program.binary.size();
     impl->startAddress = program.startAddress;
-    impl->stackPtr = rawStaticData + binSize;
-    impl->currentFrame.stackPtr = staticData + binSize;
+    reset();
 }
 
 u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
@@ -82,6 +77,18 @@ bool VirtualMachine::running() const { return impl->running(); }
 void VirtualMachine::stepExecution() { impl->stepExecution(); }
 
 u64 const* VirtualMachine::endExecution() { return impl->endExecution(); }
+
+void VirtualMachine::reset() {
+    /// Clobber registers
+    std::memset(impl->registers.data(), 0xcf, impl->registers.size() * 8);
+    ///
+    impl->execFrames.clear();
+    impl->currentFrame = impl->execFrames.push(
+        { .regPtr = impl->registers.data() - MaxCallframeRegisterCount,
+          .bottomReg = impl->registers.data() - MaxCallframeRegisterCount,
+          .iptr = nullptr,
+          .stackPtr = VirtualMemory::MakeStaticDataPointer(impl->binarySize) });
+}
 
 size_t VirtualMachine::instructionPointerOffset() const {
     return impl->instructionPointerOffset();
@@ -126,7 +133,8 @@ u64 VirtualMachine::getRegister(size_t index) const {
 }
 
 std::span<u8 const> VirtualMachine::stackData() const {
-    return std::span(impl->stackPtr, impl->stackSize);
+    auto* raw = impl->binary + impl->binarySize;
+    return std::span(raw, impl->stackSize);
 }
 
 CompareFlags VirtualMachine::getCompareFlags() const { return impl->cmpFlags; }

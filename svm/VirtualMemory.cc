@@ -93,7 +93,12 @@ VirtualMemory::VirtualMemory(size_t staticDataSize) {
 }
 
 VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
-    assert(std::popcount(align) == 1 && "Not a power of two");
+    if (size >= uint64_t(1) << 48) {
+        throwError<AllocationError>(AllocationError::InvalidSize, size, align);
+    }
+    if (std::popcount(align) != 1 || align > size) {
+        throwError<AllocationError>(AllocationError::InvalidAlign, size, align);
+    }
     if (size <= MaxPoolSize) {
         auto [slotIndex, pool] = getPool(size, align);
         size_t offset = pool.allocate(slots[slotIndex]);
