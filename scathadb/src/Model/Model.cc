@@ -6,9 +6,8 @@
 #include <thread>
 
 #include <svm/Util.h>
+#include <svm/VirtualMemory.h>
 #include <utl/strcat.hpp>
-
-#include "Model/InstructionBreakpoint.h"
 
 using namespace sdb;
 
@@ -26,7 +25,7 @@ enum class ExecCommand {
 } // namespace
 
 struct Model::ExecThread {
-    std::array<std::function<ExecState()>, 4> states;
+    std::array<std::function<ExecState()>, 5> states;
     std::thread thread;
     std::mutex commandQueueMutex;
     std::queue<ExecCommand> commands;
@@ -36,12 +35,14 @@ struct Model::ExecThread {
     explicit ExecThread(std::function<ExecState()> starting,
                         std::function<ExecState()> running,
                         std::function<ExecState()> paused,
-                        std::function<ExecState()> terminating):
+                        std::function<ExecState()> stopping,
+                        std::function<ExecState()> exiting):
         states({
             std::move(starting),
             std::move(running),
             std::move(paused),
-            std::move(terminating),
+            std::move(stopping),
+            std::move(exiting),
         }) {}
 
     /// To be called from the execution thread
@@ -66,14 +67,14 @@ struct Model::ExecThread {
 
     /// To be called from the controlling thread
     void sendCommand(ExecCommand command) {
+        {
+            std::lock_guard lock(commandQueueMutex);
+            commands.push(command);
+            condVar.notify_one();
+        }
         using enum ExecCommand;
-        std::lock_guard lock(commandQueueMutex);
-        commands.push(command);
         switch (command) {
         case Start:
-            if (thread.joinable()) {
-                thread.join();
-            }
             thread = std::thread([this] { threadFn(); });
             break;
         case Stop:
@@ -102,7 +103,8 @@ Model::Model(UIHandle* uiHandle):
     execThread(std::make_unique<ExecThread>([this] { return starting(); },
                                             [this] { return running(); },
                                             [this] { return paused(); },
-                                            [this] { return stopping(); })),
+                                            [this] { return stopping(); },
+                                            [this] { return exiting(); })),
     uiHandle(uiHandle),
     breakpoints(&disasm) {
     vm.setIOStreams(nullptr, &_stdout);
@@ -123,14 +125,19 @@ void Model::loadProgram(std::filesystem::path filepath) {
     vm.loadBinary(binary.data());
     //    _currentFilepath = filepath;
     disasm = disassemble(binary);
-    uiHandle->reload();
+    if (uiHandle) {
+        uiHandle->reload();
+    }
 }
 
 void Model::unloadProgram() {}
 
-void Model::setArguments(std::span<std::string const> arguments) {}
+void Model::setArguments(std::vector<std::string> arguments) {
+    runArguments = std::move(arguments);
+}
 
 void Model::start() {
+    stop();
     using enum ExecCommand;
     execThread->sendCommand(Start);
 }
@@ -157,22 +164,14 @@ void Model::stepSourceLine() {
     execThread->sendCommand(StepSourceLine);
 }
 
-void Model::toggleInstBreakpoint(size_t index) {
-    size_t offset = disasm.indexToOffset(index);
-    if (breakpoints.at(offset)) {
-        breakpoints.erase(offset);
-    }
-    else {
-        breakpoints.add(offset, std::make_unique<InstructionBreakpoint>());
-    }
-}
-
 ExecState Model::starting() {
     using enum ExecState;
     execThread->popCommand();
-    vm.beginExecution({});
-    if (auto* BP = breakpoints.at(vm.instructionPointerOffset())) {
-        BP->onHit();
+    auto execArg = setupArguments(vm, runArguments);
+    vm.beginExecution(execArg);
+    size_t offset = vm.instructionPointerOffset();
+    if (breakpoints.atOffset(offset)) {
+        handleInstEncounter(offset, BreakState::Breakpoint);
         return Paused;
     }
     return Running;
@@ -213,6 +212,13 @@ ExecState Model::paused() {
 ExecState Model::stopping() {
     using enum ExecState;
     execThread->popCommand();
+    vm.ostream() << "Program interrupted" << std::endl;
+    return Stopped;
+}
+
+ExecState Model::exiting() {
+    using enum ExecState;
+    execThread->popCommand();
     vm.endExecution();
     vm.ostream() << "Program returned with exit code: " << vm.getRegister(0)
                  << std::endl;
@@ -223,29 +229,67 @@ ExecState Model::doExecuteSteps() {
     using enum ExecState;
     int const NumSteps = 20;
     std::lock_guard lock(breakpointMutex);
-    for (int i = 0; i < NumSteps; ++i) {
-        if (!vm.running()) {
-            return Stopping;
+    size_t offset = 0;
+    try {
+        for (int i = 0; i < NumSteps; ++i) {
+            if (!vm.running()) {
+                return Exiting;
+            }
+            offset = vm.instructionPointerOffset();
+            vm.stepExecution();
+            offset = vm.instructionPointerOffset();
+            if (breakpoints.atOffset(offset)) {
+                handleInstEncounter(offset, BreakState::Breakpoint);
+                return Paused;
+            }
         }
-        vm.stepExecution();
-        if (auto* BP = breakpoints.at(vm.instructionPointerOffset())) {
-            BP->onHit();
-            return Paused;
-        }
+        return Running;
     }
-    return Running;
+    catch (...) {
+        handleException();
+        handleInstEncounter(offset, BreakState::Error);
+        vm.setInstructionPointerOffset(offset);
+        return Paused;
+    }
 }
 
 ExecState Model::doStepInstruction() {
     assert(vm.running() && "Must be active to step");
     using enum ExecState;
-    vm.stepExecution();
+    size_t offset = vm.instructionPointerOffset();
+    try {
+        vm.stepExecution();
+    }
+    catch (...) {
+        handleException();
+        handleInstEncounter(offset, BreakState::Error);
+        vm.setInstructionPointerOffset(offset);
+        return Paused;
+    }
     if (vm.running()) {
+        handleInstEncounter(vm.instructionPointerOffset(), BreakState::Step);
         return Paused;
     }
     else {
-        return Stopping;
+        return Exiting;
     }
 }
 
 ExecState Model::doStepSourceLine() { assert(false); }
+
+void Model::handleInstEncounter(size_t offset, BreakState state) {
+    auto index = disasm.offsetToIndex(offset);
+    uiHandle->hitInstruction(index.value_or(0), state);
+}
+
+void Model::handleException() {
+    try {
+        throw;
+    }
+    catch (svm::RuntimeException& e) {
+        uiHandle->onError(std::move(e).error());
+    }
+    catch (...) {
+        assert(false);
+    }
+}

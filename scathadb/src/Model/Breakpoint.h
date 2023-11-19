@@ -8,74 +8,32 @@
 
 namespace sdb {
 
-class BreakpointManager;
 class Disassembly;
 
-/// Common base class of breakpoints
-class Breakpoint {
-public:
-    virtual ~Breakpoint() = default;
-
-    /// \Returns the binary offset this breakpoint is set on
-    size_t binaryOffset() const { return binOffset; }
-
-    /// Called when execution hits this breakpoint
-    virtual void onHit() = 0;
-
-protected:
-    Breakpoint() = default;
-
-private:
-    friend class BreakpointManager;
-
-    std::unique_ptr<Breakpoint> next;
-    size_t binOffset;
-};
-
 ///
-class BreakpointManager {
+class BreakpointSet {
 public:
-    explicit BreakpointManager(Disassembly const* disasm): disasm(disasm) {}
+    explicit BreakpointSet(Disassembly const* disasm): disasm(disasm) {}
 
-    ///
-    void add(size_t binaryOffset, std::unique_ptr<Breakpoint> breakpoint);
+    /// Add breakpoint if none is existent at instruction index \p instIndex or
+    /// remove otherwise
+    void toggle(size_t instIndex);
 
-    ///
-    void addAtInst(size_t index, std::unique_ptr<Breakpoint> breakpoint);
+    /// Remove the breakpoint at instruction index \p instIndex
+    void erase(size_t instIndex);
 
-    /// Erase instruction breakpoint at binary offset \p offset
-    void erase(size_t binaryOffset);
-
-    /// Erase instruction breakpoint at index \p index
-    void eraseAtInst(size_t index);
-
-    ///
-    void eraseAtSource(size_t line);
-
-    /// Erase all breakpoints
+    /// Remove all breakpoints
     void clear();
 
-    /// \Returns the breakpoint at binary offset \p offset
-    Breakpoint* at(size_t offset) {
-        return const_cast<Breakpoint*>(std::as_const(*this).at(offset));
-    }
+    /// \Returns `true` if a breakpoint exists at instruction index \p index
+    bool at(size_t instIndex) const;
 
-    /// \overload
-    Breakpoint const* at(size_t offset) const;
-
-    /// \Returns the breakpoint at binary offset \p offset
-    Breakpoint* atInst(size_t index) {
-        return const_cast<Breakpoint*>(std::as_const(*this).atInst(index));
-    }
-
-    /// \overload
-    Breakpoint const* atInst(size_t index) const;
+    /// \Returns `true` if a breakpoint exists at binary offset \p binaryOffset
+    bool atOffset(size_t binaryOffset) const;
 
 private:
-    void eraseIf(size_t offset, auto cond);
-
     Disassembly const* disasm;
-    utl::hashmap<size_t, std::unique_ptr<Breakpoint>> breakpoints;
+    utl::hashset<size_t> set;
 };
 
 } // namespace sdb

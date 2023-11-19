@@ -20,20 +20,6 @@ namespace sdb {
 class Model;
 class Debugger;
 
-class DebuggerUIHandle: public UIHandle {
-public:
-    explicit DebuggerUIHandle(Debugger* db): _db(db) {}
-
-    Debugger& DB() const { return *_db; }
-
-    void refresh() override;
-
-    void reload() override;
-
-private:
-    Debugger* _db;
-};
-
 ///
 ///
 class Debugger {
@@ -95,7 +81,7 @@ private:
     Model* _model;
     std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
-    DebuggerUIHandle uiHandle;
+    UIHandle uiHandle;
     int _sidebarSize[2] = { 30, 30 };
     int _sidebarSizeBackup[2] = { 30, 30 };
     int _bottombarSize = 10;

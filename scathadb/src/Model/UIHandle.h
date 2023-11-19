@@ -1,16 +1,90 @@
 #ifndef SDB_MODEL_UIHANDLE_H_
 #define SDB_MODEL_UIHANDLE_H_
 
+#include <cstddef>
+#include <functional>
+#include <vector>
+
+#include <svm/Errors.h>
+
 namespace sdb {
+
+enum class BreakState {
+    None,
+    Step,
+    Breakpoint,
+    Error,
+};
 
 /// Provides callback methods for the model to signal the UI
 class UIHandle {
 public:
-    ///
-    virtual void refresh() = 0;
+    /// Called when a background event occurs that requires the UI to update
+    void refresh() const {
+        for (auto& cb: refreshCallbacks) {
+            cb();
+        }
+    }
 
-    ///
-    virtual void reload() = 0;
+    void addRefreshCallback(std::function<void()> cb) {
+        refreshCallbacks.push_back(std::move(cb));
+    }
+
+    /// Called when a major background event occurs that requires the UI to
+    /// reconstruct
+    void reload() const {
+        for (auto& cb: reloadCallbacks) {
+            cb();
+        }
+        refresh();
+    }
+
+    void addReloadCallback(std::function<void()> cb) {
+        reloadCallbacks.push_back(std::move(cb));
+    }
+
+    /// Called when an instruction breakpoint has been hit at index \p index
+    void hitInstruction(size_t index, BreakState state) const {
+        for (auto& cb: instCallbacks) {
+            cb(index, state);
+        }
+        refresh();
+    }
+
+    void addInstCallback(std::function<void(size_t, BreakState)> cb) {
+        instCallbacks.push_back(std::move(cb));
+    }
+
+    /// Called when execution resumes after being paused
+    void resume() {
+        for (auto& cb: resumeCallbacks) {
+            cb();
+        }
+        refresh();
+    }
+
+    void addResumeCallback(std::function<void()> cb) {
+        resumeCallbacks.push_back(std::move(cb));
+    }
+
+    /// Called when an error is reported by VM execution
+    void onError(svm::ErrorVariant error) const {
+        for (auto& cb: errorCallbacks) {
+            cb(error);
+        }
+        refresh();
+    }
+
+    void addErrorCallback(std::function<void(svm::ErrorVariant)> cb) {
+        errorCallbacks.push_back(std::move(cb));
+    }
+
+private:
+    std::vector<std::function<void()>> refreshCallbacks;
+    std::vector<std::function<void()>> reloadCallbacks;
+    std::vector<std::function<void(size_t, BreakState)>> instCallbacks;
+    std::vector<std::function<void()>> resumeCallbacks;
+    std::vector<std::function<void(svm::ErrorVariant)>> errorCallbacks;
 };
 
 } // namespace sdb

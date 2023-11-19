@@ -15,7 +15,7 @@ namespace sdb {
 
 /// Lists the possible states of the executor
 enum class ExecState {
-    ///
+    /// Starting program execution
     Starting,
 
     /// Execution is running
@@ -24,8 +24,11 @@ enum class ExecState {
     /// Execution is paused
     Paused,
 
-    ///
+    /// Interrupting execution
     Stopping,
+
+    /// Gracefully exited program execution
+    Exiting,
 
     ///
     Stopped,
@@ -45,8 +48,8 @@ public:
     /// Unload the currently active program
     void unloadProgram();
 
-    ///
-    void setArguments(std::span<std::string const> arguments);
+    /// Set the arguments that will be loaded into VM stack memory before execution starts
+    void setArguments(std::vector<std::string> arguments);
 
     /// Start execution
     void start();
@@ -60,13 +63,13 @@ public:
     /// \Returns the current state
     ExecState state() const;
 
-    ///
+    /// \Returns `state() == ExecState::Running`
     bool isRunning() const { return state() == ExecState::Running; }
 
-    ///
+    /// \Returns `state() == ExecState::Paused`
     bool isPaused() const { return state() == ExecState::Paused; }
 
-    ///
+    /// \Returns `state() == ExecState::Stopped`
     bool isStopped() const { return state() == ExecState::Stopped; }
 
     /// Step over the next instruction when paused
@@ -75,26 +78,29 @@ public:
     /// Step over the next source line when paused
     void stepSourceLine();
 
-    ///
+    /// \Returns a reference to the VM
     svm::VirtualMachine& VM() { return vm; }
 
-    ///
+    /// \overload
     svm::VirtualMachine const& VM() const { return vm; }
 
-    ///
+    /// \Returns a reference to the disassembled program
     Disassembly& disassembly() { return disasm; }
 
     /// \overload
     Disassembly const& disassembly() const { return disasm; }
 
-    ///
+    /// \Returns the standard-out stream
     std::stringstream& standardout() { return _stdout; }
 
     ///
-    void toggleInstBreakpoint(size_t index);
+    void toggleInstBreakpoint(size_t index) { breakpoints.toggle(index); }
 
     ///
     void clearBreakpoints() { breakpoints.clear(); }
+
+    ///
+    bool hasInstBreakpoint(size_t index) const { return breakpoints.at(index); }
 
     ///
     void setUIHandle(UIHandle* handle) { uiHandle = handle; }
@@ -106,18 +112,23 @@ private:
     ExecState running();
     ExecState paused();
     ExecState stopping();
+    ExecState exiting();
 
     ExecState doExecuteSteps();
     ExecState doStepInstruction();
     ExecState doStepSourceLine();
 
-    std::array<uint64_t, 2> runArguments{};
+    void handleInstEncounter(size_t binaryOffset, BreakState state);
+
+    void handleException();
+
+    std::vector<std::string> runArguments;
     std::unique_ptr<ExecThread> execThread;
     svm::VirtualMachine vm;
     Disassembly disasm;
     UIHandle* uiHandle;
     std::mutex breakpointMutex;
-    BreakpointManager breakpoints;
+    BreakpointSet breakpoints;
 
     std::stringstream _stdout;
 };

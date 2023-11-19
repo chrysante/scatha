@@ -13,10 +13,11 @@
 namespace sdb {
 
 class Model;
+class UIHandle;
 
 /// Displays the disassembled instructions of the currently loaded program as
 /// well as execution stepping and allows settings breakpoints
-View InstructionView(Model* model);
+View InstructionView(Model* model, UIHandle& uiHandle);
 
 /// Displays VM state like registers and compare flags
 ftxui::Component VMStateView(Model* model);

@@ -16,19 +16,17 @@ using namespace ftxui;
 
 namespace {
 
-enum class BreakState : uint8_t { None, Step, Error };
-
 struct LineInfo {
     long num;
-    bool isFocused    : 1;
-    bool isBreakpoint : 1;
-    BreakState state  : 2;
+    bool isFocused     : 1;
+    bool hasBreakpoint : 1;
+    BreakState state   : 3;
 };
 
 } // namespace
 
 static Element breakpointIndicator(LineInfo line) {
-    if (!line.isBreakpoint) {
+    if (!line.hasBreakpoint) {
         return text("   ");
     }
     return text("-> ") |
@@ -58,27 +56,66 @@ static Element lineNumber(LineInfo line) {
 namespace {
 
 struct InstView: ScrollBase {
-    InstView(Model* model): model(model) { InstView::reload(); }
+    InstView(Model* model, UIHandle& uiHandle): model(model) {
+        uiHandle.addReloadCallback([this] { reload(); });
+        uiHandle.addInstCallback([this](size_t index, BreakState state) {
+            focusLine = indexToLine(index).value();
+            breakIndex = index;
+            scrollToIndex(index);
+            breakState = state;
+        });
+        uiHandle.addResumeCallback([this]() {
+            error = {};
+            breakIndex = std::nullopt;
+            breakState = {};
+        });
+        uiHandle.addErrorCallback(
+            [this](svm::ErrorVariant err) { error = std::move(err); });
+        reload();
+    }
 
     LineInfo getLineInfo(long lineNum) const {
         auto index = lineToIndex(lineNum);
         BreakState state = [&] {
             using enum BreakState;
-            if (!model->isPaused()) {
+            auto breakIdx = breakIndex.load();
+            if (!model->isPaused() || !index || !breakIdx) {
                 return None;
             }
-            if (true /* !index || *index != model->currentInstIndex() */) {
+            if (*index != *breakIdx) {
                 return None;
             }
-            return Step;
+            return breakState.load();
         }();
         return {
             .num = lineNum,
             .isFocused = lineNum == focusLine,
-            .isBreakpoint = false /* index && model->isBreakpoint(*index) */,
+            .hasBreakpoint = index && model->hasInstBreakpoint(*index),
             .state = state,
         };
     };
+
+    std::string makeErrorMessage() const {
+        assert(error);
+        // clang-format off
+        return std::visit(utl::overload {
+            [&](svm::MemoryAccessError const& err) {
+                return utl::strcat("Bad access: ", err.pointer());
+            },
+            [&](svm::DeallocationError const& err) -> std::string {
+                return "Bad deallocation";
+            },
+        }, *error); // clang-format on
+    }
+
+    ElementDecorator messageDecorator(std::string message) const {
+        return [=](Element elem) {
+            return hbox({ elem,
+                          filler(),
+                          hflow(paragraphAlignRight(std::move(message))) |
+                              yflex_grow });
+        };
+    }
 
     ElementDecorator lineModifier(LineInfo line) const {
         using enum BreakState;
@@ -89,9 +126,14 @@ struct InstView: ScrollBase {
             }
             return nothing;
         case Step:
-            return color(Color::White) | bgcolor(Color::Green);
+            return messageDecorator("Step Instruction") | color(Color::White) |
+                   bgcolor(Color::Green);
+        case Breakpoint:
+            return messageDecorator("Breakpoint") | color(Color::White) |
+                   bgcolor(Color::Green);
         case Error:
-            return color(Color::White) | bgcolor(Color::RedLight);
+            return messageDecorator(makeErrorMessage()) | color(Color::White) |
+                   bgcolor(Color::RedLight);
         }
     };
 
@@ -100,12 +142,6 @@ struct InstView: ScrollBase {
         focusLine = 0;
         indexToLineMap.clear();
         lineToIndexMap.clear();
-
-        //        model->setScrollCallback([this](size_t index) {
-        //            focusLine = indexToLine(index).value();
-        //            scrollToIndex(index);
-        //        });
-
         for (auto [index, inst]:
              model->disassembly().instructions() | ranges::views::enumerate)
         {
@@ -250,11 +286,16 @@ struct InstView: ScrollBase {
     }
 
     Model* model;
+    std::optional<svm::ErrorVariant> error;
     std::atomic<long> focusLine = 0;
+    std::atomic<std::optional<uint32_t>> breakIndex;
+    std::atomic<BreakState> breakState = {};
     std::vector<long> indexToLineMap;
     utl::hashmap<long, size_t> lineToIndexMap;
 };
 
 } // namespace
 
-View sdb::InstructionView(Model* model) { return Make<InstView>(model); }
+View sdb::InstructionView(Model* model, UIHandle& uiHandle) {
+    return Make<InstView>(model, uiHandle);
+}

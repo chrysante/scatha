@@ -102,16 +102,10 @@ auto const StepCmd = Command::Add({
 });
 // clang-format on
 
-void DebuggerUIHandle::refresh() {
-    DB().screen().PostEvent(Event::Special("Refresh"));
-}
-
-void DebuggerUIHandle::reload() {
-    DB().screen().PostEvent(Event::Special("Reload"));
-}
-
 Debugger::Debugger(Model* _model):
-    _screen(ScreenInteractive::Fullscreen()), _model(_model), uiHandle(this) {
+    _screen(ScreenInteractive::Fullscreen()), _model(_model) {
+    uiHandle.addRefreshCallback(
+        [this] { _screen.PostEvent(Event::Special("Refresh")); });
     _model->setUIHandle(&uiHandle);
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
@@ -121,7 +115,7 @@ Debugger::Debugger(Model* _model):
                                   { " Callstack ", Renderer([] {
                                         return placeholder("Not Implemented");
                                     }) } });
-    auto instView = InstructionView(model());
+    auto instView = InstructionView(model(), uiHandle);
     auto centralSplit = SplitRight(rightSidebar, instView, &_sidebarSize[1]);
     auto toolbar = Toolbar({
         ToolbarButton(this, QuitCmd),

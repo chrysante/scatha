@@ -173,7 +173,7 @@ Element ScrollBase::Render() {
     for (size_t index = begin; index < end; ++index) {
         elems.push_back(ChildAt(index)->Render());
     }
-    return vbox(std::move(elems)) | flex | reflect(_box);
+    return vbox(std::move(elems)) | yframe | flex | reflect(_box);
 }
 
 bool ScrollBase::OnEvent(Event event) {
