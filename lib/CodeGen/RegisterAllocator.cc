@@ -26,6 +26,7 @@ void cg::allocateRegisters(mir::Function& F) {
                       "Here we should be still in kind of SSA form");
             auto* copy =
                 new mir::Instruction(mir::InstCode::Copy, dest, { operand });
+            copy->setMetadata(inst.metadata());
             inst.parent()->insert(&inst, copy);
             inst.setOperandAt(0, dest);
             break;
@@ -99,6 +100,7 @@ void cg::allocateRegisters(mir::Function& F) {
                                          { dest, dest },
                                          mir::ArithmeticOperation::XOr,
                                          8);
+                selfXor->setMetadata(inst->metadata());
                 BB.insert(inst, selfXor);
                 inst = BB.erase(inst);
                 continue;

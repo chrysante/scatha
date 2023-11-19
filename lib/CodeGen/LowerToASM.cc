@@ -66,9 +66,15 @@ struct CGContext {
         }); // clang-format on
     }
 
+    void addMetadata(mir::Instruction const& inst) {
+        metadata.push_back(inst.metadata());
+    }
+
     Asm::AssemblyStream& result;
     Asm::Block* currentBlock = nullptr;
     mir::Function const* currentFunction = nullptr;
+
+    std::vector<Metadata> metadata;
 
     /// Maps basic blocks and functions to label IDs
     utl::hashmap<mir::Value const*, LabelID> labelIDs;
@@ -96,6 +102,7 @@ void CGContext::run(mir::Module const& mod) {
                      }) |
                      ranges::to<std::vector>;
     result.setJumpSites(std::move(jumpsites));
+    result.setMetadata(std::move(metadata));
 }
 
 void CGContext::genFunction(mir::Function const& F) {
@@ -145,18 +152,21 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto dest = getAddressOperand(inst);
         auto source = toRegIdx(inst.operandAt(2));
         currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Load: {
         auto dest = toRegIdx(inst.dest());
         auto source = getAddressOperand(inst);
         currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Copy: {
         auto dest = toRegIdx(inst.dest());
         auto source = toValue(inst.operandAt(0));
         currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Call: {
@@ -164,14 +174,16 @@ void CGContext::genInst(mir::Instruction const& inst) {
         // clang-format off
         SC_MATCH (*inst.operandAt(0)) {
             [&](mir::Function const& callee) {
-                auto inst = CallInst(LabelPosition(getLabelID(callee)),
+                auto asmInst = CallInst(LabelPosition(getLabelID(callee)),
                                      callData.regOffset);
-                currentBlock->insertBack(inst);
+                currentBlock->insertBack(asmInst);
+                addMetadata(inst);
             },
             [&](mir::Register const& reg) {
-                auto inst = CallInst(RegisterIndex(reg.index()),
+                auto asmInst = CallInst(RegisterIndex(reg.index()),
                                      callData.regOffset);
-                currentBlock->insertBack(inst);
+                currentBlock->insertBack(asmInst);
+                addMetadata(inst);
             },
             [&](mir::Value const& value) {
                 SC_UNREACHABLE();
@@ -184,6 +196,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto callee = callData.extFuncAddress;
         currentBlock->insertBack(
             CallExtInst(callData.regOffset, callee.slot, callee.index));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::CondCopy: {
@@ -194,6 +207,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
                                            dest,
                                            source,
                                            inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::LIncSP: {
@@ -201,12 +215,14 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto numBytes = toValue(inst.operandAt(0));
         currentBlock->insertBack(
             LIncSPInst(dest, std::get<Asm::Value16>(numBytes)));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::LEA: {
         auto dest = toRegIdx(inst.dest());
         auto address = getAddressOperand(inst);
         currentBlock->insertBack(LEAInst(dest, address));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Compare: {
@@ -215,6 +231,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto mode = inst.instDataAs<mir::CompareMode>();
         currentBlock->insertBack(
             Asm::CompareInst(mapCompareMode(mode), LHS, RHS, inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Test: {
@@ -222,12 +239,14 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto mode = inst.instDataAs<mir::CompareMode>();
         currentBlock->insertBack(
             TestInst(mapCompareMode(mode), operand, inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Set: {
         auto dest = toRegIdx(inst.dest());
         auto operation = inst.instDataAs<mir::CompareOperation>();
         currentBlock->insertBack(SetInst(dest, mapCompareOperation(operation)));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::UnaryArithmetic: {
@@ -236,11 +255,13 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto operation = inst.instDataAs<mir::UnaryArithmeticOperation>();
         if (inst.dest() != inst.operandAt(0)) {
             currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
+            addMetadata(inst);
         }
         currentBlock->insertBack(
             UnaryArithmeticInst(mapUnaryArithmetic(operation),
                                 dest,
                                 inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Arithmetic: {
@@ -250,11 +271,13 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto operation = inst.instDataAs<mir::ArithmeticOperation>();
         if (inst.dest() != inst.operandAt(0)) {
             currentBlock->insertBack(MoveInst(dest, LHS, inst.bytewidth()));
+            addMetadata(inst);
         }
         currentBlock->insertBack(Asm::ArithmeticInst(mapArithmetic(operation),
                                                      dest,
                                                      RHS,
                                                      inst.bytewidth()));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Conversion: {
@@ -267,19 +290,23 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto [conv, fromBits, toBits] = inst.instDataAs<ConversionData>();
         if (inst.dest() != inst.operandAt(0)) {
             currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
+            addMetadata(inst);
         }
         switch (conv) {
         case mir::Conversion::Sext:
             currentBlock->insertBack(
                 TruncExtInst(dest, Asm::Type::Signed, inst.bitwidth()));
+            addMetadata(inst);
             break;
         case mir::Conversion::Fext:
             currentBlock->insertBack(
                 TruncExtInst(dest, Asm::Type::Float, inst.bitwidth()));
+            addMetadata(inst);
             break;
         case mir::Conversion::Ftrunc:
             currentBlock->insertBack(
                 TruncExtInst(dest, Asm::Type::Float, inst.bitwidth()));
+            addMetadata(inst);
             break;
         case mir::Conversion::UtoF:
             currentBlock->insertBack(ConvertInst(dest,
@@ -287,6 +314,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
                                                  fromBits,
                                                  Asm::Type::Float,
                                                  toBits));
+            addMetadata(inst);
             break;
         case mir::Conversion::StoF:
             currentBlock->insertBack(ConvertInst(dest,
@@ -294,6 +322,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
                                                  fromBits,
                                                  Asm::Type::Float,
                                                  toBits));
+            addMetadata(inst);
             break;
         case mir::Conversion::FtoU:
             currentBlock->insertBack(ConvertInst(dest,
@@ -301,6 +330,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
                                                  fromBits,
                                                  Asm::Type::Unsigned,
                                                  toBits));
+            addMetadata(inst);
             break;
         case mir::Conversion::FtoS:
             currentBlock->insertBack(ConvertInst(dest,
@@ -308,6 +338,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
                                                  fromBits,
                                                  Asm::Type::Signed,
                                                  toBits));
+            addMetadata(inst);
             break;
         default:
             SC_UNREACHABLE();
@@ -317,6 +348,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
     case mir::InstCode::Jump: {
         auto* target = inst.operandAt(0);
         currentBlock->insertBack(JumpInst(getLabelID(*target)));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::CondJump: {
@@ -324,10 +356,12 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto condition = inst.instDataAs<mir::CompareOperation>();
         currentBlock->insertBack(
             JumpInst(mapCompareOperation(condition), getLabelID(*target)));
+        addMetadata(inst);
         break;
     }
     case mir::InstCode::Return: {
         currentBlock->insertBack(ReturnInst());
+        addMetadata(inst);
         break;
     }
     default:

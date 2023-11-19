@@ -10,6 +10,7 @@
 
 #include "Common/Graph.h"
 #include "Common/List.h"
+#include "Common/Metadata.h"
 #include "Common/UniquePtr.h"
 #include "MIR/Fwd.h"
 #include "MIR/Register.h" // Maybe we can remove this later
@@ -25,7 +26,8 @@ concept InstructionData =
 /// Represents an instruction.
 class Instruction:
     public ListNode<Instruction>,
-    public ParentedNode<BasicBlock> {
+    public ParentedNode<BasicBlock>,
+    public ObjectWithMetadata {
     template <typename T>
     static std::array<uint64_t, 2> convInstData(T data) {
         std::array<uint64_t, 2> res{};

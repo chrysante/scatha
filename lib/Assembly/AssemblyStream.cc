@@ -9,6 +9,7 @@ struct AssemblyStream::Impl {
     std::list<Block> blocks;
     std::vector<u8> data;
     std::vector<Jumpsite> jumpsites;
+    std::vector<Metadata> metadata;
 };
 
 AssemblyStream::AssemblyStream(): impl(std::make_unique<Impl>()) {}
@@ -49,3 +50,9 @@ void AssemblyStream::setJumpSites(std::vector<Jumpsite> jumpsites) {
 std::span<Jumpsite const> AssemblyStream::jumpSites() const {
     return impl->jumpsites;
 }
+
+void AssemblyStream::setMetadata(std::vector<Metadata> metadata) {
+    impl->metadata = std::move(metadata);
+}
+
+std::span<Metadata const> AssemblyStream::metadata() { return impl->metadata; }

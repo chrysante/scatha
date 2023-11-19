@@ -200,6 +200,7 @@ static mir::BasicBlock::Iterator destroySSACall(
         else {
             auto* copy =
                 new mir::Instruction(mir::InstCode::Copy, destReg, { arg });
+            copy->setMetadata(call.metadata());
             BB.insert(&call, copy);
         }
         newArguments.push_back(destReg);
@@ -216,6 +217,7 @@ static mir::BasicBlock::Iterator destroySSACall(
         {
             auto* copy =
                 new mir::Instruction(mir::InstCode::Copy, dest, { calleeReg });
+            copy->setMetadata(call.metadata());
             BB.insert(callItr, copy);
         }
     }
@@ -233,6 +235,7 @@ static mir::BasicBlock::Iterator destroyReturn(mir::Function& F,
          ranges::views::zip(ret.operands(), F.virtualReturnValueRegisters()))
     {
         auto* copy = new mir::Instruction(mir::InstCode::Copy, dest, { arg });
+        copy->setMetadata(ret.metadata());
         BB.insert(itr, copy);
         if (auto* argReg = dyncast<mir::Register*>(arg)) {
             BB.removeLiveOut(argReg);
@@ -262,6 +265,7 @@ static mir::BasicBlock::Iterator destroySSATailCall(
         tmpRegs[i] = tmp;
         auto* copy =
             new mir::Instruction(mir::InstCode::Copy, tmp, { *argBegin });
+        copy->setMetadata(call.metadata());
         BB.insert(&call, copy);
     }
     /// Copy arguments into bottom registers.
@@ -269,6 +273,7 @@ static mir::BasicBlock::Iterator destroySSATailCall(
         auto* copy = new mir::Instruction(mir::InstCode::Copy,
                                           dest.to_address(),
                                           { tmp });
+        copy->setMetadata(call.metadata());
         BB.insert(&call, copy);
         dest->setFixed();
         /// We mark the arguments registers live out since they need to be
@@ -282,6 +287,7 @@ static mir::BasicBlock::Iterator destroySSATailCall(
     BB.erase(&call);
     BB.erase(&ret);
     auto* jump = new mir::Instruction(mir::InstCode::Jump, nullptr, { callee });
+    jump->setMetadata(call.metadata());
     BB.insert(itr, jump);
     SC_ASSERT(itr == BB.end(), "");
     return itr;

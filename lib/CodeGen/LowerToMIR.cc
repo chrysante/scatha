@@ -64,13 +64,21 @@ struct CodeGenContext {
 
     /// \Returns The register after \p dest
     template <typename R>
-    R* genCopy(R* dest, mir::Value* source, size_t numBytes) {
-        return genCopy(dest, source, numBytes, currentBlock->end());
+    R* genCopy(Metadata metadata,
+               R* dest,
+               mir::Value* source,
+               size_t numBytes) {
+        return genCopy(std::move(metadata),
+                       dest,
+                       source,
+                       numBytes,
+                       currentBlock->end());
     }
 
     /// \overload
     template <typename R>
-    R* genCopy(R* dest,
+    R* genCopy(Metadata metadata,
+               R* dest,
                mir::Value* source,
                size_t numBytes,
                mir::BasicBlock::ConstIterator before,
@@ -78,7 +86,8 @@ struct CodeGenContext {
                uint64_t instData = 0);
 
     ///
-    mir::CompareOperation readCondition(ir::Value const* condition);
+    mir::CompareOperation readCondition(Metadata metadata,
+                                        ir::Value const* condition);
 
     /// Maps IR values to MIR values. In particular:
     /// ```
@@ -114,7 +123,8 @@ struct CodeGenContext {
 
     /// \Returns If resolved value already is in a register, that register.
     /// Otherwise allocates a temporary register and stores value into it.
-    mir::SSARegister* resolveToRegister(ir::Value const* value);
+    mir::SSARegister* resolveToRegister(Metadata metadata,
+                                        ir::Value const* value);
 
     mir::SSARegister* nextRegister(size_t numWords = 1) {
         return nextRegistersFor(numWords, nullptr);
@@ -128,19 +138,22 @@ struct CodeGenContext {
                                        ir::Value const* liveWith);
 
     template <mir::InstructionData T = uint64_t>
-    mir::Instruction* newInst(mir::InstCode code,
+    mir::Instruction* newInst(Metadata metadata,
+                              mir::InstCode code,
                               mir::Register* dest,
                               utl::small_vector<mir::Value*> operands,
                               T instData = {},
                               size_t width = 8);
 
     template <mir::InstructionData T = uint64_t>
-    AddNewInstResult addNewInst(mir::InstCode code,
+    AddNewInstResult addNewInst(Metadata metadata,
+                                mir::InstCode code,
                                 mir::Register* dest,
                                 utl::small_vector<mir::Value*> operands,
                                 T instData = {},
                                 size_t width = 8) {
-        return addNewInst(code,
+        return addNewInst(std::move(metadata),
+                          code,
                           dest,
                           std::move(operands),
                           instData,
@@ -149,7 +162,8 @@ struct CodeGenContext {
     }
 
     template <mir::InstructionData T = uint64_t>
-    AddNewInstResult addNewInst(mir::InstCode code,
+    AddNewInstResult addNewInst(Metadata metadata,
+                                mir::InstCode code,
                                 mir::Register* dest,
                                 utl::small_vector<mir::Value*> operands,
                                 T instData,
@@ -261,19 +275,21 @@ void CodeGenContext::genInst(ir::Alloca const& allocaInst) {
     auto* countConstant = cast<ir::IntegralConstant const*>(allocaInst.count());
     size_t count = countConstant->value().to<size_t>();
     size_t numBytes = utl::round_up(type->size() * count, 8);
-    addNewInst(mir::InstCode::LIncSP,
+    addNewInst(allocaInst.metadata(),
+               mir::InstCode::LIncSP,
                resolve(&allocaInst),
                { result.constant(numBytes, 2) });
 }
 
 void CodeGenContext::genInst(ir::Store const& store) {
     mir::MemoryAddress dest = computeAddress(store.address());
-    mir::Value* src = resolveToRegister(store.value());
+    mir::Value* src = resolveToRegister(store.metadata(), store.value());
     size_t numBytes = store.value()->type()->size();
     size_t numWords = utl::ceil_divide(numBytes, 8);
     auto addrConstData = dest.constantData();
     for (size_t i = 0; i < numWords; ++i, src = src->next()) {
-        addNewInst(mir::InstCode::Store,
+        addNewInst(store.metadata(),
+                   mir::InstCode::Store,
                    nullptr,
                    { dest.addressRegister(), dest.offsetRegister(), src },
                    addrConstData,
@@ -292,7 +308,8 @@ void CodeGenContext::genInst(ir::Load const& load) {
     size_t numWords = utl::ceil_divide(numBytes, 8);
     auto addrConstData = src.constantData();
     for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
-        addNewInst(mir::InstCode::Load,
+        addNewInst(load.metadata(),
+                   mir::InstCode::Load,
                    dest,
                    { src.addressRegister(), src.offsetRegister() },
                    addrConstData,
@@ -354,7 +371,8 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
             mir::Conversion conv;
             u16 fromBits, toBits;
         };
-        addNewInst(mir::InstCode::Conversion,
+        addNewInst(inst.metadata(),
+                   mir::InstCode::Conversion,
                    resolve(&inst),
                    { operand },
                    ConversionData{ inst.conversion(), fromBits, toBits },
@@ -368,15 +386,24 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
 
 void CodeGenContext::genInst(ir::CompareInst const& cmp) {
     lastEmittedCompare = &cmp;
-    auto* lhs = resolveToRegister(cmp.lhs());
+    auto* lhs = resolveToRegister(cmp.metadata(), cmp.lhs());
     auto* rhs = resolve(cmp.rhs());
-    addNewInst(mir::InstCode::Compare, nullptr, { lhs, rhs }, cmp.mode());
-    addNewInst(mir::InstCode::Set, resolve(&cmp), {}, cmp.operation());
+    addNewInst(cmp.metadata(),
+               mir::InstCode::Compare,
+               nullptr,
+               { lhs, rhs },
+               cmp.mode());
+    addNewInst(cmp.metadata(),
+               mir::InstCode::Set,
+               resolve(&cmp),
+               {},
+               cmp.operation());
 }
 
 void CodeGenContext::genInst(ir::UnaryArithmeticInst const& inst) {
-    auto* operand = resolveToRegister(inst.operand());
-    addNewInst(mir::InstCode::UnaryArithmetic,
+    auto* operand = resolveToRegister(inst.metadata(), inst.operand());
+    addNewInst(inst.metadata(),
+               mir::InstCode::UnaryArithmetic,
                resolve(&inst),
                { operand },
                inst.operation(),
@@ -384,7 +411,7 @@ void CodeGenContext::genInst(ir::UnaryArithmeticInst const& inst) {
 }
 
 void CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
-    auto* lhs = resolveToRegister(inst.lhs());
+    auto* lhs = resolveToRegister(inst.metadata(), inst.lhs());
     auto* rhs = resolve(inst.rhs());
     /// Shift instructions only allow 8 bit literals as RHS operand.
     if (isShift(inst.operation()) && isa<mir::Constant>(rhs)) {
@@ -397,7 +424,8 @@ void CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
             rhs = result.constant(constant->value(), 8);
         }
     }
-    addNewInst(mir::InstCode::Arithmetic,
+    addNewInst(inst.metadata(),
+               mir::InstCode::Arithmetic,
                resolve(&inst),
                { lhs, rhs },
                inst.operation(),
@@ -406,18 +434,19 @@ void CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
 
 void CodeGenContext::genInst(ir::Goto const& gt) {
     auto* target = resolve(gt.target());
-    addNewInst(mir::InstCode::Jump, nullptr, { target });
+    addNewInst(gt.metadata(), mir::InstCode::Jump, nullptr, { target });
 }
 
 void CodeGenContext::genInst(ir::Branch const& br) {
-    auto condition = readCondition(br.condition());
+    auto condition = readCondition(br.metadata(), br.condition());
     auto* thenTarget = resolve(br.thenTarget());
     auto* elseTarget = resolve(br.elseTarget());
-    addNewInst(mir::InstCode::CondJump,
+    addNewInst(br.metadata(),
+               mir::InstCode::CondJump,
                nullptr,
                { elseTarget },
                inverse(condition));
-    addNewInst(mir::InstCode::Jump, nullptr, { thenTarget });
+    addNewInst(br.metadata(), mir::InstCode::Jump, nullptr, { thenTarget });
 }
 
 void CodeGenContext::genInst(ir::Call const& call) {
@@ -451,8 +480,12 @@ void CodeGenContext::genInst(ir::Call const& call) {
     }
     size_t const numDests = numWords(call.type());
     auto* dest = resolve(&call);
-    auto* mirCall =
-        addNewInst(instcode, nullptr, std::move(args), callData).inst;
+    auto* mirCall = addNewInst(call.metadata(),
+                               instcode,
+                               nullptr,
+                               std::move(args),
+                               callData)
+                        .inst;
     mirCall->setDest(dest, numDests);
     /// We set this to null because function calls clobber the CPUs compare
     /// flags
@@ -467,7 +500,7 @@ void CodeGenContext::genInst(ir::Return const& ret) {
     {
         args.push_back(retval);
     }
-    addNewInst(mir::InstCode::Return, nullptr, std::move(args));
+    addNewInst(ret.metadata(), mir::InstCode::Return, nullptr, std::move(args));
 }
 
 void CodeGenContext::genInst(ir::Phi const& phi) {
@@ -487,7 +520,8 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
             --insertPoint;
         }
         ++insertPoint;
-        addNewInst(mir::InstCode::Phi,
+        addNewInst(phi.metadata(),
+                   mir::InstCode::Phi,
                    dest,
                    arguments,
                    0,
@@ -515,7 +549,8 @@ void CodeGenContext::genInst(ir::GetElementPointer const& gep) {
         return;
     }
     mir::MemoryAddress address = computeGep(&gep);
-    addNewInst(mir::InstCode::LEA,
+    addNewInst(gep.metadata(),
+               mir::InstCode::LEA,
                resolve(&gep),
                { address.addressRegister(), address.offsetRegister() },
                address.constantData());
@@ -577,13 +612,15 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
               "This will need even more work");
     auto* sourceShifted = nextRegister();
     auto* shiftOffset = result.constant(8 * innerByteOffset, 1);
-    addNewInst(mir::InstCode::Arithmetic,
+    addNewInst(extract.metadata(),
+               mir::InstCode::Arithmetic,
                sourceShifted,
                { srcreg, shiftOffset },
                mir::ArithmeticOperation::LShR);
     auto* sourceMask = result.constant(makeWordMask(0, innerSize), 8);
     mir::Register* dest = resolve(&extract);
-    addNewInst(mir::InstCode::Arithmetic,
+    addNewInst(extract.metadata(),
+               mir::InstCode::Arithmetic,
                dest,
                { sourceShifted, sourceMask },
                mir::ArithmeticOperation::And);
@@ -625,7 +662,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     size_t const innerWordEnd = innerWordBegin + numWords(innerType);
 
     /// Copy the first full words
-    dest = genCopy(dest, source, 8 * innerWordBegin);
+    dest = genCopy(insert.metadata(), dest, source, 8 * innerWordBegin);
     source = advance(source, innerWordBegin);
 
     /// Handle the complex middle part
@@ -634,7 +671,10 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         /// If we are on a word boundary things are kind of easy.
         /// We emit copies for all full words of the inner value.
         size_t const fullWordsInner = innerType->size() / 8;
-        dest = genCopy(dest, insertedMember, 8 * fullWordsInner);
+        dest = genCopy(insert.metadata(),
+                       dest,
+                       insertedMember,
+                       8 * fullWordsInner);
         insertedMember = advance(insertedMember, fullWordsInner);
         source = advance(source, fullWordsInner);
         /// These are the bytes we hang over into the last register of the inner
@@ -644,17 +684,20 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
             auto* maskedSource = nextRegister();
             auto* sourceMask =
                 result.constant(~uint64_t{ 0 } << 8 * hungOverBytes, 8);
-            addNewInst(mir::InstCode::Arithmetic,
+            addNewInst(insert.metadata(),
+                       mir::InstCode::Arithmetic,
                        maskedSource,
                        { source, sourceMask },
                        mir::ArithmeticOperation::And);
             auto* maskedInserted = nextRegister();
             auto* insertedMask = result.constant(~sourceMask->value(), 8);
-            addNewInst(mir::InstCode::Arithmetic,
+            addNewInst(insert.metadata(),
+                       mir::InstCode::Arithmetic,
                        maskedInserted,
                        { insertedMember, insertedMask },
                        mir::ArithmeticOperation::And);
-            addNewInst(mir::InstCode::Arithmetic,
+            addNewInst(insert.metadata(),
+                       mir::InstCode::Arithmetic,
                        dest,
                        { maskedSource, maskedInserted },
                        mir::ArithmeticOperation::Or);
@@ -673,21 +716,25 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
             8);
         auto* sourceMask = result.constant(~insertedMask->value(), 8);
         auto* shiftedInsert = nextRegister();
-        addNewInst(mir::InstCode::Arithmetic,
+        addNewInst(insert.metadata(),
+                   mir::InstCode::Arithmetic,
                    shiftedInsert,
                    { insertedMember, shiftCount },
                    mir::ArithmeticOperation::LShL);
         auto* maskedSource = nextRegister();
-        addNewInst(mir::InstCode::Arithmetic,
+        addNewInst(insert.metadata(),
+                   mir::InstCode::Arithmetic,
                    maskedSource,
                    { source, sourceMask },
                    mir::ArithmeticOperation::And);
         auto* maskedInsert = nextRegister();
-        addNewInst(mir::InstCode::Arithmetic,
+        addNewInst(insert.metadata(),
+                   mir::InstCode::Arithmetic,
                    maskedInsert,
                    { shiftedInsert, insertedMask },
                    mir::ArithmeticOperation::And);
-        addNewInst(mir::InstCode::Arithmetic,
+        addNewInst(insert.metadata(),
+                   mir::InstCode::Arithmetic,
                    dest,
                    { maskedSource, maskedInsert },
                    mir::ArithmeticOperation::Or);
@@ -696,21 +743,23 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     }
 
     /// Copy the last full words
-    dest = genCopy(dest,
+    dest = genCopy(insert.metadata(),
+                   dest,
                    source,
                    utl::round_up(outerType->size(), 8) - 8 * innerWordEnd);
     (void)dest;
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
-    auto condition = readCondition(select.condition());
+    auto condition = readCondition(select.metadata(), select.condition());
     auto* thenVal = resolve(select.thenValue());
     auto* elseVal = resolve(select.elseValue());
     size_t numBytes = select.type()->size();
     size_t numWords = utl::ceil_divide(numBytes, 8);
     auto* dest = resolve(&select);
     for (size_t i = 0; i < numWords; ++i) {
-        addNewInst(mir::InstCode::Select,
+        addNewInst(select.metadata(),
+                   mir::InstCode::Select,
                    dest,
                    { thenVal, elseVal },
                    condition,
@@ -751,7 +800,7 @@ mir::MemoryAddress CodeGenContext::computeGep(
             return regArrayIdx;
         }
         auto* result = nextRegistersFor(1, gep);
-        genCopy(result, arrayIndex, 8);
+        genCopy(gep->metadata(), result, arrayIndex, 8);
         return result;
     }();
     auto* accessedType = gep->inboundsType();
@@ -765,7 +814,8 @@ mir::MemoryAddress CodeGenContext::computeGep(
 }
 
 template <typename R>
-R* CodeGenContext::genCopy(R* dest,
+R* CodeGenContext::genCopy(Metadata metadata,
+                           R* dest,
                            mir::Value* source,
                            size_t numBytes,
                            mir::BasicBlock::ConstIterator before,
@@ -775,7 +825,8 @@ R* CodeGenContext::genCopy(R* dest,
     for (size_t i = 0; i < numWords;
          ++i, dest = dest->next(), source = source->next())
     {
-        addNewInst(code,
+        addNewInst(std::move(metadata),
+                   code,
                    dest,
                    { source },
                    instData,
@@ -786,7 +837,7 @@ R* CodeGenContext::genCopy(R* dest,
 }
 
 mir::CompareOperation CodeGenContext::readCondition(
-    ir::Value const* condition) {
+    Metadata metadata, ir::Value const* condition) {
     /// If our condition is the last emitted compare operation, the compare
     /// flags are still set and we can just read them directly. We also have to
     /// check if it was emitted in the same basic block, since we only emit
@@ -797,8 +848,9 @@ mir::CompareOperation CodeGenContext::readCondition(
         return lastEmittedCompare->operation();
     }
     /// Otherwise we have to generate a `test` instruction.
-    auto* cond = resolveToRegister(condition);
-    addNewInst(mir::InstCode::Test,
+    auto* cond = resolveToRegister(metadata, condition);
+    addNewInst(metadata,
+               mir::InstCode::Test,
                nullptr,
                { cond },
                mir::CompareMode::Unsigned,
@@ -853,7 +905,8 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                 return address;
             }();
             auto* dest = nextRegister();
-            addNewInst(mir::InstCode::Copy,
+            addNewInst(nullptr,
+                       mir::InstCode::Copy,
                        dest,
                        { result.constant(address, 8) });
             return dest;
@@ -889,7 +942,8 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             value.writeValueTo(words.data());
             auto* reg = nextRegister(numWords);
             for (auto* dest = reg; auto word: words) {
-                addNewInst(mir::InstCode::Copy,
+                addNewInst(nullptr,
+                           mir::InstCode::Copy,
                            dest,
                            { result.constant(word, 8) });
                 dest = dest->next();
@@ -905,13 +959,14 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
     }); // clang-format on
 }
 
-mir::SSARegister* CodeGenContext::resolveToRegister(ir::Value const* value) {
+mir::SSARegister* CodeGenContext::resolveToRegister(Metadata metadata,
+                                                    ir::Value const* value) {
     auto* result = resolve(value);
     if (auto* reg = dyncast<mir::SSARegister*>(result)) {
         return reg;
     }
     auto* reg = nextRegister(numWords(value->type()));
-    genCopy(reg, result, value->type()->size());
+    genCopy(std::move(metadata), reg, result, value->type()->size());
     return reg;
 }
 
@@ -928,23 +983,33 @@ mir::SSARegister* CodeGenContext::nextRegistersFor(size_t numWords,
 
 template <mir::InstructionData T>
 mir::Instruction* CodeGenContext::newInst(
+    Metadata metadata,
     mir::InstCode code,
     mir::Register* dest,
     utl::small_vector<mir::Value*> operands,
     T data,
     size_t width) {
-    return new mir::Instruction(code, dest, std::move(operands), data, width);
+    auto* inst =
+        new mir::Instruction(code, dest, std::move(operands), data, width);
+    inst->setMetadata(std::move(metadata));
+    return inst;
 }
 
 template <mir::InstructionData T>
 AddNewInstResult CodeGenContext::addNewInst(
+    Metadata metadata,
     mir::InstCode code,
     mir::Register* dest,
     utl::small_vector<mir::Value*> operands,
     T data,
     size_t width,
     mir::BasicBlock::ConstIterator before) {
-    auto* inst = newInst(code, dest, std::move(operands), data, width);
+    auto* inst = newInst(std::move(metadata),
+                         code,
+                         dest,
+                         std::move(operands),
+                         data,
+                         width);
     currentBlock->insert(before, inst);
     return { .reg = dest, .inst = inst };
 }

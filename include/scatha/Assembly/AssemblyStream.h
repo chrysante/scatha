@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <scatha/Common/Base.h>
+#include <scatha/Common/Metadata.h>
 
 namespace scatha::Asm {
 
@@ -38,6 +39,10 @@ public:
     void setJumpSites(std::vector<Jumpsite> data);
 
     std::span<Jumpsite const> jumpSites() const;
+
+    void setMetadata(std::vector<Metadata> metadata);
+
+    std::span<Metadata const> metadata();
 
 private:
     struct Impl;
