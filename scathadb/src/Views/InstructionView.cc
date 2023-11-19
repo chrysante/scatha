@@ -9,38 +9,11 @@
 
 #include "Model/Model.h"
 #include "UI/Common.h"
+#include "Views/FileViewCommon.h"
 #include "Views/HelpPanel.h"
 
 using namespace sdb;
 using namespace ftxui;
-
-namespace {
-
-struct LineInfo {
-    long num;
-    bool isFocused     : 1;
-    bool hasBreakpoint : 1;
-    BreakState state   : 3;
-};
-
-} // namespace
-
-static Element breakpointIndicator(LineInfo line) {
-    if (!line.hasBreakpoint) {
-        return text("   ");
-    }
-    return text("-> ") |
-           color(line.state != BreakState::None ? Color::White :
-                                                  Color::BlueLight) |
-           bold;
-}
-
-static Element lineNumber(LineInfo line) {
-    return text(std::to_string(line.num + 1) + " ") | align_right |
-           size(WIDTH, EQUAL, 5) |
-           color(line.state != BreakState::None ? Color::White :
-                                                  Color::GrayDark);
-}
 
 [[maybe_unused]] static int desc_init = [] {
     setPanelCommandsInfo("Instruction viewer commands",
@@ -55,13 +28,15 @@ static Element lineNumber(LineInfo line) {
 
 namespace {
 
-struct InstView: ScrollBase {
+struct InstView: FileViewBase<InstView> {
     InstView(Model* model, UIHandle& uiHandle): model(model) {
         uiHandle.addReloadCallback([this] { reload(); });
         uiHandle.addInstCallback([this](size_t index, BreakState state) {
-            focusLine = indexToLine(index).value();
+            setFocusLine(indexToLine(index).value());
             breakIndex = index;
-            scrollToIndex(index);
+            if (auto line = indexToLine(index)) {
+                scrollToLine(*line);
+            }
             breakState = state;
         });
         uiHandle.addResumeCallback([this]() {
@@ -89,11 +64,11 @@ struct InstView: ScrollBase {
         }();
         return {
             .num = lineNum,
-            .isFocused = lineNum == focusLine,
+            .isFocused = lineNum == focusLine(),
             .hasBreakpoint = index && model->hasInstBreakpoint(*index),
             .state = state,
         };
-    };
+    }
 
     static std::string makeErrorMessage(svm::ErrorVariant const& error) {
         // clang-format off
@@ -116,15 +91,6 @@ struct InstView: ScrollBase {
         }, error); // clang-format on
     }
 
-    ElementDecorator messageDecorator(std::string message) const {
-        return [=](Element elem) {
-            return hbox({ elem,
-                          filler(),
-                          hflow(paragraphAlignRight(std::move(message))) |
-                              yflex_grow });
-        };
-    }
-
     ElementDecorator lineModifier(LineInfo line) const {
         using enum BreakState;
         switch (line.state) {
@@ -134,20 +100,20 @@ struct InstView: ScrollBase {
             }
             return nothing;
         case Step:
-            return messageDecorator("Step Instruction") | color(Color::White) |
-                   bgcolor(Color::Green);
+            return lineMessageDecorator("Step Instruction") |
+                   color(Color::White) | bgcolor(Color::Green);
         case Breakpoint:
-            return messageDecorator("Breakpoint") | color(Color::White) |
+            return lineMessageDecorator("Breakpoint") | color(Color::White) |
                    bgcolor(Color::Green);
         case Error:
-            return messageDecorator(makeErrorMessage(error.value())) |
+            return lineMessageDecorator(makeErrorMessage(error.value())) |
                    color(Color::White) | bgcolor(Color::RedLight);
         }
-    };
+    }
 
     void reload() {
         DetachAllChildren();
-        focusLine = 0;
+        setFocusLine(0);
         indexToLineMap.clear();
         lineToIndexMap.clear();
         for (auto [index, inst]:
@@ -188,38 +154,12 @@ struct InstView: ScrollBase {
         return ScrollBase::Render();
     }
 
-    bool Focusable() const override { return true; }
-
     bool OnEvent(Event event) override {
-        if (event == Event::Special("Refresh")) {
-            return true;
-        }
-        if (event == Event::Special("Reload")) {
-            reload();
-            return true;
-        }
-        if (handleScroll(event, /* allowKeyScroll = */ false)) {
-            return true;
-        }
-        /// Custom button behaviour because the builtin button does not work
-        /// correctly with the scroll view
-        if (event.is_mouse()) {
-            return handleMouse(event);
-        }
-        if (event == Event::ArrowUp) {
-            focusLineOffset(-1);
-            return true;
-        }
-        if (event == Event::ArrowDown) {
-            focusLineOffset(1);
-            return true;
-        }
-        /// We eat these to prevent focus loss
-        if (event == Event::ArrowLeft || event == Event::ArrowRight) {
+        if (FileViewBase::OnEvent(event)) {
             return true;
         }
         if (event == Event::Character("b")) {
-            if (auto index = lineToIndex(focusLine)) {
+            if (auto index = lineToIndex(focusLine())) {
                 model->toggleInstBreakpoint(*index);
             }
             else {
@@ -234,42 +174,7 @@ struct InstView: ScrollBase {
         return false;
     }
 
-    bool handleMouse(Event event) {
-        auto mouse = event.mouse();
-        if (!box().Contain(mouse.x, mouse.y)) {
-            return false;
-        }
-        if (mouse.button != Mouse::None && mouse.motion == Mouse::Pressed) {
-            TakeFocus();
-        }
-        if (mouse.button == Mouse::Left && mouse.motion == Mouse::Pressed) {
-            long line = event.mouse().y - box().y_min + scrollPosition();
-            long column = event.mouse().x - box().x_min;
-            auto index = lineToIndex(line);
-            if (index && column < 8) {
-                model->toggleInstBreakpoint(*index);
-            }
-            else {
-                focusLine = event.mouse().y - box().y_min + scrollPosition();
-            }
-            return true;
-        }
-        return false;
-    }
-
-    void scrollToIndex(size_t index) { scrollToLine(indexToLineMap[index]); }
-
-    void scrollToLine(long line) {
-        if (isInView(line)) {
-            return;
-        }
-        if (line < scrollPosition()) {
-            center(line, 0.25);
-        }
-        else {
-            center(line, 0.75);
-        }
-    }
+    void toggleBreakpoint(size_t index) { model->toggleInstBreakpoint(index); }
 
     std::optional<size_t> lineToIndex(long line) const {
         auto itr = lineToIndexMap.find(line);
@@ -286,16 +191,8 @@ struct InstView: ScrollBase {
         return std::nullopt;
     }
 
-    void focusLineOffset(long offset) {
-        focusLine = std::clamp(focusLine + offset,
-                               0l,
-                               utl::narrow_cast<long>(ChildCount()) - 1);
-        scrollToLine(focusLine);
-    }
-
     Model* model;
     std::optional<svm::ErrorVariant> error;
-    std::atomic<long> focusLine = 0;
     std::atomic<std::optional<uint32_t>> breakIndex;
     std::atomic<BreakState> breakState = {};
     std::vector<long> indexToLineMap;
@@ -304,6 +201,6 @@ struct InstView: ScrollBase {
 
 } // namespace
 
-View sdb::InstructionView(Model* model, UIHandle& uiHandle) {
+ftxui::Component sdb::InstructionView(Model* model, UIHandle& uiHandle) {
     return Make<InstView>(model, uiHandle);
 }

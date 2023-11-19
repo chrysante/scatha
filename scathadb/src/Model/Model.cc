@@ -35,7 +35,7 @@ struct Model::ExecThread {
     std::mutex commandQueueMutex;
     std::queue<ExecCommand> commands;
     std::condition_variable condVar;
-    std::atomic<ExecState> atomicState;
+    std::atomic<ExecState> atomicState = ExecState::Stopped;
 
     explicit ExecThread(std::function<ExecState()> starting,
                         std::function<ExecState()> running,

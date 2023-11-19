@@ -17,7 +17,14 @@ class UIHandle;
 
 /// Displays the disassembled instructions of the currently loaded program as
 /// well as execution stepping and allows settings breakpoints
-View InstructionView(Model* model, UIHandle& uiHandle);
+ftxui::Component InstructionView(Model* model, UIHandle& uiHandle);
+
+/// Displays the source code of the currently loaded program as
+/// well as execution stepping and allows settings breakpoints
+ftxui::Component SourceView(Model* model, UIHandle& uiHandle);
+
+/// Displays a file browser for the source files of the currently loaded program
+ftxui::Component SourceFileBrowser(Model* model, UIHandle& uiHandle);
 
 /// Displays VM state like registers and compare flags
 ftxui::Component VMStateView(Model* model);

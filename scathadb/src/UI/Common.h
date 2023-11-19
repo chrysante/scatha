@@ -113,7 +113,7 @@ protected:
     void center(long line, double ratio = 0.5);
 
     /// Helper function to be used when overriding `OnEvent()`
-    bool handleScroll(ftxui::Event event, bool allowKeyScroll = true);
+    bool handleScroll(ftxui::Event event);
 
     /// \Returns the bounding box of this view
     ftxui::Box box() const { return _box; }
@@ -124,12 +124,28 @@ protected:
     /// Maximum scroll position based on the current view contents
     long maxScrollPositition() const;
 
+    /// Move view up or down if necessary
+    void scrollToLine(long line);
+
+    /// \Returns the index of the focused line
+    long focusLine() const { return _focusLine; }
+
+    ///
+    void setFocusLine(long line);
+
+    /// Add an offset to which line is focused and move view if necessary
+    void focusLineOffset(long offset);
+
+    /// Scroll views are always focusable to allow keyboard navigation
+    bool Focusable() const override { return true; }
+
 private:
-    bool isScrollUp(ftxui::Event event, bool allowKeyScroll) const;
-    bool isScrollDown(ftxui::Event event, bool allowKeyScroll) const;
+    bool isScrollUp(ftxui::Event event) const;
+    bool isScrollDown(ftxui::Event event) const;
     void clampScroll();
 
     std::atomic<long> scrollPos = 0;
+    std::atomic<long> _focusLine = 0;
     ftxui::Box _box, _lastBox;
 };
 

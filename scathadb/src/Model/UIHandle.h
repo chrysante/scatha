@@ -2,6 +2,7 @@
 #define SDB_MODEL_UIHANDLE_H_
 
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <vector>
 
@@ -79,12 +80,27 @@ public:
         errorCallbacks.push_back(std::move(cb));
     }
 
+    /// Called to open a source file
+    void openSourceFile(std::filesystem::path const& path) const {
+        for (auto& cb: openSourceFileCallbacks) {
+            cb(path);
+        }
+        refresh();
+    }
+
+    void addOpenSourceFileCallback(
+        std::function<void(std::filesystem::path const& path)> cb) {
+        openSourceFileCallbacks.push_back(std::move(cb));
+    }
+
 private:
     std::vector<std::function<void()>> refreshCallbacks;
     std::vector<std::function<void()>> reloadCallbacks;
     std::vector<std::function<void(size_t, BreakState)>> instCallbacks;
     std::vector<std::function<void()>> resumeCallbacks;
     std::vector<std::function<void(svm::ErrorVariant)>> errorCallbacks;
+    std::vector<std::function<void(std::filesystem::path const& path)>>
+        openSourceFileCallbacks;
 };
 
 } // namespace sdb

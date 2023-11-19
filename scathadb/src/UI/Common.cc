@@ -27,7 +27,7 @@ Element sdb::separatorBlank() { return ftxui::separatorEmpty(); }
 Element sdb::spacer() { return ftxui::filler(); }
 
 Element sdb::placeholder(std::string message) {
-    return text(message) | bold | dim | center;
+    return text(message) | bold | dim | center | flex;
 }
 
 Component sdb::Separator() {
@@ -202,37 +202,43 @@ void ScrollBase::center(long line, double ratio) {
     setScroll(line - static_cast<long>(yExtend(_box) * ratio));
 }
 
-bool ScrollBase::isScrollUp(Event event, bool allowKeyScroll) const {
+bool ScrollBase::isScrollUp(Event event) const {
     if (event.is_mouse() && event.mouse().motion == Mouse::Pressed &&
         event.mouse().button == Mouse::WheelUp)
     {
         return _box.Contain(event.mouse().x, event.mouse().y);
     }
-    if (allowKeyScroll && event == Event::ArrowUp) {
-        return true;
-    }
     return false;
 }
 
-bool ScrollBase::isScrollDown(Event event, bool allowKeyScroll) const {
+bool ScrollBase::isScrollDown(Event event) const {
     if (event.is_mouse() && event.mouse().motion == Mouse::Pressed &&
         event.mouse().button == Mouse::WheelDown)
     {
         return _box.Contain(event.mouse().x, event.mouse().y);
     }
-    if (allowKeyScroll && event == Event::ArrowDown) {
-        return true;
-    }
     return false;
 }
 
-bool ScrollBase::handleScroll(Event event, bool allowKeyScroll) {
-    if (isScrollUp(event, allowKeyScroll)) {
+bool ScrollBase::handleScroll(Event event) {
+    if (isScrollUp(event)) {
         setScrollOffset(-1);
         return true;
     }
-    if (isScrollDown(event, allowKeyScroll)) {
+    if (isScrollDown(event)) {
         setScrollOffset(1);
+        return true;
+    }
+    if (event == Event::ArrowUp) {
+        focusLineOffset(-1);
+        return true;
+    }
+    if (event == Event::ArrowDown) {
+        focusLineOffset(1);
+        return true;
+    }
+    /// We eat these to prevent focus loss
+    if (event == Event::ArrowLeft || event == Event::ArrowRight) {
         return true;
     }
     return false;
@@ -249,6 +255,27 @@ long ScrollBase::maxScrollPositition() const {
     return std::max(long{ 0 },
                     static_cast<long>(ChildCount()) - yExtend(_box) +
                         overscroll);
+}
+
+void ScrollBase::scrollToLine(long line) {
+    if (isInView(line)) {
+        return;
+    }
+    if (line < scrollPosition()) {
+        center(line, 0.25);
+    }
+    else {
+        center(line, 0.75);
+    }
+}
+
+void ScrollBase::setFocusLine(long line) {
+    _focusLine = std::clamp(line, 0l, utl::narrow_cast<long>(ChildCount()) - 1);
+    scrollToLine(focusLine());
+}
+
+void ScrollBase::focusLineOffset(long offset) {
+    setFocusLine(focusLine() + offset);
 }
 
 void sdb::beep() { std::cout << "\007"; }

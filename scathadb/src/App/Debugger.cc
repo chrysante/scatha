@@ -75,6 +75,23 @@ auto const ToggleRightSidebarCmd = Command::Add({
     "Show or hide the right sidebar"
 });
 
+auto const CycleMainViewCmd = Command::Add({
+    "v",
+    [](Debugger const& db) {
+        switch (db.mainViewIndex()) {
+        case 0:
+            return "Asm";
+        case 1:
+            return "Src";
+        default:
+            assert(false);
+        }
+    },
+    [](Debugger const& db) { return true; },
+    [](Debugger& db) { db.cycleMainViews(); },
+    "Cycle the main views"
+});
+
 auto const ToggleConsoleCmd = Command::Add({
     "C",
     [](Debugger const& db) { return "▂▂"; }, 
@@ -111,16 +128,30 @@ Debugger::Debugger(Model* _model):
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
     addModal("quit-confirm", QuitConfirm([=] { quit(); }));
-    auto rightSidebar = TabView({ { " VM State ", VMStateView(model()) },
-                                  { " Callstack ", Renderer([] {
-                                        return placeholder("Not Implemented");
-                                    }) } });
+    auto sidebar =
+        TabView({ { " Files ", SourceFileBrowser(model(), uiHandle) },
+                  { " VM State ", VMStateView(model()) } });
+    auto sourceView = SourceView(model(), uiHandle);
     auto instView = InstructionView(model(), uiHandle);
-    auto centralSplit = SplitRight(rightSidebar, instView, &_sidebarSize[1]);
+    mainViews = { sourceView, instView };
+    auto mainView = Container::Tab(mainViews, &_mainViewIdx);
+
+    auto dbgCtrlBar = Toolbar({
+        ToolbarButton(this, ToggleExecCmd),
+        ToolbarButton(this, StepCmd),
+        Spacer(),
+        ToolbarButton(this, ToggleConsoleCmd),
+    });
+    auto bottom = Container::Vertical(
+        { dbgCtrlBar, sdb::Separator(), ConsoleView(model()) });
+    mainView = SplitBottom(bottom, mainView, &_bottombarSize);
+    mainView = SplitLeft(sidebar, mainView, &_sidebarSize[0]);
     auto toolbar = Toolbar({
+        ToolbarButton(this, ToggleLeftSidebarCmd),
         ToolbarButton(this, QuitCmd),
         ToolbarButton(this, RunCmd),
         ToolbarButton(this, StopCmd),
+        ToolbarButton(this, CycleMainViewCmd),
         sdb::Spacer(),
         Renderer(
             [=] { return text(model()->currentFilepath().string()) | flex; }),
@@ -134,23 +165,15 @@ Debugger::Debugger(Model* _model):
         sdb::Separator(),
         toolbar,
         sdb::Separator(),
-        centralSplit | flex,
+        mainView | flex,
     });
-    auto dbgCtrlBar = Toolbar({
-        ToolbarButton(this, ToggleExecCmd),
-        ToolbarButton(this, StepCmd),
-        Spacer(),
-        ToolbarButton(this, ToggleConsoleCmd),
-    });
-    auto bottom = Container::Vertical(
-        { dbgCtrlBar, sdb::Separator(), ConsoleView(model()) });
-    root = SplitBottom(bottom, top, &_bottombarSize);
+    root = top;
     root |= Command::EventCatcher(this);
     for (auto& [name, panel]: modalViews) {
         root |= panel.overlay();
     }
     /// Instruction view is focused by default
-    instView->TakeFocus();
+    sourceView->TakeFocus();
 }
 
 void Debugger::run() { _screen.Loop(root); }

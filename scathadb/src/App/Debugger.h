@@ -73,6 +73,15 @@ public:
     void toggleBottombar();
 
     ///
+    int mainViewIndex() const { return _mainViewIdx; }
+
+    ///
+    void cycleMainViews() {
+        _mainViewIdx = (_mainViewIdx + 1) % int(mainViews.size());
+        mainViews[size_t(_mainViewIdx)]->TakeFocus();
+    }
+
+    ///
     ftxui::ScreenInteractive& screen() { return _screen; }
 
 private:
@@ -81,7 +90,9 @@ private:
     Model* _model;
     std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
+    std::vector<ftxui::Component> mainViews;
     UIHandle uiHandle;
+    int _mainViewIdx = 0;
     int _sidebarSize[2] = { 30, 30 };
     int _sidebarSizeBackup[2] = { 30, 30 };
     int _bottombarSize = 10;
