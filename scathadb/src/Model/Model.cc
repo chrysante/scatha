@@ -128,14 +128,18 @@ void Model::loadProgram(std::filesystem::path filepath) {
         throw std::runtime_error(msg);
     }
     vm.loadBinary(binary.data());
-    //    _currentFilepath = filepath;
+    _currentFilepath = filepath;
     disasm = disassemble(binary);
     if (uiHandle) {
         uiHandle->reload();
     }
 }
 
-void Model::unloadProgram() {}
+void Model::unloadProgram() {
+    stop();
+    clearBreakpoints();
+    _currentFilepath.clear();
+}
 
 void Model::setArguments(std::vector<std::string> arguments) {
     runArguments = std::move(arguments);

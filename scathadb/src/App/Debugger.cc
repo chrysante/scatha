@@ -122,9 +122,8 @@ Debugger::Debugger(Model* _model):
         ToolbarButton(this, RunCmd),
         ToolbarButton(this, StopCmd),
         sdb::Spacer(),
-        Renderer([=] {
-            return text("" /*model()->currentFilepath().string()*/) | flex;
-        }),
+        Renderer(
+            [=] { return text(model()->currentFilepath().string()) | flex; }),
         sdb::Spacer(),
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),

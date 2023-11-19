@@ -95,8 +95,7 @@ struct InstView: ScrollBase {
         };
     };
 
-    std::string makeErrorMessage() const {
-        assert(error);
+    static std::string makeErrorMessage(svm::ErrorVariant const& error) {
         // clang-format off
         return std::visit(utl::overload {
             [&](svm::MemoryAccessError const& err) {
@@ -106,15 +105,15 @@ struct InstView: ScrollBase {
                 using enum svm::AllocationError::Reason;
                 switch (err.reason()) {
                 case InvalidSize:
-                    return utl::strcat("Invalid size: ", err.size());
+                    return utl::strcat("Allocation error (invalid size): ", err.size());
                 case InvalidAlign:
-                    return utl::strcat("Invalid align: ", err.align());
+                    return utl::strcat("Allocation error (invalid align): ", err.align());
                 }
             },
             [&](svm::RuntimeError const& err) {
                 return err.message();
             },
-        }, *error); // clang-format on
+        }, error); // clang-format on
     }
 
     ElementDecorator messageDecorator(std::string message) const {
@@ -141,8 +140,8 @@ struct InstView: ScrollBase {
             return messageDecorator("Breakpoint") | color(Color::White) |
                    bgcolor(Color::Green);
         case Error:
-            return messageDecorator(makeErrorMessage()) | color(Color::White) |
-                   bgcolor(Color::RedLight);
+            return messageDecorator(makeErrorMessage(error.value())) |
+                   color(Color::White) | bgcolor(Color::RedLight);
         }
     };
 

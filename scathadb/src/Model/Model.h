@@ -65,6 +65,9 @@ public:
     /// \Returns the current state
     ExecState state() const;
 
+    /// \Returns the file path of the currently loaded executable
+    std::filesystem::path currentFilepath() const { return _currentFilepath; }
+
     /// \Returns `state() == ExecState::Running`
     bool isRunning() const { return state() == ExecState::Running; }
 
@@ -133,6 +136,7 @@ private:
 
     void handleException();
 
+    std::filesystem::path _currentFilepath;
     std::vector<std::string> runArguments;
     std::unique_ptr<ExecThread> execThread;
     std::mutex vmMutex;
