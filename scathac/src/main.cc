@@ -154,7 +154,8 @@ int main(int argc, char* argv[]) {
     if (issueHandler.haveErrors()) {
         return -1;
     }
-    auto [context, mod] = irgen::generateIR(*ast, semaSym, analysisResult);
+    auto [context, mod] =
+        irgen::generateIR(*ast, semaSym, analysisResult, sourceFiles);
     if (options.optimize) {
         opt::optimize(context, mod, 1);
     }

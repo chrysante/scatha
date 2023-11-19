@@ -8,13 +8,14 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/List.h>
+#include <scatha/Common/Metadata.h>
 #include <scatha/Common/Ranges.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 
-class SCATHA_API Module {
+class SCATHA_API Module: public ObjectWithMetadata {
 public:
     Module() = default;
     Module(Module const& rhs) = delete;

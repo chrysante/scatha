@@ -64,7 +64,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
     return [ast = std::move(ast),
             sym = std::move(sym),
             analysisResult = std::move(analysisResult)] {
-        auto result = irgen::generateIR(*ast, sym, analysisResult);
+        auto result = irgen::generateIR(*ast, sym, analysisResult, {});
         opt::forEach(result.first, result.second, opt::unifyReturns);
         return result;
     };

@@ -822,6 +822,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         }
         auto* result =
             add<ir::ExtractValue>(base.get(), std::array{ irIndex }, "mem.acc");
+        result->setMetadata(expr.sourceRange().end());
         return Value(result, Register);
     }
     case Memory: {

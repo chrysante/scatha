@@ -8,6 +8,7 @@
 #include <utl/hashtable.hpp>
 
 #include "Common/Base.h"
+#include "Common/Metadata.h"
 #include "Common/Ranges.h"
 #include "IR/Fwd.h"
 
@@ -15,7 +16,7 @@ namespace scatha::ir {
 
 /// Represents a value in the program.
 /// Every value has a type. Types are not values.
-class SCATHA_API Value {
+class SCATHA_API Value: public ObjectWithMetadata {
 protected:
     explicit Value(NodeType nodeType,
                    Type const* type,

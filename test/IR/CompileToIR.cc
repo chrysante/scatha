@@ -23,5 +23,5 @@ ir::Module test::compileToIR(std::string_view text) {
     if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }
-    return irgen::generateIR(*ast, sym, analysisResult).second;
+    return irgen::generateIR(*ast, sym, analysisResult, {}).second;
 }
