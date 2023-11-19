@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <svm/Fwd.h>
 #include <svm/OpCode.h>
 #include <svm/Program.h>
 #include <utl/hashtable.hpp>
@@ -65,7 +66,9 @@ struct Instruction {
 
 /// Convert the instruction \p inst to a string. If \p disasm is non-null it is
 /// used to print prettier labels
-std::string toString(Instruction inst, Disassembly const* disasm = nullptr);
+std::string toString(Instruction inst,
+                     Disassembly const* disasm = nullptr,
+                     svm::VirtualMachine const* vm = nullptr);
 
 /// Print \p inst to \p ostream
 std::ostream& operator<<(std::ostream& ostream, Instruction inst);

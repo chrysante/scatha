@@ -5,6 +5,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <svm/VirtualMachine.h>
 #include <utl/strcat.hpp>
 
 using namespace sdb;
@@ -17,6 +18,12 @@ struct Addr {
     uint8_t offsetRegIdx;
     uint8_t offsetFactor;
     uint8_t offsetTerm;
+};
+
+struct CallExtArg {
+    uint8_t regOffset;
+    uint8_t tableIdx;
+    uint16_t idxIntoTable;
 };
 
 } // namespace
@@ -93,7 +100,8 @@ static std::string getLabelName(Disassembly const* disasm, Value offset) {
 
 static void print(std::ostream& str,
                   Instruction inst,
-                  Disassembly const* disasm) {
+                  Disassembly const* disasm,
+                  svm::VirtualMachine const* vm) {
     str << toString(inst.opcode);
     using enum OpCodeClass;
     switch (classify(inst.opcode)) {
@@ -133,8 +141,20 @@ static void print(std::ostream& str,
             break;
         case OpCode::terminate:
             break;
-        case OpCode::callExt:
+        case OpCode::callExt: {
+            auto args =
+                std::bit_cast<CallExtArg>(static_cast<uint32_t>(inst.arg1.raw));
+            str << " " << +args.regOffset;
+            if (vm) {
+                str << ", "
+                    << vm->getExtFunctionTable(args.tableIdx)[args.idxIntoTable]
+                           .name();
+            }
+            else {
+                str << ", " << +args.tableIdx << ", " << args.idxIntoTable;
+            }
             break;
+        }
         default:
             assert(false);
         }
@@ -144,14 +164,16 @@ static void print(std::ostream& str,
     }
 }
 
-std::string sdb::toString(Instruction inst, Disassembly const* disasm) {
+std::string sdb::toString(Instruction inst,
+                          Disassembly const* disasm,
+                          svm::VirtualMachine const* vm) {
     std::stringstream sstr;
-    print(sstr, inst, disasm);
+    print(sstr, inst, disasm, vm);
     return std::move(sstr).str();
 }
 
 std::ostream& sdb::operator<<(std::ostream& str, Instruction inst) {
-    print(str, inst, nullptr);
+    print(str, inst, nullptr, nullptr);
     return str;
 }
 
@@ -226,12 +248,13 @@ static Instruction readInstruction(uint8_t const* textPtr) {
         case OpCode::terminate:
             break;
         case OpCode::callExt:
+            arg1 = makeValue32(load<uint32_t>(argData));
             break;
         default:
             assert(false);
         }
         break;
-    case _count:
+    default:
         assert(false);
     }
     return { opcode, arg1, arg2 };

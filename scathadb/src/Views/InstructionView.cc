@@ -164,7 +164,7 @@ struct InstView: ScrollBase {
                 auto line = getLineInfo(lineNum);
                 auto& disasm = model->disassembly();
                 std::string labelText(
-                    toString(disasm.instruction(index), &disasm));
+                    toString(disasm.instruction(index), &disasm, &model->VM()));
                 return hbox({ lineNumber(line),
                               breakpointIndicator(line),
                               text(labelText) | flex }) |
