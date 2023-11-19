@@ -18,7 +18,7 @@ public:
     explicit SourceFile(std::filesystem::path path, std::string text);
 
     /// Load a source file from a file path
-    static SourceFile LoadFile(std::filesystem::path path);
+    static SourceFile Load(std::filesystem::path path);
 
     /// \Returns the path where this source file is located
     std::filesystem::path const& path() const { return _path; }

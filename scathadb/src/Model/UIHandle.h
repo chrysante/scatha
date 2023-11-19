@@ -10,6 +10,8 @@
 
 namespace sdb {
 
+class SourceFile;
+
 enum class BreakState {
     None,
     Step,
@@ -81,15 +83,15 @@ public:
     }
 
     /// Called to open a source file
-    void openSourceFile(std::filesystem::path const& path) const {
+    void openSourceFile(SourceFile const* file) const {
         for (auto& cb: openSourceFileCallbacks) {
-            cb(path);
+            cb(file);
         }
         refresh();
     }
 
     void addOpenSourceFileCallback(
-        std::function<void(std::filesystem::path const& path)> cb) {
+        std::function<void(SourceFile const* file)> cb) {
         openSourceFileCallbacks.push_back(std::move(cb));
     }
 
@@ -99,8 +101,7 @@ private:
     std::vector<std::function<void(size_t, BreakState)>> instCallbacks;
     std::vector<std::function<void()>> resumeCallbacks;
     std::vector<std::function<void(svm::ErrorVariant)>> errorCallbacks;
-    std::vector<std::function<void(std::filesystem::path const& path)>>
-        openSourceFileCallbacks;
+    std::vector<std::function<void(SourceFile const*)>> openSourceFileCallbacks;
 };
 
 } // namespace sdb

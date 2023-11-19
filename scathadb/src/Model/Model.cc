@@ -105,12 +105,12 @@ struct Model::ExecThread {
 };
 
 Model::Model(UIHandle* uiHandle):
+    uiHandle(uiHandle),
     execThread(std::make_unique<ExecThread>([this] { return starting(); },
                                             [this] { return running(); },
                                             [this] { return paused(); },
                                             [this] { return stopping(); },
                                             [this] { return exiting(); })),
-    uiHandle(uiHandle),
     breakpoints(&disasm) {
     vm.setIOStreams(nullptr, &_stdout);
 }
@@ -130,6 +130,9 @@ void Model::loadProgram(std::filesystem::path filepath) {
     vm.loadBinary(binary.data());
     _currentFilepath = filepath;
     disasm = disassemble(binary);
+    auto dsympath = filepath;
+    dsympath += ".scdsym";
+    sourceDbg = SourceDebugInfo::Load(dsympath);
     if (uiHandle) {
         uiHandle->reload();
     }

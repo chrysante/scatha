@@ -21,11 +21,15 @@ namespace {
 struct SourceViewBase: FileViewBase<SourceViewBase> {
     SourceViewBase(Model* model, UIHandle& uiHandle): model(model) {
         uiHandle.addOpenSourceFileCallback(
-            [this](std::filesystem::path const& path) { reload(path); });
+            [this](SourceFile const* file) { reload(file); });
+        auto& debug = model->sourceDebug();
+        if (!debug.empty()) {
+            reload(&debug.files().front());
+        }
     }
 
     Element Render() override {
-        if (file.path().empty()) {
+        if (!file) {
             return placeholder("No File Open");
         }
         return ScrollBase::Render();
@@ -60,13 +64,13 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
         }
     }
 
-    void reload(std::filesystem::path path = {}) {
+    void reload(SourceFile const* file = nullptr) {
         DetachAllChildren();
-        if (path.empty()) {
-            path = file.path();
+        this->file = file;
+        if (!file) {
+            return;
         }
-        file = SourceFile::LoadFile(path);
-        for (auto [index, line]: file.lines() | ranges::views::enumerate) {
+        for (auto [index, line]: file->lines() | ranges::views::enumerate) {
             Add(Renderer([=, index = index, line = std::string(line)] {
                 auto lineInfo = getLineInfo(utl::narrow_cast<ssize_t>(index));
                 return hbox({ lineNumber(lineInfo),
@@ -82,21 +86,21 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
     }
 
     std::optional<size_t> lineToIndex(long line) const {
-        if (line >= 0 && line < file.lines().size()) {
+        if (line >= 0 && line < file->lines().size()) {
             return static_cast<size_t>(line);
         }
         return std::nullopt;
     }
 
     std::optional<long> indexToLine(size_t index) const {
-        if (index < file.lines().size()) {
+        if (index < file->lines().size()) {
             return static_cast<long>(index);
         }
         return std::nullopt;
     }
 
-    SourceFile file;
-    Model* model;
+    Model* model = nullptr;
+    SourceFile const* file = nullptr;
 };
 
 } // namespace

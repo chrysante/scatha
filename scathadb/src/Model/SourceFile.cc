@@ -22,7 +22,7 @@ static std::vector<std::string_view> splitLines(std::string_view text) {
 SourceFile::SourceFile(std::filesystem::path path, std::string text):
     _path(std::move(path)), _text(std::move(text)), _lines(splitLines(_text)) {}
 
-SourceFile SourceFile::LoadFile(std::filesystem::path path) {
+SourceFile SourceFile::Load(std::filesystem::path path) {
     std::fstream file(path);
     if (!file) {
         throw std::runtime_error(utl::strcat("Failed to load file ", path));

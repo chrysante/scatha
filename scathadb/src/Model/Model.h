@@ -10,6 +10,7 @@
 
 #include "Model/Breakpoint.h"
 #include "Model/Disassembler.h"
+#include "Model/SourceDebugInfo.h"
 #include "Model/UIHandle.h"
 
 namespace sdb {
@@ -119,6 +120,9 @@ public:
     /// now)
     std::vector<uint64_t> readRegisters(size_t count);
 
+    ///
+    SourceDebugInfo const& sourceDebug() const { return sourceDbg; }
+
 private:
     struct ExecThread;
 
@@ -136,13 +140,17 @@ private:
 
     void handleException();
 
+    UIHandle* uiHandle;
+
     std::filesystem::path _currentFilepath;
     std::vector<std::string> runArguments;
     std::unique_ptr<ExecThread> execThread;
     std::mutex vmMutex;
     svm::VirtualMachine vm;
+
     Disassembly disasm;
-    UIHandle* uiHandle;
+    SourceDebugInfo sourceDbg;
+
     std::mutex breakpointMutex;
     BreakpointSet breakpoints;
 
