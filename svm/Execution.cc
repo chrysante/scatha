@@ -694,3 +694,7 @@ u64 const* VMImpl::endExecution() {
 size_t VMImpl::instructionPointerOffset() const {
     return utl::narrow_cast<size_t>(currentFrame.iptr - binary);
 }
+
+void VMImpl::setInstructionPointerOffset(size_t offset) {
+    currentFrame.iptr = binary + offset;
+}

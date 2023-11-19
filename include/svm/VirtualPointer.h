@@ -6,6 +6,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <iosfwd>
 
 namespace svm {
 
@@ -24,6 +25,9 @@ struct VirtualPointer {
     uint64_t offset    : 48;
     uint64_t slotIndex : 16;
 };
+
+/// Print \p ptr to \p ostream
+std::ostream& operator<<(std::ostream& ostream, VirtualPointer ptr);
 
 /// \Returns `ptr + offset`
 inline VirtualPointer operator+(VirtualPointer ptr, std::integral auto offset) {

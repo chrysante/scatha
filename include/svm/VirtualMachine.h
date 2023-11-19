@@ -71,6 +71,10 @@ public:
     /// \Returns the instruction pointer offset from the beginning of the binary
     size_t instructionPointerOffset() const;
 
+    /// Set the instruction pointer to \p offset bytes past the beginning of the
+    /// static data section
+    void setInstructionPointerOffset(size_t offset);
+
     /// @} Stepwise execution
 
     /// Set a slot of the external function table

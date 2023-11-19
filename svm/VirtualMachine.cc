@@ -87,6 +87,10 @@ size_t VirtualMachine::instructionPointerOffset() const {
     return impl->instructionPointerOffset();
 }
 
+void VirtualMachine::setInstructionPointerOffset(size_t offset) {
+    impl->setInstructionPointerOffset(offset);
+}
+
 void VirtualMachine::setFunctionTableSlot(
     size_t slot, std::vector<ExternalFunction> functions) {
     if (slot >= impl->extFunctionTable.size()) {

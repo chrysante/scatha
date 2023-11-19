@@ -2,9 +2,6 @@
 
 using namespace svm;
 
-MemoryError::MemoryError(std::string message, VirtualPointer pointer):
-    runtime_error(std::move(message)), ptr(pointer) {}
-
 static size_t roundUp(size_t value, size_t multipleOf) {
     size_t rem = value % multipleOf;
     if (rem == 0) {
@@ -148,5 +145,5 @@ std::pair<size_t, PoolAllocator&> VirtualMemory::getPool(size_t size,
 void VirtualMemory::reportAccessError(MemoryAccessError::Reason reason,
                                       VirtualPointer ptr,
                                       size_t size) {
-    throw MemoryAccessError(reason, ptr, size);
+    throw RuntimeException(MemoryAccessError(reason, ptr, size));
 }

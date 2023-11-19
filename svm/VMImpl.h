@@ -69,6 +69,7 @@ struct VMImpl {
     void stepExecution();
     u64 const* endExecution();
     size_t instructionPointerOffset() const;
+    void setInstructionPointerOffset(size_t offset);
     /// @}
 };
 
