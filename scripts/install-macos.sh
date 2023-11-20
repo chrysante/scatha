@@ -4,11 +4,23 @@ PROJ_DIR="$SCRIPT_DIR/.."
 
 $SCRIPT_DIR/build-dependencies.sh
 
-xcodebuild -project "$PROJ_DIR/scathac.xcodeproj" -configuration Release -quiet
-xcodebuild -project "$PROJ_DIR/svm.xcodeproj" -configuration Release -quiet
-xcodebuild -project "$PROJ_DIR/scathadb/scathadb.xcodeproj" -configuration Release -quiet
+compile() {
+    xcodebuild -project "$PROJ_DIR/$1" -configuration Release -quiet
+}
 
-cp "$PROJ_DIR/build/bin/Release/scathac" "/usr/local/bin"
-cp "$PROJ_DIR/build/bin/Release/libscatha.dylib" "/usr/local/bin"
-cp "$PROJ_DIR/build/bin/Release/svm" "/usr/local/bin"
-cp "$PROJ_DIR/build/bin/Release/scathadb" "/usr/local/bin"
+copy() {
+    cp "$PROJ_DIR/build/bin/Release/$1" "/usr/local/bin"
+}
+
+compile scathac/scathac.xcodeproj
+copy scathac
+copy libscatha.dylib
+
+compile svm/svm.xcodeproj
+copy svm
+
+compile svm/scathadb.xcodeproj
+copy scathadc
+
+compile sctool/sctool.xcodeproj
+copy sctool
