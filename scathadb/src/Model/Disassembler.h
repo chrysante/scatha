@@ -107,6 +107,7 @@ public:
 
     /// \Returns the binary offset of the instruction at index \p index
     size_t indexToOffset(size_t index) const {
+        // TODO: Return std::optional here
         assert(index < indexToOffsetMap.size());
         return indexToOffsetMap[index];
     }

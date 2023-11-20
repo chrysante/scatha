@@ -32,11 +32,11 @@ struct InstView: FileViewBase<InstView> {
     InstView(Model* model, UIHandle& uiHandle): model(model) {
         uiHandle.addReloadCallback([this] { reload(); });
         uiHandle.addInstCallback([this](size_t index, BreakState state) {
-            setFocusLine(indexToLine(index).value());
-            breakIndex = index;
             if (auto line = indexToLine(index)) {
+                setFocusLine(*line);
                 scrollToLine(*line);
             }
+            breakIndex = index;
             breakState = state;
         });
         uiHandle.addResumeCallback([this]() {

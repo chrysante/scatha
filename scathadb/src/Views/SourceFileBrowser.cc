@@ -31,7 +31,7 @@ struct FileBrowser: ScrollBase {
 
     Model const* model = nullptr;
     UIHandle const* uiHandle = nullptr;
-    SourceDebugInfo const* debug;
+    SourceDebugInfo const* debug = nullptr;
 };
 
 } // namespace

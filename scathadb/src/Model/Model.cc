@@ -110,8 +110,7 @@ Model::Model(UIHandle* uiHandle):
                                             [this] { return running(); },
                                             [this] { return paused(); },
                                             [this] { return stopping(); },
-                                            [this] { return exiting(); })),
-    breakpoints(&disasm) {
+                                            [this] { return exiting(); })) {
     vm.setIOStreams(nullptr, &_stdout);
 }
 
@@ -132,7 +131,7 @@ void Model::loadProgram(std::filesystem::path filepath) {
     disasm = disassemble(binary);
     auto dsympath = filepath;
     dsympath += ".scdsym";
-    sourceDbg = SourceDebugInfo::Load(dsympath);
+    sourceDbg = SourceDebugInfo::Load(dsympath, disasm);
     if (uiHandle) {
         uiHandle->reload();
     }
@@ -181,6 +180,38 @@ std::vector<uint64_t> Model::readRegisters(size_t count) {
     return std::vector<uint64_t>(regs.data(), regs.data() + count);
 }
 
+void Model::toggleInstBreakpoint(size_t instIndex) {
+    size_t offset = disasm.indexToOffset(instIndex);
+    instBreakpoints.toggle(offset);
+}
+
+bool Model::toggleSourceBreakpoint(size_t lineIndex) {
+    auto offsets = sourceDebug().sourceMap().toOffsets(lineIndex);
+    if (offsets.empty()) {
+        return false;
+    }
+    sourceBreakpoints.toggle(offsets.front());
+    return true;
+}
+
+bool Model::hasInstBreakpoint(size_t instIndex) const {
+    size_t offset = disasm.indexToOffset(instIndex);
+    return instBreakpoints.at(offset);
+}
+
+bool Model::hasSourceBreakpoint(size_t lineIndex) const {
+    auto offsets = sourceDebug().sourceMap().toOffsets(lineIndex);
+    if (offsets.empty()) {
+        return false;
+    }
+    return sourceBreakpoints.at(offsets.front());
+}
+
+void Model::clearBreakpoints() {
+    instBreakpoints.clear();
+    sourceBreakpoints.clear();
+}
+
 ExecState Model::starting() {
     using enum ExecState;
     execThread->popCommand();
@@ -190,8 +221,7 @@ ExecState Model::starting() {
     auto execArg = setupArguments(vm, runArguments);
     vm.beginExecution(execArg);
     size_t offset = vm.instructionPointerOffset();
-    if (breakpoints.atOffset(offset)) {
-        handleInstEncounter(offset, BreakState::Breakpoint);
+    if (handleBreakpoint(offset)) {
         return Paused;
     }
     return Running;
@@ -248,22 +278,22 @@ ExecState Model::exiting() {
     return Stopped;
 }
 
+int const NumExecStepsPerFSMStep = 20;
+
 ExecState Model::doExecuteSteps() {
     using enum ExecState;
-    int const NumSteps = 20;
     std::lock_guard bpLock(breakpointMutex);
     size_t offset = 0;
     std::lock_guard vmLock(vmMutex);
     try {
-        for (int i = 0; i < NumSteps; ++i) {
+        for (int i = 0; i < NumExecStepsPerFSMStep; ++i) {
             if (!vm.running()) {
                 return Exiting;
             }
             offset = vm.instructionPointerOffset();
             vm.stepExecution();
             offset = vm.instructionPointerOffset();
-            if (breakpoints.atOffset(offset)) {
-                handleInstEncounter(offset, BreakState::Breakpoint);
+            if (handleBreakpoint(offset)) {
                 return Paused;
             }
         }
@@ -272,6 +302,7 @@ ExecState Model::doExecuteSteps() {
     catch (...) {
         handleException();
         handleInstEncounter(offset, BreakState::Error);
+        handleSourceLineEncounter(offset, BreakState::Error);
         vm.setInstructionPointerOffset(offset);
         return Paused;
     }
@@ -300,11 +331,67 @@ ExecState Model::doStepInstruction() {
     }
 }
 
-ExecState Model::doStepSourceLine() { assert(false); }
+ExecState Model::doStepSourceLine() {
+    assert(vm.running() && "Must be active to step");
+    using enum ExecState;
+    std::lock_guard lock(vmMutex);
+    size_t offset = vm.instructionPointerOffset();
+    auto startLoc = sourceDebug().sourceMap().toSourceLoc(offset).value();
+    try {
+        while (true) {
+            vm.stepExecution();
+            if (!vm.running()) {
+                return Exiting;
+            }
+            offset = vm.instructionPointerOffset();
+            auto loc = sourceDebug().sourceMap().toSourceLoc(offset);
+            if (loc && loc->line != startLoc.line) {
+                break;
+            }
+        }
+    }
+    catch (...) {
+        handleException();
+        handleInstEncounter(offset, BreakState::Error);
+        handleSourceLineEncounter(offset, BreakState::Error);
+        vm.setInstructionPointerOffset(offset);
+        return Paused;
+    }
+    if (vm.running()) {
+        handleInstEncounter(vm.instructionPointerOffset(), BreakState::Step);
+        handleSourceLineEncounter(vm.instructionPointerOffset(),
+                                  BreakState::Step);
+        return Paused;
+    }
+    else {
+        return Exiting;
+    }
+}
+
+bool Model::handleBreakpoint(size_t offset) {
+    if (instBreakpoints.at(offset)) {
+        handleInstEncounter(offset, BreakState::Breakpoint);
+        handleSourceLineEncounter(offset, BreakState::Breakpoint);
+        return true;
+    }
+    if (sourceBreakpoints.at(offset)) {
+        handleInstEncounter(offset, BreakState::Breakpoint);
+        handleSourceLineEncounter(offset, BreakState::Breakpoint);
+        return true;
+    }
+    return false;
+}
 
 void Model::handleInstEncounter(size_t offset, BreakState state) {
-    auto index = disasm.offsetToIndex(offset);
-    uiHandle->hitInstruction(index.value_or(0), state);
+    if (auto index = disasm.offsetToIndex(offset)) {
+        uiHandle->hitInstruction(*index, state);
+    }
+}
+
+void Model::handleSourceLineEncounter(size_t offset, BreakState state) {
+    if (auto SL = sourceDbg.sourceMap().toSourceLoc(offset)) {
+        uiHandle->hitSourceLine(SL->line, state);
+    }
 }
 
 void Model::handleException() {

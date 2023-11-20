@@ -108,14 +108,24 @@ auto const ToggleExecCmd = Command::Add({
     "Toggle execution"
 });
 
-auto const StepCmd = Command::Add({
-    "s",
-    [](Debugger const& db) { return ">_"; },
+auto const StepInstCmd = Command::Add({
+    "i",
+    [](Debugger const& db) { return ">."; },
     [](Debugger const& db) {
         return db.model()->isPaused();
     },
     [](Debugger& db) { db.model()->stepInstruction(); },
-    "Execute one execution step (one instruction)"
+    "Execute the current instruction)"
+});
+
+auto const StepSourceLineCmd = Command::Add({
+    "l",
+    [](Debugger const& db) { return ">_"; },
+    [](Debugger const& db) {
+        return !db.model()->sourceDebug().empty() && db.model()->isPaused();
+    },
+    [](Debugger& db) { db.model()->stepSourceLine(); },
+    "Execute the current line"
 });
 // clang-format on
 
@@ -138,7 +148,8 @@ Debugger::Debugger(Model* _model):
 
     auto dbgCtrlBar = Toolbar({
         ToolbarButton(this, ToggleExecCmd),
-        ToolbarButton(this, StepCmd),
+        ToolbarButton(this, StepSourceLineCmd),
+        ToolbarButton(this, StepInstCmd),
         Spacer(),
         ToolbarButton(this, ToggleConsoleCmd),
     });

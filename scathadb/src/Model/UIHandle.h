@@ -46,7 +46,7 @@ public:
         reloadCallbacks.push_back(std::move(cb));
     }
 
-    /// Called when an instruction breakpoint has been hit at index \p index
+    /// Called when an instruction has been hit at index \p index
     void hitInstruction(size_t index, BreakState state) const {
         for (auto& cb: instCallbacks) {
             cb(index, state);
@@ -56,6 +56,18 @@ public:
 
     void addInstCallback(std::function<void(size_t, BreakState)> cb) {
         instCallbacks.push_back(std::move(cb));
+    }
+
+    /// Called when a source line has been hit at index \p index
+    void hitSourceLine(size_t lineIndex, BreakState state) const {
+        for (auto& cb: sourceCallbacks) {
+            cb(lineIndex, state);
+        }
+        refresh();
+    }
+
+    void addSourceCallback(std::function<void(size_t, BreakState)> cb) {
+        sourceCallbacks.push_back(std::move(cb));
     }
 
     /// Called when execution resumes after being paused
@@ -99,6 +111,7 @@ private:
     std::vector<std::function<void()>> refreshCallbacks;
     std::vector<std::function<void()>> reloadCallbacks;
     std::vector<std::function<void(size_t, BreakState)>> instCallbacks;
+    std::vector<std::function<void(size_t, BreakState)>> sourceCallbacks;
     std::vector<std::function<void()>> resumeCallbacks;
     std::vector<std::function<void(svm::ErrorVariant)>> errorCallbacks;
     std::vector<std::function<void(SourceFile const*)>> openSourceFileCallbacks;

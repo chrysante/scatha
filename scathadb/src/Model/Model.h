@@ -105,13 +105,19 @@ public:
     std::stringstream& standardout() { return _stdout; }
 
     ///
-    void toggleInstBreakpoint(size_t index) { breakpoints.toggle(index); }
+    void toggleInstBreakpoint(size_t instIndex);
+
+    /// \Returns `true` if a breakpoint could be set on line \p lineIndex
+    bool toggleSourceBreakpoint(size_t lineIndex);
 
     ///
-    void clearBreakpoints() { breakpoints.clear(); }
+    bool hasInstBreakpoint(size_t instIndex) const;
 
     ///
-    bool hasInstBreakpoint(size_t index) const { return breakpoints.at(index); }
+    bool hasSourceBreakpoint(size_t lineIndex) const;
+
+    ///
+    void clearBreakpoints();
 
     ///
     void setUIHandle(UIHandle* handle) { uiHandle = handle; }
@@ -136,7 +142,10 @@ private:
     ExecState doStepInstruction();
     ExecState doStepSourceLine();
 
+    bool handleBreakpoint(size_t binaryOffset);
+
     void handleInstEncounter(size_t binaryOffset, BreakState state);
+    void handleSourceLineEncounter(size_t binaryOffset, BreakState state);
 
     void handleException();
 
@@ -152,7 +161,7 @@ private:
     SourceDebugInfo sourceDbg;
 
     std::mutex breakpointMutex;
-    BreakpointSet breakpoints;
+    BreakpointSet instBreakpoints, sourceBreakpoints;
 
     std::stringstream _stdout;
 };

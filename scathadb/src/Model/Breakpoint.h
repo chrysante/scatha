@@ -8,31 +8,31 @@
 
 namespace sdb {
 
-class Disassembly;
-
 ///
 class BreakpointSet {
 public:
-    explicit BreakpointSet(Disassembly const* disasm): disasm(disasm) {}
-
-    /// Add breakpoint if none is existent at instruction index \p instIndex or
+    /// Add breakpoint if none is existent at binary offset \p offset or
     /// remove otherwise
-    void toggle(size_t instIndex);
+    void toggle(size_t offset) {
+        auto itr = set.find(offset);
+        if (itr != set.end()) {
+            set.erase(itr);
+        }
+        else {
+            set.insert(offset);
+        }
+    }
 
-    /// Remove the breakpoint at instruction index \p instIndex
-    void erase(size_t instIndex);
+    /// Remove the breakpoint at binary offset \p offset
+    void erase(size_t offset) { set.erase(offset); }
 
     /// Remove all breakpoints
-    void clear();
+    void clear() { set.clear(); }
 
-    /// \Returns `true` if a breakpoint exists at instruction index \p index
-    bool at(size_t instIndex) const;
-
-    /// \Returns `true` if a breakpoint exists at binary offset \p binaryOffset
-    bool atOffset(size_t binaryOffset) const;
+    /// \Returns `true` if a breakpoint exists at binary offset \p offset
+    bool at(size_t offset) const { return set.contains(offset); }
 
 private:
-    Disassembly const* disasm;
     utl::hashset<size_t> set;
 };
 
