@@ -21,16 +21,19 @@ namespace {
 struct SourceViewBase: FileViewBase<SourceViewBase> {
     SourceViewBase(Model* model, UIHandle& uiHandle): model(model) {
         uiHandle.addReloadCallback([this] { reload(); });
-        uiHandle.addOpenSourceFileCallback([this](SourceFile const* file) {
-            reload(file);
+        uiHandle.addOpenSourceFileCallback([this](size_t index) {
+            reload(index);
             TakeFocus();
         });
-        uiHandle.addSourceCallback([this](size_t index, BreakState state) {
-            if (auto line = indexToLine(index)) {
+        uiHandle.addSourceCallback([this](SourceLocation SL, BreakState state) {
+            if (SL.fileIndex != fileIndex) {
+                reload(size_t(SL.fileIndex));
+            }
+            if (auto line = indexToLine(SL.line)) {
                 setFocusLine(*line);
                 scrollToLine(*line);
             }
-            breakIndex = index;
+            breakIndex = SL.line;
             breakState = state;
         });
         uiHandle.addResumeCallback([this]() {
@@ -45,7 +48,7 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
     }
 
     Element Render() override {
-        if (!file) {
+        if (!fileIndex) {
             return placeholder("No File Open");
         }
         return ScrollBase::Render();
@@ -92,17 +95,18 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
         }
     }
 
-    void reload(SourceFile const* file = nullptr) {
+    void reload(std::optional<size_t> sourceFileIndex = std::nullopt) {
         DetachAllChildren();
-        if (!file) {
-            auto& debug = model->sourceDebug();
-            if (debug.empty()) {
-                this->file = nullptr;
-            }
-            file = &debug.files().front();
+        auto& debug = model->sourceDebug();
+        if (!sourceFileIndex && !debug.empty()) {
+            sourceFileIndex = 0;
         }
-        this->file = file;
-        for (auto [index, line]: file->lines() | ranges::views::enumerate) {
+        fileIndex = sourceFileIndex;
+        if (!fileIndex) {
+            return;
+        }
+        auto& file = debug.files()[*fileIndex];
+        for (auto [index, line]: file.lines() | ranges::views::enumerate) {
             Add(Renderer([=, index = index, line = std::string(line)] {
                 auto lineInfo = getLineInfo(utl::narrow_cast<ssize_t>(index));
                 return hbox({ lineNumber(lineInfo),
@@ -118,21 +122,23 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
     }
 
     std::optional<size_t> lineToIndex(long line) const {
-        if (line >= 0 && line < file->lines().size()) {
+        auto& file = model->sourceDebug().files()[*fileIndex];
+        if (line >= 0 && line < file.lines().size()) {
             return static_cast<size_t>(line) + 1;
         }
         return std::nullopt;
     }
 
     std::optional<long> indexToLine(size_t index) const {
-        if (index < file->lines().size()) {
+        auto& file = model->sourceDebug().files()[*fileIndex];
+        if (index < file.lines().size()) {
             return static_cast<long>(index) - 1;
         }
         return std::nullopt;
     }
 
     Model* model = nullptr;
-    SourceFile const* file = nullptr;
+    std::optional<size_t> fileIndex = 0;
     std::optional<svm::ErrorVariant> error;
     std::atomic<std::optional<uint32_t>> breakIndex;
     std::atomic<BreakState> breakState = {};

@@ -6,6 +6,7 @@
 #include <functional>
 #include <vector>
 
+#include "Model/SourceDebugInfo.h"
 #include <svm/Errors.h>
 
 namespace sdb {
@@ -59,14 +60,14 @@ public:
     }
 
     /// Called when a source line has been hit at index \p index
-    void hitSourceLine(size_t lineIndex, BreakState state) const {
+    void hitSourceLocation(SourceLocation SL, BreakState state) const {
         for (auto& cb: sourceCallbacks) {
-            cb(lineIndex, state);
+            cb(SL, state);
         }
         refresh();
     }
 
-    void addSourceCallback(std::function<void(size_t, BreakState)> cb) {
+    void addSourceCallback(std::function<void(SourceLocation, BreakState)> cb) {
         sourceCallbacks.push_back(std::move(cb));
     }
 
@@ -95,15 +96,14 @@ public:
     }
 
     /// Called to open a source file
-    void openSourceFile(SourceFile const* file) const {
+    void openSourceFile(size_t index) const {
         for (auto& cb: openSourceFileCallbacks) {
-            cb(file);
+            cb(index);
         }
         refresh();
     }
 
-    void addOpenSourceFileCallback(
-        std::function<void(SourceFile const* file)> cb) {
+    void addOpenSourceFileCallback(std::function<void(size_t index)> cb) {
         openSourceFileCallbacks.push_back(std::move(cb));
     }
 
@@ -111,10 +111,11 @@ private:
     std::vector<std::function<void()>> refreshCallbacks;
     std::vector<std::function<void()>> reloadCallbacks;
     std::vector<std::function<void(size_t, BreakState)>> instCallbacks;
-    std::vector<std::function<void(size_t, BreakState)>> sourceCallbacks;
+    std::vector<std::function<void(SourceLocation, BreakState)>>
+        sourceCallbacks;
     std::vector<std::function<void()>> resumeCallbacks;
     std::vector<std::function<void(svm::ErrorVariant)>> errorCallbacks;
-    std::vector<std::function<void(SourceFile const*)>> openSourceFileCallbacks;
+    std::vector<std::function<void(size_t index)>> openSourceFileCallbacks;
 };
 
 } // namespace sdb

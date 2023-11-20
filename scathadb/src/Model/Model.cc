@@ -390,7 +390,7 @@ void Model::handleInstEncounter(size_t offset, BreakState state) {
 
 void Model::handleSourceLineEncounter(size_t offset, BreakState state) {
     if (auto SL = sourceDbg.sourceMap().toSourceLoc(offset)) {
-        uiHandle->hitSourceLine(SL->line, state);
+        uiHandle->hitSourceLocation(*SL, state);
     }
 }
 

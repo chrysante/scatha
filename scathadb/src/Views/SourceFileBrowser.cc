@@ -1,5 +1,7 @@
 #include "Views/Views.h"
 
+#include <range/v3/view.hpp>
+
 #include "Model/Model.h"
 #include "Model/SourceDebugInfo.h"
 #include "Model/UIHandle.h"
@@ -23,9 +25,10 @@ struct FileBrowser: ScrollBase {
         if (debug->empty()) {
             return;
         }
-        for (auto& file: debug->files()) {
-            Add(Button(file.path().filename().string(),
-                       [=] { uiHandle->openSourceFile(&file); }));
+        for (auto [index, file]: debug->files() | ranges::views::enumerate) {
+            Add(Button(file.path().filename().string(), [=, index = index] {
+                uiHandle->openSourceFile(index);
+            }));
         }
     }
 

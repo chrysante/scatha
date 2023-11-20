@@ -74,7 +74,8 @@ SourceDebugInfo SourceDebugInfo::Load(std::filesystem::path path,
     for (auto [index, jsonSL]: json["sourcemap"] | ranges::views::enumerate) {
         try {
             auto SL = jsonSL.get<SourceLocation>();
-            size_t offset = disasm.indexToOffset(index);
+            uint32_t offset =
+                utl::narrow_cast<uint32_t>(disasm.indexToOffset(index));
             sourceMap.offsetToSrcLoc.insert({ offset, SL });
             sourceMap.srcLocToOffsets[SL].push_back(offset);
             sourceMap.srcLineToOffsets[size_t(SL.line)].push_back(offset);
