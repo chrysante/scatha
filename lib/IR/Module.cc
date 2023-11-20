@@ -6,6 +6,8 @@
 using namespace scatha;
 using namespace ir;
 
+Module::Module() = default;
+
 Module::Module(Module&& rhs) noexcept = default;
 
 Module& Module::operator=(Module&& rhs) noexcept = default;

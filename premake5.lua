@@ -151,6 +151,7 @@ filter {}
 include "svm/premake5.lua"
 include "scathac/premake5.lua"
 include "scathadb/premake5.lua"
+include "sctool/premake5.lua"
 include "passtool"
 
 include "external/termfmt/lib.lua"

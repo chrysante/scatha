@@ -17,7 +17,7 @@ namespace scatha::ir {
 
 class SCATHA_API Module: public ObjectWithMetadata {
 public:
-    Module() = default;
+    Module();
     Module(Module const& rhs) = delete;
     Module(Module&& rhs) noexcept;
     Module& operator=(Module const& rhs) = delete;

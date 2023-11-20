@@ -11,10 +11,6 @@ namespace scatha::Asm {
 class AssemblyStream;
 class Block;
 
-SCATHA_API void print(AssemblyStream const& assemblyStream);
-SCATHA_API void print(AssemblyStream const& assemblyStream,
-                      std::ostream& ostream);
-
 SCATHA_API void print(Block const& block);
 SCATHA_API void print(Block const& block, std::ostream& ostream);
 

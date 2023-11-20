@@ -3,7 +3,7 @@
 
 #include <iosfwd>
 
-#include "IR/Fwd.h"
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

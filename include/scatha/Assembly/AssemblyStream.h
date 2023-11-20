@@ -1,6 +1,7 @@
 #ifndef SCATHA_ASSEMBLY_ASSEMBLYSTREAM_H_
 #define SCATHA_ASSEMBLY_ASSEMBLYSTREAM_H_
 
+#include <iosfwd>
 #include <list>
 #include <memory>
 #include <span>
@@ -45,6 +46,11 @@ private:
 
     std::unique_ptr<Impl> impl;
 };
+
+SCATHA_API void print(AssemblyStream const& assemblyStream);
+
+SCATHA_API void print(AssemblyStream const& assemblyStream,
+                      std::ostream& ostream);
 
 } // namespace scatha::Asm
 
