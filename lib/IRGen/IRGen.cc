@@ -7,6 +7,7 @@
 #include <range/v3/view.hpp>
 
 #include "AST/AST.h"
+#include "Common/DebugInfo.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -62,7 +63,7 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
     if (config.generateDebugSymbols) {
         mod.setMetadata(config.sourceFiles |
                         ranges::views::transform(&SourceFile::path) |
-                        ranges::to<std::vector>);
+                        ranges::to<dbi::SourceFileList>);
     }
     return { std::move(ctx), std::move(mod) };
 }

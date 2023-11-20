@@ -2,7 +2,6 @@
 
 #include <span>
 
-#include <nlohmann/json.hpp>
 #include <range/v3/view.hpp>
 #include <svm/OpCode.h>
 #include <svm/Program.h>
@@ -16,8 +15,7 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
-#include "Common/SourceFile.h"
-#include "Common/SourceLocation.h"
+#include "Common/DebugInfo.h"
 
 using namespace scatha;
 using namespace Asm;
@@ -420,64 +418,13 @@ void AsmContext::setJumpDests() {
     }
 }
 
-namespace {
-
-struct DebugSymContext {
-    AssemblyStream const& stream;
-
-    explicit DebugSymContext(AssemblyStream const& stream): stream(stream) {}
-
-    nlohmann::json run();
-
-    nlohmann::json generateSourceFileList();
-
-    nlohmann::json generateSourceMap();
-};
-
-} // namespace
-
 std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {
-    DebugSymContext ctx(stream);
-    auto sym = ctx.run();
-    return sym.dump();
-}
-
-nlohmann::json DebugSymContext::run() {
-    return {
-        { "files", generateSourceFileList() },
-        { "sourcemap", generateSourceMap() },
-    };
-}
-
-nlohmann::json DebugSymContext::generateSourceFileList() {
-    nlohmann::json result;
-    auto* list =
-        std::any_cast<std::vector<std::filesystem::path>>(&stream.metadata());
-    if (!list) {
-        return result;
-    }
-    for (auto [index, path]: *list | ranges::views::enumerate) {
-        result[index] = path;
-    }
-    return result;
-}
-
-static nlohmann::json toJSON(SourceLocation loc) {
-    return { size_t(loc.fileIndex),
-             size_t(loc.index),
-             size_t(loc.line),
-             size_t(loc.column) };
-}
-
-nlohmann::json DebugSymContext::generateSourceMap() {
-    nlohmann::json result;
-    for (auto [index, inst]:
-         stream | ranges::views::join | ranges::views::enumerate)
-    {
-        auto& elem = result[index];
-        if (auto* sourceLoc = std::any_cast<SourceLocation>(&inst.metadata())) {
-            elem = toJSON(*sourceLoc);
-        }
-    }
-    return result;
+    auto* list = std::any_cast<dbi::SourceFileList>(&stream.metadata());
+    auto sourceLocations =
+        stream | ranges::views::join |
+        ranges::views::transform([](Instruction const& inst) {
+            return std::any_cast<SourceLocation>(&inst.metadata());
+        }) |
+        ranges::to<std::vector>;
+    return dbi::serialize(list, sourceLocations);
 }
