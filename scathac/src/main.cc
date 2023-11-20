@@ -29,12 +29,13 @@
 using namespace scatha;
 
 /// Writes red "Error: " message to \p str
-static constexpr utl::streammanip Warning([](std::ostream& str) {
+[[maybe_unused]] static constexpr utl::streammanip Warning(
+    [](std::ostream& str) {
     str << tfmt::format(tfmt::Yellow | tfmt::Bold, "Warning: ");
 });
 
 /// Writes yellow "Warning: " message to \p str
-static constexpr utl::streammanip Error([](std::ostream& str) {
+[[maybe_unused]] static constexpr utl::streammanip Error([](std::ostream& str) {
     str << tfmt::format(tfmt::Red | tfmt::Bold, "Error: ");
 });
 

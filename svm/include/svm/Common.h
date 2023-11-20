@@ -1,6 +1,7 @@
 #ifndef SVM_COMMON_H_
 #define SVM_COMMON_H_
 
+#include <cassert>
 #include <cstdint>
 
 namespace svm {
@@ -20,6 +21,8 @@ static_assert(sizeof(f32) == 4);
 
 using f64 = double;
 static_assert(sizeof(f64) == 8);
+
+[[noreturn]] inline void unreachable() { assert(false); }
 
 } // namespace svm
 

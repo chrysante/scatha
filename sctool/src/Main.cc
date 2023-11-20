@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
     graph->add_flag("--interference", graphOptions.interference, "Draw interference graph");
     graph->add_flag("--selection-dag", graphOptions.selectiondag, "Draw selection DAG");
     // clang-format on
-    
+
     try {
         root.parse(argc, argv);
         if (print->parsed()) {

@@ -64,10 +64,10 @@ static std::span<T> loadArray(u64* regPtr) {
 
 std::vector<ExternalFunction> svm::makeBuiltinTable() {
     std::vector<ExternalFunction> result(static_cast<size_t>(Builtin::_count));
-    size_t k = 0;
+    [[maybe_unused]] size_t currentIndex = 0;
     auto at = [&](Builtin index) -> auto& {
         size_t const i = static_cast<size_t>(index);
-        assert(i == k++ && "Missing builtin function.");
+        assert(i == currentIndex++ && "Missing builtin function.");
         return result[i];
     };
     auto set = [&](Builtin index, auto fn) {
@@ -197,7 +197,7 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
         store(regPtr, randomValue);
     });
 
-    assert(static_cast<size_t>(Builtin::_count) == k &&
+    assert(static_cast<size_t>(Builtin::_count) == currentIndex &&
            "Missing builtin functions.");
     return result;
 }

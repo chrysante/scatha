@@ -89,7 +89,7 @@ inline constexpr size_t codeSize(OpCode code) {
         case OpCode::lincsp:
             return sizeof(OpCode) + 1 + 2;
         default:
-            assert(false);
+            unreachable();
         }
     }
     switch (opCodeClass) {
@@ -110,9 +110,9 @@ inline constexpr size_t codeSize(OpCode code) {
     case OpCodeClass::Jump:
         return sizeof(OpCode) + 4;
     case OpCodeClass::Other:
-        assert(false);
+        unreachable();
     case _count:
-        assert(false);
+        unreachable();
     }
 }
 
