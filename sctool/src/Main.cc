@@ -115,7 +115,7 @@ static std::pair<ir::Context, ir::Module> parseIR(OptionsBase const& options) {
     return std::move(result).value();
 }
 
-struct PrintOptions: OptionsBase {
+struct InspectOptions: OptionsBase {
     bool ast;
     bool sym;
     bool codegen;
@@ -123,7 +123,7 @@ struct PrintOptions: OptionsBase {
     bool execute;
 };
 
-static int printMain(PrintOptions options) {
+static int inspectMain(InspectOptions options) {
     using namespace logging;
     ir::Context ctx;
     ir::Module mod;
@@ -269,15 +269,15 @@ int main(int argc, char** argv) {
     root.require_subcommand(1, 1);
 
     // clang-format off
-    CLI::App* print = root.add_subcommand("print", "Tool to visualize the state of the compilation pipeline");
-    PrintOptions printOptions{};
-    print->add_option("files", printOptions.files)->check(CLI::ExistingPath);
-    print->add_flag("--ast", printOptions.ast, "Print AST");
-    print->add_flag("--sym", printOptions.sym, "Print symbol table");
-    print->add_option("--pipeline", printOptions.pipeline, "Optimization pipeline to be run on the IR");
-    print->add_flag("--codegen", printOptions.codegen, "Print codegen pipeline");
-    print->add_flag("--asm", printOptions.assembly, "Print assembly");
-    print->add_flag("--execute", printOptions.execute, "Execute the compiled program");
+    CLI::App* inspect = root.add_subcommand("inspect", "Tool to visualize the state of the compilation pipeline");
+    InspectOptions inspectOptions{};
+    inspect->add_option("files", inspectOptions.files)->check(CLI::ExistingPath);
+    inspect->add_flag("--ast", inspectOptions.ast, "Print AST");
+    inspect->add_flag("--sym", inspectOptions.sym, "Print symbol table");
+    inspect->add_option("--pipeline", inspectOptions.pipeline, "Optimization pipeline to be run on the IR");
+    inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
+    inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
+    inspect->add_flag("--execute", inspectOptions.execute, "Execute the compiled program");
 
     CLI::App* graph = root.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
     GraphOptions graphOptions{};
@@ -285,7 +285,7 @@ int main(int argc, char** argv) {
     graph->add_option("--pipeline", graphOptions.pipeline, "Optimization pipeline to be run on the IR");
     graph->add_option("--dest", graphOptions.dest, "Directory to write the generated files");
     graph->add_flag("--svg", graphOptions.generatesvg, "Generate SVG files");
-    graph->add_flag("--open", graphOptions.open, "Open generated graphs");
+    graph->add_flag("--open", graphOptions.open, "Open generated graphs")->needs("--svg");
     graph->add_flag("--cfg", graphOptions.cfg, "Draw control flow graph");
     graph->add_flag("--calls", graphOptions.calls, "Draw call graph");
     graph->add_flag("--interference", graphOptions.interference, "Draw interference graph");
@@ -294,8 +294,8 @@ int main(int argc, char** argv) {
 
     try {
         root.parse(argc, argv);
-        if (print->parsed()) {
-            return printMain(printOptions);
+        if (inspect->parsed()) {
+            return inspectMain(inspectOptions);
         }
         if (graph->parsed()) {
             return graphMain(graphOptions);
