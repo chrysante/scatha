@@ -122,6 +122,7 @@ defines "SC_APIIMPORT"
 externalincludedirs {
     "include",
     "include/scatha", 
+    "svm/include", 
     "runtime/include",
     "external/utility/include",
     "external/termfmt/include",
