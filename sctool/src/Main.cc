@@ -1,3 +1,4 @@
+#include <bit>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -25,6 +26,7 @@
 #include <scatha/Opt/PassManager.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
+#include <scatha/Sema/Print.h>
 #include <scatha/Sema/SymbolTable.h>
 #include <svm/VirtualMachine.h>
 #include <utl/strcat.hpp>
@@ -114,6 +116,7 @@ static std::pair<ir::Context, ir::Module> parseIR(OptionsBase const& options) {
 
 struct PrintOptions: OptionsBase {
     bool ast;
+    bool sym;
     bool codegen;
     bool assembly;
     bool execute;
@@ -133,6 +136,10 @@ static int printMain(PrintOptions options) {
             header("AST");
             ast::printTree(*data->ast);
         }
+        if (options.sym) {
+            header("Symbol Table");
+            sema::print(data->sym);
+        }
         std::tie(ctx, mod) =
             irgen::generateIR(*data->ast,
                               data->sym,
@@ -144,9 +151,11 @@ static int printMain(PrintOptions options) {
         std::tie(ctx, mod) = parseIR(options);
         break;
     }
-    header("Generated IR");
-    auto pipeline = opt::PassManager::makePipeline(options.pipeline);
-    pipeline(ctx, mod);
+    if (!options.pipeline.empty()) {
+        header("Generated IR");
+        auto pipeline = opt::PassManager::makePipeline(options.pipeline);
+        pipeline(ctx, mod);
+    }
     auto cgLogger = [&]() -> std::unique_ptr<cg::Logger> {
         if (options.codegen) {
             return std::make_unique<cg::DebugLogger>();
@@ -161,9 +170,22 @@ static int printMain(PrintOptions options) {
     if (options.execute) {
         header("Execution");
         auto [program, symbolTable] = Asm::assemble(asmStream);
-        svm::VirtualMachine VM;
-        VM.loadBinary(program.data());
-        VM.execute({});
+        svm::VirtualMachine vm;
+        vm.loadBinary(program.data());
+        vm.execute({});
+        using RetType = uint64_t;
+        using SRetType = int64_t;
+        RetType const retval = static_cast<RetType>(vm.getRegister(0));
+        SRetType const signedRetval = static_cast<SRetType>(retval);
+        // clang-format off
+        std::cout << "Program returned: " << retval;
+        std::cout << "\n                 (0x" << std::hex << retval << std::dec << ")";
+        if (signedRetval < 0) {
+        std::cout << "\n                 (" << signedRetval << ")";
+        }
+        std::cout << "\n                 (" << std::bit_cast<double>(retval) << ")";
+        std::cout << std::endl;
+        // clang-format on
     }
     return 0;
 }
@@ -222,7 +244,8 @@ int main(int argc, char** argv) {
     PrintOptions printOptions{};
     print->add_option("files", printOptions.files);
     print->add_flag("--ast", printOptions.ast, "Print AST");
-    print->add_option("--pipeline", printOptions.pipeline, "Optimization pipelien to be run on the IR");
+    print->add_flag("--sym", printOptions.sym, "Print Symbol Table");
+    print->add_option("--pipeline", printOptions.pipeline, "Optimization pipeline to be run on the IR");
     print->add_flag("--codegen", printOptions.codegen, "Print codegen pipeline");
     print->add_flag("--asm", printOptions.assembly, "Print assembly");
     print->add_flag("--execute", printOptions.execute, "Execute the compiled program");
