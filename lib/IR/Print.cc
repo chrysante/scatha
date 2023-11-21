@@ -53,8 +53,6 @@ struct PrintCtx {
 
     void print(StructType const& structure);
 
-    void printDataAs(Type const* type, std::span<u8 const> data);
-
     void funcDecl(ir::Callable const*);
     void instDecl(Instruction const*) const;
     void name(Value const*) const;
@@ -90,7 +88,7 @@ static auto formatInstName(auto... name) { return formatKeyword(name...); }
 static utl::vstreammanip<> formatType(ir::Type const* type) {
     return [=](std::ostream& str) {
         if (!type) {
-            str << tfmt::format(BrightBlue | Italic, "null-type");
+            str << tfmt::format(BrightBlue | Italic, "null");
             return;
         }
         // clang-format off
@@ -100,12 +98,12 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
                     str << tfmt::format(Green, "@", type.name());
                     return;
                 }
-                str << "{ ";
+                str << tfmt::format(None, "{ ");
                 for (bool first = true; auto [type, offset]: type.members()) {
                     str << (first ? first = false, "" : ", ")
                         << formatType(type);
                 }
-                str << " }";
+                str << tfmt::format(None, " }");
             },
             [&](ArrayType const& type) {
                 str << tfmt::format(None, "[") << formatType(type.elementType()) << ", "
@@ -482,8 +480,9 @@ void PrintCtx::printImpl(Phi const& phi) {
     space();
     for (bool first = true; auto const [pred, value]: phi.arguments()) {
         str << (first ? first = false, "" : ", ");
-        str << "[" << label() << " " << formatName(pred) << " : "
-            << formatName(value) << "]";
+        str << tfmt::format(None, "[") << label() << " " << formatName(pred)
+            << tfmt::format(None, " : ") << formatName(value)
+            << tfmt::format(None, "]");
     }
 }
 
@@ -532,60 +531,6 @@ void PrintCtx::print(StructType const& structure) {
     }
     indent.decrease();
     str << "\n";
-}
-
-void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
-    // clang-format off
-    visit(*type, utl::overload{
-        [](Type const& type) { SC_UNREACHABLE(); },
-        [&](IntegralType const& type) {
-            utl::small_vector<APInt::Limb> limbs(
-                type.bitwidth() / sizeof(APInt::Limb));
-            std::memcpy(limbs.data(), data.data(), type.bitwidth() / CHAR_BIT);
-            str << formatType(&type) << " "
-                << formatNumLiteral(APInt(limbs, type.bitwidth()).toString());
-        },
-        [&](FloatType const& type) {
-            SC_ASSERT(type.bitwidth() == 32 || type.bitwidth() == 64, "");
-            str << formatType(&type) << " ";
-            if (type.bitwidth() == 32) {
-                float f;
-                std::memcpy(&f, data.data(), 4);
-                str << formatNumLiteral(f);
-            }
-            else {
-                double d;
-                std::memcpy(&d, data.data(), 8);
-                str << formatNumLiteral(d);
-            }
-        },
-        [&](ArrayType const& type) {
-            if (auto* intType = dyncast<IntegralType const*>(type.elementType());
-                intType && intType->bitwidth() == 8)
-            {
-                std::string_view text(reinterpret_cast<char const*>(data.data()), data.size());
-                tfmt::format(Red, [&]{
-                    str << '"';
-                    printWithEscapeSeqs(str, text);
-                    str << '"';
-                });
-                return;
-            }
-            str << formatType(&type) << " [";
-            auto* ptr = data.data();
-            auto* elemType = type.elementType();
-            for (size_t i = 0, end = type.count();
-                 i < end;
-                 ++i, ptr += elemType->size())
-            {
-                if (i != 0) {
-                    str << ", ";
-                }
-                printDataAs(elemType, { ptr, elemType->size() });
-            }
-            str << "]";
-        },
-    }); // clang-format on
 }
 
 static std::string_view toStrName(ir::Instruction const* inst) {
