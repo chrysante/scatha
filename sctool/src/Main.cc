@@ -236,15 +236,15 @@ static int graphMain(GraphOptions options) {
 }
 
 int main(int argc, char** argv) {
-    CLI::App root;
+    CLI::App root("sctool");
     root.require_subcommand(1, 1);
 
     // clang-format off
     CLI::App* print = root.add_subcommand("print");
     PrintOptions printOptions{};
-    print->add_option("files", printOptions.files);
+    print->add_option("files", printOptions.files)->check(CLI::ExistingPath);
     print->add_flag("--ast", printOptions.ast, "Print AST");
-    print->add_flag("--sym", printOptions.sym, "Print Symbol Table");
+    print->add_flag("--sym", printOptions.sym, "Print symbol table");
     print->add_option("--pipeline", printOptions.pipeline, "Optimization pipeline to be run on the IR");
     print->add_flag("--codegen", printOptions.codegen, "Print codegen pipeline");
     print->add_flag("--asm", printOptions.assembly, "Print assembly");
@@ -252,8 +252,8 @@ int main(int argc, char** argv) {
 
     CLI::App* graph = root.add_subcommand("graph");
     GraphOptions graphOptions{};
-    graph->add_option("files", graphOptions.files);
-    graph->add_option("--pipeline", graphOptions.pipeline, "Optimization pipelien to be run on the IR");
+    graph->add_option("files", graphOptions.files)->check(CLI::ExistingPath);
+    graph->add_option("--pipeline", graphOptions.pipeline, "Optimization pipeline to be run on the IR");
     graph->add_flag("--cfg", graphOptions.cfg, "Draw control flow graph");
     graph->add_flag("--calls", graphOptions.calls, "Draw call graph");
     graph->add_flag("--interference", graphOptions.interference, "Draw interference graph");
@@ -268,6 +268,9 @@ int main(int argc, char** argv) {
         if (graph->parsed()) {
             return graphMain(graphOptions);
         }
+    }
+    catch (CLI::ParseError const& e) {
+        return root.exit(e);
     }
     catch (std::exception const& e) {
         std::cout << e.what() << std::endl;
