@@ -436,6 +436,11 @@ static Scope* findMALookupScope(ast::Identifier& idExpr) {
     }
 }
 
+/// If \p entities
+/// - is empty, returns null
+/// - has one element, returns that element
+/// - has multiple elements, checks that all elements are functions and returns
+///   an overload set
 static Entity* toSingleEntity(ast::Identifier const& idExpr,
                               std::span<Entity* const> entities,
                               AnalysisContext& ctx) {

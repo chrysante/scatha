@@ -63,14 +63,6 @@ public:
     /// Otherwise emits an error the to issue handler
     Function* declareFuncName(ast::FunctionDefinition* def);
 
-    /// \overload for use without AST
-    Function* declareFuncName(std::string name);
-
-    /// Add an overload set to the symbol table. This actually just exists so
-    /// the symbol table owns the overload set and we have a stable address.
-    OverloadSet* addOverloadSet(SourceRange sourceRange,
-                                utl::small_vector<Function*> functions);
-
     /// Add signature to declared function.
     ///
     /// We need this two step way of addings functions to first scan
@@ -80,18 +72,28 @@ public:
     /// Otherwise emits an error the to issue handler
     bool setFuncSig(Function* function, FunctionSignature signature);
 
+    /// \overload for use without AST. Here we don't require two step
+    /// initialization.
+    Function* declareFunction(std::string name, FunctionSignature signature);
+
+    /// Add an overload set to the symbol table. This actually just exists so
+    /// the symbol table owns the overload set and we have a stable address. See
+    /// documentation of `OverloadSet`
+    OverloadSet* addOverloadSet(SourceRange sourceRange,
+                                utl::small_vector<Function*> functions);
+
     /// Declares an external function.
     ///
     /// The name will be declared in the global scope, if it hasn't
     /// been declared before.
     ///
-    /// \returns `true` if declaration was successful.
-    bool declareSpecialFunction(FunctionKind kind,
-                                std::string name,
-                                size_t slot,
-                                size_t index,
-                                FunctionSignature signature,
-                                FunctionAttribute attrs);
+    /// \returns the declared function or null when an error occurred
+    Function* declareSpecialFunction(FunctionKind kind,
+                                     std::string name,
+                                     size_t slot,
+                                     size_t index,
+                                     FunctionSignature signature,
+                                     FunctionAttribute attrs);
 
     /// Declares a variable to the current scope without type.
     ///

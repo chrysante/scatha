@@ -17,9 +17,10 @@ TEST_CASE("SymbolTable lookup", "[sema]") {
 TEST_CASE("SymbolTable define custom type", "[sema]") {
     sema::SymbolTable sym;
     /// Declare function `i` in the global scope
-    auto* fnI = sym.declareFuncName("i");
-    REQUIRE(
-        sym.setFuncSig(fnI, sema::FunctionSignature({ sym.S64() }, sym.S64())));
+    auto* fnI =
+        sym.declareFunction("i",
+                            sema::FunctionSignature({ sym.S64() }, sym.S64()));
+    REQUIRE(fnI);
     auto* xType = sym.declareStructureType("X");
     REQUIRE(xType);
     auto* memberI = sym.withScopePushed(xType, [&] {

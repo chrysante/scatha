@@ -211,19 +211,6 @@ Function* SymbolTable::declareFuncName(ast::FunctionDefinition* def) {
     return declareFuncImpl(def, std::string(def->name()));
 }
 
-Function* SymbolTable::declareFuncName(std::string name) {
-    return declareFuncImpl(nullptr, name);
-}
-
-OverloadSet* SymbolTable::addOverloadSet(
-    SourceRange sourceRange, utl::small_vector<Function*> functions) {
-    SC_EXPECT(!functions.empty());
-    auto name = std::string(functions.front()->name());
-    return impl->addEntity<OverloadSet>(sourceRange,
-                                        std::move(name),
-                                        functions);
-}
-
 /// \Returns the set of functions with the same name as \p ref in all parent
 /// scopes of \p ref that already have a signature
 static utl::small_vector<Function const*> findScopeOS(Function const* ref) {
@@ -251,29 +238,44 @@ bool SymbolTable::setFuncSig(Function* function, FunctionSignature sig) {
     return true;
 }
 
-bool SymbolTable::declareSpecialFunction(FunctionKind kind,
-                                         std::string name,
-                                         size_t slot,
-                                         size_t index,
-                                         FunctionSignature signature,
-                                         FunctionAttribute attrs) {
-    return withScopeCurrent(&globalScope(), [&] {
-        auto declResult = declareFuncName(std::move(name));
-        if (!declResult) {
-            return false;
+Function* SymbolTable::declareFunction(std::string name,
+                                       FunctionSignature sig) {
+    auto* function = declareFuncImpl(nullptr, std::move(name));
+    if (function && setFuncSig(function, std::move(sig))) {
+        return function;
+    }
+    return nullptr;
+}
+
+OverloadSet* SymbolTable::addOverloadSet(
+    SourceRange sourceRange, utl::small_vector<Function*> functions) {
+    SC_EXPECT(!functions.empty());
+    auto name = std::string(functions.front()->name());
+    return impl->addEntity<OverloadSet>(sourceRange,
+                                        std::move(name),
+                                        functions);
+}
+
+Function* SymbolTable::declareSpecialFunction(FunctionKind kind,
+                                              std::string name,
+                                              size_t slot,
+                                              size_t index,
+                                              FunctionSignature sig,
+                                              FunctionAttribute attrs) {
+    return withScopeCurrent(&globalScope(), [&]() -> Function* {
+        auto* function = declareFunction(std::move(name), std::move(sig));
+        if (!function) {
+            return nullptr;
         }
-        auto& function = *declResult;
-        bool success = setFuncSig(&function, std::move(signature));
-        SC_ASSERT(success, "Failed to overload function");
-        function._kind = kind;
-        function.attrs = attrs;
-        function._slot = utl::narrow_cast<u16>(slot);
-        function._index = utl::narrow_cast<u32>(index);
+        function->_kind = kind;
+        function->attrs = attrs;
+        function->_slot = utl::narrow_cast<u16>(slot);
+        function->_index = utl::narrow_cast<u32>(index);
         if (kind == FunctionKind::Foreign && slot == svm::BuiltinFunctionSlot) {
-            function.setBuiltin();
-            impl->builtinFunctions[index] = &function;
+            function->setBuiltin();
+            impl->builtinFunctions[index] = function;
         }
-        return true;
+        return function;
     });
 }
 

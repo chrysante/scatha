@@ -116,12 +116,10 @@ static Function* generateSLF(SpecialLifetimeFunction key,
                              SymbolTable& sym) {
     auto SMFKind = toSMF(key);
     Function* function = sym.withScopeCurrent(&type, [&] {
-        return sym.declareFuncName(std::string(toString(SMFKind)));
+        return sym.declareFunction(std::string(toString(SMFKind)),
+                                   makeLifetimeSignature(key, type, sym));
     });
     SC_ASSERT(function, "Name can't be used by other symbol");
-    bool result =
-        sym.setFuncSig(function, makeLifetimeSignature(key, type, sym));
-    SC_ASSERT(result, "Can't be defined because we checked in getDefinedSLFs");
     function->setKind(FunctionKind::Generated);
     function->setIsMember();
     function->setSLFKind(key);

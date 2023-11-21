@@ -959,6 +959,9 @@ private:
 
 /// # OverloadSet
 
+/// Groups a set of functions to perform overload resolution. Overload sets are
+/// formed when a function is called and consist of all functions that are found
+/// by name lookup at the call site
 class SCATHA_API OverloadSet:
     public Entity,
     private utl::small_vector<Function*> {
