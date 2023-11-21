@@ -26,7 +26,7 @@ static bool isCritical(ir::Instruction const& inst) {
     });
 }
 
-SelectionDAG SelectionDAG::build(ir::BasicBlock const& BB) {
+SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
     /// We start the index at 1 because all values that are not defined in this

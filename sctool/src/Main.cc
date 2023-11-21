@@ -16,6 +16,7 @@
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
+#include <scatha/CodeGen/SelectionDAG.h>
 #include <scatha/Common/Logging.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Graphviz.h>
@@ -191,11 +192,22 @@ static int printMain(PrintOptions options) {
 }
 
 struct GraphOptions: OptionsBase {
+    std::filesystem::path dest;
+    bool generatesvg;
+    bool open;
     bool cfg;
     bool calls;
     bool interference;
     bool selectiondag;
 };
+
+static std::fstream openFile(std::filesystem::path path) {
+    std::fstream file(path, std::ios::out | std::ios::trunc);
+    if (!file) {
+        throw std::runtime_error(utl::strcat("Failed to open file ", path));
+    }
+    return file;
+}
 
 static int graphMain(GraphOptions options) {
     ir::Context ctx;
@@ -220,17 +232,34 @@ static int graphMain(GraphOptions options) {
     auto pipeline = opt::PassManager::makePipeline(options.pipeline);
     pipeline(ctx, mod);
 
+    auto generate = [&](std::filesystem::path const& gvPath) {
+        auto svgPath = gvPath;
+        svgPath.replace_extension(".svg");
+        if (options.generatesvg) {
+            std::system(
+                utl::strcat("dot -Tsvg ", gvPath, " -o ", svgPath).c_str());
+        }
+        if (options.open) {
+            std::system(utl::strcat("open ", svgPath).c_str());
+        }
+    };
+
     if (options.cfg) {
-        // ...
+        auto path = options.dest / "cfg.gv";
+        auto file = openFile(path);
+        ir::generateGraphviz(mod, file);
+        file.close();
+        generate(path);
     }
     if (options.calls) {
-        // ...
+        std::cout << "Drawing call graph is not implemented" << std::endl;
     }
     if (options.interference) {
-        // ...
+        std::cout << "Drawing interference graph is not implemented"
+                  << std::endl;
     }
     if (options.selectiondag) {
-        // ...
+        std::cout << "Drawing selection DAG is not implemented" << std::endl;
     }
     return 0;
 }
@@ -240,7 +269,7 @@ int main(int argc, char** argv) {
     root.require_subcommand(1, 1);
 
     // clang-format off
-    CLI::App* print = root.add_subcommand("print");
+    CLI::App* print = root.add_subcommand("print", "Tool to visualize the state of the compilation pipeline");
     PrintOptions printOptions{};
     print->add_option("files", printOptions.files)->check(CLI::ExistingPath);
     print->add_flag("--ast", printOptions.ast, "Print AST");
@@ -250,10 +279,13 @@ int main(int argc, char** argv) {
     print->add_flag("--asm", printOptions.assembly, "Print assembly");
     print->add_flag("--execute", printOptions.execute, "Execute the compiled program");
 
-    CLI::App* graph = root.add_subcommand("graph");
+    CLI::App* graph = root.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
     GraphOptions graphOptions{};
     graph->add_option("files", graphOptions.files)->check(CLI::ExistingPath);
     graph->add_option("--pipeline", graphOptions.pipeline, "Optimization pipeline to be run on the IR");
+    graph->add_option("--dest", graphOptions.dest, "Directory to write the generated files");
+    graph->add_flag("--svg", graphOptions.generatesvg, "Generate SVG files");
+    graph->add_flag("--open", graphOptions.open, "Open generated graphs");
     graph->add_flag("--cfg", graphOptions.cfg, "Draw control flow graph");
     graph->add_flag("--calls", graphOptions.calls, "Draw call graph");
     graph->add_flag("--interference", graphOptions.interference, "Draw interference graph");

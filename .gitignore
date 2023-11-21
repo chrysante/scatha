@@ -12,6 +12,7 @@ build/
 
 examples/
 !examples/**.sc
+!examples/**.scir
 
 Makefile
 **/Makefile

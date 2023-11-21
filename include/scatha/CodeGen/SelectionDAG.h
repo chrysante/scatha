@@ -8,18 +8,18 @@
 #include <utl/hashtable.hpp>
 #include <utl/utility.hpp>
 
-#include "Common/Allocator.h"
-#include "Common/Base.h"
-#include "Common/Graph.h"
-#include "Common/Ranges.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/Allocator.h>
+#include <scatha/Common/Base.h>
+#include <scatha/Common/Graph.h>
+#include <scatha/Common/Ranges.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::cg {
 
 class SelectionDAG;
 
 /// Node in the selection DAG
-class SCTEST_API SelectionNode:
+class SCATHA_API SelectionNode:
     public GraphNode<ir::Value const*, SelectionNode, GraphKind::Directed> {
 public:
     SelectionNode(ir::Value const* value): GraphNode(value) {}
@@ -54,12 +54,12 @@ private:
 };
 
 /// Used for instruction selection
-class SCTEST_API SelectionDAG {
+class SCATHA_API SelectionDAG {
 public:
     SelectionDAG() = default;
 
     /// Builds a selection DAG for the basic block \p BB
-    static SelectionDAG build(ir::BasicBlock const& BB);
+    static SelectionDAG Build(ir::BasicBlock const& BB);
 
     /// \Returns the basic block this DAG represents
     ir::BasicBlock const* basicBlock() const { return BB; }
@@ -94,12 +94,12 @@ private:
 };
 
 /// Writes graphviz code representing \p DAG to \p ostream
-SCTEST_API void generateGraphviz(SelectionDAG const& DAG,
+SCATHA_API void generateGraphviz(SelectionDAG const& DAG,
                                  std::ostream& ostream);
 
 /// Debug utility to generate graphviz representation of the DAG to a temporary
 /// file
-SCTEST_API void generateGraphvizTmp(SelectionDAG const& DAG);
+SCATHA_API void generateGraphvizTmp(SelectionDAG const& DAG);
 
 } // namespace scatha::cg
 

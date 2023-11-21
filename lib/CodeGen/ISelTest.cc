@@ -8,7 +8,7 @@ using namespace cg;
 
 void cg::isel(ir::Function const& function) {
     for (auto& BB: function) {
-        auto DAG = SelectionDAG::build(BB);
+        auto DAG = SelectionDAG::Build(BB);
 
         generateGraphvizTmp(DAG);
     }

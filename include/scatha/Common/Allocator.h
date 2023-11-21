@@ -4,7 +4,7 @@
 #include <memory>
 #include <span>
 
-#include "Common/Base.h"
+#include <scatha/Common/Base.h>
 
 namespace scatha {
 
