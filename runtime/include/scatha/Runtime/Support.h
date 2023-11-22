@@ -11,30 +11,6 @@
 
 namespace scatha {
 
-namespace internal {
-
-template <typename>
-struct FuncTraitsImpl;
-
-/// We abuse `std::function`'s deduction guide to implement function traits
-template <typename R, typename... T>
-struct FuncTraitsImpl<std::function<R(T...)>> {
-    using ArgumentTypes = std::tuple<T...>;
-
-    template <size_t I>
-    using ArgumentTypeAt = std::tuple_element_t<I, ArgumentTypes>;
-
-    static constexpr size_t ArgumentCount = sizeof...(T);
-
-    using ReturnType = R;
-};
-
-} // namespace internal
-
-template <typename F>
-struct FunctionTraits:
-    internal::FuncTraitsImpl<decltype(std::function{ std::declval<F>() })> {};
-
 /// Struct member descriptor
 struct StructMemberDesc {
     /// The name of the member as it will be accessible in source code
@@ -76,44 +52,56 @@ concept ValidFunction = requires(F&& f) { std::function{ std::move(f) }; } &&
 
 namespace internal {
 
-template <ValidFunction F>
-std::pair<InternalFuncPtr, void*> makeImplAndUserPtr(F&& f) {
-    auto impl = [](uint64_t* regptr, svm::VirtualMachine* vm, void* userptr) {
-        auto args = [&]<size_t... I>(std::index_sequence<I...>) ->
-            typename FunctionTraits<F>::Arguments {
-            auto loadArgument = [&]<typename T>() -> T {
+template <typename Function>
+struct MakeImplAndUserPtr;
+
+template <typename T>
+struct Type {};
+
+template <typename R, typename... Args>
+struct MakeImplAndUserPtr<std::function<R(Args...)>> {
+    template <typename F>
+    static std::pair<InternalFuncPtr, void*> Impl(F&& f) {
+        auto impl =
+            [](uint64_t* regptr, svm::VirtualMachine* vm, void* userptr) {
+            auto loadArgument =
+                [&, regptr = regptr]<typename T>(Type<T>) mutable -> T {
                 auto* p = regptr;
                 regptr += sizeof(T) / 8 + (sizeof(T) % 8 != 0);
                 alignas(T) char data[sizeof(T)];
                 std::memcpy(data, p, sizeof(T));
                 return *reinterpret_cast<T*>(&data);
             };
-            return {
-                loadArgument.template
-                operator()<FunctionTraits<F>::template ArgumentAt<I>>()...
-            };
-        }();
-        auto ret = [&] {
+            auto args = std::tuple{ loadArgument(Type<Args>{})... };
+            auto ret = [&] {
+                using FRaw = std::remove_reference_t<F>;
+                if constexpr (std::is_empty_v<FRaw>) {
+                    return std::apply(FRaw{}, args);
+                }
+                else {
+                    return std::apply(*reinterpret_cast<FRaw*>(userptr), args);
+                }
+            }();
+            std::memcpy(regptr, &ret, sizeof(ret));
+        };
+        void* userptr = [&]() -> void* {
             if constexpr (std::is_empty_v<std::remove_reference_t<F>>) {
-                return std::apply(F{}, args);
+                return nullptr;
             }
             else {
-                return std::apply(*reinterpret_cast<F*>(userptr), args);
+                static_assert(std::is_lvalue_reference_v<F>,
+                              "The ValidFunction concept should ensure this");
+                return const_cast<void*>(static_cast<void const volatile*>(&f));
             }
         }();
-        std::memcpy(regptr, &ret, sizeof(ret));
-    };
-    void* userptr = [&]() -> void* {
-        if constexpr (std::is_empty_v<std::remove_reference_t<F>>) {
-            return nullptr;
-        }
-        else {
-            static_assert(std::is_lvalue_reference_v<F>,
-                          "The ValidFunction concept should ensure this");
-            return const_cast<void*>(static_cast<void const volatile*>(&f));
-        }
-    }();
-    return { impl, userptr };
+        return { impl, userptr };
+    }
+};
+
+template <ValidFunction F>
+std::pair<InternalFuncPtr, void*> makeImplAndUserPtr(F&& f) {
+    return MakeImplAndUserPtr<decltype(std::function{ f })>::Impl(
+        std::forward<F>(f));
 }
 
 template <typename Sig>

@@ -2,6 +2,7 @@
 #define SCATHA_RUNTIME_COMPILER_H_
 
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
@@ -34,6 +35,8 @@ class Runtime;
 ///
 class Compiler {
 public:
+    Compiler();
+
     /// Declares the type described by \p desc to the internal symbol table and
     /// returns a pointer to it
     sema::StructType const* declareType(StructDesc desc);
@@ -75,7 +78,7 @@ private:
     friend class Runtime; // For extractSignature()
 
     template <typename F>
-    sema::FunctionSignature extractSignature();
+    sema::FunctionSignature extractSignature() const;
 
     sema::SymbolTable sym;
     std::unordered_map<std::type_index, sema::Type const*> typeMap;
@@ -96,20 +99,28 @@ scatha::FuncDecl scatha::Compiler::declareFunction(std::string name, F&&) {
     return declareFunction(std::move(name), extractSignature<F>());
 }
 
+namespace scatha::internal {
+
+template <typename>
+struct ExtractSig;
+
+template <typename R, typename... Args>
+struct ExtractSig<std::function<R(Args...)>> {
+    static sema::FunctionSignature Impl(Compiler const* self) {
+        utl::small_vector<sema::Type const*> argTypes;
+        argTypes.reserve(sizeof...(Args));
+        (argTypes.push_back(self->getType<Args>()), ...);
+        auto* retType = self->getType<R>();
+        return sema::FunctionSignature(std::move(argTypes), retType);
+    };
+};
+
+} // namespace scatha::internal
+
 template <typename F>
-scatha::sema::FunctionSignature scatha::Compiler::extractSignature() {
-    utl::small_vector<sema::Type const*> argTypes;
-    argTypes.reserve(FunctionTraits<F>::ArgumentCount);
-    [&]<size_t... I>(std::index_sequence<I...>) {
-        (
-            [&] {
-            using Arg = typename FunctionTraits<F>::template ArgumentAt<I>;
-            argTypes.push_back(getType<Arg>());
-            }(),
-            ...);
-        }(std::make_index_sequence<FunctionTraits<F>::ArgumentCount>{});
-    auto* retType = mapType<typename FunctionTraits<F>::ReturnType>();
-    return sema::FunctionSignature(std::move(argTypes), retType);
+scatha::sema::FunctionSignature scatha::Compiler::extractSignature() const {
+    return internal::ExtractSig<decltype(std::function{
+        std::declval<F>() })>::Impl(this);
 }
 
 #endif // SCATHA_RUNTIME_COMPILER_H_

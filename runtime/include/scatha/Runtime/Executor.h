@@ -19,25 +19,25 @@ public:
     static std::unique_ptr<Executor> Make();
 
     /// Create an executor from a program
-    static std::unique_ptr<Executor> Make(Program const& program);
+    static std::unique_ptr<Executor> Make(Program program);
 
-    ///
-    void load(Program const& program);
+    /// Loads the program \p program into this executor
+    void load(Program program);
 
-    ///
+    /// Defines the function declaration \p decl as \p impl
     void addFunction(FuncDecl decl, InternalFuncPtr impl, void* userptr);
 
-    ///
+    /// Defines the function declaration \p decl as \p impl
     template <ValidFunction F>
-    sema::Function const* addFunction(FuncDecl decl, F&& f);
+    void addFunction(FuncDecl decl, F&& impl);
 
-    ///
+    /// \Returns a `std::optional` function object with call signature `Sig`
     template <typename Sig>
     auto getFunction(std::string name);
 
 private:
     Executor() = default;
-    Executor(Program const&);
+    Executor(Program);
     Executor(Executor const&) = delete;
     Executor& operator=(Executor const&) = delete;
 
@@ -52,10 +52,9 @@ private:
 // ========================================================================== //
 
 template <scatha::ValidFunction F>
-scatha::sema::Function const* scatha::Executor::addFunction(FuncDecl decl,
-                                                            F&& f) {
+void scatha::Executor::addFunction(FuncDecl decl, F&& f) {
     auto [impl, userptr] = internal::makeImplAndUserPtr(std::forward<F>(f));
-    return addFunction(std::move(decl), impl, userptr);
+    addFunction(std::move(decl), impl, userptr);
 }
 
 template <typename Sig>
