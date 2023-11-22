@@ -88,8 +88,7 @@ public:
     /// been declared before.
     ///
     /// \returns the declared function or null when an error occurred
-    Function* declareSpecialFunction(FunctionKind kind,
-                                     std::string name,
+    Function* declareForeignFunction(std::string name,
                                      size_t slot,
                                      size_t index,
                                      FunctionSignature signature,
