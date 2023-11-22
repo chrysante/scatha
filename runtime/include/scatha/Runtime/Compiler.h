@@ -1,76 +1,115 @@
 #ifndef SCATHA_RUNTIME_COMPILER_H_
 #define SCATHA_RUNTIME_COMPILER_H_
 
-#include <initializer_list>
-#include <iosfwd>
-#include <memory>
-#include <optional>
-#include <span>
+#include <filesystem>
 #include <string>
+#include <typeindex>
+#include <typeinfo>
 
-#include <scatha/Runtime/Common.h>
-#include <scatha/Runtime/Program.h>
+#include <scatha/Common/SourceFile.h>
+#include <scatha/Runtime/Support.h>
+#include <scatha/Sema/Entity.h>
+#include <scatha/Sema/SymbolTable.h>
+
+/// # Design Idea
+///
+/// Three major classes:
+/// ## Compiler
+/// Responsible for compilation pipeline. Can declare types and functions,
+/// collect source files and perform the compilation. Function declaration
+/// returns an object that bundles slot, index, name and signature
+///
+/// ## Executor
+/// Wraps the VM. Supplies implementations for declared functions.
+///
+/// ## Runtime
+/// Bundles `Compiler` and `Executor` for ease of use. Functions can be declared
+/// and defined in a single step.
 
 namespace scatha {
 
-class IssueHandler;
+class Program;
+class Runtime;
 
-struct CompilationSettings {
-    bool optimize = true;
-};
-
-/// Wraps the internal compilation interface for integration in a host
-/// environment
+///
 class Compiler {
 public:
-    explicit Compiler();
+    /// Declares the type described by \p desc to the internal symbol table and
+    /// returns a pointer to it
+    sema::StructType const* declareType(StructDesc desc);
 
-    Compiler(Compiler&&) noexcept;
-    Compiler& operator=(Compiler&&) noexcept;
-    ~Compiler();
-
-    /// Declare an external function
-    /// If the program calls a non-builtin external function, it must be
-    /// declared prior to compilation. This method wraps a call to the internal
-    /// symbol table if the semantic analysis phase
-    std::optional<ForeignFunctionID> declareFunction(
-        std::string name,
-        QualType returnType,
-        std::span<QualType const> argTypes);
+    /// Declares the function described by \p desc to the internal symbol table
+    FuncDecl declareFunction(std::string name,
+                             sema::FunctionSignature signature);
 
     /// \overload
-    std::optional<ForeignFunctionID> declareFunction(
-        std::string name,
-        QualType returnType,
-        std::initializer_list<QualType> argTypes) {
-        return declareFunction(std::move(name),
-                               returnType,
-                               std::span<QualType const>(argTypes));
+    template <ValidFunction F>
+    FuncDecl declareFunction(std::string name, F&& f);
+
+    /// Maps the C++ type \p key to the Scatha type \p value
+    sema::Type const* mapType(std::type_info const& key,
+                              sema::Type const* value);
+
+    /// Equivalent to `mapType(key, declareType(valueDesc))`
+    sema::Type const* mapType(std::type_info const& key, StructDesc valueDesc);
+
+    /// \Returns the Scatha type mapped to the C++ type \p key
+    sema::Type const* getType(std::type_info const& key) const;
+
+    /// \Returns the Scatha type mapped to the C++ type `T`
+    template <typename T>
+    sema::Type const* getType() const {
+        return getType(typeid(T));
     }
 
-    /// Add a source file of the to-be-compiled program
-    void addSource(std::string source) { sources.push_back(std::move(source)); }
+    /// Adds source code from memory
+    void addSourceText(std::string text, std::filesystem::path path = {});
 
-    /// \Returns `nullptr` if compilation failed.
-    std::unique_ptr<Program> compile(CompilationSettings settings,
-                                     IssueHandler& issueHandler);
+    /// Loads source code from file
+    void addSourceFile(std::filesystem::path path);
 
-    /// \overload
-    /// Issues are printed to \p ostream
-    std::unique_ptr<Program> compile(CompilationSettings settings,
-                                     std::ostream& ostream);
-
-    /// \overload
-    /// Issues are printed to `std::cout`
-    std::unique_ptr<Program> compile(CompilationSettings settings = {});
+    ///
+    Program compile();
 
 private:
-    struct Impl;
+    friend class Runtime; // For extractSignature()
 
-    std::vector<std::string> sources;
-    std::unique_ptr<Impl> impl;
+    template <typename F>
+    sema::FunctionSignature extractSignature();
+
+    sema::SymbolTable sym;
+    std::unordered_map<std::type_index, sema::Type const*> typeMap;
+
+    size_t functionIndex = 0;
+
+    std::vector<SourceFile> sourceFiles;
 };
 
 } // namespace scatha
 
-#endif // SCATHA_RUNTIME_RUNTIME_H_
+// ========================================================================== //
+// ===  Inline implementation  ============================================== //
+// ========================================================================== //
+
+template <scatha::ValidFunction F>
+scatha::FuncDecl scatha::Compiler::declareFunction(std::string name, F&&) {
+    return declareFunction(std::move(name), extractSignature<F>());
+}
+
+template <typename F>
+scatha::sema::FunctionSignature scatha::Compiler::extractSignature() {
+    utl::small_vector<sema::Type const*> argTypes;
+    argTypes.reserve(FunctionTraits<F>::ArgumentCount);
+    [&]<size_t... I>(std::index_sequence<I...>) {
+        (
+            [&] {
+            using Arg = typename FunctionTraits<F>::template ArgumentAt<I>;
+            argTypes.push_back(getType<Arg>());
+            }(),
+            ...);
+        }(std::make_index_sequence<FunctionTraits<F>::ArgumentCount>{});
+    auto* retType = mapType<typename FunctionTraits<F>::ReturnType>();
+    return sema::FunctionSignature(std::move(argTypes), retType);
+}
+
+#endif // SCATHA_RUNTIME_COMPILER_H_

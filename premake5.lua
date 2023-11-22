@@ -96,23 +96,6 @@ addCppFiles "test"
 links { "scatha", "svm-lib", "APMath" } 
 
 ------------------------------------------
-project "runtime"
-kind "StaticLib"
-defines "SC_APIIMPORT"
-
-externalincludedirs {
-    "include",
-    "include/scatha",
-    "runtime/include",
-    "external/utility/include",
-    "external/termfmt/include",
-    "external/APMath/include",
-    "external/range-v3/include",
-}
-includedirs { ".", "lib" }
-
-files { "runtime/**.h", "runtime/**.cc" }
-links { "termfmt" }
 
 ------------------------------------------
 project "playground"
@@ -152,6 +135,7 @@ filter {}
 include "svm/premake5.lua"
 include "scathac/premake5.lua"
 include "scathadb/premake5.lua"
+include "runtime/premake5.lua"
 include "sctool/premake5.lua"
 
 include "external/termfmt/lib.lua"
