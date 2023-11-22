@@ -1,7 +1,7 @@
 project "scathac" -- compiler executable
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
-files "src/**"
+files { "src/**.h", "src/**.cc" }
 
 externalincludedirs {
     "%{wks.location}/include",

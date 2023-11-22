@@ -2,7 +2,7 @@
 project "svm-lib"
 kind "StaticLib"
 
-files { "lib/**", "include/svm/**" }
+files { "lib/**.h", "lib/**.cc", "include/svm/**.h" }
 
 includedirs { "lib" }
 
@@ -16,7 +16,7 @@ externalincludedirs {
 ------------------------------------------
 project "svm"
 kind "ConsoleApp"
-files { "src/**" }
+files { "src/**.h", "src/**.cc" }
 
 externalincludedirs {
     "include",
@@ -30,7 +30,7 @@ links "svm-lib"
 project "svm-test"
 kind "ConsoleApp"
 
-files "test/**"
+files { "test/**.h", "test/**.cc" }
 
 includedirs { "lib" }
 
