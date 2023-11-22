@@ -143,9 +143,13 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     globalScope().addChild(reinterpret);
 }
 
-SymbolTable::SymbolTable(SymbolTable&&) noexcept = default;
+SymbolTable::SymbolTable(SymbolTable&& rhs) noexcept { *this = std::move(rhs); }
 
-SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
+SymbolTable& SymbolTable::operator=(SymbolTable&& rhs) noexcept {
+    impl = std::move(rhs.impl);
+    rhs.impl = SymbolTable().impl;
+    return *this;
+}
 
 SymbolTable::~SymbolTable() = default;
 
