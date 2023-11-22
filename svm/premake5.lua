@@ -2,7 +2,7 @@
 project "svm-lib"
 kind "StaticLib"
 
-files { "lib/**.h", "lib/**.cc", "include/svm/**.h" }
+files { "lib/**.h", "lib/**.cc", "include/svm/**.h", "include/svm/**.def" }
 
 includedirs { "lib" }
 
