@@ -133,11 +133,12 @@ struct MakeFunction<R(Args...)> {
                     ...);
                 return virtArgs;
             }();
-            VM->execute(addr, virtArgs);
-            auto* retData = VM->registerData().data();
-            alignas(R) char ret[sizeof(R)];
-            std::memcpy(ret, retData, sizeof(R));
-            return reinterpret_cast<R&>(ret);
+            auto* retData = VM->execute(addr, virtArgs);
+            if constexpr (!std::is_same_v<R, void>) {
+                alignas(R) char ret[sizeof(R)];
+                std::memcpy(ret, retData, sizeof(R));
+                return reinterpret_cast<R&>(ret);
+            }
         };
     }
 };

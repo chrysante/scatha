@@ -38,3 +38,26 @@ export fn test(n: int) {
     CHECK(result == 9);
     CHECK(state == 1);
 }
+
+TEST_CASE("Nested VM invocations") {
+    Compiler compiler;
+    std::function<int64_t(int64_t)> callback;
+    auto cbDecl = compiler.declareFunction("callback", callback);
+    compiler.addSourceText(R"(
+export fn f(n: int) {
+    return callback(n + 1);
+}
+fn fac(n: int) -> int {
+    return n <= 1 ? 1 : n * fac(n - 1);
+}
+export fn g(n: int) {
+    return fac(n);
+}
+)");
+    auto executor = Executor::Make(compiler.compile());
+    executor->addFunction(cbDecl, callback);
+    callback = executor->getFunction<int64_t(int64_t)>("g-s64").value();
+    auto f = executor->getFunction<int64_t(int64_t)>("f-s64").value();
+    auto result = f(3);
+    CHECK(result == 24);
+}
