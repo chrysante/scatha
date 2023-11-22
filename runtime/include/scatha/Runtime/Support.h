@@ -73,7 +73,7 @@ struct MakeImplAndUserPtr<std::function<R(Args...)>> {
                 return *reinterpret_cast<T*>(&data);
             };
             auto args = std::tuple{ loadArgument(Type<Args>{})... };
-            auto ret = [&] {
+            auto invoke = [&]() -> R {
                 using FRaw = std::remove_reference_t<F>;
                 if constexpr (std::is_empty_v<FRaw>) {
                     return std::apply(FRaw{}, args);
@@ -81,8 +81,14 @@ struct MakeImplAndUserPtr<std::function<R(Args...)>> {
                 else {
                     return std::apply(*reinterpret_cast<FRaw*>(userptr), args);
                 }
-            }();
-            std::memcpy(regptr, &ret, sizeof(ret));
+            };
+            if constexpr (std::is_same_v<R, void>) {
+                invoke();
+            }
+            else {
+                auto ret = invoke();
+                std::memcpy(regptr, &ret, sizeof(ret));
+            }
         };
         void* userptr = [&]() -> void* {
             if constexpr (std::is_empty_v<std::remove_reference_t<F>>) {

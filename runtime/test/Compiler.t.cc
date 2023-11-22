@@ -19,14 +19,22 @@ export fn test(n: int, m: int) { return n + m; }
 
 TEST_CASE("Predeclared functions") {
     Compiler compiler;
-    auto callback = [](int64_t value) { return 2 * value; };
-    auto decl = compiler.declareFunction("callback", callback);
+    auto square = [](int64_t value) { return value * value; };
+    auto squareDecl = compiler.declareFunction("square", square);
+    int state = 0;
+    auto stateful = [&] { ++state; };
+    auto statefulDecl = compiler.declareFunction("stateful", stateful);
     compiler.addSourceText(R"(
-export fn test(n: int) { return callback(n); }
-)");
+export fn test(n: int) {
+    stateful();
+    return square(n);
+})");
     auto program = compiler.compile();
     auto exec = Executor::Make(std::move(program));
-    exec->addFunction(decl, callback);
+    exec->addFunction(squareDecl, square);
+    exec->addFunction(statefulDecl, stateful);
     auto testFn = exec->getFunction<int64_t(int64_t)>("test-s64").value();
-    CHECK(testFn(2) == 4);
+    auto result = testFn(3);
+    CHECK(result == 9);
+    CHECK(state == 1);
 }
