@@ -14,3 +14,14 @@ TEST_CASE("Runtime") {
     runtime.getFunction<void()>("f").value()();
     CHECK(state == 10);
 }
+
+static int64_t globalCallback(int64_t n) { return 3 * n; }
+
+TEST_CASE("Function pointer") {
+    Runtime runtime;
+    runtime.addSourceText("export fn f(n: int) { return callback(n); }");
+    runtime.addFunction("callback", globalCallback);
+    runtime.compile();
+    auto value = runtime.getFunction<int64_t(int64_t)>("f-s64").value()(2);
+    CHECK(value == 6);
+}

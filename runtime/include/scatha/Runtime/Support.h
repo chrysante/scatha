@@ -1,6 +1,8 @@
 #ifndef SCATHA_RUNTIME_SUPPORT_H_
 #define SCATHA_RUNTIME_SUPPORT_H_
 
+#include <array>
+#include <bit>
 #include <functional>
 #include <string>
 #include <tuple>
@@ -46,9 +48,13 @@ using InternalFuncPtr = void (*)(uint64_t* regptr,
 
 ///
 template <typename F>
-concept ValidFunction = requires(F&& f) { std::function{ std::move(f) }; } &&
-                        (std::is_lvalue_reference_v<F&&> ||
-                         std::is_empty_v<std::remove_reference_t<F>>);
+concept ValidFunction =
+    /// The `std::function` deduction test guarantees that F has a distinct call
+    /// signature
+    requires(F&& f) { std::function{ std::move(f) }; } &&
+    (std::is_lvalue_reference_v<F&&> ||
+     std::is_empty_v<std::remove_reference_t<F>> ||
+     !std::is_class_v<std::remove_reference_t<F>>);
 
 namespace internal {
 
@@ -62,24 +68,22 @@ template <typename R, typename... Args>
 struct MakeImplAndUserPtr<std::function<R(Args...)>> {
     template <typename F>
     static std::pair<InternalFuncPtr, void*> Impl(F&& f) {
+        using FRaw = std::remove_reference_t<F>;
         auto impl =
             [](uint64_t* regptr, svm::VirtualMachine* vm, void* userptr) {
-            auto loadArgument =
-                [&, regptr = regptr]<typename T>(Type<T>) mutable -> T {
-                auto* p = regptr;
+            auto loadArgument = [&, regptr]<typename T>(Type<T>) mutable {
+                alignas(T) std::array<char, sizeof(T)> arg;
+                std::memcpy(arg.data(), regptr, arg.size());
                 regptr += sizeof(T) / 8 + (sizeof(T) % 8 != 0);
-                alignas(T) char data[sizeof(T)];
-                std::memcpy(data, p, sizeof(T));
-                return *reinterpret_cast<T*>(&data);
+                return std::bit_cast<T>(arg);
             };
-            auto args = std::tuple{ loadArgument(Type<Args>{})... };
-            auto invoke = [&]() -> R {
-                using FRaw = std::remove_reference_t<F>;
+            auto invoke = [&] {
                 if constexpr (std::is_empty_v<FRaw>) {
-                    return std::apply(FRaw{}, args);
+                    return std::invoke(FRaw{}, loadArgument(Type<Args>{})...);
                 }
                 else {
-                    return std::apply(*reinterpret_cast<FRaw*>(userptr), args);
+                    return std::invoke(*reinterpret_cast<FRaw*>(userptr),
+                                       loadArgument(Type<Args>{})...);
                 }
             };
             if constexpr (std::is_same_v<R, void>) {
@@ -91,13 +95,14 @@ struct MakeImplAndUserPtr<std::function<R(Args...)>> {
             }
         };
         void* userptr = [&]() -> void* {
-            if constexpr (std::is_empty_v<std::remove_reference_t<F>>) {
+            if constexpr (std::is_empty_v<FRaw>) {
                 return nullptr;
             }
             else {
                 static_assert(std::is_lvalue_reference_v<F>,
                               "The ValidFunction concept should ensure this");
-                return const_cast<void*>(static_cast<void const volatile*>(&f));
+                return const_cast<void*>(
+                    reinterpret_cast<void const volatile*>(&f));
             }
         }();
         return { impl, userptr };
@@ -110,34 +115,32 @@ std::pair<InternalFuncPtr, void*> makeImplAndUserPtr(F&& f) {
         std::forward<F>(f));
 }
 
+template <typename T>
+inline constexpr size_t NumWords = sizeof(T) / 8 + (sizeof(T) % 8 != 0);
+
 template <typename Sig>
 struct MakeFunction;
 
 template <typename R, typename... Args>
 struct MakeFunction<R(Args...)> {
     static auto Impl(auto* VM, size_t addr) {
-        static constexpr auto toNumWords = [](size_t size) {
-            return size / 8 + (size % 8 != 0);
-        };
-        static constexpr size_t ArgsNumWords =
-            (0 + ... + toNumWords(sizeof(Args)));
+        static constexpr size_t ArgsNumWords = (0 + ... + NumWords<Args>);
         return [VM, addr](Args... args) -> R {
             auto virtArgs = [&] {
                 size_t index = 0;
-                std::array<uint64_t, ArgsNumWords> virtArgs;
-                (
-                    [&] {
+                std::array<uint64_t, ArgsNumWords> virtArgs{};
+                // clang-format off
+                ([&] {
                     std::memcpy(&virtArgs[index], &args, sizeof(Args));
-                    index += toNumWords(sizeof(Args));
-                    }(),
-                    ...);
+                    index += NumWords<Args>;
+                }(), ...); // clang-format on
                 return virtArgs;
             }();
             auto* retData = VM->execute(addr, virtArgs);
             if constexpr (!std::is_same_v<R, void>) {
-                alignas(R) char ret[sizeof(R)];
-                std::memcpy(ret, retData, sizeof(R));
-                return reinterpret_cast<R&>(ret);
+                alignas(R) std::array<char, sizeof(R)> ret;
+                std::memcpy(ret.data(), retData, ret.size());
+                return std::bit_cast<R>(ret);
             }
         };
     }
