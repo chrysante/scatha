@@ -23,7 +23,7 @@ std::string_view toString(ValueCatConversion conv);
 
 std::ostream& operator<<(std::ostream& ostream, ValueCatConversion conv);
 
-/// Conversion between reference qualifications
+/// Conversion between mutability qualifications
 enum class MutConversion : uint8_t {
 #define SC_MUTCONV_DEF(Name, ...) Name,
 #include "Sema/Analysis/Conversion.def"
