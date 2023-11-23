@@ -1,25 +1,23 @@
-## Language
+# Language
 
-### Add move semantics
+# Implementation
 
-### Add dynamic memory allocation in the language 
+- Write fuzz tests
 
 ## Frontend
 
-### Restructure `FunctionBodyAnalysis` so it just takes a single function at a time
-
-### Fix Conversion: None, None
-
-### Fix parser crashes
+- Pass unique pointers in registers
+- Fix parser crashes
 
 ## IR
 
-### Make IR verification pass better  
-### Improve inlining decisions
-### Fix TRE for void calls
-### Create annotations for functions such as no side effects etc.
-### Clean up `AccessTree` class
+- Make IR verification pass better
+- Improve inlining decisions
+- Fix TRE for void calls
+- Create annotations for functions such as no side effects etc.
+- Clean up `AccessTree` class
+- Loop optimizations
 
 ## Backend
 
-### Write selection DAG based code generation algorithm
+- Write selection DAG based code generation algorithm
