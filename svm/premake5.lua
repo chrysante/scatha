@@ -32,7 +32,7 @@ kind "ConsoleApp"
 
 files { "test/**.h", "test/**.cc" }
 
-includedirs { "lib" }
+includedirs { "lib", "include/svm" }
 
 externalincludedirs {
     "include",

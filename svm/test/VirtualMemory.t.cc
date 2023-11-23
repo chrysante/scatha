@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <random>
 
-#include "VirtualMemory.h"
+#include <svm/VirtualMemory.h>
 
 using namespace svm;
 

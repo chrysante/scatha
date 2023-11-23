@@ -20,11 +20,11 @@
 #include <scatha/Common/Logging.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Graphviz.h>
+#include <scatha/IR/IRParser.h>
 #include <scatha/IR/Module.h>
-#include <scatha/IR/Parser.h>
+#include <scatha/IR/PassManager.h>
 #include <scatha/IRGen/IRGen.h>
 #include <scatha/Issue/IssueHandler.h>
-#include <scatha/Opt/PassManager.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/Print.h>
@@ -154,7 +154,7 @@ static int inspectMain(InspectOptions options) {
     }
     if (!options.pipeline.empty()) {
         header("Generated IR");
-        auto pipeline = opt::PassManager::makePipeline(options.pipeline);
+        auto pipeline = ir::PassManager::makePipeline(options.pipeline);
         pipeline(ctx, mod);
     }
     auto cgLogger = [&]() -> std::unique_ptr<cg::Logger> {
@@ -229,7 +229,7 @@ static int graphMain(GraphOptions options) {
         std::tie(ctx, mod) = parseIR(options);
         break;
     }
-    auto pipeline = opt::PassManager::makePipeline(options.pipeline);
+    auto pipeline = ir::PassManager::makePipeline(options.pipeline);
     pipeline(ctx, mod);
 
     auto generate = [&](std::filesystem::path const& gvPath) {
