@@ -284,10 +284,11 @@ static mir::BasicBlock::Iterator destroySSATailCall(
     auto& ret = *call.next();
     SC_ASSERT(ret.instcode() == mir::InstCode::Return, "We are not a tailcall");
     std::advance(itr, 2);
+    auto metadata = call.metadata();
     BB.erase(&call);
     BB.erase(&ret);
     auto* jump = new mir::Instruction(mir::InstCode::Jump, nullptr, { callee });
-    jump->setMetadata(call.metadata());
+    jump->setMetadata(std::move(metadata));
     BB.insert(itr, jump);
     SC_ASSERT(itr == BB.end(), "");
     return itr;
