@@ -333,21 +333,17 @@ NodeType dyncast_get_type(std::derived_from<ASTNode> auto const& node) {
 /// Allocates an AST node of type \p T and inserts it as the parent of \p node
 /// \p node is extracted and used as the first argument to construct \p T
 /// \p args are the remaining arguments to construction of \p T
+/// \pre \p node must have a parent
 /// \Returns the allocated node
 template <std::derived_from<ast::ASTNode> T, typename Node, typename... Args>
     requires std::constructible_from<T, UniquePtr<Node>, Args...>
 T* insertNode(Node* node, Args&&... args) {
-    if (!node->parent()) {
-        return allocate<T>(UniquePtr<Node>(node), std::forward<Args>(args)...)
-            .release();
-    }
-    else {
-        auto* parent = node->parent();
-        size_t index = node->indexInParent();
-        auto newNode =
-            allocate<T>(node->extractFromParent(), std::forward<Args>(args)...);
-        return parent->setChild(index, std::move(newNode));
-    }
+    SC_EXPECT(node->parent());
+    auto* parent = node->parent();
+    size_t index = node->indexInParent();
+    auto newNode =
+        allocate<T>(node->extractFromParent(), std::forward<Args>(args)...);
+    return parent->setChild(index, std::move(newNode));
 }
 
 /// MARK: Expressions
