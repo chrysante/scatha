@@ -10,15 +10,11 @@
 ///
 /// ```
 /// pipeline         => global-pass-list
-/// global-pass-list => global-pass [ ( ":" global-pass )* ]
-/// global-pass      => for-each-pass
-///                   | inline-pass
-///                   | dfe-pass
-/// for-each-pass    => "foreach" "(" local-pass-list ")"
+/// global-pass-list => global-pass [ ( "," global-pass )* ]
+///
+/// global-pass      => global-pass-id [ "(" local-pass-list ")" ]
 ///                   | local-pass-id
-/// inline-pass      => "inline" [ "(" local-pass-list ")" ]
-/// dfe-pass         => "deadfuncelim"
-/// local-pass-list  => local-pass-id [ ( ":" local-pass-id )* ]
+/// local-pass-list  => local-pass-id [ ( "," local-pass-id )* ]
 /// ```
 
 namespace scatha::ir {

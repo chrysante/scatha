@@ -42,17 +42,7 @@ public:
         children.push_back(std::move(onlyChild));
     }
 
-    bool execute(ir::Context& ctx, ir::Module& mod) const {
-        return pass(ctx,
-                    mod,
-                    LocalPass([this](ir::Context& ctx, ir::Function& F) {
-                        bool result = false;
-                        for (auto& child: children) {
-                            result |= child->execute(ctx, F);
-                        }
-                        return result;
-                    }));
-    }
+    bool execute(ir::Context& ctx, ir::Module& mod) const;
 
     void print(std::ostream&) const;
 

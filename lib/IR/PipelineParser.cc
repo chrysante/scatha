@@ -119,50 +119,17 @@ public:
     }
 
     std::unique_ptr<PipelineGlobalNode> parseGlobal() {
-        if (auto foreach = parseForEach()) {
-            return foreach;
-        }
-        if (auto inl = parseInline()) {
-            return inl;
-        }
-        if (auto dfe = parseDFE()) {
-            return dfe;
-        }
-        return nullptr;
-    }
-
-    std::unique_ptr<PipelineGlobalNode> parseForEach() {
         auto token = peek();
-        if (token.id == "foreach") {
-            eat();
-            expect(Token::OpenParan);
-            auto localList = parseLocalList();
-            expect(Token::CloseParan);
-            auto globalPass = PassManager::getGlobalPass("foreach");
-            return std::make_unique<PipelineGlobalNode>(std::move(globalPass),
-                                                        parseLocalList());
-        }
-        if (auto local = parseLocal()) {
-            return std::make_unique<PipelineGlobalNode>(
-                PassManager::getGlobalPass("foreach"),
-                std::move(local));
-        }
-        return nullptr;
-    }
-
-    std::unique_ptr<PipelineGlobalNode> parseInline() {
-        auto token = peek();
-        if (token.id != "inline") {
+        if (token.type != Token::Identifier) {
             return nullptr;
         }
+        auto globalPass = PassManager::getGlobalPass(token.id);
+        if (!globalPass) {
+            return parseImplicitForeach();
+        }
         eat();
-        auto globalPass = PassManager::getGlobalPass("inline");
         if (peek().type != Token::OpenParan) {
-            auto localPass = PassManager::getPass("default");
-            auto localNode =
-                std::make_unique<PipelineLocalNode>(std::move(localPass));
-            return std::make_unique<PipelineGlobalNode>(std::move(globalPass),
-                                                        std::move(localNode));
+            return std::make_unique<PipelineGlobalNode>(std::move(globalPass));
         }
         eat();
         auto localList = parseLocalList();
@@ -171,18 +138,14 @@ public:
                                                     std::move(localList));
     }
 
-    std::unique_ptr<PipelineGlobalNode> parseDFE() {
-        auto token = peek();
-        if (token.id != "deadfuncelim") {
+    std::unique_ptr<PipelineGlobalNode> parseImplicitForeach() {
+        auto localNode = parseLocal();
+        if (!localNode) {
             return nullptr;
         }
-        eat();
-        if (peek().type == Token::OpenParan) {
-            eat();
-            expect(Token::CloseParan);
-        }
-        return std::make_unique<PipelineGlobalNode>(
-            PassManager::getGlobalPass("deadfuncelim"));
+        auto foreach = PassManager::getGlobalPass("foreach");
+        return std::make_unique<PipelineGlobalNode>(std::move(foreach),
+                                                    std::move(localNode));
     }
 
     utl::small_vector<std::unique_ptr<PipelineLocalNode>> parseLocalList() {

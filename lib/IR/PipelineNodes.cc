@@ -7,6 +7,22 @@ using namespace ir;
 
 void PipelineLocalNode::print(std::ostream& str) const { str << pass.name(); }
 
+bool PipelineGlobalNode::execute(ir::Context& ctx, ir::Module& mod) const {
+    auto local = [&]() -> LocalPass {
+        if (children.empty()) {
+            return {};
+        }
+        return LocalPass([this](ir::Context& ctx, ir::Function& F) {
+            bool result = false;
+            for (auto& child: children) {
+                result |= child->execute(ctx, F);
+            }
+            return result;
+        });
+    }();
+    return pass(ctx, mod, std::move(local));
+}
+
 void PipelineGlobalNode::print(std::ostream& str) const {
     str << pass.name() << "(";
     bool first = true;

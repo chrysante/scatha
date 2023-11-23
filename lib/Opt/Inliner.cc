@@ -119,6 +119,9 @@ bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
 bool opt::inlineFunctions(ir::Context& ctx,
                           ir::Module& mod,
                           LocalPass localPass) {
+    if (!localPass) {
+        localPass = defaultPass;
+    }
     Inliner inl(ctx, mod, std::move(localPass));
     return inl.run();
 }
