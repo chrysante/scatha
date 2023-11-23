@@ -1,15 +1,15 @@
-#include "Opt/PassManager.h"
-#include "Opt/PassRegistry.h"
+#include "IR/PassManager.h"
+#include "IR/PassRegistry.h"
 
 #include <memory>
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
-#include "Opt/Pipeline/PipelineParser.h"
+#include "IR/PipelineParser.h"
 
 using namespace scatha;
-using namespace opt;
+using namespace ir;
 
 namespace {
 
@@ -105,14 +105,14 @@ utl::vector<LocalPass> PassManager::localPasses() {
     return getImpl().getLocalPasses();
 }
 
-void opt::internal::registerLocal(LocalPass pass) {
+void ir::internal::registerLocal(LocalPass pass) {
     getImpl().registerLocal(std::move(pass));
 }
 
-void opt::internal::registerCanonicalization(LocalPass pass) {
+void ir::internal::registerCanonicalization(LocalPass pass) {
     getImpl().registerCanonicalization(std::move(pass));
 }
 
-void opt::internal::registerGlobal(GlobalPass pass) {
+void ir::internal::registerGlobal(GlobalPass pass) {
     getImpl().registerGlobal(std::move(pass));
 }

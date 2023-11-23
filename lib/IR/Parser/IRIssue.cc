@@ -1,4 +1,4 @@
-#include "IR/Parser/Issue.h"
+#include "IR/Parser/IRIssue.h"
 
 #include <iostream>
 

@@ -1,4 +1,4 @@
-#include "IR/Parser.h"
+#include "IR/IRParser.h"
 
 #include <array>
 #include <functional>
@@ -13,8 +13,8 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/Parser/Lexer.h"
-#include "IR/Parser/Token.h"
+#include "IR/Parser/IRLexer.h"
+#include "IR/Parser/IRToken.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
 

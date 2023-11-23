@@ -7,8 +7,8 @@
 #include "IR/CFG.h"
 #include "IR/CFG/Iterator.h"
 #include "IR/Context.h"
+#include "IR/IRParser.h"
 #include "IR/Module.h"
-#include "IR/Parser.h"
 #include "Opt/Common.h"
 
 using namespace scatha;

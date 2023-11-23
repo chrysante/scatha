@@ -1,5 +1,5 @@
-#ifndef SCATHA_OPT_PIPELINE_H_
-#define SCATHA_OPT_PIPELINE_H_
+#ifndef SCATHA_IR_PIPELINE_H_
+#define SCATHA_IR_PIPELINE_H_
 
 #include <iosfwd>
 #include <memory>
@@ -8,7 +8,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
 
-namespace scatha::opt {
+namespace scatha::ir {
 
 class Pipeline;
 class PipelineRoot;
@@ -74,6 +74,6 @@ private:
     std::unique_ptr<PipelineRoot> root;
 };
 
-} // namespace scatha::opt
+} // namespace scatha::ir
 
-#endif // SCATHA_OPT_PIPELINE_H_
+#endif // SCATHA_IR_PIPELINE_H_

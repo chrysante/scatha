@@ -7,9 +7,9 @@
 #include "IR/CFG/Function.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
+#include "IR/IRParser.h"
 #include "IR/Loop.h"
 #include "IR/Module.h"
-#include "IR/Parser.h"
 #include "test/Set.h"
 
 using namespace scatha;

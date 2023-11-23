@@ -4,10 +4,10 @@
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Module.h"
+#include "IR/PassRegistry.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 #include "Opt/InlineCallsite.h"
-#include "Opt/PassRegistry.h"
 #include "Opt/Passes.h"
 #include "Opt/SCCCallGraph.h"
 

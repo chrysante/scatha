@@ -16,9 +16,9 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
+#include "IR/PassRegistry.h"
 #include "IR/Print.h"
 #include "Opt/Common.h"
-#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace ir;

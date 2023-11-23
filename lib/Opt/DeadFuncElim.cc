@@ -5,7 +5,7 @@
 
 #include "IR/CFG.h"
 #include "IR/Module.h"
-#include "Opt/PassRegistry.h"
+#include "IR/PassRegistry.h"
 #include "Opt/SCCCallGraph.h"
 
 using namespace scatha;

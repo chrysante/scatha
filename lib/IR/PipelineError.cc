@@ -1,9 +1,9 @@
-#include "Opt/PipelineError.h"
+#include "IR/PipelineError.h"
 
 #include <utl/strcat.hpp>
 
 using namespace scatha;
-using namespace opt;
+using namespace ir;
 
 PipelineError::PipelineError(size_t column,
                              size_t line,

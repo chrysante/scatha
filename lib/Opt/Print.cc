@@ -1,8 +1,8 @@
 #include "Opt/Passes.h"
 
 #include "IR/CFG.h"
+#include "IR/PassRegistry.h"
 #include "IR/Print.h"
-#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 

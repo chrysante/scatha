@@ -1,5 +1,5 @@
-#ifndef SCATHA_OPT_PASSMANAGER_H_
-#define SCATHA_OPT_PASSMANAGER_H_
+#ifndef SCATHA_IR_PASSMANAGER_H_
+#define SCATHA_IR_PASSMANAGER_H_
 
 #include <functional>
 #include <string>
@@ -9,10 +9,10 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
-#include <scatha/Opt/Pass.h>
-#include <scatha/Opt/Pipeline.h>
+#include <scatha/IR/Pass.h>
+#include <scatha/IR/Pipeline.h>
 
-namespace scatha::opt {
+namespace scatha::ir {
 
 /// Static pass manager interface.
 /// Optimization passes can be accessed dynamically via the interface.
@@ -32,6 +32,6 @@ public:
     static utl::vector<LocalPass> localPasses();
 };
 
-} // namespace scatha::opt
+} // namespace scatha::ir
 
-#endif // SCATHA_OPT_PASSMANAGER_H_
+#endif // SCATHA_IR_PASSMANAGER_H_

@@ -1,9 +1,9 @@
-#include "Opt/Pipeline/PipelineNodes.h"
+#include "IR/PipelineNodes.h"
 
 #include <range/v3/view.hpp>
 
 using namespace scatha;
-using namespace opt;
+using namespace ir;
 
 void PipelineLocalNode::print(std::ostream& str) const { str << pass.name(); }
 

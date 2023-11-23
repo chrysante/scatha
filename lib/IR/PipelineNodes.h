@@ -1,5 +1,5 @@
-#ifndef SCATHA_OPT_PIPELINENODES_H_
-#define SCATHA_OPT_PIPELINENODES_H_
+#ifndef SCATHA_IR_PIPELINENODES_H_
+#define SCATHA_IR_PIPELINENODES_H_
 
 #include <iosfwd>
 #include <memory>
@@ -7,9 +7,9 @@
 #include <utl/vector.hpp>
 
 #include "Common/TreeFormatter.h"
-#include "Opt/Pass.h"
+#include "IR/Pass.h"
 
-namespace scatha::opt {
+namespace scatha::ir {
 
 /// Represents a local pass in the pipeline tree
 class PipelineLocalNode {
@@ -90,6 +90,6 @@ private:
     utl::small_vector<std::unique_ptr<PipelineGlobalNode>> children;
 };
 
-} // namespace scatha::opt
+} // namespace scatha::ir
 
-#endif // SCATHA_OPT_PIPELINENODES_H_
+#endif // SCATHA_IR_PIPELINENODES_H_

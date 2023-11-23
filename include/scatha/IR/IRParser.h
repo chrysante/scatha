@@ -5,8 +5,8 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
-#include <scatha/IR/Parser/Issue.h>
-#include <scatha/IR/Parser/SourceLocation.h>
+#include <scatha/IR/Parser/IRIssue.h>
+#include <scatha/IR/Parser/IRSourceLocation.h>
 
 namespace scatha::ir {
 

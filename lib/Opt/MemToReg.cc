@@ -4,9 +4,9 @@
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
+#include "IR/PassRegistry.h"
 #include "IR/Validate.h"
 #include "Opt/AllocaPromotion.h"
-#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace ir;

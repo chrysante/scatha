@@ -33,9 +33,9 @@ ValueCategory refToLValue(Type const* type);
 /// nonesuch exists
 ast::Statement* parentStatement(ast::ASTNode* node);
 
-/// \returns \p type downcast to `StructType`, if \p type is a struct type
-/// with non-trivial lifetime Otherwise returns `nullptr`
-StructType const* nonTrivialLifetimeType(ObjectType const* type);
+/// \returns \p type downcast to `CompoundType`, if \p type is a compound type
+/// with non-trivial lifetime. Otherwise returns `nullptr`
+CompoundType const* nonTrivialLifetimeType(ObjectType const* type);
 
 } // namespace scatha::sema
 

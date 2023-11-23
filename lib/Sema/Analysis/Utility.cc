@@ -317,10 +317,10 @@ ast::Statement* sema::parentStatement(ast::ASTNode* node) {
     }
 }
 
-StructType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
-    auto structType = dyncast<StructType const*>(type);
-    if (!structType || structType->hasTrivialLifetime()) {
+CompoundType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
+    auto cType = dyncast<CompoundType const*>(type);
+    if (!cType || cType->hasTrivialLifetime()) {
         return nullptr;
     }
-    return structType;
+    return cType;
 }

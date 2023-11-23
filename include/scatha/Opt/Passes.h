@@ -5,7 +5,7 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
-#include <scatha/Opt/Pass.h>
+#include <scatha/IR/Pass.h>
 
 namespace scatha::opt {
 
@@ -17,7 +17,7 @@ SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod);
 /// \overload
 SCATHA_API bool inlineFunctions(ir::Context& ctx,
                                 ir::Module& mod,
-                                LocalPass localPass);
+                                ir::LocalPass localPass);
 
 /// Eliminate all function that do not get called by any externally visible
 /// function
@@ -27,10 +27,12 @@ SCATHA_API bool deadFuncElim(ir::Context& ctx, ir::Module& mod);
 /// \Note The parameter \p localPass is ignored
 SCATHA_API bool deadFuncElim(ir::Context& ctx,
                              ir::Module& mod,
-                             LocalPass localPass);
+                             ir::LocalPass localPass);
 
 /// Execute \p localPass for each function in the module \p mod
-SCATHA_API bool forEach(ir::Context& ctx, ir::Module& mod, LocalPass localPass);
+SCATHA_API bool forEach(ir::Context& ctx,
+                        ir::Module& mod,
+                        ir::LocalPass localPass);
 
 /// # Canonicalization passes
 

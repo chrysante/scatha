@@ -4,14 +4,14 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/IRParser.h"
 #include "IR/Module.h"
-#include "IR/Parser.h"
 #include "test/IR/Equal.h"
 
 using namespace scatha;
 using namespace test;
 
-void test::passTest(opt::LocalPass pass,
+void test::passTest(ir::LocalPass pass,
                     ir::Context& fCtx,
                     ir::Function& F,
                     ir::Function& ref) {
@@ -22,7 +22,7 @@ void test::passTest(opt::LocalPass pass,
     CHECK(test::funcEqual(F, ref));
 }
 
-void test::passTest(opt::LocalPass pass,
+void test::passTest(ir::LocalPass pass,
                     std::string fSource,
                     std::string refSource) {
     auto [fCtx, fMod] = ir::parse(fSource).value();
@@ -32,8 +32,8 @@ void test::passTest(opt::LocalPass pass,
     test::passTest(pass, fCtx, F, ref);
 }
 
-void test::passTest(opt::GlobalPass pass,
-                    opt::LocalPass local,
+void test::passTest(ir::GlobalPass pass,
+                    ir::LocalPass local,
                     ir::Context& mCtx,
                     ir::Module& M,
                     ir::Module& ref) {
@@ -46,8 +46,8 @@ void test::passTest(opt::GlobalPass pass,
     }
 }
 
-void test::passTest(opt::GlobalPass pass,
-                    opt::LocalPass local,
+void test::passTest(ir::GlobalPass pass,
+                    ir::LocalPass local,
                     std::string mSource,
                     std::string refSource) {
     auto [mCtx, M] = ir::parse(mSource).value();

@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "IR/CFG.h"
-#include "Opt/PassRegistry.h"
+#include "IR/PassRegistry.h"
 
 using namespace scatha;
 

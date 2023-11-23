@@ -1,4 +1,4 @@
-#include "IR/Parser/Lexer.h"
+#include "IR/Parser/IRLexer.h"
 
 #include <array>
 #include <cctype>
@@ -9,7 +9,7 @@
 #include <utl/utility.hpp>
 
 #include "Common/Base.h"
-#include "IR/Parser/Token.h"
+#include "IR/Parser/IRToken.h"
 
 using namespace scatha;
 using namespace ir;

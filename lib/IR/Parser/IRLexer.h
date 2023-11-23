@@ -1,11 +1,11 @@
-#ifndef SCATHA_IR_LEXER_H_
-#define SCATHA_IR_LEXER_H_
+#ifndef SCATHA_IR_IRLEXER_H_
+#define SCATHA_IR_IRLEXER_H_
 
 #include <string_view>
 
 #include "Common/Expected.h"
-#include "IR/Parser/Issue.h"
-#include "IR/Parser/SourceLocation.h"
+#include "IR/Parser/IRIssue.h"
+#include "IR/Parser/IRSourceLocation.h"
 
 namespace scatha::ir {
 
@@ -28,4 +28,4 @@ private:
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_LEXER_H_
+#endif // SCATHA_IR_IRLEXER_H_

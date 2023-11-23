@@ -1,12 +1,12 @@
-#include "Opt/Pipeline.h"
+#include "IR/Pipeline.h"
 
 #include <iostream>
 #include <sstream>
 
-#include "Opt/Pipeline/PipelineNodes.h"
+#include "IR/PipelineNodes.h"
 
 using namespace scatha;
-using namespace opt;
+using namespace ir;
 
 Pipeline::Pipeline(): root(std::make_unique<PipelineRoot>()) {}
 
@@ -25,29 +25,27 @@ bool Pipeline::execute(ir::Context& ctx, ir::Module& mod) const {
 
 bool Pipeline::empty() const { return root->empty(); }
 
-std::ostream& opt::operator<<(std::ostream& ostream, Pipeline const& pipeline) {
+std::ostream& ir::operator<<(std::ostream& ostream, Pipeline const& pipeline) {
     pipeline.root->print(ostream);
     return ostream;
 }
 
-std::string opt::toString(Pipeline const& pipeline) {
+std::string ir::toString(Pipeline const& pipeline) {
     std::stringstream sstr;
     sstr << pipeline;
     return std::move(sstr).str();
 }
 
-void opt::print(Pipeline const& pipeline) { print(pipeline, std::cout); }
+void ir::print(Pipeline const& pipeline) { print(pipeline, std::cout); }
 
-void opt::print(Pipeline const& pipeline, std::ostream& ostream) {
+void ir::print(Pipeline const& pipeline, std::ostream& ostream) {
     pipeline.root->print(ostream);
     ostream << "\n";
 }
 
-void opt::printTree(Pipeline const& pipeline) {
-    printTree(pipeline, std::cout);
-}
+void ir::printTree(Pipeline const& pipeline) { printTree(pipeline, std::cout); }
 
-void opt::printTree(Pipeline const& pipeline, std::ostream& ostream) {
+void ir::printTree(Pipeline const& pipeline, std::ostream& ostream) {
     TreeFormatter formatter;
     pipeline.root->printTree(ostream, formatter);
 }

@@ -4,7 +4,7 @@
 #include <string_view>
 
 #include <scatha/Common/Base.h>
-#include <scatha/IR/Parser/SourceLocation.h>
+#include <scatha/IR/Parser/IRSourceLocation.h>
 
 namespace scatha::ir {
 

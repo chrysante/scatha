@@ -20,14 +20,14 @@
 #include "CodeGen/CodeGen.h"
 #include "IR/Context.h"
 #include "IR/Fwd.h"
+#include "IR/IRParser.h"
 #include "IR/Module.h"
-#include "IR/Parser.h"
+#include "IR/PassManager.h"
+#include "IR/Pipeline.h"
 #include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "Opt/Optimizer.h"
-#include "Opt/PassManager.h"
 #include "Opt/Passes.h"
-#include "Opt/Pipeline.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
@@ -98,12 +98,12 @@ using ParserType =
 namespace {
 
 struct Impl {
-    opt::Pipeline light =
-        opt::PassManager::makePipeline("unifyreturns, sroa, memtoreg");
-    opt::Pipeline lightRotate =
-        opt::PassManager::makePipeline("canonicalize, sroa, memtoreg");
-    opt::Pipeline lightInline =
-        opt::PassManager::makePipeline("inline(sroa, memtoreg)");
+    ir::Pipeline light =
+        ir::PassManager::makePipeline("unifyreturns, sroa, memtoreg");
+    ir::Pipeline lightRotate =
+        ir::PassManager::makePipeline("canonicalize, sroa, memtoreg");
+    ir::Pipeline lightInline =
+        ir::PassManager::makePipeline("inline(sroa, memtoreg)");
 
     static Impl& get() {
         static Impl inst;
@@ -127,7 +127,7 @@ struct Impl {
         if (getOptions().TestIdempotency) {
             /// Idempotency of passes without prior optimizations
             testIdempotency(generator,
-                            opt::PassManager::makePipeline("unifyreturns"),
+                            ir::PassManager::makePipeline("unifyreturns"),
                             expected);
 
             /// Idempotency of passes after light optimizations
@@ -150,9 +150,9 @@ struct Impl {
     }
 
     void testIdempotency(Generator const& generator,
-                         opt::Pipeline const& prePipeline,
+                         ir::Pipeline const& prePipeline,
                          uint64_t expected) const {
-        for (auto pass: opt::PassManager::localPasses()) {
+        for (auto pass: ir::PassManager::localPasses()) {
             auto [ctx, mod] = generator();
             prePipeline.execute(ctx, mod);
             auto message = utl::strcat("Idempotency check for \"",

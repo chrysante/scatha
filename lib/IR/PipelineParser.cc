@@ -1,4 +1,4 @@
-#include "Opt/Pipeline/PipelineParser.h"
+#include "IR/PipelineParser.h"
 
 #include <cctype>
 #include <optional>
@@ -6,12 +6,12 @@
 
 #include <utl/strcat.hpp>
 
-#include "Opt/PassManager.h"
-#include "Opt/Pipeline/PipelineNodes.h"
-#include "Opt/PipelineError.h"
+#include "IR/PassManager.h"
+#include "IR/PipelineError.h"
+#include "IR/PipelineNodes.h"
 
 using namespace scatha;
-using namespace opt;
+using namespace ir;
 
 namespace {
 
@@ -255,6 +255,6 @@ private:
 
 } // namespace
 
-Pipeline opt::parsePipeline(std::string_view text) {
+Pipeline ir::parsePipeline(std::string_view text) {
     return Parser(text).parse();
 }

@@ -1,12 +1,12 @@
-#ifndef SCATHA_OPT_PASSREGISTRY_H_
-#define SCATHA_OPT_PASSREGISTRY_H_
+#ifndef SCATHA_IR_PASSREGISTRY_H_
+#define SCATHA_IR_PASSREGISTRY_H_
 
 #include "Common/Base.h"
-#include "Opt/Pass.h"
+#include "IR/Pass.h"
 
 #define _SC_REGISTER_PASS_IMPL(impl, function, name)                           \
     static int SC_CONCAT(__Pass_, __COUNTER__) = [] {                          \
-        ::scatha::opt::internal::impl({ function, name });                     \
+        ::scatha::ir::internal::impl({ function, name });                      \
         return 0;                                                              \
     }()
 
@@ -26,7 +26,7 @@
         static_cast<bool (*)(ir::Context&, ir::Module&, LocalPass)>(function), \
         name)
 
-namespace scatha::opt::internal {
+namespace scatha::ir::internal {
 
 void registerLocal(LocalPass pass);
 
@@ -34,6 +34,6 @@ void registerCanonicalization(LocalPass pass);
 
 void registerGlobal(GlobalPass pass);
 
-} // namespace scatha::opt::internal
+} // namespace scatha::ir::internal
 
-#endif // SCATHA_OPT_PASSREGISTRY_H_
+#endif // SCATHA_IR_PASSREGISTRY_H_

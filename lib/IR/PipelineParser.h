@@ -1,16 +1,14 @@
-#ifndef SCATHA_OPT_PASSMANAGERIMPL_H_
-#define SCATHA_OPT_PASSMANAGERIMPL_H_
+#ifndef SCATHA_IR_PASSMANAGERIMPL_H_
+#define SCATHA_IR_PASSMANAGERIMPL_H_
 
 #include <string_view>
 
 #include "Common/Base.h"
-#include "Opt/Pipeline.h"
+#include "IR/Pipeline.h"
 
 /// # Pipeline script grammar
 ///
-///
 /// ```
-///
 /// pipeline         => global-pass-list
 /// global-pass-list => global-pass [ ( ":" global-pass )* ]
 /// global-pass      => for-each-pass
@@ -21,14 +19,13 @@
 /// inline-pass      => "inline" [ "(" local-pass-list ")" ]
 /// dfe-pass         => "deadfuncelim"
 /// local-pass-list  => local-pass-id [ ( ":" local-pass-id )* ]
-///
 /// ```
 
-namespace scatha::opt {
+namespace scatha::ir {
 
 /// Parse a transform pipeline from \p script
 SCATHA_API Pipeline parsePipeline(std::string_view script);
 
-} // namespace scatha::opt
+} // namespace scatha::ir
 
-#endif // SCATHA_OPT_PASSMANAGERIMPL_H_
+#endif // SCATHA_IR_PASSMANAGERIMPL_H_

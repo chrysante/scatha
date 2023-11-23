@@ -6,7 +6,7 @@
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
-#include "Opt/PassRegistry.h"
+#include "IR/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;

@@ -7,10 +7,10 @@
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/PassRegistry.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;

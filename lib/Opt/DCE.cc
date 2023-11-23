@@ -8,9 +8,9 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
+#include "IR/PassRegistry.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/PassRegistry.h"
 #include "Opt/Passes.h"
 
 using namespace scatha;

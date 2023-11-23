@@ -1,12 +1,12 @@
-#ifndef SCATHA_OPT_PASS_H_
-#define SCATHA_OPT_PASS_H_
+#ifndef SCATHA_IR_PASS_H_
+#define SCATHA_IR_PASS_H_
 
 #include <functional>
 #include <string>
 
 #include <scatha/IR/Fwd.h>
 
-namespace scatha::opt {
+namespace scatha::ir {
 
 /// Represents a local transform pass that operates on a single function
 class LocalPass {
@@ -78,6 +78,6 @@ private:
     std::string _name;
 };
 
-} // namespace scatha::opt
+} // namespace scatha::ir
 
-#endif // SCATHA_OPT_PASS_H_
+#endif // SCATHA_IR_PASS_H_

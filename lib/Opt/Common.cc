@@ -8,7 +8,7 @@
 #include "Common/Graph.h"
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
-#include "Opt/PassRegistry.h"
+#include "IR/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;
