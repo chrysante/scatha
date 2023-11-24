@@ -17,15 +17,9 @@ SCATHA_API bool inlineFunctions(ir::Context& ctx,
                                 ir::Module& mod,
                                 ir::LocalPass localPass);
 
-/// Eliminate all function that do not get called by any externally visible
-/// function
-SCATHA_API bool deadFuncElim(ir::Context& ctx, ir::Module& mod);
-
-/// \overload
-/// \Note The parameter \p localPass is ignored
-SCATHA_API bool deadFuncElim(ir::Context& ctx,
-                             ir::Module& mod,
-                             ir::LocalPass localPass);
+/// Eliminate all functions that do not get called by any externally visible
+/// function and all unused globals
+SCATHA_API bool globalDCE(ir::Context& ctx, ir::Module& mod);
 
 /// # Canonicalization passes
 
@@ -86,12 +80,7 @@ SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
 /// Simplify the control flow graph by merging and erasing unneeded blocks
 SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 
-/// Wraps the `ir::print()` function
-SCATHA_API bool print(ir::Context& ctx, ir::Function& function);
-
 /// Tail recursion elimination.
-///
-/// \details
 /// This pass replaces tail recursive calls with `goto`'s to the start of the
 /// function, thus creating loops.
 SCATHA_API bool tailRecElim(ir::Context& context, ir::Function& function);

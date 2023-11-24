@@ -15,6 +15,9 @@
 
 namespace scatha::ir {
 
+/// Represents a program.
+/// Contains functions, other globals and user defined types.
+/// Acts like a range of functions
 class SCATHA_API Module: public ObjectWithMetadata {
 public:
     Module();
@@ -24,28 +27,29 @@ public:
     Module& operator=(Module&& rhs) noexcept;
     ~Module();
 
-    ///
-    auto structures() { return structs | Opaque; }
-
-    ///
+    /// \Returns a view over the user defined structs in this module
     auto structures() const { return structs | Opaque; }
 
-    /// View over the globals in this module
-    auto globals() const { return _globals | ToConstAddress; }
-
-    ///
+    /// \Returns a view over the functions in this module
     auto& functions() { return funcs; }
 
-    ///
+    /// \overload
     auto const& functions() const { return funcs; }
 
     /// \Returns The `ForeignFunction` in slot \p slot at index \p index
     ForeignFunction* extFunction(size_t slot, size_t index);
 
+    /// \Returns a view over all globals in this module, i.e. global variables
+    /// and foreign functions
+    auto& globals() { return _globals; }
+
+    /// \overload
+    auto const& globals() const { return _globals; }
+
     /// Add a structure type to this module
     StructType const* addStructure(UniquePtr<StructType> structure);
 
-    /// Add a global value to this module
+    /// Add a global to this module
     Global* addGlobal(UniquePtr<Global> value);
 
     /// \overload that down casts to the given type
@@ -54,13 +58,14 @@ public:
         return cast<G*>(addGlobal(uniquePtrCast<Global>(std::move(value))));
     }
 
-    ///
-    void eraseFunction(Function* function);
+    /// Erase the global  \p global from this module.  \p global can also be a
+    /// function
+    void erase(Global* global);
 
-    ///
-    List<Function>::iterator eraseFunction(List<Function>::const_iterator itr);
+    /// \overload
+    List<Function>::iterator erase(List<Function>::const_iterator funcItr);
 
-    ///
+    /// Functio container interface @{
     List<Function>::iterator begin();
     List<Function>::const_iterator begin() const;
     List<Function>::iterator end();
@@ -70,10 +75,11 @@ public:
     Function const& front() const;
     Function& back();
     Function const& back() const;
+    /// @}
 
 private:
     utl::vector<UniquePtr<StructType>> structs;
-    utl::vector<UniquePtr<Global>> _globals;
+    List<Global> _globals;
     utl::hashmap<std::pair<size_t, size_t>, ForeignFunction*> _extFunctions;
     List<Function> funcs;
 };

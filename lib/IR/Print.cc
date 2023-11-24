@@ -259,8 +259,8 @@ void ir::print(Module const& mod, std::ostream& str) {
     }
     auto globals = mod.globals() | ToSmallVector<>;
     ranges::partition(globals, isa<GlobalVariable>);
-    for (auto* global: globals) {
-        ctx.print(*global);
+    for (auto& global: globals) {
+        ctx.print(global);
     }
     for (auto& function: mod) {
         ctx.print(function);

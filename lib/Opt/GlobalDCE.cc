@@ -12,18 +12,25 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_GLOBAL_PASS(opt::deadFuncElim, "deadfuncelim");
+/// Expose the pass to the pass manager. Therefore we need a function that
+/// accepts a local pass as the third argument
+static bool globalDCEPass(Context& ctx, Module& mod, LocalPass) {
+    return globalDCE(ctx, mod);
+}
+
+SC_REGISTER_GLOBAL_PASS(globalDCEPass, "globaldce");
 
 using Node = SCCCallGraph::FunctionNode;
 
 namespace {
 
-struct DFEContext {
-    DFEContext(Context& ctx, Module& mod):
+struct GDCEContext {
+    GDCEContext(Context& ctx, Module& mod):
         ctx(ctx), mod(mod), callgraph(SCCCallGraph::computeNoSCCs(mod)) {}
 
     bool run();
 
+    /// Recursively inserts callees into the `live` set
     void visit(SCCCallGraph::FunctionNode const* node);
 
     Context& ctx;
@@ -34,20 +41,18 @@ struct DFEContext {
 
 } // namespace
 
-bool opt::deadFuncElim(Context& ctx, Module& mod) {
-    return DFEContext(ctx, mod).run();
+bool opt::globalDCE(Context& ctx, Module& mod) {
+    return GDCEContext(ctx, mod).run();
 }
 
-bool opt::deadFuncElim(Context& ctx, Module& mod, LocalPass) {
-    return deadFuncElim(ctx, mod);
-}
-
-bool DFEContext::run() {
+bool GDCEContext::run() {
+    /// Determine all live functions
     for (auto& F: mod) {
         if (F.visibility() == Visibility::External) {
             visit(&callgraph[&F]);
         }
     }
+    /// Erase all live functions
     bool modified = false;
     for (auto itr = mod.begin(); itr != mod.end();) {
         auto* F = itr.to_address();
@@ -55,13 +60,22 @@ bool DFEContext::run() {
             ++itr;
             continue;
         }
-        itr = mod.eraseFunction(itr);
+        itr = mod.erase(itr);
         modified = true;
+    }
+    utl::small_vector<Global*> unused;
+    for (auto& global: mod.globals()) {
+        if (global.unused()) {
+            unused.push_back(&global);
+        }
+    }
+    for (auto* global: unused) {
+        mod.erase(global);
     }
     return modified;
 }
 
-void DFEContext::visit(SCCCallGraph::FunctionNode const* node) {
+void GDCEContext::visit(SCCCallGraph::FunctionNode const* node) {
     if (!live.insert(&node->function()).second) {
         return;
     }

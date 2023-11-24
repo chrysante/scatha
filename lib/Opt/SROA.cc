@@ -641,7 +641,7 @@ bool Variable::rewritePhis() {
             }
             /// If the instruction is a load we phi the copied loads together
             /// We also prune a little bit here to avoid adding unused phi nodes
-            if (isa<Load>(inst) && inst.isUsed()) {
+            if (isa<Load>(inst) && !inst.unused()) {
                 auto newPhi =
                     allocate<Phi>(newPhiArgs, utl::strcat(inst.name(), ".phi"));
                 inst.replaceAllUsesWith(newPhi.get());

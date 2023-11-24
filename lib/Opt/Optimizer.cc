@@ -18,7 +18,7 @@ void opt::optimize(Context& context, Module& mod, int level) {
 
     case 1:
         inlineFunctions(context, mod);
-        deadFuncElim(context, mod);
+        globalDCE(context, mod);
         forEach(context, mod, opt::splitReturns);
         return;
 

@@ -76,7 +76,7 @@ void FunctionBuilder::insertAllocas() {
     auto& entry = function.entry();
     auto before = entry.begin();
     for (auto& allocaInst: allocas) {
-        if (allocaInst->isUsed()) {
+        if (!allocaInst->unused()) {
             entry.insert(before, allocaInst.release());
         }
     }

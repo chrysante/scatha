@@ -100,9 +100,7 @@ private:
 /// blocks.
 class SCATHA_API Function:
     public Callable,
-    public CFGList<Function, BasicBlock>,
-    public ListNode<Function>,
-    public ParentedNode<Module> {
+    public CFGList<Function, BasicBlock> {
     friend class CFGList<Function, BasicBlock>;
     using ListBase = CFGList<Function, BasicBlock>;
 

@@ -712,7 +712,7 @@ LocalComputationTable GVNContext::buildLCT(BasicBlock* BB) {
 
 void GVNContext::clean() {
     for (auto* inst: redundant) {
-        SC_ASSERT(!inst->isUsed(), "");
+        SC_ASSERT(inst->unused(), "");
         inst->parent()->erase(inst);
     }
 }

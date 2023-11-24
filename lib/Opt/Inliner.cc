@@ -349,7 +349,7 @@ bool Inliner::inlineSelfRecursion(ir::Function* function) {
     function->replaceAllUsesWith(clone.get());
     auto& node = callGraph[function];
     callGraph.updateFunctionPointer(&node, clone.get());
-    mod.eraseFunction(function);
+    mod.erase(function);
     mod.addGlobal(std::move(clone));
     return true;
 }

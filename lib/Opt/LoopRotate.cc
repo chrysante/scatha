@@ -392,7 +392,7 @@ void LRContext::rotate(BasicBlock* header) {
 
     /// We remove all the phi nodes that were added for no reason
     for (auto* phi: addedPhis) {
-        if (!phi->isUsed()) {
+        if (phi->unused()) {
             phi->parent()->erase(phi);
         }
     }

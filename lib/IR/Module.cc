@@ -29,28 +29,31 @@ Global* Module::addGlobal(UniquePtr<Global> value) {
     auto* result = value.get();
     // clang-format off
     SC_MATCH (*value) {
-        [&](ForeignFunction& func) {
-            _extFunctions[{ func.slot(), func.index() }] = &func;
-            _globals.push_back(std::move(value));
-        },
         [&](Function& func) {
             value.release();
             func.set_parent(this);
             funcs.push_back(&func);
         },
-        [&](Global&) {
-            _globals.push_back(std::move(value));
+        [&](Global& global) {
+            if (auto* func = dyncast<ForeignFunction*>(&global)) {
+                _extFunctions[{ func->slot(), func->index() }] = func;
+            }
+            value.release();
+            global.set_parent(this);
+            _globals.push_back(&global);
         },
     }; // clang-format on
     return result;
 }
 
-void Module::eraseFunction(Function* function) {
-    eraseFunction(List<Function>::iterator(function));
+void Module::erase(Global* global) {
+    SC_MATCH (*global) {
+        [&](Function& function) { funcs.erase(&function); },
+            [&](Global& global) { _globals.erase(&global); },
+    };
 }
 
-List<Function>::iterator Module::eraseFunction(
-    List<Function>::const_iterator itr) {
+List<Function>::iterator Module::erase(List<Function>::const_iterator itr) {
     return funcs.erase(itr);
 }
 
