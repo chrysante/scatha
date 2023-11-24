@@ -8,6 +8,7 @@
 
 - Pass unique pointers in registers
 - Fix parser crashes
+- Make "No matching function" error message nicer
 
 ## IR
 
