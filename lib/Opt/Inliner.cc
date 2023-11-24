@@ -15,7 +15,9 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline");
+SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions,
+                        "inline",
+                        PassCategory::Simplification);
 
 using SCC = SCCCallGraph::SCCNode;
 using FunctionNode = SCCCallGraph::FunctionNode;

@@ -11,4 +11,4 @@ static bool helloWorld(ir::Context&, ir::Function& F) {
     return false;
 }
 
-SC_REGISTER_PASS(helloWorld, "helloworld");
+SC_REGISTER_PASS(helloWorld, "helloworld", ir::PassCategory::Other);

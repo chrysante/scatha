@@ -30,6 +30,9 @@ public:
 
     /// \Returns A list of all local passes
     static utl::vector<LocalPass> localPasses();
+
+    /// \Returns A list of all local passes of category \p category
+    static utl::vector<LocalPass> localPasses(PassCategory category);
 };
 
 } // namespace scatha::ir

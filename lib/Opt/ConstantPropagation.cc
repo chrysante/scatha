@@ -27,7 +27,9 @@ using namespace ir;
 /// Implemented with help from:
 /// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
 
-SC_REGISTER_PASS(opt::propagateConstants, "propagateconst");
+SC_REGISTER_PASS(opt::propagateConstants,
+                 "propagateconst",
+                 PassCategory::Simplification);
 
 namespace {
 

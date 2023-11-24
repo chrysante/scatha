@@ -20,7 +20,7 @@ using namespace ir;
 /// Implemented with help from this paper
 /// https://yunmingzhang.files.wordpress.com/2013/12/dcereport-2.pdf
 
-SC_REGISTER_PASS(opt::dce, "dce");
+SC_REGISTER_PASS(opt::dce, "dce", PassCategory::Simplification);
 
 namespace {
 

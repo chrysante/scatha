@@ -24,6 +24,10 @@ protected:
         _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
 public:
+    /// Values are polymorphic objects and not copyable
+    Value(Value const&) = delete;
+    Value& operator=(Value const&) = delete;
+
     /// Calls `removeAllUses()`
     ~Value();
 

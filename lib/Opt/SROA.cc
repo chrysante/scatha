@@ -34,7 +34,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::sroa, "sroa");
+SC_REGISTER_PASS(opt::sroa, "sroa", PassCategory::Simplification);
 
 /// Uniform interface to get the associated pointer and type of the load or
 /// store instruction \p inst

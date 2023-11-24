@@ -26,7 +26,9 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::globalValueNumbering, "gvn");
+SC_REGISTER_PASS(opt::globalValueNumbering,
+                 "gvn",
+                 PassCategory::Simplification);
 
 namespace {
 

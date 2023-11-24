@@ -153,7 +153,12 @@ struct Impl {
     void testIdempotency(Generator const& generator,
                          ir::Pipeline const& prePipeline,
                          uint64_t expected) const {
-        for (auto pass: ir::PassManager::localPasses()) {
+        for (auto pass:
+             ir::PassManager::localPasses(ir::PassCategory::Simplification))
+        {
+            if (pass.name() == "default") {
+                continue;
+            }
             auto [ctx, mod] = generator();
             prePipeline.execute(ctx, mod);
             auto message = utl::strcat("Idempotency check for \"",

@@ -16,8 +16,6 @@ namespace {
 struct Impl {
     utl::hashmap<std::string, LocalPass> localPasses;
 
-    utl::hashmap<std::string, LocalPass> canonicalizationPasses;
-
     utl::hashmap<std::string, GlobalPass> globalPasses;
 
     auto getPassImpl(auto& map, std::string_view name) const {
@@ -30,9 +28,6 @@ struct Impl {
 
     LocalPass getPass(std::string_view name) const {
         if (auto pass = getPassImpl(localPasses, name)) {
-            return pass;
-        }
-        if (auto pass = getPassImpl(canonicalizationPasses, name)) {
             return pass;
         }
         return {};
@@ -53,26 +48,16 @@ struct Impl {
                ranges::to<utl::vector>;
     }
 
-    utl::vector<LocalPass> getLocalPasses() const {
-        return getPassesImpl(localPasses, [](auto const& pass) {
-            return pass.name() != "default";
-        });
+    utl::vector<LocalPass> getLocalPasses(auto filter) const {
+        return getPassesImpl(localPasses, filter);
     }
 
-    utl::vector<LocalPass> getCanonicalizationPasses() const {
-        return getPassesImpl(localPasses, [](auto const& pass) {
-            return pass.name() != "canonicalize";
-        });
+    utl::vector<LocalPass> getCanonicalizationPasses(auto filter) const {
+        return getPassesImpl(localPasses, filter);
     }
 
     void registerLocal(LocalPass pass) {
         auto [itr, success] = localPasses.insert({ pass.name(), pass });
-        SC_ASSERT(success, "Failed to register pass");
-    }
-
-    void registerCanonicalization(LocalPass pass) {
-        auto [itr, success] =
-            canonicalizationPasses.insert({ pass.name(), pass });
         SC_ASSERT(success, "Failed to register pass");
     }
 
@@ -102,15 +87,16 @@ Pipeline PassManager::makePipeline(std::string_view passes) {
 }
 
 utl::vector<LocalPass> PassManager::localPasses() {
-    return getImpl().getLocalPasses();
+    return getImpl().getLocalPasses([](auto&) { return true; });
+}
+
+utl::vector<LocalPass> PassManager::localPasses(PassCategory category) {
+    return getImpl().getLocalPasses(
+        [=](auto& pass) { return pass.category() == category; });
 }
 
 void ir::internal::registerLocal(LocalPass pass) {
     getImpl().registerLocal(std::move(pass));
-}
-
-void ir::internal::registerCanonicalization(LocalPass pass) {
-    getImpl().registerCanonicalization(std::move(pass));
 }
 
 void ir::internal::registerGlobal(GlobalPass pass) {

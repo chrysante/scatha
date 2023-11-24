@@ -22,13 +22,21 @@ using namespace scatha;
 using namespace ir;
 using namespace tfmt::modifiers;
 
-/// To expose the print function to the pass manager
+/// To expose the `print(Function)` function to the pass manager
 static bool printPass(ir::Context& ctx, ir::Function& function) {
     ir::print(function);
     return false;
 }
 
-SC_REGISTER_PASS(printPass, "print");
+// SC_REGISTER_PASS(printPass, "print");
+
+/// To expose the `print(Module)` function to the pass manager
+static bool printPass(ir::Context& ctx, ir::Module& mod, LocalPass) {
+    ir::print(mod);
+    return false;
+}
+
+// SC_REGISTER_GLOBAL_PASS(printPass, "print");
 
 namespace {
 
@@ -257,10 +265,10 @@ void ir::print(Module const& mod, std::ostream& str) {
     for (auto& structure: mod.structures()) {
         ctx.print(*structure);
     }
-    auto globals = mod.globals() | ToSmallVector<>;
+    auto globals = mod.globals() | TakeAddress | ToSmallVector<>;
     ranges::partition(globals, isa<GlobalVariable>);
-    for (auto& global: globals) {
-        ctx.print(global);
+    for (auto* global: globals) {
+        ctx.print(*global);
     }
     for (auto& function: mod) {
         ctx.print(function);

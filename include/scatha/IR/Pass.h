@@ -8,8 +8,41 @@
 
 namespace scatha::ir {
 
-/// Represents a local transform pass that operates on a single function
-class LocalPass {
+/// Different pass categories
+enum class PassCategory {
+    Analysis,
+    Canonicalization,
+    Simplification,
+    Optimization,
+    Other
+};
+
+/// Common base class of `LocalPass` and `GlobalPass`
+class PassBase {
+public:
+    /// The name of the pass
+    std::string const& name() const { return _name; }
+
+    /// The category of this pass
+    PassCategory category() const { return _cat; }
+
+protected:
+    PassBase(): PassBase({}, PassCategory::Other) {}
+
+    PassBase(std::string name, PassCategory category):
+        _name(std::move(name)), _cat(category) {
+        if (_name.empty()) {
+            _name = "anonymous";
+        }
+    }
+
+private:
+    std::string _name;
+    PassCategory _cat;
+};
+
+/// Represents a local pass that operates on a single function
+class LocalPass: public PassBase {
 public:
     /// The function pointer type with the signature of the pass type
     using PointerType = bool (*)(ir::Context&, ir::Function&);
@@ -23,27 +56,24 @@ public:
 
     /// Construct a named local pass from a function
     LocalPass(std::function<bool(ir::Context&, ir::Function&)> p,
-              std::string name = "anonymous"):
-        p(std::move(p)), _name(std::move(name)) {}
+              std::string name = {},
+              PassCategory category = PassCategory::Other):
+        PassBase(std::move(name), category), p(std::move(p)) {}
 
     /// Invoke the pass
     bool operator()(ir::Context& ctx, ir::Function& function) const {
         return p(ctx, function);
     }
 
-    /// The name of the pass
-    std::string const& name() const { return _name; }
-
     /// \Returns `true` is the pass is non-empty
     operator bool() const { return !!p; }
 
 private:
     std::function<bool(ir::Context&, ir::Function&)> p;
-    std::string _name;
 };
 
-/// Represents a global transform pass that operates on an entire module
-class GlobalPass {
+/// Represents a global pass that operates on an entire module
+class GlobalPass: public PassBase {
 public:
     /// The function pointer type with the signature of the pass type
     using PointerType = bool (*)(ir::Context&, ir::Module&, LocalPass);
@@ -53,12 +83,14 @@ public:
     GlobalPass() = default;
 
     /// Construct a global pass from function pointer \p pointer
-    GlobalPass(PointerType ptr): GlobalPass(std::function(ptr)) {}
+    GlobalPass(PointerType ptr, PassCategory category = PassCategory::Other):
+        GlobalPass(std::function(ptr)) {}
 
     /// Construct a named global pass from a function
     GlobalPass(std::function<bool(ir::Context&, ir::Module&, LocalPass)> p,
-               std::string name = "anonymous"):
-        p(std::move(p)), _name(std::move(name)) {}
+               std::string name = {},
+               PassCategory category = PassCategory::Other):
+        PassBase(std::move(name), category), p(std::move(p)) {}
 
     /// Invoke the pass
     bool operator()(ir::Context& ctx,
@@ -67,15 +99,11 @@ public:
         return p(ctx, mod, std::move(localPass));
     }
 
-    /// The name of the pass
-    std::string const& name() const { return _name; }
-
     /// \Returns `true` is the pass is non-empty
     operator bool() const { return !!p; }
 
 private:
     std::function<bool(ir::Context&, ir::Module&, LocalPass)> p;
-    std::string _name;
 };
 
 } // namespace scatha::ir

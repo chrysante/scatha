@@ -23,7 +23,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::instCombine, "instcombine");
+SC_REGISTER_PASS(opt::instCombine, "instcombine", PassCategory::Simplification);
 
 namespace {
 

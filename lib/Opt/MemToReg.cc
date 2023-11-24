@@ -12,7 +12,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::memToReg, "memtoreg");
+SC_REGISTER_PASS(opt::memToReg, "memtoreg", PassCategory::Simplification);
 
 bool opt::memToReg(Context& ctx, Function& function) {
     auto& domInfo = function.getOrComputeDomInfo();
