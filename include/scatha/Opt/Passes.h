@@ -1,8 +1,6 @@
 #ifndef SCATHA_OPT_PASSES_H_
 #define SCATHA_OPT_PASSES_H_
 
-#include <functional>
-
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
 #include <scatha/IR/Pass.h>
@@ -28,11 +26,6 @@ SCATHA_API bool deadFuncElim(ir::Context& ctx, ir::Module& mod);
 SCATHA_API bool deadFuncElim(ir::Context& ctx,
                              ir::Module& mod,
                              ir::LocalPass localPass);
-
-/// Execute \p localPass for each function in the module \p mod
-SCATHA_API bool forEach(ir::Context& ctx,
-                        ir::Module& mod,
-                        ir::LocalPass localPass);
 
 /// # Canonicalization passes
 

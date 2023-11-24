@@ -19,6 +19,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
 #include "IR/Context.h"
+#include "IR/ForEach.h"
 #include "IR/Fwd.h"
 #include "IR/IRParser.h"
 #include "IR/Module.h"
@@ -65,7 +66,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
             sym = std::move(sym),
             analysisResult = std::move(analysisResult)] {
         auto result = irgen::generateIR(*ast, sym, analysisResult, {});
-        opt::forEach(result.first, result.second, opt::unifyReturns);
+        ir::forEach(result.first, result.second, opt::unifyReturns);
         return result;
     };
 }
@@ -73,7 +74,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
 static Generator makeIRGenerator(std::string_view text) {
     return [=] {
         auto result = ir::parse(text).value();
-        opt::forEach(result.first, result.second, opt::unifyReturns);
+        ir::forEach(result.first, result.second, opt::unifyReturns);
         return result;
     };
 }
@@ -160,9 +161,9 @@ struct Impl {
                                        "\" with pre pipeline \"",
                                        prePipeline,
                                        "\"");
-            opt::forEach(ctx, mod, pass);
+            ir::forEach(ctx, mod, pass);
             checkReturns(message, mod, expected);
-            bool second = opt::forEach(ctx, mod, pass);
+            bool second = ir::forEach(ctx, mod, pass);
             INFO(message);
             CHECK(!second);
             checkReturns(message, mod, expected);

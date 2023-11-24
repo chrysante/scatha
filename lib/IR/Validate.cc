@@ -19,8 +19,6 @@
 using namespace scatha;
 using namespace ir;
 
-/// ** Assertions **
-
 #define CHECK(cond, msg) doCheck(cond, msg, #cond)
 
 namespace {
@@ -292,47 +290,4 @@ void AssertContext::uniqueName(Value const& value) {
     }
     CHECK(valueAddr == &value,
           "A value with the same name must be the same value");
-}
-
-/// ** Setup **
-
-void ir::setupInvariants(Context& ctx, Module& mod) {
-    for (auto& function: mod) {
-        setupInvariants(ctx, function);
-    }
-}
-
-static void link(ir::BasicBlock* a, ir::BasicBlock* b) {
-    if (!b->isPredecessor(a)) {
-        b->addPredecessor(a);
-    }
-};
-
-void ir::setupInvariants(Context& ctx, Function& function) {
-    for (auto& bb: function) {
-        /// Erase everything after the first terminator.
-        for (auto itr = bb.begin(); itr != bb.end(); ++itr) {
-            if (isa<TerminatorInst>(*itr)) {
-                bb.erase(std::next(itr), bb.end());
-                break;
-            }
-        }
-        /// If we don't have a terminator insert a return.
-        if (bb.empty() || !isa<TerminatorInst>(bb.back())) {
-            bb.pushBack(new Return(ctx, ctx.undef(bb.parent()->returnType())));
-            continue;
-        }
-        auto* terminator = bb.terminator();
-        // clang-format off
-        SC_MATCH (*terminator) {
-            [&](ir::Goto& gt) {
-                link(&bb, gt.target());
-            },
-            [&](ir::Branch& br) {
-                link(&bb, br.thenTarget());
-                link(&bb, br.elseTarget());
-            },
-            [&](ir::Return&) {}
-        }; // clang-format on
-    }
 }

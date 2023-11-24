@@ -61,3 +61,27 @@ export fn g(n: int) {
     auto result = f(3);
     CHECK(result == 24);
 }
+
+TEST_CASE("Struct declaration") {
+    /// `Compiler::declareType()` is not implemented yet
+#if 0
+    Compiler compiler;
+    struct MyStruct {
+        int64_t foo;
+        double bar;
+    };
+    compiler.mapType(typeid(MyStruct), { "MyStruct", { { "foo", typeid(int64_t) }, { "bar", typeid(double) } } });
+    auto myFunction = [](MyStruct s) { return s.foo + static_cast<int64_t>(s.bar); };
+    auto myFunctionDecl = compiler.declareFunction("myFunction", myFunction);
+    compiler.addSourceText(R"(
+export fn f(s: MyStruct) {
+    return myFunction(s) + s.foo;
+}
+)");
+    auto executor = Executor::Make(compiler.compile());
+    executor->addFunction(myFunctionDecl, myFunction);
+    auto f = executor->getFunction<int64_t(MyStruct)>("f-MyStruct").value();
+    auto result = f({ .foo = 3, .bar = 1.5 });
+    CHECK(result == 24);
+#endif
+}

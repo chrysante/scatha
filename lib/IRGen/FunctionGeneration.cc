@@ -3,6 +3,7 @@
 #include "AST/AST.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/InvariantSetup.h"
 #include "IR/Validate.h"
 #include "IRGen/GlobalDecls.h"
 #include "Sema/Entity.h"

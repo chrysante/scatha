@@ -12,6 +12,7 @@
 #include "Common/EscapeSequence.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/InvariantSetup.h"
 #include "IR/Module.h"
 #include "IR/Parser/IRLexer.h"
 #include "IR/Parser/IRToken.h"
@@ -362,7 +363,6 @@ Expected<std::pair<Context, Module>, ParseIssue> ir::parse(
         Module mod;
         ParseContext parseContext(irCtx, mod, text);
         parseContext.parse();
-        setupInvariants(irCtx, mod);
         assertInvariants(irCtx, mod);
         return { std::move(irCtx), std::move(mod) };
     }
@@ -427,11 +427,11 @@ UniquePtr<Callable> ParseContext::parseCallable() {
     }
     expect(eatToken(), TokenKind::CloseParan);
     if (isExt) {
-        auto result = makeForeignFunction(returnType, parameters, name);
-        registerValue(name, result.get());
-        return result;
+        auto function = makeForeignFunction(returnType, parameters, name);
+        registerValue(name, function.get());
+        return function;
     }
-    auto result =
+    auto function =
         allocate<Function>(irCtx,
                            returnType,
                            parameters,
@@ -439,7 +439,7 @@ UniquePtr<Callable> ParseContext::parseCallable() {
                            FunctionAttribute::None,
                            Visibility::External); // FIXME: Parse
                                                   // function visibility
-    registerValue(name, result.get());
+    registerValue(name, function.get());
     expect(eatToken(), TokenKind::OpenBrace);
     /// Parse the body of the function.
     while (true) {
@@ -447,11 +447,12 @@ UniquePtr<Callable> ParseContext::parseCallable() {
         if (!basicBlock) {
             break;
         }
-        result->pushBack(std::move(basicBlock));
+        function->pushBack(std::move(basicBlock));
     }
     expect(eatToken(), TokenKind::CloseBrace);
     checkEmpty(localPendingUpdates);
-    return result;
+    setupInvariants(irCtx, *function);
+    return function;
 }
 
 UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {

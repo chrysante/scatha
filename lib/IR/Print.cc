@@ -15,11 +15,20 @@
 #include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
+#include "IR/PassRegistry.h"
 #include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;
 using namespace tfmt::modifiers;
+
+/// To expose the print function to the pass manager
+static bool printPass(ir::Context& ctx, ir::Function& function) {
+    ir::print(function);
+    return false;
+}
+
+SC_REGISTER_PASS(printPass, "print");
 
 namespace {
 

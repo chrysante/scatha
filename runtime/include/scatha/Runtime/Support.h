@@ -6,6 +6,7 @@
 #include <functional>
 #include <string>
 #include <tuple>
+#include <typeindex>
 #include <vector>
 
 #include <scatha/Sema/Fwd.h>
@@ -13,13 +14,15 @@
 
 namespace scatha {
 
+using TypeID = std::variant<std::type_index, sema::Type const*>;
+
 /// Struct member descriptor
 struct StructMemberDesc {
     /// The name of the member as it will be accessible in source code
     std::string name;
 
     /// The type of the member
-    sema::Type const* type;
+    TypeID type;
 };
 
 /// Struct descriptor
