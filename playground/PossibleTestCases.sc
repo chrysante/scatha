@@ -240,3 +240,31 @@ struct Y {
     var x: X;
 }
 
+/// Split returns
+export fn test(n: int) {
+    if n < 10 {
+        if n < 5 {
+            if n == 0 {
+                return 0;
+            }
+            if n == 1 {
+                return 1;
+            }
+            if n == 2 {
+                return 2;
+            }
+            if n == 3 {
+                return 3;
+            }
+            if n == 4 {
+                return 3;
+            }
+        }
+        return n;
+    }
+    else {
+        return n;
+    }
+}
+
+
