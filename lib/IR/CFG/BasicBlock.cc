@@ -66,6 +66,13 @@ void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
     }
 }
 
+void BasicBlock::mapPredecessors(
+    utl::function_view<BasicBlock*(BasicBlock*)> op) {
+    for (auto& pred: preds) {
+        pred = op(pred);
+    }
+}
+
 void BasicBlock::removePredecessor(BasicBlock const* pred) {
     auto itr = ranges::find(preds, pred);
     auto index = utl::narrow_cast<size_t>(itr - ranges::begin(preds));

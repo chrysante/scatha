@@ -1,6 +1,7 @@
 #ifndef SCATHA_IR_CFG_BASICBLOCK_H_
 #define SCATHA_IR_CFG_BASICBLOCK_H_
 
+#include <utl/function_view.hpp>
 #include <utl/vector.hpp>
 
 #include "IR/CFG/Instruction.h"
@@ -110,6 +111,10 @@ public:
     ///
     /// This also updates all the phi nodes in this basic block.
     void updatePredecessor(BasicBlock const* oldPred, BasicBlock* newPred);
+
+    /// Update all predecessors according to \p operation
+    void mapPredecessors(
+        utl::function_view<BasicBlock*(BasicBlock*)> operation);
 
     /// \returns `true` if \p *possiblePred is a predecessor of this basic
     /// block.

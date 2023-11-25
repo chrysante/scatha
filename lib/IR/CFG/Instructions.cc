@@ -143,6 +143,13 @@ void TerminatorInst::updateTarget(BasicBlock* oldTarget,
     updateOperand(oldTarget, newTarget);
 }
 
+void TerminatorInst::mapTargets(
+    utl::function_view<BasicBlock*(BasicBlock*)> op) {
+    for (auto [index, target]: targets() | ranges::views::enumerate) {
+        setTarget(index, op(target));
+    }
+}
+
 void TerminatorInst::setTarget(size_t index, BasicBlock* bb) {
     setOperand(nonTargetArguments + index, bb);
 }
@@ -200,6 +207,12 @@ void Phi::setArgument(size_t index, Value* value) { setOperand(index, value); }
 
 void Phi::setPredecessor(size_t index, BasicBlock* pred) {
     _preds[index] = pred;
+}
+
+void Phi::mapPredecessors(utl::function_view<BasicBlock*(BasicBlock*)> op) {
+    for (auto& pred: _preds) {
+        pred = op(pred);
+    }
 }
 
 void Phi::addArgument(BasicBlock* pred, Value* value) {

@@ -3,6 +3,8 @@
 
 #include <optional>
 
+#include <utl/function_view.hpp>
+
 #include "Common/Ranges.h"
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Instruction.h"
@@ -189,21 +191,33 @@ class SCATHA_API TerminatorInst: public Instruction {
     }
 
 public:
+    /// \Returns a view over the target blocks of this terminator instruction
     auto targets() { return targetsImpl<BasicBlock>(*this); }
 
+    /// \overload
     auto targets() const { return targetsImpl<BasicBlock const>(*this); }
 
+    /// \Returns the target block at index \p index
     BasicBlock* targetAt(size_t index) {
         return const_cast<BasicBlock*>(std::as_const(*this).targetAt(index));
     }
 
+    /// \overload
     BasicBlock const* targetAt(size_t index) const;
 
+    /// \Returns the number of targets of this terminator. This is 1 for gotos
+    /// and 2 for branches
     size_t numTargets() const { return targets().size(); }
 
+    /// Update the target block \p oldTarget to \p newTarget
     void updateTarget(BasicBlock* oldTarget, BasicBlock* newTarget);
 
-    void setTarget(size_t index, BasicBlock* bb);
+    /// Update all target blocks according to \p operation
+    /// \Warning Does not update predecessor lists of the old and new targets
+    void mapTargets(utl::function_view<BasicBlock*(BasicBlock*)> operation);
+
+    /// Set the target block at target \p index to \p BB
+    void setTarget(size_t index, BasicBlock* BB);
 
 protected:
     explicit TerminatorInst(NodeType nodeType,
@@ -374,6 +388,10 @@ public:
 
     /// Assign \p pred to predecessor at \p index
     void setPredecessor(size_t index, BasicBlock* pred);
+
+    /// Update all predecessors according to \p operation
+    void mapPredecessors(
+        utl::function_view<BasicBlock*(BasicBlock*)> operation);
 
     /// Append an argument to this phi node. Use this to adjust this phi node
     /// after adding predecessors to its parent basic block.

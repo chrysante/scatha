@@ -23,9 +23,14 @@ using namespace ir;
 /// X_0 = phi(x_1, ...)
 /// x_1 = x_0 +- C
 /// ```
-/// Here `x_1` is an induction variable if `x_0` and `x_1` are both defined
-/// within the loop and `C` is a constant
-static bool isInductionVar(Instruction const* inst, LoopInfo const& loop) {
+/// `x_1` is an induction variable if the following conditions are satisfied:
+/// - `C` is a constant
+/// - `x_0` and `x_1` are both defined within the loop
+/// - `x_1` is computed in every loop iteration, i.e. it post dominates the loop
+///   header
+static bool isInductionVar(Instruction const* inst,
+                           LoopInfo const& loop,
+                           DominanceInfo const& postDomInfo) {
     auto* add = dyncast<ArithmeticInst const*>(inst);
     if (!add) {
         return false;
@@ -46,15 +51,22 @@ static bool isInductionVar(Instruction const* inst, LoopInfo const& loop) {
     if (!ranges::contains(phi->operands(), add)) {
         return false;
     }
+    if (!postDomInfo.dominatorSet(loop.header()).contains(add->parent())) {
+        return false;
+    }
     return true;
 }
 
 LoopInfo LoopInfo::Compute(LNFNode const& header) {
     LoopInfo loop;
+    /// Set the header
     loop._header = header.basicBlock();
+    /// Gather all inner blocks
     header.preorderDFS([&](LNFNode const* node) {
         loop._innerBlocks.insert(node->basicBlock());
     });
+    /// Determine exiting and exit blocks and induction variables
+    auto const& postDomInfo = loop.function()->getOrComputePostDomInfo();
     for (auto* BB: loop.innerBlocks()) {
         if (isa<Branch>(BB->terminator())) {
             for (auto* succ: BB->successors()) {
@@ -65,9 +77,18 @@ LoopInfo LoopInfo::Compute(LNFNode const& header) {
             }
         }
         for (auto& inst: *BB) {
-            if (isInductionVar(&inst, loop)) {
+            if (isInductionVar(&inst, loop, postDomInfo)) {
                 loop._inductionVars.push_back(&inst);
             }
+        }
+    }
+    /// Determine entering blocks and latches
+    for (auto* pred: loop.header()->predecessors()) {
+        if (loop.isInner(pred)) {
+            loop._latches.insert(pred);
+        }
+        else {
+            loop._enteringBlocks.insert(pred);
         }
     }
     return loop;
@@ -105,7 +126,7 @@ bool ir::isLCSSA(LoopInfo const& loop) {
 
 void ir::makeLCSSA(Function& function) {
     auto& LNF = function.getOrComputeLNF();
-    LNF.preorderDFS([&](LNFNode* node) {
+    LNF.postorderDFS([&](LNFNode* node) {
         if (node->isProperLoop()) {
             auto& loop = node->loopInfo();
             makeLCSSA(loop);

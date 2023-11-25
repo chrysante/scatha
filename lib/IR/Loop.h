@@ -39,6 +39,22 @@ public:
         return _innerBlocks.contains(BB);
     }
 
+    /// \Returns a view over all basic blocks that may enter the loop
+    auto const& enteringBlocks() const { return _enteringBlocks; }
+
+    /// \Returns `true` if \p BB is an entering block of this loop
+    bool isEntering(BasicBlock const* BB) const {
+        return _enteringBlocks.contains(BB);
+    }
+
+    /// \Returns a view over all inner basic blocks that have an edge to the
+    /// header
+    auto const& latches() const { return _latches; }
+
+    /// \Returns `true` if \p BB is an inner block that has an edge to the
+    /// header
+    bool isLatch(BasicBlock const* BB) const { return _latches.contains(BB); }
+
     /// \Returns a view over all basic blocks that the loop may exit from
     auto const& exitingBlocks() const { return _exitingBlocks; }
 
@@ -67,6 +83,8 @@ private:
 
     BasicBlock* _header = nullptr;
     utl::hashset<BasicBlock*> _innerBlocks;
+    utl::hashset<BasicBlock*> _enteringBlocks;
+    utl::hashset<BasicBlock*> _latches;
     utl::hashset<BasicBlock*> _exitingBlocks;
     utl::hashset<BasicBlock*> _exitBlocks;
     utl::hashmap<BasicBlock const*, utl::small_vector<Phi*>>
@@ -162,6 +180,22 @@ public:
     void preorderDFS(F&& f) {
         for (auto* root: roots()) {
             root->preorderDFS(f);
+        }
+    }
+
+    /// Traverse all trees in postorder
+    template <std::invocable<Node const*> F>
+    void postorderDFS(F&& f) const {
+        for (auto* root: roots()) {
+            root->postorderDFS(f);
+        }
+    }
+
+    /// \overload
+    template <std::invocable<Node*> F>
+    void postorderDFS(F&& f) {
+        for (auto* root: roots()) {
+            root->postorderDFS(f);
         }
     }
 

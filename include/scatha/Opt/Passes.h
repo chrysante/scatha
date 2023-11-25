@@ -85,6 +85,9 @@ SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 /// function, thus creating loops.
 SCATHA_API bool tailRecElim(ir::Context& context, ir::Function& function);
 
+/// Unrolls loops with constant trip count
+SCATHA_API bool loopUnroll(ir::Context& context, ir::Function& function);
+
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_PASSES_H_
