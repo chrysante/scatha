@@ -33,7 +33,7 @@ SCATHA_API bool unifyReturns(ir::Context& context, ir::Function& function);
 SCATHA_API bool splitReturns(ir::Context& context, ir::Function& function);
 
 /// This pass transform while loops into guarded do/while loops
-SCATHA_API bool rotateLoops(ir::Context& context, ir::Function& function);
+SCATHA_API bool loopRotate(ir::Context& context, ir::Function& function);
 
 /// # Local passes
 

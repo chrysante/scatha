@@ -106,9 +106,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::rotateLoops,
-                 "rotateloops",
-                 PassCategory::Canonicalization);
+SC_REGISTER_PASS(opt::loopRotate, "looprotate", PassCategory::Canonicalization);
 
 /// \Returns `true` if \p node is a while loop
 static bool isWhileLoop(LNFNode const* header, LoopNestingForest const& LNF) {
@@ -233,7 +231,7 @@ struct TopSorter {
 
 } // namespace
 
-bool opt::rotateLoops(Context& ctx, Function& function) {
+bool opt::loopRotate(Context& ctx, Function& function) {
     /// We collect all the while loops of `function` in breadth first search
     /// order of the the loop nesting forest
     utl::small_vector<utl::small_vector<BasicBlock*>, 2> whileHeadersBFS;

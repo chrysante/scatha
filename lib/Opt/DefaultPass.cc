@@ -15,7 +15,7 @@ SC_REGISTER_PASS(opt::defaultPass, "default", PassCategory::Simplification);
 bool opt::canonicalize(Context& ctx, Function& function) {
     bool modified = false;
     modified |= unifyReturns(ctx, function);
-    modified |= rotateLoops(ctx, function);
+    modified |= loopRotate(ctx, function);
     return modified;
 }
 
