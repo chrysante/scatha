@@ -52,12 +52,16 @@ void JumpElimContext::DFS(mir::BasicBlock* BB) {
     visited.insert(BB);
     L.extract(BB).release();
     F.pushBack(BB);
+    SC_ASSERT(!BB->empty(), "");
     auto* term = &BB->back();
     while (mir::isJump(term->instcode())) {
         auto* target = term->operandAt(0);
         /// Target could also be a function.
         if (auto* targetBB = dyncast<mir::BasicBlock*>(target)) {
             DFS(targetBB);
+        }
+        if (term == &BB->front()) {
+            break;
         }
         term = term->prev();
     }

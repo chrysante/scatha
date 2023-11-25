@@ -323,7 +323,7 @@ static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
          ranges::views::zip(BB.predecessors(), phi.operands()))
     {
         auto before = pred->end();
-        while (true) {
+        while (before != pred->begin()) {
             auto p = std::prev(before);
             if (!isTerminator(p->instcode())) {
                 break;
