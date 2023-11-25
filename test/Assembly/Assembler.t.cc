@@ -1,5 +1,5 @@
-#include <Catch/Catch2.hpp>
-
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <svm/Builtin.h>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>

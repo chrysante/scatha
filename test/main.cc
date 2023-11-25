@@ -1,5 +1,4 @@
-#define CATCH_CONFIG_RUNNER
-#include <Catch/Catch2.hpp>
+#include <catch2/catch_session.hpp>
 
 #include "test/Options.h"
 
@@ -13,7 +12,7 @@ Options const& test::getOptions() { return options; }
 int main(int argc, char* argv[]) {
     Catch::Session session;
 
-    using namespace Catch::clara;
+    using namespace Catch::Clara;
     auto cli = session.cli() |
                Opt(options.TestPasses, "passes")["--passes"](
                    "Run pass tests for the end to end test cases") |

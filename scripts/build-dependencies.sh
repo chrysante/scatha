@@ -7,7 +7,19 @@ premake5 xcode4
 
 mkdir -p build/bin/{Debug,Release}
 
+# Catch
+cd $PROJ_DIR
+mkdir -p build/Catch
+cmake -DCMAKE_CXX_STANDARD=17 -S external/Catch -B build/Catch
+cd build/Catch
+make -j
+
+cp src/*.a ../bin/Debug
+cp src/*.a ../bin/Release
+
+
 # FTXUI
+cd $PROJ_DIR
 mkdir -p build/FTXUI
 cmake -S external/FTXUI -B build/FTXUI
 cd build/FTXUI

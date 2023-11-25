@@ -1,4 +1,5 @@
-#include <Catch/Catch2.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <algorithm>
 #include <random>
@@ -45,6 +46,10 @@ TEST_CASE("Virtual memory") {
     }
 }
 
+static size_t alignTo(size_t size, size_t align) {
+    return size % align == 0 ? size : size + align - size % align;
+}
+
 TEST_CASE("Virtual memory allocations and deallocations") {
     static constexpr std::array<size_t, 3> alignments = { 4, 8, 16 };
     size_t seed = GENERATE(0u, 123u, 12456434u, 7564534u);
@@ -65,11 +70,11 @@ TEST_CASE("Virtual memory allocations and deallocations") {
         };
         std::vector<Block> blocks;
         for (int i = 0; i < run; ++i) {
-            size_t size = std::uniform_int_distribution<size_t>(5, 10'000)(rng);
             size_t alignIdx =
                 std::uniform_int_distribution<size_t>(0, alignments.size() - 1)(
                     rng);
             size_t align = alignments[alignIdx];
+            size_t size = alignTo(std::uniform_int_distribution<size_t>(5, 10'000)(rng), align);
             auto ptr = mem.allocate(size, align);
             blocks.push_back({ ptr, size, align });
         }

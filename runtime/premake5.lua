@@ -27,9 +27,10 @@ externalincludedirs {
     "%{wks.location}/svm/include",
     "%{wks.location}/external/utility/include",
     "%{wks.location}/external/range-v3/include",
-    "%{wks.location}/external/Catch",
+    "%{wks.location}/external/Catch/src",
+    "%{wks.location}/build/Catch/generated-includes",
 }
 
 files { "test/**.cc" }
 
-links { "scatha", "svm-lib", "runtime" }
+links { "Catch2", "Catch2Main", "scatha", "svm-lib", "runtime" }

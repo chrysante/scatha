@@ -87,13 +87,14 @@ externalincludedirs {
     "include", 
     "svm/include", 
     "external/utility/include", 
-    "external/Catch",
+    "external/Catch/src",
+    "build/Catch/generated-includes",
     "external/APMath/include",
     "external/range-v3/include",
 }
 
 addCppFiles "test"
-links { "scatha", "svm-lib", "APMath" } 
+links { "Catch2", "scatha", "svm-lib", "APMath" } 
 
 ------------------------------------------
 
@@ -118,8 +119,7 @@ addCppFiles "playground"
 files "playground/**.sc"
 links { 
     "scatha", 
-    "svm-lib",
-    --"runtime", 
+    "svm-lib", 
     "termfmt" 
 }
 

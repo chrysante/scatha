@@ -96,7 +96,7 @@ VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
     if (size >= uint64_t(1) << 48) {
         throwError<AllocationError>(AllocationError::InvalidSize, size, align);
     }
-    if (std::popcount(align) != 1 || align > size) {
+    if (std::popcount(align) != 1 || size % align != 0) {
         throwError<AllocationError>(AllocationError::InvalidAlign, size, align);
     }
     if (size <= MaxPoolSize) {

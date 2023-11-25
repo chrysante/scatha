@@ -1,4 +1,4 @@
-#include <Catch/Catch2.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include "Opt/Passes.h"
 #include "test/Opt/PassTest.h"

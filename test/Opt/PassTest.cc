@@ -1,6 +1,6 @@
 #include "test/Opt/PassTest.h"
 
-#include <Catch/Catch2.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
