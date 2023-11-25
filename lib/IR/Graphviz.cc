@@ -1,5 +1,6 @@
 #include "IR/Graphviz.h"
 
+#include <iostream>
 #include <string>
 
 #include <graphgen/graphgen.h>
@@ -8,6 +9,7 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
+#include "Debug/DebugGraphviz.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
@@ -100,3 +102,21 @@ void ir::generateGraphviz(Module const& mod, std::ostream& ostream) {
     }
     generate(G, ostream);
 }
+
+static void generateTmpImpl(auto& obj) {
+    try {
+        auto [path, file] = debug::newDebugFile("cfg");
+        generateGraphviz(obj, file);
+        file.close();
+        debug::createGraphAndOpen(path);
+    }
+    catch (std::exception const& e) {
+        std::cout << e.what() << std::endl;
+    }
+}
+
+void ir::generateGraphvizTmp(Function const& function) {
+    generateTmpImpl(function);
+}
+
+void ir::generateGraphvizTmp(Module const& mod) { generateTmpImpl(mod); }
