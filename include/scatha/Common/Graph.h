@@ -388,9 +388,15 @@ public:
     using Base::Base;
 
     /// \Returns a pointer to the parent node
+    Self* parent() { return _parent; }
+
+    /// \overload
     Self const* parent() const { return _parent; }
 
     /// \Returns a view over the children of this node
+    std::span<Self* const> children() { return _children; }
+
+    /// \overload
     std::span<Self const* const> children() const { return _children; }
 
     /// Add \p child as a child of this node. The parent pointer of\p child will
