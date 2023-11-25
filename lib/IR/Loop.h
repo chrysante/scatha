@@ -53,11 +53,25 @@ public:
     /// \Returns `true` if \p BB is an exit block of this loop
     bool isExit(BasicBlock const* BB) const { return _exitBlocks.contains(BB); }
 
+    /// \Returns a list of all loop closing phi instructions in the exit block
+    /// \p exit
+    std::span<Phi* const> loopClosingPhiNodes(BasicBlock const* exit) const;
+
+    /// \Returns a list of the induction variables of this loop
+    std::span<Instruction* const> inductionVariables() const {
+        return _inductionVars;
+    }
+
 private:
+    friend void makeLCSSA(LoopInfo& loopInfo);
+
     BasicBlock* _header = nullptr;
     utl::hashset<BasicBlock*> _innerBlocks;
     utl::hashset<BasicBlock*> _exitingBlocks;
     utl::hashset<BasicBlock*> _exitBlocks;
+    utl::hashmap<BasicBlock const*, utl::small_vector<Phi*>>
+        _loopClosingPhiNodes;
+    utl::small_vector<Instruction*, 2> _inductionVars;
 };
 
 /// \Returns `true` if the loop \p loop is in LCSSA form
@@ -69,7 +83,7 @@ void makeLCSSA(Function& function);
 
 /// Turns the loop described by \p loopInfo into LCSSA form
 /// \Returns `true` if the loop has been modified
-void makeLCSSA(LoopInfo const& loopInfo);
+void makeLCSSA(LoopInfo& loopInfo);
 
 /// Node in the loop nesting forest. Every node directly corresponds to one
 /// basic block.
@@ -86,6 +100,16 @@ public:
 
     /// \Returns `true` if this node is part of the loop with header \p header
     bool isLoopNodeOf(LNFNode const* header) const;
+
+    ///
+    LoopInfo& loopInfo() {
+        if (!_loopInfo) {
+            _loopInfo = std::make_unique<LoopInfo>(LoopInfo::Compute(*this));
+        }
+        return *_loopInfo;
+    }
+
+    std::unique_ptr<LoopInfo> _loopInfo;
 };
 
 /// The loop nesting forest of a function `F` is a forest representing the loops

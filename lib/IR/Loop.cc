@@ -18,6 +18,37 @@
 using namespace scatha;
 using namespace ir;
 
+/// Induction variables are of the following kind:
+/// ```
+/// X_0 = phi(x_1, ...)
+/// x_1 = x_0 +- C
+/// ```
+/// Here `x_1` is an induction variable if `x_0` and `x_1` are both defined
+/// within the loop and `C` is a constant
+static bool isInductionVar(Instruction const* inst, LoopInfo const& loop) {
+    auto* add = dyncast<ArithmeticInst const*>(inst);
+    if (!add) {
+        return false;
+    }
+    using enum ArithmeticOperation;
+    if (add->operation() != Add && add->operation() != Sub) {
+        return false;
+    }
+    /// We can assume the constant to be on the right hand side because
+    /// instcombine puts constants there for commutative operations
+    if (!isa<Constant>(add->rhs())) {
+        return false;
+    }
+    auto* phi = dyncast<Phi const*>(add->lhs());
+    if (!phi || !loop.isInner(phi->parent())) {
+        return false;
+    }
+    if (!ranges::contains(phi->operands(), add)) {
+        return false;
+    }
+    return true;
+}
+
 LoopInfo LoopInfo::Compute(LNFNode const& header) {
     LoopInfo loop;
     loop._header = header.basicBlock();
@@ -33,11 +64,26 @@ LoopInfo LoopInfo::Compute(LNFNode const& header) {
                 }
             }
         }
+        for (auto& inst: *BB) {
+            if (isInductionVar(&inst, loop)) {
+                loop._inductionVars.push_back(&inst);
+            }
+        }
     }
     return loop;
 }
 
 Function* LoopInfo::function() const { return header()->parent(); }
+
+std::span<Phi* const> LoopInfo::loopClosingPhiNodes(
+    BasicBlock const* exit) const {
+    SC_EXPECT(isExit(exit));
+    auto itr = _loopClosingPhiNodes.find(exit);
+    if (itr != _loopClosingPhiNodes.end()) {
+        return itr->second;
+    }
+    return {};
+}
 
 bool ir::isLCSSA(LoopInfo const& loop) {
     for (auto* BB: loop.innerBlocks()) {
@@ -59,9 +105,9 @@ bool ir::isLCSSA(LoopInfo const& loop) {
 
 void ir::makeLCSSA(Function& function) {
     auto& LNF = function.getOrComputeLNF();
-    LNF.preorderDFS([&](LNFNode const* node) {
+    LNF.preorderDFS([&](LNFNode* node) {
         if (node->isProperLoop()) {
-            auto loop = LoopInfo::Compute(*node);
+            auto& loop = node->loopInfo();
             makeLCSSA(loop);
         }
     });
@@ -92,13 +138,13 @@ namespace {
 struct LCSSAContext {
     /// The instruction for which we are adding phi nodes
     Instruction* inst;
-    LoopInfo const& loop;
+    LoopInfo& loop;
     Function& function;
 
     /// Maps exit blocks to their phi node for this instruction
     utl::hashmap<BasicBlock*, Phi*> exitPhis;
 
-    LCSSAContext(Instruction* inst, LoopInfo const& loop):
+    LCSSAContext(Instruction* inst, LoopInfo& loop):
         inst(inst), loop(loop), function(*loop.function()) {}
 
     /// \Returns the block through which the loop must exit to get to \p user
@@ -153,10 +199,14 @@ struct LCSSAContext {
 
 } // namespace
 
-void ir::makeLCSSA(LoopInfo const& loop) {
+void ir::makeLCSSA(LoopInfo& loop) {
     for (auto* BB: loop.innerBlocks()) {
         for (auto& inst: *BB) {
-            LCSSAContext(&inst, loop).run();
+            LCSSAContext context(&inst, loop);
+            context.run();
+            for (auto [exit, phi]: context.exitPhis) {
+                loop._loopClosingPhiNodes[exit].push_back(phi);
+            }
         }
     }
 }
