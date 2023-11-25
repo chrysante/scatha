@@ -97,7 +97,6 @@ public:
 
     /// \overload
     ValueType* insert(ValueType const* before, ValueType* value) {
-        asDerived().insertCallback(*value);
         return insert(ConstIterator(before), value).to_address();
     }
 
