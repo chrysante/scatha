@@ -13,12 +13,69 @@
 namespace scatha::ir {
 
 class DomTree;
+class LNFNode;
 
-class LNFNode: public GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree> {
-    using Base = GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree>;
-
+/// Loop metadata structure
+class LoopInfo {
 public:
-    using Base::Base;
+    /// Construct an empty loop info object
+    LoopInfo() = default;
+
+    /// Compute the loop info metadata from the loop nesting forst node \p
+    /// header
+    static LoopInfo Compute(LNFNode const& header);
+
+    /// \Returns the header basic block
+    BasicBlock* header() const { return _header; }
+
+    /// \Returns the parent function of this loop
+    Function* function() const;
+
+    /// \Returns a view over all (inner) basic blocks in the loop
+    auto const& innerBlocks() const { return _innerBlocks; }
+
+    /// \Returns `true` if \p BB is an inner block of this loop
+    bool isInner(BasicBlock const* BB) const {
+        return _innerBlocks.contains(BB);
+    }
+
+    /// \Returns a view over all basic blocks that the loop may exit from
+    auto const& exitingBlocks() const { return _exitingBlocks; }
+
+    /// \Returns `true` if \p BB is an exiting block of this loop
+    bool isExiting(BasicBlock const* BB) const {
+        return _exitingBlocks.contains(BB);
+    }
+
+    /// \Returns a view over all basic blocks that the loop may exit to
+    auto const& exitBlocks() const { return _exitBlocks; }
+
+    /// \Returns `true` if \p BB is an exit block of this loop
+    bool isExit(BasicBlock const* BB) const { return _exitBlocks.contains(BB); }
+
+private:
+    BasicBlock* _header = nullptr;
+    utl::hashset<BasicBlock*> _innerBlocks;
+    utl::hashset<BasicBlock*> _exitingBlocks;
+    utl::hashset<BasicBlock*> _exitBlocks;
+};
+
+/// \Returns `true` if the loop \p loop is in LCSSA form
+bool isLCSSA(LoopInfo const& loop);
+
+/// Turns the function \p function into LCSSA form
+/// \Returns `true` if \p function has been modified
+void makeLCSSA(Function& function);
+
+/// Turns the loop described by \p loopInfo into LCSSA form
+/// \Returns `true` if the loop has been modified
+void makeLCSSA(LoopInfo const& loopInfo);
+
+/// Node in the loop nesting forest. Every node directly corresponds to one
+/// basic block.
+class LNFNode: public GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree> {
+public:
+    using GraphNode::GraphNode;
 
     /// \Returns the corresponding basic block
     BasicBlock* basicBlock() const { return payload(); }

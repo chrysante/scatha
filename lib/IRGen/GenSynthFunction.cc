@@ -12,7 +12,7 @@ using namespace irgen;
 
 namespace {
 
-struct Loop {
+struct LoopDesc {
     ir::BasicBlock* body;
     ir::Value* index;
     ir::Instruction const* insertPoint;
@@ -44,7 +44,7 @@ struct FuncGenContext: FuncGenContextBase {
                                                   ir::Value* index);
 
     /// \Returns the loop structure
-    Loop genLoop(size_t count);
+    LoopDesc genLoop(size_t count);
 };
 
 } // namespace
@@ -209,7 +209,7 @@ utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
     return args;
 }
 
-Loop FuncGenContext::genLoop(size_t count) {
+LoopDesc FuncGenContext::genLoop(size_t count) {
     if (count == 0) {
         return {};
     }
@@ -237,5 +237,5 @@ Loop FuncGenContext::genLoop(size_t count) {
     add<ir::Branch>(cond, end, body);
     add(end);
 
-    return Loop{ body, phi, inc };
+    return LoopDesc{ body, phi, inc };
 }

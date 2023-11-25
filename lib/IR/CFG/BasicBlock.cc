@@ -61,7 +61,7 @@ void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
     SC_ASSERT(itr != ranges::end(preds), "Not found");
     *itr = newPred;
     for (auto& phi: phiNodes()) {
-        size_t const index = phi.indexOf(oldPred);
+        size_t const index = phi.predIndexOf(oldPred);
         phi.setPredecessor(index, newPred);
     }
 }

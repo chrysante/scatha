@@ -1,6 +1,7 @@
 #include "IR/CFG/User.h"
 
 #include <range/v3/algorithm.hpp>
+#include <utl/utility.hpp>
 
 using namespace scatha;
 using namespace ir;
@@ -13,6 +14,14 @@ User::User(NodeType nodeType,
            utl::small_vector<Value*> operands):
     Value(nodeType, type, std::move(name)) {
     setOperands(std::move(operands));
+}
+
+std::optional<size_t> User::indexOf(Value const* operand) const {
+    auto itr = ranges::find(_operands, operand);
+    if (itr != _operands.end()) {
+        return utl::narrow_cast<size_t>(itr - _operands.begin());
+    }
+    return std::nullopt;
 }
 
 void User::setOperand(size_t index, Value* operand) {

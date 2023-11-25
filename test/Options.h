@@ -4,6 +4,7 @@
 namespace scatha::test {
 
 struct Options {
+    bool TestPasses = false;
     bool TestIdempotency = false;
 };
 

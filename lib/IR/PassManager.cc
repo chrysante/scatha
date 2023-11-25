@@ -52,10 +52,6 @@ struct Impl {
         return getPassesImpl(localPasses, filter);
     }
 
-    utl::vector<LocalPass> getCanonicalizationPasses(auto filter) const {
-        return getPassesImpl(localPasses, filter);
-    }
-
     void registerLocal(LocalPass pass) {
         auto [itr, success] = localPasses.insert({ pass.name(), pass });
         SC_ASSERT(success, "Failed to register pass");

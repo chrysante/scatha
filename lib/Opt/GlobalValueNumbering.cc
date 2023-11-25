@@ -355,7 +355,7 @@ private:
     utl::hashmap<Computation, Entry*> compMap;
 };
 
-struct Loop {
+struct LoopDesc {
     BasicBlock* landingPad;
     BasicBlock* header;
 
@@ -381,7 +381,7 @@ struct GVNContext {
     utl::hashset<BasicBlock*> loopHeaders;
     utl::hashset<BasicBlock*> landingPads;
     /// Maps headers to loops
-    utl::hashmap<BasicBlock*, Loop> loops;
+    utl::hashmap<BasicBlock*, LoopDesc> loops;
     /// Virtual back edges are edges from loop exit nodes to their corresponding
     /// landing pads
     utl::hashmap<BasicBlock*, utl::small_vector<BasicBlock*>>
@@ -484,7 +484,7 @@ void GVNContext::gatherLoops() {
         auto* landingPad = findLandingPad(node, LNF);
 
         /// Gather the entire loop
-        auto& loop = loops[header] = Loop{ landingPad, header };
+        auto& loop = loops[header] = LoopDesc{ landingPad, header };
         for (auto* pred: header->predecessors()) {
             auto dfs = [&](auto& dfs, BasicBlock* BB) {
                 if (BB == landingPad) {

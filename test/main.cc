@@ -15,6 +15,8 @@ int main(int argc, char* argv[]) {
 
     using namespace Catch::clara;
     auto cli = session.cli() |
+               Opt(options.TestPasses, "passes")["--passes"](
+                   "Run pass tests for the end to end test cases") |
                Opt(options.TestIdempotency, "idempotency")["--idempotency"](
                    "Run idempotency tests for the end to end test cases");
 

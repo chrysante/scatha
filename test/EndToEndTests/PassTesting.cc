@@ -125,6 +125,15 @@ struct Impl {
             checkReturns("Default pipeline", mod, expected);
         }
 
+        if (getOptions().TestPasses) {
+            testPasses(generator,
+                       ir::PassManager::makePipeline("unifyreturns"),
+                       expected);
+            testPasses(generator, light, expected);
+            testPasses(generator, lightRotate, expected);
+            testPasses(generator, lightInline, expected);
+        }
+
         if (getOptions().TestIdempotency) {
             /// Idempotency of passes without prior optimizations
             testIdempotency(generator,
@@ -133,7 +142,6 @@ struct Impl {
 
             /// Idempotency of passes after light optimizations
             testIdempotency(generator, light, expected);
-
             /// Idempotency of passes after light optimizations and loop
             /// rotation
             testIdempotency(generator, lightRotate, expected);
@@ -148,6 +156,22 @@ struct Impl {
                       uint64_t expected) const {
         INFO(msg);
         CHECK(run(mod) == expected);
+    }
+
+    void testPasses(Generator const& generator,
+                    ir::Pipeline const& prePipeline,
+                    uint64_t expected) const {
+        for (auto pass: ir::PassManager::localPasses()) {
+            auto [ctx, mod] = generator();
+            prePipeline.execute(ctx, mod);
+            auto message = utl::strcat("Pass test for \"",
+                                       pass.name(),
+                                       "\" with pre pipeline \"",
+                                       prePipeline,
+                                       "\"");
+            ir::forEach(ctx, mod, pass);
+            checkReturns(message, mod, expected);
+        }
     }
 
     void testIdempotency(Generator const& generator,

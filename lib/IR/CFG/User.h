@@ -1,6 +1,7 @@
 #ifndef SCATHA_IR_CFG_USER_H_
 #define SCATHA_IR_CFG_USER_H_
 
+#include <optional>
 #include <string>
 
 #include <utl/vector.hpp>
@@ -28,6 +29,9 @@ public:
 
     /// \overload
     Value const* operandAt(size_t index) const { return _operands[index]; }
+
+    /// \Returns the (first) index of the operand \p operand
+    std::optional<size_t> indexOf(Value const* operand) const;
 
     /// \Returns the number of operands of this user
     size_t numOperands() const { return operands().size(); }

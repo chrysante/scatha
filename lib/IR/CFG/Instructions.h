@@ -395,12 +395,24 @@ public:
         return { _preds[index], operands()[index] };
     }
 
+    /// \Returns the value chosen for predecessor \p pred
     Value* operandOf(BasicBlock const* pred) {
         return const_cast<Value*>(
             static_cast<Phi const*>(this)->operandOf(pred));
     }
 
+    /// \overload for const
     Value const* operandOf(BasicBlock const* pred) const;
+
+    /// \Returns the first predecessor for which this phi instruction chooses
+    /// the value \p value or null if \p value is never chosen
+    BasicBlock* predecessorOf(Value const* value) {
+        return const_cast<BasicBlock*>(
+            static_cast<Phi const*>(this)->predecessorOf(value));
+    }
+
+    /// \overload for const
+    BasicBlock const* predecessorOf(Value const* value) const;
 
     /// View over all incoming edges. Must be the same as predecessors of parent
     /// basic block.
@@ -422,28 +434,30 @@ public:
                    [](auto p) -> ConstPhiMapping { return p; });
     }
 
+    /// \Returns a view of tuples `{ index, predecessor, operand }`
     auto indexedArguments() {
         return ranges::views::zip(ranges::views::iota(size_t{ 0 }),
                                   _preds,
                                   operands());
     }
 
+    /// \overload
     auto indexedArguments() const {
         return ranges::views::zip(ranges::views::iota(size_t{ 0 }),
                                   _preds,
                                   operands());
     }
 
-    size_t indexOf(BasicBlock const* predecessor) const {
+    /// \Returns the index of the predecessor \p pred
+    size_t predIndexOf(BasicBlock const* pred) const {
         return utl::narrow_cast<size_t>(
-            std::find(_preds.begin(), _preds.end(), predecessor) -
-            _preds.begin());
+            std::find(_preds.begin(), _preds.end(), pred) - _preds.begin());
     }
 
     /// Remove the argument corresponding to \p *predecessor
     /// \p *predecessor must be an argument of this phi instruction.
     void removeArgument(BasicBlock const* predecessor) {
-        removeArgument(indexOf(predecessor));
+        removeArgument(predIndexOf(predecessor));
     }
 
     /// Remove the argument at index \p index

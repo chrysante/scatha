@@ -193,7 +193,7 @@ void Phi::setArguments(std::span<PhiMapping const> args) {
 }
 
 void Phi::setArgument(BasicBlock const* pred, Value* value) {
-    setArgument(indexOf(pred), value);
+    setArgument(predIndexOf(pred), value);
 }
 
 void Phi::setArgument(size_t index, Value* value) { setOperand(index, value); }
@@ -212,7 +212,14 @@ Value const* Phi::operandOf(BasicBlock const* pred) const {
     SC_ASSERT(itr != ranges::end(_preds),
               "`pred` is not a predecessor of this phi node");
     size_t index = utl::narrow_cast<size_t>(itr - ranges::begin(_preds));
-    return operands()[index];
+    return operandAt(index);
+}
+
+BasicBlock const* Phi::predecessorOf(Value const* value) const {
+    if (auto index = indexOf(value)) {
+        return _preds[*index];
+    }
+    return nullptr;
 }
 
 Select::Select(Value* condition,

@@ -1,15 +1,11 @@
 
-fn sum(data: &[int]) -> int {
-    return data.empty ? 0 : data.front + sum(data[1 : data.count]);
-}
 
-fn main() {
-    print("\n");
-    print("Hello World!");
-    print("\n");
-    return sum([1, 2, 3]);
-}
-
-fn print(text: &str) {
-    __builtin_putstr(text);
+export fn test(cond: bool) {
+    var j = 1;
+    if cond {
+        while j < 10 {
+            j *= 2;
+        }
+    }
+    return j;
 }

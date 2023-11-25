@@ -30,7 +30,7 @@ static std::string nameFromSourceLoc(std::string_view name,
 
 namespace {
 
-struct Loop {
+struct LoopDesc {
     ir::BasicBlock* header = nullptr;
     ir::BasicBlock* body = nullptr;
     ir::BasicBlock* inc = nullptr;
@@ -40,7 +40,7 @@ struct Loop {
 struct FuncGenContext: FuncGenContextBase {
     /// Local state
     ValueMap valueMap;
-    utl::stack<Loop, 4> loopStack;
+    utl::stack<LoopDesc, 4> loopStack;
 
     FuncGenContext(auto&... args): FuncGenContextBase(args...), valueMap(ctx) {}
 
