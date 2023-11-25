@@ -775,23 +775,55 @@ Value* InstCombineCtx::visitImpl(Select* inst) {
     return nullptr;
 }
 
+static CompareOperation operationForReversedOperands(CompareOperation op) {
+    using enum CompareOperation;
+    switch (op) {
+    case Less:
+        return GreaterEq;
+    case LessEq:
+        return Greater;
+    case Greater:
+        return LessEq;
+    case GreaterEq:
+        return Less;
+    case Equal:
+        return Equal;
+    case NotEqual:
+        return NotEqual;
+    case _count:
+        SC_UNREACHABLE();
+    }
+}
+
 Value* InstCombineCtx::visitImpl(CompareInst* inst) {
     using enum CompareOperation;
-    bool isAlloca = isa<Alloca>(inst->lhs()) && isa<Alloca>(inst->rhs());
+    auto* lhs = inst->lhs();
+    auto* rhs = inst->rhs();
+    /// If we have a constant operand put it on the RHS
+    if (isa<Constant>(lhs) && !isa<Constant>(rhs)) {
+        inst->setOperation(operationForReversedOperands(inst->operation()));
+        inst->swapOperands();
+        std::swap(rhs, lhs);
+        /// We push the users here because other arithmetic instructions that
+        /// use this check for constant right hand sides of their operands and
+        /// fold if possible
+        worklist.pushUsers(inst);
+    }
+    bool isAlloca = isa<Alloca>(lhs) && isa<Alloca>(rhs);
     switch (inst->operation()) {
     case Equal:
-        if (inst->lhs() == inst->rhs()) {
+        if (lhs == rhs) {
             return irCtx.boolConstant(true);
         }
-        if (isAlloca && inst->lhs() != inst->rhs()) {
+        if (isAlloca && lhs != rhs) {
             return irCtx.boolConstant(false);
         }
         return nullptr;
     case NotEqual:
-        if (inst->lhs() == inst->rhs()) {
+        if (lhs == rhs) {
             return irCtx.boolConstant(false);
         }
-        if (isAlloca && inst->lhs() != inst->rhs()) {
+        if (isAlloca && lhs != rhs) {
             return irCtx.boolConstant(true);
         }
         return nullptr;
