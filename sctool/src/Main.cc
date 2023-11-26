@@ -155,7 +155,6 @@ static int inspectMain(InspectOptions options) {
         break;
     }
     if (!options.pipeline.empty()) {
-        header("Generated IR");
         auto pipeline = ir::PassManager::makePipeline(options.pipeline);
         pipeline(ctx, mod);
     }
