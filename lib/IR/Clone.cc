@@ -1,6 +1,7 @@
 #include "IR/Clone.h"
 
 #include <utl/hashtable.hpp>
+#include <utl/vector.hpp>
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
@@ -157,6 +158,32 @@ UniquePtr<BasicBlock> ir::clone(Context& context,
         }
     }
     return UniquePtr<BasicBlock>(result);
+}
+
+CloneRegionResult ir::cloneRegion(Context& context,
+                                  BasicBlock const* insertPoint,
+                                  std::span<BasicBlock* const> region) {
+    CloneRegionResult result;
+    /// Clone the BBs
+    for (auto* BB: region) {
+        auto* BB2 = clone(context, BB, result.map).release();
+        result.map.add(BB, BB2);
+        BB->parent()->insert(insertPoint, BB2);
+        result.clones.push_back(BB2);
+    }
+    /// Update all edges in the cloned region
+    for (auto* clone: result.clones) {
+        for (auto& inst: *clone) {
+            for (auto [index, op]: inst.operands() | ranges::views::enumerate) {
+                inst.setOperand(index, result.map(op));
+            }
+            if (auto* phi = dyncast<Phi*>(&inst)) {
+                phi->mapPredecessors(result.map);
+            }
+        }
+        clone->mapPredecessors(result.map);
+    }
+    return result;
 }
 
 UniquePtr<Function> ir::clone(Context& context, Function* function) {
