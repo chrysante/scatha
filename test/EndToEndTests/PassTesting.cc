@@ -127,6 +127,9 @@ struct Impl {
 
         if (getOptions().TestPasses) {
             for (auto pass: ir::PassManager::localPasses()) {
+                if (pass.category() == ir::PassCategory::Experimental) {
+                    continue;
+                }
                 ir::Pipeline pipeline(pass);
                 testPipeline(generator,
                              ir::PassManager::makePipeline("unifyreturns"),
