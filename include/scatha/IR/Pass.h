@@ -10,10 +10,23 @@ namespace scatha::ir {
 
 /// Different pass categories
 enum class PassCategory {
+    ///
     Analysis,
+
+    /// Canonicalization passes bring the IR in canonical form
     Canonicalization,
+
+    ///
     Simplification,
+
+    ///
     Optimization,
+
+    /// We put experimental passes here so we can access them through the pass
+    /// manager but we can ignore them in the automatic pass tests
+    Experimental,
+
+    /// For now here we have 'print' and 'foreach'
     Other
 };
 
