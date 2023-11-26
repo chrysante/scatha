@@ -4,18 +4,59 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
+#include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
 #include "IR/Loop.h"
 #include "IR/PassRegistry.h"
+#include "IR/Validate.h"
 #include "Opt/Passes.h"
 
 using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::loopUnroll, "loopunroll", PassCategory::Simplification);
+SC_REGISTER_PASS(opt::loopUnroll, "loopunroll", PassCategory::Experimental);
+
+namespace {
+
+struct LoopCloneResult {
+    CloneValueMap map;
+    LoopInfo loop;
+};
+
+} // namespace
+
+static LoopCloneResult cloneLoop(Context& ctx,
+                                 BasicBlock const* insertPoint,
+                                 LoopInfo const& loop) {
+    auto [map, clones] =
+        cloneRegion(ctx, insertPoint, loop.innerBlocks() | ToSmallVector<>);
+    auto Map = ranges::views::transform(map);
+    using LCPMapType =
+        utl::hashmap<std::pair<BasicBlock const*, Instruction const*>, Phi*>;
+    auto loopClosingPhiMap =
+        loop.loopClosingPhiMap() |
+        ranges::views::transform([&map = map](auto& elem) {
+            auto& [key, phi] = elem;
+            auto& [exit, inst] = key;
+            return std::pair{ std::pair{ exit, map(inst) }, phi };
+        }) |
+        ranges::to<LCPMapType>;
+    LoopInfo cloneLoop(map(loop.header()),
+                       loop.innerBlocks() | Map |
+                           ranges::to<utl::hashset<BasicBlock*>>,
+                       loop.enteringBlocks(),
+                       loop.latches() | Map |
+                           ranges::to<utl::hashset<BasicBlock*>>,
+                       loop.exitingBlocks() | Map |
+                           ranges::to<utl::hashset<BasicBlock*>>,
+                       loop.exitBlocks(),
+                       std::move(loopClosingPhiMap),
+                       loop.inductionVariables() | Map | ToSmallVector<>);
+    return { std::move(map), std::move(cloneLoop) };
+}
 
 namespace {
 
@@ -46,6 +87,7 @@ struct UnrollContext {
     utl::small_vector<APInt> unrolledInductionValues(APInt tripCount) const;
 
     void unroll(std::span<APInt const> inductionValues) const;
+    void unroll2(std::span<APInt const> inductionValues) const;
 };
 
 } // namespace
@@ -58,6 +100,10 @@ bool opt::loopUnroll(Context& ctx, Function& function) {
             modified |= UnrollContext(node->loopInfo(), ctx, function).run();
         }
     });
+    if (modified) {
+        function.invalidateCFGInfo();
+    }
+    assertInvariants(ctx, function);
     return modified;
 }
 
@@ -72,7 +118,7 @@ bool UnrollContext::run() {
         return false;
     }
     auto inductionValues = unrolledInductionValues(tripCount);
-    unroll(inductionValues);
+    unroll2(inductionValues);
     return true;
 }
 
@@ -232,57 +278,110 @@ utl::small_vector<APInt> UnrollContext::unrolledInductionValues(
     return values;
 }
 
+void UnrollContext::unroll2(std::span<APInt const> inductionValues) const {
+    std::vector<LoopCloneResult> clones;
+    clones.reserve(inductionValues.size());
+    auto insertPoint = (loop.innerBlocks() | ToSmallVector<>).back()->next();
+    for (size_t i = 0; i < inductionValues.size(); ++i) {
+        clones.push_back(cloneLoop(ctx, insertPoint, loop));
+    }
+    /// Direct all entering blocks to the first loop iteration
+    for (auto* entering: loop.enteringBlocks()) {
+        auto* term = entering->terminator();
+        term->updateTarget(loop.header(), clones.front().loop.header());
+    }
+    ///
+    for (auto [iteration, next]:
+         ranges::views::zip(clones, clones | ranges::views::drop(1)))
+    {
+        auto* currentHeader = iteration.loop.header();
+        auto* nextHeader = next.loop.header();
+        for (auto [cloneLatch, origLatch]:
+             ranges::views::zip(iteration.loop.latches(), loop.latches()))
+        {
+            cloneLatch->terminator()->updateTarget(currentHeader, nextHeader);
+            currentHeader->removePredecessor(cloneLatch);
+            nextHeader->addPredecessor(cloneLatch);
+            for (auto [phi, origPhi]:
+                 ranges::views::zip(nextHeader->phiNodes(),
+                                    loop.header()->phiNodes()))
+            {
+                phi.addArgument(cloneLatch,
+                                next.map(origPhi.operandOf(origLatch)));
+            }
+        }
+        for (auto* entering: loop.enteringBlocks()) {
+            nextHeader->removePredecessor(entering);
+        }
+    }
+    for (auto& clone: clones) {
+        /// We add every exiting block to the predecessor list of the
+        /// corresponding exit blocks
+        for (auto* exiting: clone.loop.exitingBlocks()) {
+            for (auto* succ: exiting->successors()) {
+                if (clone.loop.isExit(succ)) {
+                    succ->addPredecessor(exiting);
+                }
+            }
+        }
+        /// We add arguments to every phi loop exit phi node
+        for (auto* BB: clone.loop.innerBlocks()) {
+            for (auto& inst: *BB) {
+                for (auto* exit: clone.loop.exitBlocks()) {
+                    if (auto* phi = clone.loop.loopClosingPhiNode(exit, &inst))
+                    {
+                        auto* originalExiting = [&] {
+                            for (size_t i = 0; i < phi->argumentCount(); ++i) {
+                                if (loop.isInner(phi->argumentAt(i).pred)) {
+                                    return phi->argumentAt(i).pred;
+                                }
+                            }
+                            SC_UNREACHABLE();
+                        }();
+                        auto* cloneExiting = clone.map[originalExiting];
+                        phi->addArgument(cloneExiting, &inst);
+                    }
+                }
+            }
+        }
+    }
+    /// After unrolling we erase the original loop
+    for (auto* BB: loop.innerBlocks()) {
+        for (auto* target: BB->terminator()->targets()) {
+            if (target && !loop.isInner(target)) {
+                target->removePredecessor(BB);
+            }
+        }
+        function.erase(BB);
+    }
+}
+
 void UnrollContext::unroll(std::span<APInt const> inductionValues) const {
     auto innerBBs = loop.innerBlocks() | ToSmallVector<>;
     auto insertPoint = innerBBs.back()->next();
     auto enteringBlocks = loop.enteringBlocks();
     BasicBlock* lastHeader = nullptr;
+    CloneValueMap lastMap;
     for (auto [index, indValue]: inductionValues | ranges::views::enumerate) {
-        CloneValueMap cloneMap;
-        utl::hashmap<BasicBlock*, BasicBlock*> BBMap;
-        auto tryMap = [&]<typename T>(T* value) -> T* {
-            if constexpr (std::derived_from<BasicBlock, T>) {
-                if (auto* BB = dyncast<BasicBlock*>(value)) {
-                    auto itr = BBMap.find(BB);
-                    if (itr != BBMap.end()) {
-                        return itr->second;
-                    }
-                }
-            }
-            return cast<T*>(cloneMap(value));
-        };
-        auto map = [&]<typename T>(T* value) -> T* {
-            if constexpr (std::derived_from<BasicBlock, T>) {
-                if (auto* BB = dyncast<BasicBlock*>(value)) {
-                    auto itr = BBMap.find(BB);
-                    if (itr != BBMap.end()) {
-                        return itr->second;
-                    }
-                }
-            }
-            auto result = cloneMap(value);
-            SC_ASSERT(result != value, "Not found");
-            return cast<T*>(result);
-        };
-        utl::small_vector<BasicBlock*> clonedBBs;
-        utl::hashset<BasicBlock*> cloneSet;
-        /// Clone all inner blocks
-        for (auto* BB: innerBBs) {
-            auto* clonedBB = clone(ctx, BB, cloneMap).release();
-            clonedBBs.push_back(clonedBB);
-            cloneSet.insert(clonedBB);
-            BBMap.insert({ BB, clonedBB });
-            function.insert(insertPoint, clonedBB);
-        }
-        auto* header = map(loop.header());
-        ///
+        auto cloneResult = cloneRegion(ctx, insertPoint, innerBBs);
+        auto& map = cloneResult.map;
+        auto clonedBBs = cloneResult.clones |
+                         ranges::to<utl::hashset<BasicBlock*>>;
+
+        auto* header = map[loop.header()];
+        /// The entering blocks are
+        /// - for the first iteration: the actual entering blocks
+        /// - for the subsequent iterations: the latches of the previous
+        /// interation For every entering block we remap the edges go to a block
+        /// in the previous iteration to the corresponding block of this
+        /// iteration
         for (auto* entering: enteringBlocks) {
             auto* term = entering->terminator();
             if (index == 0) {
-                term->mapTargets(tryMap);
+                term->mapTargets(map);
                 continue;
             }
-            /// Else
+            // index != 0
             for (auto [index, target]:
                  term->targets() | ranges::views::enumerate)
             {
@@ -291,40 +390,56 @@ void UnrollContext::unroll(std::span<APInt const> inductionValues) const {
                 }
             }
         }
-        /// Update all operands according to clone map
-        for (auto* clone: clonedBBs) {
-            for (auto& inst: *clone) {
-                for (auto [index, op]:
-                     inst.operands() | ranges::views::enumerate)
-                {
-                    inst.setOperand(index, tryMap(op));
-                }
-                if (auto* phi = dyncast<Phi*>(&inst)) {
-                    phi->mapPredecessors(tryMap);
+        /// We remove all ...
+        for (auto* pred: header->predecessors() | ToSmallVector<>) {
+            if (index == 0) {
+                if (clonedBBs.contains(pred)) {
+                    header->removePredecessor(pred);
                 }
             }
-            clone->mapPredecessors(tryMap);
-        }
-        ///
-        for (auto* pred: header->predecessors() | ToSmallVector<>) {
-            if (cloneSet.contains(pred)) {
-                header->removePredecessor(pred);
+            else {
+                if (clonedBBs.contains(pred)) {
+                    header->updatePredecessor(pred, lastMap(map.inverse(pred)));
+                }
+                else {
+                    header->removePredecessor(pred);
+                }
             }
         }
         /// Replace the induction variable with the current value
-        auto* ind = map(inductionVar);
+        auto* ind = map[inductionVar];
         ind->replaceAllUsesWith(ctx.intConstant(indValue));
         /// Replace the exit condition with a constant
-        auto* cond = map(exitCondition);
-        cond->replaceAllUsesWith(
-            ctx.boolConstant(index == inductionValues.size() - 1));
+        auto* cond = map[exitCondition];
+        for (auto* branch: cond->users() | Filter<Branch> | ToSmallVector<>) {
+            auto* dest = [&, index = index] {
+                if (index != inductionValues.size() - 1) {
+                    return branch->thenTarget();
+                }
+                else {
+                    return branch->elseTarget();
+                }
+            }();
+            BasicBlockBuilder builder(ctx, branch->parent());
+            builder.insert<Goto>(branch, dest);
+            branch->parent()->erase(branch);
+        }
         /// The latches of the current iteration become the entering blocks of
         /// the next iteration
         enteringBlocks.clear();
         for (auto* latch: loop.latches()) {
-            auto* clone = map(latch);
-            enteringBlocks.insert(clone);
+            enteringBlocks.insert(map[latch]);
         }
         lastHeader = header;
+        lastMap = map;
+    }
+    /// After unrolling we erase the original loop
+    for (auto* BB: innerBBs) {
+        for (auto* target: BB->terminator()->targets()) {
+            if (target && !loop.isInner(target)) {
+                target->removePredecessor(BB);
+            }
+        }
+        function.erase(BB);
     }
 }
