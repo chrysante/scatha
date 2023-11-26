@@ -126,12 +126,29 @@ struct Impl {
         }
 
         if (getOptions().TestPasses) {
-            testPasses(generator,
-                       ir::PassManager::makePipeline("unifyreturns"),
-                       expected);
-            testPasses(generator, light, expected);
-            testPasses(generator, lightRotate, expected);
-            testPasses(generator, lightInline, expected);
+            for (auto pass: ir::PassManager::localPasses()) {
+                ir::Pipeline pipeline(pass);
+                testPipeline(generator,
+                             ir::PassManager::makePipeline("unifyreturns"),
+                             expected,
+                             pipeline);
+                testPipeline(generator, light, expected, pipeline);
+                testPipeline(generator, lightRotate, expected, pipeline);
+                testPipeline(generator, lightInline, expected, pipeline);
+            }
+            auto passes = ir::PassManager::localPasses();
+        }
+
+        if (!getOptions().TestPipeline.empty()) {
+            auto pipeline =
+                ir::PassManager::makePipeline(getOptions().TestPipeline);
+            testPipeline(generator,
+                         ir::PassManager::makePipeline("unifyreturns"),
+                         expected,
+                         pipeline);
+            testPipeline(generator, light, expected, pipeline);
+            testPipeline(generator, lightRotate, expected, pipeline);
+            testPipeline(generator, lightInline, expected, pipeline);
         }
 
         if (getOptions().TestIdempotency) {
@@ -158,20 +175,19 @@ struct Impl {
         CHECK(run(mod) == expected);
     }
 
-    void testPasses(Generator const& generator,
-                    ir::Pipeline const& prePipeline,
-                    uint64_t expected) const {
-        for (auto pass: ir::PassManager::localPasses()) {
-            auto [ctx, mod] = generator();
-            prePipeline.execute(ctx, mod);
-            auto message = utl::strcat("Pass test for \"",
-                                       pass.name(),
-                                       "\" with pre pipeline \"",
-                                       prePipeline,
-                                       "\"");
-            ir::forEach(ctx, mod, pass);
-            checkReturns(message, mod, expected);
-        }
+    void testPipeline(Generator const& generator,
+                      ir::Pipeline const& prePipeline,
+                      uint64_t expected,
+                      ir::Pipeline const& pipeline) const {
+        auto [ctx, mod] = generator();
+        prePipeline.execute(ctx, mod);
+        auto message = utl::strcat("Pass test for \"",
+                                   pipeline,
+                                   "\" with pre pipeline \"",
+                                   prePipeline,
+                                   "\"");
+        pipeline(ctx, mod);
+        checkReturns(message, mod, expected);
     }
 
     void testIdempotency(Generator const& generator,

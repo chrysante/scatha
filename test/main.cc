@@ -17,7 +17,10 @@ int main(int argc, char* argv[]) {
                Opt(options.TestPasses, "passes")["--passes"](
                    "Run pass tests for the end to end test cases") |
                Opt(options.TestIdempotency, "idempotency")["--idempotency"](
-                   "Run idempotency tests for the end to end test cases");
+                   "Run idempotency tests for the end to end test cases") |
+               Opt(options.TestPipeline, "pipeline")["--pipeline"](
+                   "Run pass tests for the end to end test cases for the "
+                   "specfied pipeline");
 
     session.cli(cli);
     int returnCode = session.applyCommandLine(argc, argv);

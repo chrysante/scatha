@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "IR/ForEach.h"
 #include "IR/PipelineNodes.h"
 
 using namespace scatha;
@@ -17,6 +18,16 @@ Pipeline::Pipeline(Pipeline&&) noexcept = default;
 Pipeline& Pipeline::operator=(Pipeline&&) noexcept = default;
 
 Pipeline::~Pipeline() = default;
+
+static auto passToPipelineRoot(LocalPass pass) {
+    auto local = std::make_unique<PipelineLocalNode>(std::move(pass));
+    auto global =
+        std::make_unique<PipelineGlobalNode>(ir::forEach, std::move(local));
+    return std::make_unique<PipelineRoot>(std::move(global));
+}
+
+Pipeline::Pipeline(LocalPass pass) noexcept:
+    Pipeline(passToPipelineRoot(std::move(pass))) {}
 
 bool Pipeline::execute(ir::Context& ctx, ir::Module& mod) const {
     SC_ASSERT(root, "Invalid pipeline");

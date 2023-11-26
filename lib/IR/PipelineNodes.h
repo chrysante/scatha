@@ -58,7 +58,11 @@ class PipelineRoot {
 public:
     PipelineRoot() = default;
 
-    PipelineRoot(
+    explicit PipelineRoot(std::unique_ptr<PipelineGlobalNode> singleChild) {
+        children.push_back(std::move(singleChild));
+    }
+
+    explicit PipelineRoot(
         utl::small_vector<std::unique_ptr<PipelineGlobalNode>> children):
         children(std::move(children)) {}
 
