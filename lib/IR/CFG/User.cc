@@ -69,7 +69,9 @@ void User::addOperand(Value* op) {
 
 void User::removeOperand(size_t index) {
     auto const itr = _operands.begin() + index;
-    (*itr)->removeUserWeak(this);
+    if (auto* op = *itr) {
+        op->removeUserWeak(this);
+    }
     _operands.erase(itr);
 }
 
