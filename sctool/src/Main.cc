@@ -125,6 +125,31 @@ struct InspectOptions: OptionsBase {
     bool out;
 };
 
+/// The `execute*()` functions are not `static` so they can be executed from a
+/// debugger
+void executeAsm(Asm::AssemblyStream const& asmStream) {
+    auto [program, symbolTable] = Asm::assemble(asmStream);
+    svm::VirtualMachine vm;
+    vm.loadBinary(program.data());
+    vm.execute({});
+    using RetType = uint64_t;
+    using SRetType = int64_t;
+    RetType const retval = static_cast<RetType>(vm.getRegister(0));
+    SRetType const signedRetval = static_cast<SRetType>(retval);
+    // clang-format off
+    std::cout << "Program returned: " << retval;
+    std::cout << "\n                 (0x" << std::hex << retval << std::dec << ")";
+    if (signedRetval < 0) {
+    std::cout << "\n                 (" << signedRetval << ")";
+    }
+    std::cout << "\n                 (" << std::bit_cast<double>(retval) << ")";
+    std::cout << std::endl;
+    // clang-format on
+}
+
+/// See `executeAsm()`
+void executeIR(ir::Module const& mod) { executeAsm(cg::codegen(mod)); }
+
 static int inspectMain(InspectOptions options) {
     using namespace logging;
     ir::Context ctx;
@@ -171,23 +196,7 @@ static int inspectMain(InspectOptions options) {
     }
     if (options.execute) {
         header("Execution");
-        auto [program, symbolTable] = Asm::assemble(asmStream);
-        svm::VirtualMachine vm;
-        vm.loadBinary(program.data());
-        vm.execute({});
-        using RetType = uint64_t;
-        using SRetType = int64_t;
-        RetType const retval = static_cast<RetType>(vm.getRegister(0));
-        SRetType const signedRetval = static_cast<SRetType>(retval);
-        // clang-format off
-        std::cout << "Program returned: " << retval;
-        std::cout << "\n                 (0x" << std::hex << retval << std::dec << ")";
-        if (signedRetval < 0) {
-        std::cout << "\n                 (" << signedRetval << ")";
-        }
-        std::cout << "\n                 (" << std::bit_cast<double>(retval) << ")";
-        std::cout << std::endl;
-        // clang-format on
+        executeAsm(asmStream);
     }
     if (options.out) {
         auto [program, symbolTable] = Asm::assemble(asmStream);
