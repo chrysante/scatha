@@ -214,6 +214,13 @@ void AssertContext::assertSpecialInvariants(Phi const& phi) {
               "We also require that the predecessors to the phi node have the "
               "same order as the predecessors of the basic block.");
     }
+    for (auto [pred, value]: phi.arguments()) {
+        if (auto* inst = dyncast<Instruction const*>(value)) {
+            auto& domSetOfPred = domMap.find(pred)->second;
+            CHECK(domSetOfPred.contains(inst->parent()),
+                  "If we use another instruction it must dominate us");
+        }
+    }
 }
 
 void AssertContext::assertSpecialInvariants(Call const& call) {
