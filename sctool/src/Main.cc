@@ -17,6 +17,7 @@
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
 #include <scatha/CodeGen/SelectionDAG.h>
+#include <scatha/Common/ExecutableWriter.h>
 #include <scatha/Common/Logging.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Graphviz.h>
@@ -121,6 +122,7 @@ struct InspectOptions: OptionsBase {
     bool codegen;
     bool assembly;
     bool execute;
+    bool out;
 };
 
 static int inspectMain(InspectOptions options) {
@@ -187,6 +189,10 @@ static int inspectMain(InspectOptions options) {
         std::cout << "\n                 (" << std::bit_cast<double>(retval) << ")";
         std::cout << std::endl;
         // clang-format on
+    }
+    if (options.out) {
+        auto [program, symbolTable] = Asm::assemble(asmStream);
+        writeExecutableFile("out", program);
     }
     return 0;
 }
@@ -278,7 +284,8 @@ int main(int argc, char** argv) {
     inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
     inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
     inspect->add_flag("--execute", inspectOptions.execute, "Execute the compiled program");
-
+    inspect->add_flag("--out", inspectOptions.out, "Emit executable file");
+    
     CLI::App* graph = root.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
     GraphOptions graphOptions{};
     graph->add_option("files", graphOptions.files)->check(CLI::ExistingPath);
