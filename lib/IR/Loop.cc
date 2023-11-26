@@ -91,6 +91,16 @@ LoopInfo LoopInfo::Compute(LNFNode const& header) {
             loop._enteringBlocks.insert(pred);
         }
     }
+    /// Determine the loop closing phi nodes
+    for (auto* BB: loop.innerBlocks()) {
+        for (auto& inst: *BB) {
+            for (auto* phi: inst.users() | Filter<Phi>) {
+                if (loop.isExit(phi->parent())) {
+                    loop._loopClosingPhiNodes[{ phi->parent(), &inst }] = phi;
+                }
+            }
+        }
+    }
     return loop;
 }
 
