@@ -311,9 +311,9 @@ bool SCFGContext::canExecuteSpeculatively(BasicBlock const* BB) {
 }
 
 static bool removeUnreachableBlocks(Function* function) {
-    utl::hashset<BasicBlock*> visited;
+    utl::hashset<BasicBlock*> liveBlocks;
     auto dfs = [&](auto& dfs, BasicBlock* BB) -> void {
-        if (!visited.insert(BB).second) {
+        if (!liveBlocks.insert(BB).second) {
             return;
         }
         for (auto* succ: BB->successors()) {
@@ -324,13 +324,15 @@ static bool removeUnreachableBlocks(Function* function) {
     bool erasedAny = false;
     for (auto itr = function->begin(); itr != function->end();) {
         auto* BB = itr.to_address();
-        if (visited.contains(BB)) {
+        if (liveBlocks.contains(BB)) {
             ++itr;
             continue;
         }
         erasedAny = true;
         for (auto* succ: BB->successors()) {
-            succ->removePredecessor(BB);
+            if (liveBlocks.contains(succ)) {
+                succ->removePredecessor(BB);
+            }
         }
         itr = function->erase(itr);
     }
