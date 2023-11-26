@@ -198,6 +198,26 @@ public:
     /// \overload
     void addNode(BasicBlock const* parent, BasicBlock* BB);
 
+    /// Traverse the forest in BFS order
+    template <std::invocable<Node const*> F>
+    void BFS(F&& f) const {
+        _virtualRoot->BFS([&](Node const* node) {
+            if (node != _virtualRoot.get()) {
+                f(node);
+            }
+        });
+    }
+
+    /// \overload
+    template <std::invocable<Node*> F>
+    void BFS(F&& f) {
+        _virtualRoot->BFS([&](Node* node) {
+            if (node != _virtualRoot.get()) {
+                f(node);
+            }
+        });
+    }
+
     /// Traverse all trees in preorder
     template <std::invocable<Node const*> F>
     void preorderDFS(F&& f) const {
