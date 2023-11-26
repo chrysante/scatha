@@ -125,17 +125,8 @@ struct InspectOptions: OptionsBase {
     bool out;
 };
 
-/// The `execute*()` functions are not `static` so they can be executed from a
-/// debugger
-void executeAsm(Asm::AssemblyStream const& asmStream) {
-    auto [program, symbolTable] = Asm::assemble(asmStream);
-    svm::VirtualMachine vm;
-    vm.loadBinary(program.data());
-    vm.execute({});
-    using RetType = uint64_t;
-    using SRetType = int64_t;
-    RetType const retval = static_cast<RetType>(vm.getRegister(0));
-    SRetType const signedRetval = static_cast<SRetType>(retval);
+static void reportRetval(uint64_t retval) {
+    auto const signedRetval = static_cast<int64_t>(retval);
     // clang-format off
     std::cout << "Program returned: " << retval;
     std::cout << "\n                 (0x" << std::hex << retval << std::dec << ")";
@@ -145,6 +136,16 @@ void executeAsm(Asm::AssemblyStream const& asmStream) {
     std::cout << "\n                 (" << std::bit_cast<double>(retval) << ")";
     std::cout << std::endl;
     // clang-format on
+}
+
+/// The `execute*()` functions are not `static` so they can be executed from a
+/// debugger
+void executeAsm(Asm::AssemblyStream const& asmStream) {
+    auto [program, symbolTable] = Asm::assemble(asmStream);
+    svm::VirtualMachine vm;
+    vm.loadBinary(program.data());
+    vm.execute({});
+    reportRetval(vm.getRegister(0));
 }
 
 /// See `executeAsm()`
