@@ -8,6 +8,7 @@
 #include <utl/vector.hpp>
 
 #include "Common/Graph.h"
+#include "Common/Ranges.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {
@@ -20,6 +21,25 @@ class LoopInfo {
 public:
     /// Construct an empty loop info object
     LoopInfo() = default;
+
+    /// Construct a loop info object from all its members
+    LoopInfo(BasicBlock* header,
+             utl::hashset<BasicBlock*> innerBlocks,
+             utl::hashset<BasicBlock*> enteringBlocks,
+             utl::hashset<BasicBlock*> latches,
+             utl::hashset<BasicBlock*> exitingBlocks,
+             utl::hashset<BasicBlock*> exitBlocks,
+             utl::hashmap<std::pair<BasicBlock const*, Instruction const*>,
+                          Phi*> loopClosingPhiNodes,
+             std::span<Instruction* const> inductionVars):
+        _header(header),
+        _innerBlocks(std::move(innerBlocks)),
+        _enteringBlocks(std::move(enteringBlocks)),
+        _latches(std::move(latches)),
+        _exitingBlocks(std::move(exitingBlocks)),
+        _exitBlocks(std::move(exitBlocks)),
+        _loopClosingPhiNodes(std::move(loopClosingPhiNodes)),
+        _inductionVars(inductionVars | ToSmallVector<>) {}
 
     /// Compute the loop info metadata from the loop nesting forst node \p
     /// header
@@ -69,9 +89,14 @@ public:
     /// \Returns `true` if \p BB is an exit block of this loop
     bool isExit(BasicBlock const* BB) const { return _exitBlocks.contains(BB); }
 
-    /// \Returns a list of all loop closing phi instructions in the exit block
-    /// \p exit
-    std::span<Phi* const> loopClosingPhiNodes(BasicBlock const* exit) const;
+    /// \Returns the phi node that closes the live out value \p loopInst for the
+    /// exit block \p exit or null if \p loopInst is not live out or if \p exit
+    /// is not an exit block
+    Phi* loopClosingPhiNode(BasicBlock const* exit,
+                            Instruction const* loopInst) const;
+
+    ///
+    auto const& loopClosingPhiMap() const { return _loopClosingPhiNodes; }
 
     /// \Returns a list of the induction variables of this loop
     std::span<Instruction* const> inductionVariables() const {
@@ -87,10 +112,16 @@ private:
     utl::hashset<BasicBlock*> _latches;
     utl::hashset<BasicBlock*> _exitingBlocks;
     utl::hashset<BasicBlock*> _exitBlocks;
-    utl::hashmap<BasicBlock const*, utl::small_vector<Phi*>>
+    utl::hashmap<std::pair<BasicBlock const*, Instruction const*>, Phi*>
         _loopClosingPhiNodes;
     utl::small_vector<Instruction*, 2> _inductionVars;
 };
+
+/// Print loop info \p loop to \p ostream
+void print(LoopInfo const& loop, std::ostream& ostream);
+
+/// Print loop info \p loop to `std::cout`
+void print(LoopInfo const& loop);
 
 /// \Returns `true` if the loop \p loop is in LCSSA form
 bool isLCSSA(LoopInfo const& loop);

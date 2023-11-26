@@ -96,15 +96,56 @@ LoopInfo LoopInfo::Compute(LNFNode const& header) {
 
 Function* LoopInfo::function() const { return header()->parent(); }
 
-std::span<Phi* const> LoopInfo::loopClosingPhiNodes(
-    BasicBlock const* exit) const {
+Phi* LoopInfo::loopClosingPhiNode(BasicBlock const* exit,
+                                  Instruction const* loopInst) const {
     SC_EXPECT(isExit(exit));
-    auto itr = _loopClosingPhiNodes.find(exit);
+    auto itr = _loopClosingPhiNodes.find({ exit, loopInst });
     if (itr != _loopClosingPhiNodes.end()) {
         return itr->second;
     }
-    return {};
+    return nullptr;
 }
+
+void ir::print(LoopInfo const& loop, std::ostream& str) {
+    TreeFormatter formatter;
+    formatter.push(Level::Child);
+    str << formatter.beginLine() << "Header: " << loop.header()->name()
+        << std::endl;
+    formatter.pop();
+    auto list = [&](std::string_view name, auto&& elems, bool last = false) {
+        formatter.push(last ? Level::LastChild : Level::Child);
+        str << formatter.beginLine() << name << ":" << std::endl;
+        size_t size = elems.size();
+        for (auto [index, elem]: elems | ranges::views::enumerate) {
+            formatter.push(index == size - 1 ? Level::LastChild : Level::Child);
+            str << formatter.beginLine() << elem << std::endl;
+            formatter.pop();
+        }
+        formatter.pop();
+    };
+    static constexpr auto ToName = ranges::views::transform(&Value::name);
+    list("Inner blocks", loop.innerBlocks() | ToName);
+    list("Entering blocks", loop.enteringBlocks() | ToName);
+    list("Latches", loop.latches() | ToName);
+    list("Exiting blocks", loop.exitingBlocks() | ToName);
+    list("Exit blocks", loop.exitBlocks() | ToName);
+    list("Loop closing phi nodes",
+         loop.loopClosingPhiMap() | ranges::views::transform([](auto& elem) {
+             auto [key, phi] = elem;
+             auto [exit, inst] = key;
+             return utl::strcat("{ ",
+                                exit->name(),
+                                ", ",
+                                inst->name(),
+                                " } -> ",
+                                phi->name());
+         }));
+    list("Induction variables",
+         loop.inductionVariables() | ToName,
+         /* last = */ true);
+}
+
+void ir::print(LoopInfo const& loop) { print(loop, std::cout); }
 
 bool ir::isLCSSA(LoopInfo const& loop) {
     for (auto* BB: loop.innerBlocks()) {
@@ -163,13 +204,13 @@ struct LCSSAContext {
     Function& function;
 
     /// Maps exit blocks to their phi node for this instruction
-    utl::hashmap<BasicBlock*, Phi*> exitPhis;
+    utl::hashmap<BasicBlock*, Phi*> exitToPhiMap;
 
     LCSSAContext(Instruction* inst, LoopInfo& loop):
         inst(inst), loop(loop), function(*loop.function()) {}
 
     /// \Returns the block through which the loop must exit to get to \p user
-    BasicBlock* getExitBlock(Instruction* user) const {
+    BasicBlock* getExitingBlock(Instruction* user) const {
         auto* P = [&] {
             if (auto* phi = dyncast<Phi*>(user)) {
                 return phi->predecessorOf(inst);
@@ -177,14 +218,27 @@ struct LCSSAContext {
             return user->parent();
         }();
         return getIdom(inst->parent(), P, [&](auto* block) {
+            return loop.isExiting(block);
+        });
+    }
+
+    BasicBlock* getExitBlock(Instruction* user) const {
+        BasicBlock* parent = user->parent();
+        if (auto* phi = dyncast<Phi*>(user)) {
+            if (loop.isExit(parent)) {
+                return parent;
+            }
+            parent = phi->predecessorOf(inst);
+        }
+        return getIdom(inst->parent(), parent, [&](auto* block) {
             return loop.isExit(block);
         });
     }
 
     auto getExitPhi(Instruction* user) {
         auto* exit = getExitBlock(user);
-        auto itr = exitPhis.find(exit);
-        if (itr != exitPhis.end()) {
+        auto itr = exitToPhiMap.find(exit);
+        if (itr != exitToPhiMap.end()) {
             return itr->second;
         }
         auto* pred = exit->singlePredecessor();
@@ -194,7 +248,7 @@ struct LCSSAContext {
         Phi* phi =
             new Phi({ { pred, inst } }, utl::strcat(inst->name(), ".phi"));
         exit->insert(exit->phiEnd(), phi);
-        exitPhis.insert({ exit, phi });
+        exitToPhiMap.insert({ exit, phi });
         return phi;
     };
 
@@ -206,10 +260,10 @@ struct LCSSAContext {
             }
             if (isa<Phi>(user) && loop.isExit(P)) {
                 auto* phi = cast<Phi*>(user);
-                if (phi->numOperands() == 1) {
-                    auto* exit = getExitBlock(user);
-                    exitPhis[exit] = phi;
-                }
+                //                if (phi->numOperands() == 1) {
+                auto* exit = getExitBlock(user);
+                exitToPhiMap[exit] = phi;
+                //                }
                 continue;
             }
             auto* phi = getExitPhi(user);
@@ -225,8 +279,8 @@ void ir::makeLCSSA(LoopInfo& loop) {
         for (auto& inst: *BB) {
             LCSSAContext context(&inst, loop);
             context.run();
-            for (auto [exit, phi]: context.exitPhis) {
-                loop._loopClosingPhiNodes[exit].push_back(phi);
+            for (auto [exit, phi]: context.exitToPhiMap) {
+                loop._loopClosingPhiNodes[{ exit, &inst }] = phi;
             }
         }
     }
