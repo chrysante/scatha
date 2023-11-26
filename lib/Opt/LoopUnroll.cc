@@ -79,7 +79,9 @@ struct UnrollContext {
     CounterDir counterDir{};
 
     UnrollContext(LoopInfo const& loop, Context& ctx, Function& function):
-        loop(loop), ctx(ctx), function(function) {}
+        loop(loop), ctx(ctx), function(function) {
+        SC_EXPECT(isLCSSA(loop));
+    }
 
     /// Run the algorithm for this loop
     bool run();
@@ -255,10 +257,18 @@ std::optional<utl::small_vector<APInt>> UnrollContext::unrolledInductionValues()
             SC_UNREACHABLE();
         }
     };
+    /// Here we perform formal loop evaluation to determine the value of the
+    /// induction variable in each iteration
     utl::small_vector<APInt> values;
     size_t const MaxTripCount = 32;
-    for (; evalCond(); inc()) {
+    while (true) {
+        /// We increment first because the induction variable is the variable
+        /// that is tested in the exit condition
+        inc();
         values.push_back(begin);
+        if (!evalCond()) {
+            break;
+        }
         if (values.size() > MaxTripCount) {
             return std::nullopt;
         }
@@ -336,7 +346,7 @@ void UnrollContext::unroll(std::span<APInt const> inductionValues) const {
     ///
     for (auto [clone, indValue]: ranges::views::zip(clones, inductionValues)) {
         auto* indVar = clone.map[inductionVar];
-        //        indVar->replaceAllUsesWith(ctx.intConstant(indValue));
+        indVar->replaceAllUsesWith(ctx.intConstant(indValue));
     }
     /// After unrolling we erase the original loop
     for (auto* BB: loop.innerBlocks()) {

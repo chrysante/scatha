@@ -104,7 +104,7 @@ public:
     }
 
 private:
-    friend void makeLCSSA(LoopInfo& loopInfo);
+    friend bool makeLCSSA(LoopInfo& loopInfo);
 
     BasicBlock* _header = nullptr;
     utl::hashset<BasicBlock*> _innerBlocks;
@@ -128,11 +128,11 @@ bool isLCSSA(LoopInfo const& loop);
 
 /// Turns the function \p function into LCSSA form
 /// \Returns `true` if \p function has been modified
-void makeLCSSA(Function& function);
+bool makeLCSSA(Function& function);
 
 /// Turns the loop described by \p loopInfo into LCSSA form
 /// \Returns `true` if the loop has been modified
-void makeLCSSA(LoopInfo& loopInfo);
+bool makeLCSSA(LoopInfo& loopInfo);
 
 /// Node in the loop nesting forest. Every node directly corresponds to one
 /// basic block.

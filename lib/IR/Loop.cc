@@ -175,23 +175,21 @@ bool ir::isLCSSA(LoopInfo const& loop) {
     return true;
 }
 
-void ir::makeLCSSA(Function& function) {
+bool ir::makeLCSSA(Function& function) {
     auto& LNF = function.getOrComputeLNF();
+    bool modified = false;
     LNF.postorderDFS([&](LNFNode* node) {
         if (node->isProperLoop()) {
             auto& loop = node->loopInfo();
-            makeLCSSA(loop);
+            modified |= makeLCSSA(loop);
         }
     });
+    return modified;
 }
 
-SC_REGISTER_PASS(
-    [](Context&, Function& F) {
-    makeLCSSA(F);
-    return true;
-    },
-    "lcssa",
-    PassCategory::Canonicalization);
+static bool makeLCSSAPass(Context&, Function& F) { return makeLCSSA(F); }
+
+SC_REGISTER_PASS(makeLCSSAPass, "lcssa", PassCategory::Canonicalization);
 
 static BasicBlock* getIdom(BasicBlock* dominator,
                            BasicBlock* BB,
@@ -262,7 +260,8 @@ struct LCSSAContext {
         return phi;
     };
 
-    void run() {
+    bool run() {
+        bool modified = false;
         for (auto* user: inst->users() | ToSmallVector<>) {
             auto* P = user->parent();
             if (loop.isInner(P)) {
@@ -270,30 +269,32 @@ struct LCSSAContext {
             }
             if (isa<Phi>(user) && loop.isExit(P)) {
                 auto* phi = cast<Phi*>(user);
-                //                if (phi->numOperands() == 1) {
                 auto* exit = getExitBlock(user);
                 exitToPhiMap[exit] = phi;
-                //                }
                 continue;
             }
             auto* phi = getExitPhi(user);
             user->updateOperand(inst, phi);
+            modified = true;
         }
+        return modified;
     }
 };
 
 } // namespace
 
-void ir::makeLCSSA(LoopInfo& loop) {
+bool ir::makeLCSSA(LoopInfo& loop) {
+    bool modified = false;
     for (auto* BB: loop.innerBlocks()) {
         for (auto& inst: *BB) {
             LCSSAContext context(&inst, loop);
-            context.run();
+            modified |= context.run();
             for (auto [exit, phi]: context.exitToPhiMap) {
                 loop._loopClosingPhiNodes[{ exit, &inst }] = phi;
             }
         }
     }
+    return modified;
 }
 
 bool LNFNode::isProperLoop() const {
