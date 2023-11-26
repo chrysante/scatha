@@ -21,7 +21,7 @@ using namespace ir;
 /// Induction variables are of the following kind:
 /// ```
 /// X_0 = phi(x_1, ...)
-/// x_1 = x_0 +- C
+/// x_1 = x_0 op C
 /// ```
 /// `x_1` is an induction variable if the following conditions are satisfied:
 /// - `C` is a constant
@@ -31,27 +31,25 @@ using namespace ir;
 static bool isInductionVar(Instruction const* inst,
                            LoopInfo const& loop,
                            DominanceInfo const& postDomInfo) {
-    auto* add = dyncast<ArithmeticInst const*>(inst);
-    if (!add) {
+    auto* arithmetic = dyncast<ArithmeticInst const*>(inst);
+    if (!arithmetic) {
         return false;
     }
     using enum ArithmeticOperation;
-    if (add->operation() != Add && add->operation() != Sub) {
-        return false;
-    }
     /// We can assume the constant to be on the right hand side because
     /// instcombine puts constants there for commutative operations
-    if (!isa<Constant>(add->rhs())) {
+    if (!isa<Constant>(arithmetic->rhs())) {
         return false;
     }
-    auto* phi = dyncast<Phi const*>(add->lhs());
+    auto* phi = dyncast<Phi const*>(arithmetic->lhs());
     if (!phi || !loop.isInner(phi->parent())) {
         return false;
     }
-    if (!ranges::contains(phi->operands(), add)) {
+    if (!ranges::contains(phi->operands(), arithmetic)) {
         return false;
     }
-    if (!postDomInfo.dominatorSet(loop.header()).contains(add->parent())) {
+    if (!postDomInfo.dominatorSet(loop.header()).contains(arithmetic->parent()))
+    {
         return false;
     }
     return true;
