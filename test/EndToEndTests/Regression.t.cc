@@ -267,3 +267,12 @@ fn main() {
     return getRef().value;
 })");
 }
+
+TEST_CASE("Bug in InstCombine", "[regression]") {
+    test::checkIRReturns(0, R"(
+func i64 @main() {
+  %entry:
+    %res = srem i64 10, i64 10
+    return i64 %res
+})");
+}

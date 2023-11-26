@@ -332,11 +332,8 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         if (isConstant(rhs, 0)) {
             return irCtx.undef(inst->type());
         }
-        if (isConstant(rhs, 1)) {
+        if (isConstant(rhs, 1) || lhs == rhs) {
             return irCtx.arithmeticConstant(0, inst->type());
-        }
-        if (lhs == rhs) {
-            return lhs;
         }
         break;
 
