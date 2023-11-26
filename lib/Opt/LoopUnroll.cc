@@ -63,8 +63,6 @@ static LoopCloneResult cloneLoop(Context& ctx,
 
 namespace {
 
-enum class CounterDir { Increasing, Decreasing };
-
 struct UnrollContext {
     LoopInfo const& loop;
     Context& ctx;
@@ -76,7 +74,6 @@ struct UnrollContext {
     IntegralConstant* beginValue = nullptr;
     IntegralConstant* endValue = nullptr;
     IntegralConstant* strideValue = nullptr;
-    CounterDir counterDir{};
 
     UnrollContext(LoopInfo const& loop, Context& ctx, Function& function):
         loop(loop), ctx(ctx), function(function) {
@@ -88,6 +85,9 @@ struct UnrollContext {
 
     /// Assign all pointer variables above
     bool gatherVariables();
+
+    ///
+    CompareOperation getExitTestOperation() const;
 
     /// \Returns a list of the values of the induction variable for each
     /// iteration of the loop. Returns `std::nullopt` if the loop has too many
@@ -118,7 +118,6 @@ bool opt::loopUnroll(Context& ctx, Function& function) {
             modified = true;
         }
     }
-
     assertInvariants(ctx, function);
     return modified;
 }
@@ -140,8 +139,7 @@ bool UnrollContext::run() {
 bool UnrollContext::gatherVariables() {
     /* exitingBlock */ {
         auto& exitingBlocks = loop.exitingBlocks();
-        /// For now!
-        if (exitingBlocks.size() != 1) {
+        if (exitingBlocks.empty()) {
             return false;
         }
         exitingBlock = *exitingBlocks.begin();
@@ -176,19 +174,6 @@ bool UnrollContext::gatherVariables() {
             return false;
         }
     }
-    /* counterDir */ {
-        using enum ArithmeticOperation;
-        switch (inductionVar->operation()) {
-        case Add:
-            counterDir = CounterDir::Increasing;
-            break;
-        case Sub:
-            counterDir = CounterDir::Decreasing;
-            break;
-        default:
-            return false;
-        }
-    }
     /* beginValue */ {
         auto* phi = dyncast<Phi*>(inductionVar->lhs());
         if (phi->operands().size() != 2) {
@@ -208,6 +193,24 @@ bool UnrollContext::gatherVariables() {
     return true;
 }
 
+CompareOperation UnrollContext::getExitTestOperation() const {
+    auto* branch = cast<Branch const*>(exitingBlock->terminator());
+    auto* exit = [&] {
+        auto targets = branch->targets();
+        auto itr = ranges::find_if(targets,
+                                   [&](auto* BB) { return !loop.isInner(BB); });
+        SC_ASSERT(itr != targets.end(), "");
+        return *itr;
+    }();
+    if (branch->thenTarget() == exit) {
+        return inverse(exitCondition->operation());
+    }
+    else {
+        SC_ASSERT(branch->elseTarget() == exit, "");
+        return exitCondition->operation();
+    }
+}
+
 std::optional<utl::small_vector<APInt>> UnrollContext::unrolledInductionValues()
     const {
     auto begin = beginValue->value();
@@ -223,10 +226,14 @@ std::optional<utl::small_vector<APInt>> UnrollContext::unrolledInductionValues()
         case Sub:
             begin.sub(stride);
             break;
+        case Mul:
+            begin.mul(stride);
+            break;
         default:
             SC_UNREACHABLE();
         }
     };
+    auto exitOperation = getExitTestOperation();
     auto evalCond = [&] {
         int res = [&] {
             using enum CompareMode;
@@ -240,7 +247,7 @@ std::optional<utl::small_vector<APInt>> UnrollContext::unrolledInductionValues()
             }
         }();
         using enum CompareOperation;
-        switch (exitCondition->operation()) {
+        switch (exitOperation) {
         case Less:
             return res < 0;
         case LessEq:
@@ -343,7 +350,6 @@ void UnrollContext::unroll(std::span<APInt const> inductionValues) const {
             }
         }
     }
-    ///
     for (auto [clone, indValue]: ranges::views::zip(clones, inductionValues)) {
         auto* indVar = clone.map[inductionVar];
         indVar->replaceAllUsesWith(ctx.intConstant(indValue));
