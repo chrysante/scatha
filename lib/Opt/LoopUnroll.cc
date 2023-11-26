@@ -1,3 +1,5 @@
+#include <optional>
+#include <queue>
 #include <span>
 
 #include <range/v3/algorithm.hpp>
@@ -11,6 +13,7 @@
 #include "IR/Loop.h"
 #include "IR/PassRegistry.h"
 #include "IR/Validate.h"
+#include "Opt/LoopRankView.h"
 #include "Opt/Passes.h"
 
 using namespace scatha;
@@ -78,31 +81,42 @@ struct UnrollContext {
     UnrollContext(LoopInfo const& loop, Context& ctx, Function& function):
         loop(loop), ctx(ctx), function(function) {}
 
+    /// Run the algorithm for this loop
     bool run();
 
+    /// Assign all pointer variables above
     bool gatherVariables();
 
-    APInt getTripCount() const;
+    /// \Returns a list of the values of the induction variable for each
+    /// iteration of the loop. Returns `std::nullopt` if the loop has too many
+    /// iterations
+    std::optional<utl::small_vector<APInt>> unrolledInductionValues() const;
 
-    utl::small_vector<APInt> unrolledInductionValues(APInt tripCount) const;
-
+    /// Performs the CFG modifications
     void unroll(std::span<APInt const> inductionValues) const;
-    void unroll2(std::span<APInt const> inductionValues) const;
 };
 
 } // namespace
 
 bool opt::loopUnroll(Context& ctx, Function& function) {
+    auto LRV = LoopRankView::Compute(function);
     bool modified = false;
-    auto& LNF = function.getOrComputeLNF();
-    LNF.postorderDFS([&](LNFNode* node) {
-        if (node->isProperLoop()) {
-            modified |= UnrollContext(node->loopInfo(), ctx, function).run();
+    /// We traverse all loops in reverse rank order (reverse BFS order)
+    for (auto& rankList: LRV | ranges::views::reverse) {
+        auto& LNF = function.getOrComputeLNF();
+        bool modifiedRank = false;
+        for (auto* header: rankList) {
+            modifiedRank |=
+                UnrollContext(LNF[header]->loopInfo(), ctx, function).run();
         }
-    });
-    if (modified) {
-        function.invalidateCFGInfo();
+        /// After traversing a rank we invalidate because we may have edited
+        /// the CFG in loops the are dominated by the next rank
+        if (modifiedRank) {
+            function.invalidateCFGInfo();
+            modified = true;
+        }
     }
+
     assertInvariants(ctx, function);
     return modified;
 }
@@ -113,12 +127,11 @@ bool UnrollContext::run() {
     if (!gatherVariables()) {
         return false;
     }
-    auto tripCount = getTripCount();
-    if (ucmp(tripCount, 32) > 0) {
+    auto inductionValues = unrolledInductionValues();
+    if (!inductionValues) {
         return false;
     }
-    auto inductionValues = unrolledInductionValues(tripCount);
-    unroll2(inductionValues);
+    unroll(*inductionValues);
     return true;
 }
 
@@ -193,36 +206,8 @@ bool UnrollContext::gatherVariables() {
     return true;
 }
 
-APInt UnrollContext::getTripCount() const {
-    auto begin = beginValue->value();
-    auto end = endValue->value();
-    auto stride = strideValue->value();
-    auto dist = sub(end, begin);
-    SC_ASSERT(counterDir == CounterDir::Increasing, "For now...");
-    if (counterDir == CounterDir::Decreasing) {
-        stride = negate(stride);
-    }
-    using enum CompareOperation;
-    switch (exitCondition->operation()) {
-    case Less:
-        return udiv(dist, stride);
-    case LessEq:
-        SC_UNIMPLEMENTED();
-    case Greater:
-        SC_UNIMPLEMENTED();
-    case GreaterEq:
-        SC_UNIMPLEMENTED();
-    case Equal:
-        SC_UNIMPLEMENTED();
-    case NotEqual:
-        return udiv(dist, stride);
-    case _count:
-        SC_UNREACHABLE();
-    }
-}
-
-utl::small_vector<APInt> UnrollContext::unrolledInductionValues(
-    APInt tripCount) const {
+std::optional<utl::small_vector<APInt>> UnrollContext::unrolledInductionValues()
+    const {
     auto begin = beginValue->value();
     auto end = endValue->value();
     auto stride = strideValue->value();
@@ -271,14 +256,17 @@ utl::small_vector<APInt> UnrollContext::unrolledInductionValues(
         }
     };
     utl::small_vector<APInt> values;
-    values.reserve(tripCount.to<size_t>());
+    size_t const MaxTripCount = 32;
     for (; evalCond(); inc()) {
         values.push_back(begin);
+        if (values.size() > MaxTripCount) {
+            return std::nullopt;
+        }
     }
     return values;
 }
 
-void UnrollContext::unroll2(std::span<APInt const> inductionValues) const {
+void UnrollContext::unroll(std::span<APInt const> inductionValues) const {
     std::vector<LoopCloneResult> clones;
     clones.reserve(inductionValues.size());
     auto insertPoint = (loop.innerBlocks() | ToSmallVector<>).back()->next();
@@ -290,7 +278,7 @@ void UnrollContext::unroll2(std::span<APInt const> inductionValues) const {
         auto* term = entering->terminator();
         term->updateTarget(loop.header(), clones.front().loop.header());
     }
-    ///
+    /// Here we stitch together the phi nodes and terminators
     for (auto [iteration, next]:
          ranges::views::zip(clones, clones | ranges::views::drop(1)))
     {
@@ -345,96 +333,13 @@ void UnrollContext::unroll2(std::span<APInt const> inductionValues) const {
             }
         }
     }
+    ///
+    for (auto [clone, indValue]: ranges::views::zip(clones, inductionValues)) {
+        auto* indVar = clone.map[inductionVar];
+        //        indVar->replaceAllUsesWith(ctx.intConstant(indValue));
+    }
     /// After unrolling we erase the original loop
     for (auto* BB: loop.innerBlocks()) {
-        for (auto* target: BB->terminator()->targets()) {
-            if (target && !loop.isInner(target)) {
-                target->removePredecessor(BB);
-            }
-        }
-        function.erase(BB);
-    }
-}
-
-void UnrollContext::unroll(std::span<APInt const> inductionValues) const {
-    auto innerBBs = loop.innerBlocks() | ToSmallVector<>;
-    auto insertPoint = innerBBs.back()->next();
-    auto enteringBlocks = loop.enteringBlocks();
-    BasicBlock* lastHeader = nullptr;
-    CloneValueMap lastMap;
-    for (auto [index, indValue]: inductionValues | ranges::views::enumerate) {
-        auto cloneResult = cloneRegion(ctx, insertPoint, innerBBs);
-        auto& map = cloneResult.map;
-        auto clonedBBs = cloneResult.clones |
-                         ranges::to<utl::hashset<BasicBlock*>>;
-
-        auto* header = map[loop.header()];
-        /// The entering blocks are
-        /// - for the first iteration: the actual entering blocks
-        /// - for the subsequent iterations: the latches of the previous
-        /// interation For every entering block we remap the edges go to a block
-        /// in the previous iteration to the corresponding block of this
-        /// iteration
-        for (auto* entering: enteringBlocks) {
-            auto* term = entering->terminator();
-            if (index == 0) {
-                term->mapTargets(map);
-                continue;
-            }
-            // index != 0
-            for (auto [index, target]:
-                 term->targets() | ranges::views::enumerate)
-            {
-                if (target == lastHeader) {
-                    term->setTarget(index, header);
-                }
-            }
-        }
-        /// We remove all ...
-        for (auto* pred: header->predecessors() | ToSmallVector<>) {
-            if (index == 0) {
-                if (clonedBBs.contains(pred)) {
-                    header->removePredecessor(pred);
-                }
-            }
-            else {
-                if (clonedBBs.contains(pred)) {
-                    header->updatePredecessor(pred, lastMap(map.inverse(pred)));
-                }
-                else {
-                    header->removePredecessor(pred);
-                }
-            }
-        }
-        /// Replace the induction variable with the current value
-        auto* ind = map[inductionVar];
-        ind->replaceAllUsesWith(ctx.intConstant(indValue));
-        /// Replace the exit condition with a constant
-        auto* cond = map[exitCondition];
-        for (auto* branch: cond->users() | Filter<Branch> | ToSmallVector<>) {
-            auto* dest = [&, index = index] {
-                if (index != inductionValues.size() - 1) {
-                    return branch->thenTarget();
-                }
-                else {
-                    return branch->elseTarget();
-                }
-            }();
-            BasicBlockBuilder builder(ctx, branch->parent());
-            builder.insert<Goto>(branch, dest);
-            branch->parent()->erase(branch);
-        }
-        /// The latches of the current iteration become the entering blocks of
-        /// the next iteration
-        enteringBlocks.clear();
-        for (auto* latch: loop.latches()) {
-            enteringBlocks.insert(map[latch]);
-        }
-        lastHeader = header;
-        lastMap = map;
-    }
-    /// After unrolling we erase the original loop
-    for (auto* BB: innerBBs) {
         for (auto* target: BB->terminator()->targets()) {
             if (target && !loop.isInner(target)) {
                 target->removePredecessor(BB);
