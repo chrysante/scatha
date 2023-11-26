@@ -12,6 +12,7 @@
 
 #include "Common/Base.h"
 #include "Common/EscapeSequence.h"
+#include "Common/Logging.h"
 #include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -32,6 +33,7 @@ SC_REGISTER_PASS(printPass, "print", PassCategory::Other);
 
 /// To expose the `print(Module)` function to the pass manager
 static bool printPass(ir::Context& ctx, ir::Module& mod, LocalPass) {
+    logging::header(" IR Module ");
     ir::print(mod);
     return false;
 }
