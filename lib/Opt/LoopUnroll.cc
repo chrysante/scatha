@@ -307,7 +307,7 @@ void UnrollContext::unroll2(std::span<APInt const> inductionValues) const {
                                     loop.header()->phiNodes()))
             {
                 phi.addArgument(cloneLatch,
-                                next.map(origPhi.operandOf(origLatch)));
+                                iteration.map(origPhi.operandOf(origLatch)));
             }
         }
         for (auto* entering: loop.enteringBlocks()) {
