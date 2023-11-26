@@ -489,6 +489,8 @@ private:
 };
 
 /// Select one of two values basec on a boolean condition
+/// The first value ("then-value") is seleced if the condition is true, the
+/// second value ("else-value") is selected if the condition is false
 class Select: public Instruction {
 public:
     explicit Select(Value* condition,
