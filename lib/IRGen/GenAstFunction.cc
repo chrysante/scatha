@@ -25,7 +25,7 @@ using enum ValueLocation;
 
 static std::string nameFromSourceLoc(std::string_view name,
                                      SourceLocation loc) {
-    return utl::strcat(name, ".at[", loc.line, ":", loc.column, "]");
+    return utl::strcat(name, ".at.", loc.line, ".", loc.column);
 }
 
 namespace {
