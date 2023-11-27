@@ -16,6 +16,7 @@
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
+#include <scatha/CodeGen/ISel.h>
 #include <scatha/CodeGen/SelectionDAG.h>
 #include <scatha/Common/ExecutableWriter.h>
 #include <scatha/Common/Logging.h>
@@ -27,6 +28,7 @@
 #include <scatha/IR/Print.h>
 #include <scatha/IRGen/IRGen.h>
 #include <scatha/Issue/IssueHandler.h>
+#include <scatha/MIR/Module.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/Print.h>
@@ -122,6 +124,7 @@ struct InspectOptions: OptionsBase {
     bool sym;
     bool emitIR;
     bool codegen;
+    bool isel; // Experimental
     bool assembly;
     bool execute;
     bool out;
@@ -195,6 +198,13 @@ static int inspectMain(InspectOptions options) {
         else {
             std::cout << "Failed to write \"out.scir\"" << std::endl;
         }
+    }
+    if (options.isel) {
+        auto mirMod = cg::isel(mod);
+        std::cout << "Warning: Other codegen options and execution are ignored "
+                     "with the --isel flag"
+                  << std::endl;
+        return 0;
     }
     auto cgLogger = [&]() -> std::unique_ptr<cg::Logger> {
         if (options.codegen) {
@@ -303,6 +313,7 @@ int main(int argc, char** argv) {
     inspect->add_flag("--sym", inspectOptions.sym, "Print symbol table");
     inspect->add_option("--pipeline", inspectOptions.pipeline, "Optimization pipeline to be run on the IR");
     inspect->add_flag("--emit-ir", inspectOptions.emitIR, "Write generated IR to file");
+    inspect->add_flag("--isel", inspectOptions.isel, "Run the experimental ISel pipeline");
     inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
     inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
     inspect->add_flag("--execute", inspectOptions.execute, "Execute the compiled program");

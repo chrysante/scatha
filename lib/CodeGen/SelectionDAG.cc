@@ -17,10 +17,11 @@ using namespace scatha;
 using namespace cg;
 using namespace ir;
 
-static bool isCritical(ir::Instruction const& inst) {
-    if (opt::hasSideEffects(&inst)) {
-        return true;
-    }
+static bool hasSideEffects(ir::Instruction const& inst) {
+    return opt::hasSideEffects(&inst);
+}
+
+static bool isOutput(ir::Instruction const& inst) {
     return ranges::any_of(inst.users(), [&](auto* user) {
         return user->parent() != inst.parent();
     });
@@ -35,8 +36,12 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
         instNode->setIndex(index++);
-        if (isCritical(inst)) {
-            DAG.critical.push_back(&inst);
+        if (::hasSideEffects(inst)) {
+            DAG.sideEffects.insert(instNode);
+            DAG.orderedSideEffects.push_back(instNode);
+        }
+        if (::isOutput(inst)) {
+            DAG.outputs.insert(instNode);
         }
         for (auto* operand: inst.operands()) {
             if (isa<BasicBlock>(operand) || isa<Callable>(operand)) {
@@ -52,13 +57,13 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
 
 SelectionNode const* SelectionDAG::operator[](
     ir::Instruction const* inst) const {
-    auto itr = nodemap.find(inst);
-    SC_ASSERT(itr != nodemap.end(), "Not found");
+    auto itr = map.find(inst);
+    SC_ASSERT(itr != map.end(), "Not found");
     return itr->second;
 }
 
 SelectionNode* SelectionDAG::get(ir::Value const* value) {
-    auto& ptr = nodemap[value];
+    auto& ptr = map[value];
     if (!ptr) {
         ptr = allocate<SelectionNode>(allocator, value);
     }
@@ -92,6 +97,12 @@ void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
             G->add(Edge{ ID(node), ID(opNode) });
         }
         G->add(vertex);
+    }
+    for (auto [curr, next]:
+         ranges::views::zip(DAG.sideEffectNodes(),
+                            DAG.sideEffectNodes() | ranges::views::drop(1)))
+    {
+        G->add(Edge{ .from = ID(next), .to = ID(curr), .color = Color::Blue });
     }
     Graph H;
     H.label(makeLabel(DAG, DAG.basicBlock()));

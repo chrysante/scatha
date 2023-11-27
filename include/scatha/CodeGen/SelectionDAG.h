@@ -61,6 +61,20 @@ public:
     /// Builds a selection DAG for the basic block \p BB
     static SelectionDAG Build(ir::BasicBlock const& BB);
 
+    /// ## Views
+
+    /// \Returns a view over all nodes in this DAG
+    auto nodes() const {
+        return std::span{ map.values() } | ranges::views::values;
+    }
+
+    /// \Returns a view over all node with side effects in their relative order
+    std::span<SelectionNode* const> sideEffectNodes() const {
+        return orderedSideEffects;
+    }
+
+    /// ## Queries
+
     /// \Returns the basic block this DAG represents
     ir::BasicBlock const* basicBlock() const { return BB; }
 
@@ -73,23 +87,36 @@ public:
     /// \overload
     SelectionNode const* operator[](ir::Instruction const* inst) const;
 
-    /// \Returns a view over the nodes in this DAG
-    auto nodes() { return nodemap | ranges::views::values | ToAddress; }
+    /// \Returns `true` if the instruction of \p node has visible side effects
+    bool hasSideEffects(SelectionNode const* node) const {
+        return sideEffects.contains(node);
+    }
 
-    /// \overload
-    auto nodes() const { return nodemap | ranges::views::values | ToAddress; }
-
-    std::span<ir::Instruction const* const> criticalInstructions() const {
-        return critical;
+    /// \Returns `true` if \p node is an output of this block
+    bool isOutput(SelectionNode const* node) const {
+        return sideEffects.contains(node);
     }
 
 private:
     /// Finds the node associated with \p value or creates a new node
     SelectionNode* get(ir::Value const* value);
 
+    /// The represented block
     ir::BasicBlock const* BB = nullptr;
-    utl::vector<ir::Instruction const*> critical;
-    utl::hashmap<ir::Value const*, SelectionNode*> nodemap;
+
+    /// This map has an entry for every node in the DAG
+    utl::hashmap<ir::Value const*, SelectionNode*> map;
+
+    /// Set of all nodes with side effects
+    utl::hashset<SelectionNode*> sideEffects;
+
+    /// List of all nodes with side effects
+    utl::small_vector<SelectionNode*> orderedSideEffects;
+
+    /// Set of all output nodes of this block
+    utl::hashset<SelectionNode*> outputs;
+
+    /// Allocator used to allocate the nodes
     MonotonicBufferAllocator allocator;
 };
 
