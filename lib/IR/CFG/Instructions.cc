@@ -26,6 +26,8 @@ Alloca::Alloca(Context& context,
                 { count },
                 { allocatedType }) {}
 
+bool Alloca::isStatic() const { return isa<IntegralConstant>(count()); }
+
 std::optional<size_t> Alloca::constantCount() const {
     auto* constCount = dyncast<IntegralConstant const*>(count());
     if (!constCount) {

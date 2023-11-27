@@ -30,11 +30,14 @@ public:
     /// \overload
     Value const* count() const { return operandAt(0); }
 
-    /// \Returns the count as a constant if it is constant
+    /// \Returns `true` if `count()` is a constant
+    bool isStatic() const;
+
+    /// \Returns the count as a constant if this alloca is static
     std::optional<size_t> constantCount() const;
 
-    /// \Returns the allocated size if `count()` is a constant. Otherwise
-    /// returns `std::nullopt`
+    /// \Returns the number of allocated bytes if this alloca is static.
+    /// Otherwise returns `std::nullopt`
     std::optional<size_t> allocatedSize() const;
 
     /// Set the number of objects allocated.
