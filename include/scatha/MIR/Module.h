@@ -7,10 +7,10 @@
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 
-#include "Common/Base.h"
-#include "Common/List.h"
-#include "Common/Metadata.h"
-#include "MIR/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/Common/List.h>
+#include <scatha/Common/Metadata.h>
+#include <scatha/MIR/Fwd.h>
 
 namespace scatha::mir {
 

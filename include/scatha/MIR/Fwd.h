@@ -4,9 +4,9 @@
 #include <iosfwd>
 #include <string_view>
 
-#include "Common/Base.h"
-#include "Common/Dyncast.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/Common/Dyncast.h>
+#include <scatha/IR/Fwd.h> // To borrow some enums for this MIR namespace
 
 namespace scatha::mir {
 
@@ -35,12 +35,12 @@ class Module;
 
 /// Forward declarations of all CFG node types in the MIR module.
 #define SC_MIR_CFGNODE_DEF(type, _) class type;
-#include "MIR/Lists.def"
+#include <scatha/MIR/Lists.def>
 
 /// Enum listing all CFG node types in the MIR module.
 enum class NodeType {
 #define SC_MIR_CFGNODE_DEF(type, _) type,
-#include "MIR/Lists.def"
+#include <scatha/MIR/Lists.def>
     _count
 };
 
@@ -72,14 +72,14 @@ SCTEST_API void privateDestroy(mir::Instruction* inst);
     SC_DYNCAST_MAP(::scatha::mir::Node,                                        \
                    ::scatha::mir::NodeType::Node,                              \
                    Abstractness)
-#include "MIR/Lists.def"
+#include <scatha/MIR/Lists.def>
 
 namespace scatha::mir {
 
 /// Enum listing all instructions in the MIR module.
 enum class InstCode : uint16_t {
 #define SC_MIR_INSTRUCTION_DEF(type, name) type,
-#include "MIR/Lists.def"
+#include <scatha/MIR/Lists.def>
     _count
 };
 
