@@ -54,7 +54,7 @@ bool GDCEContext::run() {
             visit(&callgraph[&F]);
         }
     }
-    /// Erase all live functions
+    /// Erase all dead functions
     bool modified = false;
     for (auto itr = mod.begin(); itr != mod.end();) {
         auto* F = itr.to_address();
@@ -65,6 +65,7 @@ bool GDCEContext::run() {
         itr = mod.erase(itr);
         modified = true;
     }
+    /// Erase all unused globals
     utl::small_vector<Global*> unused;
     for (auto& global: mod.globals()) {
         if (global.unused()) {
