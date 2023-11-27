@@ -194,9 +194,6 @@ bool opt::hasSideEffects(Instruction const* inst) {
     if (isa<Store>(inst)) {
         return true;
     }
-    if (isa<TerminatorInst>(inst)) {
-        return true;
-    }
     return false;
 }
 

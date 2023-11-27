@@ -56,6 +56,10 @@ SCTEST_API ir::BasicBlock* addJoiningPredecessor(
     std::string name);
 
 /// \returns `true` if the instruction \p inst has side effects
+/// Specifically _side effects_ mean
+/// - stores to memory
+/// - function calls not marked as 'side effect free'
+/// Terminators are not considered to have side effects
 SCTEST_API bool hasSideEffects(ir::Instruction const* inst);
 
 /// \Returns `true` if \p callInst is a call instruction that calls the builtin

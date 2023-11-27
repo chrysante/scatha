@@ -39,7 +39,7 @@ struct DCEContext {
         }
     }
 
-    BasicBlock* nearestUsefulPostdom(BasicBlock* bb);
+    BasicBlock* nearestUsefulPostdom(BasicBlock* BB);
 
     Context& irCtx;
     Function& function;
@@ -58,12 +58,17 @@ bool opt::dce(ir::Context& context, ir::Function& function) {
     return result;
 }
 
+/// _Critical_ here means side effects as defined by `opt::hasSideEffects()` or the instruction is a return
+static bool isCritical(Instruction const* inst) {
+    return isa<Return>(inst) || opt::hasSideEffects(inst);
+}
+
 bool DCEContext::run() {
     /// Initialization phase
     auto instructions = function.instructions() | TakeAddress |
                         ToSmallVector<32>;
     auto criticalInstructions = instructions |
-                                ranges::views::filter(hasSideEffects);
+                                ranges::views::filter(isCritical);
     for (auto* inst: criticalInstructions) {
         mark(inst);
     }
@@ -102,8 +107,8 @@ bool DCEContext::run() {
         for (auto* inst: liveUnmarked) {
             mark(inst);
         }
-        for (auto* bb: postDomInfo.domFront(inst->parent())) {
-            mark(bb->terminator());
+        for (auto* BB: postDomInfo.domFront(inst->parent())) {
+            mark(BB->terminator());
         }
         if (auto* phi = dyncast<Phi*>(inst)) {
             for (auto [pred, value]: phi->arguments()) {
@@ -113,25 +118,30 @@ bool DCEContext::run() {
     }
     /// Sweep phase
     bool modifiedAny = false;
+    bool modifiedCFG = false;
     for (auto* inst: instructions) {
         if (marked.contains(inst)) {
             continue;
         }
-        BasicBlock* bb = inst->parent();
+        BasicBlock* BB = inst->parent();
         if (auto* branch = dyncast<Branch*>(inst)) {
             for (auto* target: branch->targets()) {
-                target->removePredecessor(bb);
+                target->removePredecessor(BB);
             }
-            BasicBlock* target = nearestUsefulPostdom(bb);
-            bb->erase(branch);
-            bb->pushBack(new Goto(irCtx, target));
-            target->addPredecessor(bb);
+            BasicBlock* target = nearestUsefulPostdom(BB);
+            BB->erase(branch);
+            BB->pushBack(new Goto(irCtx, target));
+            target->addPredecessor(BB);
             modifiedAny = true;
+            modifiedCFG = true;
         }
         else if (!isa<Goto>(inst)) {
-            bb->erase(inst);
+            BB->erase(inst);
             modifiedAny = true;
         }
+    }
+    if (modifiedCFG) {
+        function.invalidateCFGInfo();
     }
     return modifiedAny;
 }

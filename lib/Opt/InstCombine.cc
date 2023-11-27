@@ -120,7 +120,7 @@ struct InstCombineCtx {
     bool tryMergeNegate(ArithmeticInst* inst);
 
     bool isUsed(Instruction* inst) const {
-        if (hasSideEffects(inst)) {
+        if (hasSideEffects(inst) || isa<TerminatorInst>(inst)) {
             return true;
         }
         return ranges::any_of(inst->users(), [&](auto* user) {
