@@ -24,6 +24,7 @@
 #include <scatha/IR/IRParser.h>
 #include <scatha/IR/Module.h>
 #include <scatha/IR/PassManager.h>
+#include <scatha/IR/Print.h>
 #include <scatha/IRGen/IRGen.h>
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/Parser/Parser.h>
@@ -119,6 +120,7 @@ static std::pair<ir::Context, ir::Module> parseIR(OptionsBase const& options) {
 struct InspectOptions: OptionsBase {
     bool ast;
     bool sym;
+    bool emitIR;
     bool codegen;
     bool assembly;
     bool execute;
@@ -183,6 +185,16 @@ static int inspectMain(InspectOptions options) {
     if (!options.pipeline.empty()) {
         auto pipeline = ir::PassManager::makePipeline(options.pipeline);
         pipeline(ctx, mod);
+    }
+    if (options.emitIR) {
+        if (auto file =
+                std::fstream("out.scir", std::ios::out | std::ios::trunc))
+        {
+            ir::print(mod, file);
+        }
+        else {
+            std::cout << "Failed to write \"out.scir\"" << std::endl;
+        }
     }
     auto cgLogger = [&]() -> std::unique_ptr<cg::Logger> {
         if (options.codegen) {
@@ -290,6 +302,7 @@ int main(int argc, char** argv) {
     inspect->add_flag("--ast", inspectOptions.ast, "Print AST");
     inspect->add_flag("--sym", inspectOptions.sym, "Print symbol table");
     inspect->add_option("--pipeline", inspectOptions.pipeline, "Optimization pipeline to be run on the IR");
+    inspect->add_flag("--emit-ir", inspectOptions.emitIR, "Write generated IR to file");
     inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
     inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
     inspect->add_flag("--execute", inspectOptions.execute, "Execute the compiled program");
