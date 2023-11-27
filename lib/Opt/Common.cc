@@ -232,7 +232,7 @@ Value const* opt::memcpyDest(Instruction const* call) {
 }
 
 Value const* opt::memcpySource(Instruction const* call) {
-    SC_ASSERT(isConstSizeMemcpy(call), "Invalid");
+    SC_ASSERT(isMemcpy(call), "Invalid");
     return cast<Call const*>(call)->argumentAt(2);
 }
 
