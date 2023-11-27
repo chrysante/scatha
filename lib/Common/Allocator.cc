@@ -53,7 +53,7 @@ SC_DISABLE_UBSAN void* MonotonicBufferAllocator::allocate(size_t size,
     u8* const result = alignPointer(current, align);
     u8* const next = result + size;
     if (next > end) {
-        addChunk(buffer ? buffer->size * 2 : inititalSize);
+        addChunk(buffer ? buffer->size * 2 : InititalSize);
         return allocate(size, align);
     }
     current = next;
