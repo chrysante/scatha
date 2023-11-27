@@ -170,12 +170,12 @@ SVM_INSTRUCTION_DEF(fcmp32RV, RV64) // (u8 regIdxA, u64 value)
 SVM_INSTRUCTION_DEF(fcmp64RV, RV64) // (u8 regIdxA, u64 value)
 
 /// Compare the operand to 0 and set flags accordingly
-SVM_INSTRUCTION_DEF(stest8,  R)  //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(stest8,  R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(stest16, R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(stest32, R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(stest64, R) //  (u8 regIdx)
 
-SVM_INSTRUCTION_DEF(utest8,  R)  //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(utest8,  R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(utest16, R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(utest32, R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(utest64, R) //  (u8 regIdx)

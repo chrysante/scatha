@@ -46,11 +46,18 @@ public:
     /// \Returns the position of this instruction in the basic block
     ssize_t index() const { return _index; }
 
+    /// Sets the 'matched' flag to \p value
+    void setMatched(bool value = true) { _matched = value; }
+    
+    /// \Returns `true` if the 'matched' flag has been set
+    bool matched() const { return _matched; }
+
 private:
     friend class SelectionDAG;
     void setIndex(ssize_t index) { _index = utl::narrow_cast<int32_t>(index); }
 
     int32_t _index = 0;
+    bool _matched = false;
 };
 
 /// Used for instruction selection
@@ -71,6 +78,11 @@ public:
     /// \Returns a view over all node with side effects in their relative order
     std::span<SelectionNode* const> sideEffectNodes() const {
         return orderedSideEffects;
+    }
+    
+    /// \Returns a view over all node whose values are used by other basic blocks
+    std::span<SelectionNode* const> outputNodes() const {
+        return outputs.values();
     }
 
     /// ## Queries

@@ -10,11 +10,11 @@ namespace scatha::cg {
 class ValueMap;
 
 /// Lowers the IR function \p irFn to MIR representation. Result is written into
-/// the empty MIR function \p mirFn \p valueMap is a map of all global
-/// declarations
+/// the empty MIR function \p mirFn
+/// \p globalMap is a map of all global declarations
 SCATHA_API void iselFunction(ir::Function const& irFn,
-                             mir::Function const& mirFn,
-                             ValueMap const& valueMap);
+                             mir::Function& mirFn,
+                             ValueMap const& globalMap);
 
 } // namespace scatha::cg
 

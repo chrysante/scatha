@@ -7,25 +7,14 @@
 #include <utl/vector.hpp>
 
 #include "CodeGen/SelectionDAG.h"
+#include "CodeGen/ISelCommon.h"
+#include "CodeGen/ValueMap.h"
 #include "IR/CFG.h"
 #include "IR/Type.h"
 #include "MIR/CFG.h"
 
 using namespace scatha;
 using namespace cg;
-
-static constexpr size_t WordSize = 8;
-
-/// \Returns the number of machine words required to store values of type \p
-/// type
-static size_t numWords(ir::Type const* type) {
-    return utl::ceil_divide(type->size(), WordSize);
-}
-
-/// \Returns the number of machine words required to store the value \p value
-static size_t numWords(ir::Value const* value) {
-    return numWords(value->type());
-}
 
 namespace {
 
@@ -56,38 +45,96 @@ private:
     utl::hashmap<ir::Alloca const*, AllocaLocation> map;
 };
 
-struct ISelContext {
+struct FunctionContext {
+    ///
     ir::Function const& irFn;
-    mir::Function const& mirFn;
-    ValueMap const& valueMap;
-
+    mir::Function& mirFn;
+    ValueMap const& globalMap;
+    
+    ///
+    ValueMap localMap;
     AllocaMap allocaMap;
 
-    ISelContext(ir::Function const& irFn,
-                mir::Function const& mirFn,
-                ValueMap const& valueMap):
-        irFn(irFn), mirFn(mirFn), valueMap(valueMap) {}
+    FunctionContext(ir::Function const& irFn,
+                    mir::Function& mirFn,
+                    ValueMap const& globalMap):
+        irFn(irFn), mirFn(mirFn), globalMap(globalMap) {}
 
+    /// Run the lowering algorithm for `irFn`
     void run();
 
-    void computeAllocaMap();
+    /// Allocates a `mir::BasicBlock` and inserts it into `mirFn`
+    mir::BasicBlock* declareBB(ir::BasicBlock const& irBB);
+    
+    ///
+    void computeAllocaMap(mir::BasicBlock& mirEntry);
+};
+
+struct BBContext {
+    ir::BasicBlock const& irBB;
+    mir::BasicBlock& mirBB;
+    ValueMap const& globalMap;
+    ValueMap& localMap;
+    SelectionDAG DAG;
+    
+    BBContext(ir::BasicBlock const& irBB,
+              mir::BasicBlock& mirBB,
+              ValueMap const& globalMap,
+              ValueMap& localMap):
+        irBB(irBB),
+        mirBB(mirBB),
+        globalMap(globalMap),
+        localMap(localMap),
+        DAG(SelectionDAG::Build(irBB)) {}
+    
+    void run();
+    
+    void match(SelectionNode* node);
+    
+    /// Stub that we'll delete later
+    void matchImpl(ir::Value const*, SelectionNode*) {
+        SC_UNREACHABLE();
+    }
+    
+    void matchImpl(ir::Call const* inst, SelectionNode* node);
 };
 
 } // namespace
 
 void cg::iselFunction(ir::Function const& irFn,
-                      mir::Function const& mirFn,
-                      ValueMap const& valueMap) {
-    ISelContext context(irFn, mirFn, valueMap);
+                      mir::Function& mirFn,
+                      ValueMap const& globalMap) {
+    FunctionContext context(irFn, mirFn, globalMap);
     context.run();
 }
 
-void ISelContext::run() {
-    computeAllocaMap();
-    for (auto& BB: irFn) {
-        auto DAG = SelectionDAG::Build(BB);
-        generateGraphvizTmp(DAG);
+void FunctionContext::run() {
+    /// Declare all basic blocks
+    for (auto& irBB: irFn) {
+        declareBB(irBB);
     }
+    computeAllocaMap(*mirFn.entry());
+    /// Associate parameters with bottom registers.
+    auto regItr = mirFn.ssaRegisters().begin();
+    for (auto& param: irFn.parameters()) {
+        localMap.insert(&param, regItr.to_address());
+        std::advance(regItr, numWords(&param));
+    }
+    /// Generate code for all blocks
+    for (auto& irBB: irFn) {
+        BBContext BBCtx(irBB,
+                        *localMap(&irBB),
+                        globalMap,
+                        localMap);
+        BBCtx.run();
+    }
+}
+
+mir::BasicBlock* FunctionContext::declareBB(ir::BasicBlock const& irBB) {
+    auto* mirBB = new mir::BasicBlock(&irBB);
+    mirFn.pushBack(mirBB);
+    localMap.insert(&irBB, mirBB);
+    return mirBB;
 }
 
 static size_t alignTo(size_t size, size_t align) {
@@ -97,7 +144,7 @@ static size_t alignTo(size_t size, size_t align) {
     return size + align - size % align;
 }
 
-void ISelContext::computeAllocaMap() {
+void FunctionContext::computeAllocaMap(mir::BasicBlock& mirEntry) {
     auto& entry = irFn.entry();
     auto allocas = entry | ranges::views::take_while(isa<ir::Alloca>) |
                    ranges::views::transform(cast<ir::Alloca const&>);
@@ -120,4 +167,25 @@ void ISelContext::computeAllocaMap() {
     for (auto [inst, offset]: ranges::views::zip(allocas, offsets)) {
         allocaMap.insert(&inst, { baseptr, offset });
     }
+}
+
+void BBContext::run() {
+    for (auto* node: DAG.sideEffectNodes() | ranges::views::reverse) {
+        match(node);
+    }
+    for (auto* node: DAG.outputNodes()) {
+        if (!node->matched()) {
+            match(node);
+        }
+    }
+}
+
+void BBContext::match(SelectionNode* node) {
+    visit(*node->value(), [&](auto& value) {
+        matchImpl(&value, node);
+    });
+}
+
+void BBContext::matchImpl(ir::Call const* inst, SelectionNode* node) {
+    SC_UNIMPLEMENTED();
 }

@@ -1,6 +1,7 @@
 #include "CodeGen/ISel.h"
 
 #include <utl/vector.hpp>
+#include <range/v3/numeric.hpp>
 
 #include "CodeGen/ISelFunction.h"
 #include "CodeGen/ValueMap.h"
@@ -8,9 +9,22 @@
 #include "IR/Module.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
+#include "CodeGen/ISelCommon.h"
 
 using namespace scatha;
 using namespace cg;
+
+static size_t numParamRegisters(ir::Function const& F) {
+    return
+        ranges::accumulate(F.parameters(),
+                           size_t(0),
+                           ranges::plus{},
+                           [&](auto& param) { return numWords(&param); });
+}
+
+static size_t numReturnRegisters(ir::Function const& F) {
+    return numWords(F.returnType());
+}
 
 mir::Module cg::isel(ir::Module const& irMod) {
     ValueMap globalMap;
@@ -18,8 +32,8 @@ mir::Module cg::isel(ir::Module const& irMod) {
     utl::small_vector<std::pair<ir::Function const*, mir::Function*>> functions;
     for (auto& irFn: irMod) {
         auto* mirFn = new mir::Function(&irFn,
-                                        0,
-                                        0, // For now!
+                                        numParamRegisters(irFn),
+                                        numReturnRegisters(irFn),
                                         irFn.visibility());
         mirMod.addFunction(mirFn);
         functions.push_back({ &irFn, mirFn });

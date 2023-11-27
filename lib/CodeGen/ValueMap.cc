@@ -12,10 +12,6 @@ mir::Value* ValueMap::operator()(ir::Value const* key) const {
     return itr->second;
 }
 
-mir::Function* ValueMap::operator()(ir::Function const* key) const {
-    return cast<mir::Function*>((*this)(static_cast<ir::Value const*>(key)));
-}
-
 void ValueMap::insert(ir::Value const* key, mir::Value* value) {
     auto [itr, success] = map.insert({ key, value });
     SC_ASSERT(success, "Key already present");
