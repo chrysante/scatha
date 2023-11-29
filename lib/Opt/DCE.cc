@@ -58,7 +58,8 @@ bool opt::dce(ir::Context& context, ir::Function& function) {
     return result;
 }
 
-/// _Critical_ here means side effects as defined by `opt::hasSideEffects()` or the instruction is a return
+/// _Critical_ here means side effects as defined by `opt::hasSideEffects()` or
+/// the instruction is a return
 static bool isCritical(Instruction const* inst) {
     return isa<Return>(inst) || opt::hasSideEffects(inst);
 }
