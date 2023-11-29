@@ -11,14 +11,18 @@
 #include "Debug/DebugGraphviz.h"
 #include "IR/CFG.h"
 #include "IR/Print.h"
+#include "MIR/CFG.h"
+#include "MIR/Print.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
 using namespace cg;
 using namespace ir;
 
-static bool hasSideEffects(ir::Instruction const& inst) {
-    return opt::hasSideEffects(&inst);
+///
+static bool isCritical(ir::Instruction const& inst) {
+    return opt::hasSideEffects(&inst) || isa<Load>(inst) ||
+           isa<TerminatorInst>(inst);
 }
 
 static bool isOutput(ir::Instruction const& inst) {
@@ -30,15 +34,12 @@ static bool isOutput(ir::Instruction const& inst) {
 SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
-    /// We start the index at 1 because all values that are not defined in this
-    /// block have index 0
-    ssize_t index = 1;
+    utl::small_vector<SelectionNode*> orderedCritical;
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
-        instNode->setIndex(index++);
-        if (::hasSideEffects(inst)) {
+        if (::isCritical(inst)) {
             DAG.sideEffects.insert(instNode);
-            DAG.orderedSideEffects.push_back(instNode);
+            orderedCritical.push_back(instNode);
         }
         if (::isOutput(inst)) {
             DAG.outputs.insert(instNode);
@@ -48,9 +49,18 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
                 continue;
             }
             auto* opNode = DAG.get(operand);
-            instNode->addSuccessor(opNode);
-            opNode->addPredecessor(instNode);
+            instNode->addValueDependency(opNode);
         }
+    }
+    for (auto [A, B]:
+         ranges::views::zip(orderedCritical,
+                            orderedCritical | ranges::views::drop(1)))
+    {
+        B->addExecutionDependency(A);
+    }
+    auto* termNode = DAG.get(BB.terminator());
+    for (auto* outputNode: DAG.outputs) {
+        termNode->addExecutionDependency(outputNode);
     }
     return DAG;
 }
@@ -72,7 +82,7 @@ SelectionNode* SelectionDAG::get(ir::Value const* value) {
 
 using namespace graphgen;
 
-static Label makeLabel(SelectionDAG const& DAG, ir::Value const* value) {
+static Label makeIRLabel(SelectionDAG const& DAG, ir::Value const* value) {
     std::stringstream sstr;
     if (auto* inst = dyncast<ir::Instruction const*>(value);
         !inst || inst->parent() == DAG.basicBlock())
@@ -88,34 +98,62 @@ static Label makeLabel(SelectionDAG const& DAG, ir::Value const* value) {
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
+static Label makeMIRLabel(SelectionDAG const& DAG,
+                          mir::Instruction const* inst) {
+    std::stringstream sstr;
+    tfmt::setHTMLFormattable(sstr);
+    mir::print(*inst, sstr);
+    return Label(std::move(sstr).str(), LabelKind::HTML);
+}
+
+static Label makeLabel(SelectionDAG const& DAG, SelectionNode const* node) {
+    if (node->mirInstruction()) {
+        return makeMIRLabel(DAG, node->mirInstruction());
+    }
+    else {
+        return makeIRLabel(DAG, node->irValue());
+    }
+}
+
+/// \Returns `true` if the node is critical for visualization
+static bool vizCritical(SelectionNode const* node) {
+    auto* value = node->irValue();
+    return !isa<Parameter>(value) && !isa<Constant>(value) &&
+           !isa<Alloca>(value);
+}
+
 void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
     auto* G = Graph::make(ID(0));
-    for (auto* node: DAG.nodes()) {
-        auto* vertex =
-            Vertex::make(ID(node))->label(makeLabel(DAG, node->value()));
-        for (auto* opNode: node->operands()) {
-            G->add(Edge{ ID(node), ID(opNode) });
+    for (auto* node: DAG.nodes() | ranges::views::filter(vizCritical)) {
+        auto* vertex = Vertex::make(ID(node))->label(makeLabel(DAG, node));
+        /// Add all use edges
+        for (auto* dependency:
+             node->valueDependencies() | ranges::views::filter(vizCritical))
+        {
+            G->add(Edge{ ID(node), ID(dependency), .style = Style::Dashed });
+        }
+        /// Add all 'execution' edges
+        for (auto* dependency:
+             node->executionDependencies() | ranges::views::filter(vizCritical))
+        {
+            G->add(Edge{ ID(node),
+                         ID(dependency),
+                         .color = Color::Magenta,
+                         .style = Style::Bold });
         }
         G->add(vertex);
     }
-    for (auto [curr, next]:
-         ranges::views::zip(DAG.sideEffectNodes(),
-                            DAG.sideEffectNodes() | ranges::views::drop(1)))
-    {
-        G->add(Edge{ .from = ID(next), .to = ID(curr), .color = Color::Blue });
-    }
     Graph H;
-    H.label(makeLabel(DAG, DAG.basicBlock()));
+    H.label(makeIRLabel(DAG, DAG.basicBlock()));
     H.add(G);
     H.font("SF Mono");
     H.rankdir(RankDir::BottomTop);
     generate(H, ostream);
 }
 
-void cg::generateGraphvizTmp(SelectionDAG const& DAG) {
+void cg::generateGraphvizTmp(SelectionDAG const& DAG, std::string name) {
     try {
-        auto [path, file] =
-            debug::newDebugFile(std::string(DAG.basicBlock()->name()));
+        auto [path, file] = debug::newDebugFile(std::move(name));
         generateGraphviz(DAG, file);
         file.close();
         debug::createGraphAndOpen(path);
@@ -123,4 +161,8 @@ void cg::generateGraphvizTmp(SelectionDAG const& DAG) {
     catch (std::exception const& e) {
         std::cout << e.what() << std::endl;
     }
+}
+
+void cg::generateGraphvizTmp(SelectionDAG const& DAG) {
+    generateGraphvizTmp(DAG, std::string(DAG.basicBlock()->name()));
 }

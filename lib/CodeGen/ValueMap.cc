@@ -8,8 +8,10 @@ using namespace cg;
 
 mir::Value* ValueMap::operator()(ir::Value const* key) const {
     auto itr = map.find(key);
-    SC_ASSERT(itr != map.end(), "Not found");
-    return itr->second;
+    if (itr != map.end()) {
+        return itr->second;
+    }
+    return nullptr;
 }
 
 void ValueMap::insert(ir::Value const* key, mir::Value* value) {

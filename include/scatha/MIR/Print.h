@@ -20,6 +20,18 @@ SCTEST_API void print(mir::Function const& F);
 /// Print the function \p F to \p ostream
 SCTEST_API void print(mir::Function const& F, std::ostream& ostream);
 
+/// Print the instruction \p inst to `std::cout`
+SCTEST_API void print(mir::Instruction const& inst);
+
+/// Print the instruction \p inst to \p ostream
+SCTEST_API void print(mir::Instruction const& inst, std::ostream& ostream);
+
+/// Print the value \p value to `std::cout`
+SCTEST_API void printDecl(mir::Value const& value);
+
+/// Print the value \p value to \p ostream
+SCTEST_API void printDecl(mir::Value const& value, std::ostream& ostream);
+
 } // namespace scatha::mir
 
 #endif // SCATHA_MIR_PRINT_H_

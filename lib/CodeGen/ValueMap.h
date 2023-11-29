@@ -22,7 +22,8 @@ struct CFGTypeMap<ir::BasicBlock>: std::type_identity<mir::BasicBlock> {};
 template <>
 struct CFGTypeMap<ir::Value>: std::type_identity<mir::Value> {};
 
-/// Here we don't have a canonical mapping but since at this stage we only have SSA registers and instructions define SSA registers this seems sensible
+/// Here we don't have a canonical mapping but since at this stage we only have
+/// SSA registers and instructions define SSA registers this seems sensible
 template <>
 struct CFGTypeMap<ir::Instruction>: std::type_identity<mir::SSARegister> {};
 
@@ -31,8 +32,7 @@ struct CFGTypeMap<ir::Instruction>: std::type_identity<mir::SSARegister> {};
 /// Maps IR values to corresponding MIR values
 class ValueMap {
 public:
-    /// Access the MIR value mapped to \p key
-    /// This function traps if \p key is not in the map
+    /// Access the MIR value mapped to \p key or null if nonesuch exists
     mir::Value* operator()(ir::Value const* key) const;
 
     /// \overload for derived types

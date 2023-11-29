@@ -4,6 +4,7 @@
 #include <iosfwd>
 #include <memory>
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/utility.hpp>
@@ -13,6 +14,7 @@
 #include <scatha/Common/Graph.h>
 #include <scatha/Common/Ranges.h>
 #include <scatha/IR/Fwd.h>
+#include <scatha/MIR/Fwd.h>
 
 namespace scatha::cg {
 
@@ -20,44 +22,65 @@ class SelectionDAG;
 
 /// Node in the selection DAG
 class SCATHA_API SelectionNode:
-    public GraphNode<ir::Value const*, SelectionNode, GraphKind::Directed> {
+    public GraphNode<void, SelectionNode, GraphKind::Directed> {
 public:
-    SelectionNode(ir::Value const* value): GraphNode(value) {}
+    SelectionNode(ir::Value const* value): _irValue(value) {}
 
-    /// \Returns the value associated with this node
-    ir::Value const* value() const { return payload(); }
+    /// \Returns the IR value associated with this node
+    ir::Value const* irValue() const { return _irValue; }
+
+    /// \Returns the MIR value associated with this node
+    mir::Value* mirValue() const { return _mirValue; }
+
+    /// \Returns the MIR instruction associated with this node
+    mir::Instruction* mirInstruction() const { return _mirInst; }
+
+    /// Set the MIR value and instruction
+    void setMIR(mir::Value* value, mir::Instruction* inst) {
+        _mirValue = value;
+        _mirInst = inst;
+    }
 
     /// \Returns a view of the nodes of the operands of this instruction
-    std::span<SelectionNode* const> operands() { return successors(); }
+    std::span<SelectionNode* const> valueDependencies() { return valueDeps; }
 
     /// \overload
-    std::span<SelectionNode const* const> operands() const {
+    std::span<SelectionNode const* const> valueDependencies() const {
+        return valueDeps;
+    }
+
+    void removeDependency(SelectionNode const* node) {
+        valueDeps.erase(ranges::remove(valueDeps, node), valueDeps.end());
+        removeSuccessor(node);
+    }
+
+    ///
+    void addValueDependency(SelectionNode* node) {
+        if (!ranges::contains(valueDeps, node)) {
+            valueDeps.push_back(node);
+        }
+    }
+
+    /// \Returns a view of the nodes that must execute before this instruction
+    std::span<SelectionNode* const> executionDependencies() {
         return successors();
     }
 
-    /// \Returns a view of the nodes of the users of this instruction
-    std::span<SelectionNode* const> users() { return predecessors(); }
-
     /// \overload
-    std::span<SelectionNode const* const> users() const {
-        return predecessors();
+    std::span<SelectionNode const* const> executionDependencies() const {
+        return successors();
     }
 
-    /// \Returns the position of this instruction in the basic block
-    ssize_t index() const { return _index; }
-
-    /// Sets the 'matched' flag to \p value
-    void setMatched(bool value = true) { _matched = value; }
-    
-    /// \Returns `true` if the 'matched' flag has been set
-    bool matched() const { return _matched; }
+    ///
+    void addExecutionDependency(SelectionNode* node) { addSuccessor(node); }
 
 private:
     friend class SelectionDAG;
-    void setIndex(ssize_t index) { _index = utl::narrow_cast<int32_t>(index); }
 
-    int32_t _index = 0;
-    bool _matched = false;
+    ir::Value const* _irValue = nullptr;
+    mir::Value* _mirValue = nullptr;
+    mir::Instruction* _mirInst = nullptr;
+    utl::small_vector<SelectionNode*, 3> valueDeps;
 };
 
 /// Used for instruction selection
@@ -75,12 +98,8 @@ public:
         return std::span{ map.values() } | ranges::views::values;
     }
 
-    /// \Returns a view over all node with side effects in their relative order
-    std::span<SelectionNode* const> sideEffectNodes() const {
-        return orderedSideEffects;
-    }
-    
-    /// \Returns a view over all node whose values are used by other basic blocks
+    /// \Returns a view over all node whose values are used by other basic
+    /// blocks
     std::span<SelectionNode* const> outputNodes() const {
         return outputs.values();
     }
@@ -123,7 +142,7 @@ private:
     utl::hashset<SelectionNode*> sideEffects;
 
     /// List of all nodes with side effects
-    utl::small_vector<SelectionNode*> orderedSideEffects;
+    //    utl::small_vector<SelectionNode*> orderedSideEffects;
 
     /// Set of all output nodes of this block
     utl::hashset<SelectionNode*> outputs;
@@ -138,6 +157,9 @@ SCATHA_API void generateGraphviz(SelectionDAG const& DAG,
 
 /// Debug utility to generate graphviz representation of the DAG to a temporary
 /// file
+SCATHA_API void generateGraphvizTmp(SelectionDAG const& DAG, std::string name);
+
+/// \overload
 SCATHA_API void generateGraphvizTmp(SelectionDAG const& DAG);
 
 } // namespace scatha::cg

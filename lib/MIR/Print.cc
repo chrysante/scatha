@@ -13,6 +13,7 @@
 
 using namespace scatha;
 using namespace mir;
+using namespace tfmt::modifiers;
 
 void mir::print(Module const& mod) { mir::print(mod, std::cout); }
 
@@ -163,7 +164,8 @@ struct PrintContext {
     void print(Instruction const* inst) {
         str << indent;
         if (auto* reg = inst->dest()) {
-            str << std::setw(3) << std::left << regName(reg) << " = ";
+            str << std::setw(3) << std::left << regName(reg)
+                << tfmt::format(None, " = ");
         }
         else {
             str << std::setw(6) << "";
@@ -254,4 +256,18 @@ struct PrintContext {
 void mir::print(Function const& F, std::ostream& str) {
     PrintContext ctx(&F, str);
     ctx.print();
+}
+
+void mir::print(mir::Instruction const& inst) { print(inst, std::cout); }
+
+void mir::print(mir::Instruction const& inst, std::ostream& str) {
+    PrintContext ctx(nullptr, str);
+    ctx.print(&inst);
+}
+
+void mir::printDecl(mir::Value const& value) { printDecl(value, std::cout); }
+
+void mir::printDecl(mir::Value const& value, std::ostream& str) {
+    PrintContext ctx(nullptr, str);
+    ctx.print(&value);
 }

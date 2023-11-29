@@ -151,9 +151,7 @@ private:
 
     static void removeEdgeImpl(utl::small_vector<Self*>& list,
                                Self const* elem) {
-        auto itr = ranges::find(list, elem);
-        SC_ASSERT(itr != list.end(), "No edge present");
-        list.erase(itr);
+        list.erase(ranges::remove(list, elem), list.end());
     }
 
     enum TraversalOrder { Preorder, Postorder };
@@ -233,6 +231,10 @@ private:
         }
     }
 
+    Self* _self() { return static_cast<Self*>(this); }
+
+    Self const* _self() const { return static_cast<Self const*>(this); }
+
     [[no_unique_address]] PayloadWrapper<Payload> _payload;
 };
 
@@ -243,6 +245,7 @@ class GraphNode<Payload, Derived, GraphKind::Undirected>:
     public internal::GraphNodeBase<Payload, Derived, GraphKind::Undirected> {
     using Base =
         internal::GraphNodeBase<Payload, Derived, GraphKind::Undirected>;
+    using Base::_self;
     using typename Base::Self;
 
 public:
@@ -268,8 +271,8 @@ template <typename Payload, typename Derived>
 class GraphNode<Payload, Derived, GraphKind::Directed>:
     public internal::GraphNodeBase<Payload, Derived, GraphKind::Directed> {
     using Base = internal::GraphNodeBase<Payload, Derived, GraphKind::Directed>;
+    using Base::_self;
     using typename Base::Self;
-
     using TO = typename Base::TraversalOrder;
 
 public:
@@ -341,34 +344,39 @@ public:
     /// on every node before visiting its successors.
     template <typename F>
     void preorderDFS(F&& f) {
-        this->template dfsImpl<TO::Preorder,
-                               &GraphNode::outgoing>(static_cast<Self*>(this),
-                                                     f);
+        this->template dfsImpl<TO::Preorder, &GraphNode::outgoing>(_self(), f);
     }
 
     /// \overload
     template <typename F>
     void preorderDFS(F&& f) const {
-        this->template dfsImpl<TO::Preorder, &GraphNode::outgoing>(
-            static_cast<Self const*>(this),
-            f);
+        this->template dfsImpl<TO::Preorder, &GraphNode::outgoing>(_self(), f);
     }
 
     /// Traverse the graph from this node in DFS order and invoke callable \p f
     /// on every node after visiting its successors.
     template <typename F>
     void postorderDFS(F&& f) {
-        this->template dfsImpl<TO::Postorder,
-                               &GraphNode::outgoing>(static_cast<Self*>(this),
-                                                     f);
+        this->template dfsImpl<TO::Postorder, &GraphNode::outgoing>(_self(), f);
     }
 
     /// \overload
     template <typename F>
     void postorderDFS(F&& f) const {
-        this->template dfsImpl<TO::Postorder, &GraphNode::outgoing>(
-            static_cast<Self const*>(this),
-            f);
+        this->template dfsImpl<TO::Postorder, &GraphNode::outgoing>(_self(), f);
+    }
+
+    /// Traverse the graph from this node in BFS order and invoke callable \p f
+    /// on every node.
+    template <typename F>
+    auto BFS(F&& f) {
+        return this->template bfsImpl<&GraphNode::outgoing>(_self(), f);
+    }
+
+    /// \overload
+    template <typename F>
+    auto BFS(F&& f) const {
+        return this->template bfsImpl<&GraphNode::outgoing>(_self(), f);
     }
 
 private:
@@ -380,8 +388,8 @@ template <typename Payload, typename Derived>
 class GraphNode<Payload, Derived, GraphKind::Tree>:
     public internal::GraphNodeBase<Payload, Derived, GraphKind::Tree> {
     using Base = internal::GraphNodeBase<Payload, Derived, GraphKind::Tree>;
+    using Base::_self;
     using typename Base::Self;
-
     using TO = typename Base::TraversalOrder;
 
 public:
@@ -403,7 +411,7 @@ public:
     /// be set to this node
     void addChild(Self* child) {
         SC_ASSERT(child != this, "Would form an invalid tree");
-        child->_parent = static_cast<Self*>(this);
+        child->_parent = _self();
         Base::addEdgeImpl(_children, child);
     }
 
@@ -411,52 +419,41 @@ public:
     /// on every node before visiting its successors.
     template <typename F>
     void preorderDFS(F&& f) {
-        this->template dfsImpl<TO::Preorder,
-                               &GraphNode::_children>(static_cast<Self*>(this),
-                                                      f);
+        this->template dfsImpl<TO::Preorder, &GraphNode::_children>(_self(), f);
     }
 
     /// \overload
     template <typename F>
     void preorderDFS(F&& f) const {
-        this->template dfsImpl<TO::Preorder, &GraphNode::_children>(
-            static_cast<Self const*>(this),
-            f);
+        this->template dfsImpl<TO::Preorder, &GraphNode::_children>(_self(), f);
     }
 
     /// Traverse the tree from this node in DFS order and invoke callable \p f
     /// on every node after visiting its successors.
     template <typename F>
     void postorderDFS(F&& f) {
-        this->template dfsImpl<TO::Postorder,
-                               &GraphNode::_children>(static_cast<Self*>(this),
-                                                      f);
+        this->template dfsImpl<TO::Postorder, &GraphNode::_children>(_self(),
+                                                                     f);
     }
 
     /// \overload
     template <typename F>
     void postorderDFS(F&& f) const {
-        this->template dfsImpl<TO::Postorder, &GraphNode::_children>(
-            static_cast<Self const*>(this),
-            f);
+        this->template dfsImpl<TO::Postorder, &GraphNode::_children>(_self(),
+                                                                     f);
     }
 
     /// Traverse the tree from this node in BFS order and invoke callable \p f
     /// on every node.
     template <typename F>
     auto BFS(F&& f) {
-        return this->template bfsImpl<&GraphNode::_children>(static_cast<Self*>(
-                                                                 this),
-                                                             f);
+        return this->template bfsImpl<&GraphNode::_children>(_self(), f);
     }
 
     /// \overload
     template <typename F>
     auto BFS(F&& f) const {
-        return this
-            ->template bfsImpl<&GraphNode::_children>(static_cast<Self const*>(
-                                                          this),
-                                                      f);
+        return this->template bfsImpl<&GraphNode::_children>(_self(), f);
     }
 
 private:
