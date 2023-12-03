@@ -3,6 +3,7 @@
 #include <optional>
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <variant>
 
 #include "AST/AST.h"
 #include "Sema/Analysis/Conversion.h"
@@ -14,22 +15,27 @@ using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
 
-///  \returns The maximum conversion rank if all arguments are convertible to
-/// the parameters  `std::nullopt` otherwise
-static std::optional<int> signatureMatch(
+/// We return a variant because we can fail in several ways:
+/// If the function is not invocable with the given set of arguments we return
+/// an `ORMatchError`. This does not mean that overload resolution failed, only
+/// that the current overload is not a match. One of the arguments or parameters
+/// may be null because of prior errors, then we return monostate. In the good
+/// case we return the conversion rank
+static std::variant<int, ORMatchError, std::monostate> signatureMatch(
     OverloadResolutionResult& result,
     std::span<ast::Expression const* const> args,
     std::span<Type const* const> paramTypes,
     ORKind kind) {
+    using enum ORMatchError::Reason;
     if (args.size() != paramTypes.size()) {
-        return std::nullopt;
+        return ORMatchError{ .reason = CountMismatch };
     }
     int maxRank = 0;
     for (auto [index, expr, paramType]:
-         ranges::views::zip(ranges::views::iota(0), args, paramTypes))
+         ranges::views::zip(ranges::views::iota(size_t(0)), args, paramTypes))
     {
         if (!expr->type() || !paramType) {
-            return std::nullopt;
+            return std::monostate{};
         }
         using enum ConversionKind;
         auto convKind =
@@ -39,7 +45,8 @@ static std::optional<int> signatureMatch(
                                             getQualType(paramType),
                                             refToLValue(paramType));
         if (!conversion) {
-            return std::nullopt;
+            return ORMatchError{ .reason = NoArgumentConversion,
+                                 .argIndex = index };
         }
         result.conversions.push_back(*conversion);
         int rank = computeRank(*conversion);
@@ -48,11 +55,11 @@ static std::optional<int> signatureMatch(
     return maxRank;
 }
 
-template <typename Error, typename... Args>
-static OverloadResolutionResult makeError(Args&&... args) {
-    OverloadResolutionResult result{};
-    result.error = std::make_unique<Error>(std::forward<Args>(args)...);
-    return result;
+static auto makeArgTypes(std::span<ast::Expression const* const> arguments) {
+    return arguments | ranges::views::transform([](auto* expr) {
+               return std::pair{ expr->type(), expr->valueCategory() };
+           }) |
+           ranges::to<std::vector>;
 }
 
 OverloadResolutionResult sema::performOverloadResolution(
@@ -68,17 +75,33 @@ OverloadResolutionResult sema::performOverloadResolution(
         uint32_t index;
     };
     utl::small_vector<RankIndexPair> ranks;
+    std::unordered_map<Function const*, ORMatchError> matchErrors;
     for (auto* F: overloadSet) {
         OverloadResolutionResult match{ .function = F };
         auto rank = signatureMatch(match, arguments, F->argumentTypes(), kind);
-        if (rank) {
-            ranks.push_back(
-                { *rank, utl::narrow_cast<uint32_t>(results.size()) });
-            results.push_back(std::move(match));
-        }
+        // clang-format off
+        std::visit(utl::overload{
+            [&](int rank) {
+                /// `F` is a match
+                ranks.push_back({ rank, utl::narrow_cast<uint32_t>(results.size()) });
+                results.push_back(std::move(match));
+            },
+            [&](ORMatchError const& error) {
+                matchErrors[F] = error;
+            },
+            [&](std::monostate) {
+                /// We are a transitive error, just ignore this here
+            },
+        }, rank); // clang-format on
     }
     if (results.empty()) {
-        return makeError<ORError>(parentExpr, overloadSet);
+        return OverloadResolutionResult{
+            .error = std::make_unique<ORError>(
+                ORError::makeNoMatch(parentExpr,
+                                     overloadSet,
+                                     makeArgTypes(arguments),
+                                     matchErrors))
+        };
     }
     if (results.size() == 1) {
         return std::move(results.front());
@@ -91,25 +114,25 @@ OverloadResolutionResult sema::performOverloadResolution(
     });
     ranks.erase(firstHigherRank, ranks.end());
 
-    switch (ranks.size()) {
-    case 0:
-        SC_UNREACHABLE();
-    case 1:
+    SC_ASSERT(!ranks.empty(),
+              "ranks.size() == results.size() and results.empty() is handled "
+              "above");
+
+    /// Overload resolution succeeded
+    if (ranks.size() == 1) {
         return std::move(results[ranks.front().index]);
-    default: {
-        auto args = arguments | ranges::views::transform([](auto* expr) {
-                        return std::pair{ expr->type(), expr->valueCategory() };
-                    }) |
-                    ranges::to<std::vector>;
-        auto functions = results |
-                         ranges::views::transform([](auto& r) -> auto const* {
-                             return r.function;
-                         }) |
-                         ranges::to<std::vector>;
-        return makeError<ORError>(parentExpr,
-                                  overloadSet,
-                                  std::move(args),
-                                  std::move(functions));
     }
-    }
+
+    /// Ambiguous call
+    auto functions = results |
+                     ranges::views::transform(
+                         [](auto& r) -> auto const* { return r.function; }) |
+                     ranges::to<std::vector>;
+    return OverloadResolutionResult{
+        .error = std::make_unique<ORError>(
+            ORError::makeAmbiguous(parentExpr,
+                                   overloadSet,
+                                   makeArgTypes(arguments),
+                                   std::move(functions)))
+    };
 }

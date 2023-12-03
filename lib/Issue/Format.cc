@@ -145,7 +145,10 @@ void SrcHighlightCtx::run() {
     }
 }
 
-static auto toMod(IssueSeverity severity) {
+static tfmt::Modifier toMod(IssueSeverity severity, HighlightKind kind) {
+    if (kind == HighlightKind::Secondary) {
+        return Blue | Bold;
+    }
     using enum IssueSeverity;
     switch (severity) {
     case Warning:
@@ -170,7 +173,7 @@ void SrcHighlightCtx::printHighlightLine(SourceHighlight const& highlight,
     str << lineNumber(sl.line)
         << highlightLineRange(source[line], ucolumn, endcol) << "\n";
     str << lineNumber(-1) << blank(column)
-        << squiggle(toMod(severity), endcol - ucolumn);
+        << squiggle(toMod(severity, highlight.kind), endcol - ucolumn);
     printMessage(endcol + LineNumChars, highlight);
     str << "\n";
 }

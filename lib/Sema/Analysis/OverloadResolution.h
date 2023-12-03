@@ -17,14 +17,15 @@ namespace scatha::sema {
 /// Result structure returned from `performOverloadResolution()`
 struct OverloadResolutionResult {
     /// The selected function if overload resolution succeeded
-    Function* function;
+    Function* function = nullptr;
 
     /// The conversions required for each argument type to call selected
-    /// function
-    utl::small_vector<Conversion> conversions;
+    /// function.
+    /// Only non-empty if overload resolution succeeded
+    utl::small_vector<Conversion> conversions = {};
 
-    /// The error if overload resolution failed. `nullptr` otherwise
-    std::unique_ptr<ORError> error;
+    /// The error if overload resolution failed
+    std::unique_ptr<ORError> error = nullptr;
 };
 
 /// Kinds of overload resolution. This distinction is necessary because for

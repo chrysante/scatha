@@ -3,6 +3,7 @@
 
 #include <iosfwd>
 #include <span>
+#include <unordered_map>
 #include <vector>
 
 #include <scatha/AST/Fwd.h>
@@ -365,23 +366,71 @@ private:
     Mutability _to;
 };
 
+/// Error data associated with each function in an overload set describing why
+/// that function is not a match
+struct ORMatchError {
+    enum Reason { CountMismatch, NoArgumentConversion };
+
+    /// The reason this overload is not callable
+    Reason reason;
+
+    /// The problematic argument index
+    size_t argIndex = ~size_t{ 0 };
+};
+
 /// Overload resolution error
 class SCATHA_API ORError: public SemaIssue {
 public:
     enum Reason { NoMatch, Ambiguous };
 
-    explicit ORError(
+    /// Static constructors @{
+    static ORError makeNoMatch(
         ast::Expression const* expr,
         std::span<Function const* const> os,
-        std::vector<std::pair<QualType, ValueCategory>> argTypes = {},
-        std::vector<Function const*> matches = {});
+        std::vector<std::pair<QualType, ValueCategory>> argTypes,
+        std::unordered_map<Function const*, ORMatchError> matchErrors) {
+        return ORError(expr,
+                       std::move(os),
+                       std::move(argTypes),
+                       /* matches = */ {},
+                       std::move(matchErrors));
+    }
+
+    static ORError makeAmbiguous(
+        ast::Expression const* expr,
+        std::span<Function const* const> os,
+        std::vector<std::pair<QualType, ValueCategory>> argTypes,
+        std::vector<Function const*> matches) {
+        return ORError(expr,
+                       std::move(os),
+                       std::move(argTypes),
+                       std::move(matches),
+                       {});
+    }
+    /// @}
 
     Reason reason() const { return matches.empty() ? NoMatch : Ambiguous; }
 
 private:
+    explicit ORError(
+        ast::Expression const* expr,
+        std::span<Function const* const> os,
+        std::vector<std::pair<QualType, ValueCategory>> argTypes,
+        std::vector<Function const*> matches,
+        std::unordered_map<Function const*, ORMatchError> matchErrors);
+
+    /// List of all functions in the overload set
     std::vector<Function const*> os;
+
+    /// List of types of the call argument types
     std::vector<std::pair<QualType, ValueCategory>> argTypes;
+
+    /// Possible call targets. Only non-empty if `reason() == Ambiguous`
     std::vector<Function const*> matches;
+
+    /// Maps functions in the overload set the match errors describing why the
+    /// function could not be called
+    std::unordered_map<Function const*, ORMatchError> matchErrors;
 };
 
 } // namespace scatha::sema

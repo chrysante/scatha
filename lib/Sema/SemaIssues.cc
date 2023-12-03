@@ -61,6 +61,11 @@ static std::string formatOrdinal(size_t index) {
     }
 }
 
+template <typename T>
+static T singularPlural(std::integral auto count, T singular, T plural) {
+    return count == 1 ? singular : plural;
+}
+
 /// Used by `SC_SEMA_GENERICBADSTMT_DEF`
 static std::string_view format(Scope const* scope) {
     using enum ScopeKind;
@@ -474,11 +479,13 @@ void BadMutConv::format(std::ostream& str) const {
 ORError::ORError(ast::Expression const* expr,
                  std::span<Function const* const> os,
                  std::vector<std::pair<QualType, ValueCategory>> argTypes,
-                 std::vector<Function const*> matches):
+                 std::vector<Function const*> matches,
+                 std::unordered_map<Function const*, ORMatchError> matchErrors):
     SemaIssue(nullptr, getSourceRange(expr), IssueSeverity::Error),
     os(os | ranges::to<std::vector>),
-    argTypes(std::move(argTypes)),
-    matches(std::move(matches)) {
+    argTypes(argTypes),
+    matches(matches),
+    matchErrors(matchErrors) {
     header("Cannot resolve function call");
     switch (reason()) {
     case NoMatch:
@@ -487,14 +494,41 @@ ORError::ORError(ast::Expression const* expr,
         });
         for (auto* function: os) {
             secondary(getSourceRange(function->definition()),
-                      [=](std::ostream& str) { str << "Cannot call this"; });
+                      [=](std::ostream& str) {
+                auto itr = matchErrors.find(function);
+                if (itr == matchErrors.end()) {
+                    str << "Cannot call this";
+                    return;
+                }
+                ORMatchError err = itr->second;
+                using enum ORMatchError::Reason;
+                switch (err.reason) {
+                case CountMismatch:
+                    using namespace std::literals;
+                    str << "Expected " << function->argumentCount()
+                        << singularPlural(function->argumentCount(),
+                                          " argument"sv,
+                                          " arguments"sv)
+                        << " but have " << argTypes.size();
+                    break;
+                case NoArgumentConversion:
+                    auto [argType, argValCat] = argTypes[err.argIndex];
+                    auto* paramType = function->argumentType(err.argIndex);
+                    str << "No conversion for " << formatOrdinal(err.argIndex)
+                        << " argument from "
+                        << (argType.isConst() ? "constant " : "mutable ")
+                        << argValCat << " of type " << sema::format(argType)
+                        << " to " << sema::format(paramType);
+                    break;
+                }
+            });
         }
         break;
     case Ambiguous:
         primary(sourceRange(), [=](std::ostream& str) {
             str << "Ambiguous function call to " << os.front()->name();
         });
-        for (auto* function: this->matches) {
+        for (auto* function: matches) {
             secondary(function->definition()->sourceRange(),
                       [=](std::ostream& str) { str << "Candidate function"; });
         }
