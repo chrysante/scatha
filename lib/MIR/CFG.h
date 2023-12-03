@@ -115,6 +115,25 @@ public:
     /// `nullptr` if nonesuch exists.
     ir::BasicBlock const* irBasicBlock() const { return irBB; }
 
+    template <typename PI>
+    static auto phiNodesImpl(auto* self) {
+        return *self | ranges::views::take_while(isa<PI>) |
+               ranges::views::transform(cast<PI&>);
+    }
+
+    /// \Returns a view over the phi instructions in this block. Contains only
+    /// well formed phi instructions, i.e. the ones at the start of the block
+    template <typename PI = PhiInst>
+    auto phiNodes() {
+        return phiNodesImpl<PI>(this);
+    }
+
+    /// \overload
+    template <typename PI = PhiInst>
+    auto phiNodes() const {
+        return phiNodesImpl<PI const>(this);
+    }
+
 private:
     friend class Function;
     friend class CFGList<BasicBlock, Instruction>;

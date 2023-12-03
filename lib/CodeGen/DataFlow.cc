@@ -5,7 +5,8 @@
 #include "IR/CFG.h"
 #include "IR/Loop.h"
 #include "MIR/CFG.h"
-#include "MIR/Instruction.h"
+#include "MIR/Instructions.h"
+#include "MIR/Register.h"
 
 using namespace scatha;
 using namespace cg;
@@ -74,7 +75,7 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
     }
     /// _Live out_ are all registers defined in this block that are used by phi
     /// instructions
-    auto live = phiUses(BB);
+    utl::hashset<mir::Register*> live = phiUses(BB);
     if (BB->isEntry()) {
         merge(live, phiUses(F.ssaArgumentRegisters()));
     }
@@ -88,10 +89,7 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
         size_t phiIndex =
             utl::narrow_cast<size_t>(ranges::find(succ->predecessors(), BB) -
                                      succ->predecessors().begin());
-        for (auto& phi: *succ) {
-            if (phi.instcode() != mir::InstCode::Phi) {
-                break;
-            }
+        for (auto& phi: succ->phiNodes()) {
             /// TODO: Reevaluate this
             /// This fixes liveness issues when phi instructions use values
             /// defined earlier than in the predecessor block
@@ -101,18 +99,15 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
             }
         }
         if (!backEdges.contains({ BB, succ })) {
-            for (auto& phi: *succ) {
-                if (phi.instcode() != mir::InstCode::Phi) {
-                    break;
-                }
+            for (auto& phi: succ->phiNodes()) {
                 liveInSucc.erase(phi.dest());
             }
         }
         merge(live, liveInSucc);
     }
     /// If we return from this block, the return values are live out
-    if (auto& ret = BB->back(); ret.instcode() == mir::InstCode::Return) {
-        for (auto* reg: ret.operands() | Filter<mir::Register>) {
+    if (auto* ret = dyncast<mir::ReturnInst*>(&BB->back())) {
+        for (auto* reg: ret->operands() | Filter<mir::Register>) {
             live.insert(reg);
         }
     }
@@ -123,7 +118,7 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
     /// instructions. If these are also defined here they will be removed again
     /// because we traverse the instructions in reverse order.
     for (auto& inst: *BB | ranges::views::reverse) {
-        if (inst.instcode() == mir::InstCode::Phi) {
+        if (isa<mir::PhiInst>(inst)) {
             break;
         }
         live.erase(inst.dest());
@@ -134,10 +129,7 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
         }
     }
     /// Also all registers defined by phi instructions are _live in_
-    for (auto& phi: *BB) {
-        if (phi.instcode() != mir::InstCode::Phi) {
-            break;
-        }
+    for (auto& phi: BB->phiNodes()) {
         live.insert(phi.dest());
     }
     BB->setLiveIn(std::move(live));
@@ -161,10 +153,7 @@ void LivenessContext::loopTree(ir::LNFNode const* node) {
     }
     mir::BasicBlock* header = bbMap[node->basicBlock()];
     auto liveLoop = header->liveIn();
-    for (auto& phi: *header) {
-        if (phi.instcode() != mir::InstCode::Phi) {
-            break;
-        }
+    for (auto& phi: header->phiNodes()) {
         liveLoop.erase(phi.dest());
     }
     /// We also need to merge our own live-out values with the other loop-live
@@ -188,9 +177,7 @@ static constexpr auto PhiUseFilter =
         if (!reg) {
             return false;
         }
-        return ranges::any_of(reg->uses(), [](auto* user) {
-            return user->instcode() == mir::InstCode::Phi;
-        });
+        return ranges::any_of(reg->uses(), isa<mir::PhiInst>);
     });
 
 static constexpr auto Dests = ranges::views::transform(
