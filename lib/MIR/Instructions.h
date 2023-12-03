@@ -32,17 +32,17 @@ protected:
 /// Concrete store instruction
 class StoreInst: public Instruction, public MemoryInst<StoreInst, 0, 1> {
 public:
-    explicit StoreInst(MemoryAddress dest,
+    explicit StoreInst(MemoryAddress address,
                        Value* source,
                        size_t byteWidth,
                        Metadata metadata):
         Instruction(InstType::StoreInst,
                     nullptr,
                     0,
-                    { dest.baseAddress(), dest.dynOffset(), source },
+                    { address.baseAddress(), address.dynOffset(), source },
                     byteWidth,
                     std::move(metadata)),
-        MemoryInst(dest.constantData()) {}
+        MemoryInst(address.constantData()) {}
 
     /// The address that is stored to
     using MemoryInst::address;
@@ -439,7 +439,7 @@ protected:
                    Metadata metadata):
         Instruction(instType,
                     nullptr,
-                    1,
+                    0,
                     std::move(operands),
                     0,
                     std::move(metadata)) {}

@@ -16,8 +16,8 @@
 #include "IR/CFG.h"
 #include "IR/Type.h"
 #include "MIR/CFG.h"
-#include "MIR/Module.h"
 #include "MIR/Instructions.h"
+#include "MIR/Module.h"
 
 using namespace scatha;
 using namespace cg;

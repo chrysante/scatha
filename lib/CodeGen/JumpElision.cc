@@ -5,6 +5,7 @@
 #include "Common/Base.h"
 #include "Common/Ranges.h"
 #include "MIR/CFG.h"
+#include "MIR/Clone.h"
 #include "MIR/Instructions.h"
 
 /// Jump elision tries to reorder the basic blocks in such a way that as many
@@ -86,7 +87,7 @@ void JumpElimContext::DFS(BasicBlock* BB) {
     switch (nextNumInst) {
     case 1: {
         auto* nextTerm = cast<TerminatorInst*>(&next->back());
-        auto* newTerm = nextTerm->clone().release();
+        auto* newTerm = clone(*nextTerm).release();
         BB->erase(term);
         BB->pushBack(newTerm);
         next->removePredecessor(BB);

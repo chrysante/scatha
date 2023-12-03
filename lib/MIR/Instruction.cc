@@ -17,8 +17,10 @@ Instruction::Instruction(InstType instType,
 }
 
 void Instruction::setDest(Register* newDest, size_t numDests) {
-    SC_ASSERT(newDest || numDests == 0,
-              "If we don't have a dest, then numDests must be 0");
+    if (!newDest) {
+        SC_ASSERT(numDests <= 1, "");
+        numDests = 0;
+    }
     clearDest();
     _dest = newDest;
     _numDests = utl::narrow_cast<uint16_t>(numDests);
@@ -104,5 +106,3 @@ Register const* Instruction::singleDest() const {
     }
     return nullptr;
 }
-
-UniquePtr<Instruction> Instruction::clone() const { SC_UNIMPLEMENTED(); }

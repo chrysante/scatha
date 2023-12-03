@@ -8,6 +8,20 @@
 using namespace scatha;
 using namespace mir;
 
+static auto callArgsImpl(auto& call) {
+    auto args = call.operands();
+    if (!isa<CallExtInst>(call)) {
+        args = args.subspan(1);
+    }
+    return args;
+}
+
+std::span<Value* const> CallBase::arguments() { return callArgsImpl(*this); }
+
+std::span<Value const* const> CallBase::arguments() const {
+    return callArgsImpl(*this);
+}
+
 static utl::small_vector<Value*> concatArgs(Value* callee,
                                             utl::small_vector<Value*> args) {
     args.insert(args.begin(), callee);

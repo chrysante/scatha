@@ -120,9 +120,6 @@ public:
     /// Set the destination register to `nullptr` and `numDests` to 1
     void clearDest();
 
-    ///
-    UniquePtr<Instruction> clone() const;
-
 protected:
     Instruction(InstType instType,
                 Register* dest,
