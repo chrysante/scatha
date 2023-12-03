@@ -786,7 +786,7 @@ R* CodeGenContext::genCopy(R* dest,
                        numBytes,
                        metadata,
                        [&](auto* dest, auto* source, size_t numBytes) {
-        add(new mir::CopyInst(dest, source, numBytes, metadata));
+        add(new mir::CopyInst(dest, source, numBytes, metadata), before);
     });
 }
 
@@ -802,7 +802,8 @@ R* CodeGenContext::genCondCopy(R* dest,
                        numBytes,
                        metadata,
                        [&](auto* dest, auto* source, size_t numBytes) {
-        add(new mir::CondCopyInst(dest, source, numBytes, condition, metadata));
+        add(new mir::CondCopyInst(dest, source, numBytes, condition, metadata),
+            before);
     });
 }
 
