@@ -7,6 +7,7 @@
 
 #include "Common/Metadata.h"
 #include "Common/Ranges.h"
+#include "Common/UniquePtr.h"
 #include "MIR/Fwd.h"
 #include "MIR/Register.h"
 
@@ -115,6 +116,9 @@ public:
 
     /// Set the destination register to `nullptr` and `numDests` to 1
     void clearDest();
+
+    ///
+    UniquePtr<Instruction> clone() const;
 
 protected:
     Instruction(InstType instType,

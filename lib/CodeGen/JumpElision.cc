@@ -5,47 +5,49 @@
 #include "Common/Base.h"
 #include "Common/Ranges.h"
 #include "MIR/CFG.h"
+#include "MIR/Instructions.h"
 
 /// Jump elision tries to reorder the basic blocks in such a way that as many
-/// edges as possible appear adjacent in the internal list of the function. Then
-/// we can erase terminating jumps because control flow just _flows through_ to
-/// the next basic block.
+/// edges as possible appear adjacent in the internal list of the function.
+/// Then we can erase terminating jumps because control flow just _flows
+/// through_ to the next basic block.
 ///
-/// This is archieved with a simple depth first search over the function.
+/// This is archieved with a depth first search over the function.
 
 using namespace scatha;
 using namespace cg;
+using namespace mir;
 
 namespace {
 
 struct JumpElimContext {
     /// The move looks sketchy, but is fine. We move all basic blocks of `F`
     /// into `L`, and during DFS we gradually move them back into `F`
-    JumpElimContext(mir::Function& F): F(F), L(std::move(F)) {}
+    JumpElimContext(Function& F): F(F), L(std::move(F)) {}
 
     ~JumpElimContext();
 
     void run();
 
-    void DFS(mir::BasicBlock* BB);
+    void DFS(BasicBlock* BB);
 
     void removeJumps();
 
-    mir::Function& F;
-    CFGList<mir::Function, mir::BasicBlock> L;
-    utl::hashset<mir::BasicBlock const*> visited;
+    Function& F;
+    CFGList<Function, BasicBlock> L;
+    utl::hashset<BasicBlock const*> visited;
 };
 
 } // namespace
 
-void cg::elideJumps(mir::Function& F) { JumpElimContext(F).run(); }
+void cg::elideJumps(Function& F) { JumpElimContext(F).run(); }
 
 void JumpElimContext::run() {
     DFS(&L.front());
     removeJumps();
 }
 
-void JumpElimContext::DFS(mir::BasicBlock* BB) {
+void JumpElimContext::DFS(BasicBlock* BB) {
     if (visited.contains(BB)) {
         return;
     }
@@ -53,29 +55,29 @@ void JumpElimContext::DFS(mir::BasicBlock* BB) {
     L.extract(BB).release();
     F.pushBack(BB);
     SC_ASSERT(!BB->empty(), "");
-    auto* term = &BB->back();
-    while (mir::isJump(term->instcode())) {
-        auto* target = term->operandAt(0);
+
+    for (auto* term = dyncast<JumpBase*>(&BB->back()); term != nullptr;
+         term = dyncast<JumpBase*>(term->prev()))
+    {
         /// Target could also be a function.
-        if (auto* targetBB = dyncast<mir::BasicBlock*>(target)) {
+        if (auto* targetBB = dyncast<BasicBlock*>(term->target())) {
             DFS(targetBB);
         }
         if (term == &BB->front()) {
             break;
         }
-        term = term->prev();
     }
-    term = &BB->back();
-    if (term->instcode() != mir::InstCode::Jump) {
+    auto* term = dyncast<JumpBase*>(&BB->back());
+    if (!term) {
         return;
     }
     /// If the destination of the jump is the next block, we just fall through
-    if (term->operandAt(0) == BB->next()) {
+    if (term->target() == BB->next()) {
         return;
     }
     /// If the destination block only contains a terminator or a conditional
     /// jump, we copy these instructions into our block
-    auto* next = dyncast<mir::BasicBlock*>(term->operandAt(0));
+    auto* next = dyncast<BasicBlock*>(term->target());
     /// `next` could also be a function
     if (!next) {
         return;
@@ -83,17 +85,15 @@ void JumpElimContext::DFS(mir::BasicBlock* BB) {
     auto const nextNumInst = ranges::distance(*next);
     switch (nextNumInst) {
     case 1: {
-        auto* nextTerm = &next->back();
-        SC_ASSERT(isTerminator(nextTerm->instcode()), "");
+        auto* nextTerm = cast<TerminatorInst*>(&next->back());
         auto* newTerm = nextTerm->clone().release();
         BB->erase(term);
         BB->pushBack(newTerm);
         next->removePredecessor(BB);
         BB->removeSuccessor(next);
-        if (isJump(newTerm->instcode()) &&
-            isa<mir::BasicBlock>(newTerm->operandAt(0)))
-        {
-            auto* dest = cast<mir::BasicBlock*>(newTerm->operandAt(0));
+        auto* newJump = dyncast<JumpBase*>(newTerm);
+        if (newJump && isa<BasicBlock>(newJump->target())) {
+            auto* dest = cast<BasicBlock*>(newJump->target());
             dest->addPredecessor(BB);
             BB->addSuccessor(dest);
         }
@@ -116,48 +116,48 @@ void JumpElimContext::DFS(mir::BasicBlock* BB) {
     }
 }
 
-static bool hasJumpsTo(mir::BasicBlock const* BB, mir::BasicBlock const* dest) {
-    return ranges::any_of(*BB, [&](mir::Instruction const& inst) {
-        if (!isJump(inst.instcode())) {
-            return false;
+static bool hasJumpsTo(BasicBlock const* BB, BasicBlock const* dest) {
+    return ranges::any_of(*BB, [&](Instruction const& inst) {
+        if (auto* jump = dyncast<JumpBase const*>(&inst)) {
+            return jump->target() == dest;
         }
-        return inst.operandAt(0) == dest;
+        return false;
     });
 }
 
 void JumpElimContext::removeJumps() {
     for (auto& BB: F) {
-begin:
-        auto* jump = &BB.back();
-        if (jump->instcode() != mir::InstCode::Jump) {
-            continue;
+        /// After we will splice `next` into `BB`, there might be another jump
+        /// at the end that we can now elide, so we repeat the process for the
+        /// current block
+        while (true) {
+            auto* jump = dyncast<JumpInst*>(&BB.back());
+            if (!jump) {
+                break;
+            }
+            auto* next = BB.next();
+            if (jump->target() != next) {
+                break;
+            }
+            BB.erase(jump);
+            if (next->predecessors().size() > 1) {
+                break;
+            }
+            /// Even if `next` has no other predecessors than `BB`, at this
+            /// point there could be other conditional jumps in `BB` to `next`.
+            /// Then we can't merge the blocks
+            if (hasJumpsTo(&BB, next)) {
+                break;
+            }
+            SC_ASSERT(&BB == next->predecessors().front(), "");
+            BB.splice(BB.end(), next);
+            auto nextSuccessors = next->successors() | ToSmallVector<>;
+            for (auto* succ: nextSuccessors) {
+                succ->removePredecessor(next);
+                succ->addPredecessor(&BB);
+            }
+            F.erase(next);
         }
-        auto* next = BB.next();
-        if (jump->operandAt(0) != next) {
-            continue;
-        }
-        BB.erase(jump);
-        if (next->predecessors().size() > 1) {
-            continue;
-        }
-        /// Even if `next` has no other predecessors than `BB`, at this point
-        /// there could be other conditional jumps in `BB` to `next`. Then we
-        /// can't merge the blocks
-        if (hasJumpsTo(&BB, next)) {
-            continue;
-        }
-        SC_ASSERT(&BB == next->predecessors().front(), "");
-        BB.splice(BB.end(), next);
-        auto nextSuccessors = next->successors() | ToSmallVector<>;
-        for (auto* succ: nextSuccessors) {
-            succ->removePredecessor(next);
-            succ->addPredecessor(&BB);
-        }
-        F.erase(next);
-        /// After we spliced `next` into `BB`, there might be another jump at
-        /// the end that we can now elide, so we repeat the current loop
-        /// iteration
-        goto begin;
     }
 }
 

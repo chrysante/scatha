@@ -104,3 +104,5 @@ Register const* Instruction::singleDest() const {
     }
     return nullptr;
 }
+
+UniquePtr<Instruction> Instruction::clone() const { SC_UNIMPLEMENTED(); }
