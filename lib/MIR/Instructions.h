@@ -130,7 +130,7 @@ protected:
                     std::move(metadata)) {}
 
 private:
-    size_t regOffset;
+    size_t regOffset = 0;
 };
 
 /// Concrete call instruction

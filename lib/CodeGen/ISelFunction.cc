@@ -22,7 +22,34 @@
 using namespace scatha;
 using namespace cg;
 
+static void copyDependencies(SelectionNode& oldDepender,
+                             SelectionNode& newDepender) {
+    auto impl = [&](auto get, auto add) {
+        for (auto* dependency: std::invoke(get, oldDepender) | ToSmallVector<>)
+        {
+            std::invoke(add, newDepender, dependency);
+        }
+    };
+    impl([](auto& node) { return node.valueDependencies(); },
+         &SelectionNode::addValueDependency);
+    impl([](auto& node) { return node.executionDependencies(); },
+         &SelectionNode::addExecutionDependency);
+}
+
+/// Used to calculate width of a slice when issuing multiple copy
+/// instructions for large types.
+static size_t sliceWidth(size_t numBytes, size_t index, size_t numWords) {
+    if (index != numWords - 1) {
+        return 8;
+    }
+    size_t res = numBytes % 8;
+    return res == 0 ? 8 : res;
+}
+
 namespace {
+
+template <typename Inst>
+using Matcher = std::function<bool(Inst const& inst, SelectionNode& node)>;
 
 /// Since we only issue one instruction for all static allocas we need to store
 /// the offsets that represent the individual IR allocas
@@ -88,6 +115,10 @@ struct BBContext {
     ValueMap& localMap;
     SelectionDAG DAG;
 
+    /// List of instructions that will be populated for every node and then
+    /// moved to that node
+    List<mir::Instruction> instructions;
+
     BBContext(ir::BasicBlock const& irBB,
               mir::Module& mirMod,
               mir::Function& mirFn,
@@ -105,6 +136,10 @@ struct BBContext {
     void run();
 
     void match(SelectionNode& node);
+
+    /// Emits the instruction \p inst to the current node. Takes ownership of
+    /// the pointer
+    void emit(mir::Instruction* inst) { instructions.push_back(inst); }
 
     /// Maps IR values to MIR values. In particular:
     /// ```
@@ -140,6 +175,24 @@ struct BBContext {
     mir::SSARegister* resolveToRegister(Metadata metadata,
                                         ir::Value const& value);
 
+    /// \Returns The register after \p dest
+    template <typename R>
+    R* genCopy(R* dest, mir::Value* source, size_t numBytes, Metadata metadata);
+
+    template <typename R>
+    R* genCondCopy(R* dest,
+                   mir::Value* source,
+                   size_t numBytes,
+                   mir::CompareOperation condition,
+                   Metadata metadata);
+
+    template <typename R>
+    R* genCopyImpl(R* dest,
+                   mir::Value* source,
+                   size_t numBytes,
+                   Metadata metadata,
+                   auto insertCallback);
+
     mir::SSARegister* nextRegister(size_t numWords = 1) {
         return nextRegistersFor(numWords, nullptr);
     }
@@ -162,6 +215,14 @@ private:
     void matchImpl(ir::Call const& inst, SelectionNode& node);
     void matchImpl(ir::Load const& inst, SelectionNode& node);
     void matchImpl(ir::ArithmeticInst const& inst, SelectionNode& node);
+
+    template <typename Inst>
+    void applyMatchers(std::span<Matcher<Inst> const> matchers,
+                       Inst const& inst,
+                       SelectionNode& node);
+
+    /// Sets the computed value and selected instruction to the node
+    void finalizeNode(SelectionNode& node);
 
     mir::Value* resolveImpl(ir::Value const&);
 };
@@ -278,37 +339,39 @@ void BBContext::match(SelectionNode& node) {
     visit(*node.irValue(), [&](auto& value) { matchImpl(value, node); });
 }
 
-void BBContext::matchImpl(ir::Call const& call, SelectionNode& node) {}
-
-void BBContext::matchImpl(ir::Load const& load, SelectionNode& node) {}
-
-static void copyDependencies(SelectionNode& oldDepender,
-                             SelectionNode& newDepender) {
-    auto impl = [&](auto get, auto add) {
-        for (auto* dependency: std::invoke(get, oldDepender) | ToSmallVector<>)
-        {
-            std::invoke(add, newDepender, dependency);
-        }
-    };
-    impl([](auto& node) { return node.valueDependencies(); },
-         &SelectionNode::addValueDependency);
-    impl([](auto& node) { return node.executionDependencies(); },
-         &SelectionNode::addExecutionDependency);
-}
-
-template <typename Inst>
-using Matcher = std::function<bool(Inst const& inst, SelectionNode& node)>;
-
-template <typename Inst>
-static void applyMatchers(std::span<Matcher<Inst> const> matchers,
-                          Inst const& inst,
-                          SelectionNode& node) {
-    for (auto& matcher: matchers) {
-        if (matcher(inst, node)) {
-            break;
+void BBContext::matchImpl(ir::Call const& call, SelectionNode& node) {
+    utl::small_vector<mir::Value*, 16> args;
+    for (auto* arg: call.arguments()) {
+        auto* mirArg = resolve(*arg);
+        size_t const numWords = ::numWords(arg);
+        for (size_t i = 0; i < numWords; ++i, mirArg = mirArg->next()) {
+            args.push_back(mirArg);
         }
     }
+    size_t const numDests = numWords(call.type());
+    auto* dest = resolve(call);
+    // clang-format off
+    SC_MATCH (*call.function()) {
+        [&](ir::Value const& func) {
+            emit(new mir::CallInst(dest,
+                                   numDests,
+                                   resolve(func),
+                                   std::move(args),
+                                   call.metadata()));
+        },
+        [&](ir::ForeignFunction const& func) {
+            emit(new mir::CallExtInst(dest,
+                                      numDests,
+                                      { .slot  = static_cast<uint32_t>(func.slot()),
+                                        .index = static_cast<uint32_t>(func.index()) },
+                                      std::move(args),
+                                      call.metadata()));
+        },
+    }; // clang-format on
+    finalizeNode(node);
 }
+
+void BBContext::matchImpl(ir::Load const& load, SelectionNode& node) {}
 
 void BBContext::matchImpl(ir::ArithmeticInst const& inst, SelectionNode& node) {
     utl::small_vector<Matcher<ir::ArithmeticInst>> matchers;
@@ -335,13 +398,12 @@ void BBContext::matchImpl(ir::ArithmeticInst const& inst, SelectionNode& node) {
         }();
         auto* lhs = resolveToRegister(inst.metadata(), *inst.lhs());
         size_t size = inst.lhs()->type()->size();
-        auto* mirInst = new mir::LoadArithmeticInst(resolve(inst),
-                                                    lhs,
-                                                    src,
-                                                    size,
-                                                    inst.operation(),
-                                                    inst.metadata());
-        node.setMIR(nullptr, mirInst);
+        emit(new mir::LoadArithmeticInst(resolve(inst),
+                                         lhs,
+                                         src,
+                                         size,
+                                         inst.operation(),
+                                         inst.metadata()));
         return true;
     });
     // Arithmetic (base case)
@@ -350,17 +412,34 @@ void BBContext::matchImpl(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* lhs = resolveToRegister(inst.metadata(), *inst.lhs());
         auto* rhs = resolve(*inst.rhs());
         size_t size = inst.lhs()->type()->size();
-        auto* mirInst = new mir::ValueArithmeticInst(resolve(inst),
-                                                     lhs,
-                                                     rhs,
-                                                     size,
-                                                     inst.operation(),
-                                                     inst.metadata());
-        node.setMIR(nullptr, mirInst);
+        emit(new mir::ValueArithmeticInst(resolve(inst),
+                                          lhs,
+                                          rhs,
+                                          size,
+                                          inst.operation(),
+                                          inst.metadata()));
         return true;
     });
 
     applyMatchers<ir::ArithmeticInst>(matchers, inst, node);
+}
+
+template <typename Inst>
+void BBContext::applyMatchers(std::span<Matcher<Inst> const> matchers,
+                              Inst const& inst,
+                              SelectionNode& node) {
+    for (auto& matcher: matchers) {
+        if (matcher(inst, node)) {
+            break;
+        }
+    }
+    finalizeNode(node);
+}
+
+void BBContext::finalizeNode(SelectionNode& node) {
+    /// Must be an instruction because we can only finalize instruction nodes
+    auto& inst = cast<ir::Instruction const&>(*node.irValue());
+    node.setMIR(resolve(inst), std::move(instructions));
 }
 
 mir::Value* BBContext::resolveImpl(ir::Value const& irVal) {
@@ -420,6 +499,51 @@ mir::Value* BBContext::resolveImpl(ir::Value const& irVal) {
     }); // clang-format on
 }
 
+template <typename R>
+R* BBContext::genCopy(R* dest,
+                      mir::Value* source,
+                      size_t numBytes,
+                      Metadata metadata) {
+    return genCopyImpl(dest,
+                       source,
+                       numBytes,
+                       metadata,
+                       [&](auto* dest, auto* source, size_t numBytes) {
+        emit(new mir::CopyInst(dest, source, numBytes, metadata));
+    });
+}
+
+template <typename R>
+R* BBContext::genCondCopy(R* dest,
+                          mir::Value* source,
+                          size_t numBytes,
+                          mir::CompareOperation condition,
+                          Metadata metadata) {
+    return genCopyImpl(dest,
+                       source,
+                       numBytes,
+                       metadata,
+                       [&](auto* dest, auto* source, size_t numBytes) {
+        emit(
+            new mir::CondCopyInst(dest, source, numBytes, condition, metadata));
+    });
+}
+
+template <typename R>
+R* BBContext::genCopyImpl(R* dest,
+                          mir::Value* source,
+                          size_t numBytes,
+                          Metadata metadata,
+                          auto insertCallback) {
+    size_t const numWords = utl::ceil_divide(numBytes, 8);
+    for (size_t i = 0; i < numWords;
+         ++i, dest = dest->next(), source = source->next())
+    {
+        insertCallback(dest, source, sliceWidth(numBytes, i, numWords));
+    }
+    return dest;
+}
+
 mir::SSARegister* BBContext::nextRegistersFor(size_t numWords,
                                               ir::Value const* value) {
     auto* result = new mir::SSARegister();
@@ -449,25 +573,32 @@ mir::MemoryAddress BBContext::computeGep(ir::GetElementPointer const* gep) {
         SC_UNIMPLEMENTED();
     }
     mir::Register* basereg = cast<mir::Register*>(base);
-    mir::Register* dynFactor = [&]() -> mir::Register* {
+    auto [dynFactor, constFactor, constOffset] =
+        [&]() -> std::tuple<mir::Register*, size_t, size_t> {
+        size_t elemSize = gep->inboundsType()->size();
+        size_t innerOffset = gep->innerByteOffset();
         auto* constIndex =
             dyncast<ir::IntegralConstant const*>(gep->arrayIndex());
         if (constIndex && constIndex->value() == 0) {
-            return nullptr;
+            return { nullptr, elemSize, innerOffset };
         }
         mir::Value* arrayIndex = resolve(*gep->arrayIndex());
         if (auto* regArrayIdx = dyncast<mir::Register*>(arrayIndex)) {
-            return regArrayIdx;
+            return { regArrayIdx, elemSize, innerOffset };
+        }
+        if (auto* constArrIdx = dyncast<mir::Constant*>(arrayIndex)) {
+            size_t totalOffset = constArrIdx->value() * elemSize + innerOffset;
+            // FIXME: This should not be hard coded
+            if (totalOffset < 256) {
+                return { nullptr, 0, totalOffset };
+            }
         }
         auto* result = nextRegistersFor(1, gep);
-        //        SC_UNIMPLEMENTED();
-        //        genCopy(gep->metadata(), result, arrayIndex, 8);
-        return result;
+        genCopy(result, arrayIndex, 8, gep->metadata());
+        return { result, elemSize, innerOffset };
     }();
-    size_t const elemSize = gep->inboundsType()->size();
-    size_t innerOffset = gep->innerByteOffset();
     return mir::MemoryAddress(basereg,
                               dynFactor,
-                              utl::narrow_cast<uint32_t>(elemSize),
-                              utl::narrow_cast<uint32_t>(innerOffset));
+                              utl::narrow_cast<uint32_t>(constFactor),
+                              utl::narrow_cast<uint32_t>(constOffset));
 }

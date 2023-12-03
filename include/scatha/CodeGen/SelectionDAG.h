@@ -12,6 +12,7 @@
 #include <scatha/Common/Allocator.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Graph.h>
+#include <scatha/Common/List.h>
 #include <scatha/Common/Ranges.h>
 #include <scatha/IR/Fwd.h>
 #include <scatha/MIR/Fwd.h>
@@ -26,6 +27,10 @@ class SCATHA_API SelectionNode:
 public:
     SelectionNode(ir::Value const* value): _irValue(value) {}
 
+    SelectionNode(SelectionNode const&) = delete;
+
+    ~SelectionNode();
+
     /// \Returns the IR value associated with this node
     ir::Value const* irValue() const { return _irValue; }
 
@@ -33,13 +38,15 @@ public:
     mir::Value* mirValue() const { return _mirValue; }
 
     /// \Returns the MIR instruction associated with this node
-    mir::Instruction* mirInstruction() const { return _mirInst; }
+    List<mir::Instruction> const& mirInstructions() const { return _mirInsts; }
 
-    /// Set the MIR value and instruction
-    void setMIR(mir::Value* value, mir::Instruction* inst) {
-        _mirValue = value;
-        _mirInst = inst;
-    }
+    /// Set the computed MIR value and list of instructions that compute the
+    /// value
+    void setMIR(mir::Value* value, List<mir::Instruction> insts);
+
+    /// \Returns `true` if this instruction has been matched, i.e. if `setMIR()`
+    /// has been called
+    bool matched() const { return _matched; }
 
     /// \Returns a view of the nodes of the operands of this instruction
     std::span<SelectionNode* const> valueDependencies() { return valueDeps; }
@@ -79,8 +86,9 @@ private:
 
     ir::Value const* _irValue = nullptr;
     mir::Value* _mirValue = nullptr;
-    mir::Instruction* _mirInst = nullptr;
+    List<mir::Instruction> _mirInsts;
     utl::small_vector<SelectionNode*, 3> valueDeps;
+    bool _matched = false;
 };
 
 /// Used for instruction selection

@@ -31,6 +31,14 @@ static bool isOutput(ir::Instruction const& inst) {
     });
 }
 
+SelectionNode::~SelectionNode() = default;
+
+void SelectionNode::setMIR(mir::Value* value, List<mir::Instruction> insts) {
+    _mirValue = value;
+    _mirInsts = std::move(insts);
+    _matched = true;
+}
+
 SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
@@ -99,18 +107,19 @@ static Label makeIRLabel(SelectionDAG const& DAG, ir::Value const* value) {
 }
 
 static Label makeMIRLabel(SelectionDAG const& DAG, SelectionNode const* node) {
-    mir::Instruction const* inst = node->mirInstruction();
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
     if (auto name = node->irValue()->name(); !name.empty()) {
         sstr << name << ":\n";
     }
-    mir::print(*inst, sstr);
+    for (auto& inst: node->mirInstructions()) {
+        mir::print(inst, sstr);
+    }
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
 static Label makeLabel(SelectionDAG const& DAG, SelectionNode const* node) {
-    if (node->mirInstruction()) {
+    if (node->matched()) {
         return makeMIRLabel(DAG, node);
     }
     else {
@@ -144,7 +153,7 @@ void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
                          .color = Color::Magenta,
                          .style = Style::Bold });
         }
-        if (node->mirInstruction()) {
+        if (node->matched()) {
             vertex->color(Color::Green);
             vertex->style(Style::Bold);
         }
