@@ -104,7 +104,7 @@ struct BBContext {
 
     void run();
 
-    void match(SelectionNode* node);
+    void match(SelectionNode& node);
 
     /// Maps IR values to MIR values. In particular:
     /// ```
@@ -116,29 +116,29 @@ struct BBContext {
     /// Return type can be explicitly specified. Will trap if specified return
     /// type does not match
     template <typename V = mir::Value>
-    V* resolve(ir::Value const* value) {
+    V* resolve(ir::Value const& value) {
         return cast<V*>(resolveImpl(value));
     }
 
-    mir::Register* resolve(ir::Instruction const* inst) {
+    mir::Register* resolve(ir::Instruction const& inst) {
         return resolve<mir::Register>(inst);
     }
 
-    mir::Register* resolve(ir::Parameter const* param) {
+    mir::Register* resolve(ir::Parameter const& param) {
         return resolve<mir::Register>(param);
     }
 
-    mir::Function* resolve(ir::Function const* func) {
+    mir::Function* resolve(ir::Function const& func) {
         return resolve<mir::Function>(func);
     }
 
-    mir::BasicBlock* resolve(ir::BasicBlock const* bb) {
+    mir::BasicBlock* resolve(ir::BasicBlock const& bb) {
         return resolve<mir::BasicBlock>(bb);
     }
 
     /// Resolves the value and generates a copy instruction if necessary
     mir::SSARegister* resolveToRegister(Metadata metadata,
-                                        ir::Value const* value);
+                                        ir::Value const& value);
 
     mir::SSARegister* nextRegister(size_t numWords = 1) {
         return nextRegistersFor(numWords, nullptr);
@@ -155,15 +155,15 @@ struct BBContext {
 
 private:
     /// Stub that we'll delete later
-    void matchImpl(ir::Value const*, SelectionNode*) {
+    void matchImpl(ir::Value const&, SelectionNode&) {
         //        SC_UNREACHABLE();
     }
 
-    void matchImpl(ir::Call const* inst, SelectionNode* node);
-    void matchImpl(ir::Load const* inst, SelectionNode* node);
-    void matchImpl(ir::ArithmeticInst const* inst, SelectionNode* node);
+    void matchImpl(ir::Call const& inst, SelectionNode& node);
+    void matchImpl(ir::Load const& inst, SelectionNode& node);
+    void matchImpl(ir::ArithmeticInst const& inst, SelectionNode& node);
 
-    mir::Value* resolveImpl(ir::Value const*);
+    mir::Value* resolveImpl(ir::Value const&);
 };
 
 } // namespace
@@ -269,96 +269,109 @@ static utl::small_vector<SelectionNode*> topsort(SelectionNode* term) {
 void BBContext::run() {
     generateGraphvizTmp(DAG, utl::strcat(irBB.name(), ".before"));
     for (auto* node: topsort(DAG[irBB.terminator()])) {
-        match(node);
+        match(*node);
     }
     generateGraphvizTmp(DAG, utl::strcat(irBB.name(), ".after"));
 }
 
-void BBContext::match(SelectionNode* node) {
-    visit(*node->irValue(), [&](auto& value) { matchImpl(&value, node); });
+void BBContext::match(SelectionNode& node) {
+    visit(*node.irValue(), [&](auto& value) { matchImpl(value, node); });
 }
 
-template <typename... F>
-static void applyMatchers(F const&... matchers) {
-    (... || matchers());
-}
+void BBContext::matchImpl(ir::Call const& call, SelectionNode& node) {}
 
-void BBContext::matchImpl(ir::Call const* call, SelectionNode* node) {}
+void BBContext::matchImpl(ir::Load const& load, SelectionNode& node) {}
 
-void BBContext::matchImpl(ir::Load const* load, SelectionNode* node) {}
-
-static void copyDependencies(SelectionNode* oldDepender,
-                             SelectionNode* newDepender) {
+static void copyDependencies(SelectionNode& oldDepender,
+                             SelectionNode& newDepender) {
     auto impl = [&](auto get, auto add) {
         for (auto* dependency: std::invoke(get, oldDepender) | ToSmallVector<>)
         {
             std::invoke(add, newDepender, dependency);
         }
     };
-    impl([](auto* node) { return node->valueDependencies(); },
+    impl([](auto& node) { return node.valueDependencies(); },
          &SelectionNode::addValueDependency);
-    impl([](auto* node) { return node->executionDependencies(); },
+    impl([](auto& node) { return node.executionDependencies(); },
          &SelectionNode::addExecutionDependency);
 }
 
-void BBContext::matchImpl(ir::ArithmeticInst const* inst, SelectionNode* node) {
-    applyMatchers(
-        [&] {
-        auto* load = dyncast<ir::Load const*>(inst->rhs());
+template <typename Inst>
+using Matcher = std::function<bool(Inst const& inst, SelectionNode& node)>;
+
+template <typename Inst>
+static void applyMatchers(std::span<Matcher<Inst> const> matchers,
+                          Inst const& inst,
+                          SelectionNode& node) {
+    for (auto& matcher: matchers) {
+        if (matcher(inst, node)) {
+            break;
+        }
+    }
+}
+
+void BBContext::matchImpl(ir::ArithmeticInst const& inst, SelectionNode& node) {
+    utl::small_vector<Matcher<ir::ArithmeticInst>> matchers;
+    // Arithmetic -> Load  [ -> GEP ]
+    matchers.push_back(
+        [this](ir::ArithmeticInst const& inst, SelectionNode& node) {
+        auto* load = dyncast<ir::Load const*>(inst.rhs());
         if (!load) {
             return false;
         }
-        auto* loadNode = DAG[load];
+        auto& loadNode = *DAG[load];
+        copyDependencies(loadNode, node);
+        node.removeDependency(&loadNode);
         auto src = [&] {
-            if (auto* gep =
-                    dyncast<ir::GetElementPointer const*>(load->address()))
-            {
-                auto* gepNode = DAG[gep];
+            auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
+            if (gep) {
+                auto& gepNode = *DAG[gep];
                 copyDependencies(gepNode, node);
+                node.removeDependency(&gepNode);
                 return computeGep(gep);
             }
-            else {
-                return mir::MemoryAddress(
-                    resolveToRegister(load->metadata(), load->address()));
-            }
+            return mir::MemoryAddress(
+                resolveToRegister(load->metadata(), *load->address()));
         }();
-        copyDependencies(loadNode, node);
-        node->removeDependency(loadNode);
-        auto* lhs = resolveToRegister(inst->metadata(), inst->lhs());
-        size_t size = inst->lhs()->type()->size();
+        auto* lhs = resolveToRegister(inst.metadata(), *inst.lhs());
+        size_t size = inst.lhs()->type()->size();
         auto* mirInst = new mir::LoadArithmeticInst(resolve(inst),
                                                     lhs,
                                                     src,
                                                     size,
-                                                    inst->operation(),
-                                                    inst->metadata());
-        node->setMIR(nullptr, mirInst);
+                                                    inst.operation(),
+                                                    inst.metadata());
+        node.setMIR(nullptr, mirInst);
         return true;
-        },
-        [&] {
-        auto* lhs = resolveToRegister(inst->metadata(), inst->lhs());
-        auto* rhs = resolve(inst->rhs());
-        size_t size = inst->lhs()->type()->size();
+    });
+    // Arithmetic (base case)
+    matchers.push_back(
+        [this](ir::ArithmeticInst const& inst, SelectionNode& node) {
+        auto* lhs = resolveToRegister(inst.metadata(), *inst.lhs());
+        auto* rhs = resolve(*inst.rhs());
+        size_t size = inst.lhs()->type()->size();
         auto* mirInst = new mir::ValueArithmeticInst(resolve(inst),
                                                      lhs,
                                                      rhs,
                                                      size,
-                                                     inst->operation(),
-                                                     inst->metadata());
-        node->setMIR(nullptr, mirInst);
+                                                     inst.operation(),
+                                                     inst.metadata());
+        node.setMIR(nullptr, mirInst);
         return true;
     });
+
+    applyMatchers<ir::ArithmeticInst>(matchers, inst, node);
 }
 
-mir::Value* BBContext::resolveImpl(ir::Value const* irVal) {
-    if (auto* result = globalMap(irVal)) {
+mir::Value* BBContext::resolveImpl(ir::Value const& irVal) {
+    if (auto* result = globalMap(&irVal)) {
         return result;
     }
-    if (auto* result = localMap(irVal)) {
+    if (auto* result = localMap(&irVal)) {
         return result;
     }
     // clang-format off
-    return visit(*irVal, utl::overload{
+    return visit(irVal, utl::overload{
         [&](ir::Instruction const& inst) -> mir::Register* {
             if (isa<ir::VoidType>(inst.type())) {
                 return nullptr;
@@ -419,7 +432,7 @@ mir::SSARegister* BBContext::nextRegistersFor(size_t numWords,
 }
 
 mir::SSARegister* BBContext::resolveToRegister(Metadata metadata,
-                                               ir::Value const* value) {
+                                               ir::Value const& value) {
     auto* result = resolve(value);
     if (auto* reg = dyncast<mir::SSARegister*>(result)) {
         return reg;
@@ -428,7 +441,7 @@ mir::SSARegister* BBContext::resolveToRegister(Metadata metadata,
 }
 
 mir::MemoryAddress BBContext::computeGep(ir::GetElementPointer const* gep) {
-    auto* base = resolve(gep->basePointer());
+    auto* base = resolve(*gep->basePointer());
     if (auto* undef = dyncast<mir::UndefValue*>(base)) {
         return mir::MemoryAddress(nullptr, nullptr, 0, 0);
     }
@@ -442,7 +455,7 @@ mir::MemoryAddress BBContext::computeGep(ir::GetElementPointer const* gep) {
         if (constIndex && constIndex->value() == 0) {
             return nullptr;
         }
-        mir::Value* arrayIndex = resolve(gep->arrayIndex());
+        mir::Value* arrayIndex = resolve(*gep->arrayIndex());
         if (auto* regArrayIdx = dyncast<mir::Register*>(arrayIndex)) {
             return regArrayIdx;
         }

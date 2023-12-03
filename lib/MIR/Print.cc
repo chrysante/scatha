@@ -232,6 +232,19 @@ struct PrintContext {
         }
     }
 
+    void print(ConstMemoryAddress addr) {
+        str << "[";
+        print(addr.baseAddress());
+        if (addr.dynOffset()) {
+            str << " + " << addr.offsetFactor() << " * ";
+            print(addr.dynOffset());
+        }
+        if (addr.offsetTerm() != 0) {
+            str << " + " << addr.offsetTerm();
+        }
+        str << "]";
+    }
+
     void printImpl(Instruction const& inst) {
         printInstBegin(inst);
         str << formatInstName(inst) << " ";
@@ -248,6 +261,14 @@ struct PrintContext {
             str << ", slot=" << callext->callee().slot;
             str << ", index=" << callext->callee().index;
         }
+    }
+
+    void printImpl(LoadArithmeticInst const& inst) {
+        printInstBegin(inst);
+        str << formatInstName(inst) << " ";
+        print(inst.LHS());
+        str << ", ";
+        print(inst.RHS());
     }
 
     void printImpl(PhiInst const& inst) {

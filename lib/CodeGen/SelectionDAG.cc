@@ -98,17 +98,20 @@ static Label makeIRLabel(SelectionDAG const& DAG, ir::Value const* value) {
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
-static Label makeMIRLabel(SelectionDAG const& DAG,
-                          mir::Instruction const* inst) {
+static Label makeMIRLabel(SelectionDAG const& DAG, SelectionNode const* node) {
+    mir::Instruction const* inst = node->mirInstruction();
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
+    if (auto name = node->irValue()->name(); !name.empty()) {
+        sstr << name << ":\n";
+    }
     mir::print(*inst, sstr);
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
 static Label makeLabel(SelectionDAG const& DAG, SelectionNode const* node) {
     if (node->mirInstruction()) {
-        return makeMIRLabel(DAG, node->mirInstruction());
+        return makeMIRLabel(DAG, node);
     }
     else {
         return makeIRLabel(DAG, node->irValue());
@@ -140,6 +143,10 @@ void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
                          ID(dependency),
                          .color = Color::Magenta,
                          .style = Style::Bold });
+        }
+        if (node->mirInstruction()) {
+            vertex->color(Color::Green);
+            vertex->style(Style::Bold);
         }
         G->add(vertex);
     }

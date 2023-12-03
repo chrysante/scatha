@@ -404,6 +404,9 @@ public:
 
     /// Right hand side memory operand
     MemoryAddress RHS() { return address(); }
+
+    /// \overload
+    ConstMemoryAddress RHS() const { return address(); }
 };
 
 ///
