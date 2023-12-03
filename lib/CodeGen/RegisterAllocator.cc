@@ -108,7 +108,7 @@ void cg::allocateRegisters(Function& F) {
         utl::small_vector<Instruction*> toErase;
         for (auto& inst: BB | ranges::views::reverse) {
             auto isLive = [&](auto* reg) { return live.contains(reg); };
-            bool canErase = !hasSideEffects(&inst) &&
+            bool canErase = !hasSideEffects(inst) &&
                             !isa_or_null<CalleeRegister>(inst.dest()) &&
                             ranges::none_of(inst.destRegisters(), isLive);
             if (canErase) {

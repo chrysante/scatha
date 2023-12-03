@@ -6,6 +6,29 @@
 
 namespace scatha::mir {
 
+/// Abstract base class of all instructions with a single (non-memory) operand
+class UnaryInstruction: public Instruction {
+public:
+    /// \Returns the single operand
+    Value* operand() { return operandAt(0); }
+
+    /// \overload
+    Value const* operand() const { return operandAt(0); }
+
+protected:
+    UnaryInstruction(InstType type,
+                     Register* dest,
+                     Value* operand,
+                     size_t byteWidth,
+                     Metadata metadata):
+        Instruction(type,
+                    dest,
+                    1,
+                    { operand },
+                    byteWidth,
+                    std::move(metadata)) {}
+};
+
 /// Concrete store instruction
 class StoreInst: public Instruction, public MemoryInst<StoreInst, 0, 1> {
 public:
@@ -50,25 +73,31 @@ public:
     using MemoryInst::address;
 };
 
+/// Abstract base class of `CopyInst` and `CondCopyInst`
+class CopyBase: public UnaryInstruction {
+public:
+    /// The copied value
+    Value* source() { return operand(); }
+
+    /// \overload
+    Value const* source() const { return operand(); }
+
+protected:
+    using UnaryInstruction::UnaryInstruction;
+};
+
 /// Concrete copy instruction
-class CopyInst: public Instruction {
+class CopyInst: public CopyBase {
 public:
     explicit CopyInst(Register* dest,
                       Value* source,
                       size_t byteWidth,
                       Metadata metadata):
-        Instruction(InstType::CopyInst,
-                    dest,
-                    1,
-                    { source },
-                    byteWidth,
-                    std::move(metadata)) {}
-
-    /// The copied value
-    Value* source() { return operandAt(0); }
-
-    /// \overload
-    Value const* source() const { return operandAt(0); }
+        CopyBase(InstType::CopyInst,
+                 dest,
+                 source,
+                 byteWidth,
+                 std::move(metadata)) {}
 };
 
 /// Abstract base class of all call instructions
@@ -80,22 +109,23 @@ public:
     ///
     void setRegisterOffset(size_t offset) { regOffset = offset; }
 
-    ///
-    std::span<Value* const> arguments() { return operands(); }
+    /// The actual function parameters. Drops the first operand if this is a
+    /// `CallInst`
+    std::span<Value* const> arguments();
 
     /// \overload
-    std::span<Value const* const> arguments() const { return operands(); }
+    std::span<Value const* const> arguments() const;
 
 protected:
     explicit CallBase(InstType instType,
                       Register* dest,
                       size_t numDests,
-                      utl::small_vector<Value*> arguments,
+                      utl::small_vector<Value*> operands,
                       Metadata metadata):
         Instruction(instType,
                     dest,
                     numDests,
-                    std::move(arguments),
+                    std::move(operands),
                     0,
                     std::move(metadata)) {}
 
@@ -108,13 +138,15 @@ class CallInst: public CallBase {
 public:
     explicit CallInst(Register* dest,
                       size_t numDests,
+                      Value* callee,
                       utl::small_vector<Value*> arguments,
-                      Metadata metadata):
-        CallBase(InstType::CallInst,
-                 dest,
-                 numDests,
-                 std::move(arguments),
-                 std::move(metadata)) {}
+                      Metadata metadata);
+
+    /// The called function or function pointer
+    Value* callee() { return operandAt(0); }
+
+    /// \overload
+    Value const* callee() const { return operandAt(0); }
 };
 
 /// Concrete callext instruction
@@ -122,29 +154,36 @@ class CallExtInst: public CallBase {
 public:
     explicit CallExtInst(Register* dest,
                          size_t numDests,
+                         ExtFuncAddress callee,
                          utl::small_vector<Value*> arguments,
                          Metadata metadata):
         CallBase(InstType::CallExtInst,
                  dest,
                  numDests,
                  std::move(arguments),
-                 std::move(metadata)) {}
+                 std::move(metadata)),
+        _callee(callee) {}
+
+    /// The called foreign function
+    ExtFuncAddress callee() const { return _callee; }
+
+private:
+    ExtFuncAddress _callee;
 };
 
 /// Concrete cond-copy instruction
-class CondCopyInst: public Instruction {
+class CondCopyInst: public CopyBase {
 public:
     CondCopyInst(Register* dest,
                  Value* source,
-                 size_t numBytes,
+                 size_t byteWidth,
                  mir::CompareOperation condition,
                  Metadata metadata):
-        Instruction(InstType::CondCopyInst,
-                    dest,
-                    1,
-                    { source },
-                    numBytes,
-                    std::move(metadata)),
+        CopyBase(InstType::CondCopyInst,
+                 dest,
+                 source,
+                 byteWidth,
+                 std::move(metadata)),
         _cond(condition) {}
 
     /// \Returns the condition required for the copy to be performed
@@ -155,24 +194,23 @@ private:
 };
 
 /// Concrete LISP (load & increment stack pointer) instruction
-class LISPInst: public Instruction {
+class LISPInst: public UnaryInstruction {
 public:
     explicit LISPInst(Register* dest, Value* allocSize, Metadata metadata):
-        Instruction(InstType::LISPInst,
-                    dest,
-                    1,
-                    { allocSize },
-                    0,
-                    std::move(metadata)) {}
+        UnaryInstruction(InstType::LISPInst,
+                         dest,
+                         allocSize,
+                         0,
+                         std::move(metadata)) {}
 
     /// \Returns `true` if the size of this allocation is known at compile time
     bool isStack() const;
 
     /// \Returns the value holding the number of bytes allocated
-    Value* allocSize() { return operandAt(0); }
+    Value* allocSize() { return operand(); }
 
     /// \overload
-    Value const* allocSize() const { return operandAt(0); }
+    Value const* allocSize() const { return operand(); }
 
     /// \Returns the constant number of bytes allocated if this allocation is
     /// static, null otherwise
@@ -231,32 +269,55 @@ private:
 };
 
 /// Concrete test instruction
-class TestInst: public Instruction {
+class TestInst: public UnaryInstruction {
 public:
-    //    explicit TestInst(Value* operand, )
+    explicit TestInst(Value* operand,
+                      size_t byteWidth,
+                      CompareMode mode,
+                      Metadata metadata):
+        UnaryInstruction(InstType::TestInst,
+                         nullptr,
+                         operand,
+                         byteWidth,
+                         std::move(metadata)),
+        _mode(mode) {}
+
+    ///
+    CompareMode mode() const { return _mode; }
+
+private:
+    CompareMode _mode;
 };
 
 /// Concrete set instruction
 class SetInst: public Instruction {
 public:
-    explicit SetInst(Register* dest, Metadata metadata):
-        Instruction(InstType::SetInst, dest, 1, {}, 0, std::move(metadata)) {}
+    explicit SetInst(Register* dest,
+                     CompareOperation operation,
+                     Metadata metadata):
+        Instruction(InstType::SetInst, dest, 1, {}, 0, std::move(metadata)),
+        op(operation) {}
+
+    ///
+    CompareOperation operation() const { return op; }
+
+private:
+    CompareOperation op;
 };
 
 /// Concrete unary arithmetic instruction
-class UnaryArithmeticInst: public Instruction {
+class UnaryArithmeticInst: public UnaryInstruction {
 public:
     explicit UnaryArithmeticInst(Register* dest,
                                  Value* operand,
                                  size_t byteWidth,
                                  UnaryArithmeticOperation operation,
                                  Metadata metadata):
-        Instruction(InstType::UnaryArithmeticInst,
-                    dest,
-                    1,
-                    { operand },
-                    byteWidth,
-                    std::move(metadata)),
+        UnaryInstruction(InstType::UnaryArithmeticInst,
+                         dest,
+                         operand,
+                         byteWidth,
+                         std::move(metadata)),
         op(operation) {}
 
     ///
@@ -270,7 +331,7 @@ private:
 class ArithmeticInst: public Instruction {
 public:
     ///
-    UnaryArithmeticOperation operation() const { return op; }
+    ArithmeticOperation operation() const { return op; }
 
     /// Left hand side operand. Unlike the RHS operand this is in the base class
     /// because the RHS may be a value or a memory location
@@ -291,10 +352,11 @@ protected:
                     1,
                     std::move(operands),
                     byteWidth,
-                    std::move(metadata)) {}
+                    std::move(metadata)),
+        op(operation) {}
 
 private:
-    UnaryArithmeticOperation op;
+    ArithmeticOperation op;
 };
 
 /// Concrete arithmetic instruction operating on two values (registers or
@@ -315,10 +377,10 @@ public:
                        std::move(metadata)) {}
 
     /// RIght hand side operand
-    Value* LHS() { return operandAt(1); }
+    Value* RHS() { return operandAt(1); }
 
     /// \overload
-    Value const* LHS() const { return operandAt(1); }
+    Value const* RHS() const { return operandAt(1); }
 };
 
 /// Concrete arithmetic instruction operating on a value and a memory location
@@ -345,7 +407,7 @@ public:
 };
 
 ///
-class ConversionInst: public Instruction {
+class ConversionInst: public UnaryInstruction {
 public:
     explicit ConversionInst(Register* dest,
                             Value* operand,
@@ -353,12 +415,6 @@ public:
                             size_t fromBits,
                             size_t toBits,
                             Metadata metadata);
-
-    ///
-    Value* operand() { return operandAt(0); }
-
-    /// \overload
-    Value const* operand() const { return operandAt(0); }
 
     ///
     Conversion conversion() const { return conv; }

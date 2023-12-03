@@ -49,7 +49,7 @@ void DCEContext::mark() {
 }
 
 void DCEContext::visitInstruction(mir::Instruction* inst) {
-    if (hasSideEffects(inst)) {
+    if (hasSideEffects(*inst)) {
         return;
     }
     if (deadInstructions.contains(inst)) {

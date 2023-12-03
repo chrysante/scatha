@@ -311,7 +311,7 @@ struct PrintContext {
         }); // clang-format on
     }
 
-    void printPtrData(MemoryAddress::ConstantData data) {
+    void printPtrData(MemAddrConstantData data) {
         str << ", of=" << data.offsetFactor << ", ot=" << data.offsetTerm;
     }
 

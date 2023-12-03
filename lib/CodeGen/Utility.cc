@@ -4,20 +4,10 @@
 
 using namespace scatha;
 using namespace cg;
+using namespace mir;
 
-bool cg::hasSideEffects(mir::Instruction const* inst) {
-    using enum mir::InstCode;
-    switch (inst->instcode()) {
-    case Store:
-    case Call:
-    case CallExt:
-    case Return:
-    case Jump:
-    case CondJump:
-    case Compare:
-    case Test:
-        return true;
-    default:
-        return false;
-    }
+bool cg::hasSideEffects(Instruction const& inst) {
+    return isa<StoreInst>(inst) || isa<CallBase>(inst) ||
+           isa<ReturnInst>(inst) || isa<JumpBase>(inst) ||
+           isa<CompareInst>(inst) || isa<TestInst>(inst);
 }

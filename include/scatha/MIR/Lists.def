@@ -29,10 +29,12 @@ SC_MIR_CFGNODE_DEF(Function,            CONCRETE)
 #   define SC_MIR_INSTCLASS_DEF(node, _)
 #endif
 
-SC_MIR_INSTCLASS_DEF(Instruction,     ABSTRACT)
+SC_MIR_INSTCLASS_DEF(Instruction,         ABSTRACT)
+SC_MIR_INSTCLASS_DEF(UnaryInstruction,    ABSTRACT)
 
 SC_MIR_INSTCLASS_DEF(StoreInst,           CONCRETE)
 SC_MIR_INSTCLASS_DEF(LoadInst,            CONCRETE)
+SC_MIR_INSTCLASS_DEF(CopyBase,            ABSTRACT)
 SC_MIR_INSTCLASS_DEF(CopyInst,            CONCRETE)
 SC_MIR_INSTCLASS_DEF(CallBase,            ABSTRACT)
 SC_MIR_INSTCLASS_DEF(CallInst,            CONCRETE)

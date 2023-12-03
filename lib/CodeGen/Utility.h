@@ -7,7 +7,7 @@ namespace scatha::cg {
 
 /// \Returns `true` if the instruction \p inst has side effects and may not be
 /// eliminated
-bool hasSideEffects(mir::Instruction const* inst);
+bool hasSideEffects(mir::Instruction const& inst);
 
 } // namespace scatha::cg
 

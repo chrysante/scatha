@@ -5,10 +5,10 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
 #include "MIR/CFG.h"
+#include "MIR/Instructions.h"
 #include "MIR/Module.h"
 
 using namespace scatha;
-using namespace mir;
 using namespace Asm;
 
 namespace {
@@ -21,6 +21,27 @@ struct CGContext {
     void genFunction(mir::Function const& func);
     void genBlock(mir::BasicBlock const& block);
     void genInst(mir::Instruction const& inst);
+
+    void genInstImpl(mir::StoreInst const&);
+    void genInstImpl(mir::LoadInst const&);
+    void genInstImpl(mir::CopyInst const&);
+    void genInstImpl(mir::CallInst const&);
+    void genInstImpl(mir::CallExtInst const&);
+    void genInstImpl(mir::CondCopyInst const&);
+    void genInstImpl(mir::LISPInst const&);
+    void genInstImpl(mir::LEAInst const&);
+    void genInstImpl(mir::CompareInst const&);
+    void genInstImpl(mir::TestInst const&);
+    void genInstImpl(mir::SetInst const&);
+    void genInstImpl(mir::UnaryArithmeticInst const&);
+    void genInstImpl(mir::ValueArithmeticInst const&);
+    void genInstImpl(mir::LoadArithmeticInst const&);
+    void genInstImpl(mir::ConversionInst const&);
+    void genInstImpl(mir::JumpInst const&);
+    void genInstImpl(mir::CondJumpInst const&);
+    void genInstImpl(mir::ReturnInst const&);
+    void genInstImpl(mir::PhiInst const&);
+    void genInstImpl(mir::SelectInst const&);
 
     LabelID getLabelID(mir::Value const& value) {
         auto [itr, success] =
@@ -44,26 +65,26 @@ struct CGContext {
 
     Asm::Value toValue(mir::Value const* value) const {
         // clang-format off
-        return visit(*value, utl::overload{
-            [](mir::Constant const& constant) -> Asm::Value {
-                switch (constant.bytewidth()) {
-                case 1: return Value8(constant.value());
-                case 2: return Value16(constant.value());
-                case 4: return Value32(constant.value());
-                case 8: return Value64(constant.value());
-                default: SC_UNREACHABLE();
-                }
-            },
-            [](mir::UndefValue const&) -> Asm::Value {
-                return Asm::RegisterIndex(0);
-            },
-            [&](mir::Register const& reg) -> Asm::Value {
-                return toRegIdx(&reg);
-            },
-            [](mir::Value const& value) -> Asm::Value {
-                SC_UNREACHABLE();
-            }
-        }); // clang-format on
+         return visit(*value, utl::overload{
+             [](mir::Constant const& constant) -> Asm::Value {
+                 switch (constant.bytewidth()) {
+                 case 1: return Value8(constant.value());
+                 case 2: return Value16(constant.value());
+                 case 4: return Value32(constant.value());
+                 case 8: return Value64(constant.value());
+                 default: SC_UNREACHABLE();
+                 }
+             },
+             [](mir::UndefValue const&) -> Asm::Value {
+                 return Asm::RegisterIndex(0);
+             },
+             [&](mir::Register const& reg) -> Asm::Value {
+                 return toRegIdx(&reg);
+             },
+             [](mir::Value const& value) -> Asm::Value {
+                 SC_UNREACHABLE();
+             }
+         }); // clang-format on
     }
 
     void addMetadata(mir::Instruction const& inst) {
@@ -125,15 +146,15 @@ void CGContext::genBlock(mir::BasicBlock const& BB) {
     }
 }
 
-static Asm::MemoryAddress getAddressOperand(mir::Instruction const& inst) {
-    auto* base = cast<mir::Register const*>(inst.operandAt(0));
-    auto* factor = cast_or_null<mir::Register const*>(inst.operandAt(1));
-    auto data = inst.instDataAs<mir::MemoryAddress::ConstantData>();
+template <typename V>
+static Asm::MemoryAddress convertAddress(mir::MemoryAddressImpl<V> addr) {
+    auto* base = cast<mir::Register const*>(addr.baseAddress());
+    auto* factor = cast<mir::Register const*>(addr.dynOffset());
     return Asm::MemoryAddress(RegisterIndex(base->index()),
                               factor ? RegisterIndex(factor->index()) :
                                        Asm::MemoryAddress::InvalidRegisterIndex,
-                              data.offsetFactor,
-                              data.offsetTerm);
+                              addr.offsetFactor(),
+                              addr.offsetTerm());
 }
 
 static Asm::UnaryArithmeticOperation mapUnaryArithmetic(
@@ -146,273 +167,255 @@ static Asm::CompareOperation mapCompareOperation(mir::CompareOperation op);
 static Asm::Type mapCompareMode(ir::CompareMode mode);
 
 void CGContext::genInst(mir::Instruction const& inst) {
-    switch (inst.instcode()) {
-    case mir::InstCode::Store: {
-        auto dest = getAddressOperand(inst);
-        auto source = toRegIdx(inst.operandAt(2));
-        currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Load: {
-        auto dest = toRegIdx(inst.dest());
-        auto source = getAddressOperand(inst);
-        currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Copy: {
-        auto dest = toRegIdx(inst.dest());
-        auto source = toValue(inst.operandAt(0));
-        currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Call: {
-        auto callData = inst.instDataAs<mir::CallInstData>();
-        // clang-format off
-        SC_MATCH (*inst.operandAt(0)) {
-            [&](mir::Function const& callee) {
-                auto asmInst = CallInst(LabelPosition(getLabelID(callee)),
-                                     callData.regOffset);
-                currentBlock->insertBack(asmInst);
-                addMetadata(inst);
-            },
-            [&](mir::Register const& reg) {
-                auto asmInst = CallInst(RegisterIndex(reg.index()),
-                                     callData.regOffset);
-                currentBlock->insertBack(asmInst);
-                addMetadata(inst);
-            },
-            [&](mir::Value const& value) {
-                SC_UNREACHABLE();
-            },
-        }; // clang-format on
-        break;
-    }
-    case mir::InstCode::CallExt: {
-        auto callData = inst.instDataAs<mir::CallInstData>();
-        auto callee = callData.extFuncAddress;
-        currentBlock->insertBack(
-            CallExtInst(callData.regOffset, callee.slot, callee.index));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::CondCopy: {
-        auto dest = toRegIdx(inst.dest());
-        auto source = toValue(inst.operandAt(0));
-        auto cond = inst.instDataAs<mir::CompareOperation>();
-        currentBlock->insertBack(CMoveInst(mapCompareOperation(cond),
-                                           dest,
-                                           source,
-                                           inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::LIncSP: {
-        auto dest = toRegIdx(inst.dest());
-        auto numBytes = toValue(inst.operandAt(0));
-        currentBlock->insertBack(
-            LIncSPInst(dest, std::get<Asm::Value16>(numBytes)));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::LEA: {
-        auto dest = toRegIdx(inst.dest());
-        auto address = getAddressOperand(inst);
-        currentBlock->insertBack(LEAInst(dest, address));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Compare: {
-        auto LHS = toValue(inst.operandAt(0));
-        auto RHS = toValue(inst.operandAt(1));
-        auto mode = inst.instDataAs<mir::CompareMode>();
-        currentBlock->insertBack(
-            Asm::CompareInst(mapCompareMode(mode), LHS, RHS, inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Test: {
-        auto operand = toValue(inst.operandAt(0));
-        auto mode = inst.instDataAs<mir::CompareMode>();
-        currentBlock->insertBack(
-            TestInst(mapCompareMode(mode), operand, inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Set: {
-        auto dest = toRegIdx(inst.dest());
-        auto operation = inst.instDataAs<mir::CompareOperation>();
-        currentBlock->insertBack(SetInst(dest, mapCompareOperation(operation)));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::UnaryArithmetic: {
-        auto dest = toRegIdx(inst.dest());
-        auto operand = toRegIdx(inst.operandAt(0));
-        auto operation = inst.instDataAs<mir::UnaryArithmeticOperation>();
-        if (inst.dest() != inst.operandAt(0)) {
-            currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
+    visit(inst, [&](auto& inst) { genInstImpl(inst); });
+}
+
+void CGContext::genInstImpl(mir::StoreInst const& inst) {
+    auto dest = convertAddress(inst.address());
+    auto source = toRegIdx(inst.source());
+    currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::LoadInst const& inst) {
+    auto dest = toRegIdx(inst.dest());
+    auto source = convertAddress(inst.address());
+    currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::CopyInst const& inst) {
+    auto dest = toRegIdx(inst.dest());
+    auto source = toValue(inst.operandAt(0));
+    currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::CallInst const& inst) {
+    // clang-format off
+    SC_MATCH (*inst.callee()) {
+        [&](mir::Function const& callee) {
+            auto asmInst = CallInst(LabelPosition(getLabelID(callee)),
+                                    inst.registerOffset());
+            currentBlock->insertBack(asmInst);
             addMetadata(inst);
-        }
-        currentBlock->insertBack(
-            UnaryArithmeticInst(mapUnaryArithmetic(operation),
-                                dest,
-                                inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Arithmetic: {
-        auto dest = toRegIdx(inst.dest());
-        auto LHS = toRegIdx(inst.operandAt(0));
-        auto RHS = toValue(inst.operandAt(1));
-        auto operation = inst.instDataAs<mir::ArithmeticOperation>();
-        if (inst.dest() != inst.operandAt(0)) {
-            currentBlock->insertBack(MoveInst(dest, LHS, inst.bytewidth()));
+        },
+        [&](mir::Register const& reg) {
+            auto asmInst = CallInst(RegisterIndex(reg.index()),
+                                    inst.registerOffset());
+            currentBlock->insertBack(asmInst);
             addMetadata(inst);
-        }
-        currentBlock->insertBack(Asm::ArithmeticInst(mapArithmetic(operation),
-                                                     dest,
-                                                     RHS,
-                                                     inst.bytewidth()));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::Conversion: {
-        auto dest = toRegIdx(inst.dest());
-        auto operand = toRegIdx(inst.operandAt(0));
-        struct ConversionData {
-            mir::Conversion conv;
-            u16 fromBits, toBits;
-        };
-        auto [conv, fromBits, toBits] = inst.instDataAs<ConversionData>();
-        if (inst.dest() != inst.operandAt(0)) {
-            currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
-            addMetadata(inst);
-        }
-        switch (conv) {
-        case mir::Conversion::Sext:
-            currentBlock->insertBack(
-                TruncExtInst(dest, Asm::Type::Signed, inst.bitwidth()));
-            addMetadata(inst);
-            break;
-        case mir::Conversion::Fext:
-            currentBlock->insertBack(
-                TruncExtInst(dest, Asm::Type::Float, inst.bitwidth()));
-            addMetadata(inst);
-            break;
-        case mir::Conversion::Ftrunc:
-            currentBlock->insertBack(
-                TruncExtInst(dest, Asm::Type::Float, inst.bitwidth()));
-            addMetadata(inst);
-            break;
-        case mir::Conversion::UtoF:
-            currentBlock->insertBack(ConvertInst(dest,
-                                                 Asm::Type::Unsigned,
-                                                 fromBits,
-                                                 Asm::Type::Float,
-                                                 toBits));
-            addMetadata(inst);
-            break;
-        case mir::Conversion::StoF:
-            currentBlock->insertBack(ConvertInst(dest,
-                                                 Asm::Type::Unsigned,
-                                                 fromBits,
-                                                 Asm::Type::Float,
-                                                 toBits));
-            addMetadata(inst);
-            break;
-        case mir::Conversion::FtoU:
-            currentBlock->insertBack(ConvertInst(dest,
-                                                 Asm::Type::Float,
-                                                 fromBits,
-                                                 Asm::Type::Unsigned,
-                                                 toBits));
-            addMetadata(inst);
-            break;
-        case mir::Conversion::FtoS:
-            currentBlock->insertBack(ConvertInst(dest,
-                                                 Asm::Type::Float,
-                                                 fromBits,
-                                                 Asm::Type::Signed,
-                                                 toBits));
-            addMetadata(inst);
-            break;
-        default:
+        },
+        [&](mir::Value const& value) {
             SC_UNREACHABLE();
-        }
-        break;
-    }
-    case mir::InstCode::Jump: {
-        auto* target = inst.operandAt(0);
-        currentBlock->insertBack(JumpInst(getLabelID(*target)));
-        addMetadata(inst);
-        break;
-    }
-    case mir::InstCode::CondJump: {
-        auto* target = inst.operandAt(0);
-        auto condition = inst.instDataAs<mir::CompareOperation>();
+        },
+    }; // clang-format on
+}
+
+void CGContext::genInstImpl(mir::CallExtInst const& inst) {
+    auto callee = inst.callee();
+    currentBlock->insertBack(
+        CallExtInst(inst.registerOffset(), callee.slot, callee.index));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::CondCopyInst const& inst) {
+    auto dest = toRegIdx(inst.dest());
+    auto source = toValue(inst.source());
+    auto cond = mapCompareOperation(inst.condition());
+    currentBlock->insertBack(CMoveInst(cond, dest, source, inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::LISPInst const& inst) {
+    auto dest = toRegIdx(inst.dest());
+    auto numBytes = toValue(inst.allocSize());
+    currentBlock->insertBack(
+        LIncSPInst(dest, std::get<Asm::Value16>(numBytes)));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::LEAInst const& inst) {
+    auto dest = toRegIdx(inst.dest());
+    auto address = convertAddress(inst.address());
+    currentBlock->insertBack(LEAInst(dest, address));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::CompareInst const& inst) {
+    currentBlock->insertBack(Asm::CompareInst(mapCompareMode(inst.mode()),
+                                              toValue(inst.LHS()),
+                                              toValue(inst.RHS()),
+                                              inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::TestInst const& inst) {
+    auto operand = toValue(inst.operand());
+    currentBlock->insertBack(
+        TestInst(mapCompareMode(inst.mode()), operand, inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::SetInst const& inst) {
+    currentBlock->insertBack(
+        SetInst(toRegIdx(inst.dest()), mapCompareOperation(inst.operation())));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::UnaryArithmeticInst const& inst) {
+    SC_ASSERT(inst.dest() == inst.operand(), "Illegal instruction");
+    auto operand = toRegIdx(inst.operand());
+    auto operation = inst.operation();
+    currentBlock->insertBack(UnaryArithmeticInst(mapUnaryArithmetic(operation),
+                                                 operand,
+                                                 inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::ValueArithmeticInst const& inst) {
+    SC_ASSERT(inst.dest() == inst.LHS(), "Illegal instruction");
+    auto LHS = toRegIdx(inst.LHS());
+    auto RHS = toValue(inst.RHS());
+    auto operation = mapArithmetic(inst.operation());
+    currentBlock->insertBack(
+        Asm::ArithmeticInst(operation, LHS, RHS, inst.bytewidth()));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::LoadArithmeticInst const& inst) {
+    SC_UNIMPLEMENTED();
+}
+
+void CGContext::genInstImpl(mir::ConversionInst const& inst) {
+    SC_ASSERT(inst.dest() == inst.operand(), "Illegal instruction");
+    auto operand = toRegIdx(inst.operand());
+    switch (inst.conversion()) {
+    case mir::Conversion::Sext:
         currentBlock->insertBack(
-            JumpInst(mapCompareOperation(condition), getLabelID(*target)));
+            TruncExtInst(operand, Asm::Type::Signed, inst.bitwidth()));
         addMetadata(inst);
         break;
-    }
-    case mir::InstCode::Return: {
-        currentBlock->insertBack(ReturnInst());
+    case mir::Conversion::Fext:
+        currentBlock->insertBack(
+            TruncExtInst(operand, Asm::Type::Float, inst.bitwidth()));
         addMetadata(inst);
         break;
-    }
+    case mir::Conversion::Ftrunc:
+        currentBlock->insertBack(
+            TruncExtInst(operand, Asm::Type::Float, inst.bitwidth()));
+        addMetadata(inst);
+        break;
+    case mir::Conversion::UtoF:
+        currentBlock->insertBack(ConvertInst(operand,
+                                             Asm::Type::Unsigned,
+                                             inst.fromBits(),
+                                             Asm::Type::Float,
+                                             inst.toBits()));
+        addMetadata(inst);
+        break;
+    case mir::Conversion::StoF:
+        currentBlock->insertBack(ConvertInst(operand,
+                                             Asm::Type::Unsigned,
+                                             inst.fromBits(),
+                                             Asm::Type::Float,
+                                             inst.toBits()));
+        addMetadata(inst);
+        break;
+    case mir::Conversion::FtoU:
+        currentBlock->insertBack(ConvertInst(operand,
+                                             Asm::Type::Float,
+                                             inst.fromBits(),
+                                             Asm::Type::Unsigned,
+                                             inst.toBits()));
+        addMetadata(inst);
+        break;
+    case mir::Conversion::FtoS:
+        currentBlock->insertBack(ConvertInst(operand,
+                                             Asm::Type::Float,
+                                             inst.fromBits(),
+                                             Asm::Type::Signed,
+                                             inst.toBits()));
+        addMetadata(inst);
+        break;
     default:
         SC_UNREACHABLE();
     }
 }
 
+void CGContext::genInstImpl(mir::JumpInst const& inst) {
+    currentBlock->insertBack(JumpInst(getLabelID(*inst.target())));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::CondJumpInst const& inst) {
+    auto condition = mapCompareOperation(inst.condition());
+    currentBlock->insertBack(JumpInst(condition, getLabelID(*inst.target())));
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::ReturnInst const& inst) {
+    SC_ASSERT(inst.numOperands() == 0, "Illegal instruction");
+    currentBlock->insertBack(ReturnInst());
+    addMetadata(inst);
+}
+
+void CGContext::genInstImpl(mir::PhiInst const& inst) {
+    SC_UNREACHABLE("Illegal instruction");
+}
+
+void CGContext::genInstImpl(mir::SelectInst const& inst) {
+    SC_UNREACHABLE("Illegal instruction");
+}
+
 static Asm::UnaryArithmeticOperation mapUnaryArithmetic(
     mir::UnaryArithmeticOperation op) {
     // clang-format off
-    return UTL_MAP_ENUM(op, Asm::UnaryArithmeticOperation, {
-        { mir::UnaryArithmeticOperation::BitwiseNot,   Asm::UnaryArithmeticOperation::BitwiseNot },
-        { mir::UnaryArithmeticOperation::LogicalNot,   Asm::UnaryArithmeticOperation::LogicalNot },
-        { mir::UnaryArithmeticOperation::Negate,       Asm::UnaryArithmeticOperation::Negate     },
-    }); // clang-format on
+     return UTL_MAP_ENUM(op, Asm::UnaryArithmeticOperation, {
+         { mir::UnaryArithmeticOperation::BitwiseNot,
+         Asm::UnaryArithmeticOperation::BitwiseNot }, {
+         mir::UnaryArithmeticOperation::LogicalNot,
+         Asm::UnaryArithmeticOperation::LogicalNot }, {
+         mir::UnaryArithmeticOperation::Negate,
+         Asm::UnaryArithmeticOperation::Negate     },
+     }); // clang-format on
 }
 
 static Asm::ArithmeticOperation mapArithmetic(mir::ArithmeticOperation op) {
     // clang-format off
-    return UTL_MAP_ENUM(op, Asm::ArithmeticOperation, {
-        { mir::ArithmeticOperation::Add,   Asm::ArithmeticOperation::Add  },
-        { mir::ArithmeticOperation::Sub,   Asm::ArithmeticOperation::Sub  },
-        { mir::ArithmeticOperation::Mul,   Asm::ArithmeticOperation::Mul  },
-        { mir::ArithmeticOperation::SDiv,  Asm::ArithmeticOperation::SDiv },
-        { mir::ArithmeticOperation::UDiv,  Asm::ArithmeticOperation::UDiv },
-        { mir::ArithmeticOperation::SRem,  Asm::ArithmeticOperation::SRem },
-        { mir::ArithmeticOperation::URem,  Asm::ArithmeticOperation::URem },
-        { mir::ArithmeticOperation::FAdd,  Asm::ArithmeticOperation::FAdd },
-        { mir::ArithmeticOperation::FSub,  Asm::ArithmeticOperation::FSub },
-        { mir::ArithmeticOperation::FMul,  Asm::ArithmeticOperation::FMul },
-        { mir::ArithmeticOperation::FDiv,  Asm::ArithmeticOperation::FDiv },
-        { mir::ArithmeticOperation::LShL,  Asm::ArithmeticOperation::LShL },
-        { mir::ArithmeticOperation::LShR,  Asm::ArithmeticOperation::LShR },
-        { mir::ArithmeticOperation::AShL,  Asm::ArithmeticOperation::AShL },
-        { mir::ArithmeticOperation::AShR,  Asm::ArithmeticOperation::AShR },
-        { mir::ArithmeticOperation::And,   Asm::ArithmeticOperation::And  },
-        { mir::ArithmeticOperation::Or,    Asm::ArithmeticOperation::Or   },
-        { mir::ArithmeticOperation::XOr,   Asm::ArithmeticOperation::XOr  },
-    });
+     return UTL_MAP_ENUM(op, Asm::ArithmeticOperation, {
+         { mir::ArithmeticOperation::Add,   Asm::ArithmeticOperation::Add  },
+         { mir::ArithmeticOperation::Sub,   Asm::ArithmeticOperation::Sub  },
+         { mir::ArithmeticOperation::Mul,   Asm::ArithmeticOperation::Mul  },
+         { mir::ArithmeticOperation::SDiv,  Asm::ArithmeticOperation::SDiv },
+         { mir::ArithmeticOperation::UDiv,  Asm::ArithmeticOperation::UDiv },
+         { mir::ArithmeticOperation::SRem,  Asm::ArithmeticOperation::SRem },
+         { mir::ArithmeticOperation::URem,  Asm::ArithmeticOperation::URem },
+         { mir::ArithmeticOperation::FAdd,  Asm::ArithmeticOperation::FAdd },
+         { mir::ArithmeticOperation::FSub,  Asm::ArithmeticOperation::FSub },
+         { mir::ArithmeticOperation::FMul,  Asm::ArithmeticOperation::FMul },
+         { mir::ArithmeticOperation::FDiv,  Asm::ArithmeticOperation::FDiv },
+         { mir::ArithmeticOperation::LShL,  Asm::ArithmeticOperation::LShL },
+         { mir::ArithmeticOperation::LShR,  Asm::ArithmeticOperation::LShR },
+         { mir::ArithmeticOperation::AShL,  Asm::ArithmeticOperation::AShL },
+         { mir::ArithmeticOperation::AShR,  Asm::ArithmeticOperation::AShR },
+         { mir::ArithmeticOperation::And,   Asm::ArithmeticOperation::And  },
+         { mir::ArithmeticOperation::Or,    Asm::ArithmeticOperation::Or   },
+         { mir::ArithmeticOperation::XOr,   Asm::ArithmeticOperation::XOr  },
+     });
     // clang-format on
 }
 
 static Asm::CompareOperation mapCompareOperation(mir::CompareOperation op) {
     // clang-format off
-    return UTL_MAP_ENUM(op, Asm::CompareOperation, {
-        { mir::CompareOperation::Less,      Asm::CompareOperation::Less      },
-        { mir::CompareOperation::LessEq,    Asm::CompareOperation::LessEq    },
-        { mir::CompareOperation::Greater,   Asm::CompareOperation::Greater   },
-        { mir::CompareOperation::GreaterEq, Asm::CompareOperation::GreaterEq },
-        { mir::CompareOperation::Equal,     Asm::CompareOperation::Eq        },
-        { mir::CompareOperation::NotEqual,  Asm::CompareOperation::NotEq     },
-    });
+     return UTL_MAP_ENUM(op, Asm::CompareOperation, {
+         { mir::CompareOperation::Less,      Asm::CompareOperation::Less }, {
+         mir::CompareOperation::LessEq,    Asm::CompareOperation::LessEq    },
+         { mir::CompareOperation::Greater,   Asm::CompareOperation::Greater },
+         { mir::CompareOperation::GreaterEq, Asm::CompareOperation::GreaterEq
+         }, { mir::CompareOperation::Equal,     Asm::CompareOperation::Eq },
+         { mir::CompareOperation::NotEqual,  Asm::CompareOperation::NotEq },
+     });
     // clang-format on
 }
 

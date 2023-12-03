@@ -116,16 +116,16 @@ using ir::Conversion;
 using ir::UnaryArithmeticOperation;
 using ir::Visibility;
 
+/// Constant factor and term of the address calculation
+struct MemAddrConstantData {
+    uint8_t offsetFactor;
+    uint8_t offsetTerm;
+};
+
 /// Encapsules memory address representation of the VM.
 template <typename V>
 class MemoryAddressImpl {
 public:
-    /// Constant factor and term of the address calculation
-    struct ConstantData {
-        uint8_t offsetFactor;
-        uint8_t offsetTerm;
-    };
-
     MemoryAddressImpl(V* base,
                       V* dynOffset,
                       uint32_t offsetFactor,
@@ -135,7 +135,7 @@ public:
                           { utl::narrow_cast<uint8_t>(offsetFactor),
                             utl::narrow_cast<uint8_t>(offsetTerm) }) {}
 
-    MemoryAddressImpl(V* base, V* dynOffset, ConstantData constData):
+    MemoryAddressImpl(V* base, V* dynOffset, MemAddrConstantData constData):
         base(base), _dynOffset(dynOffset), constData(constData) {}
 
     explicit MemoryAddressImpl(V* base, uint32_t offsetTerm = 0):
@@ -149,7 +149,7 @@ public:
     V* dynOffset() { return _dynOffset; }
 
     /// \Returns The constant data i.e. offset factor and offset term
-    ConstantData constantData() const { return constData; }
+    MemAddrConstantData constantData() const { return constData; }
 
     /// \Returns The constant offset factor
     uint32_t offsetFactor() { return constData.offsetFactor; }
@@ -160,7 +160,7 @@ public:
 private:
     V* base;
     V* _dynOffset;
-    ConstantData constData;
+    MemAddrConstantData constData;
 };
 
 using MemoryAddress = MemoryAddressImpl<Value>;
@@ -184,7 +184,7 @@ struct CallInstData {
     bool isMemoryCall{};
 
     ///
-    MemoryAddress::ConstantData addressData{};
+    MemAddrConstantData addressData{};
 };
 
 static_assert(sizeof(CallInstData) <= 16,

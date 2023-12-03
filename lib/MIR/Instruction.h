@@ -45,6 +45,9 @@ public:
     /// \overload
     std::span<Value const* const> operands() const { return _ops; }
 
+    /// \Returns the number of operands of this instruction
+    size_t numOperands() const { return _ops.size(); }
+
     /// \Returns The (first) register this instruction defines. This instruction
     /// might also define following registers depending on the value of
     /// `numDests()`
@@ -153,10 +156,16 @@ public:
                  _constData };
     }
 
+    ConstMemoryAddress address() const {
+        return { derived().operandAt(AddrIdx),
+                 derived().operandAt(OffsetIdx),
+                 _constData };
+    }
+
     void setAddress(MemoryAddress addr) { _constData = addr.constantData(); }
 
 protected:
-    MemoryInst(MemoryAddress::ConstantData constData): _constData(constData) {}
+    MemoryInst(MemAddrConstantData constData): _constData(constData) {}
 
 private:
     Derived& derived() { return static_cast<Derived&>(*this); }
@@ -164,7 +173,7 @@ private:
         return static_cast<Derived const&>(*this);
     }
 
-    MemoryAddress::ConstantData _constData;
+    MemAddrConstantData _constData;
 };
 
 } // namespace scatha::mir
