@@ -54,7 +54,7 @@ public:
 class CopyInst: public Instruction {
 public:
     explicit CopyInst(Register* dest,
-                      Register* source,
+                      Value* source,
                       size_t byteWidth,
                       Metadata metadata):
         Instruction(InstType::CopyInst,
@@ -391,30 +391,29 @@ protected:
 
 class JumpBase: public TerminatorInst {
 public:
-    /// The target basic block of this jump
-    BasicBlock* target() {
-        return const_cast<BasicBlock*>(
-            static_cast<JumpBase const*>(this)->target());
+    /// The target basic block or function of this jump
+    Value* target() {
+        return const_cast<Value*>(static_cast<JumpBase const*>(this)->target());
     }
 
     /// \overload
-    BasicBlock const* target() const;
+    Value const* target() const;
 
 protected:
-    JumpBase(InstType instType, BasicBlock* target, Metadata metadata);
+    JumpBase(InstType instType, Value* target, Metadata metadata);
 };
 
 ///
 class JumpInst: public JumpBase {
 public:
-    explicit JumpInst(BasicBlock* target, Metadata metadata):
+    explicit JumpInst(Value* target, Metadata metadata):
         JumpBase(InstType::JumpInst, target, std::move(metadata)) {}
 };
 
 ///
 class CondJumpInst: public JumpBase {
 public:
-    explicit CondJumpInst(BasicBlock* target,
+    explicit CondJumpInst(Value* target,
                           CompareOperation condition,
                           Metadata metadata):
         JumpBase(InstType::CondJumpInst, target, std::move(metadata)),

@@ -24,9 +24,9 @@ ConversionInst::ConversionInst(Register* dest,
     _fromBits(utl::narrow_cast<uint16_t>(fromBits)),
     _toBits(utl::narrow_cast<uint16_t>(toBits)) {}
 
-JumpBase::JumpBase(InstType instType, BasicBlock* target, Metadata metadata):
+JumpBase::JumpBase(InstType instType, Value* target, Metadata metadata):
     TerminatorInst(instType, { target }, std::move(metadata)) {}
 
-BasicBlock const* JumpBase::target() const {
-    return cast<BasicBlock const*>(operandAt(0));
+Value const* JumpBase::target() const {
+    return cast<Value const*>(operandAt(0));
 }
