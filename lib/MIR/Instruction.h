@@ -120,6 +120,14 @@ public:
     /// Set the destination register to `nullptr` and `numDests` to 1
     void clearDest();
 
+    /// The index of this instruction in the parent block
+    /// \pre `linearizeInstructions()` must have been called on the parent
+    /// function
+    size_t index() const {
+        SC_EXPECT(_index != ~0);
+        return _index;
+    }
+
 protected:
     Instruction(InstType instType,
                 Register* dest,
@@ -129,11 +137,14 @@ protected:
                 Metadata metadata);
 
 private:
+    friend class Function; // To set the index
+
     InstType _instType;
     Register* _dest = nullptr;
     utl::small_vector<Value*> _ops;
-    size_t _numDests = 0;
-    size_t _byteWidth;
+    uint8_t _numDests = 0;
+    uint8_t _byteWidth = 0;
+    uint32_t _index = ~0u;
 };
 
 /// For `dyncast` et al to work

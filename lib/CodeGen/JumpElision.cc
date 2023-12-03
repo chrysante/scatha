@@ -117,6 +117,7 @@ void JumpElimContext::DFS(BasicBlock* BB) {
     }
 }
 
+/// \Warning this is linear in the number of instructions in \p BB
 static bool hasJumpsTo(BasicBlock const* BB, BasicBlock const* dest) {
     return ranges::any_of(*BB, [&](Instruction const& inst) {
         if (auto* jump = dyncast<JumpBase const*>(&inst)) {
@@ -131,7 +132,7 @@ void JumpElimContext::removeJumps() {
         /// After we will splice `next` into `BB`, there might be another jump
         /// at the end that we can now elide, so we repeat the process for the
         /// current block
-        while (true) {
+        while (!BB.empty()) {
             auto* jump = dyncast<JumpInst*>(&BB.back());
             if (!jump) {
                 break;

@@ -1,5 +1,7 @@
 #include "MIR/Instruction.h"
 
+#include <utl/utility.hpp>
+
 using namespace scatha;
 using namespace mir;
 
@@ -11,7 +13,7 @@ Instruction::Instruction(InstType instType,
                          Metadata metadata):
     ObjectWithMetadata(std::move(metadata)),
     _instType(instType),
-    _byteWidth(byteWidth) {
+    _byteWidth(utl::narrow_cast<uint8_t>(byteWidth)) {
     setDest(dest, numDests);
     setOperands(std::move(operands));
 }
@@ -23,7 +25,7 @@ void Instruction::setDest(Register* newDest, size_t numDests) {
     }
     clearDest();
     _dest = newDest;
-    _numDests = utl::narrow_cast<uint16_t>(numDests);
+    _numDests = utl::narrow_cast<uint8_t>(numDests);
     for (auto* reg: destRegisters()) {
         reg->addDef(this);
     }

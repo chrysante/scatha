@@ -64,15 +64,12 @@ Function::Function(ir::Function const* irFunc,
 }
 
 void Function::linearizeInstructions() {
-#warning Fix this
-    SC_UNIMPLEMENTED();
     instrs.clear();
-    size_t index = 0;
-    for (auto& BB: *this) {
-        for (auto& inst: BB) {
-            //            inst.setIndex(index++);
-            instrs.push_back(&inst);
-        }
+    for (auto [index, inst]:
+         *this | ranges::views::join | ranges::views::enumerate)
+    {
+        inst._index = utl::narrow_cast<uint32_t>(index);
+        instrs.push_back(&inst);
     }
 }
 
