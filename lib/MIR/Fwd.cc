@@ -66,11 +66,3 @@ std::string_view mir::toString(InstCode code) {
 std::ostream& mir::operator<<(std::ostream& ostream, InstCode code) {
     return ostream << toString(code);
 }
-
-bool mir::isTerminator(InstCode code) {
-    return isJump(code) || code == InstCode::Return;
-}
-
-bool mir::isJump(InstCode code) {
-    return code == InstCode::Jump || code == InstCode::CondJump;
-}

@@ -109,12 +109,6 @@ std::string_view toString(InstCode code);
 
 std::ostream& operator<<(std::ostream& ostream, InstCode code);
 
-/// \Returns `true` if \p code is a terminator instruction.
-bool isTerminator(InstCode code);
-
-/// \Returns `true` if \p code is a jump or conditional jump instruction.
-bool isJump(InstCode code);
-
 using ir::ArithmeticOperation;
 using ir::CompareMode;
 using ir::CompareOperation;
@@ -123,7 +117,8 @@ using ir::UnaryArithmeticOperation;
 using ir::Visibility;
 
 /// Encapsules memory address representation of the VM.
-class MemoryAddress {
+template <typename V>
+class MemoryAddressImpl {
 public:
     /// Constant factor and term of the address calculation
     struct ConstantData {
@@ -131,33 +126,27 @@ public:
         uint8_t offsetTerm;
     };
 
-    MemoryAddress(Value* base,
-                  Value* dynOffset,
-                  uint32_t offsetFactor,
-                  uint32_t offsetTerm):
-        MemoryAddress(base,
-                      dynOffset,
-                      { utl::narrow_cast<uint8_t>(offsetFactor),
-                        utl::narrow_cast<uint8_t>(offsetTerm) }) {}
+    MemoryAddressImpl(V* base,
+                      V* dynOffset,
+                      uint32_t offsetFactor,
+                      uint32_t offsetTerm):
+        MemoryAddressImpl(base,
+                          dynOffset,
+                          { utl::narrow_cast<uint8_t>(offsetFactor),
+                            utl::narrow_cast<uint8_t>(offsetTerm) }) {}
 
-    MemoryAddress(Value* base, Value* dynOffset, ConstantData constData):
+    MemoryAddressImpl(V* base, V* dynOffset, ConstantData constData):
         base(base), _dynOffset(dynOffset), constData(constData) {}
 
-    explicit MemoryAddress(Value* base, uint32_t offsetTerm = 0):
-        MemoryAddress(base, nullptr, 0, offsetTerm) {}
+    explicit MemoryAddressImpl(V* base, uint32_t offsetTerm = 0):
+        MemoryAddressImpl(base, nullptr, 0, offsetTerm) {}
 
     /// \Returns The register that holds the base address
-    Value* baseAddress() { return base; }
-
-    /// \overload
-    Value const* baseAddress() const { return base; }
+    V* baseAddress() { return base; }
 
     /// \Returns The register that holds the offset factor or `nullptr` if none
     /// is present
-    Value* dynOffset() { return _dynOffset; }
-
-    /// \overload
-    Value const* dynOffset() const { return _dynOffset; }
+    V* dynOffset() { return _dynOffset; }
 
     /// \Returns The constant data i.e. offset factor and offset term
     ConstantData constantData() const { return constData; }
@@ -169,10 +158,13 @@ public:
     uint32_t offsetTerm() { return constData.offsetTerm; }
 
 private:
-    Value* base;
-    Value* _dynOffset;
+    V* base;
+    V* _dynOffset;
     ConstantData constData;
 };
+
+using MemoryAddress = MemoryAddressImpl<Value>;
+using ConstMemoryAddress = MemoryAddressImpl<Value const>;
 
 /// Represents the address of an external function.
 struct ExtFuncAddress {
