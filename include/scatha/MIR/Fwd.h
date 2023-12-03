@@ -97,18 +97,6 @@ SCTEST_API void privateDestroy(mir::Instruction* inst);
 
 namespace scatha::mir {
 
-/// Enum listing all instructions in the MIR module.
-enum class InstCode : uint16_t {
-#define SC_MIR_INSTRUCTION_DEF(type, name) type,
-#include <scatha/MIR/Lists.def>
-    _count
-};
-
-/// Convert \p code to string
-std::string_view toString(InstCode code);
-
-std::ostream& operator<<(std::ostream& ostream, InstCode code);
-
 using ir::ArithmeticOperation;
 using ir::CompareMode;
 using ir::CompareOperation;

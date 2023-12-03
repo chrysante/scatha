@@ -51,18 +51,3 @@ void mir::privateDelete(mir::Instruction* inst) {
 void mir::privateDestroy(mir::Instruction* inst) {
     visit(*inst, [](auto& inst) { std::destroy_at(&inst); });
 }
-
-std::string_view mir::toString(InstCode code) {
-    switch (code) {
-#define SC_MIR_INSTRUCTION_DEF(Inst, Name)                                     \
-    case InstCode::Inst:                                                       \
-        return Name;
-#include "MIR/Lists.def"
-    case InstCode::_count:
-        SC_UNREACHABLE();
-    }
-}
-
-std::ostream& mir::operator<<(std::ostream& ostream, InstCode code) {
-    return ostream << toString(code);
-}
