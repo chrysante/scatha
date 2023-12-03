@@ -47,11 +47,8 @@ enum class NodeType {
 /// Convert \p nodeType to string.
 std::string_view toString(NodeType nodeType);
 
+///
 std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
-
-} // namespace scatha::mir
-
-namespace scatha::mir {
 
 /// Insulated call to `delete` on the most derived base of \p value
 SCTEST_API void privateDelete(mir::Value* value);
@@ -59,10 +56,27 @@ SCTEST_API void privateDelete(mir::Value* value);
 /// Insulated call to destructor on the most derived base of \p value
 SCTEST_API void privateDestroy(mir::Value* value);
 
-/// \overload
+/// Forward declarations of all instructions in the MIR module.
+#define SC_MIR_INSTCLASS_DEF(type, _) class type;
+#include <scatha/MIR/Lists.def>
+
+/// Enum listing all instruction types in the MIR module.
+enum class InstType : uint16_t {
+#define SC_MIR_INSTCLASS_DEF(type, _) type,
+#include <scatha/MIR/Lists.def>
+    _count
+};
+
+/// Convert \p instType to string
+std::string_view toString(InstType instType);
+
+///
+std::ostream& operator<<(std::ostream& ostream, InstType type);
+
+/// Insulated call to `delete` on the most derived base of \p inst
 SCTEST_API void privateDelete(mir::Instruction* inst);
 
-/// \overload
+/// Insulated call to destructor on the most derived base of \p inst
 SCTEST_API void privateDestroy(mir::Instruction* inst);
 
 } // namespace scatha::mir
@@ -71,6 +85,13 @@ SCTEST_API void privateDestroy(mir::Instruction* inst);
 #define SC_MIR_CFGNODE_DEF(Node, Abstractness)                                 \
     SC_DYNCAST_MAP(::scatha::mir::Node,                                        \
                    ::scatha::mir::NodeType::Node,                              \
+                   Abstractness)
+#include <scatha/MIR/Lists.def>
+
+/// Map enum `InstType` to actual instruction types
+#define SC_MIR_INSTCLASS_DEF(Inst, Abstractness)                               \
+    SC_DYNCAST_MAP(::scatha::mir::Inst,                                        \
+                   ::scatha::mir::InstType::Inst,                              \
                    Abstractness)
 #include <scatha/MIR/Lists.def>
 
@@ -110,35 +131,33 @@ public:
         uint8_t offsetTerm;
     };
 
-    explicit MemoryAddress(Register* addrReg,
-                           Register* offsetReg,
-                           uint32_t offsetFactor,
-                           uint32_t offsetTerm):
-        MemoryAddress(addrReg,
-                      offsetReg,
+    MemoryAddress(Value* base,
+                  Value* dynOffset,
+                  uint32_t offsetFactor,
+                  uint32_t offsetTerm):
+        MemoryAddress(base,
+                      dynOffset,
                       { utl::narrow_cast<uint8_t>(offsetFactor),
                         utl::narrow_cast<uint8_t>(offsetTerm) }) {}
 
-    explicit MemoryAddress(Register* addrReg,
-                           Register* offsetReg,
-                           ConstantData constData):
-        addrReg(addrReg), offsetReg(offsetReg), constData(constData) {}
+    MemoryAddress(Value* base, Value* dynOffset, ConstantData constData):
+        base(base), _dynOffset(dynOffset), constData(constData) {}
 
-    explicit MemoryAddress(Register* addrReg, uint32_t offsetTerm = 0):
-        MemoryAddress(addrReg, nullptr, 0, offsetTerm) {}
+    explicit MemoryAddress(Value* base, uint32_t offsetTerm = 0):
+        MemoryAddress(base, nullptr, 0, offsetTerm) {}
 
     /// \Returns The register that holds the base address
-    Register* addressRegister() { return addrReg; }
+    Value* baseAddress() { return base; }
 
     /// \overload
-    Register const* addressRegister() const { return addrReg; }
+    Value const* baseAddress() const { return base; }
 
     /// \Returns The register that holds the offset factor or `nullptr` if none
     /// is present
-    Register* offsetRegister() { return offsetReg; }
+    Value* dynOffset() { return _dynOffset; }
 
     /// \overload
-    Register const* offsetRegister() const { return offsetReg; }
+    Value const* dynOffset() const { return _dynOffset; }
 
     /// \Returns The constant data i.e. offset factor and offset term
     ConstantData constantData() const { return constData; }
@@ -150,8 +169,8 @@ public:
     uint32_t offsetTerm() { return constData.offsetTerm; }
 
 private:
-    Register* addrReg;
-    Register* offsetReg;
+    Value* base;
+    Value* _dynOffset;
     ConstantData constData;
 };
 

@@ -9,6 +9,7 @@
 
 #include "Common/PrintUtil.h"
 #include "MIR/CFG.h"
+#include "MIR/Instructions.h"
 #include "MIR/Module.h"
 
 using namespace scatha;
@@ -65,51 +66,14 @@ static constexpr auto regName =
 
 static constexpr auto opcode =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::Red | tfmt::Bold, args...);
+        return str << std::left << std::setw(6)
+                   << tfmt::format(tfmt::Red | tfmt::Bold, args...);
     });
 
 static constexpr auto light =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::BrightGrey | tfmt::Italic, args...);
     });
-
-static std::string formatInstCode(mir::Instruction const& inst) {
-    switch (inst.instcode()) {
-    case InstCode::Copy:
-        return utl::strcat("cpy", inst.bitwidth());
-    case InstCode::CondCopy:
-        return utl::strcat("c",
-                           inst.instDataAs<CompareOperation>(),
-                           inst.bitwidth());
-    case InstCode::Compare:
-        return utl::strcat(inst.instDataAs<CompareMode>(), inst.bitwidth());
-    case InstCode::Set:
-        return utl::strcat("set", inst.instDataAs<CompareOperation>());
-    case InstCode::Test:
-        switch (inst.instDataAs<CompareMode>()) {
-        case CompareMode::Signed:
-            return utl::strcat("stest", inst.bitwidth());
-        case CompareMode::Unsigned:
-            return utl::strcat("utest", inst.bitwidth());
-        default:
-            SC_UNREACHABLE();
-        }
-    case InstCode::UnaryArithmetic:
-        return utl::strcat(toString(
-                               inst.instDataAs<UnaryArithmeticOperation>()),
-                           inst.bitwidth());
-    case InstCode::Arithmetic:
-        return utl::strcat(inst.instDataAs<ArithmeticOperation>(),
-                           inst.bitwidth());
-    case InstCode::Conversion:
-        return utl::strcat(inst.instDataAs<Conversion>());
-    case InstCode::CondJump:
-        return utl::strcat("j", inst.instDataAs<CompareOperation>());
-    default:
-        break;
-    }
-    return std::string(mir::toString(inst.instcode()));
-}
 
 namespace {
 
@@ -161,7 +125,111 @@ struct PrintContext {
         str << light(" ]") << "\n";
     }
 
+    void print(Instruction const& inst) {
+        visit(inst, [&](auto& inst) { printImpl(inst); });
+    }
+
+    /// Here we print `dest_reg = ` or nothing if the instruction does not write
+    /// to a register
+    void printInstBegin(Instruction const& inst) {
+        str << indent;
+        if (auto* reg = inst.dest()) {
+            str << std::setw(3) << std::left << regName(reg)
+                << tfmt::format(None, " = ");
+        }
+        else {
+            str << std::setw(6) << "";
+        }
+    }
+
+    void printOperands(Instruction const& inst) {
+        for (bool first = true; auto* op: inst.operands()) {
+            if (!first) {
+                str << ", ";
+            }
+            first = false;
+            print(op);
+        }
+    }
+
+    void printImpl(StoreInst const& inst) {
+        printInstBegin(inst);
+        str << opcode("store") << " ";
+        printOperands(inst);
+    }
+
+    void printImpl(LoadInst const& inst) {
+        printInstBegin(inst);
+        str << opcode("store") << " ";
+        printOperands(inst);
+    }
+
+    void printImpl(CopyInst const& inst) {}
+
+    void printImpl(CallBase const& inst) {}
+
+    void printImpl(CallInst const& inst) {}
+
+    void printImpl(CallExtInst const& inst) {}
+
+    void printImpl(CondCopyInst const& inst) {}
+
+    void printImpl(LISPInst const& inst) {}
+
+    void printImpl(LEAInst const& inst) {}
+
+    void printImpl(CompareInst const& inst) {}
+
+    void printImpl(TestInst const& inst) {}
+
+    void printImpl(SetInst const& inst) {}
+
+    void printImpl(UnaryArithmeticInst const& inst) {}
+
+    void printImpl(ArithmeticInst const& inst) {}
+
+    void printImpl(ValueArithmeticInst const& inst) {}
+
+    void printImpl(LoadArithmeticInst const& inst) {}
+
+    void printImpl(ConversionInst const& inst) {}
+
+    void printImpl(TerminatorInst const& inst) {}
+
+    void printImpl(JumpBase const& inst) {}
+
+    void printImpl(JumpInst const& inst) {}
+
+    void printImpl(CondJumpInst const& inst) {}
+
+    void printImpl(ReturnInst const& inst) {}
+
+    void printImpl(PhiInst const& inst) {
+        printInstBegin(inst);
+        str << opcode("phi") << " ";
+        /// For phi instructions we print the operands with the predecessors
+        utl::streammanip predName = [&](std::ostream& str, size_t index) {
+            auto* parent = inst.parent();
+            if (!parent) {
+                str << "null";
+                return;
+            }
+            str << localName(parent->predecessors()[index]->name());
+        };
+        for (auto [index, op]: inst.operands() | ranges::views::enumerate) {
+            if (index != 0) {
+                str << ", ";
+            }
+            str << "[" << predName(index) << ": ";
+            print(op);
+            str << "]";
+        }
+    }
+
+    void printImpl(SelectInst const& inst) {}
+
     void print(Instruction const* inst) {
+#if 0
         str << indent;
         if (auto* reg = inst->dest()) {
             str << std::setw(3) << std::left << regName(reg)
@@ -170,9 +238,9 @@ struct PrintContext {
         else {
             str << std::setw(6) << "";
         }
-        std::string opcodeStr = formatInstCode(*inst);
-        str << std::left << std::setw(6) << opcode(opcodeStr) << " ";
-        if (inst->instcode() == InstCode::Phi) {
+        std::string opcodeStr = formatInstType(*inst);
+        str << opcode(opcodeStr) << " ";
+        if (inst->instcode() == InstType::Phi) {
             for (size_t i = 0; auto* op: inst->operands()) {
                 if (i != 0) {
                     str << ", ";
@@ -193,28 +261,29 @@ struct PrintContext {
                 print(op);
             }
         }
-        if (inst->instcode() == InstCode::Load ||
-            inst->instcode() == InstCode::Store ||
-            inst->instcode() == InstCode::LEA)
+        if (inst->instcode() == InstType::Load ||
+            inst->instcode() == InstType::Store ||
+            inst->instcode() == InstType::LEA)
         {
             printPtrData(inst->instDataAs<MemoryAddress::ConstantData>());
         }
 
-        if (inst->instcode() == InstCode::Call ||
-            inst->instcode() == InstCode::CallExt)
+        if (inst->instcode() == InstType::Call ||
+            inst->instcode() == InstType::CallExt)
         {
             if (!inst->operands().empty()) {
                 str << ", ";
             }
             auto callData = inst->instDataAs<CallInstData>();
             str << "regoffset=" << callData.regOffset;
-            if (inst->instcode() == InstCode::CallExt) {
+            if (inst->instcode() == InstType::CallExt) {
                 str << ", slot=" << callData.extFuncAddress.slot;
                 str << ", index=" << callData.extFuncAddress.index;
             }
         }
 
         str << "\n";
+#endif
     }
 
     void print(Value const* value) {

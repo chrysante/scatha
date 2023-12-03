@@ -2,6 +2,7 @@
 
 #include "Common/Ranges.h"
 #include "MIR/CFG.h"
+#include "MIR/Instruction.h"
 
 using namespace scatha;
 using namespace mir;

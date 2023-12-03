@@ -5,6 +5,7 @@
 #include "IR/CFG.h"
 #include "IR/Loop.h"
 #include "MIR/CFG.h"
+#include "MIR/Instruction.h"
 
 using namespace scatha;
 using namespace cg;

@@ -53,3 +53,40 @@ SC_MIR_INSTRUCTION_DEF(Phi,             "phi")        // (Value...) // One Value
 SC_MIR_INSTRUCTION_DEF(Select,          "sel")        // (Value, Value)             [Data[0] = condition] // Condition to take first value
 
 #undef SC_MIR_INSTRUCTION_DEF
+
+// ===----------------------------------------------------------------------===
+// === Instruction classes -------------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_MIR_INSTCLASS_DEF
+#   define SC_MIR_INSTCLASS_DEF(node, _)
+#endif
+
+SC_MIR_INSTCLASS_DEF(Instruction,     ABSTRACT)
+
+SC_MIR_INSTCLASS_DEF(StoreInst,           CONCRETE)
+SC_MIR_INSTCLASS_DEF(LoadInst,            CONCRETE)
+SC_MIR_INSTCLASS_DEF(CopyInst,            CONCRETE)
+SC_MIR_INSTCLASS_DEF(CallBase,            ABSTRACT)
+SC_MIR_INSTCLASS_DEF(CallInst,            CONCRETE)
+SC_MIR_INSTCLASS_DEF(CallExtInst,         CONCRETE)
+SC_MIR_INSTCLASS_DEF(CondCopyInst,        CONCRETE)
+SC_MIR_INSTCLASS_DEF(LISPInst,            CONCRETE)
+SC_MIR_INSTCLASS_DEF(LEAInst,             CONCRETE)
+SC_MIR_INSTCLASS_DEF(CompareInst,         CONCRETE)
+SC_MIR_INSTCLASS_DEF(TestInst,            CONCRETE)
+SC_MIR_INSTCLASS_DEF(SetInst,             CONCRETE)
+SC_MIR_INSTCLASS_DEF(UnaryArithmeticInst, CONCRETE)
+SC_MIR_INSTCLASS_DEF(ArithmeticInst,      ABSTRACT)
+SC_MIR_INSTCLASS_DEF(ValueArithmeticInst, CONCRETE)
+SC_MIR_INSTCLASS_DEF(LoadArithmeticInst,  CONCRETE)
+SC_MIR_INSTCLASS_DEF(ConversionInst,      CONCRETE)
+SC_MIR_INSTCLASS_DEF(TerminatorInst,      ABSTRACT)
+SC_MIR_INSTCLASS_DEF(JumpBase,            ABSTRACT)
+SC_MIR_INSTCLASS_DEF(JumpInst,            CONCRETE)
+SC_MIR_INSTCLASS_DEF(CondJumpInst,        CONCRETE)
+SC_MIR_INSTCLASS_DEF(ReturnInst,          CONCRETE)
+SC_MIR_INSTCLASS_DEF(PhiInst,             CONCRETE)
+SC_MIR_INSTCLASS_DEF(SelectInst,          CONCRETE)
+
+#undef SC_MIR_INSTCLASS_DEF

@@ -1,6 +1,7 @@
 #include "MIR/Fwd.h"
 
 #include "MIR/CFG.h"
+#include "MIR/Instructions.h"
 
 using namespace scatha;
 using namespace mir;
@@ -28,9 +29,28 @@ void mir::privateDestroy(mir::Value* value) {
     visit(*value, [](auto& value) { std::destroy_at(&value); });
 }
 
-void mir::privateDelete(mir::Instruction* inst) { delete inst; }
+std::string_view mir::toString(InstType instType) {
+    switch (instType) {
+#define SC_MIR_INSTCLASS_DEF(Inst, _)                                          \
+    case InstType::Inst:                                                       \
+        return #Inst;
+#include "MIR/Lists.def"
+    case InstType::_count:
+        SC_UNREACHABLE();
+    }
+}
 
-void mir::privateDestroy(mir::Instruction* inst) { std::destroy_at(inst); }
+std::ostream& mir::operator<<(std::ostream& ostream, InstType instType) {
+    return ostream << toString(instType);
+}
+
+void mir::privateDelete(mir::Instruction* inst) {
+    visit(*inst, [](auto& inst) { delete &inst; });
+}
+
+void mir::privateDestroy(mir::Instruction* inst) {
+    visit(*inst, [](auto& inst) { std::destroy_at(&inst); });
+}
 
 std::string_view mir::toString(InstCode code) {
     switch (code) {

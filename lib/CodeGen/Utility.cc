@@ -1,6 +1,6 @@
 #include "CodeGen/Utility.h"
 
-#include "MIR/CFG.h"
+#include "MIR/Instruction.h"
 
 using namespace scatha;
 using namespace cg;
