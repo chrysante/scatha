@@ -3,37 +3,29 @@
 #include "CodeGen/InterferenceGraph.h"
 #include "CodeGen/Utility.h"
 #include "MIR/CFG.h"
+#include "MIR/Instructions.h"
 
 using namespace scatha;
 using namespace cg;
+using namespace mir;
 
 void cg::allocateRegisters(mir::Function& F) {
-    for (auto& inst: F.instructions()) {
-        using enum mir::InstCode;
-        switch (inst.instcode()) {
-        case UnaryArithmetic:
-            [[fallthrough]];
-        case Arithmetic:
-            [[fallthrough]];
-        case Conversion: {
-            /// For instructions that are three address instructions in the MIR
-            /// but two address instructions in the VM, we issue copies of the
-            /// first operand into the destination register and then replace the
-            /// first operand by the dest register.
-            auto* dest = inst.dest();
-            auto* operand = inst.operandAt(0);
-            SC_ASSERT(dest != operand,
-                      "Here we should be still in kind of SSA form");
-            auto* copy =
-                new mir::Instruction(mir::InstCode::Copy, dest, { operand });
-            copy->setMetadata(inst.metadata());
-            inst.parent()->insert(&inst, copy);
-            inst.setOperandAt(0, dest);
-            break;
-        }
-        default:
-            break;
-        }
+    /// For instructions that are three address instructions in the MIR
+    /// but two address instructions in the VM, we issue copies of the
+    /// first operand into the destination register and then replace the
+    /// first operand by the dest register.
+    for (auto& inst:
+         F.instructions() |
+             Filter<UnaryArithmeticInst, ArithmeticInst, ConversionInst>)
+    {
+        auto* dest = inst.dest();
+        auto* operand = inst.operandAt(0);
+        SC_ASSERT(dest != operand,
+                  "Here we should be still in kind of SSA form");
+        auto* copy =
+            new mir::CopyInst(dest, operand, inst.bytewidth(), inst.metadata());
+        inst.parent()->insert(&inst, copy);
+        inst.setOperandAt(0, dest);
     }
     /// Now we color the interference graph and replace registers
     /// This is were the actual work happens, everything is this file is mostly
@@ -77,35 +69,34 @@ void cg::allocateRegisters(mir::Function& F) {
     }
     /// Then we try to evict some copy instructions.
     for (auto& BB: F) {
-        for (auto inst = BB.begin(); inst != BB.end();) {
-            if (inst->instcode() != mir::InstCode::Copy) {
-                ++inst;
+        for (auto itr = BB.begin(); itr != BB.end();) {
+            auto* copy = dyncast<CopyInst*>(itr.to_address());
+            if (!copy) {
+                ++itr;
                 continue;
             }
-            auto* dest = inst->dest();
-            auto* source = inst->operandAt(0);
-            if (dest == source) {
-                inst = BB.erase(inst);
+            if (copy->dest() == copy->source()) {
+                itr = BB.erase(itr);
                 continue;
             }
             /// We replace copies from constant 0 with self-xor's. This
             /// decreases binary size because two register indices take 2 bytes
             /// to encode vs >2 bytes for the zero literal.
-            if (auto* constant = dyncast<mir::Constant*>(source);
-                constant && constant->value() == 0 && inst->bytewidth() > 2)
+            if (auto* constant = dyncast<mir::Constant*>(copy->source());
+                constant && constant->value() == 0 && copy->bytewidth() > 2)
             {
                 auto* selfXor =
-                    new mir::Instruction(mir::InstCode::Arithmetic,
-                                         dest,
-                                         { dest, dest },
-                                         mir::ArithmeticOperation::XOr,
-                                         8);
-                selfXor->setMetadata(inst->metadata());
-                BB.insert(inst, selfXor);
-                inst = BB.erase(inst);
+                    new mir::ValueArithmeticInst(copy->dest(),
+                                                 copy->dest(),
+                                                 copy->dest(),
+                                                 copy->bytewidth(),
+                                                 mir::ArithmeticOperation::XOr,
+                                                 copy->metadata());
+                BB.insert(itr, selfXor);
+                itr = BB.erase(itr);
                 continue;
             }
-            ++inst;
+            ++itr;
         }
     }
     /// We erase all instructions that are not critical and don't define live
@@ -116,12 +107,10 @@ void cg::allocateRegisters(mir::Function& F) {
         auto live = BB.liveOut();
         utl::small_vector<mir::Instruction*> toErase;
         for (auto& inst: BB | ranges::views::reverse) {
+            auto isLive = [&](auto* reg) { return live.contains(reg); };
             bool canErase = !hasSideEffects(&inst) &&
                             !isa_or_null<mir::CalleeRegister>(inst.dest()) &&
-                            ranges::none_of(inst.destRegisters(),
-                                            [&](auto* dest) {
-                return live.contains(dest);
-                            });
+                            ranges::none_of(inst.destRegisters(), isLive);
             if (canErase) {
                 toErase.push_back(&inst);
                 continue;
@@ -129,7 +118,7 @@ void cg::allocateRegisters(mir::Function& F) {
             /// We erase the destination register from the live set because it
             /// is overridden here, except when the instruction is a `cmov`,
             /// because that does not necessarily define the register
-            if (inst.instcode() != mir::InstCode::CondCopy) {
+            if (!isa<CondCopyInst>(inst)) {
                 for (auto* reg: inst.destRegisters()) {
                     live.erase(reg);
                 }
@@ -156,17 +145,7 @@ void cg::allocateRegisters(mir::Function& F) {
         F.hardwareRegisters().add(hReg);
         calleeReg.replaceWith(hReg);
     }
-    for (auto& BB: F) {
-        for (auto& inst: BB) {
-            if (inst.instcode() != mir::InstCode::Call &&
-                inst.instcode() != mir::InstCode::CallExt)
-            {
-                continue;
-            }
-            auto callData = inst.instDataAs<mir::CallInstData>();
-            callData.regOffset = utl::narrow_cast<uint8_t>(
-                numLocalRegs + NumRegsForCallMetadata);
-            inst.setInstData(callData);
-        }
+    for (auto& call: F | ranges::views::join | Filter<CallBase>) {
+        call.setRegisterOffset(numLocalRegs + NumRegsForCallMetadata);
     }
 }
