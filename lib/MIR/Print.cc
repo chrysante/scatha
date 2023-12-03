@@ -75,6 +75,85 @@ static constexpr auto light =
         return str << tfmt::format(tfmt::BrightGrey | tfmt::Italic, args...);
     });
 
+static auto formatInstName(mir::Instruction const& inst) {
+    using namespace std::literals;
+    // clang-format off
+    std::string name = SC_MATCH (inst) {
+        [](StoreInst const& inst) {
+            return utl::strcat("store", inst.bitwidth());
+        },
+        [](LoadInst const& inst) {
+            return utl::strcat("load", inst.bitwidth());
+        },
+        [](CopyInst const& inst) {
+            return utl::strcat("cpy", inst.bitwidth());
+        },
+        [](CallInst const& inst) {
+            return "call"s;
+        },
+        [](CallExtInst const& inst) {
+            return "callext"s;
+        },
+        [](CondCopyInst const& inst) {
+            return utl::strcat("c",
+                               inst.condition(),
+                               inst.bitwidth());
+        },
+        [](LISPInst const& inst) {
+            return "lisp"s;
+        },
+        [](LEAInst const& inst) {
+            return "lea"s;
+        },
+        [](CompareInst const& inst) {
+            return utl::strcat(inst.mode(), inst.bitwidth());
+        },
+        [](SetInst const& inst) {
+            return utl::strcat("set", inst.operation());
+        },
+        [](TestInst const& inst) {
+            switch (inst.mode()) {
+            case CompareMode::Signed:
+                return utl::strcat("stest", inst.bitwidth());
+            case CompareMode::Unsigned:
+                return utl::strcat("utest", inst.bitwidth());
+            default:
+                SC_UNREACHABLE();
+            }
+        },
+        [](UnaryArithmeticInst const& inst) {
+            return utl::strcat(inst.operation(),
+                               inst.bitwidth());
+        },
+        [](ArithmeticInst const& inst) {
+            return utl::strcat(inst.operation(),
+                               inst.bitwidth());
+        },
+        [](ConversionInst const& inst) {
+            return utl::strcat(inst.conversion());
+        },
+        [](JumpInst const& inst) {
+            return "jmp"s;
+        },
+        [](CondJumpInst const& inst) {
+            return utl::strcat("j", inst.condition());
+        },
+        [](Instruction const& inst) {
+            return std::string(mir::toString(inst.instType()));
+        },
+        [](ReturnInst const& inst) {
+            return "ret"s;
+        },
+        [](PhiInst const& inst) {
+            return "phi"s;
+        },
+        [](SelectInst const& inst) {
+            return "select"s;
+        },
+    }; // clang-format on
+    return opcode(name);
+}
+
 namespace {
 
 struct PrintContext {
@@ -100,7 +179,7 @@ struct PrintContext {
         indent.increase();
         printLiveList("Live in", BB->liveIn());
         for (auto& inst: *BB) {
-            print(&inst);
+            print(inst);
         }
         printLiveList("Live out", BB->liveOut());
         indent.decrease();
@@ -127,6 +206,7 @@ struct PrintContext {
 
     void print(Instruction const& inst) {
         visit(inst, [&](auto& inst) { printImpl(inst); });
+        str << "\n";
     }
 
     /// Here we print `dest_reg = ` or nothing if the instruction does not write
@@ -152,61 +232,27 @@ struct PrintContext {
         }
     }
 
-    void printImpl(StoreInst const& inst) {
+    void printImpl(Instruction const& inst) {
         printInstBegin(inst);
-        str << opcode("store") << " ";
+        str << formatInstName(inst) << " ";
         printOperands(inst);
     }
 
-    void printImpl(LoadInst const& inst) {
-        printInstBegin(inst);
-        str << opcode("store") << " ";
-        printOperands(inst);
+    void printImpl(CallBase const& inst) {
+        printImpl(static_cast<Instruction const&>(inst));
+        if (!inst.operands().empty()) {
+            str << ", ";
+        }
+        str << "regoffset=" << inst.registerOffset();
+        if (auto* callext = dyncast<CallExtInst const*>(&inst)) {
+            str << ", slot=" << callext->callee().slot;
+            str << ", index=" << callext->callee().index;
+        }
     }
-
-    void printImpl(CopyInst const& inst) {}
-
-    void printImpl(CallBase const& inst) {}
-
-    void printImpl(CallInst const& inst) {}
-
-    void printImpl(CallExtInst const& inst) {}
-
-    void printImpl(CondCopyInst const& inst) {}
-
-    void printImpl(LISPInst const& inst) {}
-
-    void printImpl(LEAInst const& inst) {}
-
-    void printImpl(CompareInst const& inst) {}
-
-    void printImpl(TestInst const& inst) {}
-
-    void printImpl(SetInst const& inst) {}
-
-    void printImpl(UnaryArithmeticInst const& inst) {}
-
-    void printImpl(ArithmeticInst const& inst) {}
-
-    void printImpl(ValueArithmeticInst const& inst) {}
-
-    void printImpl(LoadArithmeticInst const& inst) {}
-
-    void printImpl(ConversionInst const& inst) {}
-
-    void printImpl(TerminatorInst const& inst) {}
-
-    void printImpl(JumpBase const& inst) {}
-
-    void printImpl(JumpInst const& inst) {}
-
-    void printImpl(CondJumpInst const& inst) {}
-
-    void printImpl(ReturnInst const& inst) {}
 
     void printImpl(PhiInst const& inst) {
         printInstBegin(inst);
-        str << opcode("phi") << " ";
+        str << formatInstName(inst) << " ";
         /// For phi instructions we print the operands with the predecessors
         utl::streammanip predName = [&](std::ostream& str, size_t index) {
             auto* parent = inst.parent();
@@ -224,66 +270,6 @@ struct PrintContext {
             print(op);
             str << "]";
         }
-    }
-
-    void printImpl(SelectInst const& inst) {}
-
-    void print(Instruction const* inst) {
-#if 0
-        str << indent;
-        if (auto* reg = inst->dest()) {
-            str << std::setw(3) << std::left << regName(reg)
-                << tfmt::format(None, " = ");
-        }
-        else {
-            str << std::setw(6) << "";
-        }
-        std::string opcodeStr = formatInstType(*inst);
-        str << opcode(opcodeStr) << " ";
-        if (inst->instcode() == InstType::Phi) {
-            for (size_t i = 0; auto* op: inst->operands()) {
-                if (i != 0) {
-                    str << ", ";
-                }
-                str << "["
-                    << localName(inst->parent()->predecessors()[i++]->name())
-                    << ": ";
-                print(op);
-                str << "]";
-            }
-        }
-        else {
-            for (bool first = true; auto* op: inst->operands()) {
-                if (!first) {
-                    str << ", ";
-                }
-                first = false;
-                print(op);
-            }
-        }
-        if (inst->instcode() == InstType::Load ||
-            inst->instcode() == InstType::Store ||
-            inst->instcode() == InstType::LEA)
-        {
-            printPtrData(inst->instDataAs<MemoryAddress::ConstantData>());
-        }
-
-        if (inst->instcode() == InstType::Call ||
-            inst->instcode() == InstType::CallExt)
-        {
-            if (!inst->operands().empty()) {
-                str << ", ";
-            }
-            auto callData = inst->instDataAs<CallInstData>();
-            str << "regoffset=" << callData.regOffset;
-            if (inst->instcode() == InstType::CallExt) {
-                str << ", slot=" << callData.extFuncAddress.slot;
-                str << ", index=" << callData.extFuncAddress.index;
-            }
-        }
-
-        str << "\n";
-#endif
     }
 
     void print(Value const* value) {
@@ -331,7 +317,7 @@ void mir::print(mir::Instruction const& inst) { print(inst, std::cout); }
 
 void mir::print(mir::Instruction const& inst, std::ostream& str) {
     PrintContext ctx(nullptr, str);
-    ctx.print(&inst);
+    ctx.print(inst);
 }
 
 void mir::printDecl(mir::Value const& value) { printDecl(value, std::cout); }
