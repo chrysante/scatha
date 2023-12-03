@@ -17,6 +17,7 @@
 #include "IR/Type.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
+#include "MIR/Instructions.h"
 
 using namespace scatha;
 using namespace cg;
@@ -325,13 +326,12 @@ void BBContext::matchImpl(ir::ArithmeticInst const* inst, SelectionNode* node) {
         node->removeDependency(loadNode);
         auto* lhs = resolveToRegister(inst->metadata(), inst->lhs());
         size_t size = inst->lhs()->type()->size();
-        auto* mirInst = new mir::Instruction(mir::InstCode::Arithmetic,
-                                             resolve(inst),
-                                             { lhs,
-                                               src.addressRegister(),
-                                               src.offsetRegister() },
-                                             inst->operation(),
-                                             size);
+        auto* mirInst = new mir::LoadArithmeticInst(resolve(inst),
+                                                    lhs,
+                                                    src,
+                                                    size,
+                                                    inst->operation(),
+                                                    inst->metadata());
         node->setMIR(nullptr, mirInst);
         return true;
         },
@@ -339,11 +339,12 @@ void BBContext::matchImpl(ir::ArithmeticInst const* inst, SelectionNode* node) {
         auto* lhs = resolveToRegister(inst->metadata(), inst->lhs());
         auto* rhs = resolve(inst->rhs());
         size_t size = inst->lhs()->type()->size();
-        auto* mirInst = new mir::Instruction(mir::InstCode::Arithmetic,
-                                             resolve(inst),
-                                             { lhs, rhs },
-                                             inst->operation(),
-                                             size);
+        auto* mirInst = new mir::ValueArithmeticInst(resolve(inst),
+                                                     lhs,
+                                                     rhs,
+                                                     size,
+                                                     inst->operation(),
+                                                     inst->metadata());
         node->setMIR(nullptr, mirInst);
         return true;
     });
