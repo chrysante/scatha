@@ -8,7 +8,7 @@ using namespace ir;
 std::string_view ir::toString(NodeType nodeType) {
     switch (nodeType) {
         // clang-format off
-#define SC_CGFNODE_DEF(Node, _) case NodeType::Node: return #Node;
+#define SC_VALUENODE_DEF(Node, _) case NodeType::Node: return #Node;
 #include "IR/Lists.def"
         // clang-format on
     case NodeType::_count:

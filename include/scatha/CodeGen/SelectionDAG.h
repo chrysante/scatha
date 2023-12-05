@@ -25,24 +25,24 @@ class SelectionDAG;
 class SCATHA_API SelectionNode:
     public GraphNode<void, SelectionNode, GraphKind::Directed> {
 public:
-    SelectionNode(ir::Value const* value);
+    SelectionNode(ir::Instruction const* value);
 
     SelectionNode(SelectionNode const&) = delete;
 
     ~SelectionNode();
 
-    /// \Returns the IR value associated with this node
-    ir::Value const* irValue() const { return _irValue; }
+    /// \Returns the IR instruction associated with this node
+    ir::Instruction const* irInst() const { return _irInst; }
 
-    /// \Returns the MIR value associated with this node
-    mir::Value* mirValue() const { return _mirValue; }
+    /// \Returns the MIR register associated with this node
+    mir::SSARegister* Register() const { return _register; }
 
     /// \Returns the MIR instruction associated with this node
     List<mir::Instruction> const& mirInstructions() const { return _mirInsts; }
 
     /// Set the computed MIR value and list of instructions that compute the
     /// value
-    void setMIR(mir::Value* value, List<mir::Instruction> insts);
+    void setMIR(mir::SSARegister* value, List<mir::Instruction> insts);
 
     /// \Returns `true` if this instruction has been matched, i.e. if `setMIR()`
     /// has been called
@@ -78,14 +78,32 @@ public:
         return successors();
     }
 
+    /// Execution dependencies and value dependencies
+    auto dependencies() {
+        return ranges::views::concat(executionDependencies(),
+                                     valueDependencies());
+    }
+
+    /// \overlooad
+    auto dependencies() const {
+        return ranges::views::concat(executionDependencies(),
+                                     valueDependencies());
+    }
+
     ///
     void addExecutionDependency(SelectionNode* node) { addSuccessor(node); }
+
+    /// Merges the dependencies of node \p child into \p this and removes the
+    /// edges between \p this and \p child \Warning This function is not
+    /// commutative. \p child is not modified and only passed as mutable because
+    /// we want mutable access to it's children
+    void merge(SelectionNode& child);
 
 private:
     friend class SelectionDAG;
 
-    ir::Value const* _irValue = nullptr;
-    mir::Value* _mirValue = nullptr;
+    ir::Instruction const* _irInst = nullptr;
+    mir::SSARegister* _register = nullptr;
     List<mir::Instruction> _mirInsts;
     utl::small_vector<SelectionNode*, 3> valueDeps;
     bool _matched = false;
@@ -111,6 +129,16 @@ public:
     std::span<SelectionNode* const> outputNodes() const {
         return outputs.values();
     }
+
+    /// \Returns the root node of this DAG, i.e. the node corresponding to the
+    /// terminator
+    SelectionNode* root() {
+        return const_cast<SelectionNode*>(
+            static_cast<SelectionDAG const*>(this)->root());
+    }
+
+    /// \overload
+    SelectionNode const* root() const;
 
     /// ## Queries
 
@@ -138,7 +166,7 @@ public:
 
 private:
     /// Finds the node associated with \p value or creates a new node
-    SelectionNode* get(ir::Value const* value);
+    SelectionNode* get(ir::Instruction const* value);
 
     /// The represented block
     ir::BasicBlock const* BB = nullptr;

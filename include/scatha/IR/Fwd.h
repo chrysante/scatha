@@ -61,12 +61,12 @@ class Context;
 class Module;
 
 /// Forward declaration of CFG nodes
-#define SC_CGFNODE_DEF(Node, _) class Node;
+#define SC_VALUENODE_DEF(Node, _) class Node;
 #include <scatha/IR/Lists.def>
 
 /// List of all CFG node type
 enum class NodeType {
-#define SC_CGFNODE_DEF(Node, _) Node,
+#define SC_VALUENODE_DEF(Node, _) Node,
 #include <scatha/IR/Lists.def>
     _count
 };
@@ -192,7 +192,7 @@ UTL_BITFIELD_OPERATORS(FunctionAttribute);
 } // namespace scatha::ir
 
 /// Map enum `NodeType` to actual node types
-#define SC_CGFNODE_DEF(Node, Abstractness)                                     \
+#define SC_VALUENODE_DEF(Node, Abstractness)                                   \
     SC_DYNCAST_MAP(::scatha::ir::Node,                                         \
                    ::scatha::ir::NodeType::Node,                               \
                    Abstractness)

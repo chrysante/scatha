@@ -4,58 +4,64 @@
 // === List of all CFG Nodes -----------------------------------------------===
 // ===----------------------------------------------------------------------===
 
-#ifndef SC_CGFNODE_DEF
-#   define SC_CGFNODE_DEF(node, _)
+#ifndef SC_VALUENODE_DEF
+#   define SC_VALUENODE_DEF(node, _)
 #endif
 
-SC_CGFNODE_DEF(Value,                 ABSTRACT)
-SC_CGFNODE_DEF(Parameter,             CONCRETE)
-SC_CGFNODE_DEF(BasicBlock,            CONCRETE)
-SC_CGFNODE_DEF(User,                  ABSTRACT)
+SC_VALUENODE_DEF(Value,      ABSTRACT)
+SC_VALUENODE_DEF(Parameter,  CONCRETE)
+SC_VALUENODE_DEF(BasicBlock, CONCRETE)
+SC_VALUENODE_DEF(User,       ABSTRACT)
 
 /// Constants
-SC_CGFNODE_DEF(Constant,              ABSTRACT)
-SC_CGFNODE_DEF(IntegralConstant,      CONCRETE)
-SC_CGFNODE_DEF(FloatingPointConstant, CONCRETE)
-SC_CGFNODE_DEF(NullPointerConstant,   CONCRETE)
-SC_CGFNODE_DEF(RecordConstant,        ABSTRACT)
-SC_CGFNODE_DEF(StructConstant,        CONCRETE)
-SC_CGFNODE_DEF(ArrayConstant,         CONCRETE)
-SC_CGFNODE_DEF(UndefValue,            CONCRETE)
+SC_VALUENODE_DEF(Constant,              ABSTRACT)
+SC_VALUENODE_DEF(IntegralConstant,      CONCRETE)
+SC_VALUENODE_DEF(FloatingPointConstant, CONCRETE)
+SC_VALUENODE_DEF(NullPointerConstant,   CONCRETE)
+SC_VALUENODE_DEF(RecordConstant,        ABSTRACT)
+SC_VALUENODE_DEF(StructConstant,        CONCRETE)
+SC_VALUENODE_DEF(ArrayConstant,         CONCRETE)
+SC_VALUENODE_DEF(UndefValue,            CONCRETE)
 
 /// Globals
-SC_CGFNODE_DEF(Global,                ABSTRACT)
-SC_CGFNODE_DEF(GlobalVariable,        CONCRETE)
-SC_CGFNODE_DEF(Callable,              ABSTRACT)
-SC_CGFNODE_DEF(Function,              CONCRETE)
-SC_CGFNODE_DEF(ForeignFunction,       CONCRETE)
+SC_VALUENODE_DEF(Global,          ABSTRACT)
+SC_VALUENODE_DEF(GlobalVariable,  CONCRETE)
+SC_VALUENODE_DEF(Callable,        ABSTRACT)
+SC_VALUENODE_DEF(Function,        CONCRETE)
+SC_VALUENODE_DEF(ForeignFunction, CONCRETE)
 
 /// Instruction base classes
-SC_CGFNODE_DEF(Instruction,           ABSTRACT)
-SC_CGFNODE_DEF(UnaryInstruction,      ABSTRACT)
-SC_CGFNODE_DEF(BinaryInstruction,     ABSTRACT)
+SC_VALUENODE_DEF(Instruction,       ABSTRACT)
+SC_VALUENODE_DEF(UnaryInstruction,  ABSTRACT)
+SC_VALUENODE_DEF(BinaryInstruction, ABSTRACT)
+SC_VALUENODE_DEF(TerminatorInst,    ABSTRACT)
+SC_VALUENODE_DEF(AccessValueInst,   ABSTRACT)
 
 /// Instructions
-SC_CGFNODE_DEF(Alloca,                CONCRETE)
-SC_CGFNODE_DEF(Load,                  CONCRETE)
-SC_CGFNODE_DEF(Store,                 CONCRETE)
-SC_CGFNODE_DEF(ConversionInst,        CONCRETE)
-SC_CGFNODE_DEF(CompareInst,           CONCRETE)
-SC_CGFNODE_DEF(UnaryArithmeticInst,   CONCRETE)
-SC_CGFNODE_DEF(ArithmeticInst,        CONCRETE)
-SC_CGFNODE_DEF(TerminatorInst,        ABSTRACT)
-SC_CGFNODE_DEF(Goto,                  CONCRETE)
-SC_CGFNODE_DEF(Branch,                CONCRETE)
-SC_CGFNODE_DEF(Return,                CONCRETE)
-SC_CGFNODE_DEF(Call,                  CONCRETE)
-SC_CGFNODE_DEF(Phi,                   CONCRETE)
-SC_CGFNODE_DEF(Select,                CONCRETE)
-SC_CGFNODE_DEF(AccessValueInst,       ABSTRACT)
-SC_CGFNODE_DEF(GetElementPointer,     CONCRETE)
-SC_CGFNODE_DEF(ExtractValue,          CONCRETE)
-SC_CGFNODE_DEF(InsertValue,           CONCRETE)
+#ifndef SC_INSTRUCTIONNODE_DEF
+#   define SC_INSTRUCTIONNODE_DEF SC_VALUENODE_DEF
+#endif
 
-#undef SC_CGFNODE_DEF
+SC_INSTRUCTIONNODE_DEF(Alloca,              CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Load,                CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Store,               CONCRETE)
+SC_INSTRUCTIONNODE_DEF(ConversionInst,      CONCRETE)
+SC_INSTRUCTIONNODE_DEF(CompareInst,         CONCRETE)
+SC_INSTRUCTIONNODE_DEF(UnaryArithmeticInst, CONCRETE)
+SC_INSTRUCTIONNODE_DEF(ArithmeticInst,      CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Goto,                CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Branch,              CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Return,              CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Call,                CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Phi,                 CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Select,              CONCRETE)
+SC_INSTRUCTIONNODE_DEF(GetElementPointer,   CONCRETE)
+SC_INSTRUCTIONNODE_DEF(ExtractValue,        CONCRETE)
+SC_INSTRUCTIONNODE_DEF(InsertValue,         CONCRETE)
+
+#undef SC_INSTRUCTIONNODE_DEF
+
+#undef SC_VALUENODE_DEF
 
 // ===----------------------------------------------------------------------===
 // === List of conversions -------------------------------------------------===

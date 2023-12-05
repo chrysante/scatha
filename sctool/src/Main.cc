@@ -16,7 +16,7 @@
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
-#include <scatha/CodeGen/ISel.h>
+#include <scatha/CodeGen/LowerToMIR2.h>
 #include <scatha/CodeGen/SelectionDAG.h>
 #include <scatha/Common/ExecutableWriter.h>
 #include <scatha/Common/Logging.h>
@@ -202,7 +202,7 @@ static int inspectMain(InspectOptions options) {
     }
     if (options.isel) {
         mir::Context ctx;
-        auto mirMod = cg::isel(ctx, mod);
+        auto mirMod = cg::lowerToMIR2(ctx, mod);
         std::cout << "Warning: Other codegen options and execution are ignored "
                      "with the --isel flag"
                   << std::endl;

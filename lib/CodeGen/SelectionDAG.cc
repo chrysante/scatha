@@ -17,12 +17,11 @@
 
 using namespace scatha;
 using namespace cg;
-using namespace ir;
 
 ///
 static bool isCritical(ir::Instruction const& inst) {
-    return opt::hasSideEffects(&inst) || isa<Load>(inst) ||
-           isa<TerminatorInst>(inst);
+    return opt::hasSideEffects(&inst) || isa<ir::Load>(inst) ||
+           isa<ir::TerminatorInst>(inst);
 }
 
 static bool isOutput(ir::Instruction const& inst) {
@@ -31,14 +30,34 @@ static bool isOutput(ir::Instruction const& inst) {
     });
 }
 
-SelectionNode::SelectionNode(ir::Value const* value): _irValue(value) {}
+SelectionNode::SelectionNode(ir::Instruction const* inst): _irInst(inst) {}
 
 SelectionNode::~SelectionNode() = default;
 
-void SelectionNode::setMIR(mir::Value* value, List<mir::Instruction> insts) {
-    _mirValue = value;
+void SelectionNode::setMIR(mir::SSARegister* reg,
+                           List<mir::Instruction> insts) {
+    _register = reg;
     _mirInsts = std::move(insts);
     _matched = true;
+}
+
+static void copyDependencies(SelectionNode& oldDepender,
+                             SelectionNode& newDepender) {
+    auto impl = [&](auto get, auto add) {
+        for (auto* dependency: std::invoke(get, oldDepender) | ToSmallVector<>)
+        {
+            std::invoke(add, newDepender, dependency);
+        }
+    };
+    impl([](auto& node) { return node.valueDependencies(); },
+         &SelectionNode::addValueDependency);
+    impl([](auto& node) { return node.executionDependencies(); },
+         &SelectionNode::addExecutionDependency);
+}
+
+void SelectionNode::merge(SelectionNode& child) {
+    copyDependencies(child, *this);
+    removeDependency(&child);
 }
 
 SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
@@ -54,10 +73,7 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
         if (::isOutput(inst)) {
             DAG.outputs.insert(instNode);
         }
-        for (auto* operand: inst.operands()) {
-            if (isa<BasicBlock>(operand) || isa<Callable>(operand)) {
-                continue;
-            }
+        for (auto* operand: inst.operands() | Filter<ir::Instruction>) {
             auto* opNode = DAG.get(operand);
             instNode->addValueDependency(opNode);
         }
@@ -82,36 +98,31 @@ SelectionNode const* SelectionDAG::operator[](
     return itr->second;
 }
 
-SelectionNode* SelectionDAG::get(ir::Value const* value) {
-    auto& ptr = map[value];
+SelectionNode const* SelectionDAG::root() const {
+    return (*this)[basicBlock()->terminator()];
+}
+
+SelectionNode* SelectionDAG::get(ir::Instruction const* inst) {
+    auto& ptr = map[inst];
     if (!ptr) {
-        ptr = allocate<SelectionNode>(allocator, value);
+        ptr = allocate<SelectionNode>(allocator, inst);
     }
     return ptr;
 }
 
 using namespace graphgen;
 
-static Label makeIRLabel(SelectionDAG const& DAG, ir::Value const* value) {
+static Label makeIRLabel(SelectionDAG const& DAG, ir::Instruction const* inst) {
     std::stringstream sstr;
-    if (auto* inst = dyncast<ir::Instruction const*>(value);
-        !inst || inst->parent() == DAG.basicBlock())
-    {
-        tfmt::setHTMLFormattable(sstr);
-        ir::printDecl(*value, sstr);
-    }
-    else {
-        sstr << "<font color=\"Silver\">";
-        ir::printDecl(*value, sstr);
-        sstr << "</font>";
-    }
+    tfmt::setHTMLFormattable(sstr);
+    ir::printDecl(*inst, sstr);
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
 static Label makeMIRLabel(SelectionDAG const& DAG, SelectionNode const* node) {
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
-    if (auto name = node->irValue()->name(); !name.empty()) {
+    if (auto name = node->irInst()->name(); !name.empty()) {
         sstr << name << ":\n";
     }
     for (auto& inst: node->mirInstructions()) {
@@ -125,15 +136,13 @@ static Label makeLabel(SelectionDAG const& DAG, SelectionNode const* node) {
         return makeMIRLabel(DAG, node);
     }
     else {
-        return makeIRLabel(DAG, node->irValue());
+        return makeIRLabel(DAG, node->irInst());
     }
 }
 
 /// \Returns `true` if the node is critical for visualization
 static bool vizCritical(SelectionNode const* node) {
-    auto* value = node->irValue();
-    return !isa<Parameter>(value) && !isa<Constant>(value) &&
-           !isa<Alloca>(value);
+    return !isa<ir::Alloca>(node->irInst());
 }
 
 void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
@@ -162,7 +171,7 @@ void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
         G->add(vertex);
     }
     Graph H;
-    H.label(makeIRLabel(DAG, DAG.basicBlock()));
+    H.label(std::string(DAG.basicBlock()->name()));
     H.add(G);
     H.font("SF Mono");
     H.rankdir(RankDir::BottomTop);

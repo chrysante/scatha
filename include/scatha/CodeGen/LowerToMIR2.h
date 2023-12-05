@@ -1,5 +1,5 @@
-#ifndef SCATHA_CODEGEN_ISEL_H_
-#define SCATHA_CODEGEN_ISEL_H_
+#ifndef SCATHA_CODEGEN_LOWERTOMIR_H_
+#define SCATHA_CODEGEN_LOWERTOMIR_H_
 
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
@@ -8,8 +8,8 @@
 namespace scatha::cg {
 
 /// Lowers the IR module \p mod to MIR representation
-SCATHA_API mir::Module isel(mir::Context& ctx, ir::Module const& mod);
+SCATHA_API mir::Module lowerToMIR2(mir::Context& ctx, ir::Module const& mod);
 
 } // namespace scatha::cg
 
-#endif // SCATHA_CODEGEN_ISEL_H_
+#endif // SCATHA_CODEGEN_LOWERTOMIR_H_
