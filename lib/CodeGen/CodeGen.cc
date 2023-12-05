@@ -7,6 +7,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/Passes.h"
 #include "MIR/CFG.h"
+#include "MIR/Context.h"
 #include "MIR/Module.h"
 
 using namespace scatha;
@@ -16,21 +17,26 @@ Asm::AssemblyStream cg::codegen(ir::Module const& irMod) {
     return codegen(irMod, *std::make_unique<NullLogger>());
 }
 
+static void forEach(mir::Context& ctx, mir::Module& mod, auto transform) {
+    ranges::for_each(mod, [&](auto& F) { transform(ctx, F); });
+}
+
 Asm::AssemblyStream cg::codegen(ir::Module const& irMod, cg::Logger& logger) {
-    auto mod = cg::lowerToMIR(irMod);
+    mir::Context ctx;
+    auto mod = cg::lowerToMIR(ctx, irMod);
     logger.log("Initial MIR module", mod);
 
-    ranges::for_each(mod, cg::computeLiveSets);
-    ranges::for_each(mod, cg::deadCodeElim);
+    forEach(ctx, mod, cg::computeLiveSets);
+    forEach(ctx, mod, cg::deadCodeElim);
     logger.log("MIR module after DCE", mod);
 
-    ranges::for_each(mod, cg::destroySSA);
+    forEach(ctx, mod, cg::destroySSA);
     logger.log("MIR module after SSA destructions", mod);
 
-    ranges::for_each(mod, cg::allocateRegisters);
+    forEach(ctx, mod, cg::allocateRegisters);
     logger.log("MIR module after register allocation", mod);
 
-    ranges::for_each(mod, cg::elideJumps);
+    forEach(ctx, mod, cg::elideJumps);
     logger.log("MIR module after jump elision", mod);
     return cg::lowerToASM(mod);
 }

@@ -12,6 +12,7 @@
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "MIR/CFG.h"
+#include "MIR/Context.h"
 #include "MIR/Instructions.h"
 #include "MIR/Module.h"
 
@@ -26,9 +27,10 @@ struct AddNewInstResult {
 };
 
 struct CodeGenContext {
-    explicit CodeGenContext(mir::Module& result): result(result) {}
+    explicit CodeGenContext(mir::Context& ctx, mir::Module& mirMod):
+        ctx(ctx), mirMod(mirMod) {}
 
-    void run(ir::Module const& mod);
+    void run(ir::Module const& irMod);
 
     void declareFunction(ir::Function const& function);
 
@@ -157,7 +159,8 @@ struct CodeGenContext {
         return res == 0 ? 8 : res;
     }
 
-    mir::Module& result;
+    mir::Context& ctx;
+    mir::Module& mirMod;
 
     mir::Function* currentFunction = nullptr;
     mir::BasicBlock* currentBlock = nullptr;
@@ -171,19 +174,19 @@ struct CodeGenContext {
 
 } // namespace
 
-mir::Module cg::lowerToMIR(ir::Module const& mod) {
-    mir::Module result;
-    CodeGenContext ctx(result);
-    ctx.run(mod);
-    result.setMetadata(mod.metadata());
-    return result;
+mir::Module cg::lowerToMIR(mir::Context& ctx, ir::Module const& irMod) {
+    mir::Module mirMod;
+    CodeGenContext loweringCtx(ctx, mirMod);
+    loweringCtx.run(irMod);
+    mirMod.setMetadata(irMod.metadata());
+    return mirMod;
 }
 
-void CodeGenContext::run(ir::Module const& mod) {
-    for (auto& function: mod) {
+void CodeGenContext::run(ir::Module const& irMod) {
+    for (auto& function: irMod) {
         declareFunction(function);
     }
-    for (auto& function: mod) {
+    for (auto& function: irMod) {
         genFunction(function);
     }
 }
@@ -199,7 +202,7 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
                                       numParamRegs,
                                       numRetvalRegs,
                                       function.visibility());
-    result.addFunction(mirFunc);
+    mirMod.addFunction(mirFunc);
     valueMap.insert({ &function, mirFunc });
 }
 
@@ -250,7 +253,7 @@ void CodeGenContext::genInst(ir::Alloca const& allocaInst) {
     size_t count = countConstant->value().to<size_t>();
     size_t numBytes = utl::round_up(type->size() * count, 8);
     add(new mir::LISPInst(resolve(&allocaInst),
-                          result.constant(numBytes, 2),
+                          ctx.constant(numBytes, 2),
                           allocaInst.metadata()));
 }
 
@@ -310,8 +313,8 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
             APInt value = APInt(constant->value(), fromWidth);
             value.zext(toWidth);
             valueMap.insert({ &inst,
-                              result.constant(value.to<uint64_t>(),
-                                              utl::ceil_divide(toWidth, 8)) });
+                              ctx.constant(value.to<uint64_t>(),
+                                           utl::ceil_divide(toWidth, 8)) });
         }
         else if (auto* undef = dyncast<mir::UndefValue*>(operand)) {
             valueMap.insert({ &inst, operand });
@@ -380,13 +383,13 @@ void CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
     auto* rhs = resolve(inst.rhs());
     /// Shift instructions only allow 8 bit literals as RHS operand.
     if (isShift(inst.operation()) && isa<mir::Constant>(rhs)) {
-        rhs = result.constant(cast<mir::Constant*>(rhs)->value(), 1);
+        rhs = ctx.constant(cast<mir::Constant*>(rhs)->value(), 1);
     }
     size_t size = inst.lhs()->type()->size();
     if (size < 4) {
         size = 8;
         if (auto* constant = dyncast<mir::Constant*>(rhs)) {
-            rhs = result.constant(constant->value(), 8);
+            rhs = ctx.constant(constant->value(), 8);
         }
     }
     add(new mir::ValueArithmeticInst(resolve(&inst),
@@ -558,14 +561,14 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
     SC_ASSERT(innerByteOffset + innerSize <= 8,
               "This will need even more work");
     auto* sourceShifted = nextRegister();
-    auto* shiftOffset = result.constant(8 * innerByteOffset, 1);
+    auto* shiftOffset = ctx.constant(8 * innerByteOffset, 1);
     add(new mir::ValueArithmeticInst(sourceShifted,
                                      srcreg,
                                      shiftOffset,
                                      8,
                                      mir::ArithmeticOperation::LShR,
                                      extract.metadata()));
-    auto* sourceMask = result.constant(makeWordMask(0, innerSize), 8);
+    auto* sourceMask = ctx.constant(makeWordMask(0, innerSize), 8);
     mir::Register* dest = resolve(&extract);
     add(new mir::ValueArithmeticInst(dest,
                                      sourceShifted,
@@ -637,7 +640,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         if (hungOverBytes != 0) {
             auto* maskedSource = nextRegister();
             auto* sourceMask =
-                result.constant(~uint64_t{ 0 } << 8 * hungOverBytes, 8);
+                ctx.constant(~uint64_t{ 0 } << 8 * hungOverBytes, 8);
             add(new mir::ValueArithmeticInst(maskedSource,
                                              source,
                                              sourceMask,
@@ -645,7 +648,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
                                              mir::ArithmeticOperation::And,
                                              insert.metadata()));
             auto* maskedInserted = nextRegister();
-            auto* insertedMask = result.constant(~sourceMask->value(), 8);
+            auto* insertedMask = ctx.constant(~sourceMask->value(), 8);
             add(new mir::ValueArithmeticInst(maskedInserted,
                                              insertedMember,
                                              insertedMask,
@@ -666,12 +669,13 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         /// We only handle the case where we need to take care of only one word.
         SC_ASSERT(innerByteOffset + innerType->size() <= 8,
                   "Everything else is too complex for now");
-        auto* shiftCount = result.constant(8 * innerByteOffset, 1);
-        auto* insertedMask = result.constant(
-            makeWordMask(/* leadingZeroBytes = */ innerByteOffset,
-                         /* oneBytes         = */ innerType->size()),
-            8);
-        auto* sourceMask = result.constant(~insertedMask->value(), 8);
+        auto* shiftCount = ctx.constant(8 * innerByteOffset, 1);
+        auto* insertedMask =
+            ctx.constant(makeWordMask(/* leadingZeroBytes = */ innerByteOffset,
+                                      /* oneBytes         = */ innerType
+                                          ->size()),
+                         8);
+        auto* sourceMask = ctx.constant(~insertedMask->value(), 8);
         auto* shiftedInsert = nextRegister();
         add(new mir::ValueArithmeticInst(shiftedInsert,
                                          insertedMember,
@@ -871,12 +875,12 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
                 auto* value = var.initializer();
                 size_t size = value->type()->size();
                 size_t align = value->type()->align();
-                auto [data, offset] = result.allocateStaticData(size, align);
+                auto [data, offset] = mirMod.allocateStaticData(size, align);
                 /// Callback is only executed by function pointers
                 auto callback = [&, data = data, offset = offset]
                                 (ir::Constant const* value, void* dest) {
                     auto* function = cast<ir::Function const*>(value);
-                    result.addAddressPlaceholder(offset + getOffset(data, dest),
+                    mirMod.addAddressPlaceholder(offset + getOffset(data, dest),
                                                  resolve(function));
                 };
                 var.initializer()->writeValueTo(data, callback);
@@ -887,7 +891,7 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             }();
             auto* dest = nextRegister();
             add(new mir::CopyInst(dest,
-                                  result.constant(address, 8),
+                                  ctx.constant(address, 8),
                                   8,
                                   {}));
             return dest;
@@ -895,7 +899,7 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
         [&](ir::IntegralConstant const& constant) {
             SC_ASSERT(constant.type()->bitwidth() <= 64, "Can't handle extended width integers");
             uint64_t value = constant.value().to<uint64_t>();
-            auto* mirConst = result.constant(value, constant.type()->size());
+            auto* mirConst = ctx.constant(value, constant.type()->size());
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
@@ -908,12 +912,12 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             else {
                 value = utl::bit_cast<uint64_t>(constant.value().to<double>());
             }
-            auto* mirConst = result.constant(value, constant.type()->size());
+            auto* mirConst = ctx.constant(value, constant.type()->size());
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
         [&](ir::NullPointerConstant const& constant) -> mir::Value* {
-            auto* mirConstant = result.constant(0, 8);
+            auto* mirConstant = ctx.constant(0, 8);
             valueMap.insert({ &constant, mirConstant });
             return mirConstant;
         },
@@ -924,14 +928,14 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             auto* reg = nextRegister(numWords);
             for (auto* dest = reg; auto word: words) {
                 add(new mir::CopyInst(dest,
-                                      result.constant(word, 8),
+                                      ctx.constant(word, 8),
                                       8, {}));
                 dest = dest->next();
             }
             return reg;
         },
         [&](ir::UndefValue const&) -> mir::Value* {
-            return result.undefValue();
+            return ctx.undef();
         },
         [](ir::Value const& value) -> mir::Value* {
             SC_UNREACHABLE("Everything else shall be forward declared");

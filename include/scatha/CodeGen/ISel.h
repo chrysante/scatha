@@ -8,7 +8,7 @@
 namespace scatha::cg {
 
 /// Lowers the IR module \p mod to MIR representation
-SCATHA_API mir::Module isel(ir::Module const& mod);
+SCATHA_API mir::Module isel(mir::Context& ctx, ir::Module const& mod);
 
 } // namespace scatha::cg
 

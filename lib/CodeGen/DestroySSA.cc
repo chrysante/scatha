@@ -351,7 +351,7 @@ static BasicBlock::Iterator destroySelect(Function& F,
     return BB.erase(itr);
 }
 
-void cg::destroySSA(Function& F) {
+void cg::destroySSA(mir::Context& ctx, Function& F) {
     mapSSAToVirtualRegisters(F);
     for (auto& BB: F) {
         for (auto itr = BB.begin(); itr != BB.end();) {

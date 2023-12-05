@@ -9,7 +9,7 @@ using namespace scatha;
 using namespace cg;
 using namespace mir;
 
-void cg::allocateRegisters(Function& F) {
+void cg::allocateRegisters(mir::Context& ctx, Function& F) {
     /// For instructions that are three address instructions in the MIR
     /// but two address instructions in the VM, we issue copies of the
     /// first operand into the destination register and then replace the

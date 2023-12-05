@@ -25,7 +25,7 @@ static size_t numReturnRegisters(ir::Function const& F) {
     return numWords(F.returnType());
 }
 
-mir::Module cg::isel(ir::Module const& irMod) {
+mir::Module cg::isel(mir::Context& ctx, ir::Module const& irMod) {
     ValueMap globalMap;
     mir::Module mirMod;
     utl::small_vector<std::pair<ir::Function const*, mir::Function*>> functions;
@@ -39,7 +39,7 @@ mir::Module cg::isel(ir::Module const& irMod) {
         globalMap.insert(&irFn, mirFn);
     }
     for (auto [irFn, mirFn]: functions) {
-        iselFunction(*irFn, mirMod, *mirFn, globalMap);
+        iselFunction(*irFn, ctx, mirMod, *mirFn, globalMap);
     }
     return mirMod;
 }

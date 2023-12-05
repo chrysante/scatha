@@ -9,6 +9,7 @@
 #include "IR/IRParser.h"
 #include "IR/Module.h"
 #include "MIR/CFG.h"
+#include "MIR/Context.h"
 #include "MIR/Module.h"
 #include "Opt/Common.h"
 
@@ -32,10 +33,11 @@ func i64 @f(i64 %0) {
     %m = add i64 %n, i64 1
     return i64 %m
 })";
-    auto [ctx, irMod] = ir::parse(text).value();
-    auto mod = cg::lowerToMIR(irMod);
+    auto [irCtx, irMod] = ir::parse(text).value();
+    mir::Context ctx;
+    auto mod = cg::lowerToMIR(ctx, irMod);
     auto& F = mod.front();
-    cg::computeLiveSets(F);
+    cg::computeLiveSets(ctx, F);
     auto* entry = F.entry();
     auto* argReg = F.ssaArgumentRegisters().front();
     auto* nReg = entry->front().dest();

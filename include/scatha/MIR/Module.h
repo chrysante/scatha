@@ -76,12 +76,6 @@ public:
     /// @}
 
     ///
-    Constant* constant(uint64_t value, size_t bytewidth);
-
-    ///
-    UndefValue* undefValue() const { return undef.get(); }
-
-    ///
     std::vector<u8> const& dataSection() const { return staticData; }
 
     /// Allocates data in the data section of the program.
@@ -102,12 +96,6 @@ public:
 private:
     /// List of all functions in the module
     List<Function> funcs;
-
-    /// Constant pool
-    utl::node_hashmap<std::pair<uint64_t, size_t>, Constant> constants;
-
-    /// Undef constant
-    std::unique_ptr<UndefValue> undef;
 
     /// Data section
     std::vector<uint8_t> staticData;

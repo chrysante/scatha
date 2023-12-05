@@ -44,9 +44,8 @@ struct LivenessContext {
 
 } // namespace
 
-void cg::computeLiveSets(mir::Function& F) {
-    LivenessContext ctx(F);
-    ctx.run();
+void cg::computeLiveSets(mir::Context& ctx, mir::Function& F) {
+    LivenessContext(F).run();
 }
 
 void LivenessContext::run() {

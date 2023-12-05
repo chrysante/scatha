@@ -13,6 +13,7 @@ class ValueMap;
 /// the empty MIR function \p mirFn
 /// \p globalMap is a map of all global declarations
 SCATHA_API void iselFunction(ir::Function const& irFn,
+                             mir::Context& ctx,
                              mir::Module& mirMod,
                              mir::Function& mirFn,
                              ValueMap& globalMap);

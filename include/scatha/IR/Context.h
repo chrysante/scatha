@@ -12,6 +12,7 @@
 
 namespace scatha::ir {
 
+/// Manages types and constants
 class SCATHA_API Context {
 public:
     /// Construct an empty `Context` object

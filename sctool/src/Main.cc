@@ -28,6 +28,7 @@
 #include <scatha/IR/Print.h>
 #include <scatha/IRGen/IRGen.h>
 #include <scatha/Issue/IssueHandler.h>
+#include <scatha/MIR/Context.h>
 #include <scatha/MIR/Module.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
@@ -200,7 +201,8 @@ static int inspectMain(InspectOptions options) {
         }
     }
     if (options.isel) {
-        auto mirMod = cg::isel(mod);
+        mir::Context ctx;
+        auto mirMod = cg::isel(ctx, mod);
         std::cout << "Warning: Other codegen options and execution are ignored "
                      "with the --isel flag"
                   << std::endl;

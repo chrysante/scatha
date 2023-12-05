@@ -10,8 +10,9 @@
 
 namespace scatha::mir {
 
-class Instruction;
+class Context;
 class Module;
+class Instruction;
 
 /// Unlike in the IR, instructions are not values. Instructions operate i.e. use
 /// and define registers. Except for that difference, the MIR is structured
