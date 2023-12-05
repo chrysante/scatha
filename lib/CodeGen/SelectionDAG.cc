@@ -31,6 +31,8 @@ static bool isOutput(ir::Instruction const& inst) {
     });
 }
 
+SelectionNode::SelectionNode(ir::Value const* value): _irValue(value) {}
+
 SelectionNode::~SelectionNode() = default;
 
 void SelectionNode::setMIR(mir::Value* value, List<mir::Instruction> insts) {
@@ -153,8 +155,8 @@ void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
                          .color = Color::Magenta,
                          .style = Style::Bold });
         }
-        if (node->matched()) {
-            vertex->color(Color::Green);
+        if (!node->matched()) {
+            vertex->color(Color::Red);
             vertex->style(Style::Bold);
         }
         G->add(vertex);

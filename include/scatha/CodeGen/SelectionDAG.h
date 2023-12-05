@@ -25,7 +25,7 @@ class SelectionDAG;
 class SCATHA_API SelectionNode:
     public GraphNode<void, SelectionNode, GraphKind::Directed> {
 public:
-    SelectionNode(ir::Value const* value): _irValue(value) {}
+    SelectionNode(ir::Value const* value);
 
     SelectionNode(SelectionNode const&) = delete;
 
@@ -148,9 +148,6 @@ private:
 
     /// Set of all nodes with side effects
     utl::hashset<SelectionNode*> sideEffects;
-
-    /// List of all nodes with side effects
-    //    utl::small_vector<SelectionNode*> orderedSideEffects;
 
     /// Set of all output nodes of this block
     utl::hashset<SelectionNode*> outputs;
