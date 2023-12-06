@@ -153,7 +153,24 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
             }
             else {
                 SC_ASSERT(isa<mir::Register>(operand), "");
-                mapToValue(inst, operand);
+                /// Zext instructions we lower as AND
+                if (inst.conversion() == ir::Conversion::Zext) {
+                    auto* opType =
+                        cast<ir::ArithmeticType const*>(inst.operand()->type());
+                    uint64_t mask = ~(~uint64_t(0) << opType->bitwidth());
+                    size_t size = inst.type()->size();
+                    emit(new mir::ValueArithmeticInst(
+                        resolve(inst),
+                        operand,
+                        CTX().constant(mask, size),
+                        size,
+                        mir::ArithmeticOperation::And,
+                        inst.metadata()));
+                }
+                /// Everything else is a no-op
+                else {
+                    mapToValue(inst, operand);
+                }
             }
             break;
         }
