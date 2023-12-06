@@ -19,10 +19,13 @@
 using namespace scatha;
 using namespace cg;
 
+static bool hasSideEffects(ir::Instruction const& inst) {
+    return opt::hasSideEffects(&inst) || isa<ir::TerminatorInst>(inst);
+}
+
 ///
 static bool isCritical(ir::Instruction const& inst) {
-    return opt::hasSideEffects(&inst) || isa<ir::Load>(inst) ||
-           isa<ir::TerminatorInst>(inst);
+    return ::hasSideEffects(inst) || isa<ir::Load>(inst);
 }
 
 static bool isOutput(ir::Instruction const& inst) {
@@ -31,45 +34,53 @@ static bool isOutput(ir::Instruction const& inst) {
     });
 }
 
-SelectionNode::SelectionNode(ir::Instruction const* inst): _irInst(inst) {}
-
-SelectionNode::~SelectionNode() = default;
-
-void SelectionNode::setMIR(mir::SSARegister* reg,
-                           List<mir::Instruction> insts) {
-    _register = reg;
-    _mirInsts = std::move(insts);
-    _matched = true;
-}
-
-static void copyDependencies(SelectionNode& oldDepender,
-                             SelectionNode& newDepender) {
-    auto impl = [&](auto get, auto add) {
-        for (auto* dependency: std::invoke(get, oldDepender) | ToSmallVector<>)
-        {
-            std::invoke(add, newDepender, dependency);
-        }
-    };
-    impl([](auto& node) { return node.valueDependencies(); },
-         &SelectionNode::addValueDependency);
-    impl([](auto& node) { return node.executionDependencies(); },
-         &SelectionNode::addExecutionDependency);
-}
-
-void SelectionNode::merge(SelectionNode& child) {
-    copyDependencies(child, *this);
-    removeDependency(&child);
-}
+/// The following instructions are (potentially) critical:
+/// - `Load`
+/// - `Store`
+/// - `Call`
+/// - `Terminator`
 
 SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
-    utl::small_vector<SelectionNode*> orderedCritical;
+    SelectionNode* lastWrite = nullptr;
+    SelectionNode* lastCritical = nullptr;
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
+        DAG.all.insert(instNode);
         if (::isCritical(inst)) {
+            // clang-format off
+            SC_MATCH (inst) {
+                [&](ir::Load const&) {
+                    if (lastWrite) {
+                        instNode->addExecutionDependency(lastWrite);
+                    }
+                    lastCritical = instNode;
+                },
+                [&](ir::Store const&) {
+                    if (lastCritical) {
+                        instNode->addExecutionDependency(lastCritical);
+                    }
+                    lastWrite = instNode;
+                    lastCritical = instNode;
+                },
+                [&](ir::Call const&) {
+                    if (lastCritical) {
+                        instNode->addExecutionDependency(lastCritical);
+                    }
+                    lastWrite = instNode;
+                    lastCritical = instNode;
+                },
+                [&](ir::TerminatorInst const&) {
+                    if (lastCritical) {
+                        instNode->addExecutionDependency(lastCritical);
+                    }
+                },
+                [&](ir::Instruction const&) { SC_UNREACHABLE(); },
+            }; // clang-format on
+        }
+        if (::hasSideEffects(inst)) {
             DAG.sideEffects.insert(instNode);
-            orderedCritical.push_back(instNode);
         }
         if (::isOutput(inst)) {
             DAG.outputs.insert(instNode);
@@ -84,12 +95,6 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
             instNode->addValueDependency(opNode);
         }
     }
-    for (auto [A, B]:
-         ranges::views::zip(orderedCritical,
-                            orderedCritical | ranges::views::drop(1)))
-    {
-        B->addExecutionDependency(A);
-    }
     auto* termNode = DAG.get(BB.terminator());
     for (auto* outputNode: DAG.outputs) {
         termNode->addExecutionDependency(outputNode);
@@ -101,19 +106,24 @@ SelectionNode const* SelectionDAG::operator[](
     ir::Instruction const* inst) const {
     auto itr = map.find(inst);
     SC_ASSERT(itr != map.end(), "Not found");
-    return itr->second;
+    return itr->second.get();
 }
 
 SelectionNode const* SelectionDAG::root() const {
     return (*this)[basicBlock()->terminator()];
 }
 
+void SelectionDAG::erase(SelectionNode* node) {
+    node->erase();
+    all.erase(node);
+}
+
 SelectionNode* SelectionDAG::get(ir::Instruction const* inst) {
     auto& ptr = map[inst];
     if (!ptr) {
-        ptr = allocate<SelectionNode>(allocator, inst);
+        ptr = std::make_unique<SelectionNode>(inst);
     }
-    return ptr;
+    return ptr.get();
 }
 
 using namespace graphgen;

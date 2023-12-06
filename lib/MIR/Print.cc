@@ -251,6 +251,26 @@ struct PrintContext {
         printOperands(inst);
     }
 
+    void printImpl(StoreInst const& inst) {
+        printInstBegin(inst);
+        str << formatInstName(inst) << " ";
+        print(inst.address());
+        str << ", ";
+        print(inst.source());
+    }
+
+    void printImpl(LoadInst const& inst) {
+        printInstBegin(inst);
+        str << formatInstName(inst) << " ";
+        print(inst.address());
+    }
+
+    void printImpl(LEAInst const& inst) {
+        printInstBegin(inst);
+        str << formatInstName(inst) << " ";
+        print(inst.address());
+    }
+
     void print(ExtFuncAddress function) {
         if (function.slot == svm::BuiltinFunctionSlot) {
             str << "builtin."

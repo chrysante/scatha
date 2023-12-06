@@ -233,6 +233,7 @@ struct ISelBlockCtx {
 #include "IR/Lists.def"
     }
 
+    /// Runs the algorithm
     void run();
 
     /// Emits the instruction \p inst to the current node. Takes ownership of
@@ -279,6 +280,11 @@ static utl::small_vector<SelectionNode*> topsort(SelectionNode* root) {
 
 void ISelBlockCtx::run() {
     for (auto* node: topsort(DAG.root())) {
+        if (node->dependentValues().empty() && !DAG.hasSideEffects(node) &&
+            !DAG.isOutput(node))
+        {
+            DAG.erase(node);
+        }
         match(*node);
     }
 }
