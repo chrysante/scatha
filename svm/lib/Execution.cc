@@ -584,7 +584,7 @@ void VMImpl::stepExecution() {
     INST(lsl64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::leftshift); }
     INST(lsr64RR) { arithmeticRR<u64>(i, regPtr, utl::rightshift); }
     INST(lsr64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::rightshift); }
-    INST(lsr64RM) { arithmeticRV<u64>(i, regPtr, utl::rightshift); }
+    INST(lsr64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::rightshift); }
 
     /// ## 32 bit logical shifts
     INST(lsl32RR) { arithmeticRR<u32>(i, regPtr, utl::leftshift); }
@@ -592,7 +592,7 @@ void VMImpl::stepExecution() {
     INST(lsl32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::leftshift); }
     INST(lsr32RR) { arithmeticRR<u32>(i, regPtr, utl::rightshift); }
     INST(lsr32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::rightshift); }
-    INST(lsr32RM) { arithmeticRV<u32>(i, regPtr, utl::rightshift); }
+    INST(lsr32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::rightshift); }
 
     /// ## 64 bit arithmetic shifts
 #define ASL utl::arithmetic_leftshift
@@ -602,7 +602,7 @@ void VMImpl::stepExecution() {
     INST(asl64RM) { arithmeticRM<u64>(memory, i, regPtr, ASL); }
     INST(asr64RR) { arithmeticRR<u64>(i, regPtr, ASR); }
     INST(asr64RV) { arithmeticRV<u64, u8>(i, regPtr, ASR); }
-    INST(asr64RM) { arithmeticRV<u64>(i, regPtr, ASR); }
+    INST(asr64RM) { arithmeticRM<u64>(memory, i, regPtr, ASR); }
 
     /// ## 32 bit arithmetic shifts
     INST(asl32RR) { arithmeticRR<u32>(i, regPtr, ASL); }
@@ -610,29 +610,29 @@ void VMImpl::stepExecution() {
     INST(asl32RM) { arithmeticRM<u32>(memory, i, regPtr, ASL); }
     INST(asr32RR) { arithmeticRR<u32>(i, regPtr, ASR); }
     INST(asr32RV) { arithmeticRV<u32, u8>(i, regPtr, ASR); }
-    INST(asr32RM) { arithmeticRV<u32>(i, regPtr, ASR); }
+    INST(asr32RM) { arithmeticRM<u32>(memory, i, regPtr, ASR); }
 
     /// ## 64 bit bitwise operations
     INST(and64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_and); }
     INST(and64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_and); }
-    INST(and64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_and); }
+    INST(and64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::bitwise_and); }
     INST(or64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_or); }
     INST(or64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_or); }
-    INST(or64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_or); }
+    INST(or64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::bitwise_or); }
     INST(xor64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_xor); }
     INST(xor64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_xor); }
-    INST(xor64RM) { arithmeticRV<u64>(i, regPtr, utl::bitwise_xor); }
+    INST(xor64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::bitwise_xor); }
 
     /// ## 32 bit bitwise operations
     INST(and32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_and); }
     INST(and32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_and); }
-    INST(and32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_and); }
+    INST(and32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::bitwise_and); }
     INST(or32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_or); }
     INST(or32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_or); }
-    INST(or32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_or); }
+    INST(or32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::bitwise_or); }
     INST(xor32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_xor); }
     INST(xor32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_xor); }
-    INST(xor32RM) { arithmeticRV<u32>(i, regPtr, utl::bitwise_xor); }
+    INST(xor32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::bitwise_xor); }
 
     /// ## Conversion
     INST(sext1) { ::sext1(i, regPtr); }
