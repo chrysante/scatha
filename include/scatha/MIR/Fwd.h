@@ -127,7 +127,7 @@ public:
     MemoryAddressImpl(V* base, V* dynOffset, MemAddrConstantData constData):
         base(base), _dynOffset(dynOffset), constData(constData) {}
 
-    explicit MemoryAddressImpl(V* base, uint32_t offsetTerm = 0):
+    explicit MemoryAddressImpl(V* base, size_t offsetTerm = 0):
         MemoryAddressImpl(base, nullptr, 0, offsetTerm) {}
 
     /// \Returns The register that holds the base address

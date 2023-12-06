@@ -5,6 +5,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <termfmt/termfmt.h>
+#include <utl/function_view.hpp>
 #include <utl/functional.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
@@ -31,11 +32,18 @@ struct Matcher<ir::Alloca>: MatcherBase {};
 
 template <>
 struct Matcher<ir::Load>: MatcherBase {
-    void doEmit(ir::Load const& load,
-                mir::Register* dest,
-                mir::MemoryAddress addr,
-                size_t bytewidth) {
-        emit(new mir::LoadInst(dest, addr, bytewidth, load.metadata()));
+    void impl(ir::Load const& load,
+              utl::function_view<mir::MemoryAddress(size_t)> addrCallback) {
+        auto* dest = resolve(load);
+        size_t numBytes = load.type()->size();
+        size_t numWords = ::numWords(load);
+        for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
+            auto* inst = new mir::LoadInst(dest,
+                                           addrCallback(i),
+                                           sliceWidth(numBytes, i, numWords),
+                                           load.metadata());
+            emit(inst);
+        }
     }
 
     // Load -> GEP
@@ -45,36 +53,70 @@ struct Matcher<ir::Load>: MatcherBase {
             return false;
         }
         node.merge(DAG(gep));
-        auto* dest = resolve(load);
-        size_t numBytes = load.type()->size();
-        size_t numWords = ::numWords(load);
-        for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
-            doEmit(load,
-                   dest,
-                   computeGEP(gep, i * WordSize),
-                   sliceWidth(numBytes, i, numWords));
-        }
+        impl(load, [&](size_t i) { return computeGEP(gep, i * WordSize); });
         return true;
     }
 
-    // Load -> GEP
+    // Load
     SD_MATCH_CASE(ir::Load const& load, SelectionNode& node) {
-        auto* dest = resolve(load);
         auto* baseAddr = resolveToRegister(*load.address(), load.metadata());
-        size_t numBytes = load.type()->size();
-        size_t numWords = ::numWords(load);
-        for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
-            doEmit(load,
-                   dest,
-                   mir::MemoryAddress(baseAddr, nullptr, 0, i * WordSize),
-                   sliceWidth(numBytes, i, numWords));
-        }
+        impl(load, [&](size_t i) {
+            return mir::MemoryAddress(baseAddr, i * WordSize);
+        });
         return true;
     }
 };
 
 template <>
-struct Matcher<ir::Store>: MatcherBase {};
+struct Matcher<ir::Store>: MatcherBase {
+    void impl(ir::Store const& store,
+              utl::function_view<mir::MemoryAddress(size_t)> addrCallback) {
+        size_t numBytes = store.value()->type()->size();
+        size_t numWords = utl::ceil_divide(numBytes, 8);
+        /// We have these two cases for now because we can't iterate over
+        /// "adjacent constants" so in the oversized case we resolve to register
+        /// and store, in the simple case we store directly
+        if (numWords <= 1) {
+            auto* value = resolve(*store.value());
+            auto* inst = new mir::StoreInst(addrCallback(0),
+                                            value,
+                                            numBytes,
+                                            store.metadata());
+            emit(inst);
+        }
+        else {
+            auto* value = resolveToRegister(*store.value(), store.metadata());
+            for (size_t i = 0; i < numWords; ++i, value = value->next()) {
+                auto* inst =
+                    new mir::StoreInst(addrCallback(i),
+                                       value,
+                                       sliceWidth(numBytes, i, numWords),
+                                       store.metadata());
+                emit(inst);
+            }
+        }
+    }
+
+    // Store -> GEP
+    SD_MATCH_CASE(ir::Store const& store, SelectionNode& node) {
+        auto* gep = dyncast<ir::GetElementPointer const*>(store.address());
+        if (!gep) {
+            return false;
+        }
+        node.merge(DAG(gep));
+        impl(store, [&](size_t i) { return computeGEP(gep, i * WordSize); });
+        return true;
+    }
+
+    // Store
+    SD_MATCH_CASE(ir::Store const& store, SelectionNode& node) {
+        auto* baseAddr = resolve(*store.address());
+        impl(store, [&](size_t i) {
+            return mir::MemoryAddress(baseAddr, i * WordSize);
+        });
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::ConversionInst>: MatcherBase {};

@@ -135,7 +135,9 @@ R* Resolver::genCopy(R* dest,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, metadata));
         });
-    return cast<R*>(result);
+    /// We `static_cast` and not `cast` because `result` is not a valid pointer
+    /// but a pointer one past the end
+    return static_cast<R*>(result);
 }
 
 template <typename R, typename Copy>
@@ -152,7 +154,8 @@ R* Resolver::genCondCopy(R* dest,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, condition, metadata));
         });
-    return cast<R*>(result);
+    /// See `static_cast` in `genCopy()`
+    return static_cast<R*>(result);
 }
 
 } // namespace scatha::cg

@@ -76,6 +76,11 @@ static constexpr auto light =
         return str << tfmt::format(tfmt::BrightGrey | tfmt::Italic, args...);
     });
 
+static constexpr auto none =
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
+        return str << tfmt::format(tfmt::None, args...);
+    });
+
 static auto formatInstName(mir::Instruction const& inst) {
     using namespace std::literals;
     // clang-format off
@@ -215,17 +220,19 @@ struct PrintContext {
     void printInstBegin(Instruction const& inst) {
         str << indent;
         if (auto* reg = inst.dest()) {
-            str << std::setw(3) << std::left << regName(reg) << " = ";
+            str << std::setw(3) << std::left << regName(reg) << none(" = ");
+            return;
         }
-        else {
-            str << std::setw(6) << "";
+        if (tfmt::isHTMLFormattable(str)) {
+            return;
         }
+        str << std::setw(6) << "";
     }
 
     void printOperands(Instruction const& inst) {
         for (bool first = true; auto* op: inst.operands()) {
             if (!first) {
-                str << ", ";
+                str << none(", ");
             }
             first = false;
             print(op);
@@ -255,7 +262,7 @@ struct PrintContext {
         printInstBegin(inst);
         str << formatInstName(inst) << " ";
         print(inst.address());
-        str << ", ";
+        str << none(", ");
         print(inst.source());
     }
 
@@ -287,7 +294,7 @@ struct PrintContext {
         str << formatInstName(call) << " ";
         if (auto* callext = dyncast<CallExtInst const*>(&call)) {
             print(callext->callee());
-            str << ", ";
+            str << none(", ");
         }
         printOperands(call);
         str << " [regoffset=" << call.registerOffset() << "]";
@@ -297,7 +304,7 @@ struct PrintContext {
         printInstBegin(inst);
         str << formatInstName(inst) << " ";
         print(inst.LHS());
-        str << ", ";
+        str << none(", ");
         print(inst.RHS());
     }
 
@@ -315,7 +322,7 @@ struct PrintContext {
         };
         for (auto [index, op]: inst.operands() | ranges::views::enumerate) {
             if (index != 0) {
-                str << ", ";
+                str << none(", ");
             }
             str << "[" << predName(index) << ": ";
             print(op);
