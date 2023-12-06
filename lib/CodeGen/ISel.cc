@@ -246,7 +246,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         if (!LHSInst) {
             return true;
         }
-        return !DAG().executionDependencies(DAG(LHSInst)).contains(DAG(load));
+        return !DAG().dependencies(DAG(LHSInst)).contains(DAG(load));
     }
 
     // Arithmetic -> Load -> GEP

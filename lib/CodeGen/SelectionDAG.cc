@@ -46,6 +46,14 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     SelectionDAG DAG;
     DAG.BB = &BB;
     SelectionNode* lastWrite = nullptr;
+    utl::small_vector<SelectionNode*> lastReads;
+    /// Makes \p node dependent on the last reads and clears the last reads
+    auto dependOnReads = [&](SelectionNode* node) {
+        for (auto* read: lastReads) {
+            node->addExecutionDependency(read);
+        }
+        lastReads.clear();
+    };
     SelectionNode* lastCritical = nullptr;
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
@@ -57,12 +65,14 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
                     if (lastWrite) {
                         instNode->addExecutionDependency(lastWrite);
                     }
+                    lastReads.push_back(instNode);
                     lastCritical = instNode;
                 },
                 [&](ir::Store const&) {
                     if (lastCritical) {
                         instNode->addExecutionDependency(lastCritical);
                     }
+                    dependOnReads(instNode);
                     lastWrite = instNode;
                     lastCritical = instNode;
                 },
@@ -70,6 +80,7 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
                     if (lastCritical) {
                         instNode->addExecutionDependency(lastCritical);
                     }
+                    dependOnReads(instNode);
                     lastWrite = instNode;
                     lastCritical = instNode;
                 },
@@ -77,6 +88,7 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
                     if (lastCritical) {
                         instNode->addExecutionDependency(lastCritical);
                     }
+                    dependOnReads(instNode);
                 },
                 [&](ir::Instruction const&) { SC_UNREACHABLE(); },
             }; // clang-format on
@@ -108,14 +120,14 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     for (auto* outputNode: DAG.outputs) {
         termNode->addExecutionDependency(outputNode);
     }
-    /// Do a DFS over the DAG to identify the execution dependency sets
+    /// Do a DFS over the DAG to identify the dependency sets
     utl::stack<SelectionNode*> stack;
     auto DFS = [&](auto& DFS, SelectionNode* node) -> void {
         for (auto* upstream: stack) {
-            DAG.execDeps[upstream].insert(node);
+            DAG.deps[upstream].insert(node);
         }
         stack.push(node);
-        for (auto* dep: node->executionDependencies()) {
+        for (auto* dep: node->dependencies()) {
             DFS(DFS, dep);
         }
         stack.pop();
