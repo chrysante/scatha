@@ -28,7 +28,18 @@ using namespace scatha;
 using namespace cg;
 
 template <>
-struct Matcher<ir::Alloca>: MatcherBase {};
+struct Matcher<ir::Alloca>: MatcherBase {
+    SD_MATCH_CASE(ir::Alloca const& inst, SelectionNode& node) {
+        SC_ASSERT(inst.allocatedType()->align() <= 8,
+                  "We don't support overaligned types just yet.");
+        SC_ASSERT(inst.isStatic(), "We only support static allocas for now");
+        size_t numBytes = utl::round_up(*inst.allocatedSize(), 8);
+        emit(new mir::LISPInst(resolve(inst),
+                               CTX().constant(numBytes, 2),
+                               inst.metadata()));
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::Load>: MatcherBase {
@@ -143,14 +154,16 @@ template <>
 struct Matcher<ir::ArithmeticInst>: MatcherBase {
     template <typename InstType>
     void doEmit(ir::ArithmeticInst const& inst, auto RHS) {
+        doEmit<InstType>(inst, RHS, inst.operation());
+    }
+
+    template <typename InstType>
+    void doEmit(ir::ArithmeticInst const& inst,
+                auto RHS,
+                mir::ArithmeticOperation op) {
         auto* LHS = resolveToRegister(*inst.lhs(), inst.metadata());
         size_t size = inst.lhs()->type()->size();
-        emit(new InstType(resolve(inst),
-                          LHS,
-                          RHS,
-                          size,
-                          inst.operation(),
-                          inst.metadata()));
+        emit(new InstType(resolve(inst), LHS, RHS, size, op, inst.metadata()));
     }
 
     /// Tests if the load has no execution dependencies on the LHS value. Only
@@ -192,6 +205,67 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
             resolveToRegister(*load->address(), load->metadata()));
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
         return true;
+    }
+
+    // Arithmetic -> IntConstant
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        auto* constant = dyncast<ir::IntegralConstant const*>(inst.rhs());
+        if (!constant) {
+            return false;
+        }
+        APInt rhsVal = constant->value();
+        using enum ir::ArithmeticOperation;
+        switch (inst.operation()) {
+        case Add: {
+            if (ucmp(rhsVal, 1) == 0) {
+                /// Emit `inc` instruction here
+            }
+            if (scmp(rhsVal, APInt(-1, rhsVal.bitwidth())) == 0) {
+                /// Emit `dec` instruction here
+            }
+            return false;
+        }
+        case Sub: {
+            if (ucmp(rhsVal, 1) == 0) {
+                /// Emit `dec` instruction here
+            }
+            if (scmp(rhsVal, APInt(-1, rhsVal.bitwidth())) == 0) {
+                /// Emit `inc` instruction here
+            }
+            return false;
+        }
+        case Mul: {
+            if (rhsVal.popcount() != 1) {
+                return false;
+            }
+            doEmit<mir::ValueArithmeticInst>(inst,
+                                             CTX().constant(rhsVal.ctz(), 1),
+                                             LShL);
+            return true;
+        }
+        case UDiv: {
+            if (rhsVal.popcount() != 1) {
+                return false;
+            }
+            doEmit<mir::ValueArithmeticInst>(inst,
+                                             CTX().constant(rhsVal.ctz(), 1),
+                                             LShR);
+            return true;
+        }
+        case URem: {
+            if (rhsVal.popcount() != 1) {
+                return false;
+            }
+            uint64_t mask = ~(~uint64_t(0) << rhsVal.ctz());
+            doEmit<mir::ValueArithmeticInst>(
+                inst,
+                CTX().constant(mask, utl::ceil_divide(rhsVal.bitwidth(), 8)),
+                And);
+            return true;
+        }
+        default:
+            return false;
+        }
     }
 
     // Arithmetic (base case)
@@ -351,7 +425,7 @@ struct ISelBlockCtx {
             emit(inst);
         }) {
 #define SC_INSTRUCTIONNODE_DEF(Inst, _)                                        \
-    std::get<Matcher<ir::Inst>>(matchers).init(DAG, resolver);
+    std::get<Matcher<ir::Inst>>(matchers).init(ctx, DAG, resolver);
 #include "IR/Lists.def"
     }
 
@@ -382,26 +456,8 @@ void cg::isel(SelectionDAG& DAG,
     generateGraphvizTmp(DAG, utl::strcat(irBB.name(), ".after"));
 }
 
-static utl::small_vector<SelectionNode*> topsort(SelectionNode* root) {
-    utl::small_vector<SelectionNode*> result;
-    utl::hashset<SelectionNode const*> marked;
-    auto visit = [&](auto visit, SelectionNode* node) {
-        if (marked.contains(node)) {
-            return;
-        }
-        for (auto* dep: node->dependencies()) {
-            visit(visit, dep);
-        }
-        marked.insert(node);
-        result.push_back(node);
-    };
-    visit(visit, root);
-    ranges::reverse(result);
-    return result;
-}
-
 void ISelBlockCtx::run() {
-    for (auto* node: topsort(DAG.root())) {
+    for (auto* node: DAG.topsort()) {
         if (node->dependentValues().empty() && !DAG.hasSideEffects(node) &&
             !DAG.isOutput(node))
         {

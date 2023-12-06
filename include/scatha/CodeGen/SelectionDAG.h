@@ -83,6 +83,10 @@ public:
         return execDeps[node];
     }
 
+    /// \Returns a list of all nodes in this DAG in topsort order. To determine
+    /// the order all dependencies (value and execution) are considered
+    utl::small_vector<SelectionNode*> topsort();
+
     /// # Modifiers
 
     ///

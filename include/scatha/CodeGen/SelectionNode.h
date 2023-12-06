@@ -39,6 +39,9 @@ public:
     /// \Returns the MIR instruction associated with this node
     List<mir::Instruction> const& mirInstructions() const { return _mirInsts; }
 
+    /// Extracts the instructions of this node
+    List<mir::Instruction> extractInstructions();
+
     /// Set the computed MIR value and list of instructions that compute the
     /// value
     void setMIR(mir::SSARegister* value, List<mir::Instruction> insts);

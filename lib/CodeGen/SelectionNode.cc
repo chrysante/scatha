@@ -16,6 +16,11 @@ void SelectionNode::setMIR(mir::SSARegister* reg,
     _matched = true;
 }
 
+List<mir::Instruction> SelectionNode::extractInstructions() {
+    SC_EXPECT(matched());
+    return std::move(_mirInsts);
+}
+
 void SelectionNode::addValueDependency(SelectionNode* node) {
     if (node == this) {
         return;

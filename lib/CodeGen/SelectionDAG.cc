@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include <graphgen/graphgen.h>
+#include <range/v3/algorithm.hpp>
 #include <termfmt/termfmt.h>
 #include <utl/stack.hpp>
 
@@ -128,6 +129,24 @@ SelectionNode const* SelectionDAG::root() const {
     return (*this)[basicBlock()->terminator()];
 }
 
+utl::small_vector<SelectionNode*> SelectionDAG::topsort() {
+    utl::small_vector<SelectionNode*> result;
+    utl::hashset<SelectionNode const*> marked;
+    auto DFS = [&](auto DFS, SelectionNode* node) {
+        if (marked.contains(node)) {
+            return;
+        }
+        for (auto* dep: node->dependencies()) {
+            DFS(DFS, dep);
+        }
+        marked.insert(node);
+        result.push_back(node);
+    };
+    DFS(DFS, root());
+    ranges::reverse(result);
+    return result;
+}
+
 void SelectionDAG::erase(SelectionNode* node) {
     node->erase();
     all.erase(node);
@@ -175,25 +194,16 @@ static Label makeLabel(SelectionDAG const& DAG, SelectionNode const* node) {
     }
 }
 
-/// \Returns `true` if the node is critical for visualization
-static bool vizCritical(SelectionNode const* node) {
-    return !isa<ir::Alloca>(node->irInst());
-}
-
 void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
     auto* G = Graph::make(ID(0));
-    for (auto* node: DAG.nodes() | ranges::views::filter(vizCritical)) {
+    for (auto* node: DAG.nodes()) {
         auto* vertex = Vertex::make(ID(node))->label(makeLabel(DAG, node));
         /// Add all use edges
-        for (auto* dependency:
-             node->valueDependencies() | ranges::views::filter(vizCritical))
-        {
+        for (auto* dependency: node->valueDependencies()) {
             G->add(Edge{ ID(node), ID(dependency), .style = Style::Dashed });
         }
         /// Add all 'execution' edges
-        for (auto* dependency:
-             node->executionDependencies() | ranges::views::filter(vizCritical))
-        {
+        for (auto* dependency: node->executionDependencies()) {
             G->add(Edge{ ID(node),
                          ID(dependency),
                          .color = Color::Magenta,

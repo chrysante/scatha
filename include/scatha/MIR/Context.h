@@ -5,6 +5,7 @@
 
 #include <utl/hashtable.hpp>
 
+#include <scatha/Common/APInt.h>
 #include <scatha/MIR/Fwd.h>
 
 namespace scatha::mir {
@@ -20,6 +21,9 @@ public:
     /// \Returns the global constant of byte width \p byteWidth with  value \p
     /// value
     Constant* constant(uint64_t value, size_t bytewidth);
+
+    /// \overload
+    Constant* constant(APInt value);
 
     /// \Return the global undef constant
     UndefValue* undef() const { return _undef.get(); }

@@ -33,14 +33,18 @@ public:
     bool match(ir::Instruction const& inst, SelectionNode& node) const;
 
     ///
-    void init(SelectionDAG& DAG, Resolver resolver) {
-        dag = &DAG;
+    void init(mir::Context& CTX, SelectionDAG& DAG, Resolver resolver) {
+        _ctx = &CTX;
+        _dag = &DAG;
         Resolver::operator=(std::move(resolver));
     }
 
 protected:
+    /// \Returns the MIR context
+    mir::Context& CTX() const { return *_ctx; }
+
     /// \Returns the DAG
-    SelectionDAG& DAG() const { return *dag; }
+    SelectionDAG& DAG() const { return *_dag; }
 
     /// \Returns the DAG node of \p inst
     SelectionNode* DAG(ir::Instruction const* inst) const {
@@ -51,7 +55,8 @@ private:
     friend void internal::addMatchCase(MatcherBase&, internal::CaseImpl);
 
     utl::small_vector<internal::CaseImpl> matchCases;
-    SelectionDAG* dag = nullptr;
+    mir::Context* _ctx = nullptr;
+    SelectionDAG* _dag = nullptr;
 };
 
 } // namespace scatha::cg

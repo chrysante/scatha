@@ -30,6 +30,7 @@
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/MIR/Context.h>
 #include <scatha/MIR/Module.h>
+#include <scatha/MIR/Print.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/Print.h>
@@ -206,6 +207,8 @@ static int inspectMain(InspectOptions options) {
         std::cout << "Warning: Other codegen options and execution are ignored "
                      "with the --isel flag"
                   << std::endl;
+        header("Generated MIR");
+        mir::print(mirMod);
         return 0;
     }
     auto cgLogger = [&]() -> std::unique_ptr<cg::Logger> {

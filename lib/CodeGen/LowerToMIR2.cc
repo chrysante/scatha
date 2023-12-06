@@ -46,6 +46,10 @@ struct LoweringContext {
 
     mir::BasicBlock* declareBB(mir::Function& mirFn,
                                ir::BasicBlock const& irBB);
+
+    /// Perform instruction scheduling of the selection dag \p DAG
+    /// Right now this is simply a linearization in a topsort order
+    void schedule(SelectionDAG& DAG, mir::BasicBlock& mirBB);
 };
 
 } // namespace
@@ -69,6 +73,7 @@ void LoweringContext::run() {
         for (auto& irBB: *irFn) {
             auto DAG = SelectionDAG::Build(irBB);
             isel(DAG, ctx, *mirFn, map);
+            schedule(DAG, cast<mir::BasicBlock&>(*map(&irBB)));
         }
     }
 }
@@ -95,4 +100,11 @@ mir::BasicBlock* LoweringContext::declareBB(mir::Function& mirFn,
     mirFn.pushBack(mirBB);
     map.insert(&irBB, mirBB);
     return mirBB;
+}
+
+void LoweringContext::schedule(SelectionDAG& DAG, mir::BasicBlock& BB) {
+    for (auto* node: DAG.topsort()) {
+        auto instructions = node->extractInstructions();
+        BB.splice(BB.begin(), instructions.begin(), instructions.end());
+    }
 }
