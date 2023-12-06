@@ -276,3 +276,22 @@ func i64 @main() {
     return i64 %res
 })");
 }
+
+/// SROA used to crash on this program because slice points where computed
+/// incorrectly
+TEST_CASE("Bug in SROA", "[regression]") {
+    test::checkReturns(1, R"(
+struct Y {
+    var a: int;
+    var b: int;
+}
+struct X {
+    var a: int;
+    var b: int;
+    var y: Y;
+}
+fn main() {
+    let x = X(1, 1, Y(1, 1));
+    return x.y.b;
+})");
+}

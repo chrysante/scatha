@@ -721,32 +721,26 @@ bool Variable::computeSlices() {
         auto [pointer, type] = getLSPointerAndType(inst);
         size_t const offset = getPtrOffset(pointer);
         auto& tree = sroa.getMemberTree(type);
-        utl::small_vector<MemberTree::Node const*> criticalSlicePoints;
-        tree.root()->preorderDFS([&](MemberTree::Node const* node) {
-            if (!node->parent()) {
-                return;
+        auto DFS = [&](auto& DFS, MemberTree::Node const* node) -> void {
+            for (auto* child: node->children()) {
+                DFS(DFS, child);
             }
-            if (node->begin() != node->parent()->begin() &&
-                set.contains(offset + node->begin()))
-            {
-                criticalSlicePoints.push_back(node);
+            bool hasSlicePoints = false;
+            for (auto* child: node->children()) {
+                hasSlicePoints |= child->begin() != node->begin() &&
+                                  set.contains(offset + child->begin());
+                hasSlicePoints |= child->end() != node->end() &&
+                                  set.contains(offset + child->end());
             }
-            if (node->end() != node->parent()->end() &&
-                set.contains(offset + node->end()))
-            {
-                criticalSlicePoints.push_back(node);
+
+            if (hasSlicePoints) {
+                for (auto* child: node->children()) {
+                    set.insert(offset + child->begin());
+                    set.insert(offset + child->end());
+                }
             }
-        });
-        for (auto* node: criticalSlicePoints) {
-            auto* parent = node->parent();
-            SC_ASSERT(parent,
-                      "node should not be in the list if it does not have a "
-                      "parent, see check above");
-            for (auto* node: parent->children()) {
-                set.insert(offset + node->begin());
-                set.insert(offset + node->end());
-            }
-        }
+        };
+        DFS(DFS, tree.root());
     }
     auto sortedSet = set | ToSmallVector<>;
     ranges::sort(sortedSet);
