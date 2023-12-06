@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 
+#include <svm/Builtin.h>
 #include <termfmt/termfmt.h>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
@@ -214,8 +215,7 @@ struct PrintContext {
     void printInstBegin(Instruction const& inst) {
         str << indent;
         if (auto* reg = inst.dest()) {
-            str << std::setw(3) << std::left << regName(reg)
-                << tfmt::format(None, " = ");
+            str << std::setw(3) << std::left << regName(reg) << " = ";
         }
         else {
             str << std::setw(6) << "";
@@ -251,16 +251,26 @@ struct PrintContext {
         printOperands(inst);
     }
 
-    void printImpl(CallBase const& inst) {
-        printImpl(static_cast<Instruction const&>(inst));
-        if (!inst.operands().empty()) {
+    void print(ExtFuncAddress function) {
+        if (function.slot == svm::BuiltinFunctionSlot) {
+            str << "builtin."
+                << toString(static_cast<svm::Builtin>(function.index));
+        }
+        else {
+            str << "slot=" << function.slot;
+            str << ", index=" << function.index;
+        }
+    }
+
+    void printImpl(CallBase const& call) {
+        printInstBegin(call);
+        str << formatInstName(call) << " ";
+        if (auto* callext = dyncast<CallExtInst const*>(&call)) {
+            print(callext->callee());
             str << ", ";
         }
-        str << "regoffset=" << inst.registerOffset();
-        if (auto* callext = dyncast<CallExtInst const*>(&inst)) {
-            str << ", slot=" << callext->callee().slot;
-            str << ", index=" << callext->callee().index;
-        }
+        printOperands(call);
+        str << " [regoffset=" << call.registerOffset() << "]";
     }
 
     void printImpl(LoadArithmeticInst const& inst) {
@@ -334,7 +344,7 @@ void mir::print(Function const& F, std::ostream& str) {
     ctx.print();
 }
 
-void mir::print(mir::Instruction const& inst) { print(inst, std::cout); }
+void mir::print(mir::Instruction const& inst) { mir::print(inst, std::cout); }
 
 void mir::print(mir::Instruction const& inst, std::ostream& str) {
     PrintContext ctx(nullptr, str);

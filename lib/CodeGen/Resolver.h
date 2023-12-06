@@ -33,36 +33,39 @@ public:
     /// - `undef` is mapped to `undef`
     /// Mapped values are cached so every call to this function with the same IR
     /// value will return the same MIR value
-    mir::Value* operator()(ir::Value const* value) const { return map(value); }
+    mir::Value* resolve(ir::Value const& value) const {
+        return resolveImpl(value);
+    }
 
     /// \overload
     template <std::derived_from<ir::Function> F>
-    mir::Function* operator()(F const* key) const {
-        return cast<mir::Function*>(map(key));
+    mir::Function* resolve(F const& key) const {
+        return cast<mir::Function*>(resolveImpl(key));
     }
 
     /// \overload
     template <std::derived_from<ir::BasicBlock> BB>
-    mir::BasicBlock* operator()(BB const* key) const {
-        return cast<mir::BasicBlock*>(map(key));
+    mir::BasicBlock* resolve(BB const& key) const {
+        return cast<mir::BasicBlock*>(resolveImpl(key));
     }
 
     /// \overload
     template <std::derived_from<ir::Instruction> I>
-    mir::SSARegister* operator()(I const* key) const {
-        return cast<mir::SSARegister*>(map(key));
+    mir::SSARegister* resolve(I const& key) const {
+        return cast<mir::SSARegister*>(resolveImpl(key));
     }
 
-    /// Aquire \p numWords adjacent registers
+    /// Calles `resolve()` and copies the values to a register if it is not
+    /// already in one
+    mir::SSARegister* resolveToRegister(ir::Value const& value,
+                                        Metadata metadata) const;
+
+    /// Generate \p numWords adjacent SSA registers
     mir::SSARegister* nextRegister(size_t numWords = 1) const;
 
     /// Aquire adjacent registers required to store the MIR value corresponding
     /// to \p value
-    mir::SSARegister* nextRegistersFor(ir::Value const* value) const;
-
-    ///
-    mir::SSARegister* nextRegistersFor(size_t numWords,
-                                       ir::Value const* liveWith) const;
+    mir::SSARegister* nextRegistersFor(ir::Value const& value) const;
 
     /// \Returns The register after \p dest
     template <typename R, typename Copy = mir::CopyInst>
@@ -85,8 +88,11 @@ public:
     mir::MemoryAddress computeGEP(ir::GetElementPointer const* gep,
                                   size_t offset = 0) const;
 
+    /// Emit an MIR instruction
+    void emit(mir::Instruction* inst) const { instEmitter(inst); }
+
 private:
-    mir::Value* map(ir::Value const* value) const;
+    mir::Value* resolveImpl(ir::Value const& value) const;
     mir::Value* impl(ir::Instruction const&) const;
     mir::Value* impl(ir::GlobalVariable const&) const;
     mir::Value* impl(ir::IntegralConstant const&) const;
@@ -101,8 +107,6 @@ private:
                                size_t numBytes,
                                Metadata metadata,
                                auto insertCallback) const;
-
-    void emit(mir::Instruction* inst) const { instEmitter(inst); }
 
     mir::Context* ctx = nullptr;
     mir::Function* F = nullptr;

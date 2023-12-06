@@ -8,6 +8,7 @@
 #include <graphgen/graphgen.h>
 #include <termfmt/termfmt.h>
 
+#include "Common/PrintUtil.h"
 #include "Debug/DebugGraphviz.h"
 #include "IR/CFG.h"
 #include "IR/Print.h"
@@ -73,7 +74,12 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
         if (::isOutput(inst)) {
             DAG.outputs.insert(instNode);
         }
-        for (auto* operand: inst.operands() | Filter<ir::Instruction>) {
+        auto sameBlock = [&](auto* other) {
+            return inst.parent() == other->parent();
+        };
+        for (auto* operand: inst.operands() | Filter<ir::Instruction> |
+                                ranges::views::filter(sameBlock))
+        {
             auto* opNode = DAG.get(operand);
             instNode->addValueDependency(opNode);
         }
@@ -122,12 +128,16 @@ static Label makeIRLabel(SelectionDAG const& DAG, ir::Instruction const* inst) {
 static Label makeMIRLabel(SelectionDAG const& DAG, SelectionNode const* node) {
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
+    sstr << tableBegin() << "\n";
     if (auto name = node->irInst()->name(); !name.empty()) {
-        sstr << name << ":\n";
+        sstr << rowBegin() << name << ":" << rowEnd() << "\n";
     }
     for (auto& inst: node->mirInstructions()) {
+        sstr << rowBegin();
         mir::print(inst, sstr);
+        sstr << rowEnd() << "\n";
     }
+    sstr << tableEnd() << "\n";
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 

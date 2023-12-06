@@ -9,6 +9,7 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
+#include "Common/PrintUtil.h"
 #include "Debug/DebugGraphviz.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -18,36 +19,7 @@ using namespace scatha;
 using namespace ir;
 using namespace graphgen;
 
-static constexpr auto monoFont = "SF Mono";
-
-static constexpr utl::streammanip tableBegin = [](std::ostream& str,
-                                                  int border = 0,
-                                                  int cellborder = 0,
-                                                  int cellspacing = 0) {
-    str << "<table border=\"" << border << "\" cellborder=\"" << cellborder
-        << "\" cellspacing=\"" << cellspacing << "\">";
-};
-
-static constexpr utl::streammanip tableEnd = [](std::ostream& str) {
-    str << "</table>";
-};
-
-static constexpr utl::streammanip fontBegin =
-    [](std::ostream& str, std::string_view fontname) {
-    str << "<font face=\"" << fontname << "\">";
-};
-
-static constexpr utl::streammanip fontEnd = [](std::ostream& str) {
-    str << "</font>";
-};
-
-static constexpr utl::streammanip rowBegin = [](std::ostream& str) {
-    str << "<tr><td align=\"left\">";
-};
-
-static constexpr utl::streammanip rowEnd = [](std::ostream& str) {
-    str << "</td></tr>";
-};
+static constexpr auto MonoFont = "SF Mono";
 
 static Label makeLabel(Function const& function) {
     std::stringstream sstr;
@@ -59,20 +31,12 @@ static Label makeLabel(Function const& function) {
 static Label makeLabel(BasicBlock const& BB) {
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
-    auto prolog = [&] {
-        sstr << "    " << rowBegin << fontBegin(monoFont) << "\n";
-    };
-    auto epilog = [&] { sstr << "    " << fontEnd << rowEnd << "\n"; };
-    sstr << tableBegin << "\n";
-    prolog();
-    sstr << tfmt::format(tfmt::Italic, "%", BB.name()) << ":\n";
-    epilog();
+    sstr << tableBegin() << rowBegin();
+    sstr << tfmt::format(tfmt::Italic, "%", BB.name()) << ":" << rowEnd();
     for (auto& inst: BB) {
-        prolog();
-        sstr << inst << "\n";
-        epilog();
+        sstr << rowBegin() << inst << rowEnd();
     }
-    sstr << tableEnd << "\n";
+    sstr << tableEnd();
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
@@ -89,14 +53,14 @@ static Graph* makeFunction(Function const& function) {
 
 void ir::generateGraphviz(Function const& function, std::ostream& ostream) {
     Graph G;
-    G.font(monoFont);
+    G.font(MonoFont);
     G.add(makeFunction(function));
     generate(G, ostream);
 }
 
 void ir::generateGraphviz(Module const& mod, std::ostream& ostream) {
     Graph G;
-    G.font(monoFont);
+    G.font(MonoFont);
     for (auto& function: mod) {
         G.add(makeFunction(function));
     }

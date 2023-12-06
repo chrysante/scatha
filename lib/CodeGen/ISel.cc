@@ -31,9 +31,45 @@ struct Matcher<ir::Alloca>: MatcherBase {};
 
 template <>
 struct Matcher<ir::Load>: MatcherBase {
+    void doEmit(ir::Load const& load,
+                mir::Register* dest,
+                mir::MemoryAddress addr,
+                size_t bytewidth) {
+        emit(new mir::LoadInst(dest, addr, bytewidth, load.metadata()));
+    }
+
+    // Load -> GEP
     SD_MATCH_CASE(ir::Load const& load, SelectionNode& node) {
-        resolver(&load);
-        return false;
+        auto* gep = dyncast<ir::GetElementPointer const*>(load.address());
+        if (!gep) {
+            return false;
+        }
+        node.merge(DAG(gep));
+        auto* dest = resolve(load);
+        size_t numBytes = load.type()->size();
+        size_t numWords = ::numWords(load);
+        for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
+            doEmit(load,
+                   dest,
+                   computeGEP(gep, i * WordSize),
+                   sliceWidth(numBytes, i, numWords));
+        }
+        return true;
+    }
+
+    // Load -> GEP
+    SD_MATCH_CASE(ir::Load const& load, SelectionNode& node) {
+        auto* dest = resolve(load);
+        auto* baseAddr = resolveToRegister(*load.address(), load.metadata());
+        size_t numBytes = load.type()->size();
+        size_t numWords = ::numWords(load);
+        for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
+            doEmit(load,
+                   dest,
+                   mir::MemoryAddress(baseAddr, nullptr, 0, i * WordSize),
+                   sliceWidth(numBytes, i, numWords));
+        }
+        return true;
     }
 };
 
@@ -50,7 +86,56 @@ template <>
 struct Matcher<ir::UnaryArithmeticInst>: MatcherBase {};
 
 template <>
-struct Matcher<ir::ArithmeticInst>: MatcherBase {};
+struct Matcher<ir::ArithmeticInst>: MatcherBase {
+    template <typename InstType>
+    void doEmit(ir::ArithmeticInst const& inst, auto RHS) {
+        auto* LHS = resolveToRegister(*inst.lhs(), inst.metadata());
+        size_t size = inst.lhs()->type()->size();
+        emit(new InstType(resolve(inst),
+                          LHS,
+                          RHS,
+                          size,
+                          inst.operation(),
+                          inst.metadata()));
+    }
+
+    // Arithmetic -> Load -> GEP
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        auto* load = dyncast<ir::Load const*>(inst.rhs());
+        if (!load) {
+            return false;
+        }
+        auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
+        if (!gep) {
+            return false;
+        }
+        node.merge(DAG(load));
+        node.merge(DAG(gep));
+        auto RHS = computeGEP(gep);
+        doEmit<mir::LoadArithmeticInst>(inst, RHS);
+        return true;
+    }
+
+    // Arithmetic -> Load
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        auto* load = dyncast<ir::Load const*>(inst.rhs());
+        if (!load) {
+            return false;
+        }
+        node.merge(DAG(load));
+        auto RHS = mir::MemoryAddress(
+            resolveToRegister(*load->address(), load->metadata()));
+        doEmit<mir::LoadArithmeticInst>(inst, RHS);
+        return true;
+    }
+
+    // Arithmetic (base case)
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        auto* RHS = resolve(*inst.rhs());
+        doEmit<mir::ValueArithmeticInst>(inst, RHS);
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::Goto>: MatcherBase {};
@@ -62,7 +147,39 @@ template <>
 struct Matcher<ir::Return>: MatcherBase {};
 
 template <>
-struct Matcher<ir::Call>: MatcherBase {};
+struct Matcher<ir::Call>: MatcherBase {
+    SD_MATCH_CASE(ir::Call const& call, SelectionNode& node) {
+        utl::small_vector<mir::Value*, 16> args;
+        for (auto* arg: call.arguments()) {
+            auto* mirArg = resolve(*arg);
+            size_t const numWords = ::numWords(*arg);
+            for (size_t i = 0; i < numWords; ++i, mirArg = mirArg->next()) {
+                args.push_back(mirArg);
+            }
+        }
+        size_t const numDests = numWords(call);
+        auto* dest = resolve(call);
+        // clang-format off
+        SC_MATCH (*call.function()) {
+            [&](ir::Value const& func) {
+                emit(new mir::CallInst(dest,
+                                       numDests,
+                                       resolve(func),
+                                       std::move(args),
+                                       call.metadata()));
+            },
+            [&](ir::ForeignFunction const& func) {
+                emit(new mir::CallExtInst(dest,
+                                          numDests,
+                                          { .slot  = static_cast<uint32_t>(func.slot()),
+                                            .index = static_cast<uint32_t>(func.index()) },
+                                          std::move(args),
+                                          call.metadata()));
+            },
+        }; // clang-format on
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::Phi>: MatcherBase {};
@@ -71,7 +188,13 @@ template <>
 struct Matcher<ir::Select>: MatcherBase {};
 
 template <>
-struct Matcher<ir::GetElementPointer>: MatcherBase {};
+struct Matcher<ir::GetElementPointer>: MatcherBase {
+    SD_MATCH_CASE(ir::GetElementPointer const& gep, SelectionNode& node) {
+        mir::MemoryAddress address = computeGEP(&gep);
+        emit(new mir::LEAInst(resolve(gep), address, gep.metadata()));
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::ExtractValue>: MatcherBase {};
@@ -106,7 +229,7 @@ struct ISelBlockCtx {
             emit(inst);
         }) {
 #define SC_INSTRUCTIONNODE_DEF(Inst, _)                                        \
-    std::get<Matcher<ir::Inst>>(matchers).init(resolver);
+    std::get<Matcher<ir::Inst>>(matchers).init(DAG, resolver);
 #include "IR/Lists.def"
     }
 
@@ -119,12 +242,8 @@ struct ISelBlockCtx {
     /// Sets the computed value and selected instruction to the node
     void finalizeNode(SelectionNode& node);
 
+    /// Meant to be called for every node that shall be lowered
     void match(SelectionNode& node);
-
-    template <typename Inst>
-    bool matchImpl(Inst const& inst, SelectionNode& node) {
-        return std::get<Matcher<Inst>>(matchers).match(inst, node);
-    }
 };
 
 } // namespace
@@ -173,8 +292,9 @@ static void reportUnmatched(ir::Instruction const& inst) {
 
 void ISelBlockCtx::match(SelectionNode& node) {
     auto& inst = *node.irInst();
-    bool matched =
-        visit(inst, [&](auto& inst) { return matchImpl(inst, node); });
+    bool matched = visit(inst, [&]<typename Inst>(Inst const& inst) {
+        return std::get<Matcher<Inst>>(matchers).match(inst, node);
+    });
     if (matched) {
         finalizeNode(node);
     }
@@ -184,127 +304,5 @@ void ISelBlockCtx::match(SelectionNode& node) {
 }
 
 void ISelBlockCtx::finalizeNode(SelectionNode& node) {
-    node.setMIR(resolver(node.irInst()), std::move(instructions));
+    node.setMIR(resolver.resolve(*node.irInst()), std::move(instructions));
 }
-
-#if 0
-
-void BBContext::matchImpl(ir::Call const& call, SelectionNode& node) {
-    utl::small_vector<mir::Value*, 16> args;
-    for (auto* arg: call.arguments()) {
-        auto* mirArg = resolve(*arg);
-        size_t const numWords = ::numWords(arg);
-        for (size_t i = 0; i < numWords; ++i, mirArg = mirArg->next()) {
-            args.push_back(mirArg);
-        }
-    }
-    size_t const numDests = numWords(call.type());
-    auto* dest = resolve(call);
-    // clang-format off
-    SC_MATCH (*call.function()) {
-        [&](ir::Value const& func) {
-            emit(new mir::CallInst(dest,
-                                   numDests,
-                                   resolve(func),
-                                   std::move(args),
-                                   call.metadata()));
-        },
-        [&](ir::ForeignFunction const& func) {
-            emit(new mir::CallExtInst(dest,
-                                      numDests,
-                                      { .slot  = static_cast<uint32_t>(func.slot()),
-                                        .index = static_cast<uint32_t>(func.index()) },
-                                      std::move(args),
-                                      call.metadata()));
-        },
-    }; // clang-format on
-    finalizeNode(node);
-}
-
-void BBContext::matchImpl(ir::Load const& load, SelectionNode& node) {
-    /// This is difficult because we also need to handle oversized types
-    utl::small_vector<Matcher<ir::Load>> matchers;
-    // Load -> GEP
-    matchers.push_back(
-        [this](ir::Load const& load, SelectionNode& node) {
-        auto* gep = dyncast<ir::GetElementPointer const*>(load.address());
-        if (!gep) {
-            return false;
-        }
-        auto& gepNode = *DAG[gep];
-        merge(node, gepNode);
-        auto source = computeGep(gep);
-        size_t size = inst->type()->size();
-        emit(new mir::LoadInst(resolve(inst),
-                               source,
-                               size,
-                               inst.metadata()));
-        return true;
-    });
-    // Load (base case)
-    matchers.push_back(
-        [this](ir::Load const& load, SelectionNode& node) {
-        auto* addr = resolve(*inst.rhs());
-        size_t size = inst.lhs()->type()->size();
-        emit(new mir::ValueArithmeticInst(resolve(inst),
-                                          lhs,
-                                          rhs,
-                                          size,
-                                          inst.operation(),
-                                          inst.metadata()));
-        return true;
-    });
-
-    applyMatchers<ir::Load>(matchers, inst, node);
-}
-
-void BBContext::matchImpl(ir::ArithmeticInst const& inst, SelectionNode& node) {
-    utl::small_vector<Matcher<ir::ArithmeticInst>> matchers;
-    // Arithmetic -> Load  [ -> GEP ]
-    matchers.push_back(
-        [this](ir::ArithmeticInst const& inst, SelectionNode& node) {
-        auto* load = dyncast<ir::Load const*>(inst.rhs());
-        if (!load) {
-            return false;
-        }
-        auto& loadNode = *DAG[load];
-        merge(node, loadNode);
-        auto src = [&] {
-            auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
-            if (gep) {
-                auto& gepNode = *DAG[gep];
-                merge(node, gepNode);
-                return computeGep(gep);
-            }
-            return mir::MemoryAddress(
-                resolveToRegister(load->metadata(), *load->address()));
-        }();
-        auto* lhs = resolveToRegister(inst.metadata(), *inst.lhs());
-        size_t size = inst.lhs()->type()->size();
-        emit(new mir::LoadArithmeticInst(resolve(inst),
-                                         lhs,
-                                         src,
-                                         size,
-                                         inst.operation(),
-                                         inst.metadata()));
-        return true;
-    });
-    // Arithmetic (base case)
-    matchers.push_back(
-        [this](ir::ArithmeticInst const& inst, SelectionNode& node) {
-        auto* lhs = resolveToRegister(inst.metadata(), *inst.lhs());
-        auto* rhs = resolve(*inst.rhs());
-        size_t size = inst.lhs()->type()->size();
-        emit(new mir::ValueArithmeticInst(resolve(inst),
-                                          lhs,
-                                          rhs,
-                                          size,
-                                          inst.operation(),
-                                          inst.metadata()));
-        return true;
-    });
-
-    applyMatchers<ir::ArithmeticInst>(matchers, inst, node);
-}
-
-#endif

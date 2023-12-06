@@ -6,64 +6,83 @@
 #include <utl/vector.hpp>
 
 #include "CodeGen/Resolver.h"
+#include "CodeGen/SelectionDAG.h"
 #include "Common/Base.h"
 #include "IR/Fwd.h"
 
 namespace scatha::cg {
 
-class SelectionNode;
+class MatcherBase;
 
 template <typename T>
 struct Matcher;
 
-/// Interface for a DAG match case. DAG match cases exist for every IR instruction
-/// type
-class MatcherBase {
+namespace internal {
+
+using CaseImpl = std::function<bool(ir::Instruction const&, SelectionNode&)>;
+
+void addMatchCase(MatcherBase&, CaseImpl);
+
+} // namespace internal
+
+/// Interface for a DAG matcher. DAG matchers must exist for every IR
+/// instruction type
+class MatcherBase: public Resolver {
 public:
     ///
     bool match(ir::Instruction const& inst, SelectionNode& node) const;
 
     ///
-    void init(Resolver resolver) { this->resolver = resolver; }
-
-protected:
-    using CaseImpl =
-        std::function<bool(ir::Instruction const&, SelectionNode&)>;
-
-    void addMatchCase(CaseImpl matchCase) {
-        matchCases.push_back(std::move(matchCase));
+    void init(SelectionDAG& DAG, Resolver resolver) {
+        dag = &DAG;
+        Resolver::operator=(std::move(resolver));
     }
 
-    Resolver resolver;
+protected:
+    /// \Returns the DAG
+    SelectionDAG& DAG() const { return *dag; }
+
+    /// \Returns the DAG node of \p inst
+    SelectionNode& DAG(ir::Instruction const* inst) const {
+        return *DAG()[inst];
+    }
 
 private:
-    utl::small_vector<CaseImpl> matchCases;
+    friend void internal::addMatchCase(MatcherBase&, internal::CaseImpl);
+
+    utl::small_vector<internal::CaseImpl> matchCases;
+    SelectionDAG* dag = nullptr;
 };
 
 } // namespace scatha::cg
 
 /// Implementation of `SD_MATCH_CASE`
 #define SD_MATCH_CASE_IMPL(CaseName, ...)                                      \
-    int SC_CONCAT(MatcherName, Init) : 1 = [&] {                               \
+    int SC_CONCAT(CaseName, _Init) : 1 = [&] {                                 \
         auto caseWrapper = [this](ir::Instruction const& inst,                 \
                                   SelectionNode& node) -> bool {               \
             using InstType =                                                   \
                 typename internal::MatcherToInstType<Matcher>::type;           \
             return CaseName(cast<InstType const&>(inst), node);                \
         };                                                                     \
-        this->addMatchCase(caseWrapper);                                       \
+        ::scatha::cg::internal::addMatchCase(*this, caseWrapper);              \
         return 0;                                                              \
     }();                                                                       \
-    bool CaseName(__VA_ARGS__) const
+    bool CaseName(__VA_ARGS__)
 
 /// Declares a match case for an IR instruction type. This is meant to be used
 /// within a `SD_MATCHER(...) { ... }` block
 #define SD_MATCH_CASE(...)                                                     \
-    SD_MATCH_CASE_IMPL(SC_CONCAT(MatchCase, __LINE__), __VA_ARGS__)
+    SD_MATCH_CASE_IMPL(SC_CONCAT(MatchCase_, __LINE__), __VA_ARGS__)
 
 // ===-----------------------------------------------------------------------===
 // ===--- Inline implementation ---------------------------------------------===
 // ===-----------------------------------------------------------------------===
+
+inline void scatha::cg::internal::addMatchCase(MatcherBase& matcher,
+                                               CaseImpl matchCase) {
+    matcher.matchCases.push_back(std::move(matchCase));
+}
 
 namespace scatha::cg::internal {
 

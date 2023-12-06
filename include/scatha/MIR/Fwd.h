@@ -117,8 +117,8 @@ class MemoryAddressImpl {
 public:
     MemoryAddressImpl(V* base,
                       V* dynOffset,
-                      uint32_t offsetFactor,
-                      uint32_t offsetTerm):
+                      size_t offsetFactor,
+                      size_t offsetTerm):
         MemoryAddressImpl(base,
                           dynOffset,
                           { utl::narrow_cast<uint8_t>(offsetFactor),
@@ -141,10 +141,10 @@ public:
     MemAddrConstantData constantData() const { return constData; }
 
     /// \Returns The constant offset factor
-    uint32_t offsetFactor() { return constData.offsetFactor; }
+    size_t offsetFactor() { return constData.offsetFactor; }
 
     /// \Returns The constant offset term
-    uint32_t offsetTerm() { return constData.offsetTerm; }
+    size_t offsetTerm() { return constData.offsetTerm; }
 
 private:
     V* base;

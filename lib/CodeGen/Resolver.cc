@@ -10,23 +10,25 @@
 using namespace scatha;
 using namespace cg;
 
-mir::Value* Resolver::map(ir::Value const* value) const {
-    if (auto* result = (*valueMap)(value)) {
+mir::Value* Resolver::resolveImpl(ir::Value const& value) const {
+    if (auto* result = (*valueMap)(&value)) {
         return result;
     }
-    return visit(*value, [this](auto& value) { return impl(value); });
+    return visit(value, [this](auto& value) { return impl(value); });
+}
+
+mir::SSARegister* Resolver::resolveToRegister(ir::Value const& value,
+                                              Metadata metadata) const {
+    auto* result = resolve(value);
+    if (auto* reg = dyncast<mir::SSARegister*>(result)) {
+        return reg;
+    }
+    auto* reg = nextRegister(numWords(value));
+    genCopy(reg, result, value.type()->size(), std::move(metadata));
+    return reg;
 }
 
 mir::SSARegister* Resolver::nextRegister(size_t numWords) const {
-    return nextRegistersFor(numWords, nullptr);
-}
-
-mir::SSARegister* Resolver::nextRegistersFor(ir::Value const* value) const {
-    return nextRegistersFor(numWords(value), value);
-}
-
-mir::SSARegister* Resolver::nextRegistersFor(size_t numWords,
-                                             ir::Value const* liveWith) const {
     auto* result = new mir::SSARegister();
     F->ssaRegisters().add(result);
     for (size_t i = 1; i < numWords; ++i) {
@@ -36,11 +38,15 @@ mir::SSARegister* Resolver::nextRegistersFor(size_t numWords,
     return result;
 }
 
+mir::SSARegister* Resolver::nextRegistersFor(ir::Value const& value) const {
+    return nextRegister(numWords(value));
+}
+
 mir::Value* Resolver::impl(ir::Instruction const& inst) const {
     if (isa<ir::VoidType>(inst.type())) {
         return nullptr;
     }
-    auto* reg = nextRegistersFor(&inst);
+    auto* reg = nextRegistersFor(inst);
     valueMap->insert(&inst, reg);
     return reg;
 }
@@ -105,8 +111,7 @@ mir::Register* Resolver::genCopyImpl(mir::Register* dest,
 
 mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const* gep,
                                         size_t offset) const {
-    SC_UNIMPLEMENTED(); // offset argument not used
-    auto* base = (*this)(gep->basePointer());
+    auto* base = resolve(*gep->basePointer());
     if (auto* undef = dyncast<mir::UndefValue*>(base)) {
         return mir::MemoryAddress(nullptr, nullptr, 0, 0);
     }
@@ -117,13 +122,13 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const* gep,
     auto [dynFactor, constFactor, constOffset] =
         [&]() -> std::tuple<mir::Register*, size_t, size_t> {
         size_t elemSize = gep->inboundsType()->size();
-        size_t innerOffset = gep->innerByteOffset();
+        size_t innerOffset = gep->innerByteOffset() + offset;
         auto* constIndex =
             dyncast<ir::IntegralConstant const*>(gep->arrayIndex());
         if (constIndex && constIndex->value() == 0) {
             return { nullptr, elemSize, innerOffset };
         }
-        mir::Value* arrayIndex = (*this)(gep->arrayIndex());
+        mir::Value* arrayIndex = resolve(*gep->arrayIndex());
         if (auto* regArrayIdx = dyncast<mir::Register*>(arrayIndex)) {
             return { regArrayIdx, elemSize, innerOffset };
         }
@@ -134,14 +139,11 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const* gep,
                 return { nullptr, 0, totalOffset };
             }
         }
-        auto* result = nextRegistersFor(1, gep);
+        auto* result = nextRegister();
         genCopy(result, arrayIndex, 8, gep->metadata());
         return { result, elemSize, innerOffset };
     }();
-    return mir::MemoryAddress(basereg,
-                              dynFactor,
-                              utl::narrow_cast<uint32_t>(constFactor),
-                              utl::narrow_cast<uint32_t>(constOffset));
+    return mir::MemoryAddress(basereg, dynFactor, constFactor, constOffset);
 }
 
 // We keep this here until we implement it

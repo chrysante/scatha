@@ -19,11 +19,11 @@ static size_t numParamRegisters(ir::Function const& F) {
     return ranges::accumulate(F.parameters(),
                               size_t(0),
                               ranges::plus{},
-                              [&](auto& param) { return numWords(&param); });
+                              [&](auto& param) { return numWords(param); });
 }
 
 static size_t numReturnRegisters(ir::Function const& F) {
-    return numWords(F.returnType());
+    return numWords(*F.returnType());
 }
 
 namespace {
@@ -42,6 +42,8 @@ struct LoweringContext {
 
     void run();
 
+    mir::Function* declareFunction(ir::Function const& irFn);
+
     mir::BasicBlock* declareBB(mir::Function& mirFn,
                                ir::BasicBlock const& irBB);
 };
@@ -57,13 +59,8 @@ mir::Module cg::lowerToMIR2(mir::Context& ctx, ir::Module const& irMod) {
 void LoweringContext::run() {
     utl::small_vector<std::pair<ir::Function const*, mir::Function*>> functions;
     for (auto& irFn: irMod) {
-        auto* mirFn = new mir::Function(&irFn,
-                                        numParamRegisters(irFn),
-                                        numReturnRegisters(irFn),
-                                        irFn.visibility());
-        mirMod.addFunction(mirFn);
+        auto* mirFn = declareFunction(irFn);
         functions.push_back({ &irFn, mirFn });
-        map.insert(&irFn, mirFn);
     }
     for (auto [irFn, mirFn]: functions) {
         for (auto& irBB: *irFn) {
@@ -74,6 +71,22 @@ void LoweringContext::run() {
             isel(DAG, ctx, *mirFn, map);
         }
     }
+}
+
+mir::Function* LoweringContext::declareFunction(ir::Function const& irFn) {
+    auto* mirFn = new mir::Function(&irFn,
+                                    numParamRegisters(irFn),
+                                    numReturnRegisters(irFn),
+                                    irFn.visibility());
+    mirMod.addFunction(mirFn);
+    map.insert(&irFn, mirFn);
+    /// Associate parameters with bottom registers
+    auto regItr = mirFn->ssaRegisters().begin();
+    for (auto& param: irFn.parameters()) {
+        map.insert(&param, regItr.to_address());
+        std::advance(regItr, numWords(param));
+    }
+    return mirFn;
 }
 
 mir::BasicBlock* LoweringContext::declareBB(mir::Function& mirFn,
