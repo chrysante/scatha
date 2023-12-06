@@ -16,7 +16,7 @@
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/CodeGen/CodeGen.h>
-#include <scatha/CodeGen/LowerToMIR2.h>
+#include <scatha/CodeGen/Passes.h>
 #include <scatha/CodeGen/SelectionDAG.h>
 #include <scatha/Common/ExecutableWriter.h>
 #include <scatha/Common/Logging.h>

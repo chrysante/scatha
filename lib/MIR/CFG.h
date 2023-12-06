@@ -117,8 +117,11 @@ public:
 
     template <typename PI>
     static auto phiNodesImpl(auto* self) {
-        return *self | ranges::views::take_while(isa<PI>) |
-               ranges::views::transform(cast<PI&>);
+        auto itr = self->begin();
+        while (itr != self->end() && isa<PI>(*itr)) {
+            ++itr;
+        }
+        return ranges::subrange<decltype(itr)>(self->begin(), itr);
     }
 
     /// \Returns a view over the phi instructions in this block. Contains only

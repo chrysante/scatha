@@ -23,7 +23,7 @@ public:
                       std::function<void(mir::Instruction*)> instEmitter):
         ctx(&ctx),
         F(&F),
-        valueMap(&valueMap),
+        _valueMap(&valueMap),
         instEmitter(std::move(instEmitter)) {}
 
     /// Maps the IR value \p value to the corresponding MIR value. In particular
@@ -91,6 +91,13 @@ public:
     /// Emit an MIR instruction
     void emit(mir::Instruction* inst) const { instEmitter(inst); }
 
+    ///
+    ValueMap& valueMap() const { return *_valueMap; }
+
+    /// Emits copy instructions that copy the value into the dest register for
+    /// \p inst
+    void mapToValue(ir::Instruction const& inst, mir::Value* value);
+
 private:
     mir::Value* resolveImpl(ir::Value const& value) const;
     mir::Value* impl(ir::Instruction const&) const;
@@ -110,7 +117,7 @@ private:
 
     mir::Context* ctx = nullptr;
     mir::Function* F = nullptr;
-    ValueMap* valueMap = nullptr;
+    ValueMap* _valueMap = nullptr;
     std::function<void(mir::Instruction*)> instEmitter;
 };
 

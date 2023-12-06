@@ -11,7 +11,7 @@ using namespace scatha;
 using namespace cg;
 
 mir::Value* Resolver::resolveImpl(ir::Value const& value) const {
-    if (auto* result = (*valueMap)(&value)) {
+    if (auto* result = valueMap()(&value)) {
         return result;
     }
     return visit(value, [this](auto& value) { return impl(value); });
@@ -42,12 +42,16 @@ mir::SSARegister* Resolver::nextRegistersFor(ir::Value const& value) const {
     return nextRegister(numWords(value));
 }
 
+void Resolver::mapToValue(ir::Instruction const& inst, mir::Value* value) {
+    genCopy(resolve(inst), value, inst.type()->size(), inst.metadata());
+}
+
 mir::Value* Resolver::impl(ir::Instruction const& inst) const {
     if (isa<ir::VoidType>(inst.type())) {
         return nullptr;
     }
     auto* reg = nextRegistersFor(inst);
-    valueMap->insert(&inst, reg);
+    valueMap().insert(&inst, reg);
     return reg;
 }
 
@@ -60,7 +64,7 @@ mir::Value* Resolver::impl(ir::IntegralConstant const& constant) const {
               "Can't handle extended width integers");
     uint64_t value = constant.value().to<uint64_t>();
     auto* mirConst = ctx->constant(value, constant.type()->size());
-    valueMap->insert(&constant, mirConst);
+    valueMap().insert(&constant, mirConst);
     return mirConst;
 }
 
@@ -75,13 +79,13 @@ mir::Value* Resolver::impl(ir::FloatingPointConstant const& constant) const {
         value = utl::bit_cast<uint64_t>(constant.value().to<double>());
     }
     auto* mirConst = ctx->constant(value, constant.type()->size());
-    valueMap->insert(&constant, mirConst);
+    valueMap().insert(&constant, mirConst);
     return mirConst;
 }
 
 mir::Value* Resolver::impl(ir::NullPointerConstant const& constant) const {
     auto* mirConstant = ctx->constant(0, 8);
-    valueMap->insert(&constant, mirConstant);
+    valueMap().insert(&constant, mirConstant);
     return mirConstant;
 }
 

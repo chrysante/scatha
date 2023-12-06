@@ -1,4 +1,4 @@
-#include "CodeGen/LowerToMIR2.h"
+#include "CodeGen/Passes.h"
 
 #include <range/v3/numeric.hpp>
 #include <utl/vector.hpp>
@@ -47,6 +47,8 @@ struct LoweringContext {
     mir::BasicBlock* declareBB(mir::Function& mirFn,
                                ir::BasicBlock const& irBB);
 
+    void generateBB(ir::BasicBlock const& irBB);
+
     /// Perform instruction scheduling of the selection dag \p DAG
     /// Right now this is simply a linearization in a topsort order
     void schedule(SelectionDAG& DAG, mir::BasicBlock& mirBB);
@@ -71,9 +73,7 @@ void LoweringContext::run() {
             declareBB(*mirFn, irBB);
         }
         for (auto& irBB: *irFn) {
-            auto DAG = SelectionDAG::Build(irBB);
-            isel(DAG, ctx, *mirFn, map);
-            schedule(DAG, cast<mir::BasicBlock&>(*map(&irBB)));
+            generateBB(irBB);
         }
     }
 }
@@ -102,9 +102,32 @@ mir::BasicBlock* LoweringContext::declareBB(mir::Function& mirFn,
     return mirBB;
 }
 
+void LoweringContext::generateBB(ir::BasicBlock const& irBB) {
+    auto& mirBB = cast<mir::BasicBlock&>(*map(&irBB));
+    for (auto* pred: irBB.predecessors()) {
+        mirBB.addPredecessor(cast<mir::BasicBlock*>(map(pred)));
+    }
+    for (auto* succ: irBB.successors()) {
+        mirBB.addSuccessor(cast<mir::BasicBlock*>(map(succ)));
+    }
+    auto DAG = SelectionDAG::Build(irBB);
+    isel(DAG, ctx, *mirBB.parent(), map);
+    schedule(DAG, mirBB);
+}
+
 void LoweringContext::schedule(SelectionDAG& DAG, mir::BasicBlock& BB) {
-    for (auto* node: DAG.topsort()) {
+    auto nodes = DAG.topsort();
+    for (auto* node: nodes | ranges::views::reverse) {
         auto instructions = node->extractInstructions();
-        BB.splice(BB.begin(), instructions.begin(), instructions.end());
+        auto insertPoint = [&] {
+            if (isa<ir::Alloca>(node->irInst())) {
+                return BB.begin();
+            }
+            if (isa<ir::Phi>(node->irInst())) {
+                return BB.phiNodes().end();
+            }
+            return BB.end();
+        }();
+        BB.splice(insertPoint, instructions.begin(), instructions.end());
     }
 }

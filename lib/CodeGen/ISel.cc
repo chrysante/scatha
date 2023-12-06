@@ -130,7 +130,69 @@ struct Matcher<ir::Store>: MatcherBase {
 };
 
 template <>
-struct Matcher<ir::ConversionInst>: MatcherBase {};
+struct Matcher<ir::ConversionInst>: MatcherBase {
+    SD_MATCH_CASE(ir::ConversionInst const& inst, SelectionNode& node) {
+        switch (inst.conversion()) {
+        case ir::Conversion::Zext:
+            [[fallthrough]];
+        case ir::Conversion::Trunc:
+            [[fallthrough]];
+        case ir::Conversion::Bitcast: {
+            auto* operand = resolve(*inst.operand());
+            if (auto* constant = dyncast<mir::Constant*>(operand)) {
+                size_t fromWidth =
+                    cast<ir::ArithmeticType const*>(inst.operand()->type())
+                        ->bitwidth();
+                size_t toWidth =
+                    cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
+                APInt value = APInt(constant->value(), fromWidth);
+                value.zext(toWidth);
+                mapToValue(inst,
+                           CTX().constant(value.to<uint64_t>(),
+                                          utl::ceil_divide(toWidth, 8)));
+            }
+            else if (auto* undef = dyncast<mir::UndefValue*>(operand)) {
+                mapToValue(inst, CTX().undef());
+            }
+            else {
+                SC_ASSERT(isa<mir::Register>(operand), "");
+                mapToValue(inst, operand);
+            }
+            break;
+        }
+        case ir::Conversion::Sext:
+            [[fallthrough]];
+        case ir::Conversion::Fext:
+            [[fallthrough]];
+        case ir::Conversion::Ftrunc:
+            [[fallthrough]];
+        case ir::Conversion::UtoF:
+            [[fallthrough]];
+        case ir::Conversion::StoF:
+            [[fallthrough]];
+        case ir::Conversion::FtoU:
+            [[fallthrough]];
+        case ir::Conversion::FtoS: {
+            mir::Value* operand = resolve(*inst.operand());
+            auto fromBits = utl::narrow_cast<u16>(
+                cast<ir::ArithmeticType const*>(inst.operand()->type())
+                    ->bitwidth());
+            auto toBits = utl::narrow_cast<u16>(
+                cast<ir::ArithmeticType const*>(inst.type())->bitwidth());
+            emit(new mir::ConversionInst(resolve(inst),
+                                         operand,
+                                         inst.conversion(),
+                                         fromBits,
+                                         toBits,
+                                         inst.metadata()));
+            break;
+        }
+        case ir::Conversion::_count:
+            SC_UNREACHABLE();
+        }
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::CompareInst>: MatcherBase {
@@ -148,7 +210,17 @@ struct Matcher<ir::CompareInst>: MatcherBase {
 };
 
 template <>
-struct Matcher<ir::UnaryArithmeticInst>: MatcherBase {};
+struct Matcher<ir::UnaryArithmeticInst>: MatcherBase {
+    SD_MATCH_CASE(ir::UnaryArithmeticInst const& inst, SelectionNode& node) {
+        auto* operand = resolveToRegister(*inst.operand(), inst.metadata());
+        emit(new mir::UnaryArithmeticInst(resolve(inst),
+                                          operand,
+                                          inst.operand()->type()->size(),
+                                          inst.operation(),
+                                          inst.metadata()));
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::ArithmeticInst>: MatcherBase {
@@ -378,7 +450,27 @@ struct Matcher<ir::Call>: MatcherBase {
 };
 
 template <>
-struct Matcher<ir::Phi>: MatcherBase {};
+struct Matcher<ir::Phi>: MatcherBase {
+    SD_MATCH_CASE(ir::Phi const& phi, SelectionNode& node) {
+        auto* dest = resolve(phi);
+        auto arguments = phi.arguments() |
+                         ranges::views::transform([&](ir::ConstPhiMapping arg) {
+                             return resolve(*arg.value);
+                         }) |
+                         ToSmallVector<>;
+        size_t const numBytes = phi.type()->size();
+        size_t const numWords = ::numWords(phi);
+        for (size_t i = 0; i < numWords; ++i) {
+            emit(new mir::PhiInst(dest,
+                                  arguments,
+                                  sliceWidth(numBytes, i, numWords),
+                                  phi.metadata()));
+            dest = dest->next();
+            ranges::for_each(arguments, [](auto& arg) { arg = arg->next(); });
+        }
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::Select>: MatcherBase {};
@@ -392,11 +484,218 @@ struct Matcher<ir::GetElementPointer>: MatcherBase {
     }
 };
 
-template <>
-struct Matcher<ir::ExtractValue>: MatcherBase {};
+static std::pair<ir::Type const*, size_t> computeInnerTypeAndByteOffset(
+    ir::Type const* type, std::span<size_t const> indices) {
+    size_t byteOffset = 0;
+    for (size_t index: indices) {
+        auto* record = cast<ir::RecordType const*>(type);
+        byteOffset += record->offsetAt(index);
+        type = record->elementAt(index);
+    }
+    return { type, byteOffset };
+}
+
+template <typename R>
+static R* advance(R* r, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        r = r->next();
+    }
+    return r;
+}
+
+static uint64_t makeWordMask(size_t leadingZeroBytes, size_t oneBytes) {
+    SC_EXPECT(leadingZeroBytes + oneBytes <= 8);
+    std::array<uint8_t, 8> mask{};
+    for (size_t i = leadingZeroBytes; i < leadingZeroBytes + oneBytes; ++i) {
+        mask[i] = 0xFF;
+    }
+    return utl::bit_cast<uint64_t>(mask);
+}
 
 template <>
-struct Matcher<ir::InsertValue>: MatcherBase {};
+struct Matcher<ir::ExtractValue>: MatcherBase {
+    SD_MATCH_CASE(ir::ExtractValue const& extract, SelectionNode& node) {
+        auto* source = resolve(*extract.baseValue());
+        if (auto* constant = dyncast<mir::Constant*>(source)) {
+            SC_UNIMPLEMENTED();
+            return true;
+        }
+        if (auto* undef = dyncast<mir::UndefValue*>(source)) {
+            mapToValue(extract, undef);
+            return true;
+        }
+        mir::Register* srcreg = cast<mir::Register*>(source);
+        ir::Type const* const outerType = extract.baseValue()->type();
+        auto const [innerType, innerByteBegin] =
+            computeInnerTypeAndByteOffset(outerType, extract.memberIndices());
+        size_t const innerWordBegin = innerByteBegin / 8;
+        size_t const innerByteOffset = innerByteBegin % 8;
+        size_t const innerSize = innerType->size();
+        srcreg = advance(srcreg, innerWordBegin);
+        /// If `innerByteOffset` is 0 i.e. we don't need any bit shifts or
+        /// masking, we directly associate the source register with the dest
+        /// register.
+        if (innerByteOffset == 0) {
+            mapToValue(extract, srcreg);
+            return true;
+        }
+        SC_ASSERT(innerByteOffset + innerSize <= 8,
+                  "This will need even more work");
+        auto* sourceShifted = nextRegister();
+        auto* shiftOffset = CTX().constant(8 * innerByteOffset, 1);
+        emit(new mir::ValueArithmeticInst(sourceShifted,
+                                          srcreg,
+                                          shiftOffset,
+                                          8,
+                                          mir::ArithmeticOperation::LShR,
+                                          extract.metadata()));
+        auto* sourceMask = CTX().constant(makeWordMask(0, innerSize), 8);
+        mir::Register* dest = resolve(extract);
+        emit(new mir::ValueArithmeticInst(dest,
+                                          sourceShifted,
+                                          sourceMask,
+                                          8,
+                                          mir::ArithmeticOperation::And,
+                                          extract.metadata()));
+        return true;
+    }
+};
+
+template <>
+struct Matcher<ir::InsertValue>: MatcherBase {
+    SD_MATCH_CASE(ir::InsertValue const& insert, SelectionNode& node) {
+        auto* insertedMember = resolve(*insert.insertedValue());
+        auto* source = resolve(*insert.baseValue());
+        auto* dest = resolve(insert);
+
+        /// Slice the outer value like so (`x` marks parts of the inner value,
+        /// `_` marks the rest of the outer value, and `outerWordCount` is the
+        /// number of words of the outer value):
+        /// ```
+        ///        ┌─ innerByteOffset // Distance between `innerWordBegin` and
+        ///        │                  // `innerByteBegin`
+        ///        v
+        /// [__|__|_x|xx|xx|xx|xx|xx|x_|__|__]
+        ///        ^^                 ^ ^
+        ///        │|                 | |
+        ///        │└─ innerByteBegin └─┼─ innerByteEnd
+        ///        │                    |
+        ///        └── innerWordBegin   └─ innerWordEnd
+        /// ```
+        /// This partitions the outer value into 3 subranges:
+        /// `[0, innerWordBegin)` the first words not touching the inner value.
+        /// `[innerWordBegin, innerWordEnd)` the first words containing the
+        /// inner value.
+        /// `[innerWordEnd, outerWordCount)` the last words not touching the
+        /// inner value.
+
+        ir::Type const* const outerType = insert.type();
+        auto const [innerType, innerByteBegin] =
+            computeInnerTypeAndByteOffset(outerType, insert.memberIndices());
+
+        [[maybe_unused]] size_t const innerByteEnd =
+            innerByteBegin + innerType->size();
+        size_t const innerWordBegin = innerByteBegin / 8;
+        size_t const innerWordEnd = innerWordBegin + numWords(*innerType);
+
+        /// Copy the first full words
+        dest = genCopy(dest, source, 8 * innerWordBegin, insert.metadata());
+        source = advance(source, innerWordBegin);
+
+        /// Handle the complex middle part
+        size_t const innerByteOffset = innerByteBegin % 8;
+        if (innerByteOffset == 0) {
+            /// If we are on a word boundary things are kind of easy.
+            /// We emit copies for all full words of the inner value.
+            size_t const fullWordsInner = innerType->size() / 8;
+            dest = genCopy(dest,
+                           insertedMember,
+                           8 * fullWordsInner,
+                           insert.metadata());
+            insertedMember = advance(insertedMember, fullWordsInner);
+            source = advance(source, fullWordsInner);
+            /// These are the bytes we hang over into the last register of the
+            /// inner section.
+            size_t const hungOverBytes = innerType->size() % 8;
+            if (hungOverBytes != 0) {
+                auto* maskedSource = nextRegister();
+                auto* sourceMask =
+                    CTX().constant(~uint64_t{ 0 } << 8 * hungOverBytes, 8);
+                emit(new mir::ValueArithmeticInst(maskedSource,
+                                                  source,
+                                                  sourceMask,
+                                                  8,
+                                                  mir::ArithmeticOperation::And,
+                                                  insert.metadata()));
+                auto* maskedInserted = nextRegister();
+                auto* insertedMask = CTX().constant(~sourceMask->value(), 8);
+                emit(new mir::ValueArithmeticInst(maskedInserted,
+                                                  insertedMember,
+                                                  insertedMask,
+                                                  8,
+                                                  mir::ArithmeticOperation::And,
+                                                  insert.metadata()));
+                emit(new mir::ValueArithmeticInst(dest,
+                                                  maskedSource,
+                                                  maskedInserted,
+                                                  8,
+                                                  mir::ArithmeticOperation::Or,
+                                                  insert.metadata()));
+                dest = dest->next();
+                source = source->next();
+            }
+        }
+        else {
+            /// We only handle the case where we need to take care of only one
+            /// word.
+            SC_ASSERT(innerByteOffset + innerType->size() <= 8,
+                      "Everything else is too complex for now");
+            auto* shiftCount = CTX().constant(8 * innerByteOffset, 1);
+            auto* insertedMask = CTX().constant(
+                makeWordMask(/* leadingZeroBytes = */ innerByteOffset,
+                             /* oneBytes         = */ innerType->size()),
+                8);
+            auto* sourceMask = CTX().constant(~insertedMask->value(), 8);
+            auto* shiftedInsert = nextRegister();
+            emit(new mir::ValueArithmeticInst(shiftedInsert,
+                                              insertedMember,
+                                              shiftCount,
+                                              8,
+                                              mir::ArithmeticOperation::LShL,
+                                              insert.metadata()));
+            auto* maskedSource = nextRegister();
+            emit(new mir::ValueArithmeticInst(maskedSource,
+                                              source,
+                                              sourceMask,
+                                              8,
+                                              mir::ArithmeticOperation::And,
+                                              insert.metadata()));
+            auto* maskedInsert = nextRegister();
+            emit(new mir::ValueArithmeticInst(maskedInsert,
+                                              shiftedInsert,
+                                              insertedMask,
+                                              8,
+                                              mir::ArithmeticOperation::And,
+                                              insert.metadata()));
+            emit(new mir::ValueArithmeticInst(dest,
+                                              maskedSource,
+                                              maskedInsert,
+                                              8,
+                                              mir::ArithmeticOperation::Or,
+                                              insert.metadata()));
+            dest = dest->next();
+            source = source->next();
+        }
+
+        /// Copy the last full words
+        dest = genCopy(dest,
+                       source,
+                       utl::round_up(outerType->size(), 8) - 8 * innerWordEnd,
+                       insert.metadata());
+        (void)dest;
+        return true;
+    }
+};
 
 namespace {
 
