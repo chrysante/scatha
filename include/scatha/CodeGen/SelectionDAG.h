@@ -76,6 +76,13 @@ public:
         return outputs.contains(node);
     }
 
+    /// \Returns the set of all nodes which have (transitive) execution
+    /// dependencies of \p node
+    utl::hashset<SelectionNode const*> const& executionDependencies(
+        SelectionNode const* node) {
+        return execDeps[node];
+    }
+
     /// # Modifiers
 
     ///
@@ -90,6 +97,11 @@ private:
 
     /// This map has an entry for every node in the DAG
     utl::hashmap<ir::Value const*, std::unique_ptr<SelectionNode>> map;
+
+    /// Maps each node to the set of nodes whose execution depends on the key
+    /// node
+    utl::hashmap<SelectionNode const*, utl::hashset<SelectionNode const*>>
+        execDeps;
 
     /// Set of all nodes
     utl::hashset<SelectionNode*> all;

@@ -7,6 +7,7 @@
 
 #include <graphgen/graphgen.h>
 #include <termfmt/termfmt.h>
+#include <utl/stack.hpp>
 
 #include "Common/PrintUtil.h"
 #include "Debug/DebugGraphviz.h"
@@ -95,10 +96,24 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
             instNode->addValueDependency(opNode);
         }
     }
+    /// Add execution dependencies from the terminator to all output nodes
     auto* termNode = DAG.get(BB.terminator());
     for (auto* outputNode: DAG.outputs) {
         termNode->addExecutionDependency(outputNode);
     }
+    /// Do a DFS over the DAG to identify the execution dependency sets
+    utl::stack<SelectionNode*> stack;
+    auto DFS = [&](auto& DFS, SelectionNode* node) -> void {
+        for (auto* upstream: stack) {
+            DAG.execDeps[upstream].insert(node);
+        }
+        stack.push(node);
+        for (auto* dep: node->executionDependencies()) {
+            DFS(DFS, dep);
+        }
+        stack.pop();
+    };
+    DFS(DFS, termNode);
     return DAG;
 }
 

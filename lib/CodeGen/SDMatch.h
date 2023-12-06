@@ -43,8 +43,8 @@ protected:
     SelectionDAG& DAG() const { return *dag; }
 
     /// \Returns the DAG node of \p inst
-    SelectionNode& DAG(ir::Instruction const* inst) const {
-        return *DAG()[inst];
+    SelectionNode* DAG(ir::Instruction const* inst) const {
+        return DAG()[inst];
     }
 
 private:

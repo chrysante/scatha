@@ -52,7 +52,7 @@ struct Matcher<ir::Load>: MatcherBase {
         if (!gep) {
             return false;
         }
-        node.merge(DAG(gep));
+        node.merge(*DAG(gep));
         impl(load, [&](size_t i) { return computeGEP(gep, i * WordSize); });
         return true;
     }
@@ -103,7 +103,7 @@ struct Matcher<ir::Store>: MatcherBase {
         if (!gep) {
             return false;
         }
-        node.merge(DAG(gep));
+        node.merge(*DAG(gep));
         impl(store, [&](size_t i) { return computeGEP(gep, i * WordSize); });
         return true;
     }
@@ -122,7 +122,19 @@ template <>
 struct Matcher<ir::ConversionInst>: MatcherBase {};
 
 template <>
-struct Matcher<ir::CompareInst>: MatcherBase {};
+struct Matcher<ir::CompareInst>: MatcherBase {
+    SD_MATCH_CASE(ir::CompareInst const& cmp, SelectionNode& node) {
+        auto* LHS = resolveToRegister(*cmp.lhs(), cmp.metadata());
+        auto* RHS = resolve(*cmp.rhs());
+        emit(new mir::CompareInst(LHS,
+                                  RHS,
+                                  cmp.lhs()->type()->size(),
+                                  cmp.mode(),
+                                  cmp.metadata()));
+        emit(new mir::SetInst(resolve(cmp), cmp.operation(), cmp.metadata()));
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::UnaryArithmeticInst>: MatcherBase {};
@@ -141,18 +153,29 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
                           inst.metadata()));
     }
 
+    /// Tests if the load has no execution dependencies on the LHS value. Only
+    /// in that case we can emit a load-arithmetic instruction. Otherwise we
+    /// must fall back to seperate instructions
+    bool canDeferLoad(ir::Value const* LHS, ir::Load const* load) const {
+        auto* LHSInst = dyncast<ir::Instruction const*>(LHS);
+        if (!LHSInst) {
+            return true;
+        }
+        return !DAG().executionDependencies(DAG(LHSInst)).contains(DAG(load));
+    }
+
     // Arithmetic -> Load -> GEP
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* load = dyncast<ir::Load const*>(inst.rhs());
-        if (!load) {
+        if (!load || !canDeferLoad(inst.lhs(), load)) {
             return false;
         }
         auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
         if (!gep) {
             return false;
         }
-        node.merge(DAG(load));
-        node.merge(DAG(gep));
+        node.merge(*DAG(load));
+        node.merge(*DAG(gep));
         auto RHS = computeGEP(gep);
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
         return true;
@@ -161,10 +184,10 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     // Arithmetic -> Load
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* load = dyncast<ir::Load const*>(inst.rhs());
-        if (!load) {
+        if (!load || !canDeferLoad(inst.lhs(), load)) {
             return false;
         }
-        node.merge(DAG(load));
+        node.merge(*DAG(load));
         auto RHS = mir::MemoryAddress(
             resolveToRegister(*load->address(), load->metadata()));
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
@@ -180,13 +203,70 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
 };
 
 template <>
-struct Matcher<ir::Goto>: MatcherBase {};
+struct Matcher<ir::Goto>: MatcherBase {
+    SD_MATCH_CASE(ir::Goto const& gt, SelectionNode& node) {
+        auto* target = resolve(*gt.target());
+        emit(new mir::JumpInst(target, gt.metadata()));
+        return true;
+    }
+};
 
 template <>
-struct Matcher<ir::Branch>: MatcherBase {};
+struct Matcher<ir::Branch>: MatcherBase {
+    void impl(ir::Branch const& br, mir::CompareOperation cond) {
+        auto* thenTarget = resolve(*br.thenTarget());
+        auto* elseTarget = resolve(*br.elseTarget());
+        emit(new mir::CondJumpInst(elseTarget, inverse(cond), br.metadata()));
+        emit(new mir::JumpInst(thenTarget, br.metadata()));
+    }
+
+    // Branch -> Compare
+    SD_MATCH_CASE(ir::Branch const& br, SelectionNode& node) {
+        auto* cmp = dyncast<ir::CompareInst const*>(br.condition());
+        if (!cmp) {
+            return false;
+        }
+        node.merge(*DAG(cmp));
+        auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
+        auto* RHS = resolve(*cmp->rhs());
+        emit(new mir::CompareInst(LHS,
+                                  RHS,
+                                  cmp->lhs()->type()->size(),
+                                  cmp->mode(),
+                                  cmp->metadata()));
+        impl(br, cmp->operation());
+        return true;
+    }
+
+    // Branch (base case)
+    SD_MATCH_CASE(ir::Branch const& br, SelectionNode& node) {
+        /// We can resolve to register without worrying about performance
+        /// because if the condition is a constant than it is the optimizers
+        /// responsibility to omit the branch
+        auto* cond = resolveToRegister(*br.condition(), br.metadata());
+        emit(new mir::TestInst(cond,
+                               1,
+                               mir::CompareMode::Unsigned,
+                               br.metadata()));
+        impl(br, mir::CompareOperation::NotEqual);
+        return true;
+    }
+};
 
 template <>
-struct Matcher<ir::Return>: MatcherBase {};
+struct Matcher<ir::Return>: MatcherBase {
+    SD_MATCH_CASE(ir::Return const& ret, SelectionNode& node) {
+        utl::small_vector<mir::Value*, 16> args;
+        auto* retval = resolve(*ret.value());
+        for (size_t i = 0, end = numWords(*ret.value()); i < end;
+             ++i, retval = retval->next())
+        {
+            args.push_back(retval);
+        }
+        emit(new mir::ReturnInst(std::move(args), ret.metadata()));
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::Call>: MatcherBase {
@@ -326,6 +406,7 @@ void ISelBlockCtx::run() {
             !DAG.isOutput(node))
         {
             DAG.erase(node);
+            continue;
         }
         match(*node);
     }
