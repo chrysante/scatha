@@ -23,7 +23,7 @@ static void forEach(mir::Context& ctx, mir::Module& mod, auto transform) {
 
 Asm::AssemblyStream cg::codegen(ir::Module const& irMod, cg::Logger& logger) {
     mir::Context ctx;
-    auto mod = cg::lowerToMIR(ctx, irMod);
+    auto mod = cg::lowerToMIR2(ctx, irMod);
     logger.log("Initial MIR module", mod);
 
     forEach(ctx, mod, cg::computeLiveSets);

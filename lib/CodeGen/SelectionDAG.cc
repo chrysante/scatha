@@ -93,6 +93,12 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
         for (auto* operand: inst.operands() | Filter<ir::Instruction> |
                                 ranges::views::filter(sameBlock))
         {
+            auto* phi = dyncast<ir::Phi const*>(&inst);
+            /// We don't add value dependencies of phi instructions for operands
+            /// in the same block to avoid cycles
+            if (phi /* && phi->predecessorOf(operand) == phi->parent()*/) {
+                continue;
+            }
             auto* opNode = DAG.get(operand);
             instNode->addValueDependency(opNode);
         }
@@ -121,8 +127,10 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
 SelectionNode const* SelectionDAG::operator[](
     ir::Instruction const* inst) const {
     auto itr = map.find(inst);
-    SC_ASSERT(itr != map.end(), "Not found");
-    return itr->second.get();
+    if (itr != map.end()) {
+        return itr->second.get();
+    }
+    return nullptr;
 }
 
 SelectionNode const* SelectionDAG::root() const {
@@ -172,16 +180,16 @@ static Label makeIRLabel(SelectionDAG const& DAG, ir::Instruction const* inst) {
 static Label makeMIRLabel(SelectionDAG const& DAG, SelectionNode const* node) {
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
-    sstr << tableBegin() << "\n";
+    sstr << tableBegin();
     if (auto name = node->irInst()->name(); !name.empty()) {
-        sstr << rowBegin() << name << ":" << rowEnd() << "\n";
+        sstr << rowBegin() << name << ":" << rowEnd();
     }
     for (auto& inst: node->mirInstructions()) {
         sstr << rowBegin();
         mir::print(inst, sstr);
-        sstr << rowEnd() << "\n";
+        sstr << rowEnd();
     }
-    sstr << tableEnd() << "\n";
+    sstr << tableEnd();
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 

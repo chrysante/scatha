@@ -18,10 +18,12 @@ public:
     Resolver() = default;
 
     explicit Resolver(mir::Context& ctx,
+                      mir::Module& mod,
                       mir::Function& F,
                       ValueMap& valueMap,
                       std::function<void(mir::Instruction*)> instEmitter):
         ctx(&ctx),
+        mod(&mod),
         F(&F),
         _valueMap(&valueMap),
         instEmitter(std::move(instEmitter)) {}
@@ -116,6 +118,7 @@ private:
                                auto insertCallback) const;
 
     mir::Context* ctx = nullptr;
+    mir::Module* mod = nullptr;
     mir::Function* F = nullptr;
     ValueMap* _valueMap = nullptr;
     std::function<void(mir::Instruction*)> instEmitter;

@@ -1,10 +1,13 @@
 #include "CodeGen/Resolver.h"
 
+#include <svm/VirtualPointer.h>
+
 #include "CodeGen/ISelCommon.h"
 #include "IR/CFG.h"
 #include "MIR/CFG.h"
 #include "MIR/Context.h"
 #include "MIR/Instructions.h"
+#include "MIR/Module.h"
 #include "MIR/Register.h"
 
 using namespace scatha;
@@ -55,8 +58,40 @@ mir::Value* Resolver::impl(ir::Instruction const& inst) const {
     return reg;
 }
 
-mir::Value* Resolver::impl(ir::GlobalVariable const&) const {
-    SC_UNIMPLEMENTED();
+static size_t getOffset(void const* begin, void const* end) {
+    SC_EXPECT(begin <= end);
+    auto* a = static_cast<char const*>(begin);
+    auto* b = static_cast<char const*>(end);
+    return static_cast<size_t>(b - a);
+}
+
+mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
+    uint64_t const address = [&] {
+        if (auto addr = valueMap().staticDataAddress(&var)) {
+            return *addr;
+        }
+        auto* value = var.initializer();
+        size_t size = value->type()->size();
+        size_t align = value->type()->align();
+        auto [data, offset] = mod->allocateStaticData(size, align);
+        /// Callback is only executed by function pointers
+        auto callback =
+            [&, data = data, offset = offset](ir::Constant const* value,
+                                              void* dest) {
+            auto* function = cast<ir::Function const*>(value);
+            mod->addAddressPlaceholder(offset + getOffset(data, dest),
+                                       resolve(*function));
+        };
+        var.initializer()->writeValueTo(data, callback);
+        /// FIXME: Slot index 1 is hard coded here.
+        auto address = utl::bit_cast<uint64_t>(
+            svm::VirtualPointer{ .offset = offset, .slotIndex = 1 });
+        valueMap().setStaticDataAddress(&var, address);
+        return address;
+    }();
+    auto* dest = nextRegister();
+    emit(new mir::CopyInst(dest, ctx->constant(address, 8), 8, {}));
+    return dest;
 }
 
 mir::Value* Resolver::impl(ir::IntegralConstant const& constant) const {
@@ -89,8 +124,16 @@ mir::Value* Resolver::impl(ir::NullPointerConstant const& constant) const {
     return mirConstant;
 }
 
-mir::Value* Resolver::impl(ir::RecordConstant const&) const {
-    SC_UNIMPLEMENTED();
+mir::Value* Resolver::impl(ir::RecordConstant const& value) const {
+    size_t numWords = ::numWords(value);
+    utl::small_vector<uint64_t> words(numWords);
+    value.writeValueTo(words.data());
+    auto* reg = nextRegister(numWords);
+    for (auto* dest = reg; auto word: words) {
+        emit(new mir::CopyInst(dest, ctx->constant(word, 8), 8, {}));
+        dest = dest->next();
+    }
+    return reg;
 }
 
 mir::Value* Resolver::impl(ir::UndefValue const&) const { return ctx->undef(); }

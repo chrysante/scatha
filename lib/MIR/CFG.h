@@ -52,11 +52,9 @@ class BasicBlock:
     public ParentedNode<Function>,
     public GraphNode<void, BasicBlock, GraphKind::Directed>,
     public CFGList<BasicBlock, Instruction> {
-    using ListBase = CFGList<BasicBlock, Instruction>;
-
 public:
-    using ListBase::ConstIterator;
-    using ListBase::Iterator;
+    using CFGList::ConstIterator;
+    using CFGList::Iterator;
 
     explicit BasicBlock(ir::BasicBlock const* irBB);
 
@@ -158,11 +156,9 @@ private:
 class Function:
     public ListNodeOverride<Function, Value>,
     public CFGList<Function, BasicBlock> {
-    using ListBase = CFGList<Function, BasicBlock>;
-
 public:
-    using ListBase::ConstIterator;
-    using ListBase::Iterator;
+    using CFGList::ConstIterator;
+    using CFGList::Iterator;
 
     /// Construct a `mir::Function` referencing \p irFunc with \p numRegisters
     /// number of virtual registers.

@@ -28,6 +28,9 @@ class Instruction:
     }
 
 public:
+    /// Instructions are polymorphic and not copyable
+    Instruction(Instruction const&) = delete;
+
     /// # Queries
 
     /// \Returns The operand at index \p index

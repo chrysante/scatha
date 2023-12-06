@@ -57,8 +57,8 @@ public:
     /// \Returns the basic block this DAG represents
     ir::BasicBlock const* basicBlock() const { return BB; }
 
-    /// \Returns the node associated with the instruction \p inst
-    /// Traps if no node is found
+    /// \Returns the node associated with the instruction \p inst or null if no
+    /// node is found
     SelectionNode* operator[](ir::Instruction const* inst) {
         return const_cast<SelectionNode*>(std::as_const(*this)[inst]);
     }

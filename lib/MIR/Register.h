@@ -68,6 +68,8 @@ public:
 
     static constexpr size_t InvalidIndex = ~size_t{ 0 };
 
+    Register(Register const&) = delete;
+
     size_t index() const { return idx; }
 
     void setIndex(size_t index) { idx = index; }

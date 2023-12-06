@@ -172,6 +172,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
 
 void CGContext::genInstImpl(mir::StoreInst const& inst) {
     auto dest = convertAddress(inst.address());
+    /// We cast to register because we can only move to memory from a register
     auto source = toRegIdx(inst.source());
     currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
     addMetadata(inst);
@@ -284,7 +285,13 @@ void CGContext::genInstImpl(mir::ValueArithmeticInst const& inst) {
 }
 
 void CGContext::genInstImpl(mir::LoadArithmeticInst const& inst) {
-    SC_UNIMPLEMENTED();
+    SC_ASSERT(inst.dest() == inst.LHS(), "Illegal instruction");
+    auto LHS = toRegIdx(inst.LHS());
+    auto RHS = convertAddress(inst.RHS());
+    auto operation = mapArithmetic(inst.operation());
+    currentBlock->insertBack(
+        Asm::ArithmeticInst(operation, LHS, RHS, inst.bytewidth()));
+    addMetadata(inst);
 }
 
 void CGContext::genInstImpl(mir::ConversionInst const& inst) {

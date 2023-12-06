@@ -63,7 +63,11 @@ struct Matcher<ir::Load>: MatcherBase {
         if (!gep) {
             return false;
         }
-        node.merge(*DAG(gep));
+        auto* gepNode = DAG(gep);
+        if (!gepNode) {
+            return false;
+        }
+        node.merge(*gepNode);
         impl(load, [&](size_t i) { return computeGEP(gep, i * WordSize); });
         return true;
     }
@@ -84,27 +88,16 @@ struct Matcher<ir::Store>: MatcherBase {
               utl::function_view<mir::MemoryAddress(size_t)> addrCallback) {
         size_t numBytes = store.value()->type()->size();
         size_t numWords = utl::ceil_divide(numBytes, 8);
-        /// We have these two cases for now because we can't iterate over
-        /// "adjacent constants" so in the oversized case we resolve to register
-        /// and store, in the simple case we store directly
-        if (numWords <= 1) {
-            auto* value = resolve(*store.value());
-            auto* inst = new mir::StoreInst(addrCallback(0),
+        /// We resolve to register because we have no constant -> memory
+        /// instructions, so we must take the constant -> register -> memory
+        /// detour
+        auto* value = resolveToRegister(*store.value(), store.metadata());
+        for (size_t i = 0; i < numWords; ++i, value = value->next()) {
+            auto* inst = new mir::StoreInst(addrCallback(i),
                                             value,
-                                            numBytes,
+                                            sliceWidth(numBytes, i, numWords),
                                             store.metadata());
             emit(inst);
-        }
-        else {
-            auto* value = resolveToRegister(*store.value(), store.metadata());
-            for (size_t i = 0; i < numWords; ++i, value = value->next()) {
-                auto* inst =
-                    new mir::StoreInst(addrCallback(i),
-                                       value,
-                                       sliceWidth(numBytes, i, numWords),
-                                       store.metadata());
-                emit(inst);
-            }
         }
     }
 
@@ -114,7 +107,11 @@ struct Matcher<ir::Store>: MatcherBase {
         if (!gep) {
             return false;
         }
-        node.merge(*DAG(gep));
+        auto* gepNode = DAG(gep);
+        if (!gepNode) {
+            return false;
+        }
+        node.merge(*gepNode);
         impl(store, [&](size_t i) { return computeGEP(gep, i * WordSize); });
         return true;
     }
@@ -235,6 +232,9 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
                 mir::ArithmeticOperation op) {
         auto* LHS = resolveToRegister(*inst.lhs(), inst.metadata());
         size_t size = inst.lhs()->type()->size();
+        if (size < 4) {
+            size = 8;
+        }
         emit(new InstType(resolve(inst), LHS, RHS, size, op, inst.metadata()));
     }
 
@@ -255,12 +255,20 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         if (!load || !canDeferLoad(inst.lhs(), load)) {
             return false;
         }
+        auto* loadNode = DAG(load);
+        if (!loadNode) {
+            return false;
+        }
         auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
         if (!gep) {
             return false;
         }
-        node.merge(*DAG(load));
-        node.merge(*DAG(gep));
+        auto* gepNode = DAG(gep);
+        if (!gepNode) {
+            return false;
+        }
+        node.merge(*loadNode);
+        node.merge(*gepNode);
         auto RHS = computeGEP(gep);
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
         return true;
@@ -272,11 +280,29 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         if (!load || !canDeferLoad(inst.lhs(), load)) {
             return false;
         }
-        node.merge(*DAG(load));
+        auto* loadNode = DAG(load);
+        if (!loadNode) {
+            return false;
+        }
+        node.merge(*loadNode);
         auto RHS = mir::MemoryAddress(
             resolveToRegister(*load->address(), load->metadata()));
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
         return true;
+    }
+
+    /// \Returns a pair of RHS value, that if it is a constant is adjusted to
+    /// legal width and the bytewidth of the instruction
+    mir::Value* legalize(ir::ArithmeticInst const& inst) {
+        auto* RHS = resolve(*inst.rhs());
+        size_t width = inst.lhs()->type()->size();
+        if (width >= 4) {
+            return RHS;
+        }
+        if (auto* constant = dyncast<mir::Constant*>(RHS)) {
+            return CTX().constant(constant->value(), 8);
+        }
+        return RHS;
     }
 
     // Arithmetic -> IntConstant
@@ -335,6 +361,22 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
                 And);
             return true;
         }
+        case LShL:
+            [[fallthrough]];
+        case LShR:
+            [[fallthrough]];
+        case AShL:
+            [[fallthrough]];
+        case AShR: {
+            /// Shift instructions only allow 8 bit literals as RHS operand.
+            doEmit<mir::ValueArithmeticInst>(inst,
+                                             CTX().constant(rhsVal
+                                                                .to<uint64_t>(),
+                                                            1),
+                                             inst.operation());
+            return true;
+        }
+
         default:
             return false;
         }
@@ -342,7 +384,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
 
     // Arithmetic (base case)
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
-        auto* RHS = resolve(*inst.rhs());
+        auto* RHS = legalize(inst);
         doEmit<mir::ValueArithmeticInst>(inst, RHS);
         return true;
     }
@@ -372,7 +414,11 @@ struct Matcher<ir::Branch>: MatcherBase {
         if (!cmp) {
             return false;
         }
-        node.merge(*DAG(cmp));
+        auto* cmpNode = DAG(cmp);
+        if (!cmpNode) {
+            return false;
+        }
+        node.merge(*cmpNode);
         auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
         auto* RHS = resolve(*cmp->rhs());
         emit(new mir::CompareInst(LHS,
@@ -473,7 +519,59 @@ struct Matcher<ir::Phi>: MatcherBase {
 };
 
 template <>
-struct Matcher<ir::Select>: MatcherBase {};
+struct Matcher<ir::Select>: MatcherBase {
+    void impl(ir::Select const& select, mir::CompareOperation cond) {
+        auto* thenVal = resolve(*select.thenValue());
+        auto* elseVal = resolve(*select.elseValue());
+        size_t numBytes = select.type()->size();
+        size_t numWords = utl::ceil_divide(numBytes, 8);
+        auto* dest = resolve(select);
+        for (size_t i = 0; i < numWords; ++i) {
+            emit(new mir::SelectInst(dest,
+                                     thenVal,
+                                     elseVal,
+                                     cond,
+                                     sliceWidth(numBytes, i, numWords),
+                                     select.metadata()));
+            dest = dest->next();
+            thenVal = thenVal->next();
+            elseVal = elseVal->next();
+        }
+    }
+
+    // Select -> Compare
+    SD_MATCH_CASE(ir::Select const& select, SelectionNode& node) {
+        auto* cmp = dyncast<ir::CompareInst const*>(select.condition());
+        if (!cmp) {
+            return false;
+        }
+        auto* cmpNode = DAG(cmp);
+        if (!cmpNode) {
+            return false;
+        }
+        node.merge(*cmpNode);
+        auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
+        auto* RHS = resolve(*cmp->rhs());
+        emit(new mir::CompareInst(LHS,
+                                  RHS,
+                                  cmp->lhs()->type()->size(),
+                                  cmp->mode(),
+                                  cmp->metadata()));
+        impl(select, cmp->operation());
+        return true;
+    }
+
+    // Select (base case)
+    SD_MATCH_CASE(ir::Select const& select, SelectionNode& node) {
+        auto* cond = resolveToRegister(*select.condition(), select.metadata());
+        emit(new mir::TestInst(cond,
+                               1,
+                               mir::CompareMode::Unsigned,
+                               select.metadata()));
+        impl(select, mir::CompareOperation::NotEqual);
+        return true;
+    }
+};
 
 template <>
 struct Matcher<ir::GetElementPointer>: MatcherBase {
@@ -718,9 +816,11 @@ struct ISelBlockCtx {
 
     ISelBlockCtx(SelectionDAG& DAG,
                  mir::Context& ctx,
+                 mir::Module& mod,
                  mir::Function& mirFn,
                  ValueMap& map):
-        DAG(DAG), resolver(ctx, mirFn, map, [this](mir::Instruction* inst) {
+        DAG(DAG),
+        resolver(ctx, mod, mirFn, map, [this](mir::Instruction* inst) {
             emit(inst);
         }) {
 #define SC_INSTRUCTIONNODE_DEF(Inst, _)                                        \
@@ -746,13 +846,10 @@ struct ISelBlockCtx {
 
 void cg::isel(SelectionDAG& DAG,
               mir::Context& ctx,
+              mir::Module& mod,
               mir::Function& mirFn,
               ValueMap& map) {
-
-    auto& irBB = *DAG.basicBlock();
-    generateGraphvizTmp(DAG, utl::strcat(irBB.name(), ".before"));
-    ISelBlockCtx(DAG, ctx, mirFn, map).run();
-    generateGraphvizTmp(DAG, utl::strcat(irBB.name(), ".after"));
+    ISelBlockCtx(DAG, ctx, mod, mirFn, map).run();
 }
 
 void ISelBlockCtx::run() {

@@ -7,7 +7,12 @@ using namespace cg;
 
 SelectionNode::SelectionNode(ir::Instruction const* inst): _irInst(inst) {}
 
-SelectionNode::~SelectionNode() = default;
+SelectionNode::~SelectionNode() {
+    for (auto& inst: _mirInsts) {
+        inst.clearDest();
+        inst.clearOperands();
+    }
+}
 
 void SelectionNode::setMIR(mir::SSARegister* reg,
                            List<mir::Instruction> insts) {
@@ -75,7 +80,7 @@ static void copyExecutionDependents(SelectionNode& oldDepency,
 
 void SelectionNode::merge(SelectionNode& child) {
     copyValueDependencies(child, *this);
-    copyValueDependents(child, *this);
+    //    copyValueDependents(child, *this);
     copyExecutionDependencies(child, *this);
     copyExecutionDependents(child, *this);
     removeDependency(&child);

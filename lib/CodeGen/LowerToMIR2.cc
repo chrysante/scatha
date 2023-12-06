@@ -111,7 +111,7 @@ void LoweringContext::generateBB(ir::BasicBlock const& irBB) {
         mirBB.addSuccessor(cast<mir::BasicBlock*>(map(succ)));
     }
     auto DAG = SelectionDAG::Build(irBB);
-    isel(DAG, ctx, *mirBB.parent(), map);
+    isel(DAG, ctx, mirMod, *mirBB.parent(), map);
     schedule(DAG, mirBB);
 }
 
