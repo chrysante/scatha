@@ -19,8 +19,8 @@ copy libscatha.dylib
 compile svm/svm.xcodeproj
 copy svm
 
-compile svm/scathadb.xcodeproj
-copy scathadc
+compile scathadb/scathadb.xcodeproj
+copy scathadb
 
 compile sctool/sctool.xcodeproj
 copy sctool
