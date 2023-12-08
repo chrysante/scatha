@@ -56,13 +56,6 @@ static void copyValueDependencies(SelectionNode& oldDepent,
     }
 }
 
-static void copyValueDependents(SelectionNode& oldDepency,
-                                SelectionNode& newDepency) {
-    for (auto* dependent: oldDepency.dependentValues() | ToSmallVector<>) {
-        dependent->addValueDependency(&newDepency);
-    }
-}
-
 static void copyExecutionDependencies(SelectionNode& oldDepent,
                                       SelectionNode& newDepent) {
     for (auto* dependency: oldDepent.executionDependencies() | ToSmallVector<>)
@@ -80,7 +73,6 @@ static void copyExecutionDependents(SelectionNode& oldDepency,
 
 void SelectionNode::merge(SelectionNode& child) {
     copyValueDependencies(child, *this);
-    //    copyValueDependents(child, *this);
     copyExecutionDependencies(child, *this);
     copyExecutionDependents(child, *this);
     removeDependency(&child);
