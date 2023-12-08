@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include <utl/function_view.hpp>
 #include <utl/hashtable.hpp>
 
 #include "CodeGen/ValueMap.h"
@@ -84,10 +85,19 @@ public:
                    mir::CompareOperation condition,
                    Metadata metadata) const;
 
+    /// Computes the MIR representation of memory address represented by \p addr
+    mir::MemoryAddress computeAddress(ir::Value const& addr,
+                                      size_t offset,
+                                      Metadata metadata) const;
+
+    /// \overload for `offset = 0`
+    mir::MemoryAddress computeAddress(ir::Value const& addr,
+                                      Metadata metadata) const;
+
     /// Computes the IR GEP instruction \p gep
     /// The \p offset argument exists to emit adjacent load and store
     /// instructions to load and store values larger than one word
-    mir::MemoryAddress computeGEP(ir::GetElementPointer const* gep,
+    mir::MemoryAddress computeGEP(ir::GetElementPointer const& gep,
                                   size_t offset = 0) const;
 
     /// Emit an MIR instruction
@@ -111,11 +121,13 @@ private:
     mir::Value* impl(ir::UndefValue const&) const;
     mir::Value* impl(ir::Value const&) const;
 
-    mir::Register* genCopyImpl(mir::Register* dest,
-                               mir::Value* source,
-                               size_t numBytes,
-                               Metadata metadata,
-                               auto insertCallback) const;
+    mir::Register* genCopyImpl(
+        mir::Register* dest,
+        mir::Value* source,
+        size_t numBytes,
+        Metadata metadata,
+        utl::function_view<void(mir::Register*, mir::Value*, size_t)>
+            insertCallback) const;
 
     mir::Context* ctx = nullptr;
     mir::Module* mod = nullptr;

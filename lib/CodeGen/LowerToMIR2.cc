@@ -84,11 +84,11 @@ mir::Function* LoweringContext::declareFunction(ir::Function const& irFn) {
                                     numReturnRegisters(irFn),
                                     irFn.visibility());
     mirMod.addFunction(mirFn);
-    map.insert(&irFn, mirFn);
+    map.addValue(&irFn, mirFn);
     /// Associate parameters with bottom registers
     auto regItr = mirFn->ssaRegisters().begin();
     for (auto& param: irFn.parameters()) {
-        map.insert(&param, regItr.to_address());
+        map.addValue(&param, regItr.to_address());
         std::advance(regItr, numWords(param));
     }
     return mirFn;
@@ -98,17 +98,17 @@ mir::BasicBlock* LoweringContext::declareBB(mir::Function& mirFn,
                                             ir::BasicBlock const& irBB) {
     auto* mirBB = new mir::BasicBlock(&irBB);
     mirFn.pushBack(mirBB);
-    map.insert(&irBB, mirBB);
+    map.addValue(&irBB, mirBB);
     return mirBB;
 }
 
 void LoweringContext::generateBB(ir::BasicBlock const& irBB) {
-    auto& mirBB = cast<mir::BasicBlock&>(*map(&irBB));
+    auto& mirBB = cast<mir::BasicBlock&>(*map.getValue(&irBB));
     for (auto* pred: irBB.predecessors()) {
-        mirBB.addPredecessor(cast<mir::BasicBlock*>(map(pred)));
+        mirBB.addPredecessor(cast<mir::BasicBlock*>(map.getValue(pred)));
     }
     for (auto* succ: irBB.successors()) {
-        mirBB.addSuccessor(cast<mir::BasicBlock*>(map(succ)));
+        mirBB.addSuccessor(cast<mir::BasicBlock*>(map.getValue(succ)));
     }
     auto DAG = SelectionDAG::Build(irBB);
     isel(DAG, ctx, mirMod, *mirBB.parent(), map);

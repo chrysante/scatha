@@ -14,7 +14,7 @@ using namespace scatha;
 using namespace cg;
 
 mir::Value* Resolver::resolveImpl(ir::Value const& value) const {
-    if (auto* result = valueMap()(&value)) {
+    if (auto* result = valueMap().getValue(&value)) {
         return result;
     }
     return visit(value, [this](auto& value) { return impl(value); });
@@ -54,7 +54,7 @@ mir::Value* Resolver::impl(ir::Instruction const& inst) const {
         return nullptr;
     }
     auto* reg = nextRegistersFor(inst);
-    valueMap().insert(&inst, reg);
+    valueMap().addValue(&inst, reg);
     return reg;
 }
 
@@ -67,7 +67,7 @@ static size_t getOffset(void const* begin, void const* end) {
 
 mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
     uint64_t const address = [&] {
-        if (auto addr = valueMap().staticDataAddress(&var)) {
+        if (auto addr = valueMap().getStaticAddress(&var)) {
             return *addr;
         }
         auto* value = var.initializer();
@@ -86,7 +86,7 @@ mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
         /// FIXME: Slot index 1 is hard coded here.
         auto address = utl::bit_cast<uint64_t>(
             svm::VirtualPointer{ .offset = offset, .slotIndex = 1 });
-        valueMap().setStaticDataAddress(&var, address);
+        valueMap().addStaticAddress(&var, address);
         return address;
     }();
     auto* dest = nextRegister();
@@ -99,7 +99,7 @@ mir::Value* Resolver::impl(ir::IntegralConstant const& constant) const {
               "Can't handle extended width integers");
     uint64_t value = constant.value().to<uint64_t>();
     auto* mirConst = ctx->constant(value, constant.type()->size());
-    valueMap().insert(&constant, mirConst);
+    valueMap().addValue(&constant, mirConst);
     return mirConst;
 }
 
@@ -114,13 +114,13 @@ mir::Value* Resolver::impl(ir::FloatingPointConstant const& constant) const {
         value = utl::bit_cast<uint64_t>(constant.value().to<double>());
     }
     auto* mirConst = ctx->constant(value, constant.type()->size());
-    valueMap().insert(&constant, mirConst);
+    valueMap().addValue(&constant, mirConst);
     return mirConst;
 }
 
 mir::Value* Resolver::impl(ir::NullPointerConstant const& constant) const {
     auto* mirConstant = ctx->constant(0, 8);
-    valueMap().insert(&constant, mirConstant);
+    valueMap().addValue(&constant, mirConstant);
     return mirConstant;
 }
 
@@ -142,11 +142,13 @@ mir::Value* Resolver::impl(ir::Value const&) const {
     SC_UNREACHABLE("Everything else must be manually declared");
 }
 
-mir::Register* Resolver::genCopyImpl(mir::Register* dest,
-                                     mir::Value* source,
-                                     size_t numBytes,
-                                     Metadata metadata,
-                                     auto insertCallback) const {
+mir::Register* Resolver::genCopyImpl(
+    mir::Register* dest,
+    mir::Value* source,
+    size_t numBytes,
+    Metadata metadata,
+    utl::function_view<void(mir::Register*, mir::Value*, size_t)>
+        insertCallback) const {
     size_t const numWords = utl::ceil_divide(numBytes, 8);
     for (size_t i = 0; i < numWords;
          ++i, dest = dest->next(), source = source->next())
@@ -156,9 +158,30 @@ mir::Register* Resolver::genCopyImpl(mir::Register* dest,
     return dest;
 }
 
-mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const* gep,
+static constexpr size_t MaxConstantAddressOffset = 255;
+
+mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
+                                            size_t offset,
+                                            Metadata metadata) const {
+    auto [base, baseOffset] = valueMap().getAddress(&addr);
+    if (!base) {
+        base = resolveToRegister(addr, metadata);
+        valueMap().addAddress(&addr, base);
+    }
+    size_t totalOffset = baseOffset + offset;
+    SC_ASSERT(totalOffset <= MaxConstantAddressOffset,
+              "Oversized case not yet implemented");
+    return mir::MemoryAddress(base, totalOffset);
+}
+
+mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
+                                            Metadata metadata) const {
+    return computeAddress(addr, 0, std::move(metadata));
+}
+
+mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
                                         size_t offset) const {
-    auto* base = resolve(*gep->basePointer());
+    auto* base = resolve(*gep.basePointer());
     if (auto* undef = dyncast<mir::UndefValue*>(base)) {
         return mir::MemoryAddress(nullptr, nullptr, 0, 0);
     }
@@ -168,26 +191,25 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const* gep,
     mir::Register* basereg = cast<mir::Register*>(base);
     auto [dynFactor, constFactor, constOffset] =
         [&]() -> std::tuple<mir::Register*, size_t, size_t> {
-        size_t elemSize = gep->inboundsType()->size();
-        size_t innerOffset = gep->innerByteOffset() + offset;
+        size_t elemSize = gep.inboundsType()->size();
+        size_t innerOffset = gep.innerByteOffset() + offset;
         auto* constIndex =
-            dyncast<ir::IntegralConstant const*>(gep->arrayIndex());
+            dyncast<ir::IntegralConstant const*>(gep.arrayIndex());
         if (constIndex && constIndex->value() == 0) {
             return { nullptr, elemSize, innerOffset };
         }
-        mir::Value* arrayIndex = resolve(*gep->arrayIndex());
+        mir::Value* arrayIndex = resolve(*gep.arrayIndex());
         if (auto* regArrayIdx = dyncast<mir::Register*>(arrayIndex)) {
             return { regArrayIdx, elemSize, innerOffset };
         }
         if (auto* constArrIdx = dyncast<mir::Constant*>(arrayIndex)) {
             size_t totalOffset = constArrIdx->value() * elemSize + innerOffset;
-            // FIXME: This should not be hard coded
-            if (totalOffset < 256) {
+            if (totalOffset <= MaxConstantAddressOffset) {
                 return { nullptr, 0, totalOffset };
             }
         }
         auto* result = nextRegister();
-        genCopy(result, arrayIndex, 8, gep->metadata());
+        genCopy(result, arrayIndex, 8, gep.metadata());
         return { result, elemSize, innerOffset };
     }();
     return mir::MemoryAddress(basereg, dynFactor, constFactor, constOffset);

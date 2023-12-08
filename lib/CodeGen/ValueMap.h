@@ -14,29 +14,38 @@ namespace scatha::cg {
 class ValueMap {
 public:
     /// Access the MIR value mapped to \p key or null if nonesuch exists
-    mir::Value* operator()(ir::Value const* key) const;
+    mir::Value* getValue(ir::Value const* key) const;
 
     /// Insert the pair \p key and \p value into the map
     /// This function traps if \p key is already in the map
-    void insert(ir::Value const* key, mir::Value* value);
+    void addValue(ir::Value const* key, mir::Value* value);
 
-    ///
-    std::optional<uint64_t> staticDataAddress(ir::Value const* value) const {
-        auto itr = staticDataAddresses.find(value);
-        if (itr != staticDataAddresses.end()) {
-            return itr->second;
-        }
-        return std::nullopt;
-    }
+    /// Get the MIR pointer value of the IR pointer value \p value
+    std::pair<mir::Value*, size_t> getAddress(ir::Value const* key);
 
-    ///
-    void setStaticDataAddress(ir::Value const* value, uint64_t address) {
-        SC_EXPECT(!staticDataAddresses.contains(value));
-        staticDataAddresses.insert({ value, address });
-    }
+    /// Associate the IR pointer value \p key with the pair `{ baseAddr, offset
+    /// }` This function traps if \p key is already in the map
+    void addAddress(ir::Value const* key,
+                    mir::Value* baseAddr,
+                    size_t offset = 0);
+
+    /// Get the static data offset of the IR pointer value \p value
+    std::optional<uint64_t> getStaticAddress(ir::Value const* key) const;
+
+    /// Associate the IR pointer value \p key with the static data offset \p
+    /// offset This function traps if \p key is already in the map
+    void addStaticAddress(ir::Value const* key, uint64_t offset);
 
 private:
+    /// Maps IR values to MIR values
     utl::hashmap<ir::Value const*, mir::Value*> map;
+
+    /// Maps IR pointer values to MIR pointers (and possibly static non-zero
+    /// offsets)
+    utl::hashmap<ir::Value const*, std::pair<mir::Value*, size_t>> addressMap;
+
+    /// Maps IR pointer values to offsets into the static data section of the
+    /// executable
     utl::hashmap<ir::Value const*, uint64_t> staticDataAddresses;
 };
 

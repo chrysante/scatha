@@ -68,7 +68,7 @@ struct Matcher<ir::Load>: MatcherBase {
             return false;
         }
         node.merge(*gepNode);
-        impl(load, [&](size_t i) { return computeGEP(gep, i * WordSize); });
+        impl(load, [&](size_t i) { return computeGEP(*gep, i * WordSize); });
         return true;
     }
 
@@ -112,7 +112,7 @@ struct Matcher<ir::Store>: MatcherBase {
             return false;
         }
         node.merge(*gepNode);
-        impl(store, [&](size_t i) { return computeGEP(gep, i * WordSize); });
+        impl(store, [&](size_t i) { return computeGEP(*gep, i * WordSize); });
         return true;
     }
 
@@ -286,7 +286,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         }
         node.merge(*loadNode);
         node.merge(*gepNode);
-        auto RHS = computeGEP(gep);
+        auto RHS = computeGEP(*gep);
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
         return true;
     }
@@ -593,7 +593,7 @@ struct Matcher<ir::Select>: MatcherBase {
 template <>
 struct Matcher<ir::GetElementPointer>: MatcherBase {
     SD_MATCH_CASE(ir::GetElementPointer const& gep, SelectionNode& node) {
-        mir::MemoryAddress address = computeGEP(&gep);
+        mir::MemoryAddress address = computeGEP(gep);
         emit(new mir::LEAInst(resolve(gep), address, gep.metadata()));
         return true;
     }
