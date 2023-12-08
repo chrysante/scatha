@@ -267,4 +267,12 @@ export fn test(n: int) {
     }
 }
 
+/// Test case to assert that we don't match load-arithmetic if the load is an
+/// execution dependency on the LHS operand
+export fn test(p: *mut int) {
+    let val = *p;
+    *p = 1;
+    return *p * val;
+}
+
 
