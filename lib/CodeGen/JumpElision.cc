@@ -120,7 +120,7 @@ void JumpElimContext::DFS(BasicBlock* BB) {
 }
 
 /// \Warning this is linear in the number of instructions in \p BB
-static bool hasJumpsTo(BasicBlock const* BB, BasicBlock const* dest) {
+static bool hasJumpsTo(BasicBlock const* BB, Value const* dest) {
     return ranges::any_of(*BB, [&](Instruction const& inst) {
         if (auto* jump = dyncast<JumpBase const*>(&inst)) {
             return jump->target() == dest;
@@ -139,28 +139,40 @@ void JumpElimContext::removeJumps() {
             if (!jump) {
                 break;
             }
-            auto* next = BB.next();
+            auto* next = [&]() -> Value* {
+                if (&BB != &F.back()) {
+                    return BB.next();
+                }
+                return F.next();
+            }();
             if (jump->target() != next) {
                 break;
             }
+            /// We erase the jump if the target is the next block
             BB.erase(jump);
-            if (next->predecessors().size() > 1) {
+            /// If the next block is a BB that has is not the target of other
+            /// jump, we splice the blocks
+            auto* nextBB = dyncast<BasicBlock*>(next);
+            if (!nextBB) {
                 break;
             }
-            /// Even if `next` has no other predecessors than `BB`, at this
-            /// point there could be other conditional jumps in `BB` to `next`.
-            /// Then we can't merge the blocks
-            if (hasJumpsTo(&BB, next)) {
+            if (nextBB->predecessors().size() > 1) {
                 break;
             }
-            SC_ASSERT(&BB == next->predecessors().front(), "");
-            BB.splice(BB.end(), next);
-            auto nextSuccessors = next->successors() | ToSmallVector<>;
+            /// Even if `nextBB` has no other predecessors than `BB`, at this
+            /// point there could be other conditional jumps in `BB` to
+            /// `nextBB`. Then we can't merge the blocks
+            if (hasJumpsTo(&BB, nextBB)) {
+                break;
+            }
+            SC_ASSERT(&BB == nextBB->predecessors().front(), "");
+            BB.splice(BB.end(), nextBB);
+            auto nextSuccessors = nextBB->successors() | ToSmallVector<>;
             for (auto* succ: nextSuccessors) {
-                succ->removePredecessor(next);
+                succ->removePredecessor(nextBB);
                 succ->addPredecessor(&BB);
             }
-            F.erase(next);
+            F.erase(nextBB);
         }
     }
 }
