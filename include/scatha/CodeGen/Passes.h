@@ -32,6 +32,14 @@ SCATHA_API void computeLiveSets(mir::Context& ctx, mir::Function& F);
 /// \pre Requires \p F to be in SSA form
 SCATHA_API bool deadCodeElim(mir::Context& ctx, mir::Function& F);
 
+/// "Kitchen sink" for all SSA peephole optimizations
+SCATHA_API bool instSimplify(mir::Context& ctx, mir::Function& F);
+
+/// Basic block local common instruction elimination
+/// \pre Requires the function \p F to be in SSA form
+SCATHA_API bool commonSubexpressionElimination(mir::Context& ctx,
+                                               mir::Function& F);
+
 /// Convert function \p F out of SSA form
 ///
 /// Converts all `SSARegister`'s to `VirtualRegister`'s and replaces phi nodes

@@ -107,6 +107,8 @@ using ir::Visibility;
 
 /// Constant factor and term of the address calculation
 struct MemAddrConstantData {
+    bool operator==(MemAddrConstantData const&) const = default;
+
     uint8_t offsetFactor;
     uint8_t offsetTerm;
 };
@@ -130,21 +132,23 @@ public:
     explicit MemoryAddressImpl(V* base, size_t offsetTerm = 0):
         MemoryAddressImpl(base, nullptr, 0, offsetTerm) {}
 
-    /// \Returns The register that holds the base address
-    V* baseAddress() { return base; }
+    bool operator==(MemoryAddressImpl const&) const = default;
 
-    /// \Returns The register that holds the offset factor or `nullptr` if none
+    /// \Returns the register that holds the base address
+    V* baseAddress() const { return base; }
+
+    /// \Returns the register that holds the offset factor or `nullptr` if none
     /// is present
-    V* dynOffset() { return _dynOffset; }
+    V* dynOffset() const { return _dynOffset; }
 
-    /// \Returns The constant data i.e. offset factor and offset term
+    /// \Returns the constant data i.e. offset factor and offset term
     MemAddrConstantData constantData() const { return constData; }
 
-    /// \Returns The constant offset factor
-    size_t offsetFactor() { return constData.offsetFactor; }
+    /// \Returns the constant offset factor
+    size_t offsetFactor() const { return constData.offsetFactor; }
 
-    /// \Returns The constant offset term
-    size_t offsetTerm() { return constData.offsetTerm; }
+    /// \Returns the constant offset term
+    size_t offsetTerm() const { return constData.offsetTerm; }
 
 private:
     V* base;
@@ -157,6 +161,8 @@ using ConstMemoryAddress = MemoryAddressImpl<Value const>;
 
 /// Represents the address of an external function.
 struct ExtFuncAddress {
+    bool operator==(ExtFuncAddress const&) const = default;
+
     uint32_t slot  : 11;
     uint32_t index : 21;
 };

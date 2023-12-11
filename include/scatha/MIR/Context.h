@@ -29,7 +29,8 @@ public:
     UndefValue* undef() const { return _undef.get(); }
 
 private:
-    utl::node_hashmap<std::pair<uint64_t, size_t>, Constant> constants;
+    utl::hashmap<std::pair<uint64_t, size_t>, std::unique_ptr<Constant>>
+        constants;
     std::unique_ptr<UndefValue> _undef;
 };
 

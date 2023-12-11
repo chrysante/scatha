@@ -6,7 +6,6 @@
 
 #include <utl/strcat.hpp>
 
-#include "IR/ForEach.h"
 #include "IR/PassManager.h"
 #include "IR/PipelineError.h"
 #include "IR/PipelineNodes.h"
@@ -144,7 +143,8 @@ public:
         if (!localNode) {
             return nullptr;
         }
-        return std::make_unique<PipelineGlobalNode>(ir::forEach,
+        return std::make_unique<PipelineGlobalNode>(PassManager::getGlobalPass(
+                                                        "foreach"),
                                                     std::move(localNode));
     }
 

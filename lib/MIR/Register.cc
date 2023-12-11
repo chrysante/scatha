@@ -23,15 +23,23 @@ void Register::removeUser(Instruction* inst) {
     visit(*this, [&](auto& reg) { removeUserImpl(inst); });
 }
 
-void Register::replaceWith(Register* repl) {
+void Register::replaceDefsWith(Register* repl) {
     auto defs = this->defs() | ToSmallVector<>;
     for (auto* inst: defs) {
         inst->setFirstDest(repl);
     }
+}
+
+void Register::replaceUsesWith(Register* repl) {
     auto uses = this->uses() | ToSmallVector<>;
     for (auto* inst: uses) {
         inst->replaceOperand(this, repl);
     }
+}
+
+void Register::replaceWith(Register* repl) {
+    replaceDefsWith(repl);
+    replaceUsesWith(repl);
 }
 
 void Register::addDefImpl(Instruction* inst) { _defs.insert(inst); }

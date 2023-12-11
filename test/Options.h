@@ -8,6 +8,7 @@ namespace scatha::test {
 struct Options {
     bool TestPasses = false;
     bool TestIdempotency = false;
+    bool PrintCodegen = false;
     std::string TestPipeline;
 };
 

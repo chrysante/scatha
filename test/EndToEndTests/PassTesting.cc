@@ -9,6 +9,7 @@
 #include <range/v3/view.hpp>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
+#include <termfmt/termfmt.h>
 #include <utl/format.hpp>
 #include <utl/functional.hpp>
 #include <utl/strcat.hpp>
@@ -18,6 +19,7 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/Logger.h"
 #include "IR/Context.h"
 #include "IR/ForEach.h"
 #include "IR/Fwd.h"
@@ -25,6 +27,7 @@
 #include "IR/Module.h"
 #include "IR/PassManager.h"
 #include "IR/Pipeline.h"
+#include "IR/Print.h"
 #include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "Opt/Optimizer.h"
@@ -79,8 +82,14 @@ static Generator makeIRGenerator(std::string_view text) {
     };
 }
 
-static uint64_t run(ir::Module const& mod) {
-    auto assembly = cg::codegen(mod);
+static uint64_t run(ir::Module const& mod, std::ostream* str = nullptr) {
+    auto assembly = [&] {
+        if (!str) {
+            return cg::codegen(mod);
+        }
+        cg::DebugLogger logger(*str);
+        return cg::codegen(mod, logger);
+    }();
     auto [prog, sym] = Asm::assemble(assembly);
     /// We need 2 megabytes of stack size for the ackermann function test to run
     svm::VirtualMachine vm(1 << 10, 1 << 12);
@@ -175,7 +184,21 @@ struct Impl {
                       ir::Module const& mod,
                       uint64_t expected) const {
         INFO(msg);
-        CHECK(run(mod) == expected);
+        size_t result = 0;
+        std::string code;
+        if (!getOptions().PrintCodegen) {
+            result = run(mod);
+        }
+        else {
+            std::stringstream sstr;
+            /// Catch2 breaks strings after 75 characters
+            tfmt::setWidth(sstr, 75);
+            ir::print(mod, sstr);
+            result = run(mod, &sstr);
+            code = std::move(sstr).str();
+        }
+        INFO(code);
+        CHECK(result == expected);
     }
 
     void testPipeline(Generator const& generator,
@@ -183,7 +206,7 @@ struct Impl {
                       uint64_t expected,
                       ir::Pipeline const& pipeline) const {
         auto [ctx, mod] = generator();
-        prePipeline.execute(ctx, mod);
+        prePipeline(ctx, mod);
         auto message = utl::strcat("Pass test for \"",
                                    pipeline,
                                    "\" with pre pipeline \"",

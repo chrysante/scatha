@@ -98,6 +98,12 @@ public:
         return _users.contains(inst);
     }
 
+    /// Replace all defs of this register with the register \p repl
+    void replaceDefsWith(Register* repl);
+
+    /// Replace all uses of this register with the register \p repl
+    void replaceUsesWith(Register* repl);
+
     /// Replace all uses and defs of this register with the register \p repl
     void replaceWith(Register* repl);
 

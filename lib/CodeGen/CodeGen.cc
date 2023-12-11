@@ -26,10 +26,17 @@ Asm::AssemblyStream cg::codegen(ir::Module const& irMod, cg::Logger& logger) {
     auto mod = cg::lowerToMIR2(ctx, irMod);
     logger.log("Initial MIR module", mod);
 
-    forEach(ctx, mod, cg::computeLiveSets);
+    forEach(ctx, mod, cg::instSimplify);
+    logger.log("MIR module after simplification", mod);
+
+    forEach(ctx, mod, cg::commonSubexpressionElimination);
+    logger.log("MIR module after CSE", mod);
+
     forEach(ctx, mod, cg::deadCodeElim);
     logger.log("MIR module after DCE", mod);
 
+    /// We compute live sets just before we leave SSA form
+    forEach(ctx, mod, cg::computeLiveSets);
     forEach(ctx, mod, cg::destroySSA);
     logger.log("MIR module after SSA destructions", mod);
 

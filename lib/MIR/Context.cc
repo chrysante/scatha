@@ -19,9 +19,10 @@ Context& Context::operator=(Context&&) noexcept = default;
 Context::~Context() = default;
 
 Constant* Context::constant(uint64_t value, size_t bytewidth) {
-    auto [itr, success] =
-        constants.insert({ { value, bytewidth }, Constant(value, bytewidth) });
-    return &itr->second;
+    auto [itr, success] = constants.insert(
+        std::pair{ std::pair{ value, bytewidth },
+                   std::make_unique<Constant>(value, bytewidth) });
+    return itr->second.get();
 }
 
 Constant* Context::constant(APInt value) {

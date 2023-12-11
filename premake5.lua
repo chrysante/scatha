@@ -91,10 +91,11 @@ externalincludedirs {
     "build/Catch/generated-includes",
     "external/APMath/include",
     "external/range-v3/include",
+    "external/termfmt/include",
 }
 
 addCppFiles "test"
-links { "Catch2", "scatha", "svm-lib", "APMath" } 
+links { "Catch2", "scatha", "svm-lib", "APMath", "termfmt" } 
 
 ------------------------------------------
 
@@ -116,7 +117,7 @@ externalincludedirs {
 includedirs { ".", "lib", "playground", "apmath" }
 
 addCppFiles "playground"
-files "playground/**.sc"
+files { "playground/**.sc", "playground/**.scir" }
 links { 
     "scatha", 
     "svm-lib", 
