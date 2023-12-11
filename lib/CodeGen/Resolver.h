@@ -121,6 +121,10 @@ private:
     mir::Value* impl(ir::UndefValue const&) const;
     mir::Value* impl(ir::Value const&) const;
 
+    std::pair<mir::Value*, size_t> computeAddressImpl(ir::Value const& addr,
+                                                      size_t offset,
+                                                      Metadata metadata) const;
+
     mir::Register* genCopyImpl(
         mir::Register* dest,
         mir::Value* source,

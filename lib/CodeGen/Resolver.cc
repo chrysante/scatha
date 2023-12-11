@@ -160,15 +160,27 @@ mir::Register* Resolver::genCopyImpl(
 
 static constexpr size_t MaxConstantAddressOffset = 255;
 
+std::pair<mir::Value*, size_t> Resolver::computeAddressImpl(
+    ir::Value const& addr, size_t offset, Metadata metadata) const {
+    auto [base, baseOffset] = valueMap().getAddress(&addr);
+    if (base) {
+        return { base, baseOffset + offset };
+    }
+    /// This is kind of ugly because in the worst case we generate many
+    /// duplicate copy instruction, but we leave it like this for now. We
+    /// generate a copy instruction for every call to this function if the base
+    /// address did not resolve to a register, and for big data types this
+    /// function will be called in a loop. We leave it like this because if we
+    /// cache the result, it would be only computed the last time the address is
+    /// used because we select instructions from back to front.
+    return { resolveToRegister(addr, metadata), offset };
+}
+
 mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
                                             size_t offset,
                                             Metadata metadata) const {
-    auto [base, baseOffset] = valueMap().getAddress(&addr);
-    if (!base) {
-        base = resolveToRegister(addr, metadata);
-        valueMap().addAddress(&addr, base);
-    }
-    size_t totalOffset = baseOffset + offset;
+    auto [base, totalOffset] =
+        computeAddressImpl(addr, offset, std::move(metadata));
     SC_ASSERT(totalOffset <= MaxConstantAddressOffset,
               "Oversized case not yet implemented");
     return mir::MemoryAddress(base, totalOffset);
@@ -180,8 +192,9 @@ mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
 }
 
 mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
-                                        size_t offset) const {
-    auto* base = resolve(*gep.basePointer());
+                                        size_t userOffset) const {
+    auto [base, offset] =
+        computeAddressImpl(*gep.basePointer(), userOffset, gep.metadata());
     if (auto* undef = dyncast<mir::UndefValue*>(base)) {
         return mir::MemoryAddress(nullptr, nullptr, 0, 0);
     }
@@ -190,7 +203,7 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
     }
     mir::Register* basereg = cast<mir::Register*>(base);
     auto [dynFactor, constFactor, constOffset] =
-        [&]() -> std::tuple<mir::Register*, size_t, size_t> {
+        [&, offset = offset]() -> std::tuple<mir::Register*, size_t, size_t> {
         size_t elemSize = gep.inboundsType()->size();
         size_t innerOffset = gep.innerByteOffset() + offset;
         auto* constIndex =
@@ -214,37 +227,3 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
     }();
     return mir::MemoryAddress(basereg, dynFactor, constFactor, constOffset);
 }
-
-// We keep this here until we implement it
-#if 0
-static size_t alignTo(size_t size, size_t align) {
-    if (size % align == 0) {
-        return size;
-    }
-    return size + align - size % align;
-}
-void FunctionContext::computeAllocaMap(mir::BasicBlock& mirEntry) {
-    auto& entry = irFn.entry();
-    auto allocas = entry | ranges::views::take_while(isa<ir::Alloca>) |
-                   ranges::views::transform(cast<ir::Alloca const&>);
-    size_t offset = 0;
-    utl::small_vector<size_t> offsets;
-    /// Compute the offsets for the allocas
-    SC_ASSERT(ranges::all_of(allocas, &ir::Alloca::isStatic),
-              "For now we only support lowering static allocas");
-    for (auto& inst: allocas) {
-        offsets.push_back(offset);
-        auto size = inst.allocatedSize();
-        size_t const StaticAllocaAlign = 16;
-        offset += alignTo(*size, StaticAllocaAlign);
-    }
-
-    /// Emit one `lincsp` instruction
-    mir::Register* baseptr = nullptr; // TODO: Implement this
-
-    /// Store the results in the map
-    for (auto [inst, offset]: ranges::views::zip(allocas, offsets)) {
-        allocaMap.insert(&inst, { baseptr, offset });
-    }
-}
-#endif

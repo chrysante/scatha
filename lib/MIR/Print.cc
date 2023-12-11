@@ -297,7 +297,7 @@ struct PrintContext {
             str << none(", ");
         }
         printOperands(call);
-        str << " [regoffset=" << call.registerOffset() << "]";
+        str << tfmt::format(Grey, " [regoffset=", call.registerOffset(), "]");
     }
 
     void printImpl(LoadArithmeticInst const& inst) {

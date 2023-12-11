@@ -222,13 +222,13 @@ static int inspectMain(InspectOptions options) {
         header("Assembly");
         Asm::print(asmStream);
     }
-    if (options.execute) {
-        header("Execution");
-        executeAsm(asmStream);
-    }
     if (options.out) {
         auto [program, symbolTable] = Asm::assemble(asmStream);
         writeExecutableFile("out", program);
+    }
+    if (options.execute) {
+        header("Execution");
+        executeAsm(asmStream);
     }
     return 0;
 }

@@ -19,7 +19,8 @@ void ValueMap::addValue(ir::Value const* key, mir::Value* value) {
     SC_ASSERT(success, "Key already present");
 }
 
-std::pair<mir::Value*, size_t> ValueMap::getAddress(ir::Value const* key) {
+std::pair<mir::Value*, size_t> ValueMap::getAddress(
+    ir::Value const* key) const {
     auto itr = addressMap.find(key);
     if (itr != addressMap.end()) {
         return itr->second;

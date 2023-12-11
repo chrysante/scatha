@@ -1,7 +1,5 @@
 #include "CodeGen/ISel.h"
 
-#include <iostream>
-
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <termfmt/termfmt.h>
@@ -17,7 +15,6 @@
 #include "CodeGen/SDMatch.h"
 #include "CodeGen/SelectionDAG.h"
 #include "IR/CFG.h"
-#include "IR/Print.h"
 #include "IR/Type.h"
 #include "MIR/CFG.h"
 #include "MIR/Context.h"
@@ -30,13 +27,12 @@ using namespace cg;
 template <>
 struct Matcher<ir::Alloca>: MatcherBase {
     SD_MATCH_CASE(ir::Alloca const& inst, SelectionNode& node) {
-        SC_ASSERT(inst.allocatedType()->align() <= 8,
-                  "We don't support overaligned types just yet.");
-        SC_ASSERT(inst.isStatic(), "We only support static allocas for now");
-        size_t numBytes = utl::round_up(*inst.allocatedSize(), 8);
-        emit(new mir::LISPInst(resolve(inst),
-                               CTX().constant(numBytes, 2),
-                               inst.metadata()));
+        auto [addr, offset] = valueMap().getAddress(&inst);
+        SC_ASSERT(addr,
+                  "Must be set because we handle all allocas in parent "
+                  "lowerToMIR()");
+        auto* dest = resolve(inst);
+        emit(new mir::LEAInst(dest, computeAddress(inst, {}), {}));
         return true;
     }
 };
@@ -74,9 +70,10 @@ struct Matcher<ir::Load>: MatcherBase {
 
     // Load
     SD_MATCH_CASE(ir::Load const& load, SelectionNode& node) {
-        auto* baseAddr = resolveToRegister(*load.address(), load.metadata());
         impl(load, [&](size_t i) {
-            return mir::MemoryAddress(baseAddr, i * WordSize);
+            return computeAddress(*load.address(),
+                                  i * WordSize,
+                                  load.metadata());
         });
         return true;
     }
@@ -118,9 +115,10 @@ struct Matcher<ir::Store>: MatcherBase {
 
     // Store
     SD_MATCH_CASE(ir::Store const& store, SelectionNode& node) {
-        auto* baseAddr = resolve(*store.address());
         impl(store, [&](size_t i) {
-            return mir::MemoryAddress(baseAddr, i * WordSize);
+            return computeAddress(*store.address(),
+                                  i * WordSize,
+                                  store.metadata());
         });
         return true;
     }
@@ -302,8 +300,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
             return false;
         }
         node.merge(*loadNode);
-        auto RHS = mir::MemoryAddress(
-            resolveToRegister(*load->address(), load->metadata()));
+        auto RHS = computeAddress(*load->address(), load->metadata());
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
         return true;
     }
@@ -881,26 +878,15 @@ void ISelBlockCtx::run() {
     }
 }
 
-static void reportUnmatched(ir::Instruction const& inst) {
-    using namespace tfmt::modifiers;
-    std::cout << tfmt::format(Red | Bold, "Error:")
-              << " Failed to match instruction: ";
-    ir::print(inst);
-}
-
 void ISelBlockCtx::match(SelectionNode& node) {
     auto& inst = *node.irInst();
     bool matched = visit(inst, [&]<typename Inst>(Inst const& inst) {
         return std::get<Matcher<Inst>>(matchers).match(inst, node);
     });
-    if (matched) {
-        finalizeNode(node);
-    }
-    else {
-        reportUnmatched(inst);
-    }
+    SC_ASSERT(matched, "Failed to match instruction");
+    finalizeNode(node);
 }
 
 void ISelBlockCtx::finalizeNode(SelectionNode& node) {
-    node.setMIR(resolver.resolve(*node.irInst()), std::move(instructions));
+    node.setSelectedInstructions(std::move(instructions));
 }

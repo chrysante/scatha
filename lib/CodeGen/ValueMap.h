@@ -21,7 +21,7 @@ public:
     void addValue(ir::Value const* key, mir::Value* value);
 
     /// Get the MIR pointer value of the IR pointer value \p value
-    std::pair<mir::Value*, size_t> getAddress(ir::Value const* key);
+    std::pair<mir::Value*, size_t> getAddress(ir::Value const* key) const;
 
     /// Associate the IR pointer value \p key with the pair `{ baseAddr, offset
     /// }` This function traps if \p key is already in the map

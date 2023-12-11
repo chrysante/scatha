@@ -33,9 +33,6 @@ public:
     /// \Returns the IR instruction associated with this node
     ir::Instruction const* irInst() const { return _irInst; }
 
-    /// \Returns the MIR register associated with this node
-    mir::SSARegister* Register() const { return _register; }
-
     /// \Returns the MIR instruction associated with this node
     List<mir::Instruction> const& mirInstructions() const { return _mirInsts; }
 
@@ -44,10 +41,10 @@ public:
 
     /// Set the computed MIR value and list of instructions that compute the
     /// value
-    void setMIR(mir::SSARegister* value, List<mir::Instruction> insts);
+    void setSelectedInstructions(List<mir::Instruction> insts);
 
-    /// \Returns `true` if this instruction has been matched, i.e. if `setMIR()`
-    /// has been called
+    /// \Returns `true` if this instruction has been matched, i.e. if
+    /// `setSelectedInstructions()` has been called
     bool matched() const { return _matched; }
 
     /// \Returns a view of the nodes of the operands of this instruction
@@ -135,7 +132,7 @@ private:
     friend class SelectionDAG;
 
     ir::Instruction const* _irInst = nullptr;
-    mir::SSARegister* _register = nullptr;
+    mir::SSARegister* _register = nullptr; // TODO: Delete this
     List<mir::Instruction> _mirInsts;
     bool _matched = false;
 };

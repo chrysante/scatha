@@ -14,9 +14,7 @@ SelectionNode::~SelectionNode() {
     }
 }
 
-void SelectionNode::setMIR(mir::SSARegister* reg,
-                           List<mir::Instruction> insts) {
-    _register = reg;
+void SelectionNode::setSelectedInstructions(List<mir::Instruction> insts) {
     _mirInsts = std::move(insts);
     _matched = true;
 }
