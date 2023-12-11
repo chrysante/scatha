@@ -248,6 +248,10 @@ static BasicBlock::Iterator destroySSATailCall(Function& F,
     Value* callee = call.operandAt(0);
     auto argBegin = std::next(call.operands().begin());
     size_t const numArgs = call.operands().size() - 1;
+    /// We allocate bottom registers for the arguments
+    for (size_t i = F.virtualRegisters().size(); i < numArgs; ++i) {
+        F.virtualRegisters().add(new VirtualRegister());
+    }
     /// We need to copy our arguments to temporary registers before copying them
     /// into our bottom registers to make sure we don't overwrite anything that
     /// we still need to copy.
