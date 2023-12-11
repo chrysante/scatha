@@ -305,18 +305,134 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         return true;
     }
 
-    /// \Returns a pair of RHS value, that if it is a constant is adjusted to
-    /// legal width and the bytewidth of the instruction
-    mir::Value* legalize(ir::ArithmeticInst const& inst) {
-        auto* RHS = resolve(*inst.rhs());
-        size_t width = inst.lhs()->type()->size();
-        if (width >= 4) {
-            return RHS;
+    /// # Arithmetic patterns representable by LEA
+
+    /// Constants in memory addresses must be representable by one byte
+    static constexpr uint64_t LEAConstSizeLimit = 256;
+
+    /// \Returns the value cast to an arithmetic instruction if it is a \p Op
+    /// operation, null otherwise
+    template <ir::ArithmeticOperation Op>
+    static ir::ArithmeticInst const* as(ir::Value const* value) {
+        auto* inst = dyncast<ir::ArithmeticInst const*>(value);
+        if (inst && inst->operation() == Op) {
+            return inst;
         }
-        if (auto* constant = dyncast<mir::Constant*>(RHS)) {
-            return CTX().constant(constant->value(), 8);
+        return nullptr;
+    }
+
+    /// \Returns the value as a constant if it is smaller than
+    /// `LEAConstSizeLimit`
+    static std::optional<uint64_t> asLEAConstant(ir::Value const* value) {
+        auto* constant = dyncast<ir::IntegralConstant const*>(value);
+        if (constant && constant->value().to<uint64_t>() < LEAConstSizeLimit) {
+            return constant->value().to<uint64_t>();
         }
-        return RHS;
+        return std::nullopt;
+    }
+
+    /// Convenience macro to return early
+#define REQUIRE(val)                                                           \
+    do {                                                                       \
+        if (!val) {                                                            \
+            return false;                                                      \
+        }                                                                      \
+    } while (0)
+
+    //    *    Const
+    //     \   /
+    // *    Mul
+    //  \   /                => LEA
+    //   Add2  Const
+    //     \   /
+    //      Add1
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        using enum ir::ArithmeticOperation;
+        auto* add1 = as<Add>(&inst);
+        REQUIRE(add1);
+        auto* add2 = as<Add>(add1->lhs());
+        REQUIRE(add2);
+        auto* add2Node = DAG(add2);
+        REQUIRE(add2Node);
+        auto term = asLEAConstant(add1->rhs());
+        REQUIRE(term);
+        auto mul = as<Mul>(add2->rhs());
+        REQUIRE(mul);
+        auto* mulNode = DAG(mul);
+        REQUIRE(mulNode);
+        auto factor = asLEAConstant(mul->rhs());
+        REQUIRE(factor);
+        node.merge(*add2Node);
+        node.merge(*mulNode);
+        auto* add2LHS = resolveToRegister(*add2->lhs(), add2->metadata());
+        auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
+        emit(new mir::LEAInst(resolve(*add1),
+                              mir::MemoryAddress(add2LHS,
+                                                 mulLHS,
+                                                 *factor,
+                                                 *term),
+                              add1->metadata()));
+        return true;
+    }
+
+    //    *    Const
+    //     \   /
+    //      Mul   Const
+    //        \   /          => LEA
+    //    *    Add2
+    //     \   /
+    //      Add1
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        using enum ir::ArithmeticOperation;
+        auto* add1 = as<Add>(&inst);
+        REQUIRE(add1);
+        auto* add2 = as<Add>(add1->rhs());
+        REQUIRE(add2);
+        auto* add2Node = DAG(add2);
+        REQUIRE(add2Node);
+        auto term = asLEAConstant(add2->rhs());
+        REQUIRE(term);
+        auto mul = as<Mul>(add2->lhs());
+        REQUIRE(mul);
+        auto* mulNode = DAG(mul);
+        REQUIRE(mulNode);
+        auto factor = asLEAConstant(mul->rhs());
+        REQUIRE(factor);
+        node.merge(*add2Node);
+        node.merge(*mulNode);
+        auto* add1LHS = resolveToRegister(*add1->lhs(), add1->metadata());
+        auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
+        emit(new mir::LEAInst(resolve(*add1),
+                              mir::MemoryAddress(add1LHS,
+                                                 mulLHS,
+                                                 *factor,
+                                                 *term),
+                              add1->metadata()));
+        return true;
+    }
+
+    //    *    Const
+    //     \   /
+    // *    Mul              => LEA
+    //  \   /
+    //   Add
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        using enum ir::ArithmeticOperation;
+        auto* add = as<Add>(&inst);
+        REQUIRE(add);
+        auto* mul = as<Mul>(add->rhs());
+        REQUIRE(mul);
+        auto* mulNode = DAG(mul);
+        REQUIRE(mulNode);
+        auto factor = asLEAConstant(mul->rhs());
+        REQUIRE(factor);
+        node.merge(*mulNode);
+        auto* addLHS = resolveToRegister(*add->lhs(), add->metadata());
+        auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
+        emit(new mir::LEAInst(resolve(*add),
+                              mir::MemoryAddress(addLHS, mulLHS, *factor, 0),
+                              add->metadata()));
+        return true;
     }
 
     // Arithmetic -> IntConstant
@@ -394,6 +510,20 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         default:
             return false;
         }
+    }
+
+    /// \Returns a pair of RHS value, that if it is a constant is adjusted to
+    /// legal width and the bytewidth of the instruction
+    mir::Value* legalize(ir::ArithmeticInst const& inst) {
+        auto* RHS = resolve(*inst.rhs());
+        size_t width = inst.lhs()->type()->size();
+        if (width >= 4) {
+            return RHS;
+        }
+        if (auto* constant = dyncast<mir::Constant*>(RHS)) {
+            return CTX().constant(constant->value(), 8);
+        }
+        return RHS;
     }
 
     // Arithmetic (base case)

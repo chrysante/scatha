@@ -155,3 +155,52 @@ fn main() -> int {
     return i;
 })");
 }
+
+TEST_CASE("Arithmetic LEA matching", "[end-to-end]") {
+    SECTION("1") {
+        test::checkReturns(42, R"(
+//    *    Const
+//     \   /
+// *    Mul
+//  \   /
+//   Add2  Const
+//     \   /
+//      Add1
+fn test(a: int, b: int) {
+    return a + 10 * b + 20;
+}
+fn main() {
+    return test(2, 2);
+})");
+    }
+    SECTION("2") {
+        test::checkReturns(42, R"(
+//    *    Const
+//     \   /
+//      Mul   Const
+//        \   /
+//    *    Add
+//     \   /
+//      Add
+fn test(a: int, b: int) {
+    return a + (10 * b + 20);
+}
+fn main() {
+    return test(2, 2);
+})");
+    }
+    SECTION("3") {
+        test::checkReturns(42, R"(
+//    *    Const
+//     \   /
+// *    Mul
+//  \   /
+//   Add
+fn test(a: int, b: int) {
+    return a + 10 * b;
+}
+fn main() {
+    return test(2, 4);
+})");
+    }
+}
