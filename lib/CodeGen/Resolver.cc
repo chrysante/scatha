@@ -158,8 +158,6 @@ mir::Register* Resolver::genCopyImpl(
     return dest;
 }
 
-static constexpr size_t MaxConstantAddressOffset = 255;
-
 std::pair<mir::Value*, size_t> Resolver::computeAddressImpl(
     ir::Value const& addr, size_t offset, Metadata metadata) const {
     auto [base, baseOffset] = valueMap().getAddress(&addr);
@@ -176,14 +174,24 @@ std::pair<mir::Value*, size_t> Resolver::computeAddressImpl(
     return { resolveToRegister(addr, metadata), offset };
 }
 
+static constexpr size_t ConstantAddressOffsetLimit = 256;
+
 mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
                                             size_t offset,
                                             Metadata metadata) const {
-    auto [base, totalOffset] =
-        computeAddressImpl(addr, offset, std::move(metadata));
-    SC_ASSERT(totalOffset <= MaxConstantAddressOffset,
-              "Oversized case not yet implemented");
-    return mir::MemoryAddress(base, totalOffset);
+    auto [base, totalOffset] = computeAddressImpl(addr, offset, metadata);
+    if (totalOffset < ConstantAddressOffsetLimit) {
+        return mir::MemoryAddress(base, totalOffset);
+    }
+    size_t smallOffset = totalOffset % ConstantAddressOffsetLimit;
+    size_t bigOffset = totalOffset - smallOffset;
+    auto* dynOffset = nextRegister();
+    emit(
+        new mir::CopyInst(dynOffset, ctx->constant(bigOffset, 8), 8, metadata));
+    return mir::MemoryAddress(base,
+                              dynOffset,
+                              /* offsetFactor = */ 1,
+                              smallOffset);
 }
 
 mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
@@ -217,13 +225,34 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
         }
         if (auto* constArrIdx = dyncast<mir::Constant*>(arrayIndex)) {
             size_t totalOffset = constArrIdx->value() * elemSize + innerOffset;
-            if (totalOffset <= MaxConstantAddressOffset) {
-                return { nullptr, 0, totalOffset };
-            }
+            return { nullptr, 0, totalOffset };
         }
         auto* result = nextRegister();
         genCopy(result, arrayIndex, 8, gep.metadata());
         return { result, elemSize, innerOffset };
     }();
-    return mir::MemoryAddress(basereg, dynFactor, constFactor, constOffset);
+    if (constOffset < ConstantAddressOffsetLimit) {
+        return mir::MemoryAddress(basereg, dynFactor, constFactor, constOffset);
+    }
+    if (!dynFactor) {
+        size_t smallOffset = constOffset % ConstantAddressOffsetLimit;
+        size_t bigOffset = constOffset - smallOffset;
+        dynFactor = nextRegister();
+        emit(new mir::CopyInst(dynFactor,
+                               ctx->constant(bigOffset, 8),
+                               8,
+                               gep.metadata()));
+        return mir::MemoryAddress(basereg, dynFactor, 1, smallOffset);
+    }
+    auto* dynFactorSum = nextRegister();
+    SC_ASSERT(constFactor <= ConstantAddressOffsetLimit, "");
+    size_t bigOffset = constOffset / constFactor;
+    size_t smallOffset = constOffset % constFactor;
+    emit(new mir::ValueArithmeticInst(dynFactorSum,
+                                      dynFactor,
+                                      ctx->constant(bigOffset, 8),
+                                      8,
+                                      mir::ArithmeticOperation::Add,
+                                      gep.metadata()));
+    return mir::MemoryAddress(basereg, dynFactorSum, constFactor, smallOffset);
 }

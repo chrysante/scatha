@@ -429,3 +429,14 @@ fn main() {
     return r.count;
 })");
 }
+
+/// This test case is testing a code path in `Resolver::computeGEP()` in MIR
+/// generation
+TEST_CASE("Large constant array index", "[end-to-end][pointers]") {
+    test::checkReturns(42, R"(
+fn main() {
+    var data: [int, 100];
+    data[99] = 42;
+    return data[99];
+})");
+}
