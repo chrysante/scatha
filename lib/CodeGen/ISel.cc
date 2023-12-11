@@ -56,13 +56,9 @@ struct Matcher<ir::Load>: MatcherBase {
     // Load -> GEP
     SD_MATCH_CASE(ir::Load const& load, SelectionNode& node) {
         auto* gep = dyncast<ir::GetElementPointer const*>(load.address());
-        if (!gep) {
-            return false;
-        }
+        if (!gep) return false;
         auto* gepNode = DAG(gep);
-        if (!gepNode) {
-            return false;
-        }
+        if (!gepNode) return false;
         node.merge(*gepNode);
         impl(load, [&](size_t i) { return computeGEP(*gep, i * WordSize); });
         return true;
@@ -101,13 +97,9 @@ struct Matcher<ir::Store>: MatcherBase {
     // Store -> GEP
     SD_MATCH_CASE(ir::Store const& store, SelectionNode& node) {
         auto* gep = dyncast<ir::GetElementPointer const*>(store.address());
-        if (!gep) {
-            return false;
-        }
+        if (!gep) return false;
         auto* gepNode = DAG(gep);
-        if (!gepNode) {
-            return false;
-        }
+        if (!gepNode) return false;
         node.merge(*gepNode);
         impl(store, [&](size_t i) { return computeGEP(*gep, i * WordSize); });
         return true;
@@ -258,30 +250,20 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     /// must fall back to seperate instructions
     bool canDeferLoad(ir::Value const* LHS, ir::Load const* load) const {
         auto* LHSInst = dyncast<ir::Instruction const*>(LHS);
-        if (!LHSInst) {
-            return true;
-        }
+        if (!LHSInst) return true;
         return !DAG().dependencies(DAG(LHSInst)).contains(DAG(load));
     }
 
     // Arithmetic -> Load -> GEP
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* load = dyncast<ir::Load const*>(inst.rhs());
-        if (!load || !canDeferLoad(inst.lhs(), load)) {
-            return false;
-        }
+        if (!load || !canDeferLoad(inst.lhs(), load)) return false;
         auto* loadNode = DAG(load);
-        if (!loadNode) {
-            return false;
-        }
+        if (!loadNode) return false;
         auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
-        if (!gep) {
-            return false;
-        }
+        if (!gep) return false;
         auto* gepNode = DAG(gep);
-        if (!gepNode) {
-            return false;
-        }
+        if (!gepNode) return false;
         node.merge(*loadNode);
         node.merge(*gepNode);
         auto RHS = computeGEP(*gep);
@@ -292,13 +274,9 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     // Arithmetic -> Load
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* load = dyncast<ir::Load const*>(inst.rhs());
-        if (!load || !canDeferLoad(inst.lhs(), load)) {
-            return false;
-        }
+        if (!load || !canDeferLoad(inst.lhs(), load)) return false;
         auto* loadNode = DAG(load);
-        if (!loadNode) {
-            return false;
-        }
+        if (!loadNode) return false;
         node.merge(*loadNode);
         auto RHS = computeAddress(*load->address(), load->metadata());
         doEmit<mir::LoadArithmeticInst>(inst, RHS);
@@ -331,14 +309,6 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         return std::nullopt;
     }
 
-    /// Convenience macro to return early
-#define REQUIRE(val)                                                           \
-    do {                                                                       \
-        if (!val) {                                                            \
-            return false;                                                      \
-        }                                                                      \
-    } while (0)
-
     //    *    Const
     //     \   /
     // *    Mul
@@ -349,19 +319,19 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         using enum ir::ArithmeticOperation;
         auto* add1 = as<Add>(&inst);
-        REQUIRE(add1);
+        if (!add1) return false;
         auto* add2 = as<Add>(add1->lhs());
-        REQUIRE(add2);
+        if (!add2) return false;
         auto* add2Node = DAG(add2);
-        REQUIRE(add2Node);
+        if (!add2Node) return false;
         auto term = asLEAConstant(add1->rhs());
-        REQUIRE(term);
+        if (!term) return false;
         auto mul = as<Mul>(add2->rhs());
-        REQUIRE(mul);
+        if (!mul) return false;
         auto* mulNode = DAG(mul);
-        REQUIRE(mulNode);
+        if (!mulNode) return false;
         auto factor = asLEAConstant(mul->rhs());
-        REQUIRE(factor);
+        if (!factor) return false;
         node.merge(*add2Node);
         node.merge(*mulNode);
         auto* add2LHS = resolveToRegister(*add2->lhs(), add2->metadata());
@@ -385,19 +355,19 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         using enum ir::ArithmeticOperation;
         auto* add1 = as<Add>(&inst);
-        REQUIRE(add1);
+        if (!add1) return false;
         auto* add2 = as<Add>(add1->rhs());
-        REQUIRE(add2);
+        if (!add2) return false;
         auto* add2Node = DAG(add2);
-        REQUIRE(add2Node);
+        if (!add2Node) return false;
         auto term = asLEAConstant(add2->rhs());
-        REQUIRE(term);
+        if (!term) return false;
         auto mul = as<Mul>(add2->lhs());
-        REQUIRE(mul);
+        if (!mul) return false;
         auto* mulNode = DAG(mul);
-        REQUIRE(mulNode);
+        if (!mulNode) return false;
         auto factor = asLEAConstant(mul->rhs());
-        REQUIRE(factor);
+        if (!factor) return false;
         node.merge(*add2Node);
         node.merge(*mulNode);
         auto* add1LHS = resolveToRegister(*add1->lhs(), add1->metadata());
@@ -419,13 +389,13 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         using enum ir::ArithmeticOperation;
         auto* add = as<Add>(&inst);
-        REQUIRE(add);
+        if (!add) return false;
         auto* mul = as<Mul>(add->rhs());
-        REQUIRE(mul);
+        if (!mul) return false;
         auto* mulNode = DAG(mul);
-        REQUIRE(mulNode);
+        if (!mulNode) return false;
         auto factor = asLEAConstant(mul->rhs());
-        REQUIRE(factor);
+        if (!factor) return false;
         node.merge(*mulNode);
         auto* addLHS = resolveToRegister(*add->lhs(), add->metadata());
         auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
@@ -438,9 +408,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     // Arithmetic -> IntConstant
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* constant = dyncast<ir::IntegralConstant const*>(inst.rhs());
-        if (!constant) {
-            return false;
-        }
+        if (!constant) return false;
         APInt rhsVal = constant->value();
         using enum ir::ArithmeticOperation;
         switch (inst.operation()) {
@@ -463,27 +431,21 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
             return false;
         }
         case Mul: {
-            if (rhsVal.popcount() != 1) {
-                return false;
-            }
+            if (rhsVal.popcount() != 1) return false;
             doEmit<mir::ValueArithmeticInst>(inst,
                                              CTX().constant(rhsVal.ctz(), 1),
                                              LShL);
             return true;
         }
         case UDiv: {
-            if (rhsVal.popcount() != 1) {
-                return false;
-            }
+            if (rhsVal.popcount() != 1) return false;
             doEmit<mir::ValueArithmeticInst>(inst,
                                              CTX().constant(rhsVal.ctz(), 1),
                                              LShR);
             return true;
         }
         case URem: {
-            if (rhsVal.popcount() != 1) {
-                return false;
-            }
+            if (rhsVal.popcount() != 1) return false;
             uint64_t mask = ~(~uint64_t(0) << rhsVal.ctz());
             doEmit<mir::ValueArithmeticInst>(
                 inst,
@@ -555,13 +517,9 @@ struct Matcher<ir::Branch>: MatcherBase {
     // Branch -> Compare
     SD_MATCH_CASE(ir::Branch const& br, SelectionNode& node) {
         auto* cmp = dyncast<ir::CompareInst const*>(br.condition());
-        if (!cmp) {
-            return false;
-        }
+        if (!cmp) return false;
         auto* cmpNode = DAG(cmp);
-        if (!cmpNode) {
-            return false;
-        }
+        if (!cmpNode) return false;
         node.merge(*cmpNode);
         auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
         auto* RHS = resolve(*cmp->rhs());
@@ -686,13 +644,9 @@ struct Matcher<ir::Select>: MatcherBase {
     // Select -> Compare
     SD_MATCH_CASE(ir::Select const& select, SelectionNode& node) {
         auto* cmp = dyncast<ir::CompareInst const*>(select.condition());
-        if (!cmp) {
-            return false;
-        }
+        if (!cmp) return false;
         auto* cmpNode = DAG(cmp);
-        if (!cmpNode) {
-            return false;
-        }
+        if (!cmpNode) return false;
         node.merge(*cmpNode);
         auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
         auto* RHS = resolve(*cmp->rhs());
