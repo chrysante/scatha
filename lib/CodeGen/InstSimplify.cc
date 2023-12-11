@@ -27,7 +27,7 @@ public:
     /// Add all instructions that use the register \p reg to the worklist
     void pushUsers(Register* reg) {
         for (auto* user: reg->uses()) {
-            if (auto* dest = user->dest()) {
+            for (auto* dest: user->destRegisters()) {
                 push(cast<SSARegister*>(dest));
             }
         }
@@ -61,7 +61,8 @@ struct ISContext {
     SSARegister* visitInst(Instruction& inst);
 
     SSARegister* visitImpl(Instruction& inst) { return nullptr; }
-    SSARegister* visitImpl(LEAInst& lea);
+    SSARegister* visitImpl(CopyInst&);
+    SSARegister* visitImpl(LEAInst&);
 };
 
 } // namespace
@@ -84,15 +85,25 @@ bool ISContext::run() {
         }
         modified = true;
         reg->replaceUsesWith(repl);
-        if (reg->uses().empty()) {
-            inst->parent()->erase(inst);
-        }
+        inst->parent()->erase(inst);
+        worklist.pushUsers(reg);
     }
     return modified;
 }
 
 SSARegister* ISContext::visitInst(Instruction& inst) {
     return visit(inst, [this](auto& inst) { return visitImpl(inst); });
+}
+
+SSARegister* ISContext::visitImpl(CopyInst& copy) {
+    /// Register to register copies can be replaced with the source register
+    if (auto* source = dyncast<SSARegister*>(copy.source())) {
+        return source;
+    }
+    if (isa<UndefValue>(copy.source())) {
+        return cast<SSARegister*>(copy.dest());
+    }
+    return nullptr;
 }
 
 SSARegister* ISContext::visitImpl(LEAInst& lea) {

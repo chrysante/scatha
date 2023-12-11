@@ -24,6 +24,9 @@ void Register::removeUser(Instruction* inst) {
 }
 
 void Register::replaceDefsWith(Register* repl) {
+    if (this == repl) {
+        return;
+    }
     auto defs = this->defs() | ToSmallVector<>;
     for (auto* inst: defs) {
         inst->setFirstDest(repl);
@@ -31,6 +34,9 @@ void Register::replaceDefsWith(Register* repl) {
 }
 
 void Register::replaceUsesWith(Register* repl) {
+    if (this == repl) {
+        return;
+    }
     auto uses = this->uses() | ToSmallVector<>;
     for (auto* inst: uses) {
         inst->replaceOperand(this, repl);
