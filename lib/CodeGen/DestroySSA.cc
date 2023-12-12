@@ -12,23 +12,27 @@ using namespace scatha;
 using namespace cg;
 using namespace mir;
 
-static bool isTailCall(CallInst const& call) {
-    /// For now we don't tail call indirectly because we don't have indirect
-    /// jump instruction
-    if (!isa<Function>(call.operandAt(0))) {
+static bool isTailCall(CallBase const& inst) {
+    auto* call = dyncast<CallInst const*>(&inst);
+    if (!call) {
         return false;
     }
-    auto* ret = dyncast<ReturnInst const*>(call.next());
+    /// For now we don't tail call indirectly because we don't have indirect
+    /// jump instruction
+    if (!isa<Function>(call->callee())) {
+        return false;
+    }
+    auto* ret = dyncast<ReturnInst const*>(call->next());
     if (!ret) {
         return false;
     }
-    if (ret->operands().size() != call.numDests()) {
+    if (ret->operands().size() != call->numDests()) {
         return false;
     }
-    if (!call.dest()) {
+    if (!call->dest()) {
         return true;
     }
-    return ret->operands().front() == call.dest();
+    return ret->operands().front() == call->dest();
 }
 
 static void mapSSAToVirtualRegisters(Function& F) {
@@ -147,10 +151,58 @@ std::optional<BasicBlock::Iterator> replaceableDefiningInstruction(
     return lastDefOfArgReg;
 }
 
-static BasicBlock::Iterator destroySSACall(Function& F,
-                                           BasicBlock& BB,
-                                           BasicBlock::Iterator callItr) {
-    auto& call = *callItr;
+static BasicBlock::Iterator destroyTailCall(Function& F,
+                                            BasicBlock& BB,
+                                            CallInst& call,
+                                            BasicBlock::Iterator itr) {
+    Value* callee = call.operandAt(0);
+    auto argBegin = std::next(call.operands().begin());
+    size_t const numArgs = call.operands().size() - 1;
+    /// We allocate bottom registers for the arguments
+    for (size_t i = F.virtualRegisters().size(); i < numArgs; ++i) {
+        F.virtualRegisters().add(new VirtualRegister());
+    }
+    /// We need to copy our arguments to temporary registers before copying them
+    /// into our bottom registers to make sure we don't overwrite anything that
+    /// we still need to copy.
+    utl::small_vector<VirtualRegister*, 8> tmpRegs(numArgs);
+    /// Allocate additional temporary registers.
+    for (size_t i = 0; i < numArgs; ++i, ++argBegin) {
+        auto* tmp = new VirtualRegister();
+        F.virtualRegisters().add(tmp);
+        tmpRegs[i] = tmp;
+        auto* copy = new CopyInst(tmp, *argBegin, 8, call.metadata());
+        BB.insert(&call, copy);
+    }
+    /// Copy arguments into bottom registers.
+    for (auto dest = F.virtualRegisters().begin(); auto* tmp: tmpRegs) {
+        auto* copy = new CopyInst(dest.to_address(), tmp, 8, call.metadata());
+        BB.insert(&call, copy);
+        dest->setFixed();
+        /// We mark the arguments registers live out since they need to be
+        /// preserved for the called function
+        BB.addLiveOut(dest.to_address());
+        ++dest;
+    }
+    auto& ret = *call.next();
+    SC_ASSERT(isa<ReturnInst>(ret), "We are not a tailcall");
+    std::advance(itr, 2);
+    auto metadata = call.metadata();
+    BB.erase(&call);
+    BB.erase(&ret);
+    auto* jump = new JumpInst(callee, std::move(metadata));
+    BB.insert(itr, jump);
+    SC_ASSERT(itr == BB.end(), "");
+    return itr;
+}
+
+static BasicBlock::Iterator destroy(Function& F,
+                                    BasicBlock& BB,
+                                    CallBase& call,
+                                    BasicBlock::Iterator callItr) {
+    if (isTailCall(call)) {
+        return destroyTailCall(F, BB, cast<CallInst&>(call), callItr);
+    }
     auto argBegin = call.operands().begin();
     size_t numCalleeRegs =
         numRegistersForCallMetadata() + call.operands().size();
@@ -224,10 +276,10 @@ static BasicBlock::Iterator destroySSACall(Function& F,
     return callItr;
 }
 
-static BasicBlock::Iterator destroyReturn(Function& F,
-                                          BasicBlock& BB,
-                                          BasicBlock::Iterator itr) {
-    auto& ret = *itr;
+static BasicBlock::Iterator destroy(Function& F,
+                                    BasicBlock& BB,
+                                    ReturnInst& ret,
+                                    BasicBlock::Iterator itr) {
     for (auto [arg, dest]:
          ranges::views::zip(ret.operands(), F.virtualReturnValueRegisters()))
     {
@@ -240,52 +292,6 @@ static BasicBlock::Iterator destroyReturn(Function& F,
     }
     ret.clearOperands();
     return ++itr;
-}
-
-static BasicBlock::Iterator destroySSATailCall(Function& F,
-                                               BasicBlock& BB,
-                                               BasicBlock::Iterator itr) {
-    SC_ASSERT(!isa<CallExtInst>(*itr), "Can't tail call ext functions");
-    auto& call = *itr;
-    Value* callee = call.operandAt(0);
-    auto argBegin = std::next(call.operands().begin());
-    size_t const numArgs = call.operands().size() - 1;
-    /// We allocate bottom registers for the arguments
-    for (size_t i = F.virtualRegisters().size(); i < numArgs; ++i) {
-        F.virtualRegisters().add(new VirtualRegister());
-    }
-    /// We need to copy our arguments to temporary registers before copying them
-    /// into our bottom registers to make sure we don't overwrite anything that
-    /// we still need to copy.
-    utl::small_vector<VirtualRegister*, 8> tmpRegs(numArgs);
-    /// Allocate additional temporary registers.
-    for (size_t i = 0; i < numArgs; ++i, ++argBegin) {
-        auto* tmp = new VirtualRegister();
-        F.virtualRegisters().add(tmp);
-        tmpRegs[i] = tmp;
-        auto* copy = new CopyInst(tmp, *argBegin, 8, call.metadata());
-        BB.insert(&call, copy);
-    }
-    /// Copy arguments into bottom registers.
-    for (auto dest = F.virtualRegisters().begin(); auto* tmp: tmpRegs) {
-        auto* copy = new CopyInst(dest.to_address(), tmp, 8, call.metadata());
-        BB.insert(&call, copy);
-        dest->setFixed();
-        /// We mark the arguments registers live out since they need to be
-        /// preserved for the called function
-        BB.addLiveOut(dest.to_address());
-        ++dest;
-    }
-    auto& ret = *call.next();
-    SC_ASSERT(isa<ReturnInst>(ret), "We are not a tailcall");
-    std::advance(itr, 2);
-    auto metadata = call.metadata();
-    BB.erase(&call);
-    BB.erase(&ret);
-    auto* jump = new JumpInst(callee, std::move(metadata));
-    BB.insert(itr, jump);
-    SC_ASSERT(itr == BB.end(), "");
-    return itr;
 }
 
 [[maybe_unused]] static void splitEdge(BasicBlock* pred, BasicBlock* succ) {
@@ -308,10 +314,10 @@ static BasicBlock::Iterator destroySSATailCall(Function& F,
     splitBlock->setLiveOut(pred->liveOut());
 }
 
-static BasicBlock::Iterator destroyPhi(Function& F,
-                                       BasicBlock& BB,
-                                       BasicBlock::Iterator itr) {
-    auto& phi = *itr;
+static BasicBlock::Iterator destroy(Function& F,
+                                    BasicBlock& BB,
+                                    PhiInst& phi,
+                                    BasicBlock::Iterator itr) {
     auto* dest = phi.dest();
     bool const needTmp =
         ranges::any_of(BB.predecessors(),
@@ -359,10 +365,10 @@ static BasicBlock::Iterator destroyPhi(Function& F,
     return BB.erase(itr);
 }
 
-static BasicBlock::Iterator destroySelect(Function& F,
-                                          BasicBlock& BB,
-                                          BasicBlock::Iterator itr) {
-    auto& select = cast<SelectInst&>(*itr);
+static BasicBlock::Iterator destroy(Function& F,
+                                    BasicBlock& BB,
+                                    SelectInst& select,
+                                    BasicBlock::Iterator itr) {
     auto* copy = new CopyInst(select.dest(),
                               select.thenValue(),
                               select.bytewidth(),
@@ -377,36 +383,20 @@ static BasicBlock::Iterator destroySelect(Function& F,
     return BB.erase(itr);
 }
 
+/// Base case
+static BasicBlock::Iterator destroy(Function&,
+                                    BasicBlock&,
+                                    Instruction&,
+                                    BasicBlock::Iterator itr) {
+    return std::next(itr);
+}
+
 void cg::destroySSA(mir::Context& ctx, Function& F) {
     mapSSAToVirtualRegisters(F);
     for (auto& BB: F) {
         for (auto itr = BB.begin(); itr != BB.end();) {
-            // clang-format off
-            SC_MATCH (*itr) {
-                [&](CallInst& call) {
-                    if (isTailCall(call)) {
-                        itr = destroySSATailCall(F, BB, itr);
-                    }
-                    else {
-                        itr = destroySSACall(F, BB, itr);
-                    }
-                },
-                [&](CallExtInst&) {
-                    itr = destroySSACall(F, BB, itr);
-                },
-                [&](ReturnInst&) {
-                    itr = destroyReturn(F, BB, itr);
-                },
-                [&](PhiInst&) {
-                    itr = destroyPhi(F, BB, itr);
-                },
-                [&](SelectInst&) {
-                    itr = destroySelect(F, BB, itr);
-                },
-                [&](Instruction&) {
-                    ++itr;
-                },
-            }; // clang-format on
+            itr = visit(*itr,
+                        [&](auto& inst) { return destroy(F, BB, inst, itr); });
         }
     }
 }
