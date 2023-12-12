@@ -40,21 +40,14 @@ static void mapSSAToVirtualRegisters(Function& F) {
         F.virtualRegisters().add(new VirtualRegister());
     }
     /// Replace all SSA registers with 'virtual' registers
-    /// Argument registers:
-    for (size_t i = 0, end = F.numArgumentRegisters(); i < end; ++i) {
+    size_t numFixed =
+        std::max(F.numArgumentRegisters(), F.numReturnValueRegisters());
+    for (size_t i = 0, end = F.ssaRegisters().size(); i < end; ++i) {
         auto* ssaReg = F.ssaRegisters().at(i);
         auto* vReg = F.virtualRegisters().at(i);
-        vReg->setFixed();
-        ssaReg->replaceWith(vReg);
-        registerMap[ssaReg] = vReg;
-    }
-    /// All other registers:
-    for (size_t i = F.numArgumentRegisters(), end = F.ssaRegisters().size();
-         i < end;
-         ++i)
-    {
-        auto* ssaReg = F.ssaRegisters().at(i);
-        auto* vReg = F.virtualRegisters().at(i);
+        if (i < numFixed) {
+            vReg->setFixed();
+        }
         ssaReg->replaceWith(vReg);
         registerMap[ssaReg] = vReg;
     }
