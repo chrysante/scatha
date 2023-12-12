@@ -92,10 +92,7 @@ private:
 /// Common base class of `CallInst` and `ICallInst`
 class CallBase: public InstructionBase {
 public:
-    explicit CallBase(size_t regPtrOffset): _regPtrOffset(regPtrOffset) {
-        SC_ASSERT(regPtrOffset >= 3,
-                  "We require three registers to store call metadata");
-    }
+    explicit CallBase(size_t regPtrOffset): _regPtrOffset(regPtrOffset) {}
 
     /// \Returns the offset to be added to the register pointer
     size_t regPtrOffset() const { return _regPtrOffset; }

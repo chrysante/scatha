@@ -3,6 +3,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 
+#include "CodeGen/TargetInfo.h"
 #include "MIR/CFG.h"
 #include "MIR/Instructions.h"
 #include "MIR/Register.h"
@@ -151,7 +152,8 @@ static BasicBlock::Iterator destroySSACall(Function& F,
                                            BasicBlock::Iterator callItr) {
     auto& call = *callItr;
     auto argBegin = call.operands().begin();
-    size_t numCalleeRegs = call.operands().size();
+    size_t numCalleeRegs =
+        numRegistersForCallMetadata() + call.operands().size();
     bool const isExt = isa<CallExtInst>(call);
     Value* callee = nullptr;
     if (!isExt) {
@@ -159,8 +161,9 @@ static BasicBlock::Iterator destroySSACall(Function& F,
         ++argBegin;
         --numCalleeRegs;
     }
-    numCalleeRegs = std::max(numCalleeRegs, call.numDests());
     /// Allocate additional callee registers if not enough present.
+    numCalleeRegs = std::max(numCalleeRegs,
+                             numRegistersForCallMetadata() + call.numDests());
     for (size_t i = F.calleeRegisters().size(); i < numCalleeRegs; ++i) {
         auto* reg = new CalleeRegister();
         F.calleeRegisters().add(reg);
@@ -175,10 +178,11 @@ static BasicBlock::Iterator destroySSACall(Function& F,
         newArguments.push_back(callee);
     }
     auto argItr = argBegin;
-    for (auto dest = F.calleeRegisters().begin();
-         argItr != call.operands().end();
-         ++dest, ++argItr)
-    {
+    auto dest = F.calleeRegisters().begin();
+    if (!isExt) {
+        std::advance(dest, numRegistersForCallMetadata());
+    }
+    for (; argItr != call.operands().end(); ++dest, ++argItr) {
         Value* arg = *argItr;
         CalleeRegister* destReg = dest.to_address();
         auto replaceableInst =
@@ -201,12 +205,16 @@ static BasicBlock::Iterator destroySSACall(Function& F,
     /// registers. From here on we explicitly copy the arguments out of the
     /// register space of the callee.
     if (auto* dest = call.dest()) {
-        auto calleeReg = F.calleeRegisters().begin().to_address();
+        auto calleeReg = F.calleeRegisters().begin();
+        if (!isExt) {
+            std::advance(calleeReg, numRegistersForCallMetadata());
+        }
         SC_ASSERT(F.calleeRegisters().size() >= call.numDests(), "");
         for (size_t i = 0; i < call.numDests();
-             ++i, dest = dest->next(), calleeReg = calleeReg->next())
+             ++i, dest = dest->next(), ++calleeReg)
         {
-            auto* copy = new CopyInst(dest, calleeReg, 8, call.metadata());
+            auto* copy =
+                new CopyInst(dest, calleeReg.to_address(), 8, call.metadata());
             BB.insert(callItr, copy);
         }
     }

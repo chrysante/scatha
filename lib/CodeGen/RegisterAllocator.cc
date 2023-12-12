@@ -1,6 +1,7 @@
 #include "CodeGen/Passes.h"
 
 #include "CodeGen/InterferenceGraph.h"
+#include "CodeGen/TargetInfo.h"
 #include "CodeGen/Utility.h"
 #include "MIR/CFG.h"
 #include "MIR/Instructions.h"
@@ -133,19 +134,18 @@ void cg::allocateRegisters(mir::Context& ctx, Function& F) {
     }
     /// Now as a last step we allocate callee registers to the upper hardware
     /// registers.
-    /// First we reserve some registers for call metadata
-    size_t const numLocalRegs = F.hardwareRegisters().size();
-    static constexpr size_t NumRegsForCallMetadata = 3;
-    for (size_t i = 0; i < NumRegsForCallMetadata; ++i) {
-        F.hardwareRegisters().add(new HardwareRegister());
-    }
-    /// Then we replace all callee registers with new hardware registers
+    /// We first replace all callee registers with new hardware registers
     for (auto& calleeReg: F.calleeRegisters()) {
         auto* hReg = new HardwareRegister();
         F.hardwareRegisters().add(hReg);
         calleeReg.replaceWith(hReg);
     }
+    /// Then we set the register offset argument of all call instructions
+    size_t numLocalRegs = F.hardwareRegisters().size();
     for (auto& call: F | ranges::views::join | Filter<CallBase>) {
-        call.setRegisterOffset(numLocalRegs + NumRegsForCallMetadata);
+        size_t offset = isa<CallInst>(call) ?
+                            numLocalRegs + numRegistersForCallMetadata() :
+                            numLocalRegs;
+        call.setRegisterOffset(offset);
     }
 }
