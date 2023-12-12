@@ -381,6 +381,42 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         return true;
     }
 
+    // *    Const
+    //  \   /
+    //   Mul   Const
+    //     \   /             => LEA
+    //      Add2   *
+    //        \   /
+    //         Add1
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        using enum ir::ArithmeticOperation;
+        auto* add1 = as<Add>(&inst);
+        if (!add1) return false;
+        auto* add2 = as<Add>(add1->lhs());
+        if (!add2) return false;
+        auto* add2Node = DAG(add2);
+        if (!add2Node) return false;
+        auto term = asLEAConstant(add2->rhs());
+        if (!term) return false;
+        auto mul = as<Mul>(add2->lhs());
+        if (!mul) return false;
+        auto* mulNode = DAG(mul);
+        if (!mulNode) return false;
+        auto factor = asLEAConstant(mul->rhs());
+        if (!factor) return false;
+        node.merge(*add2Node);
+        node.merge(*mulNode);
+        auto* add1RHS = resolveToRegister(*add1->rhs(), add1->metadata());
+        auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
+        emit(new mir::LEAInst(resolve(*add1),
+                              mir::MemoryAddress(add1RHS,
+                                                 mulLHS,
+                                                 *factor,
+                                                 *term),
+                              add1->metadata()));
+        return true;
+    }
+
     //    *    Const
     //     \   /
     // *    Mul              => LEA
