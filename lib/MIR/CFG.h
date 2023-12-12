@@ -56,6 +56,8 @@ public:
     using CFGList::ConstIterator;
     using CFGList::Iterator;
 
+    explicit BasicBlock(std::string name);
+
     explicit BasicBlock(ir::BasicBlock const* irBB);
 
     /// \Returns The name of this basic block

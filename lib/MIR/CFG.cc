@@ -7,6 +7,10 @@
 using namespace scatha;
 using namespace mir;
 
+BasicBlock::BasicBlock(std::string name):
+    ListNodeOverride<BasicBlock, Value>(NodeType::BasicBlock),
+    _name(std::move(name)) {}
+
 BasicBlock::BasicBlock(ir::BasicBlock const* irBB):
     ListNodeOverride<BasicBlock, Value>(NodeType::BasicBlock),
     _name(std::string(irBB->name())),
