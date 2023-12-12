@@ -11,6 +11,7 @@
 using namespace scatha;
 using namespace cg;
 using namespace mir;
+using namespace ranges::views;
 
 static bool isTailCall(CallBase const& inst) {
     auto* call = dyncast<CallInst const*>(&inst);
@@ -119,7 +120,7 @@ static BasicBlock::Iterator lastDefinition(Register const* reg,
                                            BasicBlock::Iterator end,
                                            BasicBlock& BB) {
     auto range = ranges::make_subrange(BB.begin(), end);
-    for (auto& inst: range | ranges::views::reverse) {
+    for (auto& inst: range | reverse) {
         if (ranges::contains(inst.destRegisters(), reg)) {
             return BasicBlock::Iterator(&inst);
         }
@@ -155,8 +156,6 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
                                             BasicBlock& BB,
                                             CallInst& call,
                                             BasicBlock::Iterator itr) {
-    Value* callee = call.operandAt(0);
-    auto argBegin = std::next(call.operands().begin());
     size_t const numArgs = call.operands().size() - 1;
     /// We allocate bottom registers for the arguments
     for (size_t i = F.virtualRegisters().size(); i < numArgs; ++i) {
@@ -165,32 +164,30 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
     /// We need to copy our arguments to temporary registers before copying them
     /// into our bottom registers to make sure we don't overwrite anything that
     /// we still need to copy.
-    utl::small_vector<VirtualRegister*, 8> tmpRegs(numArgs);
+    utl::small_vector<VirtualRegister*, 8> tmpRegs;
     /// Allocate additional temporary registers.
-    for (size_t i = 0; i < numArgs; ++i, ++argBegin) {
+    for (auto* arg: call.arguments()) {
         auto* tmp = new VirtualRegister();
         F.virtualRegisters().add(tmp);
-        tmpRegs[i] = tmp;
-        auto* copy = new CopyInst(tmp, *argBegin, 8, call.metadata());
+        tmpRegs.push_back(tmp);
+        auto* copy = new CopyInst(tmp, arg, 8, call.metadata());
         BB.insert(&call, copy);
     }
     /// Copy arguments into bottom registers.
-    for (auto dest = F.virtualRegisters().begin(); auto* tmp: tmpRegs) {
-        auto* copy = new CopyInst(dest.to_address(), tmp, 8, call.metadata());
+    for (auto [dest, tmp]: zip(F.virtualRegisters(), tmpRegs)) {
+        auto* copy = new CopyInst(&dest, tmp, 8, call.metadata());
         BB.insert(&call, copy);
-        dest->setFixed();
+        dest.setFixed();
         /// We mark the arguments registers live out since they need to be
         /// preserved for the called function
-        BB.addLiveOut(dest.to_address());
-        ++dest;
+        BB.addLiveOut(&dest);
     }
     auto& ret = *call.next();
     SC_ASSERT(isa<ReturnInst>(ret), "We are not a tailcall");
     std::advance(itr, 2);
-    auto metadata = call.metadata();
+    auto* jump = new JumpInst(call.callee(), call.metadata());
     BB.erase(&call);
     BB.erase(&ret);
-    auto* jump = new JumpInst(callee, std::move(metadata));
     BB.insert(itr, jump);
     SC_ASSERT(itr == BB.end(), "");
     return itr;
@@ -199,42 +196,31 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
 static BasicBlock::Iterator destroy(Function& F,
                                     BasicBlock& BB,
                                     CallBase& call,
-                                    BasicBlock::Iterator callItr) {
+                                    BasicBlock::Iterator const callItr) {
     if (isTailCall(call)) {
         return destroyTailCall(F, BB, cast<CallInst&>(call), callItr);
     }
-    auto argBegin = call.operands().begin();
+    bool const isNative = isa<CallInst>(call);
+    size_t numMDRegs = isNative ? numRegistersForCallMetadata() : 0;
     size_t numCalleeRegs =
-        numRegistersForCallMetadata() + call.operands().size();
-    bool const isExt = isa<CallExtInst>(call);
-    Value* callee = nullptr;
-    if (!isExt) {
-        callee = *argBegin;
-        ++argBegin;
-        --numCalleeRegs;
-    }
+        numMDRegs + std::max(call.arguments().size(), call.numDests());
     /// Allocate additional callee registers if not enough present.
-    numCalleeRegs = std::max(numCalleeRegs,
-                             numRegistersForCallMetadata() + call.numDests());
     for (size_t i = F.calleeRegisters().size(); i < numCalleeRegs; ++i) {
         auto* reg = new CalleeRegister();
         F.calleeRegisters().add(reg);
     }
     /// Copy arguments into callee registers.
     utl::small_vector<Value*> newArguments;
-    if (isExt) {
-        newArguments.reserve(call.operands().size());
+    newArguments.reserve(call.operands().size());
+    if (isNative) {
+        newArguments.push_back(cast<CallInst&>(call).callee());
     }
-    else {
-        newArguments.reserve(call.operands().size() + 1);
-        newArguments.push_back(callee);
-    }
-    auto argItr = argBegin;
-    auto dest = F.calleeRegisters().begin();
-    if (!isExt) {
-        std::advance(dest, numRegistersForCallMetadata());
-    }
-    for (; argItr != call.operands().end(); ++dest, ++argItr) {
+    auto dest =
+        std::next(F.calleeRegisters().begin(), static_cast<ssize_t>(numMDRegs));
+    for (auto argItr = call.arguments().begin(), end = call.arguments().end();
+         argItr != end;
+         ++dest, ++argItr)
+    {
         Value* arg = *argItr;
         CalleeRegister* destReg = dest.to_address();
         auto replaceableInst =
@@ -252,36 +238,27 @@ static BasicBlock::Iterator destroy(Function& F,
         }
         newArguments.push_back(destReg);
     }
-    ++callItr;
     /// Call instructions define registers as long as we work with SSA
     /// registers. From here on we explicitly copy the arguments out of the
     /// register space of the callee.
-    if (auto* dest = call.dest()) {
-        auto calleeReg = F.calleeRegisters().begin();
-        if (!isExt) {
-            std::advance(calleeReg, numRegistersForCallMetadata());
-        }
-        SC_ASSERT(F.calleeRegisters().size() >= call.numDests(), "");
-        for (size_t i = 0; i < call.numDests();
-             ++i, dest = dest->next(), ++calleeReg)
-        {
-            auto* copy =
-                new CopyInst(dest, calleeReg.to_address(), 8, call.metadata());
-            BB.insert(callItr, copy);
-        }
+    SC_ASSERT(F.calleeRegisters().size() >= call.numDests(), "");
+    auto destAndCalleeRegs =
+        zip(call.destRegisters(), F.calleeRegisters() | drop(numMDRegs));
+    for (auto [dest, calleeReg]: destAndCalleeRegs) {
+        auto* copy = new CopyInst(dest, &calleeReg, 8, call.metadata());
+        BB.insert(std::next(callItr), copy);
     }
     /// We don't define registers anymore, see comment above.
     call.clearDest();
     call.setOperands(newArguments);
-    return callItr;
+    return std::next(callItr);
 }
 
 static BasicBlock::Iterator destroy(Function& F,
                                     BasicBlock& BB,
                                     ReturnInst& ret,
                                     BasicBlock::Iterator itr) {
-    for (auto [arg, dest]:
-         ranges::views::zip(ret.operands(), F.virtualReturnValueRegisters()))
+    for (auto [arg, dest]: zip(ret.operands(), F.virtualReturnValueRegisters()))
     {
         auto* copy = new CopyInst(dest, arg, 8, ret.metadata());
         BB.insert(itr, copy);
@@ -300,7 +277,7 @@ static BasicBlock::Iterator destroy(Function& F,
         new BasicBlock(utl::strcat(pred->name(), "->", succ->name()));
     F->insert(succ, splitBlock);
     splitBlock->pushBack(new JumpInst(succ, {}));
-    for (auto& inst: *pred | ranges::views::reverse) {
+    for (auto& inst: *pred | reverse) {
         if (!isa<TerminatorInst>(inst)) {
             break;
         }
@@ -337,9 +314,7 @@ static BasicBlock::Iterator destroy(Function& F,
         BB.addLiveIn(tmp);
         BB.removeLiveIn(phi.dest());
     }
-    for (auto [pred, arg]:
-         ranges::views::zip(BB.predecessors(), phi.operands()))
-    {
+    for (auto [pred, arg]: zip(BB.predecessors(), phi.operands())) {
         auto before = pred->end();
         while (before != pred->begin()) {
             auto p = std::prev(before);
