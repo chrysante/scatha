@@ -405,6 +405,30 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         return true;
     }
 
+    // *    Const
+    //  \   /
+    //   Mul    *            => LEA
+    //     \   /
+    //      Add
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+        using enum ir::ArithmeticOperation;
+        auto* add = as<Add>(&inst);
+        if (!add) return false;
+        auto* mul = as<Mul>(add->lhs());
+        if (!mul) return false;
+        auto* mulNode = DAG(mul);
+        if (!mulNode) return false;
+        auto factor = asLEAConstant(mul->rhs());
+        if (!factor) return false;
+        node.merge(*mulNode);
+        auto* addRHS = resolveToRegister(*add->rhs(), add->metadata());
+        auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
+        emit(new mir::LEAInst(resolve(*add),
+                              mir::MemoryAddress(addRHS, mulLHS, *factor, 0),
+                              add->metadata()));
+        return true;
+    }
+
     // Arithmetic -> IntConstant
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* constant = dyncast<ir::IntegralConstant const*>(inst.rhs());
