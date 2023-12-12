@@ -13,6 +13,7 @@
 using namespace scatha;
 using namespace cg;
 using namespace mir;
+using namespace ranges::views;
 
 static decltype(auto) visitInstPair(Instruction const& A,
                                     Instruction const& B,
@@ -206,19 +207,9 @@ bool CSEContext::run() {
                 continue;
             }
             auto* existing = &itr->inst();
-            SC_ASSERT(inst != existing &&
-                          Expression(*inst) == Expression(*existing),
-                      "");
             for (auto [dest, repl]:
-                 ranges::views::zip(inst->destRegisters(),
-                                    existing->destRegisters()))
+                 zip(inst->destRegisters(), existing->destRegisters()))
             {
-                SC_ASSERT(ranges::none_of(
-                              dest->uses(),
-                              [&](Instruction* use) {
-                    return table.contains(Expression(*use));
-                              }),
-                          "");
                 dest->replaceUsesWith(repl);
             }
             toErase.push_back(inst);

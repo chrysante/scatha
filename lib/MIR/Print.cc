@@ -223,12 +223,12 @@ struct PrintContext {
     utl::vstreammanip<> formatLiveList(std::string_view name,
                                        utl::hashset<Register*> const& regs) {
         return [name, &regs](std::ostream& str) {
-            str << light(name, ": [ ");
+            str << light(name, ": [");
             bool first = true;
             for (auto* reg: regs) {
                 str << light(first ? first = false, "" : ", ") << regName(reg);
             }
-            str << light(" ]");
+            str << light("]");
         };
     }
 
