@@ -122,10 +122,8 @@ void JumpElimContext::DFS(BasicBlock* BB) {
 /// \Warning this is linear in the number of instructions in \p BB
 static bool hasJumpsTo(BasicBlock const* BB, Value const* dest) {
     return ranges::any_of(*BB, [&](Instruction const& inst) {
-        if (auto* jump = dyncast<JumpBase const*>(&inst)) {
-            return jump->target() == dest;
-        }
-        return false;
+        auto* jump = dyncast<JumpBase const*>(&inst);
+        return jump && jump->target() == dest;
     });
 }
 
