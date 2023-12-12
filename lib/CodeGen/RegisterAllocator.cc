@@ -134,6 +134,8 @@ void cg::allocateRegisters(mir::Context& ctx, Function& F) {
     }
     /// Now as a last step we allocate callee registers to the upper hardware
     /// registers.
+    SC_ASSERT(numCols == F.hardwareRegisters().size(),
+              "Make sure we haven't added any more hardware registers");
     /// We first replace all callee registers with new hardware registers
     for (auto& calleeReg: F.calleeRegisters()) {
         auto* hReg = new HardwareRegister();
@@ -141,11 +143,10 @@ void cg::allocateRegisters(mir::Context& ctx, Function& F) {
         calleeReg.replaceWith(hReg);
     }
     /// Then we set the register offset argument of all call instructions
-    size_t numLocalRegs = F.hardwareRegisters().size();
     for (auto& call: F | ranges::views::join | Filter<CallBase>) {
         size_t offset = isa<CallInst>(call) ?
-                            numLocalRegs + numRegistersForCallMetadata() :
-                            numLocalRegs;
+                            numCols + numRegistersForCallMetadata() :
+                            numCols;
         call.setRegisterOffset(offset);
     }
 }
