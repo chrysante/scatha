@@ -161,26 +161,38 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
     for (size_t i = F.virtualRegisters().size(); i < numArgs; ++i) {
         F.virtualRegisters().add(new VirtualRegister());
     }
-    /// We need to copy our arguments to temporary registers before copying them
-    /// into our bottom registers to make sure we don't overwrite anything that
-    /// we still need to copy.
-    utl::small_vector<VirtualRegister*, 8> tmpRegs;
-    /// Allocate additional temporary registers.
-    for (auto* arg: call.arguments()) {
-        auto* tmp = new VirtualRegister();
-        F.virtualRegisters().add(tmp);
-        tmpRegs.push_back(tmp);
-        auto* copy = new CopyInst(tmp, arg, 8, call.metadata());
-        BB.insert(&call, copy);
-    }
     /// Copy arguments into bottom registers.
-    for (auto [dest, tmp]: zip(F.virtualRegisters(), tmpRegs)) {
-        auto* copy = new CopyInst(&dest, tmp, 8, call.metadata());
-        BB.insert(&call, copy);
+    auto insertPoint = itr;
+    auto tmpCopyInsertPoint = std::prev(insertPoint);
+    for (auto [index, dest, arg]:
+         zip(iota(0), F.virtualRegisters(), call.arguments()))
+    {
         dest.setFixed();
         /// We mark the arguments registers live out since they need to be
         /// preserved for the called function
         BB.addLiveOut(&dest);
+        if (&dest == arg) {
+            continue;
+        }
+        /// If our argument is in one of the dest registers that has already
+        /// been overwritten, we copy the argument to a temporary location
+        /// _before_ the argument copies and then copy into the dest register
+        /// from the temporary
+        if (ranges::contains(F.virtualRegisters() | TakeAddress | take(index),
+                             arg))
+        {
+            auto* tmp = new VirtualRegister();
+            F.virtualRegisters().add(tmp);
+            BB.insert(std::next(tmpCopyInsertPoint),
+                      new CopyInst(tmp, arg, 8, call.metadata()));
+            BB.insert(insertPoint,
+                      new CopyInst(&dest, tmp, 8, call.metadata()));
+        }
+        /// Otherwise we copy directly to the dest register
+        else {
+            auto* copy = new CopyInst(&dest, arg, 8, call.metadata());
+            BB.insert(insertPoint, copy);
+        }
     }
     auto& ret = *call.next();
     SC_ASSERT(isa<ReturnInst>(ret), "We are not a tailcall");
