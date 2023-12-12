@@ -142,16 +142,21 @@ public:
     }
 
 private:
-    static void addEdgeImpl(utl::small_vector<Self*>& list, Self* other) {
+    static void addEdgeImpl(utl::vector<Self*>& list, Self* other) {
         if (ranges::find(list, other) != list.end()) {
             return;
         }
         list.push_back(other);
     }
 
-    static void removeEdgeImpl(utl::small_vector<Self*>& list,
-                               Self const* elem) {
+    static void removeEdgeImpl(utl::vector<Self*>& list, Self const* elem) {
         list.erase(ranges::remove(list, elem), list.end());
+    }
+
+    static void replaceEdgeImpl(utl::vector<Self*>& list,
+                                Self const* oldElem,
+                                Self* newElem) {
+        ranges::replace(list, oldElem, newElem);
     }
 
     enum TraversalOrder { Preorder, Postorder };
@@ -314,6 +319,16 @@ public:
     /// \pre \p succ must be a successor of this node
     void removeSuccessor(Self const* succ) {
         Base::removeEdgeImpl(outgoing, succ);
+    }
+
+    ///
+    void replacePredecessor(Self const* oldPred, Self* newPred) {
+        Base::replaceEdgeImpl(incoming, oldPred, newPred);
+    }
+
+    ///
+    void replaceSuccessor(Self const* oldSucc, Self* newSucc) {
+        Base::replaceEdgeImpl(outgoing, oldSucc, newSucc);
     }
 
     /// \returns `true` if \p pred is an immediate predessecor of this node
