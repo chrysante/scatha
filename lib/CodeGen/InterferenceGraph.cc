@@ -1,8 +1,14 @@
 #include "CodeGen/InterferenceGraph.h"
 
+#include <iostream>
+
+#include <graphgen/graphgen.h>
+#include <range/v3/view.hpp>
 #include <utl/graph.hpp>
+#include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
+#include "Debug/DebugGraphviz.h"
 #include "MIR/CFG.h"
 
 using namespace scatha;
@@ -67,6 +73,7 @@ void InterferenceGraph::colorize() {
 }
 
 void InterferenceGraph::computeImpl(Function& F) {
+    this->F = &F;
     for (auto& reg: F.virtualRegisters()) {
         addRegister(&reg);
     }
@@ -119,4 +126,43 @@ InterferenceGraph::Node* InterferenceGraph::find(mir::Register* reg) {
     auto itr = regMap.find(reg);
     SC_ASSERT(itr != regMap.end(), "Not found");
     return itr->second;
+}
+
+void cg::generateGraphviz(InterferenceGraph const& graph,
+                          std::ostream& ostream) {
+    using namespace graphgen;
+    auto* G = Graph::make(ID(0));
+    utl::hashset<std::pair<ID, ID>> edges;
+    for (auto* node: graph) {
+        auto* vertex = Vertex::make(ID(node))->label(
+            utl::strcat("V", node->reg()->index(), " → H", node->color()));
+        G->add(vertex);
+        for (auto* neighbour: node->neighbours()) {
+            Edge edge{ ID(node), ID(neighbour) };
+            if (edges.insert({ edge.from, edge.to }).second &&
+                !edges.contains({ edge.to, edge.from }))
+            {
+                G->add(edge);
+            }
+        }
+    }
+    Graph H;
+    H.label(std::string(graph.function()->name()));
+    H.kind(graphgen::GraphKind::Undirected);
+    H.add(G);
+    H.font("SF Mono");
+    generate(H, ostream);
+}
+
+void cg::generateGraphvizTmp(InterferenceGraph const& graph) {
+    try {
+        auto [path, file] =
+            debug::newDebugFile(std::string(graph.function()->name()));
+        generateGraphviz(graph, file);
+        file.close();
+        debug::createGraphAndOpen(path);
+    }
+    catch (std::exception const& e) {
+        std::cout << e.what() << std::endl;
+    }
 }
