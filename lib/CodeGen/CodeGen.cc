@@ -37,6 +37,8 @@ Asm::AssemblyStream cg::codegen(ir::Module const& irMod, cg::Logger& logger) {
 
     /// We compute live sets just before we leave SSA form
     forEach(ctx, mod, cg::computeLiveSets);
+    logger.log("MIR module after life set computation", mod);
+
     forEach(ctx, mod, cg::destroySSA);
     logger.log("MIR module after SSA destructions", mod);
 

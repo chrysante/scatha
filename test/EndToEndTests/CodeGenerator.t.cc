@@ -179,9 +179,9 @@ fn main() {
 //     \   /
 //      Mul   Const
 //        \   /
-//    *    Add
+//    *    Add2
 //     \   /
-//      Add
+//      Add1
 fn test(a: int, b: int) {
     return a + (10 * b + 20);
 }
@@ -198,6 +198,20 @@ fn main() {
 //   Add
 fn test(a: int, b: int) {
     return a + 10 * b;
+}
+fn main() {
+    return test(2, 4);
+})");
+    }
+    SECTION("4") {
+        test::checkReturns(42, R"(
+// *    Const
+//  \   /
+//   Mul    *
+//     \   /
+//      Add
+fn test(a: int, b: int) {
+    return 10 * b + a;
 }
 fn main() {
     return test(2, 4);
