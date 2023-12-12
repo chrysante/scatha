@@ -185,6 +185,32 @@ struct CallInstData {
 static_assert(sizeof(CallInstData) <= 16,
               "Must fit into `instdata` field of Instruction class");
 
+/// Base class for instruction and basic block
+class ProgramPoint {
+public:
+    enum Kind { Kind_BasicBlock, Kind_Instruction };
+
+    /// The index of this program point in the function
+    /// \pre `linearize()` must have been called on the parent function
+    int index() const {
+        SC_EXPECT(hasIndex());
+        return ppIdx;
+    }
+
+    /// \Returns `true` if `linearize()` has been called on the parent function
+    bool hasIndex() const { return ppIdx != -1; }
+
+protected:
+    ProgramPoint(Kind kind): ppKind(kind) {}
+
+    Kind progPointKind() const { return ppKind; }
+
+private:
+    friend class Function;
+    int ppIdx = -1;
+    Kind ppKind;
+};
+
 } // namespace scatha::mir
 
 #endif // SCATHA_MIR_FWD_H_

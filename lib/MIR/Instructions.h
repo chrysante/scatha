@@ -116,6 +116,10 @@ public:
     /// \overload
     std::span<Value const* const> arguments() const;
 
+    /// \Returns the number of callee registers that this function defines.
+    /// In SSA form this is the same as `numDests()`
+    size_t numReturnRegisters() const { return numRetRegs; }
+
 protected:
     explicit CallBase(InstType instType,
                       Register* dest,
@@ -127,10 +131,12 @@ protected:
                     numDests,
                     std::move(operands),
                     0,
-                    std::move(metadata)) {}
+                    std::move(metadata)),
+        numRetRegs(numDests) {}
 
 private:
-    size_t regOffset = 0;
+    size_t regOffset  : 32 = 0;
+    size_t numRetRegs : 32 = 0;
 };
 
 /// Concrete call instruction

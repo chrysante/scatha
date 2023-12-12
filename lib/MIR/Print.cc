@@ -81,6 +81,15 @@ static constexpr auto none =
         return str << tfmt::format(tfmt::None, args...);
     });
 
+static constexpr auto fmtIndex =
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
+        return str << tfmt::format(tfmt::BrightGrey,
+                                   std::setw(2),
+                                   std::right,
+                                   args...,
+                                   ": ");
+    });
+
 static auto formatInstName(mir::Instruction const& inst) {
     using namespace std::literals;
     // clang-format off
@@ -176,22 +185,33 @@ struct PrintContext {
         str << "}\n";
     }
 
-    void print(BasicBlock const* BB) {
-        if (!BB->isEntry()) {
-            str << indent << localName(BB->name()) << ": ";
-            printPredList(BB);
-            str << "\n";
+    void printIndex(ProgramPoint const& PP) {
+        if (PP.hasIndex()) {
+            str << fmtIndex(PP.index());
         }
+        else {
+            str << indent;
+        }
+    }
+
+    void print(BasicBlock const* BB) {
+        printIndex(*BB);
+        str << localName(BB->name()) << ": ";
+        printPredList(BB);
+        str << "\n";
         indent.increase();
-        printLiveList("Live in", BB->liveIn());
+        str << indent << formatLiveList("Live in", BB->liveIn()) << "\n";
         for (auto& inst: *BB) {
             print(inst);
         }
-        printLiveList("Live out", BB->liveOut());
+        str << indent << formatLiveList("Live out", BB->liveOut()) << "\n";
         indent.decrease();
     }
 
     void printPredList(BasicBlock const* BB) {
+        if (BB->predecessors().empty()) {
+            return;
+        }
         str << light("preds: ");
         bool first = true;
         for (auto* pred: BB->predecessors()) {
@@ -200,14 +220,16 @@ struct PrintContext {
         }
     }
 
-    void printLiveList(std::string_view name,
-                       utl::hashset<Register*> const& regs) {
-        str << indent << light(name, ": [ ");
-        bool first = true;
-        for (auto* reg: regs) {
-            str << light(first ? first = false, "" : ", ") << regName(reg);
-        }
-        str << light(" ]") << "\n";
+    utl::vstreammanip<> formatLiveList(std::string_view name,
+                                       utl::hashset<Register*> const& regs) {
+        return [name, &regs](std::ostream& str) {
+            str << light(name, ": [ ");
+            bool first = true;
+            for (auto* reg: regs) {
+                str << light(first ? first = false, "" : ", ") << regName(reg);
+            }
+            str << light(" ]");
+        };
     }
 
     void print(Instruction const& inst) {
@@ -218,7 +240,7 @@ struct PrintContext {
     /// Here we print `dest_reg = ` or nothing if the instruction does not write
     /// to a register
     void printInstBegin(Instruction const& inst) {
-        str << indent;
+        printIndex(inst);
         if (auto* reg = inst.dest()) {
             str << std::setw(3) << std::left << regName(reg) << none(" = ");
             return;
@@ -386,4 +408,9 @@ void mir::printDecl(mir::Value const& value) { printDecl(value, std::cout); }
 void mir::printDecl(mir::Value const& value, std::ostream& str) {
     PrintContext ctx(nullptr, str);
     ctx.print(&value);
+}
+
+std::ostream& mir::operator<<(std::ostream& ostream, mir::Value const& value) {
+    printDecl(value, ostream);
+    return ostream;
 }

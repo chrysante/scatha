@@ -32,6 +32,9 @@ SCTEST_API void printDecl(mir::Value const& value);
 /// Print the value \p value to \p ostream
 SCTEST_API void printDecl(mir::Value const& value, std::ostream& ostream);
 
+/// Calls `printDecl()`
+std::ostream& operator<<(std::ostream& ostream, mir::Value const& value);
+
 } // namespace scatha::mir
 
 #endif // SCATHA_MIR_PRINT_H_

@@ -17,6 +17,7 @@ namespace scatha::mir {
 class Instruction:
     public ListNode<Instruction>,
     public ParentedNode<BasicBlock>,
+    public ProgramPoint,
     public ObjectWithMetadata {
     static auto destsImpl(auto* self) {
         return ranges::views::generate([dest = self->dest()]() mutable {
@@ -123,14 +124,6 @@ public:
     /// Set the destination register to `nullptr` and `numDests` to 1
     void clearDest();
 
-    /// The index of this instruction in the parent block
-    /// \pre `linearizeInstructions()` must have been called on the parent
-    /// function
-    size_t index() const {
-        SC_EXPECT(_index != ~0);
-        return _index;
-    }
-
 protected:
     Instruction(InstType instType,
                 Register* dest,
@@ -147,7 +140,6 @@ private:
     utl::small_vector<Value*> _ops;
     uint8_t _numDests = 0;
     uint8_t _byteWidth = 0;
-    uint32_t _index = ~0u;
 };
 
 /// For `dyncast` et al to work

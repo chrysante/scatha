@@ -7,14 +7,14 @@
 using namespace scatha;
 using namespace mir;
 
-BasicBlock::BasicBlock(std::string name):
+BasicBlock::BasicBlock(std::string name, ir::BasicBlock const* irBB):
     ListNodeOverride<BasicBlock, Value>(NodeType::BasicBlock),
-    _name(std::move(name)) {}
+    ProgramPoint(ProgramPoint::Kind_BasicBlock),
+    _name(std::move(name)),
+    irBB(irBB) {}
 
 BasicBlock::BasicBlock(ir::BasicBlock const* irBB):
-    ListNodeOverride<BasicBlock, Value>(NodeType::BasicBlock),
-    _name(std::string(irBB->name())),
-    irBB(irBB) {}
+    BasicBlock(std::string(irBB->name()), irBB) {}
 
 bool BasicBlock::isEntry() const { return parent()->entry() == this; }
 
@@ -67,13 +67,16 @@ Function::Function(ir::Function const* irFunc,
     }
 }
 
-void Function::linearizeInstructions() {
-    instrs.clear();
-    for (auto [index, inst]:
-         *this | ranges::views::join | ranges::views::enumerate)
-    {
-        inst._index = utl::narrow_cast<uint32_t>(index);
-        instrs.push_back(&inst);
+void Function::linearize() {
+    progPoints.clear();
+    int index = 0;
+    for (auto& BB: *this) {
+        BB.ppIdx = index++;
+        progPoints.push_back(&BB);
+        for (auto& inst: BB) {
+            inst.ppIdx = index++;
+            progPoints.push_back(&inst);
+        }
     }
 }
 
