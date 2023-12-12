@@ -53,8 +53,8 @@ void InterferenceGraph::colorize() {
         }
     }
     /// Greedy coloring algorithm:
-    for (auto* n: lexOrdering) {
-        if (colors.contains(n)) {
+    for (auto* n: lexOrdering | ranges::views::reverse) {
+        if (colors.contains(n) || isa<CalleeRegister>(n->reg())) {
             continue;
         }
         utl::hashset<uint32_t> used;
@@ -128,14 +128,27 @@ InterferenceGraph::Node* InterferenceGraph::find(mir::Register* reg) {
     return itr->second;
 }
 
+static std::string toRegLetter(Register const* reg) {
+    // clang-format off
+    return SC_MATCH (*reg) {
+        [](SSARegister const&) { return "S"; },
+        [](VirtualRegister const&) { return "V"; },
+        [](CalleeRegister const&) { return "C"; },
+        [](HardwareRegister const&) { return "H"; },
+    }; // clang-format on
+}
+
 void cg::generateGraphviz(InterferenceGraph const& graph,
                           std::ostream& ostream) {
     using namespace graphgen;
     auto* G = Graph::make(ID(0));
     utl::hashset<std::pair<ID, ID>> edges;
     for (auto* node: graph) {
-        auto* vertex = Vertex::make(ID(node))->label(
-            utl::strcat("V", node->reg()->index(), " → H", node->color()));
+        auto* vertex =
+            Vertex::make(ID(node))->label(utl::strcat(toRegLetter(node->reg()),
+                                                      node->reg()->index(),
+                                                      " → H",
+                                                      node->color()));
         G->add(vertex);
         for (auto* neighbour: node->neighbours()) {
             Edge edge{ ID(node), ID(neighbour) };
