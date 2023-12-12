@@ -1,6 +1,7 @@
 #include "CodeGen/Passes.h"
 
 #include <utl/hashtable.hpp>
+#include <utl/strcat.hpp>
 
 #include "MIR/CFG.h"
 #include "MIR/Instructions.h"
@@ -284,6 +285,26 @@ static BasicBlock::Iterator destroySSATailCall(Function& F,
     BB.insert(itr, jump);
     SC_ASSERT(itr == BB.end(), "");
     return itr;
+}
+
+[[maybe_unused]] static void splitEdge(BasicBlock* pred, BasicBlock* succ) {
+    auto* F = succ->parent();
+    auto* splitBlock =
+        new BasicBlock(utl::strcat(pred->name(), "->", succ->name()));
+    F->insert(succ, splitBlock);
+    splitBlock->pushBack(new JumpInst(succ, {}));
+    for (auto& inst: *pred | ranges::views::reverse) {
+        if (!isa<TerminatorInst>(inst)) {
+            break;
+        }
+        inst.replaceOperand(succ, splitBlock);
+    }
+    splitBlock->addSuccessor(succ);
+    splitBlock->addPredecessor(pred);
+    pred->replaceSuccessor(succ, splitBlock);
+    succ->replacePredecessor(pred, splitBlock);
+    splitBlock->setLiveIn(pred->liveOut());
+    splitBlock->setLiveOut(pred->liveOut());
 }
 
 static BasicBlock::Iterator destroyPhi(Function& F,
