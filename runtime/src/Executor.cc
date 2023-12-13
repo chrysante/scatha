@@ -1,5 +1,7 @@
 #include "Runtime/Executor.h"
 
+#include "Runtime/LibSupport.h"
+
 using namespace scatha;
 
 std::unique_ptr<Executor> Executor::Make() {
@@ -16,7 +18,7 @@ void Executor::load(Program program) {
 }
 
 void Executor::addFunction(FuncDecl decl, InternalFuncPtr impl, void* userptr) {
-    vm.setFunction(decl.slot, decl.index, { decl.name, impl, userptr });
+    defineFunction(vm, decl.address, std::move(decl).name, impl, userptr);
 }
 
 Executor::Executor(Program prog) { load(std::move(prog)); }

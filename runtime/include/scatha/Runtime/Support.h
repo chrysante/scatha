@@ -34,12 +34,17 @@ struct StructDesc {
     std::vector<StructMemberDesc> members;
 };
 
+/// VM function address
+struct FuncAddress {
+    size_t slot;
+    size_t index;
+};
+
 ///
 struct FuncDecl {
     std::string name;
     sema::Function const* function;
-    size_t slot;
-    size_t index;
+    FuncAddress address;
 
     explicit operator bool() const { return function != nullptr; }
 };

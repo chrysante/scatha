@@ -9,6 +9,7 @@
 
 #include <scatha/Common/SourceFile.h>
 #include <scatha/Runtime/Support.h>
+#include <scatha/Runtime/LibSupport.h>
 #include <scatha/Sema/Entity.h>
 #include <scatha/Sema/SymbolTable.h>
 
@@ -35,34 +36,48 @@ class Runtime;
 ///
 class Compiler {
 public:
+    /// Construct an empty compiler
     Compiler();
+    
+    /// For now because we rely on address stability of the symbol table
+    Compiler(Compiler const&) = delete;
 
     /// Declares the type described by \p desc to the internal symbol table and
     /// returns a pointer to it
-    sema::StructType const* declareType(StructDesc desc);
+    sema::StructType const* declareType(StructDesc desc) { return lib.declareType(desc); }
 
     /// Declares the function described by \p desc to the internal symbol table
     FuncDecl declareFunction(std::string name,
-                             sema::FunctionSignature signature);
+                             sema::FunctionSignature signature) {
+        return lib.declareFunction(std::move(name), std::move(signature));
+    }
 
     /// \overload
     template <ValidFunction F>
-    FuncDecl declareFunction(std::string name, F&& f);
+    FuncDecl declareFunction(std::string name, F&& f) {
+        return lib.declareFunction<F>(std::move(name), std::forward<F>(f));
+    }
 
     /// Maps the C++ type \p key to the Scatha type \p value
     sema::Type const* mapType(std::type_info const& key,
-                              sema::Type const* value);
+                              sema::Type const* value) {
+        return lib.mapType(key, value);
+    }
 
     /// Equivalent to `mapType(key, declareType(valueDesc))`
-    sema::Type const* mapType(std::type_info const& key, StructDesc valueDesc);
+    sema::Type const* mapType(std::type_info const& key, StructDesc valueDesc) {
+        return lib.mapType(key, std::move(valueDesc));
+    }
 
     /// \Returns the Scatha type mapped to the C++ type \p key
-    sema::Type const* getType(std::type_info const& key) const;
+    sema::Type const* getType(std::type_info const& key) const {
+        return lib.getType(key);
+    }
 
     /// \Returns the Scatha type mapped to the C++ type `T`
     template <typename T>
     sema::Type const* getType() const {
-        return getType(typeid(T));
+        return lib.getType<T>();
     }
 
     /// Adds source code from memory
@@ -74,53 +89,16 @@ public:
     ///
     Program compile();
 
-private:
-    friend class Runtime; // For extractSignature()
-
+    ///
     template <typename F>
-    sema::FunctionSignature extractSignature() const;
+    sema::FunctionSignature extractSignature() const { return lib.extractSignature<F>(); }
 
+private:
     sema::SymbolTable sym;
-    std::unordered_map<std::type_index, sema::Type const*> typeMap;
-
-    size_t functionIndex = 0;
-
+    Library lib;
     std::vector<SourceFile> sourceFiles;
 };
 
 } // namespace scatha
-
-// ========================================================================== //
-// ===  Inline implementation  ============================================== //
-// ========================================================================== //
-
-template <scatha::ValidFunction F>
-scatha::FuncDecl scatha::Compiler::declareFunction(std::string name, F&&) {
-    return declareFunction(std::move(name), extractSignature<F>());
-}
-
-namespace scatha::internal {
-
-template <typename>
-struct ExtractSig;
-
-template <typename R, typename... Args>
-struct ExtractSig<std::function<R(Args...)>> {
-    static sema::FunctionSignature Impl(Compiler const* self) {
-        utl::small_vector<sema::Type const*> argTypes;
-        argTypes.reserve(sizeof...(Args));
-        (argTypes.push_back(self->getType<Args>()), ...);
-        auto* retType = self->getType<R>();
-        return sema::FunctionSignature(std::move(argTypes), retType);
-    };
-};
-
-} // namespace scatha::internal
-
-template <typename F>
-scatha::sema::FunctionSignature scatha::Compiler::extractSignature() const {
-    return internal::ExtractSig<decltype(std::function{
-        std::declval<F>() })>::Impl(this);
-}
 
 #endif // SCATHA_RUNTIME_COMPILER_H_
