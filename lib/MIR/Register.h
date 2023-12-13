@@ -111,6 +111,18 @@ public:
     /// \Returns the (sorted) list of intervals where this register is live
     std::span<LiveInterval const> liveRange() const { return _liveRange; }
 
+    /// \Returns the live interval that contains \p programPoint if such an
+    /// interval exists
+    std::optional<LiveInterval> liveIntervalAt(int programPoint);
+
+    /// Removes the live interval \p I
+    /// \pre Requires \p I to be a live interval of this register
+    void removeLiveInterval(LiveInterval I);
+
+    /// Replaces the live interval \p orig by \p repl
+    /// \pre Requires \p orig to be a live interval of this register
+    void replaceLiveInterval(LiveInterval orig, LiveInterval repl);
+
     /// Sets the live range of this register
     void setLiveRange(std::vector<LiveInterval> liveRange) {
         _liveRange = std::move(liveRange);

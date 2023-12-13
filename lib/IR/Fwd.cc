@@ -116,3 +116,20 @@ bool ir::isShift(ArithmeticOperation op) {
     return op == ArithmeticOperation::LShL || op == ArithmeticOperation::LShR ||
            op == ArithmeticOperation::AShL || op == ArithmeticOperation::AShR;
 }
+
+bool ir::isCommutative(ArithmeticOperation op) {
+    using enum ArithmeticOperation;
+    switch (op) {
+    case Add:
+    case Mul:
+    case And:
+    case Or:
+    case XOr:
+    case FAdd:
+    case FMul:
+        return true;
+
+    default:
+        return false;
+    }
+}

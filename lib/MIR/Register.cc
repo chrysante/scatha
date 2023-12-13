@@ -1,5 +1,7 @@
 #include "MIR/Register.h"
 
+#include <range/v3/algorithm.hpp>
+
 #include "Common/Ranges.h"
 #include "MIR/CFG.h"
 #include "MIR/Instruction.h"
@@ -46,6 +48,29 @@ void Register::replaceUsesWith(Register* repl) {
 void Register::replaceWith(Register* repl) {
     replaceDefsWith(repl);
     replaceUsesWith(repl);
+}
+
+std::optional<LiveInterval> Register::liveIntervalAt(int programPoint) {
+    for (auto I: liveRange()) {
+        if (compare(I, programPoint) == 0) {
+            return I;
+        }
+    }
+    return std::nullopt;
+}
+
+void Register::removeLiveInterval(LiveInterval I) {
+    auto itr = ranges::lower_bound(_liveRange, I);
+    SC_EXPECT(itr != _liveRange.end());
+    SC_EXPECT(*itr == I);
+    _liveRange.erase(itr);
+}
+
+void Register::replaceLiveInterval(LiveInterval orig, LiveInterval repl) {
+    auto itr = ranges::lower_bound(_liveRange, orig);
+    SC_EXPECT(itr != _liveRange.end());
+    SC_EXPECT(*itr == orig);
+    *itr = repl;
 }
 
 void Register::addDefImpl(Instruction* inst) { _defs.insert(inst); }

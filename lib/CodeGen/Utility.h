@@ -2,6 +2,7 @@
 #define SCATHA_CODEGEN_UTILITY_H_
 
 #include "MIR/Fwd.h"
+#include "MIR/LiveInterval.h"
 
 namespace scatha::cg {
 

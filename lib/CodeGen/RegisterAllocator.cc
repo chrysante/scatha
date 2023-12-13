@@ -9,6 +9,7 @@
 using namespace scatha;
 using namespace cg;
 using namespace mir;
+using namespace ranges::views;
 
 void cg::allocateRegisters(Context& ctx, Function& F) {
     /// For instructions that are three address instructions in the MIR
@@ -21,8 +22,29 @@ void cg::allocateRegisters(Context& ctx, Function& F) {
     {
         auto* dest = inst.dest();
         auto* operand = inst.operandAt(0);
-        SC_ASSERT(dest != operand,
-                  "Here we should be still in kind of SSA form");
+        if (dest == operand) {
+            continue;
+        }
+        if (auto* arithmetic = dyncast<ValueArithmeticInst*>(&inst);
+            arithmetic && arithmetic->RHS() == dest)
+        {
+            if (isCommutative(arithmetic->operation())) {
+                inst.setOperandAt(0, arithmetic->RHS());
+                inst.setOperandAt(1, operand);
+                continue;
+            }
+            auto* tmp = new VirtualRegister();
+            F.virtualRegisters().add(tmp);
+            auto* copy = new CopyInst(tmp,
+                                      arithmetic->LHS(),
+                                      arithmetic->bytewidth(),
+                                      arithmetic->metadata());
+            inst.parent()->insert(&inst, copy);
+            inst.setOperandAt(1, tmp);
+        }
+        SC_ASSERT(!ranges::contains(inst.operands() | drop(1), dest),
+                  "The other operands must not contain dest because we clobber "
+                  "dest here");
         auto* copy =
             new CopyInst(dest, operand, inst.bytewidth(), inst.metadata());
         inst.parent()->insert(&inst, copy);

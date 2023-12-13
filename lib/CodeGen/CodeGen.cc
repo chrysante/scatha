@@ -40,7 +40,10 @@ Asm::AssemblyStream cg::codegen(ir::Module const& irMod, cg::Logger& logger) {
     logger.log("MIR module after life set computation", mod);
 
     forEach(ctx, mod, cg::destroySSA);
-    logger.log("MIR module after SSA destructions", mod);
+    logger.log("MIR module after SSA destruction", mod);
+
+    forEach(ctx, mod, cg::coalesceCopies);
+    logger.log("MIR module after copy coalescing", mod);
 
     forEach(ctx, mod, cg::allocateRegisters);
     logger.log("MIR module after register allocation", mod);

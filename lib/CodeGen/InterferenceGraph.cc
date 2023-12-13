@@ -92,9 +92,11 @@ void InterferenceGraph::computeImpl(Function& F) {
             for (auto* dest: inst.destRegisters()) {
                 addEdges(dest, live);
             }
-            /// Pretty sure these need to be seperate for loops
-            for (auto* dest: inst.destRegisters()) {
-                live.erase(dest);
+            /// cmov instruction may not write to the dest register
+            if (!isa<CondCopyInst>(inst)) {
+                for (auto* dest: inst.destRegisters()) {
+                    live.erase(dest);
+                }
             }
             for (auto* op: inst.operands() | Filter<Register>) {
                 live.insert(op);

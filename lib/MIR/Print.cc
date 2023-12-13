@@ -228,7 +228,7 @@ struct PrintContext {
         for (auto& inst: *BB) {
             print(inst);
         }
-        if (BB->back().hasIndex()) {
+        if (!BB->empty() && BB->back().hasIndex()) {
             printLiveStates(BB, BB->back().index() + 1);
         }
         str << indent << formatLiveList("Live out", BB->liveOut()) << "\n";
@@ -419,7 +419,7 @@ struct PrintContext {
             return;
         }
         for (auto& BB: *F) {
-            if (!BB.hasIndex() || !BB.back().hasIndex()) {
+            if (!BB.hasIndex() || BB.empty() || !BB.back().hasIndex()) {
                 continue;
             }
             auto& liveRegs = BBLiveRegs[&BB];

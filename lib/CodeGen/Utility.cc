@@ -41,8 +41,16 @@ static LiveInterval computeLiveInterval(Function& F,
         if (ranges::contains(inst->operands(), reg)) {
             end = utl::narrow_cast<int32_t>(inst->index());
         }
-        /// Live range ends at the last use before a def
-        if (ranges::contains(inst->destRegisters(), reg)) {
+        /// cmov instruction also "read" the dest value because they clobber
+        /// only conditionally
+        if (isa<CondCopyInst>(inst) && inst->dest() == reg) {
+            end = utl::narrow_cast<int32_t>(inst->index());
+        }
+        /// Live range ends at the last use before a def (except for cmovs which
+        /// clobber only conditionally)
+        if (ranges::contains(inst->destRegisters(), reg) &&
+            !isa<CondCopyInst>(inst))
+        {
             return { begin, end };
         }
         /// Calls clobber all callee registers
@@ -73,6 +81,9 @@ void cg::computeLiveRange(Function& F, Register& reg) {
         }
     }
     for (auto* def: reg.defs()) {
+        if (isa<CondCopyInst>(def)) {
+            continue;
+        }
         liveRange.push_back(
             computeLiveInterval(F, *def->parent(), &reg, def->index()));
     }

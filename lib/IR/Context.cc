@@ -297,24 +297,12 @@ UndefValue* Context::undef(Type const* type) {
 
 Value* Context::voidValue() { return undef(voidType()); }
 
-bool Context::isCommutative(ArithmeticOperation operation) const {
-    switch (operation) {
-    case ArithmeticOperation::Add:
-    case ArithmeticOperation::Mul:
-    case ArithmeticOperation::And:
-    case ArithmeticOperation::Or:
-    case ArithmeticOperation::XOr:
-    case ArithmeticOperation::FAdd:
-    case ArithmeticOperation::FMul:
-        return true;
-
-    default:
-        return false;
-    }
+bool Context::isCommutative(ArithmeticOperation op) const {
+    return ir::isCommutative(op);
 }
 
-bool Context::isAssociative(ArithmeticOperation operation) const {
-    switch (operation) {
+bool Context::isAssociative(ArithmeticOperation op) const {
+    switch (op) {
     case ArithmeticOperation::Add:
     case ArithmeticOperation::Mul:
     case ArithmeticOperation::And:

@@ -49,6 +49,10 @@ SCATHA_API bool commonSubexpressionElimination(mir::Context& ctx,
 /// \pre Requires \p F to be in SSA form
 SCATHA_API void destroySSA(mir::Context& ctx, mir::Function& F);
 
+/// Basic block local copy elimination pass. Requires virtual register form and
+/// live ranges to be computed
+SCATHA_API void coalesceCopies(mir::Context& ctx, mir::Function& F);
+
 /// Convert registers of function \p F to hardware registers. Redundant copy
 /// instructions will be elided.
 ///

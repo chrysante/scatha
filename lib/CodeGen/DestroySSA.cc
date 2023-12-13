@@ -4,6 +4,7 @@
 #include <utl/strcat.hpp>
 
 #include "CodeGen/TargetInfo.h"
+#include "CodeGen/Utility.h"
 #include "MIR/CFG.h"
 #include "MIR/Instructions.h"
 #include "MIR/Register.h"
@@ -337,14 +338,23 @@ static BasicBlock::Iterator destroy(Function& F,
         }
         pred->insert(before,
                      new CopyInst(dest, arg, phi.bytewidth(), phi.metadata()));
-        /// Update live sets to honor inserted copy.
+        /// Update live sets to honor inserted copy
         if (auto* argReg = dyncast<Register*>(arg)) {
-            bool argDead = !BB.isLiveIn(argReg);
-            for (auto* use: argReg->uses()) {
-                argDead &= use == &phi || use->parent() == pred;
-            }
-            if (argDead) {
-                pred->removeLiveOut(argReg);
+            /// True if this argument appears only once in the phi arguments.
+            /// We only remove live out values if the argument is unique. This
+            /// is a bit conservative but multiple phi arguments are perhaps a
+            /// problem that the optimizer has to solve
+            bool argUnique = ranges::count(phi.operands(), arg) == 1;
+            if (argUnique) {
+                bool argDead = !BB.isLiveIn(argReg);
+                /// If the uses of the phi argument are all in the predecessor
+                /// or are this phi
+                for (auto* use: argReg->uses()) {
+                    argDead &= use == &phi || use->parent() == pred;
+                }
+                if (argDead) {
+                    pred->removeLiveOut(argReg);
+                }
             }
         }
         pred->addLiveOut(dest);
@@ -387,4 +397,8 @@ void cg::destroySSA(mir::Context& ctx, Function& F) {
         }
     }
     F.setRegisterPhase(RegisterPhase::Virtual);
+    F.linearize();
+    for (auto& reg: F.virtAndCalleeRegs()) {
+        computeLiveRange(F, reg);
+    }
 }

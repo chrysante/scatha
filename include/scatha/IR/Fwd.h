@@ -157,7 +157,11 @@ SCATHA_API std::string_view toString(ArithmeticOperation arithmeticOp);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     ArithmeticOperation arithmeticOp);
 
-bool isShift(ArithmeticOperation arithmeticOp);
+/// \Returns `true` if \p op is any of the shift instructions
+SCATHA_API bool isShift(ArithmeticOperation op);
+
+/// \Returns `true` if \p op is commutative
+SCATHA_API bool isCommutative(ArithmeticOperation op);
 
 /// ## Forward declarations of type categories
 

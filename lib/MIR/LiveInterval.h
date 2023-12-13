@@ -1,6 +1,7 @@
 #ifndef SCATHA_MIR_LIVEINTERVAL_H_
 #define SCATHA_MIR_LIVEINTERVAL_H_
 
+#include <algorithm>
 #include <compare>
 #include <iosfwd>
 #include <span>
@@ -46,6 +47,11 @@ SCATHA_API inline int compare(LiveInterval I, int P) {
 /// \Returns `true` if the intervals \p I and \p J overlap
 SCATHA_API inline bool overlaps(LiveInterval I, LiveInterval J) {
     return I.begin < J.end && J.begin < I.end;
+}
+
+/// \Returns the interval `[min(I.begin, J.begin), max(I.end, J.end))`
+SCATHA_API inline LiveInterval merge(LiveInterval I, LiveInterval J) {
+    return { std::min(I.begin, J.begin), std::max(I.end, J.end) };
 }
 
 /// \Returns the subspan of the range \p range that overlaps with the interval
