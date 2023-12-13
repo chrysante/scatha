@@ -149,4 +149,5 @@ void cg::allocateRegisters(Context& ctx, Function& F) {
                             numCols;
         call.setRegisterOffset(offset);
     }
+    F.setRegisterPhase(RegisterPhase::Hardware);
 }

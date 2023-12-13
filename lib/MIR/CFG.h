@@ -175,6 +175,13 @@ public:
     /// \Returns The name of this function.
     std::string_view name() const { return _name; }
 
+    /// \Returns the register phase this function is in
+    RegisterPhase registerPhase() const { return regPhase; }
+
+    /// Sets the register to \p phase
+    /// \Note this clears all previous phase registers
+    void setRegisterPhase(RegisterPhase phase);
+
     /// \Returns The number of registers filled with arguments by the caller.
     size_t numArgumentRegisters() const { return numArgRegs; }
 
@@ -347,6 +354,7 @@ private:
     size_t numArgRegs    : 20 = 0;
     size_t numRetvalRegs : 20 = 0;
     Visibility vis;
+    RegisterPhase regPhase = RegisterPhase::SSA;
 };
 
 } // namespace scatha::mir

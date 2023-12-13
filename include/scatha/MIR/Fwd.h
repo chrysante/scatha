@@ -98,6 +98,22 @@ SCTEST_API void privateDestroy(mir::Instruction* inst);
 
 namespace scatha::mir {
 
+/// Different register phases of the lowering process
+enum class RegisterPhase {
+    /// After lowering from IR the MIR is in SSA form
+    SSA,
+
+    /// After leaving SSA form the MIR is in "virtual register" form. This is
+    /// somewhat of a misnomer because SSA registers are virtual as well, but
+    /// we'll stick with it for now
+    Virtual,
+
+    /// Register allocation transforms the virtual register form into hardware
+    /// register form. Lowering from here to assembly is pretty much a
+    /// one-to-one translation
+    Hardware
+};
+
 using ir::ArithmeticOperation;
 using ir::CompareMode;
 using ir::CompareOperation;

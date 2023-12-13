@@ -67,6 +67,24 @@ Function::Function(ir::Function const* irFunc,
     }
 }
 
+void Function::setRegisterPhase(RegisterPhase phase) {
+    regPhase = phase;
+    using enum RegisterPhase;
+    switch (phase) {
+    case SSA:
+        SC_UNREACHABLE("Functions are in SSA form by default and should not "
+                       "explicitly set to this phase");
+        break;
+    case Virtual:
+        ssaRegs.clear();
+        break;
+    case Hardware:
+        virtRegs.clear();
+        calleeRegs.clear();
+        break;
+    }
+}
+
 void Function::linearize() {
     progPoints.clear();
     int index = 0;

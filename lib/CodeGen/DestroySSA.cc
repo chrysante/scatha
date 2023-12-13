@@ -386,4 +386,5 @@ void cg::destroySSA(mir::Context& ctx, Function& F) {
                         [&](auto& inst) { return destroy(F, BB, inst, itr); });
         }
     }
+    F.setRegisterPhase(RegisterPhase::Virtual);
 }
