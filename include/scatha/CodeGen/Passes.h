@@ -23,9 +23,6 @@ SCATHA_API mir::Module lowerToMIR2(mir::Context& ctx, ir::Module const& mod);
 /// \pre Requires \p F to be in SSA form
 SCATHA_API void computeLiveSets(mir::Context& ctx, mir::Function& F);
 
-///
-SCATHA_API void computeLiveRanges(mir::Context& ctx, mir::Function& F);
-
 /// Eliminate dead instructions in function \p F
 /// Not as powerful as DCE of IR, as it won't catch dead cycles,
 /// but it should suffice here as DCE has already run on the IR

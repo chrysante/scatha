@@ -16,6 +16,7 @@
 using namespace scatha;
 using namespace mir;
 using namespace tfmt::modifiers;
+using namespace ranges::views;
 
 void mir::print(Module const& mod) { mir::print(mod, std::cout); }
 
@@ -171,8 +172,25 @@ static auto formatInstName(mir::Instruction const& inst) {
 
 namespace {
 
+enum LiveState {
+    LS_None = 0,
+    LS_Begin = 1 << 0,
+    LS_Mid = 1 << 1,
+    LS_End = 1 << 2,
+    LS_BeginEnd = LS_Begin | LS_End,
+};
+
+/// Maps program points to live states for a given register
+struct RegLiveStateList {
+    Register const* reg;
+    /// The second int is a bitfield of LiveState
+    utl::hashmap<int, int> states;
+};
+
 struct PrintContext {
-    PrintContext(Function const* F, std::ostream& str): F(F), str(str) {}
+    PrintContext(Function const* F, std::ostream& str): F(F), str(str) {
+        computeLiveStates();
+    }
 
     void print() {
         str << keyword("func") << " " << globalName(F->name()) << " {";
@@ -195,14 +213,23 @@ struct PrintContext {
     }
 
     void print(BasicBlock const* BB) {
+        if (BB->hasIndex()) {
+            printLiveStateHeaders(BB);
+        }
         printIndex(*BB);
         str << localName(BB->name()) << ": ";
         printPredList(BB);
         str << "\n";
         indent.increase();
+        if (BB->hasIndex()) {
+            printLiveStates(BB, BB->index());
+        }
         str << indent << formatLiveList("Live in", BB->liveIn()) << "\n";
         for (auto& inst: *BB) {
             print(inst);
+        }
+        if (BB->back().hasIndex()) {
+            printLiveStates(BB, BB->back().index() + 1);
         }
         str << indent << formatLiveList("Live out", BB->liveOut()) << "\n";
         indent.decrease();
@@ -240,6 +267,9 @@ struct PrintContext {
     /// Here we print `dest_reg = ` or nothing if the instruction does not write
     /// to a register
     void printInstBegin(Instruction const& inst) {
+        if (inst.hasIndex()) {
+            printLiveStates(inst.parent(), inst.index());
+        }
         printIndex(inst);
         if (auto* reg = inst.dest()) {
             str << std::setw(3) << std::left << regName(reg) << none(" = ");
@@ -384,9 +414,114 @@ struct PrintContext {
         str << ", of=" << data.offsetFactor << ", ot=" << data.offsetTerm;
     }
 
+    void computeLiveStates() {
+        if (!F) {
+            return;
+        }
+        for (auto& BB: *F) {
+            if (!BB.hasIndex() || !BB.back().hasIndex()) {
+                continue;
+            }
+            auto& liveRegs = BBLiveRegs[&BB];
+            LiveInterval BBInterval = { BB.index(), BB.back().index() + 1 };
+            for (auto& reg: F->allRegisters()) {
+                auto liveRange = reg.liveRange();
+                auto overlap = rangeOverlap(liveRange, BBInterval);
+                if (overlap.empty()) {
+                    continue;
+                }
+                liveRegs.push_back({ .reg = &reg, .states = {} });
+                addLiveState(liveRegs.back(), overlap, BB.index());
+                addLiveState(liveRegs.back(), overlap, BB.back().index() + 1);
+                for (auto& inst: BB | filter(&Instruction::hasIndex)) {
+                    addLiveState(liveRegs.back(), overlap, inst.index());
+                }
+            }
+        }
+    }
+
+    static int getLiveState(std::span<LiveInterval const> range, int P) {
+        int LS = LS_None;
+        for (auto I: range) {
+            if (I.begin == P) {
+                LS |= LS_Begin;
+            }
+            if (I.end == P) {
+                LS |= LS_End;
+            }
+            if (I.begin < P && P < I.end) {
+                LS |= LS_Mid;
+            }
+        }
+        return LS;
+    }
+
+    void addLiveState(RegLiveStateList& liveList,
+                      std::span<LiveInterval const> range,
+                      int P) {
+        auto state = getLiveState(range, P);
+        liveList.states[P] = state;
+        if (state & LS_BeginEnd) {
+            liveChanges.insert(P);
+        }
+    }
+
+    void printLiveStateHeaders(BasicBlock const* BB) {
+        auto& liveRegs = BBLiveRegs[BB];
+        if (liveRegs.empty()) {
+            return;
+        }
+        for (auto& list: liveRegs) {
+            print(list.reg);
+            if (list.reg->index() < 10) {
+                str << " ";
+            }
+        }
+    }
+
+    void printLiveStates(BasicBlock const* BB, int P) {
+        auto& liveRegs = BBLiveRegs[BB];
+        if (liveRegs.empty()) {
+            return;
+        }
+        tfmt::FormatGuard fmt(BrightBlue, str);
+        for (auto& list: liveRegs) {
+            switch (list.states[P]) {
+            case LS_Begin:
+                str << tfmt::format(Bold, " ┬ ");
+                break;
+            case LS_Mid:
+                str << tfmt::format(BrightGrey, "─");
+                str << tfmt::format(Bold, "│");
+                str << tfmt::format(BrightGrey, "─");
+                break;
+            case LS_End:
+                str << tfmt::format(Bold, " ┴ ");
+                break;
+            case LS_BeginEnd:
+                if (BB->hasIndex() && P == BB->index()) {
+                    str << tfmt::format(Bold, " ┬ ");
+                }
+                else if (BB->back().hasIndex() && BB->back().index() + 1 == P) {
+                    str << tfmt::format(Bold, " ┴ ");
+                }
+                else {
+                    str << tfmt::format(Bold, " ┼ ");
+                }
+                break;
+            default:
+                str << tfmt::format(BrightGrey, "───");
+                break;
+            }
+        }
+    }
+
     Function const* F;
     std::ostream& str;
     Indenter indent{ 2 };
+    /// Maps program points to live states
+    utl::hashmap<BasicBlock const*, std::vector<RegLiveStateList>> BBLiveRegs;
+    utl::hashset<int> liveChanges;
 };
 
 } // namespace

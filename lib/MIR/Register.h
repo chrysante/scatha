@@ -2,13 +2,14 @@
 #define SCATHA_MIR_REGISTER_H_
 
 #include <span>
+#include <vector>
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
-#include <utl/vector.hpp>
 
 #include "Common/List.h"
 #include "Common/Ranges.h"
+#include "MIR/LiveInterval.h"
 #include "MIR/Value.h"
 
 namespace scatha::mir {
@@ -107,6 +108,14 @@ public:
     /// Replace all uses and defs of this register with the register \p repl
     void replaceWith(Register* repl);
 
+    /// \Returns the (sorted) list of intervals where this register is live
+    std::span<LiveInterval const> liveRange() const { return _liveRange; }
+
+    /// Sets the live range of this register
+    void setLiveRange(std::vector<LiveInterval> liveRange) {
+        _liveRange = std::move(liveRange);
+    }
+
 protected:
     explicit Register(NodeType nodeType, size_t index = InvalidIndex):
         ListNodeOverride<Register, Value>(nodeType) {}
@@ -128,6 +137,7 @@ private:
     bool _fixed : 1 = false;
     utl::hashset<Instruction*> _defs;
     utl::hashmap<Instruction*, size_t> _users;
+    std::vector<LiveInterval> _liveRange;
 };
 
 /// Represents a register that can only be assigned once.

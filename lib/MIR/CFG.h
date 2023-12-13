@@ -252,6 +252,21 @@ public:
         return calleeRegs;
     }
 
+    /// Concatenated view of virtual registers and callee registers
+    auto virtAndCalleeRegs() {
+        using namespace ranges::views;
+        return concat(virtualRegisters() | transform(cast<mir::Register&>),
+                      calleeRegisters());
+    }
+
+    /// \overload
+    auto virtAndCalleeRegs() const {
+        using namespace ranges::views;
+        return concat(virtualRegisters() |
+                          transform(cast<mir::Register const&>),
+                      calleeRegisters());
+    }
+
     /// # Hardware registers
 
     /// \Returns The set of hardware registers used by this function.
@@ -260,6 +275,24 @@ public:
     ///  \overload
     RegisterSet<HardwareRegister> const& hardwareRegisters() const {
         return hardwareRegs;
+    }
+
+    /// Concatenated view of all registers
+    auto allRegisters() {
+        using namespace ranges::views;
+        return concat(ssaRegisters() | transform(cast<mir::Register&>),
+                      virtualRegisters(),
+                      calleeRegisters(),
+                      hardwareRegisters());
+    }
+
+    /// \overload
+    auto allRegisters() const {
+        using namespace ranges::views;
+        return concat(ssaRegisters() | transform(cast<mir::Register const&>),
+                      virtualRegisters(),
+                      calleeRegisters(),
+                      hardwareRegisters());
     }
 
     /// \Returns Pointer to the entry basic block

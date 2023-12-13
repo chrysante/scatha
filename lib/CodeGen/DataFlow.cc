@@ -1,5 +1,6 @@
 #include "CodeGen/Passes.h"
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
@@ -14,8 +15,6 @@
 using namespace scatha;
 using namespace cg;
 using namespace mir;
-
-/// # Live in and live out set computation on SSA form
 
 template <typename T>
 static void merge(utl::hashset<T>& dest, auto const& source) {
@@ -195,107 +194,4 @@ utl::hashset<Register*> LivenessContext::phiUses(BasicBlock* BB) {
 
 utl::hashset<Register*> LivenessContext::phiUses(ranges::range auto&& params) {
     return params | PhiUseFilter | ranges::to<utl::hashset<Register*>>;
-}
-
-/// # Live range computation on virtual register form
-
-#include "MIR/Print.h"
-#include <iostream>
-#include <termfmt/termfmt.h>
-#include <utl/streammanip.hpp>
-
-struct LiveRange {
-    int begin;
-    int end;
-
-    bool operator==(LiveRange const&) const = default;
-
-    auto operator<=>(LiveRange const& rhs) const { return begin <=> rhs.begin; }
-};
-
-std::ostream& operator<<(std::ostream& str, LiveRange const& range) {
-    return str << "[" << range.begin << ", " << range.end << ")";
-}
-
-using namespace ranges::views;
-
-static LiveRange computeLiveRange(Function& F,
-                                  BasicBlock& BB,
-                                  Register* reg,
-                                  int32_t begin) {
-    int32_t end = begin;
-    int32_t first =
-        std::max(begin + 1, static_cast<int32_t>(BB.front().index()));
-    for (auto progPoint: F.programPoints() | drop(first)) {
-        if (std::holds_alternative<BasicBlock*>(progPoint)) {
-            break;
-        }
-        auto* inst = std::get<Instruction*>(progPoint);
-        if (inst->parent() != &BB) {
-            break;
-        }
-        /// Live range extends to at least the last use of the register in this
-        /// block
-        if (ranges::contains(inst->operands(), reg)) {
-            end = utl::narrow_cast<int32_t>(inst->index());
-        }
-        /// Live range ends at the last use before a def
-        if (ranges::contains(inst->destRegisters(), reg)) {
-            return { begin, end };
-        }
-        /// Calls clobber all callee registers
-        if (isa<CallBase>(inst) && isa<CalleeRegister>(reg)) {
-            return { begin, end };
-        }
-    }
-    if (BB.liveOut().contains(reg)) {
-        return { begin, BB.back().index() + 1 };
-    }
-    return { begin, end };
-}
-
-void cg::computeLiveRanges(Context& ctx, Function& F) {
-    utl::hashmap<Register*, utl::small_vector<LiveRange>> liveRangeMap;
-    for (auto& reg: concat(F.virtualRegisters() | transform(cast<Register&>),
-                           F.calleeRegisters()))
-    {
-        auto& liveRanges = liveRangeMap[&reg];
-        for (auto& BB: F) {
-            if (BB.liveIn().contains(&reg)) {
-                auto range = computeLiveRange(F, BB, &reg, BB.index());
-                liveRanges.push_back(range);
-            }
-        }
-        for (auto* call: F.linearInstructions() | Filter<CallBase>) {
-            size_t numMDRegs =
-                isa<CallInst>(call) ? numRegistersForCallMetadata() : 0;
-            if (ranges::contains(F.calleeRegisters() | TakeAddress |
-                                     take(numMDRegs +
-                                          call->numReturnRegisters()),
-                                 &reg))
-            {
-                auto range =
-                    computeLiveRange(F, *call->parent(), &reg, call->index());
-                liveRanges.push_back(range);
-            }
-        }
-        for (auto* def: reg.defs()) {
-            auto range =
-                computeLiveRange(F, *def->parent(), &reg, def->index());
-            liveRanges.push_back(range);
-        }
-        ranges::sort(liveRanges.begin(), liveRanges.end());
-    }
-
-    /// For now we just print the results
-    std::cout << tfmt::format(tfmt::Bold, "Live ranges for ") << F << std::endl;
-    for (auto& [reg, liveRanges]: liveRangeMap) {
-        std::cout << *reg << ": ";
-        for (bool first = true; auto range: liveRanges) {
-            if (!first) std::cout << ", ";
-            first = false;
-            std::cout << range;
-        }
-        std::cout << std::endl;
-    }
 }

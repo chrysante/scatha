@@ -9,6 +9,10 @@ namespace scatha::cg {
 /// eliminated
 bool hasSideEffects(mir::Instruction const& inst);
 
+/// Computes and assigns the live range for the register \p reg
+/// \pre Requires live-in and live-out sets computed
+SCATHA_API void computeLiveRange(mir::Function& F, mir::Register& reg);
+
 } // namespace scatha::cg
 
 #endif // SCATHA_CODEGEN_UTILITY_H_
