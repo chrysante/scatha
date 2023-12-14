@@ -1,10 +1,28 @@
 #ifndef SCATHA_RUNTIME_LIBSUPPORT_H_
 #define SCATHA_RUNTIME_LIBSUPPORT_H_
 
+#include <functional>
+#include <vector>
+
 #include <utl/vector.hpp>
 
 #include <scatha/Runtime/Support.h>
 #include <scatha/Sema/Entity.h>
+
+#define SC_EXPORT_FUNCTION(FUNCTION, NAME)                                     \
+    SC_STATIC_CONSTRUCTOR {                                                    \
+        using namespace scatha::internal;                                      \
+        internal::globalLibDecls.push_back([](::scatha::Library& lib) {        \
+            return ::std::pair{ (char const*)NAME,                             \
+                                lib.extractSignature<decltype(FUNCTION)>() };  \
+        });                                                                    \
+        internal::globalLibDefines.push_back([] {                              \
+            return ::std::pair{                                                \
+                (char const*)NAME,                                             \
+                internal::makeImplAndUserPtr(FUNCTION).first                   \
+            };                                                                 \
+        });                                                                    \
+    };
 
 namespace svm {
 
@@ -25,7 +43,7 @@ class Library {
 public:
     ///
     explicit Library(sema::SymbolTable& sym, size_t slot);
-    
+
     /// Declares the type described by \p desc to the internal symbol table and
     /// returns a pointer to it
     sema::StructType const* declareType(StructDesc desc);
@@ -57,14 +75,12 @@ public:
     ///
     template <typename F>
     sema::FunctionSignature extractSignature() const;
-    
+
 private:
-    
     sema::SymbolTable* sym = nullptr;
     std::unordered_map<std::type_index, sema::Type const*> typemap;
     size_t _slot = 0;
     size_t _index = 0;
-    
 };
 
 /// Defines the function at address \p address as \p impl
@@ -74,7 +90,29 @@ void defineFunction(svm::VirtualMachine& VM,
                     InternalFuncPtr impl,
                     void* userptr);
 
+template <ValidFunction F>
+void defineFunction(svm::VirtualMachine& VM,
+                    std::string name,
+                    FuncAddress address,
+                    F&& f);
+
 } // namespace scatha
+
+namespace scatha::internal {
+
+using DeclPair = std::pair<char const*, sema::FunctionSignature>;
+
+using DefPair = std::pair<char const*, InternalFuncPtr>;
+
+extern std::vector<std::function<DeclPair(Library&)>> globalLibDecls;
+
+extern std::vector<std::function<DefPair()>> globalLibDefines;
+
+} // namespace scatha::internal
+
+extern "C" void internal_declareFunctions(void* library);
+
+extern "C" void internal_defineFunctions(void* VM, size_t slot);
 
 // ========================================================================== //
 // ===  Inline implementation  ============================================== //
@@ -107,6 +145,15 @@ template <typename F>
 scatha::sema::FunctionSignature scatha::Library::extractSignature() const {
     return internal::ExtractSig<decltype(std::function{
         std::declval<F>() })>::Impl(this);
+}
+
+template <scatha::ValidFunction F>
+void scatha::defineFunction(svm::VirtualMachine& vm,
+                            std::string name,
+                            FuncAddress address,
+                            F&& f) {
+    auto [impl, userptr] = internal::makeImplAndUserPtr(std::forward<F>(f));
+    defineFunction(vm, std::move(name), address, impl, userptr);
 }
 
 #endif // SCATHA_RUNTIME_LIBSUPPORT_H_

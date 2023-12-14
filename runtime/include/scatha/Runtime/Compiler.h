@@ -8,8 +8,8 @@
 #include <typeinfo>
 
 #include <scatha/Common/SourceFile.h>
-#include <scatha/Runtime/Support.h>
 #include <scatha/Runtime/LibSupport.h>
+#include <scatha/Runtime/Support.h>
 #include <scatha/Sema/Entity.h>
 #include <scatha/Sema/SymbolTable.h>
 
@@ -38,13 +38,15 @@ class Compiler {
 public:
     /// Construct an empty compiler
     Compiler();
-    
+
     /// For now because we rely on address stability of the symbol table
     Compiler(Compiler const&) = delete;
 
     /// Declares the type described by \p desc to the internal symbol table and
     /// returns a pointer to it
-    sema::StructType const* declareType(StructDesc desc) { return lib.declareType(desc); }
+    sema::StructType const* declareType(StructDesc desc) {
+        return lib.declareType(desc);
+    }
 
     /// Declares the function described by \p desc to the internal symbol table
     FuncDecl declareFunction(std::string name,
@@ -91,7 +93,9 @@ public:
 
     ///
     template <typename F>
-    sema::FunctionSignature extractSignature() const { return lib.extractSignature<F>(); }
+    sema::FunctionSignature extractSignature() const {
+        return lib.extractSignature<F>();
+    }
 
 private:
     sema::SymbolTable sym;

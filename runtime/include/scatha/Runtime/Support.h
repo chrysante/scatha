@@ -9,8 +9,24 @@
 #include <typeindex>
 #include <vector>
 
+#include <scatha/Common/Base.h>
 #include <scatha/Sema/Fwd.h>
 #include <svm/Fwd.h>
+
+namespace scatha::internal {
+
+enum class StaticCtorHelper : int;
+
+inline int operator->*(StaticCtorHelper, auto f) {
+    std::invoke(f);
+    return 0;
+}
+
+} // namespace scatha::internal
+
+#define SC_STATIC_CONSTRUCTOR                                                  \
+    static int SC_CONCAT(StaticCtor_, __LINE__) =                              \
+        scatha::internal::StaticCtorHelper{}->*[]
 
 namespace scatha {
 
