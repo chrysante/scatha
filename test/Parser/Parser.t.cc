@@ -16,8 +16,8 @@ fn mul(a: int, b: X.Y.Z) -> int {
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    REQUIRE(file->declarations().size() == 1);
-    auto* const function = file->declaration<FunctionDefinition>(0);
+    REQUIRE(file->statements().size() == 1);
+    auto* const function = file->statement<FunctionDefinition>(0);
     CHECK(function->name() == "mul");
     REQUIRE(function->parameters().size() == 2);
     CHECK(function->parameters()[0]->name() == "a");
@@ -26,7 +26,7 @@ fn mul(a: int, b: X.Y.Z) -> int {
     CHECK(aTypeExpr->value() == "int");
     CHECK(function->parameters()[1]->name() == "b");
     auto const* bTypeExpr =
-        cast<MemberAccess*>(function->parameters()[1]->typeExpr());
+        cast<MemberAccess*>(function->parameter(1)->typeExpr());
     auto const* bTypeExprLhs =
         dyncast<MemberAccess const*>(bTypeExpr->accessed());
     REQUIRE(bTypeExprLhs);
@@ -37,13 +37,13 @@ fn mul(a: int, b: X.Y.Z) -> int {
     CHECK(returnTypeExpr->value() == "int");
     CompoundStatement* const body = function->body();
     REQUIRE(body->statements().size() == 2);
-    auto* const resultDecl = cast<VariableDeclaration*>(body->statements()[0]);
+    auto* const resultDecl = cast<VariableDeclaration*>(body->statement(0));
     CHECK(resultDecl->name() == "result");
     CHECK(!resultDecl->typeExpr());
     // CHECK(!resultDecl->isConstant);
     CHECK(isa<Identifier>(resultDecl->initExpr()));
     auto* const returnStatement =
-        cast<ReturnStatement const*>(body->statements()[1]);
+        cast<ReturnStatement const*>(body->statement(1));
     CHECK(isa<Identifier>(returnStatement->expression()));
 }
 
@@ -56,15 +56,15 @@ fn main() -> void {
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    REQUIRE(file->declarations().size() == 1);
-    auto* const function = file->declaration<FunctionDefinition>(0);
+    REQUIRE(file->statements().size() == 1);
+    auto* const function = file->statement<FunctionDefinition>(0);
     CHECK(function->name() == "main");
     auto* const aDecl =
-        cast<VariableDeclaration*>(function->body()->statements()[0]);
+        cast<VariableDeclaration*>(function->body()->statement(0));
     auto* const intLit = cast<Literal const*>(aDecl->initExpr());
     CHECK(intLit->value<APInt>() == 39);
     auto* const bDecl =
-        cast<VariableDeclaration const*>(function->body()->statements()[1]);
+        cast<VariableDeclaration const*>(function->body()->statement(1));
     auto* const floatLit = cast<Literal const*>(bDecl->initExpr());
     CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
 }
@@ -93,22 +93,21 @@ fn test() {
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    REQUIRE(file->declarations().size() == 1);
-    auto* const function = file->declaration<FunctionDefinition>(0);
+    REQUIRE(file->statements().size() == 1);
+    auto* const function = file->statement<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
     CompoundStatement* const body = function->body();
     REQUIRE(body);
     REQUIRE(body->statements().size() == 1);
-    auto* const whileStatement =
-        cast<LoopStatement const*>(body->statements()[0]);
+    auto* const whileStatement = cast<LoopStatement const*>(body->statement(0));
     REQUIRE(whileStatement);
     auto* const condition =
         cast<BinaryExpression const*>(whileStatement->condition());
     REQUIRE(condition);
     CHECK(condition->operation() == BinaryOperator::Less);
-    auto* const exprStatement = cast<ExpressionStatement const*>(
-        whileStatement->block()->statements()[0]);
+    auto* const exprStatement =
+        cast<ExpressionStatement const*>(whileStatement->block()->statement(0));
     REQUIRE(exprStatement);
     auto* const expr =
         cast<BinaryExpression const*>(exprStatement->expression());
@@ -132,22 +131,22 @@ fn test() {
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    REQUIRE(file->declarations().size() == 1);
-    auto* const function = file->declaration<FunctionDefinition>(0);
+    REQUIRE(file->statements().size() == 1);
+    auto* const function = file->statement<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
     CompoundStatement* const body = function->body();
     REQUIRE(body);
     REQUIRE(body->statements().size() == 1);
     auto* const doWhileStatement =
-        cast<LoopStatement const*>(body->statements()[0]);
+        cast<LoopStatement const*>(body->statement(0));
     REQUIRE(doWhileStatement);
     auto* const condition =
         cast<BinaryExpression const*>(doWhileStatement->condition());
     REQUIRE(condition);
     CHECK(condition->operation() == BinaryOperator::Less);
     auto* const exprStatement = cast<ExpressionStatement const*>(
-        doWhileStatement->block()->statements()[0]);
+        doWhileStatement->block()->statement(0));
     REQUIRE(exprStatement);
     auto* const expr =
         cast<BinaryExpression const*>(exprStatement->expression());
@@ -171,15 +170,14 @@ fn test() {
     auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    REQUIRE(file->declarations().size() == 1);
-    auto* const function = file->declaration<FunctionDefinition>(0);
+    REQUIRE(file->statements().size() == 1);
+    auto* const function = file->statement<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
     CompoundStatement* const body = function->body();
     REQUIRE(body);
     REQUIRE(body->statements().size() == 1);
-    auto* const forStatement =
-        cast<LoopStatement const*>(body->statements()[0]);
+    auto* const forStatement = cast<LoopStatement const*>(body->statement(0));
     REQUIRE(forStatement);
     auto* const varDecl =
         cast<VariableDeclaration const*>(forStatement->varDecl());
@@ -203,8 +201,8 @@ fn test() {
     auto* const intLiteral = cast<Literal const*>(increment->rhs());
     REQUIRE(intLiteral);
     CHECK(intLiteral->value<APInt>() == 1);
-    auto* const loopStatement = cast<ExpressionStatement const*>(
-        forStatement->block()->statements()[0]);
+    auto* const loopStatement =
+        cast<ExpressionStatement const*>(forStatement->block()->statement(0));
     REQUIRE(loopStatement);
     auto* const functionCall =
         cast<FunctionCall const*>(loopStatement->expression());

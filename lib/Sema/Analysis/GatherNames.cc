@@ -69,8 +69,8 @@ size_t GatherContext::gatherImpl(ast::TranslationUnit& TU) {
 }
 
 size_t GatherContext::gatherImpl(ast::SourceFile& file) {
-    for (auto* decl: file.declarations()) {
-        gather(*decl);
+    for (auto* stmt: file.statements()) {
+        gather(*stmt);
     }
     return InvalidIndex;
 }

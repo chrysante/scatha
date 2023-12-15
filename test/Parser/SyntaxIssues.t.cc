@@ -9,7 +9,7 @@ using namespace parser;
 
 static void expectFooParse(ast::ASTNode const& ast) {
     auto const& file = *cast<ast::TranslationUnit const&>(ast).sourceFile(0);
-    auto const& fooDecl = *file.declaration<ast::FunctionDefinition>(0);
+    auto const& fooDecl = *file.statement<ast::FunctionDefinition>(0);
     CHECK(fooDecl.name() == "foo");
     CHECK(fooDecl.returnTypeExpr() == nullptr);
 }

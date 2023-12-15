@@ -906,22 +906,35 @@ public:
 class SCATHA_API SourceFile: public ASTNode {
 public:
     SourceFile(std::string filename,
-               utl::small_vector<UniquePtr<Declaration>> declarations):
-        ASTNode(NodeType::SourceFile, SourceRange{}, std::move(declarations)),
+               utl::small_vector<UniquePtr<Statement>> stmts):
+        ASTNode(NodeType::SourceFile, SourceRange{}, std::move(stmts)),
         _name(std::move(filename)) {
         markDecorated();
     }
 
     AST_DERIVED_COMMON(SourceFile)
 
-    /// List of declarations in the translation unit.
-    AST_RANGE_PROPERTY(0, Declaration, declaration, Declaration)
+    /// List of global statements in the translation unit.
+    AST_RANGE_PROPERTY(0, Statement, statement, Statement)
 
     /// \Returns the name of this source file
     std::string const& name() const { return _name; }
 
 private:
     std::string _name;
+};
+
+/// Concrete node representing an `import` statement
+class SCATHA_API ImportStatement: public Statement {
+public:
+    explicit ImportStatement(SourceRange sourceRange,
+                             UniquePtr<Expression> libExpr):
+        Statement(NodeType::ImportStatement, sourceRange, std::move(libExpr)) {}
+
+    AST_DERIVED_COMMON(ImportStatement)
+
+    /// The expression denoting the imported library
+    AST_PROPERTY(0, Expression, libExpr, LibExpr)
 };
 
 /// Abstract base class of `VariableDeclaration` and `ParameterDeclaration`

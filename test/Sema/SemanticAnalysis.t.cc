@@ -71,12 +71,12 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    auto* fnDecl = file->declaration<FunctionDefinition>(0);
+    auto* fnDecl = file->statement<FunctionDefinition>(0);
     CHECK(fnDecl->returnType() == sym.S64());
     CHECK(fnDecl->parameter(0)->type() == sym.S64());
     CHECK(fnDecl->parameter(1)->type() == sym.S64());
     CHECK(fnDecl->parameter(2)->type() == sym.F64());
-    auto* fn = file->declaration<FunctionDefinition>(0);
+    auto* fn = file->statement<FunctionDefinition>(0);
     CHECK(fn->returnType() == sym.S64());
     CHECK(fn->parameter(0)->type() == sym.S64());
     CHECK(fn->parameter(1)->type() == sym.S64());
@@ -118,13 +118,13 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     REQUIRE(iss.empty());
     auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
     REQUIRE(file);
-    auto* calleeDecl = file->declaration<FunctionDefinition>(1);
+    auto* calleeDecl = file->statement<FunctionDefinition>(1);
     REQUIRE(calleeDecl);
     CHECK(calleeDecl->returnType() == sym.F32());
     CHECK(calleeDecl->parameter(0)->type() == sym.F32());
     CHECK(calleeDecl->parameter(1)->type() == sym.S64());
     CHECK(calleeDecl->parameter(2)->type() == sym.Bool());
-    auto* caller = file->declaration<FunctionDefinition>(0);
+    auto* caller = file->statement<FunctionDefinition>(0);
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
     CHECK(resultDecl->initExpr()->type().get() == sym.F32());
     auto* fnCallExpr = cast<ast::FunctionCall*>(resultDecl->initExpr());
@@ -144,7 +144,7 @@ struct X {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    auto* xDef = file->declaration<StructDefinition>(0);
+    auto* xDef = file->statement<StructDefinition>(0);
     CHECK(xDef->name() == "X");
     auto* iDecl = xDef->body()->statement<VariableDeclaration>(0);
     CHECK(iDecl->name() == "i");
@@ -179,7 +179,7 @@ struct X { struct Y {} }
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    auto* f = file->declaration<FunctionDefinition>(0);
+    auto* f = file->statement<FunctionDefinition>(0);
     auto* y = f->body()->statement<VariableDeclaration>(0);
     auto YType = y->type();
     CHECK(YType->name() == "Y");
@@ -379,7 +379,7 @@ fn f(cond: bool) {
         REQUIRE(issue);
         auto* file =
             cast<ast::TranslationUnit*>(issues.ast.get())->sourceFile(0);
-        auto* f = file->declaration<ast::FunctionDefinition>(0);
+        auto* f = file->statement<ast::FunctionDefinition>(0);
         auto* ret1 = f->body()->statement<ast::ReturnStatement>(0);
         auto* ret2 = f->body()->statement<ast::ReturnStatement>(1);
         CHECK(issue->statement() == ret2);

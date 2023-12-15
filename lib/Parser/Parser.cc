@@ -4,7 +4,9 @@
 /// ## Grammar
 ///
 /// ```
-/// <translation-unit>              ::= {<external-declaration>}*
+/// <translation-unit>              ::= {<global-stmt>}*
+/// <global-stmt>                   ::= <import-stmt> | <external-declaration>
+/// <import-stmt>                   ::= "import" <postfix-expression>
 /// <external-declaration>          ::= [<access-spec>] <function-definition>
 ///                                   | [<access-spec>] <struct-definition>
 /// <function-definition>           ::= "fn" <identifier>
@@ -189,7 +191,9 @@ struct Context {
     UniquePtr<ast::SourceFile> run();
 
     UniquePtr<ast::SourceFile> parseSourceFile(std::string filename);
+    UniquePtr<ast::Statement> parseGlobalStatement();
     UniquePtr<ast::Declaration> parseExternalDeclaration();
+    UniquePtr<ast::ImportStatement> parseImportStatement();
     UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
     UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration(
         size_t index);
@@ -308,14 +312,14 @@ UniquePtr<ast::ASTNode> parser::parse(std::string_view source,
 UniquePtr<ast::SourceFile> Context::run() { return parseSourceFile(filename); }
 
 UniquePtr<ast::SourceFile> Context::parseSourceFile(std::string filename) {
-    utl::small_vector<UniquePtr<ast::Declaration>> decls;
+    utl::small_vector<UniquePtr<ast::Statement>> stmts;
     while (true) {
         Token const token = tokens.peek();
         if (token.kind() == EndOfFile) {
             break;
         }
-        auto decl = parseExternalDeclaration();
-        if (!decl) {
+        auto stmt = parseGlobalStatement();
+        if (!stmt) {
             if (isDeclarator(tokens.peek().kind())) {
                 /// \Note Here we `eat()` a token because `panic()` will not
                 /// advance past the next declarator in this scope, so we would
@@ -328,9 +332,32 @@ UniquePtr<ast::SourceFile> Context::parseSourceFile(std::string filename) {
             panic(tokens);
             continue;
         }
-        decls.push_back(std::move(decl));
+        stmts.push_back(std::move(stmt));
     }
-    return allocate<ast::SourceFile>(std::move(filename), std::move(decls));
+    return allocate<ast::SourceFile>(std::move(filename), std::move(stmts));
+}
+
+UniquePtr<ast::Statement> Context::parseGlobalStatement() {
+    if (auto importStmt = parseImportStatement()) {
+        return importStmt;
+    }
+    if (auto extDecl = parseExternalDeclaration()) {
+        return extDecl;
+    }
+    return nullptr;
+}
+
+UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
+    auto token = tokens.peek();
+    if (token.kind() != Import) {
+        return nullptr;
+    }
+    tokens.eat();
+    auto expr = parsePostfix();
+    if (!expr) {
+        pushExpectedExpression(tokens.peek());
+    }
+    return allocate<ast::ImportStatement>(token.sourceRange(), std::move(expr));
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
