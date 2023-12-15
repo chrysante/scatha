@@ -1,16 +1,54 @@
 //! Compile with: scatha-c mandelbrotset.sc
 //! Run with:     svm mandelbrotset.sbin
 
-fn main() -> int {
-    let width = 160;
-    let height = 60;
+fn reportUsageError() {
+    print("Usage: <width> <height>\n");
+    print("       <width> <height> <search-depth>\n");
+    __builtin_trap(); // For now because we don't have terminate() yet
+}
+
+fn parseInt(text: &str) {
+    var result = 0;
+    if !__builtin_strtos64(result, text, 10) {
+        reportUsageError();
+    }
+    return result;
+}
+
+struct Options {
+    var width: int;
+    var height: int;
+    var depth: int;
+
+    fn parse(args: &[*str]) -> Options {
+        if args.empty {
+            return Options(160, 60, 200);
+        }
+        if args.count == 2 {
+            return Options(parseInt(*args[0]), 
+                           parseInt(*args[1]), 
+                           200);
+        }
+        if args.count == 3 {
+            return Options(parseInt(*args[0]), 
+                           parseInt(*args[1]),
+                           parseInt(*args[2])); 
+        }
+        reportUsageError();
+    }
+}
+
+fn main(args: &[*str]) -> int {
+    let options = Options.parse(args);
+    let width = options.width;
+    let height = options.height;
     let scale = 1.0;
     for j = 0; j < height; ++j {
         for i = 0; i < width; ++i {
             var z = Complex(
                 2.0 / scale * ((double(i) / double(width)) - 0.5) * double(width) / (2.0 * double(height)),
                 2.0 / scale * ((1.0 - double(j) / double(height)) - 0.5));
-            let shade = toAsciiShade(sqrt(mandelbrotSet(z)));
+            let shade = toAsciiShade(sqrt(mandelbrotSet(z, options.depth)));
             print(shade);
         }    
         print('\n');
@@ -37,9 +75,8 @@ struct Complex {
     var y: double;
 }
 
-fn mandelbrotSet(c: Complex) -> double {
+fn mandelbrotSet(c: Complex, limit: int) -> double {
     var z = Complex();
-    let limit = 200;
     for i = 0; i < limit; ++i {
         z = next(z, c);
         if z.length() > 2.0 {
