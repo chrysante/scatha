@@ -7,11 +7,23 @@
 #include <string>
 #include <tuple>
 #include <typeindex>
+#include <variant>
 #include <vector>
 
-#include <scatha/Common/Base.h>
-#include <scatha/Sema/Fwd.h>
-#include <svm/Fwd.h>
+/// We don't include the Fwd.h header to not depend on the include paths of
+/// Scatha and SVM
+namespace scatha::sema {
+
+class Function;
+class Type;
+
+} // namespace scatha::sema
+
+namespace svm {
+
+class VirtualMachine;
+
+} // namespace svm
 
 namespace scatha::internal {
 
@@ -24,8 +36,12 @@ inline int operator->*(StaticCtorHelper, auto f) {
 
 } // namespace scatha::internal
 
+/// Define this here so we don't have to `#include <scatha/Common/Base.h>`
+#define SC_STATIC_CTOR_CONCAT_IMPL(a, b) a##b
+#define SC_STATIC_CTOR_CONCAT(a, b)      SC_STATIC_CTOR_CONCAT_IMPL(a, b)
+
 #define SC_STATIC_CONSTRUCTOR                                                  \
-    static int SC_CONCAT(StaticCtor_, __LINE__) =                              \
+    static int SC_STATIC_CTOR_CONCAT(StaticCtor_, __LINE__) =                  \
         scatha::internal::StaticCtorHelper{}->*[]
 
 namespace scatha {

@@ -8,7 +8,7 @@
 #include <typeinfo>
 
 #include <scatha/Common/SourceFile.h>
-#include <scatha/Runtime/LibSupport.h>
+#include <scatha/Runtime/Library.h>
 #include <scatha/Runtime/Support.h>
 #include <scatha/Sema/Entity.h>
 #include <scatha/Sema/SymbolTable.h>

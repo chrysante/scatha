@@ -26,7 +26,3 @@ TEST_CASE("Function pointer") {
     auto value = runtime.getFunction<int64_t(int64_t)>("f-s64").value()(2);
     CHECK(value == 6);
 }
-
-static void myFunction() {}
-
-SC_EXPORT_FUNCTION(myFunction, "myFunction");

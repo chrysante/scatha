@@ -18,7 +18,9 @@ void Executor::load(Program program) {
 }
 
 void Executor::addFunction(FuncDecl decl, InternalFuncPtr impl, void* userptr) {
-    defineFunction(vm, decl.address, std::move(decl).name, impl, userptr);
+    vm.setFunction(decl.address.slot,
+                   decl.address.index,
+                   { std::move(decl).name, impl, userptr });
 }
 
 Executor::Executor(Program prog) { load(std::move(prog)); }
