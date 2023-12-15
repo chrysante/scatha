@@ -2,7 +2,7 @@
 
 #include <range/v3/algorithm.hpp>
 
-#include "IR/CFG/Function.h"
+#include "IR/CFG.h"
 #include "IR/ForEach.h"
 #include "IR/Module.h"
 #include "Opt/Passes.h"

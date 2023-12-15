@@ -3,8 +3,7 @@
 #include <range/v3/algorithm.hpp>
 #include <string>
 
-#include "IR/CFG/BasicBlock.h"
-#include "IR/CFG/Function.h"
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/IRParser.h"

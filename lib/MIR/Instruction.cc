@@ -1,5 +1,8 @@
 #include "MIR/Instruction.h"
 
+#include "MIR/CFG.h"
+#include "MIR/Register.h"
+
 #include <utl/utility.hpp>
 
 using namespace scatha;

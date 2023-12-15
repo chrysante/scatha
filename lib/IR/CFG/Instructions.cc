@@ -2,8 +2,7 @@
 
 #include <range/v3/algorithm.hpp>
 
-#include "IR/CFG/Constants.h"
-#include "IR/CFG/Function.h"
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
 

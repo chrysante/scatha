@@ -1,6 +1,6 @@
 #include "IR/CFG/Instruction.h"
 
-#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG.h"
 
 using namespace scatha;
 using namespace ir;

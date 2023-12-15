@@ -10,6 +10,7 @@
 
 #include "Debug/DebugGraphviz.h"
 #include "MIR/CFG.h"
+#include "MIR/Instructions.h"
 
 using namespace scatha;
 using namespace cg;

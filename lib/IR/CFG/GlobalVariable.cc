@@ -1,6 +1,6 @@
 #include "IR/CFG/GlobalVariable.h"
 
-#include "IR/CFG/Constant.h"
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
 

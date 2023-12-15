@@ -1,7 +1,7 @@
 #include "MIR/CFG.h"
 
-#include "IR/CFG/BasicBlock.h"
-#include "IR/CFG/Function.h"
+#include "IR/CFG.h"
+#include "MIR/Instructions.h"
 #include "MIR/Register.h"
 
 using namespace scatha;
