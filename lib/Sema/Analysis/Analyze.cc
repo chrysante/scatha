@@ -15,8 +15,9 @@ AnalysisResult sema::analyze(ast::ASTNode& TU,
                              IssueHandler& iss,
                              AnalysisOptions const& options) {
     sym.setIssueHandler(iss);
+    sym.setLibrarySearchPaths(options.librarySearchPaths);
     AnalysisContext ctx(sym, iss);
-    auto names = gatherNames(TU, ctx, options.librarySearchPaths);
+    auto names = gatherNames(TU, ctx);
     auto structs = instantiateEntities(ctx, names.structs, names.functions);
     for (auto* def: names.functions) {
         analyzeFunction(ctx, def);

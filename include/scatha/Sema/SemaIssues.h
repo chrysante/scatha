@@ -105,6 +105,14 @@ private:
     void format(std::ostream& str) const override;
 };
 
+/// Invalid `import` statement
+class SCATHA_API BadImport: public BadStmt {
+public:
+    BadImport(Scope const* scope, ast::ImportStatement const* stmt);
+
+    SC_SEMA_DERIVED_STMT(ImportStatement, importStmt);
+};
+
 /// Base class of all declaration related issues
 class SCATHA_API BadDecl: public BadStmt {
 protected:

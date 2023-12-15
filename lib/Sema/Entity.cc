@@ -184,6 +184,12 @@ FileScope::FileScope(std::string filename, Scope* parent):
           std::move(filename),
           parent) {}
 
+LibraryScope::LibraryScope(std::string name, Scope* parent):
+    Scope(EntityType::LibraryScope,
+          ScopeKind::Global,
+          std::move(name),
+          parent) {}
+
 /// # Types
 
 size_t Type::size() const {

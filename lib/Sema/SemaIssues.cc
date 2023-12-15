@@ -178,6 +178,12 @@ void GenericBadStmt::format(std::ostream& str) const {
     }
 }
 
+BadImport::BadImport(Scope const* scope, ast::ImportStatement const* stmt):
+    BadStmt(scope, stmt, IssueSeverity::Error) {
+    primary(sourceRange(),
+            [=](std::ostream& str) { str << "Cannot find library"; });
+}
+
 static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
     switch (reason) {
 #define SC_SEMA_BADVARDECL_DEF(reason, severity, _)                            \

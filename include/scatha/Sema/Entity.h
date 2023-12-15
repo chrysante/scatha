@@ -383,6 +383,12 @@ public:
     explicit FileScope(std::string filename, Scope* parent);
 };
 
+/// Scope of symbols imported from a library
+class SCATHA_API LibraryScope: public Scope {
+public:
+    explicit LibraryScope(std::string name, Scope* parent);
+};
+
 /// # Function
 
 /// Represents the signature, aka parameter types and return type of a function

@@ -1,7 +1,12 @@
 #include "Sema/SymbolTable.h"
 
+#include <optional>
+#include <vector>
+
 #include <range/v3/algorithm.hpp>
+#include <range/v3/view.hpp>
 #include <svm/Builtin.h>
+#include <utl/dynamic_library.hpp>
 #include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
@@ -19,6 +24,7 @@
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 
 static bool isKeyword(std::string_view id) {
     static constexpr std::array keywords{
@@ -65,6 +71,9 @@ struct SymbolTable::Impl {
 
     /// The issue handler
     IssueHandler* iss = nullptr;
+
+    /// Pathes to search for imported libraries
+    std::vector<std::filesystem::path> libSearchPaths;
 
     /// Conveniece wrapper to emit issues
     /// The same function exists in `AnalysisContext`, maybe we can merge them
@@ -159,6 +168,40 @@ FileScope* SymbolTable::declareFileScope(std::string filename) {
     return file;
 }
 
+static std::optional<std::filesystem::path> findLibrary(
+    std::span<std::filesystem::path const> searchPaths, std::string name) {
+    for (auto& path: searchPaths) {
+        auto fullPath = path / (name + ".dylib");
+        if (std::filesystem::exists(fullPath)) {
+            return fullPath;
+        }
+    }
+    return std::nullopt;
+}
+
+LibraryScope* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
+    if (currentScope().kind() != ScopeKind::Global) {
+        return nullptr;
+    }
+    auto* id = dyncast<ast::Identifier const*>(stmt->libExpr());
+    if (!id) {
+        impl->issue<BadImport>(stmt);
+        return nullptr;
+    }
+    std::string name(id->value());
+    auto path = findLibrary(impl->libSearchPaths, name);
+    if (!path) {
+        impl->issue<BadImport>(stmt);
+        return nullptr;
+    }
+#if 0 // Need to link utl to use dynamic_library
+    utl::dynamic_library sharedLib(*path);
+    sharedLib.symbol_ptr<void()>("internal_declareFunctions");
+    auto* lib = impl->addEntity<LibraryScope>(name, &currentScope());
+#endif
+    SC_UNIMPLEMENTED();
+}
+
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
                                            std::string name) {
     if (isKeyword(name)) {
@@ -220,9 +263,8 @@ static utl::small_vector<Function const*> findScopeOS(Function const* ref) {
     utl::hashset<Function const*> set;
     for (auto* parent: ref->parents()) {
         auto entities = parent->findEntities(ref->name());
-        auto functions = entities |
-                         ranges::views::transform(cast<Function const*>) |
-                         ranges::views::filter(&Function::hasSignature);
+        auto functions = entities | transform(cast<Function const*>) |
+                         filter(&Function::hasSignature);
         set.insert(functions.begin(), functions.end());
     }
     set.erase(ref);
@@ -504,6 +546,11 @@ Function* SymbolTable::builtinFunction(size_t index) const {
 
 void SymbolTable::setIssueHandler(IssueHandler& issueHandler) {
     impl->iss = &issueHandler;
+}
+
+void SymbolTable::setLibrarySearchPaths(
+    std::span<std::filesystem::path const> paths) {
+    impl->libSearchPaths = paths | ranges::to<std::vector>;
 }
 
 Scope& SymbolTable::currentScope() { return *impl->currentScope; }

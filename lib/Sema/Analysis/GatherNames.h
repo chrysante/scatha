@@ -1,9 +1,6 @@
 #ifndef SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 #define SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 
-#include <filesystem>
-#include <span>
-
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
@@ -18,7 +15,7 @@ class SymbolTable;
 /// Result structure of `gatherNames()`
 /// - `structDependencyGraph` Incomplete struct dependency graph.
 ///   The edges from data members to their types are still missing at this stage
-///   and will be added by the `instantiateEntities()`
+///   and will be added by `instantiateEntities()`
 /// - `functionDefinitions` All function definitions in the program
 struct GatherNamesResult {
     StructDependencyGraph structs;
@@ -31,12 +28,8 @@ struct GatherNamesResult {
 /// declared in the table, so we can then analyze all e.g. function
 /// declarations. With that we build an incomplete dependency graph of the
 /// declarations in the program.
-///
-/// \returns (Incomplete) dependency graph
-SCATHA_API GatherNamesResult
-    gatherNames(ast::ASTNode& TU,
-                AnalysisContext& context,
-                std::span<std::filesystem::path const> librarySearchPaths);
+SCATHA_API GatherNamesResult gatherNames(ast::ASTNode& TU,
+                                         AnalysisContext& context);
 
 } // namespace scatha::sema
 

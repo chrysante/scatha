@@ -21,15 +21,12 @@ namespace {
 /// Gathers all declarations and declares them in the symbol table. Also
 /// analyzes the dependencies of structs because they are trivial.
 struct GatherContext {
-    GatherContext(AnalysisContext& ctx,
-                  GatherNamesResult& result,
-                  std::span<std::filesystem::path const> librarySearchPaths):
+    GatherContext(AnalysisContext& ctx, GatherNamesResult& result):
         ctx(ctx),
         sym(ctx.symbolTable()),
         iss(ctx.issueHandler()),
         dependencyGraph(result.structs),
-        functions(result.functions),
-        librarySearchPaths(librarySearchPaths) {}
+        functions(result.functions) {}
 
     /// Dispatches to the appropriate one of the `gatherImpl()` overloads below
     /// based on the runtime type of \p node
@@ -52,17 +49,14 @@ struct GatherContext {
     IssueHandler& iss;
     StructDependencyGraph& dependencyGraph;
     utl::vector<ast::FunctionDefinition*>& functions;
-    std::span<std::filesystem::path const> librarySearchPaths;
 };
 
 } // namespace
 
-GatherNamesResult scatha::sema::gatherNames(
-    ast::ASTNode& TU,
-    AnalysisContext& ctx,
-    std::span<std::filesystem::path const> librarySearchPaths) {
+GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& TU,
+                                            AnalysisContext& ctx) {
     GatherNamesResult result;
-    GatherContext(ctx, result, librarySearchPaths).gather(TU);
+    GatherContext(ctx, result).gather(TU);
     return result;
 }
 
@@ -86,6 +80,7 @@ size_t GatherContext::gatherImpl(ast::SourceFile& file) {
 }
 
 size_t GatherContext::gatherImpl(ast::ImportStatement& stmt) {
+    sym.importLibrary(&stmt);
     return InvalidIndex;
 }
 

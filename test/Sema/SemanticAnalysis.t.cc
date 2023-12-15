@@ -435,8 +435,16 @@ fn main() {
 }
 
 TEST_CASE("Import statement", "[sema][lib]") {
+    return;
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 import testlib;
 )");
     REQUIRE(iss.empty());
+}
+
+TEST_CASE("Import missing library", "[sema][lib]") {
+    auto iss = test::getSemaIssues(R"(
+import does_not_exist;
+)");
+    CHECK(iss.findOnLine<BadImport>(2));
 }

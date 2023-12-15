@@ -1,6 +1,7 @@
 #ifndef SCATHA_SEMA_SYMBOLTABLE_H_
 #define SCATHA_SEMA_SYMBOLTABLE_H_
 
+#include <filesystem>
 #include <memory>
 #include <span>
 #include <string>
@@ -40,6 +41,9 @@ public:
 
     ///
     FileScope* declareFileScope(std::string filename);
+
+    /// Loads symbols from a library into the symbol table
+    LibraryScope* importLibrary(ast::ImportStatement* stmt);
 
     /// Declares a struct to the current scope without specifying size and
     /// alignment.
@@ -212,6 +216,9 @@ public:
     /// Set the issue handler for this symbol table.
     /// Setting the issue handler is necessary for making declarations.
     void setIssueHandler(IssueHandler& issueHandler);
+
+    ///
+    void setLibrarySearchPaths(std::span<std::filesystem::path const> paths);
 
     /// \Returns The builtin function at index \p index
     Function* builtinFunction(size_t index) const;
