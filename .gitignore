@@ -14,6 +14,7 @@ debug/
 examples/
 !examples/**.sc
 !examples/**.scir
+!examples/**.cpp
 
 Makefile
 **/Makefile
