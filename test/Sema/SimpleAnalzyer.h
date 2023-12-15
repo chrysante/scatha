@@ -12,10 +12,12 @@
 namespace scatha::test {
 
 std::tuple<UniquePtr<ast::ASTNode>, sema::SymbolTable, IssueHandler>
-    produceDecoratedASTAndSymTable(std::span<SourceFile const> sources);
+    produceDecoratedASTAndSymTable(std::span<SourceFile const> sources,
+                                   sema::AnalysisOptions const& options = {});
 
 std::tuple<UniquePtr<ast::ASTNode>, sema::SymbolTable, IssueHandler>
-    produceDecoratedASTAndSymTable(std::string_view text);
+    produceDecoratedASTAndSymTable(std::string_view text,
+                                   sema::AnalysisOptions const& options = {});
 
 } // namespace scatha::test
 

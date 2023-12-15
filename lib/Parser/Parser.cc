@@ -280,7 +280,7 @@ struct Context {
     template <ast::BinaryOperator...>
     UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
 
-    void expectDelimiter(TokenKind delimiter);
+    bool expectDelimiter(TokenKind delimiter);
 };
 
 } // namespace
@@ -357,6 +357,7 @@ UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
     if (!expr) {
         pushExpectedExpression(tokens.peek());
     }
+    expectDelimiter(Semicolon);
     return allocate<ast::ImportStatement>(token.sourceRange(), std::move(expr));
 }
 
@@ -1597,11 +1598,12 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
     return left;
 }
 
-void Context::expectDelimiter(TokenKind delimiter) {
-    if (auto next = tokens.peek(); next.kind() != delimiter) {
-        issues.push<ExpectedDelimiter>(next);
-    }
-    else {
+bool Context::expectDelimiter(TokenKind delimiter) {
+    auto next = tokens.peek();
+    if (next.kind() == delimiter) {
         tokens.eat();
+        return true;
     }
+    issues.push<ExpectedDelimiter>(next);
+    return false;
 }

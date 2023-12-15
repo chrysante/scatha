@@ -1,8 +1,10 @@
 #ifndef SCATHA_SEMA_FWD_H_
 #define SCATHA_SEMA_FWD_H_
 
+#include <filesystem>
 #include <iosfwd>
 #include <string_view>
+#include <vector>
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
@@ -16,6 +18,12 @@ class FunctionSignature;
 class SemanticIssue;
 class SymbolTable;
 class DtorStack;
+
+/// Options struct for `sema::analyze()`
+struct AnalysisOptions {
+    /// Paths to search for libraries
+    std::vector<std::filesystem::path> librarySearchPaths;
+};
 
 ///
 /// # Forward Declaration of all entity types

@@ -1,6 +1,9 @@
 #ifndef SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 #define SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 
+#include <filesystem>
+#include <span>
+
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
@@ -30,8 +33,10 @@ struct GatherNamesResult {
 /// declarations in the program.
 ///
 /// \returns (Incomplete) dependency graph
-SCATHA_API GatherNamesResult gatherNames(ast::ASTNode& TU,
-                                         AnalysisContext& context);
+SCATHA_API GatherNamesResult
+    gatherNames(ast::ASTNode& TU,
+                AnalysisContext& context,
+                std::span<std::filesystem::path const> librarySearchPaths);
 
 } // namespace scatha::sema
 

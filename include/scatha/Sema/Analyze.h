@@ -14,7 +14,8 @@ namespace scatha::sema {
 /// \param symbolTable Symbol table to populate.
 SCATHA_API AnalysisResult analyze(ast::ASTNode& TU,
                                   SymbolTable& symbolTable,
-                                  IssueHandler&);
+                                  IssueHandler&,
+                                  AnalysisOptions const& options = {});
 
 } // namespace scatha::sema
 

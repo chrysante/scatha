@@ -433,3 +433,10 @@ fn main() {
 })");
     CHECK(iss.findOnLine<BadExpr>(4, BadExpr::BinaryExprImmutableLHS));
 }
+
+TEST_CASE("Import statement", "[sema][lib]") {
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+import testlib;
+)");
+    REQUIRE(iss.empty());
+}
