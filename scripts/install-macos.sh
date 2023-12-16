@@ -23,6 +23,3 @@ copy svm
 
 compile scathadb/scathadb.xcodeproj Release
 copy scathadb
-
-compile sctool/sctool.xcodeproj Release
-copy sctool
