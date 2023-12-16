@@ -278,6 +278,23 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
 NullPtrType::NullPtrType(Scope* parent):
     BuiltinType(EntityType::NullPtrType, "<null-type>", parent, 1, 1) {}
 
+static Scope* getParent(ObjectType const* type) {
+    return type ? const_cast<Scope*>(type->parent()) : nullptr;
+}
+
+ArrayType::ArrayType(ObjectType* elementType, size_t count):
+    CompoundType(EntityType::ArrayType,
+                 ScopeKind::Type,
+                 makeName(elementType, count),
+                 getParent(elementType),
+                 count != DynamicCount ? count * elementType->size() :
+                                         InvalidSize,
+                 elementType->align()),
+    elemType(elementType),
+    _count(count) {
+    setBuiltin(elementType->isBuiltin());
+}
+
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     std::stringstream sstr;
     sstr << "[" << elemType->name();
@@ -303,7 +320,7 @@ PointerType::PointerType(EntityType entityType,
     ObjectType(entityType,
                ScopeKind::Invalid,
                std::move(name),
-               const_cast<Scope*>(base->parent()),
+               getParent(base.get()),
                ptrSize(base),
                ptrAlign()),
     PtrRefTypeBase(base) {}
@@ -320,7 +337,7 @@ ReferenceType::ReferenceType(QualType base):
     Type(EntityType::ReferenceType,
          ScopeKind::Invalid,
          makeIndirectName("&", base),
-         const_cast<Scope*>(base->parent())),
+         getParent(base.get())),
     PtrRefTypeBase(base) {}
 
 void Function::setDeducedReturnType(Type const* type) {

@@ -25,21 +25,36 @@ struct PrintContext {
 
     void print(Entity const& entity);
 
+    utl::vstreammanip<> type(Type const* type) {
+        return [=](std::ostream& str) {
+            if (type) {
+                str << type->name();
+            }
+            else {
+                str << "NULL";
+            }
+        };
+    }
+
     utl::vstreammanip<> name(Entity const& entity);
 
     utl::vstreammanip<> nameImpl(Entity const* entity) {
         return [=](std::ostream& str) { str << entity->name(); };
     }
 
+    utl::vstreammanip<> nameImpl(Object const* object) {
+        return [=](std::ostream& str) {
+            str << object->name() << ": " << type(object->type());
+        };
+    }
+
     utl::vstreammanip<> nameImpl(Function const* function) {
         return [=](std::ostream& str) {
             str << function->name() << "(";
-            for (bool first = true; auto* type: function->argumentTypes()) {
-                str << (first ? first = false, "" : ", ")
-                    << (type ? type->name() : "NULL");
+            for (bool first = true; auto* argType: function->argumentTypes()) {
+                str << (first ? first = false, "" : ", ") << type(argType);
             }
-            auto* retType = function->returnType();
-            str << ") -> " << (retType ? retType->name() : "NULL");
+            str << ") -> " << type(function->returnType());
         };
     }
 

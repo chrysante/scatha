@@ -2,6 +2,8 @@
 
 #include <ostream>
 
+#include <utl/hashtable.hpp>
+
 #include "Sema/Entity.h"
 
 using namespace scatha;

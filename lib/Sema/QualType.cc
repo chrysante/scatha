@@ -8,6 +8,9 @@ using namespace scatha;
 using namespace sema;
 
 std::string QualType::qualName() const {
+    if (!get()) {
+        return "NULL";
+    }
     if (isMut()) {
         return utl::strcat("mut ", get()->name());
     }

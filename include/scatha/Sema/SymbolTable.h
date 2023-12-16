@@ -160,19 +160,25 @@ public:
     void makeScopeCurrent(Scope* scope);
 
     /// Invoke function \p f with scope \p scope made current
-    decltype(auto) withScopeCurrent(Scope* scope, std::invocable auto&& f) {
-        auto* stashed = &currentScope();
-        utl::scope_guard guard([&] { makeScopeCurrent(stashed); });
-        makeScopeCurrent(scope);
+    decltype(auto) withScopeCurrent(Scope const* cscope,
+                                    std::invocable auto&& f) const {
+        auto* scope = const_cast<Scope*>(cscope);
+        auto* self = const_cast<SymbolTable*>(this);
+        auto* stashed = &self->currentScope();
+        utl::scope_guard guard([=] { self->makeScopeCurrent(stashed); });
+        self->makeScopeCurrent(scope);
         return std::invoke(f);
     }
 
     /// Invoke function \p f with scope \p scope pushed
     /// This is essentially the same as `withScopeCurrent()` but it traps if \p
     /// scope is not a direct child of the current scope
-    decltype(auto) withScopePushed(Scope* scope, std::invocable auto&& f) {
-        utl::scope_guard guard([this] { popScope(); });
-        pushScope(scope);
+    decltype(auto) withScopePushed(Scope const* cscope,
+                                   std::invocable auto&& f) const {
+        auto* scope = const_cast<Scope*>(cscope);
+        auto* self = const_cast<SymbolTable*>(this);
+        utl::scope_guard guard([self] { self->popScope(); });
+        self->pushScope(scope);
         return std::invoke(f);
     }
 
@@ -252,13 +258,11 @@ public:
     FloatType const* F64() const;
     ArrayType const* Str() const;
     NullPtrType const* NullPtrType() const;
+
+    IntType const* Int() const { return S64(); }
+    FloatType const* Float() const { return F32(); }
+    FloatType const* Double() const { return F64(); }
     /// @}
-
-    ///
-    std::string serialize() const;
-
-    ///
-    static SymbolTable deserialize(std::string_view data);
 
 private:
     StructType* declareStructImpl(ast::StructDefinition* def, std::string name);

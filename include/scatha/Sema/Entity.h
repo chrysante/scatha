@@ -332,11 +332,22 @@ public:
     }
 
     /// \Returns A View over the children of this scope
-    auto children() const { return _children | Opaque; }
+    std::span<Scope* const> children() { return _children.values(); }
+
+    /// \overload
+    std::span<Scope const* const> children() const {
+        return _children.values();
+    }
 
     /// \Returns A View over the entities in this scope
+    auto entities() {
+        return _names.values() | ranges::views::values | ranges::views::join;
+    }
+
+    /// \overload
     auto entities() const {
-        return _names | ranges::views::values | ranges::views::join;
+        return _names.values() | ranges::views::values | ranges::views::join |
+               ToConstAddress;
     }
 
     /// Add \p entity as a child of this scope. This function is used by the
@@ -876,18 +887,7 @@ class SCATHA_API ArrayType: public CompoundType {
 public:
     static constexpr size_t DynamicCount = ~size_t(0);
 
-    explicit ArrayType(ObjectType* elementType, size_t count):
-        CompoundType(EntityType::ArrayType,
-                     ScopeKind::Type,
-                     makeName(elementType, count),
-                     elementType->parent(),
-                     count != DynamicCount ? count * elementType->size() :
-                                             InvalidSize,
-                     elementType->align()),
-        elemType(elementType),
-        _count(count) {
-        setBuiltin(elementType->isBuiltin());
-    }
+    explicit ArrayType(ObjectType* elementType, size_t count);
 
     /// Type of the elements in this array
     ObjectType* elementType() { return elemType; }

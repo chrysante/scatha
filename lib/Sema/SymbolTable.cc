@@ -478,7 +478,11 @@ T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
     }
     auto* ptrType = addEntity<T>(pointee);
     map.insert({ pointee, ptrType });
-    const_cast<ObjectType*>(pointee.get())->parent()->addChild(ptrType);
+    if (auto* type = const_cast<ObjectType*>(pointee.get());
+        type && type->parent())
+    {
+        type->parent()->addChild(ptrType);
+    }
     if (continuation) {
         continuation(ptrType);
     }
@@ -655,10 +659,4 @@ bool SymbolTable::checkRedef(int kind,
         return checkRedefImpl(*impl, Redef(kind), &globalScope(), name, decl);
     }
     return true;
-}
-
-std::string SymbolTable::serialize() const { SC_UNIMPLEMENTED(); }
-
-SymbolTable SymbolTable::deserialize(std::string_view data) {
-    SC_UNIMPLEMENTED();
 }
