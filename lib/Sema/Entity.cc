@@ -282,14 +282,27 @@ static Scope* getParent(ObjectType const* type) {
     return type ? const_cast<Scope*>(type->parent()) : nullptr;
 }
 
+static size_t computeArraySize(ObjectType* elementType, size_t count) {
+    if (!elementType || count == ArrayType::DynamicCount) {
+        return InvalidSize;
+    }
+    return count * elementType->size();
+}
+
+static size_t computeArrayAlign(ObjectType* elementType) {
+    if (!elementType) {
+        return InvalidSize;
+    }
+    return elementType->align();
+}
+
 ArrayType::ArrayType(ObjectType* elementType, size_t count):
     CompoundType(EntityType::ArrayType,
                  ScopeKind::Type,
                  makeName(elementType, count),
                  getParent(elementType),
-                 count != DynamicCount ? count * elementType->size() :
-                                         InvalidSize,
-                 elementType->align()),
+                 computeArraySize(elementType, count),
+                 computeArrayAlign(elementType)),
     elemType(elementType),
     _count(count) {
     setBuiltin(elementType->isBuiltin());
@@ -303,6 +316,12 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     }
     sstr << "]";
     return std::move(sstr).str();
+}
+
+void ArrayType::recomputeSize() {
+    setSize(computeArraySize(elementType(), count()));
+    setAlign(computeArrayAlign(elementType()));
+    setName(makeName(elementType(), count()));
 }
 
 static size_t ptrSize(QualType base) { return isa<ArrayType>(*base) ? 16 : 8; }

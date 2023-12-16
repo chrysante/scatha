@@ -142,6 +142,8 @@ protected:
         _names({ std::move(name) }),
         _astNode(astNode) {}
 
+    void setName(std::string name) { _names[0] = std::move(name); }
+
 private:
     friend class Scope;
     /// To be used by scope
@@ -900,6 +902,13 @@ public:
 
     /// Shorthand for `count() == DynamicCount`
     bool isDynamic() const { return count() == DynamicCount; }
+
+    /// Recomputes size and align based on the element type and count. Used by
+    /// `instantiateEntities()` to recompute the size for array types that have
+    /// been instantiated before their element type is instantiated. This okay
+    /// to be public because is has no effect if the size is already set
+    /// correctly.
+    void recomputeSize();
 
 private:
     static std::string makeName(ObjectType const* elemType, size_t size);

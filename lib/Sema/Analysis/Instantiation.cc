@@ -200,6 +200,9 @@ void InstContext::instantiateStructureType(SDGNode& node) {
             continue;
         }
         auto* varType = varDecl->type();
+        if (auto* array = dyncast<ArrayType const*>(varType)) {
+            const_cast<ArrayType*>(array)->recomputeSize();
+        }
         objectAlign = std::max(objectAlign, varType->align());
         SC_ASSERT(varType->size() % varType->align() == 0,
                   "size must be a multiple of align");

@@ -4,6 +4,7 @@
 #include <istream>
 #include <ostream>
 #include <sstream>
+#include <stdexcept>
 
 #include <nlohmann/json.hpp>
 #include <range/v3/algorithm.hpp>
@@ -17,7 +18,7 @@ using namespace scatha;
 using namespace sema;
 using namespace ranges::views;
 
-/// # Type to string conversion
+/// MARK: - Type to string conversion
 
 static void scopedNameImpl(Type const& type, std::ostream& str) {
     auto ptrLikeImpl = [&](std::string_view kind, PtrRefTypeBase const& ptr) {
@@ -27,6 +28,7 @@ static void scopedNameImpl(Type const& type, std::ostream& str) {
         }
         scopedNameImpl(*ptr.base(), str);
     };
+    // clang-format off
     SC_MATCH (type) {
         [&](ObjectType const& type) {
             auto rec = [&](auto& rec, auto* scope) {
@@ -39,17 +41,18 @@ static void scopedNameImpl(Type const& type, std::ostream& str) {
             rec(rec, type.parent());
             str << type.name();
         },
-            [&](ArrayType const& arr) {
+        [&](ArrayType const& arr) {
             str << "[";
             scopedNameImpl(*arr.elementType(), str);
-            if (arr.isDynamic()) {
+            if (!arr.isDynamic()) {
                 str << ", " << arr.count();
             }
             str << "]";
-            }, [&](ReferenceType const& ref) { ptrLikeImpl("&", ref); },
-            [&](RawPtrType const& ptr) { ptrLikeImpl("*", ptr); },
-            [&](UniquePtrType const& ptr) { ptrLikeImpl("*unique ", ptr); },
-    };
+        },
+        [&](ReferenceType const& ref) { ptrLikeImpl("&", ref); },
+        [&](RawPtrType const& ptr) { ptrLikeImpl("*", ptr); },
+        [&](UniquePtrType const& ptr) { ptrLikeImpl("*unique ", ptr); },
+    }; // clang-format on
 }
 
 static std::string scopedName(Type const* type) {
@@ -58,7 +61,7 @@ static std::string scopedName(Type const* type) {
     return std::move(sstr).str();
 }
 
-/// # String to type conversion
+/// MARK: - String to type conversion
 
 namespace {
 
@@ -215,6 +218,7 @@ CHAR: {                                                                        \
     }
 
     ArrayType const* parseArray() {
+        lex.get();
         auto* elemType = dyncast<ObjectType const*>(parse());
         auto next = lex.get();
         if (next.type == Token::CloseBracket) {
@@ -238,10 +242,13 @@ CHAR: {                                                                        \
 
 static Type const* parseTypeName(SymbolTable& sym, std::string_view text) {
     TypeNameParser parser(sym, text);
-    return parser.parse();
+    if (auto* type = parser.parse()) {
+        return type;
+    }
+    throw std::runtime_error("Failed to parse type");
 }
 
-/// # serialize()
+/// MARK: - serialize()
 
 using namespace nlohmann;
 
@@ -298,6 +305,8 @@ static void to_json_impl(json& j, StructType const& type) {
         return isa<StructType>(child) || isa<Function>(child) ||
                isa<Variable>(child);
     });
+    j["size"] = type.size();
+    j["align"] = type.align();
 }
 
 static void to_json_impl(json& j, Variable const& var) {
@@ -318,7 +327,7 @@ void sema::serialize(SymbolTable const& sym, std::ostream& ostream) {
     ostream << std::setw(2) << j << std::endl;
 }
 
-/// # deserialize()
+/// MARK: - deserialize()
 
 static std::optional<EntityType> toEntityType(json const& j) {
     static utl::hashmap<std::string_view, EntityType> const map = {
@@ -373,6 +382,8 @@ struct DeserializeContext {
                 [&](Tag<StructType>) {
                     auto* type = sym.declareStructureType(getName(child));
                     map[&child] = type;
+                    type->setSize(child["size"].get<size_t>());
+                    type->setAlign(child["align"].get<size_t>());
                     sym.withScopeCurrent(type, [&] {
                         parseTypes(child["children"]);
                     });
@@ -418,8 +429,13 @@ struct DeserializeContext {
 } // namespace
 
 bool sema::deserialize(SymbolTable& sym, std::istream& istream) {
-    json j = json::parse(istream);
-    DeserializeContext ctx(sym);
-    ctx.run(j);
-    return true;
+    try {
+        json j = json::parse(istream);
+        DeserializeContext ctx(sym);
+        ctx.run(j);
+        return true;
+    }
+    catch (std::exception const&) {
+        return false;
+    }
 }

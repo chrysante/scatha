@@ -45,15 +45,16 @@ struct Finder {
 
 } // namespace
 
-TEST_CASE("Serialize/deserialize", "[sema]") {
-    return;
+TEST_CASE("Symbol table serialize/deserialize", "[sema]") {
     auto [ast, sym, iss] = produceDecoratedASTAndSymTable(R"(
 struct X {
     fn foo(n: int) -> double {}
-    fn bar(&mut this, ptr: *unique mut int) {}
+    fn bar(&this, ptr: *unique mut int) {}
     var baz: [Y, 2];
     struct Y { var k: int; }
-})");
+}
+struct Y {}
+)");
     REQUIRE(iss.empty());
     std::stringstream sstr;
     serialize(sym, sstr);
@@ -96,4 +97,19 @@ struct X {
         CHECK(bazType->elementType() == Y);
         CHECK(bazType->count() == 2);
     });
+    CHECK(cast<Type const*>(find("Y"))->size() == 1);
+}
+
+TEST_CASE("Symbol table empty deserialization", "[sema]") {
+    std::stringstream sstr;
+    sstr << "{}";
+    SymbolTable sym;
+    CHECK(deserialize(sym, sstr));
+}
+
+TEST_CASE("Symbol table erroneous deserialization", "[sema]") {
+    std::stringstream sstr;
+    sstr << "random nonesense";
+    SymbolTable sym;
+    CHECK(!deserialize(sym, sstr));
 }

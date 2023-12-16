@@ -327,7 +327,12 @@ struct Z {
 struct W {
     var r: [s8, 7];
     var n: s64;
-})");
+}
+struct S {
+    var arr: [Y, 2];
+    struct Y { var n: int; }
+}
+)");
     REQUIRE(iss.empty());
     auto* x = lookup<StructType>(sym, "X");
     CHECK(x->size() == 8);
@@ -341,6 +346,9 @@ struct W {
     auto* w = lookup<StructType>(sym, "W");
     CHECK(w->size() == 16);
     CHECK(w->align() == 8);
+    auto* s = lookup<StructType>(sym, "S");
+    CHECK(s->size() == 16);
+    CHECK(s->align() == 8);
 }
 
 TEST_CASE("Return type deduction", "[sema]") {
