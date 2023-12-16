@@ -82,19 +82,6 @@ void scatha::optimize(ir::Context& ctx,
     }
 }
 
-static void reportRetval(uint64_t retval) {
-    auto const signedRetval = static_cast<int64_t>(retval);
-    // clang-format off
-    std::cout << "Program returned: " << retval;
-    std::cout << "\n                 (0x" << std::hex << retval << std::dec << ")";
-    if (signedRetval < 0) {
-    std::cout << "\n                 (" << signedRetval << ")";
-    }
-    std::cout << "\n                 (" << std::bit_cast<double>(retval) << ")";
-    std::cout << std::endl;
-    // clang-format on
-}
-
 extern const utl::vstreammanip<> scatha::Warning = [](std::ostream& str) {
     str << tfmt::format(tfmt::Yellow | tfmt::Bold, "Warning: ");
 };
