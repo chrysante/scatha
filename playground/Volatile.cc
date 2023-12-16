@@ -16,7 +16,6 @@
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
 #include "CodeGen/CodeGen.h"
-#include "CodeGen/ISelTest.h"
 #include "CodeGen/Passes.h"
 #include "Common/Base.h"
 #include "Common/Logging.h"
@@ -25,13 +24,14 @@
 #include "IR/Context.h"
 #include "IR/DataFlow.h"
 #include "IR/Dominance.h"
+#include "IR/IRParser.h"
 #include "IR/Loop.h"
 #include "IR/Module.h"
-#include "IR/Parser.h"
+#include "IR/PassManager.h"
+#include "IR/PipelineError.h"
 #include "IR/Print.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
-#include "IRDump.h"
 #include "IRGen/IRGen.h"
 #include "Issue/Format.h"
 #include "Issue/IssueHandler.h"
@@ -40,14 +40,13 @@
 #include "MIR/Print.h"
 #include "Opt/Common.h"
 #include "Opt/Optimizer.h"
-#include "Opt/PassManager.h"
 #include "Opt/Passes.h"
-#include "Opt/PipelineError.h"
 #include "Opt/SCCCallGraph.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
+#include "Sema/Serialize.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -113,41 +112,6 @@ static void run(ir::Module const& mod) {
     std::cout << "\n";
 }
 
-[[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
-    auto [ctx, irMod] = makeIRModuleFromFile(path);
-    header("IR Module");
-    print(irMod);
-    auto mod = cg::codegen(irMod, *std::make_unique<cg::DebugLogger>());
-    header("Assembly");
-    Asm::print(mod);
-    run(mod);
-}
-
-[[maybe_unused]] static void iselPlayground(std::filesystem::path path) {
-    auto [ctx, irMod] = makeIRModuleFromFile(path);
-    header("IR Module");
-    opt::PassManager::makePipeline("inline, splitreturns").execute(ctx, irMod);
-    print(irMod);
-    cg::isel(irMod.front());
-}
-
-[[maybe_unused]] static void irPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
-    header("As parsed");
-    print(mod);
-    run(mod);
-    auto pipeline = opt::PassManager::makePipeline("inline");
-    header(toString(pipeline));
-    pipeline(ctx, mod);
-    print(mod);
-    run(mod);
-    return;
-
-    header(toString(pipeline));
-    pipeline(ctx, mod);
-    print(mod);
-}
-
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
     std::fstream file(path);
     if (!file) {
@@ -157,9 +121,7 @@ static void run(ir::Module const& mod) {
     sstr << file.rdbuf();
     auto source = sstr.str();
 
-    std::vector files = { SourceFile::load(path.parent_path() /
-                                           "ModuleTest.sc"),
-                          SourceFile::load(path) };
+    std::vector files = { SourceFile::load(path) };
     IssueHandler issues;
     auto TU = parser::parse(files, issues);
     if (!issues.empty()) {
@@ -174,26 +136,22 @@ static void run(ir::Module const& mod) {
     if (!issues.empty()) {
         issues.print(files);
     }
-    header("AST");
-    ast::printTree(*TU);
     header("Symbol Table");
     sema::print(sym);
 
     if (issues.haveErrors()) {
         return;
     }
-
-    header("IR Module");
-    auto [ctx, mod] = irgen::generateIR(*TU, sym, analysisResult, {});
-    ir::print(mod);
-
-    run(mod);
-
-    header("After optimizations");
-    opt::optimize(ctx, mod, 1);
-    ir::print(mod);
-
-    run(mod);
+    {
+        std::stringstream sstr;
+        header("Serialized Symbol Table");
+        serialize(sym, sstr);
+        std::cout << sstr.str();
+        sema::SymbolTable sym2;
+        deserialize(sym2, sstr);
+        header("Deserialized Symbol Table");
+        sema::print(sym2);
+    }
 }
 
 [[maybe_unused]] static void lexPlayground(std::filesystem::path path) {
@@ -211,23 +169,6 @@ static void run(ir::Module const& mod) {
     }
 }
 
-[[maybe_unused]] static void pipelinePlayground(std::filesystem::path path) {
-    std::fstream file(path);
-    if (!file) {
-        return;
-    }
-    std::stringstream sstr;
-    sstr << file.rdbuf();
-    auto text = sstr.str();
-    try {
-        auto pipeline = opt::PassManager::makePipeline(text);
-        print(pipeline);
-    }
-    catch (opt::PipelineError const& e) {
-        std::cout << e.what() << std::endl;
-    }
-}
-
 void playground::volatilePlayground(std::filesystem::path path) {
-    mirPlayground(path);
+    frontendPlayground(path);
 }
