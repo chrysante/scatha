@@ -1,115 +1,67 @@
-#include <chrono>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
+#include <CLI/CLI11.hpp>
 
-#include <range/v3/view.hpp>
-#include <scatha/Assembly/Assembler.h>
-#include <scatha/Assembly/AssemblyStream.h>
-#include <scatha/CodeGen/CodeGen.h>
-#include <scatha/Common/ExecutableWriter.h>
-#include <scatha/Common/SourceFile.h>
-#include <scatha/IR/Context.h>
-#include <scatha/IR/Module.h>
-#include <scatha/IRGen/IRGen.h>
-#include <scatha/Issue/IssueHandler.h>
-#include <scatha/Opt/Optimizer.h>
-#include <scatha/Parser/Parser.h>
-#include <scatha/Sema/Analyze.h>
-#include <scatha/Sema/SymbolTable.h>
-#include <termfmt/termfmt.h>
-#include <utl/format_time.hpp>
-#include <utl/strcat.hpp>
-#include <utl/streammanip.hpp>
-#include <utl/typeinfo.hpp>
-
-#include "CLIParse.h"
+#include "Compiler.h"
+#include "Graph.h"
+#include "Inspect.h"
+#include "Options.h"
+#include "Util.h"
 
 using namespace scatha;
 
-/// Writes red "Error: " message to \p str
-[[maybe_unused]] static constexpr utl::streammanip Warning(
-    [](std::ostream& str) {
-    str << tfmt::format(tfmt::Yellow | tfmt::Bold, "Warning: ");
-});
-
-/// Writes yellow "Warning: " message to \p str
-[[maybe_unused]] static constexpr utl::streammanip Error([](std::ostream& str) {
-    str << tfmt::format(tfmt::Red | tfmt::Bold, "Error: ");
-});
-
 int main(int argc, char* argv[]) {
-    scathac::Options options = scathac::parseCLI(argc, argv);
-    if (options.files.empty()) {
-        std::cout << Error << "No input files" << std::endl;
-        return -1;
-    }
-    auto sourceFiles = options.files |
-                       ranges::views::transform([](auto const& path) {
-                           return SourceFile::load(path);
-                       }) |
-                       ranges::to<std::vector>;
+    CLI::App compiler("sctool");
+    compiler.require_subcommand(0, 1);
 
-    /// Now we compile the program
-    auto const compileBeginTime = std::chrono::high_resolution_clock::now();
-    IssueHandler issueHandler;
-    auto ast = parser::parse(sourceFiles, issueHandler);
-    if (!issueHandler.empty()) {
-        issueHandler.print(sourceFiles);
-    }
-    if (!ast) {
-        return -1;
-    }
-    sema::SymbolTable semaSym;
-    auto analysisResult = sema::analyze(*ast, semaSym, issueHandler);
-    if (!issueHandler.empty()) {
-        issueHandler.print(sourceFiles);
-    }
-    if (issueHandler.haveErrors()) {
-        return -1;
-    }
-    auto [context, mod] =
-        irgen::generateIR(*ast,
-                          semaSym,
-                          analysisResult,
-                          { .sourceFiles = sourceFiles,
-                            .generateDebugSymbols = options.debug });
-    if (options.optimize) {
-        opt::optimize(context, mod, 1);
-    }
-    auto asmStream = cg::codegen(mod);
-    auto [program, symbolTable] = Asm::assemble(asmStream);
-    std::string dsym = [&] {
-        if (!options.debug) {
-            return std::string{};
-        }
-        return Asm::generateDebugSymbols(asmStream);
-    }();
-    auto const compileEndTime = std::chrono::high_resolution_clock::now();
-    if (options.time) {
-        std::cout << "Compilation took "
-                  << utl::format_duration(compileEndTime - compileBeginTime)
-                  << "\n";
-    }
+    // clang-format off
+    CompilerOptions compilerOptions{};
+    compiler.add_option("files", compilerOptions.files)->check(CLI::ExistingPath);
+    compiler.add_flag("-o,--optimize", compilerOptions.optimize, "Optimize the program");
+    compiler.add_flag("-d,--debug", compilerOptions.debug, "Generate debug symbols");
+    compiler.add_flag("-t,--time", compilerOptions.time, "Measure compilation time");
+    compiler.add_flag("-b, --binary-only", compilerOptions.binaryOnly,
+                  "Emit .sbin file. Otherwise the compiler emits an executable that can be run directly using a shell script hack");
+    compiler.add_option("--out-dir", compilerOptions.bindir, "Directory to place binary");
+    
+    CLI::App* inspect = compiler.add_subcommand("inspect", "Tool to visualize the state of the compilation pipeline");
+    InspectOptions inspectOptions{};
+    inspect->add_option("files", inspectOptions.files)->check(CLI::ExistingPath);
+    inspect->add_flag("--ast", inspectOptions.ast, "Print AST");
+    inspect->add_flag("--sym", inspectOptions.sym, "Print symbol table");
+    inspect->add_option("--pipeline", inspectOptions.pipeline, "Optimization pipeline to be run on the IR");
+    inspect->add_flag("--emit-ir", inspectOptions.emitIR, "Write generated IR to file");
+    inspect->add_flag("--isel", inspectOptions.isel, "Run the experimental ISel pipeline");
+    inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
+    inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
+    inspect->add_option("--out", inspectOptions.out, "Emit executable file");
+    
+    CLI::App* graph = compiler.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
+    GraphOptions graphOptions{};
+    graph->add_option("files", graphOptions.files)->check(CLI::ExistingPath);
+    graph->add_option("--pipeline", graphOptions.pipeline, "Optimization pipeline to be run on the IR");
+    graph->add_option("--dest", graphOptions.dest, "Directory to write the generated files");
+    graph->add_flag("--svg", graphOptions.generatesvg, "Generate SVG files");
+    graph->add_flag("--open", graphOptions.open, "Open generated graphs")->needs("--svg");
+    graph->add_flag("--cfg", graphOptions.cfg, "Draw control flow graph");
+    graph->add_flag("--calls", graphOptions.calls, "Draw call graph");
+    graph->add_flag("--interference", graphOptions.interference, "Draw interference graph");
+    graph->add_flag("--selection-dag", graphOptions.selectiondag, "Draw selection DAG");
+    // clang-format on
 
-    /// We emit the executable
-    if (options.bindir.empty()) {
-        options.bindir = "out";
-    }
-    writeExecutableFile(options.bindir,
-                        program,
-                        { .executable = !options.binaryOnly });
-    if (options.debug) {
-        auto path = options.bindir;
-        path += ".scdsym";
-        std::fstream file(path, std::ios::out | std::ios::trunc);
-        if (!file) {
-            std::cerr << "Failed to write debug symbols\n";
-            return 1;
+    try {
+        compiler.parse(argc, argv);
+        if (inspect->parsed()) {
+            return inspectMain(inspectOptions);
         }
-        file << dsym;
+        if (graph->parsed()) {
+            return graphMain(graphOptions);
+        }
+        return compilerMain(compilerOptions);
     }
-    return 0;
+    catch (CLI::ParseError const& e) {
+        return compiler.exit(e);
+    }
+    catch (std::exception const& e) {
+        std::cout << Error << e.what() << std::endl;
+        return 1;
+    }
 }
