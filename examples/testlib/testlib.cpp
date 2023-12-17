@@ -1,7 +1,7 @@
 #include <scatha/Runtime/LibSupport.h>
 
-int myFunction() {
-    return 42;
+int myFunction(int a, int b) {
+    return a + b;
 }
 
 SC_EXPORT_FUNCTION(myFunction, "myFunction");
