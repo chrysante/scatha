@@ -124,6 +124,10 @@ std::span<ExternalFunction const> VirtualMachine::getExtFunctionTable(
     return impl->extFunctionTable[slot];
 }
 
+size_t VirtualMachine::numForeignFunctionTableSlots() const {
+    return impl->extFunctionTable.size();
+}
+
 std::span<u64 const> VirtualMachine::registerData() const {
     return impl->registers;
 }

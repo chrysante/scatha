@@ -98,6 +98,18 @@ static std::string getLabelName(Disassembly const* disasm, Value offset) {
     return labelName(destInst.labelID);
 }
 
+static std::string getForeignFunctionName(svm::VirtualMachine const* vm,
+                                          CallExtArg arg) {
+    if (arg.tableIdx >= vm->numForeignFunctionTableSlots()) {
+        return "<unknown>";
+    }
+    auto table = vm->getExtFunctionTable(arg.tableIdx);
+    if (arg.idxIntoTable >= table.size()) {
+        return "<unknown>";
+    }
+    return table[arg.idxIntoTable].name();
+}
+
 static void print(std::ostream& str,
                   Instruction inst,
                   Disassembly const* disasm,
@@ -146,9 +158,7 @@ static void print(std::ostream& str,
                 std::bit_cast<CallExtArg>(static_cast<uint32_t>(inst.arg1.raw));
             str << " " << +args.regOffset;
             if (vm) {
-                str << ", "
-                    << vm->getExtFunctionTable(args.tableIdx)[args.idxIntoTable]
-                           .name();
+                str << ", " << getForeignFunctionName(vm, args);
             }
             else {
                 str << ", " << +args.tableIdx << ", " << args.idxIntoTable;

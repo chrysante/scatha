@@ -92,8 +92,11 @@ public:
     /// function table
     void setFunction(size_t slot, size_t index, ExternalFunction function);
 
-    /// \Returns a view over the external function table slot \p slot
+    /// \Returns a view over the foreign function table slot \p slot
     std::span<ExternalFunction const> getExtFunctionTable(size_t slot) const;
+
+    /// \Returns the number of allocated foreign function table slots
+    size_t numForeignFunctionTableSlots() const;
 
     /// \Returns A view of the data in the registers of the VM
     std::span<u64 const> registerData() const;
