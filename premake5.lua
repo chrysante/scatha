@@ -98,8 +98,6 @@ addCppFiles "test"
 links { "Catch2", "scatha", "svm-lib", "APMath", "termfmt" } 
 
 ------------------------------------------
-
-------------------------------------------
 project "playground"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
@@ -137,6 +135,7 @@ include "svm/premake5.lua"
 include "scathac/premake5.lua"
 include "scathadb/premake5.lua"
 include "runtime/premake5.lua"
+include "ffi-testlib/premake5.lua"
 
 include "external/termfmt/lib.lua"
 include "external/graphgen/lib.lua"

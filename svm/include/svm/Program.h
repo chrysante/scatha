@@ -3,6 +3,8 @@
 
 #include <iosfwd>
 #include <span>
+#include <string>
+#include <vector>
 
 #include <svm/Common.h>
 
@@ -40,16 +42,20 @@ struct ProgramHeader {
 /// - `[lib-decl]` ; List of library declarations where `lib-decl` is:
 ///   - `[char]\0` Null-terminated string denoting library name
 ///   - `u32` ; Number of foreign function declarations
-///   - `[func-decl]` ; List of function declarations where `func-decl` is:
+///   - `[ffi-decl]` ; List of function declarations where `ffi-decl` is:
+///     - `[char]\0` ; Null-terminated string denoting the name
 ///     - `u32` ; Slot
 ///     - `u32` ; Index
-///     - `u16` ; Number of parameters
-///     - `[u16]` ; List of parameter type sizes
-///     - `u16` ; Return type size
-///     - `[char]\0` ; Null-terminated string denoting the name
-class FFIDeclView {
-public:
-    explicit FFIDeclView(std::span<u8 const> data);
+
+struct FFIDecl {
+    std::string name;
+    size_t slot;
+    size_t index;
+};
+
+struct FFILibDecl {
+    std::string name;
+    std::vector<FFIDecl> funcDecls;
 };
 
 ///
@@ -59,6 +65,9 @@ public:
 
     ///
     ProgramHeader header;
+
+    /// Address of the 'start' label
+    size_t startAddress = 0;
 
     /// View over the entire binary section of the program, i.e. `data` and
     /// `text` adjacently combined
@@ -70,8 +79,8 @@ public:
     /// View over the code of the program
     std::span<u8 const> text;
 
-    /// Address of the 'start' label
-    size_t startAddress = 0;
+    ///
+    std::vector<FFILibDecl> libDecls;
 };
 
 ///

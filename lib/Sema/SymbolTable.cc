@@ -9,6 +9,7 @@
 #include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
+#include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
@@ -169,10 +170,21 @@ FileScope* SymbolTable::declareFileScope(std::string filename) {
     return file;
 }
 
+static std::string toLibName(std::string_view name) {
+    /// TODO: Make portable
+    /// This is the MacOS convention, need to add linux and windows conventions
+    /// for portability
+    return utl::strcat("lib", name, ".dylib");
+}
+
 static std::optional<std::filesystem::path> findLibrary(
     std::span<std::filesystem::path const> searchPaths, std::string name) {
+    std::filesystem::path fullPath = toLibName(name);
+    if (std::filesystem::exists(fullPath)) {
+        return fullPath;
+    }
     for (auto& path: searchPaths) {
-        auto fullPath = path / (name + ".dylib");
+        auto fullPath = path / toLibName(name);
         if (std::filesystem::exists(fullPath)) {
             return fullPath;
         }
@@ -184,12 +196,12 @@ LibraryScope* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
     if (currentScope().kind() != ScopeKind::Global) {
         return nullptr;
     }
-    auto* id = dyncast<ast::Identifier const*>(stmt->libExpr());
-    if (!id) {
+    auto* nameExpr = dyncast<ast::Literal const*>(stmt->libExpr());
+    if (!nameExpr || nameExpr->kind() != ast::LiteralKind::String) {
         impl->issue<BadImport>(stmt);
         return nullptr;
     }
-    std::string name(id->value());
+    std::string name = nameExpr->value<std::string>();
     auto path = findLibrary(impl->libSearchPaths, name);
     if (!path) {
         impl->issue<BadImport>(stmt);

@@ -467,14 +467,9 @@ void AsmContext::writeFFILinkSection() {
 }
 
 void AsmContext::writeFFIDecl(ForeignFunctionDecl const& FFI) {
+    putNullTerm(FFI.name);
     put<u32>(FFI.address.slot);
     put<u32>(FFI.address.index);
-    put<u16>(FFI.argTypes.size());
-    for (size_t size: FFI.argTypes) {
-        put<u16>(size);
-    }
-    put<u16>(FFI.retType);
-    putNullTerm(FFI.name);
 }
 
 std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {

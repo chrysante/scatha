@@ -3,6 +3,7 @@
 
 #include <span>
 
+#include <utl/dynamic_library.hpp>
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
@@ -60,6 +61,8 @@ struct VMImpl {
     std::istream* istream;
 
     std::ostream* ostream;
+
+    std::vector<utl::dynamic_library> dylibs;
 
     /// See documentation in "VirtualMachine.h"
     /// @{

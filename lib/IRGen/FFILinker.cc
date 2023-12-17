@@ -4,6 +4,7 @@
 #include <svm/Builtin.h>
 #include <utl/dynamic_library.hpp>
 #include <utl/hashtable.hpp>
+#include <utl/strcat.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -56,7 +57,7 @@ Expected<void, FFILinkError> irgen::linkFFIs(
         for (auto itr = FFs.begin(); itr != FFs.end();) {
             try {
                 auto* F = *itr;
-                (void)lib.symbol_ptr<void()>(F->name());
+                (void)lib.symbol_ptr<void()>(utl::strcat("sc_ffi_", F->name()));
                 F->setAddress(libIndex, FFSlot, FFIndex++);
                 FFs.erase(itr);
             }

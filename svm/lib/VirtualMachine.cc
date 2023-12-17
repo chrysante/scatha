@@ -3,6 +3,8 @@
 #include <bit>
 #include <iostream>
 
+#include <utl/dynamic_library.hpp>
+#include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
 #include "BuiltinInternal.h"
@@ -36,6 +38,27 @@ VirtualMachine& VirtualMachine::operator=(VirtualMachine&& rhs) noexcept {
 
 VirtualMachine::~VirtualMachine() = default;
 
+static utl::dynamic_library loadLibrary(std::string_view name) {
+    return utl::dynamic_library(name); 
+}
+
+static void loadForeignFunctions(VirtualMachine* vm,
+                                 std::span<FFILibDecl const> libDecls) {
+    for (auto& libDecl: libDecls) {
+        auto lib = loadLibrary(libDecl.name);
+        for (auto& FFI: libDecl.funcDecls) {
+            vm->setFunction(
+                FFI.slot,
+                FFI.index,
+                ExternalFunction(
+                    FFI.name,
+                    lib.symbol_ptr<void(u64*, VirtualMachine*, void*)>(
+                        utl::strcat("sc_ffi_", FFI.name))));
+        }
+        vm->impl->dylibs.push_back(std::move(lib));
+    }
+}
+
 void VirtualMachine::loadBinary(u8 const* progData) {
     ProgramView program(progData);
     size_t binSize = utl::round_up(program.binary.size(), 16);
@@ -51,6 +74,7 @@ void VirtualMachine::loadBinary(u8 const* progData) {
     impl->binarySize = binSize;
     impl->programBreak = impl->binary + program.binary.size();
     impl->startAddress = program.startAddress;
+    loadForeignFunctions(this, program.libDecls);
     reset();
 }
 

@@ -24,7 +24,7 @@ externalincludedirs {
     "%{wks.location}/external/range-v3/include",
 }
 
-links "svm-lib"
+links { "svm-lib", "utility" }
 
 ------------------------------------------
 project "svm-test"
