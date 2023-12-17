@@ -100,6 +100,11 @@ SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody,
                        Error,
                        "Function '" << definition()->name() << "' has no body")
 
+SC_SEMA_BADFUNCDEF_DEF(UnknownLinkage,
+                       Error,
+                       "Unknown linkage: \"" << definition()->externalLinkage()
+                                             << "\"")
+
 SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported,
                        Error,
                        "'extern \"C\"' declaration is not supported")

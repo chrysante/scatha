@@ -5,6 +5,8 @@
 #include <optional>
 #include <string_view>
 
+#include <utl/function_view.hpp>
+
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
@@ -15,10 +17,13 @@ namespace scatha::test {
 
 struct IssueHelper {
     template <typename T>
-    T const* findOnLine(ssize_t line) const {
+    T const* findOnLine(
+        ssize_t line, utl::function_view<bool(T const*)> filter = [](auto*) {
+            return true;
+        }) const {
         for (auto* issueBase: iss) {
             auto* issue = dynamic_cast<T const*>(issueBase);
-            if (!issue) {
+            if (!issue || !filter(issue)) {
                 continue;
             }
             auto const sourceLoc = issue->sourceLocation();
@@ -30,12 +35,10 @@ struct IssueHelper {
     }
 
     template <typename T>
-    bool findOnLine(ssize_t line, typename T::Reason reason) const {
-        auto* issue = findOnLine<T>(line);
-        if (!issue) {
-            return false;
-        }
-        return issue->reason() == reason;
+    T const* findOnLine(ssize_t line, typename T::Reason reason) const {
+        return findOnLine<T>(line, [&](T const* issue) {
+            return issue->reason() == reason;
+        });
     }
 
     bool noneOnLine(size_t line) const {

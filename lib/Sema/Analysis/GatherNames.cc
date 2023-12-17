@@ -102,9 +102,8 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     if (funcDef.body()) {
         funcDef.body()->decorateScope(function);
     }
-    else if (!funcDef.isExternC()) {
+    else if (funcDef.externalLinkage() != "C") {
         ctx.issue<BadFuncDef>(&funcDef, BadFuncDef::FunctionMustHaveBody);
-        return InvalidIndex;
     }
     /// Now add this function definition to the dependency graph
     functions.push_back(&funcDef);

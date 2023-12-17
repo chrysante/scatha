@@ -858,11 +858,12 @@ public:
 
     void setBinaryVisibility(sema::BinaryVisibility vis) { _binaryVis = vis; }
 
-    /// \Returns `true` if this declaration is marked `extern "C"`
-    bool isExternC() const { return _externC; }
+    /// \Returns the 'LINKAGE' string if this declaration was declared
+    /// with`extern "LINKAGE"`
+    std::string_view externalLinkage() const { return _extLinkage; }
 
     ///
-    void setExternC(bool value = true) { _externC = value; }
+    void setExtLinkage(std::string value) { _extLinkage = std::move(value); }
 
     /// **Decoration provided by semantic analysis**
 
@@ -889,7 +890,7 @@ protected:
 private:
     sema::AccessSpecifier _accessSpec = sema::AccessSpecifier::Public;
     sema::BinaryVisibility _binaryVis = sema::BinaryVisibility::Internal;
-    bool _externC = false;
+    std::string _extLinkage;
     sema::Entity* _entity = nullptr;
 };
 

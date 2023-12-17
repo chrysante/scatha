@@ -13,4 +13,4 @@ includedirs { "src" }
 
 files { "src/**.h", "src/**.cc" }
 
-links { "svm-lib", "ftxui-component", "ftxui-dom", "ftxui-screen" }
+links { "svm-lib", "ftxui-component", "ftxui-dom", "ftxui-screen", "utility" }

@@ -179,10 +179,10 @@ struct ToVariant;
 template <typename... T>
 struct ToVariant<std::tuple<T...>>: std::type_identity<std::variant<T...>> {};
 
-enum class ExternC : bool { False, True };
+using ExtLinkage = std::string;
 
 using SpecList =
-    std::tuple<sema::AccessSpecifier, sema::BinaryVisibility, ExternC>;
+    std::tuple<sema::AccessSpecifier, sema::BinaryVisibility, ExtLinkage>;
 
 using SpecVar = ToVariant<SpecList>::type;
 
@@ -365,15 +365,15 @@ UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
-    auto [accessSpec, binaryVis, externC] = parseSpecList();
+    auto [accessSpec, binaryVis, linkage] = parseSpecList();
     if (auto funcDef = parseFunctionDefinition()) {
-        funcDef->setExternC(utl::to_underlying(externC));
+        funcDef->setExtLinkage(std::move(linkage));
         funcDef->setAccessSpec(accessSpec);
         funcDef->setBinaryVisibility(binaryVis);
         return funcDef;
     }
     if (auto structDef = parseStructDefinition()) {
-        structDef->setExternC(utl::to_underlying(externC));
+        structDef->setExtLinkage(std::move(linkage));
         structDef->setAccessSpec(accessSpec);
         structDef->setBinaryVisibility(binaryVis);
         return structDef;
@@ -1446,7 +1446,7 @@ sema::Mutability Context::eatMut() {
 static SpecList defaultSpecList() {
     return { sema::AccessSpecifier::Public,
              sema::BinaryVisibility::Internal,
-             ExternC::False };
+             "" };
 }
 
 SpecList Context::parseSpecList() {
@@ -1471,7 +1471,7 @@ SpecList Context::parseSpecList() {
                 return std::nullopt;
             }
             tokens.eat();
-            return ExternC::True;
+            return next.id();
         }
         default:
             return std::nullopt;

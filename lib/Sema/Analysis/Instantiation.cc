@@ -244,8 +244,13 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     if (!result) {
         return;
     }
-    if (def.isExternC()) {
-        F->setForeign();
+    if (!def.externalLinkage().empty()) {
+        if (def.externalLinkage() != "C") {
+            ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
+        }
+        else {
+            F->setForeign();
+        }
     }
     auto SMF = toSMF(def);
     if (!SMF) {

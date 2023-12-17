@@ -152,16 +152,21 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
             analyze(*param);
         }
     });
+    if (auto linkage = def.externalLinkage();
+        !linkage.empty() && linkage != "C")
+    {
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
+    }
     if (def.body()) {
         def.body()->decorateScope(semaFn);
         analyze(*def.body());
         setDeducedReturnType();
     }
     else {
-        if (!def.isExternC()) {
+        if (def.externalLinkage().empty()) {
             ctx.issue<BadFuncDef>(&def, BadFuncDef::FunctionMustHaveBody);
         }
-        if (!semaFn->returnType()) {
+        else if (!semaFn->returnType()) {
             ctx.issue<BadFuncDef>(
                 &def,
                 BadFuncDef::FunctionDeclarationHasNoReturnType);

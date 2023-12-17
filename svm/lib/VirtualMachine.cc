@@ -39,7 +39,7 @@ VirtualMachine& VirtualMachine::operator=(VirtualMachine&& rhs) noexcept {
 VirtualMachine::~VirtualMachine() = default;
 
 static utl::dynamic_library loadLibrary(std::string_view name) {
-    return utl::dynamic_library(name); 
+    return utl::dynamic_library(name);
 }
 
 static void loadForeignFunctions(VirtualMachine* vm,

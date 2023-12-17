@@ -456,3 +456,10 @@ import does_not_exist;
 )");
     CHECK(iss.findOnLine<BadImport>(2));
 }
+
+TEST_CASE("Unknown linkage", "[sema][lib]") {
+    auto iss = test::getSemaIssues(R"(
+extern "D" fn foo() -> void;
+)");
+    CHECK(iss.findOnLine<BadFuncDef>(2, BadFuncDef::UnknownLinkage));
+}
