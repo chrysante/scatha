@@ -87,8 +87,9 @@ struct PrintCtx {
             first = false;
             str << size;
         }
-        str << ") -> " << F.retType << " [slot=" << F.address.slot << ", "
-            << F.address.index << "]" << std::endl;
+        str << ") -> " << F.retType << " [lib=" << F.libIndex
+            << ", slot=" << F.address.slot << ", " << F.address.index << "]"
+            << std::endl;
     }
 
     void print(Block const& block) {

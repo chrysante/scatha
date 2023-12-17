@@ -126,6 +126,8 @@ void CGContext::run(mir::Module const& mod) {
                      }) |
                      ranges::to<std::vector>;
     result.setJumpSites(std::move(jumpsites));
+    result.setForeignLibraries(mod.foreignLibraries() |
+                               ranges::to<std::vector>);
     auto foreignFunctions = mod.foreignFunctions() | filter([](auto& F) {
                                 return F.address.slot !=
                                        svm::BuiltinFunctionSlot;

@@ -72,6 +72,7 @@ mir::Module cg::lowerToMIR2(mir::Context& ctx, ir::Module const& irMod) {
 static ForeignFunctionDecl makeExtFuncDecl(ir::ForeignFunction const* F) {
     SC_EXPECT(F);
     return { .name = std::string(F->name()),
+             .libIndex = F->libIndex(),
              .address = { .slot = utl::narrow_cast<uint32_t>(F->slot()),
                           .index = utl::narrow_cast<uint32_t>(F->index()) },
              .retType = F->returnType()->size(),
@@ -83,6 +84,8 @@ static ForeignFunctionDecl makeExtFuncDecl(ir::ForeignFunction const* F) {
 
 void LoweringContext::run() {
     /// Declare all foreign functions to the MIR module
+    mirMod.setForeignLibraries(irMod.foreignLibraries() |
+                               ranges::to<std::vector>);
     auto foreignFunctions = irMod.extFunctions() | transform(makeExtFuncDecl) |
                             ranges::to<std::vector>;
     mirMod.setForeignFunctions(std::move(foreignFunctions));

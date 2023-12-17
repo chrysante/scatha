@@ -25,6 +25,9 @@ struct SCATHA_API ForeignFunctionDecl {
     /// The name of the function
     std::string name;
 
+    /// Index of the foreign library that this function is defined in
+    size_t libIndex = 0;
+
     /// The address of the function
     ForeignFuncAddress address;
 

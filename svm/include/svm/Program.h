@@ -36,17 +36,17 @@ struct ProgramHeader {
 };
 
 /// The FFI decl format is as follows:
-/// - `u32` ; Number of foreign library names
-/// - `[[char]\0]` ; List of null-terminated strings denoting foreign library
-/// names
-/// - `u32` ; Number of foreign function declarations
-/// - `[func-decl]` ; List of function declarations where `func-decl` is:
-///   - `u32` ; Slot
-///   - `u32` ; Index
-///   - `[char]\0` ; Null-terminated string denoting the name
-///   - `u16` ; Number of parameters
-///   - `[u16]` ; List of parameter type sizes
-///   - `u16` ; Return type size
+/// - `u32` ; Number of foreign libraries
+/// - `[lib-decl]` ; List of library declarations where `lib-decl` is:
+///   - `[char]\0` Null-terminated string denoting library name
+///   - `u32` ; Number of foreign function declarations
+///   - `[func-decl]` ; List of function declarations where `func-decl` is:
+///     - `u32` ; Slot
+///     - `u32` ; Index
+///     - `u16` ; Number of parameters
+///     - `[u16]` ; List of parameter type sizes
+///     - `u16` ; Return type size
+///     - `[char]\0` ; Null-terminated string denoting the name
 class FFIDeclView {
 public:
     explicit FFIDeclView(std::span<u8 const> data);

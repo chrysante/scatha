@@ -9,6 +9,7 @@ struct AssemblyStream::Impl {
     std::list<Block> blocks;
     std::vector<u8> data;
     std::vector<Jumpsite> jumpsites;
+    std::vector<std::string> foreignLibs;
     std::vector<ForeignFunctionDecl> foreignFunctions;
     std::vector<Metadata> metadata;
 };
@@ -50,6 +51,14 @@ std::span<Jumpsite const> AssemblyStream::jumpSites() const {
 
 void AssemblyStream::setJumpSites(std::vector<Jumpsite> jumpsites) {
     impl->jumpsites = std::move(jumpsites);
+}
+
+std::span<std::string const> AssemblyStream::foreignLibraries() const {
+    return impl->foreignLibs;
+}
+
+void AssemblyStream::setForeignLibraries(std::vector<std::string> libs) {
+    impl->foreignLibs = std::move(libs);
 }
 
 std::span<ForeignFunctionDecl const> AssemblyStream::foreignFunctions() const {

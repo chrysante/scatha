@@ -19,6 +19,7 @@
 
 using namespace scatha;
 using namespace Asm;
+using namespace ranges::views;
 
 using svm::OpCode;
 
@@ -67,16 +68,26 @@ struct AsmContext {
     void translate(Value64 const&);
     void translate(LabelPosition const&);
 
+    /// Append opcode  \p o to the back of the binary
     void put(svm::OpCode o) {
         SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
         put<std::underlying_type_t<svm::OpCode>>(utl::to_underlying(o));
     }
 
+    /// Append  \p value to the back of the binary
     template <typename T>
     void put(u64 value) {
         for (auto byte: decompose(utl::narrow_cast<T>(value))) {
             binary.push_back(byte);
         }
+    }
+
+    /// Append  \p text to the back of the binary followed by a null terminator
+    void putNullTerm(std::string_view text) {
+        for (auto c: text) {
+            put<char>(static_cast<u64>(c));
+        }
+        put<char>(0);
     }
 
     /// Emit a placeholder for a label address and register a jumpsite for
@@ -104,11 +115,17 @@ struct AsmContext {
     /// and replaces placeholders with the actual code position of the target.
     void setJumpDests();
 
+    ///
+    void writeFFILinkSection();
+
+    void writeFFIDecl(ForeignFunctionDecl const& decl);
+
     size_t currentPosition() const { return binary.size(); }
 
     AssemblyStream const& stream;
     std::unordered_map<std::string, size_t>& sym;
     utl::vector<u8> binary;
+    size_t FFISectionBegin = 0;
 
     /// Maps Label ID to Code position
     utl::hashmap<LabelID, size_t> labels;
@@ -116,6 +133,11 @@ struct AsmContext {
     utl::vector<Jumpsite> jumpsites;
     /// Address of the `start` or `main` function.
     size_t startAddress = 0;
+};
+
+struct FFIList {
+    std::string libName{};
+    std::vector<ForeignFunctionDecl> functions{};
 };
 
 } // namespace
@@ -131,7 +153,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
         .startAddress = ctx.startAddress,
         .dataOffset = sizeof(svm::ProgramHeader),
         .textOffset = sizeof(svm::ProgramHeader) + dataSecSize,
-        .FFIDeclOffset = sizeof(svm::ProgramHeader) + ctx.binary.size(),
+        .FFIDeclOffset = sizeof(svm::ProgramHeader) + ctx.FFISectionBegin,
     };
     result.program.resize(header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
@@ -156,7 +178,12 @@ void AsmContext::run() {
             dispatch(inst);
         }
     }
+    /// Internal linking
     setJumpDests();
+    /// Must be set before we write the dynamic link section
+    FFISectionBegin = binary.size();
+    /// Foreign function linking
+    writeFFILinkSection();
 }
 
 void AsmContext::dispatch(Instruction const& inst) {
@@ -419,11 +446,41 @@ void AsmContext::setJumpDests() {
     }
 }
 
+void AsmContext::writeFFILinkSection() {
+    auto ffiLists =
+        stream.foreignLibraries() |
+        transform([](auto& name) { return FFIList{ .libName = name }; }) |
+        ranges::to<std::vector>;
+    for (auto& FFI: stream.foreignFunctions()) {
+        ffiLists[FFI.libIndex].functions.push_back(FFI);
+    }
+    put<u32>(ffiLists.size()); /// Number of foreign libraries
+    for (auto& ffiList: ffiLists) {
+        putNullTerm(
+            ffiList.libName);  /// Null-terminated string denoting library name
+        put<u32>(ffiList.functions
+                     .size()); /// Number of foreign function declarations
+        for (auto& FFI: ffiList.functions) {
+            writeFFIDecl(FFI);
+        }
+    }
+}
+
+void AsmContext::writeFFIDecl(ForeignFunctionDecl const& FFI) {
+    put<u32>(FFI.address.slot);
+    put<u32>(FFI.address.index);
+    put<u16>(FFI.argTypes.size());
+    for (size_t size: FFI.argTypes) {
+        put<u16>(size);
+    }
+    put<u16>(FFI.retType);
+    putNullTerm(FFI.name);
+}
+
 std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {
     auto* list = std::any_cast<dbi::SourceFileList>(&stream.metadata());
     auto sourceLocations =
-        stream | ranges::views::join |
-        ranges::views::transform([](Instruction const& inst) {
+        stream | join | transform([](Instruction const& inst) {
             return std::any_cast<SourceLocation>(&inst.metadata());
         }) |
         ranges::to<std::vector>;
