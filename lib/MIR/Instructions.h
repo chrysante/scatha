@@ -160,7 +160,7 @@ class CallExtInst: public CallBase {
 public:
     explicit CallExtInst(Register* dest,
                          size_t numDests,
-                         ExtFuncAddress callee,
+                         ForeignFuncAddress callee,
                          utl::small_vector<Value*> arguments,
                          Metadata metadata):
         CallBase(InstType::CallExtInst,
@@ -171,10 +171,10 @@ public:
         _callee(callee) {}
 
     /// The called foreign function
-    ExtFuncAddress callee() const { return _callee; }
+    ForeignFuncAddress callee() const { return _callee; }
 
 private:
-    ExtFuncAddress _callee;
+    ForeignFuncAddress _callee;
 };
 
 /// Concrete cond-copy instruction

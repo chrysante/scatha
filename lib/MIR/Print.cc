@@ -18,7 +18,7 @@ using namespace mir;
 using namespace tfmt::modifiers;
 using namespace ranges::views;
 
-static void print(ExtFunctionDecl const& extFn, std::ostream& str);
+static void print(ForeignFunctionDecl const& extFn, std::ostream& str);
 
 void mir::print(Module const& mod) { mir::print(mod, std::cout); }
 
@@ -177,11 +177,11 @@ static auto formatInstName(mir::Instruction const& inst) {
 }
 
 static constexpr auto fmtExtFnAddr =
-    utl::streammanip([](std::ostream& str, ExtFuncAddress addr) -> auto& {
+    utl::streammanip([](std::ostream& str, ForeignFuncAddress addr) -> auto& {
         return str << "slot=" << addr.slot << ", index=" << addr.index;
     });
 
-static void print(ExtFunctionDecl const& F, std::ostream& str) {
+static void print(ForeignFunctionDecl const& F, std::ostream& str) {
     str << keyword("func") << " " << globalName(F.name) << "(";
     for (bool first = true; size_t size: F.argTypes) {
         if (!first) {
@@ -361,7 +361,7 @@ struct PrintContext {
         print(inst.address());
     }
 
-    void print(ExtFuncAddress function) {
+    void print(ForeignFuncAddress function) {
         if (function.slot == svm::BuiltinFunctionSlot) {
             str << "builtin."
                 << toString(static_cast<svm::Builtin>(function.index));

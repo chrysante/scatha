@@ -91,12 +91,12 @@ public:
 
     /// List of foreign functions declared in this module excluding functions
     /// from the builtin slot
-    std::span<ExtFunctionDecl const> foreignFunctions() const {
+    std::span<ForeignFunctionDecl const> foreignFunctions() const {
         return _foreignFunctions;
     }
 
     ///
-    void setForeignFunctions(std::vector<ExtFunctionDecl> functions) {
+    void setForeignFunctions(std::vector<ForeignFunctionDecl> functions) {
         _foreignFunctions = std::move(functions);
     }
 
@@ -111,7 +111,7 @@ private:
     utl::small_vector<std::pair<size_t, Function const*>> addrPlaceholders;
 
     ///
-    std::vector<ExtFunctionDecl> _foreignFunctions;
+    std::vector<ForeignFunctionDecl> _foreignFunctions;
 };
 
 } // namespace scatha::mir

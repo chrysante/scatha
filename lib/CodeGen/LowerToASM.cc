@@ -1,5 +1,8 @@
 #include "CodeGen/Passes.h"
 
+#include <range/v3/view.hpp>
+#include <svm/Builtin.h>
+
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
@@ -10,6 +13,7 @@
 
 using namespace scatha;
 using namespace Asm;
+using namespace ranges::views;
 
 namespace {
 
@@ -116,13 +120,18 @@ void CGContext::run(mir::Module const& mod) {
     }
     result.setDataSection(mod.dataSection());
     result.setMetadata(mod.metadata());
-    auto jumpsites = mod.addressPlaceholders() |
-                     ranges::views::transform([&](auto p) {
+    auto jumpsites = mod.addressPlaceholders() | transform([&](auto p) {
                          auto [offset, function] = p;
                          return Jumpsite{ offset, getLabelID(*function), 8 };
                      }) |
                      ranges::to<std::vector>;
     result.setJumpSites(std::move(jumpsites));
+    auto foreignFunctions = mod.foreignFunctions() | filter([](auto& F) {
+                                return F.address.slot !=
+                                       svm::BuiltinFunctionSlot;
+                            }) |
+                            ranges::to<std::vector>;
+    result.setForeignFunctions(std::move(foreignFunctions));
 }
 
 void CGContext::genFunction(mir::Function const& F) {

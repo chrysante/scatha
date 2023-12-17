@@ -37,9 +37,11 @@ static std::string_view typeToChar(Type type) {
 
 namespace {
 
-struct CoutRestore {
-    CoutRestore(): flags(std::cout.flags()) {}
-    ~CoutRestore() { std::cout.flags(flags); }
+struct OStreamRestore {
+    explicit OStreamRestore(std::ostream& str): str(str), flags(str.flags()) {}
+    ~OStreamRestore() { str.flags(flags); }
+
+    std::ostream& str;
     std::ios_base::fmtflags flags;
 };
 
@@ -65,6 +67,9 @@ struct PrintCtx {
     explicit PrintCtx(std::ostream& str): str(str) {}
 
     void print(AssemblyStream const& stream) {
+        for (auto& F: stream.foreignFunctions()) {
+            print(F);
+        }
         for (auto& block: stream) {
             blockIDMap[block.id()] = &block;
         }
@@ -73,9 +78,22 @@ struct PrintCtx {
         }
     }
 
+    void print(ForeignFunctionDecl const& F) {
+        str << F.name << ": (";
+        for (bool first = true; size_t size: F.argTypes) {
+            if (!first) {
+                str << ", ";
+            }
+            first = false;
+            str << size;
+        }
+        str << ") -> " << F.retType << " [slot=" << F.address.slot << ", "
+            << F.address.index << "]" << std::endl;
+    }
+
     void print(Block const& block) {
-        std::cout << block.name() << ": ID: " << utl::to_underlying(block.id())
-                  << "\n";
+        str << block.name() << ": ID: " << utl::to_underlying(block.id())
+            << "\n";
         for (auto& inst: block) {
             print(inst);
             str << "\n";
@@ -185,27 +203,27 @@ struct PrintCtx {
     }
 
     void printImpl(Value8 const& value) {
-        CoutRestore r;
+        OStreamRestore r(str);
         str << "0x" << std::hex << value.value() << "_u8";
     }
 
     void printImpl(Value16 const& value) {
-        CoutRestore r;
+        OStreamRestore r(str);
         str << "0x" << std::hex << value.value() << "_u16";
     }
 
     void printImpl(Value32 const& value) {
-        CoutRestore r;
+        OStreamRestore r(str);
         str << "0x" << std::hex << value.value() << "_u32";
     }
 
     void printImpl(Value64 const& value) {
-        CoutRestore r;
+        OStreamRestore r(str);
         str << "0x" << std::hex << value.value() << "_u64";
     }
 
     void printImpl(LabelPosition const& pos) {
-        CoutRestore r;
+        OStreamRestore r(str);
         str << label(pos.ID());
     }
 

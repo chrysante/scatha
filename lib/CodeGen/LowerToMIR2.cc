@@ -69,7 +69,7 @@ mir::Module cg::lowerToMIR2(mir::Context& ctx, ir::Module const& irMod) {
     return mirMod;
 }
 
-static mir::ExtFunctionDecl makeExtFuncDecl(ir::ForeignFunction const* F) {
+static ForeignFunctionDecl makeExtFuncDecl(ir::ForeignFunction const* F) {
     SC_EXPECT(F);
     return { .name = std::string(F->name()),
              .address = { .slot = utl::narrow_cast<uint32_t>(F->slot()),

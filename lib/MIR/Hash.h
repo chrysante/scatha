@@ -24,11 +24,4 @@ struct std::hash<scatha::mir::MemoryAddressImpl<V>> {
     }
 };
 
-template <>
-struct std::hash<scatha::mir::ExtFuncAddress> {
-    std::size_t operator()(scatha::mir::ExtFuncAddress addr) const {
-        return std::hash<uint32_t>{}(std::bit_cast<std::uint32_t>(addr));
-    }
-};
-
 #endif // SCATHA_MIR_HASH_H_

@@ -8,6 +8,7 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
+#include <scatha/Common/ForeignFunctionDecl.h>
 #include <scatha/IR/Fwd.h> // To borrow some enums for this MIR namespace
 
 namespace scatha::mir {
@@ -176,47 +177,6 @@ private:
 
 using MemoryAddress = MemoryAddressImpl<Value>;
 using ConstMemoryAddress = MemoryAddressImpl<Value const>;
-
-/// Represents the address of a foreign function.
-struct ExtFuncAddress {
-    bool operator==(ExtFuncAddress const&) const = default;
-
-    uint32_t slot  : 11;
-    uint32_t index : 21;
-};
-
-/// Represents a foreign function declaration
-struct ExtFunctionDecl {
-    /// The name of the function
-    std::string name;
-
-    /// The address of the function
-    ExtFuncAddress address;
-
-    /// Size of the return value
-    size_t retType;
-
-    /// Sizes of the function argument types
-    std::vector<size_t> argTypes;
-};
-
-/// `InstData` for call instructions.
-struct CallInstData {
-    ///
-    uint32_t regOffset{};
-
-    /// Only used by `callext` instructions.
-    ExtFuncAddress extFuncAddress{};
-
-    ///
-    bool isMemoryCall{};
-
-    ///
-    MemAddrConstantData addressData{};
-};
-
-static_assert(sizeof(CallInstData) <= 16,
-              "Must fit into `instdata` field of Instruction class");
 
 /// Base class for instruction and basic block
 class ProgramPoint {
