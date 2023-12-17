@@ -306,21 +306,15 @@ Function* SymbolTable::declareForeignFunction(std::string name,
                                               size_t index,
                                               FunctionSignature sig,
                                               FunctionAttribute attrs) {
-    return withScopeCurrent(&globalScope(), [&]() -> Function* {
-        auto* function = declareFunction(std::move(name), std::move(sig));
-        if (!function) {
-            return nullptr;
-        }
-        function->_kind = FunctionKind::Foreign;
-        function->attrs = attrs;
-        function->_slot = utl::narrow_cast<u16>(slot);
-        function->_index = utl::narrow_cast<u32>(index);
-        if (slot == svm::BuiltinFunctionSlot) {
-            function->setBuiltin();
-            impl->builtinFunctions[index] = function;
-        }
-        return function;
-    });
+    auto* function = declareFunction(std::move(name), std::move(sig));
+    if (!function) {
+        return nullptr;
+    }
+    function->setForeign(slot, index, attrs);
+    if (slot == svm::BuiltinFunctionSlot) {
+        impl->builtinFunctions[index] = function;
+    }
+    return function;
 }
 
 Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,

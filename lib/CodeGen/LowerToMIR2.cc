@@ -1,6 +1,7 @@
 #include "CodeGen/Passes.h"
 
 #include <range/v3/numeric.hpp>
+#include <range/v3/view.hpp>
 #include <utl/vector.hpp>
 
 #include "CodeGen/ISel.h"
@@ -17,6 +18,7 @@
 
 using namespace scatha;
 using namespace cg;
+using namespace ranges::views;
 
 static size_t numParamRegisters(ir::Function const& F) {
     return ranges::accumulate(F.parameters(),
@@ -67,7 +69,24 @@ mir::Module cg::lowerToMIR2(mir::Context& ctx, ir::Module const& irMod) {
     return mirMod;
 }
 
+static mir::ExtFunctionDecl makeExtFuncDecl(ir::ForeignFunction const* F) {
+    SC_EXPECT(F);
+    return { .name = std::string(F->name()),
+             .address = { .slot = utl::narrow_cast<uint32_t>(F->slot()),
+                          .index = utl::narrow_cast<uint32_t>(F->index()) },
+             .retType = F->returnType()->size(),
+             .argTypes = F->parameters() | transform([](auto& param) -> size_t {
+                             return param.type()->size();
+                         }) |
+                         ranges::to<std::vector> };
+}
+
 void LoweringContext::run() {
+    /// Declare all foreign functions to the MIR module
+    auto foreignFunctions = irMod.extFunctions() | transform(makeExtFuncDecl) |
+                            ranges::to<std::vector>;
+    mirMod.setForeignFunctions(std::move(foreignFunctions));
+    /// Make forward declarations of all functions and basic blocks
     for (auto& irFn: irMod) {
         auto* mirFn = declareFunction(irFn);
         for (auto& irBB: irFn) {
@@ -75,6 +94,7 @@ void LoweringContext::run() {
         }
         generateAllocas(irFn, *mirFn);
     }
+    /// Perform instruction selection and scheduling for each basic block
     for (auto& irFn: irMod) {
         for (auto& irBB: irFn) {
             generateBB(irBB);
@@ -149,7 +169,7 @@ void LoweringContext::generateAllocas(ir::Function const& irFn,
     mirFn.entry()->pushBack(lispInst);
 
     /// Store the results
-    for (auto [allocaInst, offset]: ranges::views::zip(allocas, offsets)) {
+    for (auto [allocaInst, offset]: zip(allocas, offsets)) {
         valueMap.addAddress(allocaInst, baseptr, offset);
     }
 }
@@ -169,7 +189,7 @@ void LoweringContext::generateBB(ir::BasicBlock const& irBB) {
 
 void LoweringContext::schedule(SelectionDAG& DAG, mir::BasicBlock& BB) {
     auto nodes = DAG.topsort();
-    for (auto* node: nodes | ranges::views::reverse) {
+    for (auto* node: nodes | reverse) {
         auto instructions = node->extractInstructions();
         auto insertPoint = [&] {
             if (isa<ir::Phi>(node->irInst())) {

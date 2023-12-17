@@ -523,6 +523,11 @@ public:
         return binaryVisibility() == BinaryVisibility::Export;
     }
 
+    /// Set this function to be a foreign function
+    void setForeign(size_t slot,
+                    size_t index,
+                    FunctionAttribute attrs = FunctionAttribute::None);
+
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
 

@@ -2,7 +2,9 @@
 #define SCATHA_MIR_FWD_H_
 
 #include <iosfwd>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
@@ -175,12 +177,27 @@ private:
 using MemoryAddress = MemoryAddressImpl<Value>;
 using ConstMemoryAddress = MemoryAddressImpl<Value const>;
 
-/// Represents the address of an external function.
+/// Represents the address of a foreign function.
 struct ExtFuncAddress {
     bool operator==(ExtFuncAddress const&) const = default;
 
     uint32_t slot  : 11;
     uint32_t index : 21;
+};
+
+/// Represents a foreign function declaration
+struct ExtFunctionDecl {
+    /// The name of the function
+    std::string name;
+
+    /// The address of the function
+    ExtFuncAddress address;
+
+    /// Size of the return value
+    size_t retType;
+
+    /// Sizes of the function argument types
+    std::vector<size_t> argTypes;
 };
 
 /// `InstData` for call instructions.

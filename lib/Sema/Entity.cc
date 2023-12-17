@@ -364,6 +364,16 @@ void Function::setDeducedReturnType(Type const* type) {
     _sig._returnType = type;
 }
 
+void Function::setForeign(size_t slot, size_t index, FunctionAttribute attrs) {
+    _kind = FunctionKind::Foreign;
+    this->attrs = attrs;
+    _slot = utl::narrow_cast<u16>(slot);
+    _index = utl::narrow_cast<u32>(index);
+    if (slot == svm::BuiltinFunctionSlot) {
+        setBuiltin();
+    }
+}
+
 bool Function::isBuiltin() const {
     return isForeign() && slot() == svm::BuiltinFunctionSlot;
 }

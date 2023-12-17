@@ -49,9 +49,11 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
         auto* semaFn = queue.front();
         queue.pop_front();
         auto* irFn = functionMap(semaFn);
+        auto* native = dyncast<ir::Function*>(irFn);
+        if (!native) continue;
         generateFunction(config,
                          { .semaFn = *semaFn,
-                           .irFn = *cast<ir::Function*>(irFn),
+                           .irFn = *native,
                            .ctx = ctx,
                            .mod = mod,
                            .symbolTable = sym,

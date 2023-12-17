@@ -18,9 +18,15 @@ using namespace mir;
 using namespace tfmt::modifiers;
 using namespace ranges::views;
 
+static void print(ExtFunctionDecl const& extFn, std::ostream& str);
+
 void mir::print(Module const& mod) { mir::print(mod, std::cout); }
 
 void mir::print(Module const& mod, std::ostream& str) {
+    for (auto& F: mod.foreignFunctions()) {
+        ::print(F, str);
+        str << "\n";
+    }
     for (auto& F: mod) {
         print(F, str);
         str << "\n";
@@ -168,6 +174,31 @@ static auto formatInstName(mir::Instruction const& inst) {
         },
     }; // clang-format on
     return opcode(name);
+}
+
+static constexpr auto fmtExtFnAddr =
+    utl::streammanip([](std::ostream& str, ExtFuncAddress addr) -> auto& {
+        return str << "slot=" << addr.slot << ", index=" << addr.index;
+    });
+
+static void print(ExtFunctionDecl const& F, std::ostream& str) {
+    str << keyword("func") << " " << globalName(F.name) << "(";
+    for (bool first = true; size_t size: F.argTypes) {
+        if (!first) {
+            str << ", ";
+        }
+        first = false;
+        str << keyword(size);
+    }
+    str << ") -> ";
+    if (F.retType == 0) {
+        str << keyword("void");
+    }
+    else {
+        str << keyword(F.retType);
+    }
+    str << " " << tfmt::format(BrightGrey, "[", fmtExtFnAddr(F.address), "]");
+    str << "\n";
 }
 
 namespace {
@@ -336,8 +367,7 @@ struct PrintContext {
                 << toString(static_cast<svm::Builtin>(function.index));
         }
         else {
-            str << "slot=" << function.slot;
-            str << ", index=" << function.index;
+            str << fmtExtFnAddr(function);
         }
     }
 

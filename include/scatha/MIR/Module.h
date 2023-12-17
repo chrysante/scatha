@@ -15,7 +15,6 @@
 namespace scatha::mir {
 
 /// Represents one unit of translation
-/// Also acts as a constants pool
 class SCTEST_API Module: public ObjectWithMetadata {
     template <typename T>
     static decltype(auto) asDerived(auto&& self) {
@@ -23,17 +22,14 @@ class SCTEST_API Module: public ObjectWithMetadata {
     }
 
 public:
+    /// Lifetime functions @{
     Module();
-
     Module(Module const&) = delete;
-
     Module(Module&&) noexcept;
-
     Module& operator=(Module const&) = delete;
-
     Module& operator=(Module&&) noexcept;
-
     ~Module();
+    /// @}
 
     /// Add a function to this translation unit
     void addFunction(Function* function);
@@ -93,6 +89,17 @@ public:
         return addrPlaceholders;
     }
 
+    /// List of foreign functions declared in this module excluding functions
+    /// from the builtin slot
+    std::span<ExtFunctionDecl const> foreignFunctions() const {
+        return _foreignFunctions;
+    }
+
+    ///
+    void setForeignFunctions(std::vector<ExtFunctionDecl> functions) {
+        _foreignFunctions = std::move(functions);
+    }
+
 private:
     /// List of all functions in the module
     List<Function> funcs;
@@ -102,6 +109,9 @@ private:
 
     ///
     utl::small_vector<std::pair<size_t, Function const*>> addrPlaceholders;
+
+    ///
+    std::vector<ExtFunctionDecl> _foreignFunctions;
 };
 
 } // namespace scatha::mir

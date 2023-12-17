@@ -47,10 +47,19 @@ Global* Module::addGlobal(UniquePtr<Global> value) {
 }
 
 void Module::erase(Global* global) {
+    // clang-format off
     SC_MATCH (*global) {
-        [&](Function& function) { funcs.erase(&function); },
-            [&](Global& global) { _globals.erase(&global); },
-    };
+        [&](Function& function) {
+            funcs.erase(&function);
+        },
+        [&](ForeignFunction& function) {
+            _extFunctions.erase({ function.slot(), function.index() });
+            _globals.erase(&function);
+        },
+        [&](Global& global) {
+            _globals.erase(&global);
+        },
+    }; // clang-format on
 }
 
 List<Function>::iterator Module::erase(List<Function>::const_iterator itr) {

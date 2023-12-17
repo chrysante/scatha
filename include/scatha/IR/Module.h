@@ -39,6 +39,16 @@ public:
     /// \Returns The `ForeignFunction` in slot \p slot at index \p index
     ForeignFunction* extFunction(size_t slot, size_t index);
 
+    /// \Returns a view over all foreign function declarations in this module
+    auto extFunctions() {
+        return _extFunctions.values() | ranges::views::values;
+    }
+
+    /// \overload
+    auto extFunctions() const {
+        return _extFunctions.values() | ranges::views::values | ToConstAddress;
+    }
+
     /// \Returns a view over all globals in this module, i.e. global variables
     /// and foreign functions
     auto& globals() { return _globals; }

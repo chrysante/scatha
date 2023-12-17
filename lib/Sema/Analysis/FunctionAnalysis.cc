@@ -146,16 +146,27 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
     ctx.beginAnalyzing(semaFn);
     utl::scope_guard guard([&] { ctx.endAnalyzing(semaFn); });
     def.decorateFunction(semaFn, semaFn->returnType());
-    def.body()->decorateScope(semaFn);
     semaFn->setBinaryVisibility(def.binaryVisibility());
     sym.withScopePushed(semaFn, [&] {
         for (auto* param: def.parameters()) {
             analyze(*param);
         }
     });
-    /// The function body compound statement pushes the scope again
-    analyze(*def.body());
-    setDeducedReturnType();
+    if (def.body()) {
+        def.body()->decorateScope(semaFn);
+        analyze(*def.body());
+        setDeducedReturnType();
+    }
+    else {
+        if (!def.isExternC()) {
+            ctx.issue<BadFuncDef>(&def, BadFuncDef::FunctionMustHaveBody);
+        }
+        if (!semaFn->returnType()) {
+            ctx.issue<BadFuncDef>(
+                &def,
+                BadFuncDef::FunctionDeclarationHasNoReturnType);
+        }
+    }
     /// We perform the extra checks on main in the end because here we have
     /// deduced the return type
     if (semaFn->name() == "main") {

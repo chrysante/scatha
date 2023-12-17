@@ -98,12 +98,16 @@ SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments,
 
 SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody,
                        Error,
-                       "Function \"" << definition()->name()
-                                     << "\" has no body")
+                       "Function '" << definition()->name() << "' has no body")
 
 SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported,
                        Error,
-                       "'extern \"C\"' functions are not yet supported")
+                       "'extern \"C\"' declaration is not supported")
+
+SC_SEMA_BADFUNCDEF_DEF(FunctionDeclarationHasNoReturnType,
+                       Error,
+                       "Function declaration '" << definition()->name()
+                                                << "' has no return type'")
 
 #undef SC_SEMA_BADFUNCDEF_DEF
 
