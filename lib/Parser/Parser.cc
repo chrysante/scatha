@@ -179,7 +179,10 @@ struct ToVariant;
 template <typename... T>
 struct ToVariant<std::tuple<T...>>: std::type_identity<std::variant<T...>> {};
 
-using SpecList = std::tuple<sema::AccessSpecifier, sema::BinaryVisibility>;
+enum class ExternC : bool { False, True };
+
+using SpecList =
+    std::tuple<sema::AccessSpecifier, sema::BinaryVisibility, ExternC>;
 
 using SpecVar = ToVariant<SpecList>::type;
 
@@ -362,13 +365,15 @@ UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
-    auto [accessSpec, binaryVis] = parseSpecList();
+    auto [accessSpec, binaryVis, externC] = parseSpecList();
     if (auto funcDef = parseFunctionDefinition()) {
+        funcDef->setExternC(utl::to_underlying(externC));
         funcDef->setAccessSpec(accessSpec);
         funcDef->setBinaryVisibility(binaryVis);
         return funcDef;
     }
     if (auto structDef = parseStructDefinition()) {
+        structDef->setExternC(utl::to_underlying(externC));
         structDef->setAccessSpec(accessSpec);
         structDef->setBinaryVisibility(binaryVis);
         return structDef;
@@ -464,6 +469,16 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             pushExpectedExpression(tokens.peek());
         }
     }
+    auto sourceRange =
+        merge(declarator.sourceRange(), closeParan.sourceRange());
+    if (auto delim = tokens.peek(); delim.kind() == Semicolon) {
+        tokens.eat();
+        return allocate<ast::FunctionDefinition>(sourceRange,
+                                                 std::move(identifier),
+                                                 std::move(*params),
+                                                 std::move(returnTypeExpr),
+                                                 nullptr);
+    }
     auto body = parseCompoundStatement();
     if (!body) {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
@@ -478,8 +493,6 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
-    auto sourceRange =
-        merge(declarator.sourceRange(), closeParan.sourceRange());
     return allocate<ast::FunctionDefinition>(sourceRange,
                                              std::move(identifier),
                                              std::move(*params),
@@ -1431,7 +1444,9 @@ sema::Mutability Context::eatMut() {
 }
 
 static SpecList defaultSpecList() {
-    return { sema::AccessSpecifier::Public, sema::BinaryVisibility::Internal };
+    return { sema::AccessSpecifier::Public,
+             sema::BinaryVisibility::Internal,
+             ExternC::False };
 }
 
 SpecList Context::parseSpecList() {
@@ -1440,11 +1455,24 @@ SpecList Context::parseSpecList() {
     auto parse = [&]() -> std::optional<SpecVar> {
         switch (tokens.peek().kind()) {
         case Public:
+            tokens.eat();
             return AccessSpecifier::Public;
         case Private:
+            tokens.eat();
             return AccessSpecifier::Private;
         case Export:
+            tokens.eat();
             return BinaryVisibility::Export;
+        case Extern: {
+            tokens.eat();
+            auto next = tokens.peek();
+            if (next.kind() != StringLiteral) {
+                issues.push<ExpectedExpression>(next);
+                return std::nullopt;
+            }
+            tokens.eat();
+            return ExternC::True;
+        }
         default:
             return std::nullopt;
         }
@@ -1455,7 +1483,6 @@ SpecList Context::parseSpecList() {
         if (!spec) {
             break;
         }
-        tokens.eat();
         std::visit([&]<typename T>(T spec) { std::get<T>(result) = spec; },
                    *spec);
     }

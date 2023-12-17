@@ -850,12 +850,19 @@ public:
         return accessSpec() == sema::AccessSpecifier::Public;
     }
 
+    ///
     void setAccessSpec(sema::AccessSpecifier spec) { _accessSpec = spec; }
 
     /// Binary visibility specifier. Defaults to `Internal`
     sema::BinaryVisibility binaryVisibility() const { return _binaryVis; }
 
     void setBinaryVisibility(sema::BinaryVisibility vis) { _binaryVis = vis; }
+
+    /// \Returns `true` if this declaration is marked `extern "C"`
+    bool isExternC() const { return _externC; }
+
+    ///
+    void setExternC(bool value = true) { _externC = value; }
 
     /// **Decoration provided by semantic analysis**
 
@@ -882,6 +889,7 @@ protected:
 private:
     sema::AccessSpecifier _accessSpec = sema::AccessSpecifier::Public;
     sema::BinaryVisibility _binaryVis = sema::BinaryVisibility::Internal;
+    bool _externC = false;
     sema::Entity* _entity = nullptr;
 };
 

@@ -96,6 +96,15 @@ SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments,
                            << " is not a valid signature for 'main'. "
                            << " Valid signatures are () and (&[*str])")
 
+SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody,
+                       Error,
+                       "Function \"" << definition()->name()
+                                     << "\" has no body")
+
+SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported,
+                       Error,
+                       "'extern \"C\"' functions are not yet supported")
+
 #undef SC_SEMA_BADFUNCDEF_DEF
 
 // ===--------------------------------------------------------------------=== //

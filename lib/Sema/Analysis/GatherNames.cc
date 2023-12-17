@@ -94,11 +94,19 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         ctx.issue<GenericBadStmt>(&funcDef, GenericBadStmt::InvalidScope);
         return InvalidIndex;
     }
+    if (funcDef.isExternC()) {
+        ctx.issue<BadFuncDef>(&funcDef, BadFuncDef::ExternCNotSupported);
+        return InvalidIndex;
+    }
     auto* function = sym.declareFuncName(&funcDef);
     if (!function) {
         return InvalidIndex;
     }
     funcDef.decorateDecl(function);
+    if (!funcDef.body()) {
+        ctx.issue<BadFuncDef>(&funcDef, BadFuncDef::FunctionMustHaveBody);
+        return InvalidIndex;
+    }
     funcDef.body()->decorateScope(function);
     /// Now add this function definition to the dependency graph
     functions.push_back(&funcDef);
