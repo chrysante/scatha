@@ -7,6 +7,14 @@ premake5 xcode4
 
 mkdir -p build/bin/{Debug,Release}
 
+# UTL
+cd $PROJ_DIR/external/utility
+premake5 xcode4
+xcodebuild -project utility.xcodeproj -configuration Release -quiet
+cd $PROJ_DIR
+cp external/utility/build/bin/Release/libutility.a build/bin/Debug
+cp external/utility/build/bin/Release/libutility.a build/bin/Release
+
 # Catch
 cd $PROJ_DIR
 mkdir -p build/Catch

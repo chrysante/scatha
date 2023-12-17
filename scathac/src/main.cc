@@ -8,13 +8,18 @@
 
 using namespace scatha;
 
+static void commonOptions(CLI::App* app, OptionsBase& opt) {
+    app->add_option("files", opt.files)->check(CLI::ExistingFile);
+    app->add_option("-L, --libsearchpaths", opt.libSearchPaths);
+}
+
 int main(int argc, char* argv[]) {
     CLI::App compiler("sctool");
     compiler.require_subcommand(0, 1);
 
     // clang-format off
     CompilerOptions compilerOptions{};
-    compiler.add_option("files", compilerOptions.files)->check(CLI::ExistingPath);
+    commonOptions(&compiler, compilerOptions);
     compiler.add_flag("-o,--optimize", compilerOptions.optimize, "Optimize the program");
     compiler.add_flag("-d,--debug", compilerOptions.debug, "Generate debug symbols");
     compiler.add_flag("-t,--time", compilerOptions.time, "Measure compilation time");
@@ -24,7 +29,7 @@ int main(int argc, char* argv[]) {
     
     CLI::App* inspect = compiler.add_subcommand("inspect", "Tool to visualize the state of the compilation pipeline");
     InspectOptions inspectOptions{};
-    inspect->add_option("files", inspectOptions.files)->check(CLI::ExistingPath);
+    commonOptions(inspect, inspectOptions);
     inspect->add_flag("--ast", inspectOptions.ast, "Print AST");
     inspect->add_flag("--sym", inspectOptions.sym, "Print symbol table");
     inspect->add_option("--pipeline", inspectOptions.pipeline, "Optimization pipeline to be run on the IR");
@@ -36,7 +41,7 @@ int main(int argc, char* argv[]) {
     
     CLI::App* graph = compiler.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
     GraphOptions graphOptions{};
-    graph->add_option("files", graphOptions.files)->check(CLI::ExistingPath);
+    commonOptions(graph, graphOptions);
     graph->add_option("--pipeline", graphOptions.pipeline, "Optimization pipeline to be run on the IR");
     graph->add_option("--dest", graphOptions.dest, "Directory to write the generated files");
     graph->add_flag("--svg", graphOptions.generatesvg, "Generate SVG files");

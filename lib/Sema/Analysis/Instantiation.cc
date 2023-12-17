@@ -48,8 +48,6 @@ struct InstContext {
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
-    static constexpr size_t ForeignFunctionSlot = 2;
-    size_t foreignFunctionIndex = 0;
 };
 
 } // namespace
@@ -247,7 +245,7 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
         return;
     }
     if (def.isExternC()) {
-        F->setForeign(ForeignFunctionSlot, foreignFunctionIndex++);
+        F->setForeign();
     }
     auto SMF = toSMF(def);
     if (!SMF) {

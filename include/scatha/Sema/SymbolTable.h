@@ -226,6 +226,9 @@ public:
     ///
     void setLibrarySearchPaths(std::span<std::filesystem::path const> paths);
 
+    /// List of resolved foreign library paths
+    std::span<std::filesystem::path const> foreignLibraries() const;
+
     /// \Returns The builtin function at index \p index
     Function* builtinFunction(size_t index) const;
 

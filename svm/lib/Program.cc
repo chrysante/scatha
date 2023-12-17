@@ -15,15 +15,15 @@
 using namespace svm;
 
 ProgramView::ProgramView(u8 const* prog) {
-    ProgramHeader header;
+    ProgramHeader header{};
     std::memcpy(&header, prog, sizeof(header));
     if (header.versionString[0] != GlobalProgID) {
-        throw std::runtime_error(
-            "Invalid version string. Binary seems to be corrupted.");
+        throw std::runtime_error("Invalid version string");
     }
     auto* binaryBegin = prog + header.dataOffset;
     size_t dataSize = header.textOffset - header.dataOffset;
-    size_t textSize = header.size - header.textOffset;
+    size_t textSize = header.FFIDeclOffset - header.textOffset;
+    size_t FFIDeclSize = header.size - header.FFIDeclOffset;
     size_t binarySize = dataSize + textSize;
     this->header = header;
     this->binary = std::span(binaryBegin, binarySize);

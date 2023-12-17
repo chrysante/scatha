@@ -1,12 +1,8 @@
+import testlib;
 
-struct X {
-    fn get(this) { return this.n; }
-
-    var n: int;
-}
+extern "C" fn myFunction(n: int, m: int) -> int;
 
 fn main() {
-    var x = X(1);
-    x.n += 2;
-    return x.get();
+    __builtin_puti64(myFunction(22, 20));
+    __builtin_putstr("\n");
 }

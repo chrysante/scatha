@@ -36,17 +36,24 @@ public:
     /// \overload
     auto const& functions() const { return funcs; }
 
-    /// \Returns The `ForeignFunction` in slot \p slot at index \p index
-    ForeignFunction* extFunction(size_t slot, size_t index);
-
     /// \Returns a view over all foreign function declarations in this module
-    auto extFunctions() {
-        return _extFunctions.values() | ranges::views::values;
+    std::span<ForeignFunction* const> extFunctions() {
+        return _extFunctions.values();
     }
 
     /// \overload
-    auto extFunctions() const {
-        return _extFunctions.values() | ranges::views::values | ToConstAddress;
+    std::span<ForeignFunction const* const> extFunctions() const {
+        return _extFunctions.values();
+    }
+
+    /// List of foreign library names to be imported by the VM
+    std::span<std::string const> foreignLibraries() const {
+        return foreignLibs;
+    }
+
+    ///
+    void setForeignLibraries(std::vector<std::string> libs) {
+        foreignLibs = std::move(libs);
     }
 
     /// \Returns a view over all globals in this module, i.e. global variables
@@ -90,8 +97,9 @@ public:
 private:
     utl::vector<UniquePtr<StructType>> structs;
     List<Global> _globals;
-    utl::hashmap<std::pair<size_t, size_t>, ForeignFunction*> _extFunctions;
+    utl::hashset<ForeignFunction*> _extFunctions;
     List<Function> funcs;
+    std::vector<std::string> foreignLibs;
 };
 
 } // namespace scatha::ir

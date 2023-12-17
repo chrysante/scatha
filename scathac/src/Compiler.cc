@@ -32,17 +32,16 @@ int scatha::compilerMain(CompilerOptions options) {
         ranges::to<std::vector>;
     /// Now we compile the program
     auto const compileBeginTime = std::chrono::high_resolution_clock::now();
-    auto data = parseScatha(sourceFiles);
+    auto data = parseScatha(sourceFiles, options.libSearchPaths);
     if (!data) {
         return 1;
     }
     auto& [ast, semaSym, analysisResult] = *data;
-    auto [context, mod] =
-        irgen::generateIR(*ast,
-                          semaSym,
-                          analysisResult,
-                          { .sourceFiles = sourceFiles,
-                            .generateDebugSymbols = options.debug });
+    auto [context, mod] = genIR(*ast,
+                                semaSym,
+                                analysisResult,
+                                { .sourceFiles = sourceFiles,
+                                  .generateDebugSymbols = options.debug });
     if (options.optimize) {
         options.optLevel = 1;
     }

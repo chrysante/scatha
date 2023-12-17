@@ -4,7 +4,6 @@
 #include "IR/Context.h"
 #include "IR/Type.h"
 #include "Opt/Common.h"
-#include "test/IR/CompileToIR.h"
 #include "test/Opt/PassTest.h"
 
 using namespace scatha;

@@ -145,10 +145,8 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                           irReturnType,
                                           irArgTypes,
                                           std::string(semaFn->name()),
-                                          utl::narrow_cast<uint32_t>(
-                                              semaFn->slot()),
-                                          utl::narrow_cast<uint32_t>(
-                                              semaFn->index()),
+                                          0u,
+                                          0u,
                                           mapFuncAttrs(semaFn->attributes()));
         break;
     }

@@ -68,9 +68,13 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
     return [ast = std::move(ast),
             sym = std::move(sym),
             analysisResult = std::move(analysisResult)] {
-        auto result = irgen::generateIR(*ast, sym, analysisResult, {});
-        ir::forEach(result.first, result.second, opt::unifyReturns);
-        return result;
+        ir::Context ctx;
+        ir::Module mod;
+        if (!irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {})) {
+            throw std::runtime_error("Linker error");
+        }
+        ir::forEach(ctx, mod, opt::unifyReturns);
+        return std::pair{ std::move(ctx), std::move(mod) };
     };
 }
 

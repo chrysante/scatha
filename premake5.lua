@@ -69,7 +69,7 @@ externalincludedirs {
     "external/nlohmann/json/include",
 }
 includedirs { "lib", "include/scatha" }
-links { "apmath", "graphgen", "termfmt" }
+links { "apmath", "graphgen", "termfmt", "utility" }
 
 filter { "system:macosx" }
 buildoptions "-fvisibility=hidden"

@@ -114,14 +114,8 @@ public:
     /// `true` if this entity represents a type
     bool isType() const { return category() == EntityCategory::Type; }
 
-    /// `true` if this entity is a builtin
-    bool isBuiltin() const { return _isBuiltin; }
-
     /// Add \p name as an alternate name for this entity
     void addAlternateName(std::string name);
-
-    /// Mark or unmark this entity as builtin
-    void setBuiltin(bool value = true) { _isBuiltin = value; }
 
     /// \Returns the corresponding AST node
     ast::ASTNode* astNode() { return _astNode; }
@@ -156,7 +150,6 @@ private:
 
     /// Type ID used by `dyncast`
     EntityType _entityType;
-    bool _isBuiltin = false;
     utl::small_vector<Scope*, 2> _parents;
     utl::small_vector<std::string, 1> _names;
     mutable std::string _mangledName;
@@ -515,18 +508,13 @@ public:
     /// \Returns `kind() == FunctionKind::Foreign`
     bool isForeign() const { return kind() == FunctionKind::Foreign; }
 
-    /// \Returns `isForeign() && slot() == svm::BuiltinFunctionSlot`
-    bool isBuiltin() const;
-
     /// \Returns `binaryVisibility() == BinaryVisibility::Export`
     bool isBinaryVisible() const {
         return binaryVisibility() == BinaryVisibility::Export;
     }
 
     /// Set this function to be a foreign function
-    void setForeign(size_t slot,
-                    size_t index,
-                    FunctionAttribute attrs = FunctionAttribute::None);
+    void setForeign();
 
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
@@ -564,16 +552,6 @@ public:
         _isSLF = true;
         _slfKind = kind;
     }
-
-    /// \returns Slot of extern function table.
-    ///
-    /// Only applicable if this function is extern.
-    size_t slot() const { return _slot; }
-
-    /// \returns Index into slot of extern function table.
-    ///
-    /// Only applicable if this function is extern.
-    size_t index() const { return _index; }
 
     /// The address of this function in the compiled binary
     /// Only has a value if this function is declared externally visible and
@@ -623,9 +601,6 @@ private:
     bool _hasSig                     : 1 = false;
     bool _isMember                   : 1 = false;
     bool _hasBinaryAddress           : 1 = false;
-    /// For foreign functions
-    u16 _slot = 0;
-    u32 _index = 0;
     /// For binary visible functions to be set after compilation
     size_t _binaryAddress = 0;
 };

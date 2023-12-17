@@ -70,6 +70,7 @@ struct PrintCtx {
     void printImpl(InsertValue const&);
     void printImpl(Select const&);
 
+    void printImport(std::string_view libName);
     void print(StructType const& structure);
 
     void funcDecl(ir::Callable const*);
@@ -183,6 +184,15 @@ static std::optional<std::string> asStringLiteral(RecordConstant const* value) {
     return result;
 }
 
+static constexpr utl::streammanip formatStringLit =
+    [](std::ostream& str, std::string_view text) {
+    tfmt::format(Red, [&] {
+        str << '\"';
+        printWithEscapeSeqs(str, text);
+        str << '\"';
+    });
+};
+
 static void formatValueImpl(std::ostream& str, Value const* value) {
     if (!value) {
         str << tfmt::format(BrightWhite | BGBrightRed | Bold, "<NULL>");
@@ -218,11 +228,7 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
         },
         [&](ir::RecordConstant const& value) {
             if (auto text = asStringLiteral(&value)) {
-                tfmt::format(Red, [&]{
-                    str << '\"';
-                    printWithEscapeSeqs(str, *text);
-                    str << '\"';
-                });
+                str << formatStringLit(*text);
                 return;
             }
             auto brackets = recordBrackets(value);
@@ -264,6 +270,12 @@ void ir::print(Module const& mod) { ir::print(mod, std::cout); }
 
 void ir::print(Module const& mod, std::ostream& str) {
     PrintCtx ctx(str);
+    for (auto& libName: mod.foreignLibraries()) {
+        ctx.printImport(libName);
+    }
+    if (!mod.foreignLibraries().empty()) {
+        str << "\n";
+    }
     for (auto& structure: mod.structures()) {
         ctx.print(*structure);
     }
@@ -534,6 +546,10 @@ void PrintCtx::printImpl(Select const& select) {
     typedName(select.thenValue());
     comma();
     typedName(select.elseValue());
+}
+
+void PrintCtx::printImport(std::string_view libName) {
+    str << formatKeyword("import") << " " << formatStringLit(libName) << "\n";
 }
 
 void PrintCtx::print(StructType const& structure) {

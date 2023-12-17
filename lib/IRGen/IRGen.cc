@@ -13,35 +13,42 @@
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
+#include "IRGen/FFILinker.h"
 #include "IRGen/FunctionGeneration.h"
 #include "IRGen/GlobalDecls.h"
 #include "IRGen/Maps.h"
 #include "IRGen/MetaData.h"
 #include "Sema/AnalysisResult.h"
 #include "Sema/Entity.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace irgen;
+using namespace ranges::views;
 
-std::pair<ir::Context, ir::Module> irgen::generateIR(
+Expected<void, FFILinkError> irgen::generateIR(
+    ir::Context& ctx,
+    ir::Module& mod,
     ast::ASTNode const& root,
     sema::SymbolTable const& sym,
     sema::AnalysisResult const& analysisResult,
     Config config) {
-    ir::Context ctx;
-    ir::Module mod;
+    mod.setForeignLibraries(sym.foreignLibraries() | transform([](auto& path) {
+                                return path.filename().string();
+                            }) |
+                            ranges::to<std::vector>);
     TypeMap typeMap(ctx);
     for (auto* semaType: analysisResult.structDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap);
     }
     FunctionMap functionMap;
-    auto queue =
-        analysisResult.functions |
-        ranges::views::transform([](auto* def) { return def->function(); }) |
-        ranges::views::filter([](auto* fn) {
-            return fn->binaryVisibility() == sema::BinaryVisibility::Export;
-        }) |
-        ranges::to<std::deque<sema::Function const*>>;
+    auto queue = analysisResult.functions |
+                 transform([](auto* def) { return def->function(); }) |
+                 filter([](auto* fn) {
+                     return fn->binaryVisibility() ==
+                            sema::BinaryVisibility::Export;
+                 }) |
+                 ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
         declareFunction(semaFn, ctx, mod, typeMap, functionMap);
     }
@@ -63,9 +70,8 @@ std::pair<ir::Context, ir::Module> irgen::generateIR(
     }
     ir::assertInvariants(ctx, mod);
     if (config.generateDebugSymbols) {
-        mod.setMetadata(config.sourceFiles |
-                        ranges::views::transform(&SourceFile::path) |
+        mod.setMetadata(config.sourceFiles | transform(&SourceFile::path) |
                         ranges::to<dbi::SourceFileList>);
     }
-    return { std::move(ctx), std::move(mod) };
+    return linkFFIs(mod, sym.foreignLibraries());
 }

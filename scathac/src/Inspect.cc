@@ -42,11 +42,10 @@ int scatha::inspectMain(InspectOptions options) {
             header("Symbol Table");
             sema::print(data->sym);
         }
-        std::tie(ctx, mod) =
-            irgen::generateIR(*data->ast,
-                              data->sym,
-                              data->analysisResult,
-                              { .generateDebugSymbols = false });
+        std::tie(ctx, mod) = genIR(*data->ast,
+                                   data->sym,
+                                   data->analysisResult,
+                                   { .generateDebugSymbols = false });
         break;
     }
     case ParseMode::IR:

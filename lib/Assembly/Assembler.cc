@@ -128,9 +128,10 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     svm::ProgramHeader const header{
         .versionString = { svm::GlobalProgID },
         .size = sizeof(svm::ProgramHeader) + ctx.binary.size(),
+        .startAddress = ctx.startAddress,
         .dataOffset = sizeof(svm::ProgramHeader),
         .textOffset = sizeof(svm::ProgramHeader) + dataSecSize,
-        .startAddress = ctx.startAddress
+        .FFIDeclOffset = sizeof(svm::ProgramHeader) + ctx.binary.size(),
     };
     result.program.resize(header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));

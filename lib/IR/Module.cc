@@ -14,11 +14,6 @@ Module& Module::operator=(Module&& rhs) noexcept = default;
 
 Module::~Module() = default;
 
-ForeignFunction* Module::extFunction(size_t slot, size_t index) {
-    auto itr = _extFunctions.find({ slot, index });
-    return itr != _extFunctions.end() ? itr->second : nullptr;
-}
-
 StructType const* Module::addStructure(UniquePtr<StructType> structure) {
     auto* result = structure.get();
     structs.push_back(std::move(structure));
@@ -36,7 +31,7 @@ Global* Module::addGlobal(UniquePtr<Global> value) {
         },
         [&](Global& global) {
             if (auto* func = dyncast<ForeignFunction*>(&global)) {
-                _extFunctions[{ func->slot(), func->index() }] = func;
+                _extFunctions.insert(func);
             }
             value.release();
             global.set_parent(this);
@@ -53,7 +48,7 @@ void Module::erase(Global* global) {
             funcs.erase(&function);
         },
         [&](ForeignFunction& function) {
-            _extFunctions.erase({ function.slot(), function.index() });
+            _extFunctions.erase(&function);
             _globals.erase(&function);
         },
         [&](Global& global) {

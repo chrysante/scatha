@@ -6,6 +6,7 @@
 
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
+#include <scatha/Common/Expected.h>
 #include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Fwd.h>
 #include <scatha/Sema/Fwd.h>
@@ -13,7 +14,7 @@
 namespace scatha::irgen {
 
 /// Config options used by `generateIR()`
-struct Config {
+struct SCATHA_API Config {
     /// The source files. Only used to generate debug symbols
     std::span<SourceFile const> sourceFiles;
 
@@ -21,8 +22,15 @@ struct Config {
     bool generateDebugSymbols = false;
 };
 
+/// Missing foreign function definition error
+struct SCATHA_API FFILinkError {
+    std::vector<std::string> missingFunctions;
+};
+
 /// Lower the front-end representation of the program to IR
-SCATHA_API std::pair<ir::Context, ir::Module> generateIR(
+SCATHA_API Expected<void, FFILinkError> generateIR(
+    ir::Context& ctx,
+    ir::Module& mod,
     ast::ASTNode const& ast,
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult,

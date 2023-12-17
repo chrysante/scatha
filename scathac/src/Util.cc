@@ -12,6 +12,7 @@
 #include <scatha/IR/IRParser.h>
 #include <scatha/IR/Module.h>
 #include <scatha/IR/PassManager.h>
+#include <scatha/IRGen/IRGen.h>
 #include <scatha/Opt/Optimizer.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
@@ -22,7 +23,8 @@
 using namespace scatha;
 
 std::optional<ScathaData> scatha::parseScatha(
-    std::span<SourceFile const> sourceFiles) {
+    std::span<SourceFile const> sourceFiles,
+    std::span<std::filesystem::path const> libSearchPaths) {
     IssueHandler issueHandler;
     ScathaData result;
     result.ast = parser::parse(sourceFiles, issueHandler);
@@ -33,7 +35,11 @@ std::optional<ScathaData> scatha::parseScatha(
         return std::nullopt;
     }
     result.analysisResult =
-        sema::analyze(*result.ast, result.sym, issueHandler);
+        sema::analyze(*result.ast,
+                      result.sym,
+                      issueHandler,
+                      { .librarySearchPaths = libSearchPaths |
+                                              ranges::to<std::vector> });
     if (!issueHandler.empty()) {
         issueHandler.print(sourceFiles);
     }
@@ -49,7 +55,7 @@ std::optional<ScathaData> scatha::parseScatha(OptionsBase const& options) {
                            return SourceFile::load(path);
                        }) |
                        ranges::to<std::vector>;
-    return parseScatha(sourceFiles);
+    return parseScatha(sourceFiles, options.libSearchPaths);
 }
 
 std::pair<ir::Context, ir::Module> scatha::parseIR(OptionsBase const& options) {
@@ -68,6 +74,30 @@ std::pair<ir::Context, ir::Module> scatha::parseIR(OptionsBase const& options) {
         throw std::runtime_error(sstr.str());
     }
     return std::move(result).value();
+}
+
+std::pair<ir::Context, ir::Module> scatha::genIR(
+    ast::ASTNode const& ast,
+    sema::SymbolTable const& symbolTable,
+    sema::AnalysisResult const& analysisResult,
+    irgen::Config config) {
+    ir::Context context;
+    ir::Module mod;
+    auto irgenResult = irgen::generateIR(context,
+                                         mod,
+                                         ast,
+                                         symbolTable,
+                                         analysisResult,
+                                         std::move(config));
+    if (!irgenResult) {
+        std::cout << Error << "Missing definitions for foreign functions:\n";
+        auto& error = irgenResult.error();
+        for (auto& name: error.missingFunctions) {
+            std::cout << "  - " << name << std::endl;
+        }
+        std::exit(1);
+    }
+    return { std::move(context), std::move(mod) };
 }
 
 void scatha::optimize(ir::Context& ctx,

@@ -21,6 +21,9 @@ struct ProgramHeader {
     /// header.
     u64 size;
 
+    /// Position of the start/main function in the text section.
+    u64 startAddress;
+
     /// Offset of the beginning of the data section.
     /// This should usually the size of the header.
     u64 dataOffset;
@@ -28,8 +31,25 @@ struct ProgramHeader {
     /// Offset to the beginning of the text section.
     u64 textOffset;
 
-    /// Position of the start/main function in the text section.
-    u64 startAddress;
+    /// Offset to a list of dynamic library and FFI declarations
+    u64 FFIDeclOffset;
+};
+
+/// The FFI decl format is as follows:
+/// - `u32` ; Number of foreign library names
+/// - `[[char]\0]` ; List of null-terminated strings denoting foreign library
+/// names
+/// - `u32` ; Number of foreign function declarations
+/// - `[func-decl]` ; List of function declarations where `func-decl` is:
+///   - `u32` ; Slot
+///   - `u32` ; Index
+///   - `[char]\0` ; Null-terminated string denoting the name
+///   - `u16` ; Number of parameters
+///   - `[u16]` ; List of parameter type sizes
+///   - `u16` ; Return type size
+class FFIDeclView {
+public:
+    explicit FFIDeclView(std::span<u8 const> data);
 };
 
 ///

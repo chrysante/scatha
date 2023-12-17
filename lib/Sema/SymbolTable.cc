@@ -6,7 +6,6 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <svm/Builtin.h>
-#include <utl/dynamic_library.hpp>
 #include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
@@ -74,6 +73,9 @@ struct SymbolTable::Impl {
 
     /// Pathes to search for imported libraries
     std::vector<std::filesystem::path> libSearchPaths;
+
+    /// List of resolved foreign library paths
+    std::vector<std::filesystem::path> foreignLibraries;
 
     /// Conveniece wrapper to emit issues
     /// The same function exists in `AnalysisContext`, maybe we can merge them
@@ -148,7 +150,6 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     /// Declare builtin generics
     auto* reinterpret =
         impl->addEntity<Generic>("reinterpret", 1u, &globalScope());
-    reinterpret->setBuiltin();
     globalScope().addChild(reinterpret);
 }
 
@@ -194,12 +195,8 @@ LibraryScope* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
         impl->issue<BadImport>(stmt);
         return nullptr;
     }
-#if 0 // Need to link utl to use dynamic_library
-    utl::dynamic_library sharedLib(*path);
-    sharedLib.symbol_ptr<void()>("internal_declareFunctions");
-    auto* lib = impl->addEntity<LibraryScope>(name, &currentScope());
-#endif
-    SC_UNIMPLEMENTED();
+    impl->foreignLibraries.push_back(*std::move(path));
+    return nullptr;
 }
 
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
@@ -229,7 +226,6 @@ T* SymbolTable::declareBuiltinType(Args&&... args) {
     auto* type =
         impl->addEntity<T>(std::forward<Args>(args)..., &currentScope());
     globalScope().addChild(type);
-    type->setBuiltin();
     return type;
 }
 
@@ -301,17 +297,29 @@ OverloadSet* SymbolTable::addOverloadSet(
                                         functions);
 }
 
+static utl::hashmap<std::string_view, size_t> makeBuiltinIndexMap() {
+    size_t index = 0;
+    return {
+#define SVM_BUILTIN_DEF(name, ...)                                             \
+    std::pair{ std::string_view("__builtin_" #name), index++ },
+#include <svm/Builtin.def>
+    };
+}
+
 Function* SymbolTable::declareForeignFunction(std::string name,
                                               size_t slot,
                                               size_t index,
                                               FunctionSignature sig,
                                               FunctionAttribute attrs) {
-    auto* function = declareFunction(std::move(name), std::move(sig));
+    auto* function = declareFunction(name, std::move(sig));
     if (!function) {
         return nullptr;
     }
-    function->setForeign(slot, index, attrs);
-    if (slot == svm::BuiltinFunctionSlot) {
+    function->setForeign();
+    function->setAttribute(attrs);
+    static utl::hashmap<std::string_view, size_t> const builtinIndexMap =
+        makeBuiltinIndexMap();
+    if (auto itr = builtinIndexMap.find(name); itr != builtinIndexMap.end()) {
         impl->builtinFunctions[index] = function;
     }
     return function;
@@ -549,6 +557,10 @@ void SymbolTable::setIssueHandler(IssueHandler& issueHandler) {
 void SymbolTable::setLibrarySearchPaths(
     std::span<std::filesystem::path const> paths) {
     impl->libSearchPaths = paths | ranges::to<std::vector>;
+}
+
+std::span<std::filesystem::path const> SymbolTable::foreignLibraries() const {
+    return impl->foreignLibraries;
 }
 
 Scope& SymbolTable::currentScope() { return *impl->currentScope; }

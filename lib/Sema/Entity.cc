@@ -304,9 +304,7 @@ ArrayType::ArrayType(ObjectType* elementType, size_t count):
                  computeArraySize(elementType, count),
                  computeArrayAlign(elementType)),
     elemType(elementType),
-    _count(count) {
-    setBuiltin(elementType->isBuiltin());
-}
+    _count(count) {}
 
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     std::stringstream sstr;
@@ -364,19 +362,7 @@ void Function::setDeducedReturnType(Type const* type) {
     _sig._returnType = type;
 }
 
-void Function::setForeign(size_t slot, size_t index, FunctionAttribute attrs) {
-    _kind = FunctionKind::Foreign;
-    this->attrs = attrs;
-    _slot = utl::narrow_cast<u16>(slot);
-    _index = utl::narrow_cast<u32>(index);
-    if (slot == svm::BuiltinFunctionSlot) {
-        setBuiltin();
-    }
-}
-
-bool Function::isBuiltin() const {
-    return isForeign() && slot() == svm::BuiltinFunctionSlot;
-}
+void Function::setForeign() { _kind = FunctionKind::Foreign; }
 
 Function const* OverloadSet::find(std::span<Type const* const> types) const {
     return find(std::span<Function const* const>(*this), types);

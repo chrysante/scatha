@@ -62,12 +62,6 @@ struct PrintContext {
         return [](std::ostream& str) { str << "Top level"; };
     }
 
-    auto filterBuiltins() const {
-        return ranges::views::filter([=](Entity const* entity) {
-            return printBuiltins || !entity->isBuiltin();
-        });
-    }
-
     std::ostream& str;
     SymbolTable const& sym;
     TreeFormatter formatter;
@@ -88,9 +82,9 @@ void PrintContext::print(Entity const& entity) {
     auto children = [&] {
         using SetType = utl::hashset<Entity const*>;
         if (auto* scope = dyncast<Scope const*>(&entity)) {
-            auto children = scope->entities() | filterBuiltins() |
+            auto children = scope->entities() |
                             ranges::to<utl::hashset<Entity const*>>;
-            for (auto* entity: scope->children() | filterBuiltins()) {
+            for (auto* entity: scope->children()) {
                 if (isa<Function>(entity)) {
                     continue;
                 }

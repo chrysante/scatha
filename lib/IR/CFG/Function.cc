@@ -170,8 +170,8 @@ ForeignFunction::ForeignFunction(Context& ctx,
                                  Type const* returnType,
                                  std::span<Type const* const> parameterTypes,
                                  std::string name,
-                                 uint32_t slot,
-                                 uint32_t index,
+                                 size_t slot,
+                                 size_t index,
                                  FunctionAttribute attr):
     Callable(NodeType::ForeignFunction,
              ctx,
@@ -180,15 +180,15 @@ ForeignFunction::ForeignFunction(Context& ctx,
              std::move(name),
              attr,
              Visibility::Internal),
-    _slot(slot),
-    _index(index) {}
+    _slot(utl::narrow_cast<uint16_t>(slot)),
+    _index(utl::narrow_cast<uint32_t>(index)) {}
 
 ForeignFunction::ForeignFunction(Context& ctx,
                                  Type const* returnType,
                                  std::span<Parameter* const> parameters,
                                  std::string name,
-                                 uint32_t slot,
-                                 uint32_t index,
+                                 size_t slot,
+                                 size_t index,
                                  FunctionAttribute attr):
     Callable(NodeType::ForeignFunction,
              ctx,
@@ -197,8 +197,14 @@ ForeignFunction::ForeignFunction(Context& ctx,
              std::move(name),
              attr,
              Visibility::Internal),
-    _slot(slot),
-    _index(index) {}
+    _slot(utl::narrow_cast<uint16_t>(slot)),
+    _index(utl::narrow_cast<uint32_t>(index)) {}
+
+void ForeignFunction::setAddress(size_t libIndex, size_t slot, size_t index) {
+    _libIndex = utl::narrow_cast<uint16_t>(libIndex);
+    _slot = utl::narrow_cast<uint16_t>(slot);
+    _index = utl::narrow_cast<uint32_t>(index);
+}
 
 void ForeignFunction::writeValueToImpl(
     void* dest,

@@ -12,6 +12,9 @@ struct OptionsBase {
     /// List of all input files
     std::vector<std::filesystem::path> files;
 
+    /// List of library search paths
+    std::vector<std::filesystem::path> libSearchPaths;
+
     /// Optimization level
     int optLevel = -1;
 

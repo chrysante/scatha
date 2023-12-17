@@ -224,17 +224,20 @@ public:
                              Type const* returnType,
                              std::span<Type const* const> parameterTypes,
                              std::string name,
-                             uint32_t slot,
-                             uint32_t index,
+                             size_t slot,
+                             size_t index,
                              FunctionAttribute attr);
 
     explicit ForeignFunction(Context& ctx,
                              Type const* returnType,
                              std::span<Parameter* const> parameters,
                              std::string name,
-                             uint32_t slot,
-                             uint32_t index,
+                             size_t slot,
+                             size_t index,
                              FunctionAttribute attr);
+
+    /// Index of foreign library that this function is defined in
+    size_t libIndex() const { return _libIndex; }
 
     /// Slot in external function table of VM.
     size_t slot() const { return _slot; }
@@ -242,13 +245,18 @@ public:
     /// Index into slot.
     size_t index() const { return _index; }
 
+    ///
+    void setAddress(size_t libIndex, size_t slot, size_t index);
+
 private:
     friend class Constant;
     void writeValueToImpl(
         void* dest,
         utl::function_view<void(Constant const*, void*)> callback) const;
 
-    uint32_t _slot, _index;
+    uint16_t _libIndex = 0;
+    uint16_t _slot = 0;
+    uint32_t _index = 0;
 };
 
 } // namespace scatha::ir
