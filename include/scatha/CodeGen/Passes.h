@@ -13,9 +13,6 @@ class AssemblyStream;
 
 namespace scatha::cg {
 
-/// Lower IR module \p mod to MIR module
-SCATHA_API mir::Module lowerToMIR(mir::Context& ctx, ir::Module const& mod);
-
 /// Lowers the IR module \p mod to MIR representation
 SCATHA_API mir::Module lowerToMIR2(mir::Context& ctx, ir::Module const& mod);
 

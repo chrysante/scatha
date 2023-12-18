@@ -30,7 +30,7 @@ struct Matcher<ir::Alloca>: MatcherBase {
         auto [addr, offset] = valueMap().getAddress(&inst);
         SC_ASSERT(addr,
                   "Must be set because we handle all allocas in parent "
-                  "lowerToMIR()");
+                  "function lowerToMIR()");
         auto* dest = resolve(inst);
         emit(new mir::LEAInst(dest, computeAddress(inst, {}), {}));
         return true;

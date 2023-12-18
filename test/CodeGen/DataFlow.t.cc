@@ -36,7 +36,7 @@ func i64 @f(i64 %0) {
 })";
     auto [irCtx, irMod] = ir::parse(text).value();
     mir::Context ctx;
-    auto mod = cg::lowerToMIR(ctx, irMod);
+    auto mod = cg::lowerToMIR2(ctx, irMod);
     auto& F = mod.front();
     cg::computeLiveSets(ctx, F);
     auto* entry = F.entry();
