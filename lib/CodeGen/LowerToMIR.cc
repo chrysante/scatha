@@ -63,7 +63,7 @@ struct LoweringContext {
 
 } // namespace
 
-mir::Module cg::lowerToMIR2(mir::Context& ctx, ir::Module const& irMod) {
+mir::Module cg::lowerToMIR(mir::Context& ctx, ir::Module const& irMod) {
     mir::Module mirMod;
     LoweringContext(irMod, ctx, mirMod).run();
     return mirMod;
