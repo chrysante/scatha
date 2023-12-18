@@ -35,6 +35,9 @@ public:
     /// Add a function to this translation unit
     void addFunction(Function* function);
 
+    /// For now used for foreign functions
+    void addGlobal(Value* value);
+
     /// Iterators and other helper functions to make `Module` a range of
     /// functions
     /// @{
@@ -71,6 +74,16 @@ public:
         return asDerived<M>(*this).funcs.back();
     }
     /// @}
+
+    /// View over all foreign functions in this module
+    std::span<ForeignFunction* const> foreignFunctionsNEW() {
+        return foreignFuncsNEW.values();
+    }
+
+    /// \overload
+    std::span<ForeignFunction const* const> foreignFunctionsNEW() const {
+        return foreignFuncsNEW.values();
+    }
 
     ///
     std::vector<u8> const& dataSection() const { return staticData; }
@@ -114,6 +127,10 @@ public:
 private:
     /// List of all functions in the module
     List<Function> funcs;
+
+    utl::hashset<ForeignFunction*> foreignFuncsNEW;
+
+    utl::hashset<UniquePtr<Value>> _globals;
 
     /// Data section
     std::vector<uint8_t> staticData;

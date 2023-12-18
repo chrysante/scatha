@@ -117,22 +117,18 @@ private:
 /// Represents a `call ext` instruction.
 class CallExtInst: public InstructionBase {
 public:
-    explicit CallExtInst(size_t regPtrOffset, size_t slot, size_t index):
-        _regPtrOffset(regPtrOffset), _slot(slot), _index(index) {}
+    explicit CallExtInst(size_t regPtrOffset, std::string callee):
+        _regPtrOffset(regPtrOffset), _callee(std::move(callee)) {}
 
     /// Offset to the register pointer where the function finds it's arguments.
     size_t regPtrOffset() const { return _regPtrOffset; }
 
-    /// Index of the table that the called function sits in.
-    size_t slot() const { return _slot; }
-
-    /// Index of the called function in the table.
-    size_t index() const { return _index; }
+    /// Name of the called function (linker will resolve this)
+    std::string const& callee() const { return _callee; }
 
 private:
     size_t _regPtrOffset;
-    size_t _slot;
-    size_t _index;
+    std::string _callee;
 };
 
 /// Represents a `return` instruction.

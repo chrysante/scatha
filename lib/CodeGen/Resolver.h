@@ -119,6 +119,7 @@ private:
     mir::Value* impl(ir::NullPointerConstant const&) const;
     mir::Value* impl(ir::RecordConstant const&) const;
     mir::Value* impl(ir::UndefValue const&) const;
+    mir::Value* impl(ir::ForeignFunction const& function) const;
     mir::Value* impl(ir::Value const&) const;
 
     std::pair<mir::Value*, size_t> computeAddressImpl(ir::Value const& addr,

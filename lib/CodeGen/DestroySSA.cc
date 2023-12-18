@@ -14,27 +14,23 @@ using namespace cg;
 using namespace mir;
 using namespace ranges::views;
 
-static bool isTailCall(CallBase const& inst) {
-    auto* call = dyncast<CallInst const*>(&inst);
-    if (!call) {
+static bool isTailCall(CallInst const& call) {
+    /// Make sure this is not a call to a foreign function because we can't jump
+    /// to those
+    if (!isa<Function>(call.callee())) {
         return false;
     }
-    /// For now we don't tail call indirectly because we don't have indirect
-    /// jump instruction
-    if (!isa<Function>(call->callee())) {
-        return false;
-    }
-    auto* ret = dyncast<ReturnInst const*>(call->next());
+    auto* ret = dyncast<ReturnInst const*>(call.next());
     if (!ret) {
         return false;
     }
-    if (ret->operands().size() != call->numDests()) {
+    if (ret->operands().size() != call.numDests()) {
         return false;
     }
-    if (!call->dest()) {
+    if (!call.dest()) {
         return true;
     }
-    return ret->operands().front() == call->dest();
+    return ret->operands().front() == call.dest();
 }
 
 static void mapSSAToVirtualRegisters(Function& F) {
@@ -208,12 +204,12 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
 
 static BasicBlock::Iterator destroy(Function& F,
                                     BasicBlock& BB,
-                                    CallBase& call,
+                                    CallInst& call,
                                     BasicBlock::Iterator const callItr) {
     if (isTailCall(call)) {
-        return destroyTailCall(F, BB, cast<CallInst&>(call), callItr);
+        return destroyTailCall(F, BB, call, callItr);
     }
-    bool const isNative = isa<CallInst>(call);
+    bool const isNative = !isa<ForeignFunction>(call.callee());
     size_t numMDRegs = isNative ? numRegistersForCallMetadata() : 0;
     size_t numCalleeRegs =
         numMDRegs + std::max(call.arguments().size(), call.numDests());
@@ -223,11 +219,8 @@ static BasicBlock::Iterator destroy(Function& F,
         F.calleeRegisters().add(reg);
     }
     /// Copy arguments into callee registers.
-    utl::small_vector<Value*> newArguments;
+    utl::small_vector<Value*> newArguments{ call.callee() };
     newArguments.reserve(call.operands().size());
-    if (isNative) {
-        newArguments.push_back(cast<CallInst&>(call).callee());
-    }
     auto dest =
         std::next(F.calleeRegisters().begin(), static_cast<ssize_t>(numMDRegs));
     for (auto argItr = call.arguments().begin(), end = call.arguments().end();

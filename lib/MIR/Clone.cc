@@ -34,14 +34,6 @@ static CallInst* doClone(CallInst& inst) {
                         inst.metadata());
 }
 
-static CallExtInst* doClone(CallExtInst& inst) {
-    return new CallExtInst(inst.dest(),
-                           inst.numDests(),
-                           inst.callee(),
-                           inst.arguments() | ToSmallVector<>,
-                           inst.metadata());
-}
-
 static CondCopyInst* doClone(CondCopyInst& inst) {
     return new CondCopyInst(inst.dest(),
                             inst.source(),

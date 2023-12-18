@@ -113,9 +113,6 @@ static auto formatInstName(mir::Instruction const& inst) {
         [](CallInst const& inst) {
             return "call"s;
         },
-        [](CallExtInst const& inst) {
-            return "callext"s;
-        },
         [](CondCopyInst const& inst) {
             return utl::strcat("c",
                                inst.condition(),
@@ -371,13 +368,9 @@ struct PrintContext {
         }
     }
 
-    void printImpl(CallBase const& call) {
+    void printImpl(CallInst const& call) {
         printInstBegin(call);
         str << formatInstName(call) << " ";
-        if (auto* callext = dyncast<CallExtInst const*>(&call)) {
-            print(callext->callee());
-            str << none(", ");
-        }
         printOperands(call);
         str << tfmt::format(BrightGrey,
                             " [regoffset=",

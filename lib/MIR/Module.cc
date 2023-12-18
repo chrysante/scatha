@@ -17,6 +17,13 @@ Module::~Module() = default;
 
 void Module::addFunction(Function* function) { funcs.push_back(function); }
 
+void Module::addGlobal(Value* value) {
+    _globals.insert(UniquePtr<Value>(value));
+    if (auto* F = dyncast<ForeignFunction*>(value)) {
+        foreignFuncsNEW.insert(F);
+    }
+}
+
 std::pair<void*, size_t> Module::allocateStaticData(size_t size, size_t align) {
     size_t offset = utl::round_up(staticData.size(), align);
     staticData.resize(offset + size);

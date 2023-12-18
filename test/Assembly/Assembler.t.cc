@@ -316,24 +316,19 @@ TEST_CASE("callExt", "[assembly][vm]") {
     a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::BuiltinFunctionSlot,
-                    /* index = */ static_cast<size_t>(svm::Builtin::puti64)),
+                    "__builtin_puti64"),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::BuiltinFunctionSlot,
-                    /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
+                    "__builtin_putchar"),
         MoveInst(RegisterIndex(0), Value64('X'), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::BuiltinFunctionSlot,
-                    /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
+                    "__builtin_putchar"),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::BuiltinFunctionSlot,
-                    /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
+                    "__builtin_putchar"),
         MoveInst(RegisterIndex(0), Value64(0.5), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::BuiltinFunctionSlot,
-                    /* index = */ static_cast<size_t>(svm::Builtin::putf64)),
+                    "__builtin_putf64"),
         TerminateInst()
     })); // clang-format on
     test::CoutRerouter cr;
@@ -347,8 +342,7 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
     a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(2.0), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::BuiltinFunctionSlot,
-                    /* index = */ static_cast<size_t>(svm::Builtin::sqrt_f64)),
+                    "__builtin_sqrt_f64"),
         TerminateInst(),
     })); // clang-format on
     auto const [regs, stack] = assembleAndExecute(a);

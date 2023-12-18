@@ -100,9 +100,15 @@ public:
                  std::move(metadata)) {}
 };
 
-/// Abstract base class of all call instructions
-class CallBase: public Instruction {
+/// Concrete call instruction
+class CallInst: public Instruction {
 public:
+    explicit CallInst(Register* dest,
+                      size_t numDests,
+                      Value* callee,
+                      utl::small_vector<Value*> arguments,
+                      Metadata metadata);
+
     ///
     size_t registerOffset() const { return regOffset; }
 
@@ -111,70 +117,26 @@ public:
 
     /// The actual function parameters. Drops the first operand if this is a
     /// `CallInst`
-    std::span<Value* const> arguments();
+    std::span<Value* const> arguments() { return operands().subspan(1); }
 
     /// \overload
-    std::span<Value const* const> arguments() const;
+    std::span<Value const* const> arguments() const {
+        return operands().subspan(1);
+    }
 
     /// \Returns the number of callee registers that this function defines.
     /// In SSA form this is the same as `numDests()`
     size_t numReturnRegisters() const { return numRetRegs; }
-
-protected:
-    explicit CallBase(InstType instType,
-                      Register* dest,
-                      size_t numDests,
-                      utl::small_vector<Value*> operands,
-                      Metadata metadata):
-        Instruction(instType,
-                    dest,
-                    numDests,
-                    std::move(operands),
-                    0,
-                    std::move(metadata)),
-        numRetRegs(numDests) {}
-
-private:
-    size_t regOffset  : 32 = 0;
-    size_t numRetRegs : 32 = 0;
-};
-
-/// Concrete call instruction
-class CallInst: public CallBase {
-public:
-    explicit CallInst(Register* dest,
-                      size_t numDests,
-                      Value* callee,
-                      utl::small_vector<Value*> arguments,
-                      Metadata metadata);
 
     /// The called function or function pointer
     Value* callee() { return operandAt(0); }
 
     /// \overload
     Value const* callee() const { return operandAt(0); }
-};
-
-/// Concrete callext instruction
-class CallExtInst: public CallBase {
-public:
-    explicit CallExtInst(Register* dest,
-                         size_t numDests,
-                         ForeignFuncAddress callee,
-                         utl::small_vector<Value*> arguments,
-                         Metadata metadata):
-        CallBase(InstType::CallExtInst,
-                 dest,
-                 numDests,
-                 std::move(arguments),
-                 std::move(metadata)),
-        _callee(callee) {}
-
-    /// The called foreign function
-    ForeignFuncAddress callee() const { return _callee; }
 
 private:
-    ForeignFuncAddress _callee;
+    size_t regOffset  : 32 = 0;
+    size_t numRetRegs : 32 = 0;
 };
 
 /// Concrete cond-copy instruction

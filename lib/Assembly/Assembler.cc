@@ -226,8 +226,9 @@ void AsmContext::translate(CallInst const& call) {
 void AsmContext::translate(CallExtInst const& call) {
     put(OpCode::callExt);
     put<u8>(call.regPtrOffset());
-    put<u8>(call.slot());
-    put<u16>(call.index());
+    SC_UNIMPLEMENTED();
+    //    put<u8>(call.slot());
+    //    put<u16>(call.index());
 }
 
 void AsmContext::translate(ReturnInst const& ret) { put(OpCode::ret); }
