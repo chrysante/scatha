@@ -17,7 +17,9 @@ SC_MIR_CFGNODE_DEF(HardwareRegister,    CONCRETE)
 SC_MIR_CFGNODE_DEF(Constant,            CONCRETE)
 SC_MIR_CFGNODE_DEF(UndefValue,          CONCRETE)
 SC_MIR_CFGNODE_DEF(BasicBlock,          CONCRETE)
+SC_MIR_CFGNODE_DEF(Callable,            ABSTRACT)
 SC_MIR_CFGNODE_DEF(Function,            CONCRETE)
+SC_MIR_CFGNODE_DEF(ForeignFunction,     CONCRETE)
 
 #undef SC_MIR_CFGNODE_DEF
 

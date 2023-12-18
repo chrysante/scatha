@@ -45,12 +45,15 @@ void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
     }
 }
 
+Callable::Callable(NodeType type, std::string name):
+    ListNodeOverride<Callable, Value>(type), _name(std::move(name)) {}
+
 Function::Function(ir::Function const* irFunc,
                    size_t numArgRegs,
                    size_t numRetvalRegs,
                    Visibility vis):
-    ListNodeOverride<Function, Value>(NodeType::Function),
-    _name(std::string(irFunc->name())),
+    ListNodeOverride<Function, Callable>(NodeType::Function,
+                                         std::string(irFunc->name())),
     ssaRegs(this),
     virtRegs(this),
     calleeRegs(this),

@@ -157,9 +157,22 @@ private:
     ir::BasicBlock const* irBB = nullptr;
 };
 
+/// Abstract basae class of `Function` and `ForeignFunction`
+class Callable: public ListNodeOverride<Callable, Value> {
+public:
+    /// \Returns The name of this function.
+    std::string_view name() const { return _name; }
+
+protected:
+    Callable(NodeType type, std::string name);
+
+private:
+    std::string _name;
+};
+
 /// Represents a function
 class Function:
-    public ListNodeOverride<Function, Value>,
+    public ListNodeOverride<Function, Callable>,
     public CFGList<Function, BasicBlock> {
 public:
     using CFGList::ConstIterator;
@@ -171,9 +184,6 @@ public:
                       size_t numArgRegisters,
                       size_t numReturnRegisters,
                       Visibility vis);
-
-    /// \Returns The name of this function.
-    std::string_view name() const { return _name; }
 
     /// \Returns the register phase this function is in
     RegisterPhase registerPhase() const { return regPhase; }
@@ -339,8 +349,6 @@ private:
     void insertCallback(BasicBlock&);
     void eraseCallback(BasicBlock const&);
 
-    std::string _name;
-
     RegisterSet<SSARegister> ssaRegs;
     RegisterSet<VirtualRegister> virtRegs;
     RegisterSet<CalleeRegister> calleeRegs;
@@ -355,6 +363,14 @@ private:
     size_t numRetvalRegs : 20 = 0;
     Visibility vis;
     RegisterPhase regPhase = RegisterPhase::SSA;
+};
+
+///
+class ForeignFunction: public ListNodeOverride<ForeignFunction, Callable> {
+public:
+    explicit ForeignFunction(std::string name):
+        ListNodeOverride<ForeignFunction, Callable>(NodeType::ForeignFunction,
+                                                    std::move(name)) {}
 };
 
 } // namespace scatha::mir

@@ -33,7 +33,9 @@ class Instruction;
 /// ├─ Constant
 /// ├─ UndefValue
 /// ├─ BasicBlock
-/// └─ Function
+/// └─ Callable
+///    ├─ Function
+///    └─ ForeignFunction
 /// ```
 ///
 

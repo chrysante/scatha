@@ -421,7 +421,7 @@ struct PrintContext {
             return;
         }
         // clang-format off
-        visit(*value, utl::overload{
+        SC_MATCH (*value) {
             [&](Register const& reg) {
                 str << regName(&reg);
             },
@@ -434,10 +434,10 @@ struct PrintContext {
             [&](BasicBlock const& BB) {
                 str << localName(BB.name());
             },
-            [&](Function const& F) {
+            [&](Callable const& F) {
                 str << globalName(F.name());
             }
-        }); // clang-format on
+        }; // clang-format on
     }
 
     void printPtrData(MemAddrConstantData data) {
