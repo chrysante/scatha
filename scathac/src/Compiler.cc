@@ -21,6 +21,22 @@
 using namespace scatha;
 using namespace ranges::views;
 
+namespace {
+
+struct Timer {
+    using Clock = std::chrono::high_resolution_clock;
+
+    Timer() { reset(); }
+
+    Clock::duration elapsed() const { return Clock::now() - start; }
+
+    void reset() { start = Clock::now(); }
+
+    Clock::time_point start;
+};
+
+} // namespace
+
 int scatha::compilerMain(CompilerOptions options) {
     if (options.files.empty()) {
         std::cout << Error << "No input files" << std::endl;
@@ -31,36 +47,41 @@ int scatha::compilerMain(CompilerOptions options) {
         transform([](auto const& path) { return SourceFile::load(path); }) |
         ranges::to<std::vector>;
     /// Now we compile the program
-    auto const compileBeginTime = std::chrono::high_resolution_clock::now();
+    Timer timer;
+    auto printTime = [&](std::string_view section) {
+        if (options.time) {
+            std::cout << section << ": "
+                      << utl::format_duration(timer.elapsed()) << std::endl;
+            timer.reset();
+        }
+    };
     auto data = parseScatha(sourceFiles, options.libSearchPaths);
     if (!data) {
         return 1;
     }
     auto& [ast, semaSym, analysisResult] = *data;
+    printTime("Frontend");
     auto [context, mod] = genIR(*ast,
                                 semaSym,
                                 analysisResult,
                                 { .sourceFiles = sourceFiles,
                                   .generateDebugSymbols = options.debug });
+    printTime("IR generation");
     if (options.optimize) {
         options.optLevel = 1;
     }
     optimize(context, mod, options);
+    printTime("Optimizer");
     auto asmStream = cg::codegen(mod);
+    printTime("Codegen");
     auto [program, symbolTable] = Asm::assemble(asmStream);
+    printTime("Assembler");
     std::string dsym = [&] {
         if (!options.debug) {
             return std::string{};
         }
         return Asm::generateDebugSymbols(asmStream);
     }();
-    auto const compileEndTime = std::chrono::high_resolution_clock::now();
-    if (options.time) {
-        std::cout << "Compilation took "
-                  << utl::format_duration(compileEndTime - compileBeginTime)
-                  << "\n";
-    }
-
     /// We emit the executable
     if (options.bindir.empty()) {
         options.bindir = "out";
@@ -78,5 +99,6 @@ int scatha::compilerMain(CompilerOptions options) {
         }
         file << dsym;
     }
+    printTime("Total");
     return 0;
 }
