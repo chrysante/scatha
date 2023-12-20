@@ -48,10 +48,6 @@ public:
             [](LoadInst const& A, LoadInst const& B) {
                 return TEST_EQ(address) && TEST_EQ(bytewidth);
             },
-            [](CallExtInst const& A, CallExtInst const& B) {
-                return ranges::equal(A.arguments(), B.arguments()) &&
-                       TEST_EQ(callee) && TEST_EQ(bytewidth);
-            },
             [](CondCopyInst const& A, CondCopyInst const& B) {
                 return TEST_EQ(source) && TEST_EQ(condition) &&
                        TEST_EQ(bytewidth);
@@ -108,11 +104,6 @@ public:
             },
             [](LoadInst const& inst) {
                 return utl::hash_combine(inst.address());
-            },
-            [](CallExtInst const& inst) {
-                auto argsHash = utl::hash_combine_range(inst.arguments().begin(),
-                                                        inst.arguments().end());
-                return utl::hash_combine(argsHash, inst.callee());
             },
             [](CondCopyInst const& inst) {
                 return utl::hash_combine(inst.source(), inst.condition());

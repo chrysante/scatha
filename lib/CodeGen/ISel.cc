@@ -635,24 +635,11 @@ struct Matcher<ir::Call>: MatcherBase {
         }
         size_t const numDests = numWords(call);
         auto* dest = resolve(call);
-        // clang-format off
-        SC_MATCH (*call.function()) {
-            [&](ir::Value const& func) {
-                emit(new mir::CallInst(dest,
-                                       numDests,
-                                       resolve(func),
-                                       std::move(args),
-                                       call.metadata()));
-            },
-            [&](ir::ForeignFunction const& func) {
-                emit(new mir::CallExtInst(dest,
-                                          numDests,
-                                          { .slot  = static_cast<uint32_t>(func.slot()),
-                                            .index = static_cast<uint32_t>(func.index()) },
-                                          std::move(args),
-                                          call.metadata()));
-            },
-        }; // clang-format on
+        emit(new mir::CallInst(dest,
+                               numDests,
+                               resolve(*call.function()),
+                               std::move(args),
+                               call.metadata()));
         return true;
     }
 };

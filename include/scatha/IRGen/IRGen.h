@@ -6,7 +6,6 @@
 
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
-#include <scatha/Common/Expected.h>
 #include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Fwd.h>
 #include <scatha/Sema/Fwd.h>
@@ -22,19 +21,13 @@ struct SCATHA_API Config {
     bool generateDebugSymbols = false;
 };
 
-/// Missing foreign function definition error
-struct SCATHA_API FFILinkError {
-    std::vector<std::string> missingFunctions;
-};
-
 /// Lower the front-end representation of the program to IR
-SCATHA_API Expected<void, FFILinkError> generateIR(
-    ir::Context& ctx,
-    ir::Module& mod,
-    ast::ASTNode const& ast,
-    sema::SymbolTable const& symbolTable,
-    sema::AnalysisResult const& analysisResult,
-    Config config);
+SCATHA_API void generateIR(ir::Context& ctx,
+                           ir::Module& mod,
+                           ast::ASTNode const& ast,
+                           sema::SymbolTable const& symbolTable,
+                           sema::AnalysisResult const& analysisResult,
+                           Config config);
 
 } // namespace scatha::irgen
 

@@ -8,36 +8,18 @@
 using namespace scatha;
 using namespace mir;
 
-static auto callArgsImpl(auto& call) {
-    auto args = call.operands();
-    if (!isa<CallExtInst>(call)) {
-        args = args.subspan(1);
-    }
-    return args;
-}
-
-std::span<Value* const> CallBase::arguments() { return callArgsImpl(*this); }
-
-std::span<Value const* const> CallBase::arguments() const {
-    return callArgsImpl(*this);
-}
-
-static utl::small_vector<Value*> concatArgs(Value* callee,
-                                            utl::small_vector<Value*> args) {
-    args.insert(args.begin(), callee);
-    return args;
-}
-
 CallInst::CallInst(Register* dest,
                    size_t numDests,
                    Value* callee,
-                   utl::small_vector<Value*> arguments,
+                   utl::small_vector<Value*> args,
                    Metadata metadata):
-    CallBase(InstType::CallInst,
-             dest,
-             numDests,
-             concatArgs(callee, std::move(arguments)),
-             std::move(metadata)) {}
+    Instruction(InstType::CallInst,
+                dest,
+                numDests,
+                (args.insert(args.begin(), callee), std::move(args)),
+                0,
+                std::move(metadata)),
+    numRetRegs(numDests) {}
 
 ConversionInst::ConversionInst(Register* dest,
                                Value* operand,

@@ -165,10 +165,10 @@ void cg::allocateRegisters(Context& ctx, Function& F) {
         calleeReg.replaceWith(hReg);
     }
     /// Then we set the register offset argument of all call instructions
-    for (auto& call: F | ranges::views::join | Filter<CallBase>) {
-        size_t offset = isa<CallInst>(call) ?
-                            numCols + numRegistersForCallMetadata() :
-                            numCols;
+    for (auto& call: F | ranges::views::join | Filter<CallInst>) {
+        size_t offset = isa<ForeignFunction>(call.callee()) ?
+                            numCols :
+                            numCols + numRegistersForCallMetadata();
         call.setRegisterOffset(offset);
     }
     F.setRegisterPhase(RegisterPhase::Hardware);

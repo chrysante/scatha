@@ -38,8 +38,15 @@ VirtualMachine& VirtualMachine::operator=(VirtualMachine&& rhs) noexcept {
 
 VirtualMachine::~VirtualMachine() = default;
 
+static std::string toLibName(std::string_view name) {
+    /// TODO: Make portable
+    /// This is the MacOS convention, need to add linux and windows conventions
+    /// for portability
+    return utl::strcat("lib", name, ".dylib");
+}
+
 static utl::dynamic_library loadLibrary(std::string_view name) {
-    return utl::dynamic_library(name);
+    return utl::dynamic_library(toLibName(name));
 }
 
 static void loadForeignFunctions(VirtualMachine* vm,
@@ -47,13 +54,11 @@ static void loadForeignFunctions(VirtualMachine* vm,
     for (auto& libDecl: libDecls) {
         auto lib = loadLibrary(libDecl.name);
         for (auto& FFI: libDecl.funcDecls) {
-            vm->setFunction(
-                FFI.slot,
-                FFI.index,
-                ExternalFunction(
-                    FFI.name,
-                    lib.symbol_ptr<void(u64*, VirtualMachine*, void*)>(
-                        utl::strcat("sc_ffi_", FFI.name))));
+            auto* impl =
+                lib.resolve_as<void(u64*, VirtualMachine*, void*)>(FFI.name);
+            vm->setFunction(FFI.slot,
+                            FFI.index,
+                            ExternalFunction(FFI.name, impl));
         }
         vm->impl->dylibs.push_back(std::move(lib));
     }

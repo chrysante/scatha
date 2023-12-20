@@ -30,7 +30,6 @@ struct CGContext {
     void genInstImpl(mir::LoadInst const&);
     void genInstImpl(mir::CopyInst const&);
     void genInstImpl(mir::CallInst const&);
-    void genInstImpl(mir::CallExtInst const&);
     void genInstImpl(mir::CondCopyInst const&);
     void genInstImpl(mir::LISPInst const&);
     void genInstImpl(mir::LEAInst const&);
@@ -126,14 +125,6 @@ void CGContext::run(mir::Module const& mod) {
                      }) |
                      ranges::to<std::vector>;
     result.setJumpSites(std::move(jumpsites));
-    result.setForeignLibraries(mod.foreignLibraries() |
-                               ranges::to<std::vector>);
-    auto foreignFunctions = mod.foreignFunctions() | filter([](auto& F) {
-                                return F.address.slot !=
-                                       svm::BuiltinFunctionSlot;
-                            }) |
-                            ranges::to<std::vector>;
-    result.setForeignFunctions(std::move(foreignFunctions));
 }
 
 void CGContext::genFunction(mir::Function const& F) {
@@ -212,6 +203,12 @@ void CGContext::genInstImpl(mir::CallInst const& inst) {
             currentBlock->insertBack(asmInst);
             addMetadata(inst);
         },
+        [&](mir::ForeignFunction const& callee) {
+            currentBlock->insertBack(
+                CallExtInst(inst.registerOffset(),
+                            std::string(callee.name())));
+            addMetadata(inst);
+        },
         [&](mir::Register const& reg) {
             auto asmInst = CallInst(RegisterIndex(reg.index()),
                                     inst.registerOffset());
@@ -222,13 +219,6 @@ void CGContext::genInstImpl(mir::CallInst const& inst) {
             SC_UNREACHABLE();
         },
     }; // clang-format on
-}
-
-void CGContext::genInstImpl(mir::CallExtInst const& inst) {
-    auto callee = inst.callee();
-    currentBlock->insertBack(
-        CallExtInst(inst.registerOffset(), callee.slot, callee.index));
-    addMetadata(inst);
 }
 
 void CGContext::genInstImpl(mir::CondCopyInst const& inst) {

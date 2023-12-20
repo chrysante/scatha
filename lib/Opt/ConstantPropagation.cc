@@ -12,6 +12,7 @@
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
+#include "Common/ForeignFunctionDecl.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/PassRegistry.h"
@@ -687,10 +688,11 @@ FormalValue SCCPContext::evaluateCall(Value const* target,
     {
         return Inevaluable{};
     }
-    if (extFn->slot() != svm::BuiltinFunctionSlot) {
+    auto index = getBuiltinIndex(extFn->name());
+    if (!index) {
         return Inevaluable{};
     }
-    switch (static_cast<svm::Builtin>(extFn->index())) {
+    switch (static_cast<svm::Builtin>(*index)) {
     case svm::Builtin::abs_f64:
         return abs(std::get<APFloat>(args[0]));
     case svm::Builtin::exp_f64:

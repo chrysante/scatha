@@ -13,7 +13,7 @@ using namespace mir;
 using namespace ranges::views;
 
 bool cg::hasSideEffects(Instruction const& inst) {
-    return isa<StoreInst>(inst) || isa<CallBase>(inst) ||
+    return isa<StoreInst>(inst) || isa<CallInst>(inst) ||
            isa<ReturnInst>(inst) || isa<JumpBase>(inst) ||
            isa<CompareInst>(inst) || isa<TestInst>(inst);
 }
@@ -54,7 +54,7 @@ static LiveInterval computeLiveInterval(Function& F,
             return { begin, end };
         }
         /// Calls clobber all callee registers
-        if (isa<CallBase>(inst) && isa<CalleeRegister>(reg)) {
+        if (isa<CallInst>(inst) && isa<CalleeRegister>(reg)) {
             return { begin, end };
         }
     }
@@ -75,7 +75,7 @@ void cg::computeLiveRange(Function& F, Register& reg) {
         }
     }
     if (isa<CalleeRegister>(reg)) {
-        for (auto* call: F.linearInstructions() | Filter<CallBase>) {
+        for (auto* call: F.linearInstructions() | Filter<CallInst>) {
             liveRange.push_back(
                 computeLiveInterval(F, *call->parent(), &reg, call->index()));
         }

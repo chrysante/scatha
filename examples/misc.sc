@@ -1,4 +1,5 @@
 
-fn main() {
 
+fn main() {
+    __builtin_putstr("Hello world\n");
 }

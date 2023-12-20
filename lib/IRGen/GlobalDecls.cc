@@ -145,8 +145,6 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                           irReturnType,
                                           irArgTypes,
                                           std::string(semaFn->name()),
-                                          0u,
-                                          0u,
                                           mapFuncAttrs(semaFn->attributes()));
         break;
     }

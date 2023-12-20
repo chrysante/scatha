@@ -475,36 +475,13 @@ UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
     return result;
 }
 
-static std::optional<uint32_t> builtinIndex(std::string_view name) {
-    SC_EXPECT(name.starts_with("__builtin_"));
-    name.remove_prefix(std::string_view("__builtin_").size());
-    for (uint32_t index = 0;
-         index < static_cast<uint32_t>(svm::Builtin::_count);
-         ++index)
-    {
-        svm::Builtin builtin = static_cast<svm::Builtin>(index);
-        std::string_view builtinName = toString(builtin);
-        if (builtinName == name) {
-            return index;
-        }
-    }
-    return std::nullopt;
-}
-
 UniquePtr<ForeignFunction> ParseContext::makeForeignFunction(
     Type const* returnType, utl::small_vector<Parameter*> params, Token name) {
-    if (name.id().starts_with("__builtin_")) {
-        if (auto index = builtinIndex(name.id())) {
-            return allocate<ForeignFunction>(ctx,
-                                             returnType,
-                                             params,
-                                             std::string(name.id()),
-                                             svm::BuiltinFunctionSlot,
-                                             *index,
-                                             FunctionAttribute::None);
-        }
-    }
-    reportSemaIssue(name, SemanticIssue::InvalidEntity);
+    return allocate<ForeignFunction>(ctx,
+                                     returnType,
+                                     params,
+                                     std::string(name.id()),
+                                     FunctionAttribute::None);
 }
 
 UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {

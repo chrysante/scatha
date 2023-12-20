@@ -3,12 +3,16 @@
 
 #include <bit>
 #include <functional> // For std::hash
+#include <optional>
 #include <string>
 #include <vector>
 
 #include <scatha/Common/Base.h>
 
 namespace scatha {
+
+/// \Returns the index in the builtin table of the function with name \p name
+std::optional<size_t> getBuiltinIndex(std::string_view name);
 
 /// Represents the address of a foreign function.
 struct SCATHA_API ForeignFuncAddress {

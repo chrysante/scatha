@@ -197,21 +197,12 @@ bool opt::hasSideEffects(Instruction const* inst) {
     return false;
 }
 
-bool opt::isBuiltinCall(Instruction const* inst, size_t index) {
-    auto* callInst = dyncast<Call const*>(inst);
-    if (!callInst) {
-        return false;
-    }
-    auto* target = dyncast<ForeignFunction const*>(callInst->function());
-    if (!target) {
-        return false;
-    }
-    return target->slot() == svm::BuiltinFunctionSlot &&
-           target->index() == index;
-}
-
 bool opt::isMemcpy(Instruction const* inst) {
-    return isBuiltinCall(inst, static_cast<size_t>(svm::Builtin::memcpy));
+    auto* call = dyncast<Call const*>(inst);
+    if (!call || !call->function()) {
+        return false;
+    }
+    return call->function()->name() == "__builtin_memcpy";
 }
 
 bool opt::isConstSizeMemcpy(Instruction const* inst) {
@@ -251,7 +242,11 @@ void opt::setMemcpySource(Instruction* call, Value* source) {
 }
 
 bool opt::isMemset(ir::Instruction const* inst) {
-    return isBuiltinCall(inst, static_cast<size_t>(svm::Builtin::memset));
+    auto* call = dyncast<Call const*>(inst);
+    if (!call || !call->function()) {
+        return false;
+    }
+    return call->function()->name() == "__builtin_memset";
 }
 
 bool opt::isConstMemset(ir::Instruction const* inst) {

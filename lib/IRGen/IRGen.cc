@@ -13,7 +13,6 @@
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
-#include "IRGen/FFILinker.h"
 #include "IRGen/FunctionGeneration.h"
 #include "IRGen/GlobalDecls.h"
 #include "IRGen/Maps.h"
@@ -26,17 +25,12 @@ using namespace scatha;
 using namespace irgen;
 using namespace ranges::views;
 
-Expected<void, FFILinkError> irgen::generateIR(
-    ir::Context& ctx,
-    ir::Module& mod,
-    ast::ASTNode const& root,
-    sema::SymbolTable const& sym,
-    sema::AnalysisResult const& analysisResult,
-    Config config) {
-    mod.setForeignLibraries(sym.foreignLibraries() | transform([](auto& path) {
-                                return path.filename().string();
-                            }) |
-                            ranges::to<std::vector>);
+void irgen::generateIR(ir::Context& ctx,
+                       ir::Module& mod,
+                       ast::ASTNode const& root,
+                       sema::SymbolTable const& sym,
+                       sema::AnalysisResult const& analysisResult,
+                       Config config) {
     TypeMap typeMap(ctx);
     for (auto* semaType: analysisResult.structDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap);
@@ -73,5 +67,4 @@ Expected<void, FFILinkError> irgen::generateIR(
         mod.setMetadata(config.sourceFiles | transform(&SourceFile::path) |
                         ranges::to<dbi::SourceFileList>);
     }
-    return linkFFIs(mod, sym.foreignLibraries());
 }

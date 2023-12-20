@@ -138,6 +138,12 @@ mir::Value* Resolver::impl(ir::RecordConstant const& value) const {
 
 mir::Value* Resolver::impl(ir::UndefValue const&) const { return ctx->undef(); }
 
+mir::Value* Resolver::impl(ir::ForeignFunction const& function) const {
+    auto* F = new mir::ForeignFunction(std::string(function.name()));
+    mod->addGlobal(F);
+    return F;
+}
+
 mir::Value* Resolver::impl(ir::Value const&) const {
     SC_UNREACHABLE("Everything else must be manually declared");
 }

@@ -18,6 +18,7 @@
 namespace scatha::Asm {
 
 class AssemblyStream;
+class LinkerError;
 
 } // namespace scatha::Asm
 
@@ -49,6 +50,9 @@ std::pair<ir::Context, ir::Module> genIR(
 
 /// Apply the specfied optimization level or pipeline to \p mod
 void optimize(ir::Context& ctx, ir::Module& mod, OptionsBase const& options);
+
+/// Print errors of linker phase
+void printLinkerError(Asm::LinkerError const& error);
 
 ///
 extern const utl::vstreammanip<> Warning;

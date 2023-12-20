@@ -62,11 +62,6 @@ SCTEST_API ir::BasicBlock* addJoiningPredecessor(
 /// Terminators are not considered to have side effects
 SCTEST_API bool hasSideEffects(ir::Instruction const* inst);
 
-/// \Returns `true` if \p callInst is a call instruction that calls the builtin
-/// function at index \p functionIndex
-SCTEST_API bool isBuiltinCall(ir::Instruction const* callInst,
-                              size_t functionIndex);
-
 /// # Memcpy related queries
 
 /// \Returns `true` if \p inst is a call to memcpy

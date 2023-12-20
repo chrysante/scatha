@@ -35,6 +35,9 @@ public:
     /// Add a function to this translation unit
     void addFunction(Function* function);
 
+    /// For now used for foreign functions
+    void addGlobal(Value* value);
+
     /// Iterators and other helper functions to make `Module` a range of
     /// functions
     /// @{
@@ -72,6 +75,16 @@ public:
     }
     /// @}
 
+    /// View over all foreign functions in this module
+    std::span<ForeignFunction* const> foreignFunctionsNEW() {
+        return foreignFuncsNEW.values();
+    }
+
+    /// \overload
+    std::span<ForeignFunction const* const> foreignFunctionsNEW() const {
+        return foreignFuncsNEW.values();
+    }
+
     ///
     std::vector<u8> const& dataSection() const { return staticData; }
 
@@ -90,42 +103,19 @@ public:
         return addrPlaceholders;
     }
 
-    /// List of foreign library names to be imported by the VM
-    std::span<std::string const> foreignLibraries() const {
-        return foreignLibs;
-    }
-
-    ///
-    void setForeignLibraries(std::vector<std::string> libs) {
-        foreignLibs = std::move(libs);
-    }
-
-    /// List of foreign functions declared in this module excluding functions
-    /// from the builtin slot
-    std::span<ForeignFunctionDecl const> foreignFunctions() const {
-        return _foreignFunctions;
-    }
-
-    ///
-    void setForeignFunctions(std::vector<ForeignFunctionDecl> functions) {
-        _foreignFunctions = std::move(functions);
-    }
-
 private:
     /// List of all functions in the module
     List<Function> funcs;
+
+    utl::hashset<ForeignFunction*> foreignFuncsNEW;
+
+    utl::hashset<UniquePtr<Value>> _globals;
 
     /// Data section
     std::vector<uint8_t> staticData;
 
     ///
     utl::small_vector<std::pair<size_t, Function const*>> addrPlaceholders;
-
-    ///
-    std::vector<std::string> foreignLibs;
-
-    ///
-    std::vector<ForeignFunctionDecl> _foreignFunctions;
 };
 
 } // namespace scatha::mir

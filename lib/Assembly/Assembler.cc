@@ -10,6 +10,7 @@
 #include <utl/scope_guard.hpp>
 #include <utl/utility.hpp>
 
+#include "Assembly/AsmWriter.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
@@ -34,10 +35,16 @@ namespace {
 
 struct LabelPlaceholder {};
 
-struct AsmContext {
-    explicit AsmContext(AssemblyStream const& stream,
-                        std::unordered_map<std::string, size_t>& sym):
-        stream(stream), sym(sym), jumpsites(stream.jumpSites()) {}
+struct Assembler: AsmWriter {
+    explicit Assembler(
+        AssemblyStream const& stream,
+        std::unordered_map<std::string, size_t>& sym,
+        std::vector<std::pair<size_t, std::string>>& unresolvedSymbols):
+        AsmWriter(binary),
+        stream(stream),
+        sym(sym),
+        unresolvedSymbols(unresolvedSymbols),
+        jumpsites(stream.jumpSites().begin(), stream.jumpSites().end()) {}
 
     void run();
 
@@ -68,35 +75,19 @@ struct AsmContext {
     void translate(Value64 const&);
     void translate(LabelPosition const&);
 
+    using AsmWriter::put;
+
     /// Append opcode  \p o to the back of the binary
     void put(svm::OpCode o) {
         SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
         put<std::underlying_type_t<svm::OpCode>>(utl::to_underlying(o));
     }
 
-    /// Append  \p value to the back of the binary
-    template <typename T>
-    void put(u64 value) {
-        for (auto byte: decompose(utl::narrow_cast<T>(value))) {
-            binary.push_back(byte);
-        }
-    }
-
-    /// Append  \p text to the back of the binary followed by a null terminator
-    void putNullTerm(std::string_view text) {
-        for (auto c: text) {
-            put<char>(static_cast<u64>(c));
-        }
-        put<char>(0);
-    }
-
     /// Emit a placeholder for a label address and register a jumpsite for
     /// postprocessing
     void put(LabelPlaceholder, LabelID targetID, size_t width) {
         registerJumpSite(currentPosition(), targetID, width);
-        for (size_t i = 0; i < width; ++i) {
-            binary.push_back(0xFF);
-        }
+        putPlaceholderBytes(width);
     }
 
     /// Used when emitting a jump or call instruction. Stores the code position
@@ -122,29 +113,30 @@ struct AsmContext {
 
     size_t currentPosition() const { return binary.size(); }
 
+    void addUnresolvedSymbol(size_t position, std::string name) {
+        unresolvedSymbols.push_back(
+            { sizeof(svm::ProgramHeader) + position, std::move(name) });
+    }
+
     AssemblyStream const& stream;
     std::unordered_map<std::string, size_t>& sym;
-    utl::vector<u8> binary;
+    std::vector<std::pair<size_t, std::string>>& unresolvedSymbols;
+    std::vector<u8> binary;
     size_t FFISectionBegin = 0;
 
     /// Maps Label ID to Code position
     utl::hashmap<LabelID, size_t> labels;
     /// List of all code position with a jump site
-    utl::vector<Jumpsite> jumpsites;
+    std::vector<Jumpsite> jumpsites;
     /// Address of the `start` or `main` function.
     size_t startAddress = 0;
-};
-
-struct FFIList {
-    std::string libName{};
-    std::vector<ForeignFunctionDecl> functions{};
 };
 
 } // namespace
 
 AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     AssemblerResult result;
-    AsmContext ctx(astr, result.symbolTable);
+    Assembler ctx(astr, result.symbolTable, result.unresolvedSymbols);
     ctx.run();
     size_t dataSecSize = astr.dataSection().size();
     svm::ProgramHeader const header{
@@ -153,7 +145,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
         .startAddress = ctx.startAddress,
         .dataOffset = sizeof(svm::ProgramHeader),
         .textOffset = sizeof(svm::ProgramHeader) + dataSecSize,
-        .FFIDeclOffset = sizeof(svm::ProgramHeader) + ctx.FFISectionBegin,
+        .FFIDeclOffset = sizeof(svm::ProgramHeader) + ctx.binary.size(),
     };
     result.program.resize(header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
@@ -163,9 +155,10 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     return result;
 }
 
-void AsmContext::run() {
+void Assembler::run() {
     /// We write the static data in the front of the binary
-    binary = stream.dataSection();
+    binary = stream.dataSection() | ranges::to<std::vector>;
+    setPosition(binary.size());
     for (auto& block: stream) {
         if (block.isExternallyVisible()) {
             sym.insert({ std::string(block.name()), currentPosition() });
@@ -180,17 +173,13 @@ void AsmContext::run() {
     }
     /// Internal linking
     setJumpDests();
-    /// Must be set before we write the dynamic link section
-    FFISectionBegin = binary.size();
-    /// Foreign function linking
-    writeFFILinkSection();
 }
 
-void AsmContext::dispatch(Instruction const& inst) {
+void Assembler::dispatch(Instruction const& inst) {
     std::visit([this](auto& inst) { translate(inst); }, inst);
 }
 
-void AsmContext::translate(MoveInst const& mov) {
+void Assembler::translate(MoveInst const& mov) {
     auto const [opcode, size] = mapMove(mov.dest().valueType(),
                                         mov.source().valueType(),
                                         mov.numBytes());
@@ -199,7 +188,7 @@ void AsmContext::translate(MoveInst const& mov) {
     dispatch(promote(mov.source(), size));
 }
 
-void AsmContext::translate(CMoveInst const& cmov) {
+void Assembler::translate(CMoveInst const& cmov) {
     auto const [opcode, size] = mapCMove(cmov.condition(),
                                          cmov.dest().valueType(),
                                          cmov.source().valueType(),
@@ -209,46 +198,44 @@ void AsmContext::translate(CMoveInst const& cmov) {
     dispatch(promote(cmov.source(), size));
 }
 
-void AsmContext::translate(JumpInst const& jmp) {
+void Assembler::translate(JumpInst const& jmp) {
     OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
     put(LabelPlaceholder{}, jmp.target(), StaticAddressWidth);
     return;
 }
 
-void AsmContext::translate(CallInst const& call) {
+void Assembler::translate(CallInst const& call) {
     OpCode const opcode = mapCall(call.dest().valueType());
     put(opcode);
     dispatch(call.dest());
     put<u8>(call.regPtrOffset());
 }
 
-void AsmContext::translate(CallExtInst const& call) {
+void Assembler::translate(CallExtInst const& call) {
     put(OpCode::callExt);
     put<u8>(call.regPtrOffset());
-    put<u8>(call.slot());
-    put<u16>(call.index());
+    addUnresolvedSymbol(position(), call.callee());
+    putPlaceholderBytes(3);
 }
 
-void AsmContext::translate(ReturnInst const& ret) { put(OpCode::ret); }
+void Assembler::translate(ReturnInst const& ret) { put(OpCode::ret); }
 
-void AsmContext::translate(TerminateInst const& term) {
-    put(OpCode::terminate);
-}
+void Assembler::translate(TerminateInst const& term) { put(OpCode::terminate); }
 
-void AsmContext::translate(LIncSPInst const& lincsp) {
+void Assembler::translate(LIncSPInst const& lincsp) {
     put(OpCode::lincsp);
     dispatch(lincsp.dest());
     dispatch(lincsp.offset());
 }
 
-void AsmContext::translate(LEAInst const& lea) {
+void Assembler::translate(LEAInst const& lea) {
     put(OpCode::lea);
     dispatch(lea.dest());
     dispatch(lea.address());
 }
 
-void AsmContext::translate(CompareInst const& cmp) {
+void Assembler::translate(CompareInst const& cmp) {
     OpCode const opcode = mapCompare(cmp.type(),
                                      promote(cmp.lhs().valueType(), 8),
                                      promote(cmp.rhs().valueType(), 8),
@@ -258,7 +245,7 @@ void AsmContext::translate(CompareInst const& cmp) {
     dispatch(promote(cmp.rhs(), 8));
 }
 
-void AsmContext::translate(TestInst const& test) {
+void Assembler::translate(TestInst const& test) {
     OpCode const opcode = mapTest(test.type(), test.width());
     put(opcode);
     SC_ASSERT(test.operand().is<RegisterIndex>(),
@@ -266,13 +253,13 @@ void AsmContext::translate(TestInst const& test) {
     dispatch(std::get<RegisterIndex>(test.operand()));
 }
 
-void AsmContext::translate(SetInst const& set) {
+void Assembler::translate(SetInst const& set) {
     OpCode const opcode = mapSet(set.operation());
     put(opcode);
     dispatch(set.dest());
 }
 
-void AsmContext::translate(UnaryArithmeticInst const& inst) {
+void Assembler::translate(UnaryArithmeticInst const& inst) {
     switch (inst.operation()) {
     case UnaryArithmeticOperation::LogicalNot:
         put(OpCode::lnt);
@@ -304,7 +291,7 @@ void AsmContext::translate(UnaryArithmeticInst const& inst) {
     translate(inst.operand());
 }
 
-void AsmContext::translate(ArithmeticInst const& inst) {
+void Assembler::translate(ArithmeticInst const& inst) {
     OpCode const opcode = inst.width() == 4 ?
                               mapArithmetic32(inst.operation(),
                                               inst.dest().valueType(),
@@ -317,7 +304,7 @@ void AsmContext::translate(ArithmeticInst const& inst) {
     dispatch(inst.source());
 }
 
-void AsmContext::translate(TruncExtInst const& inst) {
+void Assembler::translate(TruncExtInst const& inst) {
     auto const opcode = [&] {
         if (inst.type() == Type::Signed) {
             switch (inst.fromBits()) {
@@ -349,7 +336,7 @@ void AsmContext::translate(TruncExtInst const& inst) {
     dispatch(inst.operand());
 }
 
-void AsmContext::translate(ConvertInst const& inst) {
+void Assembler::translate(ConvertInst const& inst) {
     auto const opcode = [&] {
 #define MAP_CONV(FromType, FromBits, ToType, ToBits)                           \
     if (inst.fromType() == Type::FromType && inst.fromBits() == FromBits &&    \
@@ -396,30 +383,30 @@ void AsmContext::translate(ConvertInst const& inst) {
     dispatch(inst.operand());
 }
 
-void AsmContext::dispatch(Value const& value) {
+void Assembler::dispatch(Value const& value) {
     std::visit([this](auto& value) { translate(value); }, value);
 }
 
-void AsmContext::translate(RegisterIndex const& regIdx) {
+void Assembler::translate(RegisterIndex const& regIdx) {
     put<u8>(regIdx.value());
 }
 
-void AsmContext::translate(MemoryAddress const& memAddr) {
+void Assembler::translate(MemoryAddress const& memAddr) {
     put<u8>(memAddr.baseptrRegisterIndex());
     put<u8>(memAddr.offsetCountRegisterIndex());
     put<u8>(memAddr.constantOffsetMultiplier());
     put<u8>(memAddr.constantInnerOffset());
 }
 
-void AsmContext::translate(Value8 const& value) { put<u8>(value.value()); }
+void Assembler::translate(Value8 const& value) { put<u8>(value.value()); }
 
-void AsmContext::translate(Value16 const& value) { put<u16>(value.value()); }
+void Assembler::translate(Value16 const& value) { put<u16>(value.value()); }
 
-void AsmContext::translate(Value32 const& value) { put<u32>(value.value()); }
+void Assembler::translate(Value32 const& value) { put<u32>(value.value()); }
 
-void AsmContext::translate(Value64 const& value) { put<u64>(value.value()); }
+void Assembler::translate(Value64 const& value) { put<u64>(value.value()); }
 
-void AsmContext::translate(LabelPosition const& pos) {
+void Assembler::translate(LabelPosition const& pos) {
     auto width = [&] {
         using enum LabelPosition::Kind;
         switch (pos.kind()) {
@@ -437,39 +424,13 @@ static void store(void* dest, T const& t) {
     std::memcpy(dest, &t, sizeof(T));
 }
 
-void AsmContext::setJumpDests() {
+void Assembler::setJumpDests() {
     for (auto const& [position, targetID, width]: jumpsites) {
         auto const itr = labels.find(targetID);
         SC_ASSERT(itr != labels.end(), "Use of undeclared label");
         size_t const targetPosition = itr->second;
         std::memcpy(&binary[position], &targetPosition, width);
     }
-}
-
-void AsmContext::writeFFILinkSection() {
-    auto ffiLists =
-        stream.foreignLibraries() |
-        transform([](auto& name) { return FFIList{ .libName = name }; }) |
-        ranges::to<std::vector>;
-    for (auto& FFI: stream.foreignFunctions()) {
-        ffiLists[FFI.libIndex].functions.push_back(FFI);
-    }
-    put<u32>(ffiLists.size()); /// Number of foreign libraries
-    for (auto& ffiList: ffiLists) {
-        putNullTerm(
-            ffiList.libName);  /// Null-terminated string denoting library name
-        put<u32>(ffiList.functions
-                     .size()); /// Number of foreign function declarations
-        for (auto& FFI: ffiList.functions) {
-            writeFFIDecl(FFI);
-        }
-    }
-}
-
-void AsmContext::writeFFIDecl(ForeignFunctionDecl const& FFI) {
-    putNullTerm(FFI.name);
-    put<u32>(FFI.address.slot);
-    put<u32>(FFI.address.index);
 }
 
 std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {

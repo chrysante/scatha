@@ -5,7 +5,6 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
-#include <svm/Builtin.h>
 #include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
@@ -14,6 +13,7 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
+#include "Common/ForeignFunctionDecl.h"
 #include "Common/Ranges.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
@@ -138,11 +138,8 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->Str->addAlternateName("str");
 
     /// Declare builtin functions
-    impl->builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareForeignFunction("__builtin_" #name,                                 \
-                           svm::BuiltinFunctionSlot,                           \
-                           static_cast<size_t>(svm::Builtin::name),            \
                            FunctionSignature(__VA_ARGS__),                     \
                            attrs);
     using enum FunctionAttribute;
@@ -154,7 +151,10 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     globalScope().addChild(reinterpret);
 }
 
-SymbolTable::SymbolTable(SymbolTable&& rhs) noexcept { *this = std::move(rhs); }
+SymbolTable::SymbolTable(SymbolTable&& rhs) noexcept:
+    impl(std::make_unique<Impl>()) {
+    *this = std::move(rhs);
+}
 
 SymbolTable& SymbolTable::operator=(SymbolTable&& rhs) noexcept {
     impl = std::move(rhs.impl);
@@ -309,18 +309,7 @@ OverloadSet* SymbolTable::addOverloadSet(
                                         functions);
 }
 
-static utl::hashmap<std::string_view, size_t> makeBuiltinIndexMap() {
-    size_t index = 0;
-    return {
-#define SVM_BUILTIN_DEF(name, ...)                                             \
-    std::pair{ std::string_view("__builtin_" #name), index++ },
-#include <svm/Builtin.def>
-    };
-}
-
 Function* SymbolTable::declareForeignFunction(std::string name,
-                                              size_t slot,
-                                              size_t index,
                                               FunctionSignature sig,
                                               FunctionAttribute attrs) {
     auto* function = declareFunction(name, std::move(sig));
@@ -329,10 +318,11 @@ Function* SymbolTable::declareForeignFunction(std::string name,
     }
     function->setForeign();
     function->setAttribute(attrs);
-    static utl::hashmap<std::string_view, size_t> const builtinIndexMap =
-        makeBuiltinIndexMap();
-    if (auto itr = builtinIndexMap.find(name); itr != builtinIndexMap.end()) {
-        impl->builtinFunctions[index] = function;
+    if (auto builtinIndex = getBuiltinIndex(name)) {
+        if (impl->builtinFunctions.size() <= *builtinIndex) {
+            impl->builtinFunctions.resize(*builtinIndex + 1);
+        }
+        impl->builtinFunctions[*builtinIndex] = function;
     }
     return function;
 }

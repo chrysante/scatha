@@ -15,10 +15,10 @@ SCTEST_API void print(mir::Module const& mod);
 SCTEST_API void print(mir::Module const& mod, std::ostream& ostream);
 
 /// Print the function \p F to `std::cout`
-SCTEST_API void print(mir::Function const& F);
+SCTEST_API void print(mir::Callable const& F);
 
 /// Print the function \p F to \p ostream
-SCTEST_API void print(mir::Function const& F, std::ostream& ostream);
+SCTEST_API void print(mir::Callable const& F, std::ostream& ostream);
 
 /// Print the instruction \p inst to `std::cout`
 SCTEST_API void print(mir::Instruction const& inst);

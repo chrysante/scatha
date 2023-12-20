@@ -18,13 +18,11 @@ using namespace mir;
 using namespace tfmt::modifiers;
 using namespace ranges::views;
 
-static void print(ForeignFunctionDecl const& extFn, std::ostream& str);
-
 void mir::print(Module const& mod) { mir::print(mod, std::cout); }
 
 void mir::print(Module const& mod, std::ostream& str) {
-    for (auto& F: mod.foreignFunctions()) {
-        ::print(F, str);
+    for (auto* F: mod.foreignFunctionsNEW()) {
+        print(*F, str);
         str << "\n";
     }
     for (auto& F: mod) {
@@ -33,7 +31,7 @@ void mir::print(Module const& mod, std::ostream& str) {
     }
 }
 
-void mir::print(Function const& F) { mir::print(F, std::cout); }
+void mir::print(Callable const& F) { mir::print(F, std::cout); }
 
 static constexpr auto keyword =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
@@ -113,9 +111,6 @@ static auto formatInstName(mir::Instruction const& inst) {
         [](CallInst const& inst) {
             return "call"s;
         },
-        [](CallExtInst const& inst) {
-            return "callext"s;
-        },
         [](CondCopyInst const& inst) {
             return utl::strcat("c",
                                inst.condition(),
@@ -181,26 +176,6 @@ static constexpr auto fmtExtFnAddr =
         return str << "slot=" << addr.slot << ", index=" << addr.index;
     });
 
-static void print(ForeignFunctionDecl const& F, std::ostream& str) {
-    str << keyword("func") << " " << globalName(F.name) << "(";
-    for (bool first = true; size_t size: F.argTypes) {
-        if (!first) {
-            str << ", ";
-        }
-        first = false;
-        str << keyword(size);
-    }
-    str << ") -> ";
-    if (F.retType == 0) {
-        str << keyword("void");
-    }
-    else {
-        str << keyword(F.retType);
-    }
-    str << " " << tfmt::format(BrightGrey, "[", fmtExtFnAddr(F.address), "]");
-    str << "\n";
-}
-
 namespace {
 
 enum LiveState {
@@ -218,13 +193,18 @@ struct RegLiveStateList {
     utl::hashmap<int, int> states;
 };
 
+static void printFuncHeader(Callable const* F, std::ostream& str) {
+    str << keyword("func") << " " << globalName(F->name());
+}
+
 struct PrintContext {
     PrintContext(Function const* F, std::ostream& str): F(F), str(str) {
         computeLiveStates();
     }
 
     void print() {
-        str << keyword("func") << " " << globalName(F->name()) << " {";
+        printFuncHeader(F, str);
+        str << " {";
         indent.increase();
         for (auto& BB: *F) {
             str << "\n";
@@ -371,13 +351,9 @@ struct PrintContext {
         }
     }
 
-    void printImpl(CallBase const& call) {
+    void printImpl(CallInst const& call) {
         printInstBegin(call);
         str << formatInstName(call) << " ";
-        if (auto* callext = dyncast<CallExtInst const*>(&call)) {
-            print(callext->callee());
-            str << none(", ");
-        }
         printOperands(call);
         str << tfmt::format(BrightGrey,
                             " [regoffset=",
@@ -556,9 +532,18 @@ struct PrintContext {
 
 } // namespace
 
-void mir::print(Function const& F, std::ostream& str) {
-    PrintContext ctx(&F, str);
-    ctx.print();
+void mir::print(Callable const& F, std::ostream& str) {
+    // clang-format on
+    SC_MATCH (F) {
+        [&](Function const& F) {
+            PrintContext ctx(&F, str);
+            ctx.print();
+        },
+            [&](ForeignFunction const& F) {
+            printFuncHeader(&F, str);
+            str << "\n\n";
+            },
+    }; // clang-format off
 }
 
 void mir::print(mir::Instruction const& inst) { mir::print(inst, std::cout); }
