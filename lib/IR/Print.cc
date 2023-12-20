@@ -270,12 +270,6 @@ void ir::print(Module const& mod) { ir::print(mod, std::cout); }
 
 void ir::print(Module const& mod, std::ostream& str) {
     PrintCtx ctx(str);
-    for (auto& libName: mod.foreignLibraries()) {
-        ctx.printImport(libName);
-    }
-    if (!mod.foreignLibraries().empty()) {
-        str << "\n";
-    }
     for (auto& structure: mod.structures()) {
         ctx.print(*structure);
     }

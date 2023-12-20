@@ -42,7 +42,8 @@
 using namespace scatha;
 using namespace test;
 
-using Generator = utl::unique_function<std::pair<ir::Context, ir::Module>()>;
+using Generator = utl::unique_function<
+    std::tuple<ir::Context, ir::Module, std::vector<std::filesystem::path>>()>;
 
 static void validateEmpty(std::span<SourceFile const> sources,
                           IssueHandler const& issues) {
@@ -70,11 +71,11 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
             analysisResult = std::move(analysisResult)] {
         ir::Context ctx;
         ir::Module mod;
-        if (!irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {})) {
-            throw std::runtime_error("Linker error");
-        }
+        irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {});
         ir::forEach(ctx, mod, opt::unifyReturns);
-        return std::pair{ std::move(ctx), std::move(mod) };
+        return std::tuple{ std::move(ctx),
+                           std::move(mod),
+                           sym.foreignLibraries() | ranges::to<std::vector> };
     };
 }
 
@@ -82,11 +83,15 @@ static Generator makeIRGenerator(std::string_view text) {
     return [=] {
         auto result = ir::parse(text).value();
         ir::forEach(result.first, result.second, opt::unifyReturns);
-        return result;
+        return std::tuple{ std::move(result).first,
+                           std::move(result).second,
+                           std::vector<std::filesystem::path>{} };
     };
 }
 
-static uint64_t run(ir::Module const& mod, std::ostream* str = nullptr) {
+static uint64_t run(ir::Module const& mod,
+                    std::ostream* str,
+                    std::span<std::filesystem::path const> foreignLibs) {
     auto assembly = [&] {
         if (!str) {
             return cg::codegen(mod);
@@ -94,7 +99,10 @@ static uint64_t run(ir::Module const& mod, std::ostream* str = nullptr) {
         cg::DebugLogger logger(*str);
         return cg::codegen(mod, logger);
     }();
-    auto [prog, sym] = Asm::assemble(assembly);
+    auto [prog, sym, unresolved] = Asm::assemble(assembly);
+    if (!Asm::link(prog, foreignLibs, unresolved)) {
+        throw std::runtime_error("Linker error");
+    }
     /// We need 2 megabytes of stack size for the ackermann function test to run
     svm::VirtualMachine vm(1 << 10, 1 << 12);
     vm.loadBinary(prog.data());
@@ -127,15 +135,15 @@ struct Impl {
     void runTest(Generator const& generator, uint64_t expected) const {
         /// No optimization
         {
-            auto [ctx, mod] = generator();
-            checkReturns("Unoptimized", mod, expected);
+            auto [ctx, mod, libs] = generator();
+            checkReturns("Unoptimized", mod, libs, expected);
         }
 
         /// Default optimizations
         {
-            auto [ctx, mod] = generator();
+            auto [ctx, mod, libs] = generator();
             opt::optimize(ctx, mod, 1);
-            checkReturns("Default pipeline", mod, expected);
+            checkReturns("Default pipeline", mod, libs, expected);
         }
 
         if (getOptions().TestPasses) {
@@ -186,19 +194,20 @@ struct Impl {
 
     void checkReturns(std::string_view msg,
                       ir::Module const& mod,
+                      std::span<std::filesystem::path const> foreignLibs,
                       uint64_t expected) const {
         INFO(msg);
         size_t result = 0;
         std::string code;
         if (!getOptions().PrintCodegen) {
-            result = run(mod);
+            result = run(mod, nullptr, foreignLibs);
         }
         else {
             std::stringstream sstr;
             /// Catch2 breaks strings after 75 characters
             tfmt::setWidth(sstr, 75);
             ir::print(mod, sstr);
-            result = run(mod, &sstr);
+            result = run(mod, &sstr, foreignLibs);
             code = std::move(sstr).str();
         }
         INFO(code);
@@ -209,7 +218,7 @@ struct Impl {
                       ir::Pipeline const& prePipeline,
                       uint64_t expected,
                       ir::Pipeline const& pipeline) const {
-        auto [ctx, mod] = generator();
+        auto [ctx, mod, libs] = generator();
         prePipeline(ctx, mod);
         auto message = utl::strcat("Pass test for \"",
                                    pipeline,
@@ -217,7 +226,7 @@ struct Impl {
                                    prePipeline,
                                    "\"");
         pipeline(ctx, mod);
-        checkReturns(message, mod, expected);
+        checkReturns(message, mod, libs, expected);
     }
 
     void testIdempotency(Generator const& generator,
@@ -229,7 +238,7 @@ struct Impl {
             if (pass.name() == "default") {
                 continue;
             }
-            auto [ctx, mod] = generator();
+            auto [ctx, mod, libs] = generator();
             prePipeline.execute(ctx, mod);
             auto message = utl::strcat("Idempotency check for \"",
                                        pass.name(),
@@ -237,11 +246,11 @@ struct Impl {
                                        prePipeline,
                                        "\"");
             ir::forEach(ctx, mod, pass);
-            checkReturns(message, mod, expected);
+            checkReturns(message, mod, libs, expected);
             bool second = ir::forEach(ctx, mod, pass);
             INFO(message);
             CHECK(!second);
-            checkReturns(message, mod, expected);
+            checkReturns(message, mod, libs, expected);
         }
     }
 };
@@ -262,26 +271,26 @@ void test::checkIRReturns(uint64_t expectedResult, std::string_view source) {
 
 void test::checkCompiles(std::string text) {
     CHECK_NOTHROW([=] {
-        auto [ctx, mod] = makeScathaGenerator({ std::move(text) })();
+        auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
         opt::optimize(ctx, mod, 1);
     }());
 }
 
 void test::checkIRCompiles(std::string_view text) {
     CHECK_NOTHROW([=] {
-        auto [ctx, mod] = makeIRGenerator(text)();
+        auto [ctx, mod, libs] = makeIRGenerator(text)();
         opt::optimize(ctx, mod, 1);
     }());
 }
 
 void test::compileAndRun(std::string text) {
-    auto [ctx, mod] = makeScathaGenerator({ std::move(text) })();
-    ::run(mod);
+    auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
+    ::run(mod, nullptr, libs);
 }
 
 void test::compileAndRunIR(std::string text) {
-    auto [ctx, mod] = makeIRGenerator({ std::move(text) })();
-    ::run(mod);
+    auto [ctx, mod, libs] = makeIRGenerator({ std::move(text) })();
+    ::run(mod, nullptr, libs);
 }
 
 void test::checkPrints(std::string_view printed, std::string source) {

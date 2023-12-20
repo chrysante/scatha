@@ -83,20 +83,12 @@ std::pair<ir::Context, ir::Module> scatha::genIR(
     irgen::Config config) {
     ir::Context context;
     ir::Module mod;
-    auto irgenResult = irgen::generateIR(context,
-                                         mod,
-                                         ast,
-                                         symbolTable,
-                                         analysisResult,
-                                         std::move(config));
-    if (!irgenResult) {
-        std::cout << Error << "Missing definitions for foreign functions:\n";
-        auto& error = irgenResult.error();
-        for (auto& name: error.missingFunctions) {
-            std::cout << "  - " << name << std::endl;
-        }
-        std::exit(1);
-    }
+    irgen::generateIR(context,
+                      mod,
+                      ast,
+                      symbolTable,
+                      analysisResult,
+                      std::move(config));
     return { std::move(context), std::move(mod) };
 }
 
@@ -109,6 +101,13 @@ void scatha::optimize(ir::Context& ctx,
     else if (!options.pipeline.empty()) {
         auto pipeline = ir::PassManager::makePipeline(options.pipeline);
         pipeline(ctx, mod);
+    }
+}
+
+void scatha::printLinkerError(Asm::LinkerError const& error) {
+    std::cout << Error << "Linker failed to resolve symbol references:\n";
+    for (auto& symbol: error.missingSymbols) {
+        std::cout << "  - " << symbol << "\n";
     }
 }
 

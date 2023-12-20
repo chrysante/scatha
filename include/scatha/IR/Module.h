@@ -46,16 +46,6 @@ public:
         return _extFunctions.values();
     }
 
-    /// List of foreign library names to be imported by the VM
-    std::span<std::string const> foreignLibraries() const {
-        return foreignLibs;
-    }
-
-    ///
-    void setForeignLibraries(std::vector<std::string> libs) {
-        foreignLibs = std::move(libs);
-    }
-
     /// \Returns a view over all globals in this module, i.e. global variables
     /// and foreign functions
     auto& globals() { return _globals; }
@@ -99,7 +89,6 @@ private:
     List<Global> _globals;
     utl::hashset<ForeignFunction*> _extFunctions;
     List<Function> funcs;
-    std::vector<std::string> foreignLibs;
 };
 
 } // namespace scatha::ir

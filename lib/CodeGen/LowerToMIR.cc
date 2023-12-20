@@ -69,26 +69,7 @@ mir::Module cg::lowerToMIR(mir::Context& ctx, ir::Module const& irMod) {
     return mirMod;
 }
 
-static ForeignFunctionDecl makeExtFuncDecl(ir::ForeignFunction const* F) {
-    SC_EXPECT(F);
-    return { .name = std::string(F->name()),
-             .libIndex = F->libIndex(),
-             .address = { .slot = utl::narrow_cast<uint32_t>(F->slot()),
-                          .index = utl::narrow_cast<uint32_t>(F->index()) },
-             .retType = F->returnType()->size(),
-             .argTypes = F->parameters() | transform([](auto& param) -> size_t {
-                             return param.type()->size();
-                         }) |
-                         ranges::to<std::vector> };
-}
-
 void LoweringContext::run() {
-    /// Declare all foreign functions to the MIR module
-    mirMod.setForeignLibraries(irMod.foreignLibraries() |
-                               ranges::to<std::vector>);
-    auto foreignFunctions = irMod.extFunctions() | transform(makeExtFuncDecl) |
-                            ranges::to<std::vector>;
-    mirMod.setForeignFunctions(std::move(foreignFunctions));
     /// Make forward declarations of all functions and basic blocks
     for (auto& irFn: irMod) {
         auto* mirFn = declareFunction(irFn);

@@ -47,7 +47,11 @@ int scatha::compilerMain(CompilerOptions options) {
     }
     optimize(context, mod, options);
     auto asmStream = cg::codegen(mod);
-    auto [program, symbolTable] = Asm::assemble(asmStream);
+    auto [program, symbolTable, unresolved] = Asm::assemble(asmStream);
+    auto linkRes = Asm::link(program, semaSym.foreignLibraries(), unresolved);
+    if (!linkRes) {
+        printLinkerError(linkRes.error());
+    }
     std::string dsym = [&] {
         if (!options.debug) {
             return std::string{};

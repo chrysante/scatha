@@ -93,8 +93,6 @@ public:
     ///
     /// \returns the declared function or null when an error occurred
     Function* declareForeignFunction(std::string name,
-                                     size_t slot,
-                                     size_t index,
                                      FunctionSignature signature,
                                      FunctionAttribute attrs);
 

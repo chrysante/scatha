@@ -28,6 +28,7 @@ int scatha::inspectMain(InspectOptions options) {
     using namespace logging;
     ir::Context ctx;
     ir::Module mod;
+    std::vector<std::filesystem::path> foreignLibs;
     switch (getMode(options)) {
     case ParseMode::Scatha: {
         auto data = parseScatha(options);
@@ -46,6 +47,7 @@ int scatha::inspectMain(InspectOptions options) {
                                    data->sym,
                                    data->analysisResult,
                                    { .generateDebugSymbols = false });
+        foreignLibs = data->sym.foreignLibraries() | ranges::to<std::vector>;
         break;
     }
     case ParseMode::IR:
@@ -85,7 +87,11 @@ int scatha::inspectMain(InspectOptions options) {
         Asm::print(asmStream);
     }
     if (options.out) {
-        auto [program, symbolTable] = Asm::assemble(asmStream);
+        auto [program, symbolTable, unresolved] = Asm::assemble(asmStream);
+        auto linkRes = Asm::link(program, foreignLibs, unresolved);
+        if (!linkRes) {
+            printLinkerError(linkRes.error());
+        }
         writeExecutableFile(*options.out, program);
     }
     return 0;

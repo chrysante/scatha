@@ -103,27 +103,6 @@ public:
         return addrPlaceholders;
     }
 
-    /// List of foreign library names to be imported by the VM
-    std::span<std::string const> foreignLibraries() const {
-        return foreignLibs;
-    }
-
-    ///
-    void setForeignLibraries(std::vector<std::string> libs) {
-        foreignLibs = std::move(libs);
-    }
-
-    /// List of foreign functions declared in this module excluding functions
-    /// from the builtin slot
-    std::span<ForeignFunctionDecl const> foreignFunctions() const {
-        return _foreignFunctions;
-    }
-
-    ///
-    void setForeignFunctions(std::vector<ForeignFunctionDecl> functions) {
-        _foreignFunctions = std::move(functions);
-    }
-
 private:
     /// List of all functions in the module
     List<Function> funcs;
@@ -137,12 +116,6 @@ private:
 
     ///
     utl::small_vector<std::pair<size_t, Function const*>> addrPlaceholders;
-
-    ///
-    std::vector<std::string> foreignLibs;
-
-    ///
-    std::vector<ForeignFunctionDecl> _foreignFunctions;
 };
 
 } // namespace scatha::mir
