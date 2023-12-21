@@ -113,7 +113,7 @@ externalincludedirs {
     "external/CLI11/include",
 }
 
-addCppFiles "test"
+addCppFiles "fuzz"
 links { "scatha", "APMath", "termfmt" } 
 
 ------------------------------------------
