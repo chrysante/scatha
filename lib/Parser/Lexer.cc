@@ -15,7 +15,7 @@ using namespace lex;
 namespace {
 
 struct Context {
-    utl::vector<Token> run();
+    std::vector<Token> run();
 
     std::optional<Token> getToken();
 
@@ -51,15 +51,15 @@ struct Context {
 
 } // namespace
 
-utl::vector<Token> parser::lex(std::string_view text,
+std::vector<Token> parser::lex(std::string_view text,
                                IssueHandler& issues,
                                size_t fileIndex) {
     Context ctx{ text, fileIndex, issues };
     return ctx.run();
 }
 
-utl::vector<Token> Context::run() {
-    utl::vector<Token> result;
+std::vector<Token> Context::run() {
+    std::vector<Token> result;
     while (currentLocation.index < textSize()) {
         auto token = getToken();
         if (!token) {

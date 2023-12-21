@@ -1,7 +1,7 @@
 #ifndef PARSER_BRACKETCORRECTION_H_
 #define PARSER_BRACKETCORRECTION_H_
 
-#include <utl/vector.hpp>
+#include <vector>
 
 #include "Common/Base.h"
 #include "Issue/IssueHandler.h"
@@ -45,7 +45,7 @@ namespace scatha::parser {
 ///
 /// \post Every opening bracket in the token stream \p tokens has a correctly
 /// scoped matching closing bracket.
-SCATHA_API void bracketCorrection(utl::vector<Token>& tokens,
+SCATHA_API void bracketCorrection(std::vector<Token>& tokens,
                                   IssueHandler& issues);
 
 } // namespace scatha::parser

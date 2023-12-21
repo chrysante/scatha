@@ -2,9 +2,11 @@
 
 #include <iostream>
 
+#include <utl/utility.hpp>
+
 namespace scatha::parser {
 
-TokenStream::TokenStream(utl::vector<Token> tokens):
+TokenStream::TokenStream(std::vector<Token> tokens):
     tokens(std::move(tokens)) {}
 
 Token const& TokenStream::eat() { return eatImpl(&_index); }

@@ -22,32 +22,32 @@ using namespace parser;
 namespace {
 
 struct Context {
-    explicit Context(utl::vector<Token>& tokens, IssueHandler& issues):
+    explicit Context(std::vector<Token>& tokens, IssueHandler& issues):
         tokens(tokens), issues(issues) {}
 
     void run();
 
-    [[nodiscard]] utl::vector<Token>::iterator
+    [[nodiscard]] std::vector<Token>::iterator
         popStackAndInsertMatchingBrackets(
-            utl::vector<Token>::const_iterator tokenItr,
+            std::vector<Token>::const_iterator tokenItr,
             utl::vector<Bracket>::iterator stackItr);
 
-    [[nodiscard]] utl::vector<Token>::iterator handleOpeningBracket(
-        utl::vector<Token>::iterator tokenItr, Bracket bracket);
-    [[nodiscard]] utl::vector<Token>::iterator handleClosingBracket(
-        utl::vector<Token>::iterator tokenItr, Bracket bracket);
+    [[nodiscard]] std::vector<Token>::iterator handleOpeningBracket(
+        std::vector<Token>::iterator tokenItr, Bracket bracket);
+    [[nodiscard]] std::vector<Token>::iterator handleClosingBracket(
+        std::vector<Token>::iterator tokenItr, Bracket bracket);
 
-    [[nodiscard]] utl::vector<Token>::iterator erase(
-        utl::vector<Token>::const_iterator);
+    [[nodiscard]] std::vector<Token>::iterator erase(
+        std::vector<Token>::const_iterator);
 
-    utl::vector<Token>& tokens;
+    std::vector<Token>& tokens;
     IssueHandler& issues;
     utl::stack<Bracket, 16> bracketStack;
 };
 
 } // namespace
 
-void parser::bracketCorrection(utl::vector<Token>& tokens,
+void parser::bracketCorrection(std::vector<Token>& tokens,
                                IssueHandler& issues) {
     Context ctx(tokens, issues);
     ctx.run();
@@ -76,16 +76,16 @@ void Context::run() {
     SC_ASSERT(bracketStack.empty(), "Bracket stack must be empty in the end.");
 }
 
-[[nodiscard]] utl::vector<Token>::iterator Context::handleOpeningBracket(
-    utl::vector<Token>::iterator tokenItr, Bracket bracket) {
+[[nodiscard]] std::vector<Token>::iterator Context::handleOpeningBracket(
+    std::vector<Token>::iterator tokenItr, Bracket bracket) {
     SC_ASSERT(bracket.side == Bracket::Side::Open,
               "Here on we only handle opening brackets.");
     bracketStack.push(bracket);
     return tokenItr;
 }
 
-[[nodiscard]] utl::vector<Token>::iterator Context::handleClosingBracket(
-    utl::vector<Token>::iterator tokenItr, Bracket bracket) {
+[[nodiscard]] std::vector<Token>::iterator Context::handleClosingBracket(
+    std::vector<Token>::iterator tokenItr, Bracket bracket) {
     SC_ASSERT(bracket.side == Bracket::Side::Close,
               "Here on we only handle closing brackets.");
     Token const token = *tokenItr;
@@ -131,8 +131,8 @@ void Context::run() {
     return tokenItr;
 }
 
-utl::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
-    utl::vector<Token>::const_iterator tokenItr,
+std::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
+    std::vector<Token>::const_iterator tokenItr,
     utl::vector<Bracket>::iterator stackItr) {
     auto& stackContainer = bracketStack.container();
     ssize_t const count = stackContainer.end() - stackItr;
@@ -156,7 +156,7 @@ utl::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
     return resultItr + count;
 }
 
-utl::vector<Token>::iterator Context::erase(
-    utl::vector<Token>::const_iterator itr) {
+std::vector<Token>::iterator Context::erase(
+    std::vector<Token>::const_iterator itr) {
     return tokens.erase(itr) - 1;
 }

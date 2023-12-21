@@ -2,8 +2,7 @@
 #define SCATHA_LEXER_LEXER_H_
 
 #include <string_view>
-
-#include <utl/vector.hpp>
+#include <vector>
 
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/IssueHandler.h>
@@ -12,7 +11,7 @@
 namespace scatha::parser {
 
 ///
-SCTEST_API utl::vector<Token> lex(std::string_view text,
+SCTEST_API std::vector<Token> lex(std::string_view text,
                                   IssueHandler& issueHandler,
                                   size_t fileIndex = 0);
 

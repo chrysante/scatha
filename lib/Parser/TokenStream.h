@@ -2,8 +2,9 @@
 #define SCATHA_PARSER_TOKENSTREAM_H_
 
 #include <iosfwd>
+#include <vector>
 
-#include <utl/vector.hpp>
+#include <utl/utility.hpp>
 
 #include "Common/Base.h"
 #include "Parser/Token.h"
@@ -31,7 +32,7 @@ public:
     /// Constructs a TokenStream from the given Range of Token's.
     ///
     /// \param tokens Vector of tokens.
-    explicit TokenStream(utl::vector<Token> tokens);
+    explicit TokenStream(std::vector<Token> tokens);
 
     /// Extract one token from the stream.
     ///
@@ -81,7 +82,7 @@ private:
     Token const& eatImpl(ssize_t*);
 
 private:
-    utl::vector<Token> tokens;
+    std::vector<Token> tokens;
     ssize_t _index = -1;
 };
 
