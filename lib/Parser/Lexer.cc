@@ -324,12 +324,22 @@ std::optional<Token> Context::getStringLiteral() {
         return std::nullopt;
     }
     bool haveEscape = false;
+    auto advanceChecked = [&] {
+        if (!advance() || current() == '\n') {
+            issues.push<UnterminatedStringLiteral>(
+                SourceRange{ beginLoc, currentLocation });
+            return false;
+        }
+        return true;
+    };
     while (true) {
         if (haveEscape) {
             haveEscape = false;
             if (auto seq = toEscapeSequence(current())) {
                 id += *seq;
-                advance();
+                if (!advanceChecked()) {
+                    return std::nullopt;
+                }
             }
             else {
                 auto begin = currentLocation;
@@ -352,9 +362,7 @@ std::optional<Token> Context::getStringLiteral() {
         else {
             id += c;
         }
-        if (!advance() || current() == '\n') {
-            issues.push<UnterminatedStringLiteral>(
-                SourceRange{ beginLoc, currentLocation });
+        if (!advanceChecked()) {
             return std::nullopt;
         }
     }
@@ -466,6 +474,7 @@ std::optional<Token> Context::getIdentifier() {
 }
 
 bool Context::advance() {
+    SC_EXPECT(currentLocation.index < text.size());
     if (text[utl::narrow_cast<size_t>(currentLocation.index)] == '\n') {
         currentLocation.column = 0;
         ++currentLocation.line;

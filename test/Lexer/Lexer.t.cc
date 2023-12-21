@@ -408,4 +408,12 @@ TEST_CASE("Char literals", "[lex]") {
         auto* issue = dynamic_cast<InvalidEscapeSequence const*>(&iss.front());
         CHECK(issue);
     }
+    SECTION("Escape sequence at end") {
+        auto const text = R"("...\n)";
+        auto tokens = parser::lex(text, iss);
+        REQUIRE(!iss.empty());
+        auto* issue =
+            dynamic_cast<UnterminatedStringLiteral const*>(&iss.front());
+        CHECK(issue);
+    }
 }
