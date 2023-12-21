@@ -321,21 +321,23 @@ UniquePtr<ast::SourceFile> Context::parseSourceFile(std::string filename) {
         if (token.kind() == EndOfFile) {
             break;
         }
-        auto stmt = parseGlobalStatement();
-        if (!stmt) {
-            if (isDeclarator(tokens.peek().kind())) {
-                /// \Note Here we `eat()` a token because `panic()` will not
-                /// advance past the next declarator in this scope, so we would
-                /// be stuck here
-                issues.push<UnexpectedDeclarator>(tokens.eat());
-            }
-            else {
-                issues.push<ExpectedDeclarator>(tokens.peek());
-            }
-            panic(tokens);
+        if (auto stmt = parseGlobalStatement()) {
+            stmts.push_back(std::move(stmt));
             continue;
         }
-        stmts.push_back(std::move(stmt));
+        if (tokens.peek().kind() == EndOfFile) {
+            break;
+        }
+        if (isDeclarator(tokens.peek().kind())) {
+            /// \Note Here we `eat()` a token because `panic()` will not
+            /// advance past the next declarator in this scope, so we would
+            /// be stuck here
+            issues.push<UnexpectedDeclarator>(tokens.eat());
+        }
+        else {
+            issues.push<ExpectedDeclarator>(tokens.peek());
+        }
+        panic(tokens);
     }
     return allocate<ast::SourceFile>(std::move(filename), std::move(stmts));
 }
@@ -717,6 +719,10 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
         if (auto statement = parseStatement()) {
             statements.push_back(std::move(statement));
             continue;
+        }
+        if (tokens.peek().kind() == EndOfFile) {
+            issues.push<UnqualifiedID>(tokens.eat(), CloseBrace);
+            break;
         }
         if (tokens.index() == lastIndex) {
             /// If we can't parse a statement, eat one token and try again.
@@ -1596,7 +1602,9 @@ template <ast::BinaryOperator... Op>
 UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
     auto&& parseOperand) {
     Token const& lhsToken = tokens.peek();
-    SC_EXPECT(lhsToken.kind() != EndOfFile);
+    if (lhsToken.kind() == EndOfFile) {
+        return nullptr;
+    }
     UniquePtr<ast::Expression> left = parseOperand();
     Token const operatorToken = tokens.peek();
     auto parse = [&](ast::BinaryOperator op) {
