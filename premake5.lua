@@ -98,6 +98,25 @@ addCppFiles "test"
 links { "Catch2", "scatha", "svm-lib", "APMath", "termfmt" } 
 
 ------------------------------------------
+project "scatha-fuzz"
+kind "ConsoleApp"
+defines "SC_APIIMPORT"
+
+includedirs { "lib", "include/scatha" }
+
+externalincludedirs { 
+    "include", 
+    "external/utility/include", 
+    "external/APMath/include",
+    "external/range-v3/include",
+    "external/termfmt/include",
+    "external/CLI11/include",
+}
+
+addCppFiles "test"
+links { "scatha", "APMath", "termfmt" } 
+
+------------------------------------------
 project "playground"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
