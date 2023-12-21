@@ -1202,7 +1202,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
 }
 
 void ExprContext::dereferencePointer(ast::Expression* expr) {
-    SC_EXPECT(expr->isDecorated());
+    if (!expr || !expr->isDecorated()) {
+        return;
+    }
     auto* type = expr->type().get();
     if (!isa<PointerType const*>(type)) {
         return;
