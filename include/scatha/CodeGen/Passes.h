@@ -13,8 +13,15 @@ class AssemblyStream;
 
 namespace scatha::cg {
 
+/// Options structure for `lowerToMIR()`
+struct LoweringOptions {
+    bool generateSelectionDAGImages = false;
+};
+
 /// Lowers the IR module \p mod to MIR representation
-SCATHA_API mir::Module lowerToMIR(mir::Context& ctx, ir::Module const& mod);
+SCATHA_API mir::Module lowerToMIR(mir::Context& ctx,
+                                  ir::Module const& mod,
+                                  LoweringOptions options = {});
 
 /// Computes the live-in and live-out sets of function \p F
 /// \pre Requires \p F to be in SSA form

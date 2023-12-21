@@ -2,6 +2,7 @@
 
 #include <range/v3/numeric.hpp>
 #include <range/v3/view.hpp>
+#include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
 #include "CodeGen/ISel.h"
@@ -37,13 +38,15 @@ struct LoweringContext {
     ir::Module const& irMod;
     mir::Context& ctx;
     mir::Module& mirMod;
+    LoweringOptions options;
 
     ValueMap valueMap;
 
     LoweringContext(ir::Module const& irMod,
                     mir::Context& ctx,
-                    mir::Module& mirMod):
-        irMod(irMod), ctx(ctx), mirMod(mirMod) {}
+                    mir::Module& mirMod,
+                    LoweringOptions options):
+        irMod(irMod), ctx(ctx), mirMod(mirMod), options(options) {}
 
     void run();
 
@@ -63,9 +66,11 @@ struct LoweringContext {
 
 } // namespace
 
-mir::Module cg::lowerToMIR(mir::Context& ctx, ir::Module const& irMod) {
+mir::Module cg::lowerToMIR(mir::Context& ctx,
+                           ir::Module const& irMod,
+                           LoweringOptions options) {
     mir::Module mirMod;
-    LoweringContext(irMod, ctx, mirMod).run();
+    LoweringContext(irMod, ctx, mirMod, options).run();
     return mirMod;
 }
 
@@ -167,7 +172,13 @@ void LoweringContext::generateBB(ir::BasicBlock const& irBB) {
         mirBB.addSuccessor(cast<mir::BasicBlock*>(valueMap.getValue(succ)));
     }
     auto DAG = SelectionDAG::Build(irBB);
+    if (options.generateSelectionDAGImages) {
+        generateGraphvizTmp(DAG, std::string(irBB.name()));
+    }
     isel(DAG, ctx, mirMod, *mirBB.parent(), valueMap);
+    if (options.generateSelectionDAGImages) {
+        generateGraphvizTmp(DAG, utl::strcat(irBB.name(), "-selected"));
+    }
     schedule(DAG, mirBB);
 }
 

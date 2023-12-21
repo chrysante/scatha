@@ -67,7 +67,8 @@ int scatha::inspectMain(InspectOptions options) {
     }
     if (options.isel) {
         mir::Context ctx;
-        auto mirMod = cg::lowerToMIR(ctx, mod);
+        auto mirMod =
+            cg::lowerToMIR(ctx, mod, { .generateSelectionDAGImages = true });
         std::cout << "Warning: Other codegen options and execution are ignored "
                      "with the --isel flag"
                   << std::endl;

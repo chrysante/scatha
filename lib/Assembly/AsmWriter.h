@@ -10,7 +10,8 @@
 
 namespace scatha::Asm {
 
-///
+/// Common base class of `Assembler` and `Linker` that implements methods to
+/// write executable binaries
 struct AsmWriter {
     explicit AsmWriter(std::vector<u8>& binary, size_t currentPosition = 0):
         binary(binary), pos(currentPosition) {}
