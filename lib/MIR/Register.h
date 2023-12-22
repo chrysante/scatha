@@ -115,6 +115,9 @@ public:
     /// interval exists
     std::optional<LiveInterval> liveIntervalAt(int programPoint);
 
+    /// Adds the live interval \p I
+    void addLiveInterval(LiveInterval I);
+
     /// Removes the live interval \p I
     /// \pre Requires \p I to be a live interval of this register
     void removeLiveInterval(LiveInterval I);

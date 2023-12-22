@@ -59,6 +59,11 @@ std::optional<LiveInterval> Register::liveIntervalAt(int programPoint) {
     return std::nullopt;
 }
 
+void Register::addLiveInterval(LiveInterval I) {
+    auto itr = ranges::lower_bound(_liveRange, I);
+    _liveRange.insert(itr, I);
+}
+
 void Register::removeLiveInterval(LiveInterval I) {
     auto itr = ranges::lower_bound(_liveRange, I);
     SC_EXPECT(itr != _liveRange.end());
