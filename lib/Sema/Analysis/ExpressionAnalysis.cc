@@ -176,6 +176,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         return &lit;
     }
     case String: {
+        /// We deliberately derive string literals as `&str` and not as 
+        /// `&[byte, N]` 
         auto type = QualType::Const(sym.Str());
         lit.decorateValue(sym.temporary(type), LValue);
         return &lit;

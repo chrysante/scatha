@@ -295,3 +295,14 @@ fn main() {
     return x.y.b;
 })");
 }
+
+TEST_CASE("Fat pointer in construct expr", "[regression]") {
+    test::checkReturns(5, R"(
+    struct S {
+        var text: *str;
+    }
+    fn main() {
+        let s = S(&"12345");
+        return s.text.count;
+    })");
+}

@@ -1622,16 +1622,24 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             }
             else {
                 ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
-                for (auto [index, arg]: expr.arguments() |
-                                        ranges::views::enumerate)
-                {
+                size_t index = 0;
+                for (auto* arg: expr.arguments()) {
                     auto* member = getValue<Register>(arg);
                     auto* inst = add<ir::InsertValue>(aggregate,
-                                                     member,
-                                                     std::array{ index },
-                                                     "aggregate");
+                                                      member,
+                                                      std::array{ index++ },
+                                                      "aggregate");
                     addSourceLoc(inst, *arg);
                     aggregate = inst;
+                    if (isFatPointer(arg->type().get())) {
+                        auto size = valueMap.arraySize(arg->object());
+                        auto* inst = add<ir::InsertValue>(aggregate,
+                                                          toRegister(size, *arg),
+                                                          std::array{ index++ },
+                                                          "aggregate");
+                        addSourceLoc(inst, *arg);
+                        aggregate = inst;
+                    }
                 }
                 return Value(aggregate, Register);
             }
