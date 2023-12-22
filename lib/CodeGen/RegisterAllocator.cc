@@ -44,7 +44,7 @@ void cg::allocateRegisters(Context& ctx, Function& F) {
         }
         SC_ASSERT(!ranges::contains(inst.operands() | drop(1), dest),
                   "The other operands must not contain dest because we clobber "
-                  "dest here");
+                  "dest with a copy before execution the instruction");
         auto* copy =
             new CopyInst(dest, operand, inst.bytewidth(), inst.metadata());
         inst.parent()->insert(&inst, copy);
