@@ -69,86 +69,6 @@ static void mapSSAToVirtualRegisters(Function& F) {
     }
 }
 
-/// The following logic tries to coalesce copies when passing arguments to
-/// callees. This does not yet coalesce copies out of the callee. This should
-/// end up in a more general copy coalescing step.
-static bool argumentLifetimeEnds(auto argItr,
-                                 Instruction const& call,
-                                 BasicBlock const& BB) {
-    auto* argument = cast<Register const*>(*argItr);
-    bool isUniqueArg =
-        !ranges::contains(std::next(argItr), call.operands().end(), argument);
-    if (!isUniqueArg) {
-        return false;
-    }
-    /// We traverse the basic block to see if the argument is used after the
-    /// call
-    for (auto i = BasicBlock::ConstIterator(call.next()); i != BB.end(); ++i) {
-        auto& inst = *i;
-        if (ranges::contains(inst.operands(), argument)) {
-            return false;
-        }
-        if (ranges::contains(inst.destRegisters(), argument)) {
-            return true;
-        }
-    }
-    return !BB.isLiveOut(argument);
-}
-
-static bool isUsed(Register const* reg,
-                   BasicBlock::ConstIterator begin,
-                   BasicBlock::ConstIterator end) {
-    auto range = ranges::make_subrange(begin, end);
-    for (auto& inst: range) {
-        if (ranges::contains(inst.operands(), reg)) {
-            return true;
-        }
-        if (ranges::contains(inst.destRegisters(), reg)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/// \Returns an iterator to the last instruction in the range
-/// `[BB.begin(), end)` that defines `reg`. If nonesuch is found \p end is
-/// returned.
-static BasicBlock::Iterator lastDefinition(Register const* reg,
-                                           BasicBlock::Iterator end,
-                                           BasicBlock& BB) {
-    auto range = ranges::make_subrange(BB.begin(), end);
-    for (auto& inst: range | reverse) {
-        if (ranges::contains(inst.destRegisters(), reg)) {
-            return BasicBlock::Iterator(&inst);
-        }
-    }
-    return end;
-}
-
-std::optional<BasicBlock::Iterator> replaceableDefiningInstruction(
-    BasicBlock::Iterator callItr, auto argItr, CalleeRegister const* destReg) {
-    auto& call = *callItr;
-    auto& BB = *call.parent();
-    Register* argReg = dyncast<Register*>(*argItr);
-    if (!argReg) {
-        return std::nullopt;
-    }
-    if (BB.isLiveIn(argReg)) {
-        return std::nullopt;
-    }
-    if (!argumentLifetimeEnds(argItr, call, BB)) {
-        return std::nullopt;
-    }
-    auto lastDefOfArgReg = lastDefinition(argReg, callItr, BB);
-    if (!lastDefOfArgReg->singleDest()) {
-        return std::nullopt;
-    }
-    if (isUsed(destReg, lastDefOfArgReg, callItr)) {
-        return std::nullopt;
-    }
-    return lastDefOfArgReg;
-}
-
 static BasicBlock::Iterator destroyTailCall(Function& F,
                                             BasicBlock& BB,
                                             CallInst& call,
@@ -229,19 +149,8 @@ static BasicBlock::Iterator destroy(Function& F,
     {
         Value* arg = *argItr;
         CalleeRegister* destReg = dest.to_address();
-        auto replaceableInst =
-            replaceableDefiningInstruction(callItr, argItr, destReg);
-        if (replaceableInst) {
-            (*replaceableInst)->setDest(destReg);
-            for (auto i = std::next(*replaceableInst); i != callItr; ++i) {
-                auto& inst = *i;
-                inst.replaceOperand(arg, destReg);
-            }
-        }
-        else {
-            auto* copy = new CopyInst(destReg, arg, 8, call.metadata());
-            BB.insert(&call, copy);
-        }
+        auto* copy = new CopyInst(destReg, arg, 8, call.metadata());
+        BB.insert(&call, copy);
         newArguments.push_back(destReg);
     }
     /// Call instructions define registers as long as we work with SSA
