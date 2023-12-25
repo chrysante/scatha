@@ -440,3 +440,13 @@ fn main() {
     return data[99];
 })");
 }
+
+TEST_CASE("Array size in conditional expression", "[end-to-end][arrays]") {
+    test::checkReturns(3, R"(
+fn main() {
+    let cond = true;
+    let a = [1, 2, 3];
+    let b = [1, 2];
+    return (cond ? a : b).count;
+})");
+}

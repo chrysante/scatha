@@ -14,11 +14,8 @@ namespace scatha::irgen {
 /// Otherwise returns `nullptr`
 sema::ObjectType const* getPtrOrRefBase(sema::Type const* type);
 
-/// \Returns `true` if \p type is a pointer or a reference to an array
-bool isPtrOrRefToArray(sema::Type const* type);
-
-/// \Returns `true` if \p type is a pointer or a reference to an array with
-/// dynamic size
+/// \Returns `true` if \p type is an array with
+/// dynamic size or a pointer or a reference thereto
 bool isFatPointer(sema::Type const* type);
 
 /// \overload for expressions

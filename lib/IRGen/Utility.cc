@@ -24,11 +24,9 @@ sema::ObjectType const* irgen::getPtrOrRefBase(sema::Type const* type) {
 }
 
 sema::ArrayType const* ptrOrRefToArrayImpl(sema::Type const* type) {
-    return dyncast<sema::ArrayType const*>(getPtrOrRefBase(type));
-}
-
-bool irgen::isPtrOrRefToArray(sema::Type const* type) {
-    return ptrOrRefToArrayImpl(type) != nullptr;
+    sema::Type const* base = getPtrOrRefBase(type);
+    base = base ? base : type;
+    return dyncast<sema::ArrayType const*>(base);
 }
 
 bool irgen::isFatPointer(sema::Type const* type) {

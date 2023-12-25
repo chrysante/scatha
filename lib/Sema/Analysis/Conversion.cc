@@ -657,13 +657,7 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             if (a.count() == b.count()) {
                 return &a;
             }
-            if (a.isDynamic()) {
-                return &a;
-            }
-            if (b.isDynamic()) {
-                return &b;
-            }
-            return nullptr;
+            return sym.arrayType(a.elementType());
         },
         [&](PointerType const& a, NullPtrType const& b) {
             return &a;
