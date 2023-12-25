@@ -100,11 +100,18 @@ fn sqrt(x: double) -> double {
 }
 
 fn toAsciiShade(x: double) -> byte {
-    return " .-:=+*#%@"[int(10.0 * clamp(x, 0.0, 1.0))];
+    return " .-:=+*#%@"[int(9.0 * clamp(x, 0.0, 1.0))];
 }
 
 fn print(b: byte) {
     __builtin_putchar(b);
+}
+
+fn abs(x: double) {
+    if x < 0.0 {
+        return -x;
+    }
+    return x;
 }
 
 /// We'll just leave these print functions here for future debugging
