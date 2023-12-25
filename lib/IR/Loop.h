@@ -78,7 +78,8 @@ public:
     /// \Returns a view over all basic blocks that the loop may exit from
     auto const& exitingBlocks() const { return _exitingBlocks; }
 
-    /// \Returns `true` if \p BB is an exiting block of this loop
+    /// \Returns `true` if \p BB is an exiting block of this loop, i.e. in inner
+    /// block that has an edge to an outer block
     bool isExiting(BasicBlock const* BB) const {
         return _exitingBlocks.contains(BB);
     }
@@ -86,7 +87,8 @@ public:
     /// \Returns a view over all basic blocks that the loop may exit to
     auto const& exitBlocks() const { return _exitBlocks; }
 
-    /// \Returns `true` if \p BB is an exit block of this loop
+    /// \Returns `true` if \p BB is an exit block of this loop, i.e. an outer
+    /// block that has an incoming edge from a loop block
     bool isExit(BasicBlock const* BB) const { return _exitBlocks.contains(BB); }
 
     /// \Returns the phi node that closes the live out value \p loopInst for the

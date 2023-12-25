@@ -31,28 +31,39 @@ using namespace ir;
 static bool isInductionVar(Instruction const* inst,
                            LoopInfo const& loop,
                            DominanceInfo const& postDomInfo) {
-    auto* arithmetic = dyncast<ArithmeticInst const*>(inst);
-    if (!arithmetic) {
+    auto* indVar = dyncast<ArithmeticInst const*>(inst);
+    if (!indVar) {
         return false;
     }
     using enum ArithmeticOperation;
     /// We can assume the constant to be on the right hand side because
     /// instcombine puts constants there for commutative operations
-    if (!isa<Constant>(arithmetic->rhs())) {
+    if (!isa<Constant>(indVar->rhs())) {
         return false;
     }
-    auto* phi = dyncast<Phi const*>(arithmetic->lhs());
+    auto* phi = dyncast<Phi const*>(indVar->lhs());
     if (!phi || !loop.isInner(phi->parent())) {
         return false;
     }
-    if (!ranges::contains(phi->operands(), arithmetic)) {
+    if (!ranges::contains(phi->operands(), indVar)) {
         return false;
     }
-    if (!postDomInfo.dominatorSet(loop.header()).contains(arithmetic->parent()))
-    {
-        return false;
+    if (indVar->parent() == loop.header()) {
+        return true;
     }
-    return true;
+    if (!loop.isExiting(loop.header())) {
+        return postDomInfo.dominatorSet(loop.header())
+            .contains(indVar->parent());
+    }
+    SC_ASSERT(loop.header()->numSuccessors() <= 2,
+              "This won't work with more than two successors");
+    auto headerSuccs = loop.header()->successors();
+    auto nextItr = ranges::find_if(headerSuccs, [&](auto* succ) {
+        return loop.isInner(succ);
+    });
+    SC_ASSERT(nextItr != headerSuccs.end(),
+              "Loop header must have at one successor in the loop");
+    return postDomInfo.dominatorSet(*nextItr).contains(indVar->parent());
 }
 
 LoopInfo LoopInfo::Compute(LNFNode const& header) {
