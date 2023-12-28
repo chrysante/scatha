@@ -28,13 +28,9 @@ architecture "x86_64"
 
 filter "system:linux or macosx"
     buildoptions { 
-        "-Wconversion", 
         "-Wall",
-        "-Wpedantic",
-        "-Wold-style-cast", 
-        "-Wno-sign-compare", 
-        "-Wno-unused-parameter",
-        "-Wmissing-field-initializers",
+        "-Wextra",
+        "-pedantic",
         "-ftemplate-depth=2048" -- until `dyncast/visit` is fixed
     }
 filter "system:macosx"
@@ -73,6 +69,8 @@ includedirs { "lib", "include/scatha" }
 libdirs "build/bin/%{cfg.longname}"
 links { "apmath", "graphgen", "termfmt", "utility" }
 
+filter "system:linux"
+    buildoptions "-fPIC"
 filter "system:linux or macosx"
     buildoptions "-fvisibility=hidden"
 filter {}
