@@ -12,17 +12,24 @@ namespace svm {
 
 /// A virtual memory pointer
 struct VirtualPointer {
+    /// Increments the pointer by \p offset bytes.
+    /// \Returns a reference to `*this`
     VirtualPointer& operator+=(std::integral auto offset) {
         this->offset += static_cast<uint64_t>(offset);
         return *this;
     }
 
+    /// Decrements the pointer by \p offset bytes.
+    /// \Returns a reference to `*this`
     VirtualPointer& operator-=(std::integral auto offset) {
         this->offset -= static_cast<uint64_t>(offset);
         return *this;
     }
 
-    uint64_t offset    : 48;
+    /// The offset into the memory slot this pointer points to
+    uint64_t offset : 48;
+
+    /// The index of the memory slot this pointer points to
     uint64_t slotIndex : 16;
 };
 
