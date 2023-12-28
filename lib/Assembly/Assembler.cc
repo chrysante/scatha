@@ -415,6 +415,7 @@ void Assembler::translate(LabelPosition const& pos) {
         case Dynamic:
             return DynamicAddressWidth;
         }
+        SC_UNREACHABLE();
     }();
     put(LabelPlaceholder{}, pos.ID(), width);
 }
