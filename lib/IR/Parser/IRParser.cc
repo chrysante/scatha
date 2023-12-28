@@ -181,7 +181,7 @@ struct ParseContext {
             std::invoke(fn, user, value);
             return;
         }
-        _addPendingUpdate(optVal.token(), [=](Value* v) {
+        _addPendingUpdate(optVal.token(), [=, this](Value* v) {
             SC_EXPECT(v);
             auto* value = dyncast<V*>(v);
             if (!value) {
@@ -665,7 +665,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         addValueLink(result.get(),
                      nullptr,
                      funcName,
-                     [=](Call* call, Value* value) {
+                     [=, this](Call* call, Value* value) {
             auto* func = dyncast<Callable const*>(value);
             if (func && func->returnType() != retType) {
                 reportSemaIssue(retTypeName, SemanticIssue::TypeMismatch);
