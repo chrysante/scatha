@@ -188,6 +188,7 @@ static size_t SLFKindNumPtrParams(sema::SpecialLifetimeFunction kind) {
     case Destructor:
         return 1;
     }
+    SC_UNREACHABLE();
 }
 
 utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(

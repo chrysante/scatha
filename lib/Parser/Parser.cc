@@ -297,7 +297,7 @@ UniquePtr<ast::ASTNode> parser::parse(std::span<SourceFile const> sourceFiles,
             return nullptr;
         }
         bracketCorrection(tokens, issueHandler);
-        Context ctx{ .tokens{ std::move(tokens) },
+        Context ctx{ .tokens = TokenStream(std::move(tokens)),
                      .filename = file.path(),
                      .issues = issueHandler };
         parsedFiles.push_back(ctx.run());
@@ -964,8 +964,7 @@ UniquePtr<ast::Expression> Context::parseConditional() {
     Token const& condToken = tokens.peek();
     auto logicalOr = parseLogicalOr();
     if (auto const& questionMark = tokens.peek();
-        questionMark.kind() == Question)
-    {
+        questionMark.kind() == Question) {
         if (!logicalOr) {
             pushExpectedExpression(condToken);
         }
@@ -1271,7 +1270,7 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::FloatingPoint,
-                                      token.toFloat(APFloatPrec::Double));
+                                      token.toFloat(APFloatPrec::Double()));
     case Null:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),

@@ -9,7 +9,7 @@
 using namespace scatha;
 
 std::fstream scatha::openFile(std::filesystem::path const& path,
-                              std::ios::fmtflags flags) {
+                              std::ios::openmode flags) {
     std::fstream file(path, flags);
     if (!file) {
         throw std::runtime_error(utl::strcat("Failed to open ", path));

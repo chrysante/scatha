@@ -111,6 +111,7 @@ std::string_view ast::toString(LoopKind loopKind) {
     case LoopKind::DoWhile:
         return "Do/While";
     }
+    SC_UNREACHABLE();
 }
 
 std::ostream& ast::operator<<(std::ostream& ostream, LoopKind loopKind) {

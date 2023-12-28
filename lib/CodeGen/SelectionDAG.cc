@@ -220,12 +220,14 @@ void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
         auto* vertex = Vertex::make(ID(node))->label(makeLabel(DAG, node));
         /// Add all use edges
         for (auto* dependency: node->valueDependencies()) {
-            G->add(Edge{ ID(node), ID(dependency), .style = Style::Dashed });
+            G->add(Edge{ .from = ID(node),
+                         .to = ID(dependency),
+                         .style = Style::Dashed });
         }
         /// Add all 'execution' edges
         for (auto* dependency: node->executionDependencies()) {
-            G->add(Edge{ ID(node),
-                         ID(dependency),
+            G->add(Edge{ .from = ID(node),
+                         .to = ID(dependency),
                          .color = Color::Magenta,
                          .style = Style::Bold });
         }

@@ -14,32 +14,32 @@
 namespace scatha {
 
 template <typename... T>
-    requires(sizeof...(T) > 0)
-inline constexpr auto Filter = ranges::views::filter(
-                                   []<typename V>(V const& value) {
-    using NoRef = std::remove_reference_t<V>;
-    if constexpr (std::is_pointer_v<NoRef>) {
-        return (... || isa_or_null<T>(value));
-    }
-    else {
-        return (... || isa<T>(value));
-    }
-}) | ranges::views::transform([]<typename V>(V&& value) -> decltype(auto) {
-    if constexpr (sizeof...(T) > 1) {
-        return std::forward<V>(value);
-    }
-    else {
+requires(sizeof...(T) > 0) inline constexpr auto Filter =
+    ranges::views::filter([]<typename V>(V const& value) {
         using NoRef = std::remove_reference_t<V>;
-        using NoPtr = std::remove_pointer_t<NoRef>;
-        using First = std::tuple_element_t<0, std::tuple<T...>>;
         if constexpr (std::is_pointer_v<NoRef>) {
-            return cast<utl::copy_cv_t<NoPtr, First>*>(value);
+            return (... || isa_or_null<T>(value));
         }
         else {
-            return cast<utl::copy_cv_t<NoPtr, First>&>(value);
+            return (... || isa<T>(value));
         }
-    }
-});
+    }) |
+    ranges::views::transform([]<typename V>(V&& value) -> decltype(auto) {
+        if constexpr (sizeof...(T) > 1) {
+            return std::forward<V>(value);
+        }
+        else {
+            using NoRef = std::remove_reference_t<V>;
+            using NoPtr = std::remove_pointer_t<NoRef>;
+            using First = std::tuple_element_t<0, std::tuple<T...>>;
+            if constexpr (std::is_pointer_v<NoRef>) {
+                return cast<utl::copy_cv_t<NoPtr, First>*>(value);
+            }
+            else {
+                return cast<utl::copy_cv_t<NoPtr, First>&>(value);
+            }
+        }
+    });
 
 /// Range casting functions
 #define SC_CASTING_RANGE_DEF(Name, FuncName)                                   \
@@ -63,7 +63,7 @@ inline constexpr auto ToAddress = ranges::views::transform(
 /// View applying `std::to_address` to every element and converting the pointer
 /// to const
 inline constexpr auto ToConstAddress =
-    ranges::views::transform([]<typename T>(T&& p) -> auto const* {
+    ranges::views::transform([]<typename T>(T && p) -> auto const* {
         return std::to_address(std::forward<T>(p));
     });
 
@@ -104,7 +104,7 @@ auto operator|(R&& r, ToSmallVectorFn<Size>) {
 }
 
 template <typename E>
-    requires std::is_enum_v<E>
+requires std::is_enum_v<E>
 inline auto EnumRange() {
     return ranges::views::iota(size_t{ 0 }, EnumSize<E>) |
            ranges::views::transform(

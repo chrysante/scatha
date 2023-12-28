@@ -2,8 +2,8 @@
 
 #include <utl/utility.hpp>
 
-#include "Common.h"
-#include "HelpPanel.h"
+#include "UI/Common.h"
+#include "Views/HelpPanel.h"
 
 using namespace sdb;
 using namespace ftxui;

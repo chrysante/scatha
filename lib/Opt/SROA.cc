@@ -440,8 +440,7 @@ bool Variable::analyzeMemcpy(Call* call) {
         return false;
     }
     if (sourceIsAllocaPtr &&
-        !pointerUsePostdominatesPhi(call, memcpySource(call)))
-    {
+        !pointerUsePostdominatesPhi(call, memcpySource(call))) {
         return false;
     }
     memcpy = cast<Callable*>(call->function());
@@ -617,8 +616,7 @@ bool Variable::rewritePhis() {
                     memorize(copy);
                 }
                 for (auto [index, operand]:
-                     copy->operands() | ranges::views::enumerate)
-                {
+                     copy->operands() | ranges::views::enumerate) {
                     if (operand == phi) {
                         copy->setOperand(index, phiArgument);
                         continue;

@@ -321,6 +321,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             }
         }; // clang-format on
     }
+    SC_UNREACHABLE();
 }
 
 static std::optional<ValueCatConversion> determineValueCatConv(
@@ -352,6 +353,7 @@ static std::optional<ValueCatConversion> determineValueCatConv(
     case Reinterpret:
         return std::nullopt;
     }
+    SC_UNREACHABLE();
 }
 
 static std::optional<MutConversion> determineMutConv(ConversionKind kind,
@@ -364,9 +366,10 @@ static std::optional<MutConversion> determineMutConv(ConversionKind kind,
     switch (from) {
     case Mutability::Mutable: // Mutable to Const:
         return MutConversion::MutToConst;
-    case Mutability::Const:   // Const to Mutable
+    case Mutability::Const: // Const to Mutable
         return std::nullopt;
     }
+    SC_UNREACHABLE();
 }
 
 static int getRank(ValueCatConversion conv) {
@@ -410,7 +413,7 @@ static bool fits(APInt const& value, size_t numDestBits, bool destIsSigned) {
 }
 
 static bool fits(APFloat const& value, size_t bitwidth) {
-    SC_ASSERT(value.precision() == APFloatPrec::Double, "");
+    SC_ASSERT(value.precision() == APFloatPrec::Double(), "");
     SC_ASSERT(bitwidth == 32,
               "64 -> 32 is the only narrowing float conversion we have");
     if (std::isinf(value.to<float>())) {
@@ -422,7 +425,8 @@ static bool fits(APFloat const& value, size_t bitwidth) {
 /// Computes the greatest integer representable in a floating point value with
 /// \p bitwidth bits of precision
 static APInt computeIntegralFloatLimit(size_t fromBitwidth, size_t toBitwidth) {
-    auto prec = toBitwidth == 32 ? APFloatPrec::Single : APFloatPrec::Double;
+    auto prec = toBitwidth == 32 ? APFloatPrec::Single() :
+                                   APFloatPrec::Double();
     return lshl(APInt(1, fromBitwidth),
                 utl::narrow_cast<int>(prec.mantissaWidth + 1));
 }

@@ -451,19 +451,19 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
     }
     case Conversion::Fext: {
         APFloat value = std::get<APFloat>(operand);
-        SC_ASSERT(value.precision() == APFloatPrec::Single,
+        SC_ASSERT(value.precision() == APFloatPrec::Single(),
                   "Can only extend single precision floats");
         SC_ASSERT(targetType->bitwidth() == 64,
                   "Can only extend to 64 bit floats");
-        return APFloat(value.to<float>(), APFloatPrec::Double);
+        return APFloat(value.to<float>(), APFloatPrec::Double());
     }
     case Conversion::Ftrunc: {
         APFloat value = std::get<APFloat>(operand);
-        SC_ASSERT(value.precision() == APFloatPrec::Double,
+        SC_ASSERT(value.precision() == APFloatPrec::Double(),
                   "Can only truncate double precision floats");
         SC_ASSERT(targetType->bitwidth() == 32,
                   "Can only truncate to 32 bit floats");
-        return APFloat(value.to<double>(), APFloatPrec::Single);
+        return APFloat(value.to<double>(), APFloatPrec::Single());
     }
     case Conversion::UtoF:
         return valuecast<APFloat>(std::get<APInt>(operand),

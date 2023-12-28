@@ -153,8 +153,7 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
         }
     });
     if (auto linkage = def.externalLinkage();
-        !linkage.empty() && linkage != "C")
-    {
+        !linkage.empty() && linkage != "C") {
         ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
     }
     if (def.body()) {

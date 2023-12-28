@@ -38,11 +38,8 @@ public:
 
     /// Construct issue type `T` directly in this issue handler
     template <typename T, typename... Args>
-        requires std::derived_from<T, Issue> &&
-                 std::constructible_from<T, Args...>
-    void push(Args&&... args) {
-        push(new T(std::forward<Args>(args)...));
-    }
+    requires std::derived_from<T, Issue> && std::constructible_from<T, Args...>
+    void push(Args&&... args) { push(new T(std::forward<Args>(args)...)); }
 
     /// Erase all issues
     void clear() { _issues.clear(); }

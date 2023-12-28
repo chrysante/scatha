@@ -15,8 +15,7 @@ bool TokenStream::advanceTo(std::string_view id) {
     while (true) {
         Token const& next = peek();
         if (next.kind() == TokenKind::Semicolon ||
-            next.kind() == TokenKind::EndOfFile)
-        {
+            next.kind() == TokenKind::EndOfFile) {
             eat();
             return false;
         }

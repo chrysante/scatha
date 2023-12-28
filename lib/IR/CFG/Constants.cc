@@ -78,8 +78,7 @@ void RecordConstant::writeValueToImpl(
     void* dest,
     utl::function_view<void(Constant const*, void*)> callback) const {
     for (auto [value, offset]:
-         ranges::views::zip(elements(), type()->offsets()))
-    {
+         ranges::views::zip(elements(), type()->offsets())) {
         value->writeValueTo(advance(dest, offset), callback);
     }
 }

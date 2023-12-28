@@ -1,6 +1,8 @@
-#include <catch2/catch_test_macros.hpp>
-
+#include <bit>
+#include <cmath>
 #include <string>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "test/EndToEndTests/PassTesting.h"
 
@@ -22,7 +24,7 @@ fn g(n: int) -> int {
 }
 
 TEST_CASE("External function call", "[end-to-end][inlining]") {
-    test::checkReturns(utl::bit_cast<uint64_t>(std::sqrt(2.0)), R"(
+    test::checkReturns(std::bit_cast<uint64_t>(std::sqrt(2.0)), R"(
 fn main() -> double {
     return sqrt(2.0);
 }

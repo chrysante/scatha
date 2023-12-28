@@ -1,6 +1,7 @@
 #ifndef SCATHAC_UTIL_H_
 #define SCATHAC_UTIL_H_
 
+#include <optional>
 #include <span>
 
 #include <scatha/AST/Fwd.h>

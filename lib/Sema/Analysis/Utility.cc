@@ -109,6 +109,7 @@ static FunctionSignature makeLifetimeSignature(SpecialLifetimeFunction key,
     case Destructor:
         return FunctionSignature({ self }, ret);
     }
+    SC_UNREACHABLE();
 }
 
 static Function* generateSLF(SpecialLifetimeFunction key,

@@ -2,6 +2,7 @@
 #define SDB_MODEL_SOURCEDEBUGINFO_H_
 
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <vector>
 

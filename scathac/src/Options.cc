@@ -16,8 +16,7 @@ ParseMode scatha::getMode(OptionsBase const& options) {
         return ParseMode::Scatha;
     }
     if (ranges::all_of(options.files, hasExt(".scir")) &&
-        options.files.size() == 1)
-    {
+        options.files.size() == 1) {
         return ParseMode::IR;
     }
     if (options.files.size() <= 1) {

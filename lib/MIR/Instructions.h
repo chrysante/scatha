@@ -113,7 +113,9 @@ public:
     size_t registerOffset() const { return regOffset; }
 
     ///
-    void setRegisterOffset(size_t offset) { regOffset = offset; }
+    void setRegisterOffset(size_t offset) {
+        regOffset = utl::narrow_cast<uint32_t>(offset);
+    }
 
     /// The actual function parameters. Drops the first operand if this is a
     /// `CallInst`
@@ -135,8 +137,8 @@ public:
     Value const* callee() const { return operandAt(0); }
 
 private:
-    size_t regOffset  : 32 = 0;
-    size_t numRetRegs : 32 = 0;
+    uint32_t regOffset = 0;
+    uint32_t numRetRegs = 0;
 };
 
 /// Concrete cond-copy instruction

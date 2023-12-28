@@ -127,9 +127,8 @@ OverloadResolutionResult sema::performOverloadResolution(
     }
 
     /// Ambiguous call
-    auto functions = results |
-                     ranges::views::transform(
-                         [](auto& r) -> auto const* { return r.function; }) |
+    auto functions = results | ranges::views::transform([
+                     ](auto& r) -> auto const* { return r.function; }) |
                      ranges::to<std::vector>;
     return OverloadResolutionResult{
         .error = std::make_unique<ORError>(

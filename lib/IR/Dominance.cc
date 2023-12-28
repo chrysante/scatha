@@ -150,8 +150,9 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
         utl::hashset<BasicBlock*> newDomSet = { bb };
         auto predDomSets =
             predecessors(bb) |
-            ranges::views::transform(
-                [&](auto* pred) -> auto const& { return domSets[pred]; });
+            ranges::views::transform([&](auto* pred) -> auto const& {
+                return domSets[pred];
+            });
         merge(newDomSet, intersect(predDomSets));
         auto& oldDomSet = domSets[bb];
         if (newDomSet != oldDomSet) {

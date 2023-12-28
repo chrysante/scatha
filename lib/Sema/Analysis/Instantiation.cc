@@ -119,12 +119,12 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
                    ranges::to<utl::small_vector<u16>>;
-    auto const cycle =
-        utl::find_cycle(indices.begin(),
-                        indices.end(),
-                        [&](size_t index) -> auto const& {
-                            return dependencyGraph[index].dependencies;
-                        });
+    auto const cycle = utl::find_cycle(
+        indices.begin(),
+        indices.end(),
+        [&](size_t index) -> auto const& {
+            return dependencyGraph[index].dependencies;
+        });
     if (!cycle.empty()) {
         auto entities = cycle | ranges::views::transform(
                                     [&](size_t index) -> Entity const* {
@@ -137,11 +137,12 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     auto dependencyTraversalOrder =
         ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
         ranges::to<utl::small_vector<u16>>;
-    utl::topsort(dependencyTraversalOrder.begin(),
-                 dependencyTraversalOrder.end(),
-                 [&](size_t index) -> auto const& {
-                     return dependencyGraph[index].dependencies;
-                 });
+    utl::topsort(
+        dependencyTraversalOrder.begin(),
+        dependencyTraversalOrder.end(),
+        [&](size_t index) -> auto const& {
+            return dependencyGraph[index].dependencies;
+        });
     std::vector<StructType const*> sortedStructTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {

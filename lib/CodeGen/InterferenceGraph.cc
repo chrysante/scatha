@@ -49,7 +49,8 @@ void InterferenceGraph::colorize() {
         auto* reg = node->reg();
         if (reg->fixed() && !isa<mir::CalleeRegister>(reg)) {
             uint32_t const col = utl::narrow_cast<uint32_t>(reg->index());
-            colors[node] = node->col = col;
+            colors[node] = col;
+            node->col = col;
             maxCol = std::max(maxCol, col + 1);
         }
     }

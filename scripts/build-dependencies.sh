@@ -1,16 +1,20 @@
-#!/bin/sh
+#!/bin/bash
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJ_DIR="$SCRIPT_DIR/.."
 
+source $SCRIPT_DIR/util.sh
+
 cd $PROJ_DIR
-premake5 xcode4
+run_premake
 
 mkdir -p build/bin/{Debug,Release}
 
 # UTL
 cd $PROJ_DIR/external/utility
-premake5 xcode4
-xcodebuild -project utility.xcodeproj -configuration Release -quiet
+run_premake
+build_project utility Release
+
 cd $PROJ_DIR
 cp external/utility/build/bin/Release/libutility.a build/bin/Debug
 cp external/utility/build/bin/Release/libutility.a build/bin/Release
@@ -24,7 +28,6 @@ make -j
 
 cp src/*.a ../bin/Debug
 cp src/*.a ../bin/Release
-
 
 # FTXUI
 cd $PROJ_DIR

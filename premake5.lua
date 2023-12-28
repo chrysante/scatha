@@ -26,7 +26,7 @@ objdir "build/obj/%{cfg.longname}"
 
 architecture "x86_64"
 
-filter "system:macosx"
+filter "system:linux or macosx"
     buildoptions { 
         "-Wconversion", 
         "-Wall",
@@ -35,8 +35,9 @@ filter "system:macosx"
         "-Wno-sign-compare", 
         "-Wno-unused-parameter",
         "-Wmissing-field-initializers",
-        "-ftemplate-depth=2048" -- until `dyncast` is refactored
+        "-ftemplate-depth=2048" -- until `dyncast/visit` is fixed
     }
+filter "system:macosx"
     xcodebuildsettings { 
         ["INSTALL_PATH"]            = "@executable_path",
         ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
@@ -69,10 +70,11 @@ externalincludedirs {
     "external/nlohmann/json/include",
 }
 includedirs { "lib", "include/scatha" }
+libdirs "build/bin/%{cfg.longname}"
 links { "apmath", "graphgen", "termfmt", "utility" }
 
-filter { "system:macosx" }
-buildoptions "-fvisibility=hidden"
+filter "system:linux or macosx"
+    buildoptions "-fvisibility=hidden"
 filter {}
 
 ------------------------------------------
@@ -95,6 +97,7 @@ externalincludedirs {
 }
 
 addCppFiles "test"
+libdirs "build/bin/%{cfg.longname}"
 links { "Catch2", "scatha", "svm-lib", "APMath", "termfmt" } 
 
 ------------------------------------------
@@ -110,7 +113,7 @@ externalincludedirs {
     "external/APMath/include",
     "external/range-v3/include",
     "external/termfmt/include",
-    "external/CLI11/include",
+    "external/cli11/include",
 }
 
 addCppFiles "fuzz"

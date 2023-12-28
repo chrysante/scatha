@@ -1,5 +1,7 @@
 #include "svm/VirtualMemory.h"
 
+#include <cstring>
+
 using namespace svm;
 
 static size_t roundUp(size_t value, size_t multipleOf) {

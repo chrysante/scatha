@@ -67,7 +67,7 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
             }
             return breakState.load();
         }();
-        return {
+        return LineInfo{
             .num = lineNum,
             .isFocused = lineNum == focusLine(),
             .hasBreakpoint = index && model->hasSourceBreakpoint(*index),

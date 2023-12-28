@@ -9,7 +9,7 @@ namespace scatha {
 
 ///
 std::fstream openFile(std::filesystem::path const& path,
-                      std::ios::fmtflags flags = std::ios::in | std::ios::out);
+                      std::ios::openmode flags = std::ios::in | std::ios::out);
 
 ///
 std::fstream makeTestCaseFile(std::string folderName);

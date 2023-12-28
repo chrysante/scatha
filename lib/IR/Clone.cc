@@ -215,8 +215,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
         bb.setPredecessors(newPreds);
         for (auto& inst: bb) {
             for (auto&& [index, operand]:
-                 inst.operands() | ranges::views::enumerate)
-            {
+                 inst.operands() | ranges::views::enumerate) {
                 inst.setOperand(index, valueMap(operand));
             }
             /// It is quite unfortunate that we have this special case here, but
@@ -224,8 +223,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
             /// `Instruction` base class.
             if (auto* phi = dyncast<Phi*>(&inst)) {
                 for (auto&& [index, arg]:
-                     phi->arguments() | ranges::views::enumerate)
-                {
+                     phi->arguments() | ranges::views::enumerate) {
                     phi->setPredecessor(index, valueMap(arg.pred));
                 }
             }

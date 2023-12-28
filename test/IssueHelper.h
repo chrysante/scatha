@@ -64,8 +64,8 @@ IssueHelper getSyntaxIssues(std::string_view text);
 IssueHelper getSemaIssues(std::span<SourceFile const> sources);
 
 template <typename... T>
-    requires(std::constructible_from<std::string, T> && ...)
-IssueHelper getSemaIssues(T... sources) {
+requires(std::constructible_from<std::string, T>&&...) IssueHelper
+    getSemaIssues(T... sources) {
     return getSemaIssues(
         std::vector{ SourceFile::make(std::string(std::move(sources)))... });
 }

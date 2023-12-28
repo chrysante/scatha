@@ -438,4 +438,5 @@ static Asm::Type mapCompareMode(ir::CompareMode mode) {
     case ir::CompareMode::_count:
         SC_UNREACHABLE();
     }
+    SC_UNREACHABLE();
 }

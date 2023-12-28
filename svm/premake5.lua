@@ -4,7 +4,7 @@ kind "StaticLib"
 
 files { "lib/**.h", "lib/**.cc", "include/svm/**.h", "include/svm/**.def" }
 
-includedirs { "lib" }
+includedirs { "lib", "include/svm" }
 
 externalincludedirs {
     "include",
@@ -23,7 +23,9 @@ externalincludedirs {
     "%{wks.location}/external/utility/include",
     "%{wks.location}/external/range-v3/include",
 }
+includedirs { "lib", "include/svm" }
 
+libdirs "%{wks.location}/build/bin/%{cfg.longname}"
 links { "svm-lib", "utility" }
 
 ------------------------------------------
@@ -42,4 +44,5 @@ externalincludedirs {
     "%{wks.location}/build/Catch/generated-includes",
 }
 
+libdirs "%{wks.location}/build/bin/%{cfg.longname}"
 links { "Catch2", "Catch2Main", "svm-lib" }

@@ -114,6 +114,7 @@ inline constexpr size_t codeSize(OpCode code) {
     case _count:
         unreachable();
     }
+    unreachable();
 }
 
 } // namespace svm

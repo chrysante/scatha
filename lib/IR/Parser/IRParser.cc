@@ -39,8 +39,8 @@ static APFloat parseFloat(Token token, Type const* type) {
     size_t bitwidth = cast<FloatType const*>(type)->bitwidth();
     SC_EXPECT(bitwidth == 32 || bitwidth == 64);
     auto value = APFloat::parse(token.id(),
-                                bitwidth == 32 ? APFloatPrec::Single :
-                                                 APFloatPrec::Double);
+                                bitwidth == 32 ? APFloatPrec::Single() :
+                                                 APFloatPrec::Double());
     if (!value) {
         throw SyntaxIssue(token);
     }
@@ -1156,7 +1156,8 @@ void ParseContext::registerValue(Token const& token, Value* value) {
         default:
             SC_UNREACHABLE();
         }
-    }();
+    }
+    ();
     if (values.contains(value->name())) {
         reportSemaIssue(token, SemanticIssue::Redeclaration);
     }
@@ -1174,7 +1175,8 @@ void ParseContext::executePendingUpdates(Token const& name, Value* value) {
         default:
             SC_UNREACHABLE();
         }
-    }();
+    }
+    ();
     auto const itr = map.find(name.id());
     if (itr == map.end()) {
         return;

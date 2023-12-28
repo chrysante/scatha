@@ -181,8 +181,7 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
         ++irParamItr;
     }
     for (auto [paramDecl, pc]:
-         ranges::views::zip(def.parameters(), CC.arguments()))
-    {
+         ranges::views::zip(def.parameters(), CC.arguments())) {
         generateParameter(paramDecl, pc, irParamItr);
     }
     generate(*def.body());
@@ -468,6 +467,7 @@ void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
         case ast::JumpStatement::Continue:
             return currentLoop.inc ? currentLoop.inc : currentLoop.header;
         }
+        SC_UNREACHABLE();
     }();
     add<ir::Goto>(dest);
 }
@@ -552,6 +552,7 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     case Char:
         return Value(ctx.intConstant(lit.value<APInt>()), Register);
     }
+    SC_UNREACHABLE();
 }
 
 Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
@@ -672,6 +673,7 @@ static std::string getResultName(ast::BinaryOperator op) {
     case Comma:
         return "?";
     }
+    SC_UNREACHABLE();
 }
 
 Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
@@ -814,6 +816,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         return Value();
     }
     }
+    SC_UNREACHABLE();
 }
 
 Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
@@ -829,7 +832,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
     switch (base.location()) {
     case Register: {
         if (isFatPointer(&expr)) {
-            valueMap.insertArraySize(expr.object(), [=] {
+            valueMap.insertArraySize(expr.object(), [=, this] {
                 auto* result = add<ir::ExtractValue>(base.get(),
                                                      std::array{ irIndex + 1 },
                                                      "mem.acc.size");
@@ -843,7 +846,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
     }
     case Memory: {
         if (isFatPointer(&expr)) {
-            valueMap.insertArraySize(expr.object(), [=] {
+            valueMap.insertArraySize(expr.object(), [=, this] {
                 auto* result =
                     add<ir::GetElementPointer>(base.type(),
                                                base.get(),
@@ -863,6 +866,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         return Value(result, accessedType, Memory);
     }
     }
+    SC_UNREACHABLE();
 }
 
 Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
@@ -1095,8 +1099,7 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             /// Here we actually need to strip the reference because the
             /// function may return a ref type
             if (auto* arrayType =
-                    dyncast<sema::ArrayType const*>(stripRef(semaRetType)))
-            {
+                    dyncast<sema::ArrayType const*>(stripRef(semaRetType))) {
                 auto* size = ctx.intConstant(arrayType->size(), 64);
                 valueMap.insertArraySize(call.object(), Value(size, Register));
             }
@@ -1153,7 +1156,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
                                                 std::array{ size_t{ 0 } },
                                                 "elem");
         Value result(addr, elemType->elementAt(0), Memory);
-        valueMap.insertArraySize(expr.object(), [=] {
+        valueMap.insertArraySize(expr.object(), [=, this] {
             auto* addr = add<ir::GetElementPointer>(elemType,
                                                     array,
                                                     index,
@@ -1356,6 +1359,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
             return Value(toMemory(value, conv), value.type(), Memory);
         }
         }
+        SC_UNREACHABLE();
     }();
 
     switch (conv.conversion()->objectConversion()) {
@@ -1401,8 +1405,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         if (fromType->isDynamic()) {
             auto fromCount = valueMap.arraySize(expr->object());
             if (conv.conversion()->objectConversion() ==
-                Reinterpret_Array_ToByte)
-            {
+                Reinterpret_Array_ToByte) {
                 auto* newCount =
                     add<ir::ArithmeticInst>(toRegister(fromCount, conv),
                                             ctx.intConstant(fromElemSize, 64),
@@ -1541,6 +1544,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         return Value(result, Register);
     }
     }
+    SC_UNREACHABLE();
 }
 
 Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
@@ -1732,6 +1736,7 @@ ir::Value* FuncGenContext::toRegister(Value value,
         addSourceLoc(load, sourceNode);
         return load;
     }
+    SC_UNREACHABLE();
 }
 
 ir::Value* FuncGenContext::toMemory(Value value,
@@ -1743,6 +1748,7 @@ ir::Value* FuncGenContext::toMemory(Value value,
     case Memory:
         return value.get();
     }
+    SC_UNREACHABLE();
 }
 
 ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
@@ -1754,6 +1760,7 @@ ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
     case Memory:
         return toMemory(value, sourceNode);
     }
+    SC_UNREACHABLE();
 }
 
 void FuncGenContext::addSourceLoc(ir::Instruction* inst,

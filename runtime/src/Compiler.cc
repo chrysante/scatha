@@ -43,10 +43,17 @@ Program Compiler::compile() {
     if (issueHandler.haveErrors()) {
         throw std::runtime_error("Compilation failed");
     }
-    auto [context, mod] = irgen::generateIR(*ast, sym, analysisResult, {});
+    ir::Context context;
+    ir::Module mod;
+    irgen::generateIR(context, mod, *ast, sym, analysisResult, {});
     opt::optimize(context, mod, 1);
     auto asmStream = cg::codegen(mod);
-    auto [bindata, binsym] = Asm::assemble(asmStream);
+    auto [bindata, binsym, unresolved] = Asm::assemble(asmStream);
+    auto linkResult = Asm::link(bindata, {}, unresolved);
+    if (!linkResult) {
+        /// For now
+        assert(false);
+    }
     Program prog;
     std::tie(prog._data, prog._sym, prog._binsym) =
         std::tuple{ std::move(bindata), std::move(sym), std::move(binsym) };

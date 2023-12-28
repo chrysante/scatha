@@ -371,6 +371,7 @@ struct DeserializeContext {
         case EntityType::_count:
             return false;
         }
+        SC_UNREACHABLE();
     }
 
     std::string getName(json const& j) { return j["name"].get<std::string>(); }

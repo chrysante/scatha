@@ -8,7 +8,6 @@
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
 #include <termfmt/termfmt.h>
-#include <utl/stdio.hpp>
 #include <utl/strcat.hpp>
 
 #include "AST/Print.h"
@@ -54,7 +53,8 @@ using namespace playground;
 using namespace scatha::logging;
 
 static void run(Asm::AssemblyStream const& assembly) {
-    auto [program, symbolTable] = Asm::assemble(assembly);
+    auto [program, symbolTable, unresolved] = Asm::assemble(assembly);
+    SC_UNIMPLEMENTED();
     // svm::print(program.data());
     svm::VirtualMachine vm;
     vm.loadBinary(program.data());

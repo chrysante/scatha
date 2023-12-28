@@ -19,7 +19,7 @@ CallInst::CallInst(Register* dest,
                 (args.insert(args.begin(), callee), std::move(args)),
                 0,
                 std::move(metadata)),
-    numRetRegs(numDests) {}
+    numRetRegs(utl::narrow_cast<uint32_t>(numDests)) {}
 
 ConversionInst::ConversionInst(Register* dest,
                                Value* operand,

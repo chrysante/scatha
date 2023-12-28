@@ -675,8 +675,7 @@ void GVNContext::assignRanks() {
                     BB.terminator();
             }
             if (instructionOrder[insertPoint] <
-                instructionOrder[prevInsertPoint])
-            {
+                instructionOrder[prevInsertPoint]) {
                 insertPoints[{ &BB, rank }] = prevInsertPoint;
             }
         }

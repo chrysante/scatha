@@ -258,7 +258,7 @@ public:
     FloatType const* F32() const;
     FloatType const* F64() const;
     ArrayType const* Str() const;
-    NullPtrType const* NullPtrType() const;
+    NullPtrType const* NullPtr() const;
 
     IntType const* Int() const { return S64(); }
     FloatType const* Float() const { return F32(); }

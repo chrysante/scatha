@@ -170,8 +170,7 @@ std::vector<FFIList> Linker::search() {
     for (auto [libIndex, path]: foreignLibs | enumerate) {
         utl::dynamic_library lib(path, utl::dynamic_load_mode::lazy);
         for (auto itr = foreignFunctions.begin();
-             itr != foreignFunctions.end();)
-        {
+             itr != foreignFunctions.end();) {
             auto& function = *itr;
             std::string_view err;
             if (lib.resolve(function.name, &err)) {

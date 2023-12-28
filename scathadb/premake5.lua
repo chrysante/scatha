@@ -9,8 +9,9 @@ externalincludedirs {
     "%{wks.location}/external/nlohmann/json/include",
 }
 
-includedirs { "src" }
+includedirs "src"
 
 files { "src/**.h", "src/**.cc" }
 
+libdirs "%{wks.location}/build/bin/%{cfg.longname}"
 links { "svm-lib", "ftxui-component", "ftxui-dom", "ftxui-screen", "utility" }

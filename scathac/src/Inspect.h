@@ -1,6 +1,8 @@
 #ifndef SCATHAC_INSPECT_H_
 #define SCATHAC_INSPECT_H_
 
+#include <optional>
+
 #include "Options.h"
 
 namespace scatha {

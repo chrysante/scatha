@@ -110,7 +110,7 @@ class SCATHA_API BadImport: public BadStmt {
 public:
     BadImport(Scope const* scope, ast::ImportStatement const* stmt);
 
-    SC_SEMA_DERIVED_STMT(ImportStatement, importStmt);
+    SC_SEMA_DERIVED_STMT(ImportStatement, importStmt)
 };
 
 /// Base class of all declaration related issues

@@ -72,8 +72,7 @@ bool opt::splitReturns(Context& ctx, Function& function) {
         }
         utl::small_vector<uint16_t> removedPreds;
         for (auto [index, pred]:
-             block->predecessors() | ranges::views::enumerate)
-        {
+             block->predecessors() | ranges::views::enumerate) {
             /// We can only do this for predecessors that end in `goto`'s
             if (!isa<Goto>(pred->terminator())) {
                 continue;

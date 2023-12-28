@@ -96,8 +96,7 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
         /// _before_ the argument copies and then copy into the dest register
         /// from the temporary
         if (ranges::contains(F.virtualRegisters() | TakeAddress | take(index),
-                             arg))
-        {
+                             arg)) {
             auto* tmp = new VirtualRegister();
             F.virtualRegisters().add(tmp);
             BB.insert(std::next(tmpCopyInsertPoint),

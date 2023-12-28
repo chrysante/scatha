@@ -24,6 +24,8 @@
 using namespace scatha;
 using namespace cg;
 
+namespace scatha::cg {
+
 template <>
 struct Matcher<ir::Alloca>: MatcherBase {
     SD_MATCH_CASE(ir::Alloca const& inst, SelectionNode& node) {
@@ -138,7 +140,7 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
                            CTX().constant(value.to<uint64_t>(),
                                           utl::ceil_divide(toWidth, 8)));
             }
-            else if (auto* undef = dyncast<mir::UndefValue*>(operand)) {
+            else if (isa<mir::UndefValue>(operand)) {
                 mapToValue(inst, CTX().undef());
             }
             else {
@@ -759,7 +761,7 @@ template <>
 struct Matcher<ir::ExtractValue>: MatcherBase {
     SD_MATCH_CASE(ir::ExtractValue const& extract, SelectionNode& node) {
         auto* source = resolve(*extract.baseValue());
-        if (auto* constant = dyncast<mir::Constant*>(source)) {
+        if (isa<mir::Constant>(source)) {
             SC_UNIMPLEMENTED();
             return true;
         }
@@ -939,6 +941,8 @@ struct Matcher<ir::InsertValue>: MatcherBase {
         return true;
     }
 };
+
+} // namespace scatha::cg
 
 namespace {
 

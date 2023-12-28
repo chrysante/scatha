@@ -81,6 +81,7 @@ static std::string_view format(Scope const* scope) {
     case Invalid:
         return "invalid scope";
     }
+    SC_UNREACHABLE();
 }
 
 static std::string_view format(ast::BinaryOperator op) {
@@ -147,6 +148,7 @@ static std::string_view format(ast::BinaryOperator op) {
     case Comma:
         return "Comma operation";
     }
+    SC_UNREACHABLE();
 }
 
 BadStmt::BadStmt(Scope const* scope,
@@ -161,6 +163,7 @@ static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
         return IssueSeverity::severity;
 #include "Sema/SemaIssues.def.h"
     }
+    SC_UNREACHABLE();
 }
 
 GenericBadStmt::GenericBadStmt(Scope const* scope,
@@ -191,6 +194,7 @@ static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
         return IssueSeverity::severity;
 #include "Sema/SemaIssues.def.h"
     }
+    SC_UNREACHABLE();
 }
 
 BadDecl::BadDecl(Scope const* scope,
@@ -238,6 +242,7 @@ static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
         return IssueSeverity::severity;
 #include "Sema/SemaIssues.def.h"
     }
+    SC_UNREACHABLE();
 }
 
 BadFuncDef::BadFuncDef(Scope const* scope,
@@ -269,6 +274,7 @@ static IssueSeverity toSeverity(BadSMF::Reason reason) {
         return IssueSeverity::severity;
 #include "Sema/SemaIssues.def.h"
     }
+    SC_UNREACHABLE();
 }
 
 BadSMF::BadSMF(Scope const* scope,
@@ -298,6 +304,7 @@ static IssueSeverity toSeverity(BadReturnStmt::Reason reason) {
         return IssueSeverity::severity;
 #include "Sema/SemaIssues.def.h"
     }
+    SC_UNREACHABLE();
 }
 
 BadReturnStmt::BadReturnStmt(Scope const* scope,
@@ -337,15 +344,15 @@ BadReturnTypeDeduction::BadReturnTypeDeduction(
     ast::ReturnStatement const* stmt,
     ast::ReturnStatement const* confl):
     BadStmt(scope, stmt, IssueSeverity::Error), confl(confl) {
-    header([=](std::ostream& str) {
+    header([=, this](std::ostream& str) {
         str << "Conflicting return type deduction in function '"
             << statement()->findAncestor<ast::FunctionDefinition>()->name()
             << "'";
     });
-    highlight(Primary, getRetSR(statement()), [=](std::ostream& str) {
+    highlight(Primary, getRetSR(statement()), [=, this](std::ostream& str) {
         str << "Here return type is deduced as " << formatRetType(statement());
     });
-    highlight(Secondary, getRetSR(conflicting()), [=](std::ostream& str) {
+    highlight(Secondary, getRetSR(conflicting()), [=, this](std::ostream& str) {
         str << "Here return type was deduced as "
             << formatRetType(conflicting());
     });
@@ -358,7 +365,8 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
     hint("Declare data members as pointers to avoid strong cyclic dependecies");
     for (auto [index, entity]: cycle() | ranges::views::enumerate) {
         primary(entity->astNode()->sourceRange(),
-                [=, entity = entity, index = index + 1](std::ostream& str) {
+                [=, this, entity = entity, index = index + 1](
+                    std::ostream& str) {
             if (auto* var = dyncast<Variable const*>(entity)) {
                 auto* type = cast<Type const*>(cycle()[index % cycle().size()]);
                 str << index << ". Member " << var->name()
@@ -410,6 +418,7 @@ static IssueSeverity toSeverity(BadExpr::Reason reason) {
         return IssueSeverity::Severity;
 #include "Sema/SemaIssues.def.h"
     }
+    SC_UNREACHABLE();
 }
 
 BadExpr::BadExpr(Scope const* scope,

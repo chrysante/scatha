@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "test/EndToEndTests/PassTesting.h"

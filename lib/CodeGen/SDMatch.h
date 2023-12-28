@@ -72,7 +72,7 @@ private:
         };                                                                     \
         ::scatha::cg::internal::addMatchCase(*this, caseWrapper);              \
         return 0;                                                              \
-    }();                                                                       \
+    }() & 0;                                                                   \
     bool CaseName(__VA_ARGS__)
 
 /// Declares a match case for an IR instruction type. This is meant to be used

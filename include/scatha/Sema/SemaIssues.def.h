@@ -30,20 +30,20 @@ SC_SEMA_BADVARDECL_DEF(IncompleteType, Error, {
     auto* decl = declaration();
     auto range = decl->typeExpr() ? decl->typeExpr()->sourceRange() :
                                     decl->sourceRange();
-    primary(range, [=](std::ostream& str) {
+    primary(range, [=, this](std::ostream& str) {
         str << sema::format(type()) << " is incomplete";
     });
 })
 SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error, {
     header("Reference declaration requires initializer");
-    primary(declaration()->sourceRange(), [=](std::ostream& str) {
+    primary(declaration()->sourceRange(), [=, this](std::ostream& str) {
         str << "Reference '" << declaration()->name()
             << "' declared here without initializer";
     });
 })
 SC_SEMA_BADVARDECL_DEF(CantInferType, Error, {
     header("Cannot infer type");
-    primary(declaration()->sourceRange(), [=](std::ostream& str) {
+    primary(declaration()->sourceRange(), [=, this](std::ostream& str) {
         str << "Variable '" << declaration()->name()
             << "' declared without type and initializer";
     });
@@ -58,7 +58,7 @@ SC_SEMA_BADVARDECL_DEF(RefInStruct, Error, {
 })
 SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error, {
     header("'this' parameter can only be declared in member functions");
-    primary(declaration()->sourceRange(), [=](std::ostream& str) {
+    primary(declaration()->sourceRange(), [=, this](std::ostream& str) {
         auto* function = declaration()->findAncestor<ast::FunctionDefinition>();
         str << "'this' parameter in free function '" << function->name()
             << "' declared here";

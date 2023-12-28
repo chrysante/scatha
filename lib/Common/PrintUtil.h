@@ -9,6 +9,12 @@
 namespace scatha {
 
 ///
+std::ostream& operator<<(std::ostream&, struct Indenter const&);
+
+///
+std::ostream& operator<<(std::ostream&, struct EndlIndenter const&);
+
+///
 struct Indenter {
     explicit Indenter(int spacesPerLevel = 1):
         _level(0), _spacesPerLevel(spacesPerLevel) {}

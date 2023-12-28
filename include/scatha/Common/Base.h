@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 #ifdef _MSC_VER
@@ -32,7 +33,7 @@
 #error Need either SC_APIEXPORT or SC_APIIMPORT defined
 #endif // APIIMPORT / APIEXPORT
 
-#else  // Compiler specific
+#else // Compiler specific
 #error Unsupported compiler
 #endif
 
@@ -90,7 +91,7 @@
     (::scatha::internal::unreachable(__FILE__, __LINE__, SC_PRETTY_FUNC),      \
      SC_DEBUGFAIL_IMPL())
 
-#else  // SC_DEBUG
+#else // SC_DEBUG
 #define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
 #endif // SC_DEBUG
 
@@ -119,7 +120,7 @@
                                                     #COND,                     \
                                                     MSG),                      \
                SC_DEBUGFAIL_IMPL()))
-#else  // SC_DEBUG
+#else // SC_DEBUG
 #define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
 #endif // SC_DEBUG
 
@@ -158,8 +159,8 @@ using ssize_t = std::ptrdiff_t;
 
 /// Reinterpret the bytes of \p t as a `std::array` of bytes.
 template <typename T>
-    requires std::is_standard_layout_v<T>
-std::array<u8, sizeof(T)> decompose(T const& t) {
+requires std::is_standard_layout_v<T> std::array<u8, sizeof(T)> decompose(
+    T const& t) {
     std::array<u8, sizeof(T)> result;
     std::memcpy(result.data(), &t, sizeof t);
     return result;
@@ -167,7 +168,7 @@ std::array<u8, sizeof(T)> decompose(T const& t) {
 
 /// Convenient accessor for `static_cast<size_t>(Enum::COUNT)`
 template <typename E>
-    requires std::is_enum_v<E>
+requires std::is_enum_v<E>
 inline constexpr size_t EnumSize = static_cast<size_t>(E::COUNT);
 
 #define SC_ENUM_SIZE_DEF(Enum, Size)                                           \

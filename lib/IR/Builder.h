@@ -29,24 +29,23 @@ public:
     /// Allocate `Inst` with arguments `...args` and add it to the back of the
     /// basic block \Returns the allocated instruction
     template <std::derived_from<Instruction> Inst, typename... Args>
-        requires std::constructible_from<Inst, Args...>
-    Inst* add(Args&&... args) {
+    requires std::constructible_from<Inst, Args...> Inst* add(Args&&... args) {
         return cast<Inst*>(add(new Inst(std::forward<Args>(args)...)));
     }
 
     /// Allocate `Inst` with arguments `context, ...args` and add it to the back
     /// of the basic block \Returns the allocated instruction
     template <std::derived_from<Instruction> Inst, typename... Args>
-        requires std::constructible_from<Inst, Context&, Args...>
-    Inst* add(Args&&... args) {
+    requires std::constructible_from<Inst, Context&, Args...> Inst* add(
+        Args&&... args) {
         return cast<Inst*>(add(new Inst(ctx, std::forward<Args>(args)...)));
     }
 
     /// Allocate `Inst` with arguments `...args` and insert it to the basic
     /// block before \p before \Returns the allocated instruction
     template <std::derived_from<Instruction> Inst, typename... Args>
-        requires std::constructible_from<Inst, Args...>
-    Inst* insert(Instruction const* before, Args&&... args) {
+    requires std::constructible_from<Inst, Args...> Inst* insert(
+        Instruction const* before, Args&&... args) {
         return cast<Inst*>(
             insert(before, new Inst(std::forward<Args>(args)...)));
     }
@@ -54,8 +53,8 @@ public:
     /// Allocate `Inst` with arguments `context, ...args` and insert it to the
     /// basic block before \p before \Returns the allocated instruction
     template <std::derived_from<Instruction> Inst, typename... Args>
-        requires std::constructible_from<Inst, Context&, Args...>
-    Inst* insert(Instruction const* before, Args&&... args) {
+    requires std::constructible_from<Inst, Context&, Args...> Inst* insert(
+        Instruction const* before, Args&&... args) {
         return cast<Inst*>(
             insert(before, new Inst(ctx, std::forward<Args>(args)...)));
     }

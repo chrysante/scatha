@@ -30,6 +30,7 @@ std::string_view scatha::toString(Level l) {
         return "+- ";
     }
 #endif // FANCY_TREE_SYMBOLS
+    SC_UNREACHABLE();
 }
 
 void TreeFormatter::push(Level l) {

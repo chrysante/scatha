@@ -82,8 +82,7 @@ APInt Token::toInteger(size_t bitwidth) const {
               "Token is not an integer literal");
     auto value = [&] {
         if (_id.size() > 2 &&
-            (_id.substr(0, 2) == "0x" || _id.substr(0, 2) == "0X"))
-        {
+            (_id.substr(0, 2) == "0x" || _id.substr(0, 2) == "0X")) {
             return APInt::parse(_id.substr(2, _id.size() - 2), 16);
         }
         return APInt::parse(_id);
@@ -104,6 +103,8 @@ APInt Token::toBool() const {
     }
     SC_UNREACHABLE();
 }
+
+APFloat Token::toFloat() const { return toFloat(APFloatPrec::Double()); }
 
 APFloat Token::toFloat(APFloatPrec precision) const {
     SC_ASSERT(kind() == TokenKind::FloatLiteral,

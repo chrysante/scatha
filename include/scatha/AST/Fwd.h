@@ -31,9 +31,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, NodeType);
 
 /// Map types to enum values.
 #define SC_ASTNODE_DEF(type, Abstractness)                                     \
-    SC_DYNCAST_MAP(::scatha::ast::type,                                        \
-                   ::scatha::ast::NodeType::type,                              \
-                   Abstractness)
+    SC_DYNCAST_MAP(scatha::ast::type, scatha::ast::NodeType::type, Abstractness)
 #include <scatha/AST/Lists.def>
 
 namespace scatha::ast {

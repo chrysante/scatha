@@ -29,7 +29,7 @@ public:
     struct Node {
         Entity* entity = nullptr;
         ast::ASTNode* astNode = nullptr;
-        utl::small_vector<u16> dependencies;
+        utl::small_vector<u16> dependencies = {};
     };
 
     /// Add a node to the graph

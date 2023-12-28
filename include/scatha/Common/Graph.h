@@ -97,8 +97,7 @@ public:
     /// `PayloadHash` and `PayloadEqual` exist to put `GraphNode` in hashsets
     /// where only the payload is used as the key.
     template <typename Ptr = PayloadViewConstPtr>
-        requires(!std::is_same_v<Ptr, void const*>)
-    struct PayloadHash {
+    requires(!std::is_same_v<Ptr, void const*>) struct PayloadHash {
         using is_transparent = void;
         size_t operator()(Self const& node) const {
             return (*this)(node.payload());
@@ -110,8 +109,7 @@ public:
 
     /// See `PayloadHash`.
     template <typename Ptr = PayloadViewConstPtr>
-        requires(!std::is_same_v<Ptr, void const*>)
-    struct PayloadEqual {
+    requires(!std::is_same_v<Ptr, void const*>) struct PayloadEqual {
         using is_transparent = void;
         bool operator()(Self const& a, Self const& b) const {
             return a.payload() == b.payload();
@@ -120,24 +118,18 @@ public:
         bool operator()(Ptr a, Self const& b) const { return a == b.payload(); }
     };
 
-    GraphNodeBase()
-        requires std::is_default_constructible_v<
-            internal::PayloadWrapper<Payload>>
-        : _payload{} {}
+    GraphNodeBase() requires
+        std::is_default_constructible_v<internal::PayloadWrapper<Payload>>:
+        _payload{} {}
 
     template <typename P = Payload>
-        requires HasPayload
-    explicit GraphNodeBase(P&& payload): _payload{ std::forward<P>(payload) } {}
+    requires HasPayload explicit GraphNodeBase(P&& payload):
+        _payload{ std::forward<P>(payload) } {}
 
-    PayloadView payload() const
-        requires HasPayload
-    {
-        return _payload.value;
-    }
+    PayloadView payload() const requires HasPayload { return _payload.value; }
 
     template <typename P = Payload>
-        requires HasPayload
-    void setPayload(P&& payload) {
+    requires HasPayload void setPayload(P&& payload) {
         _payload.value = std::forward<P>(payload);
     }
 

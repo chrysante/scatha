@@ -903,8 +903,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     {
         insertBase = insertInst->baseValue();
         if (ranges::equal(extractInst->memberIndices(),
-                          insertInst->memberIndices()))
-        {
+                          insertInst->memberIndices())) {
             return insertInst->insertedValue();
         }
     }
@@ -1040,8 +1039,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
         if (itr != ivMap.end()) {
             auto* iv = itr->second;
             if (ranges::equal(iv->memberIndices(),
-                              ranges::views::single(index)))
-            {
+                              ranges::views::single(index))) {
                 baseValue = iv;
                 continue;
             }

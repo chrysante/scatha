@@ -43,27 +43,45 @@ bool isID(TokenKind kind);
 /// a name in certain contexts like `move`
 bool isExtendedID(TokenKind kind);
 
+///
+///
+///
 struct SCATHA_API Token {
+    ///
     Token() = default;
+
+    ///
     explicit Token(std::string id, TokenKind kind, SourceRange sourceRange):
         _id(std::move(id)), _kind(kind), _sourceRange(sourceRange) {}
 
+    ///
     bool empty() const { return _id.empty(); }
 
+    ///
     std::string const& id() const { return _id; }
 
+    ///
     TokenKind kind() const { return _kind; }
 
+    ///
     SourceRange sourceRange() const { return _sourceRange; }
 
+    ///
     SourceLocation sourceLocation() const { return _sourceRange.begin(); }
 
+    ///
     APInt toInteger(size_t bitwidth) const;
 
+    ///
     APInt toBool() const;
 
-    APFloat toFloat(APFloatPrec precision = APFloatPrec::Double) const;
+    /// \Returns `toFloat(APFloatPrec::Double())`
+    APFloat toFloat() const;
 
+    ///
+    APFloat toFloat(APFloatPrec precision) const;
+
+    ///
     bool operator==(Token const& rhs) const = default;
 
 private:

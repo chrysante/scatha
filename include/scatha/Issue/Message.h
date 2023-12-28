@@ -4,6 +4,7 @@
 /// Implementation is defined in Issue/Format.cc
 
 #include <concepts>
+#include <functional>
 #include <iosfwd>
 #include <optional>
 #include <string>

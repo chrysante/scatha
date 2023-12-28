@@ -59,8 +59,7 @@ void FunctionEqTester::test(scatha::ir::Function const& function) const {
 void ModuleEqTester::testStructures(scatha::ir::Module const& mod) const {
     CHECK(mod.structures().size() == structs.size());
     for (auto&& [structure, tester]:
-         ranges::views::zip(mod.structures(), structs))
-    {
+         ranges::views::zip(mod.structures(), structs)) {
         tester.test(*structure);
     }
 }

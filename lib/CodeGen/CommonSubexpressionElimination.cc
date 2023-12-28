@@ -199,8 +199,7 @@ bool CSEContext::run() {
             }
             auto* existing = &itr->inst();
             for (auto [dest, repl]:
-                 zip(inst->destRegisters(), existing->destRegisters()))
-            {
+                 zip(inst->destRegisters(), existing->destRegisters())) {
                 dest->replaceUsesWith(repl);
             }
             toErase.push_back(inst);

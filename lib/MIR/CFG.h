@@ -3,6 +3,7 @@
 
 #include <array>
 #include <span>
+#include <variant>
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>

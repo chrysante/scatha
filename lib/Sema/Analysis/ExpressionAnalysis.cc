@@ -162,7 +162,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         return &lit;
 
     case Null:
-        lit.decorateValue(sym.temporary(sym.NullPtrType()), RValue);
+        lit.decorateValue(sym.temporary(sym.NullPtr()), RValue);
         return &lit;
 
     case This: {
@@ -189,6 +189,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return &lit;
     }
+
+    SC_UNREACHABLE();
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
@@ -578,6 +580,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     case EntityCategory::Indeterminate:
         return nullptr;
     }
+
+    SC_UNREACHABLE();
 }
 
 ///
@@ -1010,6 +1014,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     case EntityCategory::Indeterminate:
         return nullptr;
     }
+    SC_UNREACHABLE();
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
@@ -1075,6 +1080,7 @@ static ValueCategory getValueCat(ValueCategory original,
     case MaterializeTemporary:
         return LValue;
     }
+    SC_UNREACHABLE();
 }
 
 /// Guaranteed to succeed as long as the converted value has no issues because
@@ -1145,8 +1151,7 @@ static bool canConstructTrivialType(ast::ConstructExpr& expr,
         }
         bool success = true;
         for (auto [arg, type]:
-             ranges::views::zip(arguments, structType->members()))
-        {
+             ranges::views::zip(arguments, structType->members())) {
             success &= !!convert(Implicit,
                                  arg,
                                  getQualType(type, Mutability::Const),
@@ -1178,8 +1183,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
     }
     /// Non-trivial case
     if (expr.arguments().empty() ||
-        !isa<ast::UninitTemporary>(expr.argument(0)))
-    {
+        !isa<ast::UninitTemporary>(expr.argument(0))) {
         auto obj = allocate<ast::UninitTemporary>(expr.sourceRange());
         obj->decorateValue(sym.temporary(type), LValue);
         expr.insertArgument(0, std::move(obj));

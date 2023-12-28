@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <iosfwd>
+#include <optional>
 
 #include <utl/hashtable.hpp>
 

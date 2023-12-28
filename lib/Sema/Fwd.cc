@@ -29,6 +29,7 @@ std::ostream& sema::operator<<(std::ostream& str, EntityCategory cat) {
     case EntityCategory::Type:
         return str << "Type";
     }
+    SC_UNREACHABLE();
 }
 
 std::string_view sema::toString(ValueCategory cat) {
@@ -39,6 +40,7 @@ std::string_view sema::toString(ValueCategory cat) {
     case RValue:
         return "rvalue";
     }
+    SC_UNREACHABLE();
 }
 
 std::ostream& sema::operator<<(std::ostream& str, ValueCategory cat) {
@@ -60,6 +62,7 @@ std::string_view sema::toString(Mutability mut) {
     case Const:
         return "immutable";
     }
+    SC_UNREACHABLE();
 }
 
 std::ostream& sema::operator<<(std::ostream& str, Mutability mut) {
@@ -79,6 +82,7 @@ std::string_view sema::toString(ScopeKind kind) {
     case ScopeKind::Type:
         return "Type";
     }
+    SC_UNREACHABLE();
 }
 
 std::ostream& sema::operator<<(std::ostream& str, ScopeKind k) {
@@ -93,6 +97,7 @@ std::string_view sema::toString(PropertyKind kind) {
         return SourceName;
 #include <scatha/Sema/Lists.def>
     }
+    SC_UNREACHABLE();
 }
 
 std::ostream& sema::operator<<(std::ostream& str, PropertyKind kind) {
@@ -108,6 +113,7 @@ std::string_view sema::toString(FunctionKind k) {
     case FunctionKind::Generated:
         return "Generated";
     }
+    SC_UNREACHABLE();
 }
 
 std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
@@ -138,6 +144,7 @@ SpecialMemberFunction sema::toSMF(SpecialLifetimeFunction SLF) {
     case Destructor:
         return Delete;
     }
+    SC_UNREACHABLE();
 }
 
 std::string_view sema::toString(ConstantKind k) {

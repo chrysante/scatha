@@ -366,13 +366,13 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
         SC_ASSERT(isa<FloatType>(to), "");
         SC_ASSERT(to->bitwidth() == 32, "");
         return allocate<FloatValue>(
-            APFloat(value.to<float>(), APFloatPrec::Single));
+            APFloat(value.to<float>(), APFloatPrec::Single()));
 
     case Float_Widen:
         SC_ASSERT(isa<FloatType>(to), "");
         SC_ASSERT(to->bitwidth() == 64, "");
         return allocate<FloatValue>(
-            APFloat(value.to<double>(), APFloatPrec::Single));
+            APFloat(value.to<double>(), APFloatPrec::Single()));
 
     case FloatToSigned:
         return allocate<IntValue>(signedValuecast<APInt>(value, to->bitwidth()),

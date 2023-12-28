@@ -85,7 +85,8 @@ mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
         var.initializer()->writeValueTo(data, callback);
         /// FIXME: Slot index 1 is hard coded here.
         auto address = utl::bit_cast<uint64_t>(
-            svm::VirtualPointer{ .offset = offset, .slotIndex = 1 });
+            svm::VirtualPointer{ .offset = offset & 0xFFFF'FFFF'FFFF,
+                                 .slotIndex = 1 });
         valueMap().addStaticAddress(&var, address);
         return address;
     }();
@@ -107,7 +108,7 @@ mir::Value* Resolver::impl(ir::FloatingPointConstant const& constant) const {
     SC_ASSERT(constant.type()->bitwidth() <= 64,
               "Can't handle extended width floats");
     uint64_t value = 0;
-    if (constant.value().precision() == APFloatPrec::Single) {
+    if (constant.value().precision() == APFloatPrec::Single()) {
         value = utl::bit_cast<uint32_t>(constant.value().to<float>());
     }
     else {
@@ -209,10 +210,10 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
                                         size_t userOffset) const {
     auto [base, offset] =
         computeAddressImpl(*gep.basePointer(), userOffset, gep.metadata());
-    if (auto* undef = dyncast<mir::UndefValue*>(base)) {
+    if (isa<mir::UndefValue>(base)) {
         return mir::MemoryAddress(nullptr, nullptr, 0, 0);
     }
-    if (auto* constant = dyncast<mir::Constant*>(base)) {
+    if (isa<mir::Constant>(base)) {
         SC_UNIMPLEMENTED();
     }
     mir::Register* basereg = cast<mir::Register*>(base);

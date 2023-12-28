@@ -185,9 +185,9 @@ FloatingPointConstant* Context::floatConstant(APFloat value) {
 FloatingPointConstant* Context::floatConstant(double value, size_t bitwidth) {
     switch (bitwidth) {
     case 32:
-        return floatConstant(APFloat(value, APFloatPrec::Single));
+        return floatConstant(APFloat(value, APFloatPrec::Single()));
     case 64:
-        return floatConstant(APFloat(value, APFloatPrec::Double));
+        return floatConstant(APFloat(value, APFloatPrec::Double()));
     default:
         SC_UNREACHABLE();
     }

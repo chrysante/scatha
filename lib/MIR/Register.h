@@ -73,7 +73,7 @@ public:
 
     size_t index() const { return idx; }
 
-    void setIndex(size_t index) { idx = index; }
+    void setIndex(size_t index) { idx = index & 0x7FFFFFFFFFFFFFFFu; }
 
     /// A register is _fixed_ if its index has a special meaning and may not be
     /// replaced by another register with a different index.

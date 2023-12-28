@@ -1,6 +1,7 @@
 #include <svm/Util.h>
 
 #include <fstream>
+#include <string>
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
@@ -33,7 +34,7 @@ std::span<uint8_t const> svm::seekBinary(std::span<uint8_t const> file) {
 }
 
 std::vector<uint8_t> svm::readBinaryFromFile(std::string_view path) {
-    std::fstream file(path, std::ios::in);
+    std::fstream file(std::string(path), std::ios::in);
     if (!file) {
         throw std::runtime_error(utl::strcat("Failed to open program: \"",
                                              path,

@@ -253,6 +253,7 @@ static std::string makeIntName(size_t bitwidth, Signedness signedness) {
     case Signedness::Unsigned:
         return utl::strcat("u", bitwidth);
     }
+    SC_UNREACHABLE();
 }
 
 IntType::IntType(size_t bitwidth, Signedness signedness, Scope* parentScope):

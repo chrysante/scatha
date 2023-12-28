@@ -31,8 +31,6 @@ FuncDecl Library::declareFunction(std::string name,
     size_t slot = _slot;
     size_t index = _index++;
     auto* function = sym->declareForeignFunction(name,
-                                                 slot,
-                                                 index,
                                                  std::move(signature),
                                                  sema::FunctionAttribute::None);
     return { .name = name,

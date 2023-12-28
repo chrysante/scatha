@@ -336,8 +336,8 @@ NodeType dyncast_get_type(std::derived_from<ASTNode> auto const& node) {
 /// \pre \p node must have a parent
 /// \Returns the allocated node
 template <std::derived_from<ast::ASTNode> T, typename Node, typename... Args>
-    requires std::constructible_from<T, UniquePtr<Node>, Args...>
-T* insertNode(Node* node, Args&&... args) {
+requires std::constructible_from<T, UniquePtr<Node>, Args...> T* insertNode(
+    Node* node, Args&&... args) {
     SC_EXPECT(node->parent());
     auto* parent = node->parent();
     size_t index = node->indexInParent();
@@ -476,7 +476,7 @@ public:
     template <typename T>
     auto value() const {
         return std::get<T>(_value);
-    };
+    }
 
 private:
     LiteralKind _kind;
