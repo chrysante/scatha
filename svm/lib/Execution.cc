@@ -10,15 +10,11 @@
 
 #if defined(__GNUC__)
 
-#define ALWAYS_INLINE __attribute__((always_inline))
-
 #define SVM_ASSERT(COND) assert(COND)
 
 #define SVM_UNREACHABLE() __builtin_unreachable()
 
 #elif defined(_MSC_VER)
-
-#define ALWAYS_INLINE
 
 #define SVM_ASSERT(COND) assert(COND)
 
@@ -66,12 +62,12 @@ template <OpCode Code>
 static constexpr size_t CodeSize = codeSize(Code);
 
 template <typename T>
-ALWAYS_INLINE static void storeReg(u64* dest, T const& t) {
+static void storeReg(u64* dest, T const& t) {
     std::memset(dest, 0, 8);
     std::memcpy(dest, &t, sizeof(T));
 }
 
-ALWAYS_INLINE static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
+static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
     uint64_t baseptrRegIdx = i[0];
     uint64_t offsetCountRegIdx = i[1];
     i64 constantOffsetMultiplier = i[2];
@@ -87,7 +83,7 @@ ALWAYS_INLINE static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
 }
 
 template <size_t Size>
-ALWAYS_INLINE static void moveMR(VirtualMemory& memory, u8 const* i, u64* reg) {
+static void moveMR(VirtualMemory& memory, u8 const* i, u64* reg) {
     VirtualPointer ptr = getPointer(reg, i);
     size_t const sourceRegIdx = i[4];
     SVM_ASSERT(isAligned(ptr, Size));
@@ -95,7 +91,7 @@ ALWAYS_INLINE static void moveMR(VirtualMemory& memory, u8 const* i, u64* reg) {
 }
 
 template <size_t Size>
-ALWAYS_INLINE static void moveRM(VirtualMemory& memory, u8 const* i, u64* reg) {
+static void moveRM(VirtualMemory& memory, u8 const* i, u64* reg) {
     size_t const destRegIdx = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
     SVM_ASSERT(isAligned(ptr, Size));
@@ -103,7 +99,7 @@ ALWAYS_INLINE static void moveRM(VirtualMemory& memory, u8 const* i, u64* reg) {
     std::memcpy(&reg[destRegIdx], memory.dereference(ptr, Size), Size);
 }
 
-ALWAYS_INLINE static void condMove64RR(u8 const* i, u64* reg, bool cond) {
+static void condMove64RR(u8 const* i, u64* reg, bool cond) {
     size_t const destRegIdx = i[0];
     size_t const sourceRegIdx = i[1];
     if (cond) {
@@ -111,7 +107,7 @@ ALWAYS_INLINE static void condMove64RR(u8 const* i, u64* reg, bool cond) {
     }
 }
 
-ALWAYS_INLINE static void condMove64RV(u8 const* i, u64* reg, bool cond) {
+static void condMove64RV(u8 const* i, u64* reg, bool cond) {
     size_t const destRegIdx = i[0];
     if (cond) {
         reg[destRegIdx] = load<u64>(i + 1);
@@ -119,10 +115,10 @@ ALWAYS_INLINE static void condMove64RV(u8 const* i, u64* reg, bool cond) {
 }
 
 template <size_t Size>
-ALWAYS_INLINE static void condMoveRM(VirtualMemory& memory,
-                                     u8 const* i,
-                                     u64* reg,
-                                     bool cond) {
+static void condMoveRM(VirtualMemory& memory,
+                       u8 const* i,
+                       u64* reg,
+                       bool cond) {
     size_t const destRegIdx = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
     SVM_ASSERT(isAligned(ptr, Size));
@@ -133,10 +129,10 @@ ALWAYS_INLINE static void condMoveRM(VirtualMemory& memory,
 }
 
 template <OpCode C>
-ALWAYS_INLINE static void performCall(VirtualMemory& memory,
-                                      u8 const* i,
-                                      u8 const* binary,
-                                      ExecutionFrame& currentFrame) {
+static void performCall(VirtualMemory& memory,
+                        u8 const* i,
+                        u8 const* binary,
+                        ExecutionFrame& currentFrame) {
     auto const [dest, regOffset] = [&] {
         if constexpr (C == OpCode::call) {
             /// Yes, unlike in the indirect call cases we load a 32 bit dest
@@ -165,10 +161,10 @@ ALWAYS_INLINE static void performCall(VirtualMemory& memory,
 }
 
 template <OpCode C>
-ALWAYS_INLINE static void jump(u8 const* i,
-                               u8 const* binary,
-                               ExecutionFrame& currentFrame,
-                               bool cond) {
+static void jump(u8 const* i,
+                 u8 const* binary,
+                 ExecutionFrame& currentFrame,
+                 bool cond) {
     u32 dest = load<u32>(&i[0]);
     if (cond) {
         /// `ExecCodeSize` is added to the instruction pointer after executing
@@ -179,9 +175,7 @@ ALWAYS_INLINE static void jump(u8 const* i,
 }
 
 template <typename T>
-ALWAYS_INLINE static void compareRR(u8 const* i,
-                                    u64* reg,
-                                    CompareFlags& flags) {
+static void compareRR(u8 const* i, u64* reg, CompareFlags& flags) {
     size_t const regIdxA = i[0];
     size_t const regIdxB = i[1];
     T const a = load<T>(&reg[regIdxA]);
@@ -191,9 +185,7 @@ ALWAYS_INLINE static void compareRR(u8 const* i,
 }
 
 template <typename T>
-ALWAYS_INLINE static void compareRV(u8 const* i,
-                                    u64* reg,
-                                    CompareFlags& flags) {
+static void compareRV(u8 const* i, u64* reg, CompareFlags& flags) {
     size_t const regIdxA = i[0];
     T const a = load<T>(&reg[regIdxA]);
     T const b = load<T>(i + 1);
@@ -202,27 +194,27 @@ ALWAYS_INLINE static void compareRV(u8 const* i,
 }
 
 template <typename T>
-ALWAYS_INLINE static void testR(u8 const* i, u64* reg, CompareFlags& flags) {
+static void testR(u8 const* i, u64* reg, CompareFlags& flags) {
     size_t const regIdx = i[0];
     T const a = load<T>(&reg[regIdx]);
     flags.less = a < 0;
     flags.equal = a == 0;
 }
 
-ALWAYS_INLINE static void set(u8 const* i, u64* reg, bool value) {
+static void set(u8 const* i, u64* reg, bool value) {
     size_t const regIdx = i[0];
     storeReg(&reg[regIdx], value);
 }
 
 template <typename T>
-ALWAYS_INLINE static void unaryR(u8 const* i, u64* reg, auto operation) {
+static void unaryR(u8 const* i, u64* reg, auto operation) {
     size_t const regIdx = i[0];
     auto const a = load<T>(&reg[regIdx]);
     storeReg(&reg[regIdx], decltype(operation)()(a));
 }
 
 template <typename T>
-ALWAYS_INLINE static void arithmeticRR(u8 const* i, u64* reg, auto operation) {
+static void arithmeticRR(u8 const* i, u64* reg, auto operation) {
     size_t const regIdxA = i[0];
     size_t const regIdxB = i[1];
     auto const a = load<T>(&reg[regIdxA]);
@@ -231,7 +223,7 @@ ALWAYS_INLINE static void arithmeticRR(u8 const* i, u64* reg, auto operation) {
 }
 
 template <typename LhsType, typename RhsType = LhsType>
-ALWAYS_INLINE static void arithmeticRV(u8 const* i, u64* reg, auto operation) {
+static void arithmeticRV(u8 const* i, u64* reg, auto operation) {
     size_t const regIdx = i[0];
     auto const a = load<LhsType>(&reg[regIdx]);
     auto const b = load<RhsType>(i + 1);
@@ -239,10 +231,10 @@ ALWAYS_INLINE static void arithmeticRV(u8 const* i, u64* reg, auto operation) {
 }
 
 template <typename T>
-ALWAYS_INLINE static void arithmeticRM(VirtualMemory& memory,
-                                       u8 const* i,
-                                       u64* reg,
-                                       auto operation) {
+static void arithmeticRM(VirtualMemory& memory,
+                         u8 const* i,
+                         u64* reg,
+                         auto operation) {
     size_t const regIdxA = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
     SVM_ASSERT(isAligned(ptr, alignof(T)));
@@ -251,28 +243,26 @@ ALWAYS_INLINE static void arithmeticRM(VirtualMemory& memory,
     storeReg(&reg[regIdxA], decltype(operation)()(a, b));
 }
 
-ALWAYS_INLINE static void sext1(u8 const* i, u64* reg) {
+static void sext1(u8 const* i, u64* reg) {
     size_t const regIdx = i[0];
     auto const a = load<int>(&reg[regIdx]);
     storeReg(&reg[regIdx], a & 1 ? static_cast<u64>(-1ull) : 0);
 }
 
 template <typename From, typename To>
-ALWAYS_INLINE static void convert(u8 const* i, u64* reg) {
+static void convert(u8 const* i, u64* reg) {
     size_t const regIdx = i[0];
     auto const a = load<From>(&reg[regIdx]);
     storeReg(&reg[regIdx], static_cast<To>(a));
 }
 
 /// ## Conditions
-ALWAYS_INLINE static bool equal(CompareFlags f) { return f.equal; }
-ALWAYS_INLINE static bool notEqual(CompareFlags f) { return !f.equal; }
-ALWAYS_INLINE static bool less(CompareFlags f) { return f.less; }
-ALWAYS_INLINE static bool lessEq(CompareFlags f) { return f.less || f.equal; }
-ALWAYS_INLINE static bool greater(CompareFlags f) {
-    return !f.less && !f.equal;
-}
-ALWAYS_INLINE static bool greaterEq(CompareFlags f) { return !f.less; }
+static bool equal(CompareFlags f) { return f.equal; }
+static bool notEqual(CompareFlags f) { return !f.equal; }
+static bool less(CompareFlags f) { return f.less; }
+static bool lessEq(CompareFlags f) { return f.less || f.equal; }
+static bool greater(CompareFlags f) { return !f.less && !f.equal; }
+static bool greaterEq(CompareFlags f) { return !f.less; }
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     beginExecution(start, arguments);
