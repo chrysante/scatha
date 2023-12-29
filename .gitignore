@@ -31,3 +31,7 @@ Makefile
 cmake-build-debug
 CMakeLists.txt
 **.cmake
+
+.cproject
+.project
+.settings/
