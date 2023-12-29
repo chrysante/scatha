@@ -21,7 +21,8 @@ $SCRIPT_DIR/build-dependencies.sh
 
 build_project scathac Release
 copy_to_system scathac
-copy_to_system libscatha.{so,dylib}
+copy_to_system libscatha.so
+copy_to_system libscatha.dylib
 
 build_project svm Release
 copy_to_system svm
