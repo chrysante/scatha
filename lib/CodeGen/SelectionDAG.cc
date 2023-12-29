@@ -20,6 +20,7 @@
 
 using namespace scatha;
 using namespace cg;
+using namespace ranges::views;
 
 static bool hasSideEffects(ir::Instruction const& inst) {
     return opt::hasSideEffects(&inst) || isa<ir::TerminatorInst>(inst);
@@ -99,16 +100,14 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
         if (::isOutput(inst)) {
             DAG.outputs.insert(instNode);
         }
-        auto sameBlock = [&](auto* other) {
-            return inst.parent() == other->parent();
-        };
-        for (auto* operand: inst.operands() | Filter<ir::Instruction> |
-                                ranges::views::filter(sameBlock))
-        {
-            auto* phi = dyncast<ir::Phi const*>(&inst);
-            /// We don't add value dependencies of phi instructions for operands
-            /// in the same block to avoid cycles
-            if (phi /* && phi->predecessorOf(operand) == phi->parent()*/) {
+        for (auto* operand: inst.operands() | Filter<ir::Instruction>) {
+            /// We only add dependencies for the same basic block
+            if (inst.parent() != operand->parent()) {
+                continue;
+            }
+            /// We don't add value dependencies of phi instructions to avoid
+            /// cycles
+            if (isa<ir::Phi>(inst)) {
                 continue;
             }
             auto* opNode = DAG.get(operand);
@@ -120,19 +119,19 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
     for (auto* outputNode: DAG.outputs) {
         termNode->addExecutionDependency(outputNode);
     }
-    /// Do a DFS over the DAG to identify the dependency sets
-    utl::stack<SelectionNode*> stack;
-    auto DFS = [&](auto& DFS, SelectionNode* node) -> void {
-        for (auto* upstream: stack) {
-            DAG.deps[upstream].insert(node);
+    /// We gather the set of transitive dependencies for every node in the
+    /// graph. Therefore we traverse the graph in reverse topsort order and
+    /// build up the dependency sets
+    for (auto order = DAG.topsort(); auto* node: order | reverse) {
+        for (auto* dependency: node->dependencies()) {
+            auto& set = DAG.deps[node];
+            set.insert(dependency);
+            auto& transitiveSet = DAG.deps[dependency];
+            for (auto* transitive: transitiveSet) {
+                set.insert(transitive);
+            }
         }
-        stack.push(node);
-        for (auto* dep: node->dependencies()) {
-            DFS(DFS, dep);
-        }
-        stack.pop();
-    };
-    DFS(DFS, termNode);
+    }
     return DAG;
 }
 
@@ -178,6 +177,28 @@ SelectionNode* SelectionDAG::get(ir::Instruction const* inst) {
         ptr = std::make_unique<SelectionNode>(inst);
     }
     return ptr.get();
+}
+
+namespace scatha::cg {
+
+static std::ostream& operator<<(std::ostream& str, SelectionNode const& node) {
+    return str << *node.irInst();
+}
+
+} // namespace scatha::cg
+
+void cg::printDependencySets(SelectionDAG const& DAG, std::ostream& str) {
+    for (auto& inst: *DAG.basicBlock()) {
+        auto* node = DAG[&inst];
+        str << *node << ":\n";
+        for (auto* dependency: DAG.dependencies(node)) {
+            str << "    " << *dependency << "\n";
+        }
+    }
+}
+
+void cg::printDependencySets(SelectionDAG const& DAG) {
+    printDependencySets(DAG, std::cout);
 }
 
 using namespace graphgen;
@@ -242,7 +263,7 @@ void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
     H.add(G);
     H.font("SF Mono");
     H.rankdir(RankDir::BottomTop);
-    generate(H, ostream);
+    graphgen::generate(H, ostream);
 }
 
 void cg::generateGraphvizTmp(SelectionDAG const& DAG, std::string name) {

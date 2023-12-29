@@ -22,6 +22,9 @@ void checkCompiles(std::string text);
 
 void checkIRCompiles(std::string_view text);
 
+/// Compiles the given source code and discards the result
+void compile(std::string text);
+
 void compileAndRun(std::string text);
 
 void compileAndRunIR(std::string text);

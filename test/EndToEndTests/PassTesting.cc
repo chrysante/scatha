@@ -88,9 +88,10 @@ static Generator makeIRGenerator(std::string_view text) {
     };
 }
 
-static uint64_t run(ir::Module const& mod,
-                    std::ostream* str,
-                    std::span<std::filesystem::path const> foreignLibs) {
+static auto codegenAndAssemble(
+    ir::Module const& mod,
+    std::ostream* str = nullptr,
+    std::span<std::filesystem::path const> foreignLibs = {}) {
     auto assembly = [&] {
         if (!str) {
             return cg::codegen(mod);
@@ -102,6 +103,13 @@ static uint64_t run(ir::Module const& mod,
     if (!Asm::link(prog, foreignLibs, unresolved)) {
         throw std::runtime_error("Linker error");
     }
+    return std::pair{ std::move(prog), std::move(sym) };
+}
+
+static uint64_t run(ir::Module const& mod,
+                    std::ostream* str,
+                    std::span<std::filesystem::path const> foreignLibs) {
+    auto [prog, sym] = codegenAndAssemble(mod, str, foreignLibs);
     /// We need 2 megabytes of stack size for the ackermann function test to run
     svm::VirtualMachine vm(1 << 10, 1 << 12);
     vm.loadBinary(prog.data());
@@ -280,6 +288,11 @@ void test::checkIRCompiles(std::string_view text) {
         auto [ctx, mod, libs] = makeIRGenerator(text)();
         opt::optimize(ctx, mod, 1);
     }());
+}
+
+void test::compile(std::string text) {
+    auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
+    codegenAndAssemble(mod);
 }
 
 void test::compileAndRun(std::string text) {

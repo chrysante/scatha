@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "test/EndToEndTests/PassTesting.h"
@@ -305,4 +307,47 @@ TEST_CASE("Fat pointer in construct expr", "[regression]") {
         let s = S(&"12345");
         return s.text.count;
     })");
+}
+
+namespace {
+
+struct Timer {
+    using Clock = std::chrono::high_resolution_clock;
+
+    Timer() { reset(); }
+
+    Clock::duration elapsed() const { return Clock::now() - start; }
+
+    void reset() { start = Clock::now(); }
+
+    Clock::time_point start;
+};
+
+} // namespace
+
+/// This test case guards against a performance bug in `SelectionDag::Build()`
+/// where we compute the dependency sets of each node. Prior to the bugfix the
+/// given function would take several seconds to compute the dependency sets,
+/// after the fix it should happen almost instantly
+TEST_CASE("Performance bug in SelectionDag::Build", "[regression]") {
+    Timer t;
+    test::compile(R"(
+fn foo(data: &[int]) { return true; }
+
+export fn test() {
+    let data = [1, 2, 3, 4];
+    var result = true;
+    result &= foo(data);
+    result &= foo(data);
+    result &= foo(data);
+    result &= foo(data);
+    result &= foo(data);
+    result &= foo(data);
+    result &= foo(data);
+    result &= foo(data);
+    result &= foo(data);
+})");
+    auto elapsed = t.elapsed();
+    using namespace std::chrono_literals;
+    CHECK(elapsed < 100ms);
 }

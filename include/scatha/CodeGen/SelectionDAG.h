@@ -79,8 +79,8 @@ public:
     /// \Returns the set of all nodes which have (transitive) dependencies on
     ///  \p node
     utl::hashset<SelectionNode const*> const& dependencies(
-        SelectionNode const* node) {
-        return deps[node];
+        SelectionNode const* node) const {
+        return (const_cast<SelectionDAG*>(this)->deps)[node];
     }
 
     /// \Returns a list of all nodes in this DAG in topsort order. To determine
@@ -115,6 +115,13 @@ private:
     /// Set of all output nodes of this block
     utl::hashset<SelectionNode*> outputs;
 };
+
+/// For each node the set of (transitive) dependencies is written to \p ostream
+SCATHA_API void printDependencySets(SelectionDAG const& DAG,
+                                    std::ostream& ostream);
+
+/// \overload for `ostream = std::cout`
+SCATHA_API void printDependencySets(SelectionDAG const& DAG);
 
 /// Writes graphviz code representing \p DAG to \p ostream
 SCATHA_API void generateGraphviz(SelectionDAG const& DAG,
