@@ -71,9 +71,9 @@ static constexpr auto regName =
     });
 
 static constexpr auto opcode =
-    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const& arg) -> auto& {
         return str << std::left << std::setw(6)
-                   << tfmt::format(tfmt::Red | tfmt::Bold, args...);
+                   << tfmt::format(tfmt::Red | tfmt::Bold, arg);
     });
 
 static constexpr auto light =
@@ -168,7 +168,7 @@ static auto formatInstName(mir::Instruction const& inst) {
             return "select"s;
         },
     }; // clang-format on
-    return opcode(name);
+    return opcode(std::move(name));
 }
 
 static constexpr auto fmtExtFnAddr =
