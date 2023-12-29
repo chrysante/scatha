@@ -9,9 +9,9 @@ OS=`lowercase \`uname\``
 KERNEL=`uname -r`
 MACH=`uname -m`
 
-if [ "{$OS}" = "windowsnt" ]; then
+if [ "$OS" = "windowsnt" ]; then
     OS=windows
-elif [ "{$OS}" = "darwin" ]; then
+elif [ "$OS" = "darwin" ]; then
     OS=mac
 else
     OS=`uname`
@@ -89,14 +89,8 @@ build_project() {
     elif [ "$OS" = "windows" ]; then
         error "No Windows support"
     elif [ "$OS" = "mac" ]; then
-        xcodebuild -project "$PROJ_DIR/$1/$1.xcodeproj" -configuration $2 -quiet
+        xcodebuild -project "$1/$1.xcodeproj" -configuration $2 -quiet
     else
         error "Unknown OS \"$OS\""
     fi
 }
-
-# 
-compile() {
-    xcodebuild -project "$PROJ_DIR/$1" -configuration $2 -quiet
-}
-
