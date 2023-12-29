@@ -256,7 +256,7 @@ namespace scatha::sema {
 
 static void to_json(json& j, Entity const& entity);
 
-static void to_json_impl(json& j, Entity const& entity) { SC_UNREACHABLE(); }
+static void to_json_impl(json&, Entity const&) { SC_UNREACHABLE(); }
 
 static json serializeChildren(
     Entity const& entity,

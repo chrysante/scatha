@@ -165,7 +165,7 @@ public:
 
     std::span<Value* const> values() const { return _values; }
 
-    void insert(Value* value) {
+    void insert([[maybe_unused]] Value* value) {
 #if 0
         if (_values.empty()) {
             _values.push_back(value);
@@ -271,7 +271,7 @@ struct IPContext {
 
     Value* evaluate(Instruction* inst);
 
-    Value* eval(Instruction* inst) { return nullptr; }
+    Value* eval(Instruction*) { return nullptr; }
     Value* eval(CompareInst* cmp);
 
     void replaceIfDominatedBy(Value* value,
@@ -393,7 +393,7 @@ Value* IPContext::evaluate(Instruction* inst) {
     return visit(*inst, [this](auto& inst) { return eval(&inst); });
 }
 
-Value* IPContext::eval(CompareInst* cmp) { return nullptr; }
+Value* IPContext::eval(CompareInst*) { return nullptr; }
 
 void IPContext::replaceIfDominatedBy(Value* value,
                                      Constant* newValue,

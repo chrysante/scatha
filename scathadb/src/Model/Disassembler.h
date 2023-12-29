@@ -112,7 +112,10 @@ public:
         return indexToOffsetMap[index];
     }
 
-    size_t sourceLineToOffset(size_t line) const { assert(false); }
+    size_t sourceLineToOffset([[maybe_unused]] size_t line) const {
+        assert(false);
+        return ~size_t{ 0 };
+    }
 
     /// \Returns a view over the instructions in this program
     std::span<Instruction const> instructions() const { return insts; }

@@ -34,27 +34,27 @@ void mir::print(Module const& mod, std::ostream& str) {
 void mir::print(Callable const& F) { mir::print(F, std::cout); }
 
 static constexpr auto keyword =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::Magenta | tfmt::Bold, args...);
     });
 
 static constexpr auto literal =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::Cyan, args...);
     });
 
 static constexpr auto globalName =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::Green | tfmt::Italic, "@", args...);
     });
 
 static constexpr auto localName =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::Italic, "%", args...);
     });
 
 static constexpr auto regName =
-    utl::streammanip([](std::ostream & str, Register const* reg) -> auto& {
+    utl::streammanip([](std::ostream& str, Register const* reg) -> auto& {
         // clang-format off
         char const prefix = visit(*reg, utl::overload{
             [](SSARegister const&) { return 'S'; },
@@ -71,23 +71,23 @@ static constexpr auto regName =
     });
 
 static constexpr auto opcode =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << std::left << std::setw(6)
                    << tfmt::format(tfmt::Red | tfmt::Bold, args...);
     });
 
 static constexpr auto light =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::BrightGrey | tfmt::Italic, args...);
     });
 
 static constexpr auto none =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::None, args...);
     });
 
 static constexpr auto fmtIndex =
-    utl::streammanip([](std::ostream & str, auto const&... args) -> auto& {
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::BrightGrey,
                                    std::setw(2),
                                    std::right,
@@ -108,7 +108,7 @@ static auto formatInstName(mir::Instruction const& inst) {
         [](CopyInst const& inst) {
             return utl::strcat("cpy", inst.bitwidth());
         },
-        [](CallInst const& inst) {
+        [](CallInst const&) {
             return "call"s;
         },
         [](CondCopyInst const& inst) {
@@ -116,10 +116,10 @@ static auto formatInstName(mir::Instruction const& inst) {
                                inst.condition(),
                                inst.bitwidth());
         },
-        [](LISPInst const& inst) {
+        [](LISPInst const&) {
             return "lisp"s;
         },
-        [](LEAInst const& inst) {
+        [](LEAInst const&) {
             return "lea"s;
         },
         [](CompareInst const& inst) {
@@ -149,7 +149,7 @@ static auto formatInstName(mir::Instruction const& inst) {
         [](ConversionInst const& inst) {
             return utl::strcat(inst.conversion());
         },
-        [](JumpInst const& inst) {
+        [](JumpInst const&) {
             return "jmp"s;
         },
         [](CondJumpInst const& inst) {
@@ -158,13 +158,13 @@ static auto formatInstName(mir::Instruction const& inst) {
         [](Instruction const& inst) {
             return std::string(mir::toString(inst.instType()));
         },
-        [](ReturnInst const& inst) {
+        [](ReturnInst const&) {
             return "ret"s;
         },
-        [](PhiInst const& inst) {
+        [](PhiInst const&) {
             return "phi"s;
         },
-        [](SelectInst const& inst) {
+        [](SelectInst const&) {
             return "select"s;
         },
     }; // clang-format on
@@ -172,7 +172,7 @@ static auto formatInstName(mir::Instruction const& inst) {
 }
 
 static constexpr auto fmtExtFnAddr =
-    utl::streammanip([](std::ostream & str, ForeignFuncAddress addr) -> auto& {
+    utl::streammanip([](std::ostream& str, ForeignFuncAddress addr) -> auto& {
         return str << "slot=" << addr.slot << ", index=" << addr.index;
     });
 

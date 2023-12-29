@@ -32,7 +32,7 @@ static std::string impl(QualType type) {
     return type->mangledName();
 }
 
-static std::string impl(Entity const* entity) { SC_UNREACHABLE(); }
+static std::string impl(Entity const*) { SC_UNREACHABLE(); }
 
 static std::string impl(ObjectType const* type) { return baseImpl(type); }
 

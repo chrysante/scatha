@@ -164,7 +164,8 @@ private:
             auto rel = std::filesystem::path(input);
             auto abs = std::filesystem::absolute(expandTilde(input));
             if (std::filesystem::exists(abs) &&
-                std::filesystem::is_directory(abs)) {
+                std::filesystem::is_directory(abs))
+            {
                 return std::tuple{ rel, abs, std::string{} };
             }
             return std::tuple{ rel.parent_path(),
@@ -202,12 +203,15 @@ private:
 struct SuggestionView: ScrollBase {
     SuggestionView(SuggestionResult* suggestion): suggestion(suggestion) {
         for (auto [index, match]:
-             suggestion->matches | ranges::views::enumerate) {
+             suggestion->matches | ranges::views::enumerate)
+        {
             Add(Renderer([=, index = index, match = match] {
                 auto begin = text(suggestion->commonBegin);
                 auto end = text(
                     match.string().erase(0, suggestion->commonBegin.size()));
-                if (!suggestion->current || index != *suggestion->current) {
+                if (!suggestion->current ||
+                    (ssize_t)index != *suggestion->current)
+                {
                     end |= dim;
                 }
                 return hbox({ begin, end });

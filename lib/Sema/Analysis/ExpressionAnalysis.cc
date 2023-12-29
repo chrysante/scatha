@@ -513,7 +513,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
             idExpr.decorateValue(&poison, RValue);
             return nullptr;
         },
-        [&](Entity const& entity) -> ast::Expression* {
+        [&](Entity const&) -> ast::Expression* {
             /// Other entities can not be referenced directly
             SC_UNREACHABLE();
         }
@@ -534,7 +534,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     case EntityCategory::Value: {
         // clang-format off
         return SC_MATCH (*ma.member()->entity()) {
-            [&](Object& object) {
+            [&](Object&) {
                 auto mut = ma.accessed()->type().mutability();
                 auto type = ma.member()->type().to(mut);
                 ma.decorateValue(sym.temporary(type),
@@ -549,11 +549,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 }
                 return &ma;
             },
-            [&](Type& type) {
+            [&](Type&) {
                 ctx.badExpr(&ma, MemAccTypeThroughValue);
                 return nullptr;
             },
-            [&](Entity& type) -> ast::Expression* {
+            [&](Entity&) -> ast::Expression* {
                 SC_UNREACHABLE();
             }
         }; // clang-format on
@@ -561,7 +561,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     case EntityCategory::Type:
         // clang-format off
         return SC_MATCH (*ma.member()->entity()) {
-            [&](Object& object) {
+            [&](Object&) {
                 ctx.badExpr(&ma, MemAccNonStaticThroughType);
                 return nullptr;
             },
@@ -573,7 +573,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 ma.decorateType(&type);
                 return &ma;
             },
-            [&](Entity& type) -> ast::Expression* {
+            [&](Entity&) -> ast::Expression* {
                 SC_UNREACHABLE();
             }
         }; // clang-format on
@@ -1151,7 +1151,8 @@ static bool canConstructTrivialType(ast::ConstructExpr& expr,
         }
         bool success = true;
         for (auto [arg, type]:
-             ranges::views::zip(arguments, structType->members())) {
+             ranges::views::zip(arguments, structType->members()))
+        {
             success &= !!convert(Implicit,
                                  arg,
                                  getQualType(type, Mutability::Const),
@@ -1183,7 +1184,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
     }
     /// Non-trivial case
     if (expr.arguments().empty() ||
-        !isa<ast::UninitTemporary>(expr.argument(0))) {
+        !isa<ast::UninitTemporary>(expr.argument(0)))
+    {
         auto obj = allocate<ast::UninitTemporary>(expr.sourceRange());
         obj->decorateValue(sym.temporary(type), LValue);
         expr.insertArgument(0, std::move(obj));

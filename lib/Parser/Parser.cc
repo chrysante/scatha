@@ -964,7 +964,8 @@ UniquePtr<ast::Expression> Context::parseConditional() {
     Token const& condToken = tokens.peek();
     auto logicalOr = parseLogicalOr();
     if (auto const& questionMark = tokens.peek();
-        questionMark.kind() == Question) {
+        questionMark.kind() == Question)
+    {
         if (!logicalOr) {
             pushExpectedExpression(condToken);
         }
@@ -1162,7 +1163,7 @@ UniquePtr<ast::Expression> Context::parsePostfix() {
 static bool isGenericID(ast::Expression const* expr) {
     // clang-format off
     return visit(*expr, utl::overload{
-        [](ast::Expression const& expr) { return false; },
+        [](ast::Expression const&) { return false; },
         [](ast::Identifier const& expr) {
             /// Only generic ID for now
             return expr.value() == "reinterpret";

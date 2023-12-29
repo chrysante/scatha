@@ -48,9 +48,7 @@ struct LivenessContext {
 
 } // namespace
 
-void cg::computeLiveSets(Context& ctx, Function& F) {
-    LivenessContext(F).run();
-}
+void cg::computeLiveSets(Context&, Function& F) { LivenessContext(F).run(); }
 
 void LivenessContext::run() {
     for (auto& BB: F) {

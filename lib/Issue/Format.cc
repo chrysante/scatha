@@ -133,7 +133,7 @@ void SrcHighlightCtx::run() {
     for (auto& H: highlights) {
         auto& source = sourceMap(H.position.begin().fileIndex);
         int line = lineProj(H);
-        if (line >= source.size()) {
+        if (line >= utl::narrow_cast<int>(source.size())) {
             continue;
         }
         /// Begin padding lines

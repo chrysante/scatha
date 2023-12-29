@@ -77,8 +77,7 @@ public:
 private:
     friend class Constant;
     void writeValueToImpl(
-        void* dest,
-        utl::function_view<void(Constant const*, void*)> callback) const {}
+        void*, utl::function_view<void(Constant const*, void*)>) const {}
 };
 
 /// Represents a constant record

@@ -62,8 +62,8 @@ struct ExtractCppSig<std::function<R(Args...)>> {
 
 template <typename F>
 CppSignature extractSignature() {
-    return internal::ExtractCppSig<decltype(
-        std::function{ std::declval<F>() })>::Impl();
+    return internal::ExtractCppSig<decltype(std::function{
+        std::declval<F>() })>::Impl();
 }
 
 extern std::vector<std::function<DeclPair()>> globalLibDecls;

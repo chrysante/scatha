@@ -16,7 +16,7 @@ static Alloca* doClone(Context& context, Alloca* allc) {
                       std::string(allc->name()));
 }
 
-static Load* doClone(Context& context, Load* load) {
+static Load* doClone(Context&, Load* load) {
     return new Load(load->address(), load->type(), std::string(load->name()));
 }
 
@@ -24,7 +24,7 @@ static Store* doClone(Context& context, Store* store) {
     return new Store(context, store->address(), store->value());
 }
 
-static ConversionInst* doClone(Context& context, ConversionInst* inst) {
+static ConversionInst* doClone(Context&, ConversionInst* inst) {
     return new ConversionInst(inst->operand(),
                               inst->type(),
                               inst->conversion(),
@@ -48,7 +48,7 @@ static UnaryArithmeticInst* doClone(Context& context,
                                    std::string(inst->name()));
 }
 
-static ArithmeticInst* doClone(Context& context, ArithmeticInst* inst) {
+static ArithmeticInst* doClone(Context&, ArithmeticInst* inst) {
     return new ArithmeticInst(inst->lhs(),
                               inst->rhs(),
                               inst->operation(),
@@ -70,14 +70,14 @@ static Return* doClone(Context& context, Return* inst) {
     return new Return(context, inst->value());
 }
 
-static Call* doClone(Context& context, Call* inst) {
+static Call* doClone(Context&, Call* inst) {
     return new Call(inst->type(),
                     inst->function(),
                     inst->arguments(),
                     std::string(inst->name()));
 }
 
-static Phi* doClone(Context& context, Phi* inst) {
+static Phi* doClone(Context&, Phi* inst) {
     auto args = inst->arguments() | ToSmallVector<>;
     return new Phi(args, std::string(inst->name()));
 }
@@ -92,21 +92,21 @@ static GetElementPointer* doClone(Context& context, GetElementPointer* inst) {
                                  std::string(inst->name()));
 }
 
-static Select* doClone(Context& context, Select* inst) {
+static Select* doClone(Context&, Select* inst) {
     return new Select(inst->condition(),
                       inst->thenValue(),
                       inst->elseValue(),
                       std::string(inst->name()));
 }
 
-static ExtractValue* doClone(Context& context, ExtractValue* inst) {
+static ExtractValue* doClone(Context&, ExtractValue* inst) {
     return new ExtractValue(inst->baseValue(),
                             inst->memberIndices() |
                                 ranges::to<utl::small_vector<size_t>>,
                             std::string(inst->name()));
 }
 
-static InsertValue* doClone(Context& context, InsertValue* inst) {
+static InsertValue* doClone(Context&, InsertValue* inst) {
     return new InsertValue(inst->baseValue(),
                            inst->insertedValue(),
                            inst->memberIndices() |
@@ -215,7 +215,8 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
         bb.setPredecessors(newPreds);
         for (auto& inst: bb) {
             for (auto&& [index, operand]:
-                 inst.operands() | ranges::views::enumerate) {
+                 inst.operands() | ranges::views::enumerate)
+            {
                 inst.setOperand(index, valueMap(operand));
             }
             /// It is quite unfortunate that we have this special case here, but
@@ -223,7 +224,8 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
             /// `Instruction` base class.
             if (auto* phi = dyncast<Phi*>(&inst)) {
                 for (auto&& [index, arg]:
-                     phi->arguments() | ranges::views::enumerate) {
+                     phi->arguments() | ranges::views::enumerate)
+                {
                     phi->setPredecessor(index, valueMap(arg.pred));
                 }
             }

@@ -14,15 +14,15 @@ void Register::addDef(Instruction* inst) {
 }
 
 void Register::removeDef(Instruction* inst) {
-    visit(*this, [&](auto& reg) { removeDefImpl(inst); });
+    visit(*this, [&](auto&) { removeDefImpl(inst); });
 }
 
 void Register::addUser(Instruction* inst) {
-    visit(*this, [&](auto& reg) { addUserImpl(inst); });
+    visit(*this, [&](auto&) { addUserImpl(inst); });
 }
 
 void Register::removeUser(Instruction* inst) {
-    visit(*this, [&](auto& reg) { removeUserImpl(inst); });
+    visit(*this, [&](auto&) { removeUserImpl(inst); });
 }
 
 void Register::replaceDefsWith(Register* repl) {

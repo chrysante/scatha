@@ -46,7 +46,8 @@ func i64 @ff(i64) {
     };
     SECTION("Simple traversal") {
         for (auto&& [index, inst]:
-             function.instructions() | ranges::views::enumerate) {
+             function.instructions() | ranges::views::enumerate)
+        {
             auto const type = reference[index];
             CHECK(inst.nodeType() == type);
         }
@@ -65,7 +66,8 @@ func i64 @ff(i64) {
             }
         }
         for (auto&& [index, inst]:
-             ranges::views::enumerate(function.instructions())) {
+             ranges::views::enumerate(function.instructions()))
+        {
             auto const type = reference[2 * index];
             CHECK(inst.nodeType() == type);
         }

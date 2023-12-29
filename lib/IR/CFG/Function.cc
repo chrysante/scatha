@@ -193,8 +193,7 @@ ForeignFunction::ForeignFunction(Context& ctx,
              Visibility::Internal) {}
 
 void ForeignFunction::writeValueToImpl(
-    void* dest,
-    utl::function_view<void(Constant const*, void*)> callback) const {
+    void*, utl::function_view<void(Constant const*, void*)>) const {
     SC_UNREACHABLE("We cannot write the address because foreign functions are "
                    "not addressable");
 }

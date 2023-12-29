@@ -123,7 +123,7 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
 
     std::optional<size_t> lineToIndex(long line) const {
         auto& file = model->sourceDebug().files()[*fileIndex];
-        if (line >= 0 && line < file.lines().size()) {
+        if (line >= 0 && line < (ssize_t)file.lines().size()) {
             return static_cast<size_t>(line) + 1;
         }
         return std::nullopt;

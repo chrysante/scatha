@@ -90,7 +90,7 @@ struct Computation {
                 }
                 return false;
             },
-            [&](Call const& A, Call const& B) -> bool {
+            [&](Call const&, Call const&) -> bool {
                 return ranges::equal(AOps, BOps);
             },
             [&](ExtractValue const& A, ExtractValue const& B) {
@@ -109,10 +109,10 @@ struct Computation {
                 return A.conversion() == B.conversion() &&
                        ranges::equal(AOps, BOps);
             },
-            [&](Select const& A, Select const& B) {
+            [&](Select const&, Select const&) {
                 return ranges::equal(AOps, BOps);
             },
-            [&](Instruction const& A, Instruction const& B) -> bool {
+            [&](Instruction const&, Instruction const&) -> bool {
                 return false;
             }
         }; // clang-format on
@@ -134,7 +134,7 @@ struct Computation {
             [&](CompareInst const& inst) {
                 utl::hash_combine_seed(seed, inst.operation());
             },
-            [&](Call const& inst) {
+            [&](Call const&) {
                 SC_UNIMPLEMENTED();
             },
             [&](ExtractValue const& inst) {
@@ -155,8 +155,8 @@ struct Computation {
             [&](ConversionInst const& inst) {
                 utl::hash_combine_seed(seed, inst.conversion());
             },
-            [&](Select const& inst) {},
-            [&](Instruction const& inst) {
+            [&](Select const&) {},
+            [&](Instruction const&) {
                 SC_UNREACHABLE();
             }
         }); // clang-format on
@@ -675,7 +675,8 @@ void GVNContext::assignRanks() {
                     BB.terminator();
             }
             if (instructionOrder[insertPoint] <
-                instructionOrder[prevInsertPoint]) {
+                instructionOrder[prevInsertPoint])
+            {
                 insertPoints[{ &BB, rank }] = prevInsertPoint;
             }
         }
@@ -787,7 +788,7 @@ void GVNContext::processHeader(size_t rank,
 
 bool GVNContext::isHeaderMovable(Instruction* inst,
                                  BasicBlock* header,
-                                 BasicBlock* landingPad) {
+                                 [[maybe_unused]] BasicBlock* landingPad) {
     if (isIgnored(inst)) {
         return false;
     }

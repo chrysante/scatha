@@ -179,7 +179,7 @@ struct PrintCtx {
             [&](ASTNode const& node) {
                 str << nodeHeader(&formatter, &node) << '\n';
             },
-            [&](TranslationUnit const& TU) {},
+            [&](TranslationUnit const&) {},
             [&](ast::SourceFile const& file) {
                 str << nodeHeader(&formatter, &file, file.name()) << '\n';
             },
@@ -250,7 +250,7 @@ end:
         printChildrenImpl(node.children() | ranges::views::drop(1));
     }
 
-    void printChildren(ParameterDeclaration const& node) {}
+    void printChildren(ParameterDeclaration const&) {}
 
     void printChildrenImpl(auto&& c) {
         auto children = c | ranges::views::filter([](auto* child) {

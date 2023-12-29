@@ -1156,8 +1156,7 @@ void ParseContext::registerValue(Token const& token, Value* value) {
         default:
             SC_UNREACHABLE();
         }
-    }
-    ();
+    }();
     if (values.contains(value->name())) {
         reportSemaIssue(token, SemanticIssue::Redeclaration);
     }
@@ -1175,8 +1174,7 @@ void ParseContext::executePendingUpdates(Token const& name, Value* value) {
         default:
             SC_UNREACHABLE();
         }
-    }
-    ();
+    }();
     auto const itr = map.find(name.id());
     if (itr == map.end()) {
         return;

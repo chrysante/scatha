@@ -93,8 +93,8 @@ struct ExtractSig<std::function<R(Args...)>> {
 
 template <typename F>
 scatha::sema::FunctionSignature scatha::Library::extractSignature() const {
-    return internal::ExtractSig<decltype(
-        std::function{ std::declval<F>() })>::Impl(this);
+    return internal::ExtractSig<decltype(std::function{
+        std::declval<F>() })>::Impl(this);
 }
 
 #endif // SCATHA_RUNTIME_LIBRARY_H_

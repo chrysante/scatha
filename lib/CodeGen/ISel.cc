@@ -28,7 +28,7 @@ namespace scatha::cg {
 
 template <>
 struct Matcher<ir::Alloca>: MatcherBase {
-    SD_MATCH_CASE(ir::Alloca const& inst, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Alloca const& inst, SelectionNode&) {
         auto [addr, offset] = valueMap().getAddress(&inst);
         SC_ASSERT(addr,
                   "Must be set because we handle all allocas in parent "
@@ -67,7 +67,7 @@ struct Matcher<ir::Load>: MatcherBase {
     }
 
     // Load
-    SD_MATCH_CASE(ir::Load const& load, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Load const& load, SelectionNode&) {
         impl(load, [&](size_t i) {
             return computeAddress(*load.address(),
                                   i * WordSize,
@@ -108,7 +108,7 @@ struct Matcher<ir::Store>: MatcherBase {
     }
 
     // Store
-    SD_MATCH_CASE(ir::Store const& store, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Store const& store, SelectionNode&) {
         impl(store, [&](size_t i) {
             return computeAddress(*store.address(),
                                   i * WordSize,
@@ -120,7 +120,7 @@ struct Matcher<ir::Store>: MatcherBase {
 
 template <>
 struct Matcher<ir::ConversionInst>: MatcherBase {
-    SD_MATCH_CASE(ir::ConversionInst const& inst, SelectionNode& node) {
+    SD_MATCH_CASE(ir::ConversionInst const& inst, SelectionNode&) {
         switch (inst.conversion()) {
         case ir::Conversion::Zext:
             [[fallthrough]];
@@ -202,7 +202,7 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
 
 template <>
 struct Matcher<ir::CompareInst>: MatcherBase {
-    SD_MATCH_CASE(ir::CompareInst const& cmp, SelectionNode& node) {
+    SD_MATCH_CASE(ir::CompareInst const& cmp, SelectionNode&) {
         auto* LHS = resolveToRegister(*cmp.lhs(), cmp.metadata());
         auto* RHS = resolve(*cmp.rhs());
         emit(new mir::CompareInst(LHS,
@@ -217,7 +217,7 @@ struct Matcher<ir::CompareInst>: MatcherBase {
 
 template <>
 struct Matcher<ir::UnaryArithmeticInst>: MatcherBase {
-    SD_MATCH_CASE(ir::UnaryArithmeticInst const& inst, SelectionNode& node) {
+    SD_MATCH_CASE(ir::UnaryArithmeticInst const& inst, SelectionNode&) {
         auto* operand = resolveToRegister(*inst.operand(), inst.metadata());
         emit(new mir::UnaryArithmeticInst(resolve(inst),
                                           operand,
@@ -468,7 +468,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     }
 
     // Arithmetic -> IntConstant
-    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode&) {
         auto* constant = dyncast<ir::IntegralConstant const*>(inst.rhs());
         if (!constant) return false;
         APInt rhsVal = constant->value();
@@ -551,7 +551,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     }
 
     // Arithmetic (base case)
-    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
+    SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode&) {
         auto* RHS = legalize(inst);
         doEmit<mir::ValueArithmeticInst>(inst, RHS);
         return true;
@@ -560,7 +560,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
 
 template <>
 struct Matcher<ir::Goto>: MatcherBase {
-    SD_MATCH_CASE(ir::Goto const& gt, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Goto const& gt, SelectionNode&) {
         auto* target = resolve(*gt.target());
         emit(new mir::JumpInst(target, gt.metadata()));
         return true;
@@ -595,7 +595,7 @@ struct Matcher<ir::Branch>: MatcherBase {
     }
 
     // Branch (base case)
-    SD_MATCH_CASE(ir::Branch const& br, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Branch const& br, SelectionNode&) {
         /// We can resolve to register without worrying about performance
         /// because if the condition is a constant than it is the optimizers
         /// responsibility to omit the branch
@@ -611,7 +611,7 @@ struct Matcher<ir::Branch>: MatcherBase {
 
 template <>
 struct Matcher<ir::Return>: MatcherBase {
-    SD_MATCH_CASE(ir::Return const& ret, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Return const& ret, SelectionNode&) {
         utl::small_vector<mir::Value*, 16> args;
         auto* retval = resolve(*ret.value());
         for (size_t i = 0, end = numWords(*ret.value()); i < end;
@@ -626,7 +626,7 @@ struct Matcher<ir::Return>: MatcherBase {
 
 template <>
 struct Matcher<ir::Call>: MatcherBase {
-    SD_MATCH_CASE(ir::Call const& call, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Call const& call, SelectionNode&) {
         utl::small_vector<mir::Value*, 16> args;
         for (auto* arg: call.arguments()) {
             auto* mirArg = resolve(*arg);
@@ -648,7 +648,7 @@ struct Matcher<ir::Call>: MatcherBase {
 
 template <>
 struct Matcher<ir::Phi>: MatcherBase {
-    SD_MATCH_CASE(ir::Phi const& phi, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Phi const& phi, SelectionNode&) {
         auto* dest = resolve(phi);
         auto arguments = phi.arguments() |
                          ranges::views::transform([&](ir::ConstPhiMapping arg) {
@@ -709,7 +709,7 @@ struct Matcher<ir::Select>: MatcherBase {
     }
 
     // Select (base case)
-    SD_MATCH_CASE(ir::Select const& select, SelectionNode& node) {
+    SD_MATCH_CASE(ir::Select const& select, SelectionNode&) {
         auto* cond = resolveToRegister(*select.condition(), select.metadata());
         emit(new mir::TestInst(cond,
                                1,
@@ -722,7 +722,7 @@ struct Matcher<ir::Select>: MatcherBase {
 
 template <>
 struct Matcher<ir::GetElementPointer>: MatcherBase {
-    SD_MATCH_CASE(ir::GetElementPointer const& gep, SelectionNode& node) {
+    SD_MATCH_CASE(ir::GetElementPointer const& gep, SelectionNode&) {
         mir::MemoryAddress address = computeGEP(gep);
         emit(new mir::LEAInst(resolve(gep), address, gep.metadata()));
         return true;
@@ -759,7 +759,7 @@ static uint64_t makeWordMask(size_t leadingZeroBytes, size_t oneBytes) {
 
 template <>
 struct Matcher<ir::ExtractValue>: MatcherBase {
-    SD_MATCH_CASE(ir::ExtractValue const& extract, SelectionNode& node) {
+    SD_MATCH_CASE(ir::ExtractValue const& extract, SelectionNode&) {
         auto* source = resolve(*extract.baseValue());
         if (isa<mir::Constant>(source)) {
             SC_UNIMPLEMENTED();
@@ -808,7 +808,7 @@ struct Matcher<ir::ExtractValue>: MatcherBase {
 
 template <>
 struct Matcher<ir::InsertValue>: MatcherBase {
-    SD_MATCH_CASE(ir::InsertValue const& insert, SelectionNode& node) {
+    SD_MATCH_CASE(ir::InsertValue const& insert, SelectionNode&) {
         auto* insertedMember = resolve(*insert.insertedValue());
         auto* source = resolve(*insert.baseValue());
         auto* dest = resolve(insert);

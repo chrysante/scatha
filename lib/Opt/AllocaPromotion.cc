@@ -196,7 +196,7 @@ VariableInfo::VariableInfo(Alloca& allocaInst,
                     SC_UNREACHABLE();
                 }
             },
-            [&](Instruction const& inst) { SC_UNREACHABLE("Not promotable"); }
+            [&](Instruction const&) { SC_UNREACHABLE("Not promotable"); }
         }; // clang-format on
     }
 }
@@ -477,7 +477,7 @@ void VariableInfo::rename(BasicBlock* BB) {
             [&](Call const& call) {
                 return address == definingAddress(&call);
             },
-            [&](Instruction const& inst) { return false; }
+            [&](Instruction const&) { return false; }
         }; // clang-format on
         if (isDef) {
             stack.pop();

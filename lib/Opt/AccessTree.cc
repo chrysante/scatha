@@ -88,7 +88,8 @@ std::unique_ptr<AccessTree> AccessTree::clone() {
     result->_index = _index;
     result->_value = _value;
     for (auto&& [child, resChild]:
-         ranges::views::zip(_children, result->_children)) {
+         ranges::views::zip(_children, result->_children))
+    {
         if (child) {
             resChild = child->clone();
             resChild->_parent = result.get();

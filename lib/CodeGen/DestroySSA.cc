@@ -96,7 +96,8 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
         /// _before_ the argument copies and then copy into the dest register
         /// from the temporary
         if (ranges::contains(F.virtualRegisters() | TakeAddress | take(index),
-                             arg)) {
+                             arg))
+        {
             auto* tmp = new VirtualRegister();
             F.virtualRegisters().add(tmp);
             BB.insert(std::next(tmpCopyInsertPoint),
@@ -263,7 +264,7 @@ static BasicBlock::Iterator destroy(Function& F,
     return BB.erase(itr);
 }
 
-static BasicBlock::Iterator destroy(Function& F,
+static BasicBlock::Iterator destroy(Function&,
                                     BasicBlock& BB,
                                     SelectInst& select,
                                     BasicBlock::Iterator itr) {
@@ -289,7 +290,7 @@ static BasicBlock::Iterator destroy(Function&,
     return std::next(itr);
 }
 
-void cg::destroySSA(mir::Context& ctx, Function& F) {
+void cg::destroySSA(mir::Context&, Function& F) {
     mapSSAToVirtualRegisters(F);
     for (auto& BB: F) {
         for (auto itr = BB.begin(); itr != BB.end();) {

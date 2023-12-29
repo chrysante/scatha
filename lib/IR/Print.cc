@@ -24,7 +24,7 @@ using namespace ir;
 using namespace tfmt::modifiers;
 
 /// To expose the `print(Function)` function to the pass manager
-static bool printPass(ir::Context& ctx, ir::Function& function) {
+static bool printPass(ir::Context&, ir::Function& function) {
     ir::print(function);
     return false;
 }
@@ -32,7 +32,7 @@ static bool printPass(ir::Context& ctx, ir::Function& function) {
 SC_REGISTER_PASS(printPass, "print", PassCategory::Other);
 
 /// To expose the `print(Module)` function to the pass manager
-static bool printPass(ir::Context& ctx, ir::Module& mod, LocalPass) {
+static bool printPass(ir::Context&, ir::Module& mod, LocalPass) {
     logging::header(" IR Module ");
     ir::print(mod);
     return false;
@@ -244,7 +244,7 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
             }
             str << brackets[1];
         },
-        [&](ir::UndefValue const& value) {
+        [&](ir::UndefValue const&) {
             str << formatKeyword("undef");
         },
         [&](ir::Value const&) {

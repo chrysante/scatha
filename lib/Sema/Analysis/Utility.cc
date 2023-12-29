@@ -207,9 +207,7 @@ static bool allMembersHave(StructType& type, SpecialLifetimeFunction fn) {
     });
 }
 
-static void declareSLFs(ObjectType& type, SymbolTable& sym) {
-    SC_UNREACHABLE();
-}
+static void declareSLFs(ObjectType&, SymbolTable&) { SC_UNREACHABLE(); }
 
 static void declareSLFs(StructType& type, SymbolTable& sym) {
     using enum SpecialMemberFunction;

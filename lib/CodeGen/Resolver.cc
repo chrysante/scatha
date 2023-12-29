@@ -153,7 +153,6 @@ mir::Register* Resolver::genCopyImpl(
     mir::Register* dest,
     mir::Value* source,
     size_t numBytes,
-    Metadata metadata,
     utl::function_view<void(mir::Register*, mir::Value*, size_t)>
         insertCallback) const {
     size_t const numWords = utl::ceil_divide(numBytes, 8);

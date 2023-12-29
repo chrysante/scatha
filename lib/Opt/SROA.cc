@@ -49,7 +49,7 @@ std::pair<Value const*, Type const*> getLSPointerAndType(
         [](Store const& store) {
             return std::pair{ store.address(), store.value()->type() };
         },
-        [](Instruction const& inst) -> Ret { SC_UNREACHABLE(); },
+        [](Instruction const&) -> Ret { SC_UNREACHABLE(); },
     }; // clang-format on
 }
 
@@ -247,13 +247,13 @@ struct Variable {
     bool memorize(Instruction* inst) {
         // clang-format off
         return SC_MATCH (*inst) {
-            [&](Alloca& inst) { return true; },
+            [&](Alloca&) { return true; },
             [&](Load& load) { return accesses.insert(&load).second; },
             [&](Store& store) { return accesses.insert(&store).second; },
             [&](Call& call) { return accesses.insert(&call).second; },
             [&](GetElementPointer& gep) { return geps.insert(&gep).second; },
             [&](Phi& phi) { return phis.insert(&phi).second; },
-            [&](Instruction& inst) -> bool { SC_UNREACHABLE(); },
+            [&](Instruction&) -> bool { SC_UNREACHABLE(); },
         }; // clang-format on
     }
 
@@ -266,7 +266,7 @@ struct Variable {
             [&](Call& call) { accesses.erase(&call); },
             [&](GetElementPointer& gep) { geps.erase(&gep); },
             [&](Phi& phi) { phis.erase(&phi); },
-            [&](Instruction& inst) { SC_UNREACHABLE(); },
+            [&](Instruction&) { SC_UNREACHABLE(); },
         }; // clang-format on
         assocPhis.erase(inst);
     }
@@ -322,7 +322,7 @@ struct Variable {
     bool replaceMemcpyBySlicesDest(Call* call);
     bool replaceMemcpyBySlicesSource(Call* call);
     bool replaceMemsetBySlices(Call* call);
-    bool replaceBySlices(Instruction* inst) { SC_UNREACHABLE(); }
+    bool replaceBySlices(Instruction*) { SC_UNREACHABLE(); }
 
     /// We try to promote all the slices
     bool promoteSlices();
@@ -386,7 +386,7 @@ bool Variable::analyzeUsers(Instruction* inst) {
     });
 }
 
-bool Variable::analyzeImpl(Instruction* inst) { return false; }
+bool Variable::analyzeImpl(Instruction*) { return false; }
 
 bool Variable::analyzeImpl(Alloca* allocaInst) {
     SC_EXPECT(allocaInst == baseAlloca);
@@ -440,7 +440,8 @@ bool Variable::analyzeMemcpy(Call* call) {
         return false;
     }
     if (sourceIsAllocaPtr &&
-        !pointerUsePostdominatesPhi(call, memcpySource(call))) {
+        !pointerUsePostdominatesPhi(call, memcpySource(call)))
+    {
         return false;
     }
     memcpy = cast<Callable*>(call->function());
@@ -616,7 +617,8 @@ bool Variable::rewritePhis() {
                     memorize(copy);
                 }
                 for (auto [index, operand]:
-                     copy->operands() | ranges::views::enumerate) {
+                     copy->operands() | ranges::views::enumerate)
+                {
                     if (operand == phi) {
                         copy->setOperand(index, phiArgument);
                         continue;
@@ -800,7 +802,7 @@ utl::small_vector<Subrange, 2> Variable::getAccessedSubranges(
             }
             SC_UNREACHABLE();
         },
-        [&](Instruction const& inst) -> Ret {
+        [&](Instruction const&) -> Ret {
             SC_UNREACHABLE();
         }
     }; // clang-format on
@@ -967,7 +969,7 @@ bool Variable::replaceMemcpyBySlices(Call* call) {
     }
 }
 
-bool Variable::replaceMemcpyBySlicesWithin(Call* call) {
+bool Variable::replaceMemcpyBySlicesWithin(Call*) {
     /// This is the hard case where we copy within our alloca region
     SC_UNIMPLEMENTED();
 }

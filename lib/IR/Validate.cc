@@ -229,7 +229,8 @@ void AssertContext::assertSpecialInvariants(Call const& call) {
         return;
     }
     CHECK(call.type() == func->returnType(), "Return type mismatch");
-    CHECK(ranges::distance(func->parameters()) == call.arguments().size(),
+    CHECK(ranges::distance(func->parameters()) ==
+              (ssize_t)call.arguments().size(),
           "We need an argument for every parameter");
     for (auto&& [param, arg]:
          ranges::views::zip(func->parameters(), call.arguments()))
@@ -283,7 +284,7 @@ void AssertContext::uniqueName(Value const& value) {
         [](Instruction const& inst) { return inst.parentFunction(); },
         [](Parameter const& param) { return param.parent(); },
         [](BasicBlock const& bb) { return bb.parent(); },
-        [](Value const& value) -> Function const* { SC_UNREACHABLE(); },
+        [](Value const&) -> Function const* { SC_UNREACHABLE(); },
     }); // clang-format on
     auto const [itr, success] = nameValueMap.insert(
         { std::string(value.name()), { function, &value } });

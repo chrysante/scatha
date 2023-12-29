@@ -26,8 +26,7 @@ protected:
 
 private:
     void writeValueToImpl(
-        void* dest,
-        utl::function_view<void(Constant const*, void*)> callback) const {
+        void*, utl::function_view<void(Constant const*, void*)>) const {
         SC_UNREACHABLE();
     }
 };

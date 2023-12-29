@@ -32,7 +32,7 @@ struct FuncGenContext: FuncGenContextBase {
     void genImpl(sema::StructType const& type);
     void genImpl(sema::ArrayType const& type);
     void genImpl(sema::UniquePtrType const& type);
-    void genImpl(sema::ObjectType const& type) { SC_UNREACHABLE(); }
+    void genImpl(sema::ObjectType const&) { SC_UNREACHABLE(); }
 
     void genMemberConstruction(ir::Instruction const* before,
                                sema::ObjectType const& memberType,

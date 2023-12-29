@@ -483,7 +483,8 @@ T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
     auto* ptrType = addEntity<T>(pointee);
     map.insert({ pointee, ptrType });
     if (auto* type = const_cast<ObjectType*>(pointee.get());
-        type && type->parent()) {
+        type && type->parent())
+    {
         type->parent()->addChild(ptrType);
     }
     if (continuation) {
@@ -524,7 +525,8 @@ utl::small_vector<Entity*> SymbolTable::unqualifiedLookup(
     std::string_view name) {
     utl::hashset<Entity*> overloadSet;
     for (auto* scope = &currentScope(); scope != nullptr;
-         scope = scope->parent()) {
+         scope = scope->parent())
+    {
         auto entities = scope->findEntities(name);
         if (entities.empty()) {
             continue;

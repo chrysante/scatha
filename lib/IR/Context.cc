@@ -203,7 +203,7 @@ Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
         [&](FloatType const& type) {
             return floatConstant(value, type.bitwidth());
         },
-        [&](Type const& type) -> Constant* { SC_UNREACHABLE(); }
+        [&](Type const&) -> Constant* { SC_UNREACHABLE(); }
     }); // clang-format on
 }
 
@@ -268,7 +268,7 @@ Constant* Context::nullConstant(Type const* type) {
         [&](ArithmeticType const& type) {
             return arithmeticConstant(0, &type);
         },
-        [&](PointerType const& type) {
+        [&](PointerType const&) {
             return nullpointer();
         },
         [&](RecordType const& type) {
@@ -278,7 +278,7 @@ Constant* Context::nullConstant(Type const* type) {
                          }) | ToSmallVector<>;
             return recordConstant(elems, &type);
         },
-        [&](Type const& type) -> Constant* {
+        [&](Type const&) -> Constant* {
             SC_UNREACHABLE();
         },
     }; // clang-format on

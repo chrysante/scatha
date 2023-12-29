@@ -474,7 +474,7 @@ std::optional<Token> Context::getIdentifier() {
 }
 
 bool Context::advance() {
-    SC_EXPECT(currentLocation.index < text.size());
+    SC_EXPECT(currentLocation.index < (ssize_t)text.size());
     if (text[utl::narrow_cast<size_t>(currentLocation.index)] == '\n') {
         currentLocation.column = 0;
         ++currentLocation.line;

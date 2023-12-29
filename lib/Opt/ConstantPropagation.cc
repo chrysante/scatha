@@ -360,9 +360,9 @@ void SCCPContext::processTerminator(FormalValue const& value,
         [&](APInt const& constant) {
             addSingleEdge(constant, inst);
         },
-        [&](APFloat const& constant) {
+        [&](APFloat const&) {
             SC_ASSERT(isa<Return>(inst),
-                      "Float can atmost control return instructions");
+                      "Float can atmost 'control' return instructions");
         },
         [&](Inevaluable) {
             std::transform(inst.targets().begin(),
@@ -393,7 +393,7 @@ void SCCPContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
             setExecutable(edge, false);
             flowWorklist.push_back(edge);
         },
-        [&](Return& inst) {}
+        [&](Return&) {}
     }); // clang-format on
 }
 
@@ -583,7 +583,8 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
                 default: SC_UNREACHABLE();
                 }
             },
-            []<typename T>(APInt const& lhs, T const& rhs) -> FormalValue {
+            []<typename T>([[maybe_unused]] APInt const& lhs, 
+                           [[maybe_unused]] T const& rhs) -> FormalValue {
                 /// Here and in the case below we still have optimization
                 /// opportunities, e.g. when we have:
                 /// - `0 & <ineval>          ==>    0`
@@ -593,7 +594,8 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
                 /// - `<ineval> % 0          ==>    undef`
                 return T{};
             },
-            []<typename T>(T const& lhs, APInt const& rhs) -> FormalValue {
+            []<typename T>([[maybe_unused]] T const& lhs,
+                           [[maybe_unused]] APInt const& rhs) -> FormalValue {
                 return T{};
             },
             [](Inevaluable, Unexamined)  -> FormalValue { return Inevaluable{}; },
@@ -625,7 +627,7 @@ FormalValue SCCPContext::evaluateUnaryArithmetic(
             case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
             }
         },
-        [&](APFloat const& operand) -> FormalValue {
+        [&](APFloat const&) -> FormalValue {
             switch (operation) {
             case UnaryArithmeticOperation::BitwiseNot: [[fallthrough]];
             case UnaryArithmeticOperation::LogicalNot: [[fallthrough]];
@@ -747,8 +749,8 @@ FormalValue SCCPContext::formalValue(Value* value) {
         [&](FloatingPointConstant const& constant) -> FormalValue {
             return constant.value();
         },
-        [&](Parameter const& param) -> FormalValue { return Inevaluable{}; },
-        [&](Value const& other) -> FormalValue { return Unexamined{}; }
+        [&](Parameter const&) -> FormalValue { return Inevaluable{}; },
+        [&](Value const&) -> FormalValue { return Unexamined{}; }
     }); // clang-format on
     return formalValue;
 }

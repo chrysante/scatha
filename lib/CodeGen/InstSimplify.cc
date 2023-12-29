@@ -60,7 +60,7 @@ struct ISContext {
 
     SSARegister* visitInst(Instruction& inst);
 
-    SSARegister* visitImpl(Instruction& inst) { return nullptr; }
+    SSARegister* visitImpl(Instruction&) { return nullptr; }
     SSARegister* visitImpl(CopyInst&);
     SSARegister* visitImpl(LEAInst&);
 };

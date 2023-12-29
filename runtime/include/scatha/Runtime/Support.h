@@ -92,12 +92,10 @@ template <typename F>
 concept ValidFunction =
     /// The `std::function` deduction test guarantees that F has a distinct call
     /// signature
-    requires(F&& f) {
-    std::function{ std::move(f) };
-}
-&&(std::is_lvalue_reference_v<F&&> ||
-   std::is_empty_v<std::remove_reference_t<F>> ||
-   !std::is_class_v<std::remove_reference_t<F>>);
+    requires(F&& f) { std::function{ std::move(f) }; } &&
+    (std::is_lvalue_reference_v<F&&> ||
+     std::is_empty_v<std::remove_reference_t<F>> ||
+     !std::is_class_v<std::remove_reference_t<F>>);
 
 namespace internal {
 

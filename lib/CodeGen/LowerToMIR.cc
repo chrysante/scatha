@@ -148,11 +148,9 @@ void LoweringContext::generateAllocas(ir::Function const& irFn,
     }
 
     /// Emit one LISP instruction
-    Resolver resolver(ctx,
-                      mirMod,
-                      mirFn,
-                      valueMap,
-                      [&](mir::Instruction* inst) { SC_UNREACHABLE(); });
+    Resolver resolver(ctx, mirMod, mirFn, valueMap, [&](mir::Instruction*) {
+        SC_UNREACHABLE();
+    });
     mir::Register* baseptr = resolver.nextRegister();
     auto* lispInst = new mir::LISPInst(baseptr, ctx.constant(numBytes, 2), {});
     mirFn.entry()->pushBack(lispInst);

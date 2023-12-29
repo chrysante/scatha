@@ -27,7 +27,7 @@ using namespace ranges::views;
 
 void irgen::generateIR(ir::Context& ctx,
                        ir::Module& mod,
-                       ast::ASTNode const& root,
+                       ast::ASTNode const&,
                        sema::SymbolTable const& sym,
                        sema::AnalysisResult const& analysisResult,
                        Config config) {

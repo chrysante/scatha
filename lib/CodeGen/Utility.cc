@@ -49,7 +49,8 @@ static LiveInterval computeLiveInterval(Function& F,
         /// Live range ends at the last use before a def (except for cmovs which
         /// clobber only conditionally)
         if (ranges::contains(inst->destRegisters(), reg) &&
-            !isa<CondCopyInst>(inst)) {
+            !isa<CondCopyInst>(inst))
+        {
             return { begin, end };
         }
         /// Calls clobber all callee registers

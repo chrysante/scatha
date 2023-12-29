@@ -79,7 +79,7 @@ struct FuncGenContext: FuncGenContextBase {
     template <ValueLocation Loc>
     ir::Value* getValue(ast::Expression const* expr);
 
-    Value getValueImpl(ast::Expression const& expr) { SC_UNREACHABLE(); }
+    Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
     Value getValueImpl(ast::Literal const&);
     Value getValueImpl(ast::UnaryExpression const&);
@@ -181,7 +181,8 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
         ++irParamItr;
     }
     for (auto [paramDecl, pc]:
-         ranges::views::zip(def.parameters(), CC.arguments())) {
+         ranges::views::zip(def.parameters(), CC.arguments()))
+    {
         generateParameter(paramDecl, pc, irParamItr);
     }
     generate(*def.body());
@@ -475,7 +476,7 @@ void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
 /// MARK: - Expressions
 
 static bool isIntType(size_t width, ir::Type const* type) {
-    return cast<ir::IntegralType const*>(type)->bitwidth() == 1;
+    return cast<ir::IntegralType const*>(type)->bitwidth() == width;
 }
 
 Value FuncGenContext::getValue(ast::Expression const* expr) {
@@ -1099,7 +1100,8 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             /// Here we actually need to strip the reference because the
             /// function may return a ref type
             if (auto* arrayType =
-                    dyncast<sema::ArrayType const*>(stripRef(semaRetType))) {
+                    dyncast<sema::ArrayType const*>(stripRef(semaRetType)))
+            {
                 auto* size = ctx.intConstant(arrayType->size(), 64);
                 valueMap.insertArraySize(call.object(), Value(size, Register));
             }
@@ -1405,7 +1407,8 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         if (fromType->isDynamic()) {
             auto fromCount = valueMap.arraySize(expr->object());
             if (conv.conversion()->objectConversion() ==
-                Reinterpret_Array_ToByte) {
+                Reinterpret_Array_ToByte)
+            {
                 auto* newCount =
                     add<ir::ArithmeticInst>(toRegister(fromCount, conv),
                                             ctx.intConstant(fromElemSize, 64),
@@ -1584,10 +1587,11 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                 return Value(value, Register);
             }
             auto* value = SC_MATCH (type) {
-                [&](sema::BoolType const& type) {
+                [&](sema::BoolType const&) {
+                    /// Bools are default initialized to `false`
                     return ctx.boolConstant(false);
                 },
-                [&](sema::ByteType const& type) {
+                [&](sema::ByteType const&) {
                     return ctx.intConstant(0, 8);
                 },
                 [&](sema::IntType const& type) {
@@ -1596,13 +1600,13 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                 [&](sema::FloatType const& type) {
                     return ctx.floatConstant(0, type.bitwidth());
                 },
-                [&](sema::NullPtrType const& type) {
+                [&](sema::NullPtrType const&) {
                     return ctx.nullpointer();
                 },
-                [&](sema::RawPtrType const& type) {
+                [&](sema::RawPtrType const&) {
                     return ctx.nullpointer();
                 },
-                [&](sema::ObjectType const& type) -> ir::Value* {
+                [&](sema::ObjectType const&) -> ir::Value* {
                     SC_UNREACHABLE();
                 },
             };
@@ -1739,8 +1743,7 @@ ir::Value* FuncGenContext::toRegister(Value value,
     SC_UNREACHABLE();
 }
 
-ir::Value* FuncGenContext::toMemory(Value value,
-                                    ast::ASTNode const& sourceNode) {
+ir::Value* FuncGenContext::toMemory(Value value, ast::ASTNode const&) {
     switch (value.location()) {
     case Register:
         return storeToMemory(value.get());

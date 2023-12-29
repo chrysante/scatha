@@ -3,4 +3,4 @@
 
 namespace scatha::opt {} // namespace scatha::opt
 
-#endif // SCATHA_OPT_INLINECOST_H_
+#endif                   // SCATHA_OPT_INLINECOST_H_

@@ -72,7 +72,7 @@ struct FuncBodyContext {
     void analyzeImpl(ast::LoopStatement&);
     void analyzeImpl(ast::JumpStatement&);
     void analyzeImpl(ast::EmptyStatement&) {}
-    void analyzeImpl(ast::ASTNode& node) { SC_UNREACHABLE(); }
+    void analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     ast::Expression* analyzeValue(ast::Expression* expr, DtorStack& dtorStack) {
         return sema::analyzeValueExpr(expr, dtorStack, ctx);
@@ -153,7 +153,8 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
         }
     });
     if (auto linkage = def.externalLinkage();
-        !linkage.empty() && linkage != "C") {
+        !linkage.empty() && linkage != "C")
+    {
         ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
     }
     if (def.body()) {

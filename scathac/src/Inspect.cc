@@ -57,7 +57,8 @@ int scatha::inspectMain(InspectOptions options) {
     optimize(ctx, mod, options);
     if (options.emitIR) {
         if (auto file =
-                std::fstream("out.scir", std::ios::out | std::ios::trunc)) {
+                std::fstream("out.scir", std::ios::out | std::ios::trunc))
+        {
             ir::print(mod, file);
         }
         else {

@@ -37,12 +37,11 @@ using wrap = T;
 
 template <typename Float, size_t NumArgs>
 static ExternalFunction::FuncPtr math(auto impl) {
-    return [](u64* regPtr, VirtualMachine* vm, void*) {
+    return [](u64* regPtr, VirtualMachine*, void*) {
         [&]<size_t... I>(std::index_sequence<I...>) {
             std::tuple<wrap<Float, I>...> args{ load<Float>(regPtr + I)... };
             store(regPtr, std::apply(decltype(impl){}, args));
-        }
-        (std::make_index_sequence<NumArgs>{});
+            }(std::make_index_sequence<NumArgs>{});
     };
 }
 

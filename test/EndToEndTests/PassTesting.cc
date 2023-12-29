@@ -232,7 +232,8 @@ struct Impl {
                          ir::Pipeline const& prePipeline,
                          uint64_t expected) const {
         for (auto pass:
-             ir::PassManager::localPasses(ir::PassCategory::Simplification)) {
+             ir::PassManager::localPasses(ir::PassCategory::Simplification))
+        {
             if (pass.name() == "default") {
                 continue;
             }

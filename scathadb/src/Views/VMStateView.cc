@@ -59,7 +59,7 @@ struct RegView: ScrollBase {
 Element RegEntry::Render() {
     auto* parent = dynamic_cast<RegView const*>(Parent());
     auto& values = parent->values;
-    if (index >= values.size()) {
+    if (index >= (ssize_t)values.size()) {
         return text("");
     }
     uint64_t value = values[utl::narrow_cast<size_t>(index)];

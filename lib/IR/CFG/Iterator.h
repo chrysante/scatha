@@ -122,7 +122,9 @@ public:
 
     operator Itr() const { return itr; }
 
-    operator typename BB::ConstIterator() const requires(!IsConst) {
+    operator typename BB::ConstIterator() const
+        requires(!IsConst)
+    {
         return itr;
     }
 

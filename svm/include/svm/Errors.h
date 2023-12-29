@@ -53,7 +53,7 @@ public:
         DerefRangeTooBig
     };
 
-    MemoryAccessError(Reason reason, VirtualPointer ptr, size_t size):
+    MemoryAccessError(Reason, VirtualPointer ptr, size_t size):
         MemoryError("MemoryAccessError", ptr), _size(size) {}
 
     /// \Returns the reason why the memory access failed
@@ -120,9 +120,9 @@ public:
     using variant::variant;
 
     std::string const& message() const {
-        return std::visit(
-            [](RuntimeError const& err) -> auto& { return err.message(); },
-            *this);
+        return std::visit([](RuntimeError const& err)
+                              -> auto& { return err.message(); },
+                          *this);
     }
 };
 
@@ -147,7 +147,7 @@ private:
 
 /// \Throws `Err` constructed by \p args... wrapped in a `RuntimeException`
 template <std::derived_from<RuntimeError> Err, typename... Args>
-requires std::constructible_from<Err, Args...>
+    requires std::constructible_from<Err, Args...>
 [[noreturn]] void throwError(Args&&... args) {
     throw RuntimeException(Err(std::forward<Args>(args)...));
 }

@@ -182,14 +182,14 @@ SelectionNode* SelectionDAG::get(ir::Instruction const* inst) {
 
 using namespace graphgen;
 
-static Label makeIRLabel(SelectionDAG const& DAG, ir::Instruction const* inst) {
+static Label makeIRLabel(ir::Instruction const* inst) {
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
     ir::printDecl(*inst, sstr);
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
-static Label makeMIRLabel(SelectionDAG const& DAG, SelectionNode const* node) {
+static Label makeMIRLabel(SelectionNode const* node) {
     std::stringstream sstr;
     tfmt::setHTMLFormattable(sstr);
     sstr << tableBegin();
@@ -205,19 +205,19 @@ static Label makeMIRLabel(SelectionDAG const& DAG, SelectionNode const* node) {
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
-static Label makeLabel(SelectionDAG const& DAG, SelectionNode const* node) {
+static Label makeLabel(SelectionNode const* node) {
     if (node->matched()) {
-        return makeMIRLabel(DAG, node);
+        return makeMIRLabel(node);
     }
     else {
-        return makeIRLabel(DAG, node->irInst());
+        return makeIRLabel(node->irInst());
     }
 }
 
 void cg::generateGraphviz(SelectionDAG const& DAG, std::ostream& ostream) {
     auto* G = Graph::make(ID(0));
     for (auto* node: DAG.nodes()) {
-        auto* vertex = Vertex::make(ID(node))->label(makeLabel(DAG, node));
+        auto* vertex = Vertex::make(ID(node))->label(makeLabel(node));
         /// Add all use edges
         for (auto* dependency: node->valueDependencies()) {
             G->add(Edge{ .from = ID(node),

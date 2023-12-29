@@ -29,7 +29,7 @@ struct DCEContext {
 
 } // namespace
 
-bool cg::deadCodeElim(mir::Context& ctx, mir::Function& F) {
+bool cg::deadCodeElim(mir::Context&, mir::Function& F) {
     return DCEContext(F).run();
 }
 

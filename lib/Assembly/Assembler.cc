@@ -219,9 +219,9 @@ void Assembler::translate(CallExtInst const& call) {
     putPlaceholderBytes(3);
 }
 
-void Assembler::translate(ReturnInst const& ret) { put(OpCode::ret); }
+void Assembler::translate(ReturnInst const&) { put(OpCode::ret); }
 
-void Assembler::translate(TerminateInst const& term) { put(OpCode::terminate); }
+void Assembler::translate(TerminateInst const&) { put(OpCode::terminate); }
 
 void Assembler::translate(LIncSPInst const& lincsp) {
     put(OpCode::lincsp);

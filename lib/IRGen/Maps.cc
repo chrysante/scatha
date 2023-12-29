@@ -225,7 +225,7 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
         [&](sema::NullPtrType const&) -> ir::Type const* {
             return ctx->ptrType();
         },
-        [&](sema::StructType const& structType) -> ir::Type const* {
+        [&](sema::StructType const&) -> ir::Type const* {
             SC_UNREACHABLE("Undeclared structure type");
         },
         [&](sema::ArrayType const& arrayType) -> ir::Type const* {

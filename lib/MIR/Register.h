@@ -132,7 +132,7 @@ public:
     }
 
 protected:
-    explicit Register(NodeType nodeType, size_t index = InvalidIndex):
+    explicit Register(NodeType nodeType):
         ListNodeOverride<Register, Value>(nodeType) {}
 
 private:

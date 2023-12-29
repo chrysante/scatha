@@ -25,7 +25,7 @@ public:
 /// Logs nothing
 class SCATHA_API NullLogger: public Logger {
 public:
-    void log(std::string_view stage, mir::Module const& mod) override {}
+    void log(std::string_view, mir::Module const&) override {}
 };
 
 /// Write verbose debug logs to `ostream`

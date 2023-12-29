@@ -23,13 +23,13 @@ public:
 
 protected:
     template <typename T>
-    explicit ValueBase(utl::tag<T> type, auto value):
+    explicit ValueBase(utl::tag<T>, auto value):
         _value(utl::bit_cast<u64>(widenFundType(utl::narrow_cast<T>(value)))) {}
 
-    explicit ValueBase(utl::tag<f32> type, f32 value):
+    explicit ValueBase(utl::tag<f32>, f32 value):
         _value(utl::bit_cast<u32>(value)) {}
 
-    explicit ValueBase(utl::tag<f64> type, f64 value):
+    explicit ValueBase(utl::tag<f64>, f64 value):
         _value(utl::bit_cast<u64>(value)) {}
 
     static i64 widenFundType(std::signed_integral auto i) { return i; }

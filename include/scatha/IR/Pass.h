@@ -96,8 +96,7 @@ public:
     GlobalPass() = default;
 
     /// Construct a global pass from function pointer \p pointer
-    GlobalPass(PointerType ptr, PassCategory category = PassCategory::Other):
-        GlobalPass(std::function(ptr)) {}
+    GlobalPass(PointerType ptr): GlobalPass(std::function(ptr)) {}
 
     /// Construct a named global pass from a function
     GlobalPass(std::function<bool(ir::Context&, ir::Module&, LocalPass)> p,

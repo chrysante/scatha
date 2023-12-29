@@ -40,7 +40,7 @@ MemberTree::Node* MemberTree::computeDFS(ir::Type const* type,
                 result->addChild(node);
             }
         },
-        [&](ir::Type const& type) {},
+        [&](ir::Type const&) {},
     }; // clang-format on
     return result;
 }

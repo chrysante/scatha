@@ -11,7 +11,7 @@ using namespace cg;
 using namespace mir;
 using namespace ranges::views;
 
-void cg::allocateRegisters(Context& ctx, Function& F) {
+void cg::allocateRegisters(Context&, Function& F) {
     /// For instructions that are three address instructions in the MIR
     /// but two address instructions in the VM, we issue copies of the
     /// first operand into the destination register and then replace the

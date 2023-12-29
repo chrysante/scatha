@@ -1016,7 +1016,7 @@ private:
 /// be instantiated on type arguments
 class SCATHA_API Generic: public Entity {
 public:
-    explicit Generic(std::string name, size_t numParams, Scope* parentScope):
+    explicit Generic(std::string name, size_t, Scope* parentScope):
         Entity(EntityType::Generic, std::move(name), parentScope) {}
 
     size_t numParameters() const { return numParams; }

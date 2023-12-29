@@ -84,7 +84,7 @@ struct CGContext {
              [&](mir::Register const& reg) -> Asm::Value {
                  return toRegIdx(&reg);
              },
-             [](mir::Value const& value) -> Asm::Value {
+             [](mir::Value const&) -> Asm::Value {
                  SC_UNREACHABLE();
              }
          }); // clang-format on
@@ -215,7 +215,7 @@ void CGContext::genInstImpl(mir::CallInst const& inst) {
             currentBlock->insertBack(asmInst);
             addMetadata(inst);
         },
-        [&](mir::Value const& value) {
+        [&](mir::Value const&) {
             SC_UNREACHABLE();
         },
     }; // clang-format on
@@ -368,11 +368,11 @@ void CGContext::genInstImpl(mir::ReturnInst const& inst) {
     addMetadata(inst);
 }
 
-void CGContext::genInstImpl(mir::PhiInst const& inst) {
+void CGContext::genInstImpl(mir::PhiInst const&) {
     SC_UNREACHABLE("Illegal instruction");
 }
 
-void CGContext::genInstImpl(mir::SelectInst const& inst) {
+void CGContext::genInstImpl(mir::SelectInst const&) {
     SC_UNREACHABLE("Illegal instruction");
 }
 

@@ -72,7 +72,7 @@ static constexpr size_t MaxPoolSize = 1024;
 /// \Returns the index of the pool that is responsible for managing block of
 /// size \p size and align \p align This takes the slots below the pool slots
 /// into account
-static size_t toPoolIndex(size_t size, size_t align) {
+static size_t toPoolIndex(size_t size, size_t) {
     size_t index = roundUp(size, BlockSizeDiff) / BlockSizeDiff;
     index += FirstPoolIndex - 1;
     return index;

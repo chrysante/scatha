@@ -90,7 +90,7 @@ struct InstCombineCtx {
     /// replacement value if they find any
     Value* visitInstruction(Instruction* inst);
 
-    Value* visitImpl(Instruction* inst) { return nullptr; }
+    Value* visitImpl(Instruction*) { return nullptr; }
     Value* visitImpl(ArithmeticInst* inst);
     Value* visitImpl(Load* inst);
     Value* visitImpl(ConversionInst* inst);
@@ -657,7 +657,9 @@ Value* InstCombineCtx::visitImpl(Load* load) {
         auto* init = global->initializer();
         utl::small_vector<uint8_t> data(init->type()->size());
         bool haveFuncPtrs = false;
-        init->writeValueTo(data.data(), [&](Constant const* value, void* dest) {
+        init->writeValueTo(data.data(),
+                           [&](Constant const* value,
+                               [[maybe_unused]] void* dest) {
             haveFuncPtrs |= isa<Function>(value);
         });
         /// We cannot evaluate function pointers this way though
@@ -903,7 +905,8 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     {
         insertBase = insertInst->baseValue();
         if (ranges::equal(extractInst->memberIndices(),
-                          insertInst->memberIndices())) {
+                          insertInst->memberIndices()))
+        {
             return insertInst->insertedValue();
         }
     }
@@ -1039,7 +1042,8 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
         if (itr != ivMap.end()) {
             auto* iv = itr->second;
             if (ranges::equal(iv->memberIndices(),
-                              ranges::views::single(index))) {
+                              ranges::views::single(index)))
+            {
                 baseValue = iv;
                 continue;
             }

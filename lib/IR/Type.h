@@ -216,9 +216,9 @@ public:
 
 private:
     friend class RecordType;
-    Type const* elementAtImpl(std::size_t index) const { return elementType(); }
+    Type const* elementAtImpl(size_t) const { return elementType(); }
 
-    size_t offsetAtImpl(std::size_t index) const {
+    size_t offsetAtImpl(size_t index) const {
         return index * elementType()->size();
     }
 

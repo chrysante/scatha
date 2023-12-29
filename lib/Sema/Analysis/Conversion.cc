@@ -134,10 +134,12 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         return std::nullopt;
     };
     auto pointerConv = utl::overload{
-        [&](NullPtrType const& from, RawPtrType const& to) -> RetType {
+        [&]([[maybe_unused]] NullPtrType const& from,
+            [[maybe_unused]] RawPtrType const& to) -> RetType {
             return NullPtrToPtr;
         },
-        [&](NullPtrType const& from, UniquePtrType const& to) -> RetType {
+        [&]([[maybe_unused]] NullPtrType const& from,
+            [[maybe_unused]] UniquePtrType const& to) -> RetType {
             return NullPtrToUniquePtr;
         },
         [&](PointerType const& from, PointerType const& to) -> RetType {
@@ -171,10 +173,12 @@ static std::optional<ObjectTypeConversion> determineObjConv(
     case ConversionKind::Implicit:
         // clang-format off
         return SC_MATCH (*from, *to) {
-            [&](IntType const& from, ByteType const& to) -> RetType {
+            [&]([[maybe_unused]] IntType const& from, 
+                [[maybe_unused]] ByteType const& to) -> RetType {
                 return std::nullopt;
             },
-            [&](ByteType const& from, IntType const& to) -> RetType {
+            [&]([[maybe_unused]] ByteType const& from, 
+                [[maybe_unused]] IntType const& to) -> RetType {
                 return std::nullopt;
             },
             [&](IntType const& from, IntType const& to) -> RetType {
@@ -186,15 +190,17 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 }
                 return std::nullopt;
             },
-            [&](IntType const& from, FloatType const& to) -> RetType {
+            [&]([[maybe_unused]] IntType const& from,
+                [[maybe_unused]] FloatType const& to) -> RetType {
                 return std::nullopt;
             },
-            [&](FloatType const& from, IntType const& to) -> RetType {
+            [&]([[maybe_unused]] FloatType const& from,
+                [[maybe_unused]] IntType const& to) -> RetType {
                 return std::nullopt;
             },
             implAndExplArrayToArrayConv,
             pointerConv,
-            [&](ObjectType const& from, ObjectType const& to) -> RetType {
+            [&](ObjectType const&, ObjectType const&) -> RetType {
                 return std::nullopt;
             }
         }; // clang-format on
@@ -207,7 +213,8 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 }
                 return from.size() == to.size() ? UU_Widen : UU_Trunc;
             },
-            [&](ByteType const& from, IntType const& to) -> RetType {
+            [&]([[maybe_unused]] ByteType const& from,
+                [[maybe_unused]] IntType const& to) -> RetType {
                 if (to.isSigned()) {
                     return US_Widen;
                 }
@@ -222,15 +229,18 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 }
                 return Float_Trunc;
             },
-            [&](IntType const& from, FloatType const& to) -> RetType {
+            [&]([[maybe_unused]] IntType const& from,
+                [[maybe_unused]] FloatType const& to) -> RetType {
                 return from.isSigned() ? SignedToFloat : UnsignedToFloat;
             },
-            [&](FloatType const& from, IntType const& to) -> RetType {
+            [&]([[maybe_unused]] FloatType const& from,
+                IntType const& to) -> RetType {
                 return to.isSigned() ? FloatToSigned : FloatToUnsigned;
             },
             implAndExplArrayToArrayConv,
             pointerConv,
-            [&](ObjectType const& from, ObjectType const& to) -> RetType {
+            [&]([[maybe_unused]] ObjectType const& from,
+                [[maybe_unused]] ObjectType const& to) -> RetType {
                 return std::nullopt;
             }
         }; // clang-format on
@@ -316,7 +326,8 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 });
             },
             pointerConv,
-            [&](ObjectType const& from, ObjectType const& to) -> RetType {
+            [&]([[maybe_unused]] ObjectType const& from,
+                [[maybe_unused]] ObjectType const& to) -> RetType {
                 return std::nullopt;
             }
         }; // clang-format on
@@ -356,7 +367,7 @@ static std::optional<ValueCatConversion> determineValueCatConv(
     SC_UNREACHABLE();
 }
 
-static std::optional<MutConversion> determineMutConv(ConversionKind kind,
+static std::optional<MutConversion> determineMutConv(ConversionKind,
                                                      Mutability from,
                                                      Mutability to) {
     /// No mutability conversion happens
@@ -366,7 +377,7 @@ static std::optional<MutConversion> determineMutConv(ConversionKind kind,
     switch (from) {
     case Mutability::Mutable: // Mutable to Const:
         return MutConversion::MutToConst;
-    case Mutability::Const: // Const to Mutable
+    case Mutability::Const:   // Const to Mutable
         return std::nullopt;
     }
     SC_UNREACHABLE();
@@ -663,11 +674,11 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             }
             return sym.arrayType(a.elementType());
         },
-        [&](PointerType const& a, NullPtrType const& b) {
-            return &a;
+        [&](PointerType const& type, NullPtrType const&) {
+            return &type;
         },
-        [&](NullPtrType const& a, PointerType const& b) {
-            return &b;
+        [&](NullPtrType const&, PointerType const& type) {
+            return &type;
         },
         [&](RawPtrType const& a, RawPtrType const& b) -> RawPtrType const* {
             if (a.base() == b.base()) {
@@ -675,7 +686,7 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             }
             return commonPointer(sym, a.base(), b.base());
         },
-        [&](ObjectType const& a, ObjectType const& b) -> ObjectType const* {
+        [&](ObjectType const&, ObjectType const&) -> ObjectType const* {
             return nullptr;
         }
     }; // clang-format on

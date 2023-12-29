@@ -36,7 +36,7 @@ void InstructionEqTester::test(scatha::ir::Instruction const& inst) const {
 
 void BasicBlockEqTester::test(scatha::ir::BasicBlock const& basicBlock) const {
     CHECK(basicBlock.name() == name);
-    CHECK(ranges::distance(basicBlock) == instTesters.size());
+    CHECK(ranges::distance(basicBlock) == (ssize_t)instTesters.size());
     for (auto&& [inst, tester]: ranges::views::zip(basicBlock, instTesters)) {
         tester.test(inst);
     }
@@ -44,13 +44,14 @@ void BasicBlockEqTester::test(scatha::ir::BasicBlock const& basicBlock) const {
 
 void FunctionEqTester::test(scatha::ir::Function const& function) const {
     CHECK(function.name() == name);
-    CHECK(ranges::distance(function.parameters()) == paramTypenames.size());
+    CHECK(ranges::distance(function.parameters()) ==
+          (ssize_t)paramTypenames.size());
     for (auto&& [param, typeName]:
          ranges::views::zip(function.parameters(), paramTypenames))
     {
         CHECK(param.type()->name() == typeName);
     }
-    CHECK(ranges::distance(function) == bbTesters.size());
+    CHECK(ranges::distance(function) == (ssize_t)bbTesters.size());
     for (auto&& [basicBlock, tester]: ranges::views::zip(function, bbTesters)) {
         tester.test(basicBlock);
     }
@@ -59,13 +60,14 @@ void FunctionEqTester::test(scatha::ir::Function const& function) const {
 void ModuleEqTester::testStructures(scatha::ir::Module const& mod) const {
     CHECK(mod.structures().size() == structs.size());
     for (auto&& [structure, tester]:
-         ranges::views::zip(mod.structures(), structs)) {
+         ranges::views::zip(mod.structures(), structs))
+    {
         tester.test(*structure);
     }
 }
 
 void ModuleEqTester::testFunctions(scatha::ir::Module const& mod) const {
-    CHECK(ranges::distance(mod) == funcs.size());
+    CHECK(ranges::distance(mod) == (ssize_t)funcs.size());
     for (auto&& [function, tester]: ranges::views::zip(mod, funcs)) {
         tester.test(function);
     }

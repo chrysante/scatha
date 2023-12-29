@@ -17,7 +17,7 @@ sema::ObjectType const* irgen::getPtrOrRefBase(sema::Type const* type) {
         [](sema::PointerType const& type) {
             return type.base().get();
         },
-        [](sema::Type const& type) {
+        [](sema::Type const&) {
             return nullptr;
         }
     }; // clang-format on

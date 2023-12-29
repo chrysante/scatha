@@ -29,7 +29,8 @@ struct TestCase {
         REQUIRE(iss.empty());
         REQUIRE(tokens.size() == reference.size());
         for (std::size_t i = 0; i < std::min(tokens.size(), reference.size());
-             ++i) {
+             ++i)
+        {
             INFO("LHS: " << reference[i] << "\nRHS: " << tokens[i].id());
             CHECK(reference[i].kind == tokens[i].kind());
             CHECK(reference[i].id == tokens[i].id());

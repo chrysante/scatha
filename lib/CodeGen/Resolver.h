@@ -130,7 +130,6 @@ private:
         mir::Register* dest,
         mir::Value* source,
         size_t numBytes,
-        Metadata metadata,
         utl::function_view<void(mir::Register*, mir::Value*, size_t)>
             insertCallback) const;
 
@@ -158,7 +157,6 @@ R* Resolver::genCopy(R* dest,
         genCopyImpl(dest,
                     source,
                     numBytes,
-                    metadata,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, metadata));
         });
@@ -177,7 +175,6 @@ R* Resolver::genCondCopy(R* dest,
         genCopyImpl(dest,
                     source,
                     numBytes,
-                    metadata,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, condition, metadata));
         });
