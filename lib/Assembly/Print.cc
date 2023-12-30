@@ -33,6 +33,7 @@ static std::string_view typeToChar(Type type) {
     case Type::_count:
         SC_UNREACHABLE();
     }
+    SC_UNREACHABLE();
 }
 
 namespace {

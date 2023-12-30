@@ -1,6 +1,6 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-PROJ_DIR="$SCRIPT_DIR/.."
+c="$SCRIPT_DIR/.."
 
 source $SCRIPT_DIR/util.sh
 
@@ -19,13 +19,16 @@ copy_to_system() {
 
 $SCRIPT_DIR/build-dependencies.sh
 
-build_project scathac Release
+cd $PROJ_DIR
+build_project scathac/ scathac Release
 copy_to_system scathac
 copy_to_system libscatha.so
 copy_to_system libscatha.dylib
 
-build_project svm Release
+cd $PROJ_DIR
+build_project svm/ svm Release
 copy_to_system svm
 
-build_project scathadb Release
+cd $PROJ_DIR
+build_project scathadb/ scathadb Release
 copy_to_system scathadb

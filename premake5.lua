@@ -15,8 +15,13 @@ cppdialect "C++20"
 filter "configurations:Debug" 
     symbols "On"
 filter "configurations:Release"
-    optimize "Speed"
-    defines "NDEBUG"
+    filter "system:linux"
+        buildoptions "-O0" -- probably due to a compiler bug the ilist move assignment test fails on higher optimization levels
+        defines "NDEBUG"
+
+    filter "system:not linux"
+        optimize "Speed"
+        defines "NDEBUG"
 filter {}
 
 flags { "MultiProcessorCompile" }

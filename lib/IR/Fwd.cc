@@ -13,7 +13,8 @@ std::string_view ir::toString(NodeType nodeType) {
         // clang-format on
     case NodeType::_count:
         SC_UNREACHABLE();
-    };
+    }
+    SC_UNREACHABLE();
 }
 
 std::ostream& ir::operator<<(std::ostream& ostream, NodeType nodeType) {
@@ -28,7 +29,8 @@ std::string_view ir::toString(Conversion conv) {
         // clang-format on
     case Conversion::_count:
         SC_UNREACHABLE();
-    };
+    }
+    SC_UNREACHABLE();
 }
 
 std::ostream& ir::operator<<(std::ostream& ostream, Conversion conv) {
@@ -44,7 +46,8 @@ std::string_view ir::toString(CompareMode mode) {
         // clang-format on
     case CompareMode::_count:
         SC_UNREACHABLE();
-    };
+    }
+    SC_UNREACHABLE();
 }
 
 std::ostream& ir::operator<<(std::ostream& ostream, CompareMode mode) {
@@ -60,7 +63,8 @@ std::string_view ir::toString(CompareOperation op) {
         // clang-format on
     case CompareOperation::_count:
         SC_UNREACHABLE();
-    };
+    }
+    SC_UNREACHABLE();
 }
 
 std::ostream& ir::operator<<(std::ostream& ostream, CompareOperation op) {
@@ -88,7 +92,8 @@ std::string_view ir::toString(UnaryArithmeticOperation op) {
         // clang-format on
     case UnaryArithmeticOperation::_count:
         SC_UNREACHABLE();
-    };
+    }
+    SC_UNREACHABLE();
 }
 
 std::ostream& ir::operator<<(std::ostream& ostream,
@@ -105,7 +110,8 @@ std::string_view ir::toString(ArithmeticOperation op) {
         // clang-format on
     case ArithmeticOperation::_count:
         SC_UNREACHABLE();
-    };
+    }
+    SC_UNREACHABLE();
 }
 
 std::ostream& ir::operator<<(std::ostream& ostream, ArithmeticOperation op) {
@@ -132,4 +138,5 @@ bool ir::isCommutative(ArithmeticOperation op) {
     default:
         return false;
     }
+    SC_UNREACHABLE();
 }

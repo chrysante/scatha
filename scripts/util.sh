@@ -82,14 +82,14 @@ run_premake() {
     fi
 }
 
-# $1=project_name, $2=configuration
+# $1=location, $2=project_name, $3=configuration
 build_project() {
     if [ "$OS" = "linux" ]; then
-        make -j14 $1 "config=`lowercase $2`"
+        make -j14 $2 "config=`lowercase $3`"
     elif [ "$OS" = "windows" ]; then
         error "No Windows support"
     elif [ "$OS" = "mac" ]; then
-        xcodebuild -project "$1/$1.xcodeproj" -configuration $2 -quiet
+        xcodebuild -project "$1/$2.xcodeproj" -configuration $3 -quiet
     else
         error "Unknown OS \"$OS\""
     fi

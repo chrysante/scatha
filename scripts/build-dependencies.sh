@@ -13,8 +13,7 @@ mkdir -p build/bin/{Debug,Release}
 # UTL
 cd $PROJ_DIR/external/utility
 run_premake
-cd ..
-build_project utility Release
+build_project . utility Release
 
 cd $PROJ_DIR
 cp external/utility/build/bin/Release/libutility.a build/bin/Debug
