@@ -76,6 +76,11 @@ void Expression::decorateType(sema::Type* type) {
     markDecorated();
 }
 
+void Expression::decorateNamespace(sema::Entity* entity) {
+    _entity = entity;
+    markDecorated();
+}
+
 void FunctionCall::decorateCall(sema::Object* object,
                                 sema::ValueCategory valueCategory,
                                 sema::QualType type,

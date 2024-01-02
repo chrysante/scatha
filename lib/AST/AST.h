@@ -424,6 +424,9 @@ public:
     /// Decorate this node if this node refers to a type
     void decorateType(sema::Type* type);
 
+    /// Decorate this node if this node refers to a namespace
+    void decorateNamespace(sema::Entity* entity);
+
     /// \Returns Constant value if this expression is constant evaluable
     /// `nullptr` otherwise
     sema::Value const* constantValue() const { return constVal.get(); }
