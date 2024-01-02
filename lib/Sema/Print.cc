@@ -90,7 +90,6 @@ void PrintContext::print(Entity const& entity) {
                 }
                 children.insert(entity);
             }
-
             return children;
         }
         if (auto* os = dyncast<OverloadSet const*>(&entity)) {
