@@ -176,7 +176,7 @@ AnonymousScope::AnonymousScope(ScopeKind scopeKind, Scope* parent):
     Scope(EntityType::AnonymousScope, scopeKind, std::string{}, parent) {}
 
 GlobalScope::GlobalScope():
-    Scope(EntityType::GlobalScope, ScopeKind::Global, "__GLOBAL__", nullptr) {}
+    Scope(EntityType::GlobalScope, ScopeKind::Global, {}, nullptr) {}
 
 FileScope::FileScope(std::string filename, Scope* parent):
     Scope(EntityType::FileScope,
@@ -184,11 +184,11 @@ FileScope::FileScope(std::string filename, Scope* parent):
           std::move(filename),
           parent) {}
 
-LibraryScope::LibraryScope(std::string name, Scope* parent):
-    Scope(EntityType::LibraryScope,
-          ScopeKind::Global,
-          std::move(name),
-          parent) {}
+LibraryScope::LibraryScope(std::string name,
+                           std::filesystem::path codeFile,
+                           Scope* parent):
+    Scope(EntityType::LibraryScope, ScopeKind::Global, std::move(name), parent),
+    _codeFile(std::move(codeFile)) {}
 
 /// # Types
 
@@ -278,6 +278,13 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
 
 NullPtrType::NullPtrType(Scope* parent):
     BuiltinType(EntityType::NullPtrType, "<null-type>", parent, 1, 1) {}
+
+void StructType::setMemberVariable(size_t index, Variable* var) {
+    if (index >= _memberVars.size()) {
+        _memberVars.resize(index + 1);
+    }
+    _memberVars[index] = var;
+}
 
 static Scope* getParent(ObjectType const* type) {
     return type ? const_cast<Scope*>(type->parent()) : nullptr;
@@ -376,3 +383,9 @@ Function const* OverloadSet::find(std::span<Function const* const> set,
     });
     return itr != set.end() ? *itr : nullptr;
 }
+
+PoisonEntity::PoisonEntity(ast::Identifier* ID,
+                           EntityCategory cat,
+                           Scope* parentScope):
+    Entity(EntityType::PoisonEntity, std::string(ID->value()), parentScope, ID),
+    cat(cat) {}

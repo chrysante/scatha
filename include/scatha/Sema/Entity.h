@@ -77,6 +77,9 @@ public:
     /// The name of this entity
     std::string_view name() const { return _names[0]; }
 
+    /// Sets the primary name of this entity to \p name
+    void setName(std::string name) { _names[0] = std::move(name); }
+
     /// List of alternate names that refer to this entity
     std::span<std::string const> alternateNames() const { return _names; }
 
@@ -136,8 +139,6 @@ protected:
         _parents({ parent }),
         _names({ std::move(name) }),
         _astNode(astNode) {}
-
-    void setName(std::string name) { _names[0] = std::move(name); }
 
 private:
     friend class Scope;
@@ -393,7 +394,20 @@ public:
 /// Scope of symbols imported from a library
 class SCATHA_API LibraryScope: public Scope {
 public:
-    explicit LibraryScope(std::string name, Scope* parent);
+    explicit LibraryScope(std::string name,
+                          std::filesystem::path codeFile,
+                          Scope* parent);
+
+    /// \Returns the path of the file that contains the IR for the functions in
+    /// this library
+    std::filesystem::path const& codeFile() const { return _codeFile; }
+
+private:
+    friend class Entity;
+
+    EntityCategory categoryImpl() const { return EntityCategory::Namespace; }
+
+    std::filesystem::path _codeFile;
 };
 
 /// # Function
@@ -1035,11 +1049,9 @@ private:
 /// messages
 class SCATHA_API PoisonEntity: public Entity {
 public:
-    explicit PoisonEntity(std::string name,
+    explicit PoisonEntity(ast::Identifier* ID,
                           EntityCategory cat,
-                          Scope* parentScope):
-        Entity(EntityType::PoisonEntity, std::move(name), parentScope),
-        cat(cat) {}
+                          Scope* parentScope);
 
 private:
     friend class Entity;

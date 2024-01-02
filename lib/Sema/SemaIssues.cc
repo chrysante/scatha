@@ -470,6 +470,9 @@ void BadSymRef::format(std::ostream& str) const {
     case Type:
         str << "Expected a type";
         break;
+    case Namespace:
+        str << "Expected a namespace";
+        break;
     case Indeterminate:
         str << "Internal compiler error (Invalid BadSymRef)";
         break;

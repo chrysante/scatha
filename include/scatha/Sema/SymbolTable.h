@@ -139,7 +139,7 @@ public:
     Scope* addAnonymousScope();
 
     /// Declares a poison entity to the current scope.
-    void declarePoison(std::string name, EntityCategory category);
+    void declarePoison(ast::Identifier* ID, EntityCategory category);
 
     /// Makes scope \p scope the current scope.
     ///
@@ -210,6 +210,12 @@ public:
 
     /// \overload
     std::span<Function const* const> functions() const;
+
+    /// View over all imported native libraries
+    std::span<LibraryScope* const> importedLibs();
+
+    /// \overload
+    std::span<LibraryScope const* const> importedLibs() const;
 
     /// All entities
     std::vector<Entity const*> entities() const;

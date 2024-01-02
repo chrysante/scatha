@@ -1,5 +1,8 @@
 #include "Sema/SymbolTable.h"
 
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -21,6 +24,7 @@
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
+#include "Sema/Serialize.h"
 
 using namespace scatha;
 using namespace sema;
@@ -59,6 +63,9 @@ struct SymbolTable::Impl {
 
     /// List of all functions
     utl::small_vector<Function*> functions;
+
+    /// List of all imported native libraries
+    utl::small_vector<LibraryScope*> importedLibs;
 
     /// List of all builtin functions
     utl::vector<Function*> builtinFunctions;
@@ -170,21 +177,21 @@ FileScope* SymbolTable::declareFileScope(std::string filename) {
     return file;
 }
 
-static std::string toLibName(std::string_view name) {
-    /// TODO: Make portable
-    /// This is the MacOS convention, need to add linux and windows conventions
-    /// for portability
-    return utl::strcat("lib", name, ".dylib");
+static void handleImportError(SymbolTable& sym,
+                              SymbolTable::Impl& impl,
+                              ast::ImportStatement* stmt) {
+    if (auto* ID = dyncast<ast::Identifier*>(stmt->libExpr())) {
+        sym.declarePoison(ID, EntityCategory::Indeterminate);
+    }
+    impl.issue<BadImport>(stmt);
 }
-
 static std::optional<std::filesystem::path> findLibrary(
     std::span<std::filesystem::path const> searchPaths, std::string name) {
-    std::filesystem::path fullPath = toLibName(name);
-    if (std::filesystem::exists(fullPath)) {
-        return fullPath;
+    if (std::filesystem::exists(name)) {
+        return std::filesystem::path(name);
     }
     for (auto& path: searchPaths) {
-        auto fullPath = path / toLibName(name);
+        auto fullPath = path / name;
         if (std::filesystem::exists(fullPath)) {
             return fullPath;
         }
@@ -192,23 +199,85 @@ static std::optional<std::filesystem::path> findLibrary(
     return std::nullopt;
 }
 
-LibraryScope* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
-    if (currentScope().kind() != ScopeKind::Global) {
-        return nullptr;
-    }
-    auto* nameExpr = dyncast<ast::Literal const*>(stmt->libExpr());
-    if (!nameExpr || nameExpr->kind() != ast::LiteralKind::String) {
-        impl->issue<BadImport>(stmt);
-        return nullptr;
-    }
-    std::string name = nameExpr->value<std::string>();
-    auto path = findLibrary(impl->libSearchPaths, name);
+static std::string toForeignLibName(std::string_view name) {
+    /// TODO: Make portable
+    /// This is the MacOS convention, need to add linux and windows conventions
+    /// for portability
+    return utl::strcat("lib", name, ".dylib");
+}
+
+static LibraryScope* importForeignLib(SymbolTable& sym,
+                                      SymbolTable::Impl& impl,
+                                      ast::ImportStatement* stmt,
+                                      std::string name) {
+    auto path = findLibrary(impl.libSearchPaths, toForeignLibName(name));
     if (!path) {
-        impl->issue<BadImport>(stmt);
+        handleImportError(sym, impl, stmt);
         return nullptr;
     }
-    impl->foreignLibraries.push_back(*std::move(path));
+    impl.foreignLibraries.push_back(*std::move(path));
     return nullptr;
+}
+
+static std::filesystem::path replaceExt(std::filesystem::path p,
+                                        std::filesystem::path ext) {
+    p.replace_extension(ext);
+    return p;
+}
+
+static LibraryScope* importNativeLib(SymbolTable& sym,
+                                     SymbolTable::Impl& impl,
+                                     ast::ImportStatement* stmt,
+                                     std::string name) {
+    auto symPath =
+        findLibrary(impl.libSearchPaths, utl::strcat(name, ".scsym"));
+    if (!symPath) {
+        handleImportError(sym, impl, stmt);
+        return nullptr;
+    }
+    std::filesystem::path irPath = replaceExt(*symPath, "scir");
+    if (!std::filesystem::exists(irPath)) {
+        handleImportError(sym, impl, stmt);
+        return nullptr;
+    }
+    auto* libScope =
+        impl.addEntity<LibraryScope>(name, irPath, &sym.currentScope());
+    sym.currentScope().addChild(libScope);
+    impl.importedLibs.push_back(libScope);
+    std::fstream symFile(*symPath);
+    SC_RELASSERT(symFile,
+                 utl::strcat("Failed to open file ",
+                             *symPath,
+                             " even though it exists")
+                     .c_str());
+    sym.withScopeCurrent(libScope, [&] { deserialize(sym, symFile); });
+    return libScope;
+}
+
+LibraryScope* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
+    SC_EXPECT(currentScope().kind() == ScopeKind::Global);
+    if (!stmt->libExpr()) {
+        return nullptr;
+    }
+    // clang-format off
+    return SC_MATCH (*stmt->libExpr()) {
+        [&](ast::Identifier const& ID) {
+            return importNativeLib(*this, *impl, stmt, std::string(ID.value()));
+        },
+        [&](ast::Literal const& lit) {
+            if (lit.kind() != ast::LiteralKind::String) {
+                handleImportError(*this, *impl, stmt);
+            }
+            return importForeignLib(*this,
+                                    *impl,
+                                    stmt,
+                                    lit.value<std::string>());
+        },
+        [&](ast::Expression const&) {
+            handleImportError(*this, *impl, stmt);
+            return nullptr;
+        },
+    }; // clang-format on
 }
 
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
@@ -610,6 +679,14 @@ std::span<Function* const> SymbolTable::functions() { return impl->functions; }
 
 std::span<Function const* const> SymbolTable::functions() const {
     return impl->functions;
+}
+
+std::span<LibraryScope* const> SymbolTable::importedLibs() {
+    return impl->importedLibs;
+}
+
+std::span<LibraryScope const* const> SymbolTable::importedLibs() const {
+    return impl->importedLibs;
 }
 
 std::vector<Entity const*> SymbolTable::entities() const {

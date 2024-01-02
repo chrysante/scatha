@@ -430,11 +430,12 @@ static Scope* findMALookupScope(ast::Identifier& idExpr) {
     }
     auto& accessed = *maParent->accessed();
     switch (accessed.entityCategory()) {
-    case EntityCategory::Value: {
+    case EntityCategory::Value:
         return const_cast<ObjectType*>(accessed.type().get());
-    }
     case EntityCategory::Type:
-        return cast<Scope*>(accessed.entity());
+        [[fallthrough]];
+    case EntityCategory::Namespace:
+        return dyncast<Scope*>(accessed.entity());
     default:
         SC_UNREACHABLE();
     }
@@ -505,6 +506,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
             }
             return &idExpr;
         },
+        [&](LibraryScope& lib) {
+            idExpr.decorateNamespace(&lib);
+            return &idExpr;
+        },
         [&](Generic& generic) {
             idExpr.decorateValue(&generic, LValue);
             return &idExpr;
@@ -559,6 +564,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         }; // clang-format on
     }
     case EntityCategory::Type:
+        [[fallthrough]];
+    case EntityCategory::Namespace:
         // clang-format off
         return SC_MATCH (*ma.member()->entity()) {
             [&](Object&) {
@@ -1011,6 +1018,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         list.decorateType(const_cast<ArrayType*>(arrayType));
         return &list;
     }
+    case EntityCategory::Namespace:
+        // TODO: Push error here
+        SC_UNIMPLEMENTED();
     case EntityCategory::Indeterminate:
         return nullptr;
     }

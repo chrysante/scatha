@@ -1,5 +1,6 @@
 #include "IRGen/IRGen.h"
 
+#include <fstream>
 #include <queue>
 #include <vector>
 
@@ -10,6 +11,7 @@
 #include "Common/DebugInfo.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/IRParser.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
@@ -25,6 +27,30 @@ using namespace scatha;
 using namespace irgen;
 using namespace ranges::views;
 
+static void mapLibSymbols(sema::Scope const& scope,
+                          TypeMap& typeMap,
+                          FunctionMap& functionMap) {
+    for (auto* entity: scope.entities()) {
+        entity->mangledName();
+    }
+    for (auto* child: scope.children()) {
+        mapLibSymbols(*child, typeMap, functionMap);
+    }
+}
+
+static void importLibrary(ir::Context& ctx,
+                          ir::Module& mod,
+                          sema::LibraryScope const& lib,
+                          TypeMap& typeMap,
+                          FunctionMap& functionMap) {
+    std::fstream file(lib.codeFile());
+    SC_RELASSERT(file, "Failed to open file");
+    std::stringstream sstr;
+    sstr << file.rdbuf();
+    ir::parseTo(std::move(sstr).str(), ctx, mod);
+    mapLibSymbols(lib, typeMap, functionMap);
+}
+
 void irgen::generateIR(ir::Context& ctx,
                        ir::Module& mod,
                        ast::ASTNode const&,
@@ -32,10 +58,13 @@ void irgen::generateIR(ir::Context& ctx,
                        sema::AnalysisResult const& analysisResult,
                        Config config) {
     TypeMap typeMap(ctx);
+    FunctionMap functionMap;
+    for (auto* lib: sym.importedLibs()) {
+        importLibrary(ctx, mod, *lib, typeMap, functionMap);
+    }
     for (auto* semaType: analysisResult.structDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap);
     }
-    FunctionMap functionMap;
     auto queue = analysisResult.functions |
                  transform([](auto* def) { return def->function(); }) |
                  filter([](auto* fn) {
