@@ -4,9 +4,8 @@
 /// ## Grammar
 ///
 /// ```
-/// <translation-unit>              ::= {<global-stmt>}*
-/// <global-stmt>                   ::= <import-stmt> | <external-declaration>
-/// <import-stmt>                   ::= "import" <postfix-expression>
+/// <translation-unit>              ::= {<global-statement>}*
+/// <global-statement>              ::= <import-statement> | <external-declaration>
 /// <external-declaration>          ::= [<access-spec>] <function-definition>
 ///                                   | [<access-spec>] <struct-definition>
 /// <function-definition>           ::= "fn" <identifier>
@@ -25,8 +24,10 @@
 ///                                   | <variable-declaration>
 ///                                   | <control-flow-statement>
 ///                                   | <compound-statement>
+///                                   | <import-statement>
 ///                                   | <expression-statement>
 ///                                   | ";"
+/// <import-statement>              ::= "import" <postfix-expression>
 /// <expression-statement>          ::= <commma-expression> ";"
 /// <compound-statement>            ::= "{" {<statement>}* "}"
 /// <control-flow-statement>        ::= <return statement>
@@ -196,7 +197,6 @@ struct Context {
     UniquePtr<ast::SourceFile> parseSourceFile(std::string filename);
     UniquePtr<ast::Statement> parseGlobalStatement();
     UniquePtr<ast::Declaration> parseExternalDeclaration();
-    UniquePtr<ast::ImportStatement> parseImportStatement();
     UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
     UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration(
         size_t index);
@@ -206,6 +206,7 @@ struct Context {
         sema::Mutability mutability,
         std::optional<Token> declarator = std::nullopt);
     UniquePtr<ast::Statement> parseStatement();
+    UniquePtr<ast::ImportStatement> parseImportStatement();
     UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
     UniquePtr<ast::EmptyStatement> parseEmptyStatement();
     UniquePtr<ast::CompoundStatement> parseCompoundStatement();
@@ -681,6 +682,9 @@ UniquePtr<ast::Statement> Context::parseStatement() {
     }
     if (auto block = parseCompoundStatement()) {
         return block;
+    }
+    if (auto importStmt = parseImportStatement()) {
+        return importStmt;
     }
     if (auto expressionStatement = parseExpressionStatement()) {
         return expressionStatement;

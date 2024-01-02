@@ -48,6 +48,7 @@ struct FuncGenContext: FuncGenContextBase {
     void generate(ast::Statement const&);
 
     void generateImpl(ast::Statement const&) { SC_UNREACHABLE(); }
+    void generateImpl(ast::ImportStatement const&);
     void generateImpl(ast::CompoundStatement const&);
     void generateImpl(ast::FunctionDefinition const&);
     void generateParameter(ast::ParameterDeclaration const* paramDecl,
@@ -145,6 +146,10 @@ void irgen::generateAstFunction(Config config, FuncGenParameters params) {
 
 void FuncGenContext::generate(ast::Statement const& node) {
     visit(node, [this](auto const& node) { return generateImpl(node); });
+}
+
+void FuncGenContext::generateImpl(ast::ImportStatement const&) {
+    /// No-op
 }
 
 void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {

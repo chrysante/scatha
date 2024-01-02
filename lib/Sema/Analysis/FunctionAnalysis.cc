@@ -59,6 +59,7 @@ struct FuncBodyContext {
 
     void analyze(ast::ASTNode&);
 
+    void analyzeImpl(ast::ImportStatement&);
     void analyzeImpl(ast::FunctionDefinition&);
     void analyzeMainFunction();
     void analyzeImpl(ast::ParameterDeclaration&);
@@ -121,6 +122,10 @@ void sema::analyzeFunction(AnalysisContext& ctx, ast::FunctionDefinition* def) {
 
 void FuncBodyContext::analyze(ast::ASTNode& node) {
     visit(node, [this](auto& node) { this->analyzeImpl(node); });
+}
+
+void FuncBodyContext::analyzeImpl(ast::ImportStatement& stmt) {
+    sym.importLibrary(&stmt);
 }
 
 void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {

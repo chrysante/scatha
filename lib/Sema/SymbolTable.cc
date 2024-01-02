@@ -278,7 +278,6 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
 }
 
 Library* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
-    SC_EXPECT(currentScope().kind() == ScopeKind::Global);
     if (!stmt->libExpr()) {
         return nullptr;
     }
