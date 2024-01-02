@@ -331,21 +331,18 @@ void SCCCallGraph::validate() const {
             auto* callee = cast<Function const*>(call->function());
             auto& calleeNode = (*this)[callee];
             auto callsites = node.callsites(calleeNode);
-            if (ranges::find(callsites, call) == ranges::end(callsites)) {
-                /// This `call` instruction in the function is not represented
-                /// by the call graph
-                std::abort();
-            }
+            SC_RELASSERT(ranges::find(callsites, call) !=
+                             ranges::end(callsites),
+                         "This `call` instruction in the function is not "
+                         "represented by the call graph");
         }
         /// We check that all edges in the current representation of the call
         /// graph correspond to actual calls
         for (auto* calleeNode: node.callees()) {
             for (auto* call: node.callsites(*calleeNode)) {
-                if (!callInstructions.contains(call)) {
-                    /// This `call` instruction in the call graph is not present
-                    /// in the function
-                    std::abort();
-                }
+                SC_RELASSERT(callInstructions.contains(call),
+                             "This `call` instruction in the call graph is not "
+                             "present in the function");
             }
         }
     }

@@ -1,5 +1,6 @@
 #include "Common/Base.h"
 
+#include <cstdlib>
 #include <iostream>
 
 #include <termfmt/termfmt.h>
@@ -39,3 +40,5 @@ void internal::assertionFailure(char const* file,
               << "    With message: " << tfmt::format(tfmt::Italic, msg) << "\n"
               << formatLocation(file, line, function) << "\n";
 }
+
+void internal::relfail() { std::abort(); }

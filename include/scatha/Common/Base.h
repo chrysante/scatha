@@ -127,6 +127,16 @@
 /// # SC_EXPECT
 #define SC_EXPECT(COND) SC_ASSERT(COND, "Precondition failed")
 
+/// # SC_RELASSERT
+#define SC_RELASSERT(COND, MSG)                                                \
+    ((COND) ? (void)0 :                                                        \
+              (::scatha::internal::assertionFailure(__FILE__,                  \
+                                                    __LINE__,                  \
+                                                    SC_PRETTY_FUNC,            \
+                                                    #COND,                     \
+                                                    MSG),                      \
+               ::scatha::internal::relfail()))
+
 /// Unicode symbols in terminal output
 #if defined(__APPLE__) /// MacOS supports unicode symbols in terminal
 #define SC_UNICODE_TERMINAL 1
@@ -193,6 +203,9 @@ void SCATHA_API assertionFailure(char const* file,
                                  char const* function,
                                  char const* expr,
                                  char const* msg);
+
+/// Calls `std::abort()`
+void SCATHA_API relfail();
 
 } // namespace scatha::internal
 
