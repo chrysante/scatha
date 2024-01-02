@@ -16,6 +16,7 @@ examples/
 !examples/**.scir
 !examples/**.cpp
 volatile/
+stdlib/build/
 
 Makefile
 **/Makefile
