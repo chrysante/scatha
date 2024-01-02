@@ -48,12 +48,15 @@ struct Finder {
 TEST_CASE("Symbol table serialize/deserialize", "[sema]") {
     auto [ast, sym, iss] = produceDecoratedASTAndSymTable(R"(
 struct X {
+    struct Y { var k: int; }
+
     fn foo(n: int) -> double {}
     fn bar(&this, ptr: *unique mut int) {}
+
     var baz: [Y, 2];
-    struct Y { var k: int; }
+    var quux: int;
 }
-struct Y {}
+struct Empty {}
 )");
     REQUIRE(iss.empty());
     std::stringstream sstr;
@@ -61,8 +64,10 @@ struct Y {}
     SymbolTable sym2;
     deserialize(sym2, sstr);
     Finder find{ sym2 };
-    find("X", [&](Scope const* X) {
-        CHECK(cast<Type const*>(X)->size() == 2 * sym2.Int()->size());
+    find("X", [&](Scope const* XScope) {
+        auto* X = dyncast<StructType const*>(XScope);
+        REQUIRE(X);
+        CHECK(X->size() == 3 * sym2.Int()->size());
         auto* foo = dyncast<Function const*>(find("foo"));
         REQUIRE(foo);
         REQUIRE(foo->argumentCount() == 1);
@@ -90,6 +95,9 @@ struct Y {}
             REQUIRE(k);
             CHECK(k->type() == sym2.Int());
         });
+        REQUIRE(X->memberVariables().size() == 2);
+        CHECK(X->memberVariables().front()->name() == "baz");
+        CHECK(X->memberVariables().back()->name() == "quux");
         auto* baz = dyncast<Variable const*>(find("baz"));
         REQUIRE(baz);
         auto* bazType = dyncast<ArrayType const*>(baz->type());
@@ -97,7 +105,7 @@ struct Y {}
         CHECK(bazType->elementType() == Y);
         CHECK(bazType->count() == 2);
     });
-    CHECK(cast<Type const*>(find("Y"))->size() == 1);
+    CHECK(cast<Type const*>(find("Empty"))->size() == 1);
 }
 
 TEST_CASE("Symbol table empty deserialization", "[sema]") {

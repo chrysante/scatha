@@ -312,6 +312,9 @@ static void to_json_impl(json& j, StructType const& type) {
 static void to_json_impl(json& j, Variable const& var) {
     j["type"] = scopedName(var.type());
     j["mutable"] = var.isMut();
+    if (isa<StructType>(var.parent())) {
+        j["index"] = var.index();
+    }
 }
 
 static void to_json(json& j, Entity const& entity) {
@@ -420,7 +423,13 @@ struct DeserializeContext {
                     parseTypeName(sym, child["type"].get<std::string>());
                     using enum Mutability;
                     auto mut = child["mutable"].get<bool>() ? Mutable : Const;
-                    sym.defineVariable(getName(child), type, mut);
+                    auto* var = sym.defineVariable(getName(child), type, mut);
+                    auto indexItr = child.find("index");
+                    if (indexItr != child.end()) {
+                        auto index = indexItr->get<size_t>();
+                        auto* type = dyncast<StructType*>(&sym.currentScope());
+                        type->setMemberVariable(index, var);
+                    }
                 }
             }); // clang-format on
         }
