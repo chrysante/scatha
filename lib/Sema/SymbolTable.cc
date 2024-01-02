@@ -391,11 +391,12 @@ Temporary* SymbolTable::temporary(QualType type) {
     return temp;
 }
 
-void SymbolTable::declarePoison(std::string name, EntityCategory cat) {
+void SymbolTable::declarePoison(ast::Identifier* ID, EntityCategory cat) {
+    auto name = std::string(ID->value());
     if (isKeyword(name) || !currentScope().findEntities(name).empty()) {
         return;
     }
-    auto* poison = impl->addEntity<PoisonEntity>(name, cat, &currentScope());
+    auto* poison = impl->addEntity<PoisonEntity>(ID, cat, &currentScope());
     addToCurrentScope(poison);
 }
 

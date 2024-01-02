@@ -131,7 +131,7 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
         ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
-        sym.declarePoison(std::string(def.name()), EntityCategory::Value);
+        sym.declarePoison(def.nameIdentifier(), EntityCategory::Value);
         return;
     }
     SC_ASSERT(&def == &currentFunction,
@@ -219,7 +219,7 @@ void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     Type const* declaredType =
         currentFunction.function()->argumentType(paramDecl.index());
     if (!declaredType) {
-        sym.declarePoison(std::string(paramDecl.name()), EntityCategory::Value);
+        sym.declarePoison(paramDecl.nameIdentifier(), EntityCategory::Value);
         return;
     }
     auto* param =
@@ -254,7 +254,7 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
 void FuncBodyContext::analyzeImpl(ast::StructDefinition& def) {
     /// Function defintion is only allowed in the global scope, at namespace
     /// scope and structure scope.
-    sym.declarePoison(std::string(def.name()), EntityCategory::Type);
+    sym.declarePoison(def.nameIdentifier(), EntityCategory::Type);
     ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
 }
 
@@ -275,7 +275,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
               "We should not have handled local variables in prepass.");
     /// We need at least one of init expression and type specifier
     if (!varDecl.initExpr() && !varDecl.typeExpr()) {
-        sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
         return;
     }
@@ -285,12 +285,12 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     auto type = declType ? declType : initType;
     /// We cannot deduce the type of the variable
     if (!type) {
-        sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
         return;
     }
     /// The type must be complete, that means no `void` and no dynamic arrays
     if (!type->isComplete()) {
-        sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
         ctx.issue<BadVarDecl>(&varDecl,
                               BadVarDecl::IncompleteType,
                               type,
@@ -299,7 +299,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     /// Reference variables must be initalized explicitly
     if (isa<ReferenceType>(type) && !initExpr) {
-        sym.declarePoison(std::string(varDecl.name()), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ExpectedRefInit);
         return;
     }
