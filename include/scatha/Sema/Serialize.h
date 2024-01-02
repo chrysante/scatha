@@ -3,8 +3,8 @@
 
 #include <iosfwd>
 
-#include "Common/Base.h"
-#include "Sema/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/Sema/Fwd.h>
 
 namespace scatha::sema {
 
