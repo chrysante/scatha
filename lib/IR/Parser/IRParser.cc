@@ -84,6 +84,7 @@ struct ParseContext {
 
     Context& ctx;
     Module& mod;
+    ParseOptions const& options;
     Lexer lexer;
     std::optional<Token> nextToken[2];
     ValueMap globals;
@@ -91,14 +92,20 @@ struct ParseContext {
     PUMap globalPendingUpdates;
     PUMap localPendingUpdates;
 
-    explicit ParseContext(Context& ctx, Module& mod, std::string_view text):
+    explicit ParseContext(Context& ctx,
+                          Module& mod,
+                          std::string_view text,
+                          ParseOptions const& options):
         ctx(ctx),
         mod(mod),
+        options(options),
         lexer(text),
         nextToken{ lexer.next().value(), lexer.next().value() } {}
 
     void parse();
 
+    UniquePtr<Global> parseGlobal();
+    UniquePtr<GlobalVariable> parseGlobalVar();
     UniquePtr<Callable> parseCallable();
     UniquePtr<Parameter> parseParamDecl(size_t index);
     UniquePtr<ForeignFunction> makeForeignFunction(
@@ -111,7 +118,6 @@ struct ParseContext {
     UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructType> parseStructure();
-    UniquePtr<GlobalVariable> parseGlobal();
     void parseTypeDefinition();
 
     /// Try to parse a type, return `nullptr` if no type could be parsed
@@ -372,9 +378,10 @@ Expected<std::pair<Context, Module>, ParseIssue> ir::parse(
 
 Expected<void, ParseIssue> ir::parseTo(std::string_view text,
                                        Context& ctx,
-                                       Module& mod) {
+                                       Module& mod,
+                                       ParseOptions const& options) {
     try {
-        ParseContext parseContext(ctx, mod, text);
+        ParseContext parseContext(ctx, mod, text, options);
         parseContext.parse();
         parseContext.postProcess();
         assertInvariants(ctx, mod);
@@ -393,21 +400,68 @@ Expected<void, ParseIssue> ir::parseTo(std::string_view text,
 
 void ParseContext::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
-        if (auto s = parseStructure()) {
-            mod.addStructure(std::move(s));
+        if (auto type = parseStructure()) {
+            if (options.typeParseCallback) {
+                options.typeParseCallback(*type);
+            }
+            mod.addStructure(std::move(type));
             continue;
         }
-        if (auto c = parseGlobal()) {
-            mod.addGlobal(std::move(c));
-            continue;
-        }
-        if (auto fn = parseCallable()) {
-            mod.addGlobal(std::move(fn));
+        if (auto global = parseGlobal()) {
+            if (options.objectParseCallback) {
+                options.objectParseCallback(*global);
+            }
+            mod.addGlobal(std::move(global));
             continue;
         }
         throw SyntaxIssue(peekToken());
     }
     checkEmpty(globalPendingUpdates);
+}
+
+UniquePtr<Global> ParseContext::parseGlobal() {
+    if (auto var = parseGlobalVar()) {
+        return var;
+    }
+    if (auto fn = parseCallable()) {
+        return fn;
+    }
+    return nullptr;
+}
+
+UniquePtr<GlobalVariable> ParseContext::parseGlobalVar() {
+    Token const name = peekToken();
+    if (name.kind() != TokenKind::GlobalIdentifier) {
+        return nullptr;
+    }
+    eatToken();
+    expectNext(TokenKind::Assign);
+    auto mut = [&] {
+        using enum GlobalVariable::Mutability;
+        auto kind = eatToken();
+        switch (kind.kind()) {
+        case TokenKind::Global:
+            return Mutable;
+        case TokenKind::Constant:
+            return Const;
+        default:
+            reportSemaIssue(kind, SemanticIssue::ExpectedGlobalKind);
+        }
+    }();
+    auto* type = parseType();
+    auto value = parseValue(type);
+    auto global =
+        allocate<GlobalVariable>(ctx, mut, nullptr, std::string(name.id()));
+    addValueLink<Constant>(global.get(),
+                           type,
+                           value,
+                           &GlobalVariable::setInitializer);
+    bool success =
+        globals.insert({ std::string(name.id()), global.get() }).second;
+    if (!success) {
+        reportSemaIssue(name, SemanticIssue::Redeclaration);
+    }
+    return global;
 }
 
 UniquePtr<Callable> ParseContext::parseCallable() {
@@ -928,41 +982,6 @@ UniquePtr<StructType> ParseContext::parseStructure() {
     expect(eatToken(), TokenKind::CloseBrace);
     auto structure = allocate<StructType>(std::string(nameID.id()), members);
     return structure;
-}
-
-UniquePtr<GlobalVariable> ParseContext::parseGlobal() {
-    Token const name = peekToken();
-    if (name.kind() != TokenKind::GlobalIdentifier) {
-        return nullptr;
-    }
-    eatToken();
-    expectNext(TokenKind::Assign);
-    auto mut = [&] {
-        using enum GlobalVariable::Mutability;
-        auto kind = eatToken();
-        switch (kind.kind()) {
-        case TokenKind::Global:
-            return Mutable;
-        case TokenKind::Constant:
-            return Const;
-        default:
-            reportSemaIssue(kind, SemanticIssue::ExpectedGlobalKind);
-        }
-    }();
-    auto* type = parseType();
-    auto value = parseValue(type);
-    auto global =
-        allocate<GlobalVariable>(ctx, mut, nullptr, std::string(name.id()));
-    addValueLink<Constant>(global.get(),
-                           type,
-                           value,
-                           &GlobalVariable::setInitializer);
-    bool success =
-        globals.insert({ std::string(name.id()), global.get() }).second;
-    if (!success) {
-        reportSemaIssue(name, SemanticIssue::Redeclaration);
-    }
-    return global;
 }
 
 Type const* ParseContext::tryParseType() {

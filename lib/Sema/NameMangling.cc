@@ -20,7 +20,7 @@ struct Impl {
         Scope const* scope = entity.parent();
         SC_EXPECT(scope);
         while (true) {
-            if (scope->kind() == ScopeKind::Global) {
+            if (isa<GlobalScope>(scope) || isa<FileScope>(scope)) {
                 break;
             }
             result = utl::strcat(scope->name(), ".", result);

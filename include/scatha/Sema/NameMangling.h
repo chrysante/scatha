@@ -8,7 +8,7 @@
 
 namespace scatha::sema {
 
-///
+/// Options structure for name mangling
 struct NameManglingOptions {
     /// A global name prefix to be added to all entities. This is used to
     /// disambiguate names in libraries

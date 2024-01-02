@@ -6,6 +6,7 @@
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
 #include "IR/Fwd.h"
+#include "IRGen/MetaData.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::irgen {
@@ -13,12 +14,18 @@ namespace scatha::irgen {
 class FunctionMap;
 class TypeMap;
 
+/// Generates the lowering metadata for \p semaType
+StructMetaData makeStructMetadata(sema::StructType const* semaType);
+
 /// Translates \p semaType to an IR structure type
 ir::StructType* generateType(sema::StructType const* semaType,
                              ir::Context& ctx,
                              ir::Module& mod,
                              TypeMap& typeMap,
                              sema::NameMangler const& nameMangler);
+
+/// Generates the lowering metadata for \p semaFn
+FunctionMetaData makeFunctionMetadata(sema::Function const* semaFn);
 
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code

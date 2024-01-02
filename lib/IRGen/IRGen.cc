@@ -6,6 +6,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <utl/hashtable.hpp>
 
 #include "AST/AST.h"
 #include "Common/DebugInfo.h"
@@ -27,16 +28,49 @@ using namespace scatha;
 using namespace irgen;
 using namespace ranges::views;
 
-static void mapLibSymbols(sema::Scope const& scope,
-                          TypeMap& typeMap,
-                          FunctionMap& functionMap,
-                          sema::NameMangler const& nameMangler) {
-    for (auto* entity: scope.entities()) {
-        std::string name = nameMangler(*entity);
-#warning
+/// Helper function to get a hashmap entry or abort
+template <typename T>
+static T* get(utl::hashmap<std::string, T*> const& map, std::string_view name) {
+    auto itr = map.find(name);
+    SC_RELASSERT(itr != map.end(), "Failed to find symbol in library");
+    return itr->second;
+}
+
+/// Performs a DFS over a library scope and adds entries for all structs and
+/// functions to the type map and function map
+static void mapLibSymbols(
+    sema::Scope const& scope,
+    TypeMap& typeMap,
+    FunctionMap& functionMap,
+    sema::NameMangler const& nameMangler,
+    utl::hashmap<std::string, ir::StructType*> const& IRStructMap,
+    utl::hashmap<std::string, ir::Global*> const& IRObjectMap) {
+    auto entities = scope.entities() | ToSmallVector<>;
+    for (auto* entity: entities | Filter<sema::StructType, sema::Function>) {
+        // clang-format off
+        SC_MATCH (*entity) {
+            [&](sema::StructType const& semaType) {
+                std::string name = nameMangler(*entity);
+                typeMap.insert(&semaType,
+                               find(IRStructMap, name),
+                               makeStructMetadata(&semaType));
+            },
+            [&](sema::Function const& semaFn) {
+                std::string name = nameMangler(*entity);
+                functionMap.insert(&semaFn,
+                                   find(IRObjectMap, name),
+                                   makeFunctionMetadata(&semaFn));
+            },
+            [&]([[maybe_unused]] sema::Entity const& entity) {}
+        }; // clang-format on
     }
     for (auto* child: scope.children()) {
-        mapLibSymbols(*child, typeMap, functionMap, nameMangler);
+        mapLibSymbols(*child,
+                      typeMap,
+                      functionMap,
+                      nameMangler,
+                      IRStructMap,
+                      IRObjectMap);
     }
 }
 
@@ -50,8 +84,25 @@ static void importLibrary(ir::Context& ctx,
     SC_RELASSERT(file, "Failed to open file");
     std::stringstream sstr;
     sstr << file.rdbuf();
-    ir::parseTo(std::move(sstr).str(), ctx, mod);
-    mapLibSymbols(lib, typeMap, functionMap, nameMangler);
+    utl::hashmap<std::string, ir::StructType*> IRStructMap;
+    utl::hashmap<std::string, ir::Global*> IRObjectMap;
+    auto typeCallback = [&](ir::StructType& type) {
+        IRStructMap.insert({ std::string(type.name()), &type });
+    };
+    auto objCallback = [&](ir::Global& object) {
+        IRObjectMap.insert({ std::string(object.name()), &object });
+    };
+    ir::parseTo(std::move(sstr).str(),
+                ctx,
+                mod,
+                { .typeParseCallback = typeCallback,
+                  .objectParseCallback = objCallback });
+    mapLibSymbols(lib,
+                  typeMap,
+                  functionMap,
+                  nameMangler,
+                  IRStructMap,
+                  IRObjectMap);
 }
 
 void irgen::generateIR(ir::Context& ctx,

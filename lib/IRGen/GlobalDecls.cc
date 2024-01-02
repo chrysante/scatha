@@ -20,26 +20,34 @@ using namespace irgen;
 using enum ValueLocation;
 using sema::QualType;
 
+StructMetaData irgen::makeStructMetadata(sema::StructType const* semaType) {
+    StructMetaData metadata;
+    size_t irIndex = 0;
+    for (auto* member: semaType->memberVariables()) {
+        metadata.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
+        if (isFatPointer(member->type())) {
+            ++irIndex;
+        }
+    }
+    return metadata;
+}
+
 ir::StructType* irgen::generateType(sema::StructType const* semaType,
                                     ir::Context& ctx,
                                     ir::Module& mod,
                                     TypeMap& typeMap,
                                     sema::NameMangler const& nameMangler) {
     auto structType = allocate<ir::StructType>(nameMangler(*semaType));
-    StructMetaData metaData;
-    size_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
         structType->pushMember(typeMap(member->type()));
-        metaData.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
         /// Pointer to array data members need a second field in the IR struct
         /// to store the size of the array
         if (isFatPointer(member->type())) {
             structType->pushMember(ctx.intType(64));
-            ++irIndex;
         }
     }
     auto* result = structType.get();
-    typeMap.insert(semaType, result, std::move(metaData));
+    typeMap.insert(semaType, result, makeStructMetadata(semaType));
     mod.addStructure(std::move(structType));
     return result;
 }
@@ -80,15 +88,18 @@ static CallingConvention computeCC(sema::Function const* function) {
     return CallingConvention(retval, args);
 }
 
+FunctionMetaData irgen::makeFunctionMetadata(sema::Function const* semaFn) {
+    return { .CC = computeCC(semaFn) };
+}
+
 ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                      ir::Context& ctx,
                                      ir::Module& mod,
                                      TypeMap const& typeMap,
                                      FunctionMap& functionMap,
                                      sema::NameMangler const& nameMangler) {
-    FunctionMetaData metaData;
-    auto CC = computeCC(semaFn);
-    metaData.CC = CC;
+    FunctionMetaData metaData = makeFunctionMetadata(semaFn);
+    auto CC = metaData.CC;
     ir::Type const* irReturnType = nullptr;
     utl::small_vector<ir::Type const*> irArgTypes;
     auto retvalPC = CC.returnValue();
