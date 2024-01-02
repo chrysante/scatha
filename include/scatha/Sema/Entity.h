@@ -83,8 +83,14 @@ public:
     /// List of alternate names that refer to this entity
     std::span<std::string const> alternateNames() const { return _names; }
 
-    /// `true` if this entity is unnamed
+    /// \Returns `true` if this entity is unnamed
     bool isAnonymous() const { return name().empty(); }
+
+    /// \Returns `true` if this entities is a builtin
+    bool isBuiltin() const { return _isBuiltin; }
+
+    ///
+    void setBuiltin(bool value = true) { _isBuiltin = value; }
 
     /// The parent scope of this entity. Not all entities have a parent scope so
     /// this may be null.
@@ -149,6 +155,7 @@ private:
 
     /// Type ID used by `dyncast`
     EntityType _entityType;
+    bool _isBuiltin = false;
     utl::small_vector<Scope*, 2> _parents;
     utl::small_vector<std::string, 1> _names;
     ast::ASTNode* _astNode = nullptr;

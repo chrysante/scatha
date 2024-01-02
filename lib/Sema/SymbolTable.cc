@@ -306,6 +306,7 @@ template <typename T, typename... Args>
 T* SymbolTable::declareBuiltinType(Args&&... args) {
     auto* type =
         impl->addEntity<T>(std::forward<Args>(args)..., &currentScope());
+    type->setBuiltin();
     globalScope().addChild(type);
     return type;
 }
@@ -388,6 +389,7 @@ Function* SymbolTable::declareForeignFunction(std::string name,
     function->setForeign();
     function->setAttribute(attrs);
     if (auto builtinIndex = getBuiltinIndex(name)) {
+        function->setBuiltin();
         if (impl->builtinFunctions.size() <= *builtinIndex) {
             impl->builtinFunctions.resize(*builtinIndex + 1);
         }

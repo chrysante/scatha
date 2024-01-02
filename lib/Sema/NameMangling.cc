@@ -27,7 +27,7 @@ struct Impl {
             scope = scope->parent();
             SC_EXPECT(scope);
         }
-        if (options.globalPrefix) {
+        if (!entity.isBuiltin() && options.globalPrefix) {
             return utl::strcat(*options.globalPrefix, ".", result);
         }
         return result;
