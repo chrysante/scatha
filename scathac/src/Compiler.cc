@@ -3,6 +3,7 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 #include <range/v3/view.hpp>
@@ -13,8 +14,12 @@
 #include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
+#include <scatha/IR/Print.h>
 #include <scatha/IRGen/IRGen.h>
+#include <scatha/Sema/Entity.h>
+#include <scatha/Sema/Serialize.h>
 #include <utl/format_time.hpp>
+#include <utl/strcat.hpp>
 
 #include "Util.h"
 
@@ -36,6 +41,23 @@ struct Timer {
 };
 
 } // namespace
+
+static std::filesystem::path appendExt(std::filesystem::path p,
+                                       std::string_view ext) {
+    p += ".";
+    p += ext;
+    return p;
+}
+
+static std::fstream createFile(std::filesystem::path const& path,
+                               std::ios::openmode flags = {}) {
+    flags |= std::ios::out | std::ios::trunc;
+    std::fstream file(path, flags);
+    if (!file) {
+        throw std::runtime_error(utl::strcat("Failed to create ", path));
+    }
+    return file;
+}
 
 int scatha::compilerMain(CompilerOptions options) {
     if (options.files.empty()) {
@@ -60,6 +82,9 @@ int scatha::compilerMain(CompilerOptions options) {
         return 1;
     }
     auto& [ast, semaSym, analysisResult] = *data;
+    if (options.targetType == TargetType::StaticLibrary) {
+        semaSym.globalScope().setName(options.bindir.stem());
+    }
     printTime("Frontend");
     auto [context, mod] = genIR(*ast,
                                 semaSym,
@@ -72,39 +97,45 @@ int scatha::compilerMain(CompilerOptions options) {
     }
     optimize(context, mod, options);
     printTime("Optimizer");
-    auto asmStream = cg::codegen(mod);
-    printTime("Codegen");
-    auto [program, symbolTable, unresolved] = Asm::assemble(asmStream);
-    printTime("Assembler");
-    auto linkRes = Asm::link(program, semaSym.foreignLibraries(), unresolved);
-    if (!linkRes) {
-        printLinkerError(linkRes.error());
-        return 1;
-    }
-    printTime("Linker");
-    std::string dsym = [&] {
-        if (!options.debug) {
-            return std::string{};
-        }
-        return Asm::generateDebugSymbols(asmStream);
-    }();
-    /// We emit the executable
-    if (options.bindir.empty()) {
-        options.bindir = "out";
-    }
-    writeExecutableFile(options.bindir,
-                        program,
-                        { .executable = !options.binaryOnly });
-    if (options.debug) {
-        auto path = options.bindir;
-        path += ".scdsym";
-        std::fstream file(path, std::ios::out | std::ios::trunc);
-        if (!file) {
-            std::cerr << "Failed to write debug symbols\n";
+
+    switch (options.targetType) {
+    case TargetType::Executable: {
+        auto asmStream = cg::codegen(mod);
+        printTime("Codegen");
+        auto [program, symbolTable, unresolved] = Asm::assemble(asmStream);
+        printTime("Assembler");
+        auto linkRes =
+            Asm::link(program, semaSym.foreignLibraries(), unresolved);
+        if (!linkRes) {
+            printLinkerError(linkRes.error());
             return 1;
         }
-        file << dsym;
+        printTime("Linker");
+        std::string dsym = [&] {
+            if (!options.debug) {
+                return std::string{};
+            }
+            return Asm::generateDebugSymbols(asmStream);
+        }();
+        /// We emit the executable
+        writeExecutableFile(options.bindir,
+                            program,
+                            { .executable = !options.binaryOnly });
+        if (options.debug) {
+            auto file = createFile(appendExt(options.bindir, "scdsym"));
+            file << dsym;
+        }
+        break;
     }
+    case TargetType::StaticLibrary: {
+        auto symfile = createFile(appendExt(options.bindir, "scsym"));
+        sema::serialize(semaSym, symfile);
+        auto irfile = createFile(appendExt(options.bindir, "scir"));
+        ir::print(mod, irfile);
+        break;
+    }
+    }
+
     printTime("Total");
     return 0;
 }

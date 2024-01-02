@@ -1,3 +1,5 @@
+#include <unordered_map>
+
 #include <CLI/CLI11.hpp>
 
 #include "Compiler.h"
@@ -11,6 +13,12 @@ using namespace scatha;
 static void commonOptions(CLI::App* app, OptionsBase& opt) {
     app->add_option("files", opt.files)->check(CLI::ExistingFile);
     app->add_option("-L, --libsearchpaths", opt.libSearchPaths);
+    static std::unordered_map<std::string, TargetType> const targetTypeMap = {
+        { "exec", TargetType::Executable },
+        { "staticlib", TargetType::StaticLibrary },
+    };
+    app->add_option("-T,--target-type", opt.targetType, "Target type")
+        ->transform(CLI::CheckedTransformer(targetTypeMap, CLI::ignore_case));
 }
 
 int main(int argc, char* argv[]) {

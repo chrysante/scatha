@@ -7,6 +7,8 @@
 
 namespace scatha {
 
+enum class TargetType { Executable, StaticLibrary };
+
 /// Common command line options
 struct OptionsBase {
     /// List of all input files
@@ -20,6 +22,9 @@ struct OptionsBase {
 
     /// Custom IR optimization pipeline
     std::string pipeline;
+
+    ///
+    TargetType targetType = TargetType::Executable;
 };
 
 /// Parsing mode
