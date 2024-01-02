@@ -6,7 +6,7 @@ using namespace scatha;
 
 TEST_CASE("FFI library import", "[end-to-end][member-access]") {
     SECTION("foo") {
-        test::checkReturns(42, R"(
+        test::runReturnsTest(42, R"(
 import "ffi-testlib";
 
 extern "C" fn foo(n: int, m: int) -> int;
@@ -16,7 +16,7 @@ fn main() {
 })");
     }
     SECTION("bar") {
-        test::checkPrints("bar(7, 11)\n", R"(
+        test::runPrintsTest("bar(7, 11)\n", R"(
 import "ffi-testlib";
 
 extern "C" fn bar(n: int, m: int) -> void;
@@ -26,7 +26,7 @@ fn main() {
 })");
     }
     SECTION("baz") {
-        test::checkReturns(42, R"(
+        test::runReturnsTest(42, R"(
 import "ffi-testlib";
 
 extern "C" fn baz() -> void;
@@ -36,7 +36,7 @@ fn main() {
 })");
     }
     SECTION("quux") {
-        test::checkPrints("quux\n", R"(
+        test::runPrintsTest("quux\n", R"(
 import "ffi-testlib";
 
 extern "C" fn quux() -> void;

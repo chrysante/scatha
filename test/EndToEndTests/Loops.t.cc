@@ -7,7 +7,7 @@
 using namespace scatha;
 
 TEST_CASE("While loop", "[end-to-end]") {
-    test::checkReturns(24, R"(
+    test::runReturnsTest(24, R"(
 fn fact(n: int) -> int {
     var i = 0;
     var result = 1;
@@ -23,7 +23,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Iterative gcd", "[end-to-end]") {
-    test::checkReturns(7, R"(
+    test::runReturnsTest(7, R"(
 fn gcd(a: mut int, b: mut int) -> int {
     while a != b {
         if a > b {
@@ -40,7 +40,7 @@ fn main() -> int {
     let b = 1253;
     return gcd(a, b);
 })");
-    test::checkReturns(8, R"(
+    test::runReturnsTest(8, R"(
 fn gcd(a: mut int, b: mut int) -> int {
     while b != 0 && true {
         let t = b + 0;
@@ -57,7 +57,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Float pow", "[end-to-end]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn pow(base: mut double, exp: mut int) -> double {
     var result: double = 1.0;
     var i = 0;
@@ -84,7 +84,7 @@ fn main() -> bool {
 }
 
 TEST_CASE("For loop", "[end-to-end]") {
-    test::checkReturns(24, R"(
+    test::runReturnsTest(24, R"(
 fn fact(n: int) -> int {
     var result = 1;
     for i = 1; i <= n; i += 1 {
@@ -98,7 +98,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Float pow / for", "[end-to-end]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn pow(base: mut double, exp: mut int) -> double {
     var result: double = 1.0;
     if (exp < 0) {
@@ -123,7 +123,7 @@ fn main() -> bool {
 }
 
 TEST_CASE("Do/while loop", "[end-to-end]") {
-    test::checkReturns(24, R"(
+    test::runReturnsTest(24, R"(
 fn fact(n: int) -> int {
     var result = 1;
     var i = n;
@@ -139,7 +139,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Nested loops", "[end-to-end]") {
-    test::checkReturns(2 * 3, R"(
+    test::runReturnsTest(2 * 3, R"(
 fn main() -> int {
     var acc = 0;
     for j = 0; j < 2; ++j {
@@ -149,7 +149,7 @@ fn main() -> int {
     }
     return acc;
 })");
-    test::checkReturns(2 * 3 * 4, R"(
+    test::runReturnsTest(2 * 3 * 4, R"(
 fn main() -> int {
     var acc = 0;
     for k = 0; k < 2; k += 1 {
@@ -161,7 +161,7 @@ fn main() -> int {
     }
     return acc;
 })");
-    test::checkReturns(2 * 3 * 4, R"(
+    test::runReturnsTest(2 * 3 * 4, R"(
 fn main() -> int {
     var acc = 0;
     for k = 0; k < 2; k += 1 {
@@ -175,7 +175,7 @@ fn main() -> int {
     }
     return acc;
 })");
-    test::checkReturns(2 * 3 * 4, R"(
+    test::runReturnsTest(2 * 3 * 4, R"(
 fn main() -> int {
     var acc = 0;
     for k = 0; k < 2; k += 1 {
@@ -192,7 +192,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Load of indirectly stored struct", "[end-to-end]") {
-    test::checkReturns(10, R"(
+    test::runReturnsTest(10, R"(
 fn main() -> int {
     var acc = 0;
     for i = 0; i < 5; ++i {
@@ -211,7 +211,7 @@ struct Complex {
 }
 
 TEST_CASE("For loop with nested if/else", "[end-to-end]") {
-    test::checkReturns(48, R"(
+    test::runReturnsTest(48, R"(
     fn g(n: int) -> int {
         var result = 1;
         for i = 1; i <= n; ++i {
@@ -225,7 +225,7 @@ TEST_CASE("For loop with nested if/else", "[end-to-end]") {
 }
 
 TEST_CASE("For loop with break and continue", "[end-to-end]") {
-    test::checkReturns(36, R"(
+    test::runReturnsTest(36, R"(
 fn main() -> int {
     return g(20);
 }
@@ -245,7 +245,7 @@ fn g(n: int) -> int {
 }
 
 TEST_CASE("While loop with break and continue", "[end-to-end]") {
-    test::checkReturns(36, R"(
+    test::runReturnsTest(36, R"(
 fn main() -> int {
     return g(20);
 }
@@ -268,7 +268,7 @@ fn g(n: int) -> int {
 }
 
 TEST_CASE("Fibonacci ('Double recursion')", "[end-to-end]") {
-    test::checkReturns(13, R"(
+    test::runReturnsTest(13, R"(
 fn fib(n: int) -> int {
     if n < 3 {
         return 1;
@@ -281,7 +281,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Funny loop with two predecessors", "[end-to-end]") {
-    test::checkIRReturns(5, R"(
+    test::runIRReturnsTest(5, R"(
 func i64 @main(i1 %0) {
   %entry:
     branch i1 %0, label %if.then, label %if.else

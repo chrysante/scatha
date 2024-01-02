@@ -5,7 +5,7 @@
 using namespace scatha;
 
 TEST_CASE("Static data - 1", "[end-to-end][static-data]") {
-    test::checkIRReturns(7, R"(
+    test::runIRReturnsTest(7, R"(
 @const_data = constant [i32, 3] [i32 1, i32 2, i32 3]
 
 @other_data = global i32 1
@@ -27,7 +27,7 @@ func i32 @main() {
 }
 
 TEST_CASE("Static data - 2", "[end-to-end][static-data]") {
-    test::checkIRReturns(6, R"(
+    test::runIRReturnsTest(6, R"(
 ext func void @__builtin_memcpy(ptr, i64, ptr, i64)
 
 @global.data = constant [i32, 3] [i32 1, i32 2, i32 3]
@@ -57,7 +57,7 @@ func i32 @main() {
 }
 
 TEST_CASE("Static data - 3", "[end-to-end][static-data]") {
-    test::checkIRPrints("Hello World!", R"(
+    test::runIRPrintsTest("Hello World!", R"(
 @my_global = global [i8, 12] "Cello World!" # sic!
 
 ext func void @__builtin_putstr(ptr, i64)
@@ -71,7 +71,7 @@ func i32 @main() {
 }
 
 TEST_CASE("Static data alignment", "[end-to-end][static-data]") {
-    test::checkIRReturns(2, R"(
+    test::runIRReturnsTest(2, R"(
 @a = global i16 1
 @b = global i32 2
 
@@ -84,7 +84,7 @@ func i32 @main() {
 }
 
 TEST_CASE("First vtable", "[end-to-end][static-data]") {
-    test::checkIRPrints("Hello World!", R"(
+    test::runIRPrintsTest("Hello World!", R"(
 @vtable = global [ptr, 3] [ptr @f1, ptr @f2, ptr @f3]
 
 @string = constant [i8, 12] "Hello World!"

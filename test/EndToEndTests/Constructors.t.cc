@@ -47,55 +47,55 @@ fn print(n: int) {
 
 TEST_CASE("Constructors", "[end-to-end][constructors]") {
     SECTION("Variables declarations") {
-        test::checkPrints("+0-0", CommonDefs + R"(
+        test::runPrintsTest("+0-0", CommonDefs + R"(
             fn main() {
                 var x: X;
             })");
-        test::checkPrints("+0-0", CommonDefs + R"(
+        test::runPrintsTest("+0-0", CommonDefs + R"(
             fn main() {
                 var x = X();
             })");
-        test::checkPrints("+0-0", CommonDefs + R"(
+        test::runPrintsTest("+0-0", CommonDefs + R"(
             fn main() {
                 var x = X();
                 return; // We had an issue where explicit returns would
                         // prevent destructors being called
             })");
-        test::checkPrints("+2+3-3-2", CommonDefs + R"(
+        test::runPrintsTest("+2+3-3-2", CommonDefs + R"(
             fn main() {
                 var x = X(2);
                 var y = x;
             })");
-        test::checkPrints("+0+0-0+2-2-0", CommonDefs + R"(
+        test::runPrintsTest("+0+0-0+2-2-0", CommonDefs + R"(
             fn main() {
                 var x = X(X().value);
                 var y = X(2);
             })");
-        test::checkPrints("+1-1+1-1+1-1", CommonDefs + R"(
+        test::runPrintsTest("+1-1+1-1+1-1", CommonDefs + R"(
             fn main() {
                 for i = 1; i <= 3; i += X(1).value {}
             })");
-        test::checkPrints("+3-3+3-3+3-3+3-3", CommonDefs + R"(
+        test::runPrintsTest("+3-3+3-3+3-3+3-3", CommonDefs + R"(
             fn main() {
                 for i = 1; i <= X(3).value; ++i {}
             })");
-        test::checkPrints("+1-4", CommonDefs + R"(
+        test::runPrintsTest("+1-4", CommonDefs + R"(
             fn main() {
                 for x = X(1); x.value <= 3; ++x.value {}
             })");
-        test::checkPrints("+0+1-1-0", CommonDefs + R"(
+        test::runPrintsTest("+0+1-1-0", CommonDefs + R"(
             fn takeCopy(value: X) {}
             fn main() {
                 var x = X();
                 takeCopy(x);
             })");
-        test::checkPrints("+0+1-1-0", CommonDefs + R"(
+        test::runPrintsTest("+0+1-1-0", CommonDefs + R"(
             fn makeCopy(value: &X) -> X { return value; }
             fn main() {
                 var x = X();
                 makeCopy(x);
             })");
-        test::checkPrints("+0-0", CommonDefs + R"(
+        test::runPrintsTest("+0-0", CommonDefs + R"(
             fn takeRef(value: &X) {}
             fn main() {
                 var x = X();
@@ -103,7 +103,7 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
             })");
         /// The caller is responsible for destroying by-value arguments, so the
         /// argument is destroyed after the return value
-        test::checkPrints("+0+1+2-2-1-0", CommonDefs + R"(
+        test::runPrintsTest("+0+1+2-2-1-0", CommonDefs + R"(
             fn passCopy(value: X) -> X { return value; }
             fn main() {
                 var x = X();
@@ -111,35 +111,35 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
             })");
         /// We store the return value in a variable so it is destroyed at scope
         /// exit
-        test::checkPrints("+0+1+2-1-2-0", CommonDefs + R"(
+        test::runPrintsTest("+0+1+2-1-2-0", CommonDefs + R"(
             fn passCopy(value: X) -> X { return value; }
             fn main() {
                 var x = X();
                 let y = passCopy(x);
             })");
-        test::checkPrints("+0+1+2-2-1-0", CommonDefs + R"(
+        test::runPrintsTest("+0+1+2-2-1-0", CommonDefs + R"(
             fn main() {
                 X(X(X()));
             })");
 
         /// Assignments
-        test::checkPrints("+0+0-0+1-0-1", CommonDefs + R"(
+        test::runPrintsTest("+0+0-0+1-0-1", CommonDefs + R"(
             fn main() {
                 var x = X();
                 x = X();
             })");
-        test::checkPrints("+0+1-0+2-1-2", CommonDefs + R"(
+        test::runPrintsTest("+0+1-0+2-1-2", CommonDefs + R"(
             fn main() {
                 var x = X(0);
                 var y = X(1);
                 x = y;
             })");
-        test::checkPrints("+0-0", CommonDefs + R"(
+        test::runPrintsTest("+0-0", CommonDefs + R"(
             fn main() {
                 var x = X();
                 x = x;
             })");
-        test::checkPrints("+0-0", CommonDefs + R"(
+        test::runPrintsTest("+0-0", CommonDefs + R"(
             fn assign(lhs: &mut X, rhs: &X) {
                 lhs = rhs;
             }
@@ -147,7 +147,7 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
                 var x = X();
                 assign(x, x);
             })");
-        test::checkPrints("+0+0-0+1-0-1", CommonDefs + R"(
+        test::runPrintsTest("+0+0-0+1-0-1", CommonDefs + R"(
             fn assign(lhs: &mut X, rhs: &X) {
                 lhs = rhs;
             }
@@ -155,7 +155,7 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
                 var x = X();
                 assign(x, X());
             })");
-        test::checkReturns(8, R"(
+        test::runReturnsTest(8, R"(
         struct X {
             fn new(&mut this) { this.value = 8; }
             fn new(&mut this, rhs: &X) { this.value = rhs.value; }
@@ -172,7 +172,7 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
 }
 
 TEST_CASE("Pseudo constructors", "[end-to-end][constructors]") {
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
 struct X {
     var i: int;
     var f: float;
@@ -189,7 +189,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pseudo constructors zero init", "[end-to-end][constructors]") {
-    test::checkReturns(true, R"(
+    test::runReturnsTest(true, R"(
 struct X {
     var f: double;
     var i: int;
@@ -218,13 +218,13 @@ fn main() {
     var y = x;
     return x.z.n + y.z.n + y.n;
 })";
-    test::checkReturns(7, text);
-    test::checkPrints("+0+1-1-0", text);
+    test::runReturnsTest(7, text);
+    test::runPrintsTest("+0+1-1-0", text);
 }
 
 TEST_CASE("Don't pop destructors in reference variables",
           "[end-to-end][constructors]") {
-    test::checkPrints("+4+7-7-4", CommonDefs + R"(
+    test::runPrintsTest("+4+7-7-4", CommonDefs + R"(
 fn main() {
     var x = X(4);
     var ref: &X = (X(7).value, x);
@@ -232,14 +232,14 @@ fn main() {
 }
 
 TEST_CASE("Array default constructor", "[end-to-end][constructors]") {
-    test::checkPrints("+0+0+0-0-0-0", CommonDefs + R"(
+    test::runPrintsTest("+0+0+0-0-0-0", CommonDefs + R"(
 fn main() {
     var a: [X, 3];
 })");
 }
 
 TEST_CASE("Array copy constructor", "[end-to-end][constructors]") {
-    test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
+    test::runPrintsTest("+0+0+1+1-1-1-0-0", CommonDefs + R"(
 fn main() {
     var a: [X, 2];
     var b = a;
@@ -254,7 +254,7 @@ fn main() {
 /// `[NonTrivial, 2]`
 TEST_CASE("Copy array to function", "[end-to-end][constructors]") {
     return;
-    test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
+    test::runPrintsTest("+0+0+1+1-1-1-0-0", CommonDefs + R"(
 fn f(data: [X, 2]) {}
 fn main() {
     var a: [X, 2];
@@ -263,14 +263,14 @@ fn main() {
 }
 
 TEST_CASE("List expression of non-trivial type", "[end-to-end][constructors]") {
-    test::checkPrints("+1+2-1-2", CommonDefs + R"(
+    test::runPrintsTest("+1+2-1-2", CommonDefs + R"(
 fn main() {
     var data = [X(1), X(2)];
 })");
 }
 
 TEST_CASE("List expression of trivial type", "[end-to-end][constructors]") {
-    test::checkPrints("+1+2", R"(
+    test::runPrintsTest("+1+2", R"(
 struct Y {
     fn new(&mut this, n: int) {
         __builtin_putstr("+");
@@ -283,7 +283,7 @@ fn main() {
 }
 
 TEST_CASE("First move constructor", "[end-to-end][constructors]") {
-    test::checkReturns(10, R"(
+    test::runReturnsTest(10, R"(
 struct UniquePtr {
     fn new(&mut this) { this.ptr = null; }
     fn new(&mut this, ptr: *mut int) { this.ptr = ptr; }
@@ -321,29 +321,29 @@ fn main() {
 
 TEST_CASE("Unique ptr to non-trivial type", "[end-to-end][constructors]") {
     SECTION("Construct and destroy") {
-        test::checkPrints("+0-0", CommonDefs + R"(
+        test::runPrintsTest("+0-0", CommonDefs + R"(
 fn main() {
     var p = unique X();
 })");
-        test::checkPrints("+1-1", CommonDefs + R"(
+        test::runPrintsTest("+1-1", CommonDefs + R"(
 fn main() {
     var p = unique X(1);
 })");
     }
     SECTION("Construct, move destroy") {
-        test::checkPrints("+1-1", CommonDefs + R"(
+        test::runPrintsTest("+1-1", CommonDefs + R"(
 fn main() {
     var p = unique X(1);
     var q = move p;
 })");
     }
     SECTION("Pass to function") {
-        test::checkPrints("+1-1", CommonDefs + R"(
+        test::runPrintsTest("+1-1", CommonDefs + R"(
 fn take(p: *unique X) {}
 fn main() {
     take(unique X(1));
 })");
-        test::checkPrints("+1-1", CommonDefs + R"(
+        test::runPrintsTest("+1-1", CommonDefs + R"(
 fn take(p: *unique X) {}
 fn main() {
     var p = unique X(1);
@@ -351,31 +351,31 @@ fn main() {
 })");
     }
     SECTION("Return from function") {
-        test::checkPrints("+1-1", CommonDefs + R"(
+        test::runPrintsTest("+1-1", CommonDefs + R"(
 fn give() -> *unique X { return unique X(1); }
 fn main() {
     give();
 })");
     }
     SECTION("Array of unique pointers") {
-        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+        test::runPrintsTest("+1+2+3-1-2-3", CommonDefs + R"(
 fn main() {
     let arr = [unique X(1), unique X(2), unique X(3)];
 })");
-        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+        test::runPrintsTest("+1+2+3-1-2-3", CommonDefs + R"(
 fn take(arr: [*unique mut X, 3]) {}
 fn main() {
     var arr = [unique X(1), unique X(2), unique X(3)];
     take(move arr);
 })");
-        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+        test::runPrintsTest("+1+2+3-1-2-3", CommonDefs + R"(
 fn give() {
     return [unique X(1), unique X(2), unique X(3)];
 }
 fn main() {
     give();
 })");
-        test::checkPrints("+1+2+3-1-2-3", CommonDefs + R"(
+        test::runPrintsTest("+1+2+3-1-2-3", CommonDefs + R"(
 fn give() {
     var arr = [unique X(1), unique X(2), unique X(3)];
     return move arr;
@@ -385,7 +385,7 @@ fn main() {
 })");
     }
     SECTION("Construct and destroy type with unique ptr member") {
-        test::checkPrints("+1-1", CommonDefs + R"(
+        test::runPrintsTest("+1-1", CommonDefs + R"(
 struct P {
     fn new(&mut this, n: int) { this.p = unique X(n); }
     fn delete(&mut this) { } // We have an empty user defined destructor to

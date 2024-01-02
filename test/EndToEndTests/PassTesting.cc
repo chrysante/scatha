@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include <catch2/catch_test_macros.hpp>
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
@@ -110,15 +111,7 @@ static uint64_t run(ir::Module const& mod,
                     std::ostream* str,
                     std::span<std::filesystem::path const> foreignLibs) {
     auto [prog, sym] = codegenAndAssemble(mod, str, foreignLibs);
-    /// We need 2 megabytes of stack size for the ackermann function test to run
-    svm::VirtualMachine vm(1 << 10, 1 << 12);
-    vm.loadBinary(prog.data());
-    auto mainPos = std::find_if(sym.begin(), sym.end(), [](auto& p) {
-        return p.first.starts_with("main");
-    });
-    assert(mainPos != sym.end());
-    vm.execute(mainPos->second, {});
-    return vm.getRegister(0);
+    return runProgram(prog, findMain(sym).value());
 }
 
 using ParserType =
@@ -264,30 +257,38 @@ struct Impl {
 
 } // namespace
 
-void test::checkReturns(uint64_t expectedResult,
-                        std::vector<std::string> sourceTexts) {
+void test::runReturnsTest(uint64_t expectedResult,
+                          std::vector<std::string> sourceTexts) {
     test::CoutRerouter rerouter;
     Impl::get().runTest(makeScathaGenerator(std::move(sourceTexts)),
                         expectedResult);
 }
 
-void test::checkIRReturns(uint64_t expectedResult, std::string_view source) {
+void test::runIRReturnsTest(uint64_t expectedResult, std::string_view source) {
     test::CoutRerouter rerouter;
     Impl::get().runTest(makeIRGenerator(source), expectedResult);
 }
 
-void test::checkCompiles(std::string text) {
-    CHECK_NOTHROW([=] {
+bool test::compiles(std::string text) {
+    try {
         auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
         opt::optimize(ctx, mod, 1);
-    }());
+        return true;
+    }
+    catch (...) {
+        return false;
+    }
 }
 
-void test::checkIRCompiles(std::string_view text) {
-    CHECK_NOTHROW([=] {
+bool test::IRCompiles(std::string_view text) {
+    try {
         auto [ctx, mod, libs] = makeIRGenerator(text)();
         opt::optimize(ctx, mod, 1);
-    }());
+        return true;
+    }
+    catch (...) {
+        return false;
+    }
 }
 
 void test::compile(std::string text) {
@@ -295,23 +296,42 @@ void test::compile(std::string text) {
     codegenAndAssemble(mod);
 }
 
-void test::compileAndRun(std::string text) {
+uint64_t test::runProgram(std::span<uint8_t const> program, size_t startpos) {
+    /// We need 2 megabytes of stack size for the ackermann function test to run
+    svm::VirtualMachine vm(1 << 10, 1 << 12);
+    vm.loadBinary(program.data());
+    vm.execute(startpos, {});
+    return vm.getRegister(0);
+}
+
+std::optional<size_t> test::findMain(
+    std::unordered_map<std::string, size_t> const& sym) {
+    auto itr = ranges::find_if(sym, [](auto& p) {
+        return p.first.starts_with("main");
+    });
+    if (itr != sym.end()) {
+        return itr->second;
+    }
+    return std::nullopt;
+}
+
+uint64_t test::compileAndRun(std::string text) {
     auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
-    ::run(mod, nullptr, libs);
+    return ::run(mod, nullptr, libs);
 }
 
-void test::compileAndRunIR(std::string text) {
+uint64_t test::compileAndRunIR(std::string text) {
     auto [ctx, mod, libs] = makeIRGenerator({ std::move(text) })();
-    ::run(mod, nullptr, libs);
+    return ::run(mod, nullptr, libs);
 }
 
-void test::checkPrints(std::string_view printed, std::string source) {
+void test::runPrintsTest(std::string_view printed, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRun(source);
     CHECK(rerouter.str() == printed);
 }
 
-void test::checkIRPrints(std::string_view printed, std::string source) {
+void test::runIRPrintsTest(std::string_view printed, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRunIR(source);
     CHECK(rerouter.str() == printed);

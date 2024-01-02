@@ -5,7 +5,7 @@
 using namespace scatha;
 
 TEST_CASE("Member access", "[end-to-end][member-access]") {
-    test::checkReturns(4, R"(
+    test::runReturnsTest(4, R"(
 struct Y {
     var i: int;
     var x: X;
@@ -23,7 +23,7 @@ struct X {
 }
 
 TEST_CASE("Bool member access", "[end-to-end][member-access]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     var x: X;
     x.d = true;
@@ -39,7 +39,7 @@ struct X {
 }
 
 TEST_CASE("Return structs", "[end-to-end][member-access]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 struct X {
     var b: bool;
     var c: bool;
@@ -62,7 +62,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pass structs as arguments", "[end-to-end][member-access]") {
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
 struct X {
     var b: bool;
     var c: bool;
@@ -86,7 +86,7 @@ fn main() -> int {
 
 TEST_CASE("Pass and return structs and access rvalue",
           "[end-to-end][member-access]") {
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
 fn main() -> int {
     var x: X;
     x.a = 5;
@@ -108,7 +108,7 @@ struct X {
 }
 
 TEST_CASE("More complex structure passing", "[end-to-end][member-access]") {
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
 struct X {
     var b: bool;
     var c: bool;
@@ -146,7 +146,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Member access mem2reg failure", "[end-to-end][member-access]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn modifyX(x: mut X) -> X {
     x.a = 1;
     return x;
@@ -165,7 +165,7 @@ struct X {
 }
 
 TEST_CASE("Array indexing", "[end-to-end][array-access]") {
-    test::checkIRReturns(3, R"(
+    test::runIRReturnsTest(3, R"(
 func i64 @main() {
   %entry:
     %a = alloca i64, i32 5
@@ -189,7 +189,7 @@ func void @set(ptr %data, i32 %index, i64 %value) {
 
 TEST_CASE("Nested array member access",
           "[end-to-end][member-access][array-access]") {
-    test::checkIRReturns(2, R"(
+    test::runIRReturnsTest(2, R"(
 struct @X {
     i64, i64
 }
@@ -213,7 +213,7 @@ func ptr @populate(ptr %a) {
 }
 
 TEST_CASE("Loop over array", "[end-to-end][array-access]") {
-    test::checkIRReturns(55, R"(
+    test::runIRReturnsTest(55, R"(
 func i32 @main() {
   %entry:
     %data = alloca i32, i32 10
@@ -266,7 +266,7 @@ func i32 @sum(ptr %data, i32 %count) {
 
 TEST_CASE("Nested structure access of small types",
           "[end-to-end][array-access]") {
-    test::checkIRReturns(7, R"(
+    test::runIRReturnsTest(7, R"(
 struct @Y { i32 }
 struct @X { @Y, i32 }
 func i32 @main() {

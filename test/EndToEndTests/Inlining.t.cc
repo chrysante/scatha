@@ -9,7 +9,7 @@
 using namespace scatha;
 
 TEST_CASE("Slighty complex call graph", "[end-to-end][inlining]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> int {
     return f(1);
 }
@@ -24,7 +24,7 @@ fn g(n: int) -> int {
 }
 
 TEST_CASE("External function call", "[end-to-end][inlining]") {
-    test::checkReturns(std::bit_cast<uint64_t>(std::sqrt(2.0)), R"(
+    test::runReturnsTest(std::bit_cast<uint64_t>(std::sqrt(2.0)), R"(
 fn main() -> double {
     return sqrt(2.0);
 }

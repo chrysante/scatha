@@ -9,7 +9,7 @@
 using namespace scatha;
 
 TEST_CASE("First entire compilation and execution", "[end-to-end]") {
-    test::checkReturns(3, R"(
+    test::runReturnsTest(3, R"(
 fn main() -> int {
     let a = 1;
     let b = 2;
@@ -18,14 +18,14 @@ fn main() -> int {
 }
 
 TEST_CASE("Simplest non-trivial program", "[end-to-end]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> int {
     return 1;
 })");
 }
 
 TEST_CASE("Addition", "[end-to-end]") {
-    test::checkReturns(3, R"(
+    test::runReturnsTest(3, R"(
 fn main() -> int {
     let a = 1;
     let b = 2;
@@ -34,7 +34,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Subtraction", "[end-to-end]") {
-    test::checkReturns(static_cast<u64>(-1), R"(
+    test::runReturnsTest(static_cast<u64>(-1), R"(
 fn main() -> int {
     let a = 1;
     let b = 2;
@@ -43,7 +43,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Multiplication", "[end-to-end]") {
-    test::checkReturns(static_cast<u64>(-92), R"(
+    test::runReturnsTest(static_cast<u64>(-92), R"(
 fn main() -> int {
     let a = 4;
     let b = -23;
@@ -52,7 +52,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Division", "[end-to-end]") {
-    test::checkReturns(25, R"(
+    test::runReturnsTest(25, R"(
 fn main() -> int {
     let a = 100;
     let b = 4;
@@ -61,7 +61,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Remainder", "[end-to-end]") {
-    test::checkReturns(15, R"(
+    test::runReturnsTest(15, R"(
 fn main() -> int {
     let a = 100;
     let b = 17;
@@ -70,7 +70,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Float Addition", "[end-to-end]") {
-    test::checkReturns(utl::bit_cast<u64>(1.3 + 2.3), R"(
+    test::runReturnsTest(utl::bit_cast<u64>(1.3 + 2.3), R"(
 fn main() -> double {
     let a = 1.3;
     let b = 2.3;
@@ -79,7 +79,7 @@ fn main() -> double {
 }
 
 TEST_CASE("Float Mutliplication", "[end-to-end]") {
-    test::checkReturns(utl::bit_cast<u64>(1.3 * 2.3), R"(
+    test::runReturnsTest(utl::bit_cast<u64>(1.3 * 2.3), R"(
 fn main() -> double {
     let a = 1.3;
     let b = 2.3;
@@ -88,7 +88,7 @@ fn main() -> double {
 }
 
 TEST_CASE("Float Subtraction", "[end-to-end]") {
-    test::checkReturns(utl::bit_cast<u64>(1.4 - 2.3), R"(
+    test::runReturnsTest(utl::bit_cast<u64>(1.4 - 2.3), R"(
 fn main() -> double {
     let a = 1.4;
     let b = 2.3;
@@ -97,7 +97,7 @@ fn main() -> double {
 }
 
 TEST_CASE("Float Division", "[end-to-end]") {
-    test::checkReturns(utl::bit_cast<u64>(1.4 / 2.3), R"(
+    test::runReturnsTest(utl::bit_cast<u64>(1.4 / 2.3), R"(
 fn main() -> double {
     let a = 1.4;
     let b = 2.3;
@@ -106,7 +106,7 @@ fn main() -> double {
 }
 
 TEST_CASE("More complex expressions", "[end-to-end]") {
-    test::checkReturns(10, R"(
+    test::runReturnsTest(10, R"(
 fn main() -> int {
     let a = 12;
     let b = 2;
@@ -116,7 +116,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Even more complex expressions", "[end-to-end]") {
-    test::checkReturns(10, R"(
+    test::runReturnsTest(10, R"(
 fn main() -> int {
     let a = 12;
     var b = 0;
@@ -127,13 +127,13 @@ fn main() -> int {
 }
 
 TEST_CASE("Pre-increment/decrement", "[end-to-end]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> int {
     var i = 0;
     var k = ++i;
     return k;
 })");
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> int {
     var i = 0;
     var k = ++i;
@@ -142,13 +142,13 @@ fn main() -> int {
 }
 
 TEST_CASE("Post-increment/decrement", "[end-to-end]") {
-    test::checkReturns(0, R"(
+    test::runReturnsTest(0, R"(
 fn main() -> int {
     var i = 0;
     var k = i++;
     return k;
 })");
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> int {
     var i = 0;
     var k = i++;
@@ -158,7 +158,7 @@ fn main() -> int {
 
 TEST_CASE("Arithmetic LEA matching", "[end-to-end]") {
     SECTION("1") {
-        test::checkReturns(42, R"(
+        test::runReturnsTest(42, R"(
 //    *    Const
 //     \   /
 // *    Mul
@@ -174,7 +174,7 @@ fn main() {
 })");
     }
     SECTION("2") {
-        test::checkReturns(42, R"(
+        test::runReturnsTest(42, R"(
 //    *    Const
 //     \   /
 //      Mul   Const
@@ -190,7 +190,7 @@ fn main() {
 })");
     }
     SECTION("3") {
-        test::checkReturns(42, R"(
+        test::runReturnsTest(42, R"(
 //    *    Const
 //     \   /
 // *    Mul
@@ -204,7 +204,7 @@ fn main() {
 })");
     }
     SECTION("4") {
-        test::checkReturns(42, R"(
+        test::runReturnsTest(42, R"(
 // *    Const
 //  \   /
 //   Mul    *

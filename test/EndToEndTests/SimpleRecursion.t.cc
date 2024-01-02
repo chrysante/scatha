@@ -10,7 +10,7 @@
 using namespace scatha;
 
 TEST_CASE("Recursive euclidean algorithm", "[end-to-end]") {
-    test::checkReturns(7, R"(
+    test::runReturnsTest(7, R"(
 fn main() -> int {
     let a = 756476;
     let b = 1253;
@@ -25,7 +25,7 @@ fn gcd(a: int, b: int) -> int {
 }
 
 TEST_CASE("Recursive fibonacci", "[end-to-end]") {
-    test::checkReturns(55, R"(
+    test::runReturnsTest(55, R"(
 fn main() -> int {
     let n = 10;
     return fib(n);
@@ -42,7 +42,7 @@ fn fib(n: int) -> int {
 }
 
 TEST_CASE("Recursive factorial and weird variations", "[end-to-end]") {
-    test::checkReturns(3628800, R"(
+    test::runReturnsTest(3628800, R"(
 fn main() -> int {
     return fact(10);
 }
@@ -52,30 +52,30 @@ fn fact(n: int) -> int {
     }
     return n * fact(n - 1);
 })");
-    test::checkReturns(9223372036854775807ull, R"(
+    test::runReturnsTest(9223372036854775807ull, R"(
 fn main() -> int { return fac(6); }
 fn fac(n: int) -> int {
     return n <= 1 ? 1 : n | fac((n << 2) + 1);
 })");
-    test::checkReturns(2147483647, R"(
+    test::runReturnsTest(2147483647, R"(
 fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n | fac((n >> 1) + 1);
 }
 fn pass(n: int) -> int { return n; }
 )");
-    test::checkReturns(1688818043, R"(
+    test::runReturnsTest(1688818043, R"(
 fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n ^ fac((n >> 1) + 1);
 })");
-    test::checkReturns(0, R"(
+    test::runReturnsTest(0, R"(
 fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n & fac((n >> 1) + 1);
 })");
-    test::checkIRReturns(120,
-                         R"(
+    test::runIRReturnsTest(120,
+                           R"(
 func i64 @f(i64) {
   %entry:
     %cond = scmp leq i64 %0, i64 1
@@ -99,7 +99,7 @@ func i64 @main() {
 }
 
 TEST_CASE("Recursive pow", "[end-to-end]") {
-    test::checkReturns(243, R"(
+    test::runReturnsTest(243, R"(
 fn main() -> int {
      return pow(3, 5);
 }
@@ -118,7 +118,7 @@ fn pow(base: int, exponent: int) -> int {
 }
 
 TEST_CASE("Direct tail recursion", "[end-to-end]") {
-    test::checkIRReturns(1, R"(
+    test::runIRReturnsTest(1, R"(
 struct @X {
   i64,
   i64
@@ -165,7 +165,7 @@ func i64 @get_value(ptr %0, ptr %1, i1 %2) {
 }
 
 TEST_CASE("Mutual recursion", "[end-to-end]") {
-    test::checkReturns(56, R"(
+    test::runReturnsTest(56, R"(
 fn f(n: int) -> int {
     return n * 2;
 }
@@ -184,7 +184,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Ackermann function", "[end-to-end]") {
-    test::checkReturns(125, R"(
+    test::runReturnsTest(125, R"(
 fn ack(n: int, m: int) -> int {
     if n == 0 {
         return m + 1;
@@ -200,7 +200,7 @@ fn main() -> int {
 }
 
 TEST_CASE("One level of recursion", "[end-to-end]") {
-    test::checkReturns(3, R"(
+    test::runReturnsTest(3, R"(
 struct Expr {
     var id: int;
     var lhs: int;
@@ -230,7 +230,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Swap", "[end-to-end]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> bool {
     var a = 1;
     var b = 2;
@@ -247,7 +247,7 @@ fn swap(a: &mut int, b: &mut int) {
 }
 
 TEST_CASE("Sort", "[end-to-end]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> bool {
     var data = [
         15,   50,   82,   57,    7,   42,   86,   23,   60,   51,
@@ -313,7 +313,7 @@ fn isSorted(data: &[int]) -> bool {
 }
 
 TEST_CASE("Sort tree", "[end-to-end]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 struct Node {
     fn new(&mut this, n: int) {
         this.value = n;

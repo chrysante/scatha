@@ -5,7 +5,7 @@
 using namespace scatha;
 
 TEST_CASE("First reference parameter", "[end-to-end][references]") {
-    test::checkReturns(4, R"(
+    test::runReturnsTest(4, R"(
 fn main() -> int {
     var i = 3;
     f(i);
@@ -17,7 +17,7 @@ fn f(x: &mut int)  {
 }
 
 TEST_CASE("Rebind pointer", "[end-to-end][references]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     var i = 0;
     var j = 0;
@@ -30,7 +30,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pass reference through function", "[end-to-end][references]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> int {
     var i = 0;
     var j: &mut int = f(i);
@@ -44,7 +44,7 @@ fn f(x: &mut int)  -> &mut int {
 
 TEST_CASE("Pass array reference through function",
           "[end-to-end][references][arrays]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn pass(data: &[int]) -> &[int] { return data; }
 fn main() -> int {
     let data = [1, 2, 3];
@@ -54,7 +54,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pointer data member in struct", "[end-to-end][references]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 struct X {
     var i: *mut int;
 }
@@ -71,7 +71,7 @@ fn f(x: X)  {
 }
 
 TEST_CASE("First array", "[end-to-end][arrays]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     var arr: [int, 4] = [1, 2, 3, 4];
     return arr[1];
@@ -79,7 +79,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Reference to array element", "[end-to-end][arrays]") {
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
 fn main() -> int {
     var arr = [1, 2, 3, 4];
     var r: &mut int = arr[1];
@@ -89,7 +89,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Use array elements", "[end-to-end][arrays]") {
-    test::checkReturns(24, R"(
+    test::runReturnsTest(24, R"(
 fn main() -> int {
     var arr = [1, 2, 3, 4];
     return (arr[0] + arr[1] + arr[2]) * arr[3];
@@ -97,7 +97,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Sum array with for loop", "[end-to-end][arrays]") {
-    test::checkReturns(45, R"(
+    test::runReturnsTest(45, R"(
 fn main() -> int {
     let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     var sum  = 0;
@@ -109,7 +109,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Array reference passing", "[end-to-end][arrays][references]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     let x = [0, 1, 2, 3, 4];
     return getElem(x);
@@ -118,7 +118,7 @@ fn getElem(x: &[int]) -> int {
     return x[2];
 })");
 
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     let x = [0, 1, 2, 3, 4];
     return getElem(x);
@@ -128,7 +128,7 @@ fn getElem(x: &[int]) -> &int {
     return x[2];
 })");
 
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     let x = [0, 1, 2, 3, 4];
     let y = &x;
@@ -141,13 +141,13 @@ fn getElem(x: &[int]) -> &int {
 }
 
 TEST_CASE("Array `.count` member", "[end-to-end][arrays]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     let x = [1, 2];
     return x.count;
 })");
 
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
 fn main() -> int {
     let x = [0, 1, 2, 3, 4];
     return getCount(x);
@@ -156,7 +156,7 @@ fn getCount(x: &[int]) -> int {
     return x.count;
 })");
 
-    test::checkReturns(7, R"(
+    test::runReturnsTest(7, R"(
 fn main() -> int {
     let x = [-3, 1, 2, 3, 4];
     return sum(x);
@@ -171,7 +171,7 @@ fn sum(x: &[int]) -> int {
 }
 
 TEST_CASE("Reassign array pointer", "[end-to-end][arrays][references]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     let a = [1, 2, 3];
     var b: *[int] = &a;
@@ -182,7 +182,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Array pointer struct member", "[end-to-end][arrays][references]") {
-    test::checkReturns(4, R"(
+    test::runReturnsTest(4, R"(
 struct X {
     fn sum(&this) -> int {
         return (*this.r)[0] + (*this.r)[1];
@@ -200,7 +200,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Copy array", "[end-to-end][arrays]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn main() -> int {
     let a = [1, 2];
     let b = a;
@@ -210,7 +210,7 @@ fn main() -> int {
 
 TEST_CASE("Array of heterogeneous but compatible types",
           "[end-to-end][arrays]") {
-    test::checkReturns(6, R"(
+    test::runReturnsTest(6, R"(
 fn main() -> int {
     let a = [u32(1), 2, s8(3)];
     var sum = 0;
@@ -222,7 +222,7 @@ fn main() -> int {
 }
 
 TEST_CASE("First string", "[end-to-end][arrays]") {
-    test::checkPrints("Hello World!\n", R"(
+    test::runPrintsTest("Hello World!\n", R"(
 fn print(text: &str) {
     __builtin_putstr(text);
     __builtin_putchar('\n');
@@ -233,19 +233,19 @@ fn main() {
 }
 
 TEST_CASE("Array slicing", "[end-to-end][arrays][references]") {
-    test::checkReturns(3, R"(
+    test::runReturnsTest(3, R"(
 fn main() -> int {
     let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     return data[2:5].count;
 })");
 
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() -> int {
     let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     return data[2:5][0];
 })");
 
-    test::checkReturns(15, R"(
+    test::runReturnsTest(15, R"(
 fn sum(data: &[int]) -> int {
     var result = 0;
     for i = 0; i < data.count; ++i {
@@ -260,7 +260,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Return array by value", "[end-to-end][arrays]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn makeArray() -> [int, 10] {
     return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 }
@@ -270,7 +270,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Return small array by value", "[end-to-end][arrays]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn makeArray() -> [int, 2] {
     return [1, 2];
 }
@@ -280,7 +280,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pass array by value", "[end-to-end][arrays]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn first(data: [int, 10]) -> int {
     return data[0];
 }
@@ -291,7 +291,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pass small array by value", "[end-to-end][arrays]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn first(data: [int, 2]) -> int {
     return data[0];
 }
@@ -302,7 +302,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Dynamic allocation", "[end-to-end][arrays]") {
-    test::checkReturns(45, R"(
+    test::runReturnsTest(45, R"(
 fn main() -> int {
     var data = allocateInts(10);
     for i = 0; i < (*data).count; ++i {
@@ -326,7 +326,7 @@ fn deallocateInts(data: *mut [int]) {
 }
 
 TEST_CASE("References to static arrays", "[end-to-end][arrays]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn pass(data: &[int, 2]) -> &[int, 2] {
     return data;
 }
@@ -336,7 +336,7 @@ fn main() -> int {
     return ref[0];
 })");
     /// Here we convert the static array reference to dynamic
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn pass(data: &[int, 2]) -> &[int, 2] {
     return data;
 }
@@ -348,7 +348,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Array of pointers", "[end-to-end][arrays][pointers]") {
-    test::checkReturns(10, R"(
+    test::runReturnsTest(10, R"(
 fn main() {
     var data: [int, 5];
     var ptrs: [*mut int, data.count];
@@ -367,7 +367,7 @@ fn main() {
 }
 
 TEST_CASE("Array of array pointers", "[end-to-end][arrays][pointers]") {
-    test::checkReturns(6, R"(
+    test::runReturnsTest(6, R"(
 fn main() {
     var  a: [int, 1];
     var  b: [int, 2];
@@ -383,7 +383,7 @@ fn main() {
 
 TEST_CASE("Array of array pointers with front/back",
           "[end-to-end][arrays][pointers]") {
-    test::checkReturns(7, R"(
+    test::runReturnsTest(7, R"(
 fn f(args: &[*str]) {
     return args.front.count + args.back.count;
 }
@@ -395,22 +395,22 @@ fn main() {
 }
 
 TEST_CASE("Compare pointers", "[end-to-end][pointers]") {
-    test::checkReturns(false, R"(
+    test::runReturnsTest(false, R"(
 fn main() {
     var a = 0;
     return &a == null;
 })");
-    test::checkReturns(true, R"(
+    test::runReturnsTest(true, R"(
 fn main() {
     var a: *int = null;
     return a == null;
 })");
-    test::checkReturns(true, R"(
+    test::runReturnsTest(true, R"(
 fn main() {
     var a = 0;
     return &a == &a;
 })");
-    test::checkReturns(false, R"(
+    test::runReturnsTest(false, R"(
 fn main() {
     var a = 0;
     var b = 0;
@@ -419,7 +419,7 @@ fn main() {
 }
 
 TEST_CASE("Conditional expr with array pointers", "[end-to-end][pointers]") {
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn cond() { return false; }
 fn main() {
     let data = [1, 2, 3];
@@ -433,7 +433,7 @@ fn main() {
 /// This test case is testing a code path in `Resolver::computeGEP()` in MIR
 /// generation
 TEST_CASE("Large constant array index", "[end-to-end][pointers]") {
-    test::checkReturns(42, R"(
+    test::runReturnsTest(42, R"(
 fn main() {
     var data: [int, 100];
     data[99] = 42;
@@ -442,7 +442,7 @@ fn main() {
 }
 
 TEST_CASE("Array size in conditional expression", "[end-to-end][arrays]") {
-    test::checkReturns(3, R"(
+    test::runReturnsTest(3, R"(
 fn main() {
     let cond = true;
     let a = [1, 2, 3];

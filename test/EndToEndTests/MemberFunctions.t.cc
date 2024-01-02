@@ -5,7 +5,7 @@
 using namespace scatha;
 
 TEST_CASE("First member function", "[end-to-end][member-functions]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 struct X {
     fn setValue(&mut this, value: int) {
         this.value = value;
@@ -25,7 +25,7 @@ fn main() -> int {
 
 TEST_CASE("Uniform call syntax and property calls",
           "[end-to-end][member-functions]") {
-    test::checkReturns(42, R"(
+    test::runReturnsTest(42, R"(
 struct X {
     fn getValue(&this) -> int {
          return this.value;

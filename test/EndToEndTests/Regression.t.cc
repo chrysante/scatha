@@ -8,7 +8,7 @@ using namespace scatha;
 
 TEST_CASE("CodeGen DCE wrongly eliminates function calls with side effects",
           "[end-to-end][regression]") {
-    test::checkReturns(10, R"(
+    test::runReturnsTest(10, R"(
 fn main() -> int {
     var i = 0;
     modifyWithIgnoredReturnValue(i);
@@ -21,7 +21,7 @@ fn modifyWithIgnoredReturnValue(n: &mut int) -> int {
 }
 
 TEST_CASE("Assignment error", "[end-to-end][regression][arrays]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn f(a: &mut [int], b: &[int]) -> void {
     a[0] = b[0];
 }
@@ -38,7 +38,7 @@ TEST_CASE("Weird bug in simplifyCFG", "[end-to-end][regression]") {
     /// the worklist, so the algorithm would read deallocated memory down the
     /// road. Unfortunately I was not able to simplify the code sample any
     /// further while still reproducing the issue.
-    test::checkCompiles(R"(
+    CHECK(test::compiles(R"(
 fn main() {
     for i = 1; i < 13; ++i {
         if i != 1 {
@@ -59,11 +59,11 @@ fn print(n: int) {
 }
 fn print(msg: &str) {
     __builtin_putstr(msg);
-})");
+})"));
 }
 
 TEST_CASE("Bug in LoopRotate - 1", "[end-to-end][regression]") {
-    test::checkReturns(3, R"(
+    test::runReturnsTest(3, R"(
 fn main() -> int {
     var n = 0;
     for i = 0; i < 10; ++i {
@@ -77,7 +77,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Bug in LoopRotate - 2", "[end-to-end][regression]") {
-    test::checkReturns(4, R"(
+    test::runReturnsTest(4, R"(
 fn main() -> int {
     var sum = 0;
     for i = 0; i < 2; ++i {
@@ -90,7 +90,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Bug in simplifycfg", "[end-to-end][regression]") {
-    test::checkReturns(10, R"(
+    test::runReturnsTest(10, R"(
 fn main() -> int {
     var n = undefInt();
     var cond = undefBool();
@@ -106,7 +106,7 @@ fn undefBool() -> bool {}
 }
 
 TEST_CASE("Size of array data member", "[end-to-end][regression]") {
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
 struct X {
     var data: [int, 5];
 }
@@ -117,7 +117,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pass large array by value", "[end-to-end][regression]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 fn first(data: [int, 10]) -> int {
     return data[0];
 }
@@ -128,7 +128,7 @@ fn main() -> int {
 }
 
 TEST_CASE("MemToReg bug") {
-    test::checkIRReturns(42, R"(
+    test::runIRReturnsTest(42, R"(
 func i64 @main() {
   %entry:
     %0 = insert_value [i64, 2] undef, i64 42, 0
@@ -151,7 +151,7 @@ TEST_CASE("Bug in SSA destruction / register allocation") {
     /// the computation of the argument to the second call.
     /// This results in wrongfully returning 7 instead of 6, because both calls
     /// to `f` end up with arguments 0 and 3
-    test::checkIRReturns(6, R"(
+    test::runIRReturnsTest(6, R"(
 func i64 @main-s64(i64 %0) {
   %entry:
     %call.result = call i64 @g-s64, i64 1
@@ -175,7 +175,7 @@ func i64 @f-s64-s64(i64 %0, i64 %1) {
 
 TEST_CASE("SROA being too aggressive with phi'd pointers speculatively "
           "exectuting stores") {
-    test::checkReturns(3, R"(
+    test::runReturnsTest(3, R"(
 fn main() -> int {
     var cond = true;
     var a = 0;
@@ -192,7 +192,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Invalid code generation for early declared compare operations") {
-    test::checkIRReturns(3, R"(
+    test::runIRReturnsTest(3, R"(
 func i64 @main() {
 %entry:
     %0 = scmp eq i32 0, i32 1
@@ -207,7 +207,7 @@ func i64 @main() {
 TEST_CASE("Struct member of array type") {
     // FIXME: This fails badly
     return;
-    test::checkReturns(4, R"(
+    test::runReturnsTest(4, R"(
 struct X {
     var data: [s32, 3];
 }
@@ -220,7 +220,7 @@ fn main() -> int {
 
 TEST_CASE("Invalid array size calculation when reinterpreting array pointers "
           "and references") {
-    test::checkReturns(12, R"(
+    test::runReturnsTest(12, R"(
 fn main() -> int {
     let data = [s32(1), s32(2), s32(3)];
     return reinterpret<&[byte]>(data).count;
@@ -228,7 +228,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Return non-trivial type by reference") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 struct X {
     fn new(&mut this, n: int) { this.value = n; }
     fn new(&mut this, rhs: &X) {}
@@ -242,7 +242,7 @@ fn main() {
 }
 
 TEST_CASE("Codegen bug with chained consversions of constants") {
-    test::checkIRReturns(2, R"(
+    test::runIRReturnsTest(2, R"(
 func i64 @main() {
     %entry:
     %trunc = trunc i64 1 to i8
@@ -253,25 +253,25 @@ func i64 @main() {
 }
 
 TEST_CASE("Codegen bug with extract_value from undef") {
-    test::checkIRCompiles(R"(
+    CHECK(test::IRCompiles(R"(
 func i32 @main() {
   %entry:
     %res = extract_value { i32, i64 } undef, 0
     return i32 %res
-})");
+})"));
 }
 
 TEST_CASE("Codegen bug with gep from undef") {
-    test::checkCompiles(R"(
+    CHECK(test::compiles(R"(
 struct X { var value: int; }
 fn getRef() -> &mut X {}
 fn main() {
     return getRef().value;
-})");
+})"));
 }
 
 TEST_CASE("Bug in InstCombine", "[regression]") {
-    test::checkIRReturns(0, R"(
+    test::runIRReturnsTest(0, R"(
 func i64 @main() {
   %entry:
     %res = srem i64 10, i64 10
@@ -282,7 +282,7 @@ func i64 @main() {
 /// SROA used to crash on this program because slice points where computed
 /// incorrectly
 TEST_CASE("Bug in SROA", "[regression]") {
-    test::checkReturns(1, R"(
+    test::runReturnsTest(1, R"(
 struct Y {
     var a: int;
     var b: int;
@@ -299,7 +299,7 @@ fn main() {
 }
 
 TEST_CASE("Fat pointer in construct expr", "[regression]") {
-    test::checkReturns(5, R"(
+    test::runReturnsTest(5, R"(
     struct S {
         var text: *str;
     }
