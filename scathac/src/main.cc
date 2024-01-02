@@ -19,6 +19,7 @@ static void commonOptions(CLI::App* app, OptionsBase& opt) {
     };
     app->add_option("-T,--target-type", opt.targetType, "Target type")
         ->transform(CLI::CheckedTransformer(targetTypeMap, CLI::ignore_case));
+    app->add_option("-O,--output", opt.outputFile, "Directory to place binary");
 }
 
 int main(int argc, char* argv[]) {
@@ -28,12 +29,11 @@ int main(int argc, char* argv[]) {
     // clang-format off
     CompilerOptions compilerOptions{};
     commonOptions(&compiler, compilerOptions);
-    compiler.add_flag("-o,--optimize", compilerOptions.optimize, "Optimize the program");
+    compiler.add_flag_callback("-o,--optimize", [&]{ compilerOptions.optLevel = 1; }, "Optimize the program");
     compiler.add_flag("-d,--debug", compilerOptions.debug, "Generate debug symbols");
     compiler.add_flag("-t,--time", compilerOptions.time, "Measure compilation time");
     compiler.add_flag("-b, --binary-only", compilerOptions.binaryOnly,
                   "Emit .sbin file. Otherwise the compiler emits an executable that can be run directly using a shell script hack");
-    compiler.add_option("--out-dir", compilerOptions.bindir, "Directory to place binary");
     
     CLI::App* inspect = compiler.add_subcommand("inspect", "Tool to visualize the state of the compilation pipeline");
     InspectOptions inspectOptions{};
@@ -45,7 +45,6 @@ int main(int argc, char* argv[]) {
     inspect->add_flag("--isel", inspectOptions.isel, "Run the experimental ISel pipeline");
     inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
     inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
-    inspect->add_option("--out", inspectOptions.out, "Emit executable file");
     
     CLI::App* graph = compiler.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
     GraphOptions graphOptions{};

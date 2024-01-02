@@ -15,7 +15,6 @@ struct InspectOptions: OptionsBase {
     bool codegen;
     bool isel; // Experimental
     bool assembly;
-    std::optional<std::filesystem::path> out;
 };
 
 /// Main function of the `inspect` tool

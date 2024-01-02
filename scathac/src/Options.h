@@ -2,12 +2,14 @@
 #define SCATHAC_OPTIONS_H_
 
 #include <filesystem>
+#include <span>
 #include <string>
 #include <vector>
 
-namespace scatha {
+#include <scatha/Common/SourceFile.h>
+#include <scatha/Invocation/CompilerInvocation.h>
 
-enum class TargetType { Executable, StaticLibrary };
+namespace scatha {
 
 /// Common command line options
 struct OptionsBase {
@@ -17,8 +19,11 @@ struct OptionsBase {
     /// List of library search paths
     std::vector<std::filesystem::path> libSearchPaths;
 
+    /// Output file stem
+    std::filesystem::path outputFile;
+
     /// Optimization level
-    int optLevel = -1;
+    int optLevel = 0;
 
     /// Custom IR optimization pipeline
     std::string pipeline;
@@ -32,7 +37,11 @@ enum class ParseMode { Scatha, IR };
 
 /// \Returns the mode based on the extension of the input files. Only used for
 /// debug tools
-ParseMode getMode(OptionsBase const& options);
+FrontendType deduceFrontend(std::span<std::filesystem::path const> files);
+
+///
+std::vector<SourceFile> loadSourceFiles(
+    std::span<std::filesystem::path const> files);
 
 } // namespace scatha
 

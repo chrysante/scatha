@@ -5,9 +5,12 @@
 #include <functional>
 #include <iosfwd>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <scatha/AST/Fwd.h>
+#include <scatha/Assembly/Fwd.h>
+#include <scatha/CodeGen/Logger.h>
 #include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Fwd.h>
 #include <scatha/Sema/Fwd.h>
@@ -38,7 +41,7 @@ struct CompilerCallbacks {
     std::function<void(ir::Context&, ir::Module&)> optCallback;
 
     /// This function will be invoked after code generation
-    std::function<void()> codegenCallback;
+    std::function<void(Asm::AssemblyStream&)> codegenCallback;
 
     /// This function will be invoked after the assembler has run
     std::function<void()> asmCallback;
@@ -48,7 +51,7 @@ struct CompilerCallbacks {
 };
 
 /// Represents one invocation of the compiler
-class CompilerInvocation {
+class SCATHA_API CompilerInvocation {
 public:
     ///
     CompilerInvocation();
@@ -64,7 +67,7 @@ public:
 
     /// Sets the target type to \p type
     /// Defaults to `TargetType::Executable`
-    TargetType setTargetType(TargetType type) { targetType = type; }
+    void setTargetType(TargetType type) { targetType = type; }
 
     /// Sets the frontend to \p frontend
     /// Defaults to `FrontendType::Scatha`
@@ -87,6 +90,10 @@ public:
         optPipeline = std::move(pipeline);
     }
 
+    /// Sets the optimization level to \p level
+    /// Defaults to an instance of `cg::NullLogger`
+    void setCodegenLogger(cg::Logger& logger) { codegenLogger = &logger; }
+
     /// Tell the compiler whether debug info files shall be generated
     void generateDebugInfo(bool value = true) { genDebugInfo = value; }
 
@@ -104,12 +111,15 @@ public:
 private:
     std::ostream& err() { return *errStream; }
 
+    bool guardFileEmission(std::string_view kind);
+
     std::vector<SourceFile> sources;
     std::vector<std::filesystem::path> libSearchPaths;
     CompilerCallbacks callbacks;
     std::filesystem::path outputFile = "out";
     std::string optPipeline = {};
     std::ostream* errStream;
+    cg::Logger* codegenLogger = nullptr;
     int optLevel = 0;
     TargetType targetType = TargetType::Executable;
     FrontendType frontend = FrontendType::Scatha;

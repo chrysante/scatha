@@ -25,8 +25,8 @@ static std::fstream openFile(std::filesystem::path path) {
 int scatha::graphMain(GraphOptions options) {
     ir::Context ctx;
     ir::Module mod;
-    switch (getMode(options)) {
-    case ParseMode::Scatha: {
+    switch (deduceFrontend(options.files)) {
+    case FrontendType::Scatha: {
         auto data = parseScatha(options);
         if (!data) {
             return 1;
@@ -37,7 +37,7 @@ int scatha::graphMain(GraphOptions options) {
                                    { .generateDebugSymbols = false });
         break;
     }
-    case ParseMode::IR:
+    case FrontendType::IR:
         std::tie(ctx, mod) = parseIR(options);
         break;
     }

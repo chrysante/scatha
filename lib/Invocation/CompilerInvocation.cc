@@ -74,7 +74,12 @@ static std::filesystem::path appendExt(std::filesystem::path p,
 
 static std::fstream createFile(std::filesystem::path const& path,
                                std::ios::openmode flags = {}) {
-    std::filesystem::create_directories(path.parent_path());
+
+    if (auto parent = path.parent_path();
+        !parent.empty() && !std::filesystem::exists(parent))
+    {
+        std::filesystem::create_directories(parent);
+    }
     flags |= std::ios::out | std::ios::trunc;
     std::fstream file(path, flags);
     if (!file) {
@@ -176,8 +181,12 @@ int CompilerInvocation::run() {
     case TargetType::Executable:
         [[fallthrough]];
     case TargetType::BinaryOnly: {
-        auto asmStream = cg::codegen(mod);
-        tryInvoke(callbacks.codegenCallback);
+        cg::NullLogger logger;
+        if (!codegenLogger) {
+            codegenLogger = &logger;
+        }
+        auto asmStream = cg::codegen(mod, *codegenLogger);
+        tryInvoke(callbacks.codegenCallback, asmStream);
         if (!continueCompilation) return 0;
         auto [program, symbolTable, unresolved] = Asm::assemble(asmStream);
         tryInvoke(callbacks.asmCallback);
@@ -193,23 +202,36 @@ int CompilerInvocation::run() {
         std::string dsym = genDebugInfo ? Asm::generateDebugSymbols(asmStream) :
                                           std::string{};
         /// We emit the executable
-        writeExecutableFile(outputFile,
-                            program,
-                            { .executable = targetType ==
-                                            TargetType::Executable });
-        if (genDebugInfo) {
+        if (guardFileEmission("executable")) {
+            writeExecutableFile(outputFile,
+                                program,
+                                { .executable = targetType ==
+                                                TargetType::Executable });
+        }
+        if (genDebugInfo && guardFileEmission("debug info")) {
             auto file = createFile(appendExt(outputFile, "scdsym"));
             file << dsym;
         }
         break;
     }
     case TargetType::StaticLibrary: {
-        auto symfile = createFile(appendExt(outputFile, "scsym"));
-        sema::serialize(semaSym, symfile);
-        auto irfile = createFile(appendExt(outputFile, "scir"));
-        ir::print(mod, irfile);
+        if (guardFileEmission("static lib")) {
+            auto symfile = createFile(appendExt(outputFile, "scsym"));
+            sema::serialize(semaSym, symfile);
+            auto irfile = createFile(appendExt(outputFile, "scir"));
+            ir::print(mod, irfile);
+        }
         break;
     }
     }
     return 0;
+}
+
+bool CompilerInvocation::guardFileEmission(std::string_view kind) {
+    if (!outputFile.empty()) {
+        return true;
+    }
+    err() << Warning << "Not writing " << kind
+          << " to disk: No output specified\n";
+    return false;
 }

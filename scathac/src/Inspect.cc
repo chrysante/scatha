@@ -23,77 +23,67 @@
 #include "Util.h"
 
 using namespace scatha;
+using namespace logging;
+
+static void iselViz(ir::Module const& irMod) {
+    mir::Context ctx;
+    auto mirMod =
+        cg::lowerToMIR(ctx, irMod, { .generateSelectionDAGImages = true });
+    header("Generated MIR");
+    mir::print(mirMod);
+    std::cout
+        << "Warning: Other codegen options are ignored with the --isel flag"
+        << std::endl;
+}
 
 int scatha::inspectMain(InspectOptions options) {
-    using namespace logging;
-    ir::Context ctx;
-    ir::Module mod;
-    std::vector<std::filesystem::path> foreignLibs;
-    switch (getMode(options)) {
-    case ParseMode::Scatha: {
-        auto data = parseScatha(options);
-        if (!data) {
-            return 1;
-        }
-        if (options.ast) {
-            header("AST");
-            ast::printTree(*data->ast);
-        }
-        if (options.sym) {
-            header("Symbol Table");
-            sema::print(data->sym);
-        }
-        std::tie(ctx, mod) = genIR(*data->ast,
-                                   data->sym,
-                                   data->analysisResult,
-                                   { .generateDebugSymbols = false });
-        foreignLibs = data->sym.foreignLibraries() | ranges::to<std::vector>;
-        break;
+    CompilerInvocation invocation;
+    invocation.setInputs(loadSourceFiles(options.files));
+    invocation.setLibSearchPaths(options.libSearchPaths);
+    // clang-format off
+    invocation.setCallbacks({
+        .frontendCallback = [&](ast::ASTNode const& ast, 
+                                sema::SymbolTable const& sym) {
+            if (options.ast) {
+                header("AST");
+                ast::printTree(ast);
+            }
+            if (options.sym) {
+                header("Symbol Table");
+                sema::print(sym);
+            }
+        },
+        .optCallback = [&](ir::Context const&, ir::Module const& mod) {
+            if (options.emitIR) {
+                if (auto file = std::fstream("out.scir",
+                                             std::ios::out | std::ios::trunc))
+                {
+                    ir::print(mod, file);
+                }
+                else {
+                    std::cout << "Failed to write \"out.scir\"" << std::endl;
+                }
+            }
+            if (options.isel) {
+                iselViz(mod);
+                invocation.stop();
+            }
+        },
+        .codegenCallback = [&](Asm::AssemblyStream const& program) {
+            if (options.assembly) {
+                header("Assembly");
+                Asm::print(program);
+            }
+        },
+    }); // clang-format on
+    invocation.setTargetType(options.targetType);
+    invocation.setFrontend(deduceFrontend(options.files));
+    invocation.setOutputFile(options.outputFile);
+    invocation.setOptLevel(options.optLevel);
+    invocation.setOptPipeline(options.pipeline);
+    cg::DebugLogger codegenLogger;
+    if (options.codegen) {
+        invocation.setCodegenLogger(codegenLogger);
     }
-    case ParseMode::IR:
-        std::tie(ctx, mod) = parseIR(options);
-        break;
-    }
-    optimize(ctx, mod, options);
-    if (options.emitIR) {
-        if (auto file =
-                std::fstream("out.scir", std::ios::out | std::ios::trunc))
-        {
-            ir::print(mod, file);
-        }
-        else {
-            std::cout << "Failed to write \"out.scir\"" << std::endl;
-        }
-    }
-    if (options.isel) {
-        mir::Context ctx;
-        auto mirMod =
-            cg::lowerToMIR(ctx, mod, { .generateSelectionDAGImages = true });
-        std::cout << "Warning: Other codegen options and execution are ignored "
-                     "with the --isel flag"
-                  << std::endl;
-        header("Generated MIR");
-        mir::print(mirMod);
-        return 0;
-    }
-    auto cgLogger = [&]() -> std::unique_ptr<cg::Logger> {
-        if (options.codegen) {
-            return std::make_unique<cg::DebugLogger>();
-        }
-        return std::make_unique<cg::NullLogger>();
-    }();
-    auto asmStream = cg::codegen(mod, *cgLogger);
-    if (options.assembly) {
-        header("Assembly");
-        Asm::print(asmStream);
-    }
-    if (options.out) {
-        auto [program, symbolTable, unresolved] = Asm::assemble(asmStream);
-        auto linkRes = Asm::link(program, foreignLibs, unresolved);
-        if (!linkRes) {
-            printLinkerError(linkRes.error());
-        }
-        writeExecutableFile(*options.out, program);
-    }
-    return 0;
+    return invocation.run();
 }

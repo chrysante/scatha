@@ -4,4 +4,4 @@ PROJ_DIR="$SCRIPT_DIR/.."
 
 cd $PROJ_DIR/stdlib
 
-scathac -o -T staticlib --out-dir build/std  *.sc
+scathac -o -T staticlib -O build/std  *.sc

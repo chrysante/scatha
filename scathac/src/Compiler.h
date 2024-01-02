@@ -9,14 +9,8 @@ namespace scatha {
 
 /// Command line options of the user facing compiler
 struct CompilerOptions: OptionsBase {
-    /// Output directory
-    std::filesystem::path bindir = "out";
-
     /// Set if time taken by compilation shall be printed
     bool time;
-
-    /// Turn optimizations on level 1
-    bool optimize;
 
     /// Only emit the binary without making it executable
     bool binaryOnly;
