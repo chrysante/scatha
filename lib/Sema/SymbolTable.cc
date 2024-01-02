@@ -64,8 +64,8 @@ struct SymbolTable::Impl {
     /// List of all functions
     utl::small_vector<Function*> functions;
 
-    /// List of all imported native libraries
-    utl::small_vector<LibraryScope*> importedLibs;
+    /// List of all imported libraries
+    utl::small_vector<Library*> importedLibs;
 
     /// List of all builtin functions
     utl::vector<Function*> builtinFunctions;
@@ -81,9 +81,6 @@ struct SymbolTable::Impl {
 
     /// Pathes to search for imported libraries
     std::vector<std::filesystem::path> libSearchPaths;
-
-    /// List of resolved foreign library paths
-    std::vector<std::filesystem::path> foreignLibraries;
 
     /// Conveniece wrapper to emit issues
     /// The same function exists in `AnalysisContext`, maybe we can merge them
@@ -111,6 +108,7 @@ struct SymbolTable::Impl {
     sema::NullPtrType* NullPtrType;
 
     template <typename E, typename... Args>
+        requires std::constructible_from<E, Args...>
     E* addEntity(Args&&... args);
 
     template <typename T>
@@ -185,6 +183,19 @@ static void handleImportError(SymbolTable& sym,
     }
     impl.issue<BadImport>(stmt);
 }
+
+static void handleImportError(SymbolTable& sym,
+                              SymbolTable::Impl& impl,
+                              ast::ImportStatement* stmt,
+                              std::string name) {
+    if (stmt) {
+        handleImportError(sym, impl, stmt);
+    }
+    else {
+        impl.issue<BadImport>(std::move(name));
+    }
+}
+
 static std::optional<std::filesystem::path> findLibrary(
     std::span<std::filesystem::path const> searchPaths, std::string name) {
     if (std::filesystem::exists(name)) {
@@ -206,17 +217,29 @@ static std::string toForeignLibName(std::string_view name) {
     return utl::strcat("lib", name, ".dylib");
 }
 
-static LibraryScope* importForeignLib(SymbolTable& sym,
-                                      SymbolTable::Impl& impl,
-                                      ast::ImportStatement* stmt,
-                                      std::string name) {
+static ForeignLibrary* importForeignLib(SymbolTable& sym,
+                                        SymbolTable::Impl& impl,
+                                        ast::ImportStatement* stmt,
+                                        std::string name) {
     auto path = findLibrary(impl.libSearchPaths, toForeignLibName(name));
     if (!path) {
-        handleImportError(sym, impl, stmt);
+        handleImportError(sym, impl, stmt, std::move(name));
         return nullptr;
     }
-    impl.foreignLibraries.push_back(*std::move(path));
-    return nullptr;
+    auto* lib =
+        impl.addEntity<ForeignLibrary>(name, *path, &sym.currentScope());
+    sym.currentScope().addChild(lib);
+    /// We add foreign libraries to the global scope because this makes
+    /// exporting foreign library imports from native libraries easier. This
+    /// does not affect name lookup because foreign libs don't expose names in
+    /// the frontend
+    sym.globalScope().addChild(lib);
+    impl.importedLibs.push_back(lib);
+    return lib;
+}
+
+ForeignLibrary* SymbolTable::importForeignLibrary(std::string name) {
+    return importForeignLib(*this, *impl, nullptr, std::move(name));
 }
 
 static std::filesystem::path replaceExt(std::filesystem::path p,
@@ -225,10 +248,10 @@ static std::filesystem::path replaceExt(std::filesystem::path p,
     return p;
 }
 
-static LibraryScope* importNativeLib(SymbolTable& sym,
-                                     SymbolTable::Impl& impl,
-                                     ast::ImportStatement* stmt,
-                                     std::string name) {
+static NativeLibrary* importNativeLib(SymbolTable& sym,
+                                      SymbolTable::Impl& impl,
+                                      ast::ImportStatement* stmt,
+                                      std::string name) {
     auto symPath =
         findLibrary(impl.libSearchPaths, utl::strcat(name, ".scsym"));
     if (!symPath) {
@@ -240,21 +263,21 @@ static LibraryScope* importNativeLib(SymbolTable& sym,
         handleImportError(sym, impl, stmt);
         return nullptr;
     }
-    auto* libScope =
-        impl.addEntity<LibraryScope>(name, irPath, &sym.currentScope());
-    sym.currentScope().addChild(libScope);
-    impl.importedLibs.push_back(libScope);
+    auto* lib =
+        impl.addEntity<NativeLibrary>(name, irPath, &sym.currentScope());
+    sym.currentScope().addChild(lib);
+    impl.importedLibs.push_back(lib);
     std::fstream symFile(*symPath);
     SC_RELASSERT(symFile,
                  utl::strcat("Failed to open file ",
                              *symPath,
                              " even though it exists")
                      .c_str());
-    sym.withScopeCurrent(libScope, [&] { deserialize(sym, symFile); });
-    return libScope;
+    sym.withScopeCurrent(lib, [&] { deserialize(sym, symFile); });
+    return lib;
 }
 
-LibraryScope* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
+Library* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
     SC_EXPECT(currentScope().kind() == ScopeKind::Global);
     if (!stmt->libExpr()) {
         return nullptr;
@@ -264,9 +287,10 @@ LibraryScope* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
         [&](ast::Identifier const& ID) {
             return importNativeLib(*this, *impl, stmt, std::string(ID.value()));
         },
-        [&](ast::Literal const& lit) {
+        [&](ast::Literal const& lit) -> Library* {
             if (lit.kind() != ast::LiteralKind::String) {
                 handleImportError(*this, *impl, stmt);
+                return nullptr;
             }
             return importForeignLib(*this,
                                     *impl,
@@ -633,10 +657,6 @@ void SymbolTable::setLibrarySearchPaths(
     impl->libSearchPaths = paths | ranges::to<std::vector>;
 }
 
-std::span<std::filesystem::path const> SymbolTable::foreignLibraries() const {
-    return impl->foreignLibraries;
-}
-
 Scope& SymbolTable::currentScope() { return *impl->currentScope; }
 
 Scope const& SymbolTable::currentScope() const { return *impl->currentScope; }
@@ -683,12 +703,23 @@ std::span<Function const* const> SymbolTable::functions() const {
     return impl->functions;
 }
 
-std::span<LibraryScope* const> SymbolTable::importedLibs() {
+std::span<Library* const> SymbolTable::importedLibs() {
     return impl->importedLibs;
 }
 
-std::span<LibraryScope const* const> SymbolTable::importedLibs() const {
+std::span<Library const* const> SymbolTable::importedLibs() const {
     return impl->importedLibs;
+}
+
+std::vector<std::filesystem::path> SymbolTable::foreignLibraryPaths() const {
+    return importedLibs() | Filter<ForeignLibrary> |
+           transform(&ForeignLibrary::file) | ranges::to<std::vector>;
+}
+
+std::vector<std::string> SymbolTable::foreignLibraryNames() const {
+    return importedLibs() | Filter<ForeignLibrary> |
+           transform([](auto* lib) { return std::string(lib->name()); }) |
+           ranges::to<std::vector>;
 }
 
 std::vector<Entity const*> SymbolTable::entities() const {
@@ -696,6 +727,7 @@ std::vector<Entity const*> SymbolTable::entities() const {
 }
 
 template <typename E, typename... Args>
+    requires std::constructible_from<E, Args...>
 E* SymbolTable::Impl::addEntity(Args&&... args) {
     auto owner = allocate<E>(std::forward<Args>(args)...);
     auto* result = owner.get();

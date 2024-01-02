@@ -113,3 +113,21 @@ fn main() {
 })");
     }
 }
+
+TEST_CASE("FFI used by static library", "[end-to-end][staticlib][ffilib]") {
+    compileLibrary("libs/testlib",
+                   "libs",
+                   R"(
+import "ffi-testlib";
+extern "C" fn foo(n: int, m: int) -> int;
+export fn fooWrapper(n: int, m: int) {
+     return foo(n, m);
+})");
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+import testlib;
+fn main() -> int {
+    return testlib.fooWrapper(20, 22);
+})");
+    CHECK(ret == 42);
+}

@@ -506,7 +506,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
             }
             return &idExpr;
         },
-        [&](LibraryScope& lib) {
+        [&](NativeLibrary& lib) {
             idExpr.decorateNamespace(&lib);
             return &idExpr;
         },

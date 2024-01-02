@@ -26,7 +26,7 @@ struct Impl {
             [&](FileScope const&) -> RetType {
                 return { options.globalPrefix, false };
             },
-            [&](LibraryScope const& lib) -> RetType {
+            [&](NativeLibrary const& lib) -> RetType {
                 return { std::string(lib.name()), false };
             },
             [&](Entity const& entity) -> RetType {

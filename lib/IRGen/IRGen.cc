@@ -79,7 +79,7 @@ static void mapLibSymbols(
 
 static void importLibrary(ir::Context& ctx,
                           ir::Module& mod,
-                          sema::LibraryScope const& lib,
+                          sema::NativeLibrary const& lib,
                           TypeMap& typeMap,
                           FunctionMap& functionMap,
                           sema::NameMangler const& nameMangler) {
@@ -120,7 +120,7 @@ void irgen::generateIR(ir::Context& ctx,
                        Config config) {
     TypeMap typeMap(ctx);
     FunctionMap functionMap;
-    for (auto* lib: sym.importedLibs()) {
+    for (auto* lib: sym.importedLibs() | Filter<sema::NativeLibrary>) {
         importLibrary(ctx, mod, *lib, typeMap, functionMap, config.nameMangler);
     }
     for (auto* semaType: analysisResult.structDependencyOrder) {

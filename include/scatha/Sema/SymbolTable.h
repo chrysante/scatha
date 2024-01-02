@@ -42,8 +42,12 @@ public:
     ///
     FileScope* declareFileScope(std::string filename);
 
-    /// Loads symbols from a library into the symbol table
-    LibraryScope* importLibrary(ast::ImportStatement* stmt);
+    /// Loads symbols from a foreign or antive library into the symbol table
+    Library* importLibrary(ast::ImportStatement* stmt);
+
+    /// Imports a foreign library from a name. Searches the specified search
+    /// paths for a shared library
+    ForeignLibrary* importForeignLibrary(std::string name);
 
     /// Declares a struct to the current scope without specifying size and
     /// alignment.
@@ -211,11 +215,17 @@ public:
     /// \overload
     std::span<Function const* const> functions() const;
 
-    /// View over all imported native libraries
-    std::span<LibraryScope* const> importedLibs();
+    /// View over all imported libraries
+    std::span<Library* const> importedLibs();
 
     /// \overload
-    std::span<LibraryScope const* const> importedLibs() const;
+    std::span<Library const* const> importedLibs() const;
+
+    /// \Returns a list of resolved foreign library paths
+    std::vector<std::filesystem::path> foreignLibraryPaths() const;
+
+    /// \Returns a list of the names of imported foreign libraries
+    std::vector<std::string> foreignLibraryNames() const;
 
     /// All entities
     std::vector<Entity const*> entities() const;
@@ -229,9 +239,6 @@ public:
 
     ///
     void setLibrarySearchPaths(std::span<std::filesystem::path const> paths);
-
-    /// List of resolved foreign library paths
-    std::span<std::filesystem::path const> foreignLibraries() const;
 
     /// \Returns The builtin function at index \p index
     Function* builtinFunction(size_t index) const;

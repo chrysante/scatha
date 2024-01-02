@@ -75,7 +75,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
         ir::forEach(ctx, mod, opt::unifyReturns);
         return std::tuple{ std::move(ctx),
                            std::move(mod),
-                           sym.foreignLibraries() | ranges::to<std::vector> };
+                           sym.foreignLibraryPaths() };
     };
 }
 

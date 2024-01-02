@@ -394,23 +394,44 @@ public:
     explicit FileScope(std::string filename, Scope* parent);
 };
 
-/// Scope of symbols imported from a library
-class SCATHA_API LibraryScope: public Scope {
-public:
-    explicit LibraryScope(std::string name,
-                          std::filesystem::path codeFile,
-                          Scope* parent);
-
-    /// \Returns the path of the file that contains the IR for the functions in
-    /// this library
-    std::filesystem::path const& codeFile() const { return _codeFile; }
+/// Abstract base class of `NativeLibrary` and `ForeignLibrary`
+class SCATHA_API Library: public Scope {
+protected:
+    explicit Library(EntityType entityType, std::string name, Scope* parent);
 
 private:
     friend class Entity;
 
     EntityCategory categoryImpl() const { return EntityCategory::Namespace; }
+};
 
+/// Scope of symbols imported from a library
+class SCATHA_API NativeLibrary: public Library {
+public:
+    explicit NativeLibrary(std::string name,
+                           std::filesystem::path codeFile,
+                           Scope* parent);
+
+    /// \Returns the path of the IR file that contains the functions in this
+    /// library
+    std::filesystem::path const& codeFile() const { return _codeFile; }
+
+private:
     std::filesystem::path _codeFile;
+};
+
+/// Represents an imported foreign library. Does not contain any child symbols
+class SCATHA_API ForeignLibrary: public Library {
+public:
+    explicit ForeignLibrary(std::string name,
+                            std::filesystem::path file,
+                            Scope* parent);
+
+    /// \Returns the path of the shared library file
+    std::filesystem::path const& file() const { return _file; }
+
+private:
+    std::filesystem::path _file;
 };
 
 /// # Function

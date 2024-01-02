@@ -176,11 +176,20 @@ FileScope::FileScope(std::string filename, Scope* parent):
           std::move(filename),
           parent) {}
 
-LibraryScope::LibraryScope(std::string name,
-                           std::filesystem::path codeFile,
-                           Scope* parent):
-    Scope(EntityType::LibraryScope, ScopeKind::Global, std::move(name), parent),
+Library::Library(EntityType entityType, std::string name, Scope* parent):
+    Scope(entityType, ScopeKind::Global, std::move(name), parent) {}
+
+NativeLibrary::NativeLibrary(std::string name,
+                             std::filesystem::path codeFile,
+                             Scope* parent):
+    Library(EntityType::NativeLibrary, std::move(name), parent),
     _codeFile(std::move(codeFile)) {}
+
+ForeignLibrary::ForeignLibrary(std::string name,
+                               std::filesystem::path file,
+                               Scope* parent):
+    Library(EntityType::ForeignLibrary, std::move(name), parent),
+    _file(std::move(file)) {}
 
 /// # Types
 

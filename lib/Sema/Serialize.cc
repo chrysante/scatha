@@ -286,12 +286,16 @@ static json serializeChildren(
 }
 
 static void to_json_impl(json& j, GlobalScope const& scope) {
-    j = serializeChildren(scope, [](Entity const* child) {
-        auto* function = dyncast<Function const*>(child);
-        if (function) {
-            return function->isNative();
-        }
-        return isa<StructType>(child);
+    j = serializeChildren(scope, /* filter = */ [](Entity const* child) {
+        // clang-format off
+        return SC_MATCH (*child) {
+            [](Function const& function) { return function.isNative(); },
+            [](StructType const&) { return true; },
+            /// We serialize foreign libraries because targets that import us
+            /// must know about out foreign libraries
+            [](ForeignLibrary const&) { return true; },
+            [](Entity const&) { return false; },
+        }; // clang-format on
     });
 }
 
@@ -315,6 +319,10 @@ static void to_json_impl(json& j, Variable const& var) {
     if (isa<StructType>(var.parent())) {
         j["index"] = var.index();
     }
+}
+
+static void to_json_impl(json&, ForeignLibrary const&) {
+    /// No-op because we only need the name and the entity type
 }
 
 static void to_json(json& j, Entity const& entity) {
@@ -420,7 +428,7 @@ struct DeserializeContext {
                 },
                 [&](Tag<Variable>) {
                     auto* type =
-                    parseTypeName(sym, child["type"].get<std::string>());
+                        parseTypeName(sym, child["type"].get<std::string>());
                     using enum Mutability;
                     auto mut = child["mutable"].get<bool>() ? Mutable : Const;
                     auto* var = sym.defineVariable(getName(child), type, mut);
@@ -430,7 +438,11 @@ struct DeserializeContext {
                         auto* type = dyncast<StructType*>(&sym.currentScope());
                         type->setMemberVariable(index, var);
                     }
-                }
+                },
+                [&](Tag<ForeignLibrary>) {
+                    auto name = child["name"].get<std::string>();
+                    sym.importForeignLibrary(std::move(name));
+                },
             }); // clang-format on
         }
     }

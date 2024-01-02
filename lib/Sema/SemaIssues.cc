@@ -187,6 +187,13 @@ BadImport::BadImport(Scope const* scope, ast::ImportStatement const* stmt):
             [=](std::ostream& str) { str << "Cannot find library"; });
 }
 
+BadImport::BadImport(Scope const* scope, std::string name):
+    BadStmt(scope, nullptr, IssueSeverity::Error), name(std::move(name)) {}
+
+void BadImport::format(std::ostream& str) const {
+    str << "Cannot find library \"" << name << "\"";
+}
+
 static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
     switch (reason) {
 #define SC_SEMA_BADVARDECL_DEF(reason, severity, _)                            \

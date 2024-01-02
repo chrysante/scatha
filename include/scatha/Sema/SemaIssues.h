@@ -108,9 +108,18 @@ private:
 /// Invalid `import` statement
 class SCATHA_API BadImport: public BadStmt {
 public:
+    /// Construct from import statement
     BadImport(Scope const* scope, ast::ImportStatement const* stmt);
 
+    /// Construct from library name
+    BadImport(Scope const* scope, std::string name);
+
     SC_SEMA_DERIVED_STMT(ImportStatement, importStmt)
+
+private:
+    std::string name;
+
+    void format(std::ostream& str) const override;
 };
 
 /// Base class of all declaration related issues
