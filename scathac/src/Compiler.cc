@@ -51,6 +51,7 @@ static std::filesystem::path appendExt(std::filesystem::path p,
 
 static std::fstream createFile(std::filesystem::path const& path,
                                std::ios::openmode flags = {}) {
+    std::filesystem::create_directories(path.parent_path());
     flags |= std::ios::out | std::ios::trunc;
     std::fstream file(path, flags);
     if (!file) {
