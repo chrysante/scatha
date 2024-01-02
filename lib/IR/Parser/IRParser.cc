@@ -361,14 +361,24 @@ struct ParseContext {
 
 Expected<std::pair<Context, Module>, ParseIssue> ir::parse(
     std::string_view text) {
+    Context ctx;
+    Module mod;
+    auto result = parseTo(text, ctx, mod);
+    if (!result) {
+        return std::move(result).error();
+    }
+    return { std::move(ctx), std::move(mod) };
+}
+
+Expected<void, ParseIssue> ir::parseTo(std::string_view text,
+                                       Context& ctx,
+                                       Module& mod) {
     try {
-        Context ctx;
-        Module mod;
         ParseContext parseContext(ctx, mod, text);
         parseContext.parse();
         parseContext.postProcess();
         assertInvariants(ctx, mod);
-        return { std::move(ctx), std::move(mod) };
+        return {};
     }
     catch (LexicalIssue const& issue) {
         return issue;
