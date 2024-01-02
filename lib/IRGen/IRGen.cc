@@ -52,13 +52,13 @@ static void mapLibSymbols(
             [&](sema::StructType const& semaType) {
                 std::string name = nameMangler(*entity);
                 typeMap.insert(&semaType,
-                               find(IRStructMap, name),
+                               get(IRStructMap, name),
                                makeStructMetadata(&semaType));
             },
             [&](sema::Function const& semaFn) {
                 std::string name = nameMangler(*entity);
                 functionMap.insert(&semaFn,
-                                   find(IRObjectMap, name),
+                                   cast<ir::Function*>(get(IRObjectMap, name)),
                                    makeFunctionMetadata(&semaFn));
             },
             [&]([[maybe_unused]] sema::Entity const& entity) {}
