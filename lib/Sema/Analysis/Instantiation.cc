@@ -188,7 +188,7 @@ void InstContext::instantiateStructureType(SDGNode& node) {
             continue;
         }
         auto& var = *varDecl->variable();
-        structType.addMemberVariable(&var);
+        structType.pushMemberVariable(&var);
         if (!varDecl->type()) {
             continue;
         }

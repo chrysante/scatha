@@ -852,8 +852,12 @@ public:
                ranges::views::transform([](auto* var) { return var->type(); });
     }
 
-    /// Adds a variable to the list of member variables of this structure
-    void addMemberVariable(Variable* var) { _memberVars.push_back(var); }
+    /// Adds a variable to the end of the list of member variables of this
+    /// structure
+    void pushMemberVariable(Variable* var) { _memberVars.push_back(var); }
+
+    /// Sets the member variable of this structure at index \p index
+    void setMemberVariable(size_t index, Variable* var);
 
 private:
     friend class Type;
