@@ -93,7 +93,7 @@ SVM_BUILTIN_DEF(strtof64,    None, {
     reference(QualType::Const(arrayType(Byte())))
 }, Bool())
 
-/// ##
+/// ## Debug trap
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())
 
 /// Quick and dirty randon number generation.
