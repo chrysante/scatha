@@ -15,6 +15,7 @@ examples/
 !examples/**.sc
 !examples/**.scir
 !examples/**.cpp
+volatile/
 
 Makefile
 **/Makefile
