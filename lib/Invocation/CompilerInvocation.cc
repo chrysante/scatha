@@ -58,8 +58,8 @@ void CompilerInvocation::setCallbacks(CompilerCallbacks callbacks) {
 }
 
 /// Tries to invoke the callback with \p args...
-template <typename... Args>
-static void tryInvoke(std::function<void(Args...)> const& f, Args&&... args) {
+template <typename... T, typename... Args>
+static void tryInvoke(std::function<void(T...)> const& f, Args&&... args) {
     if (f) {
         f(std::forward<Args>(args)...);
     }
@@ -102,12 +102,12 @@ int CompilerInvocation::run() {
         if (targetType != Executable && targetType != BinaryOnly) {
             err() << Error << "Can only generate executables with IR frontend"
                   << std::endl;
-            return 1;
+            return handleError();
         }
     }
     if (sources.empty()) {
         err() << Error << "No input files" << std::endl;
-        return 1;
+        return handleError();
     }
     /// Now we compile the program
     sema::SymbolTable semaSym;
@@ -121,7 +121,8 @@ int CompilerInvocation::run() {
             issueHandler.print(sources);
         }
         if (!ast) {
-            return 1;
+            handleError();
+            return handleError();
         }
         auto analysisResult =
             sema::analyze(*ast,
@@ -132,7 +133,7 @@ int CompilerInvocation::run() {
             issueHandler.print(sources, err());
         }
         if (issueHandler.haveErrors()) {
-            return 1;
+            return handleError();
         }
         tryInvoke(callbacks.frontendCallback, *ast, semaSym);
         if (!continueCompilation) return 0;
@@ -155,7 +156,7 @@ int CompilerInvocation::run() {
     case FrontendType::IR: {
         if (sources.size() != 1) {
             err() << Error << "Can only parse one IR file" << std::endl;
-            return 1;
+            return handleError();
         }
         auto result = ir::parseTo(sources.front().text(), context, mod);
         if (!result) {
@@ -188,16 +189,17 @@ int CompilerInvocation::run() {
         auto asmStream = cg::codegen(mod, *codegenLogger);
         tryInvoke(callbacks.codegenCallback, asmStream);
         if (!continueCompilation) return 0;
-        auto [program, symbolTable, unresolved] = Asm::assemble(asmStream);
-        tryInvoke(callbacks.asmCallback);
+        auto asmRes = Asm::assemble(asmStream);
+        tryInvoke(callbacks.asmCallback, asmRes);
         if (!continueCompilation) return 0;
+        auto& [program, symbolTable, unresolved] = asmRes;
         auto linkRes =
             Asm::link(program, semaSym.foreignLibraries(), unresolved);
         if (!linkRes) {
             printLinkerError(linkRes.error(), err());
             return 1;
         }
-        tryInvoke(callbacks.linkerCallback);
+        tryInvoke(callbacks.linkerCallback, program);
         if (!continueCompilation) return 0;
         std::string dsym = genDebugInfo ? Asm::generateDebugSymbols(asmStream) :
                                           std::string{};
@@ -234,4 +236,11 @@ bool CompilerInvocation::guardFileEmission(std::string_view kind) {
     err() << Warning << "Not writing " << kind
           << " to disk: No output specified\n";
     return false;
+}
+
+int CompilerInvocation::handleError() {
+    if (errorHandler) {
+        errorHandler();
+    }
+    return 1;
 }

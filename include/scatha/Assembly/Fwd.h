@@ -4,6 +4,7 @@
 namespace scatha::Asm {
 
 class AssemblyStream;
+struct AssemblerResult;
 
 } // namespace scatha::Asm
 

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <functional>
 #include <iosfwd>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -44,10 +45,10 @@ struct CompilerCallbacks {
     std::function<void(Asm::AssemblyStream&)> codegenCallback;
 
     /// This function will be invoked after the assembler has run
-    std::function<void()> asmCallback;
+    std::function<void(Asm::AssemblerResult const&)> asmCallback;
 
     /// This function will be invoked after the linker has run
-    std::function<void()> linkerCallback;
+    std::function<void(std::span<uint8_t const> program)> linkerCallback;
 };
 
 /// Represents one invocation of the compiler
@@ -90,7 +91,7 @@ public:
         optPipeline = std::move(pipeline);
     }
 
-    /// Sets the optimization level to \p level
+    /// Sets the codegen logger to \p logger
     /// Defaults to an instance of `cg::NullLogger`
     void setCodegenLogger(cg::Logger& logger) { codegenLogger = &logger; }
 
@@ -99,7 +100,12 @@ public:
 
     /// Set the ostream to write errors to to \p ostream
     /// Defaults to `std::cout`
-    void setErrorStream(std::ostream& ostream);
+    void setErrorStream(std::ostream& ostream) { errStream = &ostream; }
+
+    /// Sets the error handler to \p handler
+    void setErrorHandler(std::function<void()> handler) {
+        errorHandler = std::move(handler);
+    }
 
     /// Stops the compilation process. This function is meant to be called from
     /// a callback to stop compilation early
@@ -113,9 +119,12 @@ private:
 
     bool guardFileEmission(std::string_view kind);
 
+    int handleError();
+
     std::vector<SourceFile> sources;
     std::vector<std::filesystem::path> libSearchPaths;
     CompilerCallbacks callbacks;
+    std::function<void()> errorHandler;
     std::filesystem::path outputFile = "out";
     std::string optPipeline = {};
     std::ostream* errStream;
