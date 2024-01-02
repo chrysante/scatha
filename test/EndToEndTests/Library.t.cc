@@ -17,91 +17,97 @@ static CompilerInvocation makeCompiler(std::stringstream& sstr) {
     return inv;
 }
 
-TEST_CASE("Static library compile and import", "[end-to-end][staticlib]") {
+static void compileLibrary(std::filesystem::path name,
+                           std::filesystem::path libSearchPath,
+                           std::string source) {
     std::stringstream sstr;
-    CompilerInvocation lib1c = makeCompiler(sstr);
-    lib1c.setInputs({ SourceFile::make(R"(
+    CompilerInvocation inv = makeCompiler(sstr);
+    inv.setInputs({ SourceFile::make(std::move(source)) });
+    inv.setLibSearchPaths({ libSearchPath });
+    inv.setOutputFile(name);
+    inv.setTargetType(TargetType::StaticLibrary);
+    inv.run();
+}
+
+static uint64_t compileAndRunDependentProgram(
+    std::filesystem::path libSearchPath, std::string source) {
+    std::stringstream sstr;
+    CompilerInvocation inv = makeCompiler(sstr);
+    inv.setErrorStream(sstr);
+    inv.setInputs({ SourceFile::make(std::move(source)) });
+    inv.setLibSearchPaths({ libSearchPath });
+    size_t startpos = 0;
+    std::vector<uint8_t> program;
+    auto asmCallback = [&](Asm::AssemblerResult const& res) {
+        startpos = findMain(res.symbolTable).value();
+    };
+    auto linkerCallback = [&](std::span<uint8_t const> data) {
+        program.assign(data.begin(), data.end());
+        inv.stop();
+    };
+    inv.setCallbacks(
+        { .asmCallback = asmCallback, .linkerCallback = linkerCallback });
+    inv.run();
+    return runProgram(program, startpos);
+}
+
+TEST_CASE("Static library compile and import", "[end-to-end][staticlib]") {
+    compileLibrary("libs/testlib1",
+                   "libs",
+                   R"(
 export fn inc(n: &mut int) {
     n += int(__builtin_sqrt_f64(1.0));
-})") });
-    lib1c.setOutputFile("libs/testlib1");
-    lib1c.setTargetType(TargetType::StaticLibrary);
-    lib1c.run();
+})");
 
-    CompilerInvocation lib2c = makeCompiler(sstr);
-    lib2c.setInputs({ SourceFile::make(R"(
+    compileLibrary("libs/testlib2",
+                   "libs",
+                   R"(
 import testlib1;
 export fn incTwice(n: &mut int) {
     testlib1.inc(n);
     testlib1.inc(n);
-})") });
-    lib2c.setLibSearchPaths({ "libs" });
-    lib2c.setOutputFile("libs/testlib2");
-    lib2c.setTargetType(TargetType::StaticLibrary);
-    lib2c.run();
+})");
 
-    CompilerInvocation appc = makeCompiler(sstr);
-    appc.setErrorStream(sstr);
-    appc.setInputs({ SourceFile::make(R"(
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
 import testlib2;
 fn main() -> int {
     var n = 0;
     testlib2.incTwice(n);
     return n;
-})") });
-    appc.setLibSearchPaths({ "libs" });
-    size_t startpos = 0;
-    std::vector<uint8_t> program;
-    appc.setCallbacks({ .asmCallback =
-                            [&](Asm::AssemblerResult const& res) {
-        startpos = findMain(res.symbolTable).value();
-                       },
-                        .linkerCallback =
-                            [&](std::span<uint8_t const> data) {
-        program.assign(data.begin(), data.end());
-        appc.stop();
-                        } });
-    appc.run();
-    CHECK(runProgram(program, startpos) == 2);
+})");
+    CHECK(ret == 2);
 }
 
-TEST_CASE("FFI library import", "[end-to-end][member-access]") {
+TEST_CASE("FFI library import", "[end-to-end][ffilib]") {
     SECTION("foo") {
-        test::runReturnsTest(42, R"(
+        CHECK(42 == test::compileAndRun(R"(
 import "ffi-testlib";
-
 extern "C" fn foo(n: int, m: int) -> int;
-
 fn main() {
     return foo(22, 20);
-})");
+})"));
     }
     SECTION("bar") {
         test::runPrintsTest("bar(7, 11)\n", R"(
 import "ffi-testlib";
-
 extern "C" fn bar(n: int, m: int) -> void;
-
 fn main() {
     bar(7, 11);
 })");
     }
     SECTION("baz") {
-        test::runReturnsTest(42, R"(
+        CHECK(42 == test::compileAndRun(R"(
 import "ffi-testlib";
-
 extern "C" fn baz() -> void;
-
 fn main() {
     return baz();
-})");
+})"));
     }
     SECTION("quux") {
         test::runPrintsTest("quux\n", R"(
 import "ffi-testlib";
-
 extern "C" fn quux() -> void;
-
 fn main() {
     quux();
 })");

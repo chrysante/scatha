@@ -197,7 +197,7 @@ int CompilerInvocation::run() {
             Asm::link(program, semaSym.foreignLibraries(), unresolved);
         if (!linkRes) {
             printLinkerError(linkRes.error(), err());
-            return 1;
+            return handleError();
         }
         tryInvoke(callbacks.linkerCallback, program);
         if (!continueCompilation) return 0;
