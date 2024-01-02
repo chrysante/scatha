@@ -23,8 +23,7 @@ TEST_CASE("Static library compile and import", "[end-to-end][staticlib]") {
     lib1c.setInputs({ SourceFile::make(R"(
 export fn inc(n: &mut int) {
     n += int(__builtin_sqrt_f64(1.0));
-}
-)") });
+})") });
     lib1c.setOutputFile("libs/testlib1");
     lib1c.setTargetType(TargetType::StaticLibrary);
     lib1c.run();
@@ -32,12 +31,10 @@ export fn inc(n: &mut int) {
     CompilerInvocation lib2c = makeCompiler(sstr);
     lib2c.setInputs({ SourceFile::make(R"(
 import testlib1;
-
 export fn incTwice(n: &mut int) {
     testlib1.inc(n);
     testlib1.inc(n);
-}
-)") });
+})") });
     lib2c.setLibSearchPaths({ "libs" });
     lib2c.setOutputFile("libs/testlib2");
     lib2c.setTargetType(TargetType::StaticLibrary);
@@ -51,8 +48,7 @@ fn main() -> int {
     var n = 0;
     testlib2.incTwice(n);
     return n;
-}
-)") });
+})") });
     appc.setLibSearchPaths({ "libs" });
     size_t startpos = 0;
     std::vector<uint8_t> program;
@@ -67,4 +63,47 @@ fn main() -> int {
                         } });
     appc.run();
     CHECK(runProgram(program, startpos) == 2);
+}
+
+TEST_CASE("FFI library import", "[end-to-end][member-access]") {
+    SECTION("foo") {
+        test::runReturnsTest(42, R"(
+import "ffi-testlib";
+
+extern "C" fn foo(n: int, m: int) -> int;
+
+fn main() {
+    return foo(22, 20);
+})");
+    }
+    SECTION("bar") {
+        test::runPrintsTest("bar(7, 11)\n", R"(
+import "ffi-testlib";
+
+extern "C" fn bar(n: int, m: int) -> void;
+
+fn main() {
+    bar(7, 11);
+})");
+    }
+    SECTION("baz") {
+        test::runReturnsTest(42, R"(
+import "ffi-testlib";
+
+extern "C" fn baz() -> void;
+
+fn main() {
+    return baz();
+})");
+    }
+    SECTION("quux") {
+        test::runPrintsTest("quux\n", R"(
+import "ffi-testlib";
+
+extern "C" fn quux() -> void;
+
+fn main() {
+    quux();
+})");
+    }
 }
