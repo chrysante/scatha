@@ -1,0 +1,272 @@
+ext func f32 @__builtin_abs_f32(f32 %0)
+
+ext func f32 @__builtin_exp_f32(f32 %0)
+
+ext func f32 @__builtin_exp2_f32(f32 %0)
+
+ext func f32 @__builtin_exp10_f32(f32 %0)
+
+ext func f32 @__builtin_log_f32(f32 %0)
+
+ext func f32 @__builtin_log2_f32(f32 %0)
+
+ext func f32 @__builtin_log10_f32(f32 %0)
+
+ext func f32 @__builtin_pow_f32(f32 %0, f32 %1)
+
+ext func f32 @__builtin_sqrt_f32(f32 %0)
+
+ext func f32 @__builtin_cbrt_f32(f32 %0)
+
+ext func f32 @__builtin_hypot_f32(f32 %0, f32 %1)
+
+ext func f32 @__builtin_sin_f32(f32 %0)
+
+ext func f32 @__builtin_cos_f32(f32 %0)
+
+ext func f32 @__builtin_tan_f32(f32 %0)
+
+ext func f32 @__builtin_asin_f32(f32 %0)
+
+ext func f32 @__builtin_acos_f32(f32 %0)
+
+ext func f32 @__builtin_atan_f32(f32 %0)
+
+ext func f64 @__builtin_abs_f64(f64 %0)
+
+ext func f64 @__builtin_exp_f64(f64 %0)
+
+ext func f64 @__builtin_exp2_f64(f64 %0)
+
+ext func f64 @__builtin_exp10_f64(f64 %0)
+
+ext func f64 @__builtin_log_f64(f64 %0)
+
+ext func f64 @__builtin_log2_f64(f64 %0)
+
+ext func f64 @__builtin_log10_f64(f64 %0)
+
+ext func f64 @__builtin_pow_f64(f64 %0, f64 %1)
+
+ext func f64 @__builtin_sqrt_f64(f64 %0)
+
+ext func f64 @__builtin_cbrt_f64(f64 %0)
+
+ext func f64 @__builtin_hypot_f64(f64 %0, f64 %1)
+
+ext func f64 @__builtin_sin_f64(f64 %0)
+
+ext func f64 @__builtin_cos_f64(f64 %0)
+
+ext func f64 @__builtin_tan_f64(f64 %0)
+
+ext func f64 @__builtin_asin_f64(f64 %0)
+
+ext func f64 @__builtin_acos_f64(f64 %0)
+
+ext func f64 @__builtin_atan_f64(f64 %0)
+
+func f32 @std.abs-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_abs_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.exp-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_exp_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.exp2-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_exp2_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.exp10-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_exp10_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.log-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_log_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.log2-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_log2_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.log10-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_log10_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.pow-f32-f32(f32 %0, f32 %1) {
+  %entry:
+    %call.result = call f32 @__builtin_pow_f32, f32 %0, f32 %1
+    return f32 %call.result
+}
+
+func f32 @std.sqrt-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_sqrt_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.cbrt-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_cbrt_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.hypot-f32-f32(f32 %0, f32 %1) {
+  %entry:
+    %call.result = call f32 @__builtin_hypot_f32, f32 %0, f32 %1
+    return f32 %call.result
+}
+
+func f32 @std.sin-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_sin_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.cos-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_cos_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.tan-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_tan_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.asin-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_asin_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.acos-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_acos_f32, f32 %0
+    return f32 %call.result
+}
+
+func f32 @std.atan-f32(f32 %0) {
+  %entry:
+    %call.result = call f32 @__builtin_atan_f32, f32 %0
+    return f32 %call.result
+}
+
+func f64 @std.abs-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_abs_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.exp-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_exp_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.exp2-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_exp2_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.exp10-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_exp10_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.log-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_log_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.log2-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_log2_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.log10-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_log10_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.pow-f64-f64(f64 %0, f64 %1) {
+  %entry:
+    %call.result = call f64 @__builtin_pow_f64, f64 %0, f64 %1
+    return f64 %call.result
+}
+
+func f64 @std.sqrt-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_sqrt_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.cbrt-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_cbrt_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.hypot-f64-f64(f64 %0, f64 %1) {
+  %entry:
+    %call.result = call f64 @__builtin_hypot_f64, f64 %0, f64 %1
+    return f64 %call.result
+}
+
+func f64 @std.sin-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_sin_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.cos-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_cos_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.tan-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_tan_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.asin-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_asin_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.acos-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_acos_f64, f64 %0
+    return f64 %call.result
+}
+
+func f64 @std.atan-f64(f64 %0) {
+  %entry:
+    %call.result = call f64 @__builtin_atan_f64, f64 %0
+    return f64 %call.result
+}
+

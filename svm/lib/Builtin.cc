@@ -79,9 +79,8 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     set(Builtin::abs_f64, math<double, 1>(MATH_STD_IMPL(abs)));
     set(Builtin::exp_f64, math<double, 1>(MATH_STD_IMPL(exp)));
     set(Builtin::exp2_f64, math<double, 1>(MATH_STD_IMPL(exp2)));
-    set(Builtin::exp10_f64, math<double, 1>([]<typename T>(T const& arg) {
-            return std::pow(arg, T(10));
-        }));
+    set(Builtin::exp10_f64,
+        math<double, 1>([](double arg) { return std::pow(arg, 10.0); }));
     set(Builtin::log_f64, math<double, 1>(MATH_STD_IMPL(log)));
     set(Builtin::log2_f64, math<double, 1>(MATH_STD_IMPL(log2)));
     set(Builtin::log10_f64, math<double, 1>(MATH_STD_IMPL(log10)));
@@ -95,6 +94,25 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     set(Builtin::asin_f64, math<double, 1>(MATH_STD_IMPL(asin)));
     set(Builtin::acos_f64, math<double, 1>(MATH_STD_IMPL(acos)));
     set(Builtin::atan_f64, math<double, 1>(MATH_STD_IMPL(atan)));
+
+    set(Builtin::abs_f32, math<float, 1>(MATH_STD_IMPL(abs)));
+    set(Builtin::exp_f32, math<float, 1>(MATH_STD_IMPL(exp)));
+    set(Builtin::exp2_f32, math<float, 1>(MATH_STD_IMPL(exp2)));
+    set(Builtin::exp10_f32,
+        math<float, 1>([](float arg) { return std::pow(arg, 10.0f); }));
+    set(Builtin::log_f32, math<float, 1>(MATH_STD_IMPL(log)));
+    set(Builtin::log2_f32, math<float, 1>(MATH_STD_IMPL(log2)));
+    set(Builtin::log10_f32, math<float, 1>(MATH_STD_IMPL(log10)));
+    set(Builtin::pow_f32, math<float, 2>(MATH_STD_IMPL(pow)));
+    set(Builtin::sqrt_f32, math<float, 1>(MATH_STD_IMPL(sqrt)));
+    set(Builtin::cbrt_f32, math<float, 1>(MATH_STD_IMPL(cbrt)));
+    set(Builtin::hypot_f32, math<float, 2>(MATH_STD_IMPL(hypot)));
+    set(Builtin::sin_f32, math<float, 1>(MATH_STD_IMPL(sin)));
+    set(Builtin::cos_f32, math<float, 1>(MATH_STD_IMPL(cos)));
+    set(Builtin::tan_f32, math<float, 1>(MATH_STD_IMPL(tan)));
+    set(Builtin::asin_f32, math<float, 1>(MATH_STD_IMPL(asin)));
+    set(Builtin::acos_f32, math<float, 1>(MATH_STD_IMPL(acos)));
+    set(Builtin::atan_f32, math<float, 1>(MATH_STD_IMPL(atan)));
 
     /// ## Memory
     set(Builtin::memcpy, [](u64* regPtr, VirtualMachine* vm, void*) {

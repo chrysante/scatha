@@ -27,6 +27,24 @@ SVM_BUILTIN_DEF(asin_f64,  Const, { F64() }, F64())
 SVM_BUILTIN_DEF(acos_f64,  Const, { F64() }, F64())
 SVM_BUILTIN_DEF(atan_f64,  Const, { F64() }, F64())
 
+SVM_BUILTIN_DEF(abs_f32,   Const, { F32() }, F32())
+SVM_BUILTIN_DEF(exp_f32,   Const, { F32() }, F32())
+SVM_BUILTIN_DEF(exp2_f32,  Const, { F32() }, F32())
+SVM_BUILTIN_DEF(exp10_f32, Const, { F32() }, F32())
+SVM_BUILTIN_DEF(log_f32,   Const, { F32() }, F32())
+SVM_BUILTIN_DEF(log2_f32,  Const, { F32() }, F32())
+SVM_BUILTIN_DEF(log10_f32, Const, { F32() }, F32())
+SVM_BUILTIN_DEF(pow_f32,   Const, { F32(), F32() }, F32())
+SVM_BUILTIN_DEF(sqrt_f32,  Const, { F32() }, F32())
+SVM_BUILTIN_DEF(cbrt_f32,  Const, { F32() }, F32())
+SVM_BUILTIN_DEF(hypot_f32, Const, { F32(), F32() }, F32())
+SVM_BUILTIN_DEF(sin_f32,   Const, { F32() }, F32())
+SVM_BUILTIN_DEF(cos_f32,   Const, { F32() }, F32())
+SVM_BUILTIN_DEF(tan_f32,   Const, { F32() }, F32())
+SVM_BUILTIN_DEF(asin_f32,  Const, { F32() }, F32())
+SVM_BUILTIN_DEF(acos_f32,  Const, { F32() }, F32())
+SVM_BUILTIN_DEF(atan_f32,  Const, { F32() }, F32())
+
 /// ## Memory Management
 SVM_BUILTIN_DEF(memcpy,  None,  {
     pointer(QualType::Mut(arrayType(Byte()))),

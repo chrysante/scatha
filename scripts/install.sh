@@ -1,6 +1,6 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-c="$SCRIPT_DIR/.."
+PROJ_DIR="$SCRIPT_DIR/.."
 
 source $SCRIPT_DIR/util.sh
 
