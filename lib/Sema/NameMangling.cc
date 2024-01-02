@@ -1,5 +1,6 @@
 #include "Sema/NameMangling.h"
 
+#include <optional>
 #include <sstream>
 
 #include <utl/strcat.hpp>
@@ -15,20 +16,38 @@ namespace {
 struct Impl {
     NameManglingOptions const& options;
 
+    auto getScopeNameAndContinue(Entity const& entity) {
+        using RetType = std::pair<std::optional<std::string>, bool>;
+        // clang-format off
+        return SC_MATCH (entity) {
+            [&](GlobalScope const&) -> RetType {
+                return { std::nullopt, false };
+            },
+            [&](FileScope const&) -> RetType {
+                return { options.globalPrefix, false };
+            },
+            [&](LibraryScope const& lib) -> RetType {
+                return { std::string(lib.name()), false };
+            },
+            [&](Entity const& entity) -> RetType {
+                return { std::string(entity.name()), true };
+            },
+        }; // clang-format on
+    }
+
     std::string computeBase(Entity const& entity) {
         std::string result = std::string(entity.name());
         Scope const* scope = entity.parent();
-        SC_EXPECT(scope);
         while (true) {
-            if (isa<GlobalScope>(scope) || isa<FileScope>(scope)) {
+            SC_EXPECT(scope);
+            auto [name, cont] = getScopeNameAndContinue(*scope);
+            if (name) {
+                result = utl::strcat(*name, ".", result);
+            }
+            if (!cont) {
                 break;
             }
-            result = utl::strcat(scope->name(), ".", result);
             scope = scope->parent();
-            SC_EXPECT(scope);
-        }
-        if (!entity.isBuiltin() && options.globalPrefix) {
-            return utl::strcat(*options.globalPrefix, ".", result);
         }
         return result;
     }
