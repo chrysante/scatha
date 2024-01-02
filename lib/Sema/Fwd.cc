@@ -28,6 +28,8 @@ std::ostream& sema::operator<<(std::ostream& str, EntityCategory cat) {
         return str << "Value";
     case EntityCategory::Type:
         return str << "Type";
+    case EntityCategory::Namespace:
+        return str << "Namespace";
     }
     SC_UNREACHABLE();
 }

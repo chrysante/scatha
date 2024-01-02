@@ -58,7 +58,7 @@ namespace scatha::sema {
 /// See "Sema/QualType.h" for details.
 class QualType;
 
-enum class EntityCategory { Indeterminate, Value, Type };
+enum class EntityCategory { Indeterminate, Value, Type, Namespace };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 
