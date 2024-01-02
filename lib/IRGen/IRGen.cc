@@ -7,6 +7,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
+#include <utl/strcat.hpp>
 
 #include "AST/AST.h"
 #include "Common/DebugInfo.h"
@@ -32,7 +33,9 @@ using namespace ranges::views;
 template <typename T>
 static T* get(utl::hashmap<std::string, T*> const& map, std::string_view name) {
     auto itr = map.find(name);
-    SC_RELASSERT(itr != map.end(), "Failed to find symbol in library");
+    SC_RELASSERT(itr != map.end(),
+                 utl::strcat("Failed to find symbol '", name, "' in library")
+                     .c_str());
     return itr->second;
 }
 
@@ -81,7 +84,8 @@ static void importLibrary(ir::Context& ctx,
                           FunctionMap& functionMap,
                           sema::NameMangler const& nameMangler) {
     std::fstream file(lib.codeFile());
-    SC_RELASSERT(file, "Failed to open file");
+    SC_RELASSERT(file,
+                 utl::strcat("Failed to open file ", lib.codeFile()).c_str());
     std::stringstream sstr;
     sstr << file.rdbuf();
     utl::hashmap<std::string, ir::StructType*> IRStructMap;
