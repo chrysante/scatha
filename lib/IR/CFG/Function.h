@@ -72,6 +72,9 @@ public:
     /// \Returns The visibility of this callable.
     Visibility visibility() const { return vis; }
 
+    /// Sets the visibility of this function to \p vis
+    void setVisibility(Visibility vis) { this->vis = vis; }
+
 protected:
     explicit Callable(NodeType nodeType,
                       Context& ctx,

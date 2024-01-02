@@ -90,6 +90,9 @@ static void importLibrary(ir::Context& ctx,
         IRStructMap.insert({ std::string(type.name()), &type });
     };
     auto objCallback = [&](ir::Global& object) {
+        if (auto* irFn = dyncast<ir::Function*>(&object)) {
+            irFn->setVisibility(ir::Visibility::Internal);
+        }
         IRObjectMap.insert({ std::string(object.name()), &object });
     };
     ir::parseTo(std::move(sstr).str(),
