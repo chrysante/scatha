@@ -9,6 +9,7 @@
 #include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Fwd.h>
 #include <scatha/Sema/Fwd.h>
+#include <scatha/Sema/NameMangling.h>
 
 namespace scatha::irgen {
 
@@ -19,6 +20,9 @@ struct SCATHA_API Config {
 
     /// Set this to `true` to associate source locations with IR instructions
     bool generateDebugSymbols = false;
+
+    /// The name mangler used to generate the names of the IR objects
+    sema::NameMangler nameMangler = {};
 };
 
 /// Lower the front-end representation of the program to IR

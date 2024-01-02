@@ -18,6 +18,7 @@ class FunctionSignature;
 class SemanticIssue;
 class SymbolTable;
 class DtorStack;
+class NameMangler;
 
 /// Options struct for `sema::analyze()`
 struct AnalysisOptions {

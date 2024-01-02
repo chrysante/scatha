@@ -17,7 +17,8 @@ class TypeMap;
 ir::StructType* generateType(sema::StructType const* semaType,
                              ir::Context& ctx,
                              ir::Module& mod,
-                             TypeMap& typeMap);
+                             TypeMap& typeMap,
+                             sema::NameMangler const& nameMangler);
 
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code
@@ -25,7 +26,8 @@ ir::Callable* declareFunction(sema::Function const* semaFn,
                               ir::Context& ctx,
                               ir::Module& mod,
                               TypeMap const& typeMap,
-                              FunctionMap& functionMap);
+                              FunctionMap& functionMap,
+                              sema::NameMangler const& nameMangler);
 
 } // namespace scatha::irgen
 

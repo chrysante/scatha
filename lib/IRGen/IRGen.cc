@@ -29,12 +29,14 @@ using namespace ranges::views;
 
 static void mapLibSymbols(sema::Scope const& scope,
                           TypeMap& typeMap,
-                          FunctionMap& functionMap) {
+                          FunctionMap& functionMap,
+                          sema::NameMangler const& nameMangler) {
     for (auto* entity: scope.entities()) {
-        entity->mangledName();
+        std::string name = nameMangler(*entity);
+#warning
     }
     for (auto* child: scope.children()) {
-        mapLibSymbols(*child, typeMap, functionMap);
+        mapLibSymbols(*child, typeMap, functionMap, nameMangler);
     }
 }
 
@@ -42,13 +44,14 @@ static void importLibrary(ir::Context& ctx,
                           ir::Module& mod,
                           sema::LibraryScope const& lib,
                           TypeMap& typeMap,
-                          FunctionMap& functionMap) {
+                          FunctionMap& functionMap,
+                          sema::NameMangler const& nameMangler) {
     std::fstream file(lib.codeFile());
     SC_RELASSERT(file, "Failed to open file");
     std::stringstream sstr;
     sstr << file.rdbuf();
     ir::parseTo(std::move(sstr).str(), ctx, mod);
-    mapLibSymbols(lib, typeMap, functionMap);
+    mapLibSymbols(lib, typeMap, functionMap, nameMangler);
 }
 
 void irgen::generateIR(ir::Context& ctx,
@@ -60,10 +63,10 @@ void irgen::generateIR(ir::Context& ctx,
     TypeMap typeMap(ctx);
     FunctionMap functionMap;
     for (auto* lib: sym.importedLibs()) {
-        importLibrary(ctx, mod, *lib, typeMap, functionMap);
+        importLibrary(ctx, mod, *lib, typeMap, functionMap, config.nameMangler);
     }
     for (auto* semaType: analysisResult.structDependencyOrder) {
-        generateType(semaType, ctx, mod, typeMap);
+        generateType(semaType, ctx, mod, typeMap, config.nameMangler);
     }
     auto queue = analysisResult.functions |
                  transform([](auto* def) { return def->function(); }) |
@@ -73,7 +76,12 @@ void irgen::generateIR(ir::Context& ctx,
                  }) |
                  ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
-        declareFunction(semaFn, ctx, mod, typeMap, functionMap);
+        declareFunction(semaFn,
+                        ctx,
+                        mod,
+                        typeMap,
+                        functionMap,
+                        config.nameMangler);
     }
     while (!queue.empty()) {
         auto* semaFn = queue.front();

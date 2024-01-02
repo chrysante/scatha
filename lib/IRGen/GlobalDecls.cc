@@ -12,6 +12,7 @@
 #include "IRGen/MetaData.h"
 #include "IRGen/Utility.h"
 #include "Sema/Entity.h"
+#include "Sema/NameMangling.h"
 #include "Sema/QualType.h"
 
 using namespace scatha;
@@ -22,8 +23,9 @@ using sema::QualType;
 ir::StructType* irgen::generateType(sema::StructType const* semaType,
                                     ir::Context& ctx,
                                     ir::Module& mod,
-                                    TypeMap& typeMap) {
-    auto structType = allocate<ir::StructType>(semaType->mangledName());
+                                    TypeMap& typeMap,
+                                    sema::NameMangler const& nameMangler) {
+    auto structType = allocate<ir::StructType>(nameMangler(*semaType));
     StructMetaData metaData;
     size_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
@@ -82,7 +84,8 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                      ir::Context& ctx,
                                      ir::Module& mod,
                                      TypeMap const& typeMap,
-                                     FunctionMap& functionMap) {
+                                     FunctionMap& functionMap,
+                                     sema::NameMangler const& nameMangler) {
     FunctionMetaData metaData;
     auto CC = computeCC(semaFn);
     metaData.CC = CC;
@@ -134,7 +137,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
             allocate<ir::Function>(ctx,
                                    irReturnType,
                                    irArgTypes,
-                                   semaFn->mangledName(),
+                                   nameMangler(*semaFn),
                                    mapFuncAttrs(semaFn->attributes()),
                                    mapVisibility(semaFn->binaryVisibility()));
         break;

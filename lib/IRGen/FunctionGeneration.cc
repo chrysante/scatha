@@ -32,7 +32,12 @@ ir::Callable* FuncGenContextBase::getFunction(
     if (semaFunction->isNative() || semaFunction->isGenerated()) {
         declQueue.push_back(semaFunction);
     }
-    return declareFunction(semaFunction, ctx, mod, typeMap, functionMap);
+    return declareFunction(semaFunction,
+                           ctx,
+                           mod,
+                           typeMap,
+                           functionMap,
+                           config.nameMangler);
 }
 
 ir::ForeignFunction* FuncGenContextBase::getBuiltin(svm::Builtin builtin) {

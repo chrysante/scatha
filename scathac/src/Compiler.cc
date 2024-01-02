@@ -86,11 +86,14 @@ int scatha::compilerMain(CompilerOptions options) {
         semaSym.globalScope().setName(options.bindir.stem());
     }
     printTime("Frontend");
-    auto [context, mod] = genIR(*ast,
-                                semaSym,
-                                analysisResult,
-                                { .sourceFiles = sourceFiles,
-                                  .generateDebugSymbols = options.debug });
+    irgen::Config irgenConfig = { .sourceFiles = sourceFiles,
+                                  .generateDebugSymbols = options.debug };
+    if (options.targetType == TargetType::StaticLibrary) {
+        irgenConfig.nameMangler = sema::NameMangler(
+            { .globalPrefix = options.bindir.stem().string() });
+    }
+    auto [context, mod] =
+        genIR(*ast, semaSym, analysisResult, std::move(irgenConfig));
     printTime("IR generation");
     if (options.optimize) {
         options.optLevel = 1;

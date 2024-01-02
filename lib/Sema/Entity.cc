@@ -26,14 +26,6 @@ void sema::privateDestroy(sema::Entity* entity) {
     visit(*entity, [](auto& entity) { std::destroy_at(&entity); });
 }
 
-std::string const& Entity::mangledName() const {
-    if (!_mangledName.empty()) {
-        return _mangledName;
-    }
-    _mangledName = mangleName(this);
-    return _mangledName;
-}
-
 EntityCategory Entity::category() const {
     return visit(*this, [](auto& derived) { return derived.categoryImpl(); });
 }

@@ -83,9 +83,6 @@ public:
     /// List of alternate names that refer to this entity
     std::span<std::string const> alternateNames() const { return _names; }
 
-    /// Mangled name of this entity
-    std::string const& mangledName() const;
-
     /// `true` if this entity is unnamed
     bool isAnonymous() const { return name().empty(); }
 
@@ -154,7 +151,6 @@ private:
     EntityType _entityType;
     utl::small_vector<Scope*, 2> _parents;
     utl::small_vector<std::string, 1> _names;
-    mutable std::string _mangledName;
     ast::ASTNode* _astNode = nullptr;
 };
 
