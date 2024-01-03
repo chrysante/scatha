@@ -6,7 +6,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("Static library compile and import", "[end-to-end][staticlib]") {
+TEST_CASE("Static library compile and import", "[end-to-end][nativelib]") {
     compileLibrary("libs/testlib1",
                    "libs",
                    R"(
@@ -34,7 +34,7 @@ fn main() -> int {
     CHECK(ret == 2);
 }
 
-TEST_CASE("Import native lib in local scope", "[end-to-end][staticlib]") {
+TEST_CASE("Import native lib in local scope", "[end-to-end][nativelib]") {
     compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -45,7 +45,7 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-TEST_CASE("Use native lib in local scope", "[end-to-end][staticlib]") {
+TEST_CASE("Use native lib in local scope", "[end-to-end][nativelib]") {
     compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -56,7 +56,43 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-TEST_CASE("FFI library import", "[end-to-end][ffilib]") {
+TEST_CASE("Import native lib twice", "[end-to-end][nativelib]") {
+    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+fn main() -> int {
+    import testlib;
+    import testlib;
+    return testlib.foo();
+})");
+    CHECK(ret == 42);
+}
+
+TEST_CASE("Import and use native lib twice", "[end-to-end][nativelib]") {
+    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+fn main() -> int {
+    import testlib;
+    use testlib;
+    return foo();
+})");
+    CHECK(ret == 42);
+}
+
+TEST_CASE("Use native lib twice", "[end-to-end][nativelib]") {
+    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+fn main() -> int {
+    use testlib;
+    use testlib;
+    return foo();
+})");
+    CHECK(ret == 42);
+}
+
+TEST_CASE("FFI library import", "[end-to-end][foreignlib]") {
     SECTION("foo") {
         CHECK(42 == test::compileAndRun(R"(
 import "ffi-testlib";
@@ -91,7 +127,7 @@ fn main() {
     }
 }
 
-TEST_CASE("FFI used by static library", "[end-to-end][staticlib][ffilib]") {
+TEST_CASE("FFI used by static library", "[end-to-end][nativelib][foreignlib]") {
     compileLibrary("libs/testlib",
                    "libs",
                    R"(

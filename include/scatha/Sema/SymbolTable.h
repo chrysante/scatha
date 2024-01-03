@@ -42,12 +42,12 @@ public:
     ///
     FileScope* declareFileScope(std::string filename);
 
-    /// Loads symbols from a foreign or antive library into the symbol table
-    Library* importLibrary(ast::ImportStatement* stmt);
+    /// Loads symbols from a foreign or native library into the symbol table
+    Library* declareLibraryImport(ast::ImportStatement* stmt);
 
     /// Imports a foreign library from a name. Searches the specified search
     /// paths for a shared library
-    ForeignLibrary* importForeignLibrary(std::string name);
+    ForeignLibrary* declareForeignLibraryImport(std::string name);
 
     /// Declares a struct to the current scope without specifying size and
     /// alignment.
@@ -285,6 +285,11 @@ public:
     /// @}
 
 private:
+    NativeLibrary* getOrImportNativeLib(std::string_view name,
+                                        ast::ImportStatement* stmt);
+    ForeignLibrary* getOrImportForeignLib(std::string_view name,
+                                          ast::ImportStatement* stmt);
+
     StructType* declareStructImpl(ast::StructDefinition* def, std::string name);
     Function* declareFuncImpl(ast::FunctionDefinition* def, std::string name);
     Variable* declareVarImpl(ast::VarDeclBase* vardecl, std::string name);

@@ -121,16 +121,6 @@ struct SymbolTable::Impl {
     T* ptrLikeImpl(utl::hashmap<QualType, T*>& map,
                    QualType pointee,
                    utl::function_view<void(T*)> continuation = {});
-
-    NativeLibrary* getNativeLib(std::string_view name) {
-        auto itr = nativeLibMap.find(name);
-        return itr != nativeLibMap.end() ? itr->second : nullptr;
-    }
-
-    ForeignLibrary* getForeignLib(std::string_view name) {
-        auto itr = foreignLibMap.find(name);
-        return itr != foreignLibMap.end() ? itr->second : nullptr;
-    }
 };
 
 SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
@@ -237,7 +227,8 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
                                         SymbolTable::Impl& impl,
                                         ast::ImportStatement* stmt,
                                         std::string name) {
-    SC_ASSERT(!impl.getForeignLib(name), "This library is already imported");
+    SC_ASSERT(!impl.foreignLibMap.contains(name),
+              "This library is already imported");
     if (stmt && stmt->importKind() != ImportKind::Scoped) {
         handleImportError(sym, impl, stmt, std::move(name));
         return nullptr;
@@ -263,11 +254,8 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
     return lib;
 }
 
-ForeignLibrary* SymbolTable::importForeignLibrary(std::string name) {
-    if (auto* lib = impl->getForeignLib(name)) {
-        return lib;
-    }
-    return importForeignLib(*this, *impl, nullptr, std::move(name));
+ForeignLibrary* SymbolTable::declareForeignLibraryImport(std::string name) {
+    return getOrImportForeignLib(name, nullptr);
 }
 
 static std::filesystem::path replaceExt(std::filesystem::path p,
@@ -280,7 +268,8 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
                                       SymbolTable::Impl& impl,
                                       ast::ImportStatement* stmt,
                                       std::string name) {
-    SC_ASSERT(!impl.getNativeLib(name), "This library is already imported");
+    SC_ASSERT(!impl.nativeLibMap.contains(name),
+              "This library is already imported");
     auto symPath =
         findLibrary(impl.libSearchPaths, utl::strcat(name, ".scsym"));
     if (!symPath) {
@@ -304,46 +293,66 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
                              " even though it exists")
                      .c_str());
     sym.withScopeCurrent(lib, [&] { deserialize(sym, symFile); });
-    if (stmt->importKind() == ImportKind::Unscoped) {
-        for (auto* entity: lib->entities()) {
-            sym.declareAlias(std::string(entity->name()), *entity, stmt);
-        }
-    }
     return lib;
 }
 
-Library* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
+///
+static void bringIntoCurrentScope(SymbolTable& sym,
+                                  Scope* scope,
+                                  ast::ASTNode* astNode,
+                                  std::span<std::string const> nestName) {
+    if (nestName.empty()) {
+        for (auto* entity: scope->entities()) {
+            sym.declareAlias(std::string(entity->name()), *entity, astNode);
+        }
+        return;
+    }
+    SC_UNIMPLEMENTED();
+}
+
+Library* SymbolTable::declareLibraryImport(ast::ImportStatement* stmt) {
     if (!stmt->libExpr()) {
         return nullptr;
     }
     // clang-format off
     return SC_MATCH (*stmt->libExpr()) {
         [&](ast::Identifier const& ID) {
-            std::string name(ID.value());
-            if (auto* lib = impl->getNativeLib(name)) {
-                return lib;
+            auto* lib = getOrImportNativeLib(ID.value(), stmt);
+            if (stmt->importKind() == ImportKind::Unscoped) {
+                bringIntoCurrentScope(*this, lib, stmt, {});
             }
-            return importNativeLib(*this, *impl, stmt, name);
+            return lib;
         },
         [&](ast::Literal const& lit) -> Library* {
             if (lit.kind() != ast::LiteralKind::String) {
                 handleImportError(*this, *impl, stmt);
                 return nullptr;
             }
-            std::string name = lit.value<std::string>();
-            if (auto* lib = impl->getForeignLib(name)) {
-                return lib;
-            }
-            return importForeignLib(*this,
-                                    *impl,
-                                    stmt,
-                                    name);
+            return getOrImportForeignLib(lit.value<std::string>(), stmt);
         },
         [&](ast::Expression const&) {
             handleImportError(*this, *impl, stmt);
             return nullptr;
         },
     }; // clang-format on
+}
+
+NativeLibrary* SymbolTable::getOrImportNativeLib(std::string_view name,
+                                                 ast::ImportStatement* stmt) {
+    auto itr = impl->nativeLibMap.find(name);
+    if (itr != impl->nativeLibMap.end()) {
+        return itr->second;
+    }
+    return importNativeLib(*this, *impl, stmt, std::string(name));
+}
+
+ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view name,
+                                                   ast::ImportStatement* stmt) {
+    auto itr = impl->foreignLibMap.find(name);
+    if (itr != impl->foreignLibMap.end()) {
+        return itr->second;
+    }
+    return importForeignLib(*this, *impl, stmt, std::string(name));
 }
 
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
@@ -553,6 +562,10 @@ Temporary* SymbolTable::temporary(QualType type) {
 Alias* SymbolTable::declareAlias(std::string name,
                                  Entity& aliased,
                                  ast::ASTNode* astNode) {
+    std::span existing = currentScope().findEntities(name);
+    if (ranges::contains(existing, &aliased, stripAlias)) {
+        return nullptr;
+    }
     auto* alias = impl->addEntity<Alias>(std::move(name),
                                          aliased,
                                          &currentScope(),

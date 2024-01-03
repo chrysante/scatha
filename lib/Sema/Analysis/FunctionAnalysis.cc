@@ -125,7 +125,7 @@ void FuncBodyContext::analyze(ast::ASTNode& node) {
 }
 
 void FuncBodyContext::analyzeImpl(ast::ImportStatement& stmt) {
-    sym.importLibrary(&stmt);
+    sym.declareLibraryImport(&stmt);
 }
 
 void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {

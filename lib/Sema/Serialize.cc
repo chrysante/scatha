@@ -442,7 +442,7 @@ struct DeserializeContext {
                 },
                 [&](Tag<ForeignLibrary>) {
                     auto name = child["name"].get<std::string>();
-                    sym.importForeignLibrary(std::move(name));
+                    sym.declareForeignLibraryImport(std::move(name));
                 },
             }); // clang-format on
         }

@@ -80,7 +80,7 @@ size_t GatherContext::gatherImpl(ast::SourceFile& file) {
 }
 
 size_t GatherContext::gatherImpl(ast::ImportStatement& stmt) {
-    sym.importLibrary(&stmt);
+    sym.declareLibraryImport(&stmt);
     return InvalidIndex;
 }
 
