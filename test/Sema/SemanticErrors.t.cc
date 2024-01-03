@@ -515,10 +515,31 @@ TEST_CASE("Invalid import statements", "[sema][lib]") {
 /*  2 */ import F();
 /*  3 */ import A.B;
 /*  4 */ use "foo";
-/*  5 */ fn foo() { import "foo"; }
+/*  5 */ use F().A;
+/*  6 */ fn foo() { import "foo"; }
+/*  7 */ use DoesNotExist;
 )");
-    CHECK(iss.findOnLine<BadImport>(2));
-    CHECK(iss.findOnLine<BadImport>(3)); // For now!
-    CHECK(iss.findOnLine<BadImport>(4));
-    CHECK(iss.findOnLine<GenericBadStmt>(5, GenericBadStmt::InvalidScope));
+    CHECK(iss.findOnLine<BadImport>(2, BadImport::InvalidExpression));
+    CHECK(iss.findOnLine<BadImport>(3, BadImport::InvalidExpression));
+    CHECK(iss.findOnLine<BadImport>(4, BadImport::UnscopedForeignLibImport));
+    CHECK(iss.findOnLine<BadImport>(5, BadImport::InvalidExpression));
+    CHECK(iss.findOnLine<GenericBadStmt>(6, GenericBadStmt::InvalidScope));
+    CHECK(iss.findOnLine<BadImport>(7, BadImport::LibraryNotFound));
+}
+
+TEST_CASE("Use symbol of library imported in nested scope",
+          "[lib][nativelib]") {
+    test::compileLibrary("libs/testlib",
+                         "libs",
+                         R"(
+export fn foo() { return 42; }
+)");
+    auto iss = test::getSemaIssues(R"(
+/*  2 */ fn test2() {
+/*  3 */     { use testlib.foo; foo(); }
+/*  4 */     foo();
+         })",
+                                   { .librarySearchPaths = { "libs" } });
+    CHECK(iss.noneOnLine(3));
+    CHECK(iss.findOnLine<BadExpr>(4, UndeclaredID));
 }

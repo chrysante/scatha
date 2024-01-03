@@ -491,6 +491,22 @@ fn test2() {
     CHECK(iss.empty());
 }
 
+TEST_CASE("Import same lib in one scope and use in other", "[lib][nativelib]") {
+    compileTestlib();
+    auto iss = test::getSemaIssues(R"(
+fn testlib() {} // Clobber name 'testlib' here
+fn test1() {
+    import testlib;
+    testlib.foo();
+}
+fn test2() {
+    import testlib;
+    testlib.foo();
+})",
+                                   { .librarySearchPaths = { "libs" } });
+    CHECK(iss.empty());
+}
+
 TEST_CASE("Use nested library name", "[lib][nativelib]") {
     compileTestlib();
     auto iss = test::getSemaIssues(R"(
