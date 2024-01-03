@@ -206,27 +206,30 @@ static std::string toForeignLibName(std::string_view name) {
 static ForeignLibrary* importForeignLib(SymbolTable& sym,
                                         SymbolTable::Impl& impl,
                                         ast::ASTNode* astNode,
-                                        std::string name) {
-    SC_ASSERT(!impl.foreignLibMap.contains(name),
+                                        std::string libname) {
+    SC_ASSERT(!impl.foreignLibMap.contains(libname),
               "This library is already imported");
-    auto path = findLibrary(impl.libSearchPaths, toForeignLibName(name));
+    auto path = findLibrary(impl.libSearchPaths, toForeignLibName(libname));
     if (!path) {
         if (astNode) {
             impl.issue<BadImport>(astNode, BadImport::LibraryNotFound);
         }
         else {
-            impl.issue<BadImport>(name);
+            impl.issue<BadImport>(libname);
         }
         return nullptr;
     }
-    auto* lib = impl.addEntity<ForeignLibrary>(name, *path, &sym.globalScope());
+    auto* lib = impl.addEntity<ForeignLibrary>(std::string{},
+                                               libname,
+                                               *path,
+                                               &sym.globalScope());
     /// We add foreign libraries to the global scope because this makes
     /// exporting foreign library imports from native libraries easier. This
     /// does not affect name lookup because foreign libs don't expose names in
     /// the frontend
     sym.globalScope().addChild(lib);
     impl.importedLibs.push_back(lib);
-    impl.foreignLibMap.insert({ name, lib });
+    impl.foreignLibMap.insert({ libname, lib });
     return lib;
 }
 
@@ -239,11 +242,11 @@ static std::filesystem::path replaceExt(std::filesystem::path p,
 static NativeLibrary* importNativeLib(SymbolTable& sym,
                                       SymbolTable::Impl& impl,
                                       ast::ASTNode* node,
-                                      std::string name) {
-    SC_ASSERT(!impl.nativeLibMap.contains(name),
+                                      std::string libname) {
+    SC_ASSERT(!impl.nativeLibMap.contains(libname),
               "This library is already imported");
     auto symPath =
-        findLibrary(impl.libSearchPaths, utl::strcat(name, ".scsym"));
+        findLibrary(impl.libSearchPaths, utl::strcat(libname, ".scsym"));
     if (!symPath) {
         impl.issue<BadImport>(node, BadImport::LibraryNotFound);
         return nullptr;
@@ -255,10 +258,12 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
     }
     /// We declare the library without parent scope. Scopes that want to use the
     /// library have to create an alias to it.
-    auto* lib =
-        impl.addEntity<NativeLibrary>(name, irPath, /* scope = */ nullptr);
+    auto* lib = impl.addEntity<NativeLibrary>(std::string{},
+                                              libname,
+                                              irPath,
+                                              &sym.globalScope());
     impl.importedLibs.push_back(lib);
-    impl.nativeLibMap.insert({ name, lib });
+    impl.nativeLibMap.insert({ libname, lib });
     std::fstream symFile(*symPath);
     SC_RELASSERT(symFile,
                  utl::strcat("Failed to open file ",
@@ -272,7 +277,7 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
 NativeLibrary* SymbolTable::makeNativeLibAvailable(ast::Identifier& ID) {
     auto* lib = getOrImportNativeLib(ID.value(), &ID);
     if (lib) {
-        declareAlias(*lib, &ID);
+        declareAlias(std::string(ID.value()), *lib, &ID);
     }
     return lib;
 }
@@ -282,26 +287,26 @@ ForeignLibrary* SymbolTable::importForeignLib(ast::Literal& lit) {
     return getOrImportForeignLib(lit.value<std::string>(), &lit);
 }
 
-ForeignLibrary* SymbolTable::importForeignLib(std::string_view name) {
-    return getOrImportForeignLib(name, nullptr);
+ForeignLibrary* SymbolTable::importForeignLib(std::string_view libname) {
+    return getOrImportForeignLib(libname, nullptr);
 }
 
-NativeLibrary* SymbolTable::getOrImportNativeLib(std::string_view name,
+NativeLibrary* SymbolTable::getOrImportNativeLib(std::string_view libname,
                                                  ast::ASTNode* astNode) {
-    auto itr = impl->nativeLibMap.find(name);
+    auto itr = impl->nativeLibMap.find(libname);
     if (itr != impl->nativeLibMap.end()) {
         return itr->second;
     }
-    return importNativeLib(*this, *impl, astNode, std::string(name));
+    return importNativeLib(*this, *impl, astNode, std::string(libname));
 }
 
-ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view name,
+ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view libname,
                                                    ast::ASTNode* astNode) {
-    auto itr = impl->foreignLibMap.find(name);
+    auto itr = impl->foreignLibMap.find(libname);
     if (itr != impl->foreignLibMap.end()) {
         return itr->second;
     }
-    return ::importForeignLib(*this, *impl, astNode, std::string(name));
+    return ::importForeignLib(*this, *impl, astNode, std::string(libname));
 }
 
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,

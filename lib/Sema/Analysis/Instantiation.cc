@@ -88,6 +88,19 @@ static bool isUserDefined(Type const* type) {
     }; // clang-format on
 }
 
+/// \Returns `true` if \p entity is defined in a library and thus already
+/// complete
+static bool isLibEntity(Entity const* entity) {
+    auto* scope = entity->parent();
+    while (scope) {
+        if (isa<Library>(scope)) {
+            return true;
+        }
+        scope = entity->parent();
+    }
+    return false;
+}
+
 static Type const* stripArray(Type const* type) {
     if (auto* array = dyncast<ArrayType const*>(type)) {
         return array->elementType();
@@ -108,7 +121,7 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
         auto* type = sym.withScopeCurrent(node.entity->parent(), [&] {
             return analyzeTypeExpr(var.typeExpr(), ctx);
         });
-        if (type && isUserDefined(type)) {
+        if (type && isUserDefined(type) && !isLibEntity(type)) {
             /// Because type instantiations depend on the element type, but
             /// array types are not in the dependency graph, we strip array
             /// types here

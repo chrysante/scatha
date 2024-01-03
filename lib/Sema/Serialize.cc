@@ -322,8 +322,8 @@ static void to_json_impl(json& j, Variable const& var) {
     }
 }
 
-static void to_json_impl(json&, ForeignLibrary const&) {
-    /// No-op because we only need the name and the entity type
+static void to_json_impl(json& j, ForeignLibrary const& lib) {
+    j["libname"] = lib.libName();
 }
 
 static void to_json(json& j, Entity const& entity) {
@@ -441,8 +441,8 @@ struct DeserializeContext {
                     }
                 },
                 [&](Tag<ForeignLibrary>) {
-                    auto name = child["name"].get<std::string>();
-                    sym.importForeignLib(name);
+                    auto libname = child["libname"].get<std::string>();
+                    sym.importForeignLib(libname);
                 },
             }); // clang-format on
         }
