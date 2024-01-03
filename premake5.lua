@@ -96,6 +96,7 @@ externalincludedirs {
 addCppFiles "test"
 libdirs "build/bin/%{cfg.longname}"
 links { "Catch2", "scatha", "svm-lib", "APMath", "termfmt" } 
+dependson "ffi-testlib"
 
 ------------------------------------------
 project "scatha-fuzz"
