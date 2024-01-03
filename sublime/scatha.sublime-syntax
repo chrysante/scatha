@@ -35,7 +35,7 @@ contexts:
     - match: \b(__builtin_alloc|__builtin_dealloc|__builtin_puti64|__builtin_putf64|__builtin_putstr|__builtin_sqrt_f64)\b
       scope: punctuation.definition.keyword
 
-    - match: \b(fn|var|let|struct|public|private|mut|new|delete|move|import|export|extern)\b
+    - match: \b(fn|var|let|struct|public|private|mut|new|delete|move|import|use|export|extern)\b
       scope: punctuation.definition.keyword
 
     - match: \b(void|bool|byte|int|float|double|str|true|false|this|null)\b
