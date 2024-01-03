@@ -4,6 +4,7 @@
 #include "Sema/SemaIssues.h"
 #include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
+#include "test/Util/LibUtil.h"
 
 using namespace scatha;
 using namespace sema;
@@ -505,4 +506,13 @@ TEST_CASE("Main parameter validation", "[sema]") {
               .findOnLine<BadFuncDef>(1, MainInvalidArguments));
     CHECK(test::getSemaIssues("fn main(f: float) {}")
               .findOnLine<BadFuncDef>(1, MainInvalidArguments));
+}
+
+TEST_CASE("Invalid import expressions", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/*  2 */ import F();
+/*  3 */ import A.B;
+)");
+    CHECK(iss.findOnLine<BadImport>(2));
+    CHECK(iss.findOnLine<BadImport>(3)); // For now!
 }
