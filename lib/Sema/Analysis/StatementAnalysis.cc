@@ -1,4 +1,4 @@
-#include "Sema/Analysis/FunctionAnalysis.h"
+#include "Sema/Analysis/StatementAnalysis.h"
 
 #include <utl/scope_guard.hpp>
 #include <utl/stack.hpp>
@@ -46,16 +46,9 @@ static void gatherParentDestructors(ast::JumpStatement& stmt) {
 
 namespace {
 
-struct FuncBodyContext {
-    FuncBodyContext(sema::AnalysisContext& ctx,
-                    ast::FunctionDefinition& function):
-        ctx(ctx),
-        sym(ctx.symbolTable()),
-        iss(ctx.issueHandler()),
-        currentFunction(function),
-        semaFn(function.function()) {}
-
-    void run() { analyze(currentFunction); }
+struct StmtContext {
+    StmtContext(sema::AnalysisContext& ctx):
+        ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
 
     void analyze(ast::ASTNode&);
 
@@ -95,16 +88,16 @@ struct FuncBodyContext {
     bool returnsRef() const {
         /// For now! If we add slim ref qualifiers with type deduction this
         /// needs to change
-        if (!currentFunction.returnType()) {
+        if (!currentFunction->returnType()) {
             return false;
         }
-        return isa<ReferenceType>(currentFunction.returnType());
+        return isa<ReferenceType>(currentFunction->returnType());
     }
 
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
-    ast::FunctionDefinition& currentFunction;
+    ast::FunctionDefinition* currentFunction;
     sema::Function* semaFn;
     /// Only needed if return type is not specified
     sema::Type const* deducedRetTy = nullptr;
@@ -113,22 +106,32 @@ struct FuncBodyContext {
 
 } // namespace
 
-void sema::analyzeFunction(AnalysisContext& ctx, ast::FunctionDefinition* def) {
-    ctx.symbolTable().withScopeCurrent(def->function()->parent(), [&] {
-        FuncBodyContext funcBodyCtx(ctx, *def);
-        funcBodyCtx.run();
+static Scope* findScope(ast::Statement* stmt) {
+    while (stmt) {
+        if (stmt->entity()) {
+            return stmt->entity()->parent();
+        }
+        stmt = dyncast<ast::Statement*>(stmt->parent());
+    }
+    return nullptr;
+}
+
+void sema::analyzeStatement(AnalysisContext& ctx, ast::Statement* stmt) {
+    ctx.symbolTable().withScopeCurrent(findScope(stmt), [&] {
+        StmtContext stmtCtx(ctx);
+        stmtCtx.analyze(*stmt);
     });
 }
 
-void FuncBodyContext::analyze(ast::ASTNode& node) {
+void StmtContext::analyze(ast::ASTNode& node) {
     visit(node, [this](auto& node) { this->analyzeImpl(node); });
 }
 
-void FuncBodyContext::analyzeImpl(ast::ImportStatement& stmt) {
+void StmtContext::analyzeImpl(ast::ImportStatement& stmt) {
     sym.declareLibraryImport(&stmt);
 }
 
-void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
+void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
                                                    sk != ScopeKind::Type)
@@ -139,8 +142,8 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& def) {
         sym.declarePoison(def.nameIdentifier(), EntityCategory::Value);
         return;
     }
-    SC_ASSERT(&def == &currentFunction,
-              "We only analyze one function per context object");
+    currentFunction = &def;
+    semaFn = def.function();
     /// Here the AST node is partially decorated: `entity()` is already set by
     /// `gatherNames()` phase, now we complete the decoration.
     if (ctx.isAnalyzed(semaFn) || ctx.isAnalyzing(semaFn)) {
@@ -203,26 +206,25 @@ static bool argumentsAreValidForMain(std::span<Type const* const> types,
 }
 
 /// Here we perform all checks and transforms on `main` that make it special
-void FuncBodyContext::analyzeMainFunction() {
+void StmtContext::analyzeMainFunction() {
     /// main is always binary visible
     semaFn->setBinaryVisibility(BinaryVisibility::Export);
     /// We might require main to return int at some point, but right now there
     /// are many test cases where main returns bool or double
     auto* retType = semaFn->returnType();
     if (!retType->hasTrivialLifetime()) {
-        ctx.issue<BadFuncDef>(&currentFunction,
+        ctx.issue<BadFuncDef>(currentFunction,
                               BadFuncDef::MainMustReturnTrivial);
     }
     /// Only certain argument types are valid for main
     if (!argumentsAreValidForMain(semaFn->argumentTypes(), sym)) {
-        ctx.issue<BadFuncDef>(&currentFunction,
+        ctx.issue<BadFuncDef>(currentFunction,
                               BadFuncDef::MainInvalidArguments);
     }
 }
 
-void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
-    Type const* declaredType =
-        currentFunction.function()->argumentType(paramDecl.index());
+void StmtContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
+    Type const* declaredType = semaFn->argumentType(paramDecl.index());
     if (!declaredType) {
         sym.declarePoison(paramDecl.nameIdentifier(), EntityCategory::Value);
         return;
@@ -234,9 +236,8 @@ void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     }
 }
 
-void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
-    auto* function = cast<Function*>(currentFunction.entity());
-    auto* parentType = dyncast<ObjectType*>(function->parent());
+void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
+    auto* parentType = dyncast<ObjectType*>(semaFn->parent());
     if (!parentType) {
         return;
     }
@@ -251,19 +252,19 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
         return sym.addProperty(PropertyKind::This, type, mut, LValue);
     }();
     if (param) {
-        function->setIsMember();
+        semaFn->setIsMember();
         thisParam.decorateVarDecl(param);
     }
 }
 
-void FuncBodyContext::analyzeImpl(ast::StructDefinition& def) {
+void StmtContext::analyzeImpl(ast::StructDefinition& def) {
     /// Function defintion is only allowed in the global scope, at namespace
     /// scope and structure scope.
     sym.declarePoison(def.nameIdentifier(), EntityCategory::Type);
     ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
 }
 
-void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
+void StmtContext::analyzeImpl(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
         block.decorateScope(sym.addAnonymousScope());
     }
@@ -275,7 +276,7 @@ void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
     });
 }
 
-void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
+void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(!varDecl.isDecorated(),
               "We should not have handled local variables in prepass.");
     /// We need at least one of init expression and type specifier
@@ -351,17 +352,17 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
 }
 
-void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
+void StmtContext::analyzeImpl(ast::ExpressionStatement& es) {
     SC_EXPECT(sym.currentScope().kind() == ScopeKind::Function);
     analyzeValue(es.expression(), es.dtorStack());
 }
 
-void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
+void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
     SC_EXPECT(sym.currentScope().kind() == ScopeKind::Function);
     /// We gather parent destructors here because `analyzeValue()` may add more
     /// constructors and the parent destructors must be lower in the stack
     gatherParentDestructors(rs);
-    Type const* returnType = currentFunction.returnType();
+    Type const* returnType = currentFunction->returnType();
     /// "Naked" `return;` case
     if (!rs.expression()) {
         if (!returnType) {
@@ -397,7 +398,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     }
 }
 
-void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
+void StmtContext::analyzeImpl(ast::IfStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
         return;
@@ -416,7 +417,7 @@ void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
     }
 }
 
-void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
+void StmtContext::analyzeImpl(ast::LoopStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
         return;
@@ -441,7 +442,7 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
     analyze(*stmt.block());
 }
 
-void FuncBodyContext::analyzeImpl(ast::JumpStatement& stmt) {
+void StmtContext::analyzeImpl(ast::JumpStatement& stmt) {
     auto* parent = stmt.parent();
     while (true) {
         if (!parent || isa<ast::FunctionDefinition>(parent)) {
@@ -456,8 +457,8 @@ void FuncBodyContext::analyzeImpl(ast::JumpStatement& stmt) {
     gatherParentDestructors(stmt);
 }
 
-void FuncBodyContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,
-                                         sema::Type const* type) {
+void StmtContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,
+                                     sema::Type const* type) {
     if (!deducedRetTy) {
         deducedRetTy = type;
     }
@@ -467,7 +468,7 @@ void FuncBodyContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,
     lastReturn = stmt;
 }
 
-void FuncBodyContext::setDeducedReturnType() {
+void StmtContext::setDeducedReturnType() {
     if (semaFn->returnType()) {
         return;
     }

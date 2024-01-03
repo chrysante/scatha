@@ -2,9 +2,9 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/AnalysisContext.h"
-#include "Sema/Analysis/FunctionAnalysis.h"
 #include "Sema/Analysis/GatherNames.h"
 #include "Sema/Analysis/Instantiation.h"
+#include "Sema/Analysis/StatementAnalysis.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -20,7 +20,7 @@ AnalysisResult sema::analyze(ast::ASTNode& TU,
     auto names = gatherNames(TU, ctx);
     auto structs = instantiateEntities(ctx, names.structs, names.functions);
     for (auto* def: names.functions) {
-        analyzeFunction(ctx, def);
+        analyzeStatement(ctx, def);
     }
     return AnalysisResult{ std::move(structs), std::move(names.functions) };
 }

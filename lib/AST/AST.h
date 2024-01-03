@@ -827,7 +827,27 @@ public:
     /// \overload
     sema::DtorStack& dtorStack() { return _dtorStack; }
 
+    /// **Decoration provided by semantic analysis**
+
+    /// \Returns the entity this statement corresponds to
+    sema::Entity* entity() {
+        return const_cast<sema::Entity*>(std::as_const(*this).entity());
+    }
+
+    /// \overload
+    sema::Entity const* entity() const {
+        expectDecorated();
+        return _entity;
+    }
+
+    /// Decorate this node.
+    void decorateStmt(sema::Entity* entity) {
+        _entity = entity;
+        markDecorated();
+    }
+
 private:
+    sema::Entity* _entity = nullptr;
     sema::DtorStack _dtorStack;
 };
 
@@ -870,22 +890,8 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// Entity this declaration corresponds to
-    sema::Entity* entity() {
-        return const_cast<sema::Entity*>(std::as_const(*this).entity());
-    }
-
-    /// \overload
-    sema::Entity const* entity() const {
-        expectDecorated();
-        return _entity;
-    }
-
     /// Decorate this node.
-    void decorateDecl(sema::Entity* entity) {
-        _entity = entity;
-        markDecorated();
-    }
+    void decorateDecl(sema::Entity* entity) { decorateStmt(entity); }
 
 protected:
     using Statement::Statement;
@@ -894,7 +900,6 @@ private:
     sema::AccessSpecifier _accessSpec = sema::AccessSpecifier::Public;
     sema::BinaryVisibility _binaryVis = sema::BinaryVisibility::Internal;
     std::string _extLinkage;
-    sema::Entity* _entity = nullptr;
 };
 
 /// Concrete node representing the root of every AST
@@ -1136,16 +1141,10 @@ public:
     }
 
     /// \overload
-    sema::Scope const* scope() const {
-        expectDecorated();
-        return _scope;
-    }
+    sema::Scope const* scope() const;
 
     /// Decorate this node.
-    void decorateScope(sema::Scope* scope) {
-        _scope = scope;
-        markDecorated();
-    }
+    void decorateScope(sema::Scope* scope);
 
 private:
     sema::Scope* _scope = nullptr;

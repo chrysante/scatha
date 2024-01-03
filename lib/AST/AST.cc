@@ -122,3 +122,11 @@ sema::Function const* FunctionDefinition::function() const {
 sema::StructType const* StructDefinition::structType() const {
     return cast<sema::StructType const*>(entity());
 }
+
+void CompoundStatement::decorateScope(sema::Scope* scope) {
+    decorateStmt(scope);
+}
+
+sema::Scope const* CompoundStatement::scope() const {
+    return cast<sema::Scope const*>(entity());
+}

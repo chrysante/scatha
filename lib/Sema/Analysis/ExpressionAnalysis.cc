@@ -11,8 +11,8 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
-#include "Sema/Analysis/FunctionAnalysis.h"
 #include "Sema/Analysis/OverloadResolution.h"
+#include "Sema/Analysis/StatementAnalysis.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
@@ -1245,7 +1245,7 @@ Type const* ExprContext::getReturnType(Function* function) {
     if (function->returnType()) {
         return function->returnType();
     }
-    analyzeFunction(ctx, cast<ast::FunctionDefinition*>(function->astNode()));
+    analyzeStatement(ctx, cast<ast::FunctionDefinition*>(function->astNode()));
     if (function->returnType()) {
         return function->returnType();
     }
