@@ -514,6 +514,23 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
             idExpr.decorateValue(&generic, LValue);
             return &idExpr;
         },
+        [&](Alias& alias) {
+            switch (alias.category()) {
+            case EntityCategory::Value:
+                idExpr.decorateValue(alias.original(), LValue);
+                break;
+            case EntityCategory::Type:
+                idExpr.decorateType(cast<Type*>(alias.original()));
+                break;
+            case EntityCategory::Namespace:
+                idExpr.decorateNamespace(alias.original());
+                break;
+            case EntityCategory::Indeterminate:
+                break;
+            }
+            
+            return &idExpr;
+        },
         [&](PoisonEntity& poison) {
             idExpr.decorateValue(&poison, RValue);
             return nullptr;

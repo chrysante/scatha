@@ -385,6 +385,13 @@ Function const* OverloadSet::find(std::span<Function const* const> set,
     return itr != set.end() ? *itr : nullptr;
 }
 
+Alias::Alias(Entity& original,
+             std::string name,
+             Scope* parent,
+             ast::ASTNode* astNode):
+    Entity(EntityType::Alias, std::move(name), parent, astNode),
+    orig(&original) {}
+
 PoisonEntity::PoisonEntity(ast::Identifier* ID,
                            EntityCategory cat,
                            Scope* parentScope):

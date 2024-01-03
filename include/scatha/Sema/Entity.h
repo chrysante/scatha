@@ -1067,6 +1067,27 @@ private:
     size_t numParams;
 };
 
+/// Represents a different name for another entity
+class SCATHA_API Alias: public Entity {
+public:
+    explicit Alias(Entity& original,
+                   std::string name,
+                   Scope* parent,
+                   ast::ASTNode* astNode = nullptr);
+
+    /// \Returns the entity that this alias refers to
+    Entity* original() { return orig; }
+
+    /// \overload
+    Entity const* original() const { return orig; }
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return orig->category(); }
+
+    Entity* orig;
+};
+
 /// # Poison
 
 /// Represents a poison entity, an invalid entity to help spread redundant error
