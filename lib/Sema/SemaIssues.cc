@@ -181,14 +181,41 @@ void GenericBadStmt::format(std::ostream& str) const {
     }
 }
 
-BadImport::BadImport(Scope const* scope, ast::ImportStatement const* stmt):
-    BadStmt(scope, stmt, IssueSeverity::Error) {
-    primary(sourceRange(),
-            [=](std::ostream& str) { str << "Cannot find library"; });
+static ast::ImportStatement const* getImportStmt(ast::ASTNode const* node) {
+    if (!node) {
+        return nullptr;
+    }
+    if (auto* stmt = dyncast<ast::ImportStatement const*>(node)) {
+        return stmt;
+    }
+    return node->findAncestor<ast::ImportStatement>();
+}
+
+BadImport::BadImport(Scope const* scope,
+                     ast::ASTNode const* node,
+                     Reason reason):
+    BadStmt(scope, getImportStmt(node), IssueSeverity::Error), _reason(reason) {
+    switch (reason) {
+    case LibraryNotFound:
+        primary(getSourceRange(node),
+                [=](std::ostream& str) { str << "Cannot find library"; });
+        break;
+    case InvalidExpression:
+        primary(getSourceRange(node),
+                [=](std::ostream& str) { str << "Invalid import expression"; });
+        break;
+    case UnscopedForeignLibImport:
+        primary(getSourceRange(node), [=](std::ostream& str) {
+            str << "Must use 'import' to import foreign library";
+        });
+        break;
+    }
 }
 
 BadImport::BadImport(Scope const* scope, std::string name):
-    BadStmt(scope, nullptr, IssueSeverity::Error), name(std::move(name)) {}
+    BadStmt(scope, nullptr, IssueSeverity::Error),
+    _reason(LibraryNotFound),
+    name(std::move(name)) {}
 
 void BadImport::format(std::ostream& str) const {
     str << "Cannot find library \"" << name << "\"";

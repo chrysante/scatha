@@ -6,7 +6,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("Static library compile and import", "[end-to-end][nativelib]") {
+TEST_CASE("Static library compile and import", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib1",
                    "libs",
                    R"(
@@ -36,7 +36,7 @@ fn main() -> int {
     CHECK(ret == 3);
 }
 
-TEST_CASE("Import native lib in local scope", "[end-to-end][nativelib]") {
+TEST_CASE("Import native lib in local scope", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -47,7 +47,7 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-TEST_CASE("Use native lib in local scope", "[end-to-end][nativelib]") {
+TEST_CASE("Use native lib in local scope", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -58,7 +58,7 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-TEST_CASE("Import native lib twice", "[end-to-end][nativelib]") {
+TEST_CASE("Import native lib twice", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -70,7 +70,7 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-TEST_CASE("Import and use native lib twice", "[end-to-end][nativelib]") {
+TEST_CASE("Import and use native lib twice", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -82,7 +82,7 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-TEST_CASE("Use native lib twice", "[end-to-end][nativelib]") {
+TEST_CASE("Use native lib twice", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -94,7 +94,7 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-TEST_CASE("FFI library import", "[end-to-end][foreignlib]") {
+TEST_CASE("FFI library import", "[end-to-end][lib][foreignlib]") {
     SECTION("foo") {
         CHECK(42 == test::compileAndRun(R"(
 import "ffi-testlib";
@@ -129,7 +129,8 @@ fn main() {
     }
 }
 
-TEST_CASE("FFI used by static library", "[end-to-end][nativelib][foreignlib]") {
+TEST_CASE("FFI used by static library",
+          "[end-to-end][lib][nativelib][foreignlib]") {
     compileLibrary("libs/testlib",
                    "libs",
                    R"(

@@ -958,6 +958,23 @@ public:
     /// The way to import this library
     sema::ImportKind importKind() const { return _importKind; }
 
+    /// \Returns `importKind() == sema::ImportKind::Scoped`
+    bool isScoped() const { return importKind() == sema::ImportKind::Scoped; }
+
+    /// \Returns `importKind() == sema::ImportKind::Unscoped`
+    bool isUnscoped() const {
+        return importKind() == sema::ImportKind::Unscoped;
+    }
+
+    /// \Returns the imported library
+    sema::Library* library() {
+        return const_cast<sema::Library*>(
+            static_cast<ImportStatement const*>(this)->library());
+    }
+
+    /// \overload
+    sema::Library const* library() const;
+
 private:
     sema::ImportKind _importKind;
 };
@@ -1145,9 +1162,6 @@ public:
 
     /// Decorate this node.
     void decorateScope(sema::Scope* scope);
-
-private:
-    sema::Scope* _scope = nullptr;
 };
 
 /// Concrete node representing an empty statement (";").

@@ -123,6 +123,10 @@ sema::StructType const* StructDefinition::structType() const {
     return cast<sema::StructType const*>(entity());
 }
 
+sema::Library const* ImportStatement::library() const {
+    return cast<sema::Library const*>(entity());
+}
+
 void CompoundStatement::decorateScope(sema::Scope* scope) {
     decorateStmt(scope);
 }

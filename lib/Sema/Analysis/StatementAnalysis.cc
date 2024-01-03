@@ -53,6 +53,11 @@ struct StmtContext {
     void analyze(ast::ASTNode&);
 
     void analyzeImpl(ast::ImportStatement&);
+    void importUnscopedSymbols(ast::ImportStatement& stmt);
+    bool validateNativeLibImport(ast::ImportStatement& stmt,
+                                 ast::Identifier& ID);
+    bool validateForeignLibImport(ast::ImportStatement& stmt,
+                                  ast::Literal& lit);
     void analyzeImpl(ast::FunctionDefinition&);
     void analyzeMainFunction();
     void analyzeImpl(ast::ParameterDeclaration&);
@@ -120,12 +125,9 @@ void StmtContext::analyze(ast::ASTNode& node) {
 }
 
 ///
-static ast::Expression* getLibName(ast::Expression* importExpr) {
-    if (!importExpr) {
-        return nullptr;
-    }
+static ast::Expression* getLibName(ast::Expression& importExpr) {
     // clang-format off
-    return SC_MATCH (*importExpr) {
+    return SC_MATCH (importExpr) {
         [&](ast::Literal& lit) -> ast::Expression* {
             return &lit;
         },
@@ -137,22 +139,26 @@ static ast::Expression* getLibName(ast::Expression* importExpr) {
             while (true) {
                 auto* ma = dyncast<ast::MemberAccess*>(expr);
                 if (!ma) {
-                    return expr;
+                    return dyncast<ast::Identifier*>(expr);
                 }
                 expr = ma->accessed();
             }
         },
-        [&](ast::Expression& expr) -> ast::Expression* {
-            return &expr;
+        [&](ast::Expression&) -> ast::Expression* {
+            return nullptr;
         }
     }; // clang-format on
 }
 
 void StmtContext::analyzeImpl(ast::ImportStatement& stmt) {
+    if (!stmt.libExpr()) {
+        return;
+    }
     /// We first determine which part of the library expression denotes the name
     /// of the library
-    auto* libname = getLibName(stmt.libExpr());
-    if (libname) {
+    auto* libname = getLibName(*stmt.libExpr());
+    if (!libname) {
+        ctx.issue<BadImport>(stmt.libExpr(), BadImport::InvalidExpression);
         return;
     }
     /// Then we make the library available in the current scope or import the
@@ -160,36 +166,80 @@ void StmtContext::analyzeImpl(ast::ImportStatement& stmt) {
     // clang-format off
     auto* lib = SC_MATCH (*libname) {
         [&](ast::Literal& lit) -> Library* {
-            if (lit.kind() != ast::LiteralKind::String) {
-                SC_UNIMPLEMENTED();
+            if (!validateForeignLibImport(stmt, lit)) {
+                return nullptr;
             }
             return sym.importForeignLib(lit);
         },
         [&](ast::Identifier& ID) -> Library* {
+            if (!validateNativeLibImport(stmt, ID)) {
+                return nullptr;
+            }
             return sym.makeNativeLibAvailable(ID);
         },
         [&](ast::Expression&) -> Library* {
-            SC_UNIMPLEMENTED();
-            return nullptr;
+            SC_UNREACHABLE();
         }
     }; // clang-format on
-    if (!isa<NativeLibrary>(lib)) {
+    if (!lib) {
         return;
     }
+    stmt.decorateStmt(lib);
     /// Then once the library name is available in the current scope we can
     /// analyze the import expression
     if (!analyzeExpr(stmt.libExpr(), stmt.dtorStack())) {
         return;
     }
-    switch (stmt.importKind()) {
-    case sema::ImportKind::Scoped:
-        if (!isa<ast::Identifier>(stmt.libExpr())) {
-            SC_UNIMPLEMENTED();
-        }
-        break;
-    case sema::ImportKind::Unscoped:
-        SC_UNIMPLEMENTED();
+    if (stmt.importKind() == ImportKind::Unscoped) {
+        importUnscopedSymbols(stmt);
     }
+}
+
+void StmtContext::importUnscopedSymbols(ast::ImportStatement& stmt) {
+    SC_EXPECT(stmt.importKind() == ImportKind::Unscoped);
+    if (auto* ID = dyncast<ast::Identifier*>(stmt.libExpr())) {
+        auto& lib = cast<NativeLibrary&>(*stmt.library());
+        for (auto* entity: lib.entities()) {
+            sym.declareAlias(*entity, ID);
+        }
+    }
+    else {
+        auto* expr = stmt.libExpr();
+        SC_ASSERT(isa<ast::MemberAccess>(expr),
+                  "Other cases should produce issues above");
+        SC_ASSERT(expr->entity(), "We should not be here if analysis failed");
+        sym.declareAlias(*expr->entity(), expr);
+    }
+}
+
+bool StmtContext::validateNativeLibImport(ast::ImportStatement& stmt,
+                                          ast::Identifier&) {
+    bool success = true;
+    if (stmt.importKind() == ImportKind::Scoped &&
+        !isa<ast::Identifier>(stmt.libExpr()))
+    {
+        ctx.issue<BadImport>(&stmt, BadImport::InvalidExpression);
+        success = false;
+    }
+    return success;
+}
+
+bool StmtContext::validateForeignLibImport(ast::ImportStatement& stmt,
+                                           ast::Literal& lit) {
+    bool success = true;
+    if (lit.kind() != ast::LiteralKind::String) {
+        ctx.issue<BadImport>(&stmt, BadImport::InvalidExpression);
+        success = false;
+    }
+    if (stmt.importKind() != ImportKind::Scoped) {
+        ctx.issue<BadImport>(&stmt, BadImport::UnscopedForeignLibImport);
+        success = false;
+    }
+    if (sym.currentScope().kind() != ScopeKind::Global) {
+        ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
+        success = false;
+    }
+    return success;
 }
 
 void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {

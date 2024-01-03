@@ -475,7 +475,7 @@ export fn bar() { return 42; }
 )");
 }
 
-TEST_CASE("Import same lib in multiple scopes", "[nativelib]") {
+TEST_CASE("Import same lib in multiple scopes", "[lib][nativelib]") {
     compileTestlib();
     auto iss = test::getSemaIssues(R"(
 fn testlib() {} // Clobber name 'testlib' here
@@ -491,7 +491,7 @@ fn test2() {
     CHECK(iss.empty());
 }
 
-TEST_CASE("Use nested library name", "[nativelib]") {
+TEST_CASE("Use nested library name", "[lib][nativelib]") {
     compileTestlib();
     auto iss = test::getSemaIssues(R"(
 fn test() {

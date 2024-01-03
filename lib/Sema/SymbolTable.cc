@@ -91,6 +91,7 @@ struct SymbolTable::Impl {
     /// Conveniece wrapper to emit issues
     /// The same function exists in `AnalysisContext`, maybe we can merge them
     template <typename I, typename... Args>
+        requires std::constructible_from<I, Scope*, Args...>
     void issue(Args&&... args) {
         SC_ASSERT(iss, "Forget to set issue handler?");
         iss->push<I>(currentScope, std::forward<Args>(args)...);
@@ -181,27 +182,6 @@ FileScope* SymbolTable::declareFileScope(std::string filename) {
     return file;
 }
 
-static void handleImportError(SymbolTable& sym,
-                              SymbolTable::Impl& impl,
-                              ast::ImportStatement* stmt) {
-    if (auto* ID = dyncast<ast::Identifier*>(stmt->libExpr())) {
-        sym.declarePoison(ID, EntityCategory::Indeterminate);
-    }
-    impl.issue<BadImport>(stmt);
-}
-
-static void handleImportError(SymbolTable& sym,
-                              SymbolTable::Impl& impl,
-                              ast::ImportStatement* stmt,
-                              std::string name) {
-    if (stmt) {
-        handleImportError(sym, impl, stmt);
-    }
-    else {
-        impl.issue<BadImport>(std::move(name));
-    }
-}
-
 static std::optional<std::filesystem::path> findLibrary(
     std::span<std::filesystem::path const> searchPaths, std::string name) {
     if (std::filesystem::exists(name)) {
@@ -225,22 +205,18 @@ static std::string toForeignLibName(std::string_view name) {
 
 static ForeignLibrary* importForeignLib(SymbolTable& sym,
                                         SymbolTable::Impl& impl,
-                                        ast::ImportStatement* stmt,
+                                        ast::ASTNode* astNode,
                                         std::string name) {
     SC_ASSERT(!impl.foreignLibMap.contains(name),
               "This library is already imported");
-    if (stmt && stmt->importKind() != ImportKind::Scoped) {
-        handleImportError(sym, impl, stmt, std::move(name));
-        return nullptr;
-    }
-    if (sym.currentScope().kind() != ScopeKind::Global) {
-        SC_ASSERT(stmt, "Cannot import foreign library by name in local scope");
-        impl.issue<GenericBadStmt>(stmt, GenericBadStmt::InvalidScope);
-        return nullptr;
-    }
     auto path = findLibrary(impl.libSearchPaths, toForeignLibName(name));
     if (!path) {
-        handleImportError(sym, impl, stmt, std::move(name));
+        if (astNode) {
+            impl.issue<BadImport>(astNode, BadImport::LibraryNotFound);
+        }
+        else {
+            impl.issue<BadImport>(name);
+        }
         return nullptr;
     }
     auto* lib = impl.addEntity<ForeignLibrary>(name, *path, &sym.globalScope());
@@ -254,7 +230,6 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
     return lib;
 }
 
-
 static std::filesystem::path replaceExt(std::filesystem::path p,
                                         std::filesystem::path ext) {
     p.replace_extension(ext);
@@ -263,19 +238,19 @@ static std::filesystem::path replaceExt(std::filesystem::path p,
 
 static NativeLibrary* importNativeLib(SymbolTable& sym,
                                       SymbolTable::Impl& impl,
-                                      ast::ImportStatement* stmt,
+                                      ast::ASTNode* node,
                                       std::string name) {
     SC_ASSERT(!impl.nativeLibMap.contains(name),
               "This library is already imported");
     auto symPath =
         findLibrary(impl.libSearchPaths, utl::strcat(name, ".scsym"));
     if (!symPath) {
-        handleImportError(sym, impl, stmt);
+        impl.issue<BadImport>(node, BadImport::LibraryNotFound);
         return nullptr;
     }
     std::filesystem::path irPath = replaceExt(*symPath, "scir");
     if (!std::filesystem::exists(irPath)) {
-        handleImportError(sym, impl, stmt);
+        impl.issue<BadImport>(node, BadImport::LibraryNotFound);
         return nullptr;
     }
     /// We declare the library without parent scope. Scopes that want to use the
@@ -311,23 +286,13 @@ ForeignLibrary* SymbolTable::importForeignLib(std::string_view name) {
     return getOrImportForeignLib(name, nullptr);
 }
 
-static ast::ImportStatement* getImportStmt(ast::ASTNode* node) {
-    if (!node) {
-        return nullptr;
-    }
-    return node->findAncestor<ast::ImportStatement>();
-}
-
 NativeLibrary* SymbolTable::getOrImportNativeLib(std::string_view name,
                                                  ast::ASTNode* astNode) {
     auto itr = impl->nativeLibMap.find(name);
     if (itr != impl->nativeLibMap.end()) {
         return itr->second;
     }
-    return importNativeLib(*this,
-                           *impl,
-                           getImportStmt(astNode),
-                           std::string(name));
+    return importNativeLib(*this, *impl, astNode, std::string(name));
 }
 
 ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view name,
@@ -336,10 +301,7 @@ ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view name,
     if (itr != impl->foreignLibMap.end()) {
         return itr->second;
     }
-    return ::importForeignLib(*this,
-                              *impl,
-                              getImportStmt(astNode),
-                              std::string(name));
+    return ::importForeignLib(*this, *impl, astNode, std::string(name));
 }
 
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,

@@ -510,7 +510,7 @@ TEST_CASE("Main parameter validation", "[sema]") {
               .findOnLine<BadFuncDef>(1, MainInvalidArguments));
 }
 
-TEST_CASE("Invalid import statements", "[sema]") {
+TEST_CASE("Invalid import statements", "[sema][lib]") {
     auto iss = test::getSemaIssues(R"(
 /*  2 */ import F();
 /*  3 */ import A.B;

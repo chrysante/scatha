@@ -108,8 +108,15 @@ private:
 /// Invalid `import` statement
 class SCATHA_API BadImport: public BadStmt {
 public:
-    /// Construct from import statement
-    BadImport(Scope const* scope, ast::ImportStatement const* stmt);
+    enum Reason {
+        LibraryNotFound,
+        InvalidExpression,
+        UnscopedForeignLibImport
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    /// Construct from AST node with reason
+    BadImport(Scope const* scope, ast::ASTNode const* node, Reason reason);
 
     /// Construct from library name
     BadImport(Scope const* scope, std::string name);
