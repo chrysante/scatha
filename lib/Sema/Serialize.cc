@@ -265,7 +265,8 @@ static json serializeChildren(
     }) {
     auto children = [&] {
         if (auto* scope = dyncast<Scope const*>(&entity)) {
-            auto children = scope->entities() | filter(filterFn) |
+            auto children = scope->entities() | transform(stripAlias) |
+                            filter(filterFn) |
                             ranges::to<utl::hashset<Entity const*>>;
             for (auto* entity: scope->children() | filter(filterFn)) {
                 children.insert(entity);

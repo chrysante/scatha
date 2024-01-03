@@ -67,6 +67,12 @@ struct SymbolTable::Impl {
     /// List of all imported libraries
     utl::small_vector<Library*> importedLibs;
 
+    /// Name map
+    utl::hashmap<std::string, NativeLibrary*> nativeLibMap;
+
+    /// Name map
+    utl::hashmap<std::string, ForeignLibrary*> foreignLibMap;
+
     /// List of all builtin functions
     utl::vector<Function*> builtinFunctions;
 
@@ -115,6 +121,16 @@ struct SymbolTable::Impl {
     T* ptrLikeImpl(utl::hashmap<QualType, T*>& map,
                    QualType pointee,
                    utl::function_view<void(T*)> continuation = {});
+
+    NativeLibrary* getNativeLib(std::string_view name) {
+        auto itr = nativeLibMap.find(name);
+        return itr != nativeLibMap.end() ? itr->second : nullptr;
+    }
+
+    ForeignLibrary* getForeignLib(std::string_view name) {
+        auto itr = foreignLibMap.find(name);
+        return itr != foreignLibMap.end() ? itr->second : nullptr;
+    }
 };
 
 SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
@@ -221,6 +237,7 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
                                         SymbolTable::Impl& impl,
                                         ast::ImportStatement* stmt,
                                         std::string name) {
+    SC_ASSERT(!impl.getForeignLib(name), "This library is already imported");
     if (stmt && stmt->importKind() != ImportKind::Scoped) {
         handleImportError(sym, impl, stmt, std::move(name));
         return nullptr;
@@ -235,19 +252,21 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
         handleImportError(sym, impl, stmt, std::move(name));
         return nullptr;
     }
-    auto* lib =
-        impl.addEntity<ForeignLibrary>(name, *path, &sym.currentScope());
-    sym.currentScope().addChild(lib);
+    auto* lib = impl.addEntity<ForeignLibrary>(name, *path, &sym.globalScope());
     /// We add foreign libraries to the global scope because this makes
     /// exporting foreign library imports from native libraries easier. This
     /// does not affect name lookup because foreign libs don't expose names in
     /// the frontend
     sym.globalScope().addChild(lib);
     impl.importedLibs.push_back(lib);
+    impl.foreignLibMap.insert({ name, lib });
     return lib;
 }
 
 ForeignLibrary* SymbolTable::importForeignLibrary(std::string name) {
+    if (auto* lib = impl->getForeignLib(name)) {
+        return lib;
+    }
     return importForeignLib(*this, *impl, nullptr, std::move(name));
 }
 
@@ -261,6 +280,7 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
                                       SymbolTable::Impl& impl,
                                       ast::ImportStatement* stmt,
                                       std::string name) {
+    SC_ASSERT(!impl.getNativeLib(name), "This library is already imported");
     auto symPath =
         findLibrary(impl.libSearchPaths, utl::strcat(name, ".scsym"));
     if (!symPath) {
@@ -276,6 +296,7 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
         impl.addEntity<NativeLibrary>(name, irPath, &sym.currentScope());
     sym.currentScope().addChild(lib);
     impl.importedLibs.push_back(lib);
+    impl.nativeLibMap.insert({ name, lib });
     std::fstream symFile(*symPath);
     SC_RELASSERT(symFile,
                  utl::strcat("Failed to open file ",
@@ -285,7 +306,7 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
     sym.withScopeCurrent(lib, [&] { deserialize(sym, symFile); });
     if (stmt->importKind() == ImportKind::Unscoped) {
         for (auto* entity: lib->entities()) {
-            sym.currentScope().addChild(entity);
+            sym.declareAlias(std::string(entity->name()), *entity, stmt);
         }
     }
     return lib;
@@ -298,17 +319,25 @@ Library* SymbolTable::importLibrary(ast::ImportStatement* stmt) {
     // clang-format off
     return SC_MATCH (*stmt->libExpr()) {
         [&](ast::Identifier const& ID) {
-            return importNativeLib(*this, *impl, stmt, std::string(ID.value()));
+            std::string name(ID.value());
+            if (auto* lib = impl->getNativeLib(name)) {
+                return lib;
+            }
+            return importNativeLib(*this, *impl, stmt, name);
         },
         [&](ast::Literal const& lit) -> Library* {
             if (lit.kind() != ast::LiteralKind::String) {
                 handleImportError(*this, *impl, stmt);
                 return nullptr;
             }
+            std::string name = lit.value<std::string>();
+            if (auto* lib = impl->getForeignLib(name)) {
+                return lib;
+            }
             return importForeignLib(*this,
                                     *impl,
                                     stmt,
-                                    lit.value<std::string>());
+                                    name);
         },
         [&](ast::Expression const&) {
             handleImportError(*this, *impl, stmt);
