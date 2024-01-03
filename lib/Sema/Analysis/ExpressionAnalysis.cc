@@ -20,6 +20,7 @@
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 using enum ValueCategory;
 using enum ConversionKind;
 using enum BadExpr::Reason;
@@ -453,15 +454,15 @@ static Entity* toSingleEntity(ast::Identifier const& idExpr,
         return nullptr;
     }
     // TODO: Remove the check for !isa<Function>
-    if (entities.size() == 1 && !isa<Function>(entities.front())) {
-        return entities.front();
+    if (entities.size() == 1 && !isa<Function>(stripAlias(entities.front()))) {
+        return stripAlias(entities.front());
     }
-    if (!ranges::all_of(entities, isa<Function>)) {
+    if (!ranges::all_of(entities, isa<Function>, stripAlias)) {
         // TODO: Push error
         SC_UNIMPLEMENTED();
     }
-    auto functions = entities | ranges::views::transform(cast<Function*>) |
-                     ToSmallVector<>;
+    auto functions = entities | transform(stripAlias) |
+                     transform(cast<Function*>) | ToSmallVector<>;
     return ctx.symbolTable().addOverloadSet(idExpr.sourceRange(),
                                             std::move(functions));
 }
@@ -512,23 +513,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
         },
         [&](Generic& generic) {
             idExpr.decorateValue(&generic, LValue);
-            return &idExpr;
-        },
-        [&](Alias& alias) {
-            switch (alias.category()) {
-            case EntityCategory::Value:
-                idExpr.decorateValue(alias.original(), LValue);
-                break;
-            case EntityCategory::Type:
-                idExpr.decorateType(cast<Type*>(alias.original()));
-                break;
-            case EntityCategory::Namespace:
-                idExpr.decorateNamespace(alias.original());
-                break;
-            case EntityCategory::Indeterminate:
-                break;
-            }
-            
             return &idExpr;
         },
         [&](PoisonEntity& poison) {

@@ -43,7 +43,7 @@ struct IssueHelper {
 
     bool noneOnLine(size_t line) const {
         for (auto* issue: iss) {
-            if (issue->sourceLocation().line == line) {
+            if (issue->sourceLocation().line == (ssize_t)line) {
                 return false;
             }
         }

@@ -17,9 +17,9 @@ fn g(x: int) -> int {
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     auto* f = sym.unqualifiedLookup("f").front();
-    CHECK(isa<Function>(f));
+    CHECK(isa<Function>(stripAlias(f)));
     CHECK(f->name() == "f");
     auto* g = sym.unqualifiedLookup("g").front();
-    CHECK(isa<Function>(g));
+    CHECK(isa<Function>(stripAlias(g)));
     CHECK(g->name() == "g");
 }

@@ -200,11 +200,11 @@ TEST_CASE("Invalid variable declaration", "[sema][issue]") {
 
 TEST_CASE("Invalid declaration", "[sema][issue]") {
     auto issues = test::getSemaIssues(R"(
-fn f() {
-	fn g() {}
-	struct X {}
-})");
-    auto const* f = issues.sym.unqualifiedLookup("f").front();
+/* 2 */ fn f() {
+/* 3 */ 	fn g() {}
+/* 4 */ 	struct X {}
+/* 5 */ })");
+    auto const* f = stripAlias(issues.sym.unqualifiedLookup("f").front());
     auto const line3 = issues.findOnLine<GenericBadStmt>(3);
     REQUIRE(line3);
     CHECK(line3->scope() == f);
@@ -217,29 +217,29 @@ fn f() {
 
 TEST_CASE("Invalid statement at struct scope", "[sema][issue]") {
     auto issues = test::getSemaIssues(R"(
-struct X {
-	return 0;
-	1;
-	1 + 2;
-	if (1 > 0) {}
-	while (1 > 0) {}
-	{}
-	fn f() { {} }
-})");
-    auto const* x = issues.sym.unqualifiedLookup("X").front();
+/*  2 */ struct X {
+/*  3 */     return 0;
+/*  4 */     1;
+/*  5 */     1 + 2;
+/*  6 */     if (1 > 0) {}
+/*  7 */     while (1 > 0) {}
+/*  8 */     {}
+/*  9 */     fn f() { {} }
+/* 10 */ })");
+    auto const* x = stripAlias(issues.sym.unqualifiedLookup("X").front());
     auto checkLine = [&](int line) {
         auto const issue = issues.findOnLine<GenericBadStmt>(line);
         REQUIRE(issue);
         CHECK(issue->reason() == GenericBadStmt::InvalidScope);
         CHECK(issue->scope() == x);
     };
-    checkLine(3);                // return 0;
-    checkLine(4);                // 1;
-    checkLine(5);                // 1 + 2;
-    checkLine(6);                // if (1 > 0) {}
-    checkLine(7);                // while (1 > 0) {}
-    checkLine(8);                // {}
-    CHECK(issues.noneOnLine(9)); // fn f() { {} }
+    checkLine(3);
+    checkLine(4);
+    checkLine(5);
+    checkLine(6);
+    checkLine(7);
+    checkLine(8);
+    CHECK(issues.noneOnLine(9));
 }
 
 TEST_CASE("Cyclic dependency in struct definition", "[sema][issue]") {

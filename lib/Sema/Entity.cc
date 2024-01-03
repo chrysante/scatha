@@ -37,18 +37,20 @@ std::optional<AccessSpecifier> Entity::accessSpec() const {
     return std::nullopt;
 }
 
-void Entity::addAlternateName(std::string name) {
-    _names.push_back(name);
-    if (parent()) {
-        parent()->addAlternateChildName(this, name);
-    }
-}
+Entity::Entity(EntityType entityType,
+               std::string name,
+               Scope* parent,
+               ast::ASTNode* astNode):
+    _entityType(entityType),
+    _parent(parent),
+    _name(std::move(name)),
+    _astNode(astNode) {}
 
-void Entity::addParent(Scope* parent) {
-    if (ranges::contains(_parents, parent)) {
-        return;
-    }
-    _parents.push_back(parent);
+void Entity::setParent(Scope* parent) { _parent = parent; }
+
+void Entity::addAlias(Alias* alias) {
+    SC_EXPECT(!ranges::contains(_aliases, alias));
+    _aliases.push_back(alias);
 }
 
 Object::Object(EntityType entityType,
@@ -134,7 +136,9 @@ Property const* Scope::findProperty(PropertyKind kind) const {
 }
 
 void Scope::addChild(Entity* entity) {
-    entity->addParent(this);
+    SC_ASSERT(entity->parent() == nullptr || entity->parent() == this,
+              "entity already has a parent");
+    entity->setParent(this);
     /// Each scope that we add we add to to our list of child scopes
     if (auto* scope = dyncast<Scope*>(entity)) {
         bool const success = _children.insert(scope).second;
@@ -147,11 +151,11 @@ void Scope::addChild(Entity* entity) {
     }
     /// We add the entity to our own symbol table
     /// We don't add anonymous entities because entities are keyed by their name
-    if (entity->isAnonymous()) {
-        return;
-    }
-    for (auto& name: entity->alternateNames()) {
-        _names[name].push_back(entity);
+    if (!entity->isAnonymous()) {
+        auto& entities = _names[entity->name()];
+        SC_ASSERT(!ranges::contains(entities, entity),
+                  "entity already is our child");
+        entities.push_back(entity);
     }
 }
 
@@ -377,20 +381,33 @@ Function const* OverloadSet::find(std::span<Type const* const> types) const {
     return find(std::span<Function const* const>(*this), types);
 }
 
-Function const* OverloadSet::find(std::span<Function const* const> set,
-                                  std::span<Type const* const> types) {
-    auto itr = ranges::find_if(set, [&](auto* function) {
-        return ranges::equal(function->argumentTypes(), types);
+template <typename T>
+T const* OSFindImpl(std::span<T const* const> set,
+                    std::span<Type const* const> types) {
+    auto itr = ranges::find_if(set, [&](auto* entity) {
+        return ranges::equal(cast<Function const*>(stripAlias(entity))
+                                 ->argumentTypes(),
+                             types);
     });
     return itr != set.end() ? *itr : nullptr;
 }
 
-Alias::Alias(Entity& original,
-             std::string name,
+Function const* OverloadSet::find(std::span<Function const* const> set,
+                                  std::span<Type const* const> types) {
+    return OSFindImpl(set, types);
+}
+
+Entity const* OverloadSet::find(std::span<Entity const* const> set,
+                                std::span<Type const* const> types) {
+    return OSFindImpl(set, types);
+}
+
+Alias::Alias(std::string name,
+             Entity& aliased,
              Scope* parent,
              ast::ASTNode* astNode):
     Entity(EntityType::Alias, std::move(name), parent, astNode),
-    orig(&original) {}
+    _aliased(&aliased) {}
 
 PoisonEntity::PoisonEntity(ast::Identifier* ID,
                            EntityCategory cat,

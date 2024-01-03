@@ -137,10 +137,10 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->Str = const_cast<ArrayType*>(arrayType(Byte()));
     impl->NullPtrType = declareBuiltinType<sema::NullPtrType>();
 
-    impl->S64->addAlternateName("int");
-    impl->F32->addAlternateName("float");
-    impl->F64->addAlternateName("double");
-    impl->Str->addAlternateName("str");
+    declareAlias("int", *impl->S64, nullptr);
+    declareAlias("float", *impl->F32, nullptr);
+    declareAlias("double", *impl->F64, nullptr);
+    declareAlias("str", *impl->Str, nullptr);
 
     /// Declare builtin functions
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
@@ -328,6 +328,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
     }
     auto* type = impl->addEntity<StructType>(name, &currentScope(), def);
     addToCurrentScope(type);
+    addGlobalAliasIfPublicAtFilescope(type);
     return type;
 }
 
@@ -341,10 +342,12 @@ StructType* SymbolTable::declareStructureType(std::string name) {
 
 template <typename T, typename... Args>
 T* SymbolTable::declareBuiltinType(Args&&... args) {
+    SC_ASSERT(&currentScope() == &globalScope(),
+              "Must use this function in global scope");
     auto* type =
         impl->addEntity<T>(std::forward<Args>(args)..., &currentScope());
     type->setBuiltin();
-    globalScope().addChild(type);
+    addToCurrentScope(type);
     return type;
 }
 
@@ -363,8 +366,9 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                                    &currentScope(),
                                                    FunctionAttribute::None,
                                                    def);
-    addToCurrentScope(function);
     impl->functions.push_back(function);
+    addToCurrentScope(function);
+    addGlobalAliasIfPublicAtFilescope(function);
     return function;
 }
 
@@ -372,30 +376,46 @@ Function* SymbolTable::declareFuncName(ast::FunctionDefinition* def) {
     return declareFuncImpl(def, std::string(def->name()));
 }
 
-/// \Returns the set of functions with the same name as \p ref in all parent
-/// scopes of \p ref that already have a signature
-static utl::small_vector<Function const*> findScopeOS(Function const* ref) {
-    utl::hashset<Function const*> set;
-    for (auto* parent: ref->parents()) {
-        auto entities = parent->findEntities(ref->name());
-        auto functions = entities | transform(cast<Function const*>) |
-                         filter(&Function::hasSignature);
-        set.insert(functions.begin(), functions.end());
+/// \Returns the set of functions with the same name as \p ref in the parent
+/// scope of \p ref that already have a signature, not including \p ref
+static utl::small_vector<Entity const*> findOtherOverloads(Entity const* ref) {
+    auto* refFn = dyncast<Function const*>(ref);
+    auto entities = ref->parent()->findEntities(ref->name());
+    auto withSignature =
+        entities | filter([=](Entity const* entity) {
+            auto* F = cast<Function const*>(stripAlias(entity));
+            return F->hasSignature() && F != refFn && entity != ref;
+        });
+    return utl::hashset<Entity const*>(withSignature.begin(),
+                                       withSignature.end()) |
+           ToSmallVector<>;
+}
+
+static bool checkValidOverload(SymbolTable::Impl& impl,
+                               Entity const* entity,
+                               std::span<Type const* const> argumentTypes) {
+    auto overloadSet = findOtherOverloads(entity);
+    auto* existing = OverloadSet::find(overloadSet, argumentTypes);
+    if (existing) {
+        impl.issue<Redefinition>(dyncast<ast::Declaration const*>(
+                                     entity->astNode()),
+                                 existing);
+        return false;
     }
-    set.erase(ref);
-    return set | ToSmallVector<>;
+    return true;
 }
 
 bool SymbolTable::setFuncSig(Function* function, FunctionSignature sig) {
     function->setSignature(sig); /// We don't move `sig` here because we use it
                                  /// later in this function
-    auto overloadSet = findScopeOS(function);
-    auto* existing = OverloadSet::find(overloadSet, sig.argumentTypes());
-    if (existing) {
-        impl->issue<Redefinition>(function->definition(), existing);
-        return false;
+    bool result = true;
+    result &= checkValidOverload(*impl, function, sig.argumentTypes());
+    for (auto* alias: function->aliases()) {
+        if (alias->name() == function->name()) {
+            result &= checkValidOverload(*impl, alias, sig.argumentTypes());
+        }
     }
-    return true;
+    return result;
 }
 
 Function* SymbolTable::declareFunction(std::string name,
@@ -447,6 +467,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
     }
     auto* variable = impl->addEntity<Variable>(name, &currentScope(), vardecl);
     addToCurrentScope(variable);
+    addGlobalAliasIfPublicAtFilescope(variable);
     return variable;
 }
 
@@ -490,6 +511,7 @@ Property* SymbolTable::addProperty(PropertyKind kind,
     auto* prop =
         impl->addEntity<Property>(kind, &currentScope(), type, mut, valueCat);
     addToCurrentScope(prop);
+    addGlobalAliasIfPublicAtFilescope(prop);
     return prop;
 }
 
@@ -499,13 +521,28 @@ Temporary* SymbolTable::temporary(QualType type) {
     return temp;
 }
 
-void SymbolTable::declarePoison(ast::Identifier* ID, EntityCategory cat) {
+Alias* SymbolTable::declareAlias(std::string name,
+                                 Entity& aliased,
+                                 ast::ASTNode* astNode) {
+    auto* alias = impl->addEntity<Alias>(std::move(name),
+                                         aliased,
+                                         &currentScope(),
+                                         astNode);
+    addToCurrentScope(alias);
+    aliased.addAlias(alias);
+    return alias;
+}
+
+PoisonEntity* SymbolTable::declarePoison(ast::Identifier* ID,
+                                         EntityCategory cat) {
     auto name = std::string(ID->value());
     if (isKeyword(name) || !currentScope().findEntities(name).empty()) {
-        return;
+        return nullptr;
     }
     auto* poison = impl->addEntity<PoisonEntity>(ID, cat, &currentScope());
     addToCurrentScope(poison);
+    addGlobalAliasIfPublicAtFilescope(poison);
+    return poison;
 }
 
 Scope* SymbolTable::addAnonymousScope() {
@@ -750,11 +787,19 @@ E* SymbolTable::Impl::addEntity(Args&&... args) {
 
 void SymbolTable::addToCurrentScope(Entity* entity) {
     currentScope().addChild(entity);
+}
+
+void SymbolTable::addGlobalAliasIfPublicAtFilescope(Entity* entity) {
     using enum AccessSpecifier;
-    bool isPublic = entity->accessSpec().value_or(Public) == Public;
-    if (isa<FileScope>(&currentScope()) && isPublic) {
-        globalScope().addChild(entity);
+    if (!isa<FileScope>(entity->parent())) {
+        return;
     }
+    if (entity->accessSpec().value_or(Public) != Public) {
+        return;
+    }
+    withScopeCurrent(&globalScope(), [&] {
+        declareAlias(std::string(entity->name()), *entity, entity->astNode());
+    });
 }
 
 static bool checkRedefImpl(SymbolTable::Impl& impl,
@@ -765,7 +810,7 @@ static bool checkRedefImpl(SymbolTable::Impl& impl,
     auto entities = scope->findEntities(name);
     switch (kind) {
     case Redef_Function:
-        if (ranges::all_of(entities, isa<Function>)) {
+        if (ranges::all_of(entities, isa<Function>, stripAlias)) {
             return true;
         }
         break;

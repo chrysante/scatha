@@ -142,8 +142,14 @@ public:
     /// Declares an anonymous scope within the current scope.
     Scope* addAnonymousScope();
 
+    /// Declares an alias to entity \p aliased under the name \p name in the
+    /// current scope
+    Alias* declareAlias(std::string name,
+                        Entity& aliased,
+                        ast::ASTNode* astNode);
+
     /// Declares a poison entity to the current scope.
-    void declarePoison(ast::Identifier* ID, EntityCategory category);
+    PoisonEntity* declarePoison(ast::Identifier* ID, EntityCategory category);
 
     /// Makes scope \p scope the current scope.
     ///
@@ -290,7 +296,12 @@ private:
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);
 
+    /// Adds \p entity as a child of the current scope
     void addToCurrentScope(Entity* entity);
+
+    /// Declares an alias to \p entity under the same name in the global scope
+    /// if \p entity is declared public in a filescope
+    void addGlobalAliasIfPublicAtFilescope(Entity* entity);
 
     bool checkRedef(int kind,
                     std::string_view name,

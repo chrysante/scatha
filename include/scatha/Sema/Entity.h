@@ -11,6 +11,7 @@
 
 #include <range/v3/view.hpp>
 #include <utl/hashmap.hpp>
+#include <utl/small_ptr_vector.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
@@ -75,13 +76,10 @@ namespace scatha::sema {
 class SCATHA_API Entity {
 public:
     /// The name of this entity
-    std::string_view name() const { return _names[0]; }
+    std::string_view name() const { return _name; }
 
     /// Sets the primary name of this entity to \p name
-    void setName(std::string name) { _names[0] = std::move(name); }
-
-    /// List of alternate names that refer to this entity
-    std::span<std::string const> alternateNames() const { return _names; }
+    void setName(std::string name) { _name = std::move(name); }
 
     /// \Returns `true` if this entity is unnamed
     bool isAnonymous() const { return name().empty(); }
@@ -94,20 +92,10 @@ public:
 
     /// The parent scope of this entity. Not all entities have a parent scope so
     /// this may be null.
-    /// This is the first and primary parent. Entities may have multiple
-    /// parents.
-    Scope* parent() { return _parents.front(); }
+    Scope* parent() { return _parent; }
 
     /// \overload
-    Scope const* parent() const { return _parents.front(); }
-
-    /// The complete list of parent scopes. Entities can have multiple scopes to
-    /// make public symbol visible in the global scope and to allow using
-    /// directives
-    std::span<Scope* const> parents() { return _parents; }
-
-    /// \overload
-    std::span<Scope const* const> parents() const { return _parents; }
+    Scope const* parent() const { return _parent; }
 
     /// The runtime type of this entity class
     EntityType entityType() const { return _entityType; }
@@ -121,9 +109,6 @@ public:
     /// `true` if this entity represents a type
     bool isType() const { return category() == EntityCategory::Type; }
 
-    /// Add \p name as an alternate name for this entity
-    void addAlternateName(std::string name);
-
     /// \Returns the corresponding AST node
     ast::ASTNode* astNode() { return _astNode; }
 
@@ -133,31 +118,38 @@ public:
     /// \Returns the access spec if this entity is a declaration
     std::optional<AccessSpecifier> accessSpec() const;
 
+    /// \Returns the list of aliases to this entity
+    std::span<Alias* const> aliases() { return _aliases; }
+
+    /// \overload
+    std::span<Alias const* const> aliases() const { return _aliases; }
+
 protected:
     explicit Entity(EntityType entityType,
                     std::string name,
                     Scope* parent,
-                    ast::ASTNode* astNode = nullptr):
-        _entityType(entityType),
-        _parents({ parent }),
-        _names({ std::move(name) }),
-        _astNode(astNode) {}
+                    ast::ASTNode* astNode = nullptr);
 
 private:
     friend class Scope;
     /// To be used by scope
-    void addParent(Scope* parent);
+    void setParent(Scope* parent);
 
     /// Default implementation of `category()`
     EntityCategory categoryImpl() const {
         return EntityCategory::Indeterminate;
     }
 
+    friend class SymbolTable;
+    /// To be used by symbol table
+    void addAlias(Alias* alias);
+
     /// Type ID used by `dyncast`
     EntityType _entityType;
     bool _isBuiltin = false;
-    utl::small_vector<Scope*, 2> _parents;
-    utl::small_vector<std::string, 1> _names;
+    Scope* _parent = nullptr;
+    std::string _name;
+    utl::small_ptr_vector<Alias*> _aliases;
     ast::ASTNode* _astNode = nullptr;
 };
 
@@ -350,8 +342,9 @@ public:
                ToConstAddress;
     }
 
-    /// Add \p entity as a child of this scope. This function is used by the
-    /// symbol table and should ideally be private
+    /// Add \p entity as a child of this scope. This function is used by
+    /// `Entity` and the symbol table and should ideally be private, but we need
+    /// access to it in free functions in the implementation of symbol table
     void addChild(Entity* entity);
 
 protected:
@@ -1033,6 +1026,18 @@ public:
     static Function const* find(std::span<Function const* const> set,
                                 std::span<Type const* const> paramTypes);
 
+    /// Static overload. The entities in \p set must be functions or function
+    /// aliases
+    static Entity* find(std::span<Entity* const> set,
+                        std::span<Type const* const> paramTypes) {
+        std::span<Entity const* const> cSet(set.data(), set.size());
+        return const_cast<Entity*>(find(cSet, paramTypes));
+    }
+
+    /// \overload
+    static Entity const* find(std::span<Entity const* const> set,
+                              std::span<Type const* const> paramTypes);
+
     /// The location where this overload set ist formed
     SourceRange sourceRange() const { return loc; }
 
@@ -1070,22 +1075,22 @@ private:
 /// Represents a different name for another entity
 class SCATHA_API Alias: public Entity {
 public:
-    explicit Alias(Entity& original,
-                   std::string name,
+    explicit Alias(std::string name,
+                   Entity& aliased,
                    Scope* parent,
                    ast::ASTNode* astNode = nullptr);
 
     /// \Returns the entity that this alias refers to
-    Entity* original() { return orig; }
+    Entity* aliased() { return _aliased; }
 
     /// \overload
-    Entity const* original() const { return orig; }
+    Entity const* aliased() const { return _aliased; }
 
 private:
     friend class Entity;
-    EntityCategory categoryImpl() const { return orig->category(); }
+    EntityCategory categoryImpl() const { return aliased()->category(); }
 
-    Entity* orig;
+    Entity* _aliased;
 };
 
 /// # Poison
@@ -1104,6 +1109,31 @@ private:
 
     EntityCategory cat;
 };
+
+struct StripAliasFn {
+    Entity* operator()(Entity* entity) const {
+        return const_cast<Entity*>((*this)(static_cast<Entity const*>(entity)));
+    }
+
+    Entity const* operator()(Entity const* entity) const {
+        if (auto* alias = dyncast<Alias const*>(entity)) {
+            return alias->aliased();
+        }
+        return entity;
+    }
+
+    Entity& operator()(Entity& entity) const {
+        return const_cast<Entity&>((*this)(static_cast<Entity const&>(entity)));
+    }
+
+    Entity const& operator()(Entity const& entity) const {
+        return *(*this)(&entity);
+    }
+};
+
+/// \Returns the aliased entity if \p entity is an alias, otherwise returns \p
+/// entity
+inline constexpr StripAliasFn stripAlias{};
 
 } // namespace scatha::sema
 

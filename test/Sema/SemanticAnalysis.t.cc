@@ -26,7 +26,7 @@ template <typename T>
 auto* lookup(SymbolTable& sym, std::string_view name) {
     auto entities = sym.unqualifiedLookup(name);
     REQUIRE(entities.size() == 1);
-    return dyncast<T*>(entities.front());
+    return dyncast<T*>(sema::stripAlias(entities.front()));
 }
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
@@ -287,10 +287,11 @@ struct X {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* x = lookup<Scope>(sym, "X");
-    sym.pushScope(x);
-    auto* f = lookup<Function>(sym, "f");
-    CHECK(f->argumentType(0)->parent()->name() == "X");
-    sym.popScope();
+    REQUIRE(x);
+    sym.withScopeCurrent(x, [&] {
+        auto* f = lookup<Function>(sym, "f");
+        CHECK(f->argumentType(0)->parent()->name() == "X");
+    });
 }
 
 TEST_CASE("Conditional operator", "[sema]") {
