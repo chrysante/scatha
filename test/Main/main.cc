@@ -1,6 +1,6 @@
 #include <catch2/catch_session.hpp>
 
-#include "test/Options.h"
+#include "Main/Options.h"
 
 using namespace scatha;
 using namespace test;

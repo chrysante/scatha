@@ -2,10 +2,10 @@
 
 #include <string>
 
+#include "EndToEndTests/PassTesting.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "Opt/Passes.h"
-#include "test/EndToEndTests/PassTesting.h"
 
 using namespace scatha;
 

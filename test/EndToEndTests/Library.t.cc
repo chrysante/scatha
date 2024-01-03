@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "test/EndToEndTests/PassTesting.h"
-#include "test/Util/LibUtil.h"
+#include "EndToEndTests/PassTesting.h"
+#include "Util/LibUtil.h"
 
 using namespace scatha;
 using namespace test;

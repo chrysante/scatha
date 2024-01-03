@@ -1,10 +1,10 @@
-#include "test/IssueHelper.h"
+#include "Util/IssueHelper.h"
 
 #include <sstream>
 
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
-#include "test/Sema/SimpleAnalzyer.h"
+#include "Sema/SimpleAnalzyer.h"
 
 using namespace scatha;
 

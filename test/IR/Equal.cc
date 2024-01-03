@@ -1,4 +1,4 @@
-#include "test/IR/Equal.h"
+#include "IR/Equal.h"
 
 #include <ostream>
 

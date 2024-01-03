@@ -9,7 +9,7 @@
 #include "IR/IRParser.h"
 #include "IR/Loop.h"
 #include "IR/Module.h"
-#include "test/Set.h"
+#include "Util/Set.h"
 
 using namespace scatha;
 

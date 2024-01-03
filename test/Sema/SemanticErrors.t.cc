@@ -2,9 +2,9 @@
 
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
-#include "test/IssueHelper.h"
-#include "test/Sema/SimpleAnalzyer.h"
-#include "test/Util/LibUtil.h"
+#include "Sema/SimpleAnalzyer.h"
+#include "Util/IssueHelper.h"
+#include "Util/LibUtil.h"
 
 using namespace scatha;
 using namespace sema;

@@ -1,4 +1,4 @@
-#include "test/EndToEndTests/PassTesting.h"
+#include "EndToEndTests/PassTesting.h"
 
 #include <functional>
 #include <iostream>
@@ -30,14 +30,14 @@
 #include "IR/Print.h"
 #include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
+#include "Main/Options.h"
 #include "Opt/Optimizer.h"
 #include "Opt/Passes.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/SymbolTable.h"
-#include "test/CoutRerouter.h"
-#include "test/Options.h"
+#include "Util/CoutRerouter.h"
 
 using namespace scatha;
 using namespace test;

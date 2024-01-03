@@ -4,7 +4,7 @@
 
 #include "Sema/Entity.h"
 #include "Sema/Serialize.h"
-#include "test/Sema/SimpleAnalzyer.h"
+#include "Sema/SimpleAnalzyer.h"
 
 using namespace scatha;
 using namespace sema;

@@ -1,10 +1,10 @@
-#include "test/Util/LibUtil.h"
+#include "Util/LibUtil.h"
 
 #include <sstream>
 
 #include "Assembly/Assembler.h"
+#include "EndToEndTests/PassTesting.h"
 #include "Invocation/CompilerInvocation.h"
-#include "test/EndToEndTests/PassTesting.h"
 
 using namespace scatha;
 using namespace test;

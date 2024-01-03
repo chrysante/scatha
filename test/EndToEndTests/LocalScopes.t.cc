@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "test/EndToEndTests/PassTesting.h"
+#include "EndToEndTests/PassTesting.h"
 
 using namespace scatha;
 

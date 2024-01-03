@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "Sema/Entity.h"
-#include "test/Sema/SimpleAnalzyer.h"
+#include "Sema/SimpleAnalzyer.h"
 
 using namespace scatha;
 using namespace sema;

@@ -1,12 +1,12 @@
-#include "test/Opt/PassTest.h"
+#include "Opt/PassTest.h"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Equal.h"
 #include "IR/IRParser.h"
 #include "IR/Module.h"
-#include "test/IR/Equal.h"
 
 using namespace scatha;
 using namespace test;

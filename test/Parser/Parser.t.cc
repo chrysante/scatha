@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "AST/AST.h"
-#include "test/IssueHelper.h"
-#include "test/Parser/SimpleParser.h"
+#include "Parser/SimpleParser.h"
+#include "Util/IssueHelper.h"
 
 using namespace scatha;
 using namespace ast;

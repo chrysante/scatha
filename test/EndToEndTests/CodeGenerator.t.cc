@@ -4,7 +4,7 @@
 
 #include <utl/bit.hpp>
 
-#include "test/EndToEndTests/PassTesting.h"
+#include "EndToEndTests/PassTesting.h"
 
 using namespace scatha;
 

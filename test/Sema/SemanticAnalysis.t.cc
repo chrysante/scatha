@@ -7,8 +7,8 @@
 #include "AST/AST.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
-#include "test/IssueHelper.h"
-#include "test/Sema/SimpleAnalzyer.h"
+#include "Sema/SimpleAnalzyer.h"
+#include "Util/IssueHelper.h"
 
 using namespace scatha;
 using namespace sema;

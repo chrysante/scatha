@@ -11,7 +11,7 @@
 #include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
-#include "test/CoutRerouter.h"
+#include "Util/CoutRerouter.h"
 
 using namespace scatha;
 using namespace Asm;

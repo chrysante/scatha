@@ -4,7 +4,7 @@
 #include "IR/Context.h"
 #include "IR/Type.h"
 #include "Opt/Common.h"
-#include "test/Opt/PassTest.h"
+#include "Opt/PassTest.h"
 
 using namespace scatha;
 using namespace opt;

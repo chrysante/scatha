@@ -80,10 +80,9 @@ project "scatha-test"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
 
-includedirs { "lib", "include/scatha" }
+includedirs { "test", "lib", "include/scatha" }
 
 externalincludedirs { 
-    ".", 
     "include", 
     "svm/include", 
     "external/utility/include", 

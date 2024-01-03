@@ -2,7 +2,7 @@
 
 #include "AST/AST.h"
 #include "Parser/SyntaxIssue.h"
-#include "test/IssueHelper.h"
+#include "Util/IssueHelper.h"
 
 using namespace scatha;
 using namespace parser;

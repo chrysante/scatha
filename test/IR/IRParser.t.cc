@@ -9,7 +9,7 @@
 #include "IR/Module.h"
 #include "IR/Type.h"
 
-#include "test/IR/EqualityTestHelper.h"
+#include "IR/EqualityTestHelper.h"
 
 using namespace scatha;
 
