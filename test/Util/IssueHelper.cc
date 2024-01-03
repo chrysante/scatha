@@ -35,8 +35,10 @@ test::IssueHelper test::getSyntaxIssues(std::string_view source) {
     return { std::move(iss), std::move(ast) };
 }
 
-test::IssueHelper test::getSemaIssues(std::span<SourceFile const> sources) {
-    auto [ast, sym, iss] = produceDecoratedASTAndSymTable(std::move(sources));
+test::IssueHelper test::getSemaIssues(std::span<SourceFile const> sources,
+                                      sema::AnalysisOptions const& options) {
+    auto [ast, sym, iss] =
+        produceDecoratedASTAndSymTable(std::move(sources), options);
     testPrinting(iss, sources);
     return { std::move(iss), std::move(ast), std::move(sym) };
 }

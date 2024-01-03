@@ -9,6 +9,7 @@
 #include "Sema/SemaIssues.h"
 #include "Sema/SimpleAnalzyer.h"
 #include "Util/IssueHelper.h"
+#include "Util/LibUtil.h"
 
 using namespace scatha;
 using namespace sema;
@@ -463,4 +464,29 @@ TEST_CASE("Unknown linkage", "[sema][lib]") {
 extern "D" fn foo() -> void;
 )");
     CHECK(iss.findOnLine<BadFuncDef>(2, BadFuncDef::UnknownLinkage));
+}
+
+static void compileTestlib() {
+    test::compileLibrary("libs/testlib",
+                         "libs",
+                         R"(
+export fn foo() { return 42; }
+export fn bar() { return 42; }
+)");
+}
+
+TEST_CASE("Import same lib in multiple scopes", "[nativelib]") {
+    compileTestlib();
+    auto iss = test::getSemaIssues(R"(
+/* 2 */ fn testlib() {} // Clobber name 'testlib' here
+/* 3 */ fn test1() {
+/* 4 */     import testlib;
+/* 5 */     testlib.foo();
+/* 6 */ }
+/* 7 */ fn test2() {
+/* 8 */     import testlib;
+/* 9 */     testlib.foo();
+})",
+                                   { .librarySearchPaths = { "libs" } });
+    CHECK(iss.empty());
 }

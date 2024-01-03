@@ -281,9 +281,10 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
         handleImportError(sym, impl, stmt);
         return nullptr;
     }
+    /// We declare the library without parent scope. Scopes that want to use the
+    /// library have to create an alias to it.
     auto* lib =
-        impl.addEntity<NativeLibrary>(name, irPath, &sym.currentScope());
-    sym.currentScope().addChild(lib);
+        impl.addEntity<NativeLibrary>(name, irPath, /* scope = */ nullptr);
     impl.importedLibs.push_back(lib);
     impl.nativeLibMap.insert({ name, lib });
     std::fstream symFile(*symPath);
@@ -303,7 +304,7 @@ static void bringIntoCurrentScope(SymbolTable& sym,
                                   std::span<std::string const> nestName) {
     if (nestName.empty()) {
         for (auto* entity: scope->entities()) {
-            sym.declareAlias(std::string(entity->name()), *entity, astNode);
+            sym.declareAlias(*entity, astNode);
         }
         return;
     }
@@ -316,8 +317,12 @@ Library* SymbolTable::declareLibraryImport(ast::ImportStatement* stmt) {
     }
     // clang-format off
     return SC_MATCH (*stmt->libExpr()) {
-        [&](ast::Identifier const& ID) {
+        [&](ast::Identifier const& ID) -> Library* {
             auto* lib = getOrImportNativeLib(ID.value(), stmt);
+            if (!lib) {
+                return nullptr;
+            }
+            declareAlias(*lib, stmt);
             if (stmt->importKind() == ImportKind::Unscoped) {
                 bringIntoCurrentScope(*this, lib, stmt, {});
             }
@@ -573,6 +578,10 @@ Alias* SymbolTable::declareAlias(std::string name,
     addToCurrentScope(alias);
     aliased.addAlias(alias);
     return alias;
+}
+
+Alias* SymbolTable::declareAlias(Entity& aliased, ast::ASTNode* astNode) {
+    return declareAlias(std::string(aliased.name()), aliased, astNode);
 }
 
 PoisonEntity* SymbolTable::declarePoison(ast::Identifier* ID,
@@ -839,9 +848,8 @@ void SymbolTable::addGlobalAliasIfPublicAtFilescope(Entity* entity) {
     if (entity->accessSpec().value_or(Public) != Public) {
         return;
     }
-    withScopeCurrent(&globalScope(), [&] {
-        declareAlias(std::string(entity->name()), *entity, entity->astNode());
-    });
+    withScopeCurrent(&globalScope(),
+                     [&] { declareAlias(*entity, entity->astNode()); });
 }
 
 static bool checkRedefImpl(SymbolTable::Impl& impl,

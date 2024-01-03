@@ -143,10 +143,18 @@ public:
     Scope* addAnonymousScope();
 
     /// Declares an alias to entity \p aliased under the name \p name in the
-    /// current scope
+    /// current scope.
+    /// Does nothing if \p aliased is already aliased under the same name or
+    /// exists with the same name in the current scope
     Alias* declareAlias(std::string name,
                         Entity& aliased,
                         ast::ASTNode* astNode);
+
+    /// Declares an alias to entity \p aliased under the same name in the
+    /// current scope.
+    /// Does nothing if \p aliased is already aliased under the same name in the
+    /// current scope or if \p aliased is a member of the current scope
+    Alias* declareAlias(Entity& aliased, ast::ASTNode* astNode);
 
     /// Declares a poison entity to the current scope.
     PoisonEntity* declarePoison(ast::Identifier* ID, EntityCategory category);

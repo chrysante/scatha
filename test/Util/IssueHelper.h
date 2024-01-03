@@ -5,6 +5,7 @@
 #include <optional>
 #include <string_view>
 
+#include <range/v3/view.hpp>
 #include <utl/function_view.hpp>
 
 #include "AST/Fwd.h"
@@ -61,13 +62,21 @@ IssueHelper getLexicalIssues(std::string_view text);
 
 IssueHelper getSyntaxIssues(std::string_view text);
 
-IssueHelper getSemaIssues(std::span<SourceFile const> sources);
+IssueHelper getSemaIssues(std::span<SourceFile const> sources,
+                          sema::AnalysisOptions const& options);
 
-template <typename... T>
-    requires(std::constructible_from<std::string, T> && ...)
-IssueHelper getSemaIssues(T... sources) {
-    return getSemaIssues(
-        std::vector{ SourceFile::make(std::string(std::move(sources)))... });
+inline IssueHelper getSemaIssues(std::string_view source,
+                                 sema::AnalysisOptions const& options = {}) {
+    return getSemaIssues(std::vector{ SourceFile::make(std::string(source)) },
+                         options);
+}
+
+inline IssueHelper getSemaIssues(std::vector<std::string> sources,
+                                 sema::AnalysisOptions const& options = {}) {
+    return getSemaIssues(sources | ranges::views::transform([](auto& str) {
+                             return SourceFile::make(std::move(str));
+                         }) | ranges::to<std::vector>,
+                         options);
 }
 
 } // namespace scatha::test
