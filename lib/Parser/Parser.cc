@@ -27,7 +27,7 @@
 ///                                   | <import-statement>
 ///                                   | <expression-statement>
 ///                                   | ";"
-/// <import-statement>              ::= "import" <postfix-expression>
+/// <import-statement>              ::= ("import" | "use") <postfix-expression>
 /// <expression-statement>          ::= <commma-expression> ";"
 /// <compound-statement>            ::= "{" {<statement>}* "}"
 /// <control-flow-statement>        ::= <return statement>
@@ -353,9 +353,20 @@ UniquePtr<ast::Statement> Context::parseGlobalStatement() {
     return nullptr;
 }
 
+static sema::ImportKind toImportKind(TokenKind kind) {
+    switch (kind) {
+    case Import:
+        return sema::ImportKind::Scoped;
+    case Use:
+        return sema::ImportKind::Unscoped;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
     auto token = tokens.peek();
-    if (token.kind() != Import) {
+    if (token.kind() != Import && token.kind() != Use) {
         return nullptr;
     }
     tokens.eat();
@@ -364,7 +375,9 @@ UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
         pushExpectedExpression(tokens.peek());
     }
     expectDelimiter(Semicolon);
-    return allocate<ast::ImportStatement>(token.sourceRange(), std::move(expr));
+    return allocate<ast::ImportStatement>(token.sourceRange(),
+                                          std::move(expr),
+                                          toImportKind(token.kind()));
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {

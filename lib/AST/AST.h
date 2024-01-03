@@ -940,13 +940,21 @@ private:
 class SCATHA_API ImportStatement: public Statement {
 public:
     explicit ImportStatement(SourceRange sourceRange,
-                             UniquePtr<Expression> libExpr):
-        Statement(NodeType::ImportStatement, sourceRange, std::move(libExpr)) {}
+                             UniquePtr<Expression> libExpr,
+                             sema::ImportKind importKind):
+        Statement(NodeType::ImportStatement, sourceRange, std::move(libExpr)),
+        _importKind(importKind) {}
 
     AST_DERIVED_COMMON(ImportStatement)
 
     /// The expression denoting the imported library
     AST_PROPERTY(0, Expression, libExpr, LibExpr)
+
+    /// The way to import this library
+    sema::ImportKind importKind() const { return _importKind; }
+
+private:
+    sema::ImportKind _importKind;
 };
 
 /// Abstract base class of `VariableDeclaration` and `ParameterDeclaration`

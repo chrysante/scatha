@@ -63,7 +63,14 @@ enum class EntityCategory { Indeterminate, Value, Type, Namespace };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 
-///
+/// Different ways to import a library.
+/// - `Scoped` corresponds to an `import lib;` statement and means entities are
+/// accessible via `lib.entity`
+/// - `Unscoped` corresponds to a `use lib;` statement and means entities are
+/// directly declared in the current scope
+enum class ImportKind { Scoped, Unscoped };
+
+/// Enum to disambiguate value categories
 enum class ValueCategory { LValue, RValue };
 
 SCATHA_API std::string_view toString(ValueCategory);

@@ -28,6 +28,7 @@ SC_KEYWORD_TOKEN_DEF(Double,      "double")
 
 /// ## Directives
 SC_KEYWORD_TOKEN_DEF(Import,      "import")
+SC_KEYWORD_TOKEN_DEF(Use,         "use")
 SC_KEYWORD_TOKEN_DEF(Export,      "export")
 
 /// ## Declarators

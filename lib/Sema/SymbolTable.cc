@@ -274,6 +274,11 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
                              " even though it exists")
                      .c_str());
     sym.withScopeCurrent(lib, [&] { deserialize(sym, symFile); });
+    if (stmt->importKind() == ImportKind::Unscoped) {
+        for (auto* entity: lib->entities()) {
+            sym.currentScope().addChild(entity);
+        }
+    }
     return lib;
 }
 

@@ -90,6 +90,17 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
+TEST_CASE("Use native lib in local scope", "[end-to-end][staticlib]") {
+    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+fn main() -> int {
+    use testlib;
+    return foo();
+})");
+    CHECK(ret == 42);
+}
+
 TEST_CASE("FFI library import", "[end-to-end][ffilib]") {
     SECTION("foo") {
         CHECK(42 == test::compileAndRun(R"(
