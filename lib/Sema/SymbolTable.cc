@@ -221,6 +221,15 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
                                         SymbolTable::Impl& impl,
                                         ast::ImportStatement* stmt,
                                         std::string name) {
+    if (stmt && stmt->importKind() != ImportKind::Scoped) {
+        handleImportError(sym, impl, stmt, std::move(name));
+        return nullptr;
+    }
+    if (sym.currentScope().kind() != ScopeKind::Global) {
+        SC_ASSERT(stmt, "Cannot import foreign library by name in local scope");
+        impl.issue<GenericBadStmt>(stmt, GenericBadStmt::InvalidScope);
+        return nullptr;
+    }
     auto path = findLibrary(impl.libSearchPaths, toForeignLibName(name));
     if (!path) {
         handleImportError(sym, impl, stmt, std::move(name));

@@ -508,11 +508,15 @@ TEST_CASE("Main parameter validation", "[sema]") {
               .findOnLine<BadFuncDef>(1, MainInvalidArguments));
 }
 
-TEST_CASE("Invalid import expressions", "[sema]") {
+TEST_CASE("Invalid import statements", "[sema]") {
     auto iss = test::getSemaIssues(R"(
 /*  2 */ import F();
 /*  3 */ import A.B;
+/*  4 */ use "foo";
+/*  5 */ fn foo() { import "foo"; }
 )");
     CHECK(iss.findOnLine<BadImport>(2));
     CHECK(iss.findOnLine<BadImport>(3)); // For now!
+    CHECK(iss.findOnLine<BadImport>(4));
+    CHECK(iss.findOnLine<GenericBadStmt>(5, GenericBadStmt::InvalidScope));
 }
