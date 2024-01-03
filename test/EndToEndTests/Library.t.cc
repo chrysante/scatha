@@ -25,13 +25,15 @@ export fn incTwice(n: &mut int) {
 
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
+import testlib1;
 import testlib2;
 fn main() -> int {
     var n = 0;
+    testlib1.inc(n);
     testlib2.incTwice(n);
     return n;
 })");
-    CHECK(ret == 2);
+    CHECK(ret == 3);
 }
 
 TEST_CASE("Import native lib in local scope", "[end-to-end][nativelib]") {

@@ -1245,7 +1245,10 @@ Type const* ExprContext::getReturnType(Function* function) {
     if (function->returnType()) {
         return function->returnType();
     }
-    analyzeStatement(ctx, cast<ast::FunctionDefinition*>(function->astNode()));
+    sym.withScopeCurrent(function->parent(), [&] {
+        auto* def = cast<ast::FunctionDefinition*>(function->astNode());
+        analyzeStatement(ctx, def);
+    });
     if (function->returnType()) {
         return function->returnType();
     }

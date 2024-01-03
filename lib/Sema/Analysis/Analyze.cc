@@ -20,7 +20,8 @@ AnalysisResult sema::analyze(ast::ASTNode& TU,
     auto names = gatherNames(TU, ctx);
     auto structs = instantiateEntities(ctx, names.structs, names.functions);
     for (auto* def: names.functions) {
-        analyzeStatement(ctx, def);
+        sym.withScopeCurrent(def->function()->parent(),
+                             [&] { analyzeStatement(ctx, def); });
     }
     return AnalysisResult{ std::move(structs), std::move(names.functions) };
 }

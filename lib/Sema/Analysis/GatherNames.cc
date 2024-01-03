@@ -7,6 +7,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
+#include "Sema/Analysis/StatementAnalysis.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
@@ -80,7 +81,7 @@ size_t GatherContext::gatherImpl(ast::SourceFile& file) {
 }
 
 size_t GatherContext::gatherImpl(ast::ImportStatement& stmt) {
-    sym.declareLibraryImport(&stmt);
+    analyzeStatement(ctx, &stmt);
     return InvalidIndex;
 }
 

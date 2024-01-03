@@ -478,14 +478,25 @@ export fn bar() { return 42; }
 TEST_CASE("Import same lib in multiple scopes", "[nativelib]") {
     compileTestlib();
     auto iss = test::getSemaIssues(R"(
-/* 2 */ fn testlib() {} // Clobber name 'testlib' here
-/* 3 */ fn test1() {
-/* 4 */     import testlib;
-/* 5 */     testlib.foo();
-/* 6 */ }
-/* 7 */ fn test2() {
-/* 8 */     import testlib;
-/* 9 */     testlib.foo();
+fn testlib() {} // Clobber name 'testlib' here
+fn test1() {
+    import testlib;
+    testlib.foo();
+}
+fn test2() {
+    import testlib;
+    testlib.foo();
+})",
+                                   { .librarySearchPaths = { "libs" } });
+    CHECK(iss.empty());
+}
+
+TEST_CASE("Use nested library name", "[nativelib]") {
+    compileTestlib();
+    auto iss = test::getSemaIssues(R"(
+fn test() {
+    use testlib.foo;
+    foo();
 })",
                                    { .librarySearchPaths = { "libs" } });
     CHECK(iss.empty());

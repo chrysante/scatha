@@ -254,9 +254,6 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
     return lib;
 }
 
-ForeignLibrary* SymbolTable::declareForeignLibraryImport(std::string name) {
-    return getOrImportForeignLib(name, nullptr);
-}
 
 static std::filesystem::path replaceExt(std::filesystem::path p,
                                         std::filesystem::path ext) {
@@ -297,67 +294,52 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
     return lib;
 }
 
-///
-static void bringIntoCurrentScope(SymbolTable& sym,
-                                  Scope* scope,
-                                  ast::ASTNode* astNode,
-                                  std::span<std::string const> nestName) {
-    if (nestName.empty()) {
-        for (auto* entity: scope->entities()) {
-            sym.declareAlias(*entity, astNode);
-        }
-        return;
+NativeLibrary* SymbolTable::makeNativeLibAvailable(ast::Identifier& ID) {
+    auto* lib = getOrImportNativeLib(ID.value(), &ID);
+    if (lib) {
+        declareAlias(*lib, &ID);
     }
-    SC_UNIMPLEMENTED();
+    return lib;
 }
 
-Library* SymbolTable::declareLibraryImport(ast::ImportStatement* stmt) {
-    if (!stmt->libExpr()) {
+ForeignLibrary* SymbolTable::importForeignLib(ast::Literal& lit) {
+    SC_EXPECT(lit.kind() == ast::LiteralKind::String);
+    return getOrImportForeignLib(lit.value<std::string>(), &lit);
+}
+
+ForeignLibrary* SymbolTable::importForeignLib(std::string_view name) {
+    return getOrImportForeignLib(name, nullptr);
+}
+
+static ast::ImportStatement* getImportStmt(ast::ASTNode* node) {
+    if (!node) {
         return nullptr;
     }
-    // clang-format off
-    return SC_MATCH (*stmt->libExpr()) {
-        [&](ast::Identifier const& ID) -> Library* {
-            auto* lib = getOrImportNativeLib(ID.value(), stmt);
-            if (!lib) {
-                return nullptr;
-            }
-            declareAlias(*lib, stmt);
-            if (stmt->importKind() == ImportKind::Unscoped) {
-                bringIntoCurrentScope(*this, lib, stmt, {});
-            }
-            return lib;
-        },
-        [&](ast::Literal const& lit) -> Library* {
-            if (lit.kind() != ast::LiteralKind::String) {
-                handleImportError(*this, *impl, stmt);
-                return nullptr;
-            }
-            return getOrImportForeignLib(lit.value<std::string>(), stmt);
-        },
-        [&](ast::Expression const&) {
-            handleImportError(*this, *impl, stmt);
-            return nullptr;
-        },
-    }; // clang-format on
+    return node->findAncestor<ast::ImportStatement>();
 }
 
 NativeLibrary* SymbolTable::getOrImportNativeLib(std::string_view name,
-                                                 ast::ImportStatement* stmt) {
+                                                 ast::ASTNode* astNode) {
     auto itr = impl->nativeLibMap.find(name);
     if (itr != impl->nativeLibMap.end()) {
         return itr->second;
     }
-    return importNativeLib(*this, *impl, stmt, std::string(name));
+    return importNativeLib(*this,
+                           *impl,
+                           getImportStmt(astNode),
+                           std::string(name));
 }
 
 ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view name,
-                                                   ast::ImportStatement* stmt) {
+                                                   ast::ASTNode* astNode) {
     auto itr = impl->foreignLibMap.find(name);
     if (itr != impl->foreignLibMap.end()) {
         return itr->second;
     }
-    return importForeignLib(*this, *impl, stmt, std::string(name));
+    return ::importForeignLib(*this,
+                              *impl,
+                              getImportStmt(astNode),
+                              std::string(name));
 }
 
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
