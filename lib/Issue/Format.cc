@@ -136,6 +136,9 @@ void SrcHighlightCtx::run() {
         if (line >= utl::narrow_cast<int>(source.size())) {
             continue;
         }
+        if (!H.position.valid()) {
+            continue;
+        }
         /// Begin padding lines
         printLines(line - PaddingLines, PaddingLines, source);
         ///

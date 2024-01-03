@@ -1,6 +1,7 @@
 #include "IR/Parser/IRIssue.h"
 
 #include <iostream>
+#include <sstream>
 
 #include <utl/utility.hpp>
 
@@ -34,7 +35,6 @@ void ir::print(ParseIssue const& issue, std::ostream& str) {
                 { SemanticIssue::UnexpectedID,              "Unexpected ID" },
                 { SemanticIssue::ExpectedType,              "Expected type" },
                 { SemanticIssue::ExpectedConstantValue,     "Expected value constant" },
-                { SemanticIssue::ExpectedGlobalKind,        "Expected 'global' or 'constant' keyword" },
                 
             });
             auto sl = issue.sourceLocation();
@@ -44,3 +44,9 @@ void ir::print(ParseIssue const& issue, std::ostream& str) {
 }
 
 void ir::print(ParseIssue const& issue) { ir::print(issue, std::cout); }
+
+std::string ir::toString(ParseIssue const& issue) {
+    std::stringstream sstr;
+    print(issue, sstr);
+    return std::move(sstr).str();
+}

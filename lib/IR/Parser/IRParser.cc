@@ -71,7 +71,9 @@ private:
     Token tok;
 };
 
-struct ParseContext {
+struct ParserException {};
+
+struct IRParser {
     using ValueMap = utl::hashmap<std::string, Value*>;
     struct PendingUpdate: std::function<void(Value*)> {
         using Base = std::function<void(Value*)>;
@@ -91,11 +93,12 @@ struct ParseContext {
     ValueMap locals;
     PUMap globalPendingUpdates;
     PUMap localPendingUpdates;
+    std::vector<ParseIssue> issues;
 
-    explicit ParseContext(Context& ctx,
-                          Module& mod,
-                          std::string_view text,
-                          ParseOptions const& options):
+    explicit IRParser(Context& ctx,
+                      Module& mod,
+                      std::string_view text,
+                      ParseOptions const& options):
         ctx(ctx),
         mod(mod),
         options(options),
@@ -149,7 +152,7 @@ struct ParseContext {
         }
     }
 
-    void checkSelfRef(auto* user, OptValue optVal) const {
+    void checkSelfRef(auto* user, OptValue optVal) {
         if (optVal.value()) {
             return;
         }
@@ -228,31 +231,28 @@ struct ParseContext {
         return *nextToken[i];
     }
 
-    [[noreturn]] void reportSyntaxIssue(Token const& token) const {
-        throw SyntaxIssue(token);
+    [[noreturn]] void reportSyntaxIssue(Token const& token) {
+        issues.push_back(SyntaxIssue(token));
+        throw ParserException{};
     }
 
-    [[noreturn]] void reportSemaIssue(Token const& token,
-                                      SemanticIssue::Reason reason) const {
-        throw SemanticIssue(token, reason);
+    void reportSemaIssue(Token const& token, SemanticIssue::Reason reason) {
+        issues.push_back(SemanticIssue(token, reason));
     }
 
-    void expectAny(Token const& token,
-                   std::same_as<TokenKind> auto... kind) const {
+    void expectAny(Token const& token, std::same_as<TokenKind> auto... kind) {
         if (((token.kind() != kind) && ...)) {
             reportSyntaxIssue(token);
         }
     }
 
-    void expect(Token const& token, TokenKind kind) const {
-        expectAny(token, kind);
-    }
+    void expect(Token const& token, TokenKind kind) { expectAny(token, kind); }
 
     void expectNext(std::same_as<TokenKind> auto... next) {
         (expect(eatToken(), next), ...);
     }
 
-    Conversion toConversion(Token token) const {
+    Conversion toConversion(Token token) {
         switch (token.kind()) {
 #define SC_CONVERSION_DEF(Op, Keyword)                                         \
     case TokenKind::Op:                                                        \
@@ -263,7 +263,7 @@ struct ParseContext {
         }
     }
 
-    CompareMode toCompareMode(Token token) const {
+    CompareMode toCompareMode(Token token) {
         switch (token.kind()) {
         case TokenKind::SCmp:
             return CompareMode::Signed;
@@ -276,7 +276,7 @@ struct ParseContext {
         }
     }
 
-    CompareOperation toCompareOp(Token token) const {
+    CompareOperation toCompareOp(Token token) {
         switch (token.kind()) {
         case TokenKind::Equal:
             return CompareOperation::Equal;
@@ -295,7 +295,7 @@ struct ParseContext {
         }
     }
 
-    UnaryArithmeticOperation toUnaryArithmeticOp(Token token) const {
+    UnaryArithmeticOperation toUnaryArithmeticOp(Token token) {
         switch (token.kind()) {
         case TokenKind::Bnt:
             return UnaryArithmeticOperation::BitwiseNot;
@@ -308,7 +308,7 @@ struct ParseContext {
         }
     }
 
-    ArithmeticOperation toArithmeticOp(Token token) const {
+    ArithmeticOperation toArithmeticOp(Token token) {
         switch (token.kind()) {
         case TokenKind::Add:
             return ArithmeticOperation::Add;
@@ -351,7 +351,7 @@ struct ParseContext {
         }
     }
 
-    void checkEmpty(PUMap const& updates) const {
+    void checkEmpty(PUMap const& updates) {
         /// We expect `globalPendingUpdates` to be empty when parsed
         /// successfully.
         for (auto&& [name, list]: updates) {
@@ -370,56 +370,53 @@ Expected<std::pair<Context, Module>, ParseIssue> ir::parse(
     Context ctx;
     Module mod;
     auto result = parseTo(text, ctx, mod);
-    if (!result) {
-        return std::move(result).error();
+    if (result.empty()) {
+        return { std::move(ctx), std::move(mod) };
     }
-    return { std::move(ctx), std::move(mod) };
+    return result.front();
 }
 
-Expected<void, ParseIssue> ir::parseTo(std::string_view text,
-                                       Context& ctx,
-                                       Module& mod,
-                                       ParseOptions const& options) {
-    try {
-        ParseContext parseContext(ctx, mod, text, options);
-        parseContext.parse();
-        parseContext.postProcess();
-        assertInvariants(ctx, mod);
-        return {};
+std::vector<ParseIssue> ir::parseTo(std::string_view text,
+                                    Context& ctx,
+                                    Module& mod,
+                                    ParseOptions const& options) {
+    IRParser parser(ctx, mod, text, options);
+    parser.parse();
+    if (!parser.issues.empty()) {
+        return std::move(parser.issues);
     }
-    catch (LexicalIssue const& issue) {
-        return issue;
-    }
-    catch (SyntaxIssue const& issue) {
-        return issue;
-    }
-    catch (SemanticIssue const& issue) {
-        return issue;
-    }
+    parser.postProcess();
+    assertInvariants(ctx, mod);
+    return {};
 }
 
-void ParseContext::parse() {
+void IRParser::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
-        if (auto type = parseStructure()) {
-            if (options.typeParseCallback) {
-                options.typeParseCallback(*type);
+        try {
+            if (auto type = parseStructure()) {
+                if (options.typeParseCallback) {
+                    options.typeParseCallback(*type);
+                }
+                mod.addStructure(std::move(type));
+                continue;
             }
-            mod.addStructure(std::move(type));
-            continue;
-        }
-        if (auto global = parseGlobal()) {
-            if (options.objectParseCallback) {
-                options.objectParseCallback(*global);
+            if (auto global = parseGlobal()) {
+                if (options.objectParseCallback) {
+                    options.objectParseCallback(*global);
+                }
+                mod.addGlobal(std::move(global));
+                continue;
             }
-            mod.addGlobal(std::move(global));
-            continue;
+            reportSyntaxIssue(peekToken());
         }
-        throw SyntaxIssue(peekToken());
+        catch (ParserException const&) {
+            return;
+        }
     }
     checkEmpty(globalPendingUpdates);
 }
 
-UniquePtr<Global> ParseContext::parseGlobal() {
+UniquePtr<Global> IRParser::parseGlobal() {
     if (auto var = parseGlobalVar()) {
         return var;
     }
@@ -429,7 +426,7 @@ UniquePtr<Global> ParseContext::parseGlobal() {
     return nullptr;
 }
 
-UniquePtr<GlobalVariable> ParseContext::parseGlobalVar() {
+UniquePtr<GlobalVariable> IRParser::parseGlobalVar() {
     Token const name = peekToken();
     if (name.kind() != TokenKind::GlobalIdentifier) {
         return nullptr;
@@ -445,7 +442,7 @@ UniquePtr<GlobalVariable> ParseContext::parseGlobalVar() {
         case TokenKind::Constant:
             return Const;
         default:
-            reportSemaIssue(kind, SemanticIssue::ExpectedGlobalKind);
+            reportSyntaxIssue(kind);
         }
     }();
     auto* type = parseType();
@@ -464,7 +461,7 @@ UniquePtr<GlobalVariable> ParseContext::parseGlobalVar() {
     return global;
 }
 
-UniquePtr<Callable> ParseContext::parseCallable() {
+UniquePtr<Callable> IRParser::parseCallable() {
     locals.clear();
     bool const isExt = peekToken().kind() == TokenKind::Ext;
     if (isExt) {
@@ -523,7 +520,7 @@ UniquePtr<Callable> ParseContext::parseCallable() {
     return function;
 }
 
-UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
+UniquePtr<Parameter> IRParser::parseParamDecl(size_t index) {
     auto* type = parseType();
     UniquePtr<Parameter> result;
     if (peekToken().kind() == TokenKind::LocalIdentifier) {
@@ -539,7 +536,7 @@ UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
     return result;
 }
 
-UniquePtr<ForeignFunction> ParseContext::makeForeignFunction(
+UniquePtr<ForeignFunction> IRParser::makeForeignFunction(
     Type const* returnType, utl::small_vector<Parameter*> params, Token name) {
     return allocate<ForeignFunction>(ctx,
                                      returnType,
@@ -548,7 +545,7 @@ UniquePtr<ForeignFunction> ParseContext::makeForeignFunction(
                                      FunctionAttribute::None);
 }
 
-UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {
+UniquePtr<BasicBlock> IRParser::parseBasicBlock() {
     if (peekToken().kind() != TokenKind::LocalIdentifier) {
         return nullptr;
     }
@@ -572,7 +569,7 @@ UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {
     return result;
 }
 
-UniquePtr<Instruction> ParseContext::parseInstruction() {
+UniquePtr<Instruction> IRParser::parseInstruction() {
     auto _nameTok = peekToken(0);
     auto _name = [&]() -> std::optional<std::string> {
         if (_nameTok.kind() != TokenKind::LocalIdentifier) {
@@ -950,7 +947,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
 }
 
-utl::small_vector<size_t> ParseContext::parseConstantIndices() {
+utl::small_vector<size_t> IRParser::parseConstantIndices() {
     utl::small_vector<size_t> result;
     while (true) {
         if (peekToken().kind() != TokenKind::Comma) {
@@ -962,7 +959,7 @@ utl::small_vector<size_t> ParseContext::parseConstantIndices() {
     }
 }
 
-UniquePtr<StructType> ParseContext::parseStructure() {
+UniquePtr<StructType> IRParser::parseStructure() {
     if (peekToken().kind() != TokenKind::Structure) {
         return nullptr;
     }
@@ -984,7 +981,7 @@ UniquePtr<StructType> ParseContext::parseStructure() {
     return structure;
 }
 
-Type const* ParseContext::tryParseType() {
+Type const* IRParser::tryParseType() {
     Token const token = peekToken();
     switch (token.kind()) {
     case TokenKind::Void:
@@ -1048,15 +1045,16 @@ Type const* ParseContext::tryParseType() {
     }
 }
 
-Type const* ParseContext::parseType() {
+Type const* IRParser::parseType() {
     auto* type = tryParseType();
     if (type) {
         return type;
     }
     reportSemaIssue(peekToken(), SemanticIssue::ExpectedType);
+    return nullptr;
 }
 
-OptValue ParseContext::parseValue(Type const* type) {
+OptValue IRParser::parseValue(Type const* type) {
     auto token = eatToken();
     switch (token.kind()) {
     case TokenKind::LocalIdentifier:
@@ -1135,12 +1133,12 @@ OptValue ParseContext::parseValue(Type const* type) {
         return { token, ctx.arrayConstant(elems, arrayType) };
     }
     default:
-        reportSemaIssue(token, SemanticIssue::UnexpectedID);
+        reportSyntaxIssue(token);
     }
 }
 
 template <typename V>
-V* ParseContext::getValue(Type const* type, Token const& token) {
+V* IRParser::getValue(Type const* type, Token const& token) {
     switch (token.kind()) {
     case TokenKind::LocalIdentifier:
         [[fallthrough]];
@@ -1161,18 +1159,18 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
         return value;
     }
     default:
-        reportSemaIssue(token, SemanticIssue::UnexpectedID);
+        reportSyntaxIssue(token);
     }
 }
 
-size_t ParseContext::getIntLiteral(Token const& token) {
+size_t IRParser::getIntLiteral(Token const& token) {
     if (token.kind() != TokenKind::IntLiteral) {
         reportSyntaxIssue(token);
     }
     return utl::narrow_cast<size_t>(std::atoll(token.id().data()));
 }
 
-void ParseContext::registerValue(Token const& token, Value* value) {
+void IRParser::registerValue(Token const& token, Value* value) {
     if (value->name().empty()) {
         return;
     }
@@ -1193,7 +1191,7 @@ void ParseContext::registerValue(Token const& token, Value* value) {
     executePendingUpdates(token, value);
 }
 
-void ParseContext::executePendingUpdates(Token const& name, Value* value) {
+void IRParser::executePendingUpdates(Token const& name, Value* value) {
     auto& map = [&]() -> auto& {
         switch (name.kind()) {
         case TokenKind::GlobalIdentifier:
@@ -1215,7 +1213,7 @@ void ParseContext::executePendingUpdates(Token const& name, Value* value) {
     map.erase(itr);
 }
 
-void ParseContext::postProcess() {
+void IRParser::postProcess() {
     for (auto& function: mod) {
         for (auto& BB: function) {
             for (auto& phi: BB.phiNodes()) {

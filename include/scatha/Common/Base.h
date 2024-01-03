@@ -137,6 +137,8 @@
                                                     MSG),                      \
                ::scatha::internal::relfail()))
 
+#define SC_ABORT() ::scatha::internal::relfail()
+
 /// Unicode symbols in terminal output
 #if defined(__APPLE__) /// MacOS supports unicode symbols in terminal
 #define SC_UNICODE_TERMINAL 1

@@ -371,7 +371,7 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
     header("Cyclic struct definition");
     hint("Declare data members as pointers to avoid strong cyclic dependecies");
     for (auto [index, entity]: cycle() | ranges::views::enumerate) {
-        primary(entity->astNode()->sourceRange(),
+        primary(getSourceRange(entity->astNode()),
                 [=, this, entity = entity, index = index + 1](
                     std::ostream& str) {
             if (auto* var = dyncast<Variable const*>(entity)) {
@@ -390,7 +390,7 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
 BadPassedType::BadPassedType(Scope const* scope,
                              ast::Expression const* expr,
                              Reason reason):
-    SemaIssue(scope, expr->sourceRange(), IssueSeverity::Error), r(reason) {
+    SemaIssue(scope, getSourceRange(expr), IssueSeverity::Error), r(reason) {
     switch (reason) {
     case Argument:
         header("Cannot pass parameter of incomplete type");
@@ -554,7 +554,7 @@ ORError::ORError(ast::Expression const* expr,
             str << "Ambiguous function call to " << os.front()->name();
         });
         for (auto* function: matches) {
-            secondary(function->definition()->sourceRange(),
+            secondary(getSourceRange(function->definition()),
                       [=](std::ostream& str) { str << "Candidate function"; });
         }
         break;

@@ -1,6 +1,7 @@
 #include "IRGen/IRGen.h"
 
 #include <fstream>
+#include <iostream>
 #include <queue>
 #include <vector>
 
@@ -77,6 +78,26 @@ static void mapLibSymbols(
     }
 }
 
+static void checkParserIssues(std::span<ir::ParseIssue const> issues,
+                              std::string_view libName) {
+    auto fatal = issues | filter([](ir::ParseIssue const& issue) {
+                     if (!std::holds_alternative<ir::SemanticIssue>(issue)) {
+                         return true;
+                     }
+                     return std::get<ir::SemanticIssue>(issue).reason() !=
+                            ir::SemanticIssue::Redeclaration;
+                 }) |
+                 ToSmallVector<>;
+    if (fatal.empty()) {
+        return;
+    }
+    std::cout << "Failed to parse library \"" << libName << "\":\n";
+    for (auto& issue: fatal) {
+        ir::print(issue);
+    }
+    SC_ABORT();
+}
+
 static void importLibrary(ir::Context& ctx,
                           ir::Module& mod,
                           sema::NativeLibrary const& lib,
@@ -99,11 +120,12 @@ static void importLibrary(ir::Context& ctx,
         }
         IRObjectMap.insert({ std::string(object.name()), &object });
     };
-    ir::parseTo(std::move(sstr).str(),
-                ctx,
-                mod,
-                { .typeParseCallback = typeCallback,
-                  .objectParseCallback = objCallback });
+    auto parseIssues = ir::parseTo(std::move(sstr).str(),
+                                   ctx,
+                                   mod,
+                                   { .typeParseCallback = typeCallback,
+                                     .objectParseCallback = objCallback });
+    checkParserIssues(parseIssues, lib.name());
     mapLibSymbols(lib,
                   typeMap,
                   functionMap,

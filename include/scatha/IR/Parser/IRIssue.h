@@ -42,7 +42,6 @@ public:
         UnexpectedID,
         ExpectedType,
         ExpectedConstantValue,
-        ExpectedGlobalKind,
         _count
     };
 
@@ -62,9 +61,14 @@ private:
 
 using ParseIssue = std::variant<LexicalIssue, SyntaxIssue, SemanticIssue>;
 
+/// Prints \p issue to \p ostream
 SCATHA_API void print(ParseIssue const& issue, std::ostream& ostream);
 
+/// Prints \p issue to `std::cout`
 SCATHA_API void print(ParseIssue const& issue);
+
+/// Formats \p issue as a string
+SCATHA_API std::string toString(ParseIssue const& issue);
 
 } // namespace scatha::ir
 

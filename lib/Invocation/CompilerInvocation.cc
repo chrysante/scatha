@@ -158,10 +158,12 @@ int CompilerInvocation::run() {
             err() << Error << "Can only parse one IR file" << std::endl;
             return handleError();
         }
-        auto result = ir::parseTo(sources.front().text(), context, mod);
-        if (!result) {
+        auto parseIssues = ir::parseTo(sources.front().text(), context, mod);
+        if (!parseIssues.empty()) {
             err() << Error;
-            ir::print(result.error(), err());
+            for (auto& issue: parseIssues) {
+                ir::print(issue, err());
+            }
             return 1;
         }
         tryInvoke(callbacks.irgenCallback, context, mod);

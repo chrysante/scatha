@@ -2,6 +2,7 @@
 #define SCATHA_IR_PARSER_H_
 
 #include <string_view>
+#include <vector>
 
 #include <utl/function_view.hpp>
 
@@ -30,10 +31,12 @@ struct ParseOptions {
 };
 
 /// Parses \p text into the IR module \p mod
-SCATHA_API Expected<void, ParseIssue> parseTo(std::string_view text,
-                                              Context& ctx,
-                                              Module& mod,
-                                              ParseOptions const& options = {});
+/// \Returns a vector of issues encountered. If said vector is empty the
+/// function succeeded
+SCATHA_API std::vector<ParseIssue> parseTo(std::string_view text,
+                                           Context& ctx,
+                                           Module& mod,
+                                           ParseOptions const& options = {});
 
 } // namespace scatha::ir
 
