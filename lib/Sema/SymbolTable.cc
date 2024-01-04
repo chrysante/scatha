@@ -262,6 +262,7 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
                                               libname,
                                               irPath,
                                               &sym.globalScope());
+    sym.globalScope().addChild(lib);
     impl.importedLibs.push_back(lib);
     impl.nativeLibMap.insert({ libname, lib });
     std::fstream symFile(*symPath);
