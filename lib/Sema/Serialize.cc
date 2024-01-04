@@ -196,24 +196,44 @@ CHAR: {                                                                        \
         return sym.pointer(parseQualType());
     }
 
+    ///
+    Entity* findEntity(Scope& scope, std::string_view name) {
+        auto entities = scope.findEntities(name);
+        if (entities.empty()) {
+            return nullptr;
+        }
+        /// TODO: Find a better way to select single entity
+        return entities.front();
+    }
+
+    ///
+    Entity* findEntity(std::string_view name) {
+        auto entities = sym.unqualifiedLookup(name);
+        if (entities.empty()) {
+            return nullptr;
+        }
+        /// TODO: Find a better way to select single entity
+        return entities.front();
+    }
+
     ObjectType const* parseID() {
-        Scope* scope = &sym.globalScope();
+        auto tok = lex.get();
+        Entity* entity = findEntity(tok.text);
         while (true) {
-            auto tok = lex.get();
-            auto entities = scope->findEntities(tok.text);
-            if (entities.empty()) {
+            if (!entity) {
                 return nullptr;
             }
-            auto* entity = entities.front();
             auto next = lex.peek();
             if (next.type != Token::Dot) {
                 return dyncast<ObjectType const*>(entity);
             }
             lex.get();
-            scope = dyncast<Scope*>(entity);
+            auto* scope = dyncast<Scope*>(entity);
             if (!scope) {
                 return nullptr;
             }
+            auto tok = lex.get();
+            entity = findEntity(*scope, tok.text);
         }
     }
 
@@ -388,20 +408,18 @@ struct DeserializeContext {
 
     std::string getName(json const& j) { return j["name"].get<std::string>(); }
 
+    /// Performs a DFS over the json and declares all encountered struct types
+    /// to the symbol table
     void parseTypes(json const& j) {
         for (auto& child: j) {
-            // clang-format off
-            parse(child, utl::overload{
-                [&](Tag<StructType>) {
-                    auto* type = sym.declareStructureType(getName(child));
-                    map[&child] = type;
-                    type->setSize(child["size"].get<size_t>());
-                    type->setAlign(child["align"].get<size_t>());
-                    sym.withScopeCurrent(type, [&] {
-                        parseTypes(child["children"]);
-                    });
-                }
-            }); // clang-format on
+            parse(child, [&](Tag<StructType>) {
+                auto* type = sym.declareStructureType(getName(child));
+                map[&child] = type;
+                type->setSize(child["size"].get<size_t>());
+                type->setAlign(child["align"].get<size_t>());
+                sym.withScopeCurrent(type,
+                                     [&] { parseTypes(child["children"]); });
+            });
         }
     }
 

@@ -271,7 +271,11 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
                              *symPath,
                              " even though it exists")
                      .c_str());
-    sym.withScopeCurrent(lib, [&] { deserialize(sym, symFile); });
+    sym.withScopeCurrent(lib, [&] {
+        bool success = deserialize(sym, symFile);
+        SC_RELASSERT(success,
+                     utl::strcat("Failed to deserialize ", *symPath).c_str());
+    });
     return lib;
 }
 

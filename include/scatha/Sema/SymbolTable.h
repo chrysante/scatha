@@ -250,7 +250,9 @@ public:
     /// All entities
     std::vector<Entity const*> entities() const;
 
-    /// Find entity by name within the current scope
+    /// Find entities by name starting in the current scope and subsequently
+    /// searching all parent scopes.
+    /// TODO: Better document this behaviour
     utl::small_vector<Entity*> unqualifiedLookup(std::string_view name);
 
     /// Set the issue handler for this symbol table.

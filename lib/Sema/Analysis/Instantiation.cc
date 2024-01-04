@@ -96,7 +96,7 @@ static bool isLibEntity(Entity const* entity) {
         if (isa<Library>(scope)) {
             return true;
         }
-        scope = entity->parent();
+        scope = scope->parent();
     }
     return false;
 }
