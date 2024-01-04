@@ -1,6 +1,7 @@
 #include "Sema/Serialize.h"
 
 #include <charconv>
+#include <functional>
 #include <istream>
 #include <ostream>
 #include <sstream>
@@ -20,13 +21,24 @@ using namespace ranges::views;
 
 /// MARK: - Type to string conversion
 
-static void scopedNameImpl(Type const& type, std::ostream& str) {
+static void serializeTypenameImpl(Type const& type, std::ostream& str);
+
+/// Serializes the fully qualified name of \p type
+static std::string serializeTypename(Type const* type) {
+    std::stringstream sstr;
+    serializeTypenameImpl(*type, sstr);
+    return std::move(sstr).str();
+}
+
+/// Recursively traverses all nested types and all parent scopes to serialize
+/// the fully qualified typename
+static void serializeTypenameImpl(Type const& type, std::ostream& str) {
     auto ptrLikeImpl = [&](std::string_view kind, PtrRefTypeBase const& ptr) {
         str << kind;
         if (ptr.base().isMut()) {
             str << "mut ";
         }
-        scopedNameImpl(*ptr.base(), str);
+        serializeTypenameImpl(*ptr.base(), str);
     };
     // clang-format off
     SC_MATCH (type) {
@@ -43,7 +55,7 @@ static void scopedNameImpl(Type const& type, std::ostream& str) {
         },
         [&](ArrayType const& arr) {
             str << "[";
-            scopedNameImpl(*arr.elementType(), str);
+            serializeTypenameImpl(*arr.elementType(), str);
             if (!arr.isDynamic()) {
                 str << ", " << arr.count();
             }
@@ -55,103 +67,113 @@ static void scopedNameImpl(Type const& type, std::ostream& str) {
     }; // clang-format on
 }
 
-static std::string scopedName(Type const* type) {
-    std::stringstream sstr;
-    scopedNameImpl(*type, sstr);
-    return std::move(sstr).str();
-}
-
 /// MARK: - String to type conversion
+
+/// Parses a type name serialized by `serializeTypename()` and looks it up in
+/// the symbol table \p sym \Returns the looked up type or null if an error
+/// occurs
+static Type const* parseTypename(SymbolTable& sym, std::string_view text);
 
 namespace {
 
-struct TypeNameParser {
-    struct Token {
-        enum Type {
-            Ref,
-            Ptr,
-            Mut,
-            Unique,
-            Dot,
-            Comma,
-            ID,
-            OpenBracket,
-            CloseBracket,
-            END
-        };
-
-        Type type;
-        std::string_view text;
+/// Token structure to represent the types that can appear in a qualified
+/// typename
+struct TypenameToken {
+    enum Type {
+        Ref,
+        Ptr,
+        Mut,
+        Unique,
+        Dot,
+        Comma,
+        ID,
+        OpenBracket,
+        CloseBracket,
+        END
     };
 
-    struct Lexer {
-        std::string_view text;
-        std::optional<Token> lookahead;
+    Type type;
+    std::string_view text;
+};
 
-        Lexer(std::string_view text): text(text) {}
+/// On demand lexer with lookahead feature to lex typename tokens
+struct TypenameLexer {
+    using Token = TypenameToken;
 
-        bool isPunctuation(char c) { return ranges::contains("&*.,[]", c); }
+    std::string_view text;
+    std::optional<Token> lookahead;
 
-        Token peek() {
-            if (!lookahead) {
-                lookahead = get();
-            }
-            return *lookahead;
+    TypenameLexer(std::string_view text): text(text) {}
+
+    bool isPunctuation(char c) { return ranges::contains("&*.,[]", c); }
+
+    Token peek() {
+        if (!lookahead) {
+            lookahead = get();
         }
+        return *lookahead;
+    }
 
-        Token get() {
-            if (lookahead) {
-                auto tok = *lookahead;
-                lookahead = std::nullopt;
-                return tok;
-            }
-            while (!text.empty() && std::isspace(text.front())) {
-                inc();
-            }
-            if (text.empty()) {
-                return Token{ Token::END, {} };
-            }
-            switch (text.front()) {
-#define PUNCTUATION(CHAR, TYPE)                                                \
-CHAR: {                                                                        \
-    Token tok{ Token::TYPE, text.substr(0, 1) };                               \
-    inc();                                                                     \
-    return tok;                                                                \
-}
-            case PUNCTUATION('&', Ref) case PUNCTUATION('*', Ptr) case PUNCTUATION('.', Dot) case PUNCTUATION(
-                ',',
-                Comma) case PUNCTUATION('[',
-                                        OpenBracket) case PUNCTUATION(']',
-                                                                      CloseBracket) default: {
-                size_t index = 0;
-                while (index < text.size() && !std::isspace(text[index]) &&
-                       !isPunctuation(text[index]))
-                {
-                    ++index;
-                }
-                auto res = text.substr(0, index);
-                inc(index);
-                if (res == "mut") {
-                    return Token{ Token::Mut, res };
-                }
-                if (res == "unique") {
-                    return Token{ Token::Unique, res };
-                }
-                return Token{ Token::ID, res };
-            }
-            }
+    Token get() {
+        if (lookahead) {
+            auto tok = *lookahead;
+            lookahead = std::nullopt;
+            return tok;
         }
+        while (!text.empty() && std::isspace(text.front())) {
+            inc();
+        }
+        if (text.empty()) {
+            return Token{ Token::END, {} };
+        }
+#define PUNCTUATION_CASE(CHAR, TYPE)                                           \
+    case CHAR: {                                                               \
+        Token tok{ Token::TYPE, text.substr(0, 1) };                           \
+        inc();                                                                 \
+        return tok;                                                            \
+    }                                                                          \
+        (void)0
+        switch (text.front()) {
+            PUNCTUATION_CASE('&', Ref);
+            PUNCTUATION_CASE('*', Ptr);
+            PUNCTUATION_CASE('.', Dot);
+            PUNCTUATION_CASE(',', Comma);
+            PUNCTUATION_CASE('[', OpenBracket);
+            PUNCTUATION_CASE(']', CloseBracket);
+        default: {
+            size_t index = 0;
+            while (index < text.size() && !std::isspace(text[index]) &&
+                   !isPunctuation(text[index]))
+            {
+                ++index;
+            }
+            auto res = text.substr(0, index);
+            inc(index);
+            if (res == "mut") {
+                return Token{ Token::Mut, res };
+            }
+            if (res == "unique") {
+                return Token{ Token::Unique, res };
+            }
+            return Token{ Token::ID, res };
+        }
+        }
+#undef PUNCTUATION_CASE
+    }
 
-        void inc(size_t count = 1) {
-            SC_EXPECT(text.size() >= count);
-            text = text.substr(count);
-        }
-    };
+    void inc(size_t count = 1) {
+        SC_EXPECT(text.size() >= count);
+        text = text.substr(count);
+    }
+};
+
+struct TypenameParser {
+    using Token = TypenameToken;
 
     SymbolTable& sym;
-    Lexer lex;
+    TypenameLexer lex;
 
-    TypeNameParser(SymbolTable& sym, std::string_view text):
+    TypenameParser(SymbolTable& sym, std::string_view text):
         sym(sym), lex(text) {}
 
     Type const* parse() {
@@ -260,8 +282,8 @@ CHAR: {                                                                        \
 
 } // namespace
 
-static Type const* parseTypeName(SymbolTable& sym, std::string_view text) {
-    TypeNameParser parser(sym, text);
+static Type const* parseTypename(SymbolTable& sym, std::string_view text) {
+    TypenameParser parser(sym, text);
     if (auto* type = parser.parse()) {
         return type;
     }
@@ -321,8 +343,9 @@ static void to_json_impl(json& j, GlobalScope const& scope) {
 }
 
 static void to_json_impl(json& j, Function const& function) {
-    j["return_type"] = scopedName(function.returnType());
-    j["argument_types"] = function.argumentTypes() | transform(scopedName);
+    j["return_type"] = serializeTypename(function.returnType());
+    j["argument_types"] = function.argumentTypes() |
+                          transform(serializeTypename);
 }
 
 static void to_json_impl(json& j, StructType const& type) {
@@ -335,7 +358,7 @@ static void to_json_impl(json& j, StructType const& type) {
 }
 
 static void to_json_impl(json& j, Variable const& var) {
-    j["type"] = scopedName(var.type());
+    j["type"] = serializeTypename(var.type());
     j["mutable"] = var.isMut();
     if (isa<StructType>(var.parent())) {
         j["index"] = var.index();
@@ -377,27 +400,127 @@ static std::optional<EntityType> toEntityType(json const& j) {
 
 namespace {
 
+/// Used for tag dispatch during parsing
 template <typename>
 struct Tag {};
 
-struct DeserializeContext {
+/// Base class of the deserialization context that provides a type map
+class TypeMapBase {
+public:
+    /// Maps \p obj to the type \p type. Throws if \p obj is already mapped
+    void insertType(json const& obj, StructType* type) {
+        if (!map.insert({ &obj, type }).second) {
+            throw std::runtime_error("Failed to map type");
+        }
+    }
+
+    /// Retrieves the struct type corresponding to \p obj or throws if nonesuch
+    /// is found
+    StructType* getType(json const& obj) const {
+        auto itr = map.find(&obj);
+        if (itr != map.end()) {
+            return itr->second;
+        }
+        throw std::runtime_error("Failed to retrieve type");
+    }
+
+private:
+    utl::hashmap<json const*, StructType*> map;
+};
+
+struct DeserializeContext: TypeMapBase {
+    /// The symbol table do deserialize into. All deserialized entities be
+    /// written into the current scope and according child scopes
     SymbolTable& sym;
-    utl::hashmap<json const*, Entity*> map;
 
     DeserializeContext(SymbolTable& sym): sym(sym) {}
 
+    /// Performs the deserialization
     void run(json const& j) {
-        parseTypes(j);
-        parseOther(j);
+        preparseTypes(j);
+        parseEntities(j);
     }
 
-    bool parse(json const& j, auto parseCallback) {
-        auto type = toEntityType(j["entity_type"]);
-        auto callback = utl::overload{ parseCallback, [](auto...) {} };
+    /// Performs a DFS over the JSON array and declares all encountered struct
+    /// types to the symbol table. Types are parsed before all other entities.
+    /// Dependencies between types via member variables are resolved because
+    /// member variables are parsed later and add themselves to their parent
+    /// structs
+    void preparseTypes(json const& j) {
+        parseArray(j, [&](Tag<StructType>, json const& obj) {
+            auto* type =
+                sym.declareStructureType(get<std::string>(obj, "name"));
+            insertType(obj, type);
+            type->setSize(get<size_t>(obj, "size"));
+            type->setAlign(get<size_t>(obj, "align"));
+            sym.withScopeCurrent(type,
+                                 [&] { preparseTypes(get(obj, "children")); });
+        });
+    }
+
+    /// Because types are parsed in a prior step we only forward to our children
+    void parseImpl(Tag<StructType>, json const& obj) {
+        auto* type = getType(obj);
+        sym.withScopeCurrent(type,
+                             [&] { parseEntities(get(obj, "children")); });
+    }
+
+    ///
+    void parseImpl(Tag<Function>, json const& obj) {
+        auto argTypes = get(obj, "argument_types") |
+                        transform([&](json const& j) {
+                            return parseTypename(sym, j.get<std::string>());
+                        }) |
+                        ToSmallVector<>;
+        auto* retType =
+            parseTypename(sym, get<std::string>(obj, "return_type"));
+        sym.declareFunction(get<std::string>(obj, "name"),
+                            FunctionSignature(std::move(argTypes), retType));
+    }
+
+    ///
+    void parseImpl(Tag<Variable>, json const& obj) {
+        auto* type = parseTypename(sym, get<std::string>(obj, "type"));
+        using enum Mutability;
+        auto mut = get<bool>(obj, "mutable") ? Mutable : Const;
+        auto* var =
+            sym.defineVariable(get<std::string>(obj, "name"), type, mut);
+        if (auto index = tryGet<size_t>(obj, "index")) {
+            auto* type = dyncast<StructType*>(&sym.currentScope());
+            // TODO: CHECK type is not null
+            type->setMemberVariable(*index, var);
+        }
+    }
+
+    /// Base case
+    template <typename T>
+    void parseImpl(Tag<T>, json const&) {}
+
+    ///
+    void parseImpl(Tag<ForeignLibrary>, json const& obj) {
+        auto libname = get<std::string>(obj, "libname");
+        sym.importForeignLib(libname);
+    }
+
+    /// Performs a DFS over the JSON array and declares all encountered entities
+    /// but struct types to the symbol table
+    void parseEntities(json const& j) {
+        parseArray(j, [this]<typename T>(Tag<T> tag, json const& child) {
+            parseImpl(tag, child);
+        });
+    }
+
+    /// # Helper functions
+
+    /// Parses the type of the JSON object \p obj and dispatches to \p callback
+    /// with the corresponding tag
+    bool doParse(json const& obj, auto callback) {
+        auto type = toEntityType(obj["entity_type"]);
+        auto callbackWithDefault = utl::overload{ callback, [](auto...) {} };
         switch (type.value()) {
 #define SC_SEMA_ENTITY_DEF(Type, _)                                            \
     case EntityType::Type:                                                     \
-        callback(Tag<Type>{});                                                 \
+        callbackWithDefault(Tag<Type>{}, obj);                                 \
         return true;
 #include <scatha/Sema/Lists.def>
         case EntityType::_count:
@@ -406,64 +529,47 @@ struct DeserializeContext {
         SC_UNREACHABLE();
     }
 
-    std::string getName(json const& j) { return j["name"].get<std::string>(); }
-
-    /// Performs a DFS over the json and declares all encountered struct types
-    /// to the symbol table
-    void parseTypes(json const& j) {
-        for (auto& child: j) {
-            parse(child, [&](Tag<StructType>) {
-                auto* type = sym.declareStructureType(getName(child));
-                map[&child] = type;
-                type->setSize(child["size"].get<size_t>());
-                type->setAlign(child["align"].get<size_t>());
-                sym.withScopeCurrent(type,
-                                     [&] { parseTypes(child["children"]); });
-            });
+    /// Invokes `doParse(elem, callback)` for every element `elem` in the array
+    /// \p array
+    bool parseArray(json const& array, auto callback) {
+        bool result = true;
+        for (auto& elem: array) {
+            result &= doParse(elem, callback);
         }
+        return result;
     }
 
-    void parseOther(json const& j) {
-        for (auto& child: j) {
-            // clang-format off
-            parse(child, utl::overload{
-                [&](Tag<StructType>) {
-                    auto* type = cast<StructType*>(map[&child]);
-                    sym.withScopeCurrent(type, [&] {
-                        parseOther(child["children"]);
-                    });
-                },
-                [&](Tag<Function>) {
-                    auto argType = child["argument_types"] |
-                                   transform([&](json const& j) {
-                                       return parseTypeName(
-                                           sym, j.get<std::string>());
-                                   }) | ToSmallVector<>;
-                    auto* retType = parseTypeName(
-                        sym, child["return_type"].get<std::string>());
-                    sym.declareFunction(getName(child),
-                                        FunctionSignature(std::move(argType),
-                                                          retType));
-                },
-                [&](Tag<Variable>) {
-                    auto* type =
-                        parseTypeName(sym, child["type"].get<std::string>());
-                    using enum Mutability;
-                    auto mut = child["mutable"].get<bool>() ? Mutable : Const;
-                    auto* var = sym.defineVariable(getName(child), type, mut);
-                    auto indexItr = child.find("index");
-                    if (indexItr != child.end()) {
-                        auto index = indexItr->get<size_t>();
-                        auto* type = dyncast<StructType*>(&sym.currentScope());
-                        type->setMemberVariable(index, var);
-                    }
-                },
-                [&](Tag<ForeignLibrary>) {
-                    auto libname = child["libname"].get<std::string>();
-                    sym.importForeignLib(libname);
-                },
-            }); // clang-format on
+    /// \Returns the JSON subobject named \p field or throws if the name is not
+    /// found
+    json const& get(json const& obj, std::string_view field) {
+        return obj.at(field);
+    }
+
+    /// \Returns a pointer to the JSON subobject named \p field or null if the
+    /// name is not found
+    json const* tryGet(json const& obj, std::string_view field) {
+        auto itr = obj.find(field);
+        if (itr != obj.end()) {
+            return &*itr;
         }
+        return nullptr;
+    }
+
+    /// \Returns the JSON subobject named \p field as static type \p T or throws
+    /// if the name is not found
+    template <typename T>
+    T get(json const& obj, std::string_view field) {
+        return get(obj, field).get<T>();
+    }
+
+    /// \Returns the JSON subobject named \p field as static type \p T or
+    /// `std::nullopt` if the name is not found
+    template <typename T>
+    std::optional<T> tryGet(json const& obj, std::string_view field) {
+        if (auto* j = tryGet(obj, field)) {
+            return j->get<T>();
+        }
+        return std::nullopt;
     }
 };
 
