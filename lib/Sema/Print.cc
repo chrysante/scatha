@@ -2,16 +2,19 @@
 
 #include <iostream>
 
+#include <range/v3/view.hpp>
 #include <termfmt/termfmt.h>
 #include <utl/streammanip.hpp>
 
 #include "Common/TreeFormatter.h"
 #include "Sema/Entity.h"
+#include "Sema/Format.h"
 #include "Sema/QualType.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 
 void sema::print(SymbolTable const& symbolTable) {
     print(symbolTable, std::cout);
@@ -28,7 +31,7 @@ struct PrintContext {
     utl::vstreammanip<> type(Type const* type) {
         return [=](std::ostream& str) {
             if (type) {
-                str << type->name();
+                str << format(type);
             }
             else {
                 str << "NULL";
@@ -48,6 +51,8 @@ struct PrintContext {
         };
     }
 
+    utl::vstreammanip<> nameImpl(Type const* ty) { return type(ty); }
+
     utl::vstreammanip<> nameImpl(Function const* function) {
         return [=, this](std::ostream& str) {
             str << function->name() << "(";
@@ -59,7 +64,11 @@ struct PrintContext {
     }
 
     utl::vstreammanip<> nameImpl(GlobalScope const*) {
-        return [](std::ostream& str) { str << "Top level"; };
+        return [](std::ostream& str) { str << "Global Scope"; };
+    }
+
+    utl::vstreammanip<> nameImpl(Library const* lib) {
+        return [=](std::ostream& str) { str << lib->libName(); };
     }
 
     std::ostream& str;
@@ -82,10 +91,12 @@ void PrintContext::print(Entity const& entity) {
     auto children = [&] {
         using SetType = utl::hashset<Entity const*>;
         if (auto* scope = dyncast<Scope const*>(&entity)) {
-            auto children = scope->entities() |
-                            ranges::to<utl::hashset<Entity const*>>;
+            auto children =
+                scope->entities() |
+                filter([](auto* entity) { return !entity->isBuiltin(); }) |
+                ranges::to<utl::hashset<Entity const*>>;
             for (auto* entity: scope->children()) {
-                if (isa<Function>(entity)) {
+                if (isa<Function>(entity) || entity->isBuiltin()) {
                     continue;
                 }
                 children.insert(entity);
