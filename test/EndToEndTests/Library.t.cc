@@ -94,6 +94,28 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
+#if 0
+TEST_CASE("Transitive library use", "[end-to-end][lib][nativelib]") {
+    compileLibrary("libs/testlib1", "libs", R"(
+struct X {
+    var i: int;
+})");
+    compileLibrary("libs/testlib2", "libs", R"(
+use testlib1;
+struct Y {
+    fn new(&mut this) { this.x = 42 /*X(42)*/; }
+    var x: int;
+})");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+use testlib2;
+fn main() -> int {
+    var y = Y();
+    return y.x; // .i;
+})");
+    CHECK(ret == 42);
+}
+#endif
+
 TEST_CASE("FFI library import", "[end-to-end][lib][foreignlib]") {
     SECTION("foo") {
         CHECK(42 == test::compileAndRun(R"(
