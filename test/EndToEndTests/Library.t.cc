@@ -111,6 +111,34 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
+TEST_CASE("Use overload set by name", "[end-to-end][lib][nativelib]") {
+    compileLibrary("libs/testlib", "libs", R"(
+export fn foo(n: int) { return 1; }
+export fn foo(n: double) { return 2; }
+)");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+use testlib.foo;
+fn main() -> int {
+    return foo(1) + foo(1.0);
+})");
+    CHECK(ret == 3);
+}
+
+TEST_CASE("Use overload set by name and overload further",
+          "[end-to-end][lib][nativelib]") {
+    compileLibrary("libs/testlib", "libs", R"(
+export fn foo(n: int) { return 1; }
+export fn foo(n: double) { return 2; }
+)");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+use testlib.foo;
+fn foo(text: &str) { return 3; }
+fn main() -> int {
+    return foo(1) + foo(1.0) + foo("");
+})");
+    CHECK(ret == 6);
+}
+
 #if 0
 TEST_CASE("Transitive library use", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib1", "libs", R"(
@@ -120,14 +148,14 @@ struct X {
     compileLibrary("libs/testlib2", "libs", R"(
 use testlib1;
 struct Y {
-    fn new(&mut this) { this.x = 42 /*X(42)*/; }
-    var x: int;
+    export fn new(&mut this) { this.x = X(42); }
+    var x: X;
 })");
     uint64_t ret = compileAndRunDependentProgram("libs", R"(
 use testlib2;
 fn main() -> int {
     var y = Y();
-    return y.x; // .i;
+    return y.x.i;
 })");
     CHECK(ret == 42);
 }

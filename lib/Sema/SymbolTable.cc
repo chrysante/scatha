@@ -373,29 +373,96 @@ Function* SymbolTable::declareFuncName(ast::FunctionDefinition* def) {
     return declareFuncImpl(def, std::string(def->name()));
 }
 
-/// \Returns the set of functions with the same name as \p ref in the parent
-/// scope of \p ref that already have a signature, not including \p ref
-static utl::small_vector<Entity const*> findOtherOverloads(Entity const* ref) {
-    auto* refFn = dyncast<Function const*>(ref);
-    auto entities = ref->parent()->findEntities(ref->name());
-    auto withSignature =
-        entities | filter([=](Entity const* entity) {
-            auto* F = cast<Function const*>(stripAlias(entity));
-            return F->hasSignature() && F != refFn && entity != ref;
-        });
-    return utl::hashset<Entity const*>(withSignature.begin(),
-                                       withSignature.end()) |
-           ToSmallVector<>;
+namespace {
+
+enum class OSBuildErrorHandler { None, Fail };
+
+} // namespace
+
+/// Performs a DFS over the list of entities \p entities and returns the set of
+/// all functions that are "referred to" by the entities.
+///
+/// Concretely this means the following:
+/// All entities in the initial list are _considered_ based on their type:
+/// - For aliases the aliased entity is _considered_
+/// - Functions are added to the set if their signature has already been set
+/// - For overload sets all functions in the set are _considered_
+/// - For every other entity the error handler is invoked, which may invoke
+///   undefined behaviour or do nothing
+static utl::hashset<Function*> buildOverloadSet(
+    std::span<Entity* const> entities, OSBuildErrorHandler errorHandler = {}) {
+    struct Builder {
+        std::span<Entity* const> entities;
+        OSBuildErrorHandler errorHandler;
+        utl::hashset<Function*> set;
+
+        explicit Builder(std::span<Entity* const> entities,
+                         OSBuildErrorHandler errorHandler):
+            entities(entities), errorHandler(errorHandler) {}
+
+        utl::hashset<Function*> build() {
+            for (auto* entity: entities) {
+                gather(*entity);
+            }
+            return std::move(set);
+        }
+
+        void gather(Entity& entity) {
+            visit(entity, [this](auto& entity) { gatherImpl(entity); });
+        }
+
+        void gatherImpl(Alias& alias) { gather(*alias.aliased()); }
+
+        void gatherImpl(Function& function) {
+            if (function.hasSignature()) {
+                set.insert(&function);
+            }
+        }
+
+        void gatherImpl(OverloadSet& os) {
+            for (auto* function: os) {
+                gather(*function);
+            }
+        }
+
+        void gatherImpl(Entity&) {
+            using enum OSBuildErrorHandler;
+            switch (errorHandler) {
+            case None:
+                break;
+            case Fail:
+                SC_UNREACHABLE();
+            }
+        }
+    };
+    return Builder(entities, errorHandler).build();
 }
 
+/// \Returns the set of functions with the same name as \p ref in the parent
+/// scope of \p ref that already have a signature, not including \p ref
+static utl::small_vector<Entity*> findOtherOverloads(Entity* ref) {
+    auto entities = ref->parent()->findEntities(ref->name());
+    auto set = buildOverloadSet(entities, OSBuildErrorHandler::Fail);
+    set.erase(ref);
+    set.erase(stripAlias(ref));
+    return set | transform(cast<Entity*>) | ToSmallVector<>;
+}
+
+/// This function checks if \p entity which may be either a function or an alias
+/// to a function is a valid overload with the other functions in its scope.
+///
+/// If it is not a valid overload an issue is pushed to the issue handler
+///
+/// \Returns `true` if \p entity is a valid overload
 static bool checkValidOverload(SymbolTable::Impl& impl,
-                               Entity const* entity,
+                               Entity* entity,
                                std::span<Type const* const> argumentTypes) {
+    SC_EXPECT(isa<Function>(stripAlias(entity)));
     auto overloadSet = findOtherOverloads(entity);
-    auto* existing = OverloadSet::find(overloadSet, argumentTypes);
+    auto* existing = OverloadSet::find(std::span<Entity* const>{ overloadSet },
+                                       argumentTypes);
     if (existing) {
-        impl.issue<Redefinition>(dyncast<ast::Declaration const*>(
-                                     entity->astNode()),
+        impl.issue<Redefinition>(dyncast<ast::Declaration*>(entity->astNode()),
                                  existing);
         return false;
     }
@@ -682,13 +749,11 @@ utl::small_vector<Entity*> SymbolTable::unqualifiedLookup(
         if (entities.empty()) {
             continue;
         }
-        SC_ASSERT(ranges::all_of(entities, isa<Function>) ||
-                      ranges::none_of(entities, isa<Function>),
-                  "If any entity with this name is a function all must be "
-                  "functions");
+        auto localOverloadSet = buildOverloadSet(entities);
         /// If we have functions we build up the overload set
-        if (isa<Function>(entities.front())) {
-            overloadSet.insert(entities.begin(), entities.end());
+        if (!localOverloadSet.empty()) {
+            overloadSet.insert(localOverloadSet.begin(),
+                               localOverloadSet.end());
             continue;
         }
         /// Otherwise if this is the first entity we find we return that
@@ -813,11 +878,16 @@ static bool checkRedefImpl(SymbolTable::Impl& impl,
                            ast::Declaration const* decl) {
     auto entities = scope->findEntities(name);
     switch (kind) {
-    case Redef_Function:
-        if (ranges::all_of(entities, isa<Function>, stripAlias)) {
+    case Redef_Function: {
+        auto mayOverload = [](Entity const* e) {
+            e = stripAlias(e);
+            return isa<Function>(e) || isa<OverloadSet>(e);
+        };
+        if (ranges::all_of(entities, mayOverload)) {
             return true;
         }
         break;
+    }
     case Redef_Other:
         if (entities.empty()) {
             return true;
