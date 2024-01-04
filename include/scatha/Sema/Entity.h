@@ -734,6 +734,12 @@ public:
         this->SLFs = SLFs;
     }
 
+    /// See above
+    void setSpecialLifetimeFunction(SpecialLifetimeFunction kind,
+                                    Function* function) {
+        SLFs[(size_t)kind] = function;
+    }
+
 protected:
     explicit ObjectType(EntityType entityType,
                         ScopeKind scopeKind,
@@ -751,7 +757,7 @@ private:
     friend class StructType;
     size_t sizeImpl() const { return _size; }
     size_t alignImpl() const { return _align; }
-    bool isDefaultConstructible() const { return _isDefaultConstructible; }
+    bool isDefaultConstructibleImpl() const { return _isDefaultConstructible; }
 
     size_t _size;
     size_t _align;

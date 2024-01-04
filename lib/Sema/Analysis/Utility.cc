@@ -15,6 +15,7 @@
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 using enum ValueCategory;
 using enum ConversionKind;
 
@@ -261,6 +262,11 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
         }
     }
     type.setSpecialLifetimeFunctions(SLF);
+    for (auto [index, F]: SLF | enumerate) {
+        if (F) {
+            F->setSLFKind((SpecialLifetimeFunction)index);
+        }
+    }
 }
 
 static void declareSLFs(ArrayType& type, SymbolTable& sym) {

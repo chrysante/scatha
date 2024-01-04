@@ -94,6 +94,23 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
+TEST_CASE("Use special member functions from library",
+          "[end-to-end][lib][nativelib]") {
+    /// TODO: Fix position of export keyword
+    compileLibrary("libs/testlib", "libs", R"(
+use testlib1;
+struct X {
+    export fn new(&mut this) { this.value = 42; }
+    var value: int;
+})");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+use testlib.X;
+fn main() -> int {
+    return X().value;
+})");
+    CHECK(ret == 42);
+}
+
 #if 0
 TEST_CASE("Transitive library use", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib1", "libs", R"(

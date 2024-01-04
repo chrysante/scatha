@@ -18,6 +18,113 @@
 using namespace scatha;
 using namespace sema;
 using namespace ranges::views;
+using nlohmann::json;
+
+/// MARK: - Enum serialization and deserialization
+
+namespace {
+
+template <typename Enum>
+struct EnumSerializer;
+
+template <typename Enum>
+    requires requires { EnumSerializer<Enum>::map; }
+void serializeEnum(json& j, Enum e) {
+    auto const& map = EnumSerializer<Enum>::map;
+    auto it = std::find_if(map.begin(), map.end(), [e](auto const& p) {
+        return p.first == e;
+    });
+
+    if (it == map.end()) {
+        throw std::runtime_error("Failed to serialize enum");
+    }
+    j = it->second;
+}
+
+template <typename Enum>
+    requires requires { EnumSerializer<Enum>::map; }
+void deserializeEnum(json const& j, Enum& e) {
+    auto const& map = EnumSerializer<Enum>::map;
+    auto it = std::find_if(map.begin(), map.end(), [&j](auto const& p) {
+        return p.second == j;
+    });
+    if (it == map.end()) {
+        throw std::runtime_error("Failed to deserialize enum");
+    }
+    e = it->first;
+}
+
+#define SERIALIZE_ENUM_BEGIN(ENUM_TYPE)                                        \
+    template <>                                                                \
+    struct EnumSerializer<ENUM_TYPE> {                                         \
+        inline static std::array const map = {
+
+#define SERIALIZE_ENUM_END()                                                   \
+    }                                                                          \
+    ;                                                                          \
+    }                                                                          \
+    ;
+
+#define SERIALIZE_ENUM_ELEM(ENUM_KEY, VALUE)                                   \
+    std::make_pair(ENUM_KEY, json(VALUE)),
+
+/// User code
+
+SERIALIZE_ENUM_BEGIN(EntityType)
+#define SC_SEMA_ENTITY_DEF(Type, _) SERIALIZE_ENUM_ELEM(EntityType::Type, #Type)
+#include "Sema/Lists.def"
+SERIALIZE_ENUM_END()
+
+SERIALIZE_ENUM_BEGIN(AccessSpecifier)
+SERIALIZE_ENUM_ELEM(AccessSpecifier::Public, "Public")
+SERIALIZE_ENUM_ELEM(AccessSpecifier::Private, "Private")
+SERIALIZE_ENUM_END()
+
+SERIALIZE_ENUM_BEGIN(BinaryVisibility)
+SERIALIZE_ENUM_ELEM(BinaryVisibility::Export, "Export")
+SERIALIZE_ENUM_ELEM(BinaryVisibility::Internal, "Internal")
+SERIALIZE_ENUM_END()
+
+SERIALIZE_ENUM_BEGIN(SpecialMemberFunction)
+#define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(SMF, _)                            \
+    SERIALIZE_ENUM_ELEM(SpecialMemberFunction::SMF, #SMF)
+#include "Sema/Lists.def"
+SERIALIZE_ENUM_END()
+
+SERIALIZE_ENUM_BEGIN(SpecialLifetimeFunction)
+#define SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(SLF)                             \
+    SERIALIZE_ENUM_ELEM(SpecialLifetimeFunction::SLF, #SLF)
+#include "Sema/Lists.def"
+SERIALIZE_ENUM_END()
+
+SERIALIZE_ENUM_BEGIN(FunctionKind)
+SERIALIZE_ENUM_ELEM(FunctionKind::Native, "Native")
+SERIALIZE_ENUM_ELEM(FunctionKind::Foreign, "Foreign")
+SERIALIZE_ENUM_ELEM(FunctionKind::Generated, "Generated")
+SERIALIZE_ENUM_END()
+
+} // namespace
+
+namespace scatha::sema {
+
+void to_json(json& j, EntityType e) { serializeEnum(j, e); }
+void from_json(json const& j, EntityType& e) { deserializeEnum(j, e); }
+void to_json(json& j, AccessSpecifier e) { serializeEnum(j, e); }
+void from_json(json const& j, AccessSpecifier& e) { deserializeEnum(j, e); }
+void to_json(json& j, BinaryVisibility e) { serializeEnum(j, e); }
+void from_json(json const& j, BinaryVisibility& e) { deserializeEnum(j, e); }
+void to_json(json& j, SpecialMemberFunction e) { serializeEnum(j, e); }
+void from_json(json const& j, SpecialMemberFunction& e) {
+    deserializeEnum(j, e);
+}
+void to_json(json& j, SpecialLifetimeFunction e) { serializeEnum(j, e); }
+void from_json(json const& j, SpecialLifetimeFunction& e) {
+    deserializeEnum(j, e);
+}
+void to_json(json& j, FunctionKind e) { serializeEnum(j, e); }
+void from_json(json const& j, FunctionKind& e) { deserializeEnum(j, e); }
+
+} // namespace scatha::sema
 
 /// MARK: - Type to string conversion
 
@@ -292,8 +399,6 @@ static Type const* parseTypename(SymbolTable& sym, std::string_view text) {
 
 /// MARK: - serialize()
 
-using namespace nlohmann;
-
 namespace scatha::sema {
 
 static void to_json(json& j, Entity const& entity);
@@ -346,6 +451,13 @@ static void to_json_impl(json& j, Function const& function) {
     j["return_type"] = serializeTypename(function.returnType());
     j["argument_types"] = function.argumentTypes() |
                           transform(serializeTypename);
+    if (function.isSpecialMemberFunction()) {
+        j["smf_kind"] = function.SMFKind();
+    }
+    if (function.isSpecialLifetimeFunction()) {
+        j["slf_kind"] = function.SLFKind();
+    }
+    j["function_kind"] = function.kind();
 }
 
 static void to_json_impl(json& j, StructType const& type) {
@@ -355,6 +467,8 @@ static void to_json_impl(json& j, StructType const& type) {
     });
     j["size"] = type.size();
     j["align"] = type.align();
+    j["default_constructible"] = type.isDefaultConstructible();
+    j["trivial_lifetime"] = type.hasTrivialLifetime();
 }
 
 static void to_json_impl(json& j, Variable const& var) {
@@ -370,7 +484,7 @@ static void to_json_impl(json& j, ForeignLibrary const& lib) {
 }
 
 static void to_json(json& j, Entity const& entity) {
-    j["entity_type"] = toString(entity.entityType());
+    j["entity_type"] = entity.entityType();
     j["name"] = std::string(entity.name());
     visit(entity, [&j](auto& entity) { to_json_impl(j, entity); });
 }
@@ -383,20 +497,6 @@ void sema::serialize(SymbolTable const& sym, std::ostream& ostream) {
 }
 
 /// MARK: - deserialize()
-
-static std::optional<EntityType> toEntityType(json const& j) {
-    static utl::hashmap<std::string_view, EntityType> const map = {
-#define SC_SEMA_ENTITY_DEF(Type, _)                                            \
-    { std::string_view(#Type), EntityType::Type },
-#include "Sema/Lists.def"
-    };
-    auto str = j.get<std::string_view>();
-    auto itr = map.find(str);
-    if (itr != map.end()) {
-        return itr->second;
-    }
-    return std::nullopt;
-}
 
 namespace {
 
@@ -428,6 +528,16 @@ private:
     utl::hashmap<json const*, StructType*> map;
 };
 
+/// \Returns the parent struct type of \p function or throws if the parent is
+/// not a struct
+static StructType* getStruct(Function* function) {
+    auto* type = dyncast<StructType*>(function->parent());
+    if (!type) {
+        throw std::runtime_error("Expected parent struct type");
+    }
+    return type;
+}
+
 struct DeserializeContext: TypeMapBase {
     /// The symbol table do deserialize into. All deserialized entities be
     /// written into the current scope and according child scopes
@@ -453,6 +563,9 @@ struct DeserializeContext: TypeMapBase {
             insertType(obj, type);
             type->setSize(get<size_t>(obj, "size"));
             type->setAlign(get<size_t>(obj, "align"));
+            type->setIsDefaultConstructible(
+                get<bool>(obj, "default_constructible"));
+            type->setHasTrivialLifetime(get<bool>(obj, "trivial_lifetime"));
             sym.withScopeCurrent(type,
                                  [&] { preparseTypes(get(obj, "children")); });
         });
@@ -474,8 +587,19 @@ struct DeserializeContext: TypeMapBase {
                         ToSmallVector<>;
         auto* retType =
             parseTypename(sym, get<std::string>(obj, "return_type"));
-        sym.declareFunction(get<std::string>(obj, "name"),
-                            FunctionSignature(std::move(argTypes), retType));
+        auto* function =
+            sym.declareFunction(get<std::string>(obj, "name"),
+                                FunctionSignature(std::move(argTypes),
+                                                  retType));
+        if (auto kind = tryGet<SpecialMemberFunction>(obj, "smf_kind")) {
+            function->setSMFKind(*kind);
+            getStruct(function)->addSpecialMemberFunction(*kind, function);
+        }
+        if (auto kind = tryGet<SpecialLifetimeFunction>(obj, "slf_kind")) {
+            function->setSLFKind(*kind);
+            getStruct(function)->setSpecialLifetimeFunction(*kind, function);
+        }
+        function->setKind(get<FunctionKind>(obj, "function_kind"));
     }
 
     ///
@@ -515,9 +639,9 @@ struct DeserializeContext: TypeMapBase {
     /// Parses the type of the JSON object \p obj and dispatches to \p callback
     /// with the corresponding tag
     bool doParse(json const& obj, auto callback) {
-        auto type = toEntityType(obj["entity_type"]);
+        auto type = get<EntityType>(obj, "entity_type");
         auto callbackWithDefault = utl::overload{ callback, [](auto...) {} };
-        switch (type.value()) {
+        switch (type) {
 #define SC_SEMA_ENTITY_DEF(Type, _)                                            \
     case EntityType::Type:                                                     \
         callbackWithDefault(Tag<Type>{}, obj);                                 \
