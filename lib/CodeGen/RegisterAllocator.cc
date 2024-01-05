@@ -132,7 +132,7 @@ void cg::allocateRegisters(Context&, Function& F) {
         for (auto& inst: BB | ranges::views::reverse) {
             auto isLive = [&](auto* reg) { return live.contains(reg); };
             bool canErase = !hasSideEffects(inst) &&
-                            !isa_or_null<CalleeRegister>(inst.dest()) &&
+                            !isa<CalleeRegister>(inst.dest()) &&
                             ranges::none_of(inst.destRegisters(), isLive);
             if (canErase) {
                 toErase.push_back(&inst);

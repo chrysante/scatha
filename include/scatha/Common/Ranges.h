@@ -19,7 +19,7 @@ inline constexpr auto Filter = ranges::views::filter(
                                    []<typename V>(V const& value) {
     using NoRef = std::remove_reference_t<V>;
     if constexpr (std::is_pointer_v<NoRef>) {
-        return (... || isa_or_null<T>(value));
+        return (... || isa<T>(value));
     }
     else {
         return (... || isa<T>(value));
@@ -40,21 +40,6 @@ inline constexpr auto Filter = ranges::views::filter(
         }
     }
 });
-
-/// Range casting functions
-#define SC_CASTING_RANGE_DEF(Name, FuncName)                                   \
-    template <typename Target>                                                 \
-    inline constexpr auto Name =                                               \
-        ranges::views::transform([]<typename T>(T&& p) -> decltype(auto) {     \
-            return FuncName<Target>(std::forward<T>(p));                       \
-        })
-
-SC_CASTING_RANGE_DEF(Cast, cast);
-SC_CASTING_RANGE_DEF(CastOrNull, cast_or_null);
-SC_CASTING_RANGE_DEF(DynCast, dyncast);
-SC_CASTING_RANGE_DEF(DynCastOrNull, dyncast_or_null);
-
-#undef SC_CASTING_RANGE_DEF
 
 /// View applying `std::to_address` to every element
 inline constexpr auto ToAddress = ranges::views::transform(

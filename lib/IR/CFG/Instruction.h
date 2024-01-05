@@ -27,7 +27,9 @@ public:
     /// \details This casts the elements in
     /// the range returned by `Value::users()` to instructions, as instructions
     /// are only used by other instructions.
-    auto users() const { return Value::users() | Cast<Instruction*>; }
+    auto users() const {
+        return Value::users() | ranges::views::transform(cast<Instruction*>);
+    }
 
     /// \returns a view over the type operands of this instruction
     std::span<Type const* const> typeOperands() const { return typeOps; }

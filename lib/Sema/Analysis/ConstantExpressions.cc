@@ -289,8 +289,8 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
     switch (kind) {
     case ConstantKind::IntValue: {
         return doEvalBinary(op,
-                            cast_or_null<IntValue const*>(lhs),
-                            cast_or_null<IntValue const*>(rhs));
+                            cast<IntValue const*>(lhs),
+                            cast<IntValue const*>(rhs));
     }
     case ConstantKind::FloatValue:
         if (!lhs || !rhs) {
@@ -399,7 +399,7 @@ UniquePtr<Value> sema::evalConversion(sema::Conversion const* conv,
 UniquePtr<Value> sema::evalConditional(Value const* condition,
                                        Value const* thenValue,
                                        Value const* elseValue) {
-    auto* intCond = dyncast_or_null<IntValue const*>(condition);
+    auto* intCond = dyncast<IntValue const*>(condition);
     if (!intCond) {
         return nullptr;
     }

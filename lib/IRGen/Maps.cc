@@ -94,7 +94,7 @@ std::optional<Value> ValueMap::tryGetArraySize(
 static std::string scopedName(sema::Entity const& entity) {
     std::string name(entity.name());
     auto* parent = entity.parent();
-    while (!isa_or_null<sema::GlobalScope>(parent)) {
+    while (!isa<sema::GlobalScope>(parent)) {
         name = utl::strcat(parent->name(), ".", name);
         parent = parent->parent();
     }

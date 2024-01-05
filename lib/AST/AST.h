@@ -150,7 +150,7 @@ private:
 class SCATHA_API ASTNode: public internal::Decoratable {
     template <typename AST>
     static constexpr auto transform = ranges::views::transform(
-        [](auto& p) -> AST* { return cast_or_null<AST*>(p.get()); });
+        [](auto& p) -> AST* { return cast<AST*>(p.get()); });
 
     template <typename AST>
     auto getChildren() const {
@@ -227,7 +227,7 @@ public:
     /// The child at index \p index
     template <typename AST = ASTNode>
     AST* child(size_t index) {
-        return cast_or_null<AST*>(children()[utl::narrow_cast<ssize_t>(index)]);
+        return cast<AST*>(children()[utl::narrow_cast<ssize_t>(index)]);
     }
 
     /// \overload

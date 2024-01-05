@@ -71,7 +71,8 @@ void deserializeEnum(json const& j, Enum& e) {
 /// User code
 
 SERIALIZE_ENUM_BEGIN(EntityType)
-#define SC_SEMA_ENTITY_DEF(Type, _) SERIALIZE_ENUM_ELEM(EntityType::Type, #Type)
+#define SC_SEMA_ENTITY_DEF(Type, ...)                                          \
+    SERIALIZE_ENUM_ELEM(EntityType::Type, #Type)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
@@ -642,13 +643,11 @@ struct DeserializeContext: TypeMapBase {
         auto type = get<EntityType>(obj, "entity_type");
         auto callbackWithDefault = utl::overload{ callback, [](auto...) {} };
         switch (type) {
-#define SC_SEMA_ENTITY_DEF(Type, _)                                            \
+#define SC_SEMA_ENTITY_DEF(Type, ...)                                          \
     case EntityType::Type:                                                     \
         callbackWithDefault(Tag<Type>{}, obj);                                 \
         return true;
 #include <scatha/Sema/Lists.def>
-        case EntityType::_count:
-            return false;
         }
         SC_UNREACHABLE();
     }

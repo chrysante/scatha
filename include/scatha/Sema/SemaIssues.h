@@ -48,7 +48,7 @@ public:                                                                        \
 #define SC_SEMA_DERIVED_STMT(Type, Name)                                       \
     template <typename T = ast::Type>                                          \
     T const* Name() const {                                                    \
-        return cast_or_null<T const*>(BadStmt::statement());                   \
+        return cast<T const*>(BadStmt::statement());                           \
     }
 
 /// Base class of all semantic issues

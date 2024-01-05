@@ -11,7 +11,7 @@ using namespace sema;
 
 std::string_view sema::toString(EntityType t) {
     return std::array{
-#define SC_SEMA_ENTITY_DEF(Type, _) std::string_view(#Type),
+#define SC_SEMA_ENTITY_DEF(Type, ...) std::string_view(#Type),
 #include "Sema/Lists.def"
     }[static_cast<size_t>(t)];
 }
@@ -151,7 +151,7 @@ SpecialMemberFunction sema::toSMF(SpecialLifetimeFunction SLF) {
 
 std::string_view sema::toString(ConstantKind k) {
     return std::array{
-#define SC_SEMA_CONSTKIND_DEF(Kind, _) std::string_view(#Kind),
+#define SC_SEMA_CONSTKIND_DEF(Kind, ...) std::string_view(#Kind),
 #include "Sema/Lists.def"
     }[static_cast<size_t>(k)];
 }

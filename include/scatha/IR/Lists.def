@@ -5,59 +5,59 @@
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_VALUENODE_DEF
-#   define SC_VALUENODE_DEF(node, _)
+#   define SC_VALUENODE_DEF(...)
 #endif
 
-SC_VALUENODE_DEF(Value,      ABSTRACT)
-SC_VALUENODE_DEF(Parameter,  CONCRETE)
-SC_VALUENODE_DEF(BasicBlock, CONCRETE)
-SC_VALUENODE_DEF(User,       ABSTRACT)
+SC_VALUENODE_DEF(Value,      VoidParent, Abstract)
+SC_VALUENODE_DEF(Parameter,  Value,      Concrete)
+SC_VALUENODE_DEF(BasicBlock, Value,      Concrete)
+SC_VALUENODE_DEF(User,       Value,      Abstract)
 
 /// Constants
-SC_VALUENODE_DEF(Constant,              ABSTRACT)
-SC_VALUENODE_DEF(IntegralConstant,      CONCRETE)
-SC_VALUENODE_DEF(FloatingPointConstant, CONCRETE)
-SC_VALUENODE_DEF(NullPointerConstant,   CONCRETE)
-SC_VALUENODE_DEF(RecordConstant,        ABSTRACT)
-SC_VALUENODE_DEF(StructConstant,        CONCRETE)
-SC_VALUENODE_DEF(ArrayConstant,         CONCRETE)
-SC_VALUENODE_DEF(UndefValue,            CONCRETE)
+SC_VALUENODE_DEF(Constant,              User,           Abstract)
+SC_VALUENODE_DEF(IntegralConstant,      Constant,       Concrete)
+SC_VALUENODE_DEF(FloatingPointConstant, Constant,       Concrete)
+SC_VALUENODE_DEF(NullPointerConstant,   Constant,       Concrete)
+SC_VALUENODE_DEF(RecordConstant,        Constant,       Abstract)
+SC_VALUENODE_DEF(StructConstant,        RecordConstant, Concrete)
+SC_VALUENODE_DEF(ArrayConstant,         RecordConstant, Concrete)
+SC_VALUENODE_DEF(UndefValue,            Constant,       Concrete)
 
 /// Globals
-SC_VALUENODE_DEF(Global,          ABSTRACT)
-SC_VALUENODE_DEF(GlobalVariable,  CONCRETE)
-SC_VALUENODE_DEF(Callable,        ABSTRACT)
-SC_VALUENODE_DEF(Function,        CONCRETE)
-SC_VALUENODE_DEF(ForeignFunction, CONCRETE)
+SC_VALUENODE_DEF(Global,          Constant, Abstract)
+SC_VALUENODE_DEF(GlobalVariable,  Global,   Concrete)
+SC_VALUENODE_DEF(Callable,        Global,   Abstract)
+SC_VALUENODE_DEF(Function,        Callable, Concrete)
+SC_VALUENODE_DEF(ForeignFunction, Callable, Concrete)
 
 /// Instruction base classes
-SC_VALUENODE_DEF(Instruction,       ABSTRACT)
-SC_VALUENODE_DEF(UnaryInstruction,  ABSTRACT)
-SC_VALUENODE_DEF(BinaryInstruction, ABSTRACT)
-SC_VALUENODE_DEF(TerminatorInst,    ABSTRACT)
-SC_VALUENODE_DEF(AccessValueInst,   ABSTRACT)
+SC_VALUENODE_DEF(Instruction,       User,        Abstract)
+SC_VALUENODE_DEF(UnaryInstruction,  Instruction, Abstract)
+SC_VALUENODE_DEF(BinaryInstruction, Instruction, Abstract)
+SC_VALUENODE_DEF(TerminatorInst,    Instruction, Abstract)
+SC_VALUENODE_DEF(AccessValueInst,   Instruction, Abstract)
 
 /// Instructions
 #ifndef SC_INSTRUCTIONNODE_DEF
-#   define SC_INSTRUCTIONNODE_DEF SC_VALUENODE_DEF
+#   define SC_INSTRUCTIONNODE_DEF(...) SC_VALUENODE_DEF(__VA_ARGS__)
 #endif
 
-SC_INSTRUCTIONNODE_DEF(Alloca,              CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Load,                CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Store,               CONCRETE)
-SC_INSTRUCTIONNODE_DEF(ConversionInst,      CONCRETE)
-SC_INSTRUCTIONNODE_DEF(CompareInst,         CONCRETE)
-SC_INSTRUCTIONNODE_DEF(UnaryArithmeticInst, CONCRETE)
-SC_INSTRUCTIONNODE_DEF(ArithmeticInst,      CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Goto,                CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Branch,              CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Return,              CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Call,                CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Phi,                 CONCRETE)
-SC_INSTRUCTIONNODE_DEF(Select,              CONCRETE)
-SC_INSTRUCTIONNODE_DEF(GetElementPointer,   CONCRETE)
-SC_INSTRUCTIONNODE_DEF(ExtractValue,        CONCRETE)
-SC_INSTRUCTIONNODE_DEF(InsertValue,         CONCRETE)
+SC_INSTRUCTIONNODE_DEF(Alloca,              Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(Load,                Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(Store,               Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(ConversionInst,      UnaryInstruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(CompareInst,         BinaryInstruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(UnaryArithmeticInst, UnaryInstruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(ArithmeticInst,      BinaryInstruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(Goto,                TerminatorInst, Concrete)
+SC_INSTRUCTIONNODE_DEF(Branch,              TerminatorInst, Concrete)
+SC_INSTRUCTIONNODE_DEF(Return,              TerminatorInst, Concrete)
+SC_INSTRUCTIONNODE_DEF(Call,                Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(Phi,                 Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(Select,              Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(GetElementPointer,   Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(ExtractValue,        Instruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(InsertValue,         Instruction, Concrete) // Update LAST in Fwd.h if this changes
 
 #undef SC_INSTRUCTIONNODE_DEF
 
@@ -172,19 +172,19 @@ SC_ARITHMETIC_OPERATION_DEF(XOr,  xor)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_TYPE_CATEGORY_DEF
-#   define SC_TYPE_CATEGORY_DEF(type, _)
+#   define SC_TYPE_CATEGORY_DEF(...)
 #endif
 
-SC_TYPE_CATEGORY_DEF(Type,           ABSTRACT)
-SC_TYPE_CATEGORY_DEF(VoidType,       CONCRETE)
-SC_TYPE_CATEGORY_DEF(PointerType,    CONCRETE)
-SC_TYPE_CATEGORY_DEF(ArithmeticType, ABSTRACT)
-SC_TYPE_CATEGORY_DEF(IntegralType,   CONCRETE)
-SC_TYPE_CATEGORY_DEF(FloatType,      CONCRETE)
-SC_TYPE_CATEGORY_DEF(RecordType,     ABSTRACT)
-SC_TYPE_CATEGORY_DEF(StructType,     CONCRETE)
-SC_TYPE_CATEGORY_DEF(ArrayType,      CONCRETE)
-SC_TYPE_CATEGORY_DEF(FunctionType,   CONCRETE)
+SC_TYPE_CATEGORY_DEF(Type,           VoidParent,     Abstract)
+SC_TYPE_CATEGORY_DEF(VoidType,       Type,           Concrete)
+SC_TYPE_CATEGORY_DEF(PointerType,    Type,           Concrete)
+SC_TYPE_CATEGORY_DEF(ArithmeticType, Type,           Abstract)
+SC_TYPE_CATEGORY_DEF(IntegralType,   ArithmeticType, Concrete)
+SC_TYPE_CATEGORY_DEF(FloatType,      ArithmeticType, Concrete)
+SC_TYPE_CATEGORY_DEF(RecordType,     Type,           Abstract)
+SC_TYPE_CATEGORY_DEF(StructType,     RecordType,     Concrete)
+SC_TYPE_CATEGORY_DEF(ArrayType,      RecordType,     Concrete)
+SC_TYPE_CATEGORY_DEF(FunctionType,   Type,           Concrete) // Update LAST if this changes!
 
 #undef SC_TYPE_CATEGORY_DEF
 

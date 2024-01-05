@@ -30,27 +30,33 @@ struct AnalysisOptions {
 /// # Forward Declaration of all entity types
 ///
 
-#define SC_SEMA_ENTITY_DEF(Type, _) class Type;
+#define SC_SEMA_ENTITY_DEF(Type, ...) class Type;
 #include <scatha/Sema/Lists.def>
 
 /// List of all entity types
 enum class EntityType {
-#define SC_SEMA_ENTITY_DEF(Type, _) Type,
+#define SC_SEMA_ENTITY_DEF(Type, ...) Type,
 #include <scatha/Sema/Lists.def>
-    _count
+    LAST = PoisonEntity
 };
 
+///
 SCATHA_API std::string_view toString(EntityType);
 
+///
 SCATHA_API std::ostream& operator<<(std::ostream&, EntityType);
+
+/// To make the base parent case in the dyncast macro work
+using VoidParent = void;
 
 } // namespace scatha::sema
 
 /// Map types to enum values
-#define SC_SEMA_ENTITY_DEF(Type, Abstractness)                                 \
-    SC_DYNCAST_MAP(::scatha::sema::Type,                                       \
-                   ::scatha::sema::EntityType::Type,                           \
-                   Abstractness)
+#define SC_SEMA_ENTITY_DEF(Type, Parent, Corporeality)                         \
+    SC_DYNCAST_DEFINE(::scatha::sema::Type,                                    \
+                      ::scatha::sema::EntityType::Type,                        \
+                      ::scatha::sema::Parent,                                  \
+                      Corporeality)
 #include <scatha/Sema/Lists.def>
 
 namespace scatha::sema {
@@ -181,14 +187,14 @@ UTL_BITFIELD_OPERATORS(FunctionAttribute);
 /// # Constant Expressions
 ///
 
-#define SC_SEMA_CONSTKIND_DEF(Type, _) class Type;
+#define SC_SEMA_CONSTKIND_DEF(Type, ...) class Type;
 #include <scatha/Sema/Lists.def>
 
 /// List of all constant value kinds
 enum class ConstantKind {
-#define SC_SEMA_CONSTKIND_DEF(Type, _) Type,
+#define SC_SEMA_CONSTKIND_DEF(Type, ...) Type,
 #include <scatha/Sema/Lists.def>
-    _count
+    LAST = FloatValue
 };
 
 SCATHA_API std::string_view toString(ConstantKind);
@@ -198,10 +204,11 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ConstantKind);
 } // namespace scatha::sema
 
 /// Map constant kinds to enum values
-#define SC_SEMA_CONSTKIND_DEF(Type, Abstractness)                              \
-    SC_DYNCAST_MAP(::scatha::sema::Type,                                       \
-                   ::scatha::sema::ConstantKind::Type,                         \
-                   Abstractness)
+#define SC_SEMA_CONSTKIND_DEF(Type, Parent, Corporeality)                      \
+    SC_DYNCAST_DEFINE(::scatha::sema::Type,                                    \
+                      ::scatha::sema::ConstantKind::Type,                      \
+                      ::scatha::sema::Parent,                                  \
+                      Corporeality)
 #include <scatha/Sema/Lists.def>
 
 namespace scatha::sema {

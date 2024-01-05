@@ -8,12 +8,10 @@ using namespace mir;
 
 std::string_view mir::toString(NodeType nodeType) {
     switch (nodeType) {
-#define SC_MIR_CFGNODE_DEF(Node, _)                                            \
+#define SC_MIR_CFGNODE_DEF(Node, ...)                                          \
     case NodeType::Node:                                                       \
         return #Node;
 #include "MIR/Lists.def"
-    case NodeType::_count:
-        SC_UNREACHABLE();
     }
 }
 
@@ -31,12 +29,10 @@ void mir::privateDestroy(mir::Value* value) {
 
 std::string_view mir::toString(InstType instType) {
     switch (instType) {
-#define SC_MIR_INSTCLASS_DEF(Inst, _)                                          \
+#define SC_MIR_INSTCLASS_DEF(Inst, ...)                                        \
     case InstType::Inst:                                                       \
         return #Inst;
 #include "MIR/Lists.def"
-    case InstType::_count:
-        SC_UNREACHABLE();
     }
 }
 

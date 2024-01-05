@@ -124,7 +124,7 @@ void LivenessContext::dag(BasicBlock* BB) {
         }
         live.erase(inst.dest());
         for (auto* op: inst.operands()) {
-            if (auto* reg = dyncast_or_null<SSARegister*>(op)) {
+            if (auto* reg = dyncast<SSARegister*>(op)) {
                 live.insert(reg);
             }
         }

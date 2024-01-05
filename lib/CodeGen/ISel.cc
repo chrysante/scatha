@@ -958,7 +958,7 @@ struct ISelBlockCtx {
 
     /// Tuple of all instruction matchers
     std::tuple<
-#define SC_INSTRUCTIONNODE_DEF(Inst, _) Matcher<ir::Inst>,
+#define SC_INSTRUCTIONNODE_DEF(Inst, ...) Matcher<ir::Inst>,
 #include "IR/Lists.def"
         int>
         matchers;
@@ -972,7 +972,7 @@ struct ISelBlockCtx {
         resolver(ctx, mod, mirFn, map, [this](mir::Instruction* inst) {
             emit(inst);
         }) {
-#define SC_INSTRUCTIONNODE_DEF(Inst, _)                                        \
+#define SC_INSTRUCTIONNODE_DEF(Inst, ...)                                      \
     std::get<Matcher<ir::Inst>>(matchers).init(ctx, DAG, resolver);
 #include "IR/Lists.def"
     }

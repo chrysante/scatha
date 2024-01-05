@@ -131,7 +131,7 @@ bool TREContext::run() {
         auto ret = viableReturns.front();
         auto other = otherReturns.front();
         // clang-format off
-        bool const modified = visit(utl::overload{
+        bool const modified = std::visit(utl::overload{
             [&](DirectReturn const& ret) {
                 rewrite(ret);
                 return true;

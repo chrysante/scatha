@@ -5,21 +5,21 @@
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_MIR_CFGNODE_DEF
-#   define SC_MIR_CFGNODE_DEF(node, _)
+#   define SC_MIR_CFGNODE_DEF(...)
 #endif
 
-SC_MIR_CFGNODE_DEF(Value,               ABSTRACT)
-SC_MIR_CFGNODE_DEF(Register,            ABSTRACT)
-SC_MIR_CFGNODE_DEF(SSARegister,         CONCRETE)
-SC_MIR_CFGNODE_DEF(VirtualRegister,     CONCRETE)
-SC_MIR_CFGNODE_DEF(CalleeRegister,      CONCRETE)
-SC_MIR_CFGNODE_DEF(HardwareRegister,    CONCRETE)
-SC_MIR_CFGNODE_DEF(Constant,            CONCRETE)
-SC_MIR_CFGNODE_DEF(UndefValue,          CONCRETE)
-SC_MIR_CFGNODE_DEF(BasicBlock,          CONCRETE)
-SC_MIR_CFGNODE_DEF(Callable,            ABSTRACT)
-SC_MIR_CFGNODE_DEF(Function,            CONCRETE)
-SC_MIR_CFGNODE_DEF(ForeignFunction,     CONCRETE)
+SC_MIR_CFGNODE_DEF(Value,            VoidParent, Abstract)
+SC_MIR_CFGNODE_DEF(Register,         Value,      Abstract)
+SC_MIR_CFGNODE_DEF(SSARegister,      Register,   Concrete)
+SC_MIR_CFGNODE_DEF(VirtualRegister,  Register,   Concrete)
+SC_MIR_CFGNODE_DEF(CalleeRegister,   Register,   Concrete)
+SC_MIR_CFGNODE_DEF(HardwareRegister, Register,   Concrete)
+SC_MIR_CFGNODE_DEF(Constant,         Value,      Concrete)
+SC_MIR_CFGNODE_DEF(UndefValue,       Value,      Concrete)
+SC_MIR_CFGNODE_DEF(BasicBlock,       Value,      Concrete)
+SC_MIR_CFGNODE_DEF(Callable,         Value,      Abstract)
+SC_MIR_CFGNODE_DEF(Function,         Callable,   Concrete)
+SC_MIR_CFGNODE_DEF(ForeignFunction,  Callable,   Concrete) // Update LAST if this changes!
 
 #undef SC_MIR_CFGNODE_DEF
 
@@ -28,34 +28,33 @@ SC_MIR_CFGNODE_DEF(ForeignFunction,     CONCRETE)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_MIR_INSTCLASS_DEF
-#   define SC_MIR_INSTCLASS_DEF(node, _)
+#   define SC_MIR_INSTCLASS_DEF(...)
 #endif
 
-SC_MIR_INSTCLASS_DEF(Instruction,         ABSTRACT)
-SC_MIR_INSTCLASS_DEF(UnaryInstruction,    ABSTRACT)
-
-SC_MIR_INSTCLASS_DEF(StoreInst,           CONCRETE)
-SC_MIR_INSTCLASS_DEF(LoadInst,            CONCRETE)
-SC_MIR_INSTCLASS_DEF(CopyBase,            ABSTRACT)
-SC_MIR_INSTCLASS_DEF(CopyInst,            CONCRETE)
-SC_MIR_INSTCLASS_DEF(CallInst,            CONCRETE)
-SC_MIR_INSTCLASS_DEF(CondCopyInst,        CONCRETE)
-SC_MIR_INSTCLASS_DEF(LISPInst,            CONCRETE)
-SC_MIR_INSTCLASS_DEF(LEAInst,             CONCRETE)
-SC_MIR_INSTCLASS_DEF(CompareInst,         CONCRETE)
-SC_MIR_INSTCLASS_DEF(TestInst,            CONCRETE)
-SC_MIR_INSTCLASS_DEF(SetInst,             CONCRETE)
-SC_MIR_INSTCLASS_DEF(UnaryArithmeticInst, CONCRETE)
-SC_MIR_INSTCLASS_DEF(ArithmeticInst,      ABSTRACT)
-SC_MIR_INSTCLASS_DEF(ValueArithmeticInst, CONCRETE)
-SC_MIR_INSTCLASS_DEF(LoadArithmeticInst,  CONCRETE)
-SC_MIR_INSTCLASS_DEF(ConversionInst,      CONCRETE)
-SC_MIR_INSTCLASS_DEF(TerminatorInst,      ABSTRACT)
-SC_MIR_INSTCLASS_DEF(JumpBase,            ABSTRACT)
-SC_MIR_INSTCLASS_DEF(JumpInst,            CONCRETE)
-SC_MIR_INSTCLASS_DEF(CondJumpInst,        CONCRETE)
-SC_MIR_INSTCLASS_DEF(ReturnInst,          CONCRETE)
-SC_MIR_INSTCLASS_DEF(PhiInst,             CONCRETE)
-SC_MIR_INSTCLASS_DEF(SelectInst,          CONCRETE)
+SC_MIR_INSTCLASS_DEF(Instruction,         VoidParent,       Abstract)
+SC_MIR_INSTCLASS_DEF(UnaryInstruction,    Instruction,      Abstract)
+SC_MIR_INSTCLASS_DEF(StoreInst,           Instruction,      Concrete)
+SC_MIR_INSTCLASS_DEF(LoadInst,            Instruction,      Concrete)
+SC_MIR_INSTCLASS_DEF(CopyBase,            UnaryInstruction, Abstract)
+SC_MIR_INSTCLASS_DEF(CopyInst,            CopyBase,         Concrete)
+SC_MIR_INSTCLASS_DEF(CallInst,            Instruction,      Concrete)
+SC_MIR_INSTCLASS_DEF(CondCopyInst,        CopyBase,         Concrete)
+SC_MIR_INSTCLASS_DEF(LISPInst,            UnaryInstruction, Concrete)
+SC_MIR_INSTCLASS_DEF(LEAInst,             Instruction,      Concrete)
+SC_MIR_INSTCLASS_DEF(CompareInst,         Instruction,      Concrete)
+SC_MIR_INSTCLASS_DEF(TestInst,            UnaryInstruction, Concrete)
+SC_MIR_INSTCLASS_DEF(SetInst,             Instruction,      Concrete)
+SC_MIR_INSTCLASS_DEF(UnaryArithmeticInst, UnaryInstruction, Concrete)
+SC_MIR_INSTCLASS_DEF(ArithmeticInst,      Instruction,      Abstract)
+SC_MIR_INSTCLASS_DEF(ValueArithmeticInst, ArithmeticInst,   Concrete)
+SC_MIR_INSTCLASS_DEF(LoadArithmeticInst,  ArithmeticInst,   Concrete)
+SC_MIR_INSTCLASS_DEF(ConversionInst,      UnaryInstruction, Concrete)
+SC_MIR_INSTCLASS_DEF(TerminatorInst,      Instruction,      Abstract)
+SC_MIR_INSTCLASS_DEF(JumpBase,            TerminatorInst,   Abstract)
+SC_MIR_INSTCLASS_DEF(JumpInst,            JumpBase,         Concrete)
+SC_MIR_INSTCLASS_DEF(CondJumpInst,        JumpBase,         Concrete)
+SC_MIR_INSTCLASS_DEF(ReturnInst,          TerminatorInst,   Concrete)
+SC_MIR_INSTCLASS_DEF(PhiInst,             Instruction,      Concrete)
+SC_MIR_INSTCLASS_DEF(SelectInst,          Instruction,      Concrete) // Update LAST if this changes!
 
 #undef SC_MIR_INSTCLASS_DEF

@@ -54,7 +54,7 @@ void DCEContext::visitInstruction(mir::Instruction* inst) {
     if (deadInstructions.contains(inst)) {
         return;
     }
-    auto* dest = dyncast_or_null<SSARegister*>(inst->dest());
+    auto* dest = dyncast<SSARegister*>(inst->dest());
     if (!dest) {
         return;
     }

@@ -61,14 +61,14 @@ class Context;
 class Module;
 
 /// Forward declaration of CFG nodes
-#define SC_VALUENODE_DEF(Node, _) class Node;
+#define SC_VALUENODE_DEF(Node, ...) class Node;
 #include <scatha/IR/Lists.def>
 
 /// List of all CFG node type
 enum class NodeType {
-#define SC_VALUENODE_DEF(Node, _) Node,
+#define SC_VALUENODE_DEF(Node, ...) Node,
 #include <scatha/IR/Lists.def>
-    _count
+    LAST = InsertValue
 };
 
 /// Convert \p nodeType to string
@@ -165,14 +165,14 @@ SCATHA_API bool isCommutative(ArithmeticOperation op);
 
 /// ## Forward declarations of type categories
 
-#define SC_TYPE_CATEGORY_DEF(TypeCat, _) class TypeCat;
+#define SC_TYPE_CATEGORY_DEF(TypeCat, ...) class TypeCat;
 #include <scatha/IR/Lists.def>
 
 /// List of all type categories
 enum class TypeCategory {
-#define SC_TYPE_CATEGORY_DEF(TypeCat, _) TypeCat,
+#define SC_TYPE_CATEGORY_DEF(TypeCat, ...) TypeCat,
 #include <scatha/IR/Lists.def>
-    _count
+    LAST = FunctionType
 };
 
 /// List of all visibility kinds
@@ -193,20 +193,25 @@ enum class FunctionAttribute : unsigned {
 
 UTL_BITFIELD_OPERATORS(FunctionAttribute);
 
+/// To make the base parent case in the dyncast macro work
+using VoidParent = void;
+
 } // namespace scatha::ir
 
 /// Map enum `NodeType` to actual node types
-#define SC_VALUENODE_DEF(Node, Abstractness)                                   \
-    SC_DYNCAST_MAP(::scatha::ir::Node,                                         \
-                   ::scatha::ir::NodeType::Node,                               \
-                   Abstractness)
+#define SC_VALUENODE_DEF(Node, Parent, Corporeality)                           \
+    SC_DYNCAST_DEFINE(::scatha::ir::Node,                                      \
+                      ::scatha::ir::NodeType::Node,                            \
+                      ::scatha::ir::Parent,                                    \
+                      Corporeality)
 #include <scatha/IR/Lists.def>
 
 /// Map enum `TypeCategory` to actual type category classes
-#define SC_TYPE_CATEGORY_DEF(TypeCat, Abstractness)                            \
-    SC_DYNCAST_MAP(::scatha::ir::TypeCat,                                      \
-                   ::scatha::ir::TypeCategory::TypeCat,                        \
-                   Abstractness)
+#define SC_TYPE_CATEGORY_DEF(TypeCat, Parent, Corporeality)                    \
+    SC_DYNCAST_DEFINE(::scatha::ir::TypeCat,                                   \
+                      ::scatha::ir::TypeCategory::TypeCat,                     \
+                      ::scatha::ir::Parent,                                    \
+                      Corporeality)
 #include <scatha/IR/Lists.def>
 
 namespace scatha::ir::internal {

@@ -1,5 +1,4 @@
 #include "Sema/Analysis/ExpressionAnalysis.h"
-
 #include <optional>
 #include <span>
 
@@ -1003,8 +1002,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
                 ctx.badExpr(countExpr, ListExprNoIntSize);
                 return nullptr;
             }
-            auto* value =
-                cast_or_null<IntValue const*>(countExpr->constantValue());
+            auto* value = cast<IntValue const*>(countExpr->constantValue());
             if (!value) {
                 ctx.badExpr(countExpr, ListExprNoConstSize);
                 return nullptr;
@@ -1225,7 +1223,7 @@ void ExprContext::dereferencePointer(ast::Expression* expr) {
         return;
     }
     auto* type = expr->type().get();
-    if (!isa<PointerType const*>(type)) {
+    if (!isa<PointerType>(type)) {
         return;
     }
     SC_EXPECT(expr->isValue());

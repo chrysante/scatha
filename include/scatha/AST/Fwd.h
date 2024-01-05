@@ -13,25 +13,33 @@ namespace scatha::ast {
 /// # Forward Declaration of all AST nodes
 ///
 
-#define SC_ASTNODE_DEF(node, _) class node;
+#define SC_ASTNODE_DEF(ASTNode, ...) class ASTNode;
 #include <scatha/AST/Lists.def>
 
 /// List of all  AST node types.
 enum class NodeType {
-#define SC_ASTNODE_DEF(node, _) node,
+#define SC_ASTNODE_DEF(ASTNode, ...) ASTNode,
 #include <scatha/AST/Lists.def>
-    _count
+    LAST = Conversion
 };
 
-SCATHA_API std::string_view toString(NodeType);
+///
+SCATHA_API std::string_view toString(NodeType nodeType);
 
+///
 SCATHA_API std::ostream& operator<<(std::ostream&, NodeType);
+
+/// To make the base parent case in the dyncast macro work
+using VoidParent = void;
 
 } // namespace scatha::ast
 
 /// Map types to enum values.
-#define SC_ASTNODE_DEF(type, Abstractness)                                     \
-    SC_DYNCAST_MAP(scatha::ast::type, scatha::ast::NodeType::type, Abstractness)
+#define SC_ASTNODE_DEF(Type, Parent, Corporeality)                             \
+    SC_DYNCAST_DEFINE(::scatha::ast::Type,                                     \
+                      ::scatha::ast::NodeType::Type,                           \
+                      ::scatha::ast::Parent,                                   \
+                      Corporeality)
 #include <scatha/AST/Lists.def>
 
 namespace scatha::ast {

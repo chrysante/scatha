@@ -64,7 +64,7 @@ void Expression::decorateValue(sema::Entity* entity,
     _entity = entity;
     _valueCat = valueCategory;
     _type = type;
-    auto* object = dyncast_or_null<sema::Object*>(entity);
+    auto* object = dyncast<sema::Object*>(entity);
     if (!type && object) {
         _type = object->getQualType();
     }
@@ -101,7 +101,7 @@ sema::QualType Conversion::targetType() const {
 }
 
 void VarDeclBase::decorateVarDecl(sema::Entity* entity) {
-    if (auto* object = dyncast_or_null<sema::Object*>(entity)) {
+    if (auto* object = dyncast<sema::Object*>(entity)) {
         _type = object->type();
     }
     Declaration::decorateDecl(entity);

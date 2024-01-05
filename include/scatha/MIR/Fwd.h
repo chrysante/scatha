@@ -9,7 +9,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
 #include <scatha/Common/ForeignFunctionDecl.h>
-#include <scatha/IR/Fwd.h> // To borrow some enums for this MIR namespace
+#include <scatha/IR/Fwd.h> /// To borrow some enums for the `mir` namespace
 
 namespace scatha::mir {
 
@@ -40,14 +40,14 @@ class Instruction;
 ///
 
 /// Forward declarations of all CFG node types in the MIR module.
-#define SC_MIR_CFGNODE_DEF(type, _) class type;
+#define SC_MIR_CFGNODE_DEF(Type, ...) class Type;
 #include <scatha/MIR/Lists.def>
 
 /// Enum listing all CFG node types in the MIR module.
 enum class NodeType {
-#define SC_MIR_CFGNODE_DEF(type, _) type,
+#define SC_MIR_CFGNODE_DEF(Type, ...) Type,
 #include <scatha/MIR/Lists.def>
-    _count
+    LAST = ForeignFunction
 };
 
 /// Convert \p nodeType to string.
@@ -63,14 +63,14 @@ SCTEST_API void privateDelete(mir::Value* value);
 SCTEST_API void privateDestroy(mir::Value* value);
 
 /// Forward declarations of all instructions in the MIR module.
-#define SC_MIR_INSTCLASS_DEF(type, _) class type;
+#define SC_MIR_INSTCLASS_DEF(Type, ...) class Type;
 #include <scatha/MIR/Lists.def>
 
 /// Enum listing all instruction types in the MIR module.
 enum class InstType : uint16_t {
-#define SC_MIR_INSTCLASS_DEF(type, _) type,
+#define SC_MIR_INSTCLASS_DEF(Type, ...) Type,
 #include <scatha/MIR/Lists.def>
-    _count
+    LAST = SelectInst
 };
 
 /// Convert \p instType to string
@@ -85,20 +85,25 @@ SCTEST_API void privateDelete(mir::Instruction* inst);
 /// Insulated call to destructor on the most derived base of \p inst
 SCTEST_API void privateDestroy(mir::Instruction* inst);
 
+/// To make the base parent case in the dyncast macro work
+using VoidParent = void;
+
 } // namespace scatha::mir
 
 /// Map enum `NodeType` to actual node types
-#define SC_MIR_CFGNODE_DEF(Node, Abstractness)                                 \
-    SC_DYNCAST_MAP(::scatha::mir::Node,                                        \
-                   ::scatha::mir::NodeType::Node,                              \
-                   Abstractness)
+#define SC_MIR_CFGNODE_DEF(Node, Parent, Corporeality)                         \
+    SC_DYNCAST_DEFINE(::scatha::mir::Node,                                     \
+                      ::scatha::mir::NodeType::Node,                           \
+                      ::scatha::mir::Parent,                                   \
+                      Corporeality)
 #include <scatha/MIR/Lists.def>
 
 /// Map enum `InstType` to actual instruction types
-#define SC_MIR_INSTCLASS_DEF(Inst, Abstractness)                               \
-    SC_DYNCAST_MAP(::scatha::mir::Inst,                                        \
-                   ::scatha::mir::InstType::Inst,                              \
-                   Abstractness)
+#define SC_MIR_INSTCLASS_DEF(Inst, Parent, Corporeality)                       \
+    SC_DYNCAST_DEFINE(::scatha::mir::Inst,                                     \
+                      ::scatha::mir::InstType::Inst,                           \
+                      ::scatha::mir::Parent,                                   \
+                      Corporeality)
 #include <scatha/MIR/Lists.def>
 
 namespace scatha::mir {
