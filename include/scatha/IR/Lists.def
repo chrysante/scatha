@@ -42,22 +42,22 @@ SC_VALUENODE_DEF(AccessValueInst,   Instruction, Abstract)
 #   define SC_INSTRUCTIONNODE_DEF(...) SC_VALUENODE_DEF(__VA_ARGS__)
 #endif
 
-SC_INSTRUCTIONNODE_DEF(Alloca,              Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(Load,                Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(Store,               Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(ConversionInst,      UnaryInstruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(Alloca,              Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(Load,                Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(Store,               Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(ConversionInst,      UnaryInstruction,  Concrete)
 SC_INSTRUCTIONNODE_DEF(CompareInst,         BinaryInstruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(UnaryArithmeticInst, UnaryInstruction, Concrete)
+SC_INSTRUCTIONNODE_DEF(UnaryArithmeticInst, UnaryInstruction,  Concrete)
 SC_INSTRUCTIONNODE_DEF(ArithmeticInst,      BinaryInstruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(Goto,                TerminatorInst, Concrete)
-SC_INSTRUCTIONNODE_DEF(Branch,              TerminatorInst, Concrete)
-SC_INSTRUCTIONNODE_DEF(Return,              TerminatorInst, Concrete)
-SC_INSTRUCTIONNODE_DEF(Call,                Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(Phi,                 Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(Select,              Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(GetElementPointer,   Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(ExtractValue,        Instruction, Concrete)
-SC_INSTRUCTIONNODE_DEF(InsertValue,         Instruction, Concrete) // Update LAST in Fwd.h if this changes
+SC_INSTRUCTIONNODE_DEF(Goto,                TerminatorInst,    Concrete)
+SC_INSTRUCTIONNODE_DEF(Branch,              TerminatorInst,    Concrete)
+SC_INSTRUCTIONNODE_DEF(Return,              TerminatorInst,    Concrete)
+SC_INSTRUCTIONNODE_DEF(Call,                Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(Phi,                 Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(Select,              Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(GetElementPointer,   Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(ExtractValue,        Instruction,       Concrete)
+SC_INSTRUCTIONNODE_DEF(InsertValue,         Instruction,       Concrete) // Update LAST in Fwd.h if this changes
 
 #undef SC_INSTRUCTIONNODE_DEF
 
