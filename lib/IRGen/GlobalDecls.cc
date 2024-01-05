@@ -144,13 +144,12 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     case sema::FunctionKind::Native:
         [[fallthrough]];
     case sema::FunctionKind::Generated: {
-        irFn =
-            allocate<ir::Function>(ctx,
-                                   irReturnType,
-                                   irArgTypes,
-                                   nameMangler(*semaFn),
-                                   mapFuncAttrs(semaFn->attributes()),
-                                   mapVisibility(semaFn->binaryVisibility()));
+        irFn = allocate<ir::Function>(ctx,
+                                      irReturnType,
+                                      irArgTypes,
+                                      nameMangler(*semaFn),
+                                      mapFuncAttrs(semaFn->attributes()),
+                                      mapVisibility(semaFn->accessControl()));
         break;
     }
     case sema::FunctionKind::Foreign: {

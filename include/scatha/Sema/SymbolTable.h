@@ -63,10 +63,12 @@ public:
     ///
     /// \returns a the declared type if no error occurs
     /// Otherwise emits an error to the issue handler
-    StructType* declareStructureType(ast::StructDefinition* def);
+    StructType* declareStructureType(ast::StructDefinition* def,
+                                     AccessControl accessControl);
 
     /// \overload for use without AST
-    StructType* declareStructureType(std::string name);
+    StructType* declareStructureType(std::string name,
+                                     AccessControl accessControl);
 
     /// Declares a function name without signature to the current scope.
     ///
@@ -75,7 +77,8 @@ public:
     ///
     /// \returns the declared function if no error occured
     /// Otherwise emits an error the to issue handler
-    Function* declareFuncName(ast::FunctionDefinition* def);
+    Function* declareFuncName(ast::FunctionDefinition* def,
+                              AccessControl accessControl);
 
     /// Add signature to declared function.
     ///
@@ -88,10 +91,12 @@ public:
 
     /// \overload for use without AST. Here we don't require two step
     /// initialization.
-    Function* declareFunction(std::string name, FunctionSignature signature);
+    Function* declareFunction(std::string name,
+                              FunctionSignature signature,
+                              AccessControl accessControl);
 
     /// Add an overload set to the symbol table. This actually just exists so
-    /// the symbol table owns the overload set and we have a stable address. See
+    /// the symbol table owns the overload set so we have a stable address. See
     /// documentation of `OverloadSet`
     OverloadSet* addOverloadSet(SourceRange sourceRange,
                                 utl::small_vector<Function*> functions);
@@ -104,7 +109,8 @@ public:
     /// \returns the declared function or null when an error occurred
     Function* declareForeignFunction(std::string name,
                                      FunctionSignature signature,
-                                     FunctionAttribute attrs);
+                                     FunctionAttribute attrs,
+                                     AccessControl accessControl);
 
     /// Declares a variable to the current scope without type.
     ///
@@ -113,10 +119,11 @@ public:
     ///
     /// \returns the declared variable if no error occurs
     /// Otherwise emits an error the to issue handler
-    Variable* declareVariable(ast::VarDeclBase* vardecl);
+    Variable* declareVariable(ast::VarDeclBase* vardecl,
+                              AccessControl accessControl);
 
     /// \overload for use without AST
-    Variable* declareVariable(std::string name);
+    Variable* declareVariable(std::string name, AccessControl accessControl);
 
     /// Declares a variable to the current scope.
     ///
@@ -127,20 +134,21 @@ public:
     /// Otherwise emits an error the to issue handler
     Variable* defineVariable(ast::VarDeclBase* vardecl,
                              Type const* type,
-                             Mutability mutability);
+                             Mutability mutability,
+                             AccessControl accessControl);
 
     /// \overload for use without AST
     Variable* defineVariable(std::string name,
                              Type const* type,
-                             Mutability mutability);
+                             Mutability mutability,
+                             AccessControl accessControl);
 
-    ///
-    ///
     ///
     Property* addProperty(PropertyKind kind,
                           Type const* type,
                           Mutability mut,
-                          ValueCategory valueCat);
+                          ValueCategory valueCat,
+                          AccessControl accessControl);
 
     /// Creates a new unique temporary object of type \p type
     Temporary* temporary(QualType type);
@@ -154,16 +162,21 @@ public:
     /// exists with the same name in the current scope
     Alias* declareAlias(std::string name,
                         Entity& aliased,
-                        ast::ASTNode* astNode);
+                        ast::ASTNode* astNode,
+                        AccessControl accessControl);
 
     /// Declares an alias to entity \p aliased under the same name in the
     /// current scope.
     /// Does nothing if \p aliased is already aliased under the same name in the
     /// current scope or if \p aliased is a member of the current scope
-    Alias* declareAlias(Entity& aliased, ast::ASTNode* astNode);
+    Alias* declareAlias(Entity& aliased,
+                        ast::ASTNode* astNode,
+                        AccessControl accessControl);
 
     /// Declares a poison entity to the current scope.
-    PoisonEntity* declarePoison(ast::Identifier* ID, EntityCategory category);
+    PoisonEntity* declarePoison(ast::Identifier* ID,
+                                EntityCategory category,
+                                AccessControl accessControl);
 
     /// Makes scope \p scope the current scope.
     ///
@@ -306,13 +319,20 @@ private:
     ForeignLibrary* getOrImportForeignLib(std::string_view name,
                                           ast::ASTNode* astNode);
 
-    StructType* declareStructImpl(ast::StructDefinition* def, std::string name);
-    Function* declareFuncImpl(ast::FunctionDefinition* def, std::string name);
-    Variable* declareVarImpl(ast::VarDeclBase* vardecl, std::string name);
+    StructType* declareStructImpl(ast::StructDefinition* def,
+                                  std::string name,
+                                  AccessControl accCtrl);
+    Function* declareFuncImpl(ast::FunctionDefinition* def,
+                              std::string name,
+                              AccessControl accCtrl);
+    Variable* declareVarImpl(ast::VarDeclBase* vardecl,
+                             std::string name,
+                             AccessControl accCtrl);
     Variable* defineVarImpl(ast::VarDeclBase* vardecl,
                             std::string name,
                             Type const* type,
-                            Mutability mut);
+                            Mutability mut,
+                            AccessControl accCtrl);
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);
@@ -322,7 +342,7 @@ private:
 
     /// Declares an alias to \p entity under the same name in the global scope
     /// if \p entity is declared public in a filescope
-    void addGlobalAliasIfPublicAtFilescope(Entity* entity);
+    void addGlobalAliasIfInternalAtFilescope(Entity* entity);
 
     bool checkRedef(int kind,
                     std::string_view name,

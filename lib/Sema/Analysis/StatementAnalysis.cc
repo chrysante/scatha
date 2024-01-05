@@ -200,7 +200,7 @@ void StmtContext::importUnscopedSymbols(ast::ImportStatement& stmt) {
     if (auto* ID = dyncast<ast::Identifier*>(stmt.libExpr())) {
         auto& lib = cast<NativeLibrary&>(*stmt.library());
         for (auto* entity: lib.entities()) {
-            sym.declareAlias(*entity, ID);
+            sym.declareAlias(*entity, ID, AccessControl::Private);
         }
     }
     else {
@@ -208,7 +208,7 @@ void StmtContext::importUnscopedSymbols(ast::ImportStatement& stmt) {
         SC_ASSERT(isa<ast::MemberAccess>(expr),
                   "Other cases should produce issues above");
         SC_ASSERT(expr->entity(), "We should not be here if analysis failed");
-        sym.declareAlias(*expr->entity(), expr);
+        sym.declareAlias(*expr->entity(), expr, AccessControl::Private);
     }
 }
 
@@ -250,7 +250,9 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
         ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
-        sym.declarePoison(def.nameIdentifier(), EntityCategory::Value);
+        sym.declarePoison(def.nameIdentifier(),
+                          EntityCategory::Value,
+                          AccessControl::Private);
         return;
     }
     currentFunction = &def;
@@ -265,7 +267,6 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
     ctx.beginAnalyzing(semaFn);
     utl::scope_guard guard([&] { ctx.endAnalyzing(semaFn); });
     def.decorateFunction(semaFn, semaFn->returnType());
-    semaFn->setBinaryVisibility(def.binaryVisibility());
     sym.withScopePushed(semaFn, [&] {
         for (auto* param: def.parameters()) {
             analyze(*param);
@@ -318,8 +319,13 @@ static bool argumentsAreValidForMain(std::span<Type const* const> types,
 
 /// Here we perform all checks and transforms on `main` that make it special
 void StmtContext::analyzeMainFunction() {
-    /// main is always binary visible
-    semaFn->setBinaryVisibility(BinaryVisibility::Export);
+    if (auto specifiedAccessControl = semaFn->definition()->accessControl()) {
+        // TODO: Push an error here
+        SC_ASSERT(*specifiedAccessControl == AccessControl::Public,
+                  "Main function cannot be declared less than public");
+    }
+    /// main is always public
+    semaFn->setAccessControl(AccessControl::Public);
     /// We might require main to return int at some point, but right now there
     /// are many test cases where main returns bool or double
     auto* retType = semaFn->returnType();
@@ -337,11 +343,15 @@ void StmtContext::analyzeMainFunction() {
 void StmtContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     Type const* declaredType = semaFn->argumentType(paramDecl.index());
     if (!declaredType) {
-        sym.declarePoison(paramDecl.nameIdentifier(), EntityCategory::Value);
+        sym.declarePoison(paramDecl.nameIdentifier(),
+                          EntityCategory::Value,
+                          AccessControl::Private);
         return;
     }
-    auto* param =
-        sym.defineVariable(&paramDecl, declaredType, paramDecl.mutability());
+    auto* param = sym.defineVariable(&paramDecl,
+                                     declaredType,
+                                     paramDecl.mutability(),
+                                     AccessControl::Private);
     if (param) {
         paramDecl.decorateVarDecl(param);
     }
@@ -360,7 +370,11 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
             type = sym.reference({ parentType, thisParam.mutability() });
             mut = Mutability::Const;
         }
-        return sym.addProperty(PropertyKind::This, type, mut, LValue);
+        return sym.addProperty(PropertyKind::This,
+                               type,
+                               mut,
+                               LValue,
+                               AccessControl::Private);
     }();
     if (param) {
         semaFn->setIsMember();
@@ -371,7 +385,9 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
 void StmtContext::analyzeImpl(ast::StructDefinition& def) {
     /// Function defintion is only allowed in the global scope, at namespace
     /// scope and structure scope.
-    sym.declarePoison(def.nameIdentifier(), EntityCategory::Type);
+    sym.declarePoison(def.nameIdentifier(),
+                      EntityCategory::Type,
+                      AccessControl::Private);
     ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
 }
 
@@ -392,7 +408,9 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
               "We should not have handled local variables in prepass.");
     /// We need at least one of init expression and type specifier
     if (!varDecl.initExpr() && !varDecl.typeExpr()) {
-        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(),
+                          EntityCategory::Value,
+                          AccessControl::Private);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
         return;
     }
@@ -402,12 +420,16 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     auto type = declType ? declType : initType;
     /// We cannot deduce the type of the variable
     if (!type) {
-        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(),
+                          EntityCategory::Value,
+                          AccessControl::Private);
         return;
     }
     /// The type must be complete, that means no `void` and no dynamic arrays
     if (!type->isComplete()) {
-        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(),
+                          EntityCategory::Value,
+                          AccessControl::Private);
         ctx.issue<BadVarDecl>(&varDecl,
                               BadVarDecl::IncompleteType,
                               type,
@@ -416,12 +438,17 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     /// Reference variables must be initalized explicitly
     if (isa<ReferenceType>(type) && !initExpr) {
-        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value);
+        sym.declarePoison(varDecl.nameIdentifier(),
+                          EntityCategory::Value,
+                          AccessControl::Private);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ExpectedRefInit);
         return;
     }
     /// If the symbol table complains we also return early
-    auto* variable = sym.defineVariable(&varDecl, type, varDecl.mutability());
+    auto* variable = sym.defineVariable(&varDecl,
+                                        type,
+                                        varDecl.mutability(),
+                                        AccessControl::Private);
     if (!variable) {
         return;
     }

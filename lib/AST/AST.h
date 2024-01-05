@@ -865,28 +865,33 @@ public:
     /// Identifier expression representing the name of this declaration.
     AST_PROPERTY(0, Identifier, nameIdentifier, NameIdentifier)
 
-    /// Access specifier. Defaults to`Public`
-    sema::AccessSpecifier accessSpec() const { return _accessSpec; }
-
-    /// Shorthand for `accessSpec() == sema::AccessSpecifier::Public`
-    bool isPublic() const {
-        return accessSpec() == sema::AccessSpecifier::Public;
+    /// Sets all explicit specifiers. This functions should only be used by the
+    /// parser
+    void setSpecifiers(std::optional<sema::AccessControl> accessControl,
+                       std::optional<std::string> externalLinkage) {
+        if (accessControl) {
+            accessCtrl = *accessControl;
+        }
+        if (externalLinkage) {
+            hasExtLinkage = true;
+            extLinkage = *externalLinkage;
+        }
     }
 
-    ///
-    void setAccessSpec(sema::AccessSpecifier spec) { _accessSpec = spec; }
-
-    /// Binary visibility specifier. Defaults to `Internal`
-    sema::BinaryVisibility binaryVisibility() const { return _binaryVis; }
-
-    void setBinaryVisibility(sema::BinaryVisibility vis) { _binaryVis = vis; }
+    /// \Returns the specified access control of this declaration or
+    /// `std::nullopt` if none was specified
+    std::optional<sema::AccessControl> accessControl() const {
+        return accessCtrl != sema::InvalidAccessControl ?
+                   std::optional(accessCtrl) :
+                   std::nullopt;
+    }
 
     /// \Returns the 'LINKAGE' string if this declaration was declared
     /// with`extern "LINKAGE"`
-    std::string_view externalLinkage() const { return _extLinkage; }
+    std::string_view externalLinkage() const { return extLinkage; }
 
     ///
-    void setExtLinkage(std::string value) { _extLinkage = std::move(value); }
+    void setExtLinkage(std::string value) { extLinkage = std::move(value); }
 
     /// **Decoration provided by semantic analysis**
 
@@ -897,9 +902,9 @@ protected:
     using Statement::Statement;
 
 private:
-    sema::AccessSpecifier _accessSpec = sema::AccessSpecifier::Public;
-    sema::BinaryVisibility _binaryVis = sema::BinaryVisibility::Internal;
-    std::string _extLinkage;
+    sema::AccessControl accessCtrl = sema::InvalidAccessControl;
+    bool hasExtLinkage = false;
+    std::string extLinkage;
 };
 
 /// Concrete node representing the root of every AST

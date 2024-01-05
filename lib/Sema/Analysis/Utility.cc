@@ -119,7 +119,8 @@ static Function* generateSLF(SpecialLifetimeFunction key,
     auto SMFKind = toSMF(key);
     Function* function = sym.withScopeCurrent(&type, [&] {
         return sym.declareFunction(std::string(toString(SMFKind)),
-                                   makeLifetimeSignature(key, type, sym));
+                                   makeLifetimeSignature(key, type, sym),
+                                   AccessControl::Public);
     });
     SC_ASSERT(function, "Name can't be used by other symbol");
     function->setKind(FunctionKind::Generated);
@@ -328,4 +329,32 @@ CompoundType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
         return nullptr;
     }
     return cType;
+}
+
+AccessControl sema::determineAccessControl(ast::Declaration const& decl) {
+    if (auto specified = decl.accessControl()) {
+        return *specified;
+    }
+    auto* parent = decl.parent();
+    while (parent) {
+        auto result = SC_MATCH (*parent){
+            // clang-format off
+            [](ast::StructDefinition const& def) -> std::optional<AccessControl> {
+                return def.structType()->accessControl();
+            },
+            [](ast::SourceFile const&) -> std::optional<AccessControl> {
+                return AccessControl::Internal;
+            },
+            [](ast::CompoundStatement const&) {
+                return std::nullopt;
+            },
+            [](ast::ASTNode const&) -> std::optional<AccessControl> {
+                SC_UNREACHABLE();
+            }
+        }; // clang-format on
+        if (result) {
+            return *result;
+        }
+    }
+    SC_UNREACHABLE();
 }

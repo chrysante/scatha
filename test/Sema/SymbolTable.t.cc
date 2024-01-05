@@ -6,11 +6,13 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
+using namespace sema;
 using enum sema::Mutability;
 
 TEST_CASE("SymbolTable lookup", "[sema]") {
     sema::SymbolTable sym;
-    auto* var = sym.defineVariable("x", sym.S64(), Mutable);
+    auto* var =
+        sym.defineVariable("x", sym.S64(), Mutable, AccessControl::Public);
     CHECK(var == sym.unqualifiedLookup("x").front());
 }
 
@@ -19,12 +21,16 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
     /// Declare function `i` in the global scope
     auto* fnI =
         sym.declareFunction("i",
-                            sema::FunctionSignature({ sym.S64() }, sym.S64()));
+                            sema::FunctionSignature({ sym.S64() }, sym.S64()),
+                            AccessControl::Public);
     REQUIRE(fnI);
-    auto* xType = sym.declareStructureType("X");
+    auto* xType = sym.declareStructureType("X", AccessControl::Public);
     REQUIRE(xType);
     auto* memberI = sym.withScopePushed(xType, [&] {
-        return sym.defineVariable("i", sym.S64(), Mutable);
+        return sym.defineVariable("i",
+                                  sym.S64(),
+                                  Mutable,
+                                  AccessControl::Public);
     });
     xType->setSize(8);
     auto overloadSet = sym.unqualifiedLookup("i");

@@ -406,11 +406,14 @@ ir::FunctionAttribute irgen::mapFuncAttrs(sema::FunctionAttribute attr) {
     }
 }
 
-ir::Visibility irgen::mapVisibility(sema::BinaryVisibility spec) {
-    switch (spec) {
-    case sema::BinaryVisibility::Export:
-        return ir::Visibility::External;
-    case sema::BinaryVisibility::Internal:
+ir::Visibility irgen::mapVisibility(sema::AccessControl accessControl) {
+    using enum sema::AccessControl;
+    switch (accessControl) {
+    case Private:
         return ir::Visibility::Internal;
+    case Internal:
+        return ir::Visibility::Internal;
+    case Public:
+        return ir::Visibility::External;
     }
 }

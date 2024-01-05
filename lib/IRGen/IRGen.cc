@@ -150,10 +150,7 @@ void irgen::generateIR(ir::Context& ctx,
     }
     auto queue = analysisResult.functions |
                  transform([](auto* def) { return def->function(); }) |
-                 filter([](auto* fn) {
-                     return fn->binaryVisibility() ==
-                            sema::BinaryVisibility::Export;
-                 }) |
+                 filter(&sema::Entity::isPublic) |
                  ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
         declareFunction(semaFn,

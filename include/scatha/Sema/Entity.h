@@ -90,6 +90,24 @@ public:
     ///
     void setBuiltin(bool value = true) { _isBuiltin = value; }
 
+    /// \Returns the access control of this entity. Only meaningful if this
+    /// entity is a function, type, or variable
+    AccessControl accessControl() const { return accessCtrl; }
+
+    /// \Returns `accessControl() == Private`
+    bool isPrivate() const { return accessControl() == AccessControl::Private; }
+
+    /// \Returns `accessControl() == Internal`
+    bool isInternal() const {
+        return accessControl() == AccessControl::Internal;
+    }
+
+    /// \Returns `accessControl() == Public`
+    bool isPublic() const { return accessControl() == AccessControl::Public; }
+
+    /// Should be used by instantiation and deserialization
+    void setAccessControl(AccessControl ctrl) { accessCtrl = ctrl; }
+
     /// The parent scope of this entity. Not all entities have a parent scope so
     /// this may be null.
     Scope* parent() { return _parent; }
@@ -114,9 +132,6 @@ public:
 
     /// \overload
     ast::ASTNode const* astNode() const { return _astNode; }
-
-    /// \Returns the access spec if this entity is a declaration
-    std::optional<AccessSpecifier> accessSpec() const;
 
     /// \Returns the list of aliases to this entity
     std::span<Alias* const> aliases() { return _aliases; }
@@ -147,6 +162,7 @@ private:
     /// Type ID used by `dyncast`
     EntityType _entityType;
     bool _isBuiltin = false;
+    AccessControl accessCtrl = InvalidAccessControl;
     Scope* _parent = nullptr;
     std::string _name;
     utl::small_ptr_vector<Alias*> _aliases;
@@ -230,6 +246,7 @@ public:
     explicit Variable(std::string name,
                       Scope* parentScope,
                       ast::ASTNode* astNode,
+                      AccessControl accessControl,
                       Type const* type = nullptr,
                       Mutability mutability = {});
 
@@ -263,7 +280,8 @@ public:
                       Scope* parentScope,
                       Type const* type,
                       Mutability mut,
-                      ValueCategory valueCat);
+                      ValueCategory valueCat,
+                      AccessControl accessControl);
 
     /// The kind of property
     PropertyKind kind() const { return _kind; }
@@ -490,13 +508,16 @@ public:
     explicit Function(std::string name,
                       Scope* parentScope,
                       FunctionAttribute attrs,
-                      ast::ASTNode* astNode):
+                      ast::ASTNode* astNode,
+                      AccessControl accessControl):
         Scope(EntityType::Function,
               ScopeKind::Function,
               std::move(name),
               parentScope,
               astNode),
-        attrs(attrs) {}
+        attrs(attrs) {
+        setAccessControl(accessControl);
+    }
 
     /// The definition of this function in the AST
     SC_ASTNODE_DERIVED(definition, FunctionDefinition)
@@ -553,11 +574,6 @@ public:
     /// \Returns `kind() == FunctionKind::Foreign`
     bool isForeign() const { return kind() == FunctionKind::Foreign; }
 
-    /// \Returns `binaryVisibility() == BinaryVisibility::Export`
-    bool isBinaryVisible() const {
-        return binaryVisibility() == BinaryVisibility::Export;
-    }
-
     /// Set this function to be a foreign function
     void setForeign();
 
@@ -610,16 +626,6 @@ public:
         _binaryAddress = addr;
     }
 
-    /// See Sema/Fwd.h
-    AccessSpecifier accessSpecifier() const { return accessSpec; }
-
-    void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
-
-    /// See Sema/Fwd.h
-    BinaryVisibility binaryVisibility() const { return binaryVis; }
-
-    void setBinaryVisibility(BinaryVisibility vis) { binaryVis = vis; }
-
     /// \returns Bitfield of function attributes
     FunctionAttribute attributes() const { return attrs; }
 
@@ -635,12 +641,10 @@ private:
 
     friend class SymbolTable;
     FunctionSignature _sig;
-    FunctionAttribute attrs;                                         // 4 bytes
-    AccessSpecifier accessSpec       : 4 = AccessSpecifier::Private; // 4 bits
-    BinaryVisibility binaryVis       : 4 = BinaryVisibility::Internal; // 4 bits
-    SpecialMemberFunction _smfKind   : 4 = {};                         // 4 bits
-    SpecialLifetimeFunction _slfKind : 4 = {};                         // 4 bits
-    FunctionKind _kind               : 4 = FunctionKind::Native;       // 4 bits
+    FunctionAttribute attrs;                                     // 4 bytes
+    SpecialMemberFunction _smfKind   : 4 = {};                   // 4 bits
+    SpecialLifetimeFunction _slfKind : 4 = {};                   // 4 bits
+    FunctionKind _kind               : 4 = FunctionKind::Native; // 4 bits
     bool _isSMF                      : 1 = false;
     bool _isSLF                      : 1 = false;
     bool _hasSig                     : 1 = false;
@@ -875,15 +879,18 @@ public:
     explicit StructType(std::string name,
                         Scope* parentScope,
                         ast::ASTNode* astNode,
-                        size_t size = InvalidSize,
-                        size_t align = InvalidSize):
+                        size_t size,
+                        size_t align,
+                        AccessControl accessControl):
         CompoundType(EntityType::StructType,
                      ScopeKind::Type,
                      std::move(name),
                      parentScope,
                      size,
                      align,
-                     astNode) {}
+                     astNode) {
+        setAccessControl(accessControl);
+    }
 
     /// The AST node that defines this type
     SC_ASTNODE_DERIVED(definition, StructDefinition)
@@ -1097,7 +1104,8 @@ public:
     explicit Alias(std::string name,
                    Entity& aliased,
                    Scope* parent,
-                   ast::ASTNode* astNode = nullptr);
+                   ast::ASTNode* astNode,
+                   AccessControl accessControl);
 
     /// \Returns the entity that this alias refers to
     Entity* aliased() { return _aliased; }
@@ -1120,7 +1128,8 @@ class SCATHA_API PoisonEntity: public Entity {
 public:
     explicit PoisonEntity(ast::Identifier* ID,
                           EntityCategory cat,
-                          Scope* parentScope);
+                          Scope* parentScope,
+                          AccessControl accessControl);
 
 private:
     friend class Entity;

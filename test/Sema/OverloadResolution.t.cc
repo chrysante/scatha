@@ -25,7 +25,8 @@ struct TestOS {
             auto f = allocate<Function>(name,
                                         nullptr,
                                         FunctionAttribute::None,
-                                        nullptr);
+                                        nullptr,
+                                        AccessControl::Public);
             f->setSignature(FunctionSignature(types, sym.Void()));
             result.functions.push_back(std::move(f));
         }

@@ -30,13 +30,6 @@ EntityCategory Entity::category() const {
     return visit(*this, [](auto& derived) { return derived.categoryImpl(); });
 }
 
-std::optional<AccessSpecifier> Entity::accessSpec() const {
-    if (auto* decl = dyncast<ast::Declaration const*>(astNode())) {
-        return decl->accessSpec();
-    }
-    return std::nullopt;
-}
-
 Entity::Entity(EntityType entityType,
                std::string name,
                Scope* parent,
@@ -84,6 +77,7 @@ ValueCategory VarBase::valueCategory() const {
 Variable::Variable(std::string name,
                    Scope* parentScope,
                    ast::ASTNode* astNode,
+                   AccessControl accessControl,
                    Type const* type,
                    Mutability mut):
     VarBase(EntityType::Variable,
@@ -91,20 +85,25 @@ Variable::Variable(std::string name,
             parentScope,
             type,
             mut,
-            astNode) {}
+            astNode) {
+    setAccessControl(accessControl);
+}
 
 Property::Property(PropertyKind kind,
                    Scope* parentScope,
                    Type const* type,
                    Mutability mut,
-                   ValueCategory valueCat):
+                   ValueCategory valueCat,
+                   AccessControl accessControl):
     VarBase(EntityType::Property,
             std::string(toString(kind)),
             parentScope,
             type,
             mut),
     _kind(kind),
-    _valueCat(valueCat) {}
+    _valueCat(valueCat) {
+    setAccessControl(accessControl);
+}
 
 Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
     Object(EntityType::Temporary,
@@ -417,12 +416,18 @@ Entity const* OverloadSet::find(std::span<Entity const* const> set,
 Alias::Alias(std::string name,
              Entity& aliased,
              Scope* parent,
-             ast::ASTNode* astNode):
+             ast::ASTNode* astNode,
+             AccessControl accessControl):
     Entity(EntityType::Alias, std::move(name), parent, astNode),
-    _aliased(&aliased) {}
+    _aliased(&aliased) {
+    setAccessControl(accessControl);
+}
 
 PoisonEntity::PoisonEntity(ast::Identifier* ID,
                            EntityCategory cat,
-                           Scope* parentScope):
+                           Scope* parentScope,
+                           AccessControl accessControl):
     Entity(EntityType::PoisonEntity, std::string(ID->value()), parentScope, ID),
-    cat(cat) {}
+    cat(cat) {
+    setAccessControl(accessControl);
+}

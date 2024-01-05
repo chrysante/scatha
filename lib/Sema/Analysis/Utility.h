@@ -37,6 +37,12 @@ ast::Statement* parentStatement(ast::ASTNode* node);
 /// with non-trivial lifetime. Otherwise returns `nullptr`
 CompoundType const* nonTrivialLifetimeType(ObjectType const* type);
 
+/// Computes the access control of \p decl
+/// If \p decl has explicitly specified access control that value returned.
+/// TODO: Handle errors if explicitly specified access control is invalid
+/// Otherwise deduces the access control based on the context of \p decl
+AccessControl determineAccessControl(ast::Declaration const& decl);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_UTILITY_H_

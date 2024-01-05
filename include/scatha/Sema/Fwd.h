@@ -124,16 +124,21 @@ SCATHA_API std::string_view toString(FunctionKind);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
 
-/// `public` or `private`. Defines whether the name is allowed to be referenced
-/// in a specific context.
-enum class AccessSpecifier : uint8_t { Public, Private };
+///
+enum class AccessControl : uint8_t {
+#define SC_SEMA_ACCESS_CONTROL_DEF(Kind) Kind,
+#include <scatha/Sema/Lists.def>
+};
 
-/// `export` or `internal`. Defines whether a function or member functions of a
-/// type will have entries in the binary symbol table after compilation. All
-/// functions default to `internal` except for `main()` which defaults to
-/// `export`. Note that there is no keyword for `internal`, because everything
-/// defaults to that.
-enum class BinaryVisibility : uint8_t { Export, Internal };
+///
+inline constexpr AccessControl InvalidAccessControl = AccessControl(-1);
+
+/// Access control \p A is greater than access control \p B if more scopes have
+/// access to the declared entity, i.e. `Public` is greater than `Internal` and
+/// `Internal` is greater than `Private`
+inline std::strong_ordering operator<=>(AccessControl A, AccessControl B) {
+    return (int)A <=> (int)B;
+}
 
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };

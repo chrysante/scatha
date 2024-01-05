@@ -95,6 +95,21 @@ SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Destructor)
 #undef SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF
 
 // ===--------------------------------------------------------------------=== //
+// === List of all access control kinds ----------------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_ACCESS_CONTROL_DEF
+#   define SC_SEMA_ACCESS_CONTROL_DEF(Kind)
+#endif
+
+/// Must be in ascending order!
+SC_SEMA_ACCESS_CONTROL_DEF(Private)
+SC_SEMA_ACCESS_CONTROL_DEF(Internal)
+SC_SEMA_ACCESS_CONTROL_DEF(Public)
+
+#undef SC_SEMA_ACCESS_CONTROL_DEF
+
+// ===--------------------------------------------------------------------=== //
 // === List of all constant kinds ----------------------------------------=== //
 // ===--------------------------------------------------------------------=== //
 

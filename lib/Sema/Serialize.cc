@@ -76,14 +76,10 @@ SERIALIZE_ENUM_BEGIN(EntityType)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
-SERIALIZE_ENUM_BEGIN(AccessSpecifier)
-SERIALIZE_ENUM_ELEM(AccessSpecifier::Public, "Public")
-SERIALIZE_ENUM_ELEM(AccessSpecifier::Private, "Private")
-SERIALIZE_ENUM_END()
-
-SERIALIZE_ENUM_BEGIN(BinaryVisibility)
-SERIALIZE_ENUM_ELEM(BinaryVisibility::Export, "Export")
-SERIALIZE_ENUM_ELEM(BinaryVisibility::Internal, "Internal")
+SERIALIZE_ENUM_BEGIN(AccessControl)
+#define SC_SEMA_ACCESS_CONTROL_DEF(Kind)                                       \
+    SERIALIZE_ENUM_ELEM(AccessControl::Kind, #Kind)
+#include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
 SERIALIZE_ENUM_BEGIN(SpecialMemberFunction)
@@ -110,10 +106,8 @@ namespace scatha::sema {
 
 void to_json(json& j, EntityType e) { serializeEnum(j, e); }
 void from_json(json const& j, EntityType& e) { deserializeEnum(j, e); }
-void to_json(json& j, AccessSpecifier e) { serializeEnum(j, e); }
-void from_json(json const& j, AccessSpecifier& e) { deserializeEnum(j, e); }
-void to_json(json& j, BinaryVisibility e) { serializeEnum(j, e); }
-void from_json(json const& j, BinaryVisibility& e) { deserializeEnum(j, e); }
+void to_json(json& j, AccessControl e) { serializeEnum(j, e); }
+void from_json(json const& j, AccessControl& e) { deserializeEnum(j, e); }
 void to_json(json& j, SpecialMemberFunction e) { serializeEnum(j, e); }
 void from_json(json const& j, SpecialMemberFunction& e) {
     deserializeEnum(j, e);
@@ -559,8 +553,8 @@ struct DeserializeContext: TypeMapBase {
     /// structs
     void preparseTypes(json const& j) {
         parseArray(j, [&](Tag<StructType>, json const& obj) {
-            auto* type =
-                sym.declareStructureType(get<std::string>(obj, "name"));
+            auto* type = sym.declareStructureType(get<std::string>(obj, "name"),
+                                                  get(obj, "access_control"));
             insertType(obj, type);
             type->setSize(get<size_t>(obj, "size"));
             type->setAlign(get<size_t>(obj, "align"));
@@ -590,8 +584,8 @@ struct DeserializeContext: TypeMapBase {
             parseTypename(sym, get<std::string>(obj, "return_type"));
         auto* function =
             sym.declareFunction(get<std::string>(obj, "name"),
-                                FunctionSignature(std::move(argTypes),
-                                                  retType));
+                                FunctionSignature(std::move(argTypes), retType),
+                                get(obj, "access_control"));
         if (auto kind = tryGet<SpecialMemberFunction>(obj, "smf_kind")) {
             function->setSMFKind(*kind);
             getStruct(function)->addSpecialMemberFunction(*kind, function);
@@ -608,8 +602,10 @@ struct DeserializeContext: TypeMapBase {
         auto* type = parseTypename(sym, get<std::string>(obj, "type"));
         using enum Mutability;
         auto mut = get<bool>(obj, "mutable") ? Mutable : Const;
-        auto* var =
-            sym.defineVariable(get<std::string>(obj, "name"), type, mut);
+        auto* var = sym.defineVariable(get<std::string>(obj, "name"),
+                                       type,
+                                       mut,
+                                       get(obj, "access_control"));
         if (auto index = tryGet<size_t>(obj, "index")) {
             auto* type = dyncast<StructType*>(&sym.currentScope());
             // TODO: CHECK type is not null

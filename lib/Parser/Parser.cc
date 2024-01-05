@@ -174,18 +174,28 @@ using enum TokenKind;
 
 namespace {
 
-template <typename>
-struct ToVariant;
+template <typename T>
+struct RemoveOptional {
+    using type = T;
+};
 
-template <typename... T>
-struct ToVariant<std::tuple<T...>>: std::type_identity<std::variant<T...>> {};
+template <typename T>
+struct RemoveOptional<std::optional<T>> {
+    using type = T;
+};
 
-using ExtLinkage = std::string;
+template <typename, template <class> class Transform = std::type_identity>
+struct TupleToVariant;
 
-using SpecList =
-    std::tuple<sema::AccessSpecifier, sema::BinaryVisibility, ExtLinkage>;
+template <typename... T, template <class> class Transform>
+struct TupleToVariant<std::tuple<T...>, Transform> {
+    using type = std::variant<typename Transform<T>::type...>;
+};
 
-using SpecVar = ToVariant<SpecList>::type;
+using SpecList = std::tuple<std::optional<sema::AccessControl>,
+                            std::optional<std::string> /* external linkage */>;
+
+using SpecVar = TupleToVariant<SpecList, RemoveOptional>::type;
 
 struct Context {
     TokenStream tokens;
@@ -381,20 +391,20 @@ UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
-    auto [accessSpec, binaryVis, linkage] = parseSpecList();
-    if (auto funcDef = parseFunctionDefinition()) {
-        funcDef->setExtLinkage(std::move(linkage));
-        funcDef->setAccessSpec(accessSpec);
-        funcDef->setBinaryVisibility(binaryVis);
-        return funcDef;
+    auto [accessCtrl, linkage] = parseSpecList();
+    auto decl = [this]() -> UniquePtr<ast::Declaration> {
+        if (auto funcDef = parseFunctionDefinition()) {
+            return funcDef;
+        }
+        if (auto structDef = parseStructDefinition()) {
+            return structDef;
+        }
+        return nullptr;
+    }();
+    if (decl) {
+        decl->setSpecifiers(accessCtrl, linkage);
     }
-    if (auto structDef = parseStructDefinition()) {
-        structDef->setExtLinkage(std::move(linkage));
-        structDef->setAccessSpec(accessSpec);
-        structDef->setBinaryVisibility(binaryVis);
-        return structDef;
-    }
-    return nullptr;
+    return decl;
 }
 
 template <utl::invocable_r<bool, Token const&>... Cond, std::predicate... F>
@@ -1466,26 +1476,19 @@ sema::Mutability Context::eatMut() {
     return sema::Mutability::Const;
 }
 
-static SpecList defaultSpecList() {
-    return { sema::AccessSpecifier::Public,
-             sema::BinaryVisibility::Internal,
-             "" };
-}
-
 SpecList Context::parseSpecList() {
-    using sema::AccessSpecifier;
-    using sema::BinaryVisibility;
+    using sema::AccessControl;
     auto parse = [&]() -> std::optional<SpecVar> {
         switch (tokens.peek().kind()) {
-        case Public:
-            tokens.eat();
-            return AccessSpecifier::Public;
         case Private:
             tokens.eat();
-            return AccessSpecifier::Private;
-        case Export:
+            return AccessControl::Private;
+        case Internal:
             tokens.eat();
-            return BinaryVisibility::Export;
+            return AccessControl::Internal;
+        case Public:
+            tokens.eat();
+            return AccessControl::Public;
         case Extern: {
             tokens.eat();
             auto next = tokens.peek();
@@ -1500,13 +1503,14 @@ SpecList Context::parseSpecList() {
             return std::nullopt;
         }
     };
-    SpecList result = defaultSpecList();
+    SpecList result{};
     while (true) {
         auto spec = parse();
         if (!spec) {
             break;
         }
-        std::visit([&]<typename T>(T spec) { std::get<T>(result) = spec; },
+        std::visit([&]<typename T>(
+                       T spec) { std::get<std::optional<T>>(result) = spec; },
                    *spec);
     }
     return result;
