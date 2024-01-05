@@ -92,42 +92,45 @@ FunctionMetaData irgen::makeFunctionMetadata(sema::Function const* semaFn) {
     return { .CC = computeCC(semaFn) };
 }
 
-ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
-                                     ir::Context& ctx,
-                                     ir::Module& mod,
-                                     TypeMap const& typeMap,
-                                     FunctionMap& functionMap,
-                                     sema::NameMangler const& nameMangler) {
-    FunctionMetaData metaData = makeFunctionMetadata(semaFn);
-    auto CC = metaData.CC;
-    ir::Type const* irReturnType = nullptr;
-    utl::small_vector<ir::Type const*> irArgTypes;
-    auto retvalPC = CC.returnValue();
-    switch (retvalPC.location()) {
+namespace {
+
+struct IRSignature {
+    ir::Type const* returnType = nullptr;
+    utl::small_vector<ir::Type const*> argumentTypes;
+};
+
+} // namespace
+
+static IRSignature computeIRSignature(sema::Function const& semaFn,
+                                      ir::Context& ctx,
+                                      CallingConvention const& CC,
+                                      TypeMap const& typeMap) {
+    IRSignature sig;
+    switch (CC.returnValue().location()) {
     case Register: {
-        if (isFatPointer(semaFn->returnType())) {
-            irReturnType = makeArrayViewType(ctx);
+        if (isFatPointer(semaFn.returnType())) {
+            sig.returnType = makeArrayViewType(ctx);
         }
         else {
-            irReturnType = typeMap(semaFn->returnType());
+            sig.returnType = typeMap(semaFn.returnType());
         }
         break;
     }
     case Memory:
-        irReturnType = ctx.voidType();
-        irArgTypes.push_back(ctx.ptrType());
+        sig.returnType = ctx.voidType();
+        sig.argumentTypes.push_back(ctx.ptrType());
         break;
     }
     for (auto [argPC, type]:
-         ranges::views::zip(CC.arguments(), semaFn->argumentTypes()))
+         ranges::views::zip(CC.arguments(), semaFn.argumentTypes()))
     {
         switch (argPC.location()) {
         case Register:
-            irArgTypes.push_back(typeMap(type));
+            sig.argumentTypes.push_back(typeMap(type));
             break;
 
         case Memory: {
-            irArgTypes.push_back(ctx.ptrType());
+            sig.argumentTypes.push_back(ctx.ptrType());
             break;
         }
         }
@@ -135,18 +138,28 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
         /// This works because the only case `argPC.numParams() == 2` is the
         /// dynamic array case.
         if (argPC.numParams() == 2) {
-            irArgTypes.push_back(ctx.intType(64));
+            sig.argumentTypes.push_back(ctx.intType(64));
         }
     }
+    return sig;
+}
 
+ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
+                                     ir::Context& ctx,
+                                     ir::Module& mod,
+                                     TypeMap const& typeMap,
+                                     FunctionMap& functionMap,
+                                     sema::NameMangler const& nameMangler) {
+    FunctionMetaData metaData = makeFunctionMetadata(semaFn);
+    auto irSignature = computeIRSignature(*semaFn, ctx, metaData.CC, typeMap);
     UniquePtr<ir::Callable> irFn;
     switch (semaFn->kind()) {
     case sema::FunctionKind::Native:
         [[fallthrough]];
     case sema::FunctionKind::Generated: {
         irFn = allocate<ir::Function>(ctx,
-                                      irReturnType,
-                                      irArgTypes,
+                                      irSignature.returnType,
+                                      irSignature.argumentTypes,
                                       nameMangler(*semaFn),
                                       mapFuncAttrs(semaFn->attributes()),
                                       mapVisibility(semaFn->accessControl()));
@@ -155,8 +168,8 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     case sema::FunctionKind::Foreign: {
         irFn =
             allocate<ir::ForeignFunction>(ctx,
-                                          irReturnType,
-                                          irArgTypes,
+                                          irSignature.returnType,
+                                          irSignature.argumentTypes,
                                           std::string(semaFn->name()),
                                           mapFuncAttrs(semaFn->attributes()));
         break;

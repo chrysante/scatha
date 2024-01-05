@@ -532,7 +532,7 @@ TEST_CASE("Use symbol of library imported in nested scope",
     test::compileLibrary("libs/testlib",
                          "libs",
                          R"(
-export fn foo() { return 42; }
+public fn foo() { return 42; }
 )");
     auto iss = test::getSemaIssues(R"(
 /*  2 */ fn test2() {

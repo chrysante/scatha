@@ -346,7 +346,8 @@ private:
 
     bool checkRedef(int kind,
                     std::string_view name,
-                    ast::Declaration const* declaration);
+                    ast::Declaration const* declaration,
+                    AccessControl accessControl);
 
     std::unique_ptr<Impl> impl;
 };

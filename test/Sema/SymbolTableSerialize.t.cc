@@ -47,7 +47,7 @@ struct Finder {
 
 TEST_CASE("Symbol table serialize/deserialize", "[sema]") {
     auto [ast, sym, iss] = produceDecoratedASTAndSymTable(R"(
-struct X {
+public struct X {
     struct Y { var k: int; }
 
     fn foo(n: int) -> double {}
@@ -56,7 +56,7 @@ struct X {
     var baz: [Y, 2];
     var quux: int;
 }
-struct Empty {}
+public struct Empty {}
 )");
     REQUIRE(iss.empty());
     std::stringstream sstr;

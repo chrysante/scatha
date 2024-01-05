@@ -224,6 +224,8 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
                                                libname,
                                                *path,
                                                &sym.globalScope());
+    /// Temporary measure, because only public symbols are serialized
+    lib->setAccessControl(AccessControl::Public);
     /// We add foreign libraries to the global scope because this makes
     /// exporting foreign library imports from native libraries easier. This
     /// does not affect name lookup because foreign libs don't expose names in
@@ -325,7 +327,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(Redef_Other, name, def)) {
+    if (!checkRedef(Redef_Other, name, def, accessControl)) {
         return nullptr;
     }
     auto* type = impl->addEntity<StructType>(name,
@@ -369,7 +371,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(Redef_Function, name, def)) {
+    if (!checkRedef(Redef_Function, name, def, accessControl)) {
         return nullptr;
     }
     Function* function = impl->addEntity<Function>(name,
@@ -544,7 +546,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
                                     GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(Redef_Other, name, vardecl)) {
+    if (!checkRedef(Redef_Other, name, vardecl, accessControl)) {
         return nullptr;
     }
     auto* variable = impl->addEntity<Variable>(name,
@@ -951,7 +953,8 @@ static bool checkRedefImpl(SymbolTable::Impl& impl,
 /// \Returns `true` if no redefinition occured
 bool SymbolTable::checkRedef(int kind,
                              std::string_view name,
-                             ast::Declaration const* decl) {
+                             ast::Declaration const* decl,
+                             AccessControl accessControl) {
     if (!checkRedefImpl(*impl, Redef(kind), &currentScope(), name, decl)) {
         return false;
     }
@@ -959,9 +962,7 @@ bool SymbolTable::checkRedef(int kind,
     /// Since we now use aliases to declare entities to the global scope we may
     /// not need this anymore
     using enum AccessControl;
-    if (isa<FileScope>(currentScope()) &&
-        decl->accessControl().value() >= Internal)
-    {
+    if (isa<FileScope>(currentScope()) && accessControl >= Internal) {
         return checkRedefImpl(*impl, Redef(kind), &globalScope(), name, decl);
     }
     return true;

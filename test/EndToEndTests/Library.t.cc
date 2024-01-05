@@ -10,7 +10,7 @@ TEST_CASE("Static library compile and import", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib1",
                    "libs",
                    R"(
-export fn inc(n: &mut int) {
+public fn inc(n: &mut int) {
     n += int(__builtin_sqrt_f64(1.0));
 })");
 
@@ -18,7 +18,7 @@ export fn inc(n: &mut int) {
                    "libs",
                    R"(
 import testlib1;
-export fn incTwice(n: &mut int) {
+public fn incTwice(n: &mut int) {
     testlib1.inc(n);
     testlib1.inc(n);
 })");
@@ -37,7 +37,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Import native lib in local scope", "[end-to-end][lib][nativelib]") {
-    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    compileLibrary("libs/testlib", "libs", "public fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 fn main() -> int {
@@ -48,7 +48,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Use native lib in local scope", "[end-to-end][lib][nativelib]") {
-    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    compileLibrary("libs/testlib", "libs", "public fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 fn main() -> int {
@@ -59,7 +59,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Import native lib twice", "[end-to-end][lib][nativelib]") {
-    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    compileLibrary("libs/testlib", "libs", "public fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 fn main() -> int {
@@ -71,7 +71,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Import and use native lib twice", "[end-to-end][lib][nativelib]") {
-    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    compileLibrary("libs/testlib", "libs", "public fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 fn main() -> int {
@@ -83,7 +83,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Use native lib twice", "[end-to-end][lib][nativelib]") {
-    compileLibrary("libs/testlib", "libs", "export fn foo() { return 42; }");
+    compileLibrary("libs/testlib", "libs", "public fn foo() { return 42; }");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 fn main() -> int {
@@ -96,11 +96,9 @@ fn main() -> int {
 
 TEST_CASE("Use special member functions from library",
           "[end-to-end][lib][nativelib]") {
-    /// TODO: Fix position of export keyword
     compileLibrary("libs/testlib", "libs", R"(
-use testlib1;
-struct X {
-    export fn new(&mut this) { this.value = 42; }
+public struct X {
+    fn new(&mut this) { this.value = 42; }
     var value: int;
 })");
     uint64_t ret = compileAndRunDependentProgram("libs", R"(
@@ -113,8 +111,8 @@ fn main() -> int {
 
 TEST_CASE("Use overload set by name", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", R"(
-export fn foo(n: int) { return 1; }
-export fn foo(n: double) { return 2; }
+public fn foo(n: int) { return 1; }
+public fn foo(n: double) { return 2; }
 )");
     uint64_t ret = compileAndRunDependentProgram("libs", R"(
 use testlib.foo;
@@ -127,8 +125,8 @@ fn main() -> int {
 TEST_CASE("Use overload set by name and overload further",
           "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", R"(
-export fn foo(n: int) { return 1; }
-export fn foo(n: double) { return 2; }
+public fn foo(n: int) { return 1; }
+public fn foo(n: double) { return 2; }
 )");
     uint64_t ret = compileAndRunDependentProgram("libs", R"(
 use testlib.foo;
@@ -148,7 +146,7 @@ struct X {
     compileLibrary("libs/testlib2", "libs", R"(
 use testlib1;
 struct Y {
-    export fn new(&mut this) { this.x = X(42); }
+    fn new(&mut this) { this.x = X(42); }
     var x: X;
 })");
     uint64_t ret = compileAndRunDependentProgram("libs", R"(
@@ -203,7 +201,7 @@ TEST_CASE("FFI used by static library",
                    R"(
 import "ffi-testlib";
 extern "C" fn foo(n: int, m: int) -> int;
-export fn fooWrapper(n: int, m: int) {
+public fn fooWrapper(n: int, m: int) {
      return foo(n, m);
 })");
     uint64_t ret = compileAndRunDependentProgram("libs",

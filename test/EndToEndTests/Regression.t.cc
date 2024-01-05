@@ -334,7 +334,7 @@ TEST_CASE("Performance bug in SelectionDag::Build", "[regression]") {
     test::compile(R"(
 fn foo(data: &[int]) { return true; }
 
-export fn test() {
+fn test() {
     let data = [1, 2, 3, 4];
     var result = true;
     result &= foo(data);

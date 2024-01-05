@@ -470,8 +470,8 @@ static void compileTestlib() {
     test::compileLibrary("libs/testlib",
                          "libs",
                          R"(
-export fn foo() { return 42; }
-export fn bar() { return 42; }
+public fn foo() { return 42; }
+public fn bar() { return 42; }
 )");
 }
 

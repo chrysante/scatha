@@ -355,6 +355,7 @@ AccessControl sema::determineAccessControl(ast::Declaration const& decl) {
         if (result) {
             return *result;
         }
+        parent = parent->parent();
     }
     SC_UNREACHABLE();
 }

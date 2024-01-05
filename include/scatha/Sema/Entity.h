@@ -91,8 +91,15 @@ public:
     void setBuiltin(bool value = true) { _isBuiltin = value; }
 
     /// \Returns the access control of this entity. Only meaningful if this
-    /// entity is a function, type, or variable
-    AccessControl accessControl() const { return accessCtrl; }
+    /// entity is a function, type, or variable.
+    /// \Warning this function will trap if this entity has no access control
+    AccessControl accessControl() const {
+        SC_EXPECT(hasAccessControl());
+        return accessCtrl;
+    }
+
+    /// \Returns `true` if it is safe to call `accessControl()`
+    bool hasAccessControl() const { return accessCtrl != InvalidAccessControl; }
 
     /// \Returns `accessControl() == Private`
     bool isPrivate() const { return accessControl() == AccessControl::Private; }

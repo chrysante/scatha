@@ -400,11 +400,11 @@ static void to_json(json& j, Entity const& entity);
 
 static void to_json_impl(json&, Entity const&) { SC_UNREACHABLE(); }
 
+static constexpr auto DefaultFilter = [](auto*) { return true; };
+
 static json serializeChildren(
     Entity const& entity,
-    utl::function_view<bool(Entity const*)> filterFn = [](auto*) {
-        return true;
-    }) {
+    utl::function_view<bool(Entity const*)> filterFn = DefaultFilter) {
     auto children = [&] {
         if (auto* scope = dyncast<Scope const*>(&entity)) {
             auto children = scope->entities() | transform(stripAlias) |
@@ -430,6 +430,9 @@ static json serializeChildren(
 
 static void to_json_impl(json& j, GlobalScope const& scope) {
     j = serializeChildren(scope, /* filter = */ [](Entity const* child) {
+        if (!child->hasAccessControl() || !child->isPublic()) {
+            return false;
+        }
         // clang-format off
         return SC_MATCH (*child) {
             [](Function const& function) { return function.isNative(); },
@@ -481,6 +484,9 @@ static void to_json_impl(json& j, ForeignLibrary const& lib) {
 static void to_json(json& j, Entity const& entity) {
     j["entity_type"] = entity.entityType();
     j["name"] = std::string(entity.name());
+    if (entity.hasAccessControl()) {
+        j["access_control"] = entity.accessControl();
+    }
     visit(entity, [&j](auto& entity) { to_json_impl(j, entity); });
 }
 
