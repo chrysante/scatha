@@ -530,17 +530,42 @@ fn test() {
 }
 
 TEST_CASE("Access control deduction", "[sema]") {
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct X {
+    fn f() {}
+}
+public struct Y {
+    fn f() {}
+}
+internal struct Z {
+    fn f() {}
+}
+private struct W {
+    fn f() {}
+})");
+    auto* file = (sym.globalScope().children() | Filter<FileScope>).front();
+    auto* X = find<StructType>(file, "X");
+    CHECK(X->isInternal());
+    CHECK(find(X, "f")->isInternal());
+
+    auto* Y = find<StructType>(file, "Y");
+    CHECK(Y->isPublic());
+    CHECK(find(Y, "f")->isPublic());
+
+    auto* Z = find<StructType>(file, "Z");
+    CHECK(Z->isInternal());
+    CHECK(find(Z, "f")->isInternal());
+
+    auto* W = find<StructType>(file, "W");
+    CHECK(W->isPrivate());
+    CHECK(find(W, "f")->isPrivate());
+}
+
+TEST_CASE("Access control errors", "[sema]") {
     auto iss = test::getSemaIssues(R"(
-/* 2 */ struct X {
-/* 3 */     private var i: int;
-/* 4 */     fn g() {}
-/* 5 */     public fn f() {}
-/* 6 */ })");
-    auto& [issues, ast, sym] = iss;
-    auto* X = lookup<StructType>(sym, "X");
-    CHECK(X->accessControl() == AccessControl::Internal);
-    CHECK(find(X, "i")->accessControl() == AccessControl::Private);
-    CHECK(find(X, "g")->accessControl() == AccessControl::Internal);
-    CHECK(find(X, "f")->accessControl() == AccessControl::Public);
-    iss.findOnLine<BadAccessControl>(5, BadAccessControl::TooWeakForParent);
+/* 2 */ internal struct X { public fn f() {} }
+/* 3 */ private struct Y { internal fn f() {} }
+)");
+    iss.findOnLine<BadAccessControl>(2, BadAccessControl::TooWeakForParent);
+    iss.findOnLine<BadAccessControl>(3, BadAccessControl::TooWeakForParent);
 }
