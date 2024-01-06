@@ -13,7 +13,7 @@ public:
 
     ///
     bool addFunction(std::string name,
-                     sema::FunctionSignature signature,
+                     sema::FunctionType const* type,
                      InternalFuncPtr impl,
                      void* userptr);
 

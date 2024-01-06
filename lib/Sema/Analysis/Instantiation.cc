@@ -39,7 +39,8 @@ struct InstContext {
 
     void instantiateFunction(ast::FunctionDefinition&);
 
-    FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
+    FunctionType const* analyzeSignature(ast::FunctionDefinition&,
+                                         Type const* returnType) const;
 
     Type const* analyzeParam(ast::ParameterDeclaration&) const;
 
@@ -172,7 +173,7 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     return sortedStructTypes;
 }
 
-static std::optional<SpecialMemberFunction> toSMF(
+static std::optional<SpecialMemberFunction> getSMFKind(
     ast::FunctionDefinition const& funcDef) {
     for (uint8_t i = 0; i < EnumSize<SpecialMemberFunction>; ++i) {
         SpecialMemberFunction SMF{ i };
@@ -253,7 +254,9 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     auto* F = def.function();
     sym.makeScopeCurrent(F->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto result = sym.setFuncSig(F, analyzeSignature(def));
+    auto SMF = getSMFKind(def);
+    auto* returnType = SMF ? sym.Void() : nullptr;
+    auto result = sym.setFunctionType(F, analyzeSignature(def, returnType));
     if (!result) {
         return;
     }
@@ -265,7 +268,6 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
             F->setForeign();
         }
     }
-    auto SMF = toSMF(def);
     if (!SMF) {
         return;
     }
@@ -280,7 +282,6 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
         ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, *SMF, type);
         return;
     }
-    F->setDeducedReturnType(sym.Void());
     Type const* mutRef = sym.reference(QualType::Mut(type));
     if (F->argumentCount() == 0) {
         ctx.issue<BadSMF>(&def, BadSMF::NoParams, *SMF, type);
@@ -309,8 +310,8 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     }
 }
 
-FunctionSignature InstContext::analyzeSignature(
-    ast::FunctionDefinition& decl) const {
+FunctionType const* InstContext::analyzeSignature(
+    ast::FunctionDefinition& decl, Type const* returnType) const {
     auto argumentTypes = decl.parameters() |
                          ranges::views::transform([&](auto* param) {
                              return analyzeParam(*param);
@@ -318,13 +319,13 @@ FunctionSignature InstContext::analyzeSignature(
                          ToSmallVector<>;
     /// If the return type is not specified it will be deduced during function
     /// analysis
-    auto* returnType = decl.returnTypeExpr() ?
-                           analyzeTypeExpr(decl.returnTypeExpr(), ctx) :
-                           nullptr;
+    if (!returnType && decl.returnTypeExpr()) {
+        returnType = analyzeTypeExpr(decl.returnTypeExpr(), ctx);
+    }
     if (returnType && returnType != sym.Void() && !returnType->isComplete()) {
         ctx.issue<BadPassedType>(decl.returnTypeExpr(), BadPassedType::Return);
     }
-    return FunctionSignature(std::move(argumentTypes), returnType);
+    return sym.functionType(argumentTypes, returnType);
 }
 
 Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {

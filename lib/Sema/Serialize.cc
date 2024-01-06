@@ -155,6 +155,9 @@ static void serializeTypenameImpl(Type const& type, std::ostream& str) {
             rec(rec, type.parent());
             str << type.name();
         },
+        [&](FunctionType const&) {
+            SC_UNIMPLEMENTED();
+        },
         [&](ArrayType const& arr) {
             str << "[";
             serializeTypenameImpl(*arr.elementType(), str);
@@ -590,7 +593,7 @@ struct DeserializeContext: TypeMapBase {
             parseTypename(sym, get<std::string>(obj, "return_type"));
         auto* function =
             sym.declareFunction(get<std::string>(obj, "name"),
-                                FunctionSignature(std::move(argTypes), retType),
+                                sym.functionType(argTypes, retType),
                                 get(obj, "access_control"));
         if (auto kind = tryGet<SpecialMemberFunction>(obj, "smf_kind")) {
             function->setSMFKind(*kind);

@@ -90,7 +90,7 @@ struct Impl {
     std::string computeImpl(Function const& func) {
         std::stringstream sstr;
         sstr << computeBase(func);
-        for (auto* arg: func.signature().argumentTypes()) {
+        for (auto* arg: func.argumentTypes()) {
             sstr << "-" << compute(*arg);
         }
         return std::move(sstr).str();

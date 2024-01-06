@@ -1,5 +1,6 @@
 #include "Sema/Analysis/Utility.h"
 
+#include <array>
 #include <iostream>
 
 #include <range/v3/algorithm.hpp>
@@ -93,22 +94,22 @@ struct SLFArray: std::array<Function*, EnumSize<SpecialLifetimeFunction>> {
 
 } // namespace
 
-static FunctionSignature makeLifetimeSignature(SpecialLifetimeFunction key,
-                                               ObjectType& type,
-                                               SymbolTable& sym) {
+static FunctionType const* makeLifetimeSignature(SpecialLifetimeFunction key,
+                                                 ObjectType& type,
+                                                 SymbolTable& sym) {
     auto* self = sym.reference(QualType::Mut(&type));
     auto* rhs = sym.reference(QualType::Const(&type));
     auto* ret = sym.Void();
     using enum SpecialLifetimeFunction;
     switch (key) {
     case DefaultConstructor:
-        return FunctionSignature({ self }, ret);
+        return sym.functionType({ self }, ret);
     case CopyConstructor:
-        return FunctionSignature({ self, rhs }, ret);
+        return sym.functionType({ self, rhs }, ret);
     case MoveConstructor:
-        return FunctionSignature({ self, rhs }, ret);
+        return sym.functionType({ self, rhs }, ret);
     case Destructor:
-        return FunctionSignature({ self }, ret);
+        return sym.functionType({ self }, ret);
     }
     SC_UNREACHABLE();
 }

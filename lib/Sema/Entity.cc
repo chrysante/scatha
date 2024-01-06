@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include <range/v3/algorithm.hpp>
+#include <range/v3/numeric.hpp>
 #include <range/v3/view.hpp>
 #include <svm/Builtin.h>
 #include <utl/functional.hpp>
@@ -17,6 +18,7 @@
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 
 void sema::privateDelete(sema::Entity* entity) {
     visit(*entity, [](auto& entity) { delete &entity; });
@@ -238,6 +240,52 @@ bool Type::hasTrivialLifetime() const {
                  [](auto& self) { return self.hasTrivialLifetimeImpl(); });
 }
 
+FunctionType::FunctionType(std::span<Type const* const> argumentTypes,
+                           Type const* returnType):
+    FunctionType(argumentTypes | ToSmallVector<>, returnType) {}
+
+static std::string getTypename(Type const* type) {
+    if (type) {
+        return std::string(type->name());
+    }
+    return "NULL";
+}
+
+static std::string makeFunctionTypeName(
+    std::span<Type const* const> argumentTypes, Type const* returnType) {
+    std::stringstream sstr;
+    sstr << "(";
+    for (bool first = true; auto* arg: argumentTypes) {
+        if (!first) sstr << ", ";
+        first = false;
+        sstr << getTypename(arg);
+    }
+    sstr << ") -> " << getTypename(returnType);
+    return std::move(sstr).str();
+}
+
+static AccessControl computeFnTypeAccCtrl(
+    std::span<Type const* const> argumentTypes, Type const* returnType) {
+    auto getAccCtrl = [](Type const* type) {
+        return type ? type->accessControl() : AccessControl::Public;
+    };
+    return ranges::accumulate(argumentTypes,
+                              getAccCtrl(returnType),
+                              ranges::max,
+                              getAccCtrl);
+}
+
+FunctionType::FunctionType(utl::small_vector<Type const*> argumentTypes,
+                           Type const* returnType):
+    Type(EntityType::FunctionType,
+         ScopeKind::Type,
+         makeFunctionTypeName(argumentTypes, returnType),
+         nullptr,
+         nullptr,
+         computeFnTypeAccCtrl(argumentTypes, returnType)),
+    _argumentTypes(std::move(argumentTypes)),
+    _returnType(returnType) {}
+
 ObjectType::ObjectType(EntityType entityType,
                        ScopeKind scopeKind,
                        std::string name,
@@ -338,7 +386,7 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
 
 NullPtrType::NullPtrType(Scope* parent):
     BuiltinType(EntityType::NullPtrType,
-                "<null-type>",
+                "__nullptr_t",
                 parent,
                 1,
                 1,
@@ -398,7 +446,7 @@ ArrayType::ArrayType(ObjectType* elementType, size_t count):
 
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     std::stringstream sstr;
-    sstr << "[" << elemType->name();
+    sstr << "[" << getTypename(elemType);
     if (count != DynamicCount) {
         sstr << "," << count;
     }
@@ -451,9 +499,40 @@ ReferenceType::ReferenceType(QualType base):
          base->accessControl()),
     PtrRefTypeBase(base) {}
 
-void Function::setDeducedReturnType(Type const* type) {
-    SC_ASSERT(!returnType(), "Already set");
-    _sig._returnType = type;
+Function::Function(std::string name,
+                   FunctionType const* type,
+                   Scope* parentScope,
+                   FunctionAttribute attrs,
+                   ast::ASTNode* astNode,
+                   AccessControl accessControl):
+    Scope(EntityType::Function,
+          ScopeKind::Function,
+          std::move(name),
+          parentScope,
+          astNode),
+    _type(type),
+    attrs(attrs) {
+    setAccessControl(accessControl);
+}
+
+Type const* Function::returnType() const {
+    SC_EXPECT(type());
+    return type()->returnType();
+}
+
+std::span<Type const* const> Function::argumentTypes() const {
+    SC_EXPECT(type());
+    return type()->argumentTypes();
+}
+
+Type const* Function::argumentType(size_t index) const {
+    SC_EXPECT(type());
+    return type()->argumentType(index);
+}
+
+size_t Function::argumentCount() const {
+    SC_EXPECT(type());
+    return type()->argumentCount();
 }
 
 void Function::setForeign() { _kind = FunctionKind::Foreign; }

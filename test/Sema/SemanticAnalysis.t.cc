@@ -52,12 +52,11 @@ fn mul(a: int, b: int, c: double) -> int {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* mul = lookup<Function>(sym, "mul");
-    auto const& fnType = mul->signature();
-    CHECK(fnType.returnType() == sym.S64());
-    REQUIRE(fnType.argumentCount() == 3);
-    CHECK(fnType.argumentType(0) == sym.S64());
-    CHECK(fnType.argumentType(1) == sym.S64());
-    CHECK(fnType.argumentType(2) == sym.F64());
+    CHECK(mul->returnType() == sym.S64());
+    REQUIRE(mul->argumentCount() == 3);
+    CHECK(mul->argumentType(0) == sym.S64());
+    CHECK(mul->argumentType(1) == sym.S64());
+    CHECK(mul->argumentType(2) == sym.F64());
     auto* a = find<Variable>(mul, "a");
     CHECK(a->type() == sym.S64());
     auto* b = find<Variable>(mul, "b");

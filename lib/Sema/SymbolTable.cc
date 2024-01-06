@@ -9,8 +9,8 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/function_view.hpp>
-#include <utl/hashmap.hpp>
-#include <utl/hashset.hpp>
+#include <utl/hash.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
@@ -38,8 +38,29 @@ static bool isKeyword(std::string_view id) {
     return std::find(keywords.begin(), keywords.end(), id) != keywords.end();
 }
 
+namespace {
+
 /// Discriminator for `checkRedef()`
 enum Redef { Redef_Function, Redef_Other };
+
+/// Comparable  and hashable key for function types
+struct FuncSig {
+    utl::small_vector<Type const*> argTypes;
+    Type const* retType;
+
+    bool operator==(FuncSig const&) const = default;
+};
+
+} // namespace
+
+template <>
+struct std::hash<FuncSig> {
+    size_t operator()(FuncSig const& sig) const {
+        return utl::hash_combine(utl::hash_combine_range(sig.argTypes.begin(),
+                                                         sig.argTypes.end()),
+                                 sig.retType);
+    }
+};
 
 struct SymbolTable::Impl {
     /// The currently active scope
@@ -56,6 +77,9 @@ struct SymbolTable::Impl {
 
     /// Map of instantiated `UniquePtrType`'s
     utl::hashmap<QualType, UniquePtrType*> uniquePtrTypes;
+
+    /// Map of instantiated `FunctionType`'s
+    utl::hashmap<FuncSig, FunctionType const*> functionTypes;
 
     /// Map of instantiated `ArrayTypes`'s
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
@@ -152,7 +176,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     /// Declare builtin functions
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareForeignFunction("__builtin_" #name,                                 \
-                           FunctionSignature(__VA_ARGS__),                     \
+                           functionType(__VA_ARGS__),                          \
                            attrs,                                              \
                            AccessControl::Public);
     using enum FunctionAttribute;
@@ -376,6 +400,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
         return nullptr;
     }
     Function* function = impl->addEntity<Function>(name,
+                                                   nullptr,
                                                    &currentScope(),
                                                    FunctionAttribute::None,
                                                    def,
@@ -433,7 +458,7 @@ static utl::hashset<Function*> buildOverloadSet(
         void gatherImpl(Alias& alias) { gather(*alias.aliased()); }
 
         void gatherImpl(Function& function) {
-            if (function.hasSignature()) {
+            if (function.type()) {
                 set.insert(&function);
             }
         }
@@ -488,24 +513,24 @@ static bool checkValidOverload(SymbolTable::Impl& impl,
     return true;
 }
 
-bool SymbolTable::setFuncSig(Function* function, FunctionSignature sig) {
-    function->setSignature(sig); /// We don't move `sig` here because we use it
-                                 /// later in this function
+bool SymbolTable::setFunctionType(Function* function,
+                                  FunctionType const* type) {
+    function->setType(type);
     bool result = true;
-    result &= checkValidOverload(*impl, function, sig.argumentTypes());
+    result &= checkValidOverload(*impl, function, type->argumentTypes());
     for (auto* alias: function->aliases()) {
         if (alias->name() == function->name()) {
-            result &= checkValidOverload(*impl, alias, sig.argumentTypes());
+            result &= checkValidOverload(*impl, alias, type->argumentTypes());
         }
     }
     return result;
 }
 
 Function* SymbolTable::declareFunction(std::string name,
-                                       FunctionSignature sig,
+                                       FunctionType const* type,
                                        AccessControl accessControl) {
     auto* function = declareFuncImpl(nullptr, std::move(name), accessControl);
-    if (function && setFuncSig(function, std::move(sig))) {
+    if (function && setFunctionType(function, type)) {
         return function;
     }
     return nullptr;
@@ -521,10 +546,10 @@ OverloadSet* SymbolTable::addOverloadSet(
 }
 
 Function* SymbolTable::declareForeignFunction(std::string name,
-                                              FunctionSignature sig,
+                                              FunctionType const* type,
                                               FunctionAttribute attrs,
                                               AccessControl accessControl) {
-    auto* function = declareFunction(name, std::move(sig), accessControl);
+    auto* function = declareFunction(name, type, accessControl);
     if (!function) {
         return nullptr;
     }
@@ -672,6 +697,25 @@ Scope* SymbolTable::addAnonymousScope() {
         impl->addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
     addToCurrentScope(scope);
     return scope;
+}
+
+FunctionType const* SymbolTable::functionType(
+    std::span<Type const* const> argumentTypes, Type const* returnType) {
+    utl::small_vector<Type const*> argTypeVec = argumentTypes | ToSmallVector<>;
+    FuncSig key = { argTypeVec, returnType };
+    auto itr = impl->functionTypes.find(key);
+    if (itr != impl->functionTypes.end()) {
+        return itr->second;
+    }
+    auto* functionType =
+        impl->addEntity<FunctionType>(std::move(argTypeVec), returnType);
+    impl->functionTypes.insert({ key, functionType });
+    return functionType;
+}
+
+FunctionType const* SymbolTable::functionType(
+    std::initializer_list<Type const*> argumentTypes, Type const* returnType) {
+    return functionType(std::span(argumentTypes), returnType);
 }
 
 ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,

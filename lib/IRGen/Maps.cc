@@ -220,9 +220,15 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
         [&](sema::StructType const&) {
             SC_UNREACHABLE("Undeclared structure type");
         },
-        [&](sema::ArrayType const& arrayType) {
-            return ctx->arrayType((*this)(arrayType.elementType()),
-                                  arrayType.count());
+        [&](sema::FunctionType const&) {
+            /// This is unreachable because function types don't translate
+            /// easily to IR. IR functions have type `ptr` and store return
+            /// and argument types separately
+            SC_UNREACHABLE();
+        },
+        [&](sema::ArrayType const& type) {
+            return ctx->arrayType((*this)(type.elementType()),
+                                  type.count());
         },
         [&](sema::PointerType const&) { return ctx->ptrType(); },
         [&](sema::ReferenceType const&) { return ctx->ptrType(); },

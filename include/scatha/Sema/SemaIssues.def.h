@@ -92,7 +92,7 @@ SC_SEMA_BADFUNCDEF_DEF(MainMustReturnTrivial,
 
 SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments,
                        Error,
-                       sema::format(definition()->function()->signature())
+                       sema::format(definition()->function()->type())
                            << " is not a valid signature for 'main'. "
                            << " Valid signatures are () and (&[*str])")
 

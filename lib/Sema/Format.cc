@@ -15,7 +15,7 @@ using namespace sema;
 utl::vstreammanip<> sema::format(Type const* type) {
     return [=](std::ostream& str) {
         if (!type) {
-            str << "<null-type>";
+            str << "NULL";
             return;
         }
         // clang-format off
@@ -25,6 +25,15 @@ utl::vstreammanip<> sema::format(Type const* type) {
             },
             [&](StructType const& type) {
                 str << tfmt::format(Green, type.name());
+            },
+            [&](FunctionType const& type) {
+                str << tfmt::format(None, "(");
+                for (bool first = true; auto* arg: type.argumentTypes()) {
+                    if (first) str << tfmt::format(None, ", ");
+                    first = false;
+                    str << format(arg);
+                }
+                str << tfmt::format(None, ") -> ") << format(type.returnType());
             },
             [&](ArrayType const& type) {
                 str << tfmt::format(None, "[") << format(type.elementType());
@@ -72,24 +81,3 @@ utl::vstreammanip<> sema::format(QualType type) { return format(type.get()); }
 utl::vstreammanip<> sema::formatType(ast::Expression const* expr) {
     return format(expr ? expr->type().get() : nullptr);
 }
-
-utl::vstreammanip<> sema::format(FunctionSignature const& sig) {
-    return [=](std::ostream& str) {
-        str << "(";
-        bool first = true;
-        for (auto* type: sig.argumentTypes()) {
-            if (!first) {
-                str << ", ";
-            }
-            first = false;
-            str << format(type);
-        }
-        str << ") -> " << format(sig.returnType());
-    };
-}
-
-void sema::print(FunctionSignature const& sig, std::ostream& str) {
-    str << format(sig) << "\n";
-}
-
-void sema::print(FunctionSignature const& sig) { print(sig, std::cout); }

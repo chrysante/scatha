@@ -467,105 +467,36 @@ private:
 
 /// # Function
 
-/// Represents the signature, aka parameter types and return type of a function
-class SCATHA_API FunctionSignature {
-public:
-    FunctionSignature() = default;
-
-    explicit FunctionSignature(utl::small_vector<Type const*> argumentTypes,
-                               Type const* returnType):
-        _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
-
-    Type const* type() const {
-        /// Don't have function types yet. Not sure we if we even need them
-        /// though
-        SC_UNIMPLEMENTED();
-    }
-
-    /// Argument types
-    std::span<Type const* const> argumentTypes() const {
-        return _argumentTypes;
-    }
-
-    /// Argument type at index \p index
-    Type const* argumentType(size_t index) const {
-        return _argumentTypes[index];
-    }
-
-    /// Number of arguments
-    size_t argumentCount() const { return _argumentTypes.size(); }
-
-    /// \Returns the return type.
-    /// \Warning During analysis this could be null if the return type is
-    /// not yet deduced.
-    Type const* returnType() const { return _returnType; }
-
-private:
-    friend class Function; /// To set deduced return type
-    utl::small_vector<Type const*> _argumentTypes;
-    Type const* _returnType = nullptr;
-};
-
-/// \Returns `true` if \p a and \p b have the same argument types
-bool argumentsEqual(FunctionSignature const& a, FunctionSignature const& b);
-
 /// Represents a builtin or user defined function
 class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
+                      FunctionType const* type,
                       Scope* parentScope,
                       FunctionAttribute attrs,
                       ast::ASTNode* astNode,
-                      AccessControl accessControl):
-        Scope(EntityType::Function,
-              ScopeKind::Function,
-              std::move(name),
-              parentScope,
-              astNode),
-        attrs(attrs) {
-        setAccessControl(accessControl);
-    }
+                      AccessControl accessControl);
 
     /// The definition of this function in the AST
     SC_ASTNODE_DERIVED(definition, FunctionDefinition)
 
     /// \Returns The type of this function.
-    Type const* type() const { return signature().type(); }
+    FunctionType const* type() const { return _type; }
 
-    /// Set the signature of this function
-    void setSignature(FunctionSignature sig) {
-        _hasSig = true;
-        _sig = std::move(sig);
-    }
-
-    /// \Returns The signature of this function.
-    FunctionSignature const& signature() const {
-        SC_EXPECT(hasSignature());
-        return _sig;
-    }
-
-    /// \Returns `true` if the signature of this function has been set
-    bool hasSignature() const { return _hasSig; }
+    ///
+    void setType(FunctionType const* type) { _type = type; }
 
     /// Return type
-    Type const* returnType() const { return signature().returnType(); }
-
-    /// Sets the return type to \p type
-    /// Must only be called if the return type of this function is yet unknown
-    void setDeducedReturnType(Type const* type);
+    Type const* returnType() const;
 
     /// Argument types
-    std::span<Type const* const> argumentTypes() const {
-        return signature().argumentTypes();
-    }
+    std::span<Type const* const> argumentTypes() const;
 
     /// Argument type at index \p index
-    Type const* argumentType(size_t index) const {
-        return signature().argumentType(index);
-    }
+    Type const* argumentType(size_t index) const;
 
     /// Number of arguments
-    size_t argumentCount() const { return signature().argumentCount(); }
+    size_t argumentCount() const;
 
     /// Kind of this function
     FunctionKind kind() const { return _kind; }
@@ -647,7 +578,7 @@ private:
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
     friend class SymbolTable;
-    FunctionSignature _sig;
+    FunctionType const* _type;
     FunctionAttribute attrs;                                     // 4 bytes
     SpecialMemberFunction _smfKind   : 4 = {};                   // 4 bits
     SpecialLifetimeFunction _slfKind : 4 = {};                   // 4 bits
@@ -662,8 +593,6 @@ private:
 };
 
 /// # Types
-
-size_t constexpr InvalidSize = ~size_t(0);
 
 /// Abstract class representing a type
 class SCATHA_API Type: public Scope {
@@ -700,6 +629,38 @@ private:
     size_t alignImpl() const { return InvalidSize; }
     bool isDefaultConstructibleImpl() const { return true; }
     bool hasTrivialLifetimeImpl() const { return true; }
+};
+
+/// Represents the signature, aka parameter types and return type of a function
+class SCATHA_API FunctionType: public Type {
+public:
+    FunctionType(std::span<Type const* const> argumentTypes,
+                 Type const* returnType);
+
+    FunctionType(utl::small_vector<Type const*> argumentTypes,
+                 Type const* returnType);
+
+    /// Argument types
+    std::span<Type const* const> argumentTypes() const {
+        return _argumentTypes;
+    }
+
+    /// Argument type at index \p index
+    Type const* argumentType(size_t index) const {
+        return _argumentTypes[index];
+    }
+
+    /// Number of arguments
+    size_t argumentCount() const { return _argumentTypes.size(); }
+
+    /// \Returns the return type.
+    /// \Warning During analysis this could be null if the return type is
+    /// not yet deduced.
+    Type const* returnType() const { return _returnType; }
+
+private:
+    utl::small_vector<Type const*> _argumentTypes;
+    Type const* _returnType = nullptr;
 };
 
 /// Abstract class representing the type of an object

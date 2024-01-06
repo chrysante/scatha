@@ -23,11 +23,11 @@ struct TestOS {
         TestOS result;
         for (auto types: paramTypeLists) {
             auto f = allocate<Function>(name,
-                                        nullptr,
+                                        sym.functionType(types, sym.Void()),
+                                        /* parent-scope = */ nullptr,
                                         FunctionAttribute::None,
-                                        nullptr,
+                                        /* ast-node = */ nullptr,
                                         AccessControl::Public);
-            f->setSignature(FunctionSignature(types, sym.Void()));
             result.functions.push_back(std::move(f));
         }
         result.overloadSet =

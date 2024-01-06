@@ -27,12 +27,11 @@ sema::StructType const* Library::declareType(StructDesc desc) {
 }
 
 FuncDecl Library::declareFunction(std::string name,
-                                  sema::FunctionSignature signature) {
+                                  sema::FunctionType const* type) {
     size_t slot = _slot;
     size_t index = _index++;
-    auto* function = sym->declareForeignFunction(name,
-                                                 std::move(signature),
-                                                 sema::FunctionAttribute::None);
+    auto* function =
+        sym->declareForeignFunction(name, type, sema::FunctionAttribute::None);
     return { .name = name,
              .function = function,
              .address = { .slot = slot, .index = index } };

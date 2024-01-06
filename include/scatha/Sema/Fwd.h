@@ -14,11 +14,12 @@ namespace scatha::sema {
 struct AnalysisResult;
 class AnalysisContext;
 class Conversion;
-class FunctionSignature;
 class SemanticIssue;
 class SymbolTable;
 class DtorStack;
 class NameMangler;
+
+size_t constexpr InvalidSize = ~size_t(0);
 
 /// Options struct for `sema::analyze()`
 struct AnalysisOptions {

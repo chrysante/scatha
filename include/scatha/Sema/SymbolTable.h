@@ -23,8 +23,6 @@ class IssueHandler;
 
 namespace scatha::sema {
 
-class FunctionSignature;
-
 /// Container of all entities in the program.
 /// This als performs semantic checks on declarations such as redefinitions.
 class SCATHA_API SymbolTable {
@@ -87,12 +85,12 @@ public:
     ///
     /// \returns `true` if  \p signature is a legal overload
     /// Otherwise emits an error the to issue handler
-    bool setFuncSig(Function* function, FunctionSignature signature);
+    bool setFunctionType(Function* function, FunctionType const* type);
 
     /// \overload for use without AST. Here we don't require two step
     /// initialization.
     Function* declareFunction(std::string name,
-                              FunctionSignature signature,
+                              FunctionType const* type,
                               AccessControl accessControl);
 
     /// Add an overload set to the symbol table. This actually just exists so
@@ -108,7 +106,7 @@ public:
     ///
     /// \returns the declared function or null when an error occurred
     Function* declareForeignFunction(std::string name,
-                                     FunctionSignature signature,
+                                     FunctionType const* type,
                                      FunctionAttribute attrs,
                                      AccessControl accessControl);
 
@@ -218,6 +216,16 @@ public:
     }
 
     /// # Accessors
+
+    /// \Returns the `FunctionType` with argument types \p argumentTypes and
+    /// return type \p returnType
+    FunctionType const* functionType(std::span<Type const* const> argumentTypes,
+                                     Type const* returnType);
+
+    /// \overload
+    FunctionType const* functionType(
+        std::initializer_list<Type const*> argumentTypes,
+        Type const* returnType);
 
     /// \Returns the `ArrayType` with element type \p elementType and \p size
     /// elements
