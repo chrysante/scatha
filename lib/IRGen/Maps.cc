@@ -206,38 +206,26 @@ void TypeMap::insertImpl(sema::Type const* key, ir::Type const* value) const {
 
 ir::Type const* TypeMap::get(sema::Type const* type) const {
     // clang-format off
-    return SC_MATCH (*type) {
-        [&](sema::VoidType const&) -> ir::Type const* {
-            return ctx->voidType();
-        },
-        [&](sema::BoolType const&) -> ir::Type const* {
-            return ctx->intType(1);
-        },
-        [&](sema::ByteType const&) -> ir::Type const* {
-            return ctx->intType(8);
-        },
-        [&](sema::IntType const& intType) -> ir::Type const* {
+    return SC_MATCH_R (ir::Type const*, *type) {
+        [&](sema::VoidType const&) { return ctx->voidType(); },
+        [&](sema::BoolType const&) { return ctx->intType(1); },
+        [&](sema::ByteType const&) { return ctx->intType(8); },
+        [&](sema::IntType const& intType) {
             return ctx->intType(intType.bitwidth());
         },
-        [&](sema::FloatType const& floatType) -> ir::Type const* {
+        [&](sema::FloatType const& floatType) {
             return ctx->floatType(floatType.bitwidth());
         },
-        [&](sema::NullPtrType const&) -> ir::Type const* {
-            return ctx->ptrType();
-        },
-        [&](sema::StructType const&) -> ir::Type const* {
+        [&](sema::NullPtrType const&) { return ctx->ptrType(); },
+        [&](sema::StructType const&) {
             SC_UNREACHABLE("Undeclared structure type");
         },
-        [&](sema::ArrayType const& arrayType) -> ir::Type const* {
+        [&](sema::ArrayType const& arrayType) {
             return ctx->arrayType((*this)(arrayType.elementType()),
                                   arrayType.count());
         },
-        [&](sema::PointerType const&) -> ir::Type const* {
-            return ctx->ptrType();
-        },
-        [&](sema::ReferenceType const&) -> ir::Type const* {
-            return ctx->ptrType();
-        },
+        [&](sema::PointerType const&) { return ctx->ptrType(); },
+        [&](sema::ReferenceType const&) { return ctx->ptrType(); },
     }; // clang-format on
 }
 

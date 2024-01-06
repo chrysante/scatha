@@ -17,34 +17,45 @@ using utl::visit;
 } // namespace scatha
 
 /// Convenience macro for 'match' expressions
-#define SC_MATCH(...) ::scatha::internal::Matcher(__VA_ARGS__)->*utl::overload
+#define SC_MATCH(...)                                                          \
+    ::scatha::internal::Matcher(                                               \
+        ::scatha::internal::Tag<utl::dc::DeduceReturnType>{},                  \
+        __VA_ARGS__)                                                           \
+            ->*utl::overload
+
+#define SC_MATCH_R(R, ...)                                                     \
+    ::scatha::internal::Matcher(::scatha::internal::Tag<R>{}, __VA_ARGS__)     \
+            ->*utl::overload
 
 namespace scatha::internal {
 
-template <typename... T>
+template <typename>
+struct Tag {};
+
+template <typename R, typename... T>
 struct Matcher {
     template <typename... U>
-    explicit Matcher(U&&... t): t(t...) {}
+    explicit Matcher(Tag<R>, U&&... t): t(t...) {}
 
     std::tuple<T&...> t;
 };
 
-template <typename... T>
-Matcher(T&&...) -> Matcher<std::remove_reference_t<T>...>;
+template <typename R, typename... T>
+Matcher(Tag<R>, T&&...) -> Matcher<R, std::remove_reference_t<T>...>;
 
-template <typename... T, typename... F>
-decltype(auto) operator->*(Matcher<T...> m, utl::overload<F...> const& f) {
+template <typename R, typename... T, typename... F>
+decltype(auto) operator->*(Matcher<R, T...> m, utl::overload<F...> const& f) {
     // clang-format off
     return std::apply([&](auto&&... t) -> decltype(auto) {
-        return visit(t..., f);
+        return visit<R>(t..., f);
     }, m.t); // clang-format on
 }
 
-template <typename... T, typename... F>
-decltype(auto) operator->*(Matcher<T...> m, utl::overload<F...>&& f) {
+template <typename R, typename... T, typename... F>
+decltype(auto) operator->*(Matcher<R, T...> m, utl::overload<F...>&& f) {
     // clang-format off
     return std::apply([&](auto&&... t) -> decltype(auto) {
-        return visit(t..., std::move(f));
+        return visit<R>(t..., std::move(f));
     }, m.t); // clang-format on
 }
 
