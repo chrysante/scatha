@@ -338,13 +338,20 @@ BadAccessControl::BadAccessControl(Scope const* scope,
             dyncast<ast::Declaration const*>(entity->astNode()),
             IssueSeverity::Error),
     _reason(reason) {
+    header([=](std::ostream& str) { str << "Invalid access control"; });
     switch (reason) {
     case TooWeakForParent:
-        header([=](std::ostream& str) { str << "Invalid access control"; });
         primary(sourceRange(), [=](std::ostream& str) {
             str << "Access control '" << entity->accessControl()
                 << "' is too weak for '" << entity->parent()->accessControl()
                 << "' parent";
+        });
+        break;
+    case TooWeakForType:
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << "Access control '" << entity->accessControl()
+                << "' is too weak for '"
+                << getEntityType(*entity)->accessControl() << "' type";
         });
         break;
     }

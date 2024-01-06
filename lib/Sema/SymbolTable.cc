@@ -405,7 +405,6 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                                    FunctionAttribute::None,
                                                    def,
                                                    accessControl);
-    validateAccessControl(*function);
     impl->functions.push_back(function);
     addToCurrentScope(function);
     addGlobalAliasIfInternalAtFilescope(function);
@@ -514,14 +513,32 @@ static bool checkValidOverload(SymbolTable::Impl& impl,
 }
 
 bool SymbolTable::setFunctionType(Function* function,
+                                  std::span<Type const* const> argumentTypes,
+                                  Type const* returnType) {
+    return setFunctionType(function, functionType(argumentTypes, returnType));
+}
+
+bool SymbolTable::setFunctionType(Function* function,
                                   FunctionType const* type) {
-    function->setType(type);
+    bool isReset = function->type() != nullptr;
+    SC_ASSERT(isReset || function->type() == nullptr,
+              "Function type has been set before");
+    SC_ASSERT(!isReset || ranges::equal(function->argumentTypes(),
+                                        type->argumentTypes()),
+              "We may only reset function types to update the return type");
+    function->_type = type;
     bool result = true;
-    result &= checkValidOverload(*impl, function, type->argumentTypes());
-    for (auto* alias: function->aliases()) {
-        if (alias->name() == function->name()) {
-            result &= checkValidOverload(*impl, alias, type->argumentTypes());
+    if (!isReset) {
+        result &= checkValidOverload(*impl, function, type->argumentTypes());
+        for (auto* alias: function->aliases()) {
+            if (alias->name() == function->name()) {
+                result &=
+                    checkValidOverload(*impl, alias, type->argumentTypes());
+            }
         }
+    }
+    if (function->returnType()) {
+        validateAccessControl(*function);
     }
     return result;
 }
@@ -567,7 +584,8 @@ Function* SymbolTable::declareForeignFunction(std::string name,
 
 Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
                                       std::string name,
-                                      AccessControl accessControl) {
+                                      AccessControl accessControl,
+                                      Mutability mut) {
     if (isKeyword(name)) {
         impl->issue<GenericBadStmt>(vardecl,
                                     GenericBadStmt::ReservedIdentifier);
@@ -576,14 +594,14 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
     if (!checkRedef(Redef_Other, name, vardecl, accessControl)) {
         return nullptr;
     }
-    auto* variable = impl->addEntity<Variable>(name,
-                                               &currentScope(),
-                                               vardecl,
-                                               accessControl);
-    validateAccessControl(*variable);
-    addToCurrentScope(variable);
-    addGlobalAliasIfInternalAtFilescope(variable);
-    return variable;
+    auto* var = impl->addEntity<Variable>(name,
+                                          &currentScope(),
+                                          vardecl,
+                                          accessControl);
+    var->setMutability(mut);
+    addToCurrentScope(var);
+    addGlobalAliasIfInternalAtFilescope(var);
+    return var;
 }
 
 Variable* SymbolTable::defineVarImpl(ast::VarDeclBase* vardecl,
@@ -591,23 +609,25 @@ Variable* SymbolTable::defineVarImpl(ast::VarDeclBase* vardecl,
                                      Type const* type,
                                      Mutability mut,
                                      AccessControl accessControl) {
-    auto* var = declareVarImpl(vardecl, std::move(name), accessControl);
+    auto* var = declareVarImpl(vardecl, std::move(name), accessControl, mut);
     if (!var) {
         return nullptr;
     }
-    var->setType(type);
-    var->setMutability(mut);
+    setVariableType(var, type);
     return var;
 }
 
 Variable* SymbolTable::declareVariable(ast::VarDeclBase* vardecl,
                                        AccessControl accessControl) {
-    return declareVarImpl(vardecl, std::string(vardecl->name()), accessControl);
+    return declareVarImpl(vardecl,
+                          std::string(vardecl->name()),
+                          accessControl,
+                          vardecl->mutability());
 }
 
-Variable* SymbolTable::declareVariable(std::string name,
-                                       AccessControl accessControl) {
-    return declareVarImpl(nullptr, std::move(name), accessControl);
+bool SymbolTable::setVariableType(Variable* var, Type const* type) {
+    var->_type = type;
+    return validateAccessControl(*var);
 }
 
 Variable* SymbolTable::defineVariable(ast::VarDeclBase* vardecl,
@@ -980,6 +1000,13 @@ bool SymbolTable::validateAccessControl(Entity const& entity) {
     {
         impl->issue<BadAccessControl>(&entity,
                                       BadAccessControl::TooWeakForParent);
+        return false;
+    }
+    if (auto* type = getEntityType(entity);
+        type && entity.accessControl() < type->accessControl())
+    {
+        impl->issue<BadAccessControl>(&entity,
+                                      BadAccessControl::TooWeakForType);
         return false;
     }
     return true;

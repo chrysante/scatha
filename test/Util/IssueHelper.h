@@ -36,7 +36,8 @@ struct IssueHelper {
     }
 
     template <typename T>
-    T const* findOnLine(ssize_t line, typename T::Reason reason) const {
+    [[nodiscard]] T const* findOnLine(ssize_t line,
+                                      typename T::Reason reason) const {
         return findOnLine<T>(line, [&](T const* issue) {
             return issue->reason() == reason;
         });

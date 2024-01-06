@@ -181,15 +181,16 @@ EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
     return entity.entityType();
 }
 
+/// Temporary function. We will remove this function after we restructure the
+/// entity hierarchy such that `Function` derives from `Object`
+Type const* getEntityType(Entity const& entity);
+
 /// Represents an object
 class SCATHA_API Object: public Entity {
 public:
     Object(Object const&) = delete;
 
     ~Object();
-
-    /// Set the type of this object.
-    void setType(Type const* type) { _type = type; }
 
     /// Type of this object.
     Type const* type() const { return _type; }
@@ -229,6 +230,7 @@ private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
+    friend class SymbolTable; // To set the type in two phase initialization
     Type const* _type;
     Mutability _mut;
     UniquePtr<Value> constVal;
@@ -482,9 +484,6 @@ public:
 
     /// \Returns The type of this function.
     FunctionType const* type() const { return _type; }
-
-    ///
-    void setType(FunctionType const* type) { _type = type; }
 
     /// Return type
     Type const* returnType() const;

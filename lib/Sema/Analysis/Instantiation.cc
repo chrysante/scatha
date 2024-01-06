@@ -245,9 +245,9 @@ void InstContext::instantiateVariable(SDGNode& node) {
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto* type = getType(varDecl.typeExpr());
     /// Here we set the TypeID of the variable in the symbol table.
-    auto* variable = cast<Variable*>(node.entity);
-    variable->setType(type);
-    varDecl.decorateVarDecl(variable);
+    auto* var = cast<Variable*>(node.entity);
+    sym.setVariableType(var, type);
+    varDecl.decorateVarDecl(var);
 }
 
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {

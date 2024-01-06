@@ -238,7 +238,7 @@ private:
 ///
 class SCATHA_API BadAccessControl: public BadDecl {
 public:
-    enum Reason { TooWeakForParent };
+    enum Reason { TooWeakForParent, TooWeakForType };
     SC_SEMA_ISSUE_REASON()
 
     explicit BadAccessControl(Scope const* scope,

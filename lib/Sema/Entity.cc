@@ -48,6 +48,15 @@ void Entity::addAlias(Alias* alias) {
     _aliases.push_back(alias);
 }
 
+Type const* sema::getEntityType(Entity const& entity) {
+    return visit(entity, []<typename E>(E const& entity) -> Type const* {
+        if constexpr (requires { entity.type(); }) {
+            return entity.type();
+        }
+        return nullptr;
+    });
+}
+
 Object::Object(EntityType entityType,
                std::string name,
                Scope* parentScope,

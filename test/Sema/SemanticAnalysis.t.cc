@@ -562,9 +562,19 @@ private struct W {
 
 TEST_CASE("Access control errors", "[sema]") {
     auto iss = test::getSemaIssues(R"(
-/* 2 */ internal struct X { public fn f() {} }
-/* 3 */ private struct Y { internal fn f() {} }
+/*  2 */ internal struct X { public fn f() {} }
+/*  3 */ private struct Y { internal fn f() {} }
+/*  4 */ struct InternalType {}
+/*  5 */ public struct PublicType {
+/*  6 */     var member: InternalType;
+/*  7 */ }
+/*  8 */ public fn publicFunction(x: InternalType) {}
+/*  9 */ public fn publicFunction() { return InternalType(); }
 )");
-    iss.findOnLine<BadAccessControl>(2, BadAccessControl::TooWeakForParent);
-    iss.findOnLine<BadAccessControl>(3, BadAccessControl::TooWeakForParent);
+    using enum BadAccessControl::Reason;
+    CHECK(iss.findOnLine<BadAccessControl>(2, TooWeakForParent));
+    CHECK(iss.findOnLine<BadAccessControl>(3, TooWeakForParent));
+    CHECK(iss.findOnLine<BadAccessControl>(6, TooWeakForType));
+    CHECK(iss.findOnLine<BadAccessControl>(8, TooWeakForType));
+    CHECK(iss.findOnLine<BadAccessControl>(9, TooWeakForType));
 }

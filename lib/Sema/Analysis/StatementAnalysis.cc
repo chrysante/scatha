@@ -609,12 +609,12 @@ void StmtContext::setDeducedReturnType() {
         return;
     }
     if (!deducedRetTy) {
-        semaFn->setType(sym.functionType(semaFn->argumentTypes(), sym.Void()));
+        sym.setFunctionType(semaFn, semaFn->argumentTypes(), sym.Void());
         return;
     }
     if (deducedRetTy != sym.Void() && !deducedRetTy->isComplete()) {
         ctx.issue<BadPassedType>(lastReturn->expression(),
                                  BadPassedType::ReturnDeduced);
     }
-    semaFn->setType(sym.functionType(semaFn->argumentTypes(), deducedRetTy));
+    sym.setFunctionType(semaFn, semaFn->argumentTypes(), deducedRetTy);
 }

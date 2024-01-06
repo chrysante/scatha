@@ -87,6 +87,11 @@ public:
     /// Otherwise emits an error the to issue handler
     bool setFunctionType(Function* function, FunctionType const* type);
 
+    /// \overload that construct the function type
+    bool setFunctionType(Function* function,
+                         std::span<Type const* const> argumentTypes,
+                         Type const* returnType);
+
     /// \overload for use without AST. Here we don't require two step
     /// initialization.
     Function* declareFunction(std::string name,
@@ -120,8 +125,9 @@ public:
     Variable* declareVariable(ast::VarDeclBase* vardecl,
                               AccessControl accessControl);
 
-    /// \overload for use without AST
-    Variable* declareVariable(std::string name, AccessControl accessControl);
+    /// Two step variable definition for globally visible variables (including
+    /// struct members)
+    bool setVariableType(Variable* var, Type const* type);
 
     /// Declares a variable to the current scope.
     ///
@@ -335,7 +341,8 @@ private:
                               AccessControl accCtrl);
     Variable* declareVarImpl(ast::VarDeclBase* vardecl,
                              std::string name,
-                             AccessControl accCtrl);
+                             AccessControl accCtrl,
+                             Mutability mut);
     Variable* defineVarImpl(ast::VarDeclBase* vardecl,
                             std::string name,
                             Type const* type,
