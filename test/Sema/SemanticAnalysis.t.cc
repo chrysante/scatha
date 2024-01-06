@@ -17,17 +17,30 @@ using namespace ast;
 using enum ValueCategory;
 
 template <typename T>
-auto* findEntity(Scope* scope, std::string_view name) {
-    auto entities = scope->findEntities(name);
-    REQUIRE(entities.size() == 1);
-    return dyncast<T*>(entities.front());
+static T* as(auto* entity) {
+    auto* t = dyncast<T*>(entity);
+    if (!t) {
+        throw std::runtime_error("Invalid type");
+    }
+    return t;
 }
 
-template <typename T>
-auto* lookup(SymbolTable& sym, std::string_view name) {
+/// \Returns the first found entity
+/// \Throws if none is found
+template <typename T = Entity>
+static T* find(Scope* scope, std::string_view name) {
+    auto entities = scope->findEntities(name);
+    REQUIRE(entities.size() == 1);
+    return as<T>(entities.front());
+}
+
+/// \Returns the first found entity
+/// \Throws if none is found
+template <typename T = Entity>
+static T* lookup(SymbolTable& sym, std::string_view name) {
     auto entities = sym.unqualifiedLookup(name);
     REQUIRE(entities.size() == 1);
-    return dyncast<T*>(sema::stripAlias(entities.front()));
+    return as<T>(sema::stripAlias(entities.front()));
 }
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
@@ -39,20 +52,19 @@ fn mul(a: int, b: int, c: double) -> int {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* mul = lookup<Function>(sym, "mul");
-    REQUIRE(mul);
     auto const& fnType = mul->signature();
     CHECK(fnType.returnType() == sym.S64());
     REQUIRE(fnType.argumentCount() == 3);
     CHECK(fnType.argumentType(0) == sym.S64());
     CHECK(fnType.argumentType(1) == sym.S64());
     CHECK(fnType.argumentType(2) == sym.F64());
-    auto* a = findEntity<Variable>(mul, "a");
+    auto* a = find<Variable>(mul, "a");
     CHECK(a->type() == sym.S64());
-    auto* b = findEntity<Variable>(mul, "b");
+    auto* b = find<Variable>(mul, "b");
     CHECK(b->type() == sym.S64());
-    auto const c = findEntity<Variable>(mul, "c");
+    auto const c = find<Variable>(mul, "c");
     CHECK(c->type() == sym.F64());
-    auto* result = findEntity<Variable>(mul, "result");
+    auto* result = find<Variable>(mul, "result");
     CHECK(result->type() == sym.S64());
 }
 
@@ -288,7 +300,6 @@ struct X {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* x = lookup<Scope>(sym, "X");
-    REQUIRE(x);
     sym.withScopeCurrent(x, [&] {
         auto* f = lookup<Function>(sym, "f");
         CHECK(f->argumentType(0)->parent()->name() == "X");
@@ -516,4 +527,20 @@ fn test() {
 })",
                                    { .librarySearchPaths = { "libs" } });
     CHECK(iss.empty());
+}
+
+TEST_CASE("Access control deduction", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/* 2 */ struct X {
+/* 3 */     private var i: int;
+/* 4 */     fn g() {}
+/* 5 */     public fn f() {}
+/* 6 */ })");
+    auto& [issues, ast, sym] = iss;
+    auto* X = lookup<StructType>(sym, "X");
+    CHECK(X->accessControl() == AccessControl::Internal);
+    CHECK(find(X, "i")->accessControl() == AccessControl::Private);
+    CHECK(find(X, "g")->accessControl() == AccessControl::Internal);
+    CHECK(find(X, "f")->accessControl() == AccessControl::Public);
+    iss.findOnLine<BadAccessControl>(5, BadAccessControl::TooWeakForParent);
 }

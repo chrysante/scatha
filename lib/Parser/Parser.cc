@@ -5,9 +5,10 @@
 ///
 /// ```
 /// <translation-unit>              ::= {<global-statement>}*
-/// <global-statement>              ::= <import-statement> | <external-declaration>
-/// <external-declaration>          ::= [<access-spec>] <function-definition>
+/// <global-statement>              ::= <import-statement> | <declaration>
+/// <declaration>                   ::= [<access-spec>] <function-definition>
 ///                                   | [<access-spec>] <struct-definition>
+///                                   | [<access-spec>] <variable-declaration>
 /// <function-definition>           ::= "fn" <identifier>
 ///                                          "(" {<parameter-declaration>}* ")"
 ///                                          ["->" <type-expression>]
@@ -20,8 +21,7 @@
 /// <variable-declaration>          ::= ("var"|"let") <short-var-declaration>
 /// <short-var-declaration>         ::= <identifier> [":" <type-expression>]
 ///                                                  ["=" <assignment-expression>] ";"
-/// <statement>                     ::= <external-declaration>
-///                                   | <variable-declaration>
+/// <statement>                     ::= <declaration>
 ///                                   | <control-flow-statement>
 ///                                   | <compound-statement>
 ///                                   | <import-statement>
@@ -174,29 +174,6 @@ using enum TokenKind;
 
 namespace {
 
-template <typename T>
-struct RemoveOptional {
-    using type = T;
-};
-
-template <typename T>
-struct RemoveOptional<std::optional<T>> {
-    using type = T;
-};
-
-template <typename, template <class> class Transform = std::type_identity>
-struct TupleToVariant;
-
-template <typename... T, template <class> class Transform>
-struct TupleToVariant<std::tuple<T...>, Transform> {
-    using type = std::variant<typename Transform<T>::type...>;
-};
-
-using SpecList = std::tuple<std::optional<sema::AccessControl>,
-                            std::optional<std::string> /* external linkage */>;
-
-using SpecVar = TupleToVariant<SpecList, RemoveOptional>::type;
-
 struct Context {
     TokenStream tokens;
     std::string filename;
@@ -206,13 +183,17 @@ struct Context {
 
     UniquePtr<ast::SourceFile> parseSourceFile(std::string filename);
     UniquePtr<ast::Statement> parseGlobalStatement();
-    UniquePtr<ast::Declaration> parseExternalDeclaration();
-    UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
+    UniquePtr<ast::Declaration> parseDeclaration();
+    UniquePtr<ast::FunctionDefinition> parseFunctionDefinition(
+        ast::SpecifierList specList);
     UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration(
         size_t index);
-    UniquePtr<ast::StructDefinition> parseStructDefinition();
-    UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
+    UniquePtr<ast::StructDefinition> parseStructDefinition(
+        ast::SpecifierList specList);
+    UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(
+        ast::SpecifierList specList);
     UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
+        ast::SpecifierList specList,
         sema::Mutability mutability,
         std::optional<Token> declarator = std::nullopt);
     UniquePtr<ast::Statement> parseStatement();
@@ -253,7 +234,7 @@ struct Context {
 
     // Helpers
     sema::Mutability eatMut();
-    SpecList parseSpecList();
+    ast::SpecifierList parseSpecList();
 
     void pushExpectedExpression(Token const&);
 
@@ -357,8 +338,8 @@ UniquePtr<ast::Statement> Context::parseGlobalStatement() {
     if (auto importStmt = parseImportStatement()) {
         return importStmt;
     }
-    if (auto extDecl = parseExternalDeclaration()) {
-        return extDecl;
+    if (auto decl = parseDeclaration()) {
+        return decl;
     }
     return nullptr;
 }
@@ -390,21 +371,18 @@ UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
                                           toImportKind(token.kind()));
 }
 
-UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
-    auto [accessCtrl, linkage] = parseSpecList();
-    auto decl = [this]() -> UniquePtr<ast::Declaration> {
-        if (auto funcDef = parseFunctionDefinition()) {
-            return funcDef;
-        }
-        if (auto structDef = parseStructDefinition()) {
-            return structDef;
-        }
-        return nullptr;
-    }();
-    if (decl) {
-        decl->setSpecifiers(accessCtrl, linkage);
+UniquePtr<ast::Declaration> Context::parseDeclaration() {
+    auto specList = parseSpecList();
+    if (auto funcDef = parseFunctionDefinition(specList)) {
+        return funcDef;
     }
-    return decl;
+    if (auto structDef = parseStructDefinition(specList)) {
+        return structDef;
+    }
+    if (auto varDef = parseVariableDeclaration(specList)) {
+        return varDef;
+    }
+    return nullptr;
 }
 
 template <utl::invocable_r<bool, Token const&>... Cond, std::predicate... F>
@@ -440,7 +418,8 @@ bool Context::recover(std::pair<TokenKind, F>... retry) {
         retry.second }...);
 }
 
-UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
+UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
+    ast::SpecifierList specList) {
     Token const declarator = tokens.peek();
     if (declarator.kind() != Function) {
         return nullptr;
@@ -500,6 +479,7 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     if (auto delim = tokens.peek(); delim.kind() == Semicolon) {
         tokens.eat();
         return allocate<ast::FunctionDefinition>(sourceRange,
+                                                 specList,
                                                  std::move(identifier),
                                                  std::move(*params),
                                                  std::move(returnTypeExpr),
@@ -520,6 +500,7 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
         }
     }
     return allocate<ast::FunctionDefinition>(sourceRange,
+                                             specList,
                                              std::move(identifier),
                                              std::move(*params),
                                              std::move(returnTypeExpr),
@@ -610,7 +591,8 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
                                                std::move(typeExpr));
 }
 
-UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
+UniquePtr<ast::StructDefinition> Context::parseStructDefinition(
+    ast::SpecifierList specList) {
     Token const declarator = tokens.peek();
     if (declarator.kind() != Struct) {
         return nullptr;
@@ -632,11 +614,13 @@ UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
         SC_UNIMPLEMENTED(); // Handle issue
     }
     return allocate<ast::StructDefinition>(declarator.sourceRange(),
+                                           specList,
                                            std::move(identifier),
                                            std::move(body));
 }
 
-UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
+UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration(
+    ast::SpecifierList specList) {
     Token const declarator = tokens.peek();
     if (declarator.kind() != Var && declarator.kind() != Let) {
         return nullptr;
@@ -644,13 +628,15 @@ UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
     tokens.eat();
     using enum sema::Mutability;
     auto mut = declarator.kind() == Var ? Mutable : Const;
-    auto result = parseShortVariableDeclaration(mut, declarator);
+    auto result = parseShortVariableDeclaration(specList, mut, declarator);
     result->setDirectSourceRange(declarator.sourceRange());
     return result;
 }
 
 UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
-    sema::Mutability mutability, std::optional<Token> declarator) {
+    ast::SpecifierList specList,
+    sema::Mutability mutability,
+    std::optional<Token> declarator) {
     auto identifier = parseID();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(tokens.current());
@@ -683,7 +669,8 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     auto sourceRange = declarator ? declarator->sourceRange() :
                        identifier ? identifier->sourceRange() :
                                     tokens.current().sourceRange();
-    return allocate<ast::VariableDeclaration>(mutability,
+    return allocate<ast::VariableDeclaration>(specList,
+                                              mutability,
                                               sourceRange,
                                               std::move(identifier),
                                               std::move(typeExpr),
@@ -691,11 +678,8 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
 }
 
 UniquePtr<ast::Statement> Context::parseStatement() {
-    if (auto extDecl = parseExternalDeclaration()) {
+    if (auto extDecl = parseDeclaration()) {
         return extDecl;
-    }
-    if (auto varDecl = parseVariableDeclaration()) {
-        return varDecl;
     }
     if (auto controlFlowStatement = parseControlFlowStatement()) {
         return controlFlowStatement;
@@ -898,7 +882,7 @@ UniquePtr<ast::LoopStatement> Context::parseForStatement() {
     }
     tokens.eat();
     using enum sema::Mutability;
-    auto varDecl = parseShortVariableDeclaration(Mutable, forToken);
+    auto varDecl = parseShortVariableDeclaration({}, Mutable, forToken);
     if (!varDecl) {
         // TODO: This should be ExpectedDeclaration or something...
         pushExpectedExpression(tokens.peek());
@@ -1476,44 +1460,49 @@ sema::Mutability Context::eatMut() {
     return sema::Mutability::Const;
 }
 
-SpecList Context::parseSpecList() {
+ast::SpecifierList Context::parseSpecList() {
     using sema::AccessControl;
-    auto parse = [&]() -> std::optional<SpecVar> {
+    struct ParseResult {
+        std::variant<sema::AccessControl, std::string> spec;
+        SourceRange sourceRange;
+    };
+    auto parse = [&]() -> std::optional<ParseResult> {
+        auto sourceRange = tokens.peek().sourceRange();
         switch (tokens.peek().kind()) {
         case Private:
             tokens.eat();
-            return AccessControl::Private;
+            return ParseResult{ AccessControl::Private, sourceRange };
         case Internal:
             tokens.eat();
-            return AccessControl::Internal;
+            return ParseResult{ AccessControl::Internal, sourceRange };
         case Public:
             tokens.eat();
-            return AccessControl::Public;
+            return ParseResult{ AccessControl::Public, sourceRange };
         case Extern: {
             tokens.eat();
             auto next = tokens.peek();
+            sourceRange = merge(sourceRange, next.sourceRange());
             if (next.kind() != StringLiteral) {
                 issues.push<ExpectedExpression>(next);
                 return std::nullopt;
             }
             tokens.eat();
-            return next.id();
+            return ParseResult{ next.id(), sourceRange };
         }
         default:
             return std::nullopt;
         }
     };
-    SpecList result{};
+    ast::SpecifierList list{};
     while (true) {
-        auto spec = parse();
-        if (!spec) {
+        auto result = parse();
+        if (!result) {
             break;
         }
-        std::visit([&]<typename T>(
-                       T spec) { std::get<std::optional<T>>(result) = spec; },
-                   *spec);
+        std::visit([&](auto spec) { list.set(spec, result->sourceRange); },
+                   result->spec);
     }
-    return result;
+    return list;
 }
 
 void Context::pushExpectedExpression(Token const& token) {

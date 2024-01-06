@@ -337,6 +337,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
                                              InvalidSize,
                                              accessControl);
     addToCurrentScope(type);
+    validateAccessControl(*type);
     addGlobalAliasIfInternalAtFilescope(type);
     return type;
 }
@@ -379,6 +380,7 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
                                                    FunctionAttribute::None,
                                                    def,
                                                    accessControl);
+    validateAccessControl(*function);
     impl->functions.push_back(function);
     addToCurrentScope(function);
     addGlobalAliasIfInternalAtFilescope(function);
@@ -553,6 +555,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
                                                &currentScope(),
                                                vardecl,
                                                accessControl);
+    validateAccessControl(*variable);
     addToCurrentScope(variable);
     addGlobalAliasIfInternalAtFilescope(variable);
     return variable;
@@ -611,6 +614,7 @@ Property* SymbolTable::addProperty(PropertyKind kind,
                                            mut,
                                            valueCat,
                                            accessControl);
+    validateAccessControl(*prop);
     addToCurrentScope(prop);
     addGlobalAliasIfInternalAtFilescope(prop);
     return prop;
@@ -685,6 +689,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType =
         impl->addEntity<ArrayType>(const_cast<ObjectType*>(elementType), size);
     impl->arrayTypes.insert({ key, arrayType });
+    auto accessCtrl = arrayType->accessControl();
     withScopeCurrent(arrayType, [&] {
         using enum Mutability;
         using enum ValueCategory;
@@ -692,7 +697,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                                       S64(),
                                       Const,
                                       RValue,
-                                      AccessControl::Public);
+                                      accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constSize = allocate<IntValue>(APInt(size, 64),
                                                 /* isSigned = */ true);
@@ -702,7 +707,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                                        Bool(),
                                        Const,
                                        RValue,
-                                       AccessControl::Public);
+                                       accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constEmpty = allocate<IntValue>(APInt(size == 0, 1),
                                                  /* isSigned = */ false);
@@ -712,12 +717,12 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                     arrayType->elementType(),
                     Mutable,
                     LValue,
-                    AccessControl::Public);
+                    accessCtrl);
         addProperty(PropertyKind::ArrayBack,
                     arrayType->elementType(),
                     Mutable,
                     LValue,
-                    AccessControl::Public);
+                    accessCtrl);
     });
     declareSpecialLifetimeFunctions(*arrayType, *this);
     const_cast<ObjectType*>(elementType)->parent()->addChild(arrayType);
@@ -915,12 +920,25 @@ void SymbolTable::addToCurrentScope(Entity* entity) {
 
 void SymbolTable::addGlobalAliasIfInternalAtFilescope(Entity* entity) {
     using enum AccessControl;
-    if (isa<FileScope>(entity->parent()) && entity->accessControl() >= Internal)
+    if (isa<FileScope>(entity->parent()) && entity->accessControl() <= Internal)
     {
         withScopeCurrent(&globalScope(), [&] {
             declareAlias(*entity, entity->astNode(), entity->accessControl());
         });
     }
+}
+
+bool SymbolTable::validateAccessControl(Entity const& entity) {
+    SC_EXPECT(entity.hasAccessControl());
+    auto* parent = entity.parent();
+    if (parent->hasAccessControl() &&
+        entity.accessControl() < parent->accessControl())
+    {
+        impl->issue<BadAccessControl>(&entity,
+                                      BadAccessControl::TooWeakForParent);
+        return false;
+    }
+    return true;
 }
 
 static bool checkRedefImpl(SymbolTable::Impl& impl,
@@ -962,7 +980,7 @@ bool SymbolTable::checkRedef(int kind,
     /// Since we now use aliases to declare entities to the global scope we may
     /// not need this anymore
     using enum AccessControl;
-    if (isa<FileScope>(currentScope()) && accessControl >= Internal) {
+    if (isa<FileScope>(currentScope()) && accessControl <= Internal) {
         return checkRedefImpl(*impl, Redef(kind), &globalScope(), name, decl);
     }
     return true;

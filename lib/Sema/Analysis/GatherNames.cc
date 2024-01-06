@@ -97,7 +97,9 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         return InvalidIndex;
     }
     auto* function =
-        sym.declareFuncName(&funcDef, determineAccessControl(funcDef));
+        sym.declareFuncName(&funcDef,
+                            determineAccessControl(sym.currentScope(),
+                                                   funcDef));
     if (!function) {
         return InvalidIndex;
     }
@@ -123,7 +125,10 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
         ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
         return InvalidIndex;
     }
-    auto* type = sym.declareStructureType(&def, determineAccessControl(def));
+    auto* type =
+        sym.declareStructureType(&def,
+                                 determineAccessControl(sym.currentScope(),
+                                                        def));
     if (!type) {
         return InvalidIndex;
     }
@@ -152,7 +157,9 @@ size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");
     auto* variable =
-        sym.declareVariable(&varDecl, determineAccessControl(varDecl));
+        sym.declareVariable(&varDecl,
+                            determineAccessControl(sym.currentScope(),
+                                                   varDecl));
     if (!variable) {
         return InvalidIndex;
     }

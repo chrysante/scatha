@@ -272,9 +272,7 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
             analyze(*param);
         }
     });
-    if (auto linkage = def.externalLinkage();
-        !linkage.empty() && linkage != "C")
-    {
+    if (auto linkage = def.externalLinkage(); linkage && *linkage != "C") {
         ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
     }
     if (def.body()) {
@@ -283,7 +281,7 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
         setDeducedReturnType();
     }
     else {
-        if (def.externalLinkage().empty()) {
+        if (!def.externalLinkage()) {
             ctx.issue<BadFuncDef>(&def, BadFuncDef::FunctionMustHaveBody);
         }
         else if (!semaFn->returnType()) {

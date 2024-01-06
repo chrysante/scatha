@@ -208,6 +208,16 @@ ForeignLibrary::ForeignLibrary(std::string name,
 
 /// # Types
 
+Type::Type(EntityType entityType,
+           ScopeKind scopeKind,
+           std::string name,
+           Scope* parent,
+           ast::ASTNode* astNode,
+           AccessControl accessControl):
+    Scope(entityType, scopeKind, std::move(name), parent, astNode) {
+    setAccessControl(accessControl);
+}
+
 size_t Type::size() const {
     return visit(*this, [](auto& derived) { return derived.sizeImpl(); });
 }
@@ -228,12 +238,45 @@ bool Type::hasTrivialLifetime() const {
                  [](auto& self) { return self.hasTrivialLifetimeImpl(); });
 }
 
+ObjectType::ObjectType(EntityType entityType,
+                       ScopeKind scopeKind,
+                       std::string name,
+                       Scope* parent,
+                       size_t size,
+                       size_t align,
+                       ast::ASTNode* astNode,
+                       AccessControl accessControl):
+    Type(entityType,
+         scopeKind,
+         std::move(name),
+         parent,
+         astNode,
+         accessControl),
+    _size(size),
+    _align(align) {}
+
+BuiltinType::BuiltinType(EntityType entityType,
+                         std::string name,
+                         Scope* parentScope,
+                         size_t size,
+                         size_t align,
+                         AccessControl accessControl):
+    ObjectType(entityType,
+               ScopeKind::Type,
+               std::move(name),
+               parentScope,
+               size,
+               align,
+               nullptr,
+               accessControl) {}
+
 VoidType::VoidType(Scope* parentScope):
     BuiltinType(EntityType::VoidType,
                 "void",
                 parentScope,
                 InvalidSize,
-                InvalidSize) {}
+                InvalidSize,
+                AccessControl::Public) {}
 
 ArithmeticType::ArithmeticType(EntityType entityType,
                                std::string name,
@@ -244,7 +287,8 @@ ArithmeticType::ArithmeticType(EntityType entityType,
                 std::move(name),
                 parentScope,
                 utl::ceil_divide(bitwidth, 8),
-                utl::ceil_divide(bitwidth, 8)),
+                utl::ceil_divide(bitwidth, 8),
+                AccessControl::Public),
     _signed(signedness),
     _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)) {}
 
@@ -293,7 +337,27 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
 }
 
 NullPtrType::NullPtrType(Scope* parent):
-    BuiltinType(EntityType::NullPtrType, "<null-type>", parent, 1, 1) {}
+    BuiltinType(EntityType::NullPtrType,
+                "<null-type>",
+                parent,
+                1,
+                1,
+                AccessControl::Public) {}
+
+StructType::StructType(std::string name,
+                       Scope* parentScope,
+                       ast::ASTNode* astNode,
+                       size_t size,
+                       size_t align,
+                       AccessControl accessControl):
+    CompoundType(EntityType::StructType,
+                 ScopeKind::Type,
+                 std::move(name),
+                 parentScope,
+                 size,
+                 align,
+                 astNode,
+                 accessControl) {}
 
 void StructType::setMemberVariable(size_t index, Variable* var) {
     if (index >= _memberVars.size()) {
@@ -326,7 +390,9 @@ ArrayType::ArrayType(ObjectType* elementType, size_t count):
                  makeName(elementType, count),
                  getParent(elementType),
                  computeArraySize(elementType, count),
-                 computeArrayAlign(elementType)),
+                 computeArrayAlign(elementType),
+                 nullptr,
+                 elementType->accessControl()),
     elemType(elementType),
     _count(count) {}
 
@@ -363,7 +429,9 @@ PointerType::PointerType(EntityType entityType,
                std::move(name),
                getParent(base.get()),
                ptrSize(base),
-               ptrAlign()),
+               ptrAlign(),
+               nullptr,
+               base->accessControl()),
     PtrRefTypeBase(base) {}
 
 RawPtrType::RawPtrType(QualType base):
@@ -378,7 +446,9 @@ ReferenceType::ReferenceType(QualType base):
     Type(EntityType::ReferenceType,
          ScopeKind::Invalid,
          makeIndirectName("&", base),
-         getParent(base.get())),
+         getParent(base.get()),
+         nullptr,
+         base->accessControl()),
     PtrRefTypeBase(base) {}
 
 void Function::setDeducedReturnType(Type const* type) {
@@ -387,6 +457,13 @@ void Function::setDeducedReturnType(Type const* type) {
 }
 
 void Function::setForeign() { _kind = FunctionKind::Foreign; }
+
+OverloadSet::OverloadSet(SourceRange loc,
+                         std::string name,
+                         utl::small_vector<Function*> functions):
+    Entity(EntityType::OverloadSet, std::move(name), nullptr),
+    small_vector(std::move(functions)),
+    loc(loc) {}
 
 Function const* OverloadSet::find(std::span<Type const* const> types) const {
     return find(std::span<Function const* const>(*this), types);

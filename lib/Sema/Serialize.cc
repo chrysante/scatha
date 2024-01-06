@@ -77,8 +77,8 @@ SERIALIZE_ENUM_BEGIN(EntityType)
 SERIALIZE_ENUM_END()
 
 SERIALIZE_ENUM_BEGIN(AccessControl)
-#define SC_SEMA_ACCESS_CONTROL_DEF(Kind)                                       \
-    SERIALIZE_ENUM_ELEM(AccessControl::Kind, #Kind)
+#define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling)                             \
+    SERIALIZE_ENUM_ELEM(AccessControl::Kind, Spelling)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 

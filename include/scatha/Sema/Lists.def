@@ -99,13 +99,13 @@ SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Destructor)
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_ACCESS_CONTROL_DEF
-#   define SC_SEMA_ACCESS_CONTROL_DEF(Kind)
+#   define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling)
 #endif
 
-/// Must be in ascending order!
-SC_SEMA_ACCESS_CONTROL_DEF(Private)
-SC_SEMA_ACCESS_CONTROL_DEF(Internal)
-SC_SEMA_ACCESS_CONTROL_DEF(Public)
+/// Must be in order of ascending strength (or descending accessibility)!
+SC_SEMA_ACCESS_CONTROL_DEF(Public,   "public")
+SC_SEMA_ACCESS_CONTROL_DEF(Internal, "internal")
+SC_SEMA_ACCESS_CONTROL_DEF(Private,  "private")
 
 #undef SC_SEMA_ACCESS_CONTROL_DEF
 

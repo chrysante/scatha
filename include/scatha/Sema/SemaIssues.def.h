@@ -102,8 +102,9 @@ SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody,
 
 SC_SEMA_BADFUNCDEF_DEF(UnknownLinkage,
                        Error,
-                       "Unknown linkage: \"" << definition()->externalLinkage()
-                                             << "\"")
+                       "Unknown linkage: \""
+                           << definition()->externalLinkage().value_or("")
+                           << "\"")
 
 SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported,
                        Error,

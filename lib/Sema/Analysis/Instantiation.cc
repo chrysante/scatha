@@ -257,8 +257,8 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     if (!result) {
         return;
     }
-    if (!def.externalLinkage().empty()) {
-        if (def.externalLinkage() != "C") {
+    if (def.externalLinkage()) {
+        if (*def.externalLinkage() != "C") {
             ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
         }
         else {

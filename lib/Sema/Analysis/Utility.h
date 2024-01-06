@@ -39,9 +39,12 @@ CompoundType const* nonTrivialLifetimeType(ObjectType const* type);
 
 /// Computes the access control of \p decl
 /// If \p decl has explicitly specified access control that value returned.
-/// TODO: Handle errors if explicitly specified access control is invalid
-/// Otherwise deduces the access control based on the context of \p decl
-AccessControl determineAccessControl(ast::Declaration const& decl);
+/// Otherwise returns `determineAccessControlByContext(scope)`
+AccessControl determineAccessControl(Scope const& scope,
+                                     ast::Declaration const& decl);
+
+///
+AccessControl determineAccessControlByContext(Scope const& scope);
 
 } // namespace scatha::sema
 

@@ -344,6 +344,9 @@ private:
     /// if \p entity is declared public in a filescope
     void addGlobalAliasIfInternalAtFilescope(Entity* entity);
 
+    /// \Pre expects \p entity to have access control
+    bool validateAccessControl(Entity const& entity);
+
     bool checkRedef(int kind,
                     std::string_view name,
                     ast::Declaration const* declaration,

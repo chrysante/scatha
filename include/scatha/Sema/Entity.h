@@ -689,8 +689,8 @@ protected:
                   ScopeKind scopeKind,
                   std::string name,
                   Scope* parent,
-                  ast::ASTNode* astNode = nullptr):
-        Scope(entityType, scopeKind, std::move(name), parent, astNode) {}
+                  ast::ASTNode* astNode,
+                  AccessControl accessControl);
 
 private:
     friend class Entity;
@@ -758,10 +758,8 @@ protected:
                         Scope* parent,
                         size_t size,
                         size_t align,
-                        ast::ASTNode* astNode = nullptr):
-        Type(entityType, scopeKind, std::move(name), parent, astNode),
-        _size(size),
-        _align(align) {}
+                        ast::ASTNode* astNode,
+                        AccessControl accessControl);
 
 private:
     friend class Type;
@@ -785,13 +783,8 @@ protected:
                          std::string name,
                          Scope* parentScope,
                          size_t size,
-                         size_t align):
-        ObjectType(entityType,
-                   ScopeKind::Type,
-                   std::move(name),
-                   parentScope,
-                   size,
-                   align) {}
+                         size_t align,
+                         AccessControl accessControl);
 };
 
 /// Concrete class representing type `void`
@@ -888,16 +881,7 @@ public:
                         ast::ASTNode* astNode,
                         size_t size,
                         size_t align,
-                        AccessControl accessControl):
-        CompoundType(EntityType::StructType,
-                     ScopeKind::Type,
-                     std::move(name),
-                     parentScope,
-                     size,
-                     align,
-                     astNode) {
-        setAccessControl(accessControl);
-    }
+                        AccessControl accessControl);
 
     /// The AST node that defines this type
     SC_ASTNODE_DERIVED(definition, StructDefinition)
@@ -1032,10 +1016,7 @@ class SCATHA_API OverloadSet:
 public:
     explicit OverloadSet(SourceRange loc,
                          std::string name,
-                         utl::small_vector<Function*> functions):
-        Entity(EntityType::OverloadSet, std::move(name), nullptr),
-        small_vector(std::move(functions)),
-        loc(loc) {}
+                         utl::small_vector<Function*> functions);
 
     OverloadSet(OverloadSet const&) = delete;
 

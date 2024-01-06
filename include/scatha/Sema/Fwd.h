@@ -126,16 +126,24 @@ SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
 
 ///
 enum class AccessControl : uint8_t {
-#define SC_SEMA_ACCESS_CONTROL_DEF(Kind) Kind,
+#define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling) Kind,
 #include <scatha/Sema/Lists.def>
 };
 
 ///
+SCATHA_API std::string_view toString(AccessControl accessControl);
+
+///
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    AccessControl accessControl);
+
+///
 inline constexpr AccessControl InvalidAccessControl = AccessControl(-1);
 
-/// Access control \p A is greater than access control \p B if more scopes have
-/// access to the declared entity, i.e. `Public` is greater than `Internal` and
-/// `Internal` is greater than `Private`
+/// Access control \p A is less than access control \p B if more scopes have
+/// access to the declared entity, i.e. `Public` is less than `Internal` and
+/// `Internal` is less than `Private`. So `A < B` can be thought of as `A` being
+/// less access-restricted than `B`
 inline std::strong_ordering operator<=>(AccessControl A, AccessControl B) {
     return (int)A <=> (int)B;
 }

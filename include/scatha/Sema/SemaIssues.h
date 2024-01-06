@@ -236,6 +236,17 @@ private:
 };
 
 ///
+class SCATHA_API BadAccessControl: public BadDecl {
+public:
+    enum Reason { TooWeakForParent };
+    SC_SEMA_ISSUE_REASON()
+
+    explicit BadAccessControl(Scope const* scope,
+                              Entity const* entity,
+                              Reason reason);
+};
+
+///
 class SCATHA_API BadReturnStmt: public BadStmt {
 public:
     enum Reason {

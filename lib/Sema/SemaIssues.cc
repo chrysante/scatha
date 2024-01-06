@@ -331,6 +331,25 @@ void BadSMF::format(std::ostream& str) const {
     }
 }
 
+BadAccessControl::BadAccessControl(Scope const* scope,
+                                   Entity const* entity,
+                                   Reason reason):
+    BadDecl(scope,
+            dyncast<ast::Declaration const*>(entity->astNode()),
+            IssueSeverity::Error),
+    _reason(reason) {
+    switch (reason) {
+    case TooWeakForParent:
+        header([=](std::ostream& str) { str << "Invalid access control"; });
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << "Access control '" << entity->accessControl()
+                << "' is too weak for '" << entity->parent()->accessControl()
+                << "' parent";
+        });
+        break;
+    }
+}
+
 static IssueSeverity toSeverity(BadReturnStmt::Reason reason) {
     switch (reason) {
 #define SC_SEMA_BADRETURN_DEF(reason, severity, _)                             \
