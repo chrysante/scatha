@@ -12,14 +12,20 @@ using namespace tfmt::modifiers;
 using namespace scatha;
 using namespace sema;
 
-utl::vstreammanip<> sema::format(Type const* type) {
+utl::vstreammanip<> sema::format(Entity const* entity) {
     return [=](std::ostream& str) {
-        if (!type) {
+        if (!entity) {
             str << "NULL";
             return;
         }
         // clang-format off
-        SC_MATCH(*type) {
+        SC_MATCH(*entity) {
+            [&](Entity const& entity) {
+                if (entity.isAnonymous()) {
+                    str << tfmt::format(Italic, "<anonymous>");
+                }
+                str << entity.name();
+            },
             [&](BuiltinType const& type) {
                 str << tfmt::format(Magenta | Bold, type.name());
             },
@@ -70,11 +76,11 @@ utl::vstreammanip<> sema::format(Type const* type) {
     };
 }
 
-void sema::print(Type const* type, std::ostream& str) {
-    str << format(type) << "\n";
+void sema::print(Entity const* entity, std::ostream& str) {
+    str << format(entity) << "\n";
 }
 
-void sema::print(Type const* type) { print(type, std::cout); }
+void sema::print(Entity const* entity) { print(entity, std::cout); }
 
 utl::vstreammanip<> sema::format(QualType type) { return format(type.get()); }
 

@@ -250,8 +250,16 @@ SC_SEMA_BADEXPR_DEF(MemberAccess,
 SC_SEMA_BADEXPR_DEF(MemberAccess,
                     MemAccTypeThroughValue,
                     Error,
-                    "Cannot access non-static member "
-                        << expr->member()->value() << " without an object")
+                    "Cannot access type " << expr->member()->value()
+                                          << " through an object")
+
+SC_SEMA_BADEXPR_DEF(
+    Identifier,
+    AccessDenied,
+    Error,
+    expr->value() << " is "
+                  << formatWithIndefArticle(expr->entity()->accessControl())
+                  << " member")
 
 SC_SEMA_BADEXPR_DEF(Conditional,
                     ConditionalNoCommonType,

@@ -570,6 +570,9 @@ TEST_CASE("Access control errors", "[sema]") {
 /*  7 */ }
 /*  8 */ public fn publicFunction(x: InternalType) {}
 /*  9 */ public fn publicFunction() { return InternalType(); }
+/* 10 */ struct Foo { private var p: int; }
+/* 11 */ fn accessFoo_p(foo: Foo) { foo.p; }
+/* 12 */ fn accessLocalVarInNestedScope(x: int) { { x; } }
 )");
     using enum BadAccessControl::Reason;
     CHECK(iss.findOnLine<BadAccessControl>(2, TooWeakForParent));
@@ -577,4 +580,6 @@ TEST_CASE("Access control errors", "[sema]") {
     CHECK(iss.findOnLine<BadAccessControl>(6, TooWeakForType));
     CHECK(iss.findOnLine<BadAccessControl>(8, TooWeakForType));
     CHECK(iss.findOnLine<BadAccessControl>(9, TooWeakForType));
+    CHECK(iss.findOnLine<BadExpr>(11, BadExpr::AccessDenied));
+    CHECK(iss.noneOnLine(12));
 }
