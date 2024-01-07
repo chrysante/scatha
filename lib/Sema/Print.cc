@@ -85,9 +85,15 @@ void sema::print(SymbolTable const& symbolTable, std::ostream& ostream) {
 }
 
 void PrintContext::print(Entity const& entity) {
-    str << formatter.beginLine() << name(entity) << " "
-        << tfmt::format(tfmt::BrightGrey, "[", entity.entityType(), "]")
-        << "\n";
+    str << formatter.beginLine() << name(entity) << " ";
+    tfmt::format(tfmt::BrightGrey, str, [&] {
+        str << "[";
+        if (entity.hasAccessControl()) {
+            str << entity.accessControl() << " ";
+        }
+        str << entity.entityType() << "]";
+    });
+    str << "\n";
     auto children = [&] {
         using SetType = utl::hashset<Entity const*>;
         if (auto* scope = dyncast<Scope const*>(&entity)) {

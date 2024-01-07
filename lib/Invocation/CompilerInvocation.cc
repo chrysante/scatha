@@ -221,7 +221,7 @@ int CompilerInvocation::run() {
     case TargetType::StaticLibrary: {
         if (guardFileEmission("static lib")) {
             auto symfile = createFile(appendExt(outputFile, "scsym"));
-            sema::serialize(semaSym, symfile);
+            sema::serializeLibrary(semaSym, symfile);
             auto irfile = createFile(appendExt(outputFile, "scir"));
             ir::print(mod, irfile);
         }

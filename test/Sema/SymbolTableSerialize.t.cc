@@ -60,7 +60,7 @@ public struct Empty {}
 )");
     REQUIRE(iss.empty());
     std::stringstream sstr;
-    serialize(sym, sstr);
+    serializeLibrary(sym, sstr);
     SymbolTable sym2;
     deserialize(sym2, sstr);
     Finder find{ sym2 };
