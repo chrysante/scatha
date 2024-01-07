@@ -19,7 +19,7 @@ using utl::visit;
 /// Convenience macro for 'match' expressions
 #define SC_MATCH(...)                                                          \
     ::scatha::internal::Matcher(                                               \
-        ::scatha::internal::Tag<utl::dc::DeduceReturnType>{},                  \
+        ::scatha::internal::Tag<utl::dc::DeduceReturnTypeTag>{},               \
         __VA_ARGS__)                                                           \
             ->*utl::overload
 
@@ -34,14 +34,10 @@ struct Tag {};
 
 template <typename R, typename... T>
 struct Matcher {
-    template <typename... U>
-    explicit Matcher(Tag<R>, U&&... t): t(t...) {}
+    explicit Matcher(Tag<R>, T&... t): t(t...) {}
 
     std::tuple<T&...> t;
 };
-
-template <typename R, typename... T>
-Matcher(Tag<R>, T&&...) -> Matcher<R, std::remove_reference_t<T>...>;
 
 template <typename R, typename... T, typename... F>
 decltype(auto) operator->*(Matcher<R, T...> m, utl::overload<F...> const& f) {
@@ -57,6 +53,24 @@ decltype(auto) operator->*(Matcher<R, T...> m, utl::overload<F...>&& f) {
     return std::apply([&](auto&&... t) -> decltype(auto) {
         return visit<R>(t..., std::move(f));
     }, m.t); // clang-format on
+}
+
+/// Special case for one argument where we avoid `std::tuple` and `std::apply`
+template <typename R, typename T>
+struct Matcher<R, T> {
+    explicit Matcher(Tag<R>, T& t): t(t) {}
+
+    T& t;
+};
+
+template <typename R, typename T, typename... F>
+decltype(auto) operator->*(Matcher<R, T> m, utl::overload<F...> const& f) {
+    return visit<R>(m.t, f);
+}
+
+template <typename R, typename T, typename... F>
+decltype(auto) operator->*(Matcher<R, T> m, utl::overload<F...>&& f) {
+    return visit<R>(m.t, f);
 }
 
 } // namespace scatha::internal
