@@ -453,9 +453,7 @@ struct Serializer {
         }
     }
 
-    void serializeImpl(json& j, Library const& lib) {
-        j["libname"] = lib.libName();
-    }
+    void serializeImpl(json&, Library const&) {}
 
     void serializeImpl(json&, Entity const&) { SC_UNREACHABLE(); }
 
@@ -805,8 +803,8 @@ struct Deserializer: TypeMapBase {
 
     ///
     void parseImpl(Tag<ForeignLibrary>, json const& obj) {
-        auto libname = get<std::string>(obj, "libname");
-        sym.importForeignLib(libname);
+        auto name = get<std::string>(obj, "_name");
+        sym.importForeignLib(name);
     }
 
     /// Performs a DFS over the JSON array and declares all encountered entities

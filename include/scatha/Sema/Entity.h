@@ -427,31 +427,19 @@ public:
 
 /// Abstract base class of `NativeLibrary` and `ForeignLibrary`
 class SCATHA_API Library: public Scope {
-public:
-    /// \Returns the name that identifies the library
-    /// This differs from the entity name because we generally declare libraries
-    /// as anonymous
-    std::string const& libName() const { return _libName; }
-
 protected:
-    explicit Library(EntityType entityType,
-                     std::string name,
-                     std::string libName,
-                     Scope* parent);
+    explicit Library(EntityType entityType, std::string name, Scope* parent);
 
 private:
     friend class Entity;
 
     EntityCategory categoryImpl() const { return EntityCategory::Namespace; }
-
-    std::string _libName;
 };
 
 /// Scope of symbols imported from a library
 class SCATHA_API NativeLibrary: public Library {
 public:
     explicit NativeLibrary(std::string name,
-                           std::string libName,
                            std::filesystem::path codeFile,
                            Scope* parent);
 
@@ -467,7 +455,6 @@ private:
 class SCATHA_API ForeignLibrary: public Library {
 public:
     explicit ForeignLibrary(std::string name,
-                            std::string libName,
                             std::filesystem::path file,
                             Scope* parent);
 

@@ -244,10 +244,8 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
         }
         return nullptr;
     }
-    auto* lib = impl.addEntity<ForeignLibrary>(std::string{},
-                                               libname,
-                                               *path,
-                                               &sym.globalScope());
+    auto* lib =
+        impl.addEntity<ForeignLibrary>(libname, *path, &sym.globalScope());
     /// Temporary measure, because only public symbols are serialized
     lib->setAccessControl(AccessControl::Public);
     /// We add foreign libraries to the global scope because this makes
@@ -283,13 +281,12 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
         impl.issue<BadImport>(node, BadImport::LibraryNotFound);
         return nullptr;
     }
-    /// We declare the library without parent scope. Scopes that want to use the
-    /// library have to create an alias to it.
-    auto* lib = impl.addEntity<NativeLibrary>(std::string{},
-                                              libname,
-                                              irPath,
-                                              &sym.globalScope());
+    auto* lib =
+        impl.addEntity<NativeLibrary>(libname, irPath, &sym.globalScope());
     sym.globalScope().addChild(lib);
+    /// We hide all libraries in the global scope. Scopes that want to use the
+    /// library have to create an alias to it.
+    lib->setVisible(false);
     impl.importedLibs.push_back(lib);
     impl.nativeLibMap.insert({ libname, lib });
     std::fstream symFile(*symPath);

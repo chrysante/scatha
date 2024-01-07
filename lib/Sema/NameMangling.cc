@@ -27,7 +27,7 @@ struct Impl {
                 return { options.globalPrefix, false };
             },
             [&](NativeLibrary const& lib) -> RetType {
-                return { lib.libName(), false };
+                return { std::string(lib.name()), false };
             },
             [&](Entity const& entity) -> RetType {
                 return { std::string(entity.name()), true };

@@ -68,10 +68,6 @@ struct PrintContext {
         return [](std::ostream& str) { str << "Global Scope"; };
     }
 
-    utl::vstreammanip<> nameImpl(Library const* lib) {
-        return [=](std::ostream& str) { str << lib->libName(); };
-    }
-
     std::ostream& str;
     SymbolTable const& sym;
     TreeFormatter formatter;
