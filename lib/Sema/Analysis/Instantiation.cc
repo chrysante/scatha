@@ -115,8 +115,8 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     /// table and we gather the dependencies of variable declarations in
     /// structs. This must be done before sorting the dependency graph.
     auto dataMembers = dependencyGraph | ranges::views::filter([](auto& node) {
-                           return isa<Variable>(node.entity);
-                       });
+        return isa<Variable>(node.entity);
+    });
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
         auto* type = sym.withScopeCurrent(node.entity->parent(), [&] {
@@ -133,17 +133,16 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
                    ranges::to<utl::small_vector<u16>>;
-    auto const cycle =
-        utl::find_cycle(indices.begin(),
-                        indices.end(),
-                        [&](size_t index) -> auto const& {
-                            return dependencyGraph[index].dependencies;
-                        });
+    auto const cycle = utl::find_cycle(indices.begin(),
+                                       indices.end(),
+                                       [&](size_t index) -> auto const& {
+        return dependencyGraph[index].dependencies;
+    });
     if (!cycle.empty()) {
         auto entities = cycle | ranges::views::transform(
                                     [&](size_t index) -> Entity const* {
-                                        return dependencyGraph[index].entity;
-                                    });
+            return dependencyGraph[index].entity;
+        });
         ctx.issue<StructDefCycle>(entities | ranges::to<std::vector>);
         return {};
     }
@@ -154,8 +153,8 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     utl::topsort(dependencyTraversalOrder.begin(),
                  dependencyTraversalOrder.end(),
                  [&](size_t index) -> auto const& {
-                     return dependencyGraph[index].dependencies;
-                 });
+        return dependencyGraph[index].dependencies;
+    });
     std::vector<StructType const*> sortedStructTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
@@ -314,9 +313,8 @@ FunctionType const* InstContext::analyzeSignature(
     ast::FunctionDefinition& decl, Type const* returnType) const {
     auto argumentTypes = decl.parameters() |
                          ranges::views::transform([&](auto* param) {
-                             return analyzeParam(*param);
-                         }) |
-                         ToSmallVector<>;
+        return analyzeParam(*param);
+    }) | ToSmallVector<>;
     /// If the return type is not specified it will be deduced during function
     /// analysis
     if (!returnType && decl.returnTypeExpr()) {

@@ -1121,9 +1121,8 @@ OptValue IRParser::parseValue(Type const* type) {
     case TokenKind::StringLiteral: {
         auto text = toEscapedValue(token.id());
         auto elems = text | ranges::views::transform([&](char c) -> Constant* {
-                         return ctx.intConstant(static_cast<unsigned>(c), 8);
-                     }) |
-                     ToSmallVector<>;
+            return ctx.intConstant(static_cast<unsigned>(c), 8);
+        }) | ToSmallVector<>;
         auto* arrayType = dyncast<ArrayType const*>(type);
         if (!arrayType || arrayType->elementType() != ctx.intType(8) ||
             arrayType->count() != elems.size())
@@ -1220,9 +1219,8 @@ void IRParser::postProcess() {
                 auto sortedArgs =
                     BB.predecessors() |
                     ranges::views::transform([&](BasicBlock* pred) {
-                        return PhiMapping{ pred, phi.operandOf(pred) };
-                    }) |
-                    ToSmallVector<>;
+                    return PhiMapping{ pred, phi.operandOf(pred) };
+                }) | ToSmallVector<>;
                 phi.setArguments(sortedArgs);
             }
         }

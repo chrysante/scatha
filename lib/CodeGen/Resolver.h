@@ -159,7 +159,7 @@ R* Resolver::genCopy(R* dest,
                     numBytes,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, metadata));
-        });
+    });
     /// We `static_cast` and not `cast` because `result` is not a valid pointer
     /// but a pointer one past the end
     return static_cast<R*>(result);
@@ -177,7 +177,7 @@ R* Resolver::genCondCopy(R* dest,
                     numBytes,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, condition, metadata));
-        });
+    });
     /// See `static_cast` in `genCopy()`
     return static_cast<R*>(result);
 }

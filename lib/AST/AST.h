@@ -62,7 +62,7 @@
 
 #define AST_DERIVED_COMMON(Type)                                               \
     UniquePtr<Type> extractFromParent() {                                      \
-        auto* node = this->ASTNode::extractFromParent().release();             \
+        auto* node = this -> ASTNode::extractFromParent().release();           \
         return UniquePtr<Type>(cast<Type*>(node));                             \
     }
 

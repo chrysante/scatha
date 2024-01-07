@@ -129,8 +129,8 @@ void LivenessContext::loopTree(LNFNode const* node) {
     }
 }
 
-static constexpr auto PhiUseFilter = ranges::views::filter(
-                                         [](Value const& value) {
+static constexpr auto PhiUseFilter =
+    ranges::views::filter([](Value const& value) {
     return ranges::any_of(value.users(),
                           [](auto* user) { return isa<Phi>(user); });
 }) | TakeAddress;

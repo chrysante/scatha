@@ -15,8 +15,8 @@
 using namespace scatha;
 using namespace Asm;
 
-static constexpr utl::streammanip instName =
-    [](std::ostream& str, auto const&... args) {
+static constexpr utl::streammanip instName = [](std::ostream& str,
+                                                auto const&... args) {
     int const instNameWidth = 8;
     str << "  " << std::setw(instNameWidth) << std::left
         << utl::strcat(args...);

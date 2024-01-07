@@ -335,10 +335,10 @@ public:
     /// \pre `linearize()` must have been called
     auto linearInstructions() {
         return programPoints() | ranges::views::filter([](auto v) {
-                   return std::holds_alternative<Instruction*>(v);
-               }) |
-               ranges::views::transform(
-                   [](auto v) { return std::get<Instruction*>(v); });
+            return std::holds_alternative<Instruction*>(v);
+        }) | ranges::views::transform([](auto v) {
+            return std::get<Instruction*>(v);
+        });
     }
 
     /// \Returns The visibility of this function, i.e. `extern` or `static`

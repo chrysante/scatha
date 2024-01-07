@@ -60,9 +60,8 @@ static std::variant<int, ORMatchError, std::monostate> signatureMatch(
 /// because this comes up several times
 static auto makeArgTypes(std::span<ast::Expression const* const> arguments) {
     return arguments | ranges::views::transform([](auto* expr) {
-               return std::pair{ expr->type(), expr->valueCategory() };
-           }) |
-           ranges::to<std::vector>;
+        return std::pair{ expr->type(), expr->valueCategory() };
+    }) | ranges::to<std::vector>;
 }
 
 OverloadResolutionResult sema::performOverloadResolution(
@@ -128,9 +127,9 @@ OverloadResolutionResult sema::performOverloadResolution(
 
     /// Ambiguous call
     auto functions = results |
-                     ranges::views::transform(
-                         [](auto& r) -> auto const* { return r.function; }) |
-                     ranges::to<std::vector>;
+                     ranges::views::transform([](auto& r) -> auto const* {
+        return r.function;
+    }) | ranges::to<std::vector>;
     return OverloadResolutionResult{
         .error = std::make_unique<ORError>(
             ORError::makeAmbiguous(parentExpr,

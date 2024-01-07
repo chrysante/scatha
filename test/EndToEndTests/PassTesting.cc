@@ -58,9 +58,8 @@ static void validateEmpty(std::span<SourceFile const> sources,
 static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
     IssueHandler issues;
     auto sourceFiles = sourceTexts | ranges::views::transform([](auto& text) {
-                           return SourceFile::make(std::move(text));
-                       }) |
-                       ranges::to<std::vector>;
+        return SourceFile::make(std::move(text));
+    }) | ranges::to<std::vector>;
     auto ast = parser::parse(sourceFiles, issues);
     validateEmpty(sourceFiles, issues);
     sema::SymbolTable sym;

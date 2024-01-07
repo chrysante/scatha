@@ -175,11 +175,11 @@ void LivenessContext::loopTree(ir::LNFNode const* node) {
 
 static constexpr auto PhiUseFilter =
     ranges::views::filter([](Register const* reg) -> bool {
-        if (!reg) {
-            return false;
-        }
-        return ranges::any_of(reg->uses(), isa<PhiInst>);
-    });
+    if (!reg) {
+        return false;
+    }
+    return ranges::any_of(reg->uses(), isa<PhiInst>);
+});
 
 static constexpr auto Dests =
     ranges::views::transform([](Instruction& inst) { return inst.dest(); });

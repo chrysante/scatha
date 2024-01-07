@@ -56,10 +56,10 @@ void optimize(ir::Context& ctx, ir::Module& mod, OptionsBase const& options);
 void printLinkerError(Asm::LinkerError const& error);
 
 ///
-extern const utl::vstreammanip<> Warning;
+extern utl::vstreammanip<> const Warning;
 
 ///
-extern const utl::vstreammanip<> Error;
+extern utl::vstreammanip<> const Error;
 
 } // namespace scatha
 

@@ -33,7 +33,7 @@
 #error Need either SC_APIEXPORT or SC_APIIMPORT defined
 #endif // APIIMPORT / APIEXPORT
 
-#else  // Compiler specific
+#else // Compiler specific
 #error Unsupported compiler
 #endif
 
@@ -91,7 +91,7 @@
     (::scatha::internal::unreachable(__FILE__, __LINE__, SC_PRETTY_FUNC),      \
      SC_DEBUGFAIL_IMPL())
 
-#else  // SC_DEBUG
+#else // SC_DEBUG
 #define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
 #endif // SC_DEBUG
 
@@ -120,7 +120,7 @@
                                                     #COND,                     \
                                                     MSG),                      \
                SC_DEBUGFAIL_IMPL()))
-#else  // SC_DEBUG
+#else // SC_DEBUG
 #define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
 #endif // SC_DEBUG
 

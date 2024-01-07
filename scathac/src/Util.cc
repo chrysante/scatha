@@ -52,9 +52,8 @@ std::optional<ScathaData> scatha::parseScatha(
 std::optional<ScathaData> scatha::parseScatha(OptionsBase const& options) {
     auto sourceFiles = options.files |
                        ranges::views::transform([](auto const& path) {
-                           return SourceFile::load(path);
-                       }) |
-                       ranges::to<std::vector>;
+        return SourceFile::load(path);
+    }) | ranges::to<std::vector>;
     return parseScatha(sourceFiles, options.libSearchPaths);
 }
 
@@ -111,10 +110,10 @@ void scatha::printLinkerError(Asm::LinkerError const& error) {
     }
 }
 
-extern const utl::vstreammanip<> scatha::Warning = [](std::ostream& str) {
+extern utl::vstreammanip<> const scatha::Warning = [](std::ostream& str) {
     str << tfmt::format(tfmt::Yellow | tfmt::Bold, "Warning: ");
 };
 
-extern const utl::vstreammanip<> scatha::Error = [](std::ostream& str) {
+extern utl::vstreammanip<> const scatha::Error = [](std::ostream& str) {
     str << tfmt::format(tfmt::Red | tfmt::Bold, "Error: ");
 };

@@ -56,7 +56,7 @@ static bool isTrivial(sema::Type const* type) {
     return type->hasTrivialLifetime();
 }
 
-static const size_t maxRegPassingSize = 16;
+static size_t const maxRegPassingSize = 16;
 
 static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
     if (isFatPointer(type)) {

@@ -204,8 +204,8 @@ Expected<Token, LexicalIssue> Lexer::next() {
         }
         if ((*first == 'i' || *first == 'f') &&
             ranges::all_of(first + 1, i, [](char c) {
-                return std::isdigit(c);
-            }))
+            return std::isdigit(c);
+        }))
         {
             char* strEnd = nullptr;
             long const width = std::strtol(first + 1, &strEnd, 10);

@@ -191,8 +191,8 @@ static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
     using enum SpecialLifetimeFunction;
     return !SLF[CopyConstructor] && !SLF[MoveConstructor] && !SLF[Destructor] &&
            ranges::all_of(type.memberVariables(), [](auto* var) {
-               return !var->type() || var->type()->hasTrivialLifetime();
-           });
+        return !var->type() || var->type()->hasTrivialLifetime();
+    });
 }
 
 static bool allMembersHave(StructType& type, SpecialLifetimeFunction fn) {
@@ -222,26 +222,26 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
     type.setHasTrivialLifetime(hasTrivialLifetime);
     if (isDefaultConstructible && !SLF[DefaultConstructor]) {
         /// We generate the default constructor if it is necessary and possible
-        bool anyMemberHasUserDefinedDefCtor = ranges::any_of(type.members(),
-                                                             [](auto* type) {
+        bool anyMemberHasUserDefinedDefCtor =
+            ranges::any_of(type.members(), [](auto* type) {
             auto* objType = cast<ObjectType const*>(type);
             return objType &&
                    objType->specialLifetimeFunction(DefaultConstructor);
         });
         bool allMembersAreDefaultConstructible =
             ranges::all_of(type.members(), [&](auto* type) {
-                auto* objType = cast<ObjectType const*>(type);
-                if (!objType) {
-                    return true;
-                }
-                if (objType->hasTrivialLifetime() &&
-                    objType->specialMemberFunctions(New).empty())
-                {
-                    return true;
-                }
-                return objType->specialLifetimeFunction(DefaultConstructor) !=
-                       nullptr;
-            });
+            auto* objType = cast<ObjectType const*>(type);
+            if (!objType) {
+                return true;
+            }
+            if (objType->hasTrivialLifetime() &&
+                objType->specialMemberFunctions(New).empty())
+            {
+                return true;
+            }
+            return objType->specialLifetimeFunction(DefaultConstructor) !=
+                   nullptr;
+        });
         if (anyMemberHasUserDefinedDefCtor && allMembersAreDefaultConstructible)
         {
             SLF[DefaultConstructor] =

@@ -967,10 +967,9 @@ static Value* maxElement(utl::hashmap<Value*, size_t> const& baseCount) {
     if (baseCount.empty()) {
         return nullptr;
     }
-    return ranges::max_element(baseCount,
-                               ranges::less{},
-                               [](auto& p) { return p.second; })
-        ->first;
+    return ranges::max_element(baseCount, ranges::less{}, [](auto& p) {
+        return p.second;
+    })->first;
 }
 
 static Value* mostUsedChildrenBase(AccessTree* node) {
@@ -1091,8 +1090,8 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
         return insertInst->baseValue();
     }
     if (ranges::all_of(insertInst->users(), [](Instruction* user) {
-            return isa<InsertValue>(user) || isa<ExtractValue>(user);
-        }))
+        return isa<InsertValue>(user) || isa<ExtractValue>(user);
+    }))
     {
         return nullptr;
     }

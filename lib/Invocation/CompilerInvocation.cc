@@ -34,11 +34,11 @@
 
 using namespace scatha;
 
-static const utl::vstreammanip<> Warning = [](std::ostream& str) {
+static utl::vstreammanip<> const Warning = [](std::ostream& str) {
     str << tfmt::format(tfmt::Yellow | tfmt::Bold, "Warning: ");
 };
 
-static const utl::vstreammanip<> Error = [](std::ostream& str) {
+static utl::vstreammanip<> const Error = [](std::ostream& str) {
     str << tfmt::format(tfmt::Red | tfmt::Bold, "Error: ");
 };
 

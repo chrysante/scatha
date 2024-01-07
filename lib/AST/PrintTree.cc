@@ -254,9 +254,8 @@ end:
 
     void printChildrenImpl(auto&& c) {
         auto children = c | ranges::views::filter([](auto* child) {
-                            return child != nullptr;
-                        }) |
-                        ToSmallVector<>;
+            return child != nullptr;
+        }) | ToSmallVector<>;
         for (auto [index, child]: children | ranges::views::enumerate) {
             formatter.push(index != children.size() - 1 ? Level::Child :
                                                           Level::LastChild);

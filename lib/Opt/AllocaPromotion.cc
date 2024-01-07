@@ -309,9 +309,8 @@ void VariableInfo::insertPhis() {
             auto* undefVal = ctx.undef(type);
             auto phiArgs = y->predecessors() |
                            ranges::views::transform([&](BasicBlock* pred) {
-                               return PhiMapping(pred, undefVal);
-                           }) |
-                           ToSmallVector<>;
+                return PhiMapping(pred, undefVal);
+            }) | ToSmallVector<>;
             /// Name will be set later in `genName()`
             auto* phi = new Phi(std::move(phiArgs), std::string{});
             y->pushFront(phi);

@@ -252,9 +252,8 @@ ArrayConstant* Context::arrayConstant(std::span<ir::Constant* const> elems,
 ArrayConstant* Context::stringLiteral(std::string_view text) {
     auto* type = arrayType(intType(8), text.size());
     auto elems = text | ranges::views::transform([&](char c) -> Constant* {
-                     return intConstant(static_cast<unsigned>(c), 8);
-                 }) |
-                 ToSmallVector<>;
+        return intConstant(static_cast<unsigned>(c), 8);
+    }) | ToSmallVector<>;
     return arrayConstant(elems, type);
 }
 

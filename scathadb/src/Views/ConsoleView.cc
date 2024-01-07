@@ -16,9 +16,9 @@ using namespace ftxui;
 
 static std::vector<std::string> lines(std::string_view text) {
     return ranges::views::split(text, '\n') |
-           ranges::views::transform(
-               [](auto const& rng) { return rng | ranges::to<std::string>; }) |
-           ranges::to<std::vector>;
+           ranges::views::transform([](auto const& rng) {
+        return rng | ranges::to<std::string>;
+    }) | ranges::to<std::vector>;
 }
 
 static size_t computeHash(std::string_view text) {

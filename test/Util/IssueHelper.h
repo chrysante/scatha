@@ -20,8 +20,8 @@ struct IssueHelper {
     template <typename T>
     T const* findOnLine(
         ssize_t line, utl::function_view<bool(T const*)> filter = [](auto*) {
-            return true;
-        }) const {
+        return true;
+    }) const {
         for (auto* issueBase: iss) {
             auto* issue = dynamic_cast<T const*>(issueBase);
             if (!issue || !filter(issue)) {
@@ -75,8 +75,8 @@ inline IssueHelper getSemaIssues(std::string_view source,
 inline IssueHelper getSemaIssues(std::vector<std::string> sources,
                                  sema::AnalysisOptions const& options = {}) {
     return getSemaIssues(sources | ranges::views::transform([](auto& str) {
-                             return SourceFile::make(std::move(str));
-                         }) | ranges::to<std::vector>,
+        return SourceFile::make(std::move(str));
+    }) | ranges::to<std::vector>,
                          options);
 }
 

@@ -490,11 +490,10 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
         /// Eat a few tokens and see if we can find a compound statement.
         /// 5 is pretty arbitrary here.
-        bool recovered =
-            recover(std::pair(Semicolon, [&] { return true; }),
-                    std::pair(OpenBrace, [&] {
-                        return bool(body = parseCompoundStatement());
-                    }));
+        bool recovered = recover(std::pair(Semicolon, [&] { return true; }),
+                                 std::pair(OpenBrace, [&] {
+            return bool(body = parseCompoundStatement());
+        }));
         if (!recovered) {
             return nullptr;
         }

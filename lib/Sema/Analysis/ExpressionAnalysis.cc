@@ -927,9 +927,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// a conversion node
     if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
         auto args = fc.arguments() | ranges::views::transform([](auto* arg) {
-                        return arg->extractFromParent();
-                    }) |
-                    ToSmallVector<>;
+            return arg->extractFromParent();
+        }) | ToSmallVector<>;
         auto owner = allocate<ast::ConstructExpr>(std::move(args),
                                                   targetType,
                                                   fc.sourceRange());

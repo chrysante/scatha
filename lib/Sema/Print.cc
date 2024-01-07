@@ -91,10 +91,9 @@ void PrintContext::print(Entity const& entity) {
     auto children = [&] {
         using SetType = utl::hashset<Entity const*>;
         if (auto* scope = dyncast<Scope const*>(&entity)) {
-            auto children =
-                scope->entities() |
-                filter([](auto* entity) { return !entity->isBuiltin(); }) |
-                ranges::to<utl::hashset<Entity const*>>;
+            auto children = scope->entities() | filter([](auto* entity) {
+                return !entity->isBuiltin();
+            }) | ranges::to<utl::hashset<Entity const*>>;
             for (auto* entity: scope->children()) {
                 if (isa<Function>(entity) || entity->isBuiltin()) {
                     continue;

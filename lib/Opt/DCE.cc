@@ -102,9 +102,8 @@ bool DCEContext::run() {
         worklist.erase(worklist.begin());
         auto liveUnmarked = inst->operands() | Filter<Instruction> |
                             ranges::views::filter([&](auto* inst) {
-                                return !marked.contains(inst);
-                            }) |
-                            ToSmallVector<>;
+            return !marked.contains(inst);
+        }) | ToSmallVector<>;
         for (auto* inst: liveUnmarked) {
             mark(inst);
         }

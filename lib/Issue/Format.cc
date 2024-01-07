@@ -20,12 +20,10 @@ using namespace tfmt::modifiers;
 static std::vector<std::string_view> splitText(std::string_view text,
                                                char delim) {
     return ranges::views::split(text, delim) |
-           ranges::views::transform(
-               [](auto&& r) {
+           ranges::views::transform([](auto&& r) {
         return std::string_view(&*r.begin(),
                                 utl::narrow_cast<size_t>(ranges::distance(r)));
-           }) |
-        ranges::to<std::vector>;
+    }) | ranges::to<std::vector>;
 }
 
 SourceStructure::SourceStructure(std::string filename, std::string_view text):
@@ -36,15 +34,15 @@ IssueMessage::IssueMessage(std::string msg):
 
 static constexpr size_t LineNumChars = 6;
 
-static constexpr utl::streammanip blank =
-    [](std::ostream& str, size_t numChars) {
+static constexpr utl::streammanip blank = [](std::ostream& str,
+                                             size_t numChars) {
     for (size_t i = 0; i < numChars; ++i) {
         str << ' ';
     }
 };
 
-static constexpr utl::streammanip lineNumber =
-    [](std::ostream& str, ssize_t index) {
+static constexpr utl::streammanip lineNumber = [](std::ostream& str,
+                                                  ssize_t index) {
     if (index >= 0) {
         /// \Warning This must print exactly `LineNumChars` many characters
         str << tfmt::format(BrightGrey, utl::strcat(std::setw(4), index, ": "));

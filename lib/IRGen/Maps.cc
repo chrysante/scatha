@@ -101,8 +101,8 @@ static std::string scopedName(sema::Entity const& entity) {
     return name;
 }
 
-static constexpr utl::streammanip printObject =
-    [](std::ostream& str, sema::Object const& obj) {
+static constexpr utl::streammanip printObject = [](std::ostream& str,
+                                                   sema::Object const& obj) {
     // clang-format off
     SC_MATCH (obj) {
         [&](sema::Object const& obj) {

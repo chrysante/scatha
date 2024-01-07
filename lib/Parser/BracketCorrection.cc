@@ -138,16 +138,15 @@ std::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
     ssize_t const count = stackContainer.end() - stackItr;
     /// Insert all missing closing brackets, i.e. all brackets matchings the
     /// open ones past and push errors.
-    auto insertRange =
-        stackContainer | ranges::views::reverse | ranges::views::take(count) |
-        ranges::views::transform([&](Bracket bracket) {
-            issues.push<ExpectedClosingBracket>(*tokenItr);
-            Bracket const newBracket = { bracket.type, Bracket::Side::Close };
-            return Token(toString(newBracket),
-                         toTokenKind(newBracket),
-                         tokenItr->sourceRange());
-        }) |
-        ranges::views::common;
+    auto insertRange = stackContainer | ranges::views::reverse |
+                       ranges::views::take(count) |
+                       ranges::views::transform([&](Bracket bracket) {
+        issues.push<ExpectedClosingBracket>(*tokenItr);
+        Bracket const newBracket = { bracket.type, Bracket::Side::Close };
+        return Token(toString(newBracket),
+                     toTokenKind(newBracket),
+                     tokenItr->sourceRange());
+    }) | ranges::views::common;
     auto const resultItr = tokens.insert(tokenItr,
                                          ranges::begin(insertRange),
                                          ranges::end(insertRange));

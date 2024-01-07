@@ -81,13 +81,12 @@ static void mapLibSymbols(
 static void checkParserIssues(std::span<ir::ParseIssue const> issues,
                               std::string_view libName) {
     auto fatal = issues | filter([](ir::ParseIssue const& issue) {
-                     if (!std::holds_alternative<ir::SemanticIssue>(issue)) {
-                         return true;
-                     }
-                     return std::get<ir::SemanticIssue>(issue).reason() !=
-                            ir::SemanticIssue::Redeclaration;
-                 }) |
-                 ToSmallVector<>;
+        if (!std::holds_alternative<ir::SemanticIssue>(issue)) {
+            return true;
+        }
+        return std::get<ir::SemanticIssue>(issue).reason() !=
+               ir::SemanticIssue::Redeclaration;
+    }) | ToSmallVector<>;
     if (fatal.empty()) {
         return;
     }

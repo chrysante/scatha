@@ -586,9 +586,8 @@ struct DeserializeContext: TypeMapBase {
     void parseImpl(Tag<Function>, json const& obj) {
         auto argTypes = get(obj, "argument_types") |
                         transform([&](json const& j) {
-                            return parseTypename(sym, j.get<std::string>());
-                        }) |
-                        ToSmallVector<>;
+            return parseTypename(sym, j.get<std::string>());
+        }) | ToSmallVector<>;
         auto* retType =
             parseTypename(sym, get<std::string>(obj, "return_type"));
         auto* function =

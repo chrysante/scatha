@@ -206,8 +206,8 @@ void TREContext::generateLoopHeader() {
     function.pushFront(newEntry);
 
     std::array entryRng = { newEntry };
-    auto retBlocks = viableReturns | ranges::views::transform(
-                                         [](ViableReturn const& ret) {
+    auto retBlocks = viableReturns |
+                     ranges::views::transform([](ViableReturn const& ret) {
         return std::visit([](auto& ret) { return ret.retInst->parent(); }, ret);
     });
     auto preds = ranges::views::concat(entryRng, retBlocks) | ToSmallVector<16>;
@@ -218,8 +218,8 @@ void TREContext::generateLoopHeader() {
     /// The next arguments will be the corresponding argument of the recursive
     /// calls.
     std::array entryArg = { PhiMapping{ newEntry, nullptr } };
-    auto otherArgs = viableReturns | ranges::views::transform(
-                                         [](ViableReturn const& ret) {
+    auto otherArgs = viableReturns |
+                     ranges::views::transform([](ViableReturn const& ret) {
         return PhiMapping{
             std::visit([](auto& ret) { return ret.retInst->parent(); }, ret),
             nullptr
