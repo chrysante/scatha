@@ -15,6 +15,7 @@
 using namespace scatha;
 using namespace sema;
 using namespace ranges::views;
+using namespace tfmt::modifiers;
 
 void sema::print(SymbolTable const& symbolTable) {
     print(symbolTable, std::cout);
@@ -85,8 +86,12 @@ void sema::print(SymbolTable const& symbolTable, std::ostream& ostream) {
 }
 
 void PrintContext::print(Entity const& entity) {
-    str << formatter.beginLine() << name(entity) << " ";
-    tfmt::format(tfmt::BrightGrey, str, [&] {
+    str << formatter.beginLine();
+    if (!entity.isVisible()) {
+        str << tfmt::format(BrightGrey, "[hidden]") << " ";
+    }
+    str << name(entity) << " ";
+    tfmt::format(BrightGrey, str, [&] {
         str << "[";
         if (entity.hasAccessControl()) {
             str << entity.accessControl() << " ";

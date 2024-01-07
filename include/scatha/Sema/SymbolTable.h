@@ -277,10 +277,15 @@ public:
     /// All entities
     std::vector<Entity const*> entities() const;
 
-    /// Find entities by name starting in the current scope and subsequently
-    /// searching all parent scopes.
-    /// TODO: Better document this behaviour
-    utl::small_vector<Entity*> unqualifiedLookup(std::string_view name);
+    /// Find entities with name \p name starting in the current scope and
+    /// subsequently searching all parent scopes. If the first found entity is a
+    /// function, an overload set will be build from the function in the
+    /// currently searched scope and the parent scopes. If the first found
+    /// entity is not a function, all entities from the currently searched scope
+    /// will be returned If \p findHiddenEntities is true, also invisible
+    /// entities will be found
+    utl::small_vector<Entity*> unqualifiedLookup(
+        std::string_view name, bool findHiddenEntities = false);
 
     /// Set the issue handler for this symbol table.
     /// Setting the issue handler is necessary for making declarations.

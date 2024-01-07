@@ -131,13 +131,30 @@ Scope::Scope(EntityType entityType,
              ast::ASTNode* astNode):
     Entity(entityType, std::move(name), parent, astNode), _kind(kind) {}
 
-std::span<Entity const* const> Scope::findEntities(
-    std::string_view name) const {
-    auto const itr = _names.find(name);
-    if (itr != _names.end()) {
-        return itr->second;
+utl::small_ptr_vector<Entity*> Scope::findEntities(std::string_view name,
+                                                   bool findHidden) {
+    return findEntitiesImpl<Entity>(this, name, findHidden);
+}
+
+utl::small_ptr_vector<Entity const*> Scope::findEntities(
+    std::string_view name, bool findHidden) const {
+    return findEntitiesImpl<Entity const>(this, name, findHidden);
+}
+
+template <typename E, typename S>
+utl::small_ptr_vector<E*> Scope::findEntitiesImpl(S* self,
+                                                  std::string_view name,
+                                                  bool findHidden) {
+    auto const itr = self->_names.find(name);
+    if (itr == self->_names.end()) {
+        return {};
     }
-    return {};
+    auto const& entities = itr->second;
+    if (findHidden) {
+        return utl::small_ptr_vector<E*>(entities.begin(), entities.end());
+    }
+    auto visible = entities | filter(&Entity::isVisible);
+    return utl::small_ptr_vector<E*>(visible.begin(), visible.end());
 }
 
 Property const* Scope::findProperty(PropertyKind kind) const {

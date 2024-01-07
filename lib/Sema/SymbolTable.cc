@@ -675,7 +675,7 @@ Alias* SymbolTable::declareAlias(std::string name,
                                  Entity& aliased,
                                  ast::ASTNode* astNode,
                                  AccessControl accessControl) {
-    std::span existing = currentScope().findEntities(name);
+    auto existing = currentScope().findEntities(name);
     if (ranges::contains(existing, &aliased, stripAlias)) {
         return nullptr;
     }
@@ -863,12 +863,12 @@ void SymbolTable::makeScopeCurrent(Scope* scope) {
 }
 
 utl::small_vector<Entity*> SymbolTable::unqualifiedLookup(
-    std::string_view name) {
+    std::string_view name, bool findHiddenEntities) {
     utl::hashset<Entity*> overloadSet;
     for (auto* scope = &currentScope(); scope != nullptr;
          scope = scope->parent())
     {
-        auto entities = scope->findEntities(name);
+        auto entities = scope->findEntities(name, findHiddenEntities);
         if (entities.empty()) {
             continue;
         }

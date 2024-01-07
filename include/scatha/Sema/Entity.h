@@ -115,6 +115,12 @@ public:
     /// Should be used by instantiation and deserialization
     void setAccessControl(AccessControl ctrl) { accessCtrl = ctrl; }
 
+    /// \Returns `true` if this entity is accessible by name lookup
+    bool isVisible() const { return _isVisible; }
+
+    /// Set whether this entity shall be accessible by name lookup
+    void setVisible(bool value = true) { _isVisible = value; }
+
     /// The parent scope of this entity. Not all entities have a parent scope so
     /// this may be null.
     Scope* parent() { return _parent; }
@@ -169,6 +175,7 @@ private:
     /// Type ID used by `dyncast`
     EntityType _entityType;
     bool _isBuiltin = false;
+    bool _isVisible = true;
     AccessControl accessCtrl = InvalidAccessControl;
     Scope* _parent = nullptr;
     std::string _name;
@@ -329,13 +336,12 @@ public:
     ScopeKind kind() const { return _kind; }
 
     /// Find entities by name within this scope
-    std::span<Entity* const> findEntities(std::string_view name) {
-        auto ret = std::as_const(*this).findEntities(name);
-        return { const_cast<Entity* const*>(ret.data()), ret.size() };
-    }
+    utl::small_ptr_vector<Entity*> findEntities(
+        std::string_view name, bool findHiddenEntities = false);
 
     /// \overload
-    std::span<Entity const* const> findEntities(std::string_view name) const;
+    utl::small_ptr_vector<Entity const*> findEntities(
+        std::string_view name, bool findHiddenEntities = false) const;
 
     /// Find the property \p prop in this scope
     Property* findProperty(PropertyKind prop) {
@@ -389,9 +395,14 @@ private:
     /// our symbol table Does nothing if \p child is not a child of this scope
     void addAlternateChildName(Entity* child, std::string name);
 
+    template <typename E, typename S>
+    static utl::small_ptr_vector<E*> findEntitiesImpl(S* self,
+                                                      std::string_view name,
+                                                      bool findHidden);
+
 private:
     utl::hashset<Scope*> _children;
-    utl::hashmap<std::string, utl::small_vector<Entity*, 1>> _names;
+    utl::hashmap<std::string, utl::small_ptr_vector<Entity*>> _names;
     utl::hashmap<PropertyKind, Property*> _properties;
     ScopeKind _kind;
 };
