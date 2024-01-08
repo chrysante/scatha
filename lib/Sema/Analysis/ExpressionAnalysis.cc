@@ -535,27 +535,21 @@ bool ExprContext::validateAccessPermission(Entity const& entity) const {
     if (!entity.hasAccessControl()) {
         return true;
     }
-    using enum AccessControl;
-    switch (entity.accessControl()) {
-    case Private: {
-        auto* scope = entity.parent();
-        while (scope) {
-            if (scope == &sym.currentScope()) {
-                return true;
-            }
-            scope = scope->parent();
+    /// If the entity is not private we return true because internal symbols are
+    /// not exported to other modules, so they cannot even be found by name
+    /// lookup. We could assert this assumption though
+    if (!entity.isPrivate()) {
+        return true;
+    }
+    auto* entityParent = entity.parent();
+    auto* scope = &sym.currentScope();
+    while (scope) {
+        if (scope == entityParent) {
+            return true;
         }
-        return false;
+        scope = scope->parent();
     }
-    case Internal:
-        /// In the internal case we also return true because internal symbols
-        /// are not exported to other modules, so they cannot even be found by
-        /// name lookup. We could assert this assumption though
-        return true;
-    case Public:
-        return true;
-    }
-    SC_UNREACHABLE();
+    return false;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {

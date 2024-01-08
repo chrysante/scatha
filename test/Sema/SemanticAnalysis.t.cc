@@ -583,3 +583,25 @@ TEST_CASE("Access control errors", "[sema]") {
     CHECK(iss.findOnLine<BadExpr>(11, BadExpr::AccessDenied));
     CHECK(iss.noneOnLine(12));
 }
+
+TEST_CASE("Using private variables in member functions", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/*  2 */ struct X {
+/*  3 */     fn new(&mut this) {
+/*  4 */         this.value = 7;
+/*  5 */     }
+/*  6 */     fn getValue(&this) -> int {
+/*  7 */         return this.value;
+/*  8 */     }
+/*  9 */     private var value: int;
+/* 10 */ }
+/* 11 */ fn test(x: X) {
+/* 12 */     x.getValue();
+/* 13 */     x.value;
+/* 14 */ }
+)");
+    CHECK(iss.noneOnLine(4));
+    CHECK(iss.noneOnLine(7));
+    CHECK(iss.noneOnLine(12));
+    CHECK(iss.findOnLine<BadExpr>(13, BadExpr::AccessDenied));
+}
