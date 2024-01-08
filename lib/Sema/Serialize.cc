@@ -400,6 +400,60 @@ static Type const* parseTypename(SymbolTable& sym, std::string_view text) {
 
 namespace {
 
+struct Field {
+    static constexpr std::string_view Entities = "entities";
+    static constexpr std::string_view Children = "children";
+    static constexpr std::string_view NativeDependencies =
+        "native_dependencies";
+    static constexpr std::string_view ForeignDependencies =
+        "foreign_dependencies";
+    static constexpr std::string_view ReturnType = "return_type";
+    static constexpr std::string_view ArgumentTypes = "argument_types";
+    static constexpr std::string_view SMFKind = "smf_kind";
+    static constexpr std::string_view SLFKind = "slf_kind";
+    static constexpr std::string_view FunctionKind = "function_kind";
+    static constexpr std::string_view Size = "size";
+    static constexpr std::string_view Align = "align";
+    static constexpr std::string_view DefaultConstructible =
+        "default_constructible";
+    static constexpr std::string_view TrivialLifetime = "trivial_lifetime";
+    static constexpr std::string_view Type = "type";
+    static constexpr std::string_view Mutable = "mutable";
+    static constexpr std::string_view Index = "index";
+    /// We prepend underscores to entity type and name to make them the first
+    /// entries in the json objects so serialized files are easier to read
+    static constexpr std::string_view EntityType = "_entity_type";
+    static constexpr std::string_view Name = "_name";
+    static constexpr std::string_view AccessControl = "access_control";
+};
+
+#if 0 // Typesafe fields, not implemented yet
+
+enum class Field {
+#define SC_SEMA_FIELD_DEF(Type, Name, Spelling) Name,
+#include "Sema/SerializeFields.def"
+};
+
+std::string_view toString(Field field) {
+    static constexpr std::array spellings{
+#define SC_SEMA_FIELD_DEF(Type, Name, Spelling) std::string_view(Spelling),
+#include "Sema/SerializeFields.def"
+    };
+    return spellings[(size_t)field];
+}
+
+template <Field F>
+struct FieldToType;
+
+#define SC_SEMA_FIELD_DEF(Type, Name, Spelling)                                \
+    template <>                                                                \
+    struct FieldToType<Field::Name> {                                          \
+        using type = Type;                                                     \
+    };
+#include "Sema/SerializeFields.def"
+
+#endif
+
 struct Serializer {
     utl::hashset<NativeLibrary const*> nativeDependencies;
     utl::hashset<ForeignLibrary const*> foreignDependencies;
@@ -411,7 +465,7 @@ struct Serializer {
 
     json serializeImpl(GlobalScope const& global) {
         json j;
-        auto& entities = j["entities"];
+        auto& entities = j[Field::Entities];
         for (auto* child: global.children()) {
             if (auto* lib = dyncast<ForeignLibrary const*>(child)) {
                 foreignDependencies.insert(lib);
@@ -431,36 +485,36 @@ struct Serializer {
             }
         }
         for (auto* lib: nativeDependencies) {
-            j["native_dependencies"].push_back(lib->name());
+            j[Field::NativeDependencies].push_back(lib->name());
         }
         for (auto* lib: foreignDependencies) {
-            j["foreign_dependencies"].push_back(lib->name());
+            j[Field::ForeignDependencies].push_back(lib->name());
         }
         return j;
     }
 
     json serializeImpl(Function const& function) {
         json j = serializeCommon(function);
-        j["return_type"] = serializeTypename(function.returnType());
-        j["argument_types"] = function.argumentTypes() |
-                              transform(serializeTypename);
+        j[Field::ReturnType] = serializeTypename(function.returnType());
+        j[Field::ArgumentTypes] = function.argumentTypes() |
+                                  transform(serializeTypename);
         if (function.isSpecialMemberFunction()) {
-            j["smf_kind"] = function.SMFKind();
+            j[Field::SMFKind] = function.SMFKind();
         }
         if (function.isSpecialLifetimeFunction()) {
-            j["slf_kind"] = function.SLFKind();
+            j[Field::SLFKind] = function.SLFKind();
         }
-        j["function_kind"] = function.kind();
+        j[Field::FunctionKind] = function.kind();
         gatherLibraryDependencies(*function.type());
         return j;
     }
 
     json serializeImpl(StructType const& type) {
         json j = serializeCommon(type);
-        j["size"] = type.size();
-        j["align"] = type.align();
-        j["default_constructible"] = type.isDefaultConstructible();
-        j["trivial_lifetime"] = type.hasTrivialLifetime();
+        j[Field::Size] = type.size();
+        j[Field::Align] = type.align();
+        j[Field::DefaultConstructible] = type.isDefaultConstructible();
+        j[Field::TrivialLifetime] = type.hasTrivialLifetime();
         for (auto* entity: type.entities()) {
             if (!entity->isPublic()) {
                 continue;
@@ -470,17 +524,17 @@ struct Serializer {
             {
                 continue;
             }
-            j["children"].push_back(serialize(*entity));
+            j[Field::Children].push_back(serialize(*entity));
         }
         return j;
     }
 
     json serializeImpl(Variable const& var) {
         json j = serializeCommon(var);
-        j["type"] = serializeTypename(var.type());
-        j["mutable"] = var.isMut();
+        j[Field::Type] = serializeTypename(var.type());
+        j[Field::Mutable] = var.isMut();
         if (isa<StructType>(var.parent())) {
-            j["index"] = var.index();
+            j[Field::Index] = var.index();
         }
         gatherLibraryDependencies(*var.type());
         return j;
@@ -490,9 +544,9 @@ struct Serializer {
 
     json serializeCommon(Entity const& entity) {
         json j;
-        j["_entity_type"] = entity.entityType();
-        j["_name"] = std::string(entity.name());
-        j["access_control"] = entity.accessControl();
+        j[Field::EntityType] = entity.entityType();
+        j[Field::Name] = std::string(entity.name());
+        j[Field::AccessControl] = entity.accessControl();
         return j;
     }
 
@@ -601,18 +655,18 @@ struct Deserializer: TypeMapBase {
 
     /// Performs the deserialization
     void run(json const& j) {
-        if (auto* deps = tryGet(j, "foreign_dependencies")) {
+        if (auto* deps = tryGet(j, Field::ForeignDependencies)) {
             for (auto& lib: *deps) {
                 sym.importForeignLib(lib.get<std::string>());
             }
         }
-        if (auto* deps = tryGet(j, "native_dependencies")) {
+        if (auto* deps = tryGet(j, Field::NativeDependencies)) {
             for (auto& lib: *deps) {
                 sym.importNativeLib(lib.get<std::string>());
             }
         }
-        preparseTypes(j.at("entities"));
-        parseEntities(j.at("entities"));
+        preparseTypes(j.at(Field::Entities));
+        parseEntities(j.at(Field::Entities));
     }
 
     /// Performs a DFS over the JSON array and declares all encountered struct
@@ -627,15 +681,16 @@ struct Deserializer: TypeMapBase {
     }
 
     void preparseImpl(Tag<StructType>, json const& obj) {
-        auto* type = sym.declareStructureType(get<std::string>(obj, "_name"),
-                                              get(obj, "access_control"));
+        auto* type =
+            sym.declareStructureType(get<std::string>(obj, Field::Name),
+                                     get(obj, Field::AccessControl));
         insertType(obj, type);
-        type->setSize(get<size_t>(obj, "size"));
-        type->setAlign(get<size_t>(obj, "align"));
+        type->setSize(get<size_t>(obj, Field::Size));
+        type->setAlign(get<size_t>(obj, Field::Align));
         type->setIsDefaultConstructible(
-            get<bool>(obj, "default_constructible"));
-        type->setHasTrivialLifetime(get<bool>(obj, "trivial_lifetime"));
-        if (auto children = tryGet(obj, "children")) {
+            get<bool>(obj, Field::DefaultConstructible));
+        type->setHasTrivialLifetime(get<bool>(obj, Field::TrivialLifetime));
+        if (auto children = tryGet(obj, Field::Children)) {
             sym.withScopeCurrent(type, [&] { preparseTypes(*children); });
         }
     }
@@ -646,44 +701,44 @@ struct Deserializer: TypeMapBase {
     /// Because types are parsed in a prior step we only forward to our children
     void parseImpl(Tag<StructType>, json const& obj) {
         auto* type = getType(obj);
-        if (auto children = tryGet(obj, "children")) {
+        if (auto children = tryGet(obj, Field::Children)) {
             sym.withScopeCurrent(type, [&] { parseEntities(*children); });
         }
     }
 
     ///
     void parseImpl(Tag<Function>, json const& obj) {
-        auto argTypes = get(obj, "argument_types") |
+        auto argTypes = get(obj, Field::ArgumentTypes) |
                         transform([&](json const& j) {
             return parseTypename(sym, j.get<std::string>());
         }) | ToSmallVector<>;
         auto* retType =
-            parseTypename(sym, get<std::string>(obj, "return_type"));
+            parseTypename(sym, get<std::string>(obj, Field::ReturnType));
         auto* function =
-            sym.declareFunction(get<std::string>(obj, "_name"),
+            sym.declareFunction(get<std::string>(obj, Field::Name),
                                 sym.functionType(argTypes, retType),
-                                get(obj, "access_control"));
-        if (auto kind = tryGet<SpecialMemberFunction>(obj, "smf_kind")) {
+                                get(obj, Field::AccessControl));
+        if (auto kind = tryGet<SpecialMemberFunction>(obj, Field::SMFKind)) {
             function->setSMFKind(*kind);
             getStruct(function)->addSpecialMemberFunction(*kind, function);
         }
-        if (auto kind = tryGet<SpecialLifetimeFunction>(obj, "slf_kind")) {
+        if (auto kind = tryGet<SpecialLifetimeFunction>(obj, Field::SLFKind)) {
             function->setSLFKind(*kind);
             getStruct(function)->setSpecialLifetimeFunction(*kind, function);
         }
-        function->setKind(get<FunctionKind>(obj, "function_kind"));
+        function->setKind(get<FunctionKind>(obj, Field::FunctionKind));
     }
 
     ///
     void parseImpl(Tag<Variable>, json const& obj) {
-        auto* type = parseTypename(sym, get<std::string>(obj, "type"));
+        auto* type = parseTypename(sym, get<std::string>(obj, Field::Type));
         using enum Mutability;
-        auto mut = get<bool>(obj, "mutable") ? Mutable : Const;
-        auto* var = sym.defineVariable(get<std::string>(obj, "_name"),
+        auto mut = get<bool>(obj, Field::Mutable) ? Mutable : Const;
+        auto* var = sym.defineVariable(get<std::string>(obj, Field::Name),
                                        type,
                                        mut,
-                                       get(obj, "access_control"));
-        if (auto index = tryGet<size_t>(obj, "index")) {
+                                       get(obj, Field::AccessControl));
+        if (auto index = tryGet<size_t>(obj, Field::Index)) {
             auto* type = dyncast<StructType*>(&sym.currentScope());
             // TODO: CHECK type is not null
             type->setMemberVariable(*index, var);
@@ -696,7 +751,7 @@ struct Deserializer: TypeMapBase {
 
     ///
     void parseImpl(Tag<ForeignLibrary>, json const& obj) {
-        auto name = get<std::string>(obj, "_name");
+        auto name = get<std::string>(obj, Field::Name);
         sym.importForeignLib(name);
     }
 
@@ -713,7 +768,7 @@ struct Deserializer: TypeMapBase {
     /// Parses the type of the JSON object \p obj and dispatches to \p callback
     /// with the corresponding tag
     bool doParse(json const& obj, auto callback) {
-        auto type = get<EntityType>(obj, "_entity_type");
+        auto type = get<EntityType>(obj, Field::EntityType);
         switch (type) {
 #define SC_SEMA_ENTITY_DEF(Type, ...)                                          \
     case EntityType::Type:                                                     \
