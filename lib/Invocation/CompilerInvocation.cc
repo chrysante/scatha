@@ -25,6 +25,7 @@
 #include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "Opt/Optimizer.h"
+#include "Opt/Passes.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/Entity.h"
@@ -117,8 +118,8 @@ int CompilerInvocation::run() {
     }
     /// Now we compile the program
     sema::SymbolTable semaSym;
-    ir::Context context;
-    ir::Module mod;
+    ir::Context irContext;
+    ir::Module irModule;
     switch (frontend) {
     case FrontendType::Scatha: {
         IssueHandler issueHandler;
@@ -149,13 +150,13 @@ int CompilerInvocation::run() {
             irgenConfig.nameMangler = sema::NameMangler(
                 { .globalPrefix = outputFile.stem().string() });
         }
-        irgen::generateIR(context,
-                          mod,
+        irgen::generateIR(irContext,
+                          irModule,
                           *ast,
                           semaSym,
                           analysisResult,
                           std::move(irgenConfig));
-        tryInvoke(callbacks.irgenCallback, context, mod);
+        tryInvoke(callbacks.irgenCallback, irContext, irModule);
         if (!continueCompilation) return 0;
         break;
     }
@@ -164,7 +165,8 @@ int CompilerInvocation::run() {
             err() << Error << "Can only parse one IR file" << std::endl;
             return handleError();
         }
-        auto parseIssues = ir::parseTo(sources.front().text(), context, mod);
+        auto parseIssues =
+            ir::parseTo(sources.front().text(), irContext, irModule);
         if (!parseIssues.empty()) {
             err() << Error;
             for (auto& issue: parseIssues) {
@@ -172,19 +174,19 @@ int CompilerInvocation::run() {
             }
             return 1;
         }
-        tryInvoke(callbacks.irgenCallback, context, mod);
+        tryInvoke(callbacks.irgenCallback, irContext, irModule);
         if (!continueCompilation) return 0;
         break;
     }
     }
     if (optLevel > 0) {
-        opt::optimize(context, mod, optLevel);
+        opt::optimize(irContext, irModule, optLevel);
     }
     else if (!optPipeline.empty()) {
         auto pipeline = ir::PassManager::makePipeline(optPipeline);
-        pipeline(context, mod);
+        pipeline(irContext, irModule);
     }
-    tryInvoke(callbacks.optCallback, context, mod);
+    tryInvoke(callbacks.optCallback, irContext, irModule);
     if (!continueCompilation) return 0;
     switch (targetType) {
     case TargetType::Executable:
@@ -194,7 +196,7 @@ int CompilerInvocation::run() {
         if (!codegenLogger) {
             codegenLogger = &logger;
         }
-        auto asmStream = cg::codegen(mod, *codegenLogger);
+        auto asmStream = cg::codegen(irModule, *codegenLogger);
         tryInvoke(callbacks.codegenCallback, asmStream);
         if (!continueCompilation) return 0;
         auto asmRes = Asm::assemble(asmStream);
@@ -229,7 +231,10 @@ int CompilerInvocation::run() {
             auto symfile = createFile(appendExt(outputFile, "scsym"));
             sema::serializeLibrary(semaSym, symfile);
             auto irfile = createFile(appendExt(outputFile, "scir"));
-            ir::print(mod, irfile);
+            /// Even if we don't optimize we don't want to emit unused object
+            /// code
+            opt::globalDCE(irContext, irModule);
+            ir::print(irModule, irfile);
         }
         break;
     }
