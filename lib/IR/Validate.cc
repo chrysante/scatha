@@ -165,6 +165,9 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
 
 void AssertContext::assertInvariants(Instruction const& inst) {
     uniqueName(inst);
+    if (!isa<VoidType>(inst.type())) {
+        CHECK(!inst.name().empty(), "Non-void instructions must be named");
+    }
     for (auto* operand: inst.operands()) {
         CHECK(operand != nullptr, "Operands can't be null");
         auto opUsers = operand->users();

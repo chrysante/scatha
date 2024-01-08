@@ -201,7 +201,9 @@ void FuncGenContext::generateParameter(
     sema::Type const* semaType = paramDecl->type();
     auto* irParam = irParamItr.to_address();
     auto* irType = typeMap(paramDecl->type());
-    std::string name(paramDecl->name());
+    std::string name = isa<ast::ThisParameter>(paramDecl) ?
+                           "this" :
+                           std::string(paramDecl->name());
     auto* paramObj = paramDecl->object();
     switch (pc.location()) {
     case Register: {

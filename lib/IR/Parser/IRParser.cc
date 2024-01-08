@@ -571,7 +571,7 @@ UniquePtr<BasicBlock> IRParser::parseBasicBlock() {
 
 UniquePtr<Instruction> IRParser::parseInstruction() {
     auto _nameTok = peekToken(0);
-    auto _name = [&]() -> std::optional<std::string> {
+    std::optional _name = [&]() -> std::optional<std::string> {
         if (_nameTok.kind() != TokenKind::LocalIdentifier) {
             return std::nullopt;
         }
@@ -584,7 +584,7 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
     }();
     auto name = [&] {
         if (!_name) {
-            throw SyntaxIssue(_nameTok);
+            reportSyntaxIssue(_nameTok);
         }
         return *_name;
     };
