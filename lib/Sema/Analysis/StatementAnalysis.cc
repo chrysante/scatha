@@ -1,5 +1,6 @@
 #include "Sema/Analysis/StatementAnalysis.h"
 
+#include <range/v3/algorithm.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/stack.hpp>
 
@@ -59,6 +60,7 @@ struct StmtContext {
     bool validateForeignLibImport(ast::ImportStatement& stmt,
                                   ast::Literal& lit);
     void analyzeImpl(ast::FunctionDefinition&);
+    bool validateForeignFunction(ast::FunctionDefinition&);
     void analyzeMainFunction();
     void analyzeImpl(ast::ParameterDeclaration&);
     void analyzeImpl(ast::ThisParameter&);
@@ -272,29 +274,63 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
             analyze(*param);
         }
     });
-    if (auto linkage = def.externalLinkage(); linkage && *linkage != "C") {
-        ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
+    if (def.externalLinkage()) {
+        validateForeignFunction(def);
+        return;
     }
-    if (def.body()) {
-        def.body()->decorateScope(semaFn);
-        analyze(*def.body());
-        setDeducedReturnType();
+    if (!def.body()) {
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::FunctionMustHaveBody);
+        return;
     }
-    else {
-        if (!def.externalLinkage()) {
-            ctx.issue<BadFuncDef>(&def, BadFuncDef::FunctionMustHaveBody);
-        }
-        else if (!semaFn->returnType()) {
-            ctx.issue<BadFuncDef>(
-                &def,
-                BadFuncDef::FunctionDeclarationHasNoReturnType);
-        }
-    }
+    def.body()->decorateScope(semaFn);
+    analyze(*def.body());
+    setDeducedReturnType();
     /// We perform the extra checks on main in the end because here we have
     /// deduced the return type
     if (semaFn->name() == "main") {
         analyzeMainFunction();
     }
+}
+
+static bool isValidTypeForFFI(Type const* type) {
+    return SC_MATCH (*type){ [](VoidType const&) { return true; },
+                             [](IntType const& type) {
+        return ranges::contains(std::array{ 8, 16, 32, 64 }, type.bitwidth());
+    },
+                             [](ByteType const&) { return true; },
+                             [](BoolType const&) { return true; },
+                             [](FloatType const&) { return true; },
+                             [](RawPtrType const& ptr) {
+        return !isa<ArrayType>(*ptr.base());
+    },
+                             [](Type const&) { return false; } };
+}
+
+bool StmtContext::validateForeignFunction(ast::FunctionDefinition& def) {
+    SC_EXPECT(def.externalLinkage());
+    Function* semaFn = def.function();
+    std::string linkage = *def.externalLinkage();
+    if (linkage != "C") {
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
+        return false;
+    }
+    bool success = true;
+    if (!semaFn->returnType()) {
+        ctx.issue<BadFuncDef>(&def,
+                              BadFuncDef::FunctionDeclarationHasNoReturnType);
+        success = false;
+    }
+    for (auto* param: def.parameters()) {
+        if (!isValidTypeForFFI(param->type())) {
+            ctx.issue<BadVarDecl>(param, BadVarDecl::InvalidTypeForFFI);
+            success = false;
+        }
+    }
+    if (def.returnType() && !isValidTypeForFFI(def.returnType())) {
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::InvalidReturnTypeForFFI);
+        success = false;
+    }
+    return success;
 }
 
 /// \Returns `true` if \p sig is either `() -> "any"` or `(&[*str]) -> "any"`

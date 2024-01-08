@@ -74,6 +74,16 @@ SC_SEMA_BADVARDECL_DEF(ThisPosition, Error, {
             << " parameter here";
     });
 })
+SC_SEMA_BADVARDECL_DEF(InvalidTypeForFFI, Error, {
+    header("Invalid type for foreign function interface");
+    auto* param = cast<ast::ParameterDeclaration const*>(declaration());
+    primary(param->typeExpr()->sourceRange(), [=](std::ostream& str) {
+        auto* function = param->findAncestor<ast::FunctionDefinition>();
+        str << "Parameter type " << sema::format(param->type())
+            << " in function '" << function->name()
+            << " declared here is not allowed";
+    });
+})
 
 #undef SC_SEMA_BADVARDECL_DEF
 
@@ -114,6 +124,12 @@ SC_SEMA_BADFUNCDEF_DEF(FunctionDeclarationHasNoReturnType,
                        Error,
                        "Function declaration '" << definition()->name()
                                                 << "' has no return type'")
+
+SC_SEMA_BADFUNCDEF_DEF(InvalidReturnTypeForFFI,
+                       Error,
+                       "Return type "
+                           << sema::format(definition()->returnType())
+                           << "' is not allowed for foreign functions")
 
 #undef SC_SEMA_BADFUNCDEF_DEF
 

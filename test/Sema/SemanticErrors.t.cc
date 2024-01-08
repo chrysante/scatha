@@ -510,6 +510,23 @@ TEST_CASE("Main parameter validation", "[sema]") {
               .findOnLine<BadFuncDef>(1, MainInvalidArguments));
 }
 
+TEST_CASE("FFI validation", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/*  2 */ extern "B" fn f() -> void;
+/*  3 */ extern "C" fn g();
+/*  4 */ extern "C" fn h(x: X) -> void;
+/*  5 */ extern "C" fn h() -> X;
+/*  6 */ extern "C" fn h(f: float) -> int;
+struct X {}
+)");
+    CHECK(iss.findOnLine<BadFuncDef>(2, BadFuncDef::UnknownLinkage));
+    CHECK(iss.findOnLine<
+          BadFuncDef>(3, BadFuncDef::FunctionDeclarationHasNoReturnType));
+    CHECK(iss.findOnLine<BadVarDecl>(4, BadVarDecl::InvalidTypeForFFI));
+    CHECK(iss.findOnLine<BadFuncDef>(5, BadFuncDef::InvalidReturnTypeForFFI));
+    CHECK(iss.noneOnLine(6));
+}
+
 TEST_CASE("Invalid import statements", "[sema][lib]") {
     auto iss = test::getSemaIssues(R"(
 /*  2 */ import F();
