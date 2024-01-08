@@ -11,7 +11,12 @@ externalincludedirs {
     "%{wks.location}/external/cli11/include",
     "%{wks.location}/external/range-v3/include",
     "%{wks.location}/external/utility/include",
+    "/usr/local/opt/libffi/include"
 }
+
+libdirs "/usr/local/opt/libffi/lib" -- For now until we figure out how to build from source
+
+links { "libffi.a" }
 
 ------------------------------------------
 project "svm"
