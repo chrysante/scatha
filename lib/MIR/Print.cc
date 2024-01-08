@@ -171,10 +171,6 @@ static auto formatInstName(mir::Instruction const& inst) {
     return opcode(std::move(name));
 }
 
-static constexpr auto fmtExtFnAddr =
-    utl::streammanip([](std::ostream& str, ForeignFuncAddress addr) -> auto& {
-    return str << "slot=" << addr.slot << ", index=" << addr.index;
-});
 
 namespace {
 
@@ -339,16 +335,6 @@ struct PrintContext {
         printInstBegin(inst);
         str << formatInstName(inst) << " ";
         print(inst.address());
-    }
-
-    void print(ForeignFuncAddress function) {
-        if (function.slot == svm::BuiltinFunctionSlot) {
-            str << "builtin."
-                << toString(static_cast<svm::Builtin>(function.index));
-        }
-        else {
-            str << fmtExtFnAddr(function);
-        }
     }
 
     void printImpl(CallInst const& call) {

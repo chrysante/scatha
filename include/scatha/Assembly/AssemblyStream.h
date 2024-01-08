@@ -8,7 +8,6 @@
 #include <vector>
 
 #include <scatha/Common/Base.h>
-#include <scatha/Common/FFI.h>
 #include <scatha/Common/Metadata.h>
 
 namespace scatha::Asm {

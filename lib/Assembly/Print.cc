@@ -76,19 +76,6 @@ struct PrintCtx {
         }
     }
 
-    void print(ForeignFunctionDecl const& F) {
-        str << F.name << ": (";
-        for (bool first = true; size_t size: F.argTypes) {
-            if (!first) {
-                str << ", ";
-            }
-            first = false;
-            str << size;
-        }
-        str << ") -> " << F.retType << " [lib=" << F.libIndex
-            << ", slot=" << F.address.slot << ", " << F.address.index << "]"
-            << std::endl;
-    }
 
     void print(Block const& block) {
         str << block.name() << ": ID: " << utl::to_underlying(block.id())

@@ -8,7 +8,6 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
-#include <scatha/Common/FFI.h>
 #include <scatha/IR/Fwd.h> /// To borrow some enums for the `mir` namespace
 
 namespace scatha::mir {

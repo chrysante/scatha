@@ -109,8 +109,6 @@ struct Assembler: AsmWriter {
     ///
     void writeFFILinkSection();
 
-    void writeFFIDecl(ForeignFunctionDecl const& decl);
-
     size_t currentPosition() const { return binary.size(); }
 
     void addUnresolvedSymbol(size_t position, std::string name) {
