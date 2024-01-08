@@ -305,13 +305,15 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
 
 NativeLibrary* SymbolTable::makeNativeLibAvailable(ast::Identifier& ID) {
     auto* lib = getOrImportNativeLib(ID.value(), &ID);
-    if (lib) {
-        declareAlias(std::string(ID.value()),
-                     *lib,
-                     &ID,
-                     AccessControl::Private);
+    if (!lib) {
+        return nullptr;
     }
+    declareAlias(std::string(ID.value()), *lib, &ID, AccessControl::Private);
     return lib;
+}
+
+NativeLibrary* SymbolTable::importNativeLib(std::string_view name) {
+    return getOrImportNativeLib(name, nullptr);
 }
 
 ForeignLibrary* SymbolTable::importForeignLib(ast::Literal& lit) {
@@ -329,7 +331,7 @@ NativeLibrary* SymbolTable::getOrImportNativeLib(std::string_view libname,
     if (itr != impl->nativeLibMap.end()) {
         return itr->second;
     }
-    return importNativeLib(*this, *impl, astNode, std::string(libname));
+    return ::importNativeLib(*this, *impl, astNode, std::string(libname));
 }
 
 ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view libname,

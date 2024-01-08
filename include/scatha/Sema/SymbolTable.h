@@ -44,6 +44,10 @@ public:
     /// current scope
     NativeLibrary* makeNativeLibAvailable(ast::Identifier& ID);
 
+    /// Imports the library denoted by \p name if not yet imported and declares
+    /// it as hidden in the global scope.
+    NativeLibrary* importNativeLib(std::string_view name);
+
     /// Imports a foreign library from the string literal \p lit. Searches the
     /// specified search paths for a shared library \pre \p lit must be a string
     /// literal

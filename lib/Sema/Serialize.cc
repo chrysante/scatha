@@ -146,7 +146,8 @@ static void serializeTypenameImpl(Type const& type, std::ostream& str) {
     SC_MATCH (type) {
         [&](ObjectType const& type) {
             auto rec = [&](auto& rec, auto* scope) {
-                if (!scope || scope->kind() == ScopeKind::Global) {
+                SC_EXPECT(scope);
+                if (isa<FileScope>(scope) || isa<GlobalScope>(scope)) {
                     return;
                 }
                 rec(rec, scope->parent());
@@ -325,7 +326,7 @@ struct TypenameParser {
 
     ///
     Entity* findEntity(Scope& scope, std::string_view name) {
-        auto entities = scope.findEntities(name);
+        auto entities = scope.findEntities(name, /* findHidden = */ true);
         if (entities.empty()) {
             return nullptr;
         }
@@ -335,7 +336,7 @@ struct TypenameParser {
 
     ///
     Entity* findEntity(std::string_view name) {
-        auto entities = sym.unqualifiedLookup(name);
+        auto entities = sym.unqualifiedLookup(name, /* findHidden = */ true);
         if (entities.empty()) {
             return nullptr;
         }
@@ -399,33 +400,47 @@ static Type const* parseTypename(SymbolTable& sym, std::string_view text) {
 
 namespace {
 
-struct SerializerCallback {
-    virtual ~SerializerCallback() = default;
-    virtual bool visitFilter(Entity const& entity) const = 0;
-    virtual bool writeFilter(Entity const& entity) const = 0;
-    virtual void onSerialize(Entity const& entity) = 0;
-};
-
 struct Serializer {
-    SerializerCallback& callback;
+    utl::hashset<NativeLibrary const*> nativeDependencies;
+    utl::hashset<ForeignLibrary const*> foreignDependencies;
 
-    void serialize(json& j, Entity const& entity) {
-        bool writtenAny = false;
-        if (callback.writeFilter(entity)) {
-            callback.onSerialize(entity);
-            visit(entity,
-                  [&](auto const& entity) { serializeImpl(j, entity); });
-            writtenAny = true;
-        }
-        writtenAny |= serializeChildren(j, entity);
-        if (writtenAny) {
-            serializeCommon(j, entity);
-        }
+    json serialize(Entity const& entity) {
+        return visit(entity,
+                     [&](auto const& entity) { return serializeImpl(entity); });
     }
 
-    void serializeImpl(json&, GlobalScope const&) {}
+    json serializeImpl(GlobalScope const& global) {
+        json j;
+        auto& entities = j["entities"];
+        for (auto* child: global.children()) {
+            if (auto* lib = dyncast<ForeignLibrary const*>(child)) {
+                foreignDependencies.insert(lib);
+            }
+            if (auto* file = dyncast<FileScope const*>(child)) {
+                for (auto* entity: file->entities()) {
+                    if (!entity->isPublic()) {
+                        continue;
+                    }
+                    if (!isa<Function>(entity) && !isa<StructType>(entity) &&
+                        !isa<Variable>(entity))
+                    {
+                        continue;
+                    }
+                    entities.push_back(serialize(*entity));
+                }
+            }
+        }
+        for (auto* lib: nativeDependencies) {
+            j["native_dependencies"].push_back(lib->name());
+        }
+        for (auto* lib: foreignDependencies) {
+            j["foreign_dependencies"].push_back(lib->name());
+        }
+        return j;
+    }
 
-    void serializeImpl(json& j, Function const& function) {
+    json serializeImpl(Function const& function) {
+        json j = serializeCommon(function);
         j["return_type"] = serializeTypename(function.returnType());
         j["argument_types"] = function.argumentTypes() |
                               transform(serializeTypename);
@@ -436,232 +451,102 @@ struct Serializer {
             j["slf_kind"] = function.SLFKind();
         }
         j["function_kind"] = function.kind();
+        gatherLibraryDependencies(*function.type());
+        return j;
     }
 
-    void serializeImpl(json& j, StructType const& type) {
+    json serializeImpl(StructType const& type) {
+        json j = serializeCommon(type);
         j["size"] = type.size();
         j["align"] = type.align();
         j["default_constructible"] = type.isDefaultConstructible();
         j["trivial_lifetime"] = type.hasTrivialLifetime();
+        for (auto* entity: type.entities()) {
+            if (!entity->isPublic()) {
+                continue;
+            }
+            if (!isa<Function>(entity) && !isa<StructType>(entity) &&
+                !isa<Variable>(entity))
+            {
+                continue;
+            }
+            j["children"].push_back(serialize(*entity));
+        }
+        return j;
     }
 
-    void serializeImpl(json& j, Variable const& var) {
+    json serializeImpl(Variable const& var) {
+        json j = serializeCommon(var);
         j["type"] = serializeTypename(var.type());
         j["mutable"] = var.isMut();
         if (isa<StructType>(var.parent())) {
             j["index"] = var.index();
         }
+        gatherLibraryDependencies(*var.type());
+        return j;
     }
 
-    void serializeImpl(json&, Library const&) {}
+    json serializeImpl(Entity const&) { SC_UNREACHABLE(); }
 
-    void serializeImpl(json&, Entity const&) { SC_UNREACHABLE(); }
-
-    void serializeCommon(json& j, Entity const& entity) {
+    json serializeCommon(Entity const& entity) {
+        json j;
         j["_entity_type"] = entity.entityType();
         j["_name"] = std::string(entity.name());
-        if (entity.hasAccessControl()) {
-            j["access_control"] = entity.accessControl();
-        }
+        j["access_control"] = entity.accessControl();
+        return j;
     }
 
-    /// Accumulates the children of \p entity filtered by \p filter
-    utl::hashset<Entity const*> getChildren(Entity const& entity) const {
-        auto filterFn = [this](Entity const* entity) {
-            return callback.visitFilter(*entity);
-        };
-        // clang-format off
-        return SC_MATCH (entity) {
-            [&](Scope const& scope) {
-                auto children = scope.entities() |
-                                filter([&](auto* entity) {
-                                    return !isa<FileScope>(entity) &&
-                                           filterFn(entity);
-                                }) | transform(stripAlias) |
-                                ranges::to<utl::hashset<Entity const*>>;
-                for (auto* entity: scope.children() | filter(filterFn)) {
-                    if (auto* file = dyncast<FileScope const*>(entity)) {
-                        for (auto* entity: file->children() | filter(filterFn)) {
-                            children.insert(entity);
-                        }
-                    }
-                    else {
-                        children.insert(entity);
-                    }
-                }
-                return children;
-            },
-            [&](OverloadSet const& os) {
-                return os | filter(filterFn) |
-                       ranges::to<utl::hashset<Entity const*>>;
-            },
-            [&](Function const&) {
-                return utl::hashset<Entity const*>{};
-            },
-            [&](Entity const&) {
-                return utl::hashset<Entity const*>{};
-            },
-        }; // clang-format on
+    void gatherLibraryDependencies(Type const& type) {
+        visit(type, [&](auto const& type) { gatherLibDepsImpl(type); });
     }
 
-    static json extractOrMake(json& j, std::string_view name) {
-        auto itr = j.find(name);
-        if (itr != j.end()) {
-            auto tmp = std::move(*itr);
-            j.erase(itr);
-            return tmp;
-        }
-        return {};
-    }
-
-    /// \Returns `true` if any child was written into `j["children"]`
-    bool serializeChildren(json& j, Entity const& entity) {
-        auto childJson = extractOrMake(j, "children");
-        auto childEntities = getChildren(entity);
-        for (auto* childEntity: childEntities) {
-            serialize(childJson.emplace_back(), *childEntity);
-            if (childJson.back().empty()) {
-                childJson.erase(childJson.end() - 1);
-            }
-        }
-        if (childJson.empty()) {
-            return false;
-        }
-        j["children"] = std::move(childJson);
-        return true;
-    }
-};
-
-template <typename T>
-static utl::hashset<T> setMinus(utl::hashset<T> lhs,
-                                utl::hashset<T> const& rhs) {
-    for (auto& elem: rhs) {
-        lhs.erase(elem);
-    }
-    return lhs;
-}
-
-class MainPass: public SerializerCallback {
-    utl::hashset<Entity const*> dependencies;
-    utl::hashset<Entity const*> written;
-
-public:
-    utl::hashset<Entity const*> takeMissing() {
-        /// The basic missing entities are all dependencies except the ones that
-        /// are already written
-        auto missing = setMinus(std::move(dependencies), written);
-
-        /// To keep the serialized symbol table well formed, we also need to
-        /// serialize the parents of any missing entities
-        utl::hashset<Entity const*> visited;
-        utl::small_vector<Entity const*> missingParents;
-        for (auto* entity: missing) {
-            while (!isa<GlobalScope>(entity) && visited.insert(entity).second) {
-                missingParents.push_back(entity);
-                entity = entity->parent();
-            }
-        }
-        missing.insert(missingParents.begin(), missingParents.end());
-        return missing;
-    }
-
-    bool visitFilter(Entity const& child) const override {
-        if (isa<GlobalScope>(child.parent())) {
-            if (!child.hasAccessControl() || !child.isPublic()) {
-                return false;
-            }
-            // clang-format off
-            return SC_MATCH (stripAlias(child)) {
-                [](Function const& function) { return function.isNative(); },
-                [](StructType const&) { return true; },
-                /// We serialize foreign libraries because targets that import us
-                /// must know about out foreign libraries
-                [](ForeignLibrary const&) { return true; },
-                [](Entity const&) { return false; },
-            }; // clang-format on
-        }
-        if (isa<StructType>(child.parent())) {
-            return isa<StructType>(child) || isa<Function>(child) ||
-                   isa<Variable>(child);
-        }
-        return true;
-    }
-
-    bool writeFilter(Entity const&) const override { return true; }
-
-    void onSerialize(Entity const& entity) override {
-        written.insert(&entity);
-        gatherDependencies(entity);
-    }
-
-    void gatherDependencies(Entity const& entity) {
-        visit(entity, [&](auto& entity) { gatherDepsImpl(entity); });
-        if (auto* type = getEntityType(entity)) {
-            gatherDependencies(*type);
-        }
-    }
-
-    void gatherDepsImpl(Entity const& entity) { dependencies.insert(&entity); }
-
-    void gatherDepsImpl(Object const& object) {
-        dependencies.insert(&object);
-        gatherDependencies(*object.type());
-    }
-
-    void gatherDepsImpl(FunctionType const& type) {
+    void gatherLibDepsImpl(FunctionType const& type) {
         for (auto* argType: type.argumentTypes()) {
-            gatherDependencies(*argType);
+            gatherLibraryDependencies(*argType);
         }
-        gatherDependencies(*type.returnType());
+        gatherLibraryDependencies(*type.returnType());
     }
 
-    void gatherDepsImpl(StructType const& type) {
-        dependencies.insert(&type);
-        for (auto* member: type.memberVariables()) {
-            gatherDependencies(*member);
+    void gatherLibDepsImpl(StructType const& type) {
+        if (auto* lib = parentLibrary(type)) {
+            nativeDependencies.insert(lib);
         }
     }
 
-    void gatherDepsImpl(BuiltinType const&) {}
+    void gatherLibDepsImpl(BuiltinType const&) {}
 
-    void gatherDepsImpl(ArrayType const& type) {
-        gatherDependencies(*type.elementType());
+    void gatherLibDepsImpl(ArrayType const& type) {
+        gatherLibraryDependencies(*type.elementType());
     }
 
-    void gatherDepsImpl(PointerType const& type) {
-        gatherDependencies(*type.base());
+    void gatherLibDepsImpl(PointerType const& type) {
+        gatherLibraryDependencies(*type.base());
     }
 
-    void gatherDepsImpl(ReferenceType const& type) {
-        gatherDependencies(*type.base());
-    }
-};
-
-class PrivateDependencyPass: public SerializerCallback {
-public:
-    explicit PrivateDependencyPass(utl::hashset<Entity const*> missing):
-        missing(std::move(missing)) {}
-
-    bool visitFilter(Entity const&) const override { return true; }
-
-    bool writeFilter(Entity const& entity) const override {
-        return missing.contains(&entity);
+    void gatherLibDepsImpl(ReferenceType const& type) {
+        gatherLibraryDependencies(*type.base());
     }
 
-    void onSerialize(Entity const&) override {}
-
-private:
-    utl::hashset<Entity const*> missing;
+    static NativeLibrary const* parentLibrary(Entity const& entity) {
+        SC_EXPECT(!isa<GlobalScope>(entity));
+        auto* parent = entity.parent();
+        while (true) {
+            SC_ASSERT(parent, "Ill-formed symbol table");
+            if (auto* lib = dyncast<NativeLibrary const*>(parent)) {
+                return lib;
+            }
+            if (isa<FileScope>(parent) || isa<GlobalScope>(parent)) {
+                return nullptr;
+            }
+            parent = parent->parent();
+        }
+    }
 };
 
 } // namespace
 
 void sema::serializeLibrary(SymbolTable const& sym, std::ostream& ostream) {
-    json j;
-    MainPass mainPass;
-    Serializer{ mainPass }.serialize(j, sym.globalScope());
-    PrivateDependencyPass depPass(mainPass.takeMissing());
-    Serializer{ depPass }.serialize(j, sym.globalScope());
+    auto j = Serializer{}.serialize(sym.globalScope());
     ostream << std::setw(2) << j << std::endl;
 }
 
@@ -716,8 +601,18 @@ struct Deserializer: TypeMapBase {
 
     /// Performs the deserialization
     void run(json const& j) {
-        preparseTypes(j.at("children"));
-        parseEntities(j.at("children"));
+        if (auto* deps = tryGet(j, "foreign_dependencies")) {
+            for (auto& lib: *deps) {
+                sym.importForeignLib(lib.get<std::string>());
+            }
+        }
+        if (auto* deps = tryGet(j, "native_dependencies")) {
+            for (auto& lib: *deps) {
+                sym.importNativeLib(lib.get<std::string>());
+            }
+        }
+        preparseTypes(j.at("entities"));
+        parseEntities(j.at("entities"));
     }
 
     /// Performs a DFS over the JSON array and declares all encountered struct
@@ -740,12 +635,9 @@ struct Deserializer: TypeMapBase {
         type->setIsDefaultConstructible(
             get<bool>(obj, "default_constructible"));
         type->setHasTrivialLifetime(get<bool>(obj, "trivial_lifetime"));
-        sym.withScopeCurrent(type,
-                             [&] { preparseTypes(get(obj, "children")); });
-    }
-
-    void preparseImpl(Tag<NativeLibrary>, json const& obj) {
-        preparseTypes(get(obj, "children"));
+        if (auto children = tryGet(obj, "children")) {
+            sym.withScopeCurrent(type, [&] { preparseTypes(*children); });
+        }
     }
 
     template <typename T>
@@ -754,8 +646,9 @@ struct Deserializer: TypeMapBase {
     /// Because types are parsed in a prior step we only forward to our children
     void parseImpl(Tag<StructType>, json const& obj) {
         auto* type = getType(obj);
-        sym.withScopeCurrent(type,
-                             [&] { parseEntities(get(obj, "children")); });
+        if (auto children = tryGet(obj, "children")) {
+            sym.withScopeCurrent(type, [&] { parseEntities(*children); });
+        }
     }
 
     ///

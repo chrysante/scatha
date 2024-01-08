@@ -137,15 +137,14 @@ fn main() -> int {
     CHECK(ret == 6);
 }
 
-#if 0
 TEST_CASE("Transitive library use", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib1", "libs", R"(
-struct X {
+public struct X {
     var i: int;
 })");
     compileLibrary("libs/testlib2", "libs", R"(
 use testlib1;
-struct Y {
+public struct Y {
     fn new(&mut this) { this.x = X(42); }
     var x: X;
 })");
@@ -157,7 +156,6 @@ fn main() -> int {
 })");
     CHECK(ret == 42);
 }
-#endif
 
 TEST_CASE("FFI library import", "[end-to-end][lib][foreignlib]") {
     SECTION("foo") {
