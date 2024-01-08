@@ -25,3 +25,6 @@
 [submodule "external/libarchive"]
 	path = external/libarchive
 	url = https://github.com/chrysante/libarchive
+[submodule "external/libffi"]
+	path = external/libffi
+	url = https://github.com/chrysante/libffi
