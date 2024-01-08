@@ -12,7 +12,7 @@
 #include <utl/vector.hpp>
 
 #include "Assembly/AsmWriter.h"
-#include "Common/ForeignFunctionDecl.h"
+#include "Common/Builtin.h"
 
 using namespace scatha;
 using namespace Asm;

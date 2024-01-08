@@ -1,4 +1,4 @@
-#include "Common/ForeignFunctionDecl.h"
+#include "Common/Builtin.h"
 
 #include <utl/hashtable.hpp>
 

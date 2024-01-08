@@ -16,7 +16,7 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "Common/ForeignFunctionDecl.h"
+#include "Common/Builtin.h"
 #include "Common/Ranges.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"

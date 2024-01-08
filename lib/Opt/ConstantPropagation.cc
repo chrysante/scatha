@@ -12,7 +12,7 @@
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
-#include "Common/ForeignFunctionDecl.h"
+#include "Common/Builtin.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/PassRegistry.h"
