@@ -22,3 +22,6 @@
 [submodule "external/Catch"]
 	path = external/Catch
 	url = https://github.com/catchorg/Catch2/
+[submodule "external/libarchive"]
+	path = external/libarchive
+	url = https://github.com/chrysante/libarchive

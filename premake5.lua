@@ -63,10 +63,11 @@ externalincludedirs {
     "external/APMath/include",
     "external/range-v3/include",
     "external/nlohmann/json/include",
+    "external/libarchive/libarchive",
 }
 includedirs { "lib", "include/scatha" }
 libdirs "build/bin/%{cfg.longname}"
-links { "apmath", "graphgen", "termfmt", "utility" }
+links { "apmath", "graphgen", "termfmt", "utility", "archive" }
 
 filter "system:linux"
     buildoptions "-fPIC"

@@ -38,3 +38,12 @@ make -j
 
 cp libftxui-*.a ../bin/Debug
 cp libftxui-*.a ../bin/Release
+
+# libarchive
+cd $PROJ_DIR
+mkdir -p build/libarchive
+cmake -S external/libarchive -B build/libarchive
+cd build/libarchive
+make -j
+cp libarchive/*.dylib ../bin/Debug
+cp libarchive/*.dylib ../bin/Release
