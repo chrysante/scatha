@@ -171,7 +171,6 @@ static auto formatInstName(mir::Instruction const& inst) {
     return opcode(std::move(name));
 }
 
-
 namespace {
 
 enum LiveState {

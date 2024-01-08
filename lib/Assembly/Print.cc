@@ -76,7 +76,6 @@ struct PrintCtx {
         }
     }
 
-
     void print(Block const& block) {
         str << block.name() << ": ID: " << utl::to_underlying(block.id())
             << "\n";
