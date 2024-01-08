@@ -159,7 +159,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     case sema::FunctionKind::Generated: {
         irFn = allocate<ir::Function>(ctx,
                                       irSignature.returnType,
-                                      irSignature.argumentTypes,
+                                      makeParameters(irSignature.argumentTypes),
                                       nameMangler(*semaFn),
                                       mapFuncAttrs(semaFn->attributes()),
                                       mapVisibility(semaFn->accessControl()));
@@ -169,7 +169,8 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
         irFn =
             allocate<ir::ForeignFunction>(ctx,
                                           irSignature.returnType,
-                                          irSignature.argumentTypes,
+                                          makeParameters(
+                                              irSignature.argumentTypes),
                                           std::string(semaFn->name()),
                                           mapFuncAttrs(semaFn->attributes()));
         break;

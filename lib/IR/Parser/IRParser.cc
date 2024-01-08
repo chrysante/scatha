@@ -111,10 +111,9 @@ struct IRParser {
     UniquePtr<GlobalVariable> parseGlobalVar();
     UniquePtr<Callable> parseCallable();
     UniquePtr<Parameter> parseParamDecl(size_t index);
-    UniquePtr<ForeignFunction> makeForeignFunction(
-        Type const* returnType,
-        utl::small_vector<Parameter*> params,
-        Token name);
+    UniquePtr<ForeignFunction> makeForeignFunction(Type const* returnType,
+                                                   List<Parameter> params,
+                                                   Token name);
     UniquePtr<BasicBlock> parseBasicBlock();
     UniquePtr<Instruction> parseInstruction();
     template <typename T>
@@ -478,7 +477,7 @@ UniquePtr<Callable> IRParser::parseCallable() {
     auto* const returnType = parseType();
     Token const name = eatToken();
     expect(eatToken(), TokenKind::OpenParan);
-    utl::small_vector<Parameter*> parameters;
+    List<Parameter> parameters;
     size_t index = 0;
     if (peekToken().kind() != TokenKind::CloseParan) {
         parameters.push_back(parseParamDecl(index++).release());
@@ -492,14 +491,15 @@ UniquePtr<Callable> IRParser::parseCallable() {
     }
     expect(eatToken(), TokenKind::CloseParan);
     if (isExt) {
-        auto function = makeForeignFunction(returnType, parameters, name);
+        auto function =
+            makeForeignFunction(returnType, std::move(parameters), name);
         registerValue(name, function.get());
         return function;
     }
     auto function =
         allocate<Function>(ctx,
                            returnType,
-                           parameters,
+                           std::move(parameters),
                            std::string(name.id()),
                            FunctionAttribute::None,
                            Visibility::External); // FIXME: Parse
@@ -536,11 +536,12 @@ UniquePtr<Parameter> IRParser::parseParamDecl(size_t index) {
     return result;
 }
 
-UniquePtr<ForeignFunction> IRParser::makeForeignFunction(
-    Type const* returnType, utl::small_vector<Parameter*> params, Token name) {
+UniquePtr<ForeignFunction> IRParser::makeForeignFunction(Type const* returnType,
+                                                         List<Parameter> params,
+                                                         Token name) {
     return allocate<ForeignFunction>(ctx,
                                      returnType,
-                                     params,
+                                     std::move(params),
                                      std::string(name.id()),
                                      FunctionAttribute::None);
 }

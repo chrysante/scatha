@@ -195,7 +195,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
         ToSmallVector<>;
     auto result = allocate<Function>(context,
                                      function->returnType(),
-                                     paramTypes,
+                                     makeParameters(paramTypes),
                                      std::string(function->name()),
                                      function->attributes());
     CloneValueMap valueMap;

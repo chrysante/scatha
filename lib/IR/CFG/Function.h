@@ -6,6 +6,7 @@
 #include <string>
 
 #include "Common/Base.h"
+#include "Common/FFI.h"
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Global.h"
 #include "IR/Fwd.h"
@@ -21,16 +22,12 @@ class SCATHA_API Parameter:
     using ParentNodeBase = ParentedNode<Callable>;
 
 public:
-    explicit Parameter(Type const* type, size_t index, Callable* parent):
-        Parameter(type, index, std::to_string(index), parent) {}
+    explicit Parameter(Type const* type, size_t index, Callable* parent);
 
     explicit Parameter(Type const* type,
                        size_t index,
                        std::string name,
-                       Callable* parent):
-        Value(NodeType::Parameter, type, std::move(name)),
-        ParentNodeBase(parent),
-        _index(index) {}
+                       Callable* parent);
 
     /// \returns the index of this parameter which may but does not have to be
     /// its name.
@@ -41,6 +38,10 @@ public:
 private:
     size_t _index;
 };
+
+/// Allocates `ir::Parameter` nodes according to \p types with names `"0", "1",
+/// ...`
+List<Parameter> makeParameters(std::span<Type const* const> types);
 
 /// Represents a callable.
 /// This is a base common class of `Function` and `ForeignFunction`.
@@ -79,15 +80,7 @@ protected:
     explicit Callable(NodeType nodeType,
                       Context& ctx,
                       Type const* returnType,
-                      std::span<Type const* const> parameterTypes,
-                      std::string name,
-                      FunctionAttribute attr,
-                      Visibility vis);
-
-    explicit Callable(NodeType nodeType,
-                      Context& ctx,
-                      Type const* returnType,
-                      std::span<Parameter* const>,
+                      List<Parameter> parameters,
                       std::string name,
                       FunctionAttribute attr,
                       Visibility vis);
@@ -127,18 +120,9 @@ public:
         internal::InstructionIteratorImpl<Function::ConstIterator,
                                           BasicBlock::ConstIterator>;
 
-    /// Construct a function with parameter types.
     explicit Function(Context& ctx,
                       Type const* returnType,
-                      std::span<Type const* const> parameterTypes,
-                      std::string name,
-                      FunctionAttribute attr,
-                      Visibility vis = Visibility::Internal);
-
-    /// Construct a function with explicit parameters.
-    explicit Function(Context& ctx,
-                      Type const* returnType,
-                      std::span<Parameter* const> parameters,
+                      List<Parameter> parameters,
                       std::string name,
                       FunctionAttribute attr,
                       Visibility vis = Visibility::Internal);
@@ -225,13 +209,7 @@ class SCATHA_API ForeignFunction: public Callable {
 public:
     explicit ForeignFunction(Context& ctx,
                              Type const* returnType,
-                             std::span<Type const* const> parameterTypes,
-                             std::string name,
-                             FunctionAttribute attr);
-
-    explicit ForeignFunction(Context& ctx,
-                             Type const* returnType,
-                             std::span<Parameter* const> parameters,
+                             List<Parameter> parameters,
                              std::string name,
                              FunctionAttribute attr);
 

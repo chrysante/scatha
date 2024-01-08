@@ -11,12 +11,21 @@
 using namespace scatha;
 using namespace ir;
 
-static utl::small_vector<Parameter*> toParameters(
-    std::span<Type const* const> types, Callable* func) {
-    utl::small_vector<Parameter*> result;
+Parameter::Parameter(Type const* type, size_t index, Callable* parent):
+    Parameter(type, index, std::to_string(index), parent) {}
+
+Parameter::Parameter(Type const* type,
+                     size_t index,
+                     std::string name,
+                     Callable* parent):
+    Value(NodeType::Parameter, type, std::move(name)),
+    ParentNodeBase(parent),
+    _index(index) {}
+
+List<Parameter> ir::makeParameters(std::span<Type const* const> types) {
+    List<Parameter> result;
     for (auto [index, type]: types | ranges::views::enumerate) {
-        auto* p = new Parameter(type, index++, func);
-        result.push_back(p);
+        result.push_back(new Parameter(type, index++, nullptr));
     }
     return result;
 }
@@ -24,33 +33,18 @@ static utl::small_vector<Parameter*> toParameters(
 Callable::Callable(NodeType nodeType,
                    Context& ctx,
                    Type const* returnType,
-                   std::span<Type const* const> parameterTypes,
-                   std::string name,
-                   FunctionAttribute attr,
-                   Visibility vis):
-    Callable(nodeType,
-             ctx,
-             returnType,
-             toParameters(parameterTypes, this),
-             std::move(name),
-             attr,
-             vis) {}
-
-Callable::Callable(NodeType nodeType,
-                   Context& ctx,
-                   Type const* returnType,
-                   std::span<Parameter* const> parameters,
+                   List<Parameter> parameters,
                    std::string name,
                    FunctionAttribute attr,
                    Visibility vis):
     Global(nodeType, ctx.ptrType(), std::move(name)),
+    params(std::move(parameters)),
     _returnType(returnType),
     attrs(attr),
     vis(vis) {
-    for (auto [index, param]: parameters | ranges::views::enumerate) {
-        param->setIndex(index);
-        param->set_parent(this);
-        params.push_back(param);
+    for (auto [index, param]: params | ranges::views::enumerate) {
+        param.setIndex(index);
+        param.set_parent(this);
     }
 }
 
@@ -69,32 +63,14 @@ static void uniqueParams(auto&& params, auto&& nameFac) {
 
 Function::Function(Context& ctx,
                    Type const* returnType,
-                   std::span<Type const* const> parameterTypes,
+                   List<Parameter> parameters,
                    std::string name,
                    FunctionAttribute attr,
                    Visibility vis):
     Callable(NodeType::Function,
              ctx,
              returnType,
-             parameterTypes,
-             std::move(name),
-             attr,
-             vis),
-    nameFac(),
-    analysisData(std::make_unique<AnalysisData>()) {
-    uniqueParams(parameters(), nameFac);
-}
-
-Function::Function(Context& ctx,
-                   Type const* returnType,
-                   std::span<Parameter* const> parameters,
-                   std::string name,
-                   FunctionAttribute attr,
-                   Visibility vis):
-    Callable(NodeType::Function,
-             ctx,
-             returnType,
-             parameters,
+             std::move(parameters),
              std::move(name),
              attr,
              vis),
@@ -168,26 +144,13 @@ void Function::writeValueToImpl(
 
 ForeignFunction::ForeignFunction(Context& ctx,
                                  Type const* returnType,
-                                 std::span<Type const* const> parameterTypes,
+                                 List<Parameter> parameters,
                                  std::string name,
                                  FunctionAttribute attr):
     Callable(NodeType::ForeignFunction,
              ctx,
              returnType,
-             parameterTypes,
-             std::move(name),
-             attr,
-             Visibility::Internal) {}
-
-ForeignFunction::ForeignFunction(Context& ctx,
-                                 Type const* returnType,
-                                 std::span<Parameter* const> parameters,
-                                 std::string name,
-                                 FunctionAttribute attr):
-    Callable(NodeType::ForeignFunction,
-             ctx,
-             returnType,
-             parameters,
+             std::move(parameters),
              std::move(name),
              attr,
              Visibility::Internal) {}
