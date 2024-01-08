@@ -8,7 +8,7 @@
 #include <vector>
 
 #include <scatha/Common/Base.h>
-#include <scatha/Common/ForeignFunctionDecl.h>
+#include <scatha/Common/FFI.h>
 #include <scatha/Common/Metadata.h>
 
 namespace scatha::Asm {
@@ -49,18 +49,6 @@ public:
 
     ///
     void setJumpSites(std::vector<Jumpsite> data);
-
-    /// List of foreign library names to be imported by the VM
-    std::span<std::string const> foreignLibraries() const;
-
-    ///
-    void setForeignLibraries(std::vector<std::string> libs);
-
-    /// \Returns a view over the foreign function declarations
-    std::span<ForeignFunctionDecl const> foreignFunctions() const;
-
-    ///
-    void setForeignFunctions(std::vector<ForeignFunctionDecl> functions);
 
 private:
     struct Impl;
