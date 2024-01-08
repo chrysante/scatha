@@ -8,14 +8,14 @@ using namespace sema;
 
 TEST_CASE("Function Type", "[sema]") {
     SymbolTable sym;
-    auto const fSig = FunctionSignature({ sym.S64() }, sym.S64());
-    auto const gSig = FunctionSignature({ sym.S64() }, sym.Void());
-    auto* F = sym.declareFunction("f", fSig);
+    auto* fSig = sym.functionType({ sym.S64() }, sym.S64());
+    auto* gSig = sym.functionType({ sym.S64() }, sym.Void());
+    auto* F = sym.declareFunction("f", fSig, AccessControl::Public);
     REQUIRE(F);
-    CHECK(F->signature().argumentType(0) == sym.S64());
-    CHECK(F->signature().returnType() == sym.S64());
-    auto const G = sym.declareFunction("g", gSig);
+    CHECK(F->argumentType(0) == sym.S64());
+    CHECK(F->returnType() == sym.S64());
+    auto const G = sym.declareFunction("g", gSig, AccessControl::Public);
     REQUIRE(G);
-    CHECK(G->signature().argumentType(0) == sym.S64());
-    CHECK(G->signature().returnType() == sym.Void());
+    CHECK(G->argumentType(0) == sym.S64());
+    CHECK(G->returnType() == sym.Void());
 }

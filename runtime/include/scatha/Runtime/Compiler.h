@@ -49,9 +49,8 @@ public:
     }
 
     /// Declares the function described by \p desc to the internal symbol table
-    FuncDecl declareFunction(std::string name,
-                             sema::FunctionSignature signature) {
-        return lib.declareFunction(std::move(name), std::move(signature));
+    FuncDecl declareFunction(std::string name, sema::FunctionType const* type) {
+        return lib.declareFunction(std::move(name), type);
     }
 
     /// \overload
@@ -93,8 +92,8 @@ public:
 
     ///
     template <typename F>
-    sema::FunctionSignature extractSignature() const {
-        return lib.extractSignature<F>();
+    sema::FunctionType const* extractFunctionType() const {
+        return lib.extractFunctionType<F>();
     }
 
 private:

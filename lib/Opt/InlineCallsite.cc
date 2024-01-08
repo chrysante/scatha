@@ -58,9 +58,9 @@ void opt::inlineCallsite(ir::Context& ctx,
             itr = bb.erase(BasicBlock::Iterator(ret));
         }
     }
-    landingpad->setPredecessors(
-        phiArgs | ranges::views::transform([](auto m) { return m.pred; }) |
-        ToSmallVector<>);
+    landingpad->setPredecessors(phiArgs | ranges::views::transform([](auto m) {
+        return m.pred;
+    }) | ToSmallVector<>);
     if (!isa<VoidType>(calleeClone->returnType())) {
         /// Add a phi node to `landingpad` the merge all returns from
         /// `calleeClone`

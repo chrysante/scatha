@@ -525,9 +525,8 @@ bool Variable::pointerUsePostdominatesPhi(Instruction* user, Value* ptr) {
 [[maybe_unused]] static void reverseBFS(
     Function& function, utl::function_view<void(BasicBlock*)> fn) {
     auto visited = function | TakeAddress | ranges::views::filter([](auto* BB) {
-                       return isa<Return>(BB->terminator());
-                   }) |
-                   ranges::to<utl::hashset<BasicBlock*>>;
+        return isa<Return>(BB->terminator());
+    }) | ranges::to<utl::hashset<BasicBlock*>>;
     std::queue<BasicBlock*> queue;
     for (auto* exit: visited) {
         queue.push(exit);
@@ -690,11 +689,10 @@ static utl::small_vector<Slice> slicesInRange(size_t begin,
                                                      ranges::less{},
                                                      &Slice::end)) |
            ranges::views::transform([&](Slice slice) {
-               return Slice(slice.begin() - begin,
-                            slice.end() - begin,
-                            slice.newAlloca());
-           }) |
-           ToSmallVector<>;
+        return Slice(slice.begin() - begin,
+                     slice.end() - begin,
+                     slice.newAlloca());
+    }) | ToSmallVector<>;
 }
 
 bool Variable::computeSlices() {

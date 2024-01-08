@@ -652,9 +652,8 @@ struct Matcher<ir::Phi>: MatcherBase {
         auto* dest = resolve(phi);
         auto arguments = phi.arguments() |
                          ranges::views::transform([&](ir::ConstPhiMapping arg) {
-                             return resolve(*arg.value);
-                         }) |
-                         ToSmallVector<>;
+            return resolve(*arg.value);
+        }) | ToSmallVector<>;
         size_t const numBytes = phi.type()->size();
         size_t const numWords = ::numWords(phi);
         for (size_t i = 0; i < numWords; ++i) {
@@ -970,8 +969,8 @@ struct ISelBlockCtx {
                  ValueMap& map):
         DAG(DAG),
         resolver(ctx, mod, mirFn, map, [this](mir::Instruction* inst) {
-            emit(inst);
-        }) {
+        emit(inst);
+    }) {
 #define SC_INSTRUCTIONNODE_DEF(Inst, ...)                                      \
     std::get<Matcher<ir::Inst>>(matchers).init(ctx, DAG, resolver);
 #include "IR/Lists.def"

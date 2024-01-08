@@ -27,7 +27,7 @@ struct Impl {
                 return { options.globalPrefix, false };
             },
             [&](NativeLibrary const& lib) -> RetType {
-                return { lib.libName(), false };
+                return { std::string(lib.name()), false };
             },
             [&](Entity const& entity) -> RetType {
                 return { std::string(entity.name()), true };
@@ -90,7 +90,7 @@ struct Impl {
     std::string computeImpl(Function const& func) {
         std::stringstream sstr;
         sstr << computeBase(func);
-        for (auto* arg: func.signature().argumentTypes()) {
+        for (auto* arg: func.argumentTypes()) {
             sstr << "-" << compute(*arg);
         }
         return std::move(sstr).str();

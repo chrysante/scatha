@@ -76,14 +76,10 @@ SERIALIZE_ENUM_BEGIN(EntityType)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
-SERIALIZE_ENUM_BEGIN(AccessSpecifier)
-SERIALIZE_ENUM_ELEM(AccessSpecifier::Public, "Public")
-SERIALIZE_ENUM_ELEM(AccessSpecifier::Private, "Private")
-SERIALIZE_ENUM_END()
-
-SERIALIZE_ENUM_BEGIN(BinaryVisibility)
-SERIALIZE_ENUM_ELEM(BinaryVisibility::Export, "Export")
-SERIALIZE_ENUM_ELEM(BinaryVisibility::Internal, "Internal")
+SERIALIZE_ENUM_BEGIN(AccessControl)
+#define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling)                             \
+    SERIALIZE_ENUM_ELEM(AccessControl::Kind, Spelling)
+#include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
 SERIALIZE_ENUM_BEGIN(SpecialMemberFunction)
@@ -110,10 +106,8 @@ namespace scatha::sema {
 
 void to_json(json& j, EntityType e) { serializeEnum(j, e); }
 void from_json(json const& j, EntityType& e) { deserializeEnum(j, e); }
-void to_json(json& j, AccessSpecifier e) { serializeEnum(j, e); }
-void from_json(json const& j, AccessSpecifier& e) { deserializeEnum(j, e); }
-void to_json(json& j, BinaryVisibility e) { serializeEnum(j, e); }
-void from_json(json const& j, BinaryVisibility& e) { deserializeEnum(j, e); }
+void to_json(json& j, AccessControl e) { serializeEnum(j, e); }
+void from_json(json const& j, AccessControl& e) { deserializeEnum(j, e); }
 void to_json(json& j, SpecialMemberFunction e) { serializeEnum(j, e); }
 void from_json(json const& j, SpecialMemberFunction& e) {
     deserializeEnum(j, e);
@@ -152,7 +146,8 @@ static void serializeTypenameImpl(Type const& type, std::ostream& str) {
     SC_MATCH (type) {
         [&](ObjectType const& type) {
             auto rec = [&](auto& rec, auto* scope) {
-                if (!scope || scope->kind() == ScopeKind::Global) {
+                SC_EXPECT(scope);
+                if (isa<FileScope>(scope) || isa<GlobalScope>(scope)) {
                     return;
                 }
                 rec(rec, scope->parent());
@@ -160,6 +155,9 @@ static void serializeTypenameImpl(Type const& type, std::ostream& str) {
             };
             rec(rec, type.parent());
             str << type.name();
+        },
+        [&](FunctionType const&) {
+            SC_UNIMPLEMENTED();
         },
         [&](ArrayType const& arr) {
             str << "[";
@@ -328,7 +326,7 @@ struct TypenameParser {
 
     ///
     Entity* findEntity(Scope& scope, std::string_view name) {
-        auto entities = scope.findEntities(name);
+        auto entities = scope.findEntities(name, /* findHidden = */ true);
         if (entities.empty()) {
             return nullptr;
         }
@@ -338,7 +336,7 @@ struct TypenameParser {
 
     ///
     Entity* findEntity(std::string_view name) {
-        auto entities = sym.unqualifiedLookup(name);
+        auto entities = sym.unqualifiedLookup(name, /* findHidden = */ true);
         if (entities.empty()) {
             return nullptr;
         }
@@ -400,100 +398,155 @@ static Type const* parseTypename(SymbolTable& sym, std::string_view text) {
 
 /// MARK: - serialize()
 
-namespace scatha::sema {
+namespace {
 
-static void to_json(json& j, Entity const& entity);
+struct Serializer {
+    utl::hashset<NativeLibrary const*> nativeDependencies;
+    utl::hashset<ForeignLibrary const*> foreignDependencies;
 
-static void to_json_impl(json&, Entity const&) { SC_UNREACHABLE(); }
+    json serialize(Entity const& entity) {
+        return visit(entity,
+                     [&](auto const& entity) { return serializeImpl(entity); });
+    }
 
-static json serializeChildren(
-    Entity const& entity,
-    utl::function_view<bool(Entity const*)> filterFn = [](auto*) {
-        return true;
-    }) {
-    auto children = [&] {
-        if (auto* scope = dyncast<Scope const*>(&entity)) {
-            auto children = scope->entities() | transform(stripAlias) |
-                            filter(filterFn) |
-                            ranges::to<utl::hashset<Entity const*>>;
-            for (auto* entity: scope->children() | filter(filterFn)) {
-                children.insert(entity);
+    json serializeImpl(GlobalScope const& global) {
+        json j;
+        auto& entities = j["entities"];
+        for (auto* child: global.children()) {
+            if (auto* lib = dyncast<ForeignLibrary const*>(child)) {
+                foreignDependencies.insert(lib);
             }
-            return children;
+            if (auto* file = dyncast<FileScope const*>(child)) {
+                for (auto* entity: file->entities()) {
+                    if (!entity->isPublic()) {
+                        continue;
+                    }
+                    if (!isa<Function>(entity) && !isa<StructType>(entity) &&
+                        !isa<Variable>(entity))
+                    {
+                        continue;
+                    }
+                    entities.push_back(serialize(*entity));
+                }
+            }
         }
-        if (auto* os = dyncast<OverloadSet const*>(&entity)) {
-            return *os | filter(filterFn) |
-                   ranges::to<utl::hashset<Entity const*>>;
+        for (auto* lib: nativeDependencies) {
+            j["native_dependencies"].push_back(lib->name());
         }
-        return utl::hashset<Entity const*>{};
-    }();
-    json j;
-    for (auto [index, child]: children | enumerate) {
-        j[index] = *child;
+        for (auto* lib: foreignDependencies) {
+            j["foreign_dependencies"].push_back(lib->name());
+        }
+        return j;
     }
-    return j;
-}
 
-static void to_json_impl(json& j, GlobalScope const& scope) {
-    j = serializeChildren(scope, /* filter = */ [](Entity const* child) {
-        // clang-format off
-        return SC_MATCH (*child) {
-            [](Function const& function) { return function.isNative(); },
-            [](StructType const&) { return true; },
-            /// We serialize foreign libraries because targets that import us
-            /// must know about out foreign libraries
-            [](ForeignLibrary const&) { return true; },
-            [](Entity const&) { return false; },
-        }; // clang-format on
-    });
-}
-
-static void to_json_impl(json& j, Function const& function) {
-    j["return_type"] = serializeTypename(function.returnType());
-    j["argument_types"] = function.argumentTypes() |
-                          transform(serializeTypename);
-    if (function.isSpecialMemberFunction()) {
-        j["smf_kind"] = function.SMFKind();
+    json serializeImpl(Function const& function) {
+        json j = serializeCommon(function);
+        j["return_type"] = serializeTypename(function.returnType());
+        j["argument_types"] = function.argumentTypes() |
+                              transform(serializeTypename);
+        if (function.isSpecialMemberFunction()) {
+            j["smf_kind"] = function.SMFKind();
+        }
+        if (function.isSpecialLifetimeFunction()) {
+            j["slf_kind"] = function.SLFKind();
+        }
+        j["function_kind"] = function.kind();
+        gatherLibraryDependencies(*function.type());
+        return j;
     }
-    if (function.isSpecialLifetimeFunction()) {
-        j["slf_kind"] = function.SLFKind();
+
+    json serializeImpl(StructType const& type) {
+        json j = serializeCommon(type);
+        j["size"] = type.size();
+        j["align"] = type.align();
+        j["default_constructible"] = type.isDefaultConstructible();
+        j["trivial_lifetime"] = type.hasTrivialLifetime();
+        for (auto* entity: type.entities()) {
+            if (!entity->isPublic()) {
+                continue;
+            }
+            if (!isa<Function>(entity) && !isa<StructType>(entity) &&
+                !isa<Variable>(entity))
+            {
+                continue;
+            }
+            j["children"].push_back(serialize(*entity));
+        }
+        return j;
     }
-    j["function_kind"] = function.kind();
-}
 
-static void to_json_impl(json& j, StructType const& type) {
-    j["children"] = serializeChildren(type, [](Entity const* child) {
-        return isa<StructType>(child) || isa<Function>(child) ||
-               isa<Variable>(child);
-    });
-    j["size"] = type.size();
-    j["align"] = type.align();
-    j["default_constructible"] = type.isDefaultConstructible();
-    j["trivial_lifetime"] = type.hasTrivialLifetime();
-}
-
-static void to_json_impl(json& j, Variable const& var) {
-    j["type"] = serializeTypename(var.type());
-    j["mutable"] = var.isMut();
-    if (isa<StructType>(var.parent())) {
-        j["index"] = var.index();
+    json serializeImpl(Variable const& var) {
+        json j = serializeCommon(var);
+        j["type"] = serializeTypename(var.type());
+        j["mutable"] = var.isMut();
+        if (isa<StructType>(var.parent())) {
+            j["index"] = var.index();
+        }
+        gatherLibraryDependencies(*var.type());
+        return j;
     }
-}
 
-static void to_json_impl(json& j, ForeignLibrary const& lib) {
-    j["libname"] = lib.libName();
-}
+    json serializeImpl(Entity const&) { SC_UNREACHABLE(); }
 
-static void to_json(json& j, Entity const& entity) {
-    j["entity_type"] = entity.entityType();
-    j["name"] = std::string(entity.name());
-    visit(entity, [&j](auto& entity) { to_json_impl(j, entity); });
-}
+    json serializeCommon(Entity const& entity) {
+        json j;
+        j["_entity_type"] = entity.entityType();
+        j["_name"] = std::string(entity.name());
+        j["access_control"] = entity.accessControl();
+        return j;
+    }
 
-} // namespace scatha::sema
+    void gatherLibraryDependencies(Type const& type) {
+        visit(type, [&](auto const& type) { gatherLibDepsImpl(type); });
+    }
 
-void sema::serialize(SymbolTable const& sym, std::ostream& ostream) {
-    json j = sym.globalScope();
+    void gatherLibDepsImpl(FunctionType const& type) {
+        for (auto* argType: type.argumentTypes()) {
+            gatherLibraryDependencies(*argType);
+        }
+        gatherLibraryDependencies(*type.returnType());
+    }
+
+    void gatherLibDepsImpl(StructType const& type) {
+        if (auto* lib = parentLibrary(type)) {
+            nativeDependencies.insert(lib);
+        }
+    }
+
+    void gatherLibDepsImpl(BuiltinType const&) {}
+
+    void gatherLibDepsImpl(ArrayType const& type) {
+        gatherLibraryDependencies(*type.elementType());
+    }
+
+    void gatherLibDepsImpl(PointerType const& type) {
+        gatherLibraryDependencies(*type.base());
+    }
+
+    void gatherLibDepsImpl(ReferenceType const& type) {
+        gatherLibraryDependencies(*type.base());
+    }
+
+    static NativeLibrary const* parentLibrary(Entity const& entity) {
+        SC_EXPECT(!isa<GlobalScope>(entity));
+        auto* parent = entity.parent();
+        while (true) {
+            SC_ASSERT(parent, "Ill-formed symbol table");
+            if (auto* lib = dyncast<NativeLibrary const*>(parent)) {
+                return lib;
+            }
+            if (isa<FileScope>(parent) || isa<GlobalScope>(parent)) {
+                return nullptr;
+            }
+            parent = parent->parent();
+        }
+    }
+};
+
+} // namespace
+
+void sema::serializeLibrary(SymbolTable const& sym, std::ostream& ostream) {
+    auto j = Serializer{}.serialize(sym.globalScope());
     ostream << std::setw(2) << j << std::endl;
 }
 
@@ -539,17 +592,27 @@ static StructType* getStruct(Function* function) {
     return type;
 }
 
-struct DeserializeContext: TypeMapBase {
+struct Deserializer: TypeMapBase {
     /// The symbol table do deserialize into. All deserialized entities be
     /// written into the current scope and according child scopes
     SymbolTable& sym;
 
-    DeserializeContext(SymbolTable& sym): sym(sym) {}
+    Deserializer(SymbolTable& sym): sym(sym) {}
 
     /// Performs the deserialization
     void run(json const& j) {
-        preparseTypes(j);
-        parseEntities(j);
+        if (auto* deps = tryGet(j, "foreign_dependencies")) {
+            for (auto& lib: *deps) {
+                sym.importForeignLib(lib.get<std::string>());
+            }
+        }
+        if (auto* deps = tryGet(j, "native_dependencies")) {
+            for (auto& lib: *deps) {
+                sym.importNativeLib(lib.get<std::string>());
+            }
+        }
+        preparseTypes(j.at("entities"));
+        parseEntities(j.at("entities"));
     }
 
     /// Performs a DFS over the JSON array and declares all encountered struct
@@ -558,40 +621,48 @@ struct DeserializeContext: TypeMapBase {
     /// member variables are parsed later and add themselves to their parent
     /// structs
     void preparseTypes(json const& j) {
-        parseArray(j, [&](Tag<StructType>, json const& obj) {
-            auto* type =
-                sym.declareStructureType(get<std::string>(obj, "name"));
-            insertType(obj, type);
-            type->setSize(get<size_t>(obj, "size"));
-            type->setAlign(get<size_t>(obj, "align"));
-            type->setIsDefaultConstructible(
-                get<bool>(obj, "default_constructible"));
-            type->setHasTrivialLifetime(get<bool>(obj, "trivial_lifetime"));
-            sym.withScopeCurrent(type,
-                                 [&] { preparseTypes(get(obj, "children")); });
+        parseArray(j, [this]<typename T>(Tag<T> tag, json const& obj) {
+            preparseImpl(tag, obj);
         });
     }
+
+    void preparseImpl(Tag<StructType>, json const& obj) {
+        auto* type = sym.declareStructureType(get<std::string>(obj, "_name"),
+                                              get(obj, "access_control"));
+        insertType(obj, type);
+        type->setSize(get<size_t>(obj, "size"));
+        type->setAlign(get<size_t>(obj, "align"));
+        type->setIsDefaultConstructible(
+            get<bool>(obj, "default_constructible"));
+        type->setHasTrivialLifetime(get<bool>(obj, "trivial_lifetime"));
+        if (auto children = tryGet(obj, "children")) {
+            sym.withScopeCurrent(type, [&] { preparseTypes(*children); });
+        }
+    }
+
+    template <typename T>
+    void preparseImpl(Tag<T>, json const&) {}
 
     /// Because types are parsed in a prior step we only forward to our children
     void parseImpl(Tag<StructType>, json const& obj) {
         auto* type = getType(obj);
-        sym.withScopeCurrent(type,
-                             [&] { parseEntities(get(obj, "children")); });
+        if (auto children = tryGet(obj, "children")) {
+            sym.withScopeCurrent(type, [&] { parseEntities(*children); });
+        }
     }
 
     ///
     void parseImpl(Tag<Function>, json const& obj) {
         auto argTypes = get(obj, "argument_types") |
                         transform([&](json const& j) {
-                            return parseTypename(sym, j.get<std::string>());
-                        }) |
-                        ToSmallVector<>;
+            return parseTypename(sym, j.get<std::string>());
+        }) | ToSmallVector<>;
         auto* retType =
             parseTypename(sym, get<std::string>(obj, "return_type"));
         auto* function =
-            sym.declareFunction(get<std::string>(obj, "name"),
-                                FunctionSignature(std::move(argTypes),
-                                                  retType));
+            sym.declareFunction(get<std::string>(obj, "_name"),
+                                sym.functionType(argTypes, retType),
+                                get(obj, "access_control"));
         if (auto kind = tryGet<SpecialMemberFunction>(obj, "smf_kind")) {
             function->setSMFKind(*kind);
             getStruct(function)->addSpecialMemberFunction(*kind, function);
@@ -608,8 +679,10 @@ struct DeserializeContext: TypeMapBase {
         auto* type = parseTypename(sym, get<std::string>(obj, "type"));
         using enum Mutability;
         auto mut = get<bool>(obj, "mutable") ? Mutable : Const;
-        auto* var =
-            sym.defineVariable(get<std::string>(obj, "name"), type, mut);
+        auto* var = sym.defineVariable(get<std::string>(obj, "_name"),
+                                       type,
+                                       mut,
+                                       get(obj, "access_control"));
         if (auto index = tryGet<size_t>(obj, "index")) {
             auto* type = dyncast<StructType*>(&sym.currentScope());
             // TODO: CHECK type is not null
@@ -623,8 +696,8 @@ struct DeserializeContext: TypeMapBase {
 
     ///
     void parseImpl(Tag<ForeignLibrary>, json const& obj) {
-        auto libname = get<std::string>(obj, "libname");
-        sym.importForeignLib(libname);
+        auto name = get<std::string>(obj, "_name");
+        sym.importForeignLib(name);
     }
 
     /// Performs a DFS over the JSON array and declares all encountered entities
@@ -640,12 +713,11 @@ struct DeserializeContext: TypeMapBase {
     /// Parses the type of the JSON object \p obj and dispatches to \p callback
     /// with the corresponding tag
     bool doParse(json const& obj, auto callback) {
-        auto type = get<EntityType>(obj, "entity_type");
-        auto callbackWithDefault = utl::overload{ callback, [](auto...) {} };
+        auto type = get<EntityType>(obj, "_entity_type");
         switch (type) {
 #define SC_SEMA_ENTITY_DEF(Type, ...)                                          \
     case EntityType::Type:                                                     \
-        callbackWithDefault(Tag<Type>{}, obj);                                 \
+        callback(Tag<Type>{}, obj);                                            \
         return true;
 #include <scatha/Sema/Lists.def>
         }
@@ -701,7 +773,7 @@ struct DeserializeContext: TypeMapBase {
 bool sema::deserialize(SymbolTable& sym, std::istream& istream) {
     try {
         json j = json::parse(istream);
-        DeserializeContext ctx(sym);
+        Deserializer ctx(sym);
         ctx.run(j);
         return true;
     }

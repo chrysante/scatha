@@ -41,7 +41,7 @@ static ExternalFunction::FuncPtr math(auto impl) {
         [&]<size_t... I>(std::index_sequence<I...>) {
             std::tuple<wrap<Float, I>...> args{ load<Float>(regPtr + I)... };
             store(regPtr, std::apply(decltype(impl){}, args));
-            }(std::make_index_sequence<NumArgs>{});
+        }(std::make_index_sequence<NumArgs>{});
     };
 }
 

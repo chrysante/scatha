@@ -120,10 +120,9 @@ void CGContext::run(mir::Module const& mod) {
     result.setDataSection(mod.dataSection());
     result.setMetadata(mod.metadata());
     auto jumpsites = mod.addressPlaceholders() | transform([&](auto p) {
-                         auto [offset, function] = p;
-                         return Jumpsite{ offset, getLabelID(*function), 8 };
-                     }) |
-                     ranges::to<std::vector>;
+        auto [offset, function] = p;
+        return Jumpsite{ offset, getLabelID(*function), 8 };
+    }) | ranges::to<std::vector>;
     result.setJumpSites(std::move(jumpsites));
 }
 

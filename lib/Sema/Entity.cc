@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include <range/v3/algorithm.hpp>
+#include <range/v3/numeric.hpp>
 #include <range/v3/view.hpp>
 #include <svm/Builtin.h>
 #include <utl/functional.hpp>
@@ -17,6 +18,7 @@
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 
 void sema::privateDelete(sema::Entity* entity) {
     visit(*entity, [](auto& entity) { delete &entity; });
@@ -28,13 +30,6 @@ void sema::privateDestroy(sema::Entity* entity) {
 
 EntityCategory Entity::category() const {
     return visit(*this, [](auto& derived) { return derived.categoryImpl(); });
-}
-
-std::optional<AccessSpecifier> Entity::accessSpec() const {
-    if (auto* decl = dyncast<ast::Declaration const*>(astNode())) {
-        return decl->accessSpec();
-    }
-    return std::nullopt;
 }
 
 Entity::Entity(EntityType entityType,
@@ -51,6 +46,15 @@ void Entity::setParent(Scope* parent) { _parent = parent; }
 void Entity::addAlias(Alias* alias) {
     SC_EXPECT(!ranges::contains(_aliases, alias));
     _aliases.push_back(alias);
+}
+
+Type const* sema::getEntityType(Entity const& entity) {
+    return visit(entity, []<typename E>(E const& entity) -> Type const* {
+        if constexpr (requires { entity.type(); }) {
+            return entity.type();
+        }
+        return nullptr;
+    });
 }
 
 Object::Object(EntityType entityType,
@@ -84,6 +88,7 @@ ValueCategory VarBase::valueCategory() const {
 Variable::Variable(std::string name,
                    Scope* parentScope,
                    ast::ASTNode* astNode,
+                   AccessControl accessControl,
                    Type const* type,
                    Mutability mut):
     VarBase(EntityType::Variable,
@@ -91,20 +96,25 @@ Variable::Variable(std::string name,
             parentScope,
             type,
             mut,
-            astNode) {}
+            astNode) {
+    setAccessControl(accessControl);
+}
 
 Property::Property(PropertyKind kind,
                    Scope* parentScope,
                    Type const* type,
                    Mutability mut,
-                   ValueCategory valueCat):
+                   ValueCategory valueCat,
+                   AccessControl accessControl):
     VarBase(EntityType::Property,
             std::string(toString(kind)),
             parentScope,
             type,
             mut),
     _kind(kind),
-    _valueCat(valueCat) {}
+    _valueCat(valueCat) {
+    setAccessControl(accessControl);
+}
 
 Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
     Object(EntityType::Temporary,
@@ -121,13 +131,30 @@ Scope::Scope(EntityType entityType,
              ast::ASTNode* astNode):
     Entity(entityType, std::move(name), parent, astNode), _kind(kind) {}
 
-std::span<Entity const* const> Scope::findEntities(
-    std::string_view name) const {
-    auto const itr = _names.find(name);
-    if (itr != _names.end()) {
-        return itr->second;
+utl::small_ptr_vector<Entity*> Scope::findEntities(std::string_view name,
+                                                   bool findHidden) {
+    return findEntitiesImpl<Entity>(this, name, findHidden);
+}
+
+utl::small_ptr_vector<Entity const*> Scope::findEntities(
+    std::string_view name, bool findHidden) const {
+    return findEntitiesImpl<Entity const>(this, name, findHidden);
+}
+
+template <typename E, typename S>
+utl::small_ptr_vector<E*> Scope::findEntitiesImpl(S* self,
+                                                  std::string_view name,
+                                                  bool findHidden) {
+    auto const itr = self->_names.find(name);
+    if (itr == self->_names.end()) {
+        return {};
     }
-    return {};
+    auto const& entities = itr->second;
+    if (findHidden) {
+        return utl::small_ptr_vector<E*>(entities.begin(), entities.end());
+    }
+    auto visible = entities | filter(&Entity::isVisible);
+    return utl::small_ptr_vector<E*>(visible.begin(), visible.end());
 }
 
 Property const* Scope::findProperty(PropertyKind kind) const {
@@ -180,34 +207,32 @@ FileScope::FileScope(std::string filename, Scope* parent):
           std::move(filename),
           parent) {}
 
-Library::Library(EntityType entityType,
-                 std::string name,
-                 std::string libName,
-                 Scope* parent):
-    Scope(entityType, ScopeKind::Global, std::move(name), parent),
-    _libName(std::move(libName)) {}
+Library::Library(EntityType entityType, std::string name, Scope* parent):
+    Scope(entityType, ScopeKind::Global, std::move(name), parent) {}
 
 NativeLibrary::NativeLibrary(std::string name,
-                             std::string libName,
                              std::filesystem::path codeFile,
                              Scope* parent):
-    Library(EntityType::NativeLibrary,
-            std::move(name),
-            std::move(libName),
-            parent),
+    Library(EntityType::NativeLibrary, std::move(name), parent),
     _codeFile(std::move(codeFile)) {}
 
 ForeignLibrary::ForeignLibrary(std::string name,
-                               std::string libName,
                                std::filesystem::path file,
                                Scope* parent):
-    Library(EntityType::ForeignLibrary,
-            std::move(name),
-            std::move(libName),
-            parent),
+    Library(EntityType::ForeignLibrary, std::move(name), parent),
     _file(std::move(file)) {}
 
 /// # Types
+
+Type::Type(EntityType entityType,
+           ScopeKind scopeKind,
+           std::string name,
+           Scope* parent,
+           ast::ASTNode* astNode,
+           AccessControl accessControl):
+    Scope(entityType, scopeKind, std::move(name), parent, astNode) {
+    setAccessControl(accessControl);
+}
 
 size_t Type::size() const {
     return visit(*this, [](auto& derived) { return derived.sizeImpl(); });
@@ -229,12 +254,91 @@ bool Type::hasTrivialLifetime() const {
                  [](auto& self) { return self.hasTrivialLifetimeImpl(); });
 }
 
+FunctionType::FunctionType(std::span<Type const* const> argumentTypes,
+                           Type const* returnType):
+    FunctionType(argumentTypes | ToSmallVector<>, returnType) {}
+
+static std::string getTypename(Type const* type) {
+    if (type) {
+        return std::string(type->name());
+    }
+    return "NULL";
+}
+
+static std::string makeFunctionTypeName(
+    std::span<Type const* const> argumentTypes, Type const* returnType) {
+    std::stringstream sstr;
+    sstr << "(";
+    for (bool first = true; auto* arg: argumentTypes) {
+        if (!first) sstr << ", ";
+        first = false;
+        sstr << getTypename(arg);
+    }
+    sstr << ") -> " << getTypename(returnType);
+    return std::move(sstr).str();
+}
+
+static AccessControl computeFnTypeAccCtrl(
+    std::span<Type const* const> argumentTypes, Type const* returnType) {
+    auto getAccCtrl = [](Type const* type) {
+        return type ? type->accessControl() : AccessControl::Public;
+    };
+    return ranges::accumulate(argumentTypes,
+                              getAccCtrl(returnType),
+                              ranges::max,
+                              getAccCtrl);
+}
+
+FunctionType::FunctionType(utl::small_vector<Type const*> argumentTypes,
+                           Type const* returnType):
+    Type(EntityType::FunctionType,
+         ScopeKind::Type,
+         makeFunctionTypeName(argumentTypes, returnType),
+         nullptr,
+         nullptr,
+         computeFnTypeAccCtrl(argumentTypes, returnType)),
+    _argumentTypes(std::move(argumentTypes)),
+    _returnType(returnType) {}
+
+ObjectType::ObjectType(EntityType entityType,
+                       ScopeKind scopeKind,
+                       std::string name,
+                       Scope* parent,
+                       size_t size,
+                       size_t align,
+                       ast::ASTNode* astNode,
+                       AccessControl accessControl):
+    Type(entityType,
+         scopeKind,
+         std::move(name),
+         parent,
+         astNode,
+         accessControl),
+    _size(size),
+    _align(align) {}
+
+BuiltinType::BuiltinType(EntityType entityType,
+                         std::string name,
+                         Scope* parentScope,
+                         size_t size,
+                         size_t align,
+                         AccessControl accessControl):
+    ObjectType(entityType,
+               ScopeKind::Type,
+               std::move(name),
+               parentScope,
+               size,
+               align,
+               nullptr,
+               accessControl) {}
+
 VoidType::VoidType(Scope* parentScope):
     BuiltinType(EntityType::VoidType,
                 "void",
                 parentScope,
                 InvalidSize,
-                InvalidSize) {}
+                InvalidSize,
+                AccessControl::Public) {}
 
 ArithmeticType::ArithmeticType(EntityType entityType,
                                std::string name,
@@ -245,7 +349,8 @@ ArithmeticType::ArithmeticType(EntityType entityType,
                 std::move(name),
                 parentScope,
                 utl::ceil_divide(bitwidth, 8),
-                utl::ceil_divide(bitwidth, 8)),
+                utl::ceil_divide(bitwidth, 8),
+                AccessControl::Public),
     _signed(signedness),
     _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)) {}
 
@@ -294,7 +399,27 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
 }
 
 NullPtrType::NullPtrType(Scope* parent):
-    BuiltinType(EntityType::NullPtrType, "<null-type>", parent, 1, 1) {}
+    BuiltinType(EntityType::NullPtrType,
+                "__nullptr_t",
+                parent,
+                1,
+                1,
+                AccessControl::Public) {}
+
+StructType::StructType(std::string name,
+                       Scope* parentScope,
+                       ast::ASTNode* astNode,
+                       size_t size,
+                       size_t align,
+                       AccessControl accessControl):
+    CompoundType(EntityType::StructType,
+                 ScopeKind::Type,
+                 std::move(name),
+                 parentScope,
+                 size,
+                 align,
+                 astNode,
+                 accessControl) {}
 
 void StructType::setMemberVariable(size_t index, Variable* var) {
     if (index >= _memberVars.size()) {
@@ -327,13 +452,15 @@ ArrayType::ArrayType(ObjectType* elementType, size_t count):
                  makeName(elementType, count),
                  getParent(elementType),
                  computeArraySize(elementType, count),
-                 computeArrayAlign(elementType)),
+                 computeArrayAlign(elementType),
+                 nullptr,
+                 elementType->accessControl()),
     elemType(elementType),
     _count(count) {}
 
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     std::stringstream sstr;
-    sstr << "[" << elemType->name();
+    sstr << "[" << getTypename(elemType);
     if (count != DynamicCount) {
         sstr << "," << count;
     }
@@ -364,7 +491,9 @@ PointerType::PointerType(EntityType entityType,
                std::move(name),
                getParent(base.get()),
                ptrSize(base),
-               ptrAlign()),
+               ptrAlign(),
+               nullptr,
+               base->accessControl()),
     PtrRefTypeBase(base) {}
 
 RawPtrType::RawPtrType(QualType base):
@@ -379,15 +508,55 @@ ReferenceType::ReferenceType(QualType base):
     Type(EntityType::ReferenceType,
          ScopeKind::Invalid,
          makeIndirectName("&", base),
-         getParent(base.get())),
+         getParent(base.get()),
+         nullptr,
+         base->accessControl()),
     PtrRefTypeBase(base) {}
 
-void Function::setDeducedReturnType(Type const* type) {
-    SC_ASSERT(!returnType(), "Already set");
-    _sig._returnType = type;
+Function::Function(std::string name,
+                   FunctionType const* type,
+                   Scope* parentScope,
+                   FunctionAttribute attrs,
+                   ast::ASTNode* astNode,
+                   AccessControl accessControl):
+    Scope(EntityType::Function,
+          ScopeKind::Function,
+          std::move(name),
+          parentScope,
+          astNode),
+    _type(type),
+    attrs(attrs) {
+    setAccessControl(accessControl);
+}
+
+Type const* Function::returnType() const {
+    SC_EXPECT(type());
+    return type()->returnType();
+}
+
+std::span<Type const* const> Function::argumentTypes() const {
+    SC_EXPECT(type());
+    return type()->argumentTypes();
+}
+
+Type const* Function::argumentType(size_t index) const {
+    SC_EXPECT(type());
+    return type()->argumentType(index);
+}
+
+size_t Function::argumentCount() const {
+    SC_EXPECT(type());
+    return type()->argumentCount();
 }
 
 void Function::setForeign() { _kind = FunctionKind::Foreign; }
+
+OverloadSet::OverloadSet(SourceRange loc,
+                         std::string name,
+                         utl::small_vector<Function*> functions):
+    Entity(EntityType::OverloadSet, std::move(name), nullptr),
+    small_vector(std::move(functions)),
+    loc(loc) {}
 
 Function const* OverloadSet::find(std::span<Type const* const> types) const {
     return find(std::span<Function const* const>(*this), types);
@@ -417,12 +586,18 @@ Entity const* OverloadSet::find(std::span<Entity const* const> set,
 Alias::Alias(std::string name,
              Entity& aliased,
              Scope* parent,
-             ast::ASTNode* astNode):
+             ast::ASTNode* astNode,
+             AccessControl accessControl):
     Entity(EntityType::Alias, std::move(name), parent, astNode),
-    _aliased(&aliased) {}
+    _aliased(&aliased) {
+    setAccessControl(accessControl);
+}
 
 PoisonEntity::PoisonEntity(ast::Identifier* ID,
                            EntityCategory cat,
-                           Scope* parentScope):
+                           Scope* parentScope,
+                           AccessControl accessControl):
     Entity(EntityType::PoisonEntity, std::string(ID->value()), parentScope, ID),
-    cat(cat) {}
+    cat(cat) {
+    setAccessControl(accessControl);
+}

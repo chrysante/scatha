@@ -46,6 +46,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
+    bool validateAccessPermission(Entity const& entity) const;
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
@@ -525,6 +526,38 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
     }; // clang-format on
 }
 
+bool ExprContext::validateAccessPermission(Entity const& entity) const {
+    /// TODO: Remove this check
+    /// All named entities should have access control. Right now at this stage
+    /// functions may not have access control, because return type deduction was
+    /// not performed yet. We will remove return type deduction for global
+    /// functions at some point, until then we leave this check here.
+    if (!entity.hasAccessControl()) {
+        return true;
+    }
+    using enum AccessControl;
+    switch (entity.accessControl()) {
+    case Private: {
+        auto* scope = entity.parent();
+        while (scope) {
+            if (scope == &sym.currentScope()) {
+                return true;
+            }
+            scope = scope->parent();
+        }
+        return false;
+    }
+    case Internal:
+        /// In the internal case we also return true because internal symbols
+        /// are not exported to other modules, so they cannot even be found by
+        /// name lookup. We could assert this assumption though
+        return true;
+    case Public:
+        return true;
+    }
+    SC_UNREACHABLE();
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(ma.accessed())) {
         return nullptr;
@@ -532,6 +565,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     dereferencePointer(ma.accessed());
     if (!analyze(ma.member())) {
         return nullptr;
+    }
+    if (!validateAccessPermission(*ma.member()->entity())) {
+        ctx.badExpr(ma.member(), AccessDenied);
     }
     /// Double dispatch table on the entity categories of the accessed object
     /// and the member
@@ -891,9 +927,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// a conversion node
     if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
         auto args = fc.arguments() | ranges::views::transform([](auto* arg) {
-                        return arg->extractFromParent();
-                    }) |
-                    ToSmallVector<>;
+            return arg->extractFromParent();
+        }) | ToSmallVector<>;
         auto owner = allocate<ast::ConstructExpr>(std::move(args),
                                                   targetType,
                                                   fc.sourceRange());

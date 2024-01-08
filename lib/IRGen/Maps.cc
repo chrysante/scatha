@@ -101,8 +101,8 @@ static std::string scopedName(sema::Entity const& entity) {
     return name;
 }
 
-static constexpr utl::streammanip printObject =
-    [](std::ostream& str, sema::Object const& obj) {
+static constexpr utl::streammanip printObject = [](std::ostream& str,
+                                                   sema::Object const& obj) {
     // clang-format off
     SC_MATCH (obj) {
         [&](sema::Object const& obj) {
@@ -206,38 +206,32 @@ void TypeMap::insertImpl(sema::Type const* key, ir::Type const* value) const {
 
 ir::Type const* TypeMap::get(sema::Type const* type) const {
     // clang-format off
-    return SC_MATCH (*type) {
-        [&](sema::VoidType const&) -> ir::Type const* {
-            return ctx->voidType();
-        },
-        [&](sema::BoolType const&) -> ir::Type const* {
-            return ctx->intType(1);
-        },
-        [&](sema::ByteType const&) -> ir::Type const* {
-            return ctx->intType(8);
-        },
-        [&](sema::IntType const& intType) -> ir::Type const* {
+    return SC_MATCH_R (ir::Type const*, *type) {
+        [&](sema::VoidType const&) { return ctx->voidType(); },
+        [&](sema::BoolType const&) { return ctx->intType(1); },
+        [&](sema::ByteType const&) { return ctx->intType(8); },
+        [&](sema::IntType const& intType) {
             return ctx->intType(intType.bitwidth());
         },
-        [&](sema::FloatType const& floatType) -> ir::Type const* {
+        [&](sema::FloatType const& floatType) {
             return ctx->floatType(floatType.bitwidth());
         },
-        [&](sema::NullPtrType const&) -> ir::Type const* {
-            return ctx->ptrType();
-        },
-        [&](sema::StructType const&) -> ir::Type const* {
+        [&](sema::NullPtrType const&) { return ctx->ptrType(); },
+        [&](sema::StructType const&) {
             SC_UNREACHABLE("Undeclared structure type");
         },
-        [&](sema::ArrayType const& arrayType) -> ir::Type const* {
-            return ctx->arrayType((*this)(arrayType.elementType()),
-                                  arrayType.count());
+        [&](sema::FunctionType const&) {
+            /// This is unreachable because function types don't translate
+            /// easily to IR. IR functions have type `ptr` and store return
+            /// and argument types separately
+            SC_UNREACHABLE();
         },
-        [&](sema::PointerType const&) -> ir::Type const* {
-            return ctx->ptrType();
+        [&](sema::ArrayType const& type) {
+            return ctx->arrayType((*this)(type.elementType()),
+                                  type.count());
         },
-        [&](sema::ReferenceType const&) -> ir::Type const* {
-            return ctx->ptrType();
-        },
+        [&](sema::PointerType const&) { return ctx->ptrType(); },
+        [&](sema::ReferenceType const&) { return ctx->ptrType(); },
     }; // clang-format on
 }
 
@@ -406,11 +400,14 @@ ir::FunctionAttribute irgen::mapFuncAttrs(sema::FunctionAttribute attr) {
     }
 }
 
-ir::Visibility irgen::mapVisibility(sema::BinaryVisibility spec) {
-    switch (spec) {
-    case sema::BinaryVisibility::Export:
-        return ir::Visibility::External;
-    case sema::BinaryVisibility::Internal:
+ir::Visibility irgen::mapVisibility(sema::AccessControl accessControl) {
+    using enum sema::AccessControl;
+    switch (accessControl) {
+    case Private:
         return ir::Visibility::Internal;
+    case Internal:
+        return ir::Visibility::Internal;
+    case Public:
+        return ir::Visibility::External;
     }
 }

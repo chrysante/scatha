@@ -211,12 +211,11 @@ static BasicBlock::Iterator destroy(Function& F,
                                     PhiInst& phi,
                                     BasicBlock::Iterator itr) {
     auto* dest = phi.dest();
-    bool const needTmp =
-        ranges::any_of(BB.predecessors(),
-                       [&](auto* pred) { return isCriticalEdge(pred, &BB); }) ||
-        ranges::any_of(dest->uses(), [&](Instruction* user) {
-            return isa<PhiInst>(user) && user->parent() == phi.parent();
-        });
+    bool const needTmp = ranges::any_of(BB.predecessors(), [&](auto* pred) {
+        return isCriticalEdge(pred, &BB);
+    }) || ranges::any_of(dest->uses(), [&](Instruction* user) {
+        return isa<PhiInst>(user) && user->parent() == phi.parent();
+    });
     if (needTmp) {
         auto* tmp = new VirtualRegister();
         dest = tmp;

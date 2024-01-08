@@ -3,6 +3,7 @@
 #include <ostream>
 #include <string_view>
 
+#include <range/v3/algorithm.hpp>
 #include <termfmt/termfmt.h>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
@@ -59,6 +60,19 @@ static std::string formatOrdinal(size_t index) {
     default:
         return utl::strcat(index + 1, "th");
     }
+}
+
+/// Formats the given arguments with a preceding "a" or "an" depending on the
+/// first letter on the string obtained by formatting \p args...
+static std::string formatWithIndefArticle(auto const&... args) {
+    auto text = utl::strcat(args...);
+    if (text.empty()) {
+        return {};
+    }
+    if (ranges::contains("aeiou", text.front())) {
+        return utl::strcat("an ", text);
+    }
+    return utl::strcat("a ", text);
 }
 
 template <typename T>
@@ -331,6 +345,53 @@ void BadSMF::format(std::ostream& str) const {
     }
 }
 
+static utl::streammanip badAccCtrlMessage = [](std::ostream& str,
+                                               AccessControl have,
+                                               AccessControl expected,
+                                               auto becauseOf) {
+    str << "Access control '" << have << "' is too weak for " << becauseOf
+        << ". Must be "
+        << (expected < AccessControl::Private ? "at least '" : "'") << expected
+        << "'";
+};
+
+/// General utility to quickly wrap arguments into a `utl::streammanip` object.
+/// This should ideally be part of `utl`
+static auto doFormat(auto... args) {
+    return utl::streammanip([... args = std::move(args)](std::ostream& str) {
+        ((str << args), ...);
+    });
+}
+
+BadAccessControl::BadAccessControl(Scope const* scope,
+                                   Entity const* entity,
+                                   Reason reason):
+    BadDecl(scope,
+            dyncast<ast::Declaration const*>(entity->astNode()),
+            IssueSeverity::Error),
+    _reason(reason) {
+    header([=](std::ostream& str) { str << "Invalid access control"; });
+    switch (reason) {
+    case TooWeakForParent:
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << badAccCtrlMessage(entity->accessControl(),
+                                     entity->parent()->accessControl(),
+                                     doFormat("its parent ",
+                                              sema::format(entity->parent())));
+        });
+        break;
+    case TooWeakForType:
+        primary(sourceRange(), [=](std::ostream& str) {
+            str << badAccCtrlMessage(entity->accessControl(),
+                                     getEntityType(*entity)->accessControl(),
+                                     doFormat("its type ",
+                                              sema::format(
+                                                  getEntityType(*entity))));
+        });
+        break;
+    }
+}
+
 static IssueSeverity toSeverity(BadReturnStmt::Reason reason) {
     switch (reason) {
 #define SC_SEMA_BADRETURN_DEF(reason, severity, _)                             \
@@ -396,7 +457,7 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
                                std::vector<Entity const*> _cycle):
     BadDecl(_scope, nullptr, IssueSeverity::Error), _cycle(std::move(_cycle)) {
     header("Cyclic struct definition");
-    hint("Declare data members as pointers to avoid strong cyclic dependecies");
+    hint("Declare data members as pointers to break strong dependencies");
     for (auto [index, entity]: cycle() | ranges::views::enumerate) {
         primary(getSourceRange(entity->astNode()),
                 [=, this, entity = entity, index = index + 1](

@@ -168,9 +168,8 @@ public:
     explicit StructType(std::string name, std::span<Type const* const> members):
         RecordType(std::move(name), TypeCategory::StructType, 0, 0),
         _members(members | ranges::views::transform([](auto* type) {
-                     return Member{ type, 0 };
-                 }) |
-                 ToSmallVector<>) {
+        return Member{ type, 0 };
+    }) | ToSmallVector<>) {
         computeSizeAndAlign();
     }
 

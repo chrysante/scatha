@@ -150,15 +150,15 @@ void ir::print(LoopInfo const& loop, std::ostream& str) {
     list("Exit blocks", loop.exitBlocks() | ToName);
     list("Loop closing phi nodes",
          loop.loopClosingPhiMap() | ranges::views::transform([](auto& elem) {
-             auto [key, phi] = elem;
-             auto [exit, inst] = key;
-             return utl::strcat("{ ",
-                                exit->name(),
-                                ", ",
-                                inst->name(),
-                                " } -> ",
-                                phi->name());
-         }));
+        auto [key, phi] = elem;
+        auto [exit, inst] = key;
+        return utl::strcat("{ ",
+                           exit->name(),
+                           ", ",
+                           inst->name(),
+                           " } -> ",
+                           phi->name());
+    }));
     list("Induction variables",
          loop.inductionVariables() | ToName,
          /* last = */ true);
@@ -329,9 +329,9 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
     LoopNestingForest result;
     result._virtualRoot = std::make_unique<Node>();
     auto bbs = function | TakeAddress | ranges::to<utl::hashset<BasicBlock*>>;
-    result._nodes =
-        bbs | ranges::views::transform([](auto* bb) { return Node(bb); }) |
-        ranges::to<NodeSet>;
+    result._nodes = bbs | ranges::views::transform([](auto* bb) {
+        return Node(bb);
+    }) | ranges::to<NodeSet>;
     auto impl = [&domtree,
                  &result](auto& impl,
                           Node* root,
@@ -342,9 +342,9 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
             bbs.end(),
             [&](BasicBlock* bb) {
             return bb->successors() | ranges::views::filter([&](auto* succ) {
-                       return bbs.contains(succ);
-                   });
-            },
+                return bbs.contains(succ);
+            });
+        },
             [&] { sccs.emplace_back(); },
             [&](BasicBlock* bb) { sccs.back().insert(bb); });
         for (auto& scc: sccs) {

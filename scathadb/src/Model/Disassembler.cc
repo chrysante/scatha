@@ -291,17 +291,14 @@ Disassembly sdb::disassemble(std::span<uint8_t const> program) {
 
     /// Gather indices of all labelled instructions, i.e. instructions that are
     /// targets of jumps or calls
-    auto labelledInstructionIndices =
-        result.insts | ranges::views::enumerate |
-        ranges::views::filter([](auto p) {
-            auto [index, inst] = p;
-            return inst.opcode == OpCode::call ||
-                   classify(inst.opcode) == OpCodeClass::Jump;
-        }) |
-        ranges::views::values | ranges::views::transform([&](auto& inst) {
-            return result.offsetToIndex(inst.arg1.raw).value();
-        }) |
-        ranges::to<std::vector>;
+    auto labelledInstructionIndices = result.insts | ranges::views::enumerate |
+                                      ranges::views::filter([](auto p) {
+        auto [index, inst] = p;
+        return inst.opcode == OpCode::call ||
+               classify(inst.opcode) == OpCodeClass::Jump;
+    }) | ranges::views::values | ranges::views::transform([&](auto& inst) {
+        return result.offsetToIndex(inst.arg1.raw).value();
+    }) | ranges::to<std::vector>;
 
     ranges::sort(labelledInstructionIndices);
     ranges::unique(labelledInstructionIndices);

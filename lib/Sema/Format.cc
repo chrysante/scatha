@@ -12,19 +12,34 @@ using namespace tfmt::modifiers;
 using namespace scatha;
 using namespace sema;
 
-utl::vstreammanip<> sema::format(Type const* type) {
+utl::vstreammanip<> sema::format(Entity const* entity) {
     return [=](std::ostream& str) {
-        if (!type) {
-            str << "<null-type>";
+        if (!entity) {
+            str << "NULL";
             return;
         }
         // clang-format off
-        SC_MATCH(*type) {
+        SC_MATCH(*entity) {
+            [&](Entity const& entity) {
+                if (entity.isAnonymous()) {
+                    str << tfmt::format(Italic, "<anonymous>");
+                }
+                str << entity.name();
+            },
             [&](BuiltinType const& type) {
                 str << tfmt::format(Magenta | Bold, type.name());
             },
             [&](StructType const& type) {
                 str << tfmt::format(Green, type.name());
+            },
+            [&](FunctionType const& type) {
+                str << tfmt::format(None, "(");
+                for (bool first = true; auto* arg: type.argumentTypes()) {
+                    if (first) str << tfmt::format(None, ", ");
+                    first = false;
+                    str << format(arg);
+                }
+                str << tfmt::format(None, ") -> ") << format(type.returnType());
             },
             [&](ArrayType const& type) {
                 str << tfmt::format(None, "[") << format(type.elementType());
@@ -61,35 +76,14 @@ utl::vstreammanip<> sema::format(Type const* type) {
     };
 }
 
-void sema::print(Type const* type, std::ostream& str) {
-    str << format(type) << "\n";
+void sema::print(Entity const* entity, std::ostream& str) {
+    str << format(entity) << "\n";
 }
 
-void sema::print(Type const* type) { print(type, std::cout); }
+void sema::print(Entity const* entity) { print(entity, std::cout); }
 
 utl::vstreammanip<> sema::format(QualType type) { return format(type.get()); }
 
 utl::vstreammanip<> sema::formatType(ast::Expression const* expr) {
     return format(expr ? expr->type().get() : nullptr);
 }
-
-utl::vstreammanip<> sema::format(FunctionSignature const& sig) {
-    return [=](std::ostream& str) {
-        str << "(";
-        bool first = true;
-        for (auto* type: sig.argumentTypes()) {
-            if (!first) {
-                str << ", ";
-            }
-            first = false;
-            str << format(type);
-        }
-        str << ") -> " << format(sig.returnType());
-    };
-}
-
-void sema::print(FunctionSignature const& sig, std::ostream& str) {
-    str << format(sig) << "\n";
-}
-
-void sema::print(FunctionSignature const& sig) { print(sig, std::cout); }

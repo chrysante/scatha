@@ -9,8 +9,8 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/function_view.hpp>
-#include <utl/hashmap.hpp>
-#include <utl/hashset.hpp>
+#include <utl/hash.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
@@ -38,8 +38,29 @@ static bool isKeyword(std::string_view id) {
     return std::find(keywords.begin(), keywords.end(), id) != keywords.end();
 }
 
+namespace {
+
 /// Discriminator for `checkRedef()`
 enum Redef { Redef_Function, Redef_Other };
+
+/// Comparable  and hashable key for function types
+struct FuncSig {
+    utl::small_vector<Type const*> argTypes;
+    Type const* retType;
+
+    bool operator==(FuncSig const&) const = default;
+};
+
+} // namespace
+
+template <>
+struct std::hash<FuncSig> {
+    size_t operator()(FuncSig const& sig) const {
+        return utl::hash_combine(utl::hash_combine_range(sig.argTypes.begin(),
+                                                         sig.argTypes.end()),
+                                 sig.retType);
+    }
+};
 
 struct SymbolTable::Impl {
     /// The currently active scope
@@ -56,6 +77,9 @@ struct SymbolTable::Impl {
 
     /// Map of instantiated `UniquePtrType`'s
     utl::hashmap<QualType, UniquePtrType*> uniquePtrTypes;
+
+    /// Map of instantiated `FunctionType`'s
+    utl::hashmap<FuncSig, FunctionType const*> functionTypes;
 
     /// Map of instantiated `ArrayTypes`'s
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
@@ -144,16 +168,17 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->Str = const_cast<ArrayType*>(arrayType(Byte()));
     impl->NullPtrType = declareBuiltinType<sema::NullPtrType>();
 
-    declareAlias("int", *impl->S64, nullptr);
-    declareAlias("float", *impl->F32, nullptr);
-    declareAlias("double", *impl->F64, nullptr);
-    declareAlias("str", *impl->Str, nullptr);
+    declareAlias("int", *impl->S64, nullptr, AccessControl::Public);
+    declareAlias("float", *impl->F32, nullptr, AccessControl::Public);
+    declareAlias("double", *impl->F64, nullptr, AccessControl::Public);
+    declareAlias("str", *impl->Str, nullptr, AccessControl::Public);
 
     /// Declare builtin functions
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareForeignFunction("__builtin_" #name,                                 \
-                           FunctionSignature(__VA_ARGS__),                     \
-                           attrs);
+                           functionType(__VA_ARGS__),                          \
+                           attrs,                                              \
+                           AccessControl::Public);
     using enum FunctionAttribute;
 #include <svm/Builtin.def>
 
@@ -219,10 +244,10 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
         }
         return nullptr;
     }
-    auto* lib = impl.addEntity<ForeignLibrary>(std::string{},
-                                               libname,
-                                               *path,
-                                               &sym.globalScope());
+    auto* lib =
+        impl.addEntity<ForeignLibrary>(libname, *path, &sym.globalScope());
+    /// Temporary measure, because only public symbols are serialized
+    lib->setAccessControl(AccessControl::Public);
     /// We add foreign libraries to the global scope because this makes
     /// exporting foreign library imports from native libraries easier. This
     /// does not affect name lookup because foreign libs don't expose names in
@@ -256,13 +281,12 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
         impl.issue<BadImport>(node, BadImport::LibraryNotFound);
         return nullptr;
     }
-    /// We declare the library without parent scope. Scopes that want to use the
-    /// library have to create an alias to it.
-    auto* lib = impl.addEntity<NativeLibrary>(std::string{},
-                                              libname,
-                                              irPath,
-                                              &sym.globalScope());
+    auto* lib =
+        impl.addEntity<NativeLibrary>(libname, irPath, &sym.globalScope());
     sym.globalScope().addChild(lib);
+    /// We hide all libraries in the global scope. Scopes that want to use the
+    /// library have to create an alias to it.
+    lib->setVisible(false);
     impl.importedLibs.push_back(lib);
     impl.nativeLibMap.insert({ libname, lib });
     std::fstream symFile(*symPath);
@@ -281,10 +305,15 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
 
 NativeLibrary* SymbolTable::makeNativeLibAvailable(ast::Identifier& ID) {
     auto* lib = getOrImportNativeLib(ID.value(), &ID);
-    if (lib) {
-        declareAlias(std::string(ID.value()), *lib, &ID);
+    if (!lib) {
+        return nullptr;
     }
+    declareAlias(std::string(ID.value()), *lib, &ID, AccessControl::Private);
     return lib;
+}
+
+NativeLibrary* SymbolTable::importNativeLib(std::string_view name) {
+    return getOrImportNativeLib(name, nullptr);
 }
 
 ForeignLibrary* SymbolTable::importForeignLib(ast::Literal& lit) {
@@ -302,7 +331,7 @@ NativeLibrary* SymbolTable::getOrImportNativeLib(std::string_view libname,
     if (itr != impl->nativeLibMap.end()) {
         return itr->second;
     }
-    return importNativeLib(*this, *impl, astNode, std::string(libname));
+    return ::importNativeLib(*this, *impl, astNode, std::string(libname));
 }
 
 ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view libname,
@@ -315,26 +344,35 @@ ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view libname,
 }
 
 StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
-                                           std::string name) {
+                                           std::string name,
+                                           AccessControl accessControl) {
     if (isKeyword(name)) {
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(Redef_Other, name, def)) {
+    if (!checkRedef(Redef_Other, name, def, accessControl)) {
         return nullptr;
     }
-    auto* type = impl->addEntity<StructType>(name, &currentScope(), def);
+    auto* type = impl->addEntity<StructType>(name,
+                                             &currentScope(),
+                                             def,
+                                             InvalidSize,
+                                             InvalidSize,
+                                             accessControl);
     addToCurrentScope(type);
-    addGlobalAliasIfPublicAtFilescope(type);
+    validateAccessControl(*type);
+    addGlobalAliasIfInternalAtFilescope(type);
     return type;
 }
 
-StructType* SymbolTable::declareStructureType(ast::StructDefinition* def) {
-    return declareStructImpl(def, std::string(def->name()));
+StructType* SymbolTable::declareStructureType(ast::StructDefinition* def,
+                                              AccessControl accessControl) {
+    return declareStructImpl(def, std::string(def->name()), accessControl);
 }
 
-StructType* SymbolTable::declareStructureType(std::string name) {
-    return declareStructImpl(nullptr, std::move(name));
+StructType* SymbolTable::declareStructureType(std::string name,
+                                              AccessControl accessControl) {
+    return declareStructImpl(nullptr, std::move(name), accessControl);
 }
 
 template <typename T, typename... Args>
@@ -349,28 +387,32 @@ T* SymbolTable::declareBuiltinType(Args&&... args) {
 }
 
 Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
-                                       std::string name) {
+                                       std::string name,
+                                       AccessControl accessControl) {
     /// FIXME: This is a quick and dirty solution, we need to find a more
     /// general way to handle this
     if (isKeyword(name) && name != "move") {
         impl->issue<GenericBadStmt>(def, GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(Redef_Function, name, def)) {
+    if (!checkRedef(Redef_Function, name, def, accessControl)) {
         return nullptr;
     }
     Function* function = impl->addEntity<Function>(name,
+                                                   nullptr,
                                                    &currentScope(),
                                                    FunctionAttribute::None,
-                                                   def);
+                                                   def,
+                                                   accessControl);
     impl->functions.push_back(function);
     addToCurrentScope(function);
-    addGlobalAliasIfPublicAtFilescope(function);
+    addGlobalAliasIfInternalAtFilescope(function);
     return function;
 }
 
-Function* SymbolTable::declareFuncName(ast::FunctionDefinition* def) {
-    return declareFuncImpl(def, std::string(def->name()));
+Function* SymbolTable::declareFuncName(ast::FunctionDefinition* def,
+                                       AccessControl accessControl) {
+    return declareFuncImpl(def, std::string(def->name()), accessControl);
 }
 
 namespace {
@@ -414,7 +456,7 @@ static utl::hashset<Function*> buildOverloadSet(
         void gatherImpl(Alias& alias) { gather(*alias.aliased()); }
 
         void gatherImpl(Function& function) {
-            if (function.hasSignature()) {
+            if (function.type()) {
                 set.insert(&function);
             }
         }
@@ -469,23 +511,42 @@ static bool checkValidOverload(SymbolTable::Impl& impl,
     return true;
 }
 
-bool SymbolTable::setFuncSig(Function* function, FunctionSignature sig) {
-    function->setSignature(sig); /// We don't move `sig` here because we use it
-                                 /// later in this function
+bool SymbolTable::setFunctionType(Function* function,
+                                  std::span<Type const* const> argumentTypes,
+                                  Type const* returnType) {
+    return setFunctionType(function, functionType(argumentTypes, returnType));
+}
+
+bool SymbolTable::setFunctionType(Function* function,
+                                  FunctionType const* type) {
+    bool isReset = function->type() != nullptr;
+    SC_ASSERT(isReset || function->type() == nullptr,
+              "Function type has been set before");
+    SC_ASSERT(!isReset || ranges::equal(function->argumentTypes(),
+                                        type->argumentTypes()),
+              "We may only reset function types to update the return type");
+    function->_type = type;
     bool result = true;
-    result &= checkValidOverload(*impl, function, sig.argumentTypes());
-    for (auto* alias: function->aliases()) {
-        if (alias->name() == function->name()) {
-            result &= checkValidOverload(*impl, alias, sig.argumentTypes());
+    if (!isReset) {
+        result &= checkValidOverload(*impl, function, type->argumentTypes());
+        for (auto* alias: function->aliases()) {
+            if (alias->name() == function->name()) {
+                result &=
+                    checkValidOverload(*impl, alias, type->argumentTypes());
+            }
         }
+    }
+    if (function->returnType()) {
+        validateAccessControl(*function);
     }
     return result;
 }
 
 Function* SymbolTable::declareFunction(std::string name,
-                                       FunctionSignature sig) {
-    auto* function = declareFuncImpl(nullptr, std::move(name));
-    if (function && setFuncSig(function, std::move(sig))) {
+                                       FunctionType const* type,
+                                       AccessControl accessControl) {
+    auto* function = declareFuncImpl(nullptr, std::move(name), accessControl);
+    if (function && setFunctionType(function, type)) {
         return function;
     }
     return nullptr;
@@ -501,9 +562,10 @@ OverloadSet* SymbolTable::addOverloadSet(
 }
 
 Function* SymbolTable::declareForeignFunction(std::string name,
-                                              FunctionSignature sig,
-                                              FunctionAttribute attrs) {
-    auto* function = declareFunction(name, std::move(sig));
+                                              FunctionType const* type,
+                                              FunctionAttribute attrs,
+                                              AccessControl accessControl) {
+    auto* function = declareFunction(name, type, accessControl);
     if (!function) {
         return nullptr;
     }
@@ -520,62 +582,85 @@ Function* SymbolTable::declareForeignFunction(std::string name,
 }
 
 Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
-                                      std::string name) {
+                                      std::string name,
+                                      AccessControl accessControl,
+                                      Mutability mut) {
     if (isKeyword(name)) {
         impl->issue<GenericBadStmt>(vardecl,
                                     GenericBadStmt::ReservedIdentifier);
         return nullptr;
     }
-    if (!checkRedef(Redef_Other, name, vardecl)) {
+    if (!checkRedef(Redef_Other, name, vardecl, accessControl)) {
         return nullptr;
     }
-    auto* variable = impl->addEntity<Variable>(name, &currentScope(), vardecl);
-    addToCurrentScope(variable);
-    addGlobalAliasIfPublicAtFilescope(variable);
-    return variable;
+    auto* var = impl->addEntity<Variable>(name,
+                                          &currentScope(),
+                                          vardecl,
+                                          accessControl);
+    var->setMutability(mut);
+    addToCurrentScope(var);
+    addGlobalAliasIfInternalAtFilescope(var);
+    return var;
 }
 
 Variable* SymbolTable::defineVarImpl(ast::VarDeclBase* vardecl,
                                      std::string name,
                                      Type const* type,
-                                     Mutability mut) {
-    auto* var = declareVarImpl(vardecl, std::move(name));
+                                     Mutability mut,
+                                     AccessControl accessControl) {
+    auto* var = declareVarImpl(vardecl, std::move(name), accessControl, mut);
     if (!var) {
         return nullptr;
     }
-    var->setType(type);
-    var->setMutability(mut);
+    setVariableType(var, type);
     return var;
 }
 
-Variable* SymbolTable::declareVariable(ast::VarDeclBase* vardecl) {
-    return declareVarImpl(vardecl, std::string(vardecl->name()));
+Variable* SymbolTable::declareVariable(ast::VarDeclBase* vardecl,
+                                       AccessControl accessControl) {
+    return declareVarImpl(vardecl,
+                          std::string(vardecl->name()),
+                          accessControl,
+                          vardecl->mutability());
 }
 
-Variable* SymbolTable::declareVariable(std::string name) {
-    return declareVarImpl(nullptr, std::move(name));
+bool SymbolTable::setVariableType(Variable* var, Type const* type) {
+    var->_type = type;
+    return validateAccessControl(*var);
 }
 
 Variable* SymbolTable::defineVariable(ast::VarDeclBase* vardecl,
                                       Type const* type,
-                                      Mutability mut) {
-    return defineVarImpl(vardecl, std::string(vardecl->name()), type, mut);
+                                      Mutability mut,
+                                      AccessControl accessControl) {
+    return defineVarImpl(vardecl,
+                         std::string(vardecl->name()),
+                         type,
+                         mut,
+                         accessControl);
 }
 
 Variable* SymbolTable::defineVariable(std::string name,
                                       Type const* type,
-                                      Mutability mut) {
-    return defineVarImpl(nullptr, std::move(name), type, mut);
+                                      Mutability mut,
+                                      AccessControl accessControl) {
+    return defineVarImpl(nullptr, std::move(name), type, mut, accessControl);
 }
 
 Property* SymbolTable::addProperty(PropertyKind kind,
                                    Type const* type,
                                    Mutability mut,
-                                   ValueCategory valueCat) {
-    auto* prop =
-        impl->addEntity<Property>(kind, &currentScope(), type, mut, valueCat);
+                                   ValueCategory valueCat,
+                                   AccessControl accessControl) {
+    auto* prop = impl->addEntity<Property>(kind,
+                                           &currentScope(),
+                                           type,
+                                           mut,
+                                           valueCat,
+                                           accessControl);
+    validateAccessControl(*prop);
     addToCurrentScope(prop);
-    addGlobalAliasIfPublicAtFilescope(prop);
+    addGlobalAliasIfInternalAtFilescope(prop);
     return prop;
 }
 
@@ -587,33 +672,42 @@ Temporary* SymbolTable::temporary(QualType type) {
 
 Alias* SymbolTable::declareAlias(std::string name,
                                  Entity& aliased,
-                                 ast::ASTNode* astNode) {
-    std::span existing = currentScope().findEntities(name);
+                                 ast::ASTNode* astNode,
+                                 AccessControl accessControl) {
+    auto existing = currentScope().findEntities(name);
     if (ranges::contains(existing, &aliased, stripAlias)) {
         return nullptr;
     }
     auto* alias = impl->addEntity<Alias>(std::move(name),
                                          aliased,
                                          &currentScope(),
-                                         astNode);
+                                         astNode,
+                                         accessControl);
     addToCurrentScope(alias);
     aliased.addAlias(alias);
     return alias;
 }
 
-Alias* SymbolTable::declareAlias(Entity& aliased, ast::ASTNode* astNode) {
-    return declareAlias(std::string(aliased.name()), aliased, astNode);
+Alias* SymbolTable::declareAlias(Entity& aliased,
+                                 ast::ASTNode* astNode,
+                                 AccessControl accessControl) {
+    return declareAlias(std::string(aliased.name()),
+                        aliased,
+                        astNode,
+                        accessControl);
 }
 
 PoisonEntity* SymbolTable::declarePoison(ast::Identifier* ID,
-                                         EntityCategory cat) {
+                                         EntityCategory cat,
+                                         AccessControl accessControl) {
     auto name = std::string(ID->value());
     if (isKeyword(name) || !currentScope().findEntities(name).empty()) {
         return nullptr;
     }
-    auto* poison = impl->addEntity<PoisonEntity>(ID, cat, &currentScope());
+    auto* poison =
+        impl->addEntity<PoisonEntity>(ID, cat, &currentScope(), accessControl);
     addToCurrentScope(poison);
-    addGlobalAliasIfPublicAtFilescope(poison);
+    addGlobalAliasIfInternalAtFilescope(poison);
     return poison;
 }
 
@@ -622,6 +716,25 @@ Scope* SymbolTable::addAnonymousScope() {
         impl->addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
     addToCurrentScope(scope);
     return scope;
+}
+
+FunctionType const* SymbolTable::functionType(
+    std::span<Type const* const> argumentTypes, Type const* returnType) {
+    utl::small_vector<Type const*> argTypeVec = argumentTypes | ToSmallVector<>;
+    FuncSig key = { argTypeVec, returnType };
+    auto itr = impl->functionTypes.find(key);
+    if (itr != impl->functionTypes.end()) {
+        return itr->second;
+    }
+    auto* functionType =
+        impl->addEntity<FunctionType>(std::move(argTypeVec), returnType);
+    impl->functionTypes.insert({ key, functionType });
+    return functionType;
+}
+
+FunctionType const* SymbolTable::functionType(
+    std::initializer_list<Type const*> argumentTypes, Type const* returnType) {
+    return functionType(std::span(argumentTypes), returnType);
 }
 
 ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
@@ -639,18 +752,25 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType =
         impl->addEntity<ArrayType>(const_cast<ObjectType*>(elementType), size);
     impl->arrayTypes.insert({ key, arrayType });
+    auto accessCtrl = arrayType->accessControl();
     withScopeCurrent(arrayType, [&] {
         using enum Mutability;
         using enum ValueCategory;
-        auto* arraySize =
-            addProperty(PropertyKind::ArraySize, S64(), Const, RValue);
+        auto* arraySize = addProperty(PropertyKind::ArraySize,
+                                      S64(),
+                                      Const,
+                                      RValue,
+                                      accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constSize = allocate<IntValue>(APInt(size, 64),
                                                 /* isSigned = */ true);
             arraySize->setConstantValue(std::move(constSize));
         }
-        auto* arrayEmpty =
-            addProperty(PropertyKind::ArrayEmpty, Bool(), Const, RValue);
+        auto* arrayEmpty = addProperty(PropertyKind::ArrayEmpty,
+                                       Bool(),
+                                       Const,
+                                       RValue,
+                                       accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constEmpty = allocate<IntValue>(APInt(size == 0, 1),
                                                  /* isSigned = */ false);
@@ -659,11 +779,13 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
         addProperty(PropertyKind::ArrayFront,
                     arrayType->elementType(),
                     Mutable,
-                    LValue);
+                    LValue,
+                    accessCtrl);
         addProperty(PropertyKind::ArrayBack,
                     arrayType->elementType(),
                     Mutable,
-                    LValue);
+                    LValue,
+                    accessCtrl);
     });
     declareSpecialLifetimeFunctions(*arrayType, *this);
     const_cast<ObjectType*>(elementType)->parent()->addChild(arrayType);
@@ -740,12 +862,12 @@ void SymbolTable::makeScopeCurrent(Scope* scope) {
 }
 
 utl::small_vector<Entity*> SymbolTable::unqualifiedLookup(
-    std::string_view name) {
+    std::string_view name, bool findHiddenEntities) {
     utl::hashset<Entity*> overloadSet;
     for (auto* scope = &currentScope(); scope != nullptr;
          scope = scope->parent())
     {
-        auto entities = scope->findEntities(name);
+        auto entities = scope->findEntities(name, findHiddenEntities);
         if (entities.empty()) {
             continue;
         }
@@ -859,16 +981,34 @@ void SymbolTable::addToCurrentScope(Entity* entity) {
     currentScope().addChild(entity);
 }
 
-void SymbolTable::addGlobalAliasIfPublicAtFilescope(Entity* entity) {
-    using enum AccessSpecifier;
-    if (!isa<FileScope>(entity->parent())) {
-        return;
+void SymbolTable::addGlobalAliasIfInternalAtFilescope(Entity* entity) {
+    using enum AccessControl;
+    if (isa<FileScope>(entity->parent()) && entity->accessControl() <= Internal)
+    {
+        withScopeCurrent(&globalScope(), [&] {
+            declareAlias(*entity, entity->astNode(), entity->accessControl());
+        });
     }
-    if (entity->accessSpec().value_or(Public) != Public) {
-        return;
+}
+
+bool SymbolTable::validateAccessControl(Entity const& entity) {
+    SC_EXPECT(entity.hasAccessControl());
+    auto* parent = entity.parent();
+    if (parent->hasAccessControl() &&
+        entity.accessControl() < parent->accessControl())
+    {
+        impl->issue<BadAccessControl>(&entity,
+                                      BadAccessControl::TooWeakForParent);
+        return false;
     }
-    withScopeCurrent(&globalScope(),
-                     [&] { declareAlias(*entity, entity->astNode()); });
+    if (auto* type = getEntityType(entity);
+        type && entity.accessControl() < type->accessControl())
+    {
+        impl->issue<BadAccessControl>(&entity,
+                                      BadAccessControl::TooWeakForType);
+        return false;
+    }
+    return true;
 }
 
 static bool checkRedefImpl(SymbolTable::Impl& impl,
@@ -901,11 +1041,16 @@ static bool checkRedefImpl(SymbolTable::Impl& impl,
 /// \Returns `true` if no redefinition occured
 bool SymbolTable::checkRedef(int kind,
                              std::string_view name,
-                             ast::Declaration const* decl) {
+                             ast::Declaration const* decl,
+                             AccessControl accessControl) {
     if (!checkRedefImpl(*impl, Redef(kind), &currentScope(), name, decl)) {
         return false;
     }
-    if (isa<FileScope>(currentScope()) && decl->isPublic()) {
+    /// TODO: Rework this
+    /// Since we now use aliases to declare entities to the global scope we may
+    /// not need this anymore
+    using enum AccessControl;
+    if (isa<FileScope>(currentScope()) && accessControl <= Internal) {
         return checkRedefImpl(*impl, Redef(kind), &globalScope(), name, decl);
     }
     return true;

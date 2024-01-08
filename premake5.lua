@@ -30,8 +30,7 @@ filter "system:linux or macosx"
     buildoptions { 
         "-Wall",
         "-Wextra",
-        "-pedantic",
-        "-ftemplate-depth=2048" -- until `dyncast/visit` is fixed
+        "-pedantic"
     }
 filter "system:macosx"
     xcodebuildsettings { 

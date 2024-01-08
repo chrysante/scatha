@@ -92,7 +92,7 @@ SC_SEMA_BADFUNCDEF_DEF(MainMustReturnTrivial,
 
 SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments,
                        Error,
-                       sema::format(definition()->function()->signature())
+                       sema::format(definition()->function()->type())
                            << " is not a valid signature for 'main'. "
                            << " Valid signatures are () and (&[*str])")
 
@@ -102,8 +102,9 @@ SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody,
 
 SC_SEMA_BADFUNCDEF_DEF(UnknownLinkage,
                        Error,
-                       "Unknown linkage: \"" << definition()->externalLinkage()
-                                             << "\"")
+                       "Unknown linkage: \""
+                           << definition()->externalLinkage().value_or("")
+                           << "\"")
 
 SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported,
                        Error,
@@ -249,8 +250,16 @@ SC_SEMA_BADEXPR_DEF(MemberAccess,
 SC_SEMA_BADEXPR_DEF(MemberAccess,
                     MemAccTypeThroughValue,
                     Error,
-                    "Cannot access non-static member "
-                        << expr->member()->value() << " without an object")
+                    "Cannot access type " << expr->member()->value()
+                                          << " through an object")
+
+SC_SEMA_BADEXPR_DEF(
+    Identifier,
+    AccessDenied,
+    Error,
+    expr->value() << " is "
+                  << formatWithIndefArticle(expr->entity()->accessControl())
+                  << " member")
 
 SC_SEMA_BADEXPR_DEF(Conditional,
                     ConditionalNoCommonType,

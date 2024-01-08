@@ -81,13 +81,12 @@ static void mapLibSymbols(
 static void checkParserIssues(std::span<ir::ParseIssue const> issues,
                               std::string_view libName) {
     auto fatal = issues | filter([](ir::ParseIssue const& issue) {
-                     if (!std::holds_alternative<ir::SemanticIssue>(issue)) {
-                         return true;
-                     }
-                     return std::get<ir::SemanticIssue>(issue).reason() !=
-                            ir::SemanticIssue::Redeclaration;
-                 }) |
-                 ToSmallVector<>;
+        if (!std::holds_alternative<ir::SemanticIssue>(issue)) {
+            return true;
+        }
+        return std::get<ir::SemanticIssue>(issue).reason() !=
+               ir::SemanticIssue::Redeclaration;
+    }) | ToSmallVector<>;
     if (fatal.empty()) {
         return;
     }
@@ -125,7 +124,7 @@ static void importLibrary(ir::Context& ctx,
                                    mod,
                                    { .typeParseCallback = typeCallback,
                                      .objectParseCallback = objCallback });
-    checkParserIssues(parseIssues, lib.libName());
+    checkParserIssues(parseIssues, lib.name());
     mapLibSymbols(lib,
                   typeMap,
                   functionMap,
@@ -150,10 +149,7 @@ void irgen::generateIR(ir::Context& ctx,
     }
     auto queue = analysisResult.functions |
                  transform([](auto* def) { return def->function(); }) |
-                 filter([](auto* fn) {
-                     return fn->binaryVisibility() ==
-                            sema::BinaryVisibility::Export;
-                 }) |
+                 filter(&sema::Entity::isPublic) |
                  ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
         declareFunction(semaFn,

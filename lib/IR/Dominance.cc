@@ -51,9 +51,9 @@ static utl::hashset<BasicBlock*> intersect(auto&& range) {
 
 static utl::small_vector<BasicBlock*> exitNodes(Function& function) {
     return function | ranges::views::filter([](auto& bb) {
-               return isa<Return>(bb.terminator());
-           }) |
-           TakeAddress | ToSmallVector<>;
+        return isa<Return>(bb.terminator());
+    }) | TakeAddress |
+           ToSmallVector<>;
 }
 
 namespace {
@@ -194,9 +194,8 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
     auto const nodeSet = function | TakeAddress |
                          ranges::to<utl::hashset<BasicBlock*>>;
     result._nodes = nodeSet | ranges::views::transform([](BasicBlock* bb) {
-                        return DomTree::Node{ bb };
-                    }) |
-                    ranges::to<DomTree::NodeSet>;
+        return DomTree::Node{ bb };
+    }) | ranges::to<DomTree::NodeSet>;
     if (entry) {
         result._root = result.findMut(entry);
     }

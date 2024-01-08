@@ -100,7 +100,7 @@ void SCCCallGraph::computeSCCs() {
         [&](FunctionNode* node) {
         auto& scc = *_sccs.back();
         scc.addNode(node);
-        });
+    });
     /// After we have computed the SCC's, we set up parent pointers of the
     /// function nodes.
     for (auto& scc: _sccs) {
@@ -316,14 +316,13 @@ SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
 void SCCCallGraph::validate() const {
     for (auto& function: *mod) {
         /// Gather all call instructions of the current function in a hash table
-        auto const callInstructions =
-            function.instructions() | ranges::views::filter([](auto& inst) {
-                auto* call = dyncast<Call const*>(&inst);
-                return call && isa<Function>(call->function());
-            }) |
-            ranges::views::transform(
-                [](auto& inst) -> auto* { return cast<Call const*>(&inst); }) |
-            ranges::to<utl::hashset<Call const*>>;
+        auto const callInstructions = function.instructions() |
+                                      ranges::views::filter([](auto& inst) {
+            auto* call = dyncast<Call const*>(&inst);
+            return call && isa<Function>(call->function());
+        }) | ranges::views::transform([](auto& inst) -> auto* {
+            return cast<Call const*>(&inst);
+        }) | ranges::to<utl::hashset<Call const*>>;
         auto& node = (*this)[&function];
         /// We check that all necessary edges are present in the current
         /// representation of the call graph

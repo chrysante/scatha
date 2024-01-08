@@ -14,11 +14,12 @@ namespace scatha::sema {
 struct AnalysisResult;
 class AnalysisContext;
 class Conversion;
-class FunctionSignature;
 class SemanticIssue;
 class SymbolTable;
 class DtorStack;
 class NameMangler;
+
+size_t constexpr InvalidSize = ~size_t(0);
 
 /// Options struct for `sema::analyze()`
 struct AnalysisOptions {
@@ -124,16 +125,29 @@ SCATHA_API std::string_view toString(FunctionKind);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
 
-/// `public` or `private`. Defines whether the name is allowed to be referenced
-/// in a specific context.
-enum class AccessSpecifier : uint8_t { Public, Private };
+///
+enum class AccessControl : uint8_t {
+#define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling) Kind,
+#include <scatha/Sema/Lists.def>
+};
 
-/// `export` or `internal`. Defines whether a function or member functions of a
-/// type will have entries in the binary symbol table after compilation. All
-/// functions default to `internal` except for `main()` which defaults to
-/// `export`. Note that there is no keyword for `internal`, because everything
-/// defaults to that.
-enum class BinaryVisibility : uint8_t { Export, Internal };
+///
+SCATHA_API std::string_view toString(AccessControl accessControl);
+
+///
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    AccessControl accessControl);
+
+///
+inline constexpr AccessControl InvalidAccessControl = AccessControl(-1);
+
+/// Access control \p A is less than access control \p B if more scopes have
+/// access to the declared entity, i.e. `Public` is less than `Internal` and
+/// `Internal` is less than `Private`. So `A < B` can be thought of as `A` being
+/// less access-restricted than `B`
+inline std::strong_ordering operator<=>(AccessControl A, AccessControl B) {
+    return (int)A <=> (int)B;
+}
 
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };

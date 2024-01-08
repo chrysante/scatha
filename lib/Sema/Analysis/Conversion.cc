@@ -133,6 +133,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         }
         return std::nullopt;
     };
+    // clang-format off
     auto pointerConv = utl::overload{
         [&]([[maybe_unused]] NullPtrType const& from,
             [[maybe_unused]] RawPtrType const& to) -> RetType {
@@ -147,7 +148,6 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 return std::nullopt;
             }
             if (from.base().get() == to.base().get()) {
-                // clang-format off
                 return SC_MATCH (from, to){
                     [](PointerType const&, PointerType const&) {
                         return std::optional(None);
@@ -158,7 +158,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                     [](RawPtrType const&, UniquePtrType const&) {
                         return std::nullopt;
                     }
-                }; // clang-format on
+                };
             }
             if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
                 return determineObjConv(kind,
@@ -167,7 +167,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             }
             return std::nullopt;
         },
-    };
+    }; // clang-format on
 
     switch (kind) {
     case ConversionKind::Implicit:
@@ -377,7 +377,7 @@ static std::optional<MutConversion> determineMutConv(ConversionKind,
     switch (from) {
     case Mutability::Mutable: // Mutable to Const:
         return MutConversion::MutToConst;
-    case Mutability::Const:   // Const to Mutable
+    case Mutability::Const: // Const to Mutable
         return std::nullopt;
     }
     SC_UNREACHABLE();
@@ -710,8 +710,8 @@ QualType sema::commonType(SymbolTable& sym, std::span<QualType const> types) {
 QualType sema::commonType(SymbolTable& sym,
                           std::span<ast::Expression const* const> exprs) {
     return commonType(sym, exprs | ranges::views::transform([](auto* expr) {
-                               return expr->type();
-                           }) | ToSmallVector<>);
+        return expr->type();
+    }) | ToSmallVector<>);
 }
 
 ast::Expression* sema::insertConversion(ast::Expression* expr,

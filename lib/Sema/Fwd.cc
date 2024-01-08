@@ -71,6 +71,18 @@ std::ostream& sema::operator<<(std::ostream& str, Mutability mut) {
     return str << toString(mut);
 }
 
+std::string_view sema::toString(AccessControl a) {
+    return std::array{
+#define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling) std::string_view(Spelling),
+#include "Sema/Lists.def"
+    }[static_cast<size_t>(a)];
+}
+
+std::ostream& sema::operator<<(std::ostream& ostream,
+                               AccessControl accessControl) {
+    return ostream << toString(accessControl);
+}
+
 std::string_view sema::toString(ScopeKind kind) {
     switch (kind) {
     case ScopeKind::Invalid:

@@ -26,8 +26,8 @@ void InstructionEqTester::test(scatha::ir::Instruction const& inst) const {
     CHECK(inst.name() == name);
     for (auto& refName: referedNames) {
         auto const operands = inst.operands();
-        auto itr = ranges::find_if(operands,
-                                   [&](scatha::ir::Value const* operand) {
+        auto itr =
+            ranges::find_if(operands, [&](scatha::ir::Value const* operand) {
             return operand->name() == refName;
         });
         CHECK(itr != ranges::end(operands));

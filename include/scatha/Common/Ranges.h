@@ -15,8 +15,8 @@ namespace scatha {
 
 template <typename... T>
     requires(sizeof...(T) > 0)
-inline constexpr auto Filter = ranges::views::filter(
-                                   []<typename V>(V const& value) {
+inline constexpr auto Filter =
+    ranges::views::filter([]<typename V>(V const& value) {
     using NoRef = std::remove_reference_t<V>;
     if constexpr (std::is_pointer_v<NoRef>) {
         return (... || isa<T>(value));
@@ -49,8 +49,8 @@ inline constexpr auto ToAddress = ranges::views::transform(
 /// to const
 inline constexpr auto ToConstAddress =
     ranges::views::transform([]<typename T>(T&& p) -> auto const* {
-        return std::to_address(std::forward<T>(p));
-    });
+    return std::to_address(std::forward<T>(p));
+});
 
 /// View applying `operator&` to every element
 inline constexpr auto TakeAddress = ranges::views::transform(
@@ -67,8 +67,8 @@ inline constexpr auto NonNull =
 /// Turn any range into an opaquely typed range
 inline constexpr auto Opaque =
     ranges::views::transform([]<typename T>(T&& value) -> decltype(auto) {
-        return std::forward<T>(value);
-    });
+    return std::forward<T>(value);
+});
 
 /// Shorthand for `ranges::to<utl::small_vector<...>>` to make it less verbose
 template <size_t Size>

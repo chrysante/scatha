@@ -12,7 +12,7 @@ namespace svm {
 
 /// Identifier that every program header version string must start with to
 /// verify it is a correct program
-inline const u64 GlobalProgID = 0x5CBF;
+inline u64 const GlobalProgID = 0x5CBF;
 
 ///
 struct ProgramHeader {

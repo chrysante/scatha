@@ -14,6 +14,7 @@
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
+#include "AST/SpecifierList.h"
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "Common/SourceLocation.h"
@@ -61,7 +62,7 @@
 
 #define AST_DERIVED_COMMON(Type)                                               \
     UniquePtr<Type> extractFromParent() {                                      \
-        auto* node = this->ASTNode::extractFromParent().release();             \
+        auto* node = this -> ASTNode::extractFromParent().release();           \
         return UniquePtr<Type>(cast<Type*>(node));                             \
     }
 
@@ -865,28 +866,31 @@ public:
     /// Identifier expression representing the name of this declaration.
     AST_PROPERTY(0, Identifier, nameIdentifier, NameIdentifier)
 
-    /// Access specifier. Defaults to`Public`
-    sema::AccessSpecifier accessSpec() const { return _accessSpec; }
+    /// Sets all explicit specifiers. This functions should only be used by the
+    /// parser
+    void setSpecifiers(SpecifierList specs) { _specs = std::move(specs); }
 
-    /// Shorthand for `accessSpec() == sema::AccessSpecifier::Public`
-    bool isPublic() const {
-        return accessSpec() == sema::AccessSpecifier::Public;
+    /// \Returns the specified access control of this declaration or
+    /// `std::nullopt` if none was specified
+    std::optional<sema::AccessControl> accessControl() const {
+        return _specs.accessControl();
     }
 
-    ///
-    void setAccessSpec(sema::AccessSpecifier spec) { _accessSpec = spec; }
-
-    /// Binary visibility specifier. Defaults to `Internal`
-    sema::BinaryVisibility binaryVisibility() const { return _binaryVis; }
-
-    void setBinaryVisibility(sema::BinaryVisibility vis) { _binaryVis = vis; }
+    /// Source range of the access control specifier
+    SourceRange accessControlSourceRange() const {
+        return _specs.accessControlSourceRange();
+    }
 
     /// \Returns the 'LINKAGE' string if this declaration was declared
     /// with`extern "LINKAGE"`
-    std::string_view externalLinkage() const { return _extLinkage; }
+    std::optional<std::string> externalLinkage() const {
+        return _specs.externalLinkage();
+    }
 
-    ///
-    void setExtLinkage(std::string value) { _extLinkage = std::move(value); }
+    /// Source range of the external linkage specifier
+    SourceRange externalLinkageSourceRange() const {
+        return _specs.externalLinkageSourceRange();
+    }
 
     /// **Decoration provided by semantic analysis**
 
@@ -894,12 +898,16 @@ public:
     void decorateDecl(sema::Entity* entity) { decorateStmt(entity); }
 
 protected:
-    using Statement::Statement;
+    template <typename... C>
+    explicit Declaration(NodeType type,
+                         SpecifierList specList,
+                         SourceRange sourceRange,
+                         C&&... children):
+        Statement(type, sourceRange, std::forward<C>(children)...),
+        _specs(std::move(specList)) {}
 
 private:
-    sema::AccessSpecifier _accessSpec = sema::AccessSpecifier::Public;
-    sema::BinaryVisibility _binaryVis = sema::BinaryVisibility::Internal;
-    std::string _extLinkage;
+    SpecifierList _specs;
 };
 
 /// Concrete node representing the root of every AST
@@ -1027,11 +1035,13 @@ public:
 protected:
     template <typename... Children>
     explicit VarDeclBase(NodeType nodeType,
+                         SpecifierList specList,
                          sema::Mutability mut,
                          SourceRange sourceRange,
                          UniquePtr<Identifier> name,
                          UniquePtr<Children>... children):
         Declaration(nodeType,
+                    specList,
                     sourceRange,
                     std::move(name),
                     std::move(children)...),
@@ -1049,12 +1059,14 @@ private:
 /// Concrete node representing a variable declaration.
 class SCATHA_API VariableDeclaration: public VarDeclBase {
 public:
-    explicit VariableDeclaration(sema::Mutability mut,
+    explicit VariableDeclaration(SpecifierList specList,
+                                 sema::Mutability mut,
                                  SourceRange sourceRange,
                                  UniquePtr<Identifier> name,
                                  UniquePtr<Expression> typeExpr,
                                  UniquePtr<Expression> initExpr):
         VarDeclBase(NodeType::VariableDeclaration,
+                    specList,
                     mut,
                     sourceRange,
                     std::move(name),
@@ -1094,6 +1106,7 @@ protected:
                                   UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
         VarDeclBase(nodeType,
+                    SpecifierList{},
                     mut,
                     sourceRange,
                     std::move(name),
@@ -1180,11 +1193,13 @@ class SCATHA_API FunctionDefinition: public Declaration {
 public:
     explicit FunctionDefinition(
         SourceRange sourceRange,
+        SpecifierList specList,
         UniquePtr<Identifier> name,
         utl::small_vector<UniquePtr<ParameterDeclaration>> parameters,
         UniquePtr<Expression> returnTypeExpr,
         UniquePtr<CompoundStatement> body):
         Declaration(NodeType::FunctionDefinition,
+                    specList,
                     sourceRange,
                     std::move(name),
                     std::move(returnTypeExpr),
@@ -1246,9 +1261,11 @@ private:
 class SCATHA_API StructDefinition: public Declaration {
 public:
     explicit StructDefinition(SourceRange sourceRange,
+                              SpecifierList specList,
                               UniquePtr<Identifier> name,
                               UniquePtr<CompoundStatement> body):
         Declaration(NodeType::StructDefinition,
+                    specList,
                     sourceRange,
                     std::move(name),
                     std::move(body)) {}

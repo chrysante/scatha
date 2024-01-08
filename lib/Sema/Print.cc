@@ -15,6 +15,7 @@
 using namespace scatha;
 using namespace sema;
 using namespace ranges::views;
+using namespace tfmt::modifiers;
 
 void sema::print(SymbolTable const& symbolTable) {
     print(symbolTable, std::cout);
@@ -67,10 +68,6 @@ struct PrintContext {
         return [](std::ostream& str) { str << "Global Scope"; };
     }
 
-    utl::vstreammanip<> nameImpl(Library const* lib) {
-        return [=](std::ostream& str) { str << lib->libName(); };
-    }
-
     std::ostream& str;
     SymbolTable const& sym;
     TreeFormatter formatter;
@@ -85,16 +82,25 @@ void sema::print(SymbolTable const& symbolTable, std::ostream& ostream) {
 }
 
 void PrintContext::print(Entity const& entity) {
-    str << formatter.beginLine() << name(entity) << " "
-        << tfmt::format(tfmt::BrightGrey, "[", entity.entityType(), "]")
-        << "\n";
+    str << formatter.beginLine();
+    if (!entity.isVisible()) {
+        str << tfmt::format(BrightGrey, "[hidden]") << " ";
+    }
+    str << name(entity) << " ";
+    tfmt::format(BrightGrey, str, [&] {
+        str << "[";
+        if (entity.hasAccessControl()) {
+            str << entity.accessControl() << " ";
+        }
+        str << entity.entityType() << "]";
+    });
+    str << "\n";
     auto children = [&] {
         using SetType = utl::hashset<Entity const*>;
         if (auto* scope = dyncast<Scope const*>(&entity)) {
-            auto children =
-                scope->entities() |
-                filter([](auto* entity) { return !entity->isBuiltin(); }) |
-                ranges::to<utl::hashset<Entity const*>>;
+            auto children = scope->entities() | filter([](auto* entity) {
+                return !entity->isBuiltin();
+            }) | ranges::to<utl::hashset<Entity const*>>;
             for (auto* entity: scope->children()) {
                 if (isa<Function>(entity) || entity->isBuiltin()) {
                     continue;

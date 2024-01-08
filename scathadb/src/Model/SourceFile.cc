@@ -13,10 +13,9 @@ using namespace sdb;
 static std::vector<std::string_view> splitLines(std::string_view text) {
     return text | ranges::views::split('\n') |
            ranges::views::transform([](auto const& rng) {
-               auto size = utl::narrow_cast<size_t>(ranges::distance(rng));
-               return std::string_view(&*rng.begin(), size);
-           }) |
-           ranges::to<std::vector>;
+        auto size = utl::narrow_cast<size_t>(ranges::distance(rng));
+        return std::string_view(&*rng.begin(), size);
+    }) | ranges::to<std::vector>;
 }
 
 SourceFile::SourceFile(std::filesystem::path path, std::string text):

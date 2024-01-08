@@ -47,7 +47,7 @@ struct Finder {
 
 TEST_CASE("Symbol table serialize/deserialize", "[sema]") {
     auto [ast, sym, iss] = produceDecoratedASTAndSymTable(R"(
-struct X {
+public struct X {
     struct Y { var k: int; }
 
     fn foo(n: int) -> double {}
@@ -56,13 +56,13 @@ struct X {
     var baz: [Y, 2];
     var quux: int;
 }
-struct Empty {}
+public struct Empty {}
 )");
     REQUIRE(iss.empty());
     std::stringstream sstr;
-    serialize(sym, sstr);
+    serializeLibrary(sym, sstr);
     SymbolTable sym2;
-    deserialize(sym2, sstr);
+    REQUIRE(deserialize(sym2, sstr));
     Finder find{ sym2 };
     find("X", [&](Scope const* XScope) {
         auto* X = dyncast<StructType const*>(XScope);
@@ -110,7 +110,7 @@ struct Empty {}
 
 TEST_CASE("Symbol table empty deserialization", "[sema]") {
     std::stringstream sstr;
-    sstr << "{}";
+    sstr << "{ \"entities\": [] }";
     SymbolTable sym;
     CHECK(deserialize(sym, sstr));
 }

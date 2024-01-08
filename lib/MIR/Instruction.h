@@ -21,11 +21,10 @@ class Instruction:
     public ObjectWithMetadata {
     static auto destsImpl(auto* self) {
         return ranges::views::generate([dest = self->dest()]() mutable {
-                   auto* result = dest;
-                   dest = dest->next();
-                   return result;
-               }) |
-               ranges::views::take(self->numDests());
+            auto* result = dest;
+            dest = dest->next();
+            return result;
+        }) | ranges::views::take(self->numDests());
     }
 
 public:

@@ -17,6 +17,7 @@ SC_SEMA_ENTITY_DEF(NativeLibrary,  Library,        Concrete)
 SC_SEMA_ENTITY_DEF(ForeignLibrary, Library,        Concrete)
 SC_SEMA_ENTITY_DEF(Function,       Scope,          Concrete)
 SC_SEMA_ENTITY_DEF(Type,           Scope,          Abstract)
+SC_SEMA_ENTITY_DEF(FunctionType,   Type,           Concrete)
 SC_SEMA_ENTITY_DEF(ObjectType,     Type,           Abstract)
 SC_SEMA_ENTITY_DEF(BuiltinType,    ObjectType,     Abstract)
 SC_SEMA_ENTITY_DEF(VoidType,       BuiltinType,    Concrete)
@@ -93,6 +94,21 @@ SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(MoveConstructor)
 SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Destructor)
 
 #undef SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all access control kinds ----------------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_ACCESS_CONTROL_DEF
+#   define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling)
+#endif
+
+/// Must be in order of ascending strength (or descending accessibility)!
+SC_SEMA_ACCESS_CONTROL_DEF(Public,   "public")
+SC_SEMA_ACCESS_CONTROL_DEF(Internal, "internal")
+SC_SEMA_ACCESS_CONTROL_DEF(Private,  "private")
+
+#undef SC_SEMA_ACCESS_CONTROL_DEF
 
 // ===--------------------------------------------------------------------=== //
 // === List of all constant kinds ----------------------------------------=== //

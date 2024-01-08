@@ -20,20 +20,19 @@ ModalView sdb::QuitConfirm(std::function<void()> doQuit) {
     ToolbarOptions opt;
     opt.separator = spacer;
     opt.enclosingSeparators = true;
-    auto cont =
-        Toolbar(
-            {
-                ::Button("Quit", doQuit),
-                ::Button("Cancel", [=] { state->open = false; }),
-            },
-            opt) |
-        CatchEvent([=](Event event) {
-            if (event == Event::Character("q") || event == Event::Return) {
-                doQuit();
-                return true;
-            }
-            return false;
-        });
+    auto cont = Toolbar(
+                    {
+                        ::Button("Quit", doQuit),
+                        ::Button("Cancel", [=] { state->open = false; }),
+                    },
+                    opt) |
+                CatchEvent([=](Event event) {
+        if (event == Event::Character("q") || event == Event::Return) {
+            doQuit();
+            return true;
+        }
+        return false;
+    });
     return ModalView("Confirm quit",
                      cont,
                      { .state = state, .closeButton = false });

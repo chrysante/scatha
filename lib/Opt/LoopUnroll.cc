@@ -39,14 +39,12 @@ static LoopCloneResult cloneLoop(Context& ctx,
     auto Map = ranges::views::transform(map);
     using LCPMapType =
         utl::hashmap<std::pair<BasicBlock const*, Instruction const*>, Phi*>;
-    auto loopClosingPhiMap =
-        loop.loopClosingPhiMap() |
-        ranges::views::transform([&map = map](auto& elem) {
-            auto& [key, phi] = elem;
-            auto& [exit, inst] = key;
-            return std::pair{ std::pair{ exit, map(inst) }, phi };
-        }) |
-        ranges::to<LCPMapType>;
+    auto loopClosingPhiMap = loop.loopClosingPhiMap() |
+                             ranges::views::transform([&map = map](auto& elem) {
+        auto& [key, phi] = elem;
+        auto& [exit, inst] = key;
+        return std::pair{ std::pair{ exit, map(inst) }, phi };
+    }) | ranges::to<LCPMapType>;
     LoopInfo cloneLoop(map(loop.header()),
                        loop.innerBlocks() | Map |
                            ranges::to<utl::hashset<BasicBlock*>>,

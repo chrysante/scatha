@@ -73,10 +73,9 @@ static void coalesce(BasicBlock& BB,
                      LiveInterval killValue) {
     SC_ASSERT(!overlaps(surviveValue, killValue),
               "Can't coalesce overlapping values");
-    auto instRange =
-        BB |
-        drop_while([&](auto& inst) { return inst.index() < killValue.begin; }) |
-        take_while([&](auto& inst) { return inst.index() <= killValue.end; });
+    auto instRange = BB | drop_while([&](auto& inst) {
+        return inst.index() < killValue.begin;
+    }) | take_while([&](auto& inst) { return inst.index() <= killValue.end; });
     for (auto& inst: instRange) {
         if (inst.index() != killValue.begin) {
             inst.replaceOperand(kill, survive);

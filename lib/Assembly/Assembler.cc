@@ -436,10 +436,9 @@ void Assembler::setJumpDests() {
 
 std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {
     auto* list = std::any_cast<dbi::SourceFileList>(&stream.metadata());
-    auto sourceLocations =
-        stream | join | transform([](Instruction const& inst) {
-            return std::any_cast<SourceLocation>(&inst.metadata());
-        }) |
-        ranges::to<std::vector>;
+    auto sourceLocations = stream | join |
+                           transform([](Instruction const& inst) {
+        return std::any_cast<SourceLocation>(&inst.metadata());
+    }) | ranges::to<std::vector>;
     return dbi::serialize(list, sourceLocations);
 }

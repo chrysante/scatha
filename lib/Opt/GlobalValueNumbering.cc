@@ -429,8 +429,8 @@ struct GVNContext {
         LocalComputationTable&,
         std::span<BasicBlock* const> succs,
         utl::function_view<bool(Instruction const*)> condition = [](auto) {
-            return true;
-        });
+        return true;
+    });
     void moveOut(size_t rank, BasicBlock*, LocalComputationTable&);
 
     Instruction* insertPointForRank(BasicBlock* BB, size_t rank) {
@@ -637,8 +637,8 @@ void GVNContext::computeTopsortOrder() {
     auto forwardEdges = [&](BasicBlock* BB) {
         return BB->successors() |
                ranges::views::filter([&dfs, BB](BasicBlock* succ) {
-                   return !dfs.backEdges.contains({ BB, succ });
-               });
+            return !dfs.backEdges.contains({ BB, succ });
+        });
     };
     utl::topsort(topsortOrder.begin(), topsortOrder.end(), forwardEdges);
 }
@@ -686,8 +686,8 @@ void GVNContext::assignRanks() {
 size_t GVNContext::computeRank(Instruction* inst) {
     size_t rank = ranges::max(inst->operands() |
                               ranges::views::transform([&](Value* value) {
-                                  return getAvailRank(value);
-                              }));
+        return getAvailRank(value);
+    }));
     if (!isa<Phi>(inst)) {
         ++rank;
     }
@@ -777,9 +777,8 @@ void GVNContext::processHeader(size_t rank,
     auto* landingPad = loops[header].landingPad;
     auto movable = LCT.instructions(rank) |
                    ranges::views::filter([&](auto* inst) {
-                       return isHeaderMovable(inst, header, landingPad);
-                   }) |
-                   ToSmallVector<>;
+        return isHeaderMovable(inst, header, landingPad);
+    }) | ToSmallVector<>;
     auto& MCT = MCTs[{ landingPad, header }];
     for (auto* inst: movable) {
         MCT.insert(rank, copyAndPhiRename(ctx, inst, landingPad), inst);
@@ -933,8 +932,8 @@ void GVNContext::moveInImpl(
     LocalComputationTable& LCT,
     std::span<BasicBlock* const> succs,
     utl::function_view<bool(Instruction const*)> condition) {
-    auto insertIntoLTCAndBB =
-        [&](Instruction* insertPoint, MovableComputationTable::Entry& entry) {
+    auto insertIntoLTCAndBB = [&](Instruction* insertPoint,
+                                  MovableComputationTable::Entry& entry) {
         Instruction* inst = entry.copy();
         if (auto* existing = LCT.insertOrExisting(rank, inst)) {
             inst->replaceAllUsesWith(existing);
@@ -982,12 +981,12 @@ void GVNContext::moveInImpl(
             }
             bool allOthersHaveSameEntry =
                 ranges::all_of(BB->successors(), [&](BasicBlock* other) {
-                    if (other == succ) {
-                        return true;
-                    }
-                    auto& MCT_B = MCTs[{ BB, other }];
-                    return MCT_B.hasComputationEqualTo(entry.copy());
-                });
+                if (other == succ) {
+                    return true;
+                }
+                auto& MCT_B = MCTs[{ BB, other }];
+                return MCT_B.hasComputationEqualTo(entry.copy());
+            });
             if (!allOthersHaveSameEntry) {
                 continue;
             }

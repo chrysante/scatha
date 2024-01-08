@@ -81,12 +81,11 @@ std::array<u64, 2> svm::setupArguments(VirtualMachine& vm,
         VirtualPointer ptr;
         uint64_t size;
     };
-    auto argPointers =
-        arguments.pointers | ranges::views::transform([&](auto arg) {
-            return StringPointer{ argStackData + argPointersSize + arg.offset,
-                                  arg.size };
-        }) |
-        ranges::to<utl::small_vector<StringPointer>>;
+    auto argPointers = arguments.pointers |
+                       ranges::views::transform([&](auto arg) {
+        return StringPointer{ argStackData + argPointersSize + arg.offset,
+                              arg.size };
+    }) | ranges::to<utl::small_vector<StringPointer>>;
     std::memcpy(vm.derefPointer(argStackData, argPointersSize),
                 argPointers.data(),
                 argPointersSize);

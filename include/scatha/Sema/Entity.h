@@ -90,6 +90,37 @@ public:
     ///
     void setBuiltin(bool value = true) { _isBuiltin = value; }
 
+    /// \Returns the access control of this entity. Only meaningful if this
+    /// entity is a function, type, or variable.
+    /// \Warning this function will trap if this entity has no access control
+    AccessControl accessControl() const {
+        SC_EXPECT(hasAccessControl());
+        return accessCtrl;
+    }
+
+    /// \Returns `true` if it is safe to call `accessControl()`
+    bool hasAccessControl() const { return accessCtrl != InvalidAccessControl; }
+
+    /// \Returns `accessControl() == Private`
+    bool isPrivate() const { return accessControl() == AccessControl::Private; }
+
+    /// \Returns `accessControl() == Internal`
+    bool isInternal() const {
+        return accessControl() == AccessControl::Internal;
+    }
+
+    /// \Returns `accessControl() == Public`
+    bool isPublic() const { return accessControl() == AccessControl::Public; }
+
+    /// Should be used by instantiation and deserialization
+    void setAccessControl(AccessControl ctrl) { accessCtrl = ctrl; }
+
+    /// \Returns `true` if this entity is accessible by name lookup
+    bool isVisible() const { return _isVisible; }
+
+    /// Set whether this entity shall be accessible by name lookup
+    void setVisible(bool value = true) { _isVisible = value; }
+
     /// The parent scope of this entity. Not all entities have a parent scope so
     /// this may be null.
     Scope* parent() { return _parent; }
@@ -114,9 +145,6 @@ public:
 
     /// \overload
     ast::ASTNode const* astNode() const { return _astNode; }
-
-    /// \Returns the access spec if this entity is a declaration
-    std::optional<AccessSpecifier> accessSpec() const;
 
     /// \Returns the list of aliases to this entity
     std::span<Alias* const> aliases() { return _aliases; }
@@ -147,6 +175,8 @@ private:
     /// Type ID used by `dyncast`
     EntityType _entityType;
     bool _isBuiltin = false;
+    bool _isVisible = true;
+    AccessControl accessCtrl = InvalidAccessControl;
     Scope* _parent = nullptr;
     std::string _name;
     utl::small_ptr_vector<Alias*> _aliases;
@@ -158,15 +188,16 @@ EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
     return entity.entityType();
 }
 
+/// Temporary function. We will remove this function after we restructure the
+/// entity hierarchy such that `Function` derives from `Object`
+Type const* getEntityType(Entity const& entity);
+
 /// Represents an object
 class SCATHA_API Object: public Entity {
 public:
     Object(Object const&) = delete;
 
     ~Object();
-
-    /// Set the type of this object.
-    void setType(Type const* type) { _type = type; }
 
     /// Type of this object.
     Type const* type() const { return _type; }
@@ -206,6 +237,7 @@ private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
+    friend class SymbolTable; // To set the type in two phase initialization
     Type const* _type;
     Mutability _mut;
     UniquePtr<Value> constVal;
@@ -230,6 +262,7 @@ public:
     explicit Variable(std::string name,
                       Scope* parentScope,
                       ast::ASTNode* astNode,
+                      AccessControl accessControl,
                       Type const* type = nullptr,
                       Mutability mutability = {});
 
@@ -263,7 +296,8 @@ public:
                       Scope* parentScope,
                       Type const* type,
                       Mutability mut,
-                      ValueCategory valueCat);
+                      ValueCategory valueCat,
+                      AccessControl accessControl);
 
     /// The kind of property
     PropertyKind kind() const { return _kind; }
@@ -302,13 +336,12 @@ public:
     ScopeKind kind() const { return _kind; }
 
     /// Find entities by name within this scope
-    std::span<Entity* const> findEntities(std::string_view name) {
-        auto ret = std::as_const(*this).findEntities(name);
-        return { const_cast<Entity* const*>(ret.data()), ret.size() };
-    }
+    utl::small_ptr_vector<Entity*> findEntities(
+        std::string_view name, bool findHiddenEntities = false);
 
     /// \overload
-    std::span<Entity const* const> findEntities(std::string_view name) const;
+    utl::small_ptr_vector<Entity const*> findEntities(
+        std::string_view name, bool findHiddenEntities = false) const;
 
     /// Find the property \p prop in this scope
     Property* findProperty(PropertyKind prop) {
@@ -362,9 +395,14 @@ private:
     /// our symbol table Does nothing if \p child is not a child of this scope
     void addAlternateChildName(Entity* child, std::string name);
 
+    template <typename E, typename S>
+    static utl::small_ptr_vector<E*> findEntitiesImpl(S* self,
+                                                      std::string_view name,
+                                                      bool findHidden);
+
 private:
     utl::hashset<Scope*> _children;
-    utl::hashmap<std::string, utl::small_vector<Entity*, 1>> _names;
+    utl::hashmap<std::string, utl::small_ptr_vector<Entity*>> _names;
     utl::hashmap<PropertyKind, Property*> _properties;
     ScopeKind _kind;
 };
@@ -389,31 +427,19 @@ public:
 
 /// Abstract base class of `NativeLibrary` and `ForeignLibrary`
 class SCATHA_API Library: public Scope {
-public:
-    /// \Returns the name that identifies the library
-    /// This differs from the entity name because we generally declare libraries
-    /// as anonymous
-    std::string const& libName() const { return _libName; }
-
 protected:
-    explicit Library(EntityType entityType,
-                     std::string name,
-                     std::string libName,
-                     Scope* parent);
+    explicit Library(EntityType entityType, std::string name, Scope* parent);
 
 private:
     friend class Entity;
 
     EntityCategory categoryImpl() const { return EntityCategory::Namespace; }
-
-    std::string _libName;
 };
 
 /// Scope of symbols imported from a library
 class SCATHA_API NativeLibrary: public Library {
 public:
     explicit NativeLibrary(std::string name,
-                           std::string libName,
                            std::filesystem::path codeFile,
                            Scope* parent);
 
@@ -429,7 +455,6 @@ private:
 class SCATHA_API ForeignLibrary: public Library {
 public:
     explicit ForeignLibrary(std::string name,
-                            std::string libName,
                             std::filesystem::path file,
                             Scope* parent);
 
@@ -442,102 +467,33 @@ private:
 
 /// # Function
 
-/// Represents the signature, aka parameter types and return type of a function
-class SCATHA_API FunctionSignature {
-public:
-    FunctionSignature() = default;
-
-    explicit FunctionSignature(utl::small_vector<Type const*> argumentTypes,
-                               Type const* returnType):
-        _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
-
-    Type const* type() const {
-        /// Don't have function types yet. Not sure we if we even need them
-        /// though
-        SC_UNIMPLEMENTED();
-    }
-
-    /// Argument types
-    std::span<Type const* const> argumentTypes() const {
-        return _argumentTypes;
-    }
-
-    /// Argument type at index \p index
-    Type const* argumentType(size_t index) const {
-        return _argumentTypes[index];
-    }
-
-    /// Number of arguments
-    size_t argumentCount() const { return _argumentTypes.size(); }
-
-    /// \Returns the return type.
-    /// \Warning During analysis this could be null if the return type is
-    /// not yet deduced.
-    Type const* returnType() const { return _returnType; }
-
-private:
-    friend class Function; /// To set deduced return type
-    utl::small_vector<Type const*> _argumentTypes;
-    Type const* _returnType = nullptr;
-};
-
-/// \Returns `true` if \p a and \p b have the same argument types
-bool argumentsEqual(FunctionSignature const& a, FunctionSignature const& b);
-
 /// Represents a builtin or user defined function
 class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
+                      FunctionType const* type,
                       Scope* parentScope,
                       FunctionAttribute attrs,
-                      ast::ASTNode* astNode):
-        Scope(EntityType::Function,
-              ScopeKind::Function,
-              std::move(name),
-              parentScope,
-              astNode),
-        attrs(attrs) {}
+                      ast::ASTNode* astNode,
+                      AccessControl accessControl);
 
     /// The definition of this function in the AST
     SC_ASTNODE_DERIVED(definition, FunctionDefinition)
 
     /// \Returns The type of this function.
-    Type const* type() const { return signature().type(); }
-
-    /// Set the signature of this function
-    void setSignature(FunctionSignature sig) {
-        _hasSig = true;
-        _sig = std::move(sig);
-    }
-
-    /// \Returns The signature of this function.
-    FunctionSignature const& signature() const {
-        SC_EXPECT(hasSignature());
-        return _sig;
-    }
-
-    /// \Returns `true` if the signature of this function has been set
-    bool hasSignature() const { return _hasSig; }
+    FunctionType const* type() const { return _type; }
 
     /// Return type
-    Type const* returnType() const { return signature().returnType(); }
-
-    /// Sets the return type to \p type
-    /// Must only be called if the return type of this function is yet unknown
-    void setDeducedReturnType(Type const* type);
+    Type const* returnType() const;
 
     /// Argument types
-    std::span<Type const* const> argumentTypes() const {
-        return signature().argumentTypes();
-    }
+    std::span<Type const* const> argumentTypes() const;
 
     /// Argument type at index \p index
-    Type const* argumentType(size_t index) const {
-        return signature().argumentType(index);
-    }
+    Type const* argumentType(size_t index) const;
 
     /// Number of arguments
-    size_t argumentCount() const { return signature().argumentCount(); }
+    size_t argumentCount() const;
 
     /// Kind of this function
     FunctionKind kind() const { return _kind; }
@@ -552,11 +508,6 @@ public:
 
     /// \Returns `kind() == FunctionKind::Foreign`
     bool isForeign() const { return kind() == FunctionKind::Foreign; }
-
-    /// \Returns `binaryVisibility() == BinaryVisibility::Export`
-    bool isBinaryVisible() const {
-        return binaryVisibility() == BinaryVisibility::Export;
-    }
 
     /// Set this function to be a foreign function
     void setForeign();
@@ -610,16 +561,6 @@ public:
         _binaryAddress = addr;
     }
 
-    /// See Sema/Fwd.h
-    AccessSpecifier accessSpecifier() const { return accessSpec; }
-
-    void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
-
-    /// See Sema/Fwd.h
-    BinaryVisibility binaryVisibility() const { return binaryVis; }
-
-    void setBinaryVisibility(BinaryVisibility vis) { binaryVis = vis; }
-
     /// \returns Bitfield of function attributes
     FunctionAttribute attributes() const { return attrs; }
 
@@ -634,13 +575,11 @@ private:
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
     friend class SymbolTable;
-    FunctionSignature _sig;
-    FunctionAttribute attrs;                                         // 4 bytes
-    AccessSpecifier accessSpec       : 4 = AccessSpecifier::Private; // 4 bits
-    BinaryVisibility binaryVis       : 4 = BinaryVisibility::Internal; // 4 bits
-    SpecialMemberFunction _smfKind   : 4 = {};                         // 4 bits
-    SpecialLifetimeFunction _slfKind : 4 = {};                         // 4 bits
-    FunctionKind _kind               : 4 = FunctionKind::Native;       // 4 bits
+    FunctionType const* _type;
+    FunctionAttribute attrs;                                     // 4 bytes
+    SpecialMemberFunction _smfKind   : 4 = {};                   // 4 bits
+    SpecialLifetimeFunction _slfKind : 4 = {};                   // 4 bits
+    FunctionKind _kind               : 4 = FunctionKind::Native; // 4 bits
     bool _isSMF                      : 1 = false;
     bool _isSLF                      : 1 = false;
     bool _hasSig                     : 1 = false;
@@ -651,8 +590,6 @@ private:
 };
 
 /// # Types
-
-size_t constexpr InvalidSize = ~size_t(0);
 
 /// Abstract class representing a type
 class SCATHA_API Type: public Scope {
@@ -678,8 +615,8 @@ protected:
                   ScopeKind scopeKind,
                   std::string name,
                   Scope* parent,
-                  ast::ASTNode* astNode = nullptr):
-        Scope(entityType, scopeKind, std::move(name), parent, astNode) {}
+                  ast::ASTNode* astNode,
+                  AccessControl accessControl);
 
 private:
     friend class Entity;
@@ -689,6 +626,38 @@ private:
     size_t alignImpl() const { return InvalidSize; }
     bool isDefaultConstructibleImpl() const { return true; }
     bool hasTrivialLifetimeImpl() const { return true; }
+};
+
+/// Represents the signature, aka parameter types and return type of a function
+class SCATHA_API FunctionType: public Type {
+public:
+    FunctionType(std::span<Type const* const> argumentTypes,
+                 Type const* returnType);
+
+    FunctionType(utl::small_vector<Type const*> argumentTypes,
+                 Type const* returnType);
+
+    /// Argument types
+    std::span<Type const* const> argumentTypes() const {
+        return _argumentTypes;
+    }
+
+    /// Argument type at index \p index
+    Type const* argumentType(size_t index) const {
+        return _argumentTypes[index];
+    }
+
+    /// Number of arguments
+    size_t argumentCount() const { return _argumentTypes.size(); }
+
+    /// \Returns the return type.
+    /// \Warning During analysis this could be null if the return type is
+    /// not yet deduced.
+    Type const* returnType() const { return _returnType; }
+
+private:
+    utl::small_vector<Type const*> _argumentTypes;
+    Type const* _returnType = nullptr;
 };
 
 /// Abstract class representing the type of an object
@@ -747,10 +716,8 @@ protected:
                         Scope* parent,
                         size_t size,
                         size_t align,
-                        ast::ASTNode* astNode = nullptr):
-        Type(entityType, scopeKind, std::move(name), parent, astNode),
-        _size(size),
-        _align(align) {}
+                        ast::ASTNode* astNode,
+                        AccessControl accessControl);
 
 private:
     friend class Type;
@@ -774,13 +741,8 @@ protected:
                          std::string name,
                          Scope* parentScope,
                          size_t size,
-                         size_t align):
-        ObjectType(entityType,
-                   ScopeKind::Type,
-                   std::move(name),
-                   parentScope,
-                   size,
-                   align) {}
+                         size_t align,
+                         AccessControl accessControl);
 };
 
 /// Concrete class representing type `void`
@@ -875,15 +837,9 @@ public:
     explicit StructType(std::string name,
                         Scope* parentScope,
                         ast::ASTNode* astNode,
-                        size_t size = InvalidSize,
-                        size_t align = InvalidSize):
-        CompoundType(EntityType::StructType,
-                     ScopeKind::Type,
-                     std::move(name),
-                     parentScope,
-                     size,
-                     align,
-                     astNode) {}
+                        size_t size,
+                        size_t align,
+                        AccessControl accessControl);
 
     /// The AST node that defines this type
     SC_ASTNODE_DERIVED(definition, StructDefinition)
@@ -1018,10 +974,7 @@ class SCATHA_API OverloadSet:
 public:
     explicit OverloadSet(SourceRange loc,
                          std::string name,
-                         utl::small_vector<Function*> functions):
-        Entity(EntityType::OverloadSet, std::move(name), nullptr),
-        small_vector(std::move(functions)),
-        loc(loc) {}
+                         utl::small_vector<Function*> functions);
 
     OverloadSet(OverloadSet const&) = delete;
 
@@ -1097,7 +1050,8 @@ public:
     explicit Alias(std::string name,
                    Entity& aliased,
                    Scope* parent,
-                   ast::ASTNode* astNode = nullptr);
+                   ast::ASTNode* astNode,
+                   AccessControl accessControl);
 
     /// \Returns the entity that this alias refers to
     Entity* aliased() { return _aliased; }
@@ -1120,7 +1074,8 @@ class SCATHA_API PoisonEntity: public Entity {
 public:
     explicit PoisonEntity(ast::Identifier* ID,
                           EntityCategory cat,
-                          Scope* parentScope);
+                          Scope* parentScope,
+                          AccessControl accessControl);
 
 private:
     friend class Entity;

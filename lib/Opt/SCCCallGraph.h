@@ -97,8 +97,8 @@ public:
         /// \returns a view over the functions this SCC
         auto functions() const {
             return _nodes | ranges::views::transform([](auto* node) -> auto& {
-                       return node->function();
-                   });
+                return node->function();
+            });
         }
 
         void addNode(FunctionNode* node) { _nodes.push_back(node); }

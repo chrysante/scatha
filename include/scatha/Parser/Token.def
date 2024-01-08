@@ -63,9 +63,9 @@ SC_KEYWORD_TOKEN_DEF(Null,        "null")
 SC_KEYWORD_TOKEN_DEF(This,        "this")
 
 /// ## Specifiers
-SC_KEYWORD_TOKEN_DEF(Public,      "public")
-SC_KEYWORD_TOKEN_DEF(Protected,   "protected")
 SC_KEYWORD_TOKEN_DEF(Private,     "private")
+SC_KEYWORD_TOKEN_DEF(Internal,    "internal")
+SC_KEYWORD_TOKEN_DEF(Public,      "public")
 SC_KEYWORD_TOKEN_DEF(Extern,      "extern")
 
 #undef SC_KEYWORD_TOKEN_DEF

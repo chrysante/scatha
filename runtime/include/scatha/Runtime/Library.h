@@ -28,8 +28,7 @@ public:
     sema::StructType const* declareType(StructDesc desc);
 
     /// Declares the function described by \p desc to the internal symbol table
-    FuncDecl declareFunction(std::string name,
-                             sema::FunctionSignature signature);
+    FuncDecl declareFunction(std::string name, sema::FunctionType const* type);
 
     /// \overload
     template <ValidFunction F>
@@ -53,7 +52,10 @@ public:
 
     ///
     template <typename F>
-    sema::FunctionSignature extractSignature() const;
+    sema::FunctionType const* extractFunctionType() const;
+
+    ///
+    sema::SymbolTable& symbolTable() { return *sym; }
 
 private:
     sema::SymbolTable* sym = nullptr;
@@ -80,19 +82,19 @@ struct ExtractSig;
 
 template <typename R, typename... Args>
 struct ExtractSig<std::function<R(Args...)>> {
-    static sema::FunctionSignature Impl(Library const* self) {
+    static sema::FunctionType const* Impl(Library const* self) {
         utl::small_vector<sema::Type const*> argTypes;
         argTypes.reserve(sizeof...(Args));
         (argTypes.push_back(self->getType<Args>()), ...);
         auto* retType = self->getType<R>();
-        return sema::FunctionSignature(std::move(argTypes), retType);
+        self->symbolTable().functionType(argType, retType);
     };
 };
 
 } // namespace scatha::internal
 
 template <typename F>
-scatha::sema::FunctionSignature scatha::Library::extractSignature() const {
+scatha::sema::FunctionType const* scatha::Library::extractFunctionType() const {
     return internal::ExtractSig<decltype(std::function{
         std::declval<F>() })>::Impl(this);
 }

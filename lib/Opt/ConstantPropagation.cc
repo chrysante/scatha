@@ -267,13 +267,12 @@ void SCCPContext::processUseEdge(UseEdge edge) {
 }
 
 void SCCPContext::visitPhi(Phi& phi) {
-    auto formalArgs =
-        phi.arguments() |
-        ranges::views::transform([&](PhiMapping arg) -> FormalValue {
-            return isExecutable({ arg.pred, phi.parent() }) ?
-                       formalValue(arg.value) :
-                       Unexamined{};
-        });
+    auto formalArgs = phi.arguments() | ranges::views::transform(
+                                            [&](PhiMapping arg) -> FormalValue {
+        return isExecutable({ arg.pred, phi.parent() }) ?
+                   formalValue(arg.value) :
+                   Unexamined{};
+    });
     FormalValue const value = infimum(formalArgs);
     if (value == formalValue(&phi)) {
         return;
@@ -685,8 +684,8 @@ FormalValue SCCPContext::evaluateCall(Value const* target,
     }
     /// We need all arguments be constant to evaluate this.
     if (!ranges::all_of(args, [&](FormalValue const& value) {
-            return isConstant(value);
-        }))
+        return isConstant(value);
+    }))
     {
         return Inevaluable{};
     }

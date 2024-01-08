@@ -39,7 +39,8 @@ struct InstContext {
 
     void instantiateFunction(ast::FunctionDefinition&);
 
-    FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
+    FunctionType const* analyzeSignature(ast::FunctionDefinition&,
+                                         Type const* returnType) const;
 
     Type const* analyzeParam(ast::ParameterDeclaration&) const;
 
@@ -114,8 +115,8 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     /// table and we gather the dependencies of variable declarations in
     /// structs. This must be done before sorting the dependency graph.
     auto dataMembers = dependencyGraph | ranges::views::filter([](auto& node) {
-                           return isa<Variable>(node.entity);
-                       });
+        return isa<Variable>(node.entity);
+    });
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
         auto* type = sym.withScopeCurrent(node.entity->parent(), [&] {
@@ -132,17 +133,16 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
                    ranges::to<utl::small_vector<u16>>;
-    auto const cycle =
-        utl::find_cycle(indices.begin(),
-                        indices.end(),
-                        [&](size_t index) -> auto const& {
-                            return dependencyGraph[index].dependencies;
-                        });
+    auto const cycle = utl::find_cycle(indices.begin(),
+                                       indices.end(),
+                                       [&](size_t index) -> auto const& {
+        return dependencyGraph[index].dependencies;
+    });
     if (!cycle.empty()) {
         auto entities = cycle | ranges::views::transform(
                                     [&](size_t index) -> Entity const* {
-                                        return dependencyGraph[index].entity;
-                                    });
+            return dependencyGraph[index].entity;
+        });
         ctx.issue<StructDefCycle>(entities | ranges::to<std::vector>);
         return {};
     }
@@ -153,8 +153,8 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     utl::topsort(dependencyTraversalOrder.begin(),
                  dependencyTraversalOrder.end(),
                  [&](size_t index) -> auto const& {
-                     return dependencyGraph[index].dependencies;
-                 });
+        return dependencyGraph[index].dependencies;
+    });
     std::vector<StructType const*> sortedStructTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
@@ -172,7 +172,7 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     return sortedStructTypes;
 }
 
-static std::optional<SpecialMemberFunction> toSMF(
+static std::optional<SpecialMemberFunction> getSMFKind(
     ast::FunctionDefinition const& funcDef) {
     for (uint8_t i = 0; i < EnumSize<SpecialMemberFunction>; ++i) {
         SpecialMemberFunction SMF{ i };
@@ -244,28 +244,29 @@ void InstContext::instantiateVariable(SDGNode& node) {
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto* type = getType(varDecl.typeExpr());
     /// Here we set the TypeID of the variable in the symbol table.
-    auto* variable = cast<Variable*>(node.entity);
-    variable->setType(type);
-    varDecl.decorateVarDecl(variable);
+    auto* var = cast<Variable*>(node.entity);
+    sym.setVariableType(var, type);
+    varDecl.decorateVarDecl(var);
 }
 
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     auto* F = def.function();
     sym.makeScopeCurrent(F->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto result = sym.setFuncSig(F, analyzeSignature(def));
+    auto SMF = getSMFKind(def);
+    auto* returnType = SMF ? sym.Void() : nullptr;
+    auto result = sym.setFunctionType(F, analyzeSignature(def, returnType));
     if (!result) {
         return;
     }
-    if (!def.externalLinkage().empty()) {
-        if (def.externalLinkage() != "C") {
+    if (def.externalLinkage()) {
+        if (*def.externalLinkage() != "C") {
             ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
         }
         else {
             F->setForeign();
         }
     }
-    auto SMF = toSMF(def);
     if (!SMF) {
         return;
     }
@@ -280,7 +281,6 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
         ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, *SMF, type);
         return;
     }
-    F->setDeducedReturnType(sym.Void());
     Type const* mutRef = sym.reference(QualType::Mut(type));
     if (F->argumentCount() == 0) {
         ctx.issue<BadSMF>(&def, BadSMF::NoParams, *SMF, type);
@@ -309,22 +309,21 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     }
 }
 
-FunctionSignature InstContext::analyzeSignature(
-    ast::FunctionDefinition& decl) const {
+FunctionType const* InstContext::analyzeSignature(
+    ast::FunctionDefinition& decl, Type const* returnType) const {
     auto argumentTypes = decl.parameters() |
                          ranges::views::transform([&](auto* param) {
-                             return analyzeParam(*param);
-                         }) |
-                         ToSmallVector<>;
+        return analyzeParam(*param);
+    }) | ToSmallVector<>;
     /// If the return type is not specified it will be deduced during function
     /// analysis
-    auto* returnType = decl.returnTypeExpr() ?
-                           analyzeTypeExpr(decl.returnTypeExpr(), ctx) :
-                           nullptr;
+    if (!returnType && decl.returnTypeExpr()) {
+        returnType = analyzeTypeExpr(decl.returnTypeExpr(), ctx);
+    }
     if (returnType && returnType != sym.Void() && !returnType->isComplete()) {
         ctx.issue<BadPassedType>(decl.returnTypeExpr(), BadPassedType::Return);
     }
-    return FunctionSignature(std::move(argumentTypes), returnType);
+    return sym.functionType(argumentTypes, returnType);
 }
 
 Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {
