@@ -68,9 +68,6 @@ struct PrintCtx {
     explicit PrintCtx(std::ostream& str): str(str) {}
 
     void print(AssemblyStream const& stream) {
-        for (auto& F: stream.foreignFunctions()) {
-            print(F);
-        }
         for (auto& block: stream) {
             blockIDMap[block.id()] = &block;
         }
