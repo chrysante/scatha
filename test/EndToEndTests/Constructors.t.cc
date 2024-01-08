@@ -282,6 +282,11 @@ fn main() {
 })");
 }
 
+/// We disable this for now because we change __builtin_alloc to return a
+/// pointer to a single byte (instead of array pointer). This makes it
+/// impossible to use __builtin_alloc directly. It is still used internally in
+/// the implementation of `unique` expressions
+#if 0
 TEST_CASE("First move constructor", "[end-to-end][constructors]") {
     test::runReturnsTest(10, R"(
 struct UniquePtr {
@@ -318,6 +323,7 @@ fn main() {
     return *q.get();
 })");
 }
+#endif
 
 TEST_CASE("Unique ptr to non-trivial type", "[end-to-end][constructors]") {
     SECTION("Construct and destroy") {

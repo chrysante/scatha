@@ -44,15 +44,37 @@ struct ProgramHeader {
 ///   - `u32` ; Number of foreign function declarations
 ///   - `[ffi-decl]` ; List of function declarations where `ffi-decl` is:
 ///     - `[char]\0` ; Null-terminated string denoting the name
+///     - `u8` ; Number of arguments
+///     - `[u8]` ; List of argument types
+///     - `u8` ; Return type
 ///     - `u32` ; Slot
 ///     - `u32` ; Index
 
+enum class FFIType : uint8_t {
+    Void,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Float,
+    Double,
+    Pointer,
+};
+
+/// Foreign function metadata
 struct FFIDecl {
+    /// We use `std::string` instead of `std::vector` because it provides small
+    /// buffer optimization
+    using ArgTypeVector = std::basic_string<uint8_t>;
+
     std::string name;
+    ArgTypeVector argumentTypes;
+    uint8_t returnType;
     size_t slot;
     size_t index;
 };
 
+/// Metadata of a library dependency
 struct FFILibDecl {
     std::string name;
     std::vector<FFIDecl> funcDecls;

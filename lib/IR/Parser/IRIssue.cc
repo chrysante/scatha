@@ -29,12 +29,16 @@ void ir::print(ParseIssue const& issue, std::ostream& str) {
             auto reasonStr = UTL_SERIALIZE_ENUM(issue.reason(), {
                 { SemanticIssue::TypeMismatch,              "Type mismatch" },
                 { SemanticIssue::InvalidType,               "Invalid type" },
+                { SemanticIssue::InvalidFFIType,            
+                    "Invalid type for foreign function interface" },
                 { SemanticIssue::InvalidEntity,             "Invalid entity" },
-                { SemanticIssue::UseOfUndeclaredIdentifier, "Use of undeclared identifier" },
+                { SemanticIssue::UseOfUndeclaredIdentifier, 
+                    "Use of undeclared identifier" },
                 { SemanticIssue::Redeclaration,             "Redeclaration" },
                 { SemanticIssue::UnexpectedID,              "Unexpected ID" },
                 { SemanticIssue::ExpectedType,              "Expected type" },
-                { SemanticIssue::ExpectedConstantValue,     "Expected value constant" },
+                { SemanticIssue::ExpectedConstantValue,     
+                    "Expected value constant" },
                 
             });
             auto sl = issue.sourceLocation();

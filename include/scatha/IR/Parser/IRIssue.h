@@ -36,6 +36,7 @@ public:
     enum Reason {
         TypeMismatch,
         InvalidType,
+        InvalidFFIType,
         InvalidEntity,
         UseOfUndeclaredIdentifier,
         Redeclaration,

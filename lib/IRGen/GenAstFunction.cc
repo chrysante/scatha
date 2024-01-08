@@ -1334,9 +1334,7 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
         cast<sema::UniquePtrType const&>(*expr.type()).base().get();
     std::array<ir::Value*, 2> args = { ctx.intConstant(baseType->size(), 64),
                                        ctx.intConstant(baseType->align(), 64) };
-    auto* fatPtr = add<ir::Call>(alloc, args, "alloc");
-    auto* ptr =
-        add<ir::ExtractValue>(fatPtr, std::array{ size_t{ 0 } }, "pointer");
+    auto* ptr = add<ir::Call>(alloc, args, "alloc");
     auto* addr = getValue<Memory>(expr.value());
     SC_ASSERT(isa<ir::Alloca>(addr), "");
     addr->replaceAllUsesWith(ptr);

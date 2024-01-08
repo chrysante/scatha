@@ -4,51 +4,41 @@
 /// This file provides common types and functions to work with foreign function
 /// interfaces used across the compiler
 
-#include <bit>
-#include <functional> // For std::hash
-#include <optional>
+#include <span>
 #include <string>
-#include <vector>
+
+#include <svm/Program.h>
 
 #include <scatha/Common/Base.h>
 
 namespace scatha {
 
-/// Represents the address of a foreign function.
-struct SCATHA_API ForeignFuncAddress {
-    bool operator==(ForeignFuncAddress const&) const = default;
+/// Represents the name and signature of a C function interface
+class ForeignFunctionInterface {
+public:
+    ///
+    explicit ForeignFunctionInterface(
+        std::string name,
+        std::span<svm::FFIType const> argumentTypes,
+        svm::FFIType returnType);
 
-    uint32_t slot  : 11;
-    uint32_t index : 21;
-};
-
-static_assert(sizeof(ForeignFuncAddress) == 4);
-
-/// Represents a foreign function declaration
-struct SCATHA_API ForeignFunctionDecl {
     /// The name of the function
-    std::string name;
+    std::string const& name() const { return _name; }
 
-    /// Index of the foreign library that this function is defined in
-    size_t libIndex = 0;
+    /// IDs of the argument types. We use `basic_string` for the small buffer
+    /// optimization
+    std::span<svm::FFIType const> argumentTypes() const {
+        return std::span{ sig }.subspan(1);
+    }
 
-    /// The address of the function
-    ForeignFuncAddress address;
+    /// Return type ID
+    svm::FFIType returnType() const { return sig[0]; }
 
-    /// Size of the return value
-    size_t retType;
-
-    /// Sizes of the function argument types
-    std::vector<size_t> argTypes;
+private:
+    std::string _name;
+    std::basic_string<svm::FFIType> sig;
 };
 
 } // namespace scatha
-
-template <>
-struct std::hash<scatha::ForeignFuncAddress> {
-    std::size_t operator()(scatha::ForeignFuncAddress addr) const {
-        return std::hash<uint32_t>{}(std::bit_cast<std::uint32_t>(addr));
-    }
-};
 
 #endif // SCATHA_COMMON_FFI_H_

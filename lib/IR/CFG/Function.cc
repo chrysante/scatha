@@ -2,6 +2,8 @@
 
 #include <optional>
 
+#include <range/v3/view.hpp>
+
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
@@ -10,6 +12,7 @@
 
 using namespace scatha;
 using namespace ir;
+using namespace ranges::views;
 
 Parameter::Parameter(Type const* type, size_t index, Callable* parent):
     Parameter(type, index, std::to_string(index), parent) {}
@@ -142,6 +145,53 @@ void Function::writeValueToImpl(
     callback(this, dest);
 }
 
+static svm::FFIType toFFIType(Type const* type) {
+    using svm::FFIType;
+    // clang-format off
+    return SC_MATCH_R (FFIType, *type) {
+        [](VoidType const&) { return FFIType::Void; },
+        [](IntegralType const& type) {
+            switch (type.bitwidth()) {
+            case 1:
+                return FFIType::Int8;
+            case 8:
+                return FFIType::Int8;
+            case 16:
+                return FFIType::Int16;
+            case 32:
+                return FFIType::Int32;
+            case 64:
+                return FFIType::Int64;
+                
+            default:
+                SC_UNREACHABLE("Invalid FFI type");
+            }
+        },
+        [](FloatType const& type) {
+            switch (type.bitwidth()) {
+            case 32:
+                return FFIType::Float;
+            case 64:
+                return FFIType::Double;
+                
+            default:
+                SC_UNREACHABLE("Invalid FFI type");
+            }
+        },
+        [](PointerType const&) { return FFIType::Pointer; },
+        [](Type const&) { SC_UNREACHABLE("Invalid FFI type"); }
+    }; // clang-format on
+}
+
+static ForeignFunctionInterface makeFFI(std::string name,
+                                        Type const* retType,
+                                        std::span<Type const* const> argTypes) {
+    return ForeignFunctionInterface(std::move(name),
+                                    argTypes | transform(toFFIType) |
+                                        ToSmallVector<>,
+                                    toFFIType(retType));
+}
+
 ForeignFunction::ForeignFunction(Context& ctx,
                                  Type const* returnType,
                                  List<Parameter> parameters,
@@ -151,9 +201,12 @@ ForeignFunction::ForeignFunction(Context& ctx,
              ctx,
              returnType,
              std::move(parameters),
-             std::move(name),
+             name,
              attr,
-             Visibility::Internal) {}
+             Visibility::Internal),
+    ffi(makeFFI(name,
+                returnType,
+                parameters | transform(&Parameter::type) | ToSmallVector<>)) {}
 
 void ForeignFunction::writeValueToImpl(
     void*, utl::function_view<void(Constant const*, void*)>) const {

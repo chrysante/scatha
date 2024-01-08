@@ -120,7 +120,7 @@ struct IRParser {
     UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructType> parseStructure();
-    void parseTypeDefinition();
+    bool validateFFIType(Token const& token, Type const* type);
 
     /// Try to parse a type, return `nullptr` if no type could be parsed
     Type const* tryParseType();
@@ -462,19 +462,24 @@ UniquePtr<GlobalVariable> IRParser::parseGlobalVar() {
 
 UniquePtr<Callable> IRParser::parseCallable() {
     locals.clear();
-    bool const isExt = peekToken().kind() == TokenKind::Ext;
-    if (isExt) {
+    bool const isForeign = peekToken().kind() == TokenKind::Ext;
+    if (isForeign) {
         eatToken();
     }
+    bool isValidFFISig = true;
     Token const declarator = peekToken();
-    if (isExt) {
+    if (isForeign) {
         expect(declarator, TokenKind::Function);
     }
     if (declarator.kind() != TokenKind::Function) {
         return nullptr;
     }
     eatToken();
+    auto retTypeTok = peekToken();
     auto* const returnType = parseType();
+    if (isForeign) {
+        isValidFFISig &= validateFFIType(retTypeTok, returnType);
+    }
     Token const name = eatToken();
     expect(eatToken(), TokenKind::OpenParan);
     List<Parameter> parameters;
@@ -487,10 +492,18 @@ UniquePtr<Callable> IRParser::parseCallable() {
             break;
         }
         eatToken(); // Comma
+        auto argTypeTok = peekToken();
         parameters.push_back(parseParamDecl(index++).release());
+        if (isForeign) {
+            isValidFFISig &=
+                validateFFIType(argTypeTok, parameters.back().type());
+        }
     }
     expect(eatToken(), TokenKind::CloseParan);
-    if (isExt) {
+    if (isForeign) {
+        if (!isValidFFISig) {
+            return nullptr;
+        }
         auto function =
             makeForeignFunction(returnType, std::move(parameters), name);
         registerValue(name, function.get());
@@ -1135,6 +1148,26 @@ OptValue IRParser::parseValue(Type const* type) {
     default:
         reportSyntaxIssue(token);
     }
+}
+
+bool IRParser::validateFFIType(Token const& token, Type const* type) {
+    bool valid = SC_MATCH (*type){ [](VoidType const&) { return true; },
+                                   [](IntegralType const& type) {
+        return ranges::contains(std::array{ 1, 8, 16, 32, 64 },
+                                type.bitwidth());
+    },
+                                   [](FloatType const& type) {
+        return type.bitwidth() == 32 || type.bitwidth() == 64;
+    },
+                                   [](PointerType const&) { return true; },
+                                   [](Type const&) {
+        return false;
+    } }; // clang-format on
+    if (valid) {
+        return true;
+    }
+    reportSemaIssue(token, SemanticIssue::InvalidFFIType);
+    return false;
 }
 
 template <typename V>

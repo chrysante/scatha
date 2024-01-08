@@ -213,11 +213,16 @@ public:
                              std::string name,
                              FunctionAttribute attr);
 
+    /// Returns the common FFI representation of this function
+    ForeignFunctionInterface const& getFFI() const { return ffi; }
+
 private:
     friend class Constant;
     void writeValueToImpl(
         void* dest,
         utl::function_view<void(Constant const*, void*)> callback) const;
+
+    ForeignFunctionInterface ffi;
 };
 
 } // namespace scatha::ir

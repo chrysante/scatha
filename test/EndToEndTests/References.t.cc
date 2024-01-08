@@ -301,6 +301,7 @@ fn main() -> int {
 })");
 }
 
+#if 0 /// See other test case that uses `__builtin_alloc`
 TEST_CASE("Dynamic allocation", "[end-to-end][arrays]") {
     test::runReturnsTest(45, R"(
 fn main() -> int {
@@ -324,6 +325,7 @@ fn deallocateInts(data: *mut [int]) {
     __builtin_dealloc(bytes, 8);
 })");
 }
+#endif
 
 TEST_CASE("References to static arrays", "[end-to-end][arrays]") {
     test::runReturnsTest(1, R"(
