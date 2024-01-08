@@ -324,19 +324,29 @@ TEST_CASE("callExt", "[assembly][vm]") {
     a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    "__builtin_puti64"),
+                    ForeignFunctionInterface("__builtin_puti64",
+                                             std::array{ FFIType::Int64 },
+                                             FFIType::Void)),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    "__builtin_putchar"),
+                    ForeignFunctionInterface("__builtin_putchar",
+                                             std::array{ FFIType::Int8 },
+                                             FFIType::Void)),
         MoveInst(RegisterIndex(0), Value64('X'), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    "__builtin_putchar"),
+                    ForeignFunctionInterface("__builtin_putchar",
+                                             std::array{ FFIType::Int8 },
+                                             FFIType::Void)),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    "__builtin_putchar"),
+                    ForeignFunctionInterface("__builtin_putchar",
+                                             std::array{ FFIType::Int8 },
+                                             FFIType::Void)),
         MoveInst(RegisterIndex(0), Value64(0.5), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    "__builtin_putf64"),
+                    ForeignFunctionInterface("__builtin_putf64",
+                                             std::array{ FFIType::Double },
+                                             FFIType::Void)),
         TerminateInst()
     })); // clang-format on
     test::CoutRerouter cr;
@@ -350,7 +360,9 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
     a.add(Block(LabelID{ 0 }, "start", {
         MoveInst(RegisterIndex(0), Value64(2.0), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    "__builtin_sqrt_f64"),
+                    ForeignFunctionInterface("__builtin_sqrt_f64",
+                                             std::array{ FFIType::Double },
+                                             FFIType::Double)),
         TerminateInst(),
     })); // clang-format on
     auto const [regs, stack] = assembleAndExecute(a);

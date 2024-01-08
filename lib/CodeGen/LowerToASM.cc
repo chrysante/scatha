@@ -205,7 +205,7 @@ void CGContext::genInstImpl(mir::CallInst const& inst) {
         [&](mir::ForeignFunction const& callee) {
             currentBlock->insertBack(
                 CallExtInst(inst.registerOffset(),
-                            std::string(callee.name())));
+                            callee.getFFI()));
             addMetadata(inst);
         },
         [&](mir::Register const& reg) {

@@ -124,7 +124,7 @@ struct PrintCtx {
 
     void printImpl(CallExtInst const& call) {
         str << instName("callExt") << " " << call.regPtrOffset() << ", "
-            << call.callee();
+            << call.callee().name();
     }
 
     void printImpl(ReturnInst const&) { str << instName("ret"); }

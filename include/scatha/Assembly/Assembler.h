@@ -9,6 +9,7 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
+#include <scatha/Common/FFI.h>
 
 namespace scatha::Asm {
 
@@ -23,7 +24,7 @@ struct AssemblerResult {
 
     /// Symbols that still need to be linked. These are written as mangled names
     /// in the binary and need to be replaced by the linker
-    std::vector<std::pair<size_t, std::string>> unresolvedSymbols;
+    std::vector<std::pair<size_t, ForeignFunctionInterface>> unresolvedSymbols;
 };
 
 /// Create binary executable file from the assembly stream \p program
@@ -45,7 +46,8 @@ struct SCATHA_API LinkerError {
 [[nodiscard]] SCATHA_API Expected<void, LinkerError> link(
     std::vector<uint8_t>& program,
     std::span<std::filesystem::path const> foreignLibraries,
-    std::span<std::pair<size_t, std::string> const> unresolvedSymbols);
+    std::span<std::pair<size_t, ForeignFunctionInterface> const>
+        unresolvedSymbols);
 
 } // namespace scatha::Asm
 

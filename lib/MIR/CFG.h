@@ -9,6 +9,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/FFI.h"
 #include "Common/Graph.h"
 #include "Common/List.h"
 #include "Common/Metadata.h"
@@ -369,9 +370,16 @@ private:
 ///
 class ForeignFunction: public ListNodeOverride<ForeignFunction, Callable> {
 public:
-    explicit ForeignFunction(std::string name):
+    explicit ForeignFunction(ForeignFunctionInterface FFI):
         ListNodeOverride<ForeignFunction, Callable>(NodeType::ForeignFunction,
-                                                    std::move(name)) {}
+                                                    FFI.name()),
+        ffi(std::move(FFI)) {}
+
+    ///
+    ForeignFunctionInterface const& getFFI() const { return ffi; }
+
+private:
+    ForeignFunctionInterface ffi;
 };
 
 } // namespace scatha::mir

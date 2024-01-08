@@ -67,11 +67,20 @@ struct LibDeclParser {
     }
 
     FFIDecl parseFFIDecl() {
-        return FFIDecl{
-            .name = parseString(),
-            .slot = read<u32>(),
-            .index = read<u32>(),
-        };
+        auto name = parseString();
+        size_t numArgs = read<u8>();
+        FFIDecl::ArgTypeVector argTypes;
+        for (size_t i = 0; i < numArgs; ++i) {
+            argTypes.push_back(read<FFIType>());
+        }
+        auto retType = read<FFIType>();
+        auto slot = read<u32>();
+        auto index = read<u32>();
+        return FFIDecl{ .name = name,
+                        .argumentTypes = argTypes,
+                        .returnType = retType,
+                        .slot = slot,
+                        .index = index };
     }
 };
 

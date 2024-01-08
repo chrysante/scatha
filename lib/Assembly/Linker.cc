@@ -35,7 +35,7 @@ struct FFIAddress {
 
 /// Represents a foreign function declaration
 struct FFIDecl {
-    std::string name;
+    ForeignFunctionInterface interface;
     FFIAddress address;
 };
 
@@ -52,14 +52,16 @@ struct Linker: AsmWriter {
     std::span<std::filesystem::path const> foreignLibs;
 
     /// Assembler output
-    std::span<std::pair<size_t, std::string> const> unresolvedSymbols;
+    std::span<std::pair<size_t, ForeignFunctionInterface> const>
+        unresolvedSymbols;
 
     /// To be filled by this pass
     std::vector<std::string> missingSymbols;
 
     Linker(std::vector<uint8_t>& binary,
            std::span<std::filesystem::path const> foreignLibs,
-           std::span<std::pair<size_t, std::string> const> unresolvedSymbols):
+           std::span<std::pair<size_t, ForeignFunctionInterface> const>
+               unresolvedSymbols):
         AsmWriter(binary),
         foreignLibs(foreignLibs),
         unresolvedSymbols(unresolvedSymbols) {}
@@ -114,7 +116,8 @@ struct AddressFactory {
 Expected<void, LinkerError> Asm::link(
     std::vector<uint8_t>& binary,
     std::span<std::filesystem::path const> foreignLibs,
-    std::span<std::pair<size_t, std::string> const> unresolvedSymbols) {
+    std::span<std::pair<size_t, ForeignFunctionInterface> const>
+        unresolvedSymbols) {
     SC_ASSERT(binary.size() >= sizeof(svm::ProgramHeader),
               "Binary must at least contain a header");
     Linker linker(binary, foreignLibs, unresolvedSymbols);
@@ -149,15 +152,15 @@ std::vector<FFIList> Linker::search() {
     utl::small_vector<FFIDecl> foreignFunctions;
     auto makeAddress = AddressFactory{};
     /// Gather names and replace with addresses
-    for (auto [symPos, name]: unresolvedSymbols | reverse) {
-        FFIAddress addr = makeAddress(name);
+    for (auto [symPos, interface]: unresolvedSymbols | reverse) {
+        FFIAddress addr = makeAddress(interface.name());
         SC_ASSERT(binary[symPos] == 0xFF && binary[symPos + 1] == 0xFF &&
                       binary[symPos + 2] == 0xFF,
                   "");
         auto machineAddr = addr.toMachineRepr();
         std::memcpy(&binary[symPos], &machineAddr, 3);
         if (addr.slot != svm::BuiltinFunctionSlot) {
-            foreignFunctions.push_back({ utl::strcat("sc_ffi_", name), addr });
+            foreignFunctions.push_back({ interface, addr });
         }
     }
 
@@ -171,7 +174,7 @@ std::vector<FFIList> Linker::search() {
         {
             auto& function = *itr;
             std::string_view err;
-            if (lib.resolve(function.name, &err)) {
+            if (lib.resolve(function.interface.name(), &err)) {
                 ffiLists[libIndex].functions.push_back(function);
                 itr = foreignFunctions.erase(itr);
             }
@@ -180,7 +183,8 @@ std::vector<FFIList> Linker::search() {
             }
         }
     }
-    missingSymbols = foreignFunctions | transform(&FFIDecl::name) |
+    missingSymbols = foreignFunctions | transform(&FFIDecl::interface) |
+                     transform(&ForeignFunctionInterface::name) |
                      ranges::to<std::vector>;
     return ffiLists;
 }
@@ -194,10 +198,15 @@ void Linker::link(std::span<FFIList const> ffiLists) {
         putNullTerm(ffiList.libName);
         /// Number of foreign function declarations
         put<u32>(ffiList.functions.size());
-        for (auto& FFI: ffiList.functions) {
-            putNullTerm(FFI.name);
-            put<u32>(FFI.address.slot);
-            put<u32>(FFI.address.index);
+        for (auto& [interface, address]: ffiList.functions) {
+            putNullTerm(interface.name());
+            put<u8>(interface.argumentTypes().size());
+            for (auto type: interface.argumentTypes()) {
+                put<u8>((uint64_t)type);
+            }
+            put<u8>((uint64_t)interface.returnType());
+            put<u32>(address.slot);
+            put<u32>(address.index);
         }
     }
 }

@@ -145,8 +145,7 @@ void Function::writeValueToImpl(
     callback(this, dest);
 }
 
-static svm::FFIType toFFIType(Type const* type) {
-    using svm::FFIType;
+static FFIType toFFIType(Type const* type) {
     // clang-format off
     return SC_MATCH_R (FFIType, *type) {
         [](VoidType const&) { return FFIType::Void; },

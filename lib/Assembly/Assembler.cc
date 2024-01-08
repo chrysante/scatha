@@ -36,10 +36,10 @@ namespace {
 struct LabelPlaceholder {};
 
 struct Assembler: AsmWriter {
-    explicit Assembler(
-        AssemblyStream const& stream,
-        std::unordered_map<std::string, size_t>& sym,
-        std::vector<std::pair<size_t, std::string>>& unresolvedSymbols):
+    explicit Assembler(AssemblyStream const& stream,
+                       std::unordered_map<std::string, size_t>& sym,
+                       std::vector<std::pair<size_t, ForeignFunctionInterface>>&
+                           unresolvedSymbols):
         AsmWriter(binary),
         stream(stream),
         sym(sym),
@@ -111,14 +111,15 @@ struct Assembler: AsmWriter {
 
     size_t currentPosition() const { return binary.size(); }
 
-    void addUnresolvedSymbol(size_t position, std::string name) {
+    void addUnresolvedSymbol(size_t position,
+                             ForeignFunctionInterface function) {
         unresolvedSymbols.push_back(
-            { sizeof(svm::ProgramHeader) + position, std::move(name) });
+            { sizeof(svm::ProgramHeader) + position, std::move(function) });
     }
 
     AssemblyStream const& stream;
     std::unordered_map<std::string, size_t>& sym;
-    std::vector<std::pair<size_t, std::string>>& unresolvedSymbols;
+    std::vector<std::pair<size_t, ForeignFunctionInterface>>& unresolvedSymbols;
     std::vector<u8> binary;
     size_t FFISectionBegin = 0;
 

@@ -7,36 +7,46 @@
 #include <span>
 #include <string>
 
-#include <svm/Program.h>
-
 #include <scatha/Common/Base.h>
+
+/// This declaration is identical to the one in `<svm/Program.h>`
+/// This should never change but if it does both must be updated
+enum class FFIType : uint8_t {
+    Void,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Float,
+    Double,
+    Pointer,
+};
 
 namespace scatha {
 
 /// Represents the name and signature of a C function interface
-class ForeignFunctionInterface {
+class SCATHA_API ForeignFunctionInterface {
 public:
     ///
-    explicit ForeignFunctionInterface(
-        std::string name,
-        std::span<svm::FFIType const> argumentTypes,
-        svm::FFIType returnType);
+    explicit ForeignFunctionInterface(std::string name,
+                                      std::span<FFIType const> argumentTypes,
+                                      FFIType returnType);
 
     /// The name of the function
     std::string const& name() const { return _name; }
 
     /// IDs of the argument types. We use `basic_string` for the small buffer
     /// optimization
-    std::span<svm::FFIType const> argumentTypes() const {
+    std::span<FFIType const> argumentTypes() const {
         return std::span{ sig }.subspan(1);
     }
 
     /// Return type ID
-    svm::FFIType returnType() const { return sig[0]; }
+    FFIType returnType() const { return sig[0]; }
 
 private:
     std::string _name;
-    std::basic_string<svm::FFIType> sig;
+    std::basic_string<FFIType> sig;
 };
 
 } // namespace scatha

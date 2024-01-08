@@ -7,6 +7,7 @@
 #include "Assembly/Common.h"
 #include "Assembly/Value.h"
 #include "Common/Base.h"
+#include "Common/FFI.h"
 #include "Common/Metadata.h"
 
 namespace scatha::Asm {
@@ -117,18 +118,18 @@ private:
 /// Represents a `call ext` instruction.
 class CallExtInst: public InstructionBase {
 public:
-    explicit CallExtInst(size_t regPtrOffset, std::string callee):
+    explicit CallExtInst(size_t regPtrOffset, ForeignFunctionInterface callee):
         _regPtrOffset(regPtrOffset), _callee(std::move(callee)) {}
 
     /// Offset to the register pointer where the function finds it's arguments.
     size_t regPtrOffset() const { return _regPtrOffset; }
 
-    /// Name of the called function (linker will resolve this)
-    std::string const& callee() const { return _callee; }
+    /// FFI of the called function
+    ForeignFunctionInterface const& callee() const { return _callee; }
 
 private:
     size_t _regPtrOffset;
-    std::string _callee;
+    ForeignFunctionInterface _callee;
 };
 
 /// Represents a `return` instruction.

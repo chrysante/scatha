@@ -140,7 +140,7 @@ mir::Value* Resolver::impl(ir::RecordConstant const& value) const {
 mir::Value* Resolver::impl(ir::UndefValue const&) const { return ctx->undef(); }
 
 mir::Value* Resolver::impl(ir::ForeignFunction const& function) const {
-    auto* F = new mir::ForeignFunction(std::string(function.name()));
+    auto* F = new mir::ForeignFunction(function.getFFI());
     mod->addGlobal(F);
     return F;
 }

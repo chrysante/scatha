@@ -50,6 +50,8 @@ struct ProgramHeader {
 ///     - `u32` ; Slot
 ///     - `u32` ; Index
 
+/// This declaration is identical to the one in `<scatha/Common/FFI.h>`
+/// This should never change but if it does both must be updated
 enum class FFIType : uint8_t {
     Void,
     Int8,
@@ -65,11 +67,11 @@ enum class FFIType : uint8_t {
 struct FFIDecl {
     /// We use `std::string` instead of `std::vector` because it provides small
     /// buffer optimization
-    using ArgTypeVector = std::basic_string<uint8_t>;
+    using ArgTypeVector = std::basic_string<FFIType>;
 
     std::string name;
     ArgTypeVector argumentTypes;
-    uint8_t returnType;
+    FFIType returnType;
     size_t slot;
     size_t index;
 };
