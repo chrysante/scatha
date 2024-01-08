@@ -55,16 +55,14 @@ struct Linker: AsmWriter {
     std::span<std::pair<size_t, std::string> const> unresolvedSymbols;
 
     /// To be filled by this pass
-    std::vector<std::string>& missingSymbols;
+    std::vector<std::string> missingSymbols;
 
     Linker(std::vector<uint8_t>& binary,
            std::span<std::filesystem::path const> foreignLibs,
-           std::span<std::pair<size_t, std::string> const> unresolvedSymbols,
-           std::vector<std::string>& missingSymbols):
+           std::span<std::pair<size_t, std::string> const> unresolvedSymbols):
         AsmWriter(binary),
         foreignLibs(foreignLibs),
-        unresolvedSymbols(unresolvedSymbols),
-        missingSymbols(missingSymbols) {}
+        unresolvedSymbols(unresolvedSymbols) {}
 
     Expected<void, LinkerError> run();
 
@@ -113,14 +111,13 @@ struct AddressFactory {
 
 } // namespace
 
-SCATHA_API Expected<void, LinkerError> Asm::link(
+Expected<void, LinkerError> Asm::link(
     std::vector<uint8_t>& binary,
     std::span<std::filesystem::path const> foreignLibs,
     std::span<std::pair<size_t, std::string> const> unresolvedSymbols) {
     SC_ASSERT(binary.size() >= sizeof(svm::ProgramHeader),
               "Binary must at least contain a header");
-    std::vector<std::string> missingSymbols;
-    Linker linker(binary, foreignLibs, unresolvedSymbols, missingSymbols);
+    Linker linker(binary, foreignLibs, unresolvedSymbols);
     auto result = linker.run();
     /// Update binary size because we placed the dynamic link section in the
     /// back
