@@ -482,39 +482,13 @@ void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
 
 /// MARK: - Expressions
 
-static bool isIntType(size_t width, ir::Type const* type) {
+/// Only used for assertions
+[[maybe_unused]] static bool isIntType(size_t width, ir::Type const* type) {
     return cast<ir::IntegralType const*>(type)->bitwidth() == width;
 }
 
 Value FuncGenContext::getValue(ast::Expression const* expr) {
     SC_EXPECT(expr);
-    /// Returning constants here if possible breaks when we take the address of
-    /// a constant. A solution that also solves the array size problem could be
-    /// to add additional optional data to values (other values) that could get
-    /// resovled by the `toRegister` function. I.e. when we call `getValue` on
-    /// an identifier, we get a value that represents the value in memory, but
-    /// is annotated with the constant. Then when we call `toRegister` on the
-    /// value it checks whether the value is annotated with a constant and if so
-    /// returns that. Otherwise it defaults to loading the value.
-#if 0
-    if (auto* constVal = expr->constantValue();
-        constVal && !expr->type()->isReference())
-    {
-        auto* type = cast<sema::ArithmeticType
-        const*>(expr->type()->base());
-        // clang-format off
-        return visit(*constVal, utl::overload{
-            [&](sema::IntValue const& intVal) {
-                SC_ASSERT(type->bitwidth() == intVal.value().bitwidth(),
-                          "");
-                return Value(intConstant(intVal.value()), Register);
-            },
-            [&](sema::FloatValue const& floatVal) {
-                return Value(floatConstant(floatVal.value()), Register);
-            }
-        }); // clang-format on
-    }
-#endif
     auto result = visit(*expr, [&](auto& expr) { return getValueImpl(expr); });
     valueMap.tryInsert(expr->object(), result);
     return result;

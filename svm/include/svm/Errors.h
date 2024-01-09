@@ -56,9 +56,7 @@ public:
         funcName(std::move(functionName)) {}
 
     ///
-    Reason reason() const {
-        return _reason;
-    }
+    Reason reason() const { return _reason; }
 
     ///
     std::string const& functionName() const { return funcName; }
