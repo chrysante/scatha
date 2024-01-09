@@ -177,7 +177,7 @@ fn main() {
     SECTION("baz") {
         CHECK(42 == test::compileAndRun(R"(
 import "ffi-testlib";
-extern "C" fn baz() -> void;
+extern "C" fn baz() -> int;
 fn main() {
     return baz();
 })"));
