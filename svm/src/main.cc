@@ -29,6 +29,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Failed to run " << progName << ". Binary is empty.\n";
             return -1;
         }
+        vm.setLibdir(options.filepath.parent_path());
         vm.loadBinary(binary.data());
 
         /// Setup arguments on the stack

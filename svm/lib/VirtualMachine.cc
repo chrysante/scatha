@@ -49,8 +49,9 @@ static std::string toLibName(std::string_view name) {
     return utl::strcat("lib", name, ".dylib");
 }
 
-static utl::dynamic_library loadLibrary(std::string_view name) {
-    return utl::dynamic_library(toLibName(name));
+static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
+                                        std::string_view name) {
+    return utl::dynamic_library(libdir / toLibName(name));
 }
 
 static ffi_type* toLibFFI(FFIType type) {
@@ -92,7 +93,7 @@ static void loadForeignFunctions(VirtualMachine* vm,
                                  std::span<FFILibDecl const> libDecls) {
     std::vector<FFIDecl> fnDecls;
     for (auto& libDecl: libDecls) {
-        auto lib = loadLibrary(libDecl.name);
+        auto lib = loadLibrary(vm->impl->libdir, libDecl.name);
         for (auto FFI: libDecl.funcDecls) {
             FFI.ptr = lib.resolve(FFI.name);
             fnDecls.push_back(FFI);
@@ -249,6 +250,10 @@ std::string VirtualMachine::getForeignFunctionName(size_t index) const {
         return "<invalid-ffi>";
     }
     return impl->foreignFunctionTable[index].name;
+}
+
+void VirtualMachine::setLibdir(std::filesystem::path libdir) {
+    impl->libdir = std::move(libdir);
 }
 
 VMImpl::VMImpl(): istream(&std::cin), ostream(&std::cout) {}

@@ -142,6 +142,9 @@ public:
     /// name if \p index is not valid
     std::string getForeignFunctionName(size_t index) const;
 
+    /// Set the directory to search for dynamic libraries to \p libdir
+    void setLibdir(std::filesystem::path libdir);
+
     /// This is not private because many internals outside of this class
     /// reference this but it is effectively private because the type `VMImpl`
     /// is internal

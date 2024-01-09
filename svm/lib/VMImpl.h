@@ -67,6 +67,8 @@ struct VMImpl {
 
     std::vector<utl::dynamic_library> dylibs;
 
+    std::filesystem::path libdir;
+
     /// See documentation in "VirtualMachine.h"
     /// @{
     u64 const* execute(size_t startAddress, std::span<u64 const> arguments);
