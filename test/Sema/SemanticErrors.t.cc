@@ -517,14 +517,19 @@ TEST_CASE("FFI validation", "[sema]") {
 /*  4 */ extern "C" fn h(x: X) -> void;
 /*  5 */ extern "C" fn h() -> X;
 /*  6 */ extern "C" fn h(f: float) -> int;
+/*  7 */ extern "C" fn i(f: *float) -> int;
+/*  8 */ extern "C" fn i(f: *[float]) -> int;
+/*  9 */ extern "C" fn i(f: int) -> *float;
 struct X {}
 )");
     CHECK(iss.findOnLine<BadFuncDef>(2, BadFuncDef::UnknownLinkage));
-    CHECK(iss.findOnLine<
-          BadFuncDef>(3, BadFuncDef::FunctionDeclarationHasNoReturnType));
+    CHECK(iss.findOnLine<BadFuncDef>(3, BadFuncDef::NoReturnType));
     CHECK(iss.findOnLine<BadVarDecl>(4, BadVarDecl::InvalidTypeForFFI));
     CHECK(iss.findOnLine<BadFuncDef>(5, BadFuncDef::InvalidReturnTypeForFFI));
     CHECK(iss.noneOnLine(6));
+    CHECK(iss.noneOnLine(7));
+    CHECK(iss.noneOnLine(8));
+    CHECK(iss.findOnLine<BadFuncDef>(9, BadFuncDef::InvalidReturnTypeForFFI));
 }
 
 TEST_CASE("Invalid import statements", "[sema][lib]") {

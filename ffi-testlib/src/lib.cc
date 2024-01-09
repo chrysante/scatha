@@ -1,7 +1,9 @@
 /// This file defines functions used by a test case in scatha-test
 
-#include <iostream>
 #include <stdint.h>
+#include <iostream>
+#include <string_view>
+
 
 extern "C" int64_t foo(int64_t a, int64_t b) {
     return a + b;
@@ -32,3 +34,7 @@ extern "C" MyStruct* MyStruct_make(int value) { return new MyStruct{ value }; }
 extern "C" void MyStruct_free(MyStruct* ptr) { delete ptr; }
 
 extern "C" int MyStruct_value(MyStruct* ptr) { return ptr->value; }
+
+extern "C" void printString(std::string_view text) {
+    std::cout << text << " : Size = " << text.size();
+}

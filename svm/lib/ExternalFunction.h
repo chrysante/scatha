@@ -15,6 +15,9 @@ namespace svm {
 
 class VirtualMachine;
 
+/// Global array pointer structure type for FFI
+extern ffi_type ArrayPtrType;
+
 /// Represents a function of the host application invocable by programs running
 /// in the VM via the `cbltn` instruction.
 struct ForeignFunction {

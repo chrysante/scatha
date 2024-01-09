@@ -324,7 +324,17 @@ uint64_t test::compileAndRunIR(std::string text) {
     return ::run(mod, nullptr, libs);
 }
 
-void test::runPrintsTest(std::string_view printed, std::string source) {
+void test::checkReturns(uint64_t expected, std::string source) {
+    uint64_t result = compileAndRun(source);
+    CHECK(result == expected);
+}
+
+void test::checkIRReturns(uint64_t expected, std::string source) {
+    uint64_t result = compileAndRunIR(source);
+    CHECK(result == expected);
+}
+
+void test::checkPrints(std::string_view printed, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRun(source);
     CHECK(rerouter.str() == printed);

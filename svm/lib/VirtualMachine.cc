@@ -54,6 +54,16 @@ static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
     return utl::dynamic_library(libdir / toLibName(name));
 }
 
+ffi_type svm::ArrayPtrType = [] {
+    ffi_type result;
+    result.size = 0;
+    result.alignment = 0;
+    result.type = FFI_TYPE_STRUCT;
+    static ffi_type* elems[] = { &ffi_type_pointer, &ffi_type_sint64, nullptr };
+    result.elements = elems;
+    return result;
+}();
+
 static ffi_type* toLibFFI(FFIType type) {
     using enum FFIType;
     switch (type) {
@@ -73,6 +83,8 @@ static ffi_type* toLibFFI(FFIType type) {
         return &ffi_type_double;
     case Pointer:
         return &ffi_type_pointer;
+    case ArrayPointer:
+        return &ArrayPtrType;
     }
 }
 

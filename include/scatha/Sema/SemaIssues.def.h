@@ -120,7 +120,7 @@ SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported,
                        Error,
                        "'extern \"C\"' declaration is not supported")
 
-SC_SEMA_BADFUNCDEF_DEF(FunctionDeclarationHasNoReturnType,
+SC_SEMA_BADFUNCDEF_DEF(NoReturnType,
                        Error,
                        "Function declaration '" << definition()->name()
                                                 << "' has no return type'")

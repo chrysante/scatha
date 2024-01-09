@@ -292,7 +292,7 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
     }
 }
 
-static bool isValidTypeForFFI(Type const* type) {
+static bool isValidTypeForFFIArg(Type const* type) {
     // clang-format off
     return SC_MATCH (*type){ [](VoidType const&) { return true; },
         [](IntType const& type) {
@@ -302,9 +302,13 @@ static bool isValidTypeForFFI(Type const* type) {
         [](ByteType const&) { return true; },
         [](BoolType const&) { return true; },
         [](FloatType const&) { return true; },
-        [](RawPtrType const& ptr) { return true; },
+        [](RawPtrType const&) { return true; },
         [](Type const&) { return false; }
     }; // clang-format on
+}
+
+static bool isValidTypeForFFIReturn(Type const* type) {
+    return isValidTypeForFFIArg(type) && !isa<PointerType>(type);
 }
 
 bool StmtContext::validateForeignFunction(ast::FunctionDefinition& def) {
@@ -317,17 +321,16 @@ bool StmtContext::validateForeignFunction(ast::FunctionDefinition& def) {
     }
     bool success = true;
     if (!semaFn->returnType()) {
-        ctx.issue<BadFuncDef>(&def,
-                              BadFuncDef::FunctionDeclarationHasNoReturnType);
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::NoReturnType);
         success = false;
     }
     for (auto* param: def.parameters()) {
-        if (!isValidTypeForFFI(param->type())) {
+        if (!isValidTypeForFFIArg(param->type())) {
             ctx.issue<BadVarDecl>(param, BadVarDecl::InvalidTypeForFFI);
             success = false;
         }
     }
-    if (def.returnType() && !isValidTypeForFFI(def.returnType())) {
+    if (def.returnType() && !isValidTypeForFFIReturn(def.returnType())) {
         ctx.issue<BadFuncDef>(&def, BadFuncDef::InvalidReturnTypeForFFI);
         success = false;
     }

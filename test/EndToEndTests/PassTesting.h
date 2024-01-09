@@ -48,11 +48,20 @@ uint64_t compileAndRun(std::string text);
 /// Compiles and runs the given source code as IR and returns the result
 uint64_t compileAndRunIR(std::string text);
 
-/// Runs the CLI specified test cases and checks for text printed to stdout
-void runPrintsTest(std::string_view printed, std::string source);
+/// Compiles and runs the given source code and checks that the returned value
+/// is equal to \p expected
+void checkReturns(uint64_t expected, std::string source);
 
-/// Runs the CLI specified test cases and checks for text printed to stdout
-/// \p text is interpreted as IR
+/// Compiles and runs the given source code as IR and checks that the returned
+/// value is equal to \p expected
+void checkIRReturns(uint64_t expected, std::string source);
+
+/// Compiles and runs the given source code and checks that the program prints
+/// the string \p printed
+void checkPrints(std::string_view printed, std::string source);
+
+/// Compiles and runs the given source code as IR and checks that the program
+/// prints the string \p printed
 void runIRPrintsTest(std::string_view printed, std::string source);
 
 } // namespace scatha::test

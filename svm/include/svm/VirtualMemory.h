@@ -90,6 +90,9 @@ public:
     /// amount of bytes at which \p ptr will be dereferencable
     void* dereference(VirtualPointer ptr, size_t size);
 
+    ///
+    void* dereferenceNoSize(VirtualPointer ptr);
+
     /// Converts the pointer \p ptr to a reference to type `T`
     template <typename T>
     T& derefAs(VirtualPointer ptr, size_t size);
@@ -133,6 +136,15 @@ inline void* svm::VirtualMemory::dereference(VirtualPointer ptr, size_t size) {
     if (ptr.offset + size > slot.size()) {
         reportAccessError(DerefRangeTooBig, ptr, size);
     }
+    return slot.data() + ptr.offset;
+}
+
+inline void* svm::VirtualMemory::dereferenceNoSize(VirtualPointer ptr) {
+    using enum MemoryAccessError::Reason;
+    if (ptr.slotIndex == 0 || ptr.slotIndex >= slots.size()) {
+        reportAccessError(MemoryNotAllocated, ptr, ~size_t(0));
+    }
+    auto& slot = slots[ptr.slotIndex];
     return slot.data() + ptr.offset;
 }
 

@@ -257,10 +257,16 @@ static bool lessEq(CompareFlags f) { return f.less || f.equal; }
 static bool greater(CompareFlags f) { return !f.less && !f.equal; }
 static bool greaterEq(CompareFlags f) { return !f.less; }
 
-static void invokeFFI(ForeignFunction& F, u64* regPtr) {
+static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
     u64* argPtr = regPtr;
-    for (auto& arg: F.arguments) {
-        arg = argPtr++;
+    for (size_t i = 0; i < F.arguments.size(); ++i) {
+        if (F.argumentTypes[i] == &ffi_type_pointer ||
+            F.argumentTypes[i] == &ArrayPtrType)
+        {
+            *argPtr = std::bit_cast<u64>(memory.dereferenceNoSize(
+                std::bit_cast<VirtualPointer>(*argPtr)));
+        }
+        F.arguments[i] = argPtr++;
     }
     ffi_call(&F.callInterface, F.funcPtr, regPtr, F.arguments.data());
 }
@@ -346,7 +352,7 @@ void VMImpl::stepExecution() {
         size_t const regPtrOffset = i[0];
         size_t const index = load<u16>(&i[1]);
         auto& function = foreignFunctionTable[index];
-        invokeFFI(function, regPtr + regPtrOffset);
+        invokeFFI(function, regPtr + regPtrOffset, memory);
     }
 
     INST(cbltn) {

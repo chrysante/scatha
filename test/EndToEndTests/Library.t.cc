@@ -167,7 +167,7 @@ fn main() {
 })"));
     }
     SECTION("bar") {
-        test::runPrintsTest("bar(7, 11)\n", R"(
+        test::checkPrints("bar(7, 11)\n", R"(
 import "ffi-testlib";
 extern "C" fn bar(n: int, m: int) -> void;
 fn main() {
@@ -175,23 +175,23 @@ fn main() {
 })");
     }
     SECTION("baz") {
-        CHECK(42 == test::compileAndRun(R"(
+        test::checkReturns(42, R"(
 import "ffi-testlib";
 extern "C" fn baz() -> int;
 fn main() {
     return baz();
-})"));
+})");
     }
     SECTION("quux") {
-        test::runPrintsTest("quux\n", R"(
+        test::checkPrints("quux\n", R"(
 import "ffi-testlib";
 extern "C" fn quux() -> void;
 fn main() {
     quux();
 })");
     }
-    SECTION("Native pointers") {
-        test::runReturnsTest(11, R"(
+    SECTION("Foreign pointers") {
+        test::checkReturns(11, R"(
 import "ffi-testlib";
 extern "C" fn MyStruct_make(value: s32) -> int;
 extern "C" fn MyStruct_free(ptr: int) -> void;
@@ -201,6 +201,14 @@ fn main() {
     let value = MyStruct_value(ptr);
     MyStruct_free(ptr);
     return value;
+})");
+    }
+    SECTION("Pass native pointers to FFI") {
+        test::checkPrints("Hello World : Size = 11", R"(
+import "ffi-testlib";
+extern "C" fn printString(text: *str) -> void;
+fn main() {
+    printString(&"Hello World");
 })");
     }
 }

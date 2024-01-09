@@ -222,7 +222,7 @@ fn main() -> int {
 }
 
 TEST_CASE("First string", "[end-to-end][arrays]") {
-    test::runPrintsTest("Hello World!\n", R"(
+    test::checkPrints("Hello World!\n", R"(
 fn print(text: &str) {
     __builtin_putstr(text);
     __builtin_putchar('\n');
