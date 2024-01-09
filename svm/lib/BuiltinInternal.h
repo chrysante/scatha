@@ -5,9 +5,11 @@
 
 #include <svm/Builtin.h>
 
+#include "ExternalFunction.h"
+
 namespace svm {
 
-std::vector<ExternalFunction> makeBuiltinTable();
+std::vector<BuiltinFunction> makeBuiltinTable();
 
 } // namespace svm
 

@@ -7,9 +7,10 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
-#include "svm/Common.h"
-#include "svm/VMData.h"
-#include "svm/VirtualMemory.h"
+#include "Common.h"
+#include "ExternalFunction.h"
+#include "VMData.h"
+#include "VirtualMemory.h"
 
 namespace svm {
 
@@ -21,7 +22,9 @@ struct VMImpl {
 
     VirtualMachine* parent = nullptr;
 
-    std::vector<std::vector<ExternalFunction>> extFunctionTable;
+    std::vector<BuiltinFunction> builtinFunctionTable;
+
+    std::vector<ForeignFunction> foreignFunctionTable;
 
     CompareFlags cmpFlags{};
 

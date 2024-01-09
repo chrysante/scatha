@@ -115,20 +115,16 @@ private:
     Value _dest;
 };
 
-/// Represents a `call ext` instruction.
-class CallExtInst: public InstructionBase {
+/// Represents a `cfgn` or `cbltn` instruction.
+class CallExtInst: public CallBase {
 public:
     explicit CallExtInst(size_t regPtrOffset, ForeignFunctionInterface callee):
-        _regPtrOffset(regPtrOffset), _callee(std::move(callee)) {}
-
-    /// Offset to the register pointer where the function finds it's arguments.
-    size_t regPtrOffset() const { return _regPtrOffset; }
+        CallBase(regPtrOffset), _callee(std::move(callee)) {}
 
     /// FFI of the called function
     ForeignFunctionInterface const& callee() const { return _callee; }
 
 private:
-    size_t _regPtrOffset;
     ForeignFunctionInterface _callee;
 };
 

@@ -4,8 +4,6 @@
 #include <cassert>
 #include <string_view>
 
-#include <svm/ExternalFunction.h>
-
 namespace svm {
 
 /// Enum listing all builtin functions.

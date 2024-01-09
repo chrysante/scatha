@@ -20,17 +20,13 @@ using namespace ranges::views;
 
 namespace {
 
+enum class FFIKind { Builtin, Foreign };
+
 struct FFIAddress {
-    size_t slot;
+    FFIKind kind;
     size_t index;
 
-    std::array<uint8_t, 3> toMachineRepr() const {
-        std::array<uint8_t, 3> res;
-        res[0] = utl::narrow_cast<uint8_t>(slot);
-        auto idx = utl::narrow_cast<uint16_t>(index);
-        std::memcpy(&res[1], &idx, 2);
-        return res;
-    }
+    uint16_t toMachineRepr() const { return utl::narrow_cast<uint16_t>(index); }
 };
 
 /// Represents a foreign function declaration
@@ -100,12 +96,11 @@ struct Linker: AsmWriter {
 struct AddressFactory {
     FFIAddress operator()(std::string_view name) {
         if (name.starts_with("__builtin_")) {
-            if (auto index = getBuiltinIndex(name)) {
-                return { svm::BuiltinFunctionSlot, *index };
-            }
+            auto index = getBuiltinIndex(name);
+            SC_ASSERT(index, "Undefined builtin");
+            return { FFIKind::Builtin, *index };
         }
-        static constexpr size_t FFSlot = 2;
-        return { FFSlot, FFIndex++ };
+        return { FFIKind::Foreign, FFIndex++ };
     }
 
     size_t FFIndex = 0;
@@ -154,12 +149,12 @@ std::vector<FFIList> Linker::search() {
     /// Gather names and replace with addresses
     for (auto [symPos, interface]: unresolvedSymbols | reverse) {
         FFIAddress addr = makeAddress(interface.name());
-        SC_ASSERT(binary[symPos] == 0xFF && binary[symPos + 1] == 0xFF &&
-                      binary[symPos + 2] == 0xFF,
-                  "");
-        auto machineAddr = addr.toMachineRepr();
-        std::memcpy(&binary[symPos], &machineAddr, 3);
-        if (addr.slot != svm::BuiltinFunctionSlot) {
+        SC_ASSERT(
+            binary[symPos] == 0xFF && binary[symPos + 1] == 0xFF,
+            "Two bytes shall be placeholder that we will use for the index");
+        uint16_t machineAddr = addr.toMachineRepr();
+        std::memcpy(&binary[symPos], &machineAddr, sizeof machineAddr);
+        if (addr.kind == FFIKind::Foreign) {
             foreignFunctions.push_back({ interface, addr });
         }
     }
@@ -205,7 +200,6 @@ void Linker::link(std::span<FFIList const> ffiLists) {
                 put<u8>((uint64_t)type);
             }
             put<u8>((uint64_t)interface.returnType());
-            put<u32>(address.slot);
             put<u32>(address.index);
         }
     }

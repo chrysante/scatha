@@ -205,7 +205,8 @@ ForeignFunction::ForeignFunction(Context& ctx,
              Visibility::Internal),
     ffi(makeFFI(name,
                 returnType,
-                parameters | transform(&Parameter::type) | ToSmallVector<>)) {}
+                this->parameters() | transform(&Parameter::type) |
+                    ToSmallVector<>)) {}
 
 void ForeignFunction::writeValueToImpl(
     void*, utl::function_view<void(Constant const*, void*)>) const {

@@ -212,10 +212,15 @@ void Assembler::translate(CallInst const& call) {
 }
 
 void Assembler::translate(CallExtInst const& call) {
-    put(OpCode::callExt);
+    if (call.callee().name().starts_with("__builtin_")) {
+        put(OpCode::cbltn);
+    }
+    else {
+        put(OpCode::cfng);
+    }
     put<u8>(call.regPtrOffset());
     addUnresolvedSymbol(position(), call.callee());
-    putPlaceholderBytes(3);
+    putPlaceholderBytes(2);
 }
 
 void Assembler::translate(ReturnInst const&) { put(OpCode::ret); }

@@ -74,12 +74,10 @@ struct LibDeclParser {
             argTypes.push_back(read<FFIType>());
         }
         auto retType = read<FFIType>();
-        auto slot = read<u32>();
         auto index = read<u32>();
         return FFIDecl{ .name = name,
                         .argumentTypes = argTypes,
                         .returnType = retType,
-                        .slot = slot,
                         .index = index };
     }
 };
@@ -226,10 +224,11 @@ void svm::print(u8 const* progData, std::ostream& str) {
                 break;
             case OpCode::terminate:
                 break;
-            case OpCode::callExt:
+            case OpCode::cfng:
+                [[fallthrough]];
+            case OpCode::cbltn:
                 str << printAs<u8>(text, i + 1) << ", "
-                    << printAs<u8>(text, i + 2) << ", "
-                    << printAs<u16>(text, i + 3);
+                    << printAs<u16>(text, i + 2);
                 break;
             default:
                 assert(false);

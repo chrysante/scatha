@@ -264,6 +264,17 @@ static bool lessEq(CompareFlags f) { return f.less || f.equal; }
 static bool greater(CompareFlags f) { return !f.less && !f.equal; }
 static bool greaterEq(CompareFlags f) { return !f.less; }
 
+static void invokeFFI(ForeignFunction& F, u64* regPtr) {
+    void** argv = (void**)alloca(F.numArgs * 8);
+    for (size_t i = 0; i < F.numArgs; ++i) {
+        argv[i] = &regPtr[i];
+    }
+    ffi_call(&F.callInterface,
+             F.funcPtr,
+             /* retval = */ regPtr,
+             argv);
+}
+
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     beginExecution(start, arguments);
     while (running()) {
@@ -343,12 +354,17 @@ void VMImpl::stepExecution() {
         }
     }
 
-    INST(callExt) {
+    INST(cfng) {
         size_t const regPtrOffset = i[0];
-        size_t const tableIdx = i[1];
-        size_t const idxIntoTable = load<u16>(&i[2]);
-        auto const etxFunction = extFunctionTable[tableIdx][idxIntoTable];
-        etxFunction.invoke(regPtr + regPtrOffset, parent);
+        size_t const index = load<u16>(&i[1]);
+        auto& function = foreignFunctionTable[index];
+        invokeFFI(function, regPtr + regPtrOffset);
+    }
+
+    INST(cbltn) {
+        size_t const regPtrOffset = i[0];
+        size_t const index = load<u16>(&i[1]);
+        builtinFunctionTable[index].invoke(regPtr + regPtrOffset, parent);
     }
 
     INST(terminate) { currentFrame.iptr = programBreak; }

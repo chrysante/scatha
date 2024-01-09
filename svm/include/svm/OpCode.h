@@ -84,8 +84,10 @@ inline constexpr size_t codeSize(OpCode code) {
             return sizeof(OpCode);
         case OpCode::terminate:
             return sizeof(OpCode);
-        case OpCode::callExt:
-            return sizeof(OpCode) + 1 + 1 + 2;
+        case OpCode::cfng:
+            return sizeof(OpCode) + 1 + 2;
+        case OpCode::cbltn:
+            return sizeof(OpCode) + 1 + 2;
         case OpCode::lincsp:
             return sizeof(OpCode) + 1 + 2;
         default:

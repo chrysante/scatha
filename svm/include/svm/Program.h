@@ -72,8 +72,8 @@ struct FFIDecl {
     std::string name;
     ArgTypeVector argumentTypes;
     FFIType returnType;
-    size_t slot;
     size_t index;
+    void* ptr;
 };
 
 /// Metadata of a library dependency

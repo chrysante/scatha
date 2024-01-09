@@ -36,8 +36,8 @@ template <typename T, size_t N>
 using wrap = T;
 
 template <typename Float, size_t NumArgs>
-static ExternalFunction::FuncPtr math(auto impl) {
-    return [](u64* regPtr, VirtualMachine*, void*) {
+static BuiltinFunction::FuncPtr math(auto impl) {
+    return [](u64* regPtr, VirtualMachine*) {
         [&]<size_t... I>(std::index_sequence<I...>) {
             std::tuple<wrap<Float, I>...> args{ load<Float>(regPtr + I)... };
             store(regPtr, std::apply(decltype(impl){}, args));
@@ -46,8 +46,8 @@ static ExternalFunction::FuncPtr math(auto impl) {
 }
 
 template <typename T>
-static ExternalFunction::FuncPtr printVal() {
-    return [](u64* regPtr, VirtualMachine* vm, void*) {
+static BuiltinFunction::FuncPtr printVal() {
+    return [](u64* regPtr, VirtualMachine* vm) {
         T const value = load<T>(regPtr);
         *vm->impl->ostream << value;
     };
@@ -62,8 +62,8 @@ static std::span<T> loadArray(u64* regPtr) {
     return std::span<T>(data, size);
 }
 
-std::vector<ExternalFunction> svm::makeBuiltinTable() {
-    std::vector<ExternalFunction> result(static_cast<size_t>(Builtin::_count));
+std::vector<BuiltinFunction> svm::makeBuiltinTable() {
+    std::vector<BuiltinFunction> result(static_cast<size_t>(Builtin::_count));
     [[maybe_unused]] size_t currentIndex = 0;
     auto at = [&](Builtin index) -> auto& {
         size_t const i = static_cast<size_t>(index);
@@ -115,26 +115,26 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     set(Builtin::atan_f32, math<float, 1>(MATH_STD_IMPL(atan)));
 
     /// ## Memory
-    set(Builtin::memcpy, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::memcpy, [](u64* regPtr, VirtualMachine* vm) {
         auto dest = load<VirtualPointer>(regPtr);
         auto size = load<size_t>(regPtr + 1);
         auto source = load<VirtualPointer>(regPtr + 2);
         std::memcpy(deref(vm, dest, size), deref(vm, source, size), size);
     });
-    set(Builtin::memset, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::memset, [](u64* regPtr, VirtualMachine* vm) {
         auto dest = load<VirtualPointer>(regPtr);
         auto size = load<size_t>(regPtr + 1);
         auto value = load<int64_t>(regPtr + 2);
         std::memset(deref(vm, dest, size), static_cast<int>(value), size);
     });
     /// ## Allocation
-    set(Builtin::alloc, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::alloc, [](u64* regPtr, VirtualMachine* vm) {
         u64 size = load<u64>(regPtr);
         u64 align = load<u64>(regPtr + 1);
         VirtualPointer addr = vm->impl->memory.allocate(size, align);
         store(regPtr, addr);
     });
-    set(Builtin::dealloc, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::dealloc, [](u64* regPtr, VirtualMachine* vm) {
         auto addr = load<VirtualPointer>(regPtr);
         auto size = load<i64>(regPtr + 1);
         auto align = load<i64>(regPtr + 2);
@@ -149,7 +149,7 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     set(Builtin::putchar, printVal<char>());
     set(Builtin::puti64, printVal<i64>());
     set(Builtin::putf64, printVal<f64>());
-    set(Builtin::putstr, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::putstr, [](u64* regPtr, VirtualMachine* vm) {
         auto data = load<VirtualPointer>(regPtr);
         size_t size = load<size_t>(regPtr + 1);
         *vm->impl->ostream << std::string_view(deref<char>(vm, data, size),
@@ -158,7 +158,7 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     set(Builtin::putptr, printVal<void*>());
 
     /// ## Console input
-    set(Builtin::readline, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::readline, [](u64* regPtr, VirtualMachine* vm) {
         std::string line;
         std::getline(*vm->impl->istream, line);
         auto buffer = vm->impl->memory.allocate(line.size(), 8);
@@ -168,7 +168,7 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     });
 
     /// ## String conversion
-    set(Builtin::strtos64, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::strtos64, [](u64* regPtr, VirtualMachine* vm) {
         auto dest = load<VirtualPointer>(regPtr);
         auto data = load<VirtualPointer>(regPtr + 1);
         auto size = load<size_t>(regPtr + 2);
@@ -185,7 +185,7 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
         }
     });
 
-    set(Builtin::strtof64, [](u64* regPtr, VirtualMachine* vm, void*) {
+    set(Builtin::strtof64, [](u64* regPtr, VirtualMachine* vm) {
         auto dest = load<VirtualPointer>(regPtr);
         auto data = load<VirtualPointer>(regPtr + 1);
         auto size = load<size_t>(regPtr + 2);
@@ -204,11 +204,10 @@ std::vector<ExternalFunction> svm::makeBuiltinTable() {
     });
 
     /// ##
-    set(Builtin::trap,
-        [](u64*, VirtualMachine*, void*) { throwError<TrapError>(); });
+    set(Builtin::trap, [](u64*, VirtualMachine*) { throwError<TrapError>(); });
 
     /// ## RNG
-    set(Builtin::rand_i64, [](u64* regPtr, VirtualMachine*, void*) {
+    set(Builtin::rand_i64, [](u64* regPtr, VirtualMachine*) {
         static thread_local std::mt19937_64 rng(std::random_device{}());
         u64 randomValue = rng();
         store(regPtr, randomValue);

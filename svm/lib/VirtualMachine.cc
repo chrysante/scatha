@@ -3,6 +3,9 @@
 #include <bit>
 #include <iostream>
 
+#include <ffi.h>
+#include <range/v3/algorithm.hpp>
+#include <range/v3/view.hpp>
 #include <utl/dynamic_library.hpp>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
@@ -13,6 +16,7 @@
 #include "VMImpl.h"
 
 using namespace svm;
+using namespace ranges::views;
 
 VirtualMachine::VirtualMachine():
     VirtualMachine(DefaultRegisterCount, DefaultStackSize) {}
@@ -22,7 +26,7 @@ VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
     impl->parent = this;
     impl->registers.resize(numRegisters, utl::no_init);
     impl->stackSize = stackSize;
-    setFunctionTableSlot(BuiltinFunctionSlot, makeBuiltinTable());
+    impl->builtinFunctionTable = makeBuiltinTable();
 }
 
 VirtualMachine::VirtualMachine(VirtualMachine&& rhs) noexcept:
@@ -49,18 +53,57 @@ static utl::dynamic_library loadLibrary(std::string_view name) {
     return utl::dynamic_library(toLibName(name));
 }
 
+static ffi_type* toLibFFI(FFIType type) {
+    using enum FFIType;
+    switch (type) {
+    case Void:
+        return &ffi_type_void;
+    case Int8:
+        return &ffi_type_sint8;
+    case Int16:
+        return &ffi_type_sint16;
+    case Int32:
+        return &ffi_type_sint32;
+    case Int64:
+        return &ffi_type_sint64;
+    case Float:
+        return &ffi_type_float;
+    case Double:
+        return &ffi_type_double;
+    case Pointer:
+        return &ffi_type_pointer;
+    }
+}
+
+static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
+    F.name = decl.name;
+    F.funcPtr = (void (*)())decl.ptr;
+    F.numArgs = decl.argumentTypes.size();
+    auto argTypes = decl.argumentTypes | transform(toLibFFI) |
+                    ranges::to<utl::small_vector<ffi_type*>>;
+    return ffi_prep_cif(&F.callInterface,
+                        FFI_DEFAULT_ABI,
+                        utl::narrow_cast<int>(argTypes.size()),
+                        toLibFFI(decl.returnType),
+                        argTypes.data()) == FFI_OK;
+}
+
 static void loadForeignFunctions(VirtualMachine* vm,
                                  std::span<FFILibDecl const> libDecls) {
+    std::vector<FFIDecl> fnDecls;
     for (auto& libDecl: libDecls) {
         auto lib = loadLibrary(libDecl.name);
-        for (auto& FFI: libDecl.funcDecls) {
-            auto* impl =
-                lib.resolve_as<void(u64*, VirtualMachine*, void*)>(FFI.name);
-            vm->setFunction(FFI.slot,
-                            FFI.index,
-                            ExternalFunction(FFI.name, impl));
+        for (auto FFI: libDecl.funcDecls) {
+            FFI.ptr = lib.resolve(FFI.name);
+            fnDecls.push_back(FFI);
         }
         vm->impl->dylibs.push_back(std::move(lib));
+    }
+    assert(ranges::is_sorted(fnDecls, ranges::less{}, &FFIDecl::index));
+    vm->impl->foreignFunctionTable.resize(fnDecls.size());
+    for (auto [decl, F]: zip(fnDecls, vm->impl->foreignFunctionTable)) {
+        bool init = initForeignFunction(decl, F);
+        assert(init && "Failed to init call interface");
     }
 }
 
@@ -125,36 +168,6 @@ size_t VirtualMachine::instructionPointerOffset() const {
 
 void VirtualMachine::setInstructionPointerOffset(size_t offset) {
     impl->setInstructionPointerOffset(offset);
-}
-
-void VirtualMachine::setFunctionTableSlot(
-    size_t slot, std::vector<ExternalFunction> functions) {
-    if (slot >= impl->extFunctionTable.size()) {
-        impl->extFunctionTable.resize(slot + 1);
-    }
-    impl->extFunctionTable[slot] = std::move(functions);
-}
-
-void VirtualMachine::setFunction(size_t slot,
-                                 size_t index,
-                                 ExternalFunction function) {
-    if (slot >= impl->extFunctionTable.size()) {
-        impl->extFunctionTable.resize(slot + 1);
-    }
-    auto& slotArray = impl->extFunctionTable[slot];
-    if (index >= slotArray.size()) {
-        slotArray.resize(index + 1);
-    }
-    slotArray[index] = function;
-}
-
-std::span<ExternalFunction const> VirtualMachine::getExtFunctionTable(
-    size_t slot) const {
-    return impl->extFunctionTable[slot];
-}
-
-size_t VirtualMachine::numForeignFunctionTableSlots() const {
-    return impl->extFunctionTable.size();
 }
 
 std::span<u64 const> VirtualMachine::registerData() const {

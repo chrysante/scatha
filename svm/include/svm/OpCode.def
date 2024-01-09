@@ -37,8 +37,11 @@ SVM_INSTRUCTION_DEF(icallm, Other) // (MEMORY_POINTER dest, u8 regOffset)
 /// ```
 SVM_INSTRUCTION_DEF(ret, Other)
 
-// extFunctionTable[tableIdx][idxIntoTable](regPtr + regPtrOffset, this)
-SVM_INSTRUCTION_DEF(callExt, Other) // (u8 regPtrOffset, u8 tableIdx, u16 idxIntoTable)
+// foreignFunctionTable[index](regPtr + regPtrOffset)
+SVM_INSTRUCTION_DEF(cfng, Other) // (u8 regPtrOffset, u16 index)
+
+// builtinFunctionTable[index](regPtr + regPtrOffset)
+SVM_INSTRUCTION_DEF(cbltn, Other) // (u8 regPtrOffset, u16 index)
 
 /// Immediately terminates the program.
 SVM_INSTRUCTION_DEF(terminate, Other)

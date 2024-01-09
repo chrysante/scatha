@@ -6,7 +6,6 @@
 #include <vector>
 
 #include <svm/Common.h>
-#include <svm/ExternalFunction.h>
 #include <svm/VMData.h>
 #include <svm/VirtualPointer.h>
 
@@ -79,24 +78,6 @@ public:
     void setInstructionPointerOffset(size_t offset);
 
     /// @} Stepwise execution
-
-    /// Set a slot of the external function table
-    ///
-    /// Slot 0 and 1 are reserved for builtin functions
-    /// Note that any entries defined by calls to \p setFunction the the same
-    /// slot are overwritten
-    void setFunctionTableSlot(size_t slot,
-                              std::vector<ExternalFunction> functions);
-
-    /// Set the entry at index \p index of the slot \p slot of the external
-    /// function table
-    void setFunction(size_t slot, size_t index, ExternalFunction function);
-
-    /// \Returns a view over the foreign function table slot \p slot
-    std::span<ExternalFunction const> getExtFunctionTable(size_t slot) const;
-
-    /// \Returns the number of allocated foreign function table slots
-    size_t numForeignFunctionTableSlots() const;
 
     /// \Returns A view of the data in the registers of the VM
     std::span<u64 const> registerData() const;

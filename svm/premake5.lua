@@ -1,6 +1,6 @@
 ------------------------------------------
 project "svm-lib"
-kind "StaticLib"
+kind "SharedLib"
 
 files { "lib/**.h", "lib/**.cc", "include/svm/**.h", "include/svm/**.def" }
 
@@ -16,7 +16,7 @@ externalincludedirs {
 
 libdirs "/usr/local/opt/libffi/lib" -- For now until we figure out how to build from source
 
-links { "libffi.a" }
+links { "ffi", "utility" }
 
 ------------------------------------------
 project "svm"
