@@ -11,17 +11,19 @@
 #include <exception>
 #endif
 
-/// We define this unconditionally for now, to have assertions in optimized
-/// builds
-#define SC_DEBUG
+#ifndef SC_DEBUG
+#ifdef NDEBUG
+#define SC_DEBUG 0
+#else
+#define SC_DEBUG 1
+#endif // NDEBUG
+#endif // SC_DEBUG
 
 /// MARK: API Export
 
 #if defined(__GNUC__)
-
 #define SCATHA_API __attribute__((visibility("default")))
 #define SCTEST_API __attribute__((visibility("default")))
-
 #elif defined(_MSC_VER)
 #if defined(SC_APIEXPORT)
 #define SCATHA_API __declspec(dllexport)
@@ -80,13 +82,15 @@
 #endif
 
 /// # SC_UNREACHABLE
-#if __GNUC__
+#if defined(__GNUC__)
 #define _SC_UNREACHABLE_IMPL() __builtin_unreachable()
+#elif defined(_MSC_VER)
+#define _SC_UNREACHABLE_IMPL() __assume(false)
 #else
 #define _SC_UNREACHABLE_IMPL() ((void)0)
 #endif
 
-#ifdef SC_DEBUG
+#if SC_DEBUG
 #define SC_UNREACHABLE(...)                                                    \
     (::scatha::internal::unreachable(__FILE__, __LINE__, SC_PRETTY_FUNC),      \
      SC_DEBUGFAIL_IMPL())
@@ -103,15 +107,8 @@
 /// # SC_DEBUGBREAK
 #define SC_DEBUGBREAK() SC_DEBUGBREAK_IMPL()
 
-/// # SC_ASSUME
-#if defined(__clang__)
-#define SC_ASSUME(COND) __builtin_assume(COND)
-#else
-#define SC_ASSUME(COND) ((void)0)
-#endif
-
 /// # SC_ASSERT
-#ifdef SC_DEBUG
+#if SC_DEBUG
 #define SC_ASSERT(COND, MSG)                                                   \
     ((COND) ? (void)0 :                                                        \
               (::scatha::internal::assertionFailure(__FILE__,                  \
@@ -121,7 +118,7 @@
                                                     MSG),                      \
                SC_DEBUGFAIL_IMPL()))
 #else // SC_DEBUG
-#define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
+#define SC_ASSERT(COND, MSG) (void)sizeof((bool)(COND))
 #endif // SC_DEBUG
 
 /// # SC_EXPECT
