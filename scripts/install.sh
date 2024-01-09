@@ -24,6 +24,8 @@ build_project scathac/ scathac Release
 copy_to_system scathac
 copy_to_system libscatha.so
 copy_to_system libscatha.dylib
+copy_to_system libsvm-lib.so
+copy_to_system libsvm-lib.dylib
 copy_to_system libarchive.20.dylib
 copy_to_system libarchive.dylib
 
