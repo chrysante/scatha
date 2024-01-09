@@ -72,19 +72,19 @@ struct Impl {
     }
 
     std::string computeImpl(ArrayType const& type) {
-        return utl::strcat("[", compute(type.elementType()), "]");
+        return utl::strcat("_A", compute(type.elementType()));
     }
 
     std::string computeImpl(RawPtrType const& type) {
-        return utl::strcat("*", compute(type.base()));
+        return utl::strcat("_P", compute(type.base()));
     }
 
     std::string computeImpl(ReferenceType const& type) {
-        return utl::strcat("&", compute(type.base()));
+        return utl::strcat("_R", compute(type.base()));
     }
 
     std::string computeImpl(UniquePtrType const& type) {
-        return utl::strcat("*unique-", compute(type.base()));
+        return utl::strcat("*_U", compute(type.base()));
     }
 
     std::string computeImpl(Function const& func) {

@@ -124,7 +124,7 @@ static void importLibrary(ir::Context& ctx,
                                    mod,
                                    { .typeParseCallback = typeCallback,
                                      .objectParseCallback = objCallback });
-    checkParserIssues(parseIssues, lib.name());
+    checkParserIssues(parseIssues, lib.codeFile().string());
     mapLibSymbols(lib,
                   typeMap,
                   functionMap,

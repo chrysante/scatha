@@ -23,30 +23,6 @@
 using namespace scatha;
 using namespace ir;
 
-static APInt parseInt(Token token, Type const* type) {
-    SC_EXPECT(token.kind() == TokenKind::IntLiteral);
-    auto value = APInt::parse(token.id(),
-                              10,
-                              cast<IntegralType const*>(type)->bitwidth());
-    if (!value) {
-        throw SyntaxIssue(token);
-    }
-    return *value;
-}
-
-static APFloat parseFloat(Token token, Type const* type) {
-    SC_EXPECT(token.kind() == TokenKind::FloatLiteral);
-    size_t bitwidth = cast<FloatType const*>(type)->bitwidth();
-    SC_EXPECT(bitwidth == 32 || bitwidth == 64);
-    auto value = APFloat::parse(token.id(),
-                                bitwidth == 32 ? APFloatPrec::Single() :
-                                                 APFloatPrec::Double());
-    if (!value) {
-        throw SyntaxIssue(token);
-    }
-    return *value;
-}
-
 namespace {
 
 /// A parsed but not necessarily "semantically analyzed" value. Constants and
@@ -208,7 +184,7 @@ struct IRParser {
         if (result.kind() != TokenKind::EndOfFile) {
             auto next = lexer.next();
             if (!next) {
-                throw next.error();
+                reportLexicalIssue(next.error());
             }
             nextToken[0] = nextToken[1];
             nextToken[1] = next.value();
@@ -228,6 +204,11 @@ struct IRParser {
         SC_EXPECT(i < 2 && "We only have a look-ahead of 2");
         SC_EXPECT(nextToken[i].has_value());
         return *nextToken[i];
+    }
+
+    [[noreturn]] void reportLexicalIssue(LexicalIssue issue) {
+        issues.push_back(issue);
+        throw ParserException{};
     }
 
     [[noreturn]] void reportSyntaxIssue(Token const& token) {
@@ -260,6 +241,30 @@ struct IRParser {
         default:
             reportSyntaxIssue(token);
         }
+    }
+
+    APInt parseInt(Token token, Type const* type) {
+        SC_EXPECT(token.kind() == TokenKind::IntLiteral);
+        auto value = APInt::parse(token.id(),
+                                  10,
+                                  cast<IntegralType const*>(type)->bitwidth());
+        if (!value) {
+            reportSyntaxIssue(token);
+        }
+        return *value;
+    }
+
+    APFloat parseFloat(Token token, Type const* type) {
+        SC_EXPECT(token.kind() == TokenKind::FloatLiteral);
+        size_t bitwidth = cast<FloatType const*>(type)->bitwidth();
+        SC_EXPECT(bitwidth == 32 || bitwidth == 64);
+        auto value = APFloat::parse(token.id(),
+                                    bitwidth == 32 ? APFloatPrec::Single() :
+                                                     APFloatPrec::Double());
+        if (!value) {
+            reportSyntaxIssue(token);
+        }
+        return *value;
     }
 
     CompareMode toCompareMode(Token token) {
