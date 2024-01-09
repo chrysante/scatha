@@ -269,10 +269,7 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr) {
     for (size_t i = 0; i < F.numArgs; ++i) {
         argv[i] = &regPtr[i];
     }
-    ffi_call(&F.callInterface,
-             F.funcPtr,
-             /* retval = */ regPtr,
-             argv);
+    ffi_call(&F.callInterface, F.funcPtr, regPtr, argv);
 }
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {

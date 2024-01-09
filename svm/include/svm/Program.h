@@ -47,7 +47,6 @@ struct ProgramHeader {
 ///     - `u8` ; Number of arguments
 ///     - `[u8]` ; List of argument types
 ///     - `u8` ; Return type
-///     - `u32` ; Slot
 ///     - `u32` ; Index
 
 /// This declaration is identical to the one in `<scatha/Common/FFI.h>`

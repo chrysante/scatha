@@ -18,3 +18,17 @@ extern "C" int64_t baz() {
 extern "C" void quux() {
     std::cout << "quux\n";
 }
+
+namespace {
+
+struct MyStruct {
+    int value;
+};
+
+} // namespace
+
+extern "C" MyStruct* MyStruct_make(int value) { return new MyStruct{ value }; }
+
+extern "C" void MyStruct_free(MyStruct* ptr) { delete ptr; }
+
+extern "C" int MyStruct_value(MyStruct* ptr) { return ptr->value; }

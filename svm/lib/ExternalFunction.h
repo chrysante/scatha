@@ -30,8 +30,8 @@ struct ForeignFunction {
 
     std::string name;
     FuncPtr funcPtr = nullptr;
-    ffi_cif callInterface;
     size_t numArgs;
+    ffi_cif callInterface;
 };
 
 /// Represents a function of the host application invocable by programs running

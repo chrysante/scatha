@@ -134,6 +134,14 @@ public:
     /// \Returns the currently set output stream
     std::ostream& ostream() const;
 
+    /// \Returns the name of the builtin function at index \p index or an error
+    /// name if \p index is not valid
+    std::string getBuiltinFunctionName(size_t index) const;
+
+    /// \Returns the name of the foreign function at index \p index or an error
+    /// name if \p index is not valid
+    std::string getForeignFunctionName(size_t index) const;
+
     /// This is not private because many internals outside of this class
     /// reference this but it is effectively private because the type `VMImpl`
     /// is internal

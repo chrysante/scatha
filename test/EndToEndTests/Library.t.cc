@@ -190,6 +190,19 @@ fn main() {
     quux();
 })");
     }
+    SECTION("Native pointers") {
+        test::runReturnsTest(11, R"(
+import "ffi-testlib";
+extern "C" fn MyStruct_make(value: s32) -> int;
+extern "C" fn MyStruct_free(ptr: int) -> void;
+extern "C" fn MyStruct_value(ptr: int) -> s32;
+fn main() {
+    let ptr = MyStruct_make(11);
+    let value = MyStruct_value(ptr);
+    MyStruct_free(ptr);
+    return value;
+})");
+    }
 }
 
 TEST_CASE("FFI used by static library",

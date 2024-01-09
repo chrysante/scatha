@@ -236,4 +236,18 @@ std::istream& VirtualMachine::istream() const { return *impl->istream; }
 
 std::ostream& VirtualMachine::ostream() const { return *impl->ostream; }
 
+std::string VirtualMachine::getBuiltinFunctionName(size_t index) const {
+    if (index >= impl->builtinFunctionTable.size()) {
+        return "<invalid-builtin>";
+    }
+    return impl->builtinFunctionTable[index].name();
+}
+
+std::string VirtualMachine::getForeignFunctionName(size_t index) const {
+    if (index >= impl->foreignFunctionTable.size()) {
+        return "<invalid-ffi>";
+    }
+    return impl->foreignFunctionTable[index].name;
+}
+
 VMImpl::VMImpl(): istream(&std::cin), ostream(&std::cout) {}

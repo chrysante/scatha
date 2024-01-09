@@ -22,7 +22,6 @@ struct Addr {
 
 struct CallExtArg {
     uint8_t regOffset;
-    uint8_t tableIdx;
     uint16_t idxIntoTable;
 };
 
@@ -98,18 +97,6 @@ static std::string getLabelName(Disassembly const* disasm, Value offset) {
     return labelName(destInst.labelID);
 }
 
-static std::string getForeignFunctionName(svm::VirtualMachine const* vm,
-                                          CallExtArg arg) {
-    if (arg.tableIdx >= vm->numForeignFunctionTableSlots()) {
-        return "<unknown>";
-    }
-    auto table = vm->getExtFunctionTable(arg.tableIdx);
-    if (arg.idxIntoTable >= table.size()) {
-        return "<unknown>";
-    }
-    return table[arg.idxIntoTable].name();
-}
-
 static void print(std::ostream& str,
                   Instruction inst,
                   Disassembly const* disasm,
@@ -153,18 +140,19 @@ static void print(std::ostream& str,
             break;
         case OpCode::terminate:
             break;
-        case OpCode::callExt: {
-            auto args =
-                std::bit_cast<CallExtArg>(static_cast<uint32_t>(inst.arg1.raw));
-            str << " " << +args.regOffset;
-            if (vm) {
-                str << ", " << getForeignFunctionName(vm, args);
+        case OpCode::cfng:
+        case OpCode::cbltn:
+            str << " " << /* regoffset = */ inst.arg1 << ", ";
+            if (vm && inst.opcode == OpCode::cfng) {
+                str << vm->getForeignFunctionName(inst.arg2.raw);
+            }
+            else if (vm && inst.opcode == OpCode::cfng) {
+                str << vm->getBuiltinFunctionName(inst.arg2.raw);
             }
             else {
-                str << ", " << +args.tableIdx << ", " << args.idxIntoTable;
+                str << "index: " << inst.arg2;
             }
             break;
-        }
         default:
             assert(false);
         }
@@ -257,8 +245,10 @@ static Instruction readInstruction(uint8_t const* textPtr) {
             break;
         case OpCode::terminate:
             break;
-        case OpCode::callExt:
-            arg1 = makeValue32(load<uint32_t>(argData));
+        case OpCode::cfng:
+        case OpCode::cbltn:
+            arg1 = makeValue8(load<uint8_t>(argData));
+            arg2 = makeValue16(load<uint8_t>(argData + 1));
             break;
         default:
             assert(false);
