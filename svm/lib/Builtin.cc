@@ -20,9 +20,6 @@
 
 using namespace svm;
 
-/// We can change this to proper error reporting later
-#define ENSURE(...) assert(__VA_ARGS__)
-
 static void* deref(VirtualMachine* vm, VirtualPointer ptr, size_t size) {
     return vm->impl->memory.dereference(ptr, size);
 }
@@ -138,8 +135,6 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
         auto addr = load<VirtualPointer>(regPtr);
         auto size = load<i64>(regPtr + 1);
         auto align = load<i64>(regPtr + 2);
-        ENSURE(size >= 0);
-        ENSURE(align >= 0);
         vm->impl->memory.deallocate(addr,
                                     static_cast<size_t>(size),
                                     static_cast<size_t>(align));

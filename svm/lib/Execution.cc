@@ -4,27 +4,10 @@
 
 #include <utl/functional.hpp>
 
+#include "Common.h"
 #include "Memory.h"
 #include "OpCode.h"
 #include "VMImpl.h"
-
-#if defined(__GNUC__)
-
-#define SVM_ASSERT(COND) assert(COND)
-
-#define SVM_UNREACHABLE() __builtin_unreachable()
-
-#elif defined(_MSC_VER)
-
-#define SVM_ASSERT(COND) assert(COND)
-
-#define SVM_UNREACHABLE() assert(false)
-
-#else
-
-#error Unsupported compiler
-
-#endif
 
 using namespace svm;
 
@@ -82,11 +65,21 @@ static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
     return offsetBaseptr + offsetCount * constantOffsetMultiplier;
 }
 
+#define CHECK_ALIGNED(Kind, ptr, Size)                                         \
+    do {                                                                       \
+        if (SVM_UNLIKELY(!isAligned(ptr, Size))) {                             \
+            throwError<MemoryAccessError>(                                     \
+                UTL_CONCAT(MemoryAccessError::Misaligned, Kind),               \
+                ptr,                                                           \
+                Size);                                                         \
+        }                                                                      \
+    } while (0)
+
 template <size_t Size>
 static void moveMR(VirtualMemory& memory, u8 const* i, u64* reg) {
     VirtualPointer ptr = getPointer(reg, i);
+    CHECK_ALIGNED(Load, ptr, Size);
     size_t const sourceRegIdx = i[4];
-    SVM_ASSERT(isAligned(ptr, Size));
     std::memcpy(memory.dereference(ptr, Size), &reg[sourceRegIdx], Size);
 }
 
@@ -94,7 +87,7 @@ template <size_t Size>
 static void moveRM(VirtualMemory& memory, u8 const* i, u64* reg) {
     size_t const destRegIdx = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
-    SVM_ASSERT(isAligned(ptr, Size));
+    CHECK_ALIGNED(Store, ptr, Size);
     reg[destRegIdx] = 0;
     std::memcpy(&reg[destRegIdx], memory.dereference(ptr, Size), Size);
 }
@@ -121,8 +114,8 @@ static void condMoveRM(VirtualMemory& memory,
                        bool cond) {
     size_t const destRegIdx = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
-    SVM_ASSERT(isAligned(ptr, Size));
     if (cond) {
+        CHECK_ALIGNED(Load, ptr, Size);
         reg[destRegIdx] = 0;
         std::memcpy(&reg[destRegIdx], memory.dereference(ptr, Size), Size);
     }
@@ -237,7 +230,7 @@ static void arithmeticRM(VirtualMemory& memory,
                          auto operation) {
     size_t const regIdxA = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
-    SVM_ASSERT(isAligned(ptr, alignof(T)));
+    CHECK_ALIGNED(Load, ptr, alignof(T));
     auto const a = load<T>(&reg[regIdxA]);
     auto const b = load<T>(memory.dereference(ptr, sizeof(T)));
     storeReg(&reg[regIdxA], decltype(operation)()(a, b));
@@ -265,11 +258,11 @@ static bool greater(CompareFlags f) { return !f.less && !f.equal; }
 static bool greaterEq(CompareFlags f) { return !f.less; }
 
 static void invokeFFI(ForeignFunction& F, u64* regPtr) {
-    void** argv = (void**)alloca(F.numArgs * 8);
-    for (size_t i = 0; i < F.numArgs; ++i) {
-        argv[i] = &regPtr[i];
+    u64* argPtr = regPtr;
+    for (auto& arg: F.arguments) {
+        arg = argPtr++;
     }
-    ffi_call(&F.callInterface, F.funcPtr, regPtr, argv);
+    ffi_call(&F.callInterface, F.funcPtr, regPtr, F.arguments.data());
 }
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
@@ -300,8 +293,6 @@ bool VMImpl::running() const { return currentFrame.iptr < programBreak; }
 
 void VMImpl::stepExecution() {
     OpCode const opcode = load<OpCode>(currentFrame.iptr);
-    assert(utl::to_underlying(opcode) < utl::to_underlying(OpCode::_count) &&
-           "Invalid op-code");
     auto* const i = currentFrame.iptr + sizeof(OpCode);
     auto* const regPtr = currentFrame.regPtr;
     [[maybe_unused]] static constexpr u64 InvalidCodeOffset =
@@ -315,20 +306,20 @@ void VMImpl::stepExecution() {
     /// indentation in the switch statement and therefore better formatting.
     /// Kinda hacky but it works nicely.
 #define INST_LIST_BEGIN()                                                      \
-    switch (opcode) {                                                          \
+    switch ((u8)opcode) {                                                      \
         using enum OpCode;
 
 #define INST_LIST_END()                                                        \
     break;                                                                     \
-    case _count:                                                               \
-        SVM_UNREACHABLE();                                                     \
+    default:                                                                   \
+        throwError<InvalidOpcodeError>((u64)opcode);                           \
         }
 
     /// Every opcode must be listed with `INST(opcode)` followed by a
     /// statement that is executed for that opcode.
 #define INST(opcode)                                                           \
     break;                                                                     \
-    case opcode:                                                               \
+    case (u8)opcode:                                                           \
         codeOffset = ExecCodeSize<opcode>;
 
     INST_LIST_BEGIN()
@@ -434,7 +425,9 @@ void VMImpl::stepExecution() {
     INST(lincsp) {
         size_t const destRegIdx = load<u8>(i);
         size_t const offset = load<u16>(i + 1);
-        SVM_ASSERT(offset % 8 == 0);
+        if (SVM_UNLIKELY(offset % 8 != 0)) {
+            throwError<InvalidStackAllocationError>(offset);
+        }
         regPtr[destRegIdx] = utl::bit_cast<u64>(currentFrame.stackPtr);
         currentFrame.stackPtr += offset;
     }
@@ -681,13 +674,14 @@ void VMImpl::stepExecution() {
 
     INST_LIST_END()
 
-    SVM_ASSERT(codeOffset != InvalidCodeOffset);
+    /// This is an assert because it means we forgot to set the offset in one of
+    /// the opcode cases
+    assert(codeOffset != InvalidCodeOffset);
     currentFrame.iptr += codeOffset;
     ++stats.executedInstructions;
 }
 
 u64 const* VMImpl::endExecution() {
-    assert(currentFrame.iptr == programBreak);
     execFrames.pop();
     auto* result = currentFrame.regPtr;
     currentFrame = execFrames.top();

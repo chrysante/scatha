@@ -22,7 +22,31 @@ static_assert(sizeof(f32) == 4);
 using f64 = double;
 static_assert(sizeof(f64) == 8);
 
-[[noreturn]] inline void unreachable() { assert(false); }
+[[noreturn]] inline void unreachable() {
+    assert(false);
+#if defined(__GNUC__)
+    __builtin_unreachable();
+#elif defined(_MSC_VER)
+    __assume(false);
+#endif
+}
+
+#if defined(__GNUC__)
+#define SVM_NOINLINE      __attribute__((noinline))
+#define SVM_ALWAYS_INLINE __attribute__((always_inline))
+#define SVM_LIKELY(x)     __builtin_expect(!!(x), 1)
+#define SVM_UNLIKELY(x)   __builtin_expect(!!(x), 0)
+#elif defined(_MSC_VER)
+#define SVM_NOINLINE      __declspec(noinline)
+#define SVM_ALWAYS_INLINE __forceinline
+#define SVM_LIKELY(x)
+#define SVM_UNLIKELY(x)
+#else
+#define SVM_NOINLINE
+#define SVM_ALWAYS_INLINE
+#define SVM_LIKELY(x)
+#define SVM_UNLIKELY(x)
+#endif
 
 } // namespace svm
 

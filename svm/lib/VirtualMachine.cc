@@ -78,14 +78,14 @@ static ffi_type* toLibFFI(FFIType type) {
 static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
     F.name = decl.name;
     F.funcPtr = (void (*)())decl.ptr;
-    F.numArgs = decl.argumentTypes.size();
-    auto argTypes = decl.argumentTypes | transform(toLibFFI) |
-                    ranges::to<utl::small_vector<ffi_type*>>;
+    F.argumentTypes = decl.argumentTypes | transform(toLibFFI) |
+                      ranges::to<utl::small_vector<ffi_type*>>;
+    F.arguments.resize(F.argumentTypes.size());
     return ffi_prep_cif(&F.callInterface,
                         FFI_DEFAULT_ABI,
-                        utl::narrow_cast<int>(argTypes.size()),
+                        utl::narrow_cast<int>(F.arguments.size()),
                         toLibFFI(decl.returnType),
-                        argTypes.data()) == FFI_OK;
+                        F.argumentTypes.data()) == FFI_OK;
 }
 
 static void loadForeignFunctions(VirtualMachine* vm,
@@ -102,8 +102,9 @@ static void loadForeignFunctions(VirtualMachine* vm,
     assert(ranges::is_sorted(fnDecls, ranges::less{}, &FFIDecl::index));
     vm->impl->foreignFunctionTable.resize(fnDecls.size());
     for (auto [decl, F]: zip(fnDecls, vm->impl->foreignFunctionTable)) {
-        bool init = initForeignFunction(decl, F);
-        assert(init && "Failed to init call interface");
+        if (!initForeignFunction(decl, F)) {
+            throwError<FFIError>(FFIError::FailedToInit, decl.name);
+        }
     }
 }
 

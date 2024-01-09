@@ -24,14 +24,15 @@ struct ForeignFunction {
 
     /// We delete copy and move operations because we rely on address stability
     /// of the `values` array
-    ForeignFunction(ForeignFunction const&) { assert(false); }
+    ForeignFunction(ForeignFunction const&) { unreachable(); }
 
-    ForeignFunction& operator=(ForeignFunction const&) { assert(false); }
+    ForeignFunction& operator=(ForeignFunction const&) { unreachable(); }
 
     std::string name;
     FuncPtr funcPtr = nullptr;
-    size_t numArgs;
     ffi_cif callInterface;
+    utl::small_vector<ffi_type*> argumentTypes;
+    utl::small_vector<void*> arguments;
 };
 
 /// Represents a function of the host application invocable by programs running

@@ -4,6 +4,8 @@
 #include <cassert>
 #include <string_view>
 
+#include <svm/Common.h>
+
 namespace svm {
 
 /// Enum listing all builtin functions.
@@ -20,8 +22,7 @@ inline std::string_view toString(Builtin builtin) {
 #include <svm/Builtin.def>
         // clang-format on
     case Builtin::_count:
-        assert(false);
-        return {};
+        unreachable();
     }
 }
 

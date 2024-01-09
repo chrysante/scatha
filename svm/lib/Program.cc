@@ -235,7 +235,7 @@ void svm::print(u8 const* progData, std::ostream& str) {
             }
             break;
         case _count:
-            assert(false);
+            unreachable();
         }
         str << '\n';
         i += codeSize(opcode);
