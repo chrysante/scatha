@@ -1,6 +1,7 @@
 #ifndef SVM_VMIMPL_H_
 #define SVM_VMIMPL_H_
 
+#include <filesystem>
 #include <span>
 
 #include <utl/dynamic_library.hpp>

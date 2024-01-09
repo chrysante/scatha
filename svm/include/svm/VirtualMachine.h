@@ -1,6 +1,7 @@
 #ifndef SVM_VIRTUALMACHINE_H_
 #define SVM_VIRTUALMACHINE_H_
 
+#include <filesystem>
 #include <memory>
 #include <span>
 #include <vector>

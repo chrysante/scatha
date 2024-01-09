@@ -293,17 +293,18 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
 }
 
 static bool isValidTypeForFFI(Type const* type) {
+    // clang-format off
     return SC_MATCH (*type){ [](VoidType const&) { return true; },
-                             [](IntType const& type) {
-        return ranges::contains(std::array{ 8, 16, 32, 64 }, type.bitwidth());
-    },
-                             [](ByteType const&) { return true; },
-                             [](BoolType const&) { return true; },
-                             [](FloatType const&) { return true; },
-                             [](RawPtrType const& ptr) {
-        return !isa<ArrayType>(*ptr.base());
-    },
-                             [](Type const&) { return false; } };
+        [](IntType const& type) {
+            return ranges::contains(std::array{ 8, 16, 32, 64 }, 
+                                    type.bitwidth());
+        },
+        [](ByteType const&) { return true; },
+        [](BoolType const&) { return true; },
+        [](FloatType const&) { return true; },
+        [](RawPtrType const& ptr) { return true; },
+        [](Type const&) { return false; }
+    }; // clang-format on
 }
 
 bool StmtContext::validateForeignFunction(ast::FunctionDefinition& def) {

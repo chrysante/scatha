@@ -55,7 +55,7 @@ SVM_BUILTIN_DEF(memset,  None,  {
     S64()
 }, Void())
 SVM_BUILTIN_DEF(alloc, None, { S64(), S64() },
-                pointer(QualType::Mut(Byte())))
+                pointer(QualType::Mut(arrayType(Byte()))))
 SVM_BUILTIN_DEF(dealloc, None, {
     pointer(QualType::Mut(arrayType(Byte()))),
     S64()

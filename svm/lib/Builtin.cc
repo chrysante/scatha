@@ -130,6 +130,7 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
         u64 align = load<u64>(regPtr + 1);
         VirtualPointer addr = vm->impl->memory.allocate(size, align);
         store(regPtr, addr);
+        store(regPtr + 1, size);
     });
     set(Builtin::dealloc, [](u64* regPtr, VirtualMachine* vm) {
         auto addr = load<VirtualPointer>(regPtr);

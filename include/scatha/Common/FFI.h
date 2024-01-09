@@ -20,6 +20,7 @@ enum class FFIType : uint8_t {
     Float,
     Double,
     Pointer,
+    ArrayPointer,
 };
 
 namespace scatha {

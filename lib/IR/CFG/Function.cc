@@ -145,6 +145,19 @@ void Function::writeValueToImpl(
     callback(this, dest);
 }
 
+static bool isBitInt(Type const* type, size_t bitwidth) {
+    auto* intType = dyncast<IntegralType const*>(type);
+    if (!intType) {
+        return false;
+    }
+    return intType->bitwidth() == bitwidth;
+}
+
+static bool isArrayPointer(StructType const& type) {
+    return type.numElements() == 2 && isa<PointerType>(type.elementAt(0)) &&
+           isBitInt(type.elementAt(1), 64);
+}
+
 static FFIType toFFIType(Type const* type) {
     // clang-format off
     return SC_MATCH_R (FFIType, *type) {
@@ -178,6 +191,11 @@ static FFIType toFFIType(Type const* type) {
             }
         },
         [](PointerType const&) { return FFIType::Pointer; },
+        [](StructType const& type) {
+            /// Only array pointers supported for now
+            SC_EXPECT(isArrayPointer(type));
+            return FFIType::ArrayPointer;
+        },
         [](Type const&) { SC_UNREACHABLE("Invalid FFI type"); }
     }; // clang-format on
 }
