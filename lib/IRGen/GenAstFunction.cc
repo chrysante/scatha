@@ -1303,16 +1303,39 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
-    auto* alloc = getBuiltin(svm::Builtin::alloc);
-    auto* baseType =
-        cast<sema::UniquePtrType const&>(*expr.type()).base().get();
-    std::array<ir::Value*, 2> args = { ctx.intConstant(baseType->size(), 64),
-                                       ctx.intConstant(baseType->align(), 64) };
-    auto* arrayPtr = add<ir::Call>(alloc, args, "alloc");
-    auto* ptr =
-        add<ir::ExtractValue>(arrayPtr, std::array{ size_t{ 0 } }, "pointer");
+    auto backItr = std::prev(currentBlock().end());
     auto* addr = getValue<Memory>(expr.value());
     SC_ASSERT(isa<ir::Alloca>(addr), "");
+    ir::Instruction* insertBefore = backItr->next();
+    ir::Callable* alloc = getBuiltin(svm::Builtin::alloc);
+    sema::ObjectType const* baseType =
+        cast<sema::UniquePtrType const&>(*expr.type()).base().get();
+    ir::Value* bytesize = [&]() -> ir::Value* {
+        if (auto* arrayType = dyncast<sema::ArrayType const*>(baseType)) {
+            auto* elemSize =
+                ctx.intConstant(arrayType->elementType()->size(), 64);
+            auto* count =
+                toRegister(valueMap.arraySize(expr.value()->object()), expr);
+            if (auto* countInst = dyncast<ir::Instruction*>(count)) {
+                insertBefore = countInst->next();
+            }
+            return insert<ir::ArithmeticInst>(insertBefore,
+                                              elemSize,
+                                              count,
+                                              ir::ArithmeticOperation::Mul,
+                                              "alloc.bytesize");
+        }
+        else {
+            return ctx.intConstant(baseType->size(), 64);
+        }
+    }();
+    std::array<ir::Value*, 2> args = { bytesize,
+                                       ctx.intConstant(baseType->align(), 64) };
+    ir::Call* arrayPtr = insert<ir::Call>(insertBefore, alloc, args, "alloc");
+    ir::ExtractValue* ptr = insert<ir::ExtractValue>(insertBefore,
+                                                     arrayPtr,
+                                                     std::array{ size_t{ 0 } },
+                                                     "pointer");
     addr->replaceAllUsesWith(ptr);
     Value result(storeToMemory(ptr), ctx.ptrType(), Memory);
     if (isFatPointer(&expr)) {
@@ -1643,17 +1666,26 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             }
             case 1: {
                 auto* arg = expr.arguments().front();
-                if (type.size() <= 64) {
+                if (type.isComplete() && type.size() <= 64) {
                     auto* value = getValue<Register>(arg);
                     return Value(value, Register);
                 }
                 else {
                     auto source = getValue(arg);
                     SC_ASSERT(source.isMemory(), "");
-                    auto* arrayType = typeMap(&type);
-                    auto* array = makeLocalVariable(arrayType, "list");
-                    callMemcpy(array, source.get(), type.size());
-                    return Value(array, arrayType, Memory);
+                    auto* elemType = typeMap(type.elementType());
+                    auto* count = toRegister(valueMap.arraySize(
+                        expr.argument(0)->object()), expr);
+                    auto* array = makeLocalArray(elemType, count, "tmp.array");
+                    auto* byteSize = add<ir::ArithmeticInst>(
+                        count,
+                        ctx.intConstant(elemType->size(), 64),
+                        ir::ArithmeticOperation::Mul,
+                        "array.bytesize");
+                    callMemcpy(array, source.get(), byteSize);
+                    valueMap.insertArraySize(expr.object(), 
+                                             Value(count, Register));
+                    return Value(array, elemType, Memory);
                 }
             }
             default:
