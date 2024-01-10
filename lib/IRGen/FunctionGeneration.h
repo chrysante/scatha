@@ -86,6 +86,11 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
 
     /// \overload for `size_t numBytes`
     ir::Call* callMemset(ir::Value* dest, size_t numBytes, int value);
+
+    /// Converts array pointer (fat pointers) to normal pointers by extracting
+    /// the first element. Normal pointers are returned unchanged.
+    /// \pre \p ptr must be of type `ptr` or `{ ptr, i64 }`
+    ir::Value* toThinPointer(ir::Value* ptr);
 };
 
 } // namespace scatha::irgen

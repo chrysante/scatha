@@ -14,6 +14,10 @@ namespace scatha::irgen {
 /// Otherwise returns `nullptr`
 sema::ObjectType const* getPtrOrRefBase(sema::Type const* type);
 
+/// \Returns \p type downcast to `ArrayType` if it is a dynamic array type, null
+/// otherwise
+sema::ArrayType const* getDynArrayType(sema::Type const* type);
+
 /// \Returns `true` if \p type is an array with
 /// dynamic size or a pointer or a reference thereto
 bool isFatPointer(sema::Type const* type);

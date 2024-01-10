@@ -413,4 +413,19 @@ public fn main() -> int {
             return ptr.count;
         })");
     }
+    SECTION("Unique expr with non-trivial type") {
+        test::checkReturns(6, R"(
+fn main() {
+    let xs = [X(1), X(2), X(3)];
+    let xptr: *[X] = &xs;
+    var ptr = unique [X](*xptr);
+    return ptr[0].value + ptr[1].value + ptr[2].value;
+}
+struct X {
+    fn new(&mut this, n: int) { this.value = n; }
+    fn new(&mut this, rhs: &X) { this.value = rhs.value; }
+    fn delete(&mut this) {}
+    var value: int;
+})");
+    }
 }

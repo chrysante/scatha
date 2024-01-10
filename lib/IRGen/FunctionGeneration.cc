@@ -4,8 +4,10 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/InvariantSetup.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "IRGen/GlobalDecls.h"
+#include "IRGen/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -78,4 +80,12 @@ ir::Call* FuncGenContextBase::callMemset(ir::Value* dest,
                                          size_t numBytes,
                                          int value) {
     return callMemset(dest, ctx.intConstant(numBytes, 64), value);
+}
+
+ir::Value* FuncGenContextBase::toThinPointer(ir::Value* ptr) {
+    if (isa<ir::PointerType>(ptr->type())) {
+        return ptr;
+    }
+    SC_ASSERT(ptr->type() == makeArrayViewType(ctx), "Not a pointer");
+    return add<ir::ExtractValue>(ptr, std::array{ size_t{ 0 } }, "ptr");
 }

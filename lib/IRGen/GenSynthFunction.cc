@@ -240,7 +240,14 @@ utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
     ir::Instruction const* before, ir::Type const* inType, ir::Value* index) {
     utl::small_vector<ir::Value*, 2> args;
     size_t numParams = SLFKindNumPtrParams(kind);
-    for (auto& param: irFn.parameters() | ranges::views::take(numParams)) {
+    auto& params = irFn.parameters();
+    auto* parentType = cast<sema::Type const*>(semaFn.parent());
+    int stride = getDynArrayType(parentType) ? 2 : 1;
+    size_t loopIndex = 0;
+    for (auto itr = params.begin(); itr != params.end();
+         std::advance(itr, stride))
+    {
+        auto& param = *itr;
         SC_ASSERT(isa<ir::PointerType>(param.type()),
                   "First one or two arguments of constructor or destructor "
                   "must be pointers");
@@ -251,6 +258,9 @@ utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
                                                     std::array<size_t, 0>{},
                                                     "mem.acc");
         args.push_back(value);
+        if (++loopIndex >= numParams) {
+            break;
+        }
     }
     return args;
 }

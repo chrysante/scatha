@@ -21,6 +21,7 @@
 
 using namespace scatha;
 using namespace irgen;
+using namespace ranges::views;
 using enum ValueLocation;
 
 static std::string nameFromSourceLoc(std::string_view name,
@@ -104,10 +105,19 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::NonTrivAssignExpr const&);
 
     /// # Expression specific utilities
-    void generateArgument(PassingConvention const& PC,
-                          sema::Type const* paramType,
-                          ast::Expression const* expr,
-                          utl::vector<ir::Value*>& irArgsOut);
+
+    /// Generates function call argument(s) for the expression \p expr
+    /// In particalur this functions decides depending on the passing
+    /// convention\p PC if the argument is passed by register or in memory and
+    /// loads or stores it accordingly of necessary. This function also emits
+    /// two call arguments for dynamic array pointers.
+    /// If \p value is null this function will generate the code for the
+    /// argument.
+    void unpackArgument(PassingConvention const& PC,
+                        sema::Type const* paramType,
+                        ast::Expression const* expr,
+                        Value value,
+                        utl::vector<ir::Value*>& irArgsOut);
     ir::ArrayType const* getListType(ast::ListExpression const& list);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
     void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
@@ -965,7 +975,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
 Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
     auto* ptr = getValue<Register>(expr.referred());
     valueMap.insertArraySizeOf(expr.object(), expr.referred()->object());
-    return Value(ptr, typeMap(expr.type()), Memory);
+    return Value(toThinPointer(ptr), typeMap(expr.type()), Memory);
 }
 
 Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
@@ -1046,7 +1056,7 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
                             call.function()->argumentTypes(),
                             call.arguments()))
     {
-        generateArgument(PC, paramType, argExpr, irArguments);
+        unpackArgument(PC, paramType, argExpr, {}, irArguments);
     }
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
@@ -1103,11 +1113,14 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     return value;
 }
 
-void FuncGenContext::generateArgument(PassingConvention const& PC,
-                                      sema::Type const* paramType,
-                                      ast::Expression const* expr,
-                                      utl::vector<ir::Value*>& irArguments) {
-    auto value = getValue(expr);
+void FuncGenContext::unpackArgument(PassingConvention const& PC,
+                                    sema::Type const* paramType,
+                                    ast::Expression const* expr,
+                                    Value value,
+                                    utl::vector<ir::Value*>& irArguments) {
+    if (!value) {
+        value = getValue(expr);
+    }
     auto* object = expr->object();
     if (isa<sema::ReferenceType>(paramType)) {
         SC_ASSERT(value.isMemory(),
@@ -1587,30 +1600,54 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
         auto* type = typeMap(expr.constructedType());
         auto* function = getFunction(expr.function());
         auto CC = getCC(expr.function());
-        utl::small_vector<ir::Value*> irArguments;
+        /// We generate all argument expressions before we unpack them because
+        /// we may need the array size of the second argument when unpacking the
+        /// first argument
+        auto argValues = expr.arguments() |
+                         transform([&](auto* arg) { return getValue(arg); }) |
+                         ToSmallVector<>;
+        /// If we invoke a copy constructor of a dynamic array type, we give the
+        /// first argument which is an uninit temporary the array size of the
+        /// second argument
+        using enum sema::SpecialLifetimeFunction;
+        if (getDynArrayType(expr.type().get()) != nullptr &&
+            expr.function()->isSpecialLifetimeFunction() &&
+            expr.function()->SLFKind() == CopyConstructor)
+        {
+            valueMap.insertArraySizeOf(expr.argument(0)->object(),
+                                       expr.argument(1)->object());
+        }
         auto PCsAndArgs = ranges::views::zip(CC.arguments(),
                                              expr.function()->argumentTypes(),
-                                             expr.arguments());
-        for (auto [PC, paramType, argExpr]: PCsAndArgs) {
-            generateArgument(PC, paramType, argExpr, irArguments);
+                                             expr.arguments(),
+                                             argValues);
+        utl::small_vector<ir::Value*> irArguments;
+        for (auto [PC, paramType, argExpr, argValue]: PCsAndArgs) {
+            unpackArgument(PC, paramType, argExpr, argValue, irArguments);
         }
         SC_ASSERT(!irArguments.empty(),
                   "Must have at least the object argument");
-        auto* address = irArguments.front();
         add<ir::Call>(function, irArguments, std::string{});
-        if (isFatPointer(&expr)) {
+        /// For dynamic arrays (not pointers thereto) the array size is the
+        /// second argument because the signature is `(ptr, i64, ...) -> void`
+        if (getDynArrayType(expr.type().get())) {
+            valueMap.insertArraySize(expr.object(),
+                                     Value(irArguments[1], Register));
+        }
+        /// For unique pointers we lazily load the array size from memory
+        else if (isFatPointer(&expr)) {
             valueMap.insertArraySize(expr.object(), [=, this] {
                 auto* size =
                     add<ir::GetElementPointer>(ctx,
                                                makeArrayViewType(ctx),
-                                               address,
+                                               irArguments.front(),
                                                nullptr,
                                                std::array{ size_t{ 1 } },
                                                "arraysize");
                 return Value(size, ctx.intType(64), Memory);
             });
         }
-        return Value(address, type, Memory);
+        return Value(irArguments.front(), type, Memory);
     }
     /// Here we construct trivial types
     // clang-format off

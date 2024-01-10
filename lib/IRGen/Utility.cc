@@ -23,7 +23,15 @@ sema::ObjectType const* irgen::getPtrOrRefBase(sema::Type const* type) {
     }; // clang-format on
 }
 
-sema::ArrayType const* ptrOrRefToArrayImpl(sema::Type const* type) {
+sema::ArrayType const* irgen::getDynArrayType(sema::Type const* type) {
+    auto* AT = dyncast<sema::ArrayType const*>(type);
+    if (AT && AT->isDynamic()) {
+        return AT;
+    }
+    return nullptr;
+}
+
+static sema::ArrayType const* ptrOrRefToArrayImpl(sema::Type const* type) {
     sema::Type const* base = getPtrOrRefBase(type);
     base = base ? base : type;
     return dyncast<sema::ArrayType const*>(base);
