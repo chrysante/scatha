@@ -4,7 +4,7 @@
 
 using namespace svm;
 
-static size_t roundUp(size_t value, size_t multipleOf) {
+static constexpr size_t roundUp(size_t value, size_t multipleOf) {
     size_t rem = value % multipleOf;
     if (rem == 0) {
         return value;
@@ -72,11 +72,14 @@ static constexpr size_t MaxPoolSize = 1024;
 /// \Returns the index of the pool that is responsible for managing block of
 /// size \p size and align \p align This takes the slots below the pool slots
 /// into account
-static size_t toPoolIndex(size_t size, size_t) {
+static constexpr size_t toPoolIndex(size_t size, size_t) {
     size_t index = roundUp(size, BlockSizeDiff) / BlockSizeDiff;
     index += FirstPoolIndex - 1;
     return index;
 }
+
+///
+static constexpr size_t LastPoolIndex = toPoolIndex(MaxPoolSize, 1);
 
 VirtualPointer VirtualMemory::MakeStaticDataPointer(size_t offset) {
     return { .offset = offset, .slotIndex = StaticDataIndex };
@@ -134,6 +137,9 @@ void VirtualMemory::deallocate(VirtualPointer ptr, size_t size, size_t align) {
             reportDeallocationError(ptr, size, align);
         }
         return;
+    }
+    if (ptr.slotIndex <= LastPoolIndex) {
+        reportDeallocationError(ptr, size, align);
     }
     freeSlots.push_back(ptr.slotIndex);
 }

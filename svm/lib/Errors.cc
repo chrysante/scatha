@@ -52,9 +52,11 @@ std::string AllocationError::message() const {
 }
 
 std::string DeallocationError::message() const {
-    return utl::strcat("Tried to deallocate address ",
+    return utl::strcat("Tried to deallocate ",
+                       size(),
+                       " bytes at address ",
                        pointer(),
-                       " that was not allocated before");
+                       " that have not been allocated before");
 }
 
 std::string ErrorVariant::message() const {
