@@ -417,8 +417,7 @@ public fn main() -> int {
         test::checkReturns(6, R"(
 fn main() {
     let xs = [X(1), X(2), X(3)];
-    let xptr: *[X] = &xs;
-    var ptr = unique [X](*xptr);
+    var ptr = unique [X](xs);
     return ptr[0].value + ptr[1].value + ptr[2].value;
 }
 struct X {

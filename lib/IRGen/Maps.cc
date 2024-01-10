@@ -51,6 +51,12 @@ void ValueMap::insertArraySizeOf(sema::Object const* newObj,
     if (newObj == original) {
         return;
     }
+    if (auto size = getStaticArraySize(original->type())) {
+        insertArraySize(newObj,
+                        Value(ctx->intConstant(*size, 64),
+                              ValueLocation::Register));
+        return;
+    }
     auto itr = arraySizes.find(original);
     if (itr != arraySizes.end()) {
         insertArraySize(newObj, itr->second);
