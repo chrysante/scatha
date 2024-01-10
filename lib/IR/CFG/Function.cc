@@ -153,7 +153,7 @@ static bool isBitInt(Type const* type, size_t bitwidth) {
     return intType->bitwidth() == bitwidth;
 }
 
-static bool isArrayPointer(StructType const& type) {
+[[maybe_unused]] static bool isArrayPointer(StructType const& type) {
     return type.numElements() == 2 && isa<PointerType>(type.elementAt(0)) &&
            isBitInt(type.elementAt(1), 64);
 }
