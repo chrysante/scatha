@@ -7,6 +7,7 @@
 #include "AST/AST.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
+#include "Sema/SemaUtil.h"
 #include "Sema/SimpleAnalzyer.h"
 #include "Util/IssueHelper.h"
 #include "Util/LibUtil.h"
@@ -15,33 +16,8 @@ using namespace scatha;
 using namespace sema;
 using namespace ast;
 using enum ValueCategory;
-
-template <typename T>
-static T* as(auto* entity) {
-    auto* t = dyncast<T*>(entity);
-    if (!t) {
-        throw std::runtime_error("Invalid type");
-    }
-    return t;
-}
-
-/// \Returns the first found entity
-/// \Throws if none is found
-template <typename T = Entity>
-static T* find(Scope* scope, std::string_view name) {
-    auto entities = scope->findEntities(name);
-    REQUIRE(entities.size() == 1);
-    return as<T>(entities.front());
-}
-
-/// \Returns the first found entity
-/// \Throws if none is found
-template <typename T = Entity>
-static T* lookup(SymbolTable& sym, std::string_view name) {
-    auto entities = sym.unqualifiedLookup(name);
-    REQUIRE(entities.size() == 1);
-    return as<T>(sema::stripAlias(entities.front()));
-}
+using test::find;
+using test::lookup;
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
     auto const text = R"(

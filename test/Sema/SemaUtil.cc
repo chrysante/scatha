@@ -1,3 +1,4 @@
-#include "/SemaUtil.h"
+#include "Sema/SemaUtil.h"
 
-using namespace scatha::test;
+using namespace scatha;
+using namespace test;
