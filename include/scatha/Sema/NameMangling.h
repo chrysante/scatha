@@ -16,7 +16,7 @@ struct NameManglingOptions {
 };
 
 /// Name mangling function object that takes a set of options
-class NameMangler {
+class SCATHA_API NameMangler {
 public:
     /// Construct with default options
     NameMangler() = default;
