@@ -108,6 +108,9 @@ public:
     /// Allocates stack memory for a value of type \p type with name \p name
     Alloca* makeLocalVariable(Type const* type, std::string name);
 
+    /// Allocates a local array with possibly dynamic count
+    Alloca* makeLocalArray(Type const* type, Value* count, std::string name);
+
     /// Allocate stack space for \p value and emit a store instruction storing
     /// \p value into the allocated memory. \Returns a pointer to the allocated
     /// memory region

@@ -50,6 +50,14 @@ Alloca* FunctionBuilder::makeLocalVariable(Type const* type, std::string name) {
     return addr;
 }
 
+Alloca* FunctionBuilder::makeLocalArray(Type const* type,
+                                        Value* count,
+                                        std::string name) {
+    auto* addr = new Alloca(ctx, count, type, std::move(name));
+    allocas.push_back(UniquePtr<Alloca>(addr));
+    return addr;
+}
+
 Alloca* FunctionBuilder::storeToMemory(Value* value) {
     return storeToMemory(value, utl::strcat(value->name(), ".addr"));
 }
