@@ -70,27 +70,6 @@ struct InstView: FileViewBase<InstView> {
         };
     }
 
-    static std::string makeErrorMessage(svm::ErrorVariant const& error) {
-        // clang-format off
-        return std::visit(utl::overload {
-            [&](svm::MemoryAccessError const& err) {
-                return utl::strcat("Bad access: ", err.pointer());
-            },
-            [&](svm::AllocationError const& err) {
-                using enum svm::AllocationError::Reason;
-                switch (err.reason()) {
-                case InvalidSize:
-                    return utl::strcat("Allocation error (invalid size): ", err.size());
-                case InvalidAlign:
-                    return utl::strcat("Allocation error (invalid align): ", err.align());
-                }
-            },
-            [&](svm::RuntimeError const& err) {
-                return err.message();
-            },
-        }, error); // clang-format on
-    }
-
     ElementDecorator lineModifier(LineInfo line) const {
         using enum BreakState;
         switch (line.state) {
@@ -106,8 +85,8 @@ struct InstView: FileViewBase<InstView> {
             return lineMessageDecorator("Breakpoint") | color(Color::White) |
                    bgcolor(Color::Green);
         case Error:
-            return lineMessageDecorator(makeErrorMessage(error.value())) |
-                   color(Color::White) | bgcolor(Color::RedLight);
+            return lineMessageDecorator(error.message()) | color(Color::White) |
+                   bgcolor(Color::RedLight);
         }
     }
 
@@ -192,7 +171,7 @@ struct InstView: FileViewBase<InstView> {
     }
 
     Model* model;
-    std::optional<svm::ErrorVariant> error;
+    svm::ErrorVariant error;
     std::atomic<std::optional<uint32_t>> breakIndex;
     std::atomic<BreakState> breakState = {};
     std::vector<long> indexToLineMap;
