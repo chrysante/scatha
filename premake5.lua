@@ -99,6 +99,28 @@ links { "Catch2", "scatha", "svm-lib", "APMath", "termfmt" }
 dependson "ffi-testlib"
 
 ------------------------------------------
+project "scatha-benchmark"
+kind "ConsoleApp"
+defines "SC_APIIMPORT"
+
+includedirs { "benchmark" }
+
+externalincludedirs { 
+    "include", 
+    "svm/include", 
+    "external/utility/include", 
+    "external/Catch/src",
+    "build/Catch/generated-includes",
+    "external/APMath/include",
+    "external/range-v3/include",
+    "external/termfmt/include",
+}
+
+addCppFiles "benchmark"
+libdirs "build/bin/%{cfg.longname}"
+links { "Catch2", "Catch2Main", "scatha", "svm-lib" } 
+
+------------------------------------------
 project "scatha-fuzz"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
