@@ -1555,7 +1555,12 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
 }
 
 Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
-    auto* type = typeMap(temp.type());
+    auto* type = [&]() -> ir::Type const* {
+        if (isFatPointer(&temp)) {
+            return makeArrayViewType(ctx);
+        }
+        return typeMap(temp.type());
+    }();
     auto* address = makeLocalVariable(type, "anon");
     return Value(address, type, Memory);
 }
@@ -1577,6 +1582,18 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                   "Must have at least the object argument");
         auto* address = irArguments.front();
         add<ir::Call>(function, irArguments, std::string{});
+        if (isFatPointer(&expr)) {
+            valueMap.insertArraySize(expr.object(), [=, this] {
+                auto* size =
+                    add<ir::GetElementPointer>(ctx,
+                                               makeArrayViewType(ctx),
+                                               address,
+                                               nullptr,
+                                               std::array{ size_t{ 1 } },
+                                               "arraysize");
+                return Value(size, Register);
+            });
+        }
         return Value(address, type, Memory);
     }
     /// Here we construct trivial types
