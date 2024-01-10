@@ -146,7 +146,7 @@ static void print(std::ostream& str,
             if (vm && inst.opcode == OpCode::cfng) {
                 str << vm->getForeignFunctionName(inst.arg2.raw);
             }
-            else if (vm && inst.opcode == OpCode::cfng) {
+            else if (vm && inst.opcode == OpCode::cbltn) {
                 str << vm->getBuiltinFunctionName(inst.arg2.raw);
             }
             else {
