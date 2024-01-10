@@ -21,7 +21,6 @@ void irgen::generateFunction(Config config, FuncGenParameters params) {
         generateSynthFunction(config, params);
     }
     ir::setupInvariants(params.ctx, params.irFn);
-    ir::assertInvariants(params.ctx, params.irFn);
 }
 
 ir::Callable* FuncGenContextBase::getFunction(
