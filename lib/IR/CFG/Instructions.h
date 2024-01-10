@@ -570,6 +570,7 @@ private:
 /// or array element.
 class GetElementPointer: public AccessValueInst {
 public:
+    /// \overload for `std::initializer_list` member indices
     explicit GetElementPointer(Context& context,
                                Type const* inboundsType,
                                Value* basePointer,
@@ -583,6 +584,8 @@ public:
                           std::span<size_t const>(memberIndices),
                           name) {}
 
+    /// Construct a `getelementptr` instruction. If \p arrayIndex is null a 32
+    /// bit int constant with value 0 is used instead
     explicit GetElementPointer(Context& context,
                                Type const* inboundsType,
                                Value* basePointer,

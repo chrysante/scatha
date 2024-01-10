@@ -271,7 +271,8 @@ GetElementPointer::GetElementPointer(Context& context,
     AccessValueInst(NodeType::GetElementPointer,
                     context.ptrType(),
                     std::move(name),
-                    { basePointer, arrayIndex },
+                    { basePointer,
+                      arrayIndex ? arrayIndex : context.intConstant(0, 32) },
                     { inboundsType }) {
     setMemberIndices(memberIndices);
 }
