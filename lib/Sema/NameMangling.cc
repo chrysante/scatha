@@ -30,7 +30,7 @@ struct Impl {
                 return { std::string(lib.name()), false };
             },
             [&](Entity const& entity) -> RetType {
-                return { std::string(entity.name()), true };
+                return { compute(entity), true };
             },
         }; // clang-format on
     }
@@ -84,7 +84,7 @@ struct Impl {
     }
 
     std::string computeImpl(UniquePtrType const& type) {
-        return utl::strcat("*_U", compute(type.base()));
+        return utl::strcat("_U", compute(type.base()));
     }
 
     std::string computeImpl(Function const& func) {
