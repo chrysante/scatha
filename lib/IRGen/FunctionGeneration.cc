@@ -39,6 +39,11 @@ ir::Callable* FuncGenContextBase::getFunction(
                            config.nameMangler);
 }
 
+CallingConvention const& FuncGenContextBase::getCC(
+    sema::Function const* function) {
+    return functionMap.metaData(function).CC;
+}
+
 ir::ForeignFunction* FuncGenContextBase::getBuiltin(svm::Builtin builtin) {
     size_t index = static_cast<size_t>(builtin);
     auto* semaBuiltin = symbolTable.builtinFunction(index);
@@ -73,9 +78,4 @@ ir::Call* FuncGenContextBase::callMemset(ir::Value* dest,
                                          size_t numBytes,
                                          int value) {
     return callMemset(dest, ctx.intConstant(numBytes, 64), value);
-}
-
-CallingConvention const& FuncGenContextBase::getCC(
-    sema::Function const* function) {
-    return functionMap.metaData(function).CC;
 }

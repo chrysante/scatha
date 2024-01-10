@@ -38,11 +38,9 @@ struct LoopDesc {
 };
 
 struct FuncGenContext: FuncGenContextBase {
-    /// Local state
-    ValueMap valueMap;
     utl::stack<LoopDesc, 4> loopStack;
 
-    FuncGenContext(auto&... args): FuncGenContextBase(args...), valueMap(ctx) {}
+    FuncGenContext(auto&... args): FuncGenContextBase(args...) {}
 
     /// # Statements
     void generate(ast::Statement const&);
@@ -1331,17 +1329,35 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     }();
     std::array<ir::Value*, 2> args = { bytesize,
                                        ctx.intConstant(baseType->align(), 64) };
-    ir::Call* arrayPtr = insert<ir::Call>(insertBefore, alloc, args, "alloc");
-    ir::ExtractValue* ptr = insert<ir::ExtractValue>(insertBefore,
-                                                     arrayPtr,
-                                                     std::array{ size_t{ 0 } },
-                                                     "pointer");
+    ir::Value* arrayPtr = insert<ir::Call>(insertBefore, alloc, args, "alloc");
+    ir::Value* ptr = insert<ir::ExtractValue>(insertBefore,
+                                              arrayPtr,
+                                              std::array{ size_t{ 0 } },
+                                              "pointer");
     addr->replaceAllUsesWith(ptr);
-    Value result(storeToMemory(ptr), ctx.ptrType(), Memory);
-    if (isFatPointer(&expr)) {
-        valueMap.insertArraySizeOf(expr.object(), expr.value()->object());
+    if (!isFatPointer(&expr)) {
+        return Value(storeToMemory(ptr), ctx.ptrType(), Memory);
     }
-    return result;
+    else {
+        auto* viewType = makeArrayViewType(ctx);
+        auto* count =
+            toRegister(valueMap.arraySize(expr.value()->object()), expr);
+        ptr = buildStructure(viewType,
+                             std::array<ir::Value*, 2>{ ptr, count },
+                             "uniqueptr");
+        auto* ptrAddr = storeToMemory(ptr);
+        valueMap.insertArraySize(expr.object(), [=, this] {
+            auto* sizeAddr =
+                add<ir::GetElementPointer>(ctx,
+                                           viewType,
+                                           ptrAddr,
+                                           nullptr,
+                                           std::array{ size_t{ 1 } },
+                                           "unique.array.size.addr");
+            return Value(sizeAddr, ctx.intType(64), Memory);
+        });
+        return Value(ptrAddr, viewType, Memory);
+    }
 }
 
 static sema::ObjectType const* stripPtr(sema::ObjectType const* type) {
@@ -1591,7 +1607,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                                                nullptr,
                                                std::array{ size_t{ 1 } },
                                                "arraysize");
-                return Value(size, Register);
+                return Value(size, ctx.intType(64), Memory);
             });
         }
         return Value(address, type, Memory);

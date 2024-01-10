@@ -53,17 +53,22 @@ void generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
 /// and compiler generated functions
 struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     Config config;
+    ValueMap valueMap;
 
     using FuncGenParameters::ctx;
 
     FuncGenContextBase(Config config, FuncGenParameters params):
         FuncGenParameters(params),
         FunctionBuilder(params.ctx, &params.irFn),
-        config(config) {}
+        config(config),
+        valueMap(ctx) {}
 
     /// Map \p semaFn to the corresponding IR function. If the function is not
     /// declared it will be declared.
     ir::Callable* getFunction(sema::Function const* semaFn);
+
+    /// Get the calling convention of \p function
+    CallingConvention const& getCC(sema::Function const* function);
 
     ///
     ir::ForeignFunction* getBuiltin(svm::Builtin builtin);
@@ -81,9 +86,6 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
 
     /// \overload for `size_t numBytes`
     ir::Call* callMemset(ir::Value* dest, size_t numBytes, int value);
-
-    /// Get the calling convention of \p function
-    CallingConvention const& getCC(sema::Function const* function);
 };
 
 } // namespace scatha::irgen

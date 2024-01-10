@@ -5,6 +5,7 @@
 #include "IR/Context.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
+#include "IRGen/Utility.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -32,6 +33,7 @@ struct FuncGenContext: FuncGenContextBase {
     void genImpl(sema::StructType const& type);
     void genImpl(sema::ArrayType const& type);
     void genImpl(sema::UniquePtrType const& type);
+    ir::Value* getUniquePtrCountAddr(ir::Value* thisPtr);
     void genImpl(sema::ObjectType const&) { SC_UNREACHABLE(); }
 
     void genMemberConstruction(ir::Instruction const* before,
@@ -44,6 +46,9 @@ struct FuncGenContext: FuncGenContextBase {
                                                   ir::Value* index);
 
     /// \Returns the loop structure
+    LoopDesc genLoop(ir::Value* count);
+
+    /// \overload
     LoopDesc genLoop(size_t count);
 };
 
@@ -75,27 +80,46 @@ void FuncGenContext::genImpl(sema::StructType const& type) {
 }
 
 void FuncGenContext::genImpl(sema::ArrayType const& type) {
-    SC_ASSERT(!type.isDynamic(),
-              "Cannot generate SLF for dynamic array (or can we?)");
     auto* elemType = type.elementType();
     SC_ASSERT(!elemType->hasTrivialLifetime(),
               "We should not generate lifetime functions for arrays of trivial "
               "lifetime types");
-    auto loop = genLoop(type.count());
-    if (!loop.body) {
-        return;
-    }
+    auto* count = [&]() -> ir::Value* {
+        if (type.isDynamic()) {
+            /// The count is the second function argument
+            return irFn.parameters().front().next();
+        }
+        else {
+            return ctx.intConstant(type.count(), 64);
+        }
+    }();
+    auto loop = genLoop(count);
     withBlockCurrent(loop.body, [&] {
         genMemberConstruction(loop.insertPoint, *elemType, loop.index);
     });
 }
 
+ir::Value* FuncGenContext::getUniquePtrCountAddr(ir::Value* thisPtr) {
+    return add<ir::GetElementPointer>(ctx,
+                                      makeArrayViewType(ctx),
+                                      thisPtr,
+                                      nullptr,
+                                      std::array{ size_t{ 1 } },
+                                      "sizeptr");
+}
+
 void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
+    auto* arrayType = dyncast<sema::ArrayType const*>(type.base().get());
+    bool isDynArray = arrayType ? arrayType->isDynamic() : false;
     using enum sema::SpecialLifetimeFunction;
     switch (kind) {
     case DefaultConstructor: {
         auto* self = &irFn.parameters().front();
         add<ir::Store>(self, ctx.nullpointer());
+        if (isDynArray) {
+            auto* sizeptr = getUniquePtrCountAddr(self);
+            add<ir::Store>(sizeptr, ctx.intConstant(0, 64));
+        }
         break;
     }
     case CopyConstructor:
@@ -103,8 +127,9 @@ void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
     case MoveConstructor: {
         auto* self = &irFn.parameters().front();
         auto* rhs = &irFn.parameters().back();
-        add<ir::Store>(self, add<ir::Load>(rhs, ctx.ptrType(), "rhs"));
-        add<ir::Store>(rhs, ctx.nullpointer());
+        size_t numBytes = isDynArray ? 16 : 8;
+        callMemcpy(self, rhs, numBytes);
+        callMemset(rhs, numBytes, 0);
         break;
     }
     case Destructor: {
@@ -115,25 +140,45 @@ void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
                                           ir::CompareMode::Unsigned,
                                           ir::CompareOperation::Equal,
                                           "ptr.null");
-        auto* then = newBlock("delete");
-        auto* end = newBlock("end");
-        add<ir::Branch>(cond, end, then);
+        auto* deleteBlock = newBlock("delete");
+        auto* endBlock = newBlock("end");
+        add<ir::Branch>(cond, endBlock, deleteBlock);
 
-        add(then);
+        add(deleteBlock);
         auto* baseType = type.base().get();
+        auto* count = [&]() -> ir::Value* {
+            if (isDynArray) {
+                auto* countptr = getUniquePtrCountAddr(self);
+                return add<ir::Load>(countptr, ctx.intType(64), "array.count");
+            }
+            return nullptr;
+        }();
         if (auto* dtor = baseType->specialLifetimeFunction(Destructor)) {
-            add<ir::Call>(getFunction(dtor), std::array<ir::Value*, 1>{ ptr });
+            utl::small_vector<ir::Value*> args = { ptr };
+            if (isDynArray) {
+                args.push_back(count);
+            }
+            add<ir::Call>(getFunction(dtor), args);
         }
         auto* dealloc = getBuiltin(svm::Builtin::dealloc);
-        std::array<ir::Value*, 3> args = {
-            ptr,
-            ctx.intConstant(type.base()->size(), 64),
-            ctx.intConstant(type.base()->align(), 64)
-        };
+        auto* bytesize = [&]() -> ir::Value* {
+            if (isDynArray) {
+                return add<ir::ArithmeticInst>(
+                    count,
+                    ctx.intConstant(arrayType->elementType()->size(), 64),
+                    ir::ArithmeticOperation::Mul,
+                    "array.bytesize");
+            }
+            return ctx.intConstant(type.base()->size(), 64);
+        }();
+        std::array<ir::Value*, 3> args = { ptr,
+                                           bytesize,
+                                           ctx.intConstant(type.base()->align(),
+                                                           64) };
         add<ir::Call>(dealloc, args);
-        add<ir::Goto>(end);
+        add<ir::Goto>(endBlock);
 
-        add(end);
+        add(endBlock);
         break;
     }
     }
@@ -210,10 +255,7 @@ utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
     return args;
 }
 
-LoopDesc FuncGenContext::genLoop(size_t count) {
-    if (count == 0) {
-        return {};
-    }
+LoopDesc FuncGenContext::genLoop(ir::Value* count) {
     auto* pred = &currentBlock();
     auto* body = newBlock("loop.body");
     auto* end = newBlock("loop.end");
@@ -231,7 +273,7 @@ LoopDesc FuncGenContext::genLoop(size_t count) {
                                         "loop.inc");
     phi->setArgument(1, inc);
     auto* cond = add<ir::CompareInst>(inc,
-                                      ctx.intConstant(count, 64),
+                                      count,
                                       ir::CompareMode::Unsigned,
                                       ir::CompareOperation::Equal,
                                       "loop.test");
@@ -239,4 +281,8 @@ LoopDesc FuncGenContext::genLoop(size_t count) {
     add(end);
 
     return LoopDesc{ body, phi, inc };
+}
+
+LoopDesc FuncGenContext::genLoop(size_t count) {
+    return genLoop(ctx.intConstant(count, 64));
 }

@@ -399,9 +399,18 @@ fn main() {
 }
 
 TEST_CASE("Unique ptr to dynamic array", "[end-to-end][lib][nativelib]") {
-    test::runReturnsTest(5, R"(
-public fn main() {
-    let ptr = unique str("12345");
+    SECTION("Default construct") {
+        test::checkReturns(0, R"(
+public fn main() -> int {
+    var ptr: *unique [int];
     return ptr.count;
 })");
+    }
+    SECTION("Unique expr") {
+        test::checkReturns(5, R"(
+         public fn main() {
+            let ptr = unique str("12345");
+            return ptr.count;
+        })");
+    }
 }
