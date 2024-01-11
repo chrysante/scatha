@@ -25,13 +25,13 @@ class Value {
 public:
     Value() = default;
 
-    explicit Value(ir::Value* value,
-                   ir::Type const* type,
-                   ValueLocation location):
+    SC_NODEBUG explicit Value(ir::Value* value,
+                              ir::Type const* type,
+                              ValueLocation location):
 
         _val(value), _type(type), _loc(location) {}
 
-    explicit Value(ir::Value* value, ValueLocation location):
+    SC_NODEBUG explicit Value(ir::Value* value, ValueLocation location):
         Value(value, value->type(), location) {
         SC_ASSERT(location == ValueLocation::Register,
                   "If the value is in memory the type must be specified "
@@ -40,28 +40,34 @@ public:
 
     /// \Returns either the value or the address of the value, depending on
     /// whether this value is in a register or in memory
-    ir::Value* get() const { return _val; }
+    SC_NODEBUG ir::Value* get() const { return _val; }
 
     /// \Returns the IR type of the _abstract_ value. This differs from
     /// `get()->type()` because if the value is in memory the concrete IR type
     /// is always `ptr`
-    ir::Type const* type() const { return _type; }
+    SC_NODEBUG ir::Type const* type() const { return _type; }
 
     /// \Returns the location of the value
-    ValueLocation location() const { return _loc; }
+    SC_NODEBUG ValueLocation location() const { return _loc; }
 
     /// \Returns `true` if this value is in a register
-    bool isRegister() const { return location() == ValueLocation::Register; }
+    SC_NODEBUG bool isRegister() const {
+        return location() == ValueLocation::Register;
+    }
 
     /// \Returns `true` if this value is in memory
-    bool isMemory() const { return location() == ValueLocation::Memory; }
+    SC_NODEBUG bool isMemory() const {
+        return location() == ValueLocation::Memory;
+    }
 
     /// Test the value pointer for null
-    explicit operator bool() const { return !!_val; }
+    SC_NODEBUG explicit operator bool() const { return !!_val; }
 
     bool operator==(Value const&) const = default;
 
-    size_t hashValue() const { return utl::hash_combine(_val, _type, _loc); }
+    SC_NODEBUG size_t hashValue() const {
+        return utl::hash_combine(_val, _type, _loc);
+    }
 
 private:
     ir::Value* _val = nullptr;

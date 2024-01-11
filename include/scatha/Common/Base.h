@@ -145,6 +145,13 @@
 #define SC_CONCAT(a, b)      SC_CONCAT_IMPL(a, b)
 #define SC_CONCAT_IMPL(a, b) a##b
 
+/// # SC_NODEBUG
+#if defined(__GNUC__)
+#define SC_NODEBUG __attribute__((nodebug))
+#else
+#define SC_NODEBUG
+#endif
+
 namespace scatha {
 
 using i8 = std::int8_t;
