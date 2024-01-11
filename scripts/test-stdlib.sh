@@ -1,0 +1,15 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PROJ_DIR="$SCRIPT_DIR/.."
+
+cd $PROJ_DIR/scripts
+./compile-stdlib.sh
+
+cd $PROJ_DIR/stdlib
+
+for filename in test/*.sc; do
+    name=${filename##*/}
+    test_exec="build/${name%.*}"
+    scathac -o -L build -O $test_exec $filename
+    ./$test_exec
+done

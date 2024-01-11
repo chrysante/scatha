@@ -5,4 +5,3 @@ PROJ_DIR="$SCRIPT_DIR/.."
 cd $PROJ_DIR/stdlib
 
 scathac -o -T staticlib -O build/std src/*.sc
-scathac -o -L build -O build/test test/*.sc
