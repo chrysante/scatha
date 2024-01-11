@@ -3,6 +3,7 @@
 #include <optional>
 #include <sstream>
 
+#include <utl/scope_guard.hpp>
 #include <utl/strcat.hpp>
 
 #include "Sema/Entity.h"
@@ -15,6 +16,9 @@ namespace {
 
 struct Impl {
     NameManglingOptions const& options;
+    /// We keep track of the invocation depth of the `compute` function because
+    /// we only want to prepend the global name prefix once on the top level
+    int level = 0;
 
     auto getScopeNameAndContinue(Entity const& entity) {
         using RetType = std::pair<std::optional<std::string>, bool>;
@@ -24,10 +28,16 @@ struct Impl {
                 return { std::nullopt, false };
             },
             [&](FileScope const&) -> RetType {
-                return { options.globalPrefix, false };
+                if (level == 1) {
+                    return { options.globalPrefix, false };
+                }
+                return { std::nullopt, false };
             },
             [&](NativeLibrary const& lib) -> RetType {
-                return { std::string(lib.name()), false };
+                if (level == 1) {
+                    return { std::string(lib.name()), false };
+                }
+                return { std::nullopt, false };
             },
             [&](Entity const& entity) -> RetType {
                 return { compute(entity), true };
@@ -53,6 +63,8 @@ struct Impl {
     }
 
     std::string compute(Entity const& entity) {
+        ++level;
+        utl::scope_guard guard = [&] { --level; };
         return visit(entity,
                      [this](auto& entity) { return computeImpl(entity); });
     }
@@ -60,7 +72,7 @@ struct Impl {
     std::string compute(QualType type) {
         std::string name = compute(*type);
         if (type.isMut()) {
-            return utl::strcat("mut-", name);
+            return utl::strcat("_M", name);
         }
         return name;
     }
@@ -72,26 +84,26 @@ struct Impl {
     }
 
     std::string computeImpl(ArrayType const& type) {
-        return utl::strcat("_A", compute(type.elementType()));
+        return utl::strcat("_A", Impl{ options }.compute(type.elementType()));
     }
 
     std::string computeImpl(RawPtrType const& type) {
-        return utl::strcat("_P", compute(type.base()));
+        return utl::strcat("_P", Impl{ options }.compute(type.base()));
     }
 
     std::string computeImpl(ReferenceType const& type) {
-        return utl::strcat("_R", compute(type.base()));
+        return utl::strcat("_R", Impl{ options }.compute(type.base()));
     }
 
     std::string computeImpl(UniquePtrType const& type) {
-        return utl::strcat("_U", compute(type.base()));
+        return utl::strcat("_U", Impl{ options }.compute(type.base()));
     }
 
     std::string computeImpl(Function const& func) {
         std::stringstream sstr;
         sstr << computeBase(func);
         for (auto* arg: func.argumentTypes()) {
-            sstr << "-" << compute(*arg);
+            sstr << "-" << Impl{ options }.compute(*arg);
         }
         return std::move(sstr).str();
     }
