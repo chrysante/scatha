@@ -528,13 +528,10 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         return valueMap(lit.object());
     case String: {
         auto const& text = lit.value<std::string>();
-        auto global = allocate<ir::GlobalVariable>(
-            ctx,
-            ir::GlobalVariable::Const,
-            ctx.stringLiteral(text),
-            nameFromSourceLoc("string", lit.sourceLocation()));
-        auto* data = mod.addGlobal(std::move(global));
-        auto value = Value(data, data->initializer()->type(), Memory);
+        auto name = nameFromSourceLoc("string", lit.sourceLocation());
+        auto* data = ctx.stringLiteral(text);
+        auto* global = mod.makeGlobalConstant(ctx, data, std::move(name));
+        auto value = Value(global, data->type(), Memory);
         valueMap.insertArraySize(lit.object(), text.size());
         return value;
     }
@@ -1231,14 +1228,9 @@ bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
         elems.push_back(constant);
     }
     auto* irType = ctx.arrayType(typeMap(elemType), list.elements().size());
-    auto* array = ctx.arrayConstant(elems, irType);
-    auto global =
-        allocate<ir::GlobalVariable>(ctx,
-                                     ir::GlobalVariable::Const,
-                                     array,
-                                     nameFromSourceLoc("array",
-                                                       list.sourceLocation()));
-    auto* source = mod.addGlobal(std::move(global));
+    auto* value = ctx.arrayConstant(elems, irType);
+    auto name = nameFromSourceLoc("array", list.sourceLocation());
+    auto* source = mod.makeGlobalConstant(ctx, value, std::move(name));
     callMemcpy(dest, source, irType->size());
     return true;
 }

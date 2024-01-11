@@ -65,6 +65,14 @@ public:
         return cast<G*>(addGlobal(uniquePtrCast<Global>(std::move(value))));
     }
 
+    /// Creates a global constant with value \p value and name \p name if no
+    /// global constant with the same value exists yet. Otherwise returns the
+    /// existing constant. This function is used to allocate global constants to
+    /// unique them.
+    GlobalVariable* makeGlobalConstant(Context& ctx,
+                                       Constant* value,
+                                       std::string name);
+
     /// Erase the global  \p global from this module.  \p global can also be a
     /// function
     void erase(Global* global);
@@ -88,6 +96,8 @@ private:
     utl::vector<UniquePtr<StructType>> structs;
     List<Global> _globals;
     utl::hashset<ForeignFunction*> _extFunctions;
+    /// Map used to unique global constants
+    utl::hashmap<Constant*, GlobalVariable*> globalConstMap;
     List<Function> funcs;
 };
 
