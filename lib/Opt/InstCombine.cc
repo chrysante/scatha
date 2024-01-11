@@ -530,23 +530,23 @@ static Value* negatedValue(Value* value) {
 /// `(-a) +   b  => b - a`
 /// `  a  - (-b) => a + b
 bool InstCombineCtx::tryMergeNegate(ArithmeticInst* inst) {
-    SC_EXPECT(inst->operation() == ArithmeticOperation::Add ||
-              inst->operation() == ArithmeticOperation::Sub);
+    using enum ArithmeticOperation;
+    SC_EXPECT(inst->operation() == Add || inst->operation() == Sub);
     if (auto* negated = negatedValue(inst->rhs())) {
-        if (inst->operation() == ArithmeticOperation::Add) {
-            inst->setOperation(ArithmeticOperation::Sub);
+        if (inst->operation() == Add) {
+            inst->setOperation(Sub);
             inst->setRHS(negated);
             return true;
         }
         else {
-            inst->setOperation(ArithmeticOperation::Add);
+            inst->setOperation(Add);
             inst->setRHS(negated);
             return true;
         }
     }
     else if (auto* negated = negatedValue(inst->lhs())) {
-        if (inst->operation() == ArithmeticOperation::Add) {
-            inst->setOperation(ArithmeticOperation::Sub);
+        if (inst->operation() == Add) {
+            inst->setOperation(Sub);
             inst->setLHS(inst->rhs());
             inst->setRHS(negated);
             return true;

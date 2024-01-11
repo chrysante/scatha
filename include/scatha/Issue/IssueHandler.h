@@ -28,10 +28,6 @@ public:
     SC_MOVEONLY(IssueHandler);
 
     /// Add \p error to this issue handler
-    /// \Warning Expects \p issue to be allocated by `new` and takes ownership
-    void push(Issue* issue) { push(std::unique_ptr<Issue>(issue)); }
-
-    /// \overload
     void push(std::unique_ptr<Issue> issue) {
         _issues.push_back(std::move(issue));
     }
@@ -41,7 +37,7 @@ public:
         requires std::derived_from<T, Issue> &&
                  std::constructible_from<T, Args...>
     void push(Args&&... args) {
-        push(new T(std::forward<Args>(args)...));
+        push(std::make_unique<T>(std::forward<Args>(args)...));
     }
 
     /// Erase all issues
