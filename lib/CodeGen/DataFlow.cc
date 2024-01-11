@@ -6,7 +6,9 @@
 #include <utl/vector.hpp>
 
 #include "CodeGen/TargetInfo.h"
-#include "IR/CFG.h"
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Loop.h"
 #include "MIR/CFG.h"
 #include "MIR/Instructions.h"

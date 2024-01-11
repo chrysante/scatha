@@ -7,7 +7,7 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
-#include "IR/CFG.h"
+#include "IR/CFG/Constants.h"
 #include "IR/Context.h"
 #include "IR/Print.h"
 #include "IR/Type.h"

@@ -12,7 +12,7 @@
 
 #include "AST/AST.h"
 #include "Common/DebugInfo.h"
-#include "IR/CFG.h"
+#include "IR/CFG/Function.h"
 #include "IR/Context.h"
 #include "IR/IRParser.h"
 #include "IR/Module.h"

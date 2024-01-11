@@ -1,7 +1,9 @@
 #include "IRGen/FunctionGeneration.h"
 
 #include "IR/Builder.h"
-#include "IR/CFG.h"
+#include "IR/CFG/Constants.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"

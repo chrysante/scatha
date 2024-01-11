@@ -45,23 +45,19 @@ void Value::setName(std::string name) {
         func.nameFac.tryErase(_name);
         name = func.nameFac.makeUnique(std::move(name));
     };
-    // clang-format off
-    visit(*this, utl::overload{
-        [&](BasicBlock& bb) {
-            auto* func = bb.parent();
-            if (func) {
-                makeUnique(name, *func);
-            }
-        },
-        [&](Instruction& inst) {
-            auto* bb   = inst.parent();
-            auto* func = bb ? bb->parent() : nullptr;
-            if (func) {
-                makeUnique(name, *func);
-            }
-        },
-        [](Value const&) {}
-    }); // clang-format on
+    if (auto* BB = dyncast<BasicBlock*>(this)) {
+        auto* func = BB->parent();
+        if (func) {
+            makeUnique(name, *func);
+        }
+    }
+    else if (auto* inst = dyncast<Instruction*>(this)) {
+        auto* BB = inst->parent();
+        auto* func = BB ? BB->parent() : nullptr;
+        if (func) {
+            makeUnique(name, *func);
+        }
+    }
     _name = std::move(name);
 }
 

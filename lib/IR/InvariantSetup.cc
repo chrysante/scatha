@@ -1,6 +1,9 @@
 #include "IR/InvariantSetup.h"
 
-#include "IR/CFG.h"
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Constants.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Context.h"
 
 using namespace scatha;

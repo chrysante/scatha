@@ -4,7 +4,9 @@
 
 #include <range/v3/view.hpp>
 
-#include "IR/CFG.h"
+#include "IR/CFG/Constants.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
 

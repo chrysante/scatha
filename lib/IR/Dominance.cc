@@ -10,7 +10,9 @@
 
 #include "Common/PrintUtil.h"
 #include "Common/Ranges.h"
-#include "IR/CFG.h"
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 
 using namespace scatha;
 using namespace ir;
@@ -19,8 +21,8 @@ using DomFrontMap = DominanceInfo::DomFrontMap;
 
 static void merge(utl::hashset<BasicBlock*>& dest,
                   utl::hashset<BasicBlock*> const& source) {
-    for (auto* bb: source) {
-        dest.insert(bb);
+    for (auto* BB: source) {
+        dest.insert(BB);
     }
 }
 
@@ -50,8 +52,8 @@ static utl::hashset<BasicBlock*> intersect(auto&& range) {
 }
 
 static utl::small_vector<BasicBlock*> exitNodes(Function& function) {
-    return function | ranges::views::filter([](auto& bb) {
-        return isa<Return>(bb.terminator());
+    return function | ranges::views::filter([](auto& BB) {
+        return isa<Return>(BB.terminator());
     }) | TakeAddress |
            ToSmallVector<>;
 }
@@ -77,8 +79,8 @@ void ir::print(DomTree const& domTree, std::ostream& str) {
 }
 
 void PrintCtx::print(DomTree::Node const& node) {
-    auto* bb = node.basicBlock();
-    std::string_view name = bb ? bb->name() : "<virtual root>";
+    auto* BB = node.basicBlock();
+    std::string_view name = BB ? BB->name() : "<virtual root>";
     str << indent << name << ":\n";
     indent.increase();
     for (auto* child: node.children()) {
@@ -128,15 +130,15 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
     /// https://pages.cs.wisc.edu/~fischer/cs701.f07/lectures/Lecture20.pdf
     auto const nodeSet = [&] {
         utl::hashset<BasicBlock*> res;
-        for (auto& bb: function) {
-            res.insert(&bb);
+        for (auto& BB: function) {
+            res.insert(&BB);
         }
         return res;
     }();
     DomMap domSets = [&] {
         DomMap res;
-        for (auto& bb: function) {
-            res.insert({ &bb, nodeSet });
+        for (auto& BB: function) {
+            res.insert({ &BB, nodeSet });
         }
         return res;
     }();
@@ -145,18 +147,18 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
               "outside of this function");
     auto worklist = entries | ranges::to<utl::hashset<BasicBlock*>>;
     while (!worklist.empty()) {
-        auto* bb = *worklist.begin();
+        auto* BB = *worklist.begin();
         worklist.erase(worklist.begin());
-        utl::hashset<BasicBlock*> newDomSet = { bb };
+        utl::hashset<BasicBlock*> newDomSet = { BB };
         auto predDomSets =
-            predecessors(bb) |
+            predecessors(BB) |
             ranges::views::transform(
                 [&](auto* pred) -> auto const& { return domSets[pred]; });
         merge(newDomSet, intersect(predDomSets));
-        auto& oldDomSet = domSets[bb];
+        auto& oldDomSet = domSets[BB];
         if (newDomSet != oldDomSet) {
             oldDomSet = newDomSet;
-            for (auto* succ: successors(bb)) {
+            for (auto* succ: successors(BB)) {
                 worklist.insert(succ);
             }
         }
@@ -168,8 +170,8 @@ DominanceInfo::DomMap DominanceInfo::computeDominatorSets(Function& function) {
     return computeDomSetsImpl(
         function,
         std::array{ &function.entry() },
-        [](BasicBlock* bb) { return bb->predecessors(); },
-        [](BasicBlock* bb) { return bb->successors(); });
+        [](BasicBlock* BB) { return BB->predecessors(); },
+        [](BasicBlock* BB) { return BB->successors(); });
 }
 
 DominanceInfo::DomMap DominanceInfo::computePostDomSets(Function& function) {
@@ -181,8 +183,8 @@ DominanceInfo::DomMap DominanceInfo::computePostDomSets(Function& function) {
     return computeDomSetsImpl(
         function,
         exits,
-        [](BasicBlock* bb) { return bb->successors(); },
-        [](BasicBlock* bb) { return bb->predecessors(); });
+        [](BasicBlock* BB) { return BB->successors(); },
+        [](BasicBlock* BB) { return BB->predecessors(); });
 }
 
 DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
@@ -193,8 +195,8 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
     DomTree result;
     auto const nodeSet = function | TakeAddress |
                          ranges::to<utl::hashset<BasicBlock*>>;
-    result._nodes = nodeSet | ranges::views::transform([](BasicBlock* bb) {
-        return DomTree::Node{ bb };
+    result._nodes = nodeSet | ranges::views::transform([](BasicBlock* BB) {
+        return DomTree::Node{ BB };
     }) | ranges::to<DomTree::NodeSet>;
     if (entry) {
         result._root = result.findMut(entry);
@@ -250,8 +252,8 @@ DomTree DominanceInfo::computeDomTree(Function& function,
                               domSets,
                               &function.entry(),
                               {},
-                              [](BasicBlock* bb) {
-        return bb->predecessors();
+                              [](BasicBlock* BB) {
+        return BB->predecessors();
     });
 }
 
@@ -267,7 +269,7 @@ DomTree DominanceInfo::computePostDomTree(Function& function,
                               postDomSets,
                               exitNode,
                               exits,
-                              [](BasicBlock* bb) { return bb->successors(); });
+                              [](BasicBlock* BB) { return BB->successors(); });
 }
 
 DomFrontMap DominanceInfo::computeDomFrontsImpl(ir::Function& function,
@@ -318,16 +320,16 @@ DomFrontMap DominanceInfo::computeDomFrontsImpl(ir::Function& function,
 
 DomFrontMap DominanceInfo::computeDomFronts(Function& function,
                                             DomTree const& domTree) {
-    return computeDomFrontsImpl(function, domTree, [](BasicBlock* bb) {
-        return bb->successors();
+    return computeDomFrontsImpl(function, domTree, [](BasicBlock* BB) {
+        return BB->successors();
     });
 }
 
 DomFrontMap DominanceInfo::computePostDomFronts(Function& function,
                                                 DomTree const& postDomTree) {
     auto exits = exitNodes(function);
-    return computeDomFrontsImpl(function, postDomTree, [&](BasicBlock* bb) {
-        return bb ? bb->predecessors() : std::span<BasicBlock* const>(exits);
+    return computeDomFrontsImpl(function, postDomTree, [&](BasicBlock* BB) {
+        return BB ? BB->predecessors() : std::span<BasicBlock* const>(exits);
     });
 }
 

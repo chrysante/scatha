@@ -3,7 +3,7 @@
 #include <range/v3/view.hpp>
 #include <utl/utility.hpp>
 
-#include "IR/CFG.h"
+#include "IR/CFG/Function.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"

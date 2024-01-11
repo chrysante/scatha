@@ -5,7 +5,7 @@
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
-#include "IR/CFG.h"
+#include "IR/CFG/Constants.h"
 #include "IR/Type.h"
 #include "IR/VectorHash.h"
 

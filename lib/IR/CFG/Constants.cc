@@ -2,7 +2,6 @@
 
 #include <range/v3/view.hpp>
 
-#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
 

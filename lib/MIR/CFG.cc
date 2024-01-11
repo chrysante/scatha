@@ -1,6 +1,7 @@
 #include "MIR/CFG.h"
 
-#include "IR/CFG.h"
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
 #include "MIR/Instructions.h"
 #include "MIR/Register.h"
 

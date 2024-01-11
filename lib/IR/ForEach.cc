@@ -1,6 +1,6 @@
 #include "IR/ForEach.h"
 
-#include "IR/CFG.h"
+#include "IR/CFG/Function.h"
 #include "IR/Module.h"
 #include "IR/PassRegistry.h"
 

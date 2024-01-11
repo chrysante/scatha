@@ -11,7 +11,9 @@
 
 #include "Common/PrintUtil.h"
 #include "Debug/DebugGraphviz.h"
-#include "IR/CFG.h"
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
 

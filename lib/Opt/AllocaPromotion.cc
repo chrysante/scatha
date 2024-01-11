@@ -9,7 +9,10 @@
 #include <utl/vector.hpp>
 
 #include "IR/Builder.h"
-#include "IR/CFG.h"
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Constants.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Type.h"

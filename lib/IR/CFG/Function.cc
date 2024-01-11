@@ -4,7 +4,6 @@
 
 #include <range/v3/view.hpp>
 
-#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"

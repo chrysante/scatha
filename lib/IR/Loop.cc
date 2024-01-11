@@ -11,7 +11,8 @@
 #include "Common/PrintUtil.h"
 #include "Common/Ranges.h"
 #include "Common/TreeFormatter.h"
-#include "IR/CFG.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Dominance.h"
 #include "IR/PassRegistry.h"
 

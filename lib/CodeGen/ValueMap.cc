@@ -1,8 +1,5 @@
 #include "CodeGen/ValueMap.h"
 
-#include "IR/CFG.h"
-#include "MIR/CFG.h"
-
 using namespace scatha;
 using namespace cg;
 

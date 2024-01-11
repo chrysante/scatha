@@ -1,6 +1,8 @@
 #include "IR/Module.h"
 
-#include "IR/CFG.h"
+#include "IR/CFG/Constants.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/GlobalVariable.h"
 #include "IR/Type.h"
 
 using namespace scatha;

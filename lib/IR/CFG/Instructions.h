@@ -192,7 +192,7 @@ private:
 class SCATHA_API TerminatorInst: public Instruction {
     template <typename T>
     static auto targetsImpl(auto& self) {
-        return self.operands() | ranges::views::drop(self.nonTargetArguments) |
+        return self.operands().subspan(self.nonTargetArguments) |
                ranges::views::transform(cast<T*>);
     }
 
