@@ -981,7 +981,13 @@ Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
 Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
     auto* ptr = getValue<Memory>(expr.referred());
     valueMap.insertArraySizeOf(expr.object(), expr.referred()->object());
-    return Value(ptr, Register);
+    if (!isFatPointer(&expr)) {
+        return Value(ptr, Register);
+    }
+    auto* count =
+        toRegister(valueMap.arraySize(expr.referred()->object()), expr);
+    auto* arrayPtr = makeArrayPointer(ptr, count);
+    return Value(arrayPtr, Register);
 }
 
 Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
@@ -1019,10 +1025,16 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     /// Generate end block.
     add(endBlock);
     auto loc = commonLocation(thenVal.location(), elseVal.location());
-    std::array phiArgs = {
-        ir::PhiMapping{ thenBlock, toValueLocation(loc, thenVal, condExpr) },
-        ir::PhiMapping{ elseBlock, toValueLocation(loc, elseVal, condExpr) }
-    };
+    auto* thenValResolved =
+        withBlockCurrent(thenBlock, std::prev(thenBlock->end()), [&] {
+        return toValueLocation(loc, thenVal, condExpr);
+    });
+    auto* elseValResolved =
+        withBlockCurrent(elseBlock, std::prev(elseBlock->end()), [&] {
+        return toValueLocation(loc, elseVal, condExpr);
+    });
+    std::array phiArgs = { ir::PhiMapping{ thenBlock, thenValResolved },
+                           ir::PhiMapping{ elseBlock, elseValResolved } };
     auto* phi = add<ir::Phi>(phiArgs, "cond");
     Value value(phi, typeMap(condExpr.type()), loc);
     if (isFatPointer(&condExpr)) {
@@ -1432,7 +1444,14 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         return refConvResult;
     case Array_FixedToDynamic: {
         valueMap.insertArraySizeOf(conv.object(), expr->object());
-        return refConvResult;
+        if (!isa<sema::PointerType>(*expr->type())) {
+            return refConvResult;
+        }
+        auto* count =
+            toRegister(valueMap.arraySize(conv.expression()->object()), conv);
+        auto* arrayPtr =
+            makeArrayPointer(toRegister(refConvResult, conv), count);
+        return Value(arrayPtr, Register);
     }
     case Reinterpret_Array_ToByte:
         [[fallthrough]];

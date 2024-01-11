@@ -9,6 +9,7 @@
 #include <utl/vector.hpp>
 
 #include "Common/UniquePtr.h"
+#include "IR/CFG/BasicBlock.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {
@@ -18,7 +19,8 @@ class BasicBlockBuilder {
 public:
     explicit BasicBlockBuilder(Context& ctx, BasicBlock* BB);
 
-    /// Add the instruction \p inst to the back of the basic block
+    /// Adds the instruction \p inst before the currently set 'add point' of the
+    /// basic block. By default this is the end iterator.
     /// \Returns the argument
     Instruction* add(Instruction* inst);
 
@@ -60,10 +62,18 @@ public:
             insert(before, new Inst(ctx, std::forward<Args>(args)...)));
     }
 
+    /// Sets the 'add point' to \p newAddPoint
+    /// The add point is the iterator before which the `add()` methods insert
+    /// instructions
+    void setAddPoint(BasicBlock::Iterator newAddPoint) {
+        instAddPoint = newAddPoint;
+    }
+
 private:
     friend class FunctionBuilder;
     Context& ctx;
     BasicBlock* currentBB;
+    BasicBlock::Iterator instAddPoint;
 };
 
 /// Helper class to build IR functions
@@ -82,14 +92,30 @@ public:
     BasicBlock& currentBlock() const { return *currentBB; }
 
     ///
-    void makeBlockCurrent(BasicBlock* BB) { currentBB = BB; }
+    void makeBlockCurrent(BasicBlock* BB) { makeBlockCurrent(BB, BB->end()); }
+
+    ///
+    void makeBlockCurrent(BasicBlock* BB, BasicBlock::Iterator addPoint) {
+        currentBB = BB;
+        instAddPoint = addPoint;
+    }
 
     ///
     template <std::invocable F>
     decltype(auto) withBlockCurrent(BasicBlock* BB, F&& f) {
+        return withBlockCurrent(BB, BB->end(), std::forward<F>(f));
+    }
+
+    ///
+    template <std::invocable F>
+    decltype(auto) withBlockCurrent(BasicBlock* BB,
+                                    BasicBlock::Iterator addPoint,
+                                    F&& f) {
         auto* stashed = &currentBlock();
-        utl::scope_guard guard([&] { makeBlockCurrent(stashed); });
-        makeBlockCurrent(BB);
+        auto stashedAddPoint = instAddPoint;
+        utl::scope_guard guard(
+            [&] { makeBlockCurrent(stashed, stashedAddPoint); });
+        makeBlockCurrent(BB, addPoint);
         return std::invoke(std::forward<F>(f));
     }
 

@@ -12,11 +12,10 @@ using namespace scatha;
 using namespace ir;
 
 BasicBlockBuilder::BasicBlockBuilder(Context& ctx, BasicBlock* BB):
-    ctx(ctx), currentBB(BB) {}
+    ctx(ctx), currentBB(BB), instAddPoint(BB->end()) {}
 
 Instruction* BasicBlockBuilder::add(Instruction* inst) {
-    currentBB->pushBack(inst);
-    return inst;
+    return insert(instAddPoint.to_address(), inst);
 }
 
 Instruction* BasicBlockBuilder::insert(Instruction const* before,
@@ -37,6 +36,7 @@ BasicBlock* FunctionBuilder::newBlock(std::string name) {
 BasicBlock* FunctionBuilder::add(BasicBlock* BB) {
     function.pushBack(BB);
     currentBB = BB;
+    instAddPoint = BB->end();
     return BB;
 }
 

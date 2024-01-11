@@ -95,3 +95,10 @@ ir::Value* FuncGenContextBase::toThinPointer(ir::Value* ptr) {
     }
     return ptr;
 }
+
+ir::Value* FuncGenContextBase::makeArrayPointer(ir::Value* addr,
+                                                ir::Value* count) {
+    return buildStructure(arrayPtrType,
+                          std::array<ir::Value*, 2>{ addr, count },
+                          "array.ptr");
+}

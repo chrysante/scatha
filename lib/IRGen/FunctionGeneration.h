@@ -87,6 +87,9 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     /// Converts array pointer (fat pointers) to normal pointers by extracting
     /// the first element. All other arguments are returned unchanged.
     ir::Value* toThinPointer(ir::Value* ptr);
+
+    ///
+    ir::Value* makeArrayPointer(ir::Value* addr, ir::Value* count);
 };
 
 } // namespace scatha::irgen
