@@ -327,7 +327,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
             isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
         if (isFatPointer(semaFn.returnType())) {
             auto size = valueMap.arraySize(retStmt.expression()->object());
-            std::array elems = {
+            ValueArray elems = {
                 toThinPointer(toValueLocation(valueLocation, retval, retStmt)),
                 toRegister(size, retStmt)
             };
@@ -824,13 +824,13 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         if (isFatPointer(&expr)) {
             valueMap.insertArraySize(expr.object(), [=, this] {
                 auto* result = add<ir::ExtractValue>(base.get(),
-                                                     std::array{ irIndex + 1 },
+                                                     IndexArray{ irIndex + 1 },
                                                      "mem.acc.size");
                 return Value(result, Register);
             });
         }
         auto* result =
-            add<ir::ExtractValue>(base.get(), std::array{ irIndex }, "mem.acc");
+            add<ir::ExtractValue>(base.get(), IndexArray{ irIndex }, "mem.acc");
         addSourceLoc(result, expr);
         return Value(result, Register);
     }
@@ -841,7 +841,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                     add<ir::GetElementPointer>(base.type(),
                                                base.get(),
                                                ctx.intConstant(0, 64),
-                                               std::array{ irIndex + 1 },
+                                               IndexArray{ irIndex + 1 },
                                                "mem.acc.size");
                 return Value(result, ctx.intType(64), Memory);
             });
@@ -849,7 +849,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         auto* result = add<ir::GetElementPointer>(base.type(),
                                                   base.get(),
                                                   ctx.intConstant(0, 64),
-                                                  std::array{ irIndex },
+                                                  IndexArray{ irIndex },
                                                   "mem.acc");
         addSourceLoc(result, expr);
         auto* accessedType = typeMap(var.type());
@@ -904,20 +904,18 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                                        arrayType->count() - 1;
 
             if (isFatPointer(arrayType->elementType())) {
-                auto* data =
-                    add<ir::ExtractValue>(array.get(),
-                                          std::array{ index, size_t{ 0 } },
-                                          "array.front.data");
-                auto* size =
-                    add<ir::ExtractValue>(array.get(),
-                                          std::array{ index, size_t{ 1 } },
-                                          "array.front.size");
+                auto* data = add<ir::ExtractValue>(array.get(),
+                                                   IndexArray{ index, 0 },
+                                                   "array.front.data");
+                auto* size = add<ir::ExtractValue>(array.get(),
+                                                   IndexArray{ index, 1 },
+                                                   "array.front.size");
                 valueMap.insertArraySize(expr.object(), Value(size, Register));
                 return Value(data, Register);
             }
             else {
                 auto* elem = add<ir::ExtractValue>(array.get(),
-                                                   std::array{ index },
+                                                   IndexArray{ index },
                                                    "array.front");
                 return Value(elem, Register);
             }
@@ -940,18 +938,16 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             if (isFatPointer(arrayType->elementType())) {
                 auto* arrayView = arrayPtrType;
                 auto* irSizeType = ctx.intType(64);
-                auto* data =
-                    add<ir::GetElementPointer>(arrayView,
-                                               array.get(),
-                                               index,
-                                               std::array{ size_t{ 0 } },
-                                               "array.front.data");
-                auto* size =
-                    add<ir::GetElementPointer>(arrayView,
-                                               array.get(),
-                                               index,
-                                               std::array{ size_t{ 1 } },
-                                               "array.front.size");
+                auto* data = add<ir::GetElementPointer>(arrayView,
+                                                        array.get(),
+                                                        index,
+                                                        IndexArray{ 0 },
+                                                        "array.front.data");
+                auto* size = add<ir::GetElementPointer>(arrayView,
+                                                        array.get(),
+                                                        index,
+                                                        IndexArray{ 1 },
+                                                        "array.front.size");
                 valueMap.insertArraySize(expr.object(),
                                          Value(size, irSizeType, Memory));
                 return Value(data, irElemType, Memory);
@@ -960,7 +956,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                 auto* elem = add<ir::GetElementPointer>(irElemType,
                                                         array.get(),
                                                         index,
-                                                        std::array<size_t, 0>{},
+                                                        IndexArray{},
                                                         "array.front");
                 return Value(elem, irElemType, Memory);
             }
@@ -1085,8 +1081,7 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             else {
                 value = Value(inst, Register);
             }
-            auto* size =
-                add<ir::ExtractValue>(inst, std::array{ size_t{ 1 } }, "size");
+            auto* size = add<ir::ExtractValue>(inst, IndexArray{ 1 }, "size");
             valueMap.insertArraySize(call.object(), Value(size, Register));
         }
         else {
@@ -1158,14 +1153,14 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
         auto* addr = add<ir::GetElementPointer>(elemType,
                                                 array,
                                                 index,
-                                                std::array{ size_t{ 0 } },
+                                                IndexArray{ 0 },
                                                 "elem");
         Value result(addr, elemType->elementAt(0), Memory);
         valueMap.insertArraySize(expr.object(), [=, this] {
             auto* addr = add<ir::GetElementPointer>(elemType,
                                                     array,
                                                     index,
-                                                    std::array{ size_t{ 1 } },
+                                                    IndexArray{ 1 },
                                                     "elem.size");
             return Value(addr, elemType->elementAt(1), Memory);
         });
@@ -1258,14 +1253,14 @@ void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
                 add<ir::GetElementPointer>(elemType,
                                            dest,
                                            ctx.intConstant(index, 32),
-                                           std::array{ size_t{ 0 } },
+                                           IndexArray{ 0 },
                                            utl::strcat("elem.ptr.", index));
             add<ir::Store>(ptr, getValue<Register>(elem));
             auto* size =
                 add<ir::GetElementPointer>(elemType,
                                            dest,
                                            ctx.intConstant(index, 32),
-                                           std::array{ size_t{ 1 } },
+                                           IndexArray{ 1 },
                                            utl::strcat("elem.size.", index));
             add<ir::Store>(size,
                            toRegister(valueMap.arraySize(elem->object()),
@@ -1319,7 +1314,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     auto* dest =
         makeLocalVariable(type, utl::strcat(value.get()->name(), ".moved"));
     add<ir::Call>(function,
-                  std::array<ir::Value*, 2>{ dest, toMemory(value, expr) },
+                  ValueArray{ dest, toMemory(value, expr) },
                   std::string{});
     Value result(dest, type, Memory);
     /// TODO: Handle case for dynamic array moved by value
@@ -1328,7 +1323,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
                                                 arrayPtrType,
                                                 dest,
                                                 nullptr,
-                                                std::array{ size_t{ 1 } },
+                                                IndexArray{ 1 },
                                                 "arraysize");
         valueMap.insertArraySize(expr.object(),
                                  Value(addr, ctx.intType(64), Memory));
@@ -1363,36 +1358,32 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
             return ctx.intConstant(baseType->size(), 64);
         }
     }();
-    std::array<ir::Value*, 2> args = { bytesize,
-                                       ctx.intConstant(baseType->align(), 64) };
+    ValueArray args = { bytesize, ctx.intConstant(baseType->align(), 64) };
     ir::Value* arrayPtr = insert<ir::Call>(insertBefore, alloc, args, "alloc");
     ir::Value* ptr = insert<ir::ExtractValue>(insertBefore,
                                               arrayPtr,
-                                              std::array{ size_t{ 0 } },
+                                              IndexArray{ 0 },
                                               "pointer");
     addr->replaceAllUsesWith(ptr);
     if (!isFatPointer(&expr)) {
         return Value(storeToMemory(ptr), ctx.ptrType(), Memory);
     }
     else {
-        auto* viewType = arrayPtrType;
         auto* count =
             toRegister(valueMap.arraySize(expr.value()->object()), expr);
-        ptr = buildStructure(viewType,
-                             std::array<ir::Value*, 2>{ ptr, count },
-                             "uniqueptr");
-        auto* ptrAddr = storeToMemory(ptr);
+        arrayPtr = makeArrayPointer(ptr, count);
+        auto* ptrAddr = storeToMemory(arrayPtr);
         valueMap.insertArraySize(expr.object(), [=, this] {
             auto* sizeAddr =
                 add<ir::GetElementPointer>(ctx,
-                                           viewType,
+                                           arrayPtrType,
                                            ptrAddr,
                                            nullptr,
-                                           std::array{ size_t{ 1 } },
+                                           IndexArray{ 1 },
                                            "unique.array.size.addr");
             return Value(sizeAddr, ctx.intType(64), Memory);
         });
-        return Value(ptrAddr, viewType, Memory);
+        return Value(ptrAddr, arrayPtrType, Memory);
     }
 }
 
@@ -1673,13 +1664,12 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
         /// For unique pointers we lazily load the array size from memory
         else if (isFatPointer(&expr)) {
             valueMap.insertArraySize(expr.object(), [=, this] {
-                auto* size =
-                    add<ir::GetElementPointer>(ctx,
-                                               arrayPtrType,
-                                               irArguments.front(),
-                                               nullptr,
-                                               std::array{ size_t{ 1 } },
-                                               "arraysize");
+                auto* size = add<ir::GetElementPointer>(ctx,
+                                                        arrayPtrType,
+                                                        irArguments.front(),
+                                                        nullptr,
+                                                        IndexArray{ 1 },
+                                                        "arraysize");
                 return Value(size, ctx.intType(64), Memory);
             });
         }
@@ -1745,7 +1735,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                     auto* member = getValue<Register>(arg);
                     auto* inst = add<ir::InsertValue>(aggregate,
                                                       member,
-                                                      std::array{ index++ },
+                                                      IndexArray{ index++ },
                                                       "aggregate");
                     addSourceLoc(inst, *arg);
                     aggregate = inst;
@@ -1753,7 +1743,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
                         auto size = valueMap.arraySize(arg->object());
                         auto* inst = add<ir::InsertValue>(aggregate,
                                                           toRegister(size, *arg),
-                                                          std::array{ index++ },
+                                                          IndexArray{ index++ },
                                                           "aggregate");
                         addSourceLoc(inst, *arg);
                         aggregate = inst;
@@ -1819,7 +1809,7 @@ Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
     add(assignBlock);
     callDtor(expr.dest()->object(), expr.dtor(), expr);
     auto* function = getFunction(expr.ctor());
-    add<ir::Call>(function, std::array{ dest, source }, std::string{});
+    add<ir::Call>(function, ValueArray{ dest, source }, std::string{});
     add<ir::Goto>(endBlock);
     add(endBlock);
     return Value();
@@ -1832,7 +1822,7 @@ void FuncGenContext::callDtor(sema::Object const* object,
                               ast::ASTNode const& sourceNode) {
     auto* function = getFunction(dtor);
     auto* value = toMemory(valueMap(object), sourceNode);
-    add<ir::Call>(function, std::array{ value }, std::string{});
+    add<ir::Call>(function, ValueArray{ value }, std::string{});
 }
 
 void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack,

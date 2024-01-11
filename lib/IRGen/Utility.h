@@ -1,6 +1,7 @@
 #ifndef SCATHA_IRGEN_UTILITY_H_
 #define SCATHA_IRGEN_UTILITY_H_
 
+#include <array>
 #include <optional>
 
 #include "AST/Fwd.h"
@@ -35,6 +36,21 @@ ir::StructType const* makeArrayPtrType(ir::Context& ctx);
 /// \Returns `Register` if either \p a or \p b is `Register`, otherwise returns
 /// `Memory`
 ValueLocation commonLocation(ValueLocation a, ValueLocation b);
+
+/// Convenience wrapper to make `std::array<size_t, N>` in a less verbose way
+template <size_t N>
+struct IndexArray: std::array<std::size_t, N> {};
+
+template <typename... T>
+IndexArray(T...) -> IndexArray<sizeof...(T)>;
+
+/// Convenience wrapper to make `std::array<ir::Value*, N>` in a less verbose
+/// way
+template <size_t N>
+struct ValueArray: std::array<ir::Value*, N> {};
+
+template <typename... T>
+ValueArray(T...) -> ValueArray<sizeof...(T)>;
 
 } // namespace scatha::irgen
 
