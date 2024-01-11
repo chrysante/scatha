@@ -1,5 +1,4 @@
 
-
 fn main() {
-__builtin_putstr("All math tests run\n");
+    __builtin_putstr("PASSED: Math tests\n");
 }

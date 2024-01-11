@@ -24,11 +24,10 @@ public struct String {
     /// Modifiers
     
     fn clear(&mut this) {
-        this.buf = null;
         this.sz = 0;
     }
 
-    fn append(char: byte) {
+    fn append(&mut this, char: byte) {
         // Not implemented
         __builtin_trap();
     }
@@ -39,9 +38,9 @@ public struct String {
 
     fn empty(&this) { return this.sz == 0; }
 
-    fn data(&this) -> &str { return this.buf[0 : this.sz]; }
+    fn data(&this) -> *str { return &this.buf[0 : this.sz]; }
 
-    fn data(&mut this) -> &mut str { return this.buf[0 : this.sz]; }
+    fn data(&mut this) -> *mut str { return &mut this.buf[0 : this.sz]; }
 
     /// Data
 
