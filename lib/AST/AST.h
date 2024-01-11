@@ -72,15 +72,15 @@
 /// We define accessor templates also as non-templates for the debugger to
 /// access them
 #define AST_PROPERTY(Index, Type, Name, CapName)                               \
-    Type* Name() { return this->Name<Type>(); }                                \
+    SC_NODEBUG Type* Name() { return this->Name<Type>(); }                     \
     template <std::derived_from<Type> TYPE>                                    \
-    TYPE* Name() {                                                             \
+    SC_NODEBUG TYPE* Name() {                                                  \
         return this->ASTNode::child<TYPE>(Index);                              \
     }                                                                          \
                                                                                \
-    Type const* Name() const { return this->Name<Type>(); }                    \
+    SC_NODEBUG Type const* Name() const { return this->Name<Type>(); }         \
     template <std::derived_from<Type> TYPE>                                    \
-    TYPE const* Name() const {                                                 \
+    SC_NODEBUG TYPE const* Name() const {                                      \
         return this->ASTNode::child<TYPE>(Index);                              \
     }                                                                          \
                                                                                \
@@ -95,24 +95,24 @@
 
 #define AST_RANGE_PROPERTY(BeginIndex, Type, Name, CapName)                    \
     template <std::derived_from<Type> TYPE = Type>                             \
-    auto Name##s() {                                                           \
+    SC_NODEBUG auto Name##s() {                                                \
         return this->ASTNode::dropChildren<TYPE>(BeginIndex);                  \
     }                                                                          \
                                                                                \
     template <std::derived_from<Type> TYPE = Type>                             \
-    auto Name##s() const {                                                     \
+    SC_NODEBUG auto Name##s() const {                                          \
         return this->ASTNode::dropChildren<TYPE const>(BeginIndex);            \
     }                                                                          \
                                                                                \
     Type* Name(size_t index) { return this->Name<Type>(index); }               \
     template <std::derived_from<Type> TYPE>                                    \
-    TYPE* Name(size_t index) {                                                 \
+    SC_NODEBUG TYPE* Name(size_t index) {                                      \
         return this->ASTNode::child<TYPE>(BeginIndex + index);                 \
     }                                                                          \
                                                                                \
     Type const* Name(size_t index) const { return this->Name<Type>(index); }   \
     template <std::derived_from<Type> TYPE = Type>                             \
-    TYPE const* Name(size_t index) const {                                     \
+    SC_NODEBUG TYPE const* Name(size_t index) const {                          \
         return this->ASTNode::child<TYPE>(BeginIndex + index);                 \
     }                                                                          \
                                                                                \
@@ -131,7 +131,7 @@ namespace internal {
 
 class Decoratable {
 public:
-    bool isDecorated() const { return decorated; }
+    SC_NODEBUG bool isDecorated() const { return decorated; }
 
 protected:
     void expectDecorated() const {
@@ -171,25 +171,29 @@ public:
     ASTNode(ASTNode const&) = delete;
 
     /// Runtime type of this node
-    NodeType nodeType() const { return _type; }
+    SC_NODEBUG NodeType nodeType() const { return _type; }
 
     /// Source range object associated with this node.
-    SourceRange directSourceRange() const { return _sourceRange; }
+    SC_NODEBUG SourceRange directSourceRange() const { return _sourceRange; }
 
     ///
-    void setDirectSourceRange(SourceRange range) { _sourceRange = range; }
+    SC_NODEBUG void setDirectSourceRange(SourceRange range) {
+        _sourceRange = range;
+    }
 
     /// Entire source range of this node.
-    SourceRange sourceRange() const;
+    SC_NODEBUG SourceRange sourceRange() const;
 
     /// Source location object associated with this node.
-    SourceLocation sourceLocation() const { return _sourceRange.begin(); }
+    SC_NODEBUG SourceLocation sourceLocation() const {
+        return _sourceRange.begin();
+    }
 
     /// The parent of this node
-    ASTNode* parent() { return _parent; }
+    SC_NODEBUG ASTNode* parent() { return _parent; }
 
     /// \overload
-    ASTNode const* parent() const { return _parent; }
+    SC_NODEBUG ASTNode const* parent() const { return _parent; }
 
     /// Search the ancestors of this node for a node of type \p Node
     /// \Returns that node if found, otherwise returns `nullptr`
@@ -215,25 +219,25 @@ public:
 
     /// The children of this node
     template <typename AST = ASTNode>
-    auto children() {
+    SC_NODEBUG auto children() {
         return getChildren<AST>();
     }
 
     /// \overload
     template <typename AST = ASTNode>
-    auto children() const {
+    SC_NODEBUG auto children() const {
         return getChildren<AST const>();
     }
 
     /// The child at index \p index
     template <typename AST = ASTNode>
-    AST* child(size_t index) {
+    SC_NODEBUG AST* child(size_t index) {
         return cast<AST*>(children()[utl::narrow_cast<ssize_t>(index)]);
     }
 
     /// \overload
     template <typename AST = ASTNode>
-    AST const* child(size_t index) const {
+    SC_NODEBUG AST const* child(size_t index) const {
         return cast<AST const*>(children()[utl::narrow_cast<ssize_t>(index)]);
     }
 
@@ -288,10 +292,10 @@ public:
 
     /// Get the index of child \p child
     /// \pre \p child must be a child of this node
-    size_t indexOf(ASTNode const* child) const;
+    SC_NODEBUG size_t indexOf(ASTNode const* child) const;
 
     /// Get the index of this node in its parent
-    size_t indexInParent() const { return parent()->indexOf(this); }
+    SC_NODEBUG size_t indexInParent() const { return parent()->indexOf(this); }
 
 protected:
     template <typename... C>
@@ -359,56 +363,56 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Whether the expression denotes a value or a type.
-    sema::EntityCategory entityCategory() const;
+    SC_NODEBUG sema::EntityCategory entityCategory() const;
 
     /// The entity in the symbol table that this expression refers to. This must
     /// not be null after successful semantic analysis.
-    sema::Entity* entity() {
+    SC_NODEBUG sema::Entity* entity() {
         return const_cast<sema::Entity*>(std::as_const(*this).entity());
     }
 
     /// \overload
-    sema::Entity const* entity() const {
+    SC_NODEBUG sema::Entity const* entity() const {
         expectDecorated();
         return _entity;
     }
 
     /// Declared object
     /// This is equivalent to `cast<Object*>(entity())`
-    sema::Object* object() {
+    SC_NODEBUG sema::Object* object() {
         return const_cast<sema::Object*>(std::as_const(*this).object());
     }
 
     /// \overload
-    sema::Object const* object() const;
+    SC_NODEBUG sema::Object const* object() const;
 
     /// The type of the expression. Only non-null if: `kind == ::Value`
-    sema::QualType type() const {
+    SC_NODEBUG sema::QualType type() const {
         expectDecorated();
         return _type;
     }
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Value`
-    bool isValue() const {
+    SC_NODEBUG bool isValue() const {
         return entityCategory() == sema::EntityCategory::Value;
     }
 
     /// \Returns the value category of this expression
     /// \pre This expression must refer to a value
-    sema::ValueCategory valueCategory() const { return _valueCat; }
+    SC_NODEBUG sema::ValueCategory valueCategory() const { return _valueCat; }
 
     /// Convenience wrapper for `valueCategory() == LValue`
-    bool isLValue() const {
+    SC_NODEBUG bool isLValue() const {
         return valueCategory() == sema::ValueCategory::LValue;
     }
 
     /// Convenience wrapper for `valueCategory() == RValue`
-    bool isRValue() const {
+    SC_NODEBUG bool isRValue() const {
         return valueCategory() == sema::ValueCategory::RValue;
     }
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Type`
-    bool isType() const {
+    SC_NODEBUG bool isType() const {
         return entityCategory() == sema::EntityCategory::Type;
     }
 
@@ -430,7 +434,9 @@ public:
 
     /// \Returns Constant value if this expression is constant evaluable
     /// `nullptr` otherwise
-    sema::Value const* constantValue() const { return constVal.get(); }
+    SC_NODEBUG sema::Value const* constantValue() const {
+        return constVal.get();
+    }
 
     /// Set the constant value of this expression
     void setConstantValue(UniquePtr<sema::Value> value) {
@@ -453,7 +459,7 @@ public:
     AST_DERIVED_COMMON(Identifier)
 
     /// Literal string value as declared in the source.
-    std::string const& value() const { return _value; }
+    SC_NODEBUG std::string const& value() const { return _value; }
 
 private:
     std::string _value;
@@ -473,12 +479,12 @@ public:
 
     AST_DERIVED_COMMON(Literal)
 
-    LiteralKind kind() const { return _kind; }
+    SC_NODEBUG LiteralKind kind() const { return _kind; }
 
-    ValueType const& value() const { return _value; };
+    SC_NODEBUG ValueType const& value() const { return _value; };
 
     template <typename T>
-    auto value() const {
+    SC_NODEBUG auto value() const {
         return std::get<T>(_value);
     }
 
@@ -503,10 +509,10 @@ public:
     AST_DERIVED_COMMON(UnaryExpression)
 
     /// The operator of this expression.
-    UnaryOperator operation() const { return op; }
+    SC_NODEBUG UnaryOperator operation() const { return op; }
 
     /// The notation of this expression.
-    UnaryOperatorNotation notation() const { return no; }
+    SC_NODEBUG UnaryOperatorNotation notation() const { return no; }
 
     /// The operand of this expression.
     AST_PROPERTY(0, Expression, operand, Operand)
@@ -534,7 +540,7 @@ public:
     AST_DERIVED_COMMON(BinaryExpression)
 
     /// The operator of this expression.
-    BinaryOperator operation() const { return op; }
+    SC_NODEBUG BinaryOperator operation() const { return op; }
 
     /// Change the operator of this expression.
     void setOperation(BinaryOperator newOp) { op = newOp; }
@@ -580,10 +586,10 @@ public:
     AST_PROPERTY(0, Expression, referred, Referred)
 
     /// \Returns the mutability qualifier
-    sema::Mutability mutability() const { return mut; }
+    SC_NODEBUG sema::Mutability mutability() const { return mut; }
 
     /// \Returns `true` if reference to `mut`
-    bool isMut() const { return mut == sema::Mutability::Mutable; }
+    SC_NODEBUG bool isMut() const { return mut == sema::Mutability::Mutable; }
 
 private:
     sema::Mutability mut;
@@ -608,7 +614,7 @@ public:
 
     /// \Returns `true` if this dereference expression has a `unique` token
     /// attached to it
-    bool unique() const { return _unique; }
+    SC_NODEBUG bool unique() const { return _unique; }
 
 private:
     bool _unique;
@@ -640,11 +646,11 @@ public:
     /// Expression to evaluate if condition is false
     AST_PROPERTY(2, Expression, elseExpr, ElseExpr)
 
-    sema::DtorStack& branchDTorStack(size_t index) {
+    SC_NODEBUG sema::DtorStack& branchDTorStack(size_t index) {
         return branchDtors[index];
     }
 
-    sema::DtorStack const& branchDTorStack(size_t index) const {
+    SC_NODEBUG sema::DtorStack const& branchDTorStack(size_t index) const {
         return branchDtors[index];
     }
 
@@ -665,7 +671,7 @@ public:
 
     /// The constructor invoked by this move expression. This will be null for
     /// trivial lifetime types
-    sema::Function const* function() const { return ctor; }
+    SC_NODEBUG sema::Function const* function() const { return ctor; }
 
     /// Sets the invoked constructor. Used by semanic analysis.
     void setFunction(sema::Function const* ctor) { this->ctor = ctor; }
@@ -732,10 +738,10 @@ public:
     /// The resolved function.
     /// Differs from `callee()` because callee refers to the overload
     /// set
-    sema::Function* function() { return _function; }
+    SC_NODEBUG sema::Function* function() { return _function; }
 
     /// \overload
-    sema::Function const* function() const { return _function; }
+    SC_NODEBUG sema::Function const* function() const { return _function; }
 
     /// Decorate this function call
     void decorateCall(sema::Object* object,
@@ -823,26 +829,26 @@ public:
     void pushDtor(sema::DestructorCall dtorCall) { _dtorStack.push(dtorCall); }
 
     /// \Returns the destructor stack associated with this statement
-    sema::DtorStack const& dtorStack() const { return _dtorStack; }
+    SC_NODEBUG sema::DtorStack const& dtorStack() const { return _dtorStack; }
 
     /// \overload
-    sema::DtorStack& dtorStack() { return _dtorStack; }
+    SC_NODEBUG sema::DtorStack& dtorStack() { return _dtorStack; }
 
     /// **Decoration provided by semantic analysis**
 
     /// \Returns the entity this statement corresponds to
-    sema::Entity* entity() {
+    SC_NODEBUG sema::Entity* entity() {
         return const_cast<sema::Entity*>(std::as_const(*this).entity());
     }
 
     /// \overload
-    sema::Entity const* entity() const {
+    SC_NODEBUG sema::Entity const* entity() const {
         expectDecorated();
         return _entity;
     }
 
     /// Decorate this node.
-    void decorateStmt(sema::Entity* entity) {
+    SC_NODEBUG void decorateStmt(sema::Entity* entity) {
         _entity = entity;
         markDecorated();
     }
@@ -872,23 +878,23 @@ public:
 
     /// \Returns the specified access control of this declaration or
     /// `std::nullopt` if none was specified
-    std::optional<sema::AccessControl> accessControl() const {
+    SC_NODEBUG std::optional<sema::AccessControl> accessControl() const {
         return _specs.accessControl();
     }
 
     /// Source range of the access control specifier
-    SourceRange accessControlSourceRange() const {
+    SC_NODEBUG SourceRange accessControlSourceRange() const {
         return _specs.accessControlSourceRange();
     }
 
     /// \Returns the 'LINKAGE' string if this declaration was declared
     /// with`extern "LINKAGE"`
-    std::optional<std::string> externalLinkage() const {
+    SC_NODEBUG std::optional<std::string> externalLinkage() const {
         return _specs.externalLinkage();
     }
 
     /// Source range of the external linkage specifier
-    SourceRange externalLinkageSourceRange() const {
+    SC_NODEBUG SourceRange externalLinkageSourceRange() const {
         return _specs.externalLinkageSourceRange();
     }
 
@@ -964,24 +970,26 @@ public:
     AST_PROPERTY(0, Expression, libExpr, LibExpr)
 
     /// The way to import this library
-    sema::ImportKind importKind() const { return _importKind; }
+    SC_NODEBUG sema::ImportKind importKind() const { return _importKind; }
 
     /// \Returns `importKind() == sema::ImportKind::Scoped`
-    bool isScoped() const { return importKind() == sema::ImportKind::Scoped; }
+    SC_NODEBUG bool isScoped() const {
+        return importKind() == sema::ImportKind::Scoped;
+    }
 
     /// \Returns `importKind() == sema::ImportKind::Unscoped`
-    bool isUnscoped() const {
+    SC_NODEBUG bool isUnscoped() const {
         return importKind() == sema::ImportKind::Unscoped;
     }
 
     /// \Returns the imported library
-    sema::Library* library() {
+    SC_NODEBUG sema::Library* library() {
         return const_cast<sema::Library*>(
             static_cast<ImportStatement const*>(this)->library());
     }
 
     /// \overload
-    sema::Library const* library() const;
+    SC_NODEBUG sema::Library const* library() const;
 
 private:
     sema::ImportKind _importKind;
@@ -998,36 +1006,38 @@ public:
 
     /// Declared variable. In most cases this is the object but in some cases
     /// the object is not a variable
-    sema::Variable* variable() {
+    SC_NODEBUG sema::Variable* variable() {
         return const_cast<sema::Variable*>(std::as_const(*this).variable());
     }
 
     /// \overload
-    sema::Variable const* variable() const;
+    SC_NODEBUG sema::Variable const* variable() const;
 
     /// Declared object
-    sema::Object* object() {
+    SC_NODEBUG sema::Object* object() {
         return const_cast<sema::Object*>(std::as_const(*this).object());
     }
 
     /// \overload
-    sema::Object const* object() const;
+    SC_NODEBUG sema::Object const* object() const;
 
     /// Type of the declaration
-    sema::Type const* type() const {
+    SC_NODEBUG sema::Type const* type() const {
         expectDecorated();
         return _type;
     }
 
     /// The mutability qualifier of this declaration.
     /// This is set by the parser
-    sema::Mutability mutability() const { return _mut; }
+    SC_NODEBUG sema::Mutability mutability() const { return _mut; }
 
     ///
-    bool isMut() const { return mutability() == sema::Mutability::Mutable; }
+    SC_NODEBUG bool isMut() const {
+        return mutability() == sema::Mutability::Mutable;
+    }
 
     ///
-    bool isConst() const { return !isMut(); }
+    SC_NODEBUG bool isConst() const { return !isMut(); }
 
     /// Decorate this node.
     void decorateVarDecl(sema::Entity* entity);
@@ -1135,7 +1145,7 @@ public:
     AST_DERIVED_COMMON(ThisParameter)
 
     /// The optional reference qualifier attached to the `this` parameter
-    bool isReference() const { return isRef; }
+    SC_NODEBUG bool isReference() const { return isRef; }
 
 private:
     bool isRef;
@@ -1166,12 +1176,12 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Corresponding scope in symbol table
-    sema::Scope* scope() {
+    SC_NODEBUG sema::Scope* scope() {
         return const_cast<sema::Scope*>(std::as_const(*this).scope());
     }
 
     /// \overload
-    sema::Scope const* scope() const;
+    SC_NODEBUG sema::Scope const* scope() const;
 
     /// Decorate this node.
     void decorateScope(sema::Scope* scope);
@@ -1219,12 +1229,12 @@ public:
     AST_RANGE_PROPERTY(3, ParameterDeclaration, parameter, Parameter)
 
     /// The `this` parameter of this function, or `nullptr` if nonesuch exists
-    ThisParameter* thisParameter() {
+    SC_NODEBUG ThisParameter* thisParameter() {
         return const_cast<ThisParameter*>(std::as_const(*this).thisParameter());
     }
 
     /// \overload
-    ThisParameter const* thisParameter() const {
+    SC_NODEBUG ThisParameter const* thisParameter() const {
         if (parameters().empty()) {
             return nullptr;
         }
@@ -1234,15 +1244,15 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// The function being defined
-    sema::Function* function() {
+    SC_NODEBUG sema::Function* function() {
         return const_cast<sema::Function*>(std::as_const(*this).function());
     }
 
     /// \overload
-    sema::Function const* function() const;
+    SC_NODEBUG sema::Function const* function() const;
 
     /// Return type of the function.
-    sema::Type const* returnType() const {
+    SC_NODEBUG sema::Type const* returnType() const {
         expectDecorated();
         return _returnType;
     }
@@ -1278,12 +1288,12 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// The struct being defined
-    sema::StructType* structType() {
+    SC_NODEBUG sema::StructType* structType() {
         return const_cast<sema::StructType*>(std::as_const(*this).structType());
     }
 
     /// \overload
-    sema::StructType const* structType() const;
+    SC_NODEBUG sema::StructType const* structType() const;
 };
 
 /// Concrete node representing a statement that consists of a single expression.
@@ -1296,10 +1306,12 @@ public:
                   std::move(expression)) {}
 
     /// The expression
-    Expression* expression() { return child<Expression>(0); }
+    SC_NODEBUG Expression* expression() { return child<Expression>(0); }
 
     /// \overload
-    Expression const* expression() const { return child<Expression>(0); }
+    SC_NODEBUG Expression const* expression() const {
+        return child<Expression>(0);
+    }
 };
 
 /// Abstract node representing any control flow statement like `if`, `while`,
@@ -1385,19 +1397,23 @@ public:
     AST_PROPERTY(3, CompoundStatement, block, Block)
 
     /// Either `while` or `do`/`while`
-    LoopKind kind() const { return _kind; }
+    SC_NODEBUG LoopKind kind() const { return _kind; }
 
     /// The destructor stack of the loop condition
-    sema::DtorStack& conditionDtorStack() { return _condDtors; }
+    SC_NODEBUG sema::DtorStack& conditionDtorStack() { return _condDtors; }
 
     /// \overload
-    sema::DtorStack const& conditionDtorStack() const { return _condDtors; }
+    SC_NODEBUG sema::DtorStack const& conditionDtorStack() const {
+        return _condDtors;
+    }
 
     /// The destructor stack of the loop increment expression
-    sema::DtorStack& incrementDtorStack() { return _incDtors; }
+    SC_NODEBUG sema::DtorStack& incrementDtorStack() { return _incDtors; }
 
     /// \overload
-    sema::DtorStack const& incrementDtorStack() const { return _incDtors; }
+    SC_NODEBUG sema::DtorStack const& incrementDtorStack() const {
+        return _incDtors;
+    }
 
 private:
     LoopKind _kind;
@@ -1416,7 +1432,7 @@ public:
 
     AST_DERIVED_COMMON(JumpStatement)
 
-    Kind kind() const { return _kind; }
+    SC_NODEBUG Kind kind() const { return _kind; }
 
 private:
     Kind _kind;
@@ -1435,10 +1451,12 @@ public:
     AST_DERIVED_COMMON(Conversion)
 
     /// The target type of the conversion
-    sema::QualType targetType() const;
+    SC_NODEBUG sema::QualType targetType() const;
 
     /// The conversion
-    sema::Conversion const* conversion() const { return _conv.get(); }
+    SC_NODEBUG sema::Conversion const* conversion() const {
+        return _conv.get();
+    }
 
     /// The expression being converted
     AST_PROPERTY(0, Expression, expression, Expression)
@@ -1488,14 +1506,16 @@ public:
     }
 
     /// The type being constructed.
-    sema::ObjectType const* constructedType() const { return constrType; }
+    SC_NODEBUG sema::ObjectType const* constructedType() const {
+        return constrType;
+    }
 
     /// \Returns `true` if the constructed type does not have trivial lifetime
-    bool isTrivial() const { return !function(); }
+    SC_NODEBUG bool isTrivial() const { return !function(); }
 
     /// The lifetime function to call. This is only non-null if the contructed
     /// type does have trivial lifetime
-    sema::Function* function() const { return _function; }
+    SC_NODEBUG sema::Function* function() const { return _function; }
 
 private:
     /// Helper for "Copy object"
@@ -1541,10 +1561,10 @@ public:
     }
 
     /// The destructor to be called
-    sema::Function const* dtor() const { return _dtor; }
+    SC_NODEBUG sema::Function const* dtor() const { return _dtor; }
 
     /// The constructor to be called.
-    sema::Function const* ctor() const { return _ctor; }
+    SC_NODEBUG sema::Function const* ctor() const { return _ctor; }
 
 private:
     sema::Function const* _dtor = nullptr;

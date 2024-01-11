@@ -145,6 +145,20 @@
 #define SC_CONCAT(a, b)      SC_CONCAT_IMPL(a, b)
 #define SC_CONCAT_IMPL(a, b) a##b
 
+/// # SC_NODEBUG
+/// We annotate simple one line getter functions with this attribute macro. This
+/// way if we try to step into the function `codegen()` in the following example
+/// and `LHS()` is annotated `NODEBUG`, we don't jump to the source code of
+/// `LHS()` first but directly into `codegen()`
+///
+///     codegen(expr->LHS());
+///
+#if defined(__GNUC__)
+#define SC_NODEBUG __attribute__((nodebug))
+#else
+#define SC_NODEBUG
+#endif
+
 namespace scatha {
 
 using i8 = std::int8_t;
