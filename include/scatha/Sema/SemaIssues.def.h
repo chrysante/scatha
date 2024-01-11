@@ -247,15 +247,29 @@ SC_SEMA_BADEXPR_DEF(BinaryExpression,
                         << expr->rhs()->type()->name())
 
 SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    BinaryExprValueCatLHS,
+                    AssignExprValueCatLHS,
                     Error,
                     expr->lhs()->valueCategory()
                         << " operand is invalid in assignment expression")
 
 SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    BinaryExprImmutableLHS,
+                    AssignExprImmutableLHS,
                     Error,
                     "Immutable operand is invalid in assignment expression")
+
+SC_SEMA_BADEXPR_DEF(BinaryExpression,
+                    AssignExprIncompleteLHS,
+                    Error,
+                    "Incomplete left hand side operand type "
+                        << sema::format(expr->lhs()->type())
+                        << " is invalid in assignment expression")
+
+SC_SEMA_BADEXPR_DEF(BinaryExpression,
+                    AssignExprIncompleteRHS,
+                    Error,
+                    "Incomplete right hand side operand type "
+                        << sema::format(expr->rhs()->type())
+                        << " is invalid in assignment expression")
 
 SC_SEMA_BADEXPR_DEF(MemberAccess,
                     MemAccNonStaticThroughType,
@@ -384,6 +398,12 @@ SC_SEMA_BADEXPR_DEF(MoveExpr,
                     MoveExprImmovable,
                     Error,
                     "Cannot move immovable object")
+
+SC_SEMA_BADEXPR_DEF(MoveExpr,
+                    MoveExprIncompleteType,
+                    Error,
+                    "Attempt to move value of incomplete type "
+                        << sema::format(expr->type()))
 
 SC_SEMA_BADEXPR_DEF(MoveExpr,
                     MoveExprRValue,

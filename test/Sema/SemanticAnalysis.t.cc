@@ -427,7 +427,7 @@ fn main() {
     var x = X(1);
     x.byValue();
 })");
-    CHECK(iss.findOnLine<BadExpr>(4, BadExpr::BinaryExprImmutableLHS));
+    CHECK(iss.findOnLine<BadExpr>(4, BadExpr::AssignExprImmutableLHS));
 }
 
 TEST_CASE("Import statement", "[sema][lib]") {

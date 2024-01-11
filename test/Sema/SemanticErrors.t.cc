@@ -100,8 +100,8 @@ fn main(i: int, f: double) -> bool {
     CHECK(issues.findOnLine<BadExpr>(3, BinaryExprNoCommonType));
     CHECK(issues.findOnLine<BadExpr>(4, BinaryExprNoCommonType));
     CHECK(issues.findOnLine<BadExpr>(5, BinaryExprBadType));
-    CHECK(issues.findOnLine<BadExpr>(6, BinaryExprImmutableLHS));
-    CHECK(issues.findOnLine<BadExpr>(7, BinaryExprValueCatLHS));
+    CHECK(issues.findOnLine<BadExpr>(6, AssignExprImmutableLHS));
+    CHECK(issues.findOnLine<BadExpr>(7, AssignExprValueCatLHS));
 }
 
 TEST_CASE("Bad function call expression", "[sema][issue]") {
@@ -320,6 +320,21 @@ fn main() {
     CHECK(badSymRef->expected() == EntityCategory::Value);
     CHECK(issues.findOnLine<BadExpr>(5, GenericBadExpr));
     CHECK(issues.findOnLine<BadExpr>(6, ListExprTypeExcessElements));
+}
+
+TEST_CASE("Invalid use of dynamic array", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+/*  2 */ fn main() {
+/*  3 */     var arr1: *unique mut [int] = unique [1, 2, 3];
+/*  4 */     var arr2: *unique mut [int] = unique [1, 2, 3];
+/*  5 */     move *arr1;
+/*  6 */     *arr2 = *arr1;
+/*  7 */     var value = *arr1;
+/*  8 */ })");
+    CHECK(issues.findOnLine<BadExpr>(5, MoveExprIncompleteType));
+    CHECK(issues.findOnLine<BadExpr>(6, AssignExprIncompleteLHS));
+    CHECK(issues.findOnLine<BadExpr>(6, AssignExprIncompleteRHS));
+    CHECK(issues.findOnLine<BadVarDecl>(7, BadVarDecl::IncompleteType));
 }
 
 TEST_CASE("Invalid jump", "[sema][issue]") {

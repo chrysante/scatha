@@ -392,21 +392,34 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
     /// Handle assignment seperately
     if (ast::isAssignment(expr.operation())) {
         QualType lhsType = expr.lhs()->type();
+        QualType rhsType = expr.rhs()->type();
+        bool success = true;
+        if (!lhsType->isComplete()) {
+            ctx.badExpr(&expr, AssignExprIncompleteLHS);
+            success = false;
+        }
+        if (!rhsType->isComplete()) {
+            ctx.badExpr(&expr, AssignExprIncompleteRHS);
+            success = false;
+        }
+        if (expr.lhs()->valueCategory() != LValue) {
+            ctx.badExpr(&expr, AssignExprValueCatLHS);
+            success = false;
+        }
+        if (!expr.lhs()->type().isMut()) {
+            ctx.badExpr(&expr, AssignExprImmutableLHS);
+            success = false;
+        }
         if (!lhsType->hasTrivialLifetime()) {
             auto assign = allocate<ast::NonTrivAssignExpr>(expr.extractLHS(),
                                                            expr.extractRHS());
             analyze(assign.get());
             return expr.parent()->replaceChild(&expr, std::move(assign));
         }
-        if (expr.lhs()->valueCategory() != LValue) {
-            ctx.badExpr(&expr, BinaryExprValueCatLHS);
-            return nullptr;
-        }
-        if (!expr.lhs()->type().isMut()) {
-            ctx.badExpr(&expr, BinaryExprImmutableLHS);
-            return nullptr;
-        }
         if (!convert(Implicit, expr.rhs(), lhsType, RValue, *dtorStack, ctx)) {
+            success = false;
+        }
+        if (!success) {
             return nullptr;
         }
         expr.decorateValue(sym.temporary(sym.Void()), RValue);
@@ -756,14 +769,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
         return nullptr;
     }
     auto type = expr.value()->type();
+    if (!type->isComplete()) {
+        ctx.badExpr(&expr, BadExpr::MoveExprIncompleteType);
+    }
     if (type.isConst()) {
         ctx.badExpr(&expr, BadExpr::MoveExprConst);
-        return nullptr;
     }
     if (expr.value()->isRValue()) {
         ctx.badExpr(&expr, BadExpr::MoveExprRValue);
-        expr.decorateValue(expr.value()->object(), RValue);
-        return &expr;
     }
     if (!type->hasTrivialLifetime()) {
         using enum SpecialLifetimeFunction;
