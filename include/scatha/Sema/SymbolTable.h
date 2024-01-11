@@ -260,11 +260,14 @@ public:
 
     /// ## Queries
 
-    /// View over all functions
+    /// \Returns a view over all functions
     std::span<Function* const> functions();
 
     /// \overload
     std::span<Function const* const> functions() const;
+
+    /// \Returns a view over all struct types
+    std::span<StructType const* const> structTypes() const;
 
     /// View over all imported libraries
     std::span<Library* const> importedLibs();

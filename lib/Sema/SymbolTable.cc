@@ -88,6 +88,9 @@ struct SymbolTable::Impl {
     /// List of all functions
     utl::small_vector<Function*> functions;
 
+    /// List of all structs
+    utl::small_vector<StructType*> structTypes;
+
     /// List of all imported libraries
     utl::small_vector<Library*> importedLibs;
 
@@ -359,6 +362,7 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
                                              InvalidSize,
                                              InvalidSize,
                                              accessControl);
+    impl->structTypes.push_back(type);
     addToCurrentScope(type);
     validateAccessControl(*type);
     addGlobalAliasIfInternalAtFilescope(type);
@@ -943,6 +947,10 @@ std::span<Function* const> SymbolTable::functions() { return impl->functions; }
 
 std::span<Function const* const> SymbolTable::functions() const {
     return impl->functions;
+}
+
+std::span<StructType const* const> SymbolTable::structTypes() const {
+    return impl->structTypes;
 }
 
 std::span<Library* const> SymbolTable::importedLibs() {

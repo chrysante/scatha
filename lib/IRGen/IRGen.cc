@@ -139,6 +139,18 @@ static bool initialDeclFilter(sema::Function const* function) {
     return mapVisibility(function) == ir::Visibility::External;
 }
 
+/// \Returns `true` if the entity \p entity is defined in an imported library
+static bool isLibEntity(sema::Entity const* entity) {
+    auto* parent = entity->parent();
+    while (true) {
+        if (isa<sema::FileScope>(parent)) return false;
+        if (isa<sema::GlobalScope>(parent)) return false;
+        if (isa<sema::Library>(parent)) return true;
+        parent = parent->parent();
+    }
+    SC_UNREACHABLE();
+}
+
 void irgen::generateIR(ir::Context& ctx,
                        ir::Module& mod,
                        ast::ASTNode const&,
@@ -153,9 +165,19 @@ void irgen::generateIR(ir::Context& ctx,
     for (auto* semaType: analysisResult.structDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap, config.nameMangler);
     }
-
-    auto queue = analysisResult.functions |
-                 transform([](auto* def) { return def->function(); }) |
+    /// We generate code for all compiler generated function of public types
+    utl::small_vector<sema::Function const*> generatedFunctions;
+    for (auto* type: sym.structTypes() | filter(&sema::StructType::isPublic)) {
+        for (auto* F: type->entities() | Filter<sema::Function>) {
+            if (F->isGenerated() && !isLibEntity(F)) {
+                generatedFunctions.push_back(F);
+            }
+        }
+    }
+    auto userDefinedFunctions =
+        analysisResult.functions |
+        transform([](auto* def) { return def->function(); });
+    auto queue = concat(userDefinedFunctions, generatedFunctions) |
                  filter(initialDeclFilter) |
                  ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
