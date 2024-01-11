@@ -38,6 +38,7 @@ struct AssertContext {
     void assertSpecialInvariants(Branch const&);
     void assertSpecialInvariants(Load const&);
     void assertSpecialInvariants(Store const&);
+    void assertSpecialInvariants(CompareInst const&);
     void assertSpecialInvariants(GetElementPointer const&);
 
     void uniqueName(Value const& value);
@@ -260,6 +261,24 @@ void AssertContext::assertSpecialInvariants(Store const& store) {
     if (auto* global = dyncast<GlobalVariable const*>(store.address())) {
         CHECK(global->isMutable(),
               "Cannot write into constant global variable");
+    }
+}
+
+void AssertContext::assertSpecialInvariants(CompareInst const& cmp) {
+    CHECK(cmp.lhs()->type() == cmp.rhs()->type(),
+          "Compare operands must have the same type");
+    auto* type = cmp.lhs()->type();
+    switch (cmp.mode()) {
+    case CompareMode::Signed:
+    case CompareMode::Unsigned:
+        CHECK(isa<IntegralType>(type) || isa<PointerType>(type),
+              "Type must be integral");
+        break;
+    case CompareMode::Float:
+        CHECK(isa<FloatType>(type), "Type must be float");
+        break;
+    default:
+        SC_UNREACHABLE();
     }
 }
 

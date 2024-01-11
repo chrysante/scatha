@@ -30,7 +30,7 @@ bool isFatPointer(ast::Expression const* expr);
 std::optional<size_t> getStaticArraySize(sema::Type const* type);
 
 /// Creates an anonymous struct type with members `ptr` and `i64`
-ir::StructType const* makeArrayViewType(ir::Context& ctx);
+ir::StructType const* makeArrayPtrType(ir::Context& ctx);
 
 /// \Returns `Register` if either \p a or \p b is `Register`, otherwise returns
 /// `Memory`

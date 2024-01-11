@@ -328,11 +328,10 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         if (isFatPointer(semaFn.returnType())) {
             auto size = valueMap.arraySize(retStmt.expression()->object());
             std::array elems = {
-                toValueLocation(valueLocation, retval, retStmt),
+                toThinPointer(toValueLocation(valueLocation, retval, retStmt)),
                 toRegister(size, retStmt)
             };
-            actualRetval =
-                buildStructure(makeArrayViewType(ctx), elems, "retval");
+            actualRetval = buildStructure(arrayPtrType, elems, "retval");
         }
         else {
             actualRetval = toValueLocation(valueLocation, retval, retStmt);
@@ -747,11 +746,12 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case Equals:
         [[fallthrough]];
     case NotEquals: {
-        auto* result = add<ir::CompareInst>(getValue<Register>(expr.lhs()),
-                                            getValue<Register>(expr.rhs()),
-                                            mapCompareMode(type),
-                                            mapCompareOp(expr.operation()),
-                                            resName);
+        auto* result =
+            add<ir::CompareInst>(toThinPointer(getValue<Register>(expr.lhs())),
+                                 toThinPointer(getValue<Register>(expr.rhs())),
+                                 mapCompareMode(type),
+                                 mapCompareOp(expr.operation()),
+                                 resName);
         return Value(result, Register);
     }
 
@@ -938,7 +938,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                                "back.index");
             }();
             if (isFatPointer(arrayType->elementType())) {
-                auto* arrayView = makeArrayViewType(ctx);
+                auto* arrayView = arrayPtrType;
                 auto* irSizeType = ctx.intType(64);
                 auto* data =
                     add<ir::GetElementPointer>(arrayView,
@@ -1067,16 +1067,14 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     case Register: {
         auto* refType = dyncast<sema::ReferenceType const*>(semaRetType);
         if (isFatPointer(semaRetType)) {
-            auto* data =
-                add<ir::ExtractValue>(inst, std::array{ size_t{ 0 } }, "data");
-            auto* size =
-                add<ir::ExtractValue>(inst, std::array{ size_t{ 1 } }, "size");
             if (refType) {
-                value = Value(data, typeMap(refType->base()), Memory);
+                value = Value(inst, typeMap(refType->base()), Memory);
             }
             else {
-                value = Value(data, Register);
+                value = Value(inst, Register);
             }
+            auto* size =
+                add<ir::ExtractValue>(inst, std::array{ size_t{ 1 } }, "size");
             valueMap.insertArraySize(call.object(), Value(size, Register));
         }
         else {
@@ -1125,10 +1123,11 @@ void FuncGenContext::unpackArgument(PassingConvention const& PC,
     if (isa<sema::ReferenceType>(paramType)) {
         SC_ASSERT(value.isMemory(),
                   "Need value in memory to pass by reference");
-        irArguments.push_back(toMemory(value, *expr));
+        irArguments.push_back(toThinPointer(toMemory(value, *expr)));
     }
     else {
-        irArguments.push_back(toValueLocation(PC.location(), value, *expr));
+        irArguments.push_back(
+            toThinPointer(toValueLocation(PC.location(), value, *expr)));
     }
     if (PC.numParams() == 2) {
         irArguments.push_back(toRegister(valueMap.arraySize(object), *expr));
@@ -1137,13 +1136,13 @@ void FuncGenContext::unpackArgument(PassingConvention const& PC,
 
 Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
-    auto array = getValue<Memory>(expr.callee());
+    auto* array = toThinPointer(getValue<Memory>(expr.callee()));
     /// Right now we don't use the size but here we could issue a call to an
     /// assertion function
     [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object());
     auto index = getValue<Register>(expr.arguments().front());
     if (isFatPointer(arrayType->elementType())) {
-        auto* elemType = makeArrayViewType(ctx);
+        auto* elemType = arrayPtrType;
         auto* addr = add<ir::GetElementPointer>(elemType,
                                                 array,
                                                 index,
@@ -1197,7 +1196,7 @@ ir::ArrayType const* FuncGenContext::getListType(
     auto* semaType = cast<sema::ArrayType const*>(list.type().get());
     SC_ASSERT(!semaType->isDynamic(), "");
     if (isFatPointer(semaType->elementType())) {
-        return ctx.arrayType(makeArrayViewType(ctx), semaType->count());
+        return ctx.arrayType(arrayPtrType, semaType->count());
     }
     return cast<ir::ArrayType const*>(typeMap(semaType));
 }
@@ -1300,6 +1299,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     auto value = getValue(expr.value());
     auto* ctor = expr.function();
     if (!ctor) {
+        valueMap.insertArraySizeOf(expr.object(), expr.value()->object());
         return value;
     }
     auto* type = typeMap(expr.type());
@@ -1310,6 +1310,17 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
                   std::array<ir::Value*, 2>{ dest, toMemory(value, expr) },
                   std::string{});
     Value result(dest, type, Memory);
+    /// TODO: Handle case for dynamic array moved by value
+    if (isFatPointer(&expr)) {
+        auto* addr = add<ir::GetElementPointer>(ctx,
+                                                arrayPtrType,
+                                                dest,
+                                                nullptr,
+                                                std::array{ size_t{ 1 } },
+                                                "arraysize");
+        valueMap.insertArraySize(expr.object(),
+                                 Value(addr, ctx.intType(64), Memory));
+    }
     return result;
 }
 
@@ -1352,7 +1363,7 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
         return Value(storeToMemory(ptr), ctx.ptrType(), Memory);
     }
     else {
-        auto* viewType = makeArrayViewType(ctx);
+        auto* viewType = arrayPtrType;
         auto* count =
             toRegister(valueMap.arraySize(expr.value()->object()), expr);
         ptr = buildStructure(viewType,
@@ -1487,7 +1498,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         return data;
     }
     case Reinterpret_Value_FromByteArray: {
-        auto data = refConvResult;
+        Value data = refConvResult;
         auto* fromType =
             cast<sema::ArrayType const*>(stripPtr(expr->type().get()));
         auto* toType = stripPtr(conv.type().get());
@@ -1496,6 +1507,12 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         }
         else {
             // TODO: Insert runtime check that size is equal
+        }
+        if (data.type() == arrayPtrType) {
+            if (data.isMemory()) {
+                return Value(data.get(), ctx.ptrType(), Memory);
+            }
+            return Value(toThinPointer(data.get()), Register);
         }
         return data;
     }
@@ -1586,7 +1603,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
 Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
     auto* type = [&]() -> ir::Type const* {
         if (isFatPointer(&temp)) {
-            return makeArrayViewType(ctx);
+            return arrayPtrType;
         }
         return typeMap(temp.type());
     }();
@@ -1639,7 +1656,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
             valueMap.insertArraySize(expr.object(), [=, this] {
                 auto* size =
                     add<ir::GetElementPointer>(ctx,
-                                               makeArrayViewType(ctx),
+                                               arrayPtrType,
                                                irArguments.front(),
                                                nullptr,
                                                std::array{ size_t{ 1 } },

@@ -109,7 +109,7 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
     switch (CC.returnValue().location()) {
     case Register: {
         if (isFatPointer(semaFn.returnType())) {
-            sig.returnType = makeArrayViewType(ctx);
+            sig.returnType = makeArrayPtrType(ctx);
         }
         else {
             sig.returnType = typeMap(semaFn.returnType());

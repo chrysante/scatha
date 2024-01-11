@@ -427,4 +427,26 @@ struct X {
     var value: int;
 })");
     }
+    SECTION("Move dynamic array unique pointer") {
+        test::checkReturns(6, R"(
+fn makeArray() -> *unique [int] {
+    return unique [1, 2, 3];
+}
+fn main() {
+    var ints = makeArray();
+    let ints2 = move ints;
+    return ints2[0] + ints2[1] + ints2[2];
+})");
+    }
+    SECTION("Move dynamic array unique pointer 2") {
+        test::checkReturns(true, R"(
+fn makeArray() -> *unique [int] {
+    return unique [1, 2, 3];
+}
+fn main() {
+    var ints = makeArray();
+    let ints2 = move ints;
+    return ints2.count == 3 && ints == null;
+})");
+    }
 }

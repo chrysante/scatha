@@ -120,10 +120,13 @@ public:
                          CompareOperation op,
                          std::string name);
 
+    /// The compare mode, i.e. signed, unsigned or float
     CompareMode mode() const { return _mode; }
 
+    /// The compare operation to perform, i.e. one of `<, <=, >, >=, ==, !=`
     CompareOperation operation() const { return _op; }
 
+    ///
     void setOperation(CompareOperation op) { _op = op; }
 
 private:

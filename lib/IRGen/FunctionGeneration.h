@@ -54,14 +54,11 @@ void generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
 struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     Config config;
     ValueMap valueMap;
+    ir::StructType const* arrayPtrType = nullptr;
 
     using FuncGenParameters::ctx;
 
-    FuncGenContextBase(Config config, FuncGenParameters params):
-        FuncGenParameters(params),
-        FunctionBuilder(params.ctx, &params.irFn),
-        config(config),
-        valueMap(ctx) {}
+    FuncGenContextBase(Config config, FuncGenParameters params);
 
     /// Map \p semaFn to the corresponding IR function. If the function is not
     /// declared it will be declared.
@@ -88,8 +85,7 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     ir::Call* callMemset(ir::Value* dest, size_t numBytes, int value);
 
     /// Converts array pointer (fat pointers) to normal pointers by extracting
-    /// the first element. Normal pointers are returned unchanged.
-    /// \pre \p ptr must be of type `ptr` or `{ ptr, i64 }`
+    /// the first element. All other arguments are returned unchanged.
     ir::Value* toThinPointer(ir::Value* ptr);
 };
 

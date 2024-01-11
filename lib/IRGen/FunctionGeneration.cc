@@ -25,6 +25,13 @@ void irgen::generateFunction(Config config, FuncGenParameters params) {
     ir::setupInvariants(params.ctx, params.irFn);
 }
 
+FuncGenContextBase::FuncGenContextBase(Config config, FuncGenParameters params):
+    FuncGenParameters(params),
+    FunctionBuilder(params.ctx, &params.irFn),
+    config(config),
+    valueMap(ctx),
+    arrayPtrType(makeArrayPtrType(ctx)) {}
+
 ir::Callable* FuncGenContextBase::getFunction(
     sema::Function const* semaFunction) {
     if (auto* irFunction = functionMap.tryGet(semaFunction)) {
@@ -83,9 +90,8 @@ ir::Call* FuncGenContextBase::callMemset(ir::Value* dest,
 }
 
 ir::Value* FuncGenContextBase::toThinPointer(ir::Value* ptr) {
-    if (isa<ir::PointerType>(ptr->type())) {
-        return ptr;
+    if (ptr->type() == arrayPtrType) {
+        return add<ir::ExtractValue>(ptr, std::array{ size_t{ 0 } }, "ptr");
     }
-    SC_ASSERT(ptr->type() == makeArrayViewType(ctx), "Not a pointer");
-    return add<ir::ExtractValue>(ptr, std::array{ size_t{ 0 } }, "ptr");
+    return ptr;
 }

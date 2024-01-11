@@ -101,7 +101,7 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
 
 ir::Value* FuncGenContext::getUniquePtrCountAddr(ir::Value* thisPtr) {
     return add<ir::GetElementPointer>(ctx,
-                                      makeArrayViewType(ctx),
+                                      arrayPtrType,
                                       thisPtr,
                                       nullptr,
                                       std::array{ size_t{ 1 } },
