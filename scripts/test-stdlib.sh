@@ -7,6 +7,8 @@ cd $PROJ_DIR/scripts
 
 cd $PROJ_DIR/stdlib
 
+scathac -o -T staticlib -O build/testframework testframework/testframework.sc
+
 for filename in test/*.sc; do
     name=${filename##*/}
     test_exec="build/${name%.*}"
