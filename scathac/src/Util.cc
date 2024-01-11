@@ -13,7 +13,7 @@
 #include <scatha/IR/Module.h>
 #include <scatha/IR/PassManager.h>
 #include <scatha/IRGen/IRGen.h>
-#include <scatha/Opt/Optimizer.h>
+#include <scatha/Opt/Passes.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
 #include <svm/VirtualMachine.h>
@@ -94,8 +94,8 @@ std::pair<ir::Context, ir::Module> scatha::genIR(
 void scatha::optimize(ir::Context& ctx,
                       ir::Module& mod,
                       OptionsBase const& options) {
-    if (options.optLevel >= 0) {
-        opt::optimize(ctx, mod, options.optLevel);
+    if (options.optLevel > 0) {
+        opt::optimize(ctx, mod);
     }
     else if (!options.pipeline.empty()) {
         auto pipeline = ir::PassManager::makePipeline(options.pipeline);

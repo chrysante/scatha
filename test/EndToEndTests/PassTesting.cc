@@ -31,7 +31,6 @@
 #include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "Main/Options.h"
-#include "Opt/Optimizer.h"
 #include "Opt/Passes.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
@@ -141,7 +140,7 @@ struct Impl {
         /// Default optimizations
         {
             auto [ctx, mod, libs] = generator();
-            opt::optimize(ctx, mod, 1);
+            opt::optimize(ctx, mod);
             checkReturns("Default pipeline", mod, libs, expected);
         }
 
@@ -237,6 +236,9 @@ struct Impl {
             if (pass.name() == "default") {
                 continue;
             }
+            if (pass.name() == "optimize") {
+                continue;
+            }
             auto [ctx, mod, libs] = generator();
             prePipeline.execute(ctx, mod);
             auto message = utl::strcat("Idempotency check for \"",
@@ -271,7 +273,7 @@ void test::runIRReturnsTest(uint64_t expectedResult, std::string_view source) {
 bool test::compiles(std::string text) {
     try {
         auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
-        opt::optimize(ctx, mod, 1);
+        opt::optimize(ctx, mod);
         return true;
     }
     catch (...) {
@@ -282,7 +284,7 @@ bool test::compiles(std::string text) {
 bool test::IRCompiles(std::string_view text) {
     try {
         auto [ctx, mod, libs] = makeIRGenerator(text)();
-        opt::optimize(ctx, mod, 1);
+        opt::optimize(ctx, mod);
         return true;
     }
     catch (...) {

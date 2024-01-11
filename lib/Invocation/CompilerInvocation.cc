@@ -24,7 +24,6 @@
 #include "IR/Print.h"
 #include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
-#include "Opt/Optimizer.h"
 #include "Opt/Passes.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
@@ -180,7 +179,7 @@ int CompilerInvocation::run() {
     }
     }
     if (optLevel > 0) {
-        opt::optimize(irContext, irModule, optLevel);
+        opt::optimize(irContext, irModule);
     }
     else if (!optPipeline.empty()) {
         auto pipeline = ir::PassManager::makePipeline(optPipeline);
