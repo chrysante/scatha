@@ -162,7 +162,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                       makeParameters(irSignature.argumentTypes),
                                       nameMangler(*semaFn),
                                       mapFuncAttrs(semaFn->attributes()),
-                                      mapVisibility(semaFn->accessControl()));
+                                      mapVisibility(semaFn));
         break;
     }
     case sema::FunctionKind::Foreign: {

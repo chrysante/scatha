@@ -133,6 +133,12 @@ static void importLibrary(ir::Context& ctx,
                   IRObjectMap);
 }
 
+/// \Returns `true` for all functions that are generated unconditionally, i.e.
+/// even if they are not called by other functions
+static bool initialDeclFilter(sema::Function const* function) {
+    return mapVisibility(function) == ir::Visibility::External;
+}
+
 void irgen::generateIR(ir::Context& ctx,
                        ir::Module& mod,
                        ast::ASTNode const&,
@@ -147,9 +153,10 @@ void irgen::generateIR(ir::Context& ctx,
     for (auto* semaType: analysisResult.structDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap, config.nameMangler);
     }
+
     auto queue = analysisResult.functions |
                  transform([](auto* def) { return def->function(); }) |
-                 filter(&sema::Entity::isPublic) |
+                 filter(initialDeclFilter) |
                  ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
         declareFunction(semaFn,

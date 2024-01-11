@@ -406,14 +406,15 @@ ir::FunctionAttribute irgen::mapFuncAttrs(sema::FunctionAttribute attr) {
     }
 }
 
-ir::Visibility irgen::mapVisibility(sema::AccessControl accessControl) {
-    using enum sema::AccessControl;
-    switch (accessControl) {
-    case Private:
+ir::Visibility irgen::mapVisibility(sema::Function const* function) {
+    /// Only generate public functions can be `external`
+    if (!function->isPublic()) {
         return ir::Visibility::Internal;
-    case Internal:
-        return ir::Visibility::Internal;
-    case Public:
-        return ir::Visibility::External;
     }
+    auto* parent = function->parent();
+    /// Derived functions for array types or unique ptr types are not `external`
+    if (isa<sema::Type>(parent) && !isa<sema::StructType>(parent)) {
+        return ir::Visibility::Internal;
+    }
+    return ir::Visibility::External;
 }
