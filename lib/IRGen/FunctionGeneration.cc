@@ -104,3 +104,11 @@ ir::Value* FuncGenContextBase::makeArrayPointer(ir::Value* addr,
                           std::array<ir::Value*, 2>{ addr, count },
                           "array.ptr");
 }
+
+ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,
+                                                   size_t elemSize) {
+    return add<ir::ArithmeticInst>(count,
+                                   ctx.intConstant(elemSize, 64),
+                                   ir::ArithmeticOperation::Mul,
+                                   "bytesize");
+}

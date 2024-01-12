@@ -1210,7 +1210,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
         auto* addr = add<ir::GetElementPointer>(elemType,
                                                 array,
                                                 index,
-                                                std::initializer_list<size_t>{},
+                                                IndexArray{},
                                                 "elem.ptr");
         return Value(addr, elemType, Memory);
     }
@@ -1226,7 +1226,7 @@ Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto* addr = add<ir::GetElementPointer>(elemType,
                                             array.get(),
                                             lower,
-                                            std::initializer_list<size_t>{},
+                                            IndexArray{},
                                             "elem.ptr");
     Value result(addr, typeMap(expr.type()), Memory);
     auto* size = add<ir::ArithmeticInst>(upper,
@@ -1301,12 +1301,11 @@ void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
                                       list));
         }
         else {
-            auto* gep =
-                add<ir::GetElementPointer>(elemType,
-                                           dest,
-                                           ctx.intConstant(index, 32),
-                                           std::initializer_list<size_t>{},
-                                           utl::strcat("elem.", index));
+            auto* gep = add<ir::GetElementPointer>(elemType,
+                                                   dest,
+                                                   ctx.intConstant(index, 32),
+                                                   IndexArray{},
+                                                   utl::strcat("elem.", index));
             auto value = getValue(elem);
 
             if (arrayType->elementType()->hasTrivialLifetime()) {
@@ -1368,26 +1367,26 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
 Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     auto backItr = std::prev(currentBlock().end());
     auto* addr = getValue<Memory>(expr.value());
-    SC_ASSERT(isa<ir::Alloca>(addr) || isa<ir::NullPointerConstant>(addr), 
-              "We expect the argument to be constructed in local memory and we will rewrite it to heap allocation");
+    SC_ASSERT(
+        isa<ir::Alloca>(addr) || isa<ir::NullPointerConstant>(addr),
+        "We expect the argument to be constructed in local memory and we will rewrite it to heap allocation");
     ir::Instruction* insertBefore = backItr->next();
     ir::Callable* alloc = getBuiltin(svm::Builtin::alloc);
     sema::ObjectType const* baseType =
         cast<sema::UniquePtrType const&>(*expr.type()).base().get();
     ir::Value* bytesize = [&]() -> ir::Value* {
         if (auto* arrayType = dyncast<sema::ArrayType const*>(baseType)) {
-            auto* elemSize =
-                ctx.intConstant(arrayType->elementType()->size(), 64);
+            size_t elemSize = arrayType->elementType()->size();
             auto* count =
                 toRegister(valueMap.arraySize(expr.value()->object()), expr);
             if (auto* countInst = dyncast<ir::Instruction*>(count)) {
                 insertBefore = countInst->next();
             }
-            return insert<ir::ArithmeticInst>(insertBefore,
-                                              elemSize,
-                                              count,
-                                              ir::ArithmeticOperation::Mul,
-                                              "alloc.bytesize");
+            return withBlockCurrent(&currentBlock(),
+                                    ir::BasicBlock::Iterator(insertBefore),
+                                    [&] {
+                return makeCountToByteSize(count, elemSize);
+            });
         }
         else {
             return ctx.intConstant(baseType->size(), 64);
@@ -1499,10 +1498,8 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
                 Reinterpret_Array_ToByte)
             {
                 auto* newCount =
-                    add<ir::ArithmeticInst>(toRegister(fromCount, conv),
-                                            ctx.intConstant(fromElemSize, 64),
-                                            ir::ArithmeticOperation::Mul,
-                                            "reinterpret.count");
+                    makeCountToByteSize(toRegister(fromCount, conv),
+                                        fromElemSize);
                 valueMap.insertArraySize(conv.object(),
                                          Value(newCount, Register));
             }
@@ -1698,12 +1695,7 @@ Value FuncGenContext::genConstructDynArray(ast::ConstructExpr const& expr,
                               std::string{});
             }
             else {
-                auto* numBytes =
-                    add<ir::ArithmeticInst>(count,
-                                            ctx.intConstant(elemType->size(),
-                                                            64),
-                                            ir::ArithmeticOperation::Mul,
-                                            "bytesize");
+                auto* numBytes = makeCountToByteSize(count, elemType->size());
                 callMemset(storage, numBytes, 0);
             }
             valueMap.insertArraySize(expr.object(), Value(count, Register));
@@ -1711,7 +1703,6 @@ Value FuncGenContext::genConstructDynArray(ast::ConstructExpr const& expr,
         }
         else {
             /// We construct a dynamic array from another one
-#warning This case is not entirely correct
             SC_ASSERT(cast<sema::ArrayType const*>(arg->type().get())
                               ->elementType() == type.elementType(),
                       "Copy construction is the only other case");
@@ -1730,13 +1721,8 @@ Value FuncGenContext::genConstructDynArray(ast::ConstructExpr const& expr,
                 add<ir::Call>(irCtor, irArguments, std::string{});
             }
             else {
-                auto* numBytes =
-                    add<ir::ArithmeticInst>(count,
-                                            ctx.intConstant(elemType->size(),
-                                                            64),
-                                            ir::ArithmeticOperation::Mul,
-                                            "bytesize");
-                callMemset(storage, numBytes, 0);
+                auto* numBytes = makeCountToByteSize(count, elemType->size());
+                callMemcpy(storage, toMemory(argValue, expr), numBytes);
             }
             valueMap.insertArraySize(expr.object(), Value(count, Register));
             return Value(storage, elemType, Memory);
@@ -1898,11 +1884,7 @@ Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
                 toRegister(valueMap.arraySize(expr.argument(0)->object()),
                            expr);
             auto* array = makeLocalArray(elemType, count, "tmp.array");
-            auto* byteSize =
-                add<ir::ArithmeticInst>(count,
-                                        ctx.intConstant(elemType->size(), 64),
-                                        ir::ArithmeticOperation::Mul,
-                                        "array.bytesize");
+            auto* byteSize = makeCountToByteSize(count, elemType->size());
             callMemcpy(array, source.get(), byteSize);
             valueMap.insertArraySize(expr.object(), Value(count, Register));
             return Value(array, elemType, Memory);

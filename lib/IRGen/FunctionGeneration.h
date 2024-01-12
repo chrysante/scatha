@@ -90,6 +90,9 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
 
     ///
     ir::Value* makeArrayPointer(ir::Value* addr, ir::Value* count);
+
+    /// Emits a multiply instruction to obtain the byte size of an array
+    ir::Value* makeCountToByteSize(ir::Value* count, size_t elemSize);
 };
 
 } // namespace scatha::irgen

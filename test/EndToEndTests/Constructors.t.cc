@@ -407,10 +407,13 @@ public fn main() -> int {
 }
 
 TEST_CASE("Unique expr copy dyn array", "[end-to-end]") {
-    test::checkReturns(5, R"(
+    test::checkReturns(true, R"(
 public fn main() {
-    let ptr = unique str("12345");
-    return ptr.count;
+    let ptr = unique str("123");
+    return ptr.count == 3 &&
+           ptr[0] == '1' &&
+           ptr[1] == '2' &&
+           ptr[2] == '3';
 })");
 }
 
