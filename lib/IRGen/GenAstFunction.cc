@@ -184,8 +184,8 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     /// equivalent function and then append the user defined code. This way in a
     /// user defined destructor all member destructors get called and in a user
     /// defined constructor all member variables get initialized automatically
-    if (semaFn.isSpecialMemberFunction()) {
-        auto kind = toSLFKindToGenerate(semaFn.getSMFMetadata()->kind());
+    if (auto md = semaFn.getSMFMetadata()) {
+        auto kind = toSLFKindToGenerate(md->kind());
         generateSynthFunctionAs(kind, config, *this);
         makeBlockCurrent(&irFn.back());
     }

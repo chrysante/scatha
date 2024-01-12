@@ -962,7 +962,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
     auto* function = result.function;
     /// Cannot explicitly call special member functions
-    if (function->isSpecialMemberFunction()) {
+    if (function->getSMFMetadata()) {
         ctx.badExpr(&fc, ExplicitSMFCall);
         return nullptr;
     }

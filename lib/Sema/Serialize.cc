@@ -515,8 +515,8 @@ struct Serializer {
         j[Field::ReturnType] = serializeTypename(function.returnType());
         j[Field::ArgumentTypes] = function.argumentTypes() |
                                   transform(serializeTypename);
-        if (function.isSpecialMemberFunction()) {
-            j[Field::SMFMetadata] = *function.getSMFMetadata();
+        if (auto md = function.getSMFMetadata()) {
+            j[Field::SMFMetadata] = *md;
         }
         j[Field::FunctionKind] = function.kind();
         gatherLibraryDependencies(*function.type());

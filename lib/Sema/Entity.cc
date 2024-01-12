@@ -549,8 +549,6 @@ size_t Function::argumentCount() const {
     return type()->argumentCount();
 }
 
-void Function::setForeign() { _kind = FunctionKind::Foreign; }
-
 OverloadSet::OverloadSet(SourceRange loc,
                          utl::small_vector<Function*> functions):
     Entity(EntityType::OverloadSet, std::string{}, nullptr),

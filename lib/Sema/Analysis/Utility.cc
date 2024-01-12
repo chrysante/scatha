@@ -263,9 +263,9 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
     type.setSpecialLifetimeFunctions(SLF);
     for (auto [index, F]: SLF | enumerate) {
         if (F) {
-            SC_EXPECT(F->isSpecialMemberFunction());
-            auto md = *F->getSMFMetadata();
-            F->setSMFMetadata({ md.kind(), (SpecialLifetimeFunction)index });
+            auto md = F->getSMFMetadata();
+            SC_EXPECT(md);
+            F->setSMFMetadata({ md->kind(), (SpecialLifetimeFunction)index });
         }
     }
 }

@@ -565,19 +565,12 @@ public:
         return kind() == FunctionKind::Foreign;
     }
 
-    /// Set this function to be a foreign function
-    void setForeign();
-
-    /// \Returns `true` if this function is a special member function
-    SC_NODEBUG bool isSpecialMemberFunction() const {
-        return smfMetadata.smfKind != SpecialMemberFunction(0xf);
-    }
-
     /// \Returns the special member function metadata or `std::nullopt` if this
     /// function is not a special member function
     SC_NODEBUG std::optional<SMFMetadata> getSMFMetadata() const {
-        return isSpecialMemberFunction() ? std::optional(smfMetadata) :
-                                           std::nullopt;
+        return smfMetadata.smfKind != SpecialMemberFunction(0xf) ?
+                   std::optional(smfMetadata) :
+                   std::nullopt;
     }
 
     ///

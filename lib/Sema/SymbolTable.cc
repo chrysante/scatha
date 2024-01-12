@@ -567,7 +567,7 @@ Function* SymbolTable::declareForeignFunction(std::string name,
     if (!function) {
         return nullptr;
     }
-    function->setForeign();
+    function->setKind(FunctionKind::Foreign);
     function->setAttribute(attrs);
     if (auto builtinIndex = getBuiltinIndex(name)) {
         function->setBuiltin();

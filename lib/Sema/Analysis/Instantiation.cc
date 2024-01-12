@@ -272,7 +272,7 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
             ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
         }
         else {
-            F->setForeign();
+            F->setKind(FunctionKind::Foreign);
         }
     }
 }
