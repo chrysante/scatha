@@ -51,7 +51,7 @@ struct StmtContext {
     StmtContext(sema::AnalysisContext& ctx):
         ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
 
-    void analyze(ast::ASTNode&);
+    SC_NODEBUG void analyze(ast::ASTNode&);
 
     void analyzeImpl(ast::ImportStatement&);
     void importUnscopedSymbols(ast::ImportStatement& stmt);
@@ -123,7 +123,7 @@ void sema::analyzeStatement(AnalysisContext& ctx, ast::Statement* stmt) {
 }
 
 void StmtContext::analyze(ast::ASTNode& node) {
-    visit(node, [this](auto& node) { this->analyzeImpl(node); });
+    visit(node, [this](auto& node) SC_NODEBUG { this->analyzeImpl(node); });
 }
 
 ///
@@ -210,7 +210,14 @@ void StmtContext::importUnscopedSymbols(ast::ImportStatement& stmt) {
         SC_ASSERT(isa<ast::MemberAccess>(expr),
                   "Other cases should produce issues above");
         SC_ASSERT(expr->entity(), "We should not be here if analysis failed");
-        sym.declareAlias(*expr->entity(), expr, AccessControl::Private);
+        if (auto* OS = dyncast<OverloadSet*>(expr->entity())) {
+            for (auto* F: *OS) {
+                sym.declareAlias(*F, expr, AccessControl::Private);
+            }
+        }
+        else {
+            sym.declareAlias(*expr->entity(), expr, AccessControl::Private);
+        }
     }
 }
 

@@ -432,7 +432,6 @@ enum class OSBuildErrorHandler { None, Fail };
 /// All entities in the initial list are _considered_ based on their type:
 /// - For aliases the aliased entity is _considered_
 /// - Functions are added to the set if their signature has already been set
-/// - For overload sets all functions in the set are _considered_
 /// - For every other entity the error handler is invoked, which may invoke
 ///   undefined behaviour or do nothing
 static utl::hashset<Function*> buildOverloadSet(
@@ -465,12 +464,6 @@ static utl::hashset<Function*> buildOverloadSet(
             }
         }
 
-        void gatherImpl(OverloadSet& os) {
-            for (auto* function: os) {
-                gather(*function);
-            }
-        }
-
         void gatherImpl(Entity&) {
             using enum OSBuildErrorHandler;
             switch (errorHandler) {
@@ -486,12 +479,11 @@ static utl::hashset<Function*> buildOverloadSet(
 
 /// \Returns the set of functions with the same name as \p ref in the parent
 /// scope of \p ref that already have a signature, not including \p ref
-static utl::small_vector<Entity*> findOtherOverloads(Entity* ref) {
+static utl::small_vector<Function*> findOtherOverloads(Entity* ref) {
     auto entities = ref->parent()->findEntities(ref->name());
     auto set = buildOverloadSet(entities, OSBuildErrorHandler::Fail);
-    set.erase(ref);
     set.erase(stripAlias(ref));
-    return set | transform(cast<Entity*>) | ToSmallVector<>;
+    return set | ToSmallVector<>;
 }
 
 /// This function checks if \p entity which may be either a function or an alias
@@ -505,8 +497,9 @@ static bool checkValidOverload(SymbolTable::Impl& impl,
                                std::span<Type const* const> argumentTypes) {
     SC_EXPECT(isa<Function>(stripAlias(entity)));
     auto overloadSet = findOtherOverloads(entity);
-    auto* existing = OverloadSet::find(std::span<Entity* const>{ overloadSet },
-                                       argumentTypes);
+    auto* existing =
+        OverloadSet::find(std::span<Function* const>{ overloadSet },
+                          argumentTypes);
     if (existing) {
         impl.issue<Redefinition>(dyncast<ast::Declaration*>(entity->astNode()),
                                  existing);
@@ -558,11 +551,13 @@ Function* SymbolTable::declareFunction(std::string name,
 
 OverloadSet* SymbolTable::addOverloadSet(
     SourceRange sourceRange, utl::small_vector<Function*> functions) {
-    SC_EXPECT(!functions.empty());
-    auto name = std::string(functions.front()->name());
-    return impl->addEntity<OverloadSet>(sourceRange,
-                                        std::move(name),
-                                        functions);
+    SC_ASSERT(!functions.empty(), "The overload set cannot be empty");
+    auto nameEq = [&](std::string_view name) {
+        return functions.front()->name() == name;
+    };
+    SC_ASSERT(ranges::all_of(functions, nameEq, &Function::name),
+              "All functions in an overload set must have the same name");
+    return impl->addEntity<OverloadSet>(sourceRange, functions);
 }
 
 Function* SymbolTable::declareForeignFunction(std::string name,
@@ -989,14 +984,17 @@ void SymbolTable::addToCurrentScope(Entity* entity) {
     currentScope().addChild(entity);
 }
 
-void SymbolTable::addGlobalAliasIfInternalAtFilescope(Entity* entity) {
+Alias* SymbolTable::addGlobalAliasIfInternalAtFilescope(Entity* entity) {
     using enum AccessControl;
-    if (isa<FileScope>(entity->parent()) && entity->accessControl() <= Internal)
+    if (!isa<FileScope>(entity->parent()) || entity->accessControl() > Internal)
     {
-        withScopeCurrent(&globalScope(), [&] {
-            declareAlias(*entity, entity->astNode(), entity->accessControl());
-        });
+        return nullptr;
     }
+    return withScopeCurrent(&globalScope(), [&] {
+        return declareAlias(*entity,
+                            entity->astNode(),
+                            entity->accessControl());
+    });
 }
 
 bool SymbolTable::validateAccessControl(Entity const& entity) {
@@ -1029,7 +1027,10 @@ static bool checkRedefImpl(SymbolTable::Impl& impl,
     case Redef_Function: {
         auto mayOverload = [](Entity const* e) {
             e = stripAlias(e);
-            return isa<Function>(e) || isa<OverloadSet>(e);
+            SC_ASSERT(
+                !isa<OverloadSet>(e),
+                "Cannot be an overload set because overload sets are anonymous and cannot be found by name lookup");
+            return isa<Function>(e);
         };
         if (ranges::all_of(entities, mayOverload)) {
             return true;

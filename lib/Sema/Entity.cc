@@ -552,15 +552,10 @@ size_t Function::argumentCount() const {
 void Function::setForeign() { _kind = FunctionKind::Foreign; }
 
 OverloadSet::OverloadSet(SourceRange loc,
-                         std::string name,
                          utl::small_vector<Function*> functions):
-    Entity(EntityType::OverloadSet, std::move(name), nullptr),
+    Entity(EntityType::OverloadSet, std::string{}, nullptr),
     small_vector(std::move(functions)),
     loc(loc) {}
-
-Function const* OverloadSet::find(std::span<Type const* const> types) const {
-    return find(std::span<Function const* const>(*this), types);
-}
 
 template <typename T>
 T const* OSFindImpl(std::span<T const* const> set,

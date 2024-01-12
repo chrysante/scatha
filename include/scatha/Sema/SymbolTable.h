@@ -369,7 +369,7 @@ private:
 
     /// Declares an alias to \p entity under the same name in the global scope
     /// if \p entity is declared public in a filescope
-    void addGlobalAliasIfInternalAtFilescope(Entity* entity);
+    Alias* addGlobalAliasIfInternalAtFilescope(Entity* entity);
 
     /// \Pre expects \p entity to have access control
     bool validateAccessControl(Entity const& entity);

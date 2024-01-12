@@ -32,7 +32,7 @@ struct GatherContext {
 
     /// Dispatches to the appropriate one of the `gatherImpl()` overloads below
     /// based on the runtime type of \p node
-    size_t gather(ast::ASTNode& node);
+    SC_NODEBUG size_t gather(ast::ASTNode& node);
 
     size_t gatherImpl(ast::TranslationUnit&);
     size_t gatherImpl(ast::SourceFile&);
@@ -63,7 +63,9 @@ GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& TU,
 }
 
 size_t GatherContext::gather(ast::ASTNode& node) {
-    return visit(node, [this](auto& node) { return this->gatherImpl(node); });
+    return visit(node, [this](auto& node) SC_NODEBUG {
+        return this->gatherImpl(node);
+    });
 }
 
 size_t GatherContext::gatherImpl(ast::TranslationUnit& TU) {

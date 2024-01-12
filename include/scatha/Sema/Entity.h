@@ -77,7 +77,7 @@ namespace scatha::sema {
 class SCATHA_API Entity {
 public:
     /// The name of this entity
-    std::string_view name() const { return _name; }
+    SC_NODEBUG std::string_view name() const { return _name; }
 
     /// Sets the primary name of this entity to \p name
     void setName(std::string name) { _name = std::move(name); }
@@ -995,27 +995,22 @@ private:
 
 /// Groups a set of functions to perform overload resolution. Overload sets are
 /// formed when a function is called and consist of all functions that are found
-/// by name lookup at the call site
+/// by name lookup at the call site.
+/// Note that `OverloadSet`s are elusive entities. They are not placed within
+/// the entity hierarchy and they have no name so they cannot be found by name
+/// lookup. One overload set exists for every identifier that denotes a function
+/// name and holds all functions that are visible at that point.
 class SCATHA_API OverloadSet:
     public Entity,
     private utl::small_vector<Function*> {
 public:
     explicit OverloadSet(SourceRange loc,
-                         std::string name,
                          utl::small_vector<Function*> functions);
 
     OverloadSet(OverloadSet const&) = delete;
 
     /// \Returns the function in this overload set that exactly matches the
     /// parameter types \p paramTypes
-    Function* find(std::span<Type const* const> paramTypes) {
-        return const_cast<Function*>(std::as_const(*this).find(paramTypes));
-    }
-
-    /// \overload for const
-    Function const* find(std::span<Type const* const> paramTypes) const;
-
-    /// \overload
     static Function* find(std::span<Function* const> set,
                           std::span<Type const* const> paramTypes) {
         std::span<Function const* const> cSet(set.data(), set.size());
