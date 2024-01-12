@@ -988,6 +988,9 @@ UniquePtr<StructType> IRParser::parseStructure() {
     expect(eatToken(), TokenKind::OpenBrace);
     utl::small_vector<Type const*> members;
     while (true) {
+        if (peekToken().kind() == TokenKind::CloseBrace) {
+            break;
+        }
         auto* type = parseType();
         members.push_back(type);
         if (peekToken().kind() != TokenKind::Comma) {

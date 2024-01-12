@@ -330,11 +330,16 @@ TEST_CASE("Invalid use of dynamic array", "[sema][issue]") {
 /*  5 */     move *arr1;
 /*  6 */     *arr2 = *arr1;
 /*  7 */     var value = *arr1;
-/*  8 */ })");
+/*  8 */
+/*  9 */     let p = unique [int](1, 2);
+/* 10 */     let q = unique [int](true);
+/* 13 */ })");
     CHECK(issues.findOnLine<BadExpr>(5, MoveExprIncompleteType));
     CHECK(issues.findOnLine<BadExpr>(6, AssignExprIncompleteLHS));
     CHECK(issues.findOnLine<BadExpr>(6, AssignExprIncompleteRHS));
     CHECK(issues.findOnLine<BadVarDecl>(7, BadVarDecl::IncompleteType));
+    CHECK(issues.findOnLine<BadExpr>(9, BadExpr::CannotConstructDynamicArray));
+    CHECK(issues.findOnLine<BadExpr>(10, BadExpr::CannotConstructDynamicArray));
 }
 
 TEST_CASE("Invalid jump", "[sema][issue]") {
@@ -575,8 +580,15 @@ public fn foo() { return 42; }
 /*  2 */ fn test2() {
 /*  3 */     { use testlib.foo; foo(); }
 /*  4 */     foo();
+/*  5 */     import testlib;
+/*  6 */     let arr = [testlib];
+/*  7 */     &testlib;
+/*  8 */     *testlib;
          })",
                                    { .librarySearchPaths = { "libs" } });
     CHECK(iss.noneOnLine(3));
     CHECK(iss.findOnLine<BadExpr>(4, UndeclaredID));
+    CHECK(iss.findOnLine<BadSymRef>(6));
+    CHECK(iss.findOnLine<BadSymRef>(7));
+    CHECK(iss.findOnLine<BadSymRef>(8));
 }

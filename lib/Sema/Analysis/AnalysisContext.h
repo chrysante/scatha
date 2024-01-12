@@ -55,6 +55,7 @@ public:
 
     /// Conveniece wrapper to emit issues
     template <typename I, typename... Args>
+        requires std::constructible_from<I, Scope const*, Args...>
     void issue(Args&&... args) {
         iss->push<I>(&sym->currentScope(), std::forward<Args>(args)...);
     }

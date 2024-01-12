@@ -680,7 +680,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
         return &expr;
     }
     default:
-        SC_UNIMPLEMENTED();
+        ctx.issue<BadSymRef>(&expr, EntityCategory::Value);
+        return nullptr;
     }
 }
 
@@ -717,7 +718,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
     }
     default:
         /// Make an error class `InvalidReferenceExpression` and push that here
-        SC_UNIMPLEMENTED();
+        ctx.issue<BadSymRef>(&expr, EntityCategory::Value);
+        return nullptr;
     }
 }
 
@@ -1065,10 +1067,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         return &list;
     }
     case EntityCategory::Namespace:
-        // TODO: Push error here
-        SC_UNIMPLEMENTED();
-    case EntityCategory::Indeterminate:
+        ctx.issue<BadSymRef>(&list, EntityCategory::Value);
         return nullptr;
+    case EntityCategory::Indeterminate:
+        SC_ASSERT(
+            !ctx.issueHandler().empty(),
+            "There must be an issue if we have an indeterminate entity here");
     }
     SC_UNREACHABLE();
 }
@@ -1302,14 +1306,12 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
             dtorStack->push(expr.object());
             return &expr;
         }
-        /// TODO: Push error
-        SC_UNIMPLEMENTED();
-        break;
+        ctx.issue<BadExpr>(&expr, CannotConstructDynamicArray);
+        return nullptr;
     }
     default:
-        /// TODO: Push error
-        SC_UNIMPLEMENTED();
-        break;
+        ctx.issue<BadExpr>(&expr, CannotConstructDynamicArray);
+        return nullptr;
     }
 }
 

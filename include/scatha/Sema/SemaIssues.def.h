@@ -348,6 +348,11 @@ SC_SEMA_BADEXPR_DEF(ConstructExpr,
                     Error,
                     "Cannot construct type")
 
+SC_SEMA_BADEXPR_DEF(ConstructExpr,
+                    CannotConstructDynamicArray,
+                    Error,
+                    "Cannot construct dynamic array from the given arguments")
+
 SC_SEMA_BADEXPR_DEF(NonTrivAssignExpr,
                     CannotAssignUncopyableType,
                     Error,
