@@ -37,7 +37,11 @@ struct InstContext {
 
     void instantiateVariable(SDGNode&);
 
-    void instantiateFunction(ast::FunctionDefinition&);
+    void instantiateFunction(ast::FunctionDefinition& def);
+
+    bool instantiateSMF(ast::FunctionDefinition& def,
+                        SpecialMemberFunction SMF,
+                        StructType* parent);
 
     FunctionType const* analyzeSignature(ast::FunctionDefinition&,
                                          Type const* returnType) const;
@@ -259,6 +263,10 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     if (!result) {
         return;
     }
+    if (SMF) {
+        auto* parent = dyncast<StructType*>(F->parent());
+        instantiateSMF(def, *SMF, parent);
+    }
     if (def.externalLinkage()) {
         if (*def.externalLinkage() != "C") {
             ctx.issue<BadFuncDef>(&def, BadFuncDef::UnknownLinkage);
@@ -267,46 +275,51 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
             F->setForeign();
         }
     }
-    if (!SMF) {
-        return;
+}
+
+bool InstContext::instantiateSMF(ast::FunctionDefinition& def,
+                                 SpecialMemberFunction SMF,
+                                 StructType* parent) {
+    auto* F = def.function();
+    if (parent) {
+        parent->addSpecialMemberFunction(SMF, F);
     }
-    auto* type = dyncast<StructType*>(F->parent());
-    if (!type) {
-        ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, *SMF, type);
-        return;
+    F->setSMFMetadata(SMFMetadata(SMF));
+    if (!parent) {
+        ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, SMF, parent);
+        return false;
     }
-    type->addSpecialMemberFunction(*SMF, F);
-    F->setSMFKind(*SMF);
     if (def.returnTypeExpr()) {
-        ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, *SMF, type);
-        return;
+        ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, SMF, parent);
+        return false;
     }
-    Type const* mutRef = sym.reference(QualType::Mut(type));
+    Type const* mutRef = sym.reference(QualType::Mut(parent));
     if (F->argumentCount() == 0) {
-        ctx.issue<BadSMF>(&def, BadSMF::NoParams, *SMF, type);
-        return;
+        ctx.issue<BadSMF>(&def, BadSMF::NoParams, SMF, parent);
+        return false;
     }
     if (F->argumentType(0) != mutRef) {
-        ctx.issue<BadSMF>(&def, BadSMF::BadFirstParam, *SMF, type);
-        return;
+        ctx.issue<BadSMF>(&def, BadSMF::BadFirstParam, SMF, parent);
+        return false;
     }
     using enum SpecialMemberFunction;
-    switch (F->SMFKind()) {
+    switch (SMF) {
     case New:
         break;
     case Move:
         if (F->argumentCount() != 2 || F->argumentType(1) != mutRef) {
-            ctx.issue<BadSMF>(&def, BadSMF::MoveSignature, *SMF, type);
-            return;
+            ctx.issue<BadSMF>(&def, BadSMF::MoveSignature, SMF, parent);
+            return false;
         }
         break;
     case Delete:
         if (F->argumentCount() != 1) {
-            ctx.issue<BadSMF>(&def, BadSMF::DeleteSignature, *SMF, type);
-            return;
+            ctx.issue<BadSMF>(&def, BadSMF::DeleteSignature, SMF, parent);
+            return false;
         }
         break;
     }
+    return true;
 }
 
 FunctionType const* InstContext::analyzeSignature(

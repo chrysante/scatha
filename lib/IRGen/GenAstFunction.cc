@@ -44,7 +44,7 @@ struct FuncGenContext: FuncGenContextBase {
     FuncGenContext(auto&... args): FuncGenContextBase(args...) {}
 
     /// # Statements
-    void generate(ast::Statement const&);
+    SC_NODEBUG void generate(ast::Statement const&);
 
     void generateImpl(ast::Statement const&) { SC_UNREACHABLE(); }
     void generateImpl(ast::ImportStatement const&);
@@ -74,10 +74,10 @@ struct FuncGenContext: FuncGenContextBase {
                                   sema::Object const* initObject);
 
     /// # Expressions
-    Value getValue(ast::Expression const* expr);
+    SC_NODEBUG Value getValue(ast::Expression const* expr);
 
     template <ValueLocation Loc>
-    ir::Value* getValue(ast::Expression const* expr);
+    SC_NODEBUG ir::Value* getValue(ast::Expression const* expr);
 
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
@@ -153,7 +153,8 @@ void irgen::generateAstFunction(Config config, FuncGenParameters params) {
 /// MARK: - Statements
 
 void FuncGenContext::generate(ast::Statement const& node) {
-    visit(node, [this](auto const& node) { return generateImpl(node); });
+    visit(node,
+          [this](auto const& node) SC_NODEBUG { return generateImpl(node); });
 }
 
 void FuncGenContext::generateImpl(ast::ImportStatement const&) {
@@ -178,8 +179,13 @@ static sema::SpecialLifetimeFunction toSLFKindToGenerate(
 }
 
 void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
+    /// If the function is a user defined special member function (constructor
+    /// or destructor) we still generate the code of the non-user defined
+    /// equivalent function and then append the user defined code. This way in a
+    /// user defined destructor all member destructors get called and in a user
+    /// defined constructor all member variables get initialized automatically
     if (semaFn.isSpecialMemberFunction()) {
-        auto kind = toSLFKindToGenerate(semaFn.SMFKind());
+        auto kind = toSLFKindToGenerate(semaFn.getSMFMetadata()->kind());
         generateSynthFunctionAs(kind, config, *this);
         makeBlockCurrent(&irFn.back());
     }
@@ -496,7 +502,8 @@ void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
 
 Value FuncGenContext::getValue(ast::Expression const* expr) {
     SC_EXPECT(expr);
-    auto result = visit(*expr, [&](auto& expr) { return getValueImpl(expr); });
+    auto result =
+        visit(*expr, [&](auto& expr) SC_NODEBUG { return getValueImpl(expr); });
     valueMap.tryInsert(expr->object(), result);
     return result;
 }
@@ -1613,6 +1620,15 @@ Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
     return Value(address, type, Memory);
 }
 
+static bool isCopyCtor(sema::Function const& F) {
+    auto md = F.getSMFMetadata();
+    if (!md) {
+        return false;
+    }
+    using enum sema::SpecialLifetimeFunction;
+    return md->isSLF() && md->SLFKind() == CopyConstructor;
+}
+
 Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
     /// If we have a constructor we just call that
     if (!expr.isTrivial()) {
@@ -1628,11 +1644,7 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
         /// If we invoke a copy constructor of a dynamic array type, we give the
         /// first argument which is an uninit temporary the array size of the
         /// second argument
-        using enum sema::SpecialLifetimeFunction;
-        if (getDynArrayType(expr.type().get()) != nullptr &&
-            expr.function()->isSpecialLifetimeFunction() &&
-            expr.function()->SLFKind() == CopyConstructor)
-        {
+        if (isCopyCtor(*expr.function())) {
             valueMap.insertArraySizeOf(expr.argument(0)->object(),
                                        expr.argument(1)->object());
         }

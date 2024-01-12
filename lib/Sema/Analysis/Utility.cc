@@ -125,9 +125,7 @@ static Function* generateSLF(SpecialLifetimeFunction key,
     });
     SC_ASSERT(function, "Name can't be used by other symbol");
     function->setKind(FunctionKind::Generated);
-    function->setIsMember();
-    function->setSLFKind(key);
-    function->setSMFKind(SMFKind);
+    function->setSMFMetadata({ SMFKind, key });
     type.addSpecialMemberFunction(SMFKind, function);
     return function;
 }
@@ -265,7 +263,9 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
     type.setSpecialLifetimeFunctions(SLF);
     for (auto [index, F]: SLF | enumerate) {
         if (F) {
-            F->setSLFKind((SpecialLifetimeFunction)index);
+            SC_EXPECT(F->isSpecialMemberFunction());
+            auto md = *F->getSMFMetadata();
+            F->setSMFMetadata({ md.kind(), (SpecialLifetimeFunction)index });
         }
     }
 }

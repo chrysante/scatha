@@ -750,7 +750,7 @@ public:
                       sema::Function* calledFunction);
 
 private:
-    sema::Function* _function;
+    sema::Function* _function = nullptr;
 };
 
 /// Concrete node representing a subscript expression.

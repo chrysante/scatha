@@ -422,7 +422,6 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
                                AccessControl::Private);
     }();
     if (param) {
-        semaFn->setIsMember();
         thisParam.decorateVarDecl(param);
     }
 }

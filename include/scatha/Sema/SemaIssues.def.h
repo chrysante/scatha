@@ -331,8 +331,7 @@ SC_SEMA_BADEXPR_DEF(Subscript,
 SC_SEMA_BADEXPR_DEF(FunctionCall,
                     ExplicitSMFCall,
                     Error,
-                    "Cannot explicitly call special member function '"
-                        << expr->function()->SMFKind() << "'")
+                    "Cannot explicitly call special member function")
 
 SC_SEMA_BADEXPR_DEF(FunctionCall,
                     ObjectNotCallable,

@@ -57,7 +57,9 @@ struct FuncGenContext: FuncGenContextBase {
 } // namespace
 
 void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
-    generateSynthFunctionAs(params.semaFn.SLFKind(), config, params);
+    generateSynthFunctionAs(params.semaFn.getSMFMetadata()->SLFKind(),
+                            config,
+                            params);
 }
 
 void irgen::generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,

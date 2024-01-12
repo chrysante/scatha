@@ -484,6 +484,41 @@ private:
 
 /// # Function
 
+/// Metadata for special member functions
+class SMFMetadata {
+public:
+    SMFMetadata() = default;
+
+    SMFMetadata(SpecialMemberFunction smfKind,
+                SpecialLifetimeFunction slfKind = SpecialLifetimeFunction(0xf)):
+        smfKind(smfKind), slfKind(slfKind) {}
+
+    /// Special member function kind (`New`, `Move`, `Delete`)
+    SC_NODEBUG SpecialMemberFunction kind() const {
+        SC_EXPECT(smfKind != SpecialMemberFunction(0xf));
+        return smfKind;
+    }
+
+    /// \Returns `true` if this function is a special lifetime function
+    bool isSLF() const { return slfKind != SpecialLifetimeFunction(0xf); }
+
+    /// Special lifetime function kind (`DefaultConstructor`, `CopyConstructor`,
+    /// `MoveConstructor`, `Destructor`)
+    /// \pre Calls to this function must be guarded by a call to `isSLF()`
+    SC_NODEBUG SpecialLifetimeFunction SLFKind() const {
+        SC_EXPECT(isSLF());
+        return slfKind;
+    }
+
+private:
+    friend class Function;
+
+    SpecialMemberFunction smfKind   : 4 = SpecialMemberFunction(0xf);
+    SpecialLifetimeFunction slfKind : 4 = SpecialLifetimeFunction(0xf);
+};
+
+static_assert(sizeof(SMFMetadata) == 1);
+
 /// Represents a builtin or user defined function
 class SCATHA_API Function: public Scope {
 public:
@@ -533,42 +568,20 @@ public:
     /// Set this function to be a foreign function
     void setForeign();
 
-    /// \Returns `true` if this is a member function
-    SC_NODEBUG bool isMember() const { return _isMember; }
-
-    void setIsMember(bool value = true) { _isMember = value; }
-
     /// \Returns `true` if this function is a special member function
-    SC_NODEBUG bool isSpecialMemberFunction() const { return _isSMF; }
-
-    /// \Returns the kind of special member function if this function is a
-    /// special member function
-    SC_NODEBUG SpecialMemberFunction SMFKind() const {
-        SC_EXPECT(_isSMF);
-        return _smfKind;
+    SC_NODEBUG bool isSpecialMemberFunction() const {
+        return smfMetadata.smfKind != SpecialMemberFunction(0xf);
     }
 
-    /// Set the kind of special member function this function is
-    void setSMFKind(SpecialMemberFunction kind) {
-        _isSMF = true;
-        _smfKind = kind;
+    /// \Returns the special member function metadata or `std::nullopt` if this
+    /// function is not a special member function
+    SC_NODEBUG std::optional<SMFMetadata> getSMFMetadata() const {
+        return isSpecialMemberFunction() ? std::optional(smfMetadata) :
+                                           std::nullopt;
     }
 
-    /// \Returns `true` if this function is a special lifetime function
-    SC_NODEBUG bool isSpecialLifetimeFunction() const { return _isSLF; }
-
-    /// \Returns the kind of special lifetime function if this function is a
-    /// special lifetime function
-    SC_NODEBUG SpecialLifetimeFunction SLFKind() const {
-        SC_EXPECT(_isSLF);
-        return _slfKind;
-    }
-
-    /// Set the kind of special member function this function is
-    void setSLFKind(SpecialLifetimeFunction kind) {
-        _isSLF = true;
-        _slfKind = kind;
-    }
+    ///
+    void setSMFMetadata(SMFMetadata metadata) { smfMetadata = metadata; }
 
     /// The address of this function in the compiled binary
     /// Only has a value if this function is declared externally visible and
@@ -597,15 +610,12 @@ private:
 
     friend class SymbolTable;
     FunctionType const* _type;
-    FunctionAttribute attrs;                                     // 4 bytes
-    SpecialMemberFunction _smfKind   : 4 = {};                   // 4 bits
-    SpecialLifetimeFunction _slfKind : 4 = {};                   // 4 bits
-    FunctionKind _kind               : 4 = FunctionKind::Native; // 4 bits
-    bool _isSMF                      : 1 = false;
-    bool _isSLF                      : 1 = false;
-    bool _hasSig                     : 1 = false;
-    bool _isMember                   : 1 = false;
-    bool _hasBinaryAddress           : 1 = false;
+    FunctionAttribute attrs;                           // 4 bytes
+    SMFMetadata smfMetadata = {};                      // 1 byte
+    FunctionKind _kind     : 4 = FunctionKind::Native; // 4 bits
+    bool _hasSig           : 1 = false;
+    bool _isMember         : 1 = false;
+    bool _hasBinaryAddress : 1 = false;
     /// For binary visible functions to be set after compilation
     size_t _binaryAddress = 0;
 };

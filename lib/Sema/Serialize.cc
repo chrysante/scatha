@@ -119,6 +119,24 @@ void from_json(json const& j, SpecialLifetimeFunction& e) {
 void to_json(json& j, FunctionKind e) { serializeEnum(j, e); }
 void from_json(json const& j, FunctionKind& e) { deserializeEnum(j, e); }
 
+void to_json(json& j, SMFMetadata md) {
+    j["kind"] = md.kind();
+    if (md.isSLF()) {
+        j["slf_kind"] = md.SLFKind();
+    }
+}
+
+void from_json(json const& j, SMFMetadata& md) {
+    auto smf = j.at("kind").get<SpecialMemberFunction>();
+    auto slfItr = j.find("slf_kind");
+    if (slfItr == j.end()) {
+        md = { smf };
+    }
+    else {
+        md = { smf, slfItr->get<SpecialLifetimeFunction>() };
+    }
+}
+
 } // namespace scatha::sema
 
 /// MARK: - Type to string conversion
@@ -409,8 +427,7 @@ struct Field {
         "foreign_dependencies";
     static constexpr std::string_view ReturnType = "return_type";
     static constexpr std::string_view ArgumentTypes = "argument_types";
-    static constexpr std::string_view SMFKind = "smf_kind";
-    static constexpr std::string_view SLFKind = "slf_kind";
+    static constexpr std::string_view SMFMetadata = "smf_metadata";
     static constexpr std::string_view FunctionKind = "function_kind";
     static constexpr std::string_view Size = "size";
     static constexpr std::string_view Align = "align";
@@ -499,10 +516,7 @@ struct Serializer {
         j[Field::ArgumentTypes] = function.argumentTypes() |
                                   transform(serializeTypename);
         if (function.isSpecialMemberFunction()) {
-            j[Field::SMFKind] = function.SMFKind();
-        }
-        if (function.isSpecialLifetimeFunction()) {
-            j[Field::SLFKind] = function.SLFKind();
+            j[Field::SMFMetadata] = *function.getSMFMetadata();
         }
         j[Field::FunctionKind] = function.kind();
         gatherLibraryDependencies(*function.type());
@@ -718,13 +732,13 @@ struct Deserializer: TypeMapBase {
             sym.declareFunction(get<std::string>(obj, Field::Name),
                                 sym.functionType(argTypes, retType),
                                 get(obj, Field::AccessControl));
-        if (auto kind = tryGet<SpecialMemberFunction>(obj, Field::SMFKind)) {
-            function->setSMFKind(*kind);
-            getStruct(function)->addSpecialMemberFunction(*kind, function);
-        }
-        if (auto kind = tryGet<SpecialLifetimeFunction>(obj, Field::SLFKind)) {
-            function->setSLFKind(*kind);
-            getStruct(function)->setSpecialLifetimeFunction(*kind, function);
+        if (auto md = tryGet<SMFMetadata>(obj, Field::SMFMetadata)) {
+            function->setSMFMetadata(*md);
+            getStruct(function)->addSpecialMemberFunction(md->kind(), function);
+            if (md->isSLF()) {
+                getStruct(function)->setSpecialLifetimeFunction(md->SLFKind(),
+                                                                function);
+            }
         }
         function->setKind(get<FunctionKind>(obj, Field::FunctionKind));
     }
