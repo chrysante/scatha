@@ -1466,6 +1466,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         return value;
     }
     case UniquePtrToPtr:
+        valueMap.insertArraySizeOf(conv.object(), conv.expression()->object());
         return refConvResult;
     case Array_FixedToDynamic: {
         valueMap.insertArraySizeOf(conv.object(), expr->object());
