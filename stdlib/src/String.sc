@@ -11,7 +11,8 @@ public struct String {
     }
 
     fn new(&mut this, rhs: &String) {
-        this.buf = unique str(*rhs.buf);
+        this.buf = unique str(rhs.sz);
+        __builtin_memcpy(this.buf, &rhs.buf[0 : rhs.sz]);
         this.sz = rhs.sz;
     }
 
@@ -28,8 +29,10 @@ public struct String {
     }
 
     fn append(&mut this, char: byte) {
-        // Not implemented
-        __builtin_trap();
+        if this.buf.count == this.sz {
+            this.grow();
+        }
+        this.buf[this.sz++] = char;
     }
 
     /// Queries
@@ -44,6 +47,12 @@ public struct String {
 
     /// Data
 
-    private var buf: *unique str;
+    private fn grow(&mut this) {
+        var tmp = unique str(2 * this.buf.count);
+        __builtin_memcpy(&mut tmp[0 : this.buf.count], this.buf);
+        this.buf = move tmp;
+    }
+
+    private var buf: *unique mut str;
     private var sz: int;
 }

@@ -24,8 +24,20 @@ fn stringClear() {
     check("String shall be empty after calling clear", s.empty());
 }
 
+fn stringAppendChar() {
+    var s = std.String("Hello ");
+    s.append('W');
+    s.append('o');
+    s.append('r');
+    s.append('l');
+    s.append('d');
+    check("Append string", strcmp("Hello World", *s.data()));
+}
+
 fn main() {
     stringCopyCtor();
     stringMoveCtor();
+    stringAppendChar();
     __builtin_putstr("PASSED: String tests\n");
+    return 0;
 }
