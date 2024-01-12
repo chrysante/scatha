@@ -138,11 +138,11 @@ int CompilerInvocation::run() {
         if (!issueHandler.empty()) {
             issueHandler.print(sources, err());
         }
+        tryInvoke(callbacks.frontendCallback, *ast, semaSym);
+        if (!continueCompilation) return 0;
         if (issueHandler.haveErrors()) {
             return handleError();
         }
-        tryInvoke(callbacks.frontendCallback, *ast, semaSym);
-        if (!continueCompilation) return 0;
         irgen::Config irgenConfig = { .sourceFiles = sources,
                                       .generateDebugSymbols = genDebugInfo };
         if (targetType == TargetType::StaticLibrary) {
