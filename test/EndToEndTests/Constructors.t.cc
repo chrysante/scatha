@@ -398,23 +398,24 @@ fn main() {
     }
 }
 
-TEST_CASE("Unique ptr to dynamic array", "[end-to-end][lib][nativelib]") {
-    SECTION("Default construct") {
-        test::checkReturns(0, R"(
+TEST_CASE("Unique ptr dyn array/default construct", "[end-to-end]") {
+    test::checkReturns(0, R"(
 public fn main() -> int {
     var ptr: *unique [int];
     return ptr.count;
 })");
-    }
-    SECTION("Unique expr") {
-        test::checkReturns(5, R"(
-         public fn main() {
-            let ptr = unique str("12345");
-            return ptr.count;
-        })");
-    }
-    SECTION("Unique expr with non-trivial type") {
-        test::checkReturns(6, R"(
+}
+
+TEST_CASE("Unique expr copy dyn array", "[end-to-end]") {
+    test::checkReturns(5, R"(
+public fn main() {
+    let ptr = unique str("12345");
+    return ptr.count;
+})");
+}
+
+TEST_CASE("Unique expr copy dyn array nontrivial", "[end-to-end]") {
+    test::checkReturns(6, R"(
 fn main() {
     let xs = [X(1), X(2), X(3)];
     var ptr = unique [X](xs);
@@ -426,14 +427,15 @@ struct X {
     fn delete(&mut this) {}
     var value: int;
 })");
-    }
-    SECTION("Unique expr convert to dynamic") {
-        test::checkReturns(6, R"(
+}
+
+TEST_CASE("Unique expr convert array static to dyn", "[end-to-end]") {
+    test::checkReturns(6, R"(
 fn main() {
     var arr: *unique mut [int] = unique [1, 2, 3];
     return arr[0] + arr[1] + arr[2];
 })");
-        test::checkReturns(6, R"(
+    test::checkReturns(6, R"(
 fn main() {
     var arr1: *unique mut [int] = unique [1, 2, 3];
     var arr2: *unique mut [int] = unique [1, 2, 3];
@@ -441,9 +443,10 @@ fn main() {
     var ref: &[int] = *arr1; // Fine
     return ref[0] + ref[1] + ref[2];
 })");
-    }
-    SECTION("Move dynamic array unique pointer") {
-        test::checkReturns(6, R"(
+}
+
+TEST_CASE("Move dynamic array unique pointer", "[end-to-end]") {
+    test::checkReturns(6, R"(
 fn makeArray() -> *unique [int] {
     return unique [1, 2, 3];
 }
@@ -452,9 +455,7 @@ fn main() {
     let ints2 = move ints;
     return ints2[0] + ints2[1] + ints2[2];
 })");
-    }
-    SECTION("Move dynamic array unique pointer 2") {
-        test::checkReturns(true, R"(
+    test::checkReturns(true, R"(
 fn makeArray() -> *unique [int] {
     return unique [1, 2, 3];
 }
@@ -463,5 +464,31 @@ fn main() {
     let ints2 = move ints;
     return ints2.count == 3 && ints == null;
 })");
-    }
+}
+TEST_CASE("Construct dynamic array in unique expression", "[end-to-end]") {
+    test::checkReturns(0, R"(
+fn main() {
+    var c = 2;
+    let p = unique [int](c);
+    if p.count != c { __builtin_trap(); }
+    return p[0] + p[1];
+})");
+    test::checkReturns(2, R"(
+fn main() {
+    var c = 2;
+    let p = unique [X](c);
+    if p.count != c { __builtin_trap(); }
+    return p[0].value + p[1].value;
+}
+struct X {
+    fn new(&mut this) { this.value = 1; }
+    var value: int;
+})");
+#if 0 // Not yet working
+    test::checkReturns(0, R"(
+fn main() {
+    let p = unique [int]();
+    return p.count;
+})");
+#endif
 }

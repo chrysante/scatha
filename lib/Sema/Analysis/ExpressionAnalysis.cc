@@ -34,7 +34,7 @@ struct ExprContext {
     ExprContext(sema::AnalysisContext& ctx, DtorStack* dtorStack):
         dtorStack(dtorStack), ctx(ctx), sym(ctx.symbolTable()) {}
 
-    ast::Expression* analyze(ast::Expression*);
+    SC_NODEBUG ast::Expression* analyze(ast::Expression*);
 
     /// Shorthand for `analyze() && expectValue()`
     ast::Expression* analyzeValue(ast::Expression*);
@@ -63,6 +63,8 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::NonTrivAssignExpr&);
     ast::Expression* analyzeImpl(ast::Conversion&);
     ast::Expression* analyzeImpl(ast::ConstructExpr&);
+    ast::Expression* analyzeDynArrayConstruction(ast::ConstructExpr&,
+                                                 ArrayType const* type);
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     /// If \p expr is a pointer, inserts a `DereferenceExpression` as its
@@ -117,7 +119,8 @@ ast::Expression* ExprContext::analyze(ast::Expression* expr) {
     if (expr->isDecorated()) {
         return expr;
     }
-    return visit(*expr, [this](auto&& e) { return this->analyzeImpl(e); });
+    return visit(*expr,
+                 [this](auto&& e) SC_NODEBUG { return this->analyzeImpl(e); });
 }
 
 ast::Expression* ExprContext::analyzeValue(ast::Expression* expr) {
@@ -133,8 +136,10 @@ Type const* ExprContext::analyzeType(ast::Expression* expr) {
     DtorStack tmpDtorStack;
     dtorStack = &tmpDtorStack;
     expr = analyze(expr);
-    SC_ASSERT(dtorStack->empty(),
-              "Type expression should not trigger destructor calls");
+    if (expr && expr->isDecorated() && expr->isType()) {
+        SC_ASSERT(!expr->isType() || dtorStack->empty(),
+                  "Type expression should not trigger destructor calls");
+    }
     dtorStack = stashed;
     if (!expectType(expr)) {
         return nullptr;
@@ -1225,6 +1230,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         return nullptr;
     }
     auto* type = expr.constructedType();
+    /// Dynamic array construction is always a special case
+    if (auto* arrayType = dyncast<ArrayType const*>(type);
+        arrayType && arrayType->isDynamic())
+    {
+        return analyzeDynArrayConstruction(expr, arrayType);
+    }
     /// Trivial case
     if (ctorIsPseudo(type, expr.arguments())) {
         if (!canConstructTrivialType(expr, *dtorStack, ctx)) {
@@ -1258,6 +1269,48 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
     expr.decorateConstruct(sym.temporary(type), result.function);
     dtorStack->push(expr.object());
     return &expr;
+}
+
+ast::Expression* ExprContext::analyzeDynArrayConstruction(
+    ast::ConstructExpr& expr, ArrayType const* type) {
+    SC_EXPECT(type->isDynamic());
+    using enum SpecialLifetimeFunction;
+    auto* defCtor = type->specialLifetimeFunction(DefaultConstructor);
+    auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
+    switch (expr.arguments().size()) {
+    case 0: {
+        expr.decorateConstruct(sym.temporary(type), defCtor);
+        dtorStack->push(expr.object());
+        return &expr;
+    }
+    case 1: {
+        auto* arg = expr.argument(0);
+        auto intConv =
+            computeConversion(ConversionKind::Implicit, arg, sym.Int(), RValue);
+        /// `[Type](count)` expression
+        if (intConv) {
+            insertConversion(arg, *intConv, *dtorStack, ctx);
+            expr.decorateConstruct(sym.temporary(type), defCtor);
+            dtorStack->push(expr.object());
+            return &expr;
+        }
+        /// `[Type](other_array)` expression
+        if (auto* argArrTy = dyncast<ArrayType const*>(arg->type().get());
+            argArrTy && argArrTy->elementType() == type->elementType())
+        {
+            expr.decorateConstruct(sym.temporary(type), copyCtor);
+            dtorStack->push(expr.object());
+            return &expr;
+        }
+        /// TODO: Push error
+        SC_UNIMPLEMENTED();
+        break;
+    }
+    default:
+        /// TODO: Push error
+        SC_UNIMPLEMENTED();
+        break;
+    }
 }
 
 void ExprContext::dereferencePointer(ast::Expression* expr) {

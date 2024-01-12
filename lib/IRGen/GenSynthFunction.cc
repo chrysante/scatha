@@ -85,9 +85,6 @@ void FuncGenContext::genImpl(sema::StructType const& type) {
 
 void FuncGenContext::genImpl(sema::ArrayType const& type) {
     auto* elemType = type.elementType();
-    SC_ASSERT(!elemType->hasTrivialLifetime(),
-              "We should not generate lifetime functions for arrays of trivial "
-              "lifetime types");
     auto* count = [&]() -> ir::Value* {
         if (type.isDynamic()) {
             /// The count is the second function argument
