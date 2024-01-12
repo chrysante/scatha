@@ -160,13 +160,12 @@ static SLFArray getDefinedSLFs(SymbolTable& sym, StructType& type) {
     }
 
     auto moveCtors = type.specialMemberFunctions(Move);
-    if (auto* move = OverloadSet::find(moveCtors, std::array{ mutRef, mutRef }))
-    {
+    if (auto* move = findBySignature(moveCtors, std::array{ mutRef, mutRef })) {
         result[MoveConstructor] = move;
     }
 
     auto dtors = type.specialMemberFunctions(Delete);
-    if (auto* del = OverloadSet::find(dtors, std::array{ mutRef })) {
+    if (auto* del = findBySignature(dtors, std::array{ mutRef })) {
         result[Destructor] = del;
     }
 
@@ -297,6 +296,21 @@ void sema::declareSpecialLifetimeFunctions(ObjectType& type, SymbolTable& sym) {
 }
 
 /// # Other utils
+
+Function* sema::findBySignature(std::span<Function* const> functions,
+                                std::span<Type const* const> types) {
+    std::span<Function const* const> cf(functions.data(), functions.size());
+    return const_cast<Function*>(findBySignature(cf, types));
+}
+
+Function const* sema::findBySignature(
+    std::span<Function const* const> functions,
+    std::span<Type const* const> types) {
+    auto itr = ranges::find_if(functions, [&](auto* function) {
+        return ranges::equal(function->argumentTypes(), types);
+    });
+    return itr != functions.end() ? *itr : nullptr;
+}
 
 QualType sema::getQualType(Type const* type, Mutability mut) {
     if (auto* ref = dyncast<ReferenceType const*>(type)) {

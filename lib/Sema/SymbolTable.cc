@@ -497,9 +497,8 @@ static bool checkValidOverload(SymbolTable::Impl& impl,
                                std::span<Type const* const> argumentTypes) {
     SC_EXPECT(isa<Function>(stripAlias(entity)));
     auto overloadSet = findOtherOverloads(entity);
-    auto* existing =
-        OverloadSet::find(std::span<Function* const>{ overloadSet },
-                          argumentTypes);
+    auto* existing = findBySignature(std::span<Function* const>{ overloadSet },
+                                     argumentTypes);
     if (existing) {
         impl.issue<Redefinition>(dyncast<ast::Declaration*>(entity->astNode()),
                                  existing);

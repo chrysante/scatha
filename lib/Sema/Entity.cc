@@ -557,27 +557,6 @@ OverloadSet::OverloadSet(SourceRange loc,
     small_vector(std::move(functions)),
     loc(loc) {}
 
-template <typename T>
-T const* OSFindImpl(std::span<T const* const> set,
-                    std::span<Type const* const> types) {
-    auto itr = ranges::find_if(set, [&](auto* entity) {
-        return ranges::equal(cast<Function const*>(stripAlias(entity))
-                                 ->argumentTypes(),
-                             types);
-    });
-    return itr != set.end() ? *itr : nullptr;
-}
-
-Function const* OverloadSet::find(std::span<Function const* const> set,
-                                  std::span<Type const* const> types) {
-    return OSFindImpl(set, types);
-}
-
-Entity const* OverloadSet::find(std::span<Entity const* const> set,
-                                std::span<Type const* const> types) {
-    return OSFindImpl(set, types);
-}
-
 Alias::Alias(std::string name,
              Entity& aliased,
              Scope* parent,

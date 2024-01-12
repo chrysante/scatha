@@ -1,6 +1,8 @@
 #ifndef SCATHA_SEMA_ANALYSIS_UTILITY_H_
 #define SCATHA_SEMA_ANALYSIS_UTILITY_H_
 
+#include <span>
+
 #include "AST/Fwd.h"
 #include "Common/Base.h"
 #include "Sema/Fwd.h"
@@ -21,6 +23,15 @@ void popTopLevelDtor(ast::Expression* expr, DtorStack& dtors);
 void declareSpecialLifetimeFunctions(ObjectType& type, SymbolTable& sym);
 
 /// # Other utils
+
+/// \Returns the function in the list \p functions that exactly matches the
+/// parameter types \p paramTypes
+Function* findBySignature(std::span<Function* const> functions,
+                          std::span<Type const* const> paramTypes);
+
+/// \overload
+Function const* findBySignature(std::span<Function const* const> set,
+                                std::span<Type const* const> paramTypes);
 
 /// \Returns the type referenced by \p type if \p type is a reference type.
 /// Otherwise returns \p type as is

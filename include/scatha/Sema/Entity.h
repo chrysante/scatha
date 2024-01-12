@@ -1009,30 +1009,6 @@ public:
 
     OverloadSet(OverloadSet const&) = delete;
 
-    /// \Returns the function in this overload set that exactly matches the
-    /// parameter types \p paramTypes
-    static Function* find(std::span<Function* const> set,
-                          std::span<Type const* const> paramTypes) {
-        std::span<Function const* const> cSet(set.data(), set.size());
-        return const_cast<Function*>(find(cSet, paramTypes));
-    }
-
-    /// \overload
-    static Function const* find(std::span<Function const* const> set,
-                                std::span<Type const* const> paramTypes);
-
-    /// Static overload. The entities in \p set must be functions or function
-    /// aliases
-    static Entity* find(std::span<Entity* const> set,
-                        std::span<Type const* const> paramTypes) {
-        std::span<Entity const* const> cSet(set.data(), set.size());
-        return const_cast<Entity*>(find(cSet, paramTypes));
-    }
-
-    /// \overload
-    static Entity const* find(std::span<Entity const* const> set,
-                              std::span<Type const* const> paramTypes);
-
     /// The location where this overload set ist formed
     SC_NODEBUG SourceRange sourceRange() const { return loc; }
 
