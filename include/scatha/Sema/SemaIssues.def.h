@@ -349,9 +349,14 @@ SC_SEMA_BADEXPR_DEF(ConstructExpr,
                     "Cannot construct type")
 
 SC_SEMA_BADEXPR_DEF(ConstructExpr,
-                    CannotConstructDynamicArray,
+                    DynArrayConstrBadArgs,
                     Error,
                     "Cannot construct dynamic array from the given arguments")
+
+SC_SEMA_BADEXPR_DEF(ConstructExpr,
+                    DynArrayConstrAutoStorage,
+                    Error,
+                    "Cannot construct dynamic array in automatic storage")
 
 SC_SEMA_BADEXPR_DEF(NonTrivAssignExpr,
                     CannotAssignUncopyableType,

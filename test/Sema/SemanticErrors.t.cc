@@ -333,13 +333,17 @@ TEST_CASE("Invalid use of dynamic array", "[sema][issue]") {
 /*  8 */
 /*  9 */     let p = unique [int](1, 2);
 /* 10 */     let q = unique [int](true);
-/* 13 */ })");
+/* 11 */
+/* 12 */     var n = 1;
+/* 13 */     [int](n);
+/* 14 */ })");
     CHECK(issues.findOnLine<BadExpr>(5, MoveExprIncompleteType));
     CHECK(issues.findOnLine<BadExpr>(6, AssignExprIncompleteLHS));
     CHECK(issues.findOnLine<BadExpr>(6, AssignExprIncompleteRHS));
     CHECK(issues.findOnLine<BadVarDecl>(7, BadVarDecl::IncompleteType));
-    CHECK(issues.findOnLine<BadExpr>(9, BadExpr::CannotConstructDynamicArray));
-    CHECK(issues.findOnLine<BadExpr>(10, BadExpr::CannotConstructDynamicArray));
+    CHECK(issues.findOnLine<BadExpr>(9, BadExpr::DynArrayConstrBadArgs));
+    CHECK(issues.findOnLine<BadExpr>(10, BadExpr::DynArrayConstrBadArgs));
+    CHECK(issues.findOnLine<BadExpr>(13, BadExpr::DynArrayConstrAutoStorage));
 }
 
 TEST_CASE("Invalid jump", "[sema][issue]") {

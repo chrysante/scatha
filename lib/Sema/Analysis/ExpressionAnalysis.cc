@@ -1279,6 +1279,9 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
     ast::ConstructExpr& expr, ArrayType const* type) {
     SC_EXPECT(type->isDynamic());
     using enum SpecialLifetimeFunction;
+    if (!isa<ast::UniqueExpr>(expr.parent())) {
+        ctx.issue<BadExpr>(&expr, DynArrayConstrAutoStorage);
+    }
     auto* defCtor = type->specialLifetimeFunction(DefaultConstructor);
     auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
     switch (expr.arguments().size()) {
@@ -1306,11 +1309,11 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
             dtorStack->push(expr.object());
             return &expr;
         }
-        ctx.issue<BadExpr>(&expr, CannotConstructDynamicArray);
+        ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
         return nullptr;
     }
     default:
-        ctx.issue<BadExpr>(&expr, CannotConstructDynamicArray);
+        ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
         return nullptr;
     }
 }
