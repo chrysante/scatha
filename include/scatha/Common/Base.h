@@ -154,7 +154,9 @@
 ///     codegen(expr->LHS());
 ///
 #if defined(__GNUC__)
-#define SC_NODEBUG __attribute__((nodebug))
+// However we disable this for now because it disables code execution in the
+// debugger...
+#define SC_NODEBUG // __attribute__((nodebug))
 #else
 #define SC_NODEBUG
 #endif
