@@ -412,8 +412,6 @@ TEST_CASE("Invalid special member functions", "[sema][issue]") {
 }
 
 TEST_CASE("Explicit calls to SMFs", "[sema][issue]") {
-#warning
-    return;
     auto const issues = test::getSemaIssues(R"(
 fn main() {
 /*  3 */ var x = X();
