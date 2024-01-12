@@ -12,6 +12,7 @@ namespace scatha {
 using utl::cast;
 using utl::dyncast;
 using utl::isa;
+using utl::unsafe_cast;
 using utl::visit;
 
 } // namespace scatha
