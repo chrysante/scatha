@@ -15,7 +15,7 @@ using namespace sema;
 utl::vstreammanip<> sema::format(Entity const* entity) {
     return [=](std::ostream& str) {
         if (!entity) {
-            str << "NULL";
+            str << tfmt::format(BrightRed, "NULL");
             return;
         }
         // clang-format off
@@ -35,7 +35,7 @@ utl::vstreammanip<> sema::format(Entity const* entity) {
             [&](FunctionType const& type) {
                 str << tfmt::format(None, "(");
                 for (bool first = true; auto* arg: type.argumentTypes()) {
-                    if (first) str << tfmt::format(None, ", ");
+                    if (!first) str << tfmt::format(None, ", ");
                     first = false;
                     str << format(arg);
                 }

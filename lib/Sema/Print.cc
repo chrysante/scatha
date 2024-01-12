@@ -30,37 +30,27 @@ struct PrintContext {
     void print(Entity const& entity);
 
     utl::vstreammanip<> type(Type const* type) {
-        return [=](std::ostream& str) {
-            if (type) {
-                str << format(type);
-            }
-            else {
-                str << "NULL";
-            }
-        };
+        return [=](std::ostream& str) { str << format(type); };
     }
 
     utl::vstreammanip<> name(Entity const& entity);
 
-    utl::vstreammanip<> nameImpl(Entity const* entity) {
-        return [=](std::ostream& str) { str << entity->name(); };
+    utl::vstreammanip<> nameImpl(Entity const& entity) {
+        return [&](std::ostream& str) { str << entity.name(); };
     }
 
-    utl::vstreammanip<> nameImpl(Object const* object) {
-        return [=, this](std::ostream& str) {
-            str << object->name() << ": " << type(object->type());
+    utl::vstreammanip<> nameImpl(Object const& object) {
+        return [&, this](std::ostream& str) {
+            str << object.name() << ": " << type(object.type());
         };
     }
 
-    utl::vstreammanip<> nameImpl(Type const* ty) { return type(ty); }
+    utl::vstreammanip<> nameImpl(Type const& ty) { return type(&ty); }
 
-    utl::vstreammanip<> nameImpl(Function const* function) {
-        return [=, this](std::ostream& str) {
-            str << function->name() << "(";
-            for (bool first = true; auto* argType: function->argumentTypes()) {
-                str << (first ? first = false, "" : ", ") << type(argType);
-            }
-            str << ") -> " << type(function->returnType());
+    utl::vstreammanip<> nameImpl(Function const& function) {
+        return [&, this](std::ostream& str) {
+            str << function.name() << (function.type() ? "" : " ")
+                << type(function.type());
         };
     }
 
@@ -109,9 +99,6 @@ void PrintContext::print(Entity const& entity) {
             }
             return children;
         }
-        if (auto* os = dyncast<OverloadSet const*>(&entity)) {
-            return *os | ranges::to<SetType>;
-        }
         return SetType{};
     }();
     for (auto [index, child]: children | ranges::views::enumerate) {
@@ -123,5 +110,5 @@ void PrintContext::print(Entity const& entity) {
 }
 
 utl::vstreammanip<> PrintContext::name(Entity const& entity) {
-    return visit(entity, [this](auto& entity) { return nameImpl(&entity); });
+    return visit(entity, [this](auto& entity) { return nameImpl(entity); });
 }
