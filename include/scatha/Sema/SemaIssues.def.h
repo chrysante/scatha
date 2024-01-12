@@ -200,6 +200,11 @@ SC_SEMA_BADEXPR_DEF(Expression, BadExprNone, Error, "No issue")
 /// not worthwhile to make special errors
 SC_SEMA_BADEXPR_DEF(Expression, GenericBadExpr, Error, "Bad expression")
 
+SC_SEMA_BADEXPR_DEF(Literal,
+                    InvalidUseOfThis,
+                    Error,
+                    "Invalid use of undeclared 'this' parameter")
+
 SC_SEMA_BADEXPR_DEF(Identifier,
                     UndeclaredID,
                     Error,

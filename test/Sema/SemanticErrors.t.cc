@@ -384,6 +384,7 @@ struct X {
 }
 
 TEST_CASE("Invalid special member functions", "[sema][issue]") {
+#warning
     return;
     auto const issues = test::getSemaIssues(R"(
 /*  2 */  fn new() {}
@@ -409,6 +410,15 @@ TEST_CASE("Invalid special member functions", "[sema][issue]") {
     CHECK(issues.findOnLine<BadSMF>(10, BadSMF::DeleteSignature));
     CHECK(issues.noneOnLine(11));
     CHECK(issues.findOnLine<BadSMF>(12, BadSMF::HasReturnType));
+}
+
+TEST_CASE("Bad literals", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+/*  2 */ fn f() { this; }
+/*  3 */ struct X { fn f() { this; } }
+)");
+    CHECK(issues.findOnLine<BadExpr>(2, InvalidUseOfThis));
+    CHECK(issues.findOnLine<BadExpr>(3, InvalidUseOfThis));
 }
 
 TEST_CASE("Explicit calls to SMFs", "[sema][issue]") {

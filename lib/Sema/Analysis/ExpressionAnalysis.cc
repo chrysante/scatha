@@ -178,6 +178,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         }
         auto* function = cast<Function*>(scope);
         auto* thisEntity = function->findProperty(PropertyKind::This);
+        if (!thisEntity) {
+            ctx.issue<BadExpr>(&lit, InvalidUseOfThis);
+            return nullptr;
+        }
         lit.decorateValue(thisEntity, LValue, thisEntity->getQualType());
         return &lit;
     }
