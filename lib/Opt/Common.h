@@ -135,8 +135,8 @@ int64_t memsetConstValue(ir::Instruction const* call);
 
 /// # builtin.alloc related queries
 
-/// \Returns `true` if \p inst is a call to `builtin.alloc`
-bool isBuiltinAlloc(ir::Instruction const* inst);
+/// \Returns `true` if \p value is a call to `builtin.alloc`
+bool isBuiltinAlloc(ir::Value const* value);
 
 } // namespace scatha::opt
 

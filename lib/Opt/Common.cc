@@ -291,8 +291,8 @@ int64_t opt::memsetConstValue(ir::Instruction const* inst) {
     return size->value().to<int64_t>();
 }
 
-bool opt::isBuiltinAlloc(ir::Instruction const* inst) {
-    auto* call = dyncast<Call const*>(inst);
+bool opt::isBuiltinAlloc(ir::Value const* value) {
+    auto* call = dyncast<Call const*>(value);
     if (!call || !call->function()) {
         return false;
     }

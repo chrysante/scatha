@@ -13,6 +13,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/PassRegistry.h"
+#include "IR/PointerInfo.h"
 #include "IR/Print.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
@@ -794,6 +795,77 @@ static CompareOperation operationForReversedOperands(CompareOperation op) {
     }
 }
 
+namespace {
+
+enum class StaticCompareResult { Indeterminate, Equal, NotEqual };
+
+} // namespace
+
+static bool allocaMayAlias(Alloca const* inst, Value const* other) {
+    SC_EXPECT(inst != other);
+    /// Two alloca instructions can never alias each other
+    if (isa<Alloca>(other)) {
+        return false;
+    }
+    /// Automatic and dynamic allocations cannot alias
+    if (isBuiltinAlloc(other)) {
+        return false;
+    }
+    return true;
+}
+
+static bool dynAllocMayAlias(Call const* inst, Value const* other) {
+    SC_EXPECT(inst != other);
+    /// Two dynamic allocations can never alias each other
+    if (isBuiltinAlloc(other)) {
+        return false;
+    }
+    /// Automatic and dynamic allocations cannot alias
+    if (isa<Alloca>(other)) {
+        return false;
+    }
+    return true;
+}
+
+static bool mayAlias(Value const* A, Value const* B) {
+    SC_EXPECT(A != B);
+    if (auto* allocaInst = dyncast<Alloca const*>(A)) {
+        return allocaMayAlias(allocaInst, B);
+    }
+    if (auto* allocaInst = dyncast<Alloca const*>(B)) {
+        return allocaMayAlias(allocaInst, A);
+    }
+    if (auto* alloc = dyncast<Call const*>(A); isBuiltinAlloc(alloc)) {
+        return dynAllocMayAlias(alloc, B);
+    }
+    if (auto* alloc = dyncast<Call const*>(B); isBuiltinAlloc(alloc)) {
+        return dynAllocMayAlias(alloc, A);
+    }
+    return true;
+}
+
+static StaticCompareResult pointerStaticCompare(Value const* lhs,
+                                                Value const* rhs) {
+    using enum StaticCompareResult;
+    if (lhs == rhs) {
+        return Equal;
+    }
+    auto* lhsInfo = lhs->pointerInfo();
+    auto* rhsInfo = rhs->pointerInfo();
+    if (!lhsInfo || !lhsInfo->hasProvAndStaticOffset() || !rhsInfo ||
+        !rhsInfo->hasProvAndStaticOffset())
+    {
+        return Indeterminate;
+    }
+    if (!mayAlias(lhsInfo->provenance(), rhsInfo->provenance())) {
+        return NotEqual;
+    }
+    if (lhsInfo->guaranteedNotNull() && isa<NullPointerConstant>(rhs)) {
+        return NotEqual;
+    }
+    return Indeterminate;
+}
+
 Value* InstCombineCtx::visitImpl(CompareInst* inst) {
     using enum CompareOperation;
     auto* lhs = inst->lhs();
@@ -808,22 +880,35 @@ Value* InstCombineCtx::visitImpl(CompareInst* inst) {
         /// fold if possible
         worklist.pushUsers(inst);
     }
-    bool isAlloca = isa<Alloca>(lhs) && isa<Alloca>(rhs);
     switch (inst->operation()) {
     case Equal:
         if (lhs == rhs) {
             return irCtx.boolConstant(true);
         }
-        if (isAlloca && lhs != rhs) {
-            return irCtx.boolConstant(false);
+        if (isa<PointerType>(lhs->type())) {
+            using enum StaticCompareResult;
+            auto cmp = pointerStaticCompare(lhs, rhs);
+            if (cmp == Equal) {
+                return irCtx.boolConstant(true);
+            }
+            if (cmp == NotEqual) {
+                return irCtx.boolConstant(false);
+            }
         }
         return nullptr;
     case NotEqual:
         if (lhs == rhs) {
             return irCtx.boolConstant(false);
         }
-        if (isAlloca && lhs != rhs) {
-            return irCtx.boolConstant(true);
+        if (isa<PointerType>(lhs->type())) {
+            using enum StaticCompareResult;
+            auto cmp = pointerStaticCompare(lhs, rhs);
+            if (cmp == Equal) {
+                return irCtx.boolConstant(false);
+            }
+            if (cmp == NotEqual) {
+                return irCtx.boolConstant(true);
+            }
         }
         return nullptr;
     default:

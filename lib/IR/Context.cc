@@ -6,6 +6,7 @@
 #include <utl/vector.hpp>
 
 #include "IR/CFG/Constants.h"
+#include "IR/PointerInfo.h"
 #include "IR/Type.h"
 #include "IR/VectorHash.h"
 
@@ -75,6 +76,11 @@ Context::Context(): impl(std::make_unique<Impl>()) {
     impl->_ptrType = pt.get();
     impl->_types.push_back(std::move(pt));
     impl->nullptrConstant = allocate<NullPointerConstant>(ptrType());
+    impl->nullptrConstant->allocatePointerInfo(
+        { .align = 32, // Max align value
+          .validSize = 0,
+          .provenance = impl->nullptrConstant.get(),
+          .staticProvenanceOffset = 0 });
 }
 
 Context::Context(Context&&) noexcept = default;

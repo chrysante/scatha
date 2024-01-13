@@ -399,7 +399,7 @@ fn main() {
 }
 
 TEST_CASE("Unique ptr dyn array/default construct", "[end-to-end]") {
-    test::checkReturns(0, R"(
+    test::runReturnsTest(0, R"(
 public fn main() -> int {
     var ptr: *unique [int];
     return ptr.count;
@@ -433,12 +433,12 @@ struct X {
 }
 
 TEST_CASE("Unique expr convert array static to dyn", "[end-to-end]") {
-    test::checkReturns(6, R"(
+    test::runReturnsTest(6, R"(
 fn main() {
     var arr: *unique mut [int] = unique [1, 2, 3];
     return arr[0] + arr[1] + arr[2];
 })");
-    test::checkReturns(6, R"(
+    test::runReturnsTest(6, R"(
 fn main() {
     var arr1: *unique mut [int] = unique [1, 2, 3];
     var arr2: *unique mut [int] = unique [1, 2, 3];
@@ -449,7 +449,7 @@ fn main() {
 }
 
 TEST_CASE("Move dynamic array unique pointer", "[end-to-end]") {
-    test::checkReturns(6, R"(
+    test::runReturnsTest(6, R"(
 fn makeArray() -> *unique [int] {
     return unique [1, 2, 3];
 }
@@ -458,7 +458,7 @@ fn main() {
     let ints2 = move ints;
     return ints2[0] + ints2[1] + ints2[2];
 })");
-    test::checkReturns(true, R"(
+    test::runReturnsTest(true, R"(
 fn makeArray() -> *unique [int] {
     return unique [1, 2, 3];
 }
@@ -469,14 +469,14 @@ fn main() {
 })");
 }
 TEST_CASE("Construct dynamic array in unique expression", "[end-to-end]") {
-    test::checkReturns(0, R"(
+    test::runReturnsTest(0, R"(
 fn main() {
     var c = 2;
     let p = unique [int](c);
     if p.count != c { __builtin_trap(); }
     return p[0] + p[1];
 })");
-    test::checkReturns(2, R"(
+    test::runReturnsTest(2, R"(
 fn main() {
     var c = 2;
     let p = unique [X](c);
@@ -487,7 +487,8 @@ struct X {
     fn new(&mut this) { this.value = 1; }
     var value: int;
 })");
-#if 0 // Not yet working
+#if 0 // Not yet working. To make this work we have to make the runtime
+      // allocator allow zero sized allocations
     test::checkReturns(0, R"(
 fn main() {
     let p = unique [int]();
