@@ -68,30 +68,30 @@ func i64 @f(i64 %0) {
   %entry:
     goto label %loop.header
 
-  %loop.header:               # preds: entry, if.end
+  %loop.header:               // preds: entry, if.end
     %j.0 = phi i64 [label %entry : 1], [label %if.end : %++.result]
     %result.0 = phi i64 [label %entry : 0], [label %if.end : %result.5]
     %cmp.result = scmp leq i64 %j.0, i64 5
     branch i1 %cmp.result, label %loop.body, label %loop.end
 
-  %loop.body:                 # preds: loop.header
+  %loop.body:                 // preds: loop.header
     %expr.result = urem i64 %result.0, i64 2
     %cmp.result.1 = scmp eq i64 %expr.result, i64 0
     branch i1 %cmp.result.1, label %then, label %else
 
-  %loop.end:                  # preds: loop.header
+  %loop.end:                  // preds: loop.header
     return i64 %result.0
 
-  %then:                      # preds: loop.body
+  %then:                      // preds: loop.body
     %expr.result.1 = add i64 %result.0, i64 %j.0
     goto label %if.end
 
-  %else:                      # preds: loop.body
+  %else:                      // preds: loop.body
     %expr.result.2 = mul i64 2, i64 %result.0
     %expr.result.3 = sub i64 %expr.result.2, i64 %j.0
     goto label %if.end
 
-  %if.end:                    # preds: then, else
+  %if.end:                    // preds: then, else
     %result.5 = phi i64 [label %then : %expr.result.1], [label %else : %expr.result.3]
     %++.result = add i64 %j.0, i64 1
     goto label %loop.header
@@ -125,10 +125,10 @@ func i64 @f(i64 %0) {
     %cmp.result = scmp grt i64 %0, i64 0
     branch i1 %cmp.result, label %then, label %if.end
 
-  %then:                      # preds: entry
+  %then:                      // preds: entry
     goto label %if.end
 
-  %if.end:                    # preds: entry, then
+  %if.end:                    // preds: entry, then
     %n.0 = phi i64 [label %entry : undef], [label %then : 1]
     return i64 %n.0
 })");

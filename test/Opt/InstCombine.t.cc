@@ -254,32 +254,32 @@ func i32 @main(i1 %cond) {
     %B.1 = insert_value @X %B.0, i32 4, 1
     branch i1 %cond, label %then, label %else
 
-  %then:                      # preds: entry
+  %then:                      // preds: entry
     goto label %then.continue
 
-  %then.continue:             # preds: then
+  %then.continue:             // preds: then
     goto label %end
 
-  %else:                      # preds: entry
+  %else:                      // preds: entry
     goto label %end
 
-  %end:                       # preds: then.continue, else
+  %end:                       // preds: then.continue, else
     %C = phi @X [label %then.continue : %A.1], [label %else : %B.1]
     branch i1 %cond, label %then.1, label %else.1
 
-  %then.1:                    # preds: end
+  %then.1:                    // preds: end
     goto label %end.1
 
-  %else.1:                    # preds: end
+  %else.1:                    // preds: end
     branch i1 %cond, label %then.2, label %else.2
 
-  %then.2:                    # preds: else.1
+  %then.2:                    // preds: else.1
     goto label %end.1
 
-  %else.2:                    # preds: else.1
+  %else.2:                    // preds: else.1
     goto label %end.1
 
-  %end.1:                     # preds: then.1, then.2, else.2
+  %end.1:                     // preds: then.1, then.2, else.2
     %result = extract_value @X %C, 1
     return i32 %result
 }
@@ -291,32 +291,32 @@ func i32 @main(i1 %cond) {
   %entry:
     branch i1 %cond, label %then, label %else
 
-  %then:                      # preds: entry
+  %then:                      // preds: entry
     goto label %then.continue
 
-  %then.continue:             # preds: then
+  %then.continue:             // preds: then
     goto label %end
 
-  %else:                      # preds: entry
+  %else:                      // preds: entry
     goto label %end
 
-  %end:                       # preds: then.continue, else
+  %end:                       // preds: then.continue, else
     %result.phi = phi i32 [label %then.continue : 2], [label %else : 4]
     branch i1 %cond, label %then.1, label %else.1
 
-  %then.1:                    # preds: end
+  %then.1:                    // preds: end
     goto label %end.1
 
-  %else.1:                    # preds: end
+  %else.1:                    // preds: end
     branch i1 %cond, label %then.2, label %else.2
 
-  %then.2:                    # preds: else.1
+  %then.2:                    // preds: else.1
     goto label %end.1
 
-  %else.2:                    # preds: else.1
+  %else.2:                    // preds: else.1
     goto label %end.1
 
-  %end.1:                     # preds: then.1, then.2, else.2
+  %end.1:                     // preds: then.1, then.2, else.2
     return i32 %result.phi
 }
 )");

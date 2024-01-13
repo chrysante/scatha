@@ -286,29 +286,29 @@ func i64 @main(i1 %0) {
   %entry:
     branch i1 %0, label %if.then, label %if.else
 
-  %if.then:                   # preds: entry
+  %if.then:                   // preds: entry
     %a = add i64 5, i64 5
     goto label %loop.header
 
-  %if.else:                   # preds: entry
+  %if.else:                   // preds: entry
     %b = add i64 0, i64 10
     goto label %loop.header
 
-  %loop.header:               # preds: if.then, if.else, loop.inc
+  %loop.header:               // preds: if.then, if.else, loop.inc
     %n = phi i64 [label %if.then : %a], [label %if.else : %b], [label %loop.inc : %next]
     %i = phi i64 [label %if.then : 0], [label %if.else : 0], [label %loop.inc : %++.result]
     %cmp.result = scmp ls i64 %i, i64 %n
     branch i1 %cmp.result, label %loop.body, label %loop.end
 
-  %loop.body:                 # preds: loop.header
+  %loop.body:                 // preds: loop.header
     %next = sub i64 %n, i64 1
     goto label %loop.inc
 
-  %loop.inc:                  # preds: loop.body
+  %loop.inc:                  // preds: loop.body
     %++.result = add i64 %i, i64 1
     goto label %loop.header
 
-  %loop.end:                  # preds: loop.header
+  %loop.end:                  // preds: loop.header
     return i64 %n
 })");
 }

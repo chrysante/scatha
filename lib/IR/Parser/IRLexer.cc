@@ -118,7 +118,7 @@ Expected<Token, LexicalIssue> Lexer::next() {
         inc();
     }
     // Comments
-    if (*i == '#') {
+    if (i + 1 < end && std::string_view(i, 2) == "//") {
         while (i != end && *i != '\n') {
             inc();
         }

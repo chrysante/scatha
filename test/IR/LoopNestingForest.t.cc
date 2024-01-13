@@ -23,37 +23,37 @@ func void @f() {
   %entry:
     goto label %header.0
 
-  %header.0:               # preds: entry, if.end
+  %header.0:               // preds: entry, if.end
     branch i1 1, label %body.0, label %end.0
 
-  %body.0:                 # preds: header.0
+  %body.0:                 // preds: header.0
     goto label %header.1
 
-  %end.0:                  # preds: header.0
+  %end.0:                  // preds: header.0
     goto label %header.2
 
-  %header.1:             # preds: body.0, body.1
+  %header.1:             // preds: body.0, body.1
     branch i1 1, label %body.1, label %end.1
 
-  %body.1:               # preds: header.1
+  %body.1:               // preds: header.1
     goto label %header.1
 
-  %end.1:                # preds: header.1
+  %end.1:                // preds: header.1
     branch i1 1, label %if.then, label %if.end
 
-  %if.then:                   # preds: end.1
+  %if.then:                   // preds: end.1
     goto label %if.end
 
-  %if.end:                    # preds: end.1, if.then
+  %if.end:                    // preds: end.1, if.then
     goto label %header.0
 
-  %header.2:             # preds: end.0, body.2
+  %header.2:             // preds: end.0, body.2
     branch i1 1, label %body.2, label %end.2
 
-  %body.2:               # preds: header.2
+  %body.2:               // preds: header.2
     goto label %header.2
 
-  %end.2:                # preds: header.2
+  %end.2:                // preds: header.2
     return
 })";
         auto [ctx, mod] = ir::parse(text).value();

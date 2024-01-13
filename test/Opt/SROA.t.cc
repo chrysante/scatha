@@ -17,31 +17,31 @@ func i64 @main() {
   %entry:
     %data = alloca @X, i32 10
     
-    # Make variable x
+    // Make variable x
     %x.tmp = insert_value @X undef, i64 1, 0
     %x = insert_value @X %x.tmp, i64 2, 1
     
-    # Make variable y
+    // Make variable y
     %y.tmp = insert_value @X undef, i64 1, 0
     %y = insert_value @X %y.tmp, i64 2, 1
     
-    # Store x into array index 3
+    // Store x into array index 3
     %data.at.3 = getelementptr inbounds @X, ptr %data, i32 3
     store ptr %data.at.3, @X %x
     
-    # Store y into array index 5
+    // Store y into array index 5
     %data.at.5 = getelementptr inbounds @X, ptr %data, i32 5
     store ptr %data.at.5, @X %y
     
-    # Load second data member from index 3
+    // Load second data member from index 3
     %member.1 = getelementptr inbounds @X, ptr %data.at.3, i32 0, 1
     %lhs = load i64, ptr %member.1
     
-    # Load first data member from index 5
+    // Load first data member from index 5
     %member.0 = getelementptr inbounds @X, ptr %data.at.5, i32 0, 0
     %rhs = load i64, ptr %member.0
     
-    # Sum lhs and rhs
+    // Sum lhs and rhs
     %res = add i64 %lhs, i64 %rhs
     
     return i64 %res
@@ -109,7 +109,7 @@ func i64 @main(i1 %cond) {
     branch i1 %cond, label %if, label %then
 
   %if:
-    %p.1 = getelementptr inbounds @X, ptr %a, i32 3   # Same as p.0
+    %p.1 = getelementptr inbounds @X, ptr %a, i32 3   // Same as p.0
     %p.2 = getelementptr inbounds @X, ptr %p.1, i32 0, 0
     store ptr %p.2, i64 1
     %p.3 = getelementptr inbounds @X, ptr %p.1, i32 0, 1
@@ -117,7 +117,7 @@ func i64 @main(i1 %cond) {
     goto label %end
 
   %then:
-    %p.4 = getelementptr inbounds @X, ptr %a, i32 3   # Same as p.0
+    %p.4 = getelementptr inbounds @X, ptr %a, i32 3   // Same as p.0
     %p.5 = getelementptr inbounds @X, ptr %p.4, i32 0, 0
     store ptr %p.5, i64 5
     %p.6 = getelementptr inbounds @X, ptr %p.4, i32 0, 1
@@ -147,13 +147,13 @@ func i64 @main(i1 %cond) {
     %sroa.extract.4 = extract_value @X %i, 2
     branch i1 %cond, label %if, label %then
 
-  %if:                        # preds: entry
+  %if:                        // preds: entry
     goto label %end
 
-  %then:                      # preds: entry
+  %then:                      // preds: entry
     goto label %end
 
-  %end:                       # preds: if, then
+  %end:                       // preds: if, then
     %a.slice.6 = phi i64 [label %if : 2], [label %then : 6]
     %a.slice.5 = phi i64 [label %if : 1], [label %then : 5]
     %r.0 = add i64 %a.slice.5, i64 %a.slice.6
@@ -204,7 +204,7 @@ func i64 @main(i1 %cond) {
     call void @takeX, @X %sroa.insert.4
     goto label %end
 
-  %end:                       # preds: entry
+  %end:                       // preds: entry
     %res = add i64 5, i64 3
     return i64 3
 }
@@ -386,13 +386,13 @@ func i32 @main() {
   %entry:
     branch i1 1, label %then, label %else
 
-  %then:                      # preds: entry
+  %then:                      // preds: entry
     goto label %cond.end
 
-  %else:                      # preds: entry
+  %else:                      // preds: entry
     goto label %cond.end
 
-  %cond.end:                  # preds: then, else
+  %cond.end:                  // preds: then, else
     %res.phi.0 = phi i32 [label %then : 1], [label %else : 1]
     return i32 %res.phi.0
 })");
@@ -426,19 +426,19 @@ func i64 @test(i1 %0, ptr %1) {
   %entry:
     branch i1 %0, label %then, label %else
 
-  %then:                      # preds: entry
+  %then:                      // preds: entry
     store ptr %1, i64 1
     %ret.1 = load i64, ptr %1
     goto label %if.end
 
-  %else:                      # preds: entry
+  %else:                      // preds: entry
     goto label %if.end
 
-  %if.end:                    # preds: then, else
+  %if.end:                    // preds: then, else
     %ret.phi.0 = phi i64 [label %then : %ret.1], [label %else : 1]
     goto label %end
 
-  %end:                       # preds: if.end
+  %end:                       // preds: if.end
     return i64 %ret.phi.0
 })");
 }

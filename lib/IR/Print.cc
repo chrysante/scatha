@@ -93,6 +93,8 @@ struct PrintCtx {
 
 } // namespace
 
+static constexpr std::string_view commentToken = "//";
+
 static auto formatKeyword(auto... name) {
     return tfmt::format(Magenta | Bold, name...);
 }
@@ -413,7 +415,7 @@ void PrintCtx::printImpl(BasicBlock const& bb) {
             str << ' ';
         }
         tfmt::FormatGuard grey(BrightGrey, str);
-        str << "# preds: ";
+        str << commentToken << " preds: ";
         for (bool first = true; auto* pred: bb.predecessors()) {
             str << (first ? first = false, "" : ", ") << pred->name();
         }
