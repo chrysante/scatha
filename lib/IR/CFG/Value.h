@@ -1,6 +1,7 @@
 #ifndef SCATHA_IR_CFG_VALUE_H_
 #define SCATHA_IR_CFG_VALUE_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -11,6 +12,7 @@
 #include "Common/Metadata.h"
 #include "Common/Ranges.h"
 #include "IR/Fwd.h"
+#include "IR/PointerInfo.h"
 
 namespace scatha::ir {
 
@@ -69,6 +71,17 @@ public:
     /// For complex initialization.
     void setType(Type const* type) { _type = type; }
 
+    /// Pointer info associated with this value
+    PointerInfo* pointerInfo() { return ptrInfo.get(); }
+
+    /// \overload
+    PointerInfo const* pointerInfo() const { return ptrInfo.get(); }
+
+    /// Allocates a pointer info object for this value.
+    /// \pre Must not already have a pointer object
+    /// \pre Must be of pointer type
+    void allocatePointerInfo(PointerInfo info = {});
+
 private:
     friend class User;
 
@@ -99,6 +112,7 @@ private:
     Type const* _type;
     std::string _name;
     utl::hashmap<User*, uint16_t> _users;
+    std::unique_ptr<PointerInfo> ptrInfo;
 };
 
 /// For `dyncast` compatibilty of the CFG

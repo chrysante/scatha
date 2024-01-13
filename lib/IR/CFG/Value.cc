@@ -2,6 +2,7 @@
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;
@@ -71,4 +72,10 @@ void ir::privateDelete(Value* value) {
 
 void ir::privateDestroy(Value* value) {
     visit(*value, [](auto& derived) { std::destroy_at(&derived); });
+}
+
+void Value::allocatePointerInfo(PointerInfo info) {
+    SC_EXPECT(!ptrInfo);
+    SC_EXPECT(isa<PointerType>(type()));
+    ptrInfo = std::make_unique<PointerInfo>(info);
 }

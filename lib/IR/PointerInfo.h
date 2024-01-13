@@ -34,19 +34,25 @@ public:
     /// `%elem` has provenance `%alloc`
     Value* provenance() const { return prov; }
 
+    /// \Returns the statically known offset in bytes of this pointer from its
+    /// provenance or `std::nullopt`
+    std::optional<size_t> staticProvencanceOffset() const {
+        return hasStaticProvOffset ? std::optional<size_t>(staticProvOffset) :
+                                     std::nullopt;
+    }
+
     ///
-    void setProvenance(Value* p) { prov = p; }
+    void setProvenance(Value* p,
+                       std::optional<size_t> staticOffset = std::nullopt);
 
 private:
     size_t _align  : 9;
     bool _hasRange : 1;
     size_t _range  : 54;
     Value* prov = nullptr;
+    uint16_t staticProvOffset : 15 = 0;
+    bool hasStaticProvOffset  : 1 = false;
 };
-
-/// Retrieve pointer info of \p value. Only valid if the type of \p value is
-/// `ptr`
-PointerInfo getPointerInfo(Value const& value);
 
 } // namespace scatha::ir
 
