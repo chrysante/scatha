@@ -2,6 +2,7 @@
 #define SCATHA_COMMON_METADATA_H_
 
 #include <any>
+#include <memory>
 
 namespace scatha {
 
@@ -13,16 +14,30 @@ public:
     ObjectWithMetadata() = default;
 
     explicit ObjectWithMetadata(Metadata metadata):
-        _metadata(std::move(metadata)) {}
+        _metadata(metadata.has_value() ?
+                      std::make_unique<Metadata>(std::move(metadata)) :
+                      nullptr) {}
+
+    ObjectWithMetadata(ObjectWithMetadata const& rhs):
+        ObjectWithMetadata(rhs.metadata()) {}
+
+    ObjectWithMetadata& operator=(ObjectWithMetadata const& rhs) {
+        setMetadata(rhs.metadata());
+        return *this;
+    }
+
+    ObjectWithMetadata(ObjectWithMetadata&&) = default;
+
+    ObjectWithMetadata& operator=(ObjectWithMetadata&&) = default;
 
     /// \Returns the metadata associated with this value
-    Metadata const& metadata() const { return _metadata; }
+    Metadata metadata() const { return _metadata ? *_metadata : Metadata{}; }
 
     /// Set the metadata associated with this value to \p metadata
-    void setMetadata(Metadata metadata) { _metadata = std::move(metadata); }
+    void setMetadata(Metadata metadata);
 
 private:
-    Metadata _metadata;
+    std::unique_ptr<Metadata> _metadata;
 };
 
 } // namespace scatha

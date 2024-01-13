@@ -1,6 +1,10 @@
 #ifndef SCATHA_IR_CFG_INSTRUCTION_H_
 #define SCATHA_IR_CFG_INSTRUCTION_H_
 
+#include <span>
+
+#include <utl/small_ptr_vector.hpp>
+
 #include "Common/List.h"
 #include "Common/Ranges.h"
 #include "IR/CFG/User.h"
@@ -19,8 +23,8 @@ public:
     explicit Instruction(NodeType nodeType,
                          Type const* type,
                          std::string name = {},
-                         utl::small_vector<Value*> operands = {},
-                         utl::small_vector<Type const*> typeOperands = {});
+                         std::span<Value* const> operands = {},
+                         std::span<Type const* const> typeOperands = {});
 
     /// \returns a view of all instructions using this value.
     ///
@@ -51,7 +55,7 @@ public:
 
 protected:
     using User::User;
-    utl::small_vector<Type const*> typeOps;
+    utl::small_ptr_vector<Type const*> typeOps;
 };
 
 /// Base class of all unary instructions.
@@ -61,7 +65,7 @@ protected:
                               Value* operand,
                               Type const* type,
                               std::string name):
-        Instruction(nodeType, type, std::move(name), { operand }) {}
+        Instruction(nodeType, type, std::move(name), ValueArray{ operand }) {}
 
 public:
     /// \returns the operand of this instruction
@@ -85,7 +89,7 @@ protected:
                                Value* rhs,
                                Type const* type,
                                std::string name):
-        Instruction(nodeType, type, std::move(name), { lhs, rhs }) {}
+        Instruction(nodeType, type, std::move(name), ValueArray{ lhs, rhs }) {}
 
 public:
     /// Swap `lhs()` and `rhs()` operands of this binary instruction

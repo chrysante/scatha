@@ -24,13 +24,25 @@ public:
         return _hasRange ? std::optional(_range) : std::nullopt;
     }
 
+    /// \Returns the value that this pointer originates from. This could be a
+    /// function argument, an alloca instruction or a dynamic allocation
+    /// For example in the code
+    ///
+    ///     %alloc = alloca i32, i32 5
+    ///     %elem = getelementptr i32, ptr %alloc, i32 2
+    ///
+    /// `%elem` has provenance `%alloc`
+    Value* provenance() const { return prov; }
+
+    ///
+    void setProvenance(Value* p) { prov = p; }
+
 private:
     size_t _align  : 9;
     bool _hasRange : 1;
     size_t _range  : 54;
+    Value* prov = nullptr;
 };
-
-static_assert(sizeof(PointerInfo) == 8, "We try to keep this small");
 
 /// Retrieve pointer info of \p value. Only valid if the type of \p value is
 /// `ptr`

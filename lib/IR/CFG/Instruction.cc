@@ -8,10 +8,10 @@ using namespace ir;
 Instruction::Instruction(NodeType nodeType,
                          Type const* type,
                          std::string name,
-                         utl::small_vector<Value*> operands,
-                         utl::small_vector<Type const*> typeOperands):
-    User(nodeType, type, std::move(name), std::move(operands)),
-    typeOps(std::move(typeOperands)) {}
+                         std::span<Value* const> operands,
+                         std::span<Type const* const> typeOperands):
+    User(nodeType, type, std::move(name), operands),
+    typeOps(typeOperands.begin(), typeOperands.end()) {}
 
 void Instruction::setTypeOperand(size_t index, Type const* type) {
     SC_ASSERT(index < typeOps.size(), "Invalid index");

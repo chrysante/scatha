@@ -1,6 +1,7 @@
 #include "Volatile.h"
 
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -38,7 +39,6 @@
 #include "MIR/Module.h"
 #include "MIR/Print.h"
 #include "Opt/Common.h"
-#include "Opt/Optimizer.h"
 #include "Opt/Passes.h"
 #include "Opt/SCCCallGraph.h"
 #include "Parser/Lexer.h"
@@ -138,20 +138,6 @@ static void run(ir::Module const& mod) {
     }
     header("Symbol Table");
     sema::print(sym);
-
-    if (issues.haveErrors()) {
-        return;
-    }
-    {
-        std::stringstream sstr;
-        header("Serialized Symbol Table");
-        serialize(sym, sstr);
-        std::cout << sstr.str();
-        sema::SymbolTable sym2;
-        deserialize(sym2, sstr);
-        header("Deserialized Symbol Table");
-        sema::print(sym2);
-    }
 }
 
 [[maybe_unused]] static void lexPlayground(std::filesystem::path path) {
@@ -169,6 +155,23 @@ static void run(ir::Module const& mod) {
     }
 }
 
-void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+static void printSize(std::string_view name, size_t size) {
+    std::cout << std::setw(30) << std::left << std::setfill('_')
+              << utl::strcat(name, ": ") << " " << size << std::endl;
+}
+
+#define PRINT_SIZE(...) printSize(#__VA_ARGS__, sizeof(__VA_ARGS__))
+
+[[maybe_unused]] static void printIRValueSizes() {
+    using namespace ir;
+#define SC_VALUENODE_DEF(Name, Parent, _) PRINT_SIZE(Name);
+#include "IR/Lists.def"
+}
+
+void playground::volatilePlayground(
+    [[maybe_unused]] std::filesystem::path path) {
+    printIRValueSizes();
+    PRINT_SIZE(std::unordered_map<int, int>);
+    PRINT_SIZE(utl::hashmap<int, int>);
+    PRINT_SIZE(ObjectWithMetadata);
 }

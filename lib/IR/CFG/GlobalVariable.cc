@@ -10,7 +10,10 @@ GlobalVariable::GlobalVariable(Context& ctx,
                                Mutability mut,
                                Constant* init,
                                std::string name):
-    Global(NodeType::GlobalVariable, ctx.ptrType(), std::move(name), { init }),
+    Global(NodeType::GlobalVariable,
+           ctx.ptrType(),
+           std::move(name),
+           ValueArray{ init }),
     mut(mut) {}
 
 Constant const* GlobalVariable::initializer() const {

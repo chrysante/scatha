@@ -2,6 +2,7 @@
 #define SCATHA_IR_CFG_USER_H_
 
 #include <optional>
+#include <span>
 #include <string>
 
 #include <utl/vector.hpp>
@@ -62,11 +63,11 @@ protected:
     explicit User(NodeType nodeType,
                   Type const* type,
                   std::string name = {},
-                  utl::small_vector<Value*> operands = {});
+                  std::span<Value* const> operands = {});
 
     /// Clear all operands and replace with new operands.
     /// User lists are updated.
-    void setOperands(utl::small_vector<Value*> operands);
+    void setOperands(std::span<Value* const> operands);
 
     void setOperandCount(size_t count) { _operands.resize(count); }
 
@@ -80,7 +81,7 @@ protected:
 
 private:
     friend class BinaryInstruction;
-    utl::small_vector<Value*> _operands;
+    utl::small_vector<Value*, 2> _operands;
 };
 
 } // namespace scatha::ir

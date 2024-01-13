@@ -11,9 +11,9 @@ User::~User() { clearOperands(); }
 User::User(NodeType nodeType,
            Type const* type,
            std::string name,
-           utl::small_vector<Value*> operands):
+           std::span<Value* const> operands):
     Value(nodeType, type, std::move(name)) {
-    setOperands(std::move(operands));
+    setOperands(operands);
 }
 
 std::optional<size_t> User::indexOf(Value const* operand) const {
@@ -36,9 +36,9 @@ void User::setOperand(size_t index, Value* operand) {
     _operands[index] = operand;
 }
 
-void User::setOperands(utl::small_vector<Value*> operands) {
+void User::setOperands(std::span<Value* const> ops) {
     clearOperands();
-    _operands = std::move(operands);
+    _operands.assign(ops.begin(), ops.end());
     for (auto* op: _operands) {
         if (op) {
             op->addUserWeak(this);

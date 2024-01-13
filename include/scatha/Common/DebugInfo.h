@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <span>
 #include <string>
-#include <variant>
 #include <vector>
 
 #include <scatha/Common/SourceLocation.h>
@@ -14,8 +13,8 @@ namespace scatha::dbi {
 using SourceFileList = std::vector<std::filesystem::path>;
 
 /// Converts debug info into a JSON string
-std::string serialize(SourceFileList const* sourceFiles,
-                      std::span<SourceLocation const* const> sourceLocations);
+std::string serialize(std::span<std::filesystem::path const> sourceFiles,
+                      std::span<SourceLocation const> sourceLocations);
 
 } // namespace scatha::dbi
 

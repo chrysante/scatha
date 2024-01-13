@@ -23,8 +23,8 @@ Alloca::Alloca(Context& context,
     Instruction(NodeType::Alloca,
                 context.ptrType(),
                 std::move(name),
-                { count },
-                { allocatedType }) {}
+                ValueArray{ count },
+                std::array{ allocatedType }) {}
 
 bool Alloca::isStatic() const { return isa<IntegralConstant>(count()); }
 
@@ -49,7 +49,7 @@ Store::Store(Context& context, Value* address, Value* value):
     Instruction(NodeType::Store,
                 context.voidType(),
                 std::string{},
-                { address, value }) {}
+                ValueArray{ address, value }) {}
 
 void Store::setAddress(Value* address) { setOperand(0, address); }
 
@@ -244,7 +244,7 @@ Select::Select(Value* condition,
     Instruction(NodeType::Select,
                 thenValue ? thenValue->type() : nullptr,
                 std::move(name),
-                { condition, thenValue, elseValue }) {}
+                ValueArray{ condition, thenValue, elseValue }) {}
 
 /// Computes the inner type and byte offset by \p indices on \p operandType
 static std::pair<Type const*, size_t> computeAccessedTypeAndOffset(
@@ -272,9 +272,10 @@ GetElementPointer::GetElementPointer(Context& context,
     AccessValueInst(NodeType::GetElementPointer,
                     context.ptrType(),
                     std::move(name),
-                    { basePointer,
-                      arrayIndex ? arrayIndex : context.intConstant(0, 32) },
-                    { inboundsType }) {
+                    ValueArray{ basePointer,
+                                arrayIndex ? arrayIndex :
+                                             context.intConstant(0, 32) },
+                    std::array{ inboundsType }) {
     setMemberIndices(memberIndices);
 }
 
@@ -316,7 +317,7 @@ ExtractValue::ExtractValue(Value* baseValue,
     AccessValueInst(NodeType::ExtractValue,
                     tryGetAccessedType(baseValue, indices),
                     std::move(name),
-                    { baseValue }) {
+                    ValueArray{ baseValue }) {
     setMemberIndices(indices);
 }
 
@@ -332,7 +333,7 @@ InsertValue::InsertValue(Value* baseValue,
     AccessValueInst(NodeType::InsertValue,
                     baseValue ? baseValue->type() : nullptr,
                     std::move(name),
-                    { baseValue, insertedValue }) {
+                    ValueArray{ baseValue, insertedValue }) {
     setMemberIndices(indices);
 }
 

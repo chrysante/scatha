@@ -31,6 +31,18 @@ fn stringAppendChar() {
     s.append('r');
     s.append('l');
     s.append('d');
+    check("Append char", strcmp("Hello World", *s.data()));
+}
+
+fn stringAppendStringRef() {
+    var s = std.String("Hello ");
+    s.append("World");
+    check("Append string ref", strcmp("Hello World", *s.data()));
+}
+
+fn stringAppendString() {
+    var s = std.String("Hello ");
+    s.append(std.String("World"));
     check("Append string", strcmp("Hello World", *s.data()));
 }
 
@@ -38,6 +50,8 @@ fn main() {
     stringCopyCtor();
     stringMoveCtor();
     stringAppendChar();
+    stringAppendStringRef();
+    stringAppendString();    
     __builtin_putstr("PASSED: String tests\n");
     return 0;
 }

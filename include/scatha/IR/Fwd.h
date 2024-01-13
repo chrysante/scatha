@@ -45,6 +45,7 @@
 #ifndef SCATHA_IR_FWD_H_
 #define SCATHA_IR_FWD_H_
 
+#include <array>
 #include <iosfwd>
 #include <string_view>
 
@@ -269,6 +270,14 @@ class DomTree;
 class DominanceInfo;
 
 class LoopNestingForest;
+
+/// Convenience wrapper to make `std::array<Value*, N>` in a less verbose
+/// way
+template <size_t N>
+struct ValueArray: std::array<ir::Value*, N> {};
+
+template <typename... T>
+ValueArray(T...) -> ValueArray<sizeof...(T)>;
 
 } // namespace scatha::ir
 

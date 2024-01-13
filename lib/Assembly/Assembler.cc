@@ -9,6 +9,7 @@
 #include <utl/hashmap.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/utility.hpp>
+#include <utl/vector.hpp>
 
 #include "Assembly/AsmWriter.h"
 #include "Assembly/AssemblyStream.h"
@@ -439,10 +440,17 @@ void Assembler::setJumpDests() {
 }
 
 std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {
-    auto* list = std::any_cast<dbi::SourceFileList>(&stream.metadata());
-    auto sourceLocations = stream | join |
-                           transform([](Instruction const& inst) {
-        return std::any_cast<SourceLocation>(&inst.metadata());
-    }) | ranges::to<std::vector>;
-    return dbi::serialize(list, sourceLocations);
+    auto globalMd = stream.metadata();
+    auto* list = std::any_cast<dbi::SourceFileList>(&globalMd);
+
+    utl::small_vector<SourceLocation> sourceLocations;
+    for (auto& inst: stream | join) {
+        auto instMd = inst.metadata();
+        auto* SL = std::any_cast<SourceLocation>(&instMd);
+        if (SL) {
+            sourceLocations.push_back(*SL);
+        }
+    }
+    return dbi::serialize(list ? *list : dbi::SourceFileList{},
+                          sourceLocations);
 }

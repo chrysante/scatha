@@ -356,7 +356,7 @@ public:
         return static_cast<InstructionType>(index());
     }
 
-    Metadata const& metadata() const {
+    Metadata metadata() const {
         return std::visit(&InstructionBase::metadata, *this);
     }
 
