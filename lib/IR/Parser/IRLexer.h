@@ -19,6 +19,7 @@ public:
     Expected<Token, LexicalIssue> next();
 
 private:
+    void ignoreWhitespace();
     void inc();
 
     char const* i;

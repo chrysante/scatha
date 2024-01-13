@@ -6,7 +6,8 @@ using namespace ir;
 PointerInfo::PointerInfo(PointerInfoDesc desc):
     _align(desc.align),
     _hasRange(desc.validSize),
-    _range(desc.validSize.value_or(0)) {
+    _range(desc.validSize.value_or(0)),
+    _guaranteedNotNull(desc.guaranteedNotNull) {
     setProvenance(desc.provenance, desc.staticProvenanceOffset);
 }
 

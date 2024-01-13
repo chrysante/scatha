@@ -1,6 +1,7 @@
 #ifndef SCATHA_IR_PARSER_TOKEN_H_
 #define SCATHA_IR_PARSER_TOKEN_H_
 
+#include <optional>
 #include <string_view>
 
 #include <scatha/Common/Base.h>
@@ -24,19 +25,21 @@ enum class TokenKind {
     Comma,
     Colon,
 
-    Void,
-    Ptr,
-    IntType,
-    FloatType,
-
     IntLiteral,
     FloatLiteral,
     NullLiteral,
     UndefLiteral,
     StringLiteral,
 
-    GlobalIdentifier,
-    LocalIdentifier,
+    GlobalIdentifier,   // @...
+    LocalIdentifier,    // %...
+    MetadataIdentifier, // #...
+
+    FIRST_BUILTIN_ID,
+    Void = FIRST_BUILTIN_ID,
+    Ptr,
+    IntType,
+    FloatType,
 
     Alloca,
     Load,
@@ -90,8 +93,19 @@ enum class TokenKind {
     Greater,
     GreaterEq,
 
+    OtherID, // All IDs that are not keywords and are not prefixed with @, % or
+             // #
+
+    LAST_BUILTIN_ID = OtherID,
+
     EndOfFile
 };
+
+/// \Returns `true` if \p kind is a builtin keyword or `OtherID`
+inline bool isBuiltinID(TokenKind kind) {
+    return (int)kind >= (int)TokenKind::FIRST_BUILTIN_ID &&
+           (int)kind <= (int)TokenKind::LAST_BUILTIN_ID;
+}
 
 class Token {
 public:

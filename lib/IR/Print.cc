@@ -17,6 +17,7 @@
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/PassRegistry.h"
+#include "IR/PointerInfo.h"
 #include "IR/Type.h"
 
 using namespace scatha;
@@ -72,6 +73,8 @@ struct PrintCtx {
 
     void printImport(std::string_view libName);
     void print(StructType const& structure);
+
+    void metadata(PointerInfo const&);
 
     void funcDecl(ir::Callable const*);
     void instDecl(Instruction const*) const;
@@ -366,6 +369,10 @@ void PrintCtx::print(Value const& value) {
         instDecl(inst);
     }
     visit(value, [this](auto const& value) { printImpl(value); });
+    if (auto* ptrInfo = value.pointerInfo()) {
+        str << " ";
+        metadata(*ptrInfo);
+    }
 }
 
 void PrintCtx::printImpl(GlobalVariable const& var) {
@@ -434,7 +441,7 @@ void PrintCtx::printImpl(BasicBlock const& bb) {
 }
 
 void PrintCtx::printImpl(Instruction const& inst) {
-    str << "<" << inst.nodeType() << ">\n";
+    str << "<" << inst.nodeType() << ">";
 }
 
 void PrintCtx::printImpl(Alloca const& alloc) {
@@ -566,6 +573,25 @@ void PrintCtx::print(StructType const& structure) {
     }
     indent.decrease();
     str << "\n";
+}
+
+void PrintCtx::metadata(PointerInfo const& info) {
+    str << tfmt::format(Red, "#ptr") << "(";
+    str << "align: " << info.align();
+    if (auto size = info.validSize()) {
+        str << ", validsize: " << *size;
+    }
+    if (auto* prov = info.provenance()) {
+        str << ", provenance: ";
+        typedName(prov);
+    }
+    if (auto offset = info.staticProvencanceOffset()) {
+        str << ", offset: " << *offset;
+    }
+    if (info.guaranteedNotNull()) {
+        str << ", nonnull";
+    }
+    str << ")";
 }
 
 static std::string_view toStrName(ir::Instruction const* inst) {

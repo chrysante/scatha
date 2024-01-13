@@ -17,6 +17,7 @@
 #include "IR/Module.h"
 #include "IR/Parser/IRLexer.h"
 #include "IR/Parser/IRToken.h"
+#include "IR/PointerInfo.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
 
@@ -96,6 +97,7 @@ struct IRParser {
     UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructType> parseStructure();
+    void parseMetadataFor(Value& value);
     bool validateFFIType(Token const& token, Type const* type);
 
     /// Try to parse a type, return `nullptr` if no type could be parsed
@@ -131,9 +133,6 @@ struct IRParser {
         if (optVal.value()) {
             return;
         }
-        if (isa<Phi>(user)) {
-            return;
-        }
         auto token = optVal.token();
         if (token.kind() != TokenKind::LocalIdentifier &&
             token.kind() != TokenKind::GlobalIdentifier)
@@ -146,12 +145,18 @@ struct IRParser {
         /// We report self references as use of undeclared identifier
         /// because the identifier is not defined before the next
         /// declaration.
-        reportSemaIssue(token, SemanticIssue::UseOfUndeclaredIdentifier);
+        reportSemaIssueNoFail(token, SemanticIssue::UseOfUndeclaredIdentifier);
     }
 
-    template <typename V = Value, std::derived_from<User> U>
-    void addValueLink(U* user, Type const* type, OptValue optVal, auto fn) {
-        checkSelfRef(user, optVal);
+    template <typename V = Value, std::derived_from<Value> V2>
+    void addValueLink(V2* user,
+                      Type const* type,
+                      OptValue optVal,
+                      auto fn,
+                      bool allowSelfRef = false) {
+        if (!allowSelfRef) {
+            checkSelfRef(user, optVal);
+        }
         auto* value = [&] {
             if (optVal.value()) {
                 return dyncast<V*>(optVal.value());
@@ -160,7 +165,8 @@ struct IRParser {
         }();
         if (value) {
             if (type && value->type() && value->type() != type) {
-                reportSemaIssue(optVal.token(), SemanticIssue::TypeMismatch);
+                reportSemaIssueNoFail(optVal.token(),
+                                      SemanticIssue::TypeMismatch);
             }
             std::invoke(fn, user, value);
             return;
@@ -169,9 +175,12 @@ struct IRParser {
             SC_EXPECT(v);
             auto* value = dyncast<V*>(v);
             if (!value) {
-                reportSemaIssue(optVal.token(), SemanticIssue::InvalidEntity);
+                reportSemaIssueNoFail(optVal.token(),
+                                      SemanticIssue::InvalidEntity);
             }
-            std::invoke(fn, user, value);
+            else {
+                std::invoke(fn, user, value);
+            }
         });
     }
 
@@ -216,8 +225,14 @@ struct IRParser {
         throw ParserException{};
     }
 
-    void reportSemaIssue(Token const& token, SemanticIssue::Reason reason) {
+    void reportSemaIssueNoFail(Token const& token,
+                               SemanticIssue::Reason reason) {
         issues.push_back(SemanticIssue(token, reason));
+    }
+
+    void reportSemaIssue(Token const& token, SemanticIssue::Reason reason) {
+        reportSemaIssueNoFail(token, reason);
+        throw ParserException{};
     }
 
     void expectAny(Token const& token, std::same_as<TokenKind> auto... kind) {
@@ -243,15 +258,17 @@ struct IRParser {
         }
     }
 
-    APInt parseInt(Token token, Type const* type) {
-        SC_EXPECT(token.kind() == TokenKind::IntLiteral);
-        auto value = APInt::parse(token.id(),
-                                  10,
-                                  cast<IntegralType const*>(type)->bitwidth());
+    APInt parseInt(Token token, size_t bitwidth) {
+        expect(token, TokenKind::IntLiteral);
+        auto value = APInt::parse(token.id(), 10, bitwidth);
         if (!value) {
             reportSyntaxIssue(token);
         }
         return *value;
+    }
+
+    APInt parseInt(Token token, Type const* type) {
+        return parseInt(token, cast<IntegralType const*>(type)->bitwidth());
     }
 
     APFloat parseFloat(Token token, Type const* type) {
@@ -360,8 +377,8 @@ struct IRParser {
         /// successfully.
         for (auto&& [name, list]: updates) {
             for (auto&& update: list) {
-                reportSemaIssue(update.token,
-                                SemanticIssue::UseOfUndeclaredIdentifier);
+                reportSemaIssueNoFail(update.token,
+                                      SemanticIssue::UseOfUndeclaredIdentifier);
             }
         }
     }
@@ -460,7 +477,7 @@ UniquePtr<GlobalVariable> IRParser::parseGlobalVar() {
     bool success =
         globals.insert({ std::string(name.id()), global.get() }).second;
     if (!success) {
-        reportSemaIssue(name, SemanticIssue::Redeclaration);
+        reportSemaIssueNoFail(name, SemanticIssue::Redeclaration);
     }
     return global;
 }
@@ -577,6 +594,9 @@ UniquePtr<BasicBlock> IRParser::parseBasicBlock() {
         auto instruction = parseInstruction();
         if (!instruction) {
             break;
+        }
+        if (peekToken().kind() == TokenKind::MetadataIdentifier) {
+            parseMetadataFor(*instruction);
         }
         /// Phi instructions register themselves because they may be self
         /// referential
@@ -796,12 +816,14 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
                                                      BasicBlock* pred) {
                 phi->setPredecessor(index, pred);
             });
-            addValueLink(result.get(),
-                         type,
-                         value,
-                         [index = index](Phi* phi, Value* value) {
+            addValueLink(
+                result.get(),
+                type,
+                value,
+                [index = index](Phi* phi, Value* value) {
                 phi->setArgument(index, value);
-            });
+            },
+                /* allowSelfRef = */ true);
         }
         return result;
     }
@@ -1080,7 +1102,7 @@ OptValue IRParser::parseValue(Type const* type) {
     auto token = eatToken();
     switch (token.kind()) {
     case TokenKind::LocalIdentifier:
-        [[fallthrough]];
+        return token;
     case TokenKind::GlobalIdentifier:
         return token;
     case TokenKind::NullLiteral:
@@ -1155,6 +1177,82 @@ OptValue IRParser::parseValue(Type const* type) {
     }
     default:
         reportSyntaxIssue(token);
+    }
+}
+
+void IRParser::parseMetadataFor(Value& value) {
+    auto tok = eatToken();
+    SC_EXPECT(tok.kind() == TokenKind::MetadataIdentifier);
+    if (tok.id() == "ptr") {
+        if (peekToken().kind() != TokenKind::OpenParan) {
+            value.allocatePointerInfo(PointerInfo());
+            return;
+        }
+        eatToken(); // Open paran
+        std::optional<size_t> align;
+        std::optional<size_t> validSize;
+        Type const* provType = nullptr;
+        std::optional<OptValue> prov;
+        std::optional<size_t> provOffset;
+        bool nonnull = false;
+        for (int i = 0;; ++i) {
+            auto tok = eatToken();
+            if (tok.kind() == TokenKind::CloseParan) {
+                break;
+            }
+            if (i > 0) {
+                expect(tok, TokenKind::Comma);
+                tok = eatToken();
+            }
+            if (!isBuiltinID(tok.kind())) {
+                reportSyntaxIssue(tok);
+            }
+            if (tok.id() == "align") {
+                expect(eatToken(), TokenKind::Colon);
+                align = parseInt(eatToken(), /*width=*/9).to<size_t>();
+            }
+            else if (tok.id() == "validsize") {
+                expect(eatToken(), TokenKind::Colon);
+                validSize = parseInt(eatToken(), /*width=*/54).to<size_t>();
+            }
+            else if (tok.id() == "provenance") {
+                expect(eatToken(), TokenKind::Colon);
+                provType = parseType();
+                prov = parseValue(provType);
+            }
+            else if (tok.id() == "offset") {
+                expect(eatToken(), TokenKind::Colon);
+                provOffset = parseInt(eatToken(), /*width=*/54).to<size_t>();
+            }
+            else if (tok.id() == "nonnull") {
+                nonnull = true;
+            }
+            else {
+                reportSyntaxIssue(tok);
+            }
+        }
+        auto assign = [=](Value* value, Value* prov) {
+            value->allocatePointerInfo({
+                .align = align.value_or(1),
+                .validSize = validSize,
+                .provenance = prov,
+                .staticProvenanceOffset = provOffset,
+                .guaranteedNotNull = nonnull,
+            });
+        };
+        if (prov) {
+            addValueLink(&value,
+                         provType,
+                         *prov,
+                         assign,
+                         /* allowSelfRef = */ true);
+        }
+        else {
+            assign(&value, nullptr);
+        }
+    }
+    else {
+        reportSyntaxIssue(tok);
     }
 }
 

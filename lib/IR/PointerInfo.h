@@ -14,6 +14,7 @@ struct PointerInfoDesc {
     std::optional<size_t> validSize;
     Value* provenance;
     std::optional<size_t> staticProvenanceOffset;
+    bool guaranteedNotNull = false;
 };
 
 /// Statically known pointer meta data
@@ -24,11 +25,11 @@ public:
     PointerInfo(PointerInfoDesc);
 
     /// The minimum alignment requirement that can be assumed for this pointer
-    size_t minAlign() const { return _align; }
+    size_t align() const { return _align; }
 
     /// The number of bytes which are dereferencable through this pointer if
     /// known statically
-    std::optional<size_t> range() const {
+    std::optional<size_t> validSize() const {
         return _hasRange ? std::optional(_range) : std::nullopt;
     }
 
@@ -49,8 +50,15 @@ public:
                                      std::nullopt;
     }
 
+    /// \Returns `true` if this pointer info has provenance and static
+    /// provenance offset info available
+    bool hasProvAndStaticOffset() const { return prov && hasStaticProvOffset; }
+
     ///
     void setProvenance(Value* p, std::optional<size_t> staticOffset);
+
+    /// \Returns `true` if this pointer is guaranteed not to be null
+    bool guaranteedNotNull() const { return _guaranteedNotNull; }
 
 private:
     size_t _align  : 9;
@@ -59,6 +67,7 @@ private:
     Value* prov = nullptr;
     uint16_t staticProvOffset : 15 = 0;
     bool hasStaticProvOffset  : 1 = false;
+    bool _guaranteedNotNull   : 1 = false;
 };
 
 } // namespace scatha::ir

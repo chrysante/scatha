@@ -7,6 +7,7 @@
 #include "IR/Context.h"
 #include "IR/IRParser.h"
 #include "IR/Module.h"
+#include "IR/PointerInfo.h"
 #include "IR/Type.h"
 
 #include "IR/EqualityTestHelper.h"
@@ -73,4 +74,38 @@ func @X @f(@X) {
         })
     });
     // clang-format on
+}
+
+TEST_CASE("Parse IR with pointer info metadata", "[ir][parser]") {
+    auto const text = R"(
+func void @f() {
+%entry:
+    %1 = alloca i64, i32 1 #ptr(align: 8, validsize: 8, provenance: ptr %1, offset: 0, nonnull)
+    // Same as %1 but metadata in different order
+    %2 = alloca i64, i32 1 #ptr(nonnull, validsize: 8, provenance: ptr %1, align: 8, offset: 0)
+    return
+})";
+    auto [ctx, mod] = ir::parse(text).value();
+    auto& f = mod.front();
+    auto& entry = f.front();
+    auto& a1 = entry.front();
+    SECTION("%1") {
+        auto* ptr = a1.pointerInfo();
+        REQUIRE(ptr);
+        CHECK(ptr->align() == 8);
+        CHECK(ptr->validSize().value() == 8);
+        CHECK(ptr->provenance() == &a1);
+        CHECK(ptr->staticProvencanceOffset().value() == 0);
+        CHECK(ptr->guaranteedNotNull());
+    }
+    auto& a2 = *a1.next();
+    SECTION("%1") {
+        auto* ptr = a2.pointerInfo();
+        REQUIRE(ptr);
+        CHECK(ptr->align() == 8);
+        CHECK(ptr->validSize().value() == 8);
+        CHECK(ptr->provenance() == &a1);
+        CHECK(ptr->staticProvencanceOffset().value() == 0);
+        CHECK(ptr->guaranteedNotNull());
+    }
 }

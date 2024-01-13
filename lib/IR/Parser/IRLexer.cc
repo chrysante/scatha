@@ -113,10 +113,21 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
     return itr->second;
 }
 
-Expected<Token, LexicalIssue> Lexer::next() {
-    while (i != end && std::isspace(*i)) {
-        inc();
+static TokenKind toIDTokenKind(char c) {
+    switch (c) {
+    case '@':
+        return TokenKind::GlobalIdentifier;
+    case '%':
+        return TokenKind::LocalIdentifier;
+    case '#':
+        return TokenKind::MetadataIdentifier;
+    default:
+        SC_UNREACHABLE();
     }
+}
+
+Expected<Token, LexicalIssue> Lexer::next() {
+    ignoreWhitespace();
     // Comments
     if (i + 1 < end && std::string_view(i, 2) == "//") {
         while (i != end && *i != '\n') {
@@ -128,15 +139,14 @@ Expected<Token, LexicalIssue> Lexer::next() {
     if (i == end) {
         return Token(std::string_view{}, loc, TokenKind::EndOfFile);
     }
-    // Identifier
-    if (*i == '@' || *i == '%') {
+    // User defined and metadata identifier
+    if (*i == '@' || *i == '%' || *i == '#') {
         SourceLocation const beginSL = loc;
         char const* const first = i;
         while (i != end && !std::isspace(*i) && !isPunctuation(*i)) {
             inc();
         }
-        TokenKind const kind = *first == '@' ? TokenKind::GlobalIdentifier :
-                                               TokenKind::LocalIdentifier;
+        TokenKind const kind = toIDTokenKind(*first);
         return Token(first + 1, i, beginSL, kind);
     }
     // NumericLiteral
@@ -190,7 +200,7 @@ Expected<Token, LexicalIssue> Lexer::next() {
         inc();
         return Token(first, i, beginSL, *kind);
     }
-    // Keyword
+    // Builtin identifiers
     if (std::isalpha(*i) || *i == '_') {
         SourceLocation const beginSL = loc;
         char const* const first = i;
@@ -202,10 +212,9 @@ Expected<Token, LexicalIssue> Lexer::next() {
         if (keyword) {
             return Token(id, beginSL, *keyword);
         }
+        auto isdigit = [](char c) { return std::isdigit(c); };
         if ((*first == 'i' || *first == 'f') &&
-            ranges::all_of(first + 1, i, [](char c) {
-            return std::isdigit(c);
-        }))
+            ranges::all_of(first + 1, i, isdigit))
         {
             char* strEnd = nullptr;
             long const width = std::strtol(first + 1, &strEnd, 10);
@@ -214,9 +223,15 @@ Expected<Token, LexicalIssue> Lexer::next() {
                                               TokenKind::FloatType;
             return Token(id, beginSL, kind, utl::narrow_cast<unsigned>(width));
         }
-        return LexicalIssue(beginSL);
+        return Token(id, beginSL, TokenKind::OtherID);
     }
     return LexicalIssue(loc);
+}
+
+void Lexer::ignoreWhitespace() {
+    while (i != end && std::isspace(*i)) {
+        inc();
+    }
 }
 
 void Lexer::inc() {
