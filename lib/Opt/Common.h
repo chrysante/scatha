@@ -133,6 +133,11 @@ inline ir::Value* memsetValue(ir::Instruction* call) {
 /// \Returns the size of the memset operation as constant
 int64_t memsetConstValue(ir::Instruction const* call);
 
+/// # builtin.alloc related queries
+
+/// \Returns `true` if \p inst is a call to `builtin.alloc`
+bool isBuiltinAlloc(ir::Instruction const* inst);
+
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_COMMON_H_

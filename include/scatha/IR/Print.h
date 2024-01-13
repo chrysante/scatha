@@ -4,6 +4,8 @@
 #include <iosfwd>
 #include <string>
 
+#include <utl/streammanip.hpp>
+
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
 
@@ -26,6 +28,9 @@ SCATHA_API void printDecl(Value const& value);
 
 /// Print declaration of  \p value to \p ostream
 SCATHA_API void printDecl(Value const& value, std::ostream& ostream);
+
+///
+SCATHA_API utl::vstreammanip<> format(Value const& value);
 
 /// Print instruction \p inst to `std::cout`
 SCATHA_API void print(Instruction const& inst);

@@ -2,10 +2,14 @@
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
+#include "IR/PointerInfo.h"
 #include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;
+
+Value::Value(NodeType nodeType, Type const* type, std::string name) noexcept:
+    _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
 Value::~Value() { removeAllUses(); }
 
@@ -78,4 +82,8 @@ void Value::allocatePointerInfo(PointerInfo info) {
     SC_EXPECT(!ptrInfo);
     SC_EXPECT(isa<PointerType>(type()));
     ptrInfo = std::make_unique<PointerInfo>(info);
+}
+
+void Value::allocatePointerInfo(PointerInfoDesc desc) {
+    allocatePointerInfo(PointerInfo(desc));
 }

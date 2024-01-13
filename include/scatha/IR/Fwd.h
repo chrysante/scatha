@@ -253,6 +253,9 @@ namespace scatha::ir {
 using PhiMapping = internal::PhiMappingImpl<false>;
 using ConstPhiMapping = internal::PhiMappingImpl<true>;
 
+class PointerInfo;
+struct PointerInfoDesc;
+
 /// Insulated call to `delete` on the most derived base of \p value
 SCATHA_API void privateDelete(ir::Value* value);
 

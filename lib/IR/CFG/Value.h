@@ -12,19 +12,12 @@
 #include "Common/Metadata.h"
 #include "Common/Ranges.h"
 #include "IR/Fwd.h"
-#include "IR/PointerInfo.h"
 
 namespace scatha::ir {
 
 /// Represents a value in the program.
 /// Every value has a type. Types are not values.
 class SCATHA_API Value: public ObjectWithMetadata {
-protected:
-    explicit Value(NodeType nodeType,
-                   Type const* type,
-                   std::string name) noexcept:
-        _nodeType(nodeType), _type(type), _name(std::move(name)) {}
-
 public:
     /// Values are polymorphic objects and not copyable
     Value(Value const&) = delete;
@@ -80,7 +73,15 @@ public:
     /// Allocates a pointer info object for this value.
     /// \pre Must not already have a pointer object
     /// \pre Must be of pointer type
-    void allocatePointerInfo(PointerInfo info = {});
+    void allocatePointerInfo(PointerInfo info);
+
+    /// \overload
+    void allocatePointerInfo(PointerInfoDesc desc);
+
+protected:
+    explicit Value(NodeType nodeType,
+                   Type const* type,
+                   std::string name) noexcept;
 
 private:
     friend class User;
@@ -107,7 +108,6 @@ private:
     /// Customization point for `ir::DynAllocator`
     friend void ir::privateDestroy(Value* value);
 
-private:
     NodeType _nodeType;
     Type const* _type;
     std::string _name;

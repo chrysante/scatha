@@ -308,6 +308,10 @@ void ir::printDecl(Value const& value, std::ostream& ostream) {
     }; // clang-format on
 }
 
+SCATHA_API utl::vstreammanip<> ir::format(Value const& value) {
+    return [&](std::ostream& str) { printDecl(value, str); };
+}
+
 void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }
 
 void ir::print(Instruction const& inst, std::ostream& str) {

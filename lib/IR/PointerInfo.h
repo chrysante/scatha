@@ -8,12 +8,20 @@
 
 namespace scatha::ir {
 
+/// Parameters to initialize `PointerInfo`
+struct PointerInfoDesc {
+    size_t align;
+    std::optional<size_t> validSize;
+    Value* provenance;
+    std::optional<size_t> staticProvenanceOffset;
+};
+
 /// Statically known pointer meta data
 class PointerInfo {
 public:
-    PointerInfo(size_t minAlign = 1,
-                std::optional<size_t> range = std::nullopt):
-        _align(minAlign), _hasRange(range), _range(range.value_or(0)) {}
+    PointerInfo() = default;
+
+    PointerInfo(PointerInfoDesc);
 
     /// The minimum alignment requirement that can be assumed for this pointer
     size_t minAlign() const { return _align; }
@@ -42,8 +50,7 @@ public:
     }
 
     ///
-    void setProvenance(Value* p,
-                       std::optional<size_t> staticOffset = std::nullopt);
+    void setProvenance(Value* p, std::optional<size_t> staticOffset);
 
 private:
     size_t _align  : 9;
