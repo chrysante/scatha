@@ -4,6 +4,7 @@
 
 #include <utl/functional.hpp>
 
+#include "ArithmeticOps.h"
 #include "Common.h"
 #include "Memory.h"
 #include "OpCode.h"
@@ -499,142 +500,140 @@ void VMImpl::stepExecution() {
     INST(setge) { set(i, regPtr, greaterEq(cmpFlags)); }
 
     /// ## Unary operations
-    INST(lnt) { unaryR<u64>(i, regPtr, utl::logical_not); }
-    INST(bnt) { unaryR<u64>(i, regPtr, utl::bitwise_not); }
-    INST(neg8) { unaryR<i8>(i, regPtr, utl::negate); }
-    INST(neg16) { unaryR<i16>(i, regPtr, utl::negate); }
-    INST(neg32) { unaryR<i32>(i, regPtr, utl::negate); }
-    INST(neg64) { unaryR<i64>(i, regPtr, utl::negate); }
+    INST(lnt) { unaryR<u64>(i, regPtr, LogNot); }
+    INST(bnt) { unaryR<u64>(i, regPtr, BitNot); }
+    INST(neg8) { unaryR<i8>(i, regPtr, Negate); }
+    INST(neg16) { unaryR<i16>(i, regPtr, Negate); }
+    INST(neg32) { unaryR<i32>(i, regPtr, Negate); }
+    INST(neg64) { unaryR<i64>(i, regPtr, Negate); }
 
     /// ## 64 bit integral arithmetic
-    INST(add64RR) { arithmeticRR<u64>(i, regPtr, utl::plus); }
-    INST(add64RV) { arithmeticRV<u64>(i, regPtr, utl::plus); }
-    INST(add64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::plus); }
-    INST(sub64RR) { arithmeticRR<u64>(i, regPtr, utl::minus); }
-    INST(sub64RV) { arithmeticRV<u64>(i, regPtr, utl::minus); }
-    INST(sub64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::minus); }
-    INST(mul64RR) { arithmeticRR<u64>(i, regPtr, utl::multiplies); }
-    INST(mul64RV) { arithmeticRV<u64>(i, regPtr, utl::multiplies); }
-    INST(mul64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::multiplies); }
-    INST(udiv64RR) { arithmeticRR<u64>(i, regPtr, utl::divides); }
-    INST(udiv64RV) { arithmeticRV<u64>(i, regPtr, utl::divides); }
-    INST(udiv64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::divides); }
-    INST(sdiv64RR) { arithmeticRR<i64>(i, regPtr, utl::divides); }
-    INST(sdiv64RV) { arithmeticRV<i64>(i, regPtr, utl::divides); }
-    INST(sdiv64RM) { arithmeticRM<i64>(memory, i, regPtr, utl::divides); }
-    INST(urem64RR) { arithmeticRR<u64>(i, regPtr, utl::modulo); }
-    INST(urem64RV) { arithmeticRV<u64>(i, regPtr, utl::modulo); }
-    INST(urem64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::modulo); }
-    INST(srem64RR) { arithmeticRR<i64>(i, regPtr, utl::modulo); }
-    INST(srem64RV) { arithmeticRV<i64>(i, regPtr, utl::modulo); }
-    INST(srem64RM) { arithmeticRM<i64>(memory, i, regPtr, utl::modulo); }
+    INST(add64RR) { arithmeticRR<u64>(i, regPtr, Add); }
+    INST(add64RV) { arithmeticRV<u64>(i, regPtr, Add); }
+    INST(add64RM) { arithmeticRM<u64>(memory, i, regPtr, Add); }
+    INST(sub64RR) { arithmeticRR<u64>(i, regPtr, Sub); }
+    INST(sub64RV) { arithmeticRV<u64>(i, regPtr, Sub); }
+    INST(sub64RM) { arithmeticRM<u64>(memory, i, regPtr, Sub); }
+    INST(mul64RR) { arithmeticRR<u64>(i, regPtr, Mul); }
+    INST(mul64RV) { arithmeticRV<u64>(i, regPtr, Mul); }
+    INST(mul64RM) { arithmeticRM<u64>(memory, i, regPtr, Mul); }
+    INST(udiv64RR) { arithmeticRR<u64>(i, regPtr, Div); }
+    INST(udiv64RV) { arithmeticRV<u64>(i, regPtr, Div); }
+    INST(udiv64RM) { arithmeticRM<u64>(memory, i, regPtr, Div); }
+    INST(sdiv64RR) { arithmeticRR<i64>(i, regPtr, Div); }
+    INST(sdiv64RV) { arithmeticRV<i64>(i, regPtr, Div); }
+    INST(sdiv64RM) { arithmeticRM<i64>(memory, i, regPtr, Div); }
+    INST(urem64RR) { arithmeticRR<u64>(i, regPtr, Rem); }
+    INST(urem64RV) { arithmeticRV<u64>(i, regPtr, Rem); }
+    INST(urem64RM) { arithmeticRM<u64>(memory, i, regPtr, Rem); }
+    INST(srem64RR) { arithmeticRR<i64>(i, regPtr, Rem); }
+    INST(srem64RV) { arithmeticRV<i64>(i, regPtr, Rem); }
+    INST(srem64RM) { arithmeticRM<i64>(memory, i, regPtr, Rem); }
 
     /// ## 32 bit integral arithmetic
-    INST(add32RR) { arithmeticRR<u32>(i, regPtr, utl::plus); }
-    INST(add32RV) { arithmeticRV<u32>(i, regPtr, utl::plus); }
-    INST(add32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::plus); }
-    INST(sub32RR) { arithmeticRR<u32>(i, regPtr, utl::minus); }
-    INST(sub32RV) { arithmeticRV<u32>(i, regPtr, utl::minus); }
-    INST(sub32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::minus); }
-    INST(mul32RR) { arithmeticRR<u32>(i, regPtr, utl::multiplies); }
-    INST(mul32RV) { arithmeticRV<u32>(i, regPtr, utl::multiplies); }
-    INST(mul32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::multiplies); }
-    INST(udiv32RR) { arithmeticRR<u32>(i, regPtr, utl::divides); }
-    INST(udiv32RV) { arithmeticRV<u32>(i, regPtr, utl::divides); }
-    INST(udiv32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::divides); }
-    INST(sdiv32RR) { arithmeticRR<i32>(i, regPtr, utl::divides); }
-    INST(sdiv32RV) { arithmeticRV<i32>(i, regPtr, utl::divides); }
-    INST(sdiv32RM) { arithmeticRM<i32>(memory, i, regPtr, utl::divides); }
-    INST(urem32RR) { arithmeticRR<u32>(i, regPtr, utl::modulo); }
-    INST(urem32RV) { arithmeticRV<u32>(i, regPtr, utl::modulo); }
-    INST(urem32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::modulo); }
-    INST(srem32RR) { arithmeticRR<i32>(i, regPtr, utl::modulo); }
-    INST(srem32RV) { arithmeticRV<i32>(i, regPtr, utl::modulo); }
-    INST(srem32RM) { arithmeticRM<i32>(memory, i, regPtr, utl::modulo); }
+    INST(add32RR) { arithmeticRR<u32>(i, regPtr, Add); }
+    INST(add32RV) { arithmeticRV<u32>(i, regPtr, Add); }
+    INST(add32RM) { arithmeticRM<u32>(memory, i, regPtr, Add); }
+    INST(sub32RR) { arithmeticRR<u32>(i, regPtr, Sub); }
+    INST(sub32RV) { arithmeticRV<u32>(i, regPtr, Sub); }
+    INST(sub32RM) { arithmeticRM<u32>(memory, i, regPtr, Sub); }
+    INST(mul32RR) { arithmeticRR<u32>(i, regPtr, Mul); }
+    INST(mul32RV) { arithmeticRV<u32>(i, regPtr, Mul); }
+    INST(mul32RM) { arithmeticRM<u32>(memory, i, regPtr, Mul); }
+    INST(udiv32RR) { arithmeticRR<u32>(i, regPtr, Div); }
+    INST(udiv32RV) { arithmeticRV<u32>(i, regPtr, Div); }
+    INST(udiv32RM) { arithmeticRM<u32>(memory, i, regPtr, Div); }
+    INST(sdiv32RR) { arithmeticRR<i32>(i, regPtr, Div); }
+    INST(sdiv32RV) { arithmeticRV<i32>(i, regPtr, Div); }
+    INST(sdiv32RM) { arithmeticRM<i32>(memory, i, regPtr, Div); }
+    INST(urem32RR) { arithmeticRR<u32>(i, regPtr, Rem); }
+    INST(urem32RV) { arithmeticRV<u32>(i, regPtr, Rem); }
+    INST(urem32RM) { arithmeticRM<u32>(memory, i, regPtr, Rem); }
+    INST(srem32RR) { arithmeticRR<i32>(i, regPtr, Rem); }
+    INST(srem32RV) { arithmeticRV<i32>(i, regPtr, Rem); }
+    INST(srem32RM) { arithmeticRM<i32>(memory, i, regPtr, Rem); }
 
     /// ## 64 bit Floating point arithmetic
-    INST(fadd64RR) { arithmeticRR<f64>(i, regPtr, utl::plus); }
-    INST(fadd64RV) { arithmeticRV<f64>(i, regPtr, utl::plus); }
-    INST(fadd64RM) { arithmeticRM<f64>(memory, i, regPtr, utl::plus); }
-    INST(fsub64RR) { arithmeticRR<f64>(i, regPtr, utl::minus); }
-    INST(fsub64RV) { arithmeticRV<f64>(i, regPtr, utl::minus); }
-    INST(fsub64RM) { arithmeticRM<f64>(memory, i, regPtr, utl::minus); }
-    INST(fmul64RR) { arithmeticRR<f64>(i, regPtr, utl::multiplies); }
-    INST(fmul64RV) { arithmeticRV<f64>(i, regPtr, utl::multiplies); }
-    INST(fmul64RM) { arithmeticRM<f64>(memory, i, regPtr, utl::multiplies); }
-    INST(fdiv64RR) { arithmeticRR<f64>(i, regPtr, utl::divides); }
-    INST(fdiv64RV) { arithmeticRV<f64>(i, regPtr, utl::divides); }
-    INST(fdiv64RM) { arithmeticRM<f64>(memory, i, regPtr, utl::divides); }
+    INST(fadd64RR) { arithmeticRR<f64>(i, regPtr, Add); }
+    INST(fadd64RV) { arithmeticRV<f64>(i, regPtr, Add); }
+    INST(fadd64RM) { arithmeticRM<f64>(memory, i, regPtr, Add); }
+    INST(fsub64RR) { arithmeticRR<f64>(i, regPtr, Sub); }
+    INST(fsub64RV) { arithmeticRV<f64>(i, regPtr, Sub); }
+    INST(fsub64RM) { arithmeticRM<f64>(memory, i, regPtr, Sub); }
+    INST(fmul64RR) { arithmeticRR<f64>(i, regPtr, Mul); }
+    INST(fmul64RV) { arithmeticRV<f64>(i, regPtr, Mul); }
+    INST(fmul64RM) { arithmeticRM<f64>(memory, i, regPtr, Mul); }
+    INST(fdiv64RR) { arithmeticRR<f64>(i, regPtr, Div); }
+    INST(fdiv64RV) { arithmeticRV<f64>(i, regPtr, Div); }
+    INST(fdiv64RM) { arithmeticRM<f64>(memory, i, regPtr, Div); }
 
     /// ## 32 bit Floating point arithmetic
-    INST(fadd32RR) { arithmeticRR<f32>(i, regPtr, utl::plus); }
-    INST(fadd32RV) { arithmeticRV<f32>(i, regPtr, utl::plus); }
-    INST(fadd32RM) { arithmeticRM<f32>(memory, i, regPtr, utl::plus); }
-    INST(fsub32RR) { arithmeticRR<f32>(i, regPtr, utl::minus); }
-    INST(fsub32RV) { arithmeticRV<f32>(i, regPtr, utl::minus); }
-    INST(fsub32RM) { arithmeticRM<f32>(memory, i, regPtr, utl::minus); }
-    INST(fmul32RR) { arithmeticRR<f32>(i, regPtr, utl::multiplies); }
-    INST(fmul32RV) { arithmeticRV<f32>(i, regPtr, utl::multiplies); }
-    INST(fmul32RM) { arithmeticRM<f32>(memory, i, regPtr, utl::multiplies); }
-    INST(fdiv32RR) { arithmeticRR<f32>(i, regPtr, utl::divides); }
-    INST(fdiv32RV) { arithmeticRV<f32>(i, regPtr, utl::divides); }
-    INST(fdiv32RM) { arithmeticRM<f32>(memory, i, regPtr, utl::divides); }
+    INST(fadd32RR) { arithmeticRR<f32>(i, regPtr, Add); }
+    INST(fadd32RV) { arithmeticRV<f32>(i, regPtr, Add); }
+    INST(fadd32RM) { arithmeticRM<f32>(memory, i, regPtr, Add); }
+    INST(fsub32RR) { arithmeticRR<f32>(i, regPtr, Sub); }
+    INST(fsub32RV) { arithmeticRV<f32>(i, regPtr, Sub); }
+    INST(fsub32RM) { arithmeticRM<f32>(memory, i, regPtr, Sub); }
+    INST(fmul32RR) { arithmeticRR<f32>(i, regPtr, Mul); }
+    INST(fmul32RV) { arithmeticRV<f32>(i, regPtr, Mul); }
+    INST(fmul32RM) { arithmeticRM<f32>(memory, i, regPtr, Mul); }
+    INST(fdiv32RR) { arithmeticRR<f32>(i, regPtr, Div); }
+    INST(fdiv32RV) { arithmeticRV<f32>(i, regPtr, Div); }
+    INST(fdiv32RM) { arithmeticRM<f32>(memory, i, regPtr, Div); }
 
     /// ## 64 bit logical shifts
-    INST(lsl64RR) { arithmeticRR<u64>(i, regPtr, utl::leftshift); }
-    INST(lsl64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::leftshift); }
-    INST(lsl64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::leftshift); }
-    INST(lsr64RR) { arithmeticRR<u64>(i, regPtr, utl::rightshift); }
-    INST(lsr64RV) { arithmeticRV<u64, u8>(i, regPtr, utl::rightshift); }
-    INST(lsr64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::rightshift); }
+    INST(lsl64RR) { arithmeticRR<u64>(i, regPtr, LSH); }
+    INST(lsl64RV) { arithmeticRV<u64, u8>(i, regPtr, LSH); }
+    INST(lsl64RM) { arithmeticRM<u64>(memory, i, regPtr, LSH); }
+    INST(lsr64RR) { arithmeticRR<u64>(i, regPtr, RSH); }
+    INST(lsr64RV) { arithmeticRV<u64, u8>(i, regPtr, RSH); }
+    INST(lsr64RM) { arithmeticRM<u64>(memory, i, regPtr, RSH); }
 
     /// ## 32 bit logical shifts
-    INST(lsl32RR) { arithmeticRR<u32>(i, regPtr, utl::leftshift); }
-    INST(lsl32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::leftshift); }
-    INST(lsl32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::leftshift); }
-    INST(lsr32RR) { arithmeticRR<u32>(i, regPtr, utl::rightshift); }
-    INST(lsr32RV) { arithmeticRV<u32, u8>(i, regPtr, utl::rightshift); }
-    INST(lsr32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::rightshift); }
+    INST(lsl32RR) { arithmeticRR<u32>(i, regPtr, LSH); }
+    INST(lsl32RV) { arithmeticRV<u32, u8>(i, regPtr, LSH); }
+    INST(lsl32RM) { arithmeticRM<u32>(memory, i, regPtr, LSH); }
+    INST(lsr32RR) { arithmeticRR<u32>(i, regPtr, RSH); }
+    INST(lsr32RV) { arithmeticRV<u32, u8>(i, regPtr, RSH); }
+    INST(lsr32RM) { arithmeticRM<u32>(memory, i, regPtr, RSH); }
 
     /// ## 64 bit arithmetic shifts
-#define ASL utl::arithmetic_leftshift
-#define ASR utl::arithmetic_rightshift
-    INST(asl64RR) { arithmeticRR<u64>(i, regPtr, ASL); }
-    INST(asl64RV) { arithmeticRV<u64, u8>(i, regPtr, ASL); }
-    INST(asl64RM) { arithmeticRM<u64>(memory, i, regPtr, ASL); }
-    INST(asr64RR) { arithmeticRR<u64>(i, regPtr, ASR); }
-    INST(asr64RV) { arithmeticRV<u64, u8>(i, regPtr, ASR); }
-    INST(asr64RM) { arithmeticRM<u64>(memory, i, regPtr, ASR); }
+    INST(asl64RR) { arithmeticRR<u64>(i, regPtr, ALSH); }
+    INST(asl64RV) { arithmeticRV<u64, u8>(i, regPtr, ALSH); }
+    INST(asl64RM) { arithmeticRM<u64>(memory, i, regPtr, ALSH); }
+    INST(asr64RR) { arithmeticRR<u64>(i, regPtr, ARSH); }
+    INST(asr64RV) { arithmeticRV<u64, u8>(i, regPtr, ARSH); }
+    INST(asr64RM) { arithmeticRM<u64>(memory, i, regPtr, ARSH); }
 
     /// ## 32 bit arithmetic shifts
-    INST(asl32RR) { arithmeticRR<u32>(i, regPtr, ASL); }
-    INST(asl32RV) { arithmeticRV<u32, u8>(i, regPtr, ASL); }
-    INST(asl32RM) { arithmeticRM<u32>(memory, i, regPtr, ASL); }
-    INST(asr32RR) { arithmeticRR<u32>(i, regPtr, ASR); }
-    INST(asr32RV) { arithmeticRV<u32, u8>(i, regPtr, ASR); }
-    INST(asr32RM) { arithmeticRM<u32>(memory, i, regPtr, ASR); }
+    INST(asl32RR) { arithmeticRR<u32>(i, regPtr, ALSH); }
+    INST(asl32RV) { arithmeticRV<u32, u8>(i, regPtr, ALSH); }
+    INST(asl32RM) { arithmeticRM<u32>(memory, i, regPtr, ALSH); }
+    INST(asr32RR) { arithmeticRR<u32>(i, regPtr, ARSH); }
+    INST(asr32RV) { arithmeticRV<u32, u8>(i, regPtr, ARSH); }
+    INST(asr32RM) { arithmeticRM<u32>(memory, i, regPtr, ARSH); }
 
     /// ## 64 bit bitwise operations
-    INST(and64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_and); }
-    INST(and64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_and); }
-    INST(and64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::bitwise_and); }
-    INST(or64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_or); }
-    INST(or64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_or); }
-    INST(or64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::bitwise_or); }
-    INST(xor64RR) { arithmeticRR<u64>(i, regPtr, utl::bitwise_xor); }
-    INST(xor64RV) { arithmeticRV<u64>(i, regPtr, utl::bitwise_xor); }
-    INST(xor64RM) { arithmeticRM<u64>(memory, i, regPtr, utl::bitwise_xor); }
+    INST(and64RR) { arithmeticRR<u64>(i, regPtr, BitAnd); }
+    INST(and64RV) { arithmeticRV<u64>(i, regPtr, BitAnd); }
+    INST(and64RM) { arithmeticRM<u64>(memory, i, regPtr, BitAnd); }
+    INST(or64RR) { arithmeticRR<u64>(i, regPtr, BitOr); }
+    INST(or64RV) { arithmeticRV<u64>(i, regPtr, BitOr); }
+    INST(or64RM) { arithmeticRM<u64>(memory, i, regPtr, BitOr); }
+    INST(xor64RR) { arithmeticRR<u64>(i, regPtr, BitXOr); }
+    INST(xor64RV) { arithmeticRV<u64>(i, regPtr, BitXOr); }
+    INST(xor64RM) { arithmeticRM<u64>(memory, i, regPtr, BitXOr); }
 
     /// ## 32 bit bitwise operations
-    INST(and32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_and); }
-    INST(and32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_and); }
-    INST(and32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::bitwise_and); }
-    INST(or32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_or); }
-    INST(or32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_or); }
-    INST(or32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::bitwise_or); }
-    INST(xor32RR) { arithmeticRR<u32>(i, regPtr, utl::bitwise_xor); }
-    INST(xor32RV) { arithmeticRV<u32>(i, regPtr, utl::bitwise_xor); }
-    INST(xor32RM) { arithmeticRM<u32>(memory, i, regPtr, utl::bitwise_xor); }
+    INST(and32RR) { arithmeticRR<u32>(i, regPtr, BitAnd); }
+    INST(and32RV) { arithmeticRV<u32>(i, regPtr, BitAnd); }
+    INST(and32RM) { arithmeticRM<u32>(memory, i, regPtr, BitAnd); }
+    INST(or32RR) { arithmeticRR<u32>(i, regPtr, BitOr); }
+    INST(or32RV) { arithmeticRV<u32>(i, regPtr, BitOr); }
+    INST(or32RM) { arithmeticRM<u32>(memory, i, regPtr, BitOr); }
+    INST(xor32RR) { arithmeticRR<u32>(i, regPtr, BitXOr); }
+    INST(xor32RV) { arithmeticRV<u32>(i, regPtr, BitXOr); }
+    INST(xor32RM) { arithmeticRM<u32>(memory, i, regPtr, BitXOr); }
 
     /// ## Conversion
     INST(sext1) { ::sext1(i, regPtr); }

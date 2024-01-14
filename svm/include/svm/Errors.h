@@ -75,6 +75,23 @@ public:
     std::string message() const;
 };
 
+///
+class ArithmeticError {
+public:
+    enum Reason { DivideByZero };
+
+    explicit ArithmeticError(Reason reason): _reason(reason) {}
+
+    ///
+    Reason reason() const { return _reason; }
+
+    ///
+    std::string message() const;
+
+private:
+    Reason _reason;
+};
+
 /// Common base class of all memory errors
 class MemoryError {
 public:

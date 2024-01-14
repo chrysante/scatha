@@ -25,6 +25,10 @@ std::string FFIError::message() const {
 
 std::string TrapError::message() const { return "Executed trap instruction"; }
 
+std::string ArithmeticError::message() const {
+    return "Attempt to divide by zero";
+}
+
 std::string MemoryAccessError::message() const {
     switch (reason()) {
     case MemoryNotAllocated:
