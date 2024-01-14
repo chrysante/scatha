@@ -10,11 +10,10 @@
 
 namespace scatha::opt {
 
+/// \Returns `true` if instruction \p a preceeds the instruction \p b
+/// \pre Both instructions must be defined in the same basic block
 SCTEST_API
 bool preceeds(ir::Instruction const* a, ir::Instruction const* b);
-
-SCTEST_API
-bool isReachable(ir::Instruction const* from, ir::Instruction const* to);
 
 /// Moves all Alloca instructions from the basic block \p from into the basic
 /// block \p to

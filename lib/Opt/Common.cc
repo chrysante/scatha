@@ -21,51 +21,13 @@ SC_REGISTER_PASS(opt::splitCriticalEdges,
 bool opt::preceeds(Instruction const* a, Instruction const* b) {
     SC_ASSERT(a->parent() == b->parent(),
               "a and b must be in the same basic block");
-    auto* bb = a->parent();
-    auto const* const end = bb->end().to_address();
-    for (; a != end; a = a->next()) {
-        if (a == b) {
+    auto* BB = a->parent();
+    for (auto itr = BasicBlock::ConstIterator(a); itr != BB->end(); ++itr) {
+        if (itr.to_address() == b) {
             return true;
         }
     }
     return false;
-}
-
-bool opt::isReachable(Instruction const* from, Instruction const* to) {
-    SC_ASSERT(from != to,
-              "from and to are equal. Does that mean they are "
-              "reachable or not?");
-    SC_ASSERT(from->parentFunction() == to->parentFunction(),
-              "The instructions must be in the same function for this to be "
-              "sensible");
-    if (from->parent() == to->parent()) {
-        /// From and to are in the same basic block. If \p *from preceeds \p *to
-        /// then \p *to is definitely reachable.
-        if (preceeds(from, to)) {
-            return true;
-        }
-    }
-    /// If they are not in the same basic block or \p *to comes before \p *from
-    /// perform a DFS to check if we can reach the BB of \p *to from the BB of
-    /// \p *from.
-    utl::hashset<BasicBlock const*> visited;
-    auto search = [&, target = to->parent()](BasicBlock const* bb,
-                                             auto& search) -> bool {
-        visited.insert(bb);
-        if (bb == target) {
-            return true;
-        }
-        for (BasicBlock const* succ: bb->successors()) {
-            if (visited.contains(succ)) {
-                continue;
-            }
-            if (search(succ, search)) {
-                return true;
-            }
-        }
-        return false;
-    };
-    return search(from->parent(), search);
 }
 
 void opt::moveAllocas(BasicBlock* from, BasicBlock* to) {
