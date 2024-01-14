@@ -53,13 +53,10 @@ bool opt::pointerAnalysis(Context& ctx, Function& function) {
 }
 
 bool PtrAnalyzeCtx::run() {
-    /// All instructions of type `ptr` are considered
-    auto initial =
-        function | join |
-        filter([](auto& inst) { return isa<PointerType>(inst.type()); }) |
-        TakeAddress | ToSmallVector<>;
-    for (auto* inst: initial) {
-        analyze(*inst);
+    for (auto& inst: function.instructions()) {
+        if (isa<PointerType>(inst.type())) {
+            analyze(inst);
+        }
     }
     return modified;
 }
@@ -72,8 +69,7 @@ void PtrAnalyzeCtx::analyze(Value& value) {
     if (!visited.insert(&value).second) {
         return;
     }
-    modified |=
-        visit(value, [this](auto& value) { return analyzeImpl(value); });
+    visit(value, [this](auto& value) { modified |= analyzeImpl(value); });
 }
 
 bool PtrAnalyzeCtx::analyzeImpl(Alloca& inst) {
