@@ -55,14 +55,6 @@ void Store::setAddress(Value* address) { setOperand(0, address); }
 
 void Store::setValue(Value* value) { setOperand(1, value); }
 
-ArithmeticType const* ConversionInst::type() const {
-    auto* t = UnaryInstruction::type();
-    if (!t) {
-        return nullptr;
-    }
-    return cast<ArithmeticType const*>(t);
-}
-
 CompareInst::CompareInst(Context& context,
                          Value* lhs,
                          Value* rhs,

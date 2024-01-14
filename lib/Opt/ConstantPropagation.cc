@@ -126,7 +126,7 @@ struct SCCPContext {
     bool controlledByConstant(TerminatorInst const& terminator);
 
     FormalValue evaluateConversion(Conversion conv,
-                                   ArithmeticType const* targetType,
+                                   Type const* targetType,
                                    FormalValue operand);
 
     FormalValue evaluateArithmetic(ArithmeticOperation operation,
@@ -429,56 +429,55 @@ template <typename T>
 concept FormalConstant = std::same_as<T, APInt> || std::same_as<T, APFloat>;
 
 FormalValue SCCPContext::evaluateConversion(Conversion conv,
-                                            ArithmeticType const* targetType,
+                                            Type const* targetType,
                                             FormalValue operand) {
+    auto* arithTargetType = dyncast<ArithmeticType const*>(targetType);
+    if (!arithTargetType) {
+        return Inevaluable{};
+    }
+    size_t targetWidth = arithTargetType->bitwidth();
     if (!isConstant(operand)) {
         return operand;
     }
     switch (conv) {
     case Conversion::Zext: {
         APInt value = std::get<APInt>(operand);
-        return value.zext(targetType->bitwidth());
+        return value.zext(targetWidth);
     }
     case Conversion::Sext: {
         APInt value = std::get<APInt>(operand);
-        return value.sext(targetType->bitwidth());
+        return value.sext(targetWidth);
     }
     case Conversion::Trunc: {
         APInt value = std::get<APInt>(operand);
         /// `APInt::zext` also handles truncation.
-        return value.zext(targetType->bitwidth());
+        return value.zext(targetWidth);
     }
     case Conversion::Fext: {
         APFloat value = std::get<APFloat>(operand);
         SC_ASSERT(value.precision() == APFloatPrec::Single(),
                   "Can only extend single precision floats");
-        SC_ASSERT(targetType->bitwidth() == 64,
-                  "Can only extend to 64 bit floats");
+        SC_ASSERT(targetWidth == 64, "Can only extend to 64 bit floats");
         return APFloat(value.to<float>(), APFloatPrec::Double());
     }
     case Conversion::Ftrunc: {
         APFloat value = std::get<APFloat>(operand);
         SC_ASSERT(value.precision() == APFloatPrec::Double(),
                   "Can only truncate double precision floats");
-        SC_ASSERT(targetType->bitwidth() == 32,
-                  "Can only truncate to 32 bit floats");
+        SC_ASSERT(targetWidth == 32, "Can only truncate to 32 bit floats");
         return APFloat(value.to<double>(), APFloatPrec::Single());
     }
     case Conversion::UtoF:
-        return valuecast<APFloat>(std::get<APInt>(operand),
-                                  targetType->bitwidth());
+        return valuecast<APFloat>(std::get<APInt>(operand), targetWidth);
 
     case Conversion::StoF:
-        return signedValuecast<APFloat>(std::get<APInt>(operand),
-                                        targetType->bitwidth());
+        return signedValuecast<APFloat>(std::get<APInt>(operand), targetWidth);
 
     case Conversion::FtoU:
-        return valuecast<APInt>(std::get<APFloat>(operand),
-                                targetType->bitwidth());
+        return valuecast<APInt>(std::get<APFloat>(operand), targetWidth);
 
     case Conversion::FtoS:
-        return signedValuecast<APInt>(std::get<APFloat>(operand),
-                                      targetType->bitwidth());
+        return signedValuecast<APInt>(std::get<APFloat>(operand), targetWidth);
 
     case Conversion::Bitcast: {
         if (std::holds_alternative<APInt>(operand)) {
