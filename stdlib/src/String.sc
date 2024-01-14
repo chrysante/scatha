@@ -21,6 +21,10 @@ public struct String {
         this.sz = rhs.sz;
         rhs.sz = 0;
     }
+
+    /// TODO: Remove this
+    /// For now we need to explicitly declare the destructor, this should not be necessary though
+    fn delete(&mut this) {} 
     
     /// Modifiers
     
