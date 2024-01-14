@@ -1,5 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
+#include "IR/Context.h"
+#include "IR/IRParser.h"
+#include "IR/Module.h"
 #include "Opt/PassTest.h"
 #include "Opt/Passes.h"
 
@@ -441,4 +446,87 @@ func i64 @test(i1 %0, ptr %1) {
   %end:                       // preds: if.end
     return i64 %ret.phi.0
 })");
+}
+
+TEST_CASE("SROA memcpy after phi", "[opt][sroa]") {
+    /// This is promotable but used to fail due to not handling call
+    /// instructions in phi rewrite
+    auto [ctx, mod] = ir::parse(R"(
+ext func void @__builtin_memcpy(ptr, i64, ptr, i64)
+
+func void @test() {
+%entry:
+    %data = alloca i64, i32 2
+    %elem = getelementptr inbounds i64, ptr %data, i32 1
+    %target = alloca i64, i32 1
+    branch i1 1, label %foo, label %bar
+
+%foo:
+    goto label %bar
+
+%bar:
+    %merged = phi ptr [label %entry: %elem], [label %foo: %elem]
+    call void @__builtin_memcpy, ptr %target, i64 8, ptr %merged, i64 8
+})")
+                          .value();
+    auto& F = mod.front();
+    bool modified = sroa(ctx, F);
+    CHECK(modified);
+    for (auto& BB: F) {
+        CHECK(BB.emptyExceptTerminator());
+    }
+}
+
+TEST_CASE("SROA memcpy argument defined after phi", "[opt][sroa]") {
+    /// This is not promotable because we don't want to rewrite the other
+    /// arguments to memcpy
+    auto [ctx, mod] = ir::parse(R"(
+ext func void @__builtin_memcpy(ptr, i64, ptr, i64)
+ext func { ptr, i64 } @__builtin_alloc(i64, i64)
+
+func void @test() {
+%entry:
+    %data = alloca i64, i32 2
+    %elem = getelementptr inbounds i64, ptr %data, i32 1
+    branch i1 1, label %foo, label %bar
+
+%foo:
+    goto label %bar
+
+%bar:
+    %merged = phi ptr [label %entry: %data], [label %foo: %elem]
+    %alloc = call { ptr, i64 } @__builtin_alloc, i64 8, i64 8
+    %alloc.ptr = extract_value { ptr, i64 } %alloc, 0
+    call void @__builtin_memcpy, ptr %alloc.ptr, i64 8, ptr %merged, i64 8
+})")
+                          .value();
+    auto& F = mod.front();
+    bool modified = sroa(ctx, F);
+    CHECK(!modified);
+}
+
+TEST_CASE("SROA store argument defined after phi", "[opt][sroa]") {
+    /// This is not promotable because we don't want to rewrite the other
+    /// operand of the store
+    auto [ctx, mod] = ir::parse(R"(
+ext func void @__builtin_memcpy(ptr, i64, ptr, i64)
+
+func void @test(i64 %0) {
+%entry:
+    %data = alloca i64, i32 2
+    %elem = getelementptr inbounds i64, ptr %data, i32 1
+    branch i1 1, label %foo, label %bar
+
+%foo:
+    goto label %bar
+
+%bar:
+    %merged = phi ptr [label %entry: %data], [label %foo: %elem]
+    %value = mul i64 %0, i64 2
+    store ptr %merged, i64 %value
+})")
+                          .value();
+    auto& F = mod.front();
+    bool modified = sroa(ctx, F);
+    CHECK(!modified);
 }

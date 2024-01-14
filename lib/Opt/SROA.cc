@@ -173,6 +173,7 @@ struct Variable {
     utl::small_vector<Alloca*> insertedAllocas;
 
     /// Accessors for `ptrToOffsetMap` @{
+
     /// \Returns the offset of \p ptr into our alloca region. \p ptr must be
     /// registered and have a valid offset
     size_t getPtrOffset(Value const* ptr) const {
@@ -291,11 +292,41 @@ struct Variable {
     bool analyzeImpl(Phi* phi);
 
     /// If the pointer \p pointer is derived from a phi instruction, this
-    /// function checks if the instruction \p user post dominates the phi. If
-    /// the pointer is not derived from a phi instruction this function always
-    /// returns `true`. We need this check to prevent speculative execution of
+    /// function checks if the instruction \p user post dominates the phi, i.e.
+    /// control flow starting at the phi instruction must go through \p user. If
+    /// \p pointer is not derived from a phi instruction this function always
+    /// returns `true`.
+    /// We need this check to prevent speculative execution of
     /// stores which are not generally safe.
+    /// For example in the following code
+    ///
+    ///         %p = phi ptr [label %foo: %q], [label %bar: %r]
+    ///         branch i1 %cond, label %quux, label %quuz
+    ///     %quux:
+    ///         store ptr %p, i64 1
+    ///
+    /// we only store conditionally to the phi'd pointer, so we cannot move the
+    /// store to the predecessors of the phi. Here
+    /// `pointerUsePostdominatesPhi(<StoreInst>, %p)` returns false so we know
+    /// the phi is not rewritable
     bool pointerUsePostdominatesPhi(Instruction* user, Value* pointer);
+
+    /// If the pointer \p pointer is derived from a phi instruction, this
+    /// function checks if the value \p value dominates the phi, i.e.
+    /// control flow starting at \p value must go through the phi instruction.
+    /// If \p pointer is not derived from a phi instruction or \p value is not
+    /// an instruction, this function always returns `true`. This functions is
+    /// needed to guard phi rewrites. For example in the following code
+    ///
+    ///     %p = phi ptr [label %foo: %q], [label %bar: %r]
+    ///     %value = mul i64 ...
+    ///     store ptr %p, i64 %value
+    ///
+    /// we cannot move the store to `%p` to the predecessors of the phi
+    /// instruction because the stored value is defined after the phi. Here the
+    /// test `valueStrictlyDominatesPhi(%value, %p)` returns false so we know
+    /// that this phi is not rewritable
+    bool valueStrictlyDominatesPhi(Value* value, Value* pointer);
 
     /// If any phi instructions transitively use the alloca we copy the users of
     /// the phi into each of the predecessor blocks of the phi and add new phi
@@ -303,6 +334,9 @@ struct Variable {
     /// operation is safe. After this step we can erase all phis that use the
     /// alloca
     bool rewritePhis();
+
+    /// Clones the instruction \p inst and inserts it before \p insertBefore
+    /// \Returns a pointer to the clone of \p inst
     Instruction* copyInstruction(Instruction* insertBefore, Instruction* inst);
 
     /// We slice the alloca based on the load and store instructions that
@@ -415,6 +449,9 @@ bool Variable::analyzeImpl(Store* store) {
     if (!pointerUsePostdominatesPhi(store, store->address())) {
         return false;
     }
+    if (!valueStrictlyDominatesPhi(store->value(), store->address())) {
+        return false;
+    }
     memorize(store);
     return true;
 }
@@ -430,18 +467,22 @@ bool Variable::analyzeImpl(Call* call) {
 }
 
 bool Variable::analyzeMemcpy(Call* call) {
-    bool destIsAllocaPtr = isPointerToOurAlloca(memcpyDest(call));
-    bool sourceIsAllocaPtr = isPointerToOurAlloca(memcpySource(call));
-    if (!destIsAllocaPtr && !sourceIsAllocaPtr) {
+    auto* allocaPtr = [&]() -> Value* {
+        if (auto* dest = memcpyDest(call); isPointerToOurAlloca(dest)) {
+            return dest;
+        }
+        if (auto* source = memcpySource(call); isPointerToOurAlloca(source)) {
+            return source;
+        }
+        SC_UNREACHABLE();
+    }();
+    if (!pointerUsePostdominatesPhi(call, allocaPtr)) {
         return false;
     }
-    if (destIsAllocaPtr && !pointerUsePostdominatesPhi(call, memcpyDest(call)))
-    {
-        return false;
-    }
-    if (sourceIsAllocaPtr &&
-        !pointerUsePostdominatesPhi(call, memcpySource(call)))
-    {
+    bool otherArgDomPhi = ranges::all_of(call->arguments(), [&](Value* arg) {
+        return arg == allocaPtr || valueStrictlyDominatesPhi(arg, allocaPtr);
+    });
+    if (!otherArgDomPhi) {
         return false;
     }
     memcpy = cast<Callable*>(call->function());
@@ -450,12 +491,16 @@ bool Variable::analyzeMemcpy(Call* call) {
 }
 
 bool Variable::analyzeMemset(Call* call) {
-    if (!isPointerToOurAlloca(memsetDest(call))) {
+    auto* dest = memsetDest(call);
+    if (!isPointerToOurAlloca(dest)) {
         return false;
     }
-    if (!pointerUsePostdominatesPhi(call, memsetDest(call))) {
+    if (!pointerUsePostdominatesPhi(call, dest)) {
         return false;
     }
+    /// For memset we don't need to check if the other args dominate the phi
+    /// because we only consider const memsets which means all arguments but
+    /// `dest` are constants
     memset = cast<Callable*>(call->function());
     memorize(call);
     return true;
@@ -501,6 +546,23 @@ bool Variable::pointerUsePostdominatesPhi(Instruction* user, Value* ptr) {
     auto& domInfo = function.getOrComputePostDomInfo();
     auto& dominatorSet = domInfo.dominatorSet(phi->parent());
     return dominatorSet.contains(user->parent());
+}
+
+bool Variable::valueStrictlyDominatesPhi(Value* value, Value* ptr) {
+    auto* inst = dyncast<Instruction*>(value);
+    if (!inst) {
+        return true;
+    }
+    auto* phi = getAssocPhi(ptr);
+    if (!phi) {
+        return true;
+    }
+    if (phi->parent() == inst->parent()) {
+        return false;
+    }
+    auto& domInfo = function.getOrComputeDomInfo();
+    auto& dominatorSet = domInfo.dominatorSet(phi->parent());
+    return dominatorSet.contains(inst->parent());
 }
 
 /// FIXME: These functions are generic and have little to do with SROA. Move
@@ -572,7 +634,7 @@ bool Variable::rewritePhis() {
         /// iterator invalidations
         utl::small_vector<PhiInsertion> phiInsertions;
         for (auto& inst: *BB | ranges::views::reverse |
-                             Filter<Load, Store, GetElementPointer>)
+                             Filter<Load, Store, GetElementPointer, Call>)
         {
             auto* phi = getAssocPhi(&inst);
             if (!phi) {
