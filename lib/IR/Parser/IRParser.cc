@@ -1340,7 +1340,7 @@ void IRParser::registerValue(Token const& token, Value* value) {
         case TokenKind::LocalIdentifier:
             return locals;
         default:
-            SC_UNREACHABLE();
+            reportSyntaxIssue(token);
         }
     }();
     if (values.contains(value->name())) {
