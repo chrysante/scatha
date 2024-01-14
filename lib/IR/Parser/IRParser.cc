@@ -1105,7 +1105,7 @@ OptValue IRParser::parseValue(Type const* type) {
         return token;
     case TokenKind::GlobalIdentifier:
         return token;
-    case TokenKind::NullLiteral:
+    case TokenKind::NullptrLiteral:
         return { token, ctx.nullpointer() };
     case TokenKind::UndefLiteral:
         return { token, ctx.undef(type) };

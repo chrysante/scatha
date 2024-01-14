@@ -53,7 +53,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "constant", TokenKind::Constant },
         { "void", TokenKind::Void },
         { "ptr", TokenKind::Ptr },
-        { "null", TokenKind::NullLiteral },
+        { "nullptr", TokenKind::NullptrLiteral },
         { "undef", TokenKind::UndefLiteral },
         { "alloca", TokenKind::Alloca },
         { "load", TokenKind::Load },

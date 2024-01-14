@@ -102,6 +102,10 @@ static auto formatKeyword(auto... name) {
     return tfmt::format(Magenta | Bold, name...);
 }
 
+static auto missingEntity() {
+    return tfmt::format(BGRed | BrightWhite, "NULL");
+}
+
 static auto formatNumLiteral(auto... value) {
     return tfmt::format(Cyan, value...);
 }
@@ -113,7 +117,7 @@ static auto formatInstName(auto... name) { return formatKeyword(name...); }
 static utl::vstreammanip<> formatType(ir::Type const* type) {
     return [=](std::ostream& str) {
         if (!type) {
-            str << tfmt::format(BrightBlue | Italic, "null");
+            str << missingEntity();
             return;
         }
         // clang-format off
@@ -229,7 +233,7 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
             str << formatNumLiteral(value.value().toString());
         },
         [&](ir::NullPointerConstant const&) {
-            str << formatKeyword("null");
+            str << formatKeyword("nullptr");
         },
         [&](ir::RecordConstant const& value) {
             if (auto text = asStringLiteral(&value)) {
@@ -346,7 +350,9 @@ std::ostream& ir::operator<<(std::ostream& ostream, Type const& type) {
 
 std::string ir::toString(Value const* value) {
     if (!value) {
-        return "<null-value>";
+        std::stringstream sstr;
+        sstr << missingEntity();
+        return sstr.str();
     }
     // clang-format off
     return visit(*value, utl::overload{
@@ -656,7 +662,7 @@ void PrintCtx::type(Type const* type) const { str << formatType(type); }
 
 void PrintCtx::typedName(Value const* value) const {
     if (!value) {
-        str << "<null>";
+        str << missingEntity();
         return;
     }
     if (isa<BasicBlock>(value)) {

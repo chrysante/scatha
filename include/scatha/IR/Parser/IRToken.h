@@ -27,7 +27,7 @@ enum class TokenKind {
 
     IntLiteral,
     FloatLiteral,
-    NullLiteral,
+    NullptrLiteral,
     UndefLiteral,
     StringLiteral,
 
