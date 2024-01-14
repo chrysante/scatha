@@ -844,8 +844,12 @@ static bool mayAlias(Value const* A, Value const* B) {
     return true;
 }
 
+/// Trys to determine if the pointers \p lhs and \p rhs are always equal or
+/// always unequal \pre \p lhs and \p rhs must be of type `ptr`
 static StaticCompareResult pointerStaticCompare(Value const* lhs,
                                                 Value const* rhs) {
+    SC_EXPECT(isa<PointerType>(lhs->type()));
+    SC_EXPECT(isa<PointerType>(rhs->type()));
     using enum StaticCompareResult;
     if (lhs == rhs) {
         return Equal;
