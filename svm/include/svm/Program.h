@@ -12,7 +12,9 @@ namespace svm {
 
 /// Identifier that every program header version string must start with to
 /// verify it is a correct program
-inline u64 const GlobalProgID = 0x5CBF;
+inline constexpr u64 GlobalProgID = 0x5CBF;
+
+inline constexpr u64 InvalidAddress = ~u64(0);
 
 ///
 struct ProgramHeader {
@@ -91,7 +93,7 @@ public:
     ProgramHeader header;
 
     /// Address of the 'start' label
-    size_t startAddress = 0;
+    u64 startAddress = InvalidAddress;
 
     /// View over the entire binary section of the program, i.e. `data` and
     /// `text` adjacently combined

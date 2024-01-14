@@ -1,5 +1,5 @@
-#ifndef SCATHA_COMMON_EXECUTABLEWRITER_H_
-#define SCATHA_COMMON_EXECUTABLEWRITER_H_
+#ifndef SCATHA_INVOCATION_EXECUTABLEWRITER_H_
+#define SCATHA_INVOCATION_EXECUTABLEWRITER_H_
 
 #include <filesystem>
 #include <span>
@@ -25,4 +25,4 @@ SCATHA_API void writeExecutableFile(std::filesystem::path dest,
 
 } // namespace scatha
 
-#endif // SCATHA_COMMON_EXECUTABLEWRITER_H_
+#endif // SCATHA_INVOCATION_EXECUTABLEWRITER_H_

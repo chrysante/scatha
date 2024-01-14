@@ -63,6 +63,10 @@ std::string DeallocationError::message() const {
                        " that have not been allocated before");
 }
 
+std::string NoStartAddress::message() const {
+    return "Attempted execution without start address";
+}
+
 std::string ErrorVariant::message() const {
     utl::overload callback{
         [](auto const& e) { return e.message(); },

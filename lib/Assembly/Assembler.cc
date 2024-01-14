@@ -129,7 +129,7 @@ struct Assembler: AsmWriter {
     /// List of all code position with a jump site
     std::vector<Jumpsite> jumpsites;
     /// Address of the `start` or `main` function.
-    size_t startAddress = 0;
+    uint64_t startAddress = svm::InvalidAddress;
 };
 
 } // namespace

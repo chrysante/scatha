@@ -16,5 +16,6 @@ SVM_ERROR_DEF(ArithmeticError)
 SVM_ERROR_DEF(MemoryAccessError)
 SVM_ERROR_DEF(AllocationError)
 SVM_ERROR_DEF(DeallocationError)
+SVM_ERROR_DEF(NoStartAddress)
 
 #undef SVM_ERROR_DEF

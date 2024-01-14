@@ -2,6 +2,7 @@
 #define SVM_VMIMPL_H_
 
 #include <filesystem>
+#include <optional>
 #include <span>
 
 #include <utl/dynamic_library.hpp>
@@ -44,8 +45,8 @@ struct VMImpl {
     /// End of binary section
     u8 const* programBreak = nullptr;
 
-    /// Optional address of the `main`/`start` function.
-    size_t startAddress = 0;
+    /// Optional address of the `main` or `start` function.
+    std::optional<size_t> startAddress;
 
     /// The VM has a stack of execution contexts instead of a single one to
     /// allow nested invocations of the same program in the same VM instance via

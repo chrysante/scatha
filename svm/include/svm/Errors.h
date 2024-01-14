@@ -185,6 +185,13 @@ private:
     size_t _align;
 };
 
+/// Error thrown if execution without explicit start address is attempted but
+/// the executable has no dedicated start address
+class NoStartAddress {
+public:
+    std::string message() const;
+};
+
 /// Variant of all concrete error classes
 class ErrorVariant:
     public std::variant<std::monostate

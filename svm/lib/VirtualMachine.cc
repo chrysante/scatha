@@ -11,6 +11,7 @@
 #include <utl/utility.hpp>
 
 #include "BuiltinInternal.h"
+#include "Errors.h"
 #include "Memory.h"
 #include "Program.h"
 #include "VMImpl.h"
@@ -135,13 +136,18 @@ void VirtualMachine::loadBinary(u8 const* progData) {
     impl->binary = rawStaticData;
     impl->binarySize = binSize;
     impl->programBreak = impl->binary + program.binary.size();
-    impl->startAddress = program.startAddress;
+    if (program.startAddress != InvalidAddress) {
+        impl->startAddress = program.startAddress;
+    }
     loadForeignFunctions(this, program.libDecls);
     reset();
 }
 
 u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
-    return execute(impl->startAddress, arguments);
+    if (!impl->startAddress.has_value()) {
+        throwError<NoStartAddress>();
+    }
+    return execute(*impl->startAddress, arguments);
 }
 
 u64 const* VirtualMachine::execute(size_t startAddress,
@@ -150,7 +156,10 @@ u64 const* VirtualMachine::execute(size_t startAddress,
 }
 
 void VirtualMachine::beginExecution(std::span<u64 const> arguments) {
-    return impl->beginExecution(impl->startAddress, arguments);
+    if (!impl->startAddress.has_value()) {
+        throwError<NoStartAddress>();
+    }
+    beginExecution(*impl->startAddress, arguments);
 }
 
 void VirtualMachine::beginExecution(size_t startAddress,

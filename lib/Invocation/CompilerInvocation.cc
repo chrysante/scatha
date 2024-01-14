@@ -14,7 +14,7 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
-#include "Common/ExecutableWriter.h"
+#include "Common/FileHandling.h"
 #include "Common/SourceFile.h"
 #include "Common/UniquePtr.h"
 #include "IR/Context.h"
@@ -23,6 +23,7 @@
 #include "IR/PassManager.h"
 #include "IR/Print.h"
 #include "IRGen/IRGen.h"
+#include "Invocation/ExecutableWriter.h"
 #include "Issue/IssueHandler.h"
 #include "Opt/Passes.h"
 #include "Parser/Parser.h"
@@ -76,22 +77,6 @@ static std::filesystem::path appendExt(std::filesystem::path p,
     p += ".";
     p += ext;
     return p;
-}
-
-static std::fstream createFile(std::filesystem::path const& path,
-                               std::ios::openmode flags = {}) {
-
-    if (auto parent = path.parent_path();
-        !parent.empty() && !std::filesystem::exists(parent))
-    {
-        std::filesystem::create_directories(parent);
-    }
-    flags |= std::ios::out | std::ios::trunc;
-    std::fstream file(path, flags);
-    if (!file) {
-        throw std::runtime_error(utl::strcat("Failed to create ", path));
-    }
-    return file;
 }
 
 static void printLinkerError(Asm::LinkerError const& error, std::ostream& str) {
@@ -220,16 +205,19 @@ int CompilerInvocation::run() {
                                                 TargetType::Executable });
         }
         if (genDebugInfo && guardFileEmission("debug info")) {
-            auto file = createFile(appendExt(outputFile, "scdsym"));
+            auto file = createOutputFile(appendExt(outputFile, "scdsym"),
+                                         std::ios::trunc);
             file << dsym;
         }
         break;
     }
     case TargetType::StaticLibrary: {
         if (guardFileEmission("static lib")) {
-            auto symfile = createFile(appendExt(outputFile, "scsym"));
+            auto symfile = createOutputFile(appendExt(outputFile, "scsym"),
+                                            std::ios::trunc);
             sema::serializeLibrary(semaSym, symfile);
-            auto irfile = createFile(appendExt(outputFile, "scir"));
+            auto irfile = createOutputFile(appendExt(outputFile, "scir"),
+                                           std::ios::trunc);
             /// Even if we don't optimize we don't want to emit unused object
             /// code
             opt::globalDCE(irContext, irModule);
