@@ -4,7 +4,7 @@ PROJ_DIR="$SCRIPT_DIR/.."
 
 rm -r $PROJ_DIR/stdlib/build
 
-cd $PROJ_DIR/scripts
+cd $PROJ_DIR/stdlib
 ./compile-stdlib.sh
 
 cd $PROJ_DIR/stdlib
