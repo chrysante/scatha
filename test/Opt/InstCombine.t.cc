@@ -2,6 +2,10 @@
 
 #include "Opt/PassTest.h"
 #include "Opt/Passes.h"
+#include "IR/IRParser.h"
+#include "IR/Context.h"
+#include "IR/Module.h"
+#include "IR/CFG.h"
 
 using namespace scatha;
 using namespace opt;
@@ -362,4 +366,20 @@ func i32 @f2() {
 %entry:
     return i32 1
 })");
+}
+
+TEST_CASE("InstCombine pointer comparison", "[opt][inst-combine]") {
+    auto [ctx, mod] = ir::parse(R"(
+func i1 @test() {
+%entry:
+    %a = alloca i32, i32 1
+    %res = ucmp eq ptr %a, ptr nullptr
+    return i1 %res
+})").value();
+    auto& F = mod.front();
+    opt::pointerAnalysis(ctx, F);
+    opt::instCombine(ctx, F);
+    auto& entry = F.front();
+    auto* retval = cast<Return const*>(entry.terminator())->value();
+    CHECK(retval == ctx.intConstant(false, 1));
 }
