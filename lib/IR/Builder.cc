@@ -9,9 +9,11 @@
 #include "IR/CFG/Instructions.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
+#include "Common/Ranges.h"
 
 using namespace scatha;
 using namespace ir;
+using namespace ranges::views;
 
 BasicBlockBuilder::BasicBlockBuilder(Context& ctx, BasicBlock* BB):
     ctx(ctx), currentBB(BB), instAddPoint(BB->end()) {}
@@ -24,6 +26,34 @@ Instruction* BasicBlockBuilder::insert(Instruction const* before,
                                        Instruction* inst) {
     currentBB->insert(before, inst);
     return inst;
+}
+
+Value* BasicBlockBuilder::buildStructure(StructType const* type,
+                                       std::span<Value* const> members,
+                                       std::string name) {
+    SC_ASSERT(type->numElements() == members.size(), "Size mismatch");
+    Value* value = ctx.undef(type);
+    for (auto [index, member]: members | ranges::views::enumerate) {
+        SC_ASSERT(member->type() == type->elementAt(index), "Type mismatch");
+        value = add<InsertValue>(value, member, std::array{ index }, utl::strcat(name, ".elem.", index));
+    }
+    value->setName(name);
+    return value;
+}
+
+Value* BasicBlockBuilder::packValues(std::span<Value* const> elems,
+                                     std::string name) {
+    switch (elems.size()) {
+    case 0:
+        SC_UNREACHABLE();
+    
+    case 1:
+        return elems.front();
+        
+    default:
+        return buildStructure(ctx.anonymousStruct(elems | transform(&Value::type) | ToSmallVector<>), 
+                              elems, std::move(name));
+    }
 }
 
 FunctionBuilder::FunctionBuilder(Context& ctx, Function* function):
@@ -68,19 +98,6 @@ Alloca* FunctionBuilder::storeToMemory(Value* value, std::string name) {
     auto* addr = makeLocalVariable(value->type(), utl::strcat(name, ".addr"));
     add<Store>(addr, value);
     return addr;
-}
-
-Value* FunctionBuilder::buildStructure(StructType const* type,
-                                       std::span<Value* const> members,
-                                       std::string name) {
-    SC_ASSERT(type->numElements() == members.size(), "Size mismatch");
-    Value* value = ctx.undef(type);
-    for (auto [index, member]: members | ranges::views::enumerate) {
-        SC_ASSERT(member->type() == type->elementAt(index), "Type mismatch");
-        value = add<InsertValue>(value, member, std::array{ index }, utl::strcat(name, ".elem.", index));
-    }
-    value->setName(name);
-    return value;
 }
 
 void FunctionBuilder::insertAllocas() {

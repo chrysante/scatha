@@ -62,6 +62,19 @@ public:
             insert(before, new Inst(ctx, std::forward<Args>(args)...)));
     }
 
+    /// Build a structure with repeated `InsertValue` instructions
+    /// The elements in \p members must match the struct members exactly
+    Value* buildStructure(StructType const* type,
+                          std::span<Value* const> members,
+                          std::string name);
+    
+    /// If \p elems has one value, that value is returned unchanged
+    /// If \p elems has more than one values, this function returns
+    /// `buildStructure(/*type*/, elems, name)` where `/*type*/` is the anonymous struct type with the element types of \p elems
+    /// \pre \p elems must not be empty
+    Value* packValues(std::span<Value* const> elems,
+                      std::string name);
+    
     /// Sets the 'add point' to \p newAddPoint
     /// The add point is the iterator before which the `add()` methods insert
     /// instructions
@@ -144,12 +157,6 @@ public:
 
     /// \overload specifying a name for the allocated memory
     Alloca* storeToMemory(Value* value, std::string name);
-
-    /// Build a structure with repeated `InsertValue` instructions
-    /// The elements in \p members must match the struct members exactly
-    Value* buildStructure(StructType const* type,
-                          std::span<Value* const> members,
-                          std::string name);
 
     /// Finish construction of the function by inserting all alloca instruction
     /// into the entry block

@@ -52,6 +52,10 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
 
 /// Only certain types like builtin arithmetic types, pointers, bools or struct types with trivial lifetime may be passed in registers
 static bool mayPassInRegister(sema::Type const* type) {
+    /// `void` is symbolically passed in a register. Void is only valid for return values in this only means we don't allocate a function parameter for the return value
+    if (isa<sema::VoidType>(type)) {
+        return true;
+    }
     static size_t const MaxRegPassingSize = 16;
     if (type->size() > MaxRegPassingSize) {
         return false;
@@ -63,17 +67,14 @@ static bool mayPassInRegister(sema::Type const* type) {
 
 static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
     if (mayPassInRegister(type)) {
-        return { Register, isRetval ? Packed : Unpacked };
+        return { Register, isRetval ? 0u : isFatPointer(type) ? 2u : 1u };
     }
     else {
-        return { Memory, Packed };
+        return { Memory, 1 };
     }
 }
 
 static PassingConvention computeRetValPC(sema::Type const* type) {
-    if (isa<sema::VoidType>(type)) {
-        return { Register, Packed };
-    }
     return computePCImpl(type, true);
 }
 
@@ -109,7 +110,6 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
     /// Compute return value
     switch (CC.returnValue().location()) {
     case Register: {
-        SC_ASSERT(CC.returnValue().representation() == Packed, "Return value must always be packed");
         sig.returnType = typeMap.packed(semaFn.returnType());
         break;
     }
@@ -124,7 +124,6 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
     {
         switch (argPC.location()) {
         case Register:
-            SC_ASSERT(argPC.representation() == Unpacked, "Function arguments must always be unpacked");
             for (auto* irType: typeMap.unpacked(semaType)) {
                 sig.argumentTypes.push_back(irType);
             }

@@ -236,44 +236,30 @@ void FuncGenContext::generateParameter(
     PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) 
 {
-    auto next = [&] {
-        return std::to_address(irParamItr++);
-    };
+    auto next = [&]() { return std::to_address(irParamItr++); };
     std::string name = isa<ast::ThisParameter>(paramDecl) ?
                            "this" :
                            std::string(paramDecl->name());
     auto* semaParam = paramDecl->object();
     switch (pc.location()) {
     case Register: {
-        SC_ASSERT(pc.representation() == Unpacked, "Register arguments are always unpacked");
+        auto params = utl::small_vector<ir::Value*>(pc.numParams(), next);
+        /// Reference parameters are special: We don't store them to memory because they cannot be reassigned
         if (isa<sema::ReferenceType>(semaParam->type())) {
-            if (isFatPointer(semaParam->type())) {
-                valueMap.insert(Value::Unpacked(semaParam, 
-                                                { next(), next() },
-                                                Register));
-            }
-            else {
-                valueMap.insert(Value::Unpacked(semaParam,
-                                                { next() },
-                                                Register));
-            }
+            valueMap.insert(Value::Unpacked(semaParam,
+                                            params,
+                                            Register));
         }
         else {
-            auto* value = isFatPointer(semaParam->type()) ?
-                buildStructure(arrayPtrType, 
-                               ValueArray{ next(), next() },
-                               name) :
-                next();
-            auto* mem = storeToMemory(value, name);
+            auto* mem = storeToMemory(packValues(params, name), name);
             valueMap.insert(Value::Packed(semaParam, mem, Memory));
         }
         break;
     }
 
-    case Memory: {
+    case Memory:
         valueMap.insert(Value::Packed(semaParam, next(), Memory));
         break;
-    }
     }
 }
 
