@@ -28,18 +28,18 @@ public:
     /// Associate \p object with \p value if \p object is not already in the map
     bool tryInsert(sema::Object const* object, Value value);
 
-    /// Associate array object \p object with the size \p size
-    void insertArraySize(sema::Object const* object, Value size);
-
-    /// Associate array object \p object with the size \p size
-    void insertArraySize(sema::Object const* object, size_t size);
-
-    /// Associate array object \p object with the lazily evaluated size \p size
-    void insertArraySize(sema::Object const* object, LazyArraySize size);
-
-    /// Make \p newObj refer to the same array size value as \p original
-    void insertArraySizeOf(sema::Object const* newObj,
-                           sema::Object const* original);
+//    /// Associate array object \p object with the size \p size
+//    void insertArraySize(sema::Object const* object, Value size);
+//
+//    /// Associate array object \p object with the size \p size
+//    void insertArraySize(sema::Object const* object, size_t size);
+//
+//    /// Associate array object \p object with the lazily evaluated size \p size
+//    void insertArraySize(sema::Object const* object, LazyArraySize size);
+//
+//    /// Make \p newObj refer to the same array size value as \p original
+//    void insertArraySizeOf(sema::Object const* newObj,
+//                           sema::Object const* original);
 
     /// Retrieve value associated with \p object
     Value operator()(sema::Object const* object) const;
@@ -47,12 +47,12 @@ public:
     /// Try to retrieve value associated with \p object
     std::optional<Value> tryGet(sema::Object const* object) const;
 
-    /// Retrieve array size associated with \p object
-    /// \pre \p object must be associated with an array size
-    Value arraySize(sema::Object const* object) const;
-
-    /// Try to retrieve array size associated with \p object
-    std::optional<Value> tryGetArraySize(sema::Object const* object) const;
+//    /// Retrieve array size associated with \p object
+//    /// \pre \p object must be associated with an array size
+//    Value arraySize(sema::Object const* object) const;
+//
+//    /// Try to retrieve array size associated with \p object
+//    std::optional<Value> tryGetArraySize(sema::Object const* object) const;
 
     /// Range accessors
     /// @{

@@ -12,7 +12,14 @@
 
 namespace scatha::irgen {
 
+/// Values can be in registers or in memory. This enum represents that property
 enum class ValueLocation : uint8_t { Register, Memory };
+
+/// Some types ("fat pointer" types) can have different representations depending on the context.
+/// For example a pointer to a dynamic array `*[int]` can be represented as a value of type `{ ptr, i64 }` (packed) or as two seperate values of type `ptr`, `i64` (unpacked)
+enum class ValueRepresentation {
+    Packed, Unpacked
+};
 
 /// Convert to string
 std::string_view toString(ValueLocation);
@@ -27,16 +34,16 @@ public:
 
     SC_NODEBUG explicit Value(ir::Value* value,
                               ir::Type const* type,
-                              ValueLocation location):
+                              ValueLocation location,
+                              ValueRepresentation repr):
+        _val(value), _type(type), _loc(location), _repr(repr) {}
 
-        _val(value), _type(type), _loc(location) {}
-
-    SC_NODEBUG explicit Value(ir::Value* value, ValueLocation location):
-        Value(value, value->type(), location) {
-        SC_ASSERT(location == ValueLocation::Register,
-                  "If the value is in memory the type must be specified "
-                  "explicitly");
-    }
+//    SC_NODEBUG explicit Value(ir::Value* value, ValueLocation location):
+//        Value(value, value->type(), location) {
+//        SC_ASSERT(location == ValueLocation::Register,
+//                  "If the value is in memory the type must be specified "
+//                  "explicitly");
+//    }
 
     /// \Returns either the value or the address of the value, depending on
     /// whether this value is in a register or in memory
@@ -60,6 +67,15 @@ public:
         return location() == ValueLocation::Memory;
     }
 
+    /// \Returns the representation of this value
+    ValueRepresentation representation() const { return _repr; }
+    
+    /// \Returns `true` is this value is in packed representation
+    bool isPacked() const { return representation() == ValueRepresentation::Packed; }
+    
+    /// \Returns `true` is this value is in unpacked representation
+    bool isUnpacked() const { return representation() == ValueRepresentation::Unpacked; }
+    
     /// Test the value pointer for null
     SC_NODEBUG explicit operator bool() const { return !!_val; }
 
@@ -73,6 +89,7 @@ private:
     ir::Value* _val = nullptr;
     ir::Type const* _type = nullptr;
     ValueLocation _loc = {};
+    ValueRepresentation _repr;
 };
 
 } // namespace scatha::irgen

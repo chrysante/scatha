@@ -31,37 +31,37 @@ bool ValueMap::tryInsert(sema::Object const* object, Value value) {
     return values.insert({ object, value }).second;
 }
 
-void ValueMap::insertArraySize(sema::Object const* object, Value size) {
-    insertArraySize(object, [size] { return size; });
-}
+//void ValueMap::insertArraySize(sema::Object const* object, Value size) {
+//    insertArraySize(object, [size] { return size; });
+//}
+//
+//void ValueMap::insertArraySize(sema::Object const* object, size_t size) {
+//    using enum ValueLocation;
+//    insertArraySize(object, Value(ctx->intConstant(size, 64), Register));
+//}
 
-void ValueMap::insertArraySize(sema::Object const* object, size_t size) {
-    using enum ValueLocation;
-    insertArraySize(object, Value(ctx->intConstant(size, 64), Register));
-}
-
-void ValueMap::insertArraySize(sema::Object const* object, LazyArraySize size) {
-    SC_ASSERT(object, "Must not be null");
-    auto [itr, success] = arraySizes.insert({ object, std::move(size) });
-    SC_ASSERT(success, "ID already present");
-}
-
-void ValueMap::insertArraySizeOf(sema::Object const* newObj,
-                                 sema::Object const* original) {
-    if (newObj == original) {
-        return;
-    }
-    if (auto size = getStaticArraySize(original->type())) {
-        insertArraySize(newObj,
-                        Value(ctx->intConstant(*size, 64),
-                              ValueLocation::Register));
-        return;
-    }
-    auto itr = arraySizes.find(original);
-    if (itr != arraySizes.end()) {
-        insertArraySize(newObj, itr->second);
-    }
-}
+//void ValueMap::insertArraySize(sema::Object const* object, LazyArraySize size) {
+//    SC_ASSERT(object, "Must not be null");
+//    auto [itr, success] = arraySizes.insert({ object, std::move(size) });
+//    SC_ASSERT(success, "ID already present");
+//}
+//
+//void ValueMap::insertArraySizeOf(sema::Object const* newObj,
+//                                 sema::Object const* original) {
+//    if (newObj == original) {
+//        return;
+//    }
+//    if (auto size = getStaticArraySize(original->type())) {
+//        insertArraySize(newObj,
+//                        Value(ctx->intConstant(*size, 64),
+//                              ValueLocation::Register));
+//        return;
+//    }
+//    auto itr = arraySizes.find(original);
+//    if (itr != arraySizes.end()) {
+//        insertArraySize(newObj, itr->second);
+//    }
+//}
 
 Value ValueMap::operator()(sema::Object const* object) const {
     auto itr = values.find(object);
@@ -77,25 +77,25 @@ std::optional<Value> ValueMap::tryGet(sema::Object const* object) const {
     return std::nullopt;
 }
 
-Value ValueMap::arraySize(sema::Object const* object) const {
-    auto result = tryGetArraySize(object);
-    SC_ASSERT(result, "Not found");
-    return *result;
-}
-
-std::optional<Value> ValueMap::tryGetArraySize(
-    sema::Object const* object) const {
-    /// For statically sized arrays we just extract the size information from
-    /// the type, so we don't need to store it in the map
-    if (auto size = getStaticArraySize(object->type())) {
-        return Value(ctx->intConstant(*size, 64), ValueLocation::Register);
-    }
-    auto itr = arraySizes.find(object);
-    if (itr != arraySizes.end()) {
-        return itr->second();
-    }
-    return std::nullopt;
-}
+//Value ValueMap::arraySize(sema::Object const* object) const {
+//    auto result = tryGetArraySize(object);
+//    SC_ASSERT(result, "Not found");
+//    return *result;
+//}
+//
+//std::optional<Value> ValueMap::tryGetArraySize(
+//    sema::Object const* object) const {
+//    /// For statically sized arrays we just extract the size information from
+//    /// the type, so we don't need to store it in the map
+//    if (auto size = getStaticArraySize(object->type())) {
+//        return Value(ctx->intConstant(*size, 64), ValueLocation::Register);
+//    }
+//    auto itr = arraySizes.find(object);
+//    if (itr != arraySizes.end()) {
+//        return itr->second();
+//    }
+//    return std::nullopt;
+//}
 
 static std::string scopedName(sema::Entity const& entity) {
     std::string name(entity.name());
