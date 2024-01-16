@@ -61,11 +61,11 @@ Alloca* FunctionBuilder::makeLocalArray(Type const* type,
 }
 
 Alloca* FunctionBuilder::storeToMemory(Value* value) {
-    return storeToMemory(value, utl::strcat(value->name(), ".addr"));
+    return storeToMemory(value, std::string(value->name()));
 }
 
 Alloca* FunctionBuilder::storeToMemory(Value* value, std::string name) {
-    auto* addr = makeLocalVariable(value->type(), std::move(name));
+    auto* addr = makeLocalVariable(value->type(), utl::strcat(name, ".addr"));
     add<Store>(addr, value);
     return addr;
 }
@@ -77,8 +77,9 @@ Value* FunctionBuilder::buildStructure(StructType const* type,
     Value* value = ctx.undef(type);
     for (auto [index, member]: members | ranges::views::enumerate) {
         SC_ASSERT(member->type() == type->elementAt(index), "Type mismatch");
-        value = add<InsertValue>(value, member, std::array{ index }, name);
+        value = add<InsertValue>(value, member, std::array{ index }, utl::strcat(name, ".elem.", index));
     }
+    value->setName(name);
     return value;
 }
 

@@ -17,18 +17,19 @@
 
 using namespace scatha;
 using namespace irgen;
+using enum ValueRepresentation;
 
 /// # ValueMap
 
 ValueMap::ValueMap(ir::Context& ctx): ctx(&ctx) {}
 
-void ValueMap::insert(sema::Object const* object, Value value) {
-    [[maybe_unused]] bool success = tryInsert(object, value);
+void ValueMap::insert(Value value) {
+    [[maybe_unused]] bool success = tryInsert(value);
     SC_ASSERT(success, "Redeclaration");
 }
 
-bool ValueMap::tryInsert(sema::Object const* object, Value value) {
-    return values.insert({ object, value }).second;
+bool ValueMap::tryInsert(Value value) {
+    return values.insert({ value.semaObject(), value }).second;
 }
 
 //void ValueMap::insertArraySize(sema::Object const* object, Value size) {
@@ -123,12 +124,13 @@ static constexpr utl::streammanip printObject = [](std::ostream& str,
 void irgen::print(ValueMap const& valueMap, std::ostream& str) {
     for (auto& [object, value]: valueMap) {
         str << printObject(*object) << " -> ";
-        ir::printDecl(*value.get(), str);
-        str << " "
-            << tfmt::format(tfmt::BrightGrey, "[", value.location(), "]");
-        if (value.location() == ValueLocation::Memory) {
-            str << " // " << *value.type();
+        for (bool first = true; auto* irVal: value.get()) {
+            if (!first) { str << ", "; }
+            first = false;
+            ir::printDecl(*irVal, str);
         }
+        str << " "
+            << tfmt::format(tfmt::BrightGrey, "[", value.location(), ", ", value.representation(), "]");
         str << "\n";
     }
     str << "\n";
@@ -169,60 +171,35 @@ FunctionMetaData const& FunctionMap::metaData(
 
 /// # TypeMap
 
+template <typename Map>
+static void insertImpl(Map& map, typename Map::key_type key, typename Map::mapped_type value) {
+    [[maybe_unused]] bool success = map.insert({ key, std::move(value) }).second;
+    SC_ASSERT(success, "Failed to insert type");
+}
+
 void TypeMap::insert(sema::StructType const* key,
                      ir::StructType const* value,
                      StructMetaData metaData) {
-    insertImpl(key, value);
+    insertImpl(packedMap, key, value);
+    insertImpl(unpackedMap, key, { value });
     meta.insert({ key, std::move(metaData) });
 }
 
-ir::Type const* TypeMap::operator()(sema::QualType type) const {
-    return (*this)(static_cast<sema::Type const*>(type.get()));
-}
-
-ir::Type const* TypeMap::operator()(sema::Type const* type) const {
-    auto itr = map.find(type);
-    if (itr != map.end()) {
-        return itr->second;
-    }
-    auto* result = get(type);
-    insertImpl(type, result);
-    return result;
-}
-
-sema::ObjectType const* TypeMap::operator()(ir::Type const* type) const {
-    auto itr = backMap.find(type);
-    if (itr != backMap.end()) {
-        return cast<sema::ObjectType const*>(itr->second);
-    }
-    return nullptr;
-}
-
-StructMetaData const& TypeMap::metaData(sema::Type const* type) const {
-    auto itr = meta.find(cast<sema::StructType const*>(type));
-    SC_ASSERT(itr != meta.end(), "Not found");
-    return itr->second;
-}
-
-void TypeMap::insertImpl(sema::Type const* key, ir::Type const* value) const {
-    [[maybe_unused]] bool success = map.insert({ key, value }).second;
-    SC_ASSERT(success, "Failed to insert type");
-    backMap.insert({ value, key });
-}
-
-ir::Type const* TypeMap::get(sema::Type const* type) const {
+template <ValueRepresentation Repr>
+auto TypeMap::compute(sema::Type const* type) const {
+    utl::small_vector<ir::Type const*, 2> res;
     // clang-format off
-    return SC_MATCH_R (ir::Type const*, *type) {
-        [&](sema::VoidType const&) { return ctx->voidType(); },
-        [&](sema::BoolType const&) { return ctx->intType(1); },
-        [&](sema::ByteType const&) { return ctx->intType(8); },
+    SC_MATCH (*type) {
+        [&](sema::VoidType const&) { res = { ctx->voidType() }; },
+        [&](sema::BoolType const&) { res = { ctx->intType(1) }; },
+        [&](sema::ByteType const&) { res = { ctx->intType(8) }; },
         [&](sema::IntType const& intType) {
-            return ctx->intType(intType.bitwidth());
+            res = { ctx->intType(intType.bitwidth()) };
         },
         [&](sema::FloatType const& floatType) {
-            return ctx->floatType(floatType.bitwidth());
+            res = { ctx->floatType(floatType.bitwidth()) };
         },
-        [&](sema::NullPtrType const&) { return ctx->ptrType(); },
+        [&](sema::NullPtrType const&) { res = { ctx->ptrType() }; },
         [&](sema::StructType const&) {
             SC_UNREACHABLE("Undeclared structure type");
         },
@@ -233,12 +210,66 @@ ir::Type const* TypeMap::get(sema::Type const* type) const {
             SC_UNREACHABLE();
         },
         [&](sema::ArrayType const& type) {
-            return ctx->arrayType((*this)(type.elementType()),
-                                  type.count());
+            SC_ASSERT(!type.isDynamic(),
+                      "Cannot represent dynamic arrays as IR types");
+            res = { ctx->arrayType(packed(type.elementType()),
+                                   type.count()) };
         },
-        [&](sema::PointerType const&) { return ctx->ptrType(); },
-        [&](sema::ReferenceType const&) { return ctx->ptrType(); },
+        [&]<typename T>(T const& type)
+            requires std::derived_from<T, sema::PointerType> ||
+                     std::derived_from<T, sema::ReferenceType>
+        {
+            if (isFatPointer(&type)) {
+                if (Repr == ValueRepresentation::Packed) {
+                    res = { makeArrayPtrType(*ctx) };
+                }
+                else {
+                    res = { ctx->ptrType(), ctx->intType(64) };
+                }
+            }
+            else {
+                res = { ctx->ptrType() };
+            }
+        },
     }; // clang-format on
+    if constexpr (Repr == ValueRepresentation::Packed) {
+        SC_ASSERT(res.size() == 1, 
+                  "Packed types must be represented by one IR type only");
+        return res.front();
+    }
+    else {
+        return res;
+    }
+}
+
+static auto mapChached(auto& cache,
+                                  sema::Type const* key,
+                                  auto compute) {
+    auto itr = cache.find(key);
+    if (itr != cache.end()) {
+        return itr->second;
+    }
+    auto result = compute(key);
+    insertImpl(cache, key, result);
+    return result;
+}
+
+ir::Type const* TypeMap::packed(sema::Type const* type) const {
+    return mapChached(packedMap,
+                      type,
+                      std::bind_front(&TypeMap::compute<Packed>, this));
+}
+
+utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(sema::Type const* type) const {
+    return mapChached(unpackedMap,
+                      type,
+                      std::bind_front(&TypeMap::compute<Unpacked>, this));
+}
+
+StructMetaData const& TypeMap::metaData(sema::Type const* type) const {
+    auto itr = meta.find(cast<sema::StructType const*>(type));
+    SC_ASSERT(itr != meta.end(), "Not found");
+    return itr->second;
 }
 
 ir::UnaryArithmeticOperation irgen::mapUnaryOp(ast::UnaryOperator op) {

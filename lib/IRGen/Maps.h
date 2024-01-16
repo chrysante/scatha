@@ -6,6 +6,7 @@
 #include <optional>
 
 #include <utl/hashtable.hpp>
+#include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
 #include "IR/Fwd.h"
@@ -23,10 +24,10 @@ public:
     explicit ValueMap(ir::Context& ctx);
 
     /// Associate \p object with \p value
-    void insert(sema::Object const* object, Value value);
+    void insert(Value value);
 
     /// Associate \p object with \p value if \p object is not already in the map
-    bool tryInsert(sema::Object const* object, Value value);
+    bool tryInsert(Value value);
 
 //    /// Associate array object \p object with the size \p size
 //    void insertArraySize(sema::Object const* object, Value size);
@@ -100,31 +101,29 @@ class TypeMap {
 public:
     explicit TypeMap(ir::Context& ctx): ctx(&ctx) {}
 
-    ///
+    /// Inserts as packed representation
     void insert(sema::StructType const* key,
                 ir::StructType const* value,
                 StructMetaData metaData);
 
-    /// Shorthand for `(*this*)(type.get())`
-    ir::Type const* operator()(sema::QualType type) const;
+    /// Translate \p type to corresponding packed IR type
+    ir::Type const* packed(sema::Type const* type) const;
 
-    /// Translate \p type to corresponding IR type
-    ir::Type const* operator()(sema::Type const* type) const;
-
-    /// Translate \p type to back corresponding sema type
-    sema::ObjectType const* operator()(ir::Type const* type) const;
+    /// Translate \p type to corresponding unpacked IR types
+    utl::small_vector<ir::Type const*, 2> unpacked(sema::Type const* type) const;
 
     /// \Returns the meta data associated with \p type
     StructMetaData const& metaData(sema::Type const* type) const;
 
 private:
-    void insertImpl(sema::Type const* key, ir::Type const* value) const;
-    ir::Type const* get(sema::Type const* type) const;
+    template <ValueRepresentation Repr>
+    auto compute(sema::Type const* type) const;
 
     ir::Context* ctx;
     /// Mutable to cache results in const getter functions
-    mutable utl::hashmap<sema::Type const*, ir::Type const*> map;
-    mutable utl::hashmap<ir::Type const*, sema::Type const*> backMap;
+    mutable utl::hashmap<sema::Type const*, ir::Type const*> packedMap;
+    mutable utl::hashmap<sema::Type const*, utl::small_vector<ir::Type const*, 2>> unpackedMap;
+//    mutable utl::hashmap<ir::Type const*, sema::Type const*> backMap;
     utl::hashmap<sema::StructType const*, StructMetaData> meta;
 };
 

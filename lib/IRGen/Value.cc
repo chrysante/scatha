@@ -16,3 +16,17 @@ std::string_view irgen::toString(ValueLocation VL) {
 std::ostream& irgen::operator<<(std::ostream& ostream, ValueLocation VL) {
     return ostream << toString(VL);
 }
+
+std::string_view irgen::toString(ValueRepresentation VR) {
+    using enum ValueRepresentation;
+    switch (VR) {
+    case Packed:
+        return "Packed";
+    case Unpacked:
+        return "Unpacked";
+    }
+}
+
+std::ostream& irgen::operator<<(std::ostream& ostream, ValueRepresentation VR) {
+    return ostream << toString(VR);
+}

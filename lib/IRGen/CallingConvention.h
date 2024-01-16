@@ -18,20 +18,20 @@ namespace scatha::irgen {
 /// Description of how a value is passed to and returned from function calls.
 class PassingConvention {
 public:
-    PassingConvention() = default;
+//    PassingConvention() = default;
 
-    PassingConvention(ValueLocation loc, size_t numParams):
-        _loc(loc), _numParams(utl::narrow_cast<uint16_t>(numParams)) {}
+    PassingConvention(ValueLocation loc, ValueRepresentation repr):
+        _loc(loc), _repr(repr) {}
 
     /// Location type of the argument. Either `Register` or `Stack`
     ValueLocation location() const { return _loc; }
 
-    /// The number of parameters used to pass this value
-    size_t numParams() const { return _numParams; }
-
+    ///
+    ValueRepresentation representation() const { return _repr; }
+    
 private:
-    ValueLocation _loc = {};
-    uint16_t _numParams = {};
+    ValueLocation _loc;
+    ValueRepresentation _repr;
 };
 
 /// Print \p PC to \p ostream

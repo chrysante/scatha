@@ -8,7 +8,7 @@ using namespace scatha;
 using namespace irgen;
 
 std::ostream& irgen::operator<<(std::ostream& str, PassingConvention PC) {
-    return str << "[" << PC.location() << ", " << PC.numParams() << "]";
+    return str << "[" << PC.location() << ", " << PC.representation() << "]";
 }
 
 void irgen::print(CallingConvention const& CC) { print(CC, std::cout); }

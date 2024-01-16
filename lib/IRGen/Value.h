@@ -3,10 +3,14 @@
 
 #include <iosfwd>
 #include <string_view>
+#include <span>
+#include <initializer_list>
 
 #include <utl/hash.hpp>
+#include <utl/vector.hpp>
 
 #include "Common/Base.h"
+#include "Common/Ranges.h"
 #include "IR/CFG/Value.h"
 #include "Sema/Fwd.h"
 
@@ -15,6 +19,12 @@ namespace scatha::irgen {
 /// Values can be in registers or in memory. This enum represents that property
 enum class ValueLocation : uint8_t { Register, Memory };
 
+/// Convert to string
+std::string_view toString(ValueLocation);
+
+/// Print to ostream
+std::ostream& operator<<(std::ostream& ostream, ValueLocation);
+
 /// Some types ("fat pointer" types) can have different representations depending on the context.
 /// For example a pointer to a dynamic array `*[int]` can be represented as a value of type `{ ptr, i64 }` (packed) or as two seperate values of type `ptr`, `i64` (unpacked)
 enum class ValueRepresentation {
@@ -22,37 +32,42 @@ enum class ValueRepresentation {
 };
 
 /// Convert to string
-std::string_view toString(ValueLocation);
+std::string_view toString(ValueRepresentation);
 
 /// Print to ostream
-std::ostream& operator<<(std::ostream& ostream, ValueLocation);
+std::ostream& operator<<(std::ostream& ostream, ValueRepresentation);
 
 /// Represents an abstract value that is either in a register or in memory
 class Value {
 public:
-    Value() = default;
-
-    SC_NODEBUG explicit Value(ir::Value* value,
-                              ir::Type const* type,
-                              ValueLocation location,
-                              ValueRepresentation repr):
-        _val(value), _type(type), _loc(location), _repr(repr) {}
-
-//    SC_NODEBUG explicit Value(ir::Value* value, ValueLocation location):
-//        Value(value, value->type(), location) {
-//        SC_ASSERT(location == ValueLocation::Register,
-//                  "If the value is in memory the type must be specified "
-//                  "explicitly");
-//    }
-
-    /// \Returns either the value or the address of the value, depending on
-    /// whether this value is in a register or in memory
-    SC_NODEBUG ir::Value* get() const { return _val; }
-
-    /// \Returns the IR type of the _abstract_ value. This differs from
-    /// `get()->type()` because if the value is in memory the concrete IR type
-    /// is always `ptr`
-    SC_NODEBUG ir::Type const* type() const { return _type; }
+    /// # Static constructors
+    
+    /// Create a packed value
+    static Value Packed(sema::Object const* semaObj,
+                  ir::Value* value,
+                  ValueLocation loc) {
+        return Value(semaObj, std::array{ value }, loc, ValueRepresentation::Packed);
+    }
+    
+    /// Create an unpacked value
+    static Value Unpacked(sema::Object const* semaObj,
+                    std::span<ir::Value* const> values,
+                    ValueLocation loc) {
+        return Value(semaObj, values, loc, ValueRepresentation::Unpacked);
+    }
+    
+    /// \overload
+    static Value Unpacked(sema::Object const* semaObj,
+                    std::initializer_list<ir::Value*> values,
+                    ValueLocation loc) {
+        return Unpacked(semaObj, std::span(values), loc);
+    }
+    
+    /// TODO: Document this
+    sema::Object const* semaObject() const { return semaObj; }
+    
+    /// TODO: Document this
+    SC_NODEBUG std::span<ir::Value* const> get() const { return _vals; }
 
     /// \Returns the location of the value
     SC_NODEBUG ValueLocation location() const { return _loc; }
@@ -76,29 +91,22 @@ public:
     /// \Returns `true` is this value is in unpacked representation
     bool isUnpacked() const { return representation() == ValueRepresentation::Unpacked; }
     
-    /// Test the value pointer for null
-    SC_NODEBUG explicit operator bool() const { return !!_val; }
-
-    bool operator==(Value const&) const = default;
-
-    SC_NODEBUG size_t hashValue() const {
-        return utl::hash_combine(_val, _type, _loc);
-    }
-
 private:
-    ir::Value* _val = nullptr;
-    ir::Type const* _type = nullptr;
+    explicit Value(sema::Object const* semaObj,
+                   std::span<ir::Value* const> values,
+                   ValueLocation location,
+                   ValueRepresentation repr):
+        semaObj(semaObj),
+        _vals(values | ToSmallVector<>),
+        _loc(location),
+        _repr(repr) {}
+    
+    sema::Object const* semaObj;
+    utl::small_vector<ir::Value*, 2> _vals;
     ValueLocation _loc = {};
     ValueRepresentation _repr;
 };
 
 } // namespace scatha::irgen
-
-template <>
-struct std::hash<scatha::irgen::Value> {
-    size_t operator()(scatha::irgen::Value const& value) const {
-        return value.hashValue();
-    }
-};
 
 #endif // SCATHA_IRGEN_VALUE_H_

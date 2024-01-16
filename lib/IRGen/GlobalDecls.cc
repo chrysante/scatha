@@ -18,6 +18,7 @@
 using namespace scatha;
 using namespace irgen;
 using enum ValueLocation;
+using enum ValueRepresentation;
 using sema::QualType;
 
 StructMetaData irgen::makeStructMetadata(sema::StructType const* semaType) {
@@ -39,11 +40,8 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
                                     sema::NameMangler const& nameMangler) {
     auto structType = allocate<ir::StructType>(nameMangler(*semaType));
     for (auto* member: semaType->memberVariables()) {
-        structType->pushMember(typeMap(member->type()));
-        /// Pointer to array data members need a second field in the IR struct
-        /// to store the size of the array
-        if (isFatPointer(member->type())) {
-            structType->pushMember(ctx.intType(64));
+        for (auto* irElemType: typeMap.unpacked(member->type())) {
+            structType->pushMember(irElemType);
         }
     }
     auto* result = structType.get();
@@ -52,27 +50,29 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
     return result;
 }
 
-static bool isTrivial(sema::Type const* type) {
+/// Only certain types like builtin arithmetic types, pointers, bools or struct types with trivial lifetime may be passed in registers
+static bool mayPassInRegister(sema::Type const* type) {
+    static size_t const MaxRegPassingSize = 16;
+    if (type->size() > MaxRegPassingSize) {
+        return false;
+    }
+    /// For now! This is not necessarily correct for unique pointers
     return type->hasTrivialLifetime();
 }
 
-static size_t const maxRegPassingSize = 16;
 
 static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
-    if (isFatPointer(type)) {
-        return PassingConvention(Register, isRetval ? 0 : 2);
+    if (mayPassInRegister(type)) {
+        return { Register, isRetval ? Packed : Unpacked };
     }
-    bool const isSmall = isa<sema::ReferenceType>(type) ||
-                         type->size() <= maxRegPassingSize;
-    if (isSmall && isTrivial(type)) {
-        return PassingConvention(Register, isRetval ? 0u : 1u);
+    else {
+        return { Memory, Packed };
     }
-    return PassingConvention(Memory, 1);
 }
 
 static PassingConvention computeRetValPC(sema::Type const* type) {
     if (isa<sema::VoidType>(type)) {
-        return { Register, 0 };
+        return { Register, Packed };
     }
     return computePCImpl(type, true);
 }
@@ -106,14 +106,11 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
                                       CallingConvention const& CC,
                                       TypeMap const& typeMap) {
     IRSignature sig;
+    /// Compute return value
     switch (CC.returnValue().location()) {
     case Register: {
-        if (isFatPointer(semaFn.returnType())) {
-            sig.returnType = makeArrayPtrType(ctx);
-        }
-        else {
-            sig.returnType = typeMap(semaFn.returnType());
-        }
+        SC_ASSERT(CC.returnValue().representation() == Packed, "Return value must always be packed");
+        sig.returnType = typeMap.packed(semaFn.returnType());
         break;
     }
     case Memory:
@@ -121,24 +118,22 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
         sig.argumentTypes.push_back(ctx.ptrType());
         break;
     }
-    for (auto [argPC, type]:
+    /// Compute arguments
+    for (auto [argPC, semaType]:
          ranges::views::zip(CC.arguments(), semaFn.argumentTypes()))
     {
         switch (argPC.location()) {
         case Register:
-            sig.argumentTypes.push_back(typeMap(type));
+            SC_ASSERT(argPC.representation() == Unpacked, "Function arguments must always be unpacked");
+            for (auto* irType: typeMap.unpacked(semaType)) {
+                sig.argumentTypes.push_back(irType);
+            }
             break;
 
         case Memory: {
             sig.argumentTypes.push_back(ctx.ptrType());
             break;
         }
-        }
-        /// Extremely hacky solution to add the size as a second argument.
-        /// This works because the only case `argPC.numParams() == 2` is the
-        /// dynamic array case.
-        if (argPC.numParams() == 2) {
-            sig.argumentTypes.push_back(ctx.intType(64));
         }
     }
     return sig;

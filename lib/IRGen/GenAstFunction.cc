@@ -23,6 +23,7 @@ using namespace scatha;
 using namespace irgen;
 using namespace ranges::views;
 using enum ValueLocation;
+using enum ValueRepresentation;
 
 static std::string nameFromSourceLoc(std::string_view name,
                                      SourceLocation loc) {
@@ -48,11 +49,11 @@ struct FuncGenContext: FuncGenContextBase {
 
     void generateImpl(ast::Statement const&) { SC_UNREACHABLE(); }
     //void generateImpl(ast::ImportStatement const&);
-    //void generateImpl(ast::CompoundStatement const&);
-//    void generateImpl(ast::FunctionDefinition const&);
-    //void generateParameter(ast::ParameterDeclaration const* paramDecl,
-    //                       PassingConvention pc,
-    //                       List<ir::Parameter>::iterator& paramItr);
+    void generateImpl(ast::CompoundStatement const&);
+    void generateImpl(ast::FunctionDefinition const&);
+    void generateParameter(ast::ParameterDeclaration const* paramDecl,
+                           PassingConvention pc,
+                           List<ir::Parameter>::iterator& paramItr);
     //void generateImpl(ast::VariableDeclaration const&);
     //void generateImpl(ast::ExpressionStatement const&);
     //void generateImpl(ast::EmptyStatement const&) {}
@@ -183,12 +184,12 @@ void FuncGenContext::generate(ast::Statement const& node) {
 //    /// No-op
 //}
 
-//void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
-//    for (auto* statement: cmpStmt.statements()) {
-//        generate(*statement);
-//    }
-//    emitDtorCalls(cmpStmt.dtorStack(), cmpStmt);
-//}
+void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
+    for (auto* statement: cmpStmt.statements()) {
+        generate(*statement);
+    }
+    emitDtorCalls(cmpStmt.dtorStack(), cmpStmt);
+}
 
 static sema::SpecialLifetimeFunction toSLFKindToGenerate(
     sema::SpecialMemberFunction kind) {
@@ -200,89 +201,81 @@ static sema::SpecialLifetimeFunction toSLFKindToGenerate(
     return DefaultConstructor;
 }
 
-//void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
-//    /// If the function is a user defined special member function (constructor
-//    /// or destructor) we still generate the code of the non-user defined
-//    /// equivalent function and then append the user defined code. This way in a
-//    /// user defined destructor all member destructors get called and in a user
-//    /// defined constructor all member variables get initialized automatically
-//    if (auto md = semaFn.getSMFMetadata()) {
-//        auto kind = toSLFKindToGenerate(md->kind());
-//        generateSynthFunctionAs(kind, config, *this);
-//        makeBlockCurrent(&irFn.back());
-//    }
-//    else {
-//        addNewBlock("entry");
-//    }
-//    /// Here we add all parameters to our value map and store possibly mutable
-//    /// parameters (everything that's not a reference) to the stack
-//    auto CC = getCC(&semaFn);
-//    auto irParamItr = irFn.parameters().begin();
-//    if (CC.returnValue().location() == Memory) {
-//        ++irParamItr;
-//    }
-//    for (auto [paramDecl, pc]:
-//         ranges::views::zip(def.parameters(), CC.arguments()))
-//    {
-//        generateParameter(paramDecl, pc, irParamItr);
-//    }
-//    generate(*def.body());
-//    insertAllocas();
-//}
+void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
+    /// If the function is a user defined special member function (constructor
+    /// or destructor) we still generate the code of the non-user defined
+    /// equivalent function and then append the user defined code. This way in a
+    /// user defined destructor all member destructors get called and in a user
+    /// defined constructor all member variables get initialized automatically
+    if (auto md = semaFn.getSMFMetadata()) {
+        auto kind = toSLFKindToGenerate(md->kind());
+        generateSynthFunctionAs(kind, config, *this);
+        makeBlockCurrent(&irFn.back());
+    }
+    else {
+        addNewBlock("entry");
+    }
+    /// Here we add all parameters to our value map and store possibly mutable
+    /// parameters (everything that's not a reference) to the stack
+    auto CC = getCC(&semaFn);
+    auto irParamItr = irFn.parameters().begin();
+    if (CC.returnValue().location() == Memory) {
+        ++irParamItr;
+    }
+    for (auto [paramDecl, pc]:
+         ranges::views::zip(def.parameters(), CC.arguments()))
+    {
+        generateParameter(paramDecl, pc, irParamItr);
+    }
+    generate(*def.body());
+    insertAllocas();
+}
 
-//void FuncGenContext::generateParameter(
-//    ast::ParameterDeclaration const* paramDecl,
-//    PassingConvention pc,
-//    List<ir::Parameter>::iterator& irParamItr) {
-//    sema::Type const* semaType = paramDecl->type();
-//    auto* irParam = irParamItr.to_address();
-//    auto* irType = typeMap(paramDecl->type());
-//    std::string name = isa<ast::ThisParameter>(paramDecl) ?
-//                           "this" :
-//                           std::string(paramDecl->name());
-//    auto* paramObj = paramDecl->object();
-//    switch (pc.location()) {
-//    case Register: {
-//        auto* refType = dyncast<sema::ReferenceType const*>(paramDecl->type());
-//        /// It's kind of annoying that we still need two cases here, but in one
-//        /// case we keep the pointer and the array size in a register and in the
-//        /// other case we store it to memory. Seems to complicated to merge the
-//        /// cases.
-//        if (refType) {
-//            valueMap.insert(paramObj,
-//                            Value(irParam, typeMap(refType->base()), Memory));
-//            ++irParamItr;
-//            if (isFatPointer(semaType)) {
-//                Value size(irParam->next(), Register);
-//                valueMap.insertArraySize(paramObj, size);
-//                ++irParamItr;
-//            }
-//        }
-//        else {
-//            valueMap.insert(paramObj,
-//                            Value(storeToMemory(irParam, name),
-//                                  irType,
-//                                  Memory));
-//            ++irParamItr;
-//            if (isFatPointer(semaType)) {
-//                Value size(storeToMemory(irParam->next()),
-//                           irParam->next()->type(),
-//                           Memory);
-//                valueMap.insertArraySize(paramObj, size);
-//                ++irParamItr;
-//            }
-//        }
-//        break;
-//    }
-//
-//    case Memory: {
-//        Value data(irParam, irType, Memory);
-//        valueMap.insert(paramObj, data);
-//        ++irParamItr;
-//        break;
-//    }
-//    }
-//}
+void FuncGenContext::generateParameter(
+    ast::ParameterDeclaration const* paramDecl,
+    PassingConvention pc,
+    List<ir::Parameter>::iterator& irParamItr) 
+{
+    auto next = [&] {
+        return std::to_address(irParamItr++);
+    };
+    std::string name = isa<ast::ThisParameter>(paramDecl) ?
+                           "this" :
+                           std::string(paramDecl->name());
+    auto* semaParam = paramDecl->object();
+    switch (pc.location()) {
+    case Register: {
+        SC_ASSERT(pc.representation() == Unpacked, "Register arguments are always unpacked");
+        if (isa<sema::ReferenceType>(semaParam->type())) {
+            if (isFatPointer(semaParam->type())) {
+                valueMap.insert(Value::Unpacked(semaParam, 
+                                                { next(), next() },
+                                                Register));
+            }
+            else {
+                valueMap.insert(Value::Unpacked(semaParam,
+                                                { next() },
+                                                Register));
+            }
+        }
+        else {
+            auto* value = isFatPointer(semaParam->type()) ?
+                buildStructure(arrayPtrType, 
+                               ValueArray{ next(), next() },
+                               name) :
+                next();
+            auto* mem = storeToMemory(value, name);
+            valueMap.insert(Value::Packed(semaParam, mem, Memory));
+        }
+        break;
+    }
+
+    case Memory: {
+        valueMap.insert(Value::Packed(semaParam, next(), Memory));
+        break;
+    }
+    }
+}
 
 //void FuncGenContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
 //                                              sema::Object const* initObject) {
@@ -522,13 +515,13 @@ static sema::SpecialLifetimeFunction toSLFKindToGenerate(
     return cast<ir::IntegralType const*>(type)->bitwidth() == width;
 }
 
-Value FuncGenContext::getValue(ast::Expression const* expr) {
-    SC_EXPECT(expr);
-    auto result =
-        visit(*expr, [&](auto& expr) SC_NODEBUG { return getValueImpl(expr); });
-    valueMap.tryInsert(expr->object(), result);
-    return result;
-}
+//Value FuncGenContext::getValue(ast::Expression const* expr) {
+//    SC_EXPECT(expr);
+//    auto result =
+//        visit(*expr, [&](auto& expr) SC_NODEBUG { return getValueImpl(expr); });
+//    valueMap.tryInsert(expr->object(), result);
+//    return result;
+//}
 
 template <ValueLocation Loc>
 ir::Value* FuncGenContext::getValue(ast::Expression const* expr) {
@@ -1237,15 +1230,15 @@ utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
 //    return result;
 //}
 
-ir::ArrayType const* FuncGenContext::getListType(
-    ast::ListExpression const& list) {
-    auto* semaType = cast<sema::ArrayType const*>(list.type().get());
-    SC_ASSERT(!semaType->isDynamic(), "");
-    if (isFatPointer(semaType->elementType())) {
-        return ctx.arrayType(arrayPtrType, semaType->count());
-    }
-    return cast<ir::ArrayType const*>(typeMap(semaType));
-}
+//ir::ArrayType const* FuncGenContext::getListType(
+//    ast::ListExpression const& list) {
+//    auto* semaType = cast<sema::ArrayType const*>(list.type().get());
+//    SC_ASSERT(!semaType->isDynamic(), "");
+//    if (isFatPointer(semaType->elementType())) {
+//        return ctx.arrayType(arrayPtrType, semaType->count());
+//    }
+//    return cast<ir::ArrayType const*>(typeMap(semaType));
+//}
 
 static ir::Constant* evalConstant(ir::Context& ctx,
                                   ast::Expression const* expr) {
@@ -1255,27 +1248,27 @@ static ir::Constant* evalConstant(ir::Context& ctx,
     return nullptr;
 }
 
-bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
-                                       ir::Alloca* dest) {
-    auto* type = cast<sema::ArrayType const*>(list.type().get());
-    auto* elemType = type->elementType();
-    utl::small_vector<ir::Constant*> elems;
-    elems.reserve(type->size());
-    for (auto* expr: list.elements()) {
-        SC_ASSERT(elemType == expr->type().get(), "Invalid type");
-        auto* constant = evalConstant(ctx, expr);
-        if (!constant) {
-            return false;
-        }
-        elems.push_back(constant);
-    }
-    auto* irType = ctx.arrayType(typeMap(elemType), list.elements().size());
-    auto* value = ctx.arrayConstant(elems, irType);
-    auto name = nameFromSourceLoc("array", list.sourceLocation());
-    auto* source = mod.makeGlobalConstant(ctx, value, std::move(name));
-    callMemcpy(dest, source, irType->size());
-    return true;
-}
+//bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
+//                                       ir::Alloca* dest) {
+//    auto* type = cast<sema::ArrayType const*>(list.type().get());
+//    auto* elemType = type->elementType();
+//    utl::small_vector<ir::Constant*> elems;
+//    elems.reserve(type->size());
+//    for (auto* expr: list.elements()) {
+//        SC_ASSERT(elemType == expr->type().get(), "Invalid type");
+//        auto* constant = evalConstant(ctx, expr);
+//        if (!constant) {
+//            return false;
+//        }
+//        elems.push_back(constant);
+//    }
+//    auto* irType = ctx.arrayType(typeMap(elemType), list.elements().size());
+//    auto* value = ctx.arrayConstant(elems, irType);
+//    auto name = nameFromSourceLoc("array", list.sourceLocation());
+//    auto* source = mod.makeGlobalConstant(ctx, value, std::move(name));
+//    callMemcpy(dest, source, irType->size());
+//    return true;
+//}
 
 //void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
 //                                        ir::Alloca* dest) {
@@ -1925,9 +1918,10 @@ static bool isCopyCtor(sema::Function const& F) {
 void FuncGenContext::callDtor(sema::Object const* object,
                               sema::Function const* dtor,
                               ast::ASTNode const& sourceNode) {
-    auto* function = getFunction(dtor);
-    auto* value = toMemory(valueMap(object), sourceNode);
-    add<ir::Call>(function, ValueArray{ value }, std::string{});
+    SC_UNIMPLEMENTED();
+//    auto* function = getFunction(dtor);
+//    auto* value = toMemory(valueMap(object), sourceNode);
+//    add<ir::Call>(function, ValueArray{ value }, std::string{});
 }
 
 void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack,
@@ -1937,36 +1931,36 @@ void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack,
     }
 }
 
-ir::Value* FuncGenContext::toRegister(Value value,
-                                      ast::ASTNode const& sourceNode) {
-    if (isa<ir::RecordType>(value.type())) {
-        auto* semaType = typeMap(value.type());
-        SC_ASSERT(!semaType || semaType->hasTrivialLifetime(),
-                  "We can only have trivial lifetime types in registers");
-    }
-    switch (value.location()) {
-    case Register:
-        return value.get();
-    case Memory:
-        auto* load = add<ir::Load>(value.get(),
-                                   value.type(),
-                                   std::string(value.get()->name()));
-        addSourceLoc(load, sourceNode);
-        return load;
-    }
-    SC_UNREACHABLE();
-}
+//ir::Value* FuncGenContext::toRegister(Value value,
+//                                      ast::ASTNode const& sourceNode) {
+//    if (isa<ir::RecordType>(value.type())) {
+//        auto* semaType = typeMap(value.type());
+//        SC_ASSERT(!semaType || semaType->hasTrivialLifetime(),
+//                  "We can only have trivial lifetime types in registers");
+//    }
+//    switch (value.location()) {
+//    case Register:
+//        return value.get();
+//    case Memory:
+//        auto* load = add<ir::Load>(value.get(),
+//                                   value.type(),
+//                                   std::string(value.get()->name()));
+//        addSourceLoc(load, sourceNode);
+//        return load;
+//    }
+//    SC_UNREACHABLE();
+//}
 
-ir::Value* FuncGenContext::toMemory(Value value, ast::ASTNode const&) {
-    switch (value.location()) {
-    case Register:
-        return storeToMemory(value.get());
-
-    case Memory:
-        return value.get();
-    }
-    SC_UNREACHABLE();
-}
+//ir::Value* FuncGenContext::toMemory(Value value, ast::ASTNode const&) {
+//    switch (value.location()) {
+//    case Register:
+//        return storeToMemory(value.get());
+//
+//    case Memory:
+//        return value.get();
+//    }
+//    SC_UNREACHABLE();
+//}
 
 ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
                                            Value value,
