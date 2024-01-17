@@ -97,7 +97,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::DereferenceExpression const&);
     Value getValueImpl(ast::AddressOfExpression const&);
     //Value getValueImpl(ast::Conditional const&);
-    //Value getValueImpl(ast::FunctionCall const&);
+    Value getValueImpl(ast::FunctionCall const&);
     Value getValueImpl(ast::Subscript const&);
     //Value getValueImpl(ast::SubscriptSlice const&);
     Value getValueImpl(ast::ListExpression const&);
@@ -309,23 +309,24 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         return;
     }
     case Memory: {
-        SC_UNIMPLEMENTED();
-//        auto* retvalDest = &irFn.parameters().front();
-//        if (retval.isMemory()) {
-//            if (auto* allocaInst = dyncast<ir::Alloca*>(retval.get())) {
-//                allocaInst->replaceAllUsesWith(retvalDest);
-//            }
-//            else {
-//                callMemcpy(retvalDest,
-//                           toMemory(retval, retStmt),
-//                           retval.type()->size());
-//            }
-//        }
-//        else {
-//            add<ir::Store>(retvalDest, toRegister(retval, retStmt));
-//        }
-//        actualRetval = ctx.voidValue();
-//        break;
+        auto* retvalDest = &irFn.parameters().front();
+        if (retval.isMemory()) {
+            auto* retvalAddr = toUnpackedMemory(retval).front();
+            if (auto* allocaInst = dyncast<ir::Alloca*>(retvalAddr)) {
+                allocaInst->replaceAllUsesWith(retvalDest);
+            }
+            else {
+                SC_ASSERT(retStmt.expression()->type()->hasTrivialLifetime(),
+                          "We can only memcpy trivial lifetime types");
+                callMemcpy(retvalDest, retvalAddr, retval.type()->size());
+            }
+        }
+        else {
+            add<ir::Store>(retvalDest, toPackedRegister(retval));
+        }
+        emitDtorCalls(retStmt.dtorStack(), retStmt);
+        add<ir::Return>(ctx.voidValue());
+        return;
     }
     }
 }
@@ -943,73 +944,33 @@ Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
 //    return value;
 //}
 
-//Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
-//    ir::Callable* function = getFunction(call.function());
-//    auto CC = getCC(call.function());
-//    auto const retvalLocation = CC.returnValue().location();
-//    utl::small_vector<ir::Value*> irArguments;
-//    if (retvalLocation == Memory) {
-//        auto* returnType = typeMap(call.function()->returnType());
-//        irArguments.push_back(makeLocalVariable(returnType, "retval"));
-//    }
-//    for (auto [PC, paramType, argExpr]:
-//         ranges::views::zip(CC.arguments(),
-//                            call.function()->argumentTypes(),
-//                            call.arguments()))
-//    {
-//        unpackArgument(PC, paramType, argExpr, {}, irArguments);
-//    }
-//    bool callHasName = !isa<ir::VoidType>(function->returnType());
-//    std::string name = callHasName ? "call.result" : std::string{};
-//    auto* inst = add<ir::Call>(function, irArguments, std::move(name));
-//    auto semaRetType = call.function()->returnType();
-//    Value value;
-//    switch (retvalLocation) {
-//    case Register: {
-//        auto* refType = dyncast<sema::ReferenceType const*>(semaRetType);
-//        if (isFatPointer(semaRetType)) {
-//            if (refType) {
-//                value = Value(inst, typeMap(refType->base()), Memory);
-//            }
-//            else {
-//                value = Value(inst, Register);
-//            }
-//            auto* size = add<ir::ExtractValue>(inst, IndexArray{ 1 }, "size");
-//            valueMap.insertArraySize(call.object(), Value(size, Register));
-//        }
-//        else {
-//            if (refType) {
-//                value = Value(inst, typeMap(refType->base()), Memory);
-//            }
-//            else {
-//                value = Value(inst, Register);
-//            }
-//            /// Here we actually need to strip the reference because the
-//            /// function may return a ref type
-//            if (auto* arrayType =
-//                    dyncast<sema::ArrayType const*>(stripRef(semaRetType)))
-//            {
-//                auto* size = ctx.intConstant(arrayType->size(), 64);
-//                valueMap.insertArraySize(call.object(), Value(size, Register));
-//            }
-//        }
-//        break;
-//    }
-//    case Memory: {
-//        value = Value(irArguments.front(),
-//                      typeMap(call.function()->returnType()),
-//                      Memory);
-//        auto* arrayType =
-//            dyncast<sema::ArrayType const*>(call.function()->returnType());
-//        if (arrayType) {
-//            auto* size = ctx.intConstant(arrayType->size(), 64);
-//            valueMap.insertArraySize(call.object(), Value(size, Register));
-//        }
-//        break;
-//    }
-//    }
-//    return value;
-//}
+Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
+    ir::Callable* function = getFunction(call.function());
+    auto name = [&]() -> std::string {
+        if (isa<ir::VoidType>(function->returnType())) {
+            return {};
+        }
+        return "call.result";
+    }();
+    auto retvalLocation = getCC(call.function()).returnValue().location();
+    utl::small_vector<ir::Value*> irArguments;
+    /// Allocate return value storage
+    if (retvalLocation == Memory) {
+        auto* irReturnType = typeMap.packed(call.function()->returnType());
+        irArguments.push_back(makeLocalVariable(irReturnType, utl::strcat(name, ".addr")));
+    }
+    /// Unpack arguments
+    for (auto [targetType, arg]:
+         ranges::views::zip(call.function()->argumentTypes(), call.arguments()))
+    {
+        auto targetLoc = isa<sema::ReferenceType>(targetType) ? Memory : Register;
+        auto unpacked = getValue<Unpacked>(arg, targetLoc);
+        irArguments.insert(irArguments.end(), unpacked.begin(), unpacked.end());
+    }
+    auto* callInst = add<ir::Call>(function, irArguments, name);
+    auto* retval = retvalLocation == Memory ? irArguments.front() : callInst;
+    return Value(name, call.type().get(), {retval}, retvalLocation, Packed);
+}
 
 Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayAddr = getValue<Unpacked>(expr.callee(), Memory).front();

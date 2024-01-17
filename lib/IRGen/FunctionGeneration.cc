@@ -192,19 +192,19 @@ utl::small_vector<ir::Value*, 2>  FuncGenContextBase::toUnpackedRegister(Value c
 }
 
 utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedMemory(Value const& value) {
-    if (isDynArray(value.type())) {
-        if (value.isMemory()) {
-            SC_ASSERT(value.isUnpacked(), "");
-            return { value.get(0), value.get(1) };
-        }
-        else {
-            // Store to local memory here
-            SC_UNIMPLEMENTED();
-        }
+    if (value.isMemory()) {
+        return value.get() | ToSmallVector<2>;
     }
-    else {
-        SC_UNIMPLEMENTED();
-    }
+    auto* first = [&]() -> ir::Value* {
+        if (value.isPacked() && isDynArray(value.type())) {
+            return add<ir::ExtractValue>(value.get(0),
+                                         IndexArray{ 0 },
+                                         utl::strcat(value.name(), ".data"));
+        }
+        return value.get(0);
+    }();
+    return concat(single(storeToMemory(first, value.name())),
+                  value.get().subspan(1)) | ToSmallVector<2>;
 }
 
 Value FuncGenContextBase::getArraySize(sema::Type const* semaType, Value const& value) {
