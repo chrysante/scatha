@@ -77,14 +77,15 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
 
+    /// \Returns single value if `Repr == Packed` or vector of values if `Repr == Unpacked`
     template <ValueRepresentation Repr>
-    SC_NODEBUG ir::Value* getValue(ast::Expression const* expr, ValueLocation loc) {
+    SC_NODEBUG auto getValue(ast::Expression const* expr, ValueLocation loc) {
         return to<Repr>(getValue(expr), loc);
     }
 
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
-    //Value getValueImpl(ast::Literal const&);
+    Value getValueImpl(ast::Literal const&);
     //Value getValueImpl(ast::UnaryExpression const&);
     Value getValueImpl(ast::BinaryExpression const&);
     Value getValueImpl(ast::MemberAccess const&);
@@ -97,7 +98,7 @@ struct FuncGenContext: FuncGenContextBase {
     //Value getValueImpl(ast::AddressOfExpression const&);
     //Value getValueImpl(ast::Conditional const&);
     //Value getValueImpl(ast::FunctionCall const&);
-    //Value getValueImpl(ast::Subscript const&);
+    Value getValueImpl(ast::Subscript const&);
     //Value getValueImpl(ast::SubscriptSlice const&);
     //Value getValueImpl(ast::ListExpression const&);
     //Value getValueImpl(ast::MoveExpr const&);
@@ -508,33 +509,53 @@ Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
     return valueMap(id.object());
 }
 
-//Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
-//    using enum ast::LiteralKind;
-//    switch (lit.kind()) {
-//    case Integer:
-//        return Value(ctx.intConstant(lit.value<APInt>()), Register);
-//    case Boolean:
-//        return Value(ctx.intConstant(lit.value<APInt>()), Register);
-//    case FloatingPoint:
-//        return Value(ctx.floatConstant(lit.value<APFloat>()), Register);
-//    case Null:
-//        return Value(ctx.nullpointer(), Register);
-//    case This:
-//        return valueMap(lit.object());
-//    case String: {
-//        auto const& text = lit.value<std::string>();
-//        auto name = nameFromSourceLoc("string", lit.sourceLocation());
-//        auto* data = ctx.stringLiteral(text);
-//        auto* global = mod.makeGlobalConstant(ctx, data, std::move(name));
-//        auto value = Value(global, data->type(), Memory);
-//        valueMap.insertArraySize(lit.object(), text.size());
-//        return value;
-//    }
-//    case Char:
-//        return Value(ctx.intConstant(lit.value<APInt>()), Register);
-//    }
-//    SC_UNREACHABLE();
-//}
+Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
+    using enum ast::LiteralKind;
+    switch (lit.kind()) {
+    case Integer:
+        return Value("int.lit",
+                     lit.type().get(),
+                     {ctx.intConstant(lit.value<APInt>())},
+                     Register,
+                     Packed);
+    case Boolean:
+        return Value("bool.lit",
+                     lit.type().get(),
+                     {ctx.intConstant(lit.value<APInt>())},
+                     Register,
+                     Packed);
+    case FloatingPoint:
+        return Value("float.lit",
+                     lit.type().get(),
+                     {ctx.floatConstant(lit.value<APFloat>())},
+                     Register,
+                     Packed);
+    case Null:
+        return Value("null.lit",
+                     lit.type().get(),
+                     {ctx.nullpointer()},
+                     Register,
+                     Packed);
+    case This:
+        return valueMap(lit.object());
+        
+    case String: {
+        auto const& text = lit.value<std::string>();
+        auto name = nameFromSourceLoc("string", lit.sourceLocation());
+        auto* data = ctx.stringLiteral(text);
+        auto* global = mod.makeGlobalConstant(ctx, data, name);
+        SC_UNIMPLEMENTED(); // Is this static or dynamic array?
+//        return Value(name, lit.type().get(), global, Memory, );
+    }
+    case Char:
+        return Value("char.lit",
+                     lit.type().get(),
+                     {ctx.intConstant(lit.value<APInt>())},
+                     Register,
+                     Packed);
+    }
+    SC_UNREACHABLE();
+}
 
 //Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
 //    using enum ast::UnaryOperator;
@@ -1067,41 +1088,17 @@ utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
     return irArguments;
 }
 
-//Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
-//    auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
-//    auto* array = toThinPointer(getValue<Memory>(expr.callee()));
-//    /// Right now we don't use the size but here we could issue a call to an
-//    /// assertion function
-//    [[maybe_unused]] auto size = valueMap.arraySize(expr.callee()->object());
-//    auto index = getValue<Register>(expr.arguments().front());
-//    if (isFatPointer(arrayType->elementType())) {
-//        auto* elemType = arrayPtrType;
-//        auto* addr = add<ir::GetElementPointer>(elemType,
-//                                                array,
-//                                                index,
-//                                                IndexArray{ 0 },
-//                                                "elem");
-//        Value result(addr, elemType->elementAt(0), Memory);
-//        valueMap.insertArraySize(expr.object(), [=, this] {
-//            auto* addr = add<ir::GetElementPointer>(elemType,
-//                                                    array,
-//                                                    index,
-//                                                    IndexArray{ 1 },
-//                                                    "elem.size");
-//            return Value(addr, elemType->elementAt(1), Memory);
-//        });
-//        return result;
-//    }
-//    else {
-//        auto* elemType = typeMap(arrayType->elementType());
-//        auto* addr = add<ir::GetElementPointer>(elemType,
-//                                                array,
-//                                                index,
-//                                                IndexArray{},
-//                                                "elem.ptr");
-//        return Value(addr, elemType, Memory);
-//    }
-//}
+Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
+    auto* arrayAddr = getValue<Unpacked>(expr.callee(), Memory).front();
+    auto* index = getValue<Packed>(expr.argument(0), Register);
+    auto* elemType = typeMap.packed(expr.type().get());
+    auto* elemAddr = add<ir::GetElementPointer>(elemType,
+                                                arrayAddr,
+                                                index,
+                                                IndexArray{},
+                                                "elem.addr");
+    return Value("elem", expr.type().get(), ValueArray{elemAddr}, Memory, Packed);
+}
 
 //Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
 //    auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());

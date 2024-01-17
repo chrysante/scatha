@@ -101,17 +101,6 @@ public:
     bool isUnpacked() const { return representation() == ValueRepresentation::Unpacked; }
     
 private:
-//    explicit Value(std::string name,
-//                   sema::ObjectType const* type,
-//                   utl::small_vector<ir::Value*, 2> vals,
-//                   ValueLocation loc,
-//                   ValueRepresentation repr):
-//        _name(std::move(name)),
-//        _type(type),
-//        _vals(std::move(vals)),
-//        _loc(loc),
-//        _repr(repr) {}
-    
     std::string _name;
     sema::ObjectType const* _type;
     utl::small_vector<ir::Value*, 2> _vals;

@@ -5,13 +5,10 @@
 #include "IR/CFG.h"
 #include "IR/Type.h"
 #include "Util/FrontendWrapper.h"
+#include "Util/IRTestUtils.h"
 
 using namespace scatha;
-using test::makeIR;
-
-static ir::Type const* arrayPtrType(ir::Context& ctx) {
-    return ctx.anonymousStruct({ ctx.ptrType(), ctx.intType(64) });
-}
+using namespace test;
 
 TEST_CASE("IRGen - Parameter generation", "[irgen]") {
     using namespace ir;
@@ -38,13 +35,13 @@ TEST_CASE("IRGen - Parameter generation", "[irgen]") {
         auto itr = F.front().begin();
 
         auto& allocaInst = dyncast<Alloca const&>(*itr++);
-        CHECK(allocaInst.allocatedType() == arrayPtrType(ctx));
+        CHECK(allocaInst.allocatedType() == arrayPointerType(ctx));
         CHECK(allocaInst.count() == ctx.intConstant(1, 32));
 
         CHECK(isa<InsertValue>(*itr++));
 
         auto& packedValue = dyncast<InsertValue const&>(*itr++);
-        CHECK(packedValue.type() == arrayPtrType(ctx));
+        CHECK(packedValue.type() == arrayPointerType(ctx));
 
         auto& store = dyncast<Store const&>(*itr++);
         CHECK(store.address() == &allocaInst);
