@@ -975,11 +975,12 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
 }
 
 Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
+    SC_EXPECT(isa<sema::PointerType>(*expr.referred()->type()));
     auto value = getValue(expr.referred());
     return Value(utl::strcat(value.name(), ".deref"),
                  expr.type().get(),
                  toUnpackedRegister(value),
-                 Register, Unpacked);
+                 Memory, Unpacked);
 }
 
 //Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {

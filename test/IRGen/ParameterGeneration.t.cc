@@ -66,14 +66,14 @@ TEST_CASE("IRGen - Parameter generation", "[irgen]") {
         CHECK(F.parameters().front().type() == ctx.ptrType());
         CHECK(F.entry().emptyExceptTerminator());
     }
-//    SECTION("Reference to dynamic array") {
-//        auto [ctx, mod] = makeIR({ "public fn foo(data: &[int]) {}" });
-//        auto& F = mod.front();
-//        CHECK(ranges::distance(F.parameters()) == 2);
-//        CHECK(F.parameters().front().type() == ctx.ptrType());
-//        CHECK(F.parameters().back().type() == ctx.intType(64));
-//        CHECK(F.entry().emptyExceptTerminator());
-//    }
+    SECTION("Reference to dynamic array") {
+        auto [ctx, mod] = makeIR({ "public fn foo(data: &[int]) {}" });
+        auto& F = mod.front();
+        CHECK(ranges::distance(F.parameters()) == 2);
+        CHECK(F.parameters().front().type() == ctx.ptrType());
+        CHECK(F.parameters().back().type() == ctx.intType(64));
+        CHECK(F.entry().emptyExceptTerminator());
+    }
     SECTION("Reference to dynamic array pointer") {
         auto [ctx, mod] = makeIR({ "public fn foo(data: &*[int]) {}" });
         auto& F = mod.front();
