@@ -82,10 +82,14 @@ Alloca* FunctionBuilder::makeLocalVariable(Type const* type, std::string name) {
     return addr;
 }
 
-Alloca* FunctionBuilder::makeLocalArray(Type const* type,
+Alloca* FunctionBuilder::makeLocalArray(Type const* elemType, size_t count, std::string name) {
+    return makeLocalArray(elemType, ctx.intConstant(count, 32), std::move(name));
+}
+
+Alloca* FunctionBuilder::makeLocalArray(Type const* elemType,
                                         Value* count,
                                         std::string name) {
-    auto* addr = new Alloca(ctx, count, type, std::move(name));
+    auto* addr = new Alloca(ctx, count, elemType, std::move(name));
     allocas.push_back(UniquePtr<Alloca>(addr));
     return addr;
 }

@@ -148,7 +148,12 @@ public:
     Alloca* makeLocalVariable(Type const* type, std::string name);
 
     /// Allocates a local array with possibly dynamic count
-    Alloca* makeLocalArray(Type const* type, Value* count, std::string name);
+    ///
+    /// Inserts a `%name = alloca, <element-type>, <count-type> %count` instruction
+    Alloca* makeLocalArray(Type const* elementType, Value* count, std::string name);
+    
+    /// \overload for static count
+    Alloca* makeLocalArray(Type const* elementType, size_t count, std::string name);
 
     /// Allocate stack space for \p value and emit a store instruction storing
     /// \p value into the allocated memory. \Returns a pointer to the allocated

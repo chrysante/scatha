@@ -11,6 +11,9 @@
 
 namespace scatha::irgen {
 
+/// The size limit objects that we want to keep in registers
+static size_t const PreferredMaxRegisterValueSize = 16;
+
 /// \Returns the referred to type if \p type is a pointer or reference type.
 /// Otherwise returns `nullptr`
 sema::ObjectType const* getPtrOrRefBase(sema::Type const* type);

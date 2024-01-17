@@ -56,8 +56,7 @@ static bool mayPassInRegister(sema::Type const* type) {
     if (isa<sema::VoidType>(type)) {
         return true;
     }
-    static size_t const MaxRegPassingSize = 16;
-    if (type->size() > MaxRegPassingSize) {
+    if (type->size() > PreferredMaxRegisterValueSize) {
         return false;
     }
     /// For now! This is not necessarily correct for unique pointers
