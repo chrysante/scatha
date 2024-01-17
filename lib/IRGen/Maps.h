@@ -11,7 +11,7 @@
 
 #include "AST/Fwd.h"
 #include "IR/Fwd.h"
-#include "IRGen/MetaData.h"
+#include "IRGen/Metadata.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 

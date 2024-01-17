@@ -48,7 +48,7 @@ struct FuncGenContext: FuncGenContextBase {
     SC_NODEBUG void generate(ast::Statement const&);
 
     void generateImpl(ast::Statement const&) { SC_UNREACHABLE(); }
-    // void generateImpl(ast::ImportStatement const&);
+    void generateImpl(ast::ImportStatement const&);
     void generateImpl(ast::CompoundStatement const&);
     void generateImpl(ast::FunctionDefinition const&);
     void generateParameter(ast::ParameterDeclaration const* paramDecl,
@@ -56,11 +56,11 @@ struct FuncGenContext: FuncGenContextBase {
                            List<ir::Parameter>::iterator& paramItr);
     void generateImpl(ast::VariableDeclaration const&);
     void generateImpl(ast::ExpressionStatement const&);
-    // void generateImpl(ast::EmptyStatement const&) {}
+    void generateImpl(ast::EmptyStatement const&) {}
     void generateImpl(ast::ReturnStatement const&);
-    // void generateImpl(ast::IfStatement const&);
-    // void generateImpl(ast::LoopStatement const&);
-    // void generateImpl(ast::JumpStatement const&);
+    void generateImpl(ast::IfStatement const&);
+    void generateImpl(ast::LoopStatement const&);
+    void generateImpl(ast::JumpStatement const&);
 
     /// # Statement specific utilities
     void callDtor(sema::Object const* object,
@@ -87,7 +87,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
     Value getValueImpl(ast::Literal const&);
-    // Value getValueImpl(ast::UnaryExpression const&);
+    Value getValueImpl(ast::UnaryExpression const&);
     Value getValueImpl(ast::BinaryExpression const&);
     Value getValueImpl(ast::MemberAccess const&);
     Value genMemberAccess(ast::MemberAccess const&, sema::Variable const&);
@@ -146,9 +146,9 @@ void FuncGenContext::generate(ast::Statement const& node) {
           [this](auto const& node) SC_NODEBUG { return generateImpl(node); });
 }
 
-// void FuncGenContext::generateImpl(ast::ImportStatement const&) {
-//     /// No-op
-// }
+void FuncGenContext::generateImpl(ast::ImportStatement const&) {
+    /// No-op
+}
 
 void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     for (auto* statement: cmpStmt.statements()) {
@@ -255,27 +255,6 @@ void FuncGenContext::generateParameter(
     }
 }
 
-// void FuncGenContext::generateVarDeclArraySize(ast::VarDeclBase const*
-// varDecl,
-//                                               sema::Object const* initObject)
-//                                               {
-//     if (!isFatPointer(varDecl->type())) {
-//         return;
-//     }
-//     auto size = valueMap.arraySize(initObject);
-//     if (isa<sema::ReferenceType>(varDecl->type())) {
-//         valueMap.insertArraySize(varDecl->variable(),
-//                                  Value(toRegister(size, *varDecl),
-//                                  Register));
-//     }
-//     else {
-//         auto* newSize = storeToMemory(toRegister(size, *varDecl),
-//                                       utl::strcat(varDecl->name(), ".size"));
-//         valueMap.insertArraySize(varDecl->variable(),
-//                                  Value(newSize, size.type(), Memory));
-//     }
-// }
-
 void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
     auto* var = varDecl.variable();
@@ -348,135 +327,130 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
     }
 }
 
-// void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
-//     auto* condition = getValue<Register>(stmt.condition());
-//     emitDtorCalls(stmt.dtorStack(), stmt);
-//     auto* thenBlock = newBlock("if.then");
-//     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
-//     auto* endBlock = newBlock("if.end");
-//     add<ir::Branch>(condition, thenBlock, elseBlock ? elseBlock : endBlock);
-//     add(thenBlock);
-//     generate(*stmt.thenBlock());
-//     add<ir::Goto>(endBlock);
-//     if (stmt.elseBlock()) {
-//         add(elseBlock);
-//         generate(*stmt.elseBlock());
-//         add<ir::Goto>(endBlock);
-//     }
-//     add(endBlock);
-// }
+void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
+    auto* condition = getValue<Packed>(Register, stmt.condition());
+    emitDtorCalls(stmt.dtorStack(), stmt);
+    auto* thenBlock = newBlock("if.then");
+    auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
+    auto* endBlock = newBlock("if.end");
+    add<ir::Branch>(condition, thenBlock, elseBlock ? elseBlock : endBlock);
+    add(thenBlock);
+    generate(*stmt.thenBlock());
+    add<ir::Goto>(endBlock);
+    if (stmt.elseBlock()) {
+        add(elseBlock);
+        generate(*stmt.elseBlock());
+        add<ir::Goto>(endBlock);
+    }
+    add(endBlock);
+}
 
-// void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
-//     switch (loopStmt.kind()) {
-//     case ast::LoopKind::For: {
-//         auto* loopHeader = newBlock("loop.header");
-//         auto* loopBody = newBlock("loop.body");
-//         auto* loopInc = newBlock("loop.inc");
-//         auto* loopEnd = newBlock("loop.end");
-//         generate(*loopStmt.varDecl());
-//         add<ir::Goto>(loopHeader);
-//
-//         /// Header
-//         add(loopHeader);
-//         auto* condition = getValue<Register>(loopStmt.condition());
-//         emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
-//         add<ir::Branch>(condition, loopBody, loopEnd);
-//         loopStack.push({ .header = loopHeader,
-//                          .body = loopBody,
-//                          .inc = loopInc,
-//                          .end = loopEnd });
-//
-//         /// Body
-//         add(loopBody);
-//         generate(*loopStmt.block());
-//         add<ir::Goto>(loopInc);
-//
-//         /// Inc
-//         add(loopInc);
-//         getValue(loopStmt.increment());
-//         emitDtorCalls(loopStmt.incrementDtorStack(), loopStmt);
-//         add<ir::Goto>(loopHeader);
-//
-//         /// End
-//         add(loopEnd);
-//         loopStack.pop();
-//         break;
-//     }
-//
-//     case ast::LoopKind::While: {
-//         auto* loopHeader = newBlock("loop.header");
-//         auto* loopBody = newBlock("loop.body");
-//         auto* loopEnd = newBlock("loop.end");
-//         add<ir::Goto>(loopHeader);
-//
-//         /// Header
-//         add(loopHeader);
-//         auto* condition = getValue<Register>(loopStmt.condition());
-//         emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
-//         add<ir::Branch>(condition, loopBody, loopEnd);
-//         loopStack.push(
-//             { .header = loopHeader, .body = loopBody, .end = loopEnd });
-//
-//         /// Body
-//         add(loopBody);
-//         generate(*loopStmt.block());
-//         add<ir::Goto>(loopHeader);
-//
-//         /// End
-//         add(loopEnd);
-//         loopStack.pop();
-//         break;
-//     }
-//
-//     case ast::LoopKind::DoWhile: {
-//         auto* loopBody = newBlock("loop.body");
-//         auto* loopFooter = newBlock("loop.footer");
-//         auto* loopEnd = newBlock("loop.end");
-//         add<ir::Goto>(loopBody);
-//         loopStack.push(
-//             { .header = loopFooter, .body = loopBody, .end = loopEnd });
-//
-//         /// Body
-//         add(loopBody);
-//         generate(*loopStmt.block());
-//         add<ir::Goto>(loopFooter);
-//
-//         /// Footer
-//         add(loopFooter);
-//         auto* condition = getValue<Register>(loopStmt.condition());
-//         emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
-//         add<ir::Branch>(condition, loopBody, loopEnd);
-//
-//         /// End
-//         add(loopEnd);
-//         loopStack.pop();
-//         break;
-//     }
-//     }
-//     emitDtorCalls(loopStmt.dtorStack(), loopStmt);
-// }
+void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
+    switch (loopStmt.kind()) {
+    case ast::LoopKind::For: {
+        auto* loopHeader = newBlock("loop.header");
+        auto* loopBody = newBlock("loop.body");
+        auto* loopInc = newBlock("loop.inc");
+        auto* loopEnd = newBlock("loop.end");
+        generate(*loopStmt.varDecl());
+        add<ir::Goto>(loopHeader);
 
-// void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
-//     emitDtorCalls(jump.dtorStack(), jump);
-//     auto* dest = [&] {
-//         auto& currentLoop = loopStack.top();
-//         switch (jump.kind()) {
-//         case ast::JumpStatement::Break:
-//             return currentLoop.end;
-//         case ast::JumpStatement::Continue:
-//             return currentLoop.inc ? currentLoop.inc : currentLoop.header;
-//         }
-//         SC_UNREACHABLE();
-//     }();
-//     add<ir::Goto>(dest);
-// }
+        /// Header
+        add(loopHeader);
+        auto* condition = getValue<Packed>(Register, loopStmt.condition());
+        emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
+        add<ir::Branch>(condition, loopBody, loopEnd);
+        loopStack.push({ .header = loopHeader,
+                         .body = loopBody,
+                         .inc = loopInc,
+                         .end = loopEnd });
+
+        /// Body
+        add(loopBody);
+        generate(*loopStmt.block());
+        add<ir::Goto>(loopInc);
+
+        /// Inc
+        add(loopInc);
+        getValue(loopStmt.increment());
+        emitDtorCalls(loopStmt.incrementDtorStack(), loopStmt);
+        add<ir::Goto>(loopHeader);
+
+        /// End
+        add(loopEnd);
+        loopStack.pop();
+        break;
+    }
+
+    case ast::LoopKind::While: {
+        auto* loopHeader = newBlock("loop.header");
+        auto* loopBody = newBlock("loop.body");
+        auto* loopEnd = newBlock("loop.end");
+        add<ir::Goto>(loopHeader);
+
+        /// Header
+        add(loopHeader);
+        auto* condition = getValue<Packed>(Register, loopStmt.condition());
+        emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
+        add<ir::Branch>(condition, loopBody, loopEnd);
+        loopStack.push(
+            { .header = loopHeader, .body = loopBody, .end = loopEnd });
+
+        /// Body
+        add(loopBody);
+        generate(*loopStmt.block());
+        add<ir::Goto>(loopHeader);
+
+        /// End
+        add(loopEnd);
+        loopStack.pop();
+        break;
+    }
+
+    case ast::LoopKind::DoWhile: {
+        auto* loopBody = newBlock("loop.body");
+        auto* loopFooter = newBlock("loop.footer");
+        auto* loopEnd = newBlock("loop.end");
+        add<ir::Goto>(loopBody);
+        loopStack.push(
+            { .header = loopFooter, .body = loopBody, .end = loopEnd });
+
+        /// Body
+        add(loopBody);
+        generate(*loopStmt.block());
+        add<ir::Goto>(loopFooter);
+
+        /// Footer
+        add(loopFooter);
+        auto* condition = getValue<Packed>(Register, loopStmt.condition());
+        emitDtorCalls(loopStmt.conditionDtorStack(), loopStmt);
+        add<ir::Branch>(condition, loopBody, loopEnd);
+
+        /// End
+        add(loopEnd);
+        loopStack.pop();
+        break;
+    }
+    }
+    emitDtorCalls(loopStmt.dtorStack(), loopStmt);
+}
+
+void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
+    emitDtorCalls(jump.dtorStack(), jump);
+    auto* dest = [&] {
+        auto& currentLoop = loopStack.top();
+        switch (jump.kind()) {
+        case ast::JumpStatement::Break:
+            return currentLoop.end;
+        case ast::JumpStatement::Continue:
+            return currentLoop.inc ? currentLoop.inc : currentLoop.header;
+        }
+        SC_UNREACHABLE();
+    }();
+    add<ir::Goto>(dest);
+}
 
 /// MARK: - Expressions
-
-/// Only used for assertions
-[[maybe_unused]] static bool isIntType(size_t width, ir::Type const* type) {
-    return cast<ir::IntegralType const*>(type)->bitwidth() == width;
-}
 
 Value FuncGenContext::getValue(ast::Expression const* expr) {
     SC_EXPECT(expr);
@@ -525,8 +499,11 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         auto name = nameFromSourceLoc("string", lit.sourceLocation());
         auto* data = ctx.stringLiteral(text);
         auto* global = mod.makeGlobalConstant(ctx, data, name);
-        SC_UNIMPLEMENTED(); // Is this static or dynamic array?
-        //        return Value(name, lit.type().get(), global, Memory, );
+        return Value(name,
+                     lit.type().get(),
+                     { global, ctx.intConstant(text.size(), 64) },
+                     Memory,
+                     Unpacked);
     }
     case Char:
         return Value("char.lit",
@@ -538,60 +515,66 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     SC_UNREACHABLE();
 }
 
-// Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
-//     using enum ast::UnaryOperator;
-//     switch (expr.operation()) {
-//     case Increment:
-//         [[fallthrough]];
-//     case Decrement: {
-//         Value operand = getValue(expr.operand());
-//         SC_ASSERT(operand.isMemory(),
-//                   "Operand must be in memory to be modified");
-//         ir::Value* opAddr = toMemory(operand, expr);
-//         ir::Type const* operandType = typeMap(expr.operand()->type());
-//         ir::Value* operandValue = toRegister(operand, expr);
-//         auto* newValue =
-//             add<ir::ArithmeticInst>(operandValue,
-//                                     ctx.arithmeticConstant(1, operandType),
-//                                     expr.operation() == Increment ?
-//                                         ir::ArithmeticOperation::Add :
-//                                         ir::ArithmeticOperation::Sub,
-//                                     utl::strcat(expr.operation(), ".res"));
-//         add<ir::Store>(opAddr, newValue);
-//         switch (expr.notation()) {
-//         case ast::UnaryOperatorNotation::Prefix:
-//             return operand;
-//         case ast::UnaryOperatorNotation::Postfix:
-//             return Value(operandValue, Register);
-//         }
-//     }
-//
-//     case ast::UnaryOperator::Promotion:
-//         return getValue(expr.operand());
-//
-//     case ast::UnaryOperator::Negation: {
-//         auto* operand = getValue<Register>(expr.operand());
-//         auto operation = isa<sema::IntType>(expr.operand()->type().get()) ?
-//                              ir::ArithmeticOperation::Sub :
-//                              ir::ArithmeticOperation::FSub;
-//         auto* newValue =
-//             add<ir::ArithmeticInst>(ctx.arithmeticConstant(0,
-//             operand->type()),
-//                                     operand,
-//                                     operation,
-//                                     "negated");
-//         return Value(newValue, Register);
-//     }
-//
-//     default:
-//         auto* operand = getValue<Register>(expr.operand());
-//         auto* newValue =
-//             add<ir::UnaryArithmeticInst>(operand,
-//                                          mapUnaryOp(expr.operation()),
-//                                          "expr");
-//         return Value(newValue, Register);
-//     }
-// }
+Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
+    using enum ast::UnaryOperator;
+    using enum ir::ArithmeticOperation;
+    switch (expr.operation()) {
+    case Increment:
+        [[fallthrough]];
+    case Decrement: {
+        Value operand = getValue(expr.operand());
+        SC_ASSERT(operand.isMemory(),
+                  "Operand must be in memory to be modified");
+        ir::Value* opAddr = to<Packed>(Memory, operand);
+        ir::Type const* operandType =
+            typeMap.packed(expr.operand()->type().get());
+        ir::Value* operandValue = to<Packed>(Register, operand);
+        auto* newValue =
+            add<ir::ArithmeticInst>(operandValue,
+                                    ctx.arithmeticConstant(1, operandType),
+                                    expr.operation() == Increment ? Add : Sub,
+                                    utl::strcat(expr.operation(), ".res"));
+        add<ir::Store>(opAddr, newValue);
+        switch (expr.notation()) {
+        case ast::UnaryOperatorNotation::Prefix:
+            return operand;
+        case ast::UnaryOperatorNotation::Postfix:
+            return Value(operand.name(),
+                         expr.type().get(),
+                         { operandValue },
+                         Register,
+                         Packed);
+        }
+    }
+
+    case ast::UnaryOperator::Promotion:
+        return getValue(expr.operand());
+
+    case ast::UnaryOperator::Negation: {
+        auto* operand = getValue<Packed>(Register, expr.operand());
+        auto operation =
+            isa<sema::IntType>(expr.operand()->type().get()) ? Sub : FSub;
+        auto* newValue =
+            add<ir::ArithmeticInst>(ctx.arithmeticConstant(0, operand->type()),
+                                    operand,
+                                    operation,
+                                    "negated");
+        return Value("negated",
+                     expr.type().get(),
+                     { newValue },
+                     Register,
+                     Packed);
+    }
+
+    default:
+        auto* operand = getValue<Packed>(Register, expr.operand());
+        auto* newValue =
+            add<ir::UnaryArithmeticInst>(operand,
+                                         mapUnaryOp(expr.operation()),
+                                         "expr");
+        return Value("expr", expr.type().get(), { newValue }, Register, Packed);
+    }
+}
 
 Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     auto* type = expr.lhs()->type().get();
@@ -617,50 +600,53 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case BitwiseXOr:
         [[fallthrough]];
     case BitwiseOr: {
-        SC_UNIMPLEMENTED();
-        //        auto* lhs = getValue<Register>(expr.lhs());
-        //        auto* rhs = getValue<Register>(expr.rhs());
-        //        auto operation = mapArithmeticOp(type, expr.operation());
-        //        auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation,
-        //        resName); return Value(result, Register);
+        auto* lhs = getValue<Packed>(Register, expr.lhs());
+        auto* rhs = getValue<Packed>(Register, expr.rhs());
+        auto operation = mapArithmeticOp(type, expr.operation());
+        auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, resName);
+        return Value(resName, expr.type().get(), { result }, Register, Packed);
     }
 
     case LogicalAnd:
         [[fallthrough]];
     case LogicalOr: {
-        SC_UNIMPLEMENTED();
-        //        ir::Value* const lhs = getValue<Register>(expr.lhs());
-        //        SC_ASSERT(isIntType(1, lhs->type()), "Need i1 for logical
-        //        operation"); auto* startBlock = &currentBlock(); auto*
-        //        rhsBlock = newBlock("log.rhs"); auto* endBlock =
-        //        newBlock("log.end"); if (expr.operation() == LogicalAnd) {
-        //            add<ir::Branch>(lhs, rhsBlock, endBlock);
-        //        }
-        //        else {
-        //            add<ir::Branch>(lhs, endBlock, rhsBlock);
-        //        }
-        //
-        //        add(rhsBlock);
-        //        auto* rhs = getValue<Register>(expr.rhs());
-        //        SC_ASSERT(isIntType(1, rhs->type()), "Need i1 for logical
-        //        operation"); add<ir::Goto>(endBlock); add(endBlock);
-        //
-        //        if (expr.operation() == LogicalAnd) {
-        //            auto* result = add<ir::Phi>(
-        //                std::array<ir::PhiMapping, 2>{
-        //                    ir::PhiMapping{ startBlock, ctx.boolConstant(0) },
-        //                    ir::PhiMapping{ rhsBlock, rhs } },
-        //                "log.and");
-        //            return Value(result, Register);
-        //        }
-        //        else {
-        //            auto* result = add<ir::Phi>(
-        //                std::array<ir::PhiMapping, 2>{
-        //                    ir::PhiMapping{ startBlock, ctx.boolConstant(1) },
-        //                    ir::PhiMapping{ rhsBlock, rhs } },
-        //                "log.or");
-        //            return Value(result, Register);
-        //        }
+        ir::Value* const lhs = getValue<Packed>(Register, expr.lhs());
+        SC_ASSERT(lhs->type() == ctx.boolType(),
+                  "Need i1 for logical operation");
+        auto* startBlock = &currentBlock();
+        auto* rhsBlock = newBlock("log.rhs");
+        auto* endBlock = newBlock("log.end");
+        if (expr.operation() == LogicalAnd) {
+            add<ir::Branch>(lhs, rhsBlock, endBlock);
+        }
+        else {
+            add<ir::Branch>(lhs, endBlock, rhsBlock);
+        }
+
+        add(rhsBlock);
+        auto* rhs = getValue<Packed>(Register, expr.rhs());
+        SC_ASSERT(rhs->type() == ctx.boolType(),
+                  "Need i1 for logical operation");
+        add<ir::Goto>(endBlock);
+        add(endBlock);
+
+        auto* result = [&] {
+            if (expr.operation() == LogicalAnd) {
+                return add<ir::Phi>(
+                    std::array<ir::PhiMapping, 2>{
+                        ir::PhiMapping{ startBlock, ctx.boolConstant(0) },
+                        ir::PhiMapping{ rhsBlock, rhs } },
+                    "log.and");
+            }
+            else {
+                return add<ir::Phi>(
+                    std::array<ir::PhiMapping, 2>{
+                        ir::PhiMapping{ startBlock, ctx.boolConstant(1) },
+                        ir::PhiMapping{ rhsBlock, rhs } },
+                    "log.or");
+            }
+        }();
+        return Value("log.or", expr.type().get(), { result }, Register, Packed);
     }
 
     case Less:
@@ -717,19 +703,16 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case OrAssignment:
         [[fallthrough]];
     case XOrAssignment: {
-        SC_UNIMPLEMENTED();
-        //        auto lhs = getValue(expr.lhs());
-        //        SC_ASSERT(lhs.isMemory(), "");
-        //        auto rhs = getValue<Register>(expr.rhs());
-        //        SC_ASSERT(type == expr.rhs()->type().get(), "");
-        //        auto operation = mapArithmeticAssignOp(type,
-        //        expr.operation()); rhs =
-        //        add<ir::ArithmeticInst>(toRegister(lhs, expr),
-        //                                      rhs,
-        //                                      operation,
-        //                                      resName);
-        //        add<ir::Store>(lhs.get(), rhs);
-        //        return Value();
+        auto lhs = getValue(expr.lhs());
+        SC_ASSERT(lhs.isMemory(), "Must be in memory to assign");
+        auto rhs = getValue<Packed>(Register, expr.rhs());
+        auto operation = mapArithmeticAssignOp(type, expr.operation());
+        auto* exprRes = add<ir::ArithmeticInst>(to<Packed>(Register, lhs),
+                                                rhs,
+                                                operation,
+                                                resName);
+        add<ir::Store>(toUnpackedMemory(lhs).front(), exprRes);
+        return Value("", expr.type().get(), {}, Register, Packed);
     }
     }
     SC_UNREACHABLE();
