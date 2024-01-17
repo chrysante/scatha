@@ -61,7 +61,7 @@ public:
     /// Associate \p semaFn with \p irFn and \p metaData
     void insert(sema::Function const* semaFn,
                 ir::Callable* irFn,
-                FunctionMetaData metaData);
+                FunctionMetadata metaData);
 
     /// Retrieve IR function associated with \p function
     ir::Callable* operator()(sema::Function const* function) const;
@@ -70,11 +70,11 @@ public:
     ir::Callable* tryGet(sema::Function const* function) const;
 
     /// \Returns the meta data associated with \p type
-    FunctionMetaData const& metaData(sema::Function const* function) const;
+    FunctionMetadata const& metaData(sema::Function const* function) const;
 
 private:
     utl::hashmap<sema::Function const*, ir::Callable*> functions;
-    utl::hashmap<sema::Function const*, FunctionMetaData> functionMetaData;
+    utl::hashmap<sema::Function const*, FunctionMetadata> functionMetaData;
 };
 
 /// Maps sema types to IR types
@@ -85,7 +85,7 @@ public:
     /// Inserts as packed representation
     void insert(sema::StructType const* key,
                 ir::StructType const* value,
-                StructMetaData metaData);
+                StructMetadata metaData);
 
     /// Translate \p type to corresponding packed IR type
     ir::Type const* packed(sema::Type const* type) const;
@@ -95,7 +95,7 @@ public:
         sema::Type const* type) const;
 
     /// \Returns the meta data associated with \p type
-    StructMetaData const& metaData(sema::Type const* type) const;
+    StructMetadata const& metaData(sema::Type const* type) const;
 
 private:
     template <ValueRepresentation Repr>
@@ -107,7 +107,7 @@ private:
     mutable utl::hashmap<sema::Type const*,
                          utl::small_vector<ir::Type const*, 2>>
         unpackedMap;
-    utl::hashmap<sema::StructType const*, StructMetaData> meta;
+    utl::hashmap<sema::StructType const*, StructMetadata> meta;
 };
 
 /// # Maps of operators and other attributes

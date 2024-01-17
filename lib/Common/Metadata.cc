@@ -1,7 +1,6 @@
-#include "IRGen/MetaData.h"
+#include "Common/Metadata.h"
 
 using namespace scatha;
-using namespace irgen;
 
 void ObjectWithMetadata::setMetadata(Metadata metadata) {
     if (_metadata) {

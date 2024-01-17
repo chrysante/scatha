@@ -21,7 +21,7 @@
 #include "IRGen/FunctionGeneration.h"
 #include "IRGen/GlobalDecls.h"
 #include "IRGen/Maps.h"
-#include "IRGen/MetaData.h"
+#include "IRGen/Metadata.h"
 #include "Sema/AnalysisResult.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -57,7 +57,7 @@ static void mapLibSymbols(
                 std::string name = nameMangler(*entity);
                 typeMap.insert(&semaType,
                                get(IRStructMap, name),
-                               makeStructMetadata(&semaType));
+                               makeStructMetadata(typeMap, &semaType));
             },
             [&](sema::Function const& semaFn) {
                 std::string name = nameMangler(*entity);

@@ -222,7 +222,11 @@ void FuncGenContext::generateParameter(
         /// because they cannot be reassigned
         if (isa<sema::ReferenceType>(semaParam->type())) {
             valueMap.insert(semaParam,
-                            Value(name, paramType, params, Memory, Unpacked));
+                            Value(name,
+                                  paramType,
+                                  params,
+                                  Memory,
+                                  params.size() == 1 ? Packed : Unpacked));
         }
         else if (params.size() == 1) {
             auto* val = params.front();
@@ -316,8 +320,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         /// value in memory
         auto destLocation =
             isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
-        auto* value = destLocation == Memory ? toPackedMemory(retval) :
-                                               toPackedRegister(retval);
+        auto* value = to<Packed>(destLocation, retval);
         emitDtorCalls(retStmt.dtorStack(), retStmt);
         add<ir::Return>(value);
         return;
@@ -739,48 +742,32 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
 
 Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                       sema::Variable const& var) {
-    //    Value base = getValue(expr.accessed());
-    //    auto const& metaData =
-    //    typeMap.metaData(expr.accessed()->type().get()); size_t const irIndex
-    //    = metaData.indexMap[var.index()]; switch (base.location()) { case
-    //    Register: {
-    //        if (isFatPointer(&expr)) {
-    //            valueMap.insertArraySize(expr.object(), [=, this] {
-    //                auto* result = add<ir::ExtractValue>(base.get(),
-    //                                                     IndexArray{ irIndex +
-    //                                                     1 }, "mem.acc.size");
-    //                return Value(result, Register);
-    //            });
-    //        }
-    //        auto* result =
-    //            add<ir::ExtractValue>(base.get(), IndexArray{ irIndex },
-    //            "mem.acc");
-    //        addSourceLoc(result, expr);
-    //        return Value(result, Register);
-    //    }
-    //    case Memory: {
-    //        if (isFatPointer(&expr)) {
-    //            valueMap.insertArraySize(expr.object(), [=, this] {
-    //                auto* result =
-    //                    add<ir::GetElementPointer>(base.type(),
-    //                                               base.get(),
-    //                                               ctx.intConstant(0, 64),
-    //                                               IndexArray{ irIndex + 1 },
-    //                                               "mem.acc.size");
-    //                return Value(result, ctx.intType(64), Memory);
-    //            });
-    //        }
-    //        auto* result = add<ir::GetElementPointer>(base.type(),
-    //                                                  base.get(),
-    //                                                  ctx.intConstant(0, 64),
-    //                                                  IndexArray{ irIndex },
-    //                                                  "mem.acc");
-    //        addSourceLoc(result, expr);
-    //        auto* accessedType = typeMap(var.type());
-    //        return Value(result, accessedType, Memory);
-    //    }
-    //    }
-    SC_UNREACHABLE();
+    Value base = getValue(expr.accessed());
+    auto& metaData =
+        typeMap.metaData(expr.accessed()->type().get()).members[var.index()];
+    std::string name = "mem.acc";
+    auto baseLoc = base.location();
+    auto* baseVal = to<Unpacked>(baseLoc, base).front();
+    auto values = zip(iota(metaData.beginIndex), metaData.fieldTypes) |
+                  transform([&](auto p) -> ir::Value* {
+        auto [index, type] = p;
+        switch (baseLoc) {
+        case Register:
+            return add<ir::ExtractValue>(baseVal, IndexArray{ index }, name);
+        case Memory:
+            ir::Value* value =
+                add<ir::GetElementPointer>(typeMap.packed(base.type()),
+                                           baseVal,
+                                           ctx.intConstant(0, 64),
+                                           IndexArray{ index },
+                                           name);
+            if (index > metaData.beginIndex) {
+                value = add<ir::Load>(value, type, name);
+            }
+            return value;
+        }
+    }) | ToSmallVector<2>;
+    return Value(name, expr.type().get(), values, baseLoc, Unpacked);
 }
 
 Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
@@ -942,12 +929,12 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     auto repr = commonRepresentation(thenVal.representation(),
                                      elseVal.representation(),
                                      Unpacked);
-    auto thenResolved = withBlockCurrent(thenBlock, thenBlock->end(), [&] {
+    auto thenResolved = withBlockCurrent(thenBlock, [&] {
         auto vals = to(loc, repr, thenVal);
         add<ir::Goto>(endBlock);
         return vals;
     });
-    auto elseResolved = withBlockCurrent(elseBlock, elseBlock->end(), [&] {
+    auto elseResolved = withBlockCurrent(elseBlock, [&] {
         auto vals = to(loc, repr, elseVal);
         add<ir::Goto>(endBlock);
         return vals;

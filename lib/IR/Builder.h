@@ -71,7 +71,7 @@ public:
     /// If \p elems has one value, that value is returned unchanged
     /// If \p elems has more than one values, this function returns
     /// `buildStructure(/*type*/, elems, name)` where `/*type*/` is the
-    /// anonymous struct type with the element types of \p elems 
+    /// anonymous struct type with the element types of \p elems
     ///
     /// \pre \p elems must not be empty
     Value* packValues(std::span<Value* const> elems, std::string name);

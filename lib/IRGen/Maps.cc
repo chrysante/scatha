@@ -97,7 +97,7 @@ void irgen::print(ValueMap const& valueMap) { print(valueMap, std::cout); }
 
 void FunctionMap::insert(sema::Function const* semaFn,
                          ir::Callable* irFn,
-                         FunctionMetaData metaData) {
+                         FunctionMetadata metaData) {
     bool success = functions.insert({ semaFn, irFn }).second;
     SC_ASSERT(success, "Redeclaration");
     functionMetaData.insert({ semaFn, std::move(metaData) });
@@ -117,7 +117,7 @@ ir::Callable* FunctionMap::tryGet(sema::Function const* function) const {
     return nullptr;
 }
 
-FunctionMetaData const& FunctionMap::metaData(
+FunctionMetadata const& FunctionMap::metaData(
     sema::Function const* function) const {
     auto itr = functionMetaData.find(function);
     SC_ASSERT(itr != functionMetaData.end(), "Not found");
@@ -137,7 +137,7 @@ static void insertImpl(Map& map,
 
 void TypeMap::insert(sema::StructType const* key,
                      ir::StructType const* value,
-                     StructMetaData metaData) {
+                     StructMetadata metaData) {
     insertImpl(packedMap, key, value);
     insertImpl(unpackedMap, key, { value });
     meta.insert({ key, std::move(metaData) });
@@ -223,7 +223,7 @@ utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(
                       std::bind_front(&TypeMap::compute<Unpacked>, this));
 }
 
-StructMetaData const& TypeMap::metaData(sema::Type const* type) const {
+StructMetadata const& TypeMap::metaData(sema::Type const* type) const {
     auto itr = meta.find(cast<sema::StructType const*>(type));
     SC_ASSERT(itr != meta.end(), "Not found");
     return itr->second;

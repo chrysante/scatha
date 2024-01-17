@@ -156,8 +156,16 @@ utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedRegister(
     if (value.isMemory()) {
         /// `{ Memory, {Packed,Unpacked} } -> { Register, Unpacked }`
         if (isDynArrayPointer(value.type())) {
-            auto* ptr = add<ir::Load>(value.get(0), arrayPtrType, value.name());
-            return unpackDynArrayPointerInRegister(ptr, value.name());
+            if (value.isPacked()) {
+                auto* ptr =
+                    add<ir::Load>(value.get(0), arrayPtrType, value.name());
+                return unpackDynArrayPointerInRegister(ptr, value.name());
+            }
+            else {
+                auto* ptr =
+                    add<ir::Load>(value.get(0), ctx.ptrType(), value.name());
+                return { ptr, value.get(1) };
+            }
         }
         else {
             auto types = typeMap.unpacked(value.type());

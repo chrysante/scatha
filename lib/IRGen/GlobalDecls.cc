@@ -9,7 +9,7 @@
 #include "IR/Type.h"
 #include "IRGen/CallingConvention.h"
 #include "IRGen/Maps.h"
-#include "IRGen/MetaData.h"
+#include "IRGen/Metadata.h"
 #include "IRGen/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/NameMangling.h"
@@ -21,14 +21,15 @@ using enum ValueLocation;
 using enum ValueRepresentation;
 using sema::QualType;
 
-StructMetaData irgen::makeStructMetadata(sema::StructType const* semaType) {
-    StructMetaData metadata;
-    size_t irIndex = 0;
+StructMetadata irgen::makeStructMetadata(TypeMap& typeMap,
+                                         sema::StructType const* semaType) {
+    StructMetadata metadata;
+    uint32_t irIndex = 0;
     for (auto* member: semaType->memberVariables()) {
-        metadata.indexMap.push_back(utl::narrow_cast<uint16_t>(irIndex++));
-        if (isFatPointer(member->type())) {
-            ++irIndex;
-        }
+        auto fieldTypes = typeMap.unpacked(member->type());
+        metadata.members.push_back(
+            { .beginIndex = irIndex, .fieldTypes = fieldTypes });
+        irIndex += fieldTypes.size();
     }
     return metadata;
 }
@@ -45,7 +46,7 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
         }
     }
     auto* result = structType.get();
-    typeMap.insert(semaType, result, makeStructMetadata(semaType));
+    typeMap.insert(semaType, result, makeStructMetadata(typeMap, semaType));
     mod.addStructure(std::move(structType));
     return result;
 }
@@ -90,7 +91,7 @@ static CallingConvention computeCC(sema::Function const* function) {
     return CallingConvention(retval, args);
 }
 
-FunctionMetaData irgen::makeFunctionMetadata(sema::Function const* semaFn) {
+FunctionMetadata irgen::makeFunctionMetadata(sema::Function const* semaFn) {
     return { .CC = computeCC(semaFn) };
 }
 
@@ -145,7 +146,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
                                      TypeMap const& typeMap,
                                      FunctionMap& functionMap,
                                      sema::NameMangler const& nameMangler) {
-    FunctionMetaData metaData = makeFunctionMetadata(semaFn);
+    FunctionMetadata metaData = makeFunctionMetadata(semaFn);
     auto irSignature = computeIRSignature(*semaFn, ctx, metaData.CC, typeMap);
     UniquePtr<ir::Callable> irFn;
     switch (semaFn->kind()) {
