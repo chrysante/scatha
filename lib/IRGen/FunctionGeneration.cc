@@ -154,8 +154,8 @@ ir::Value*  FuncGenContextBase::toPackedMemory(Value const& value) {
             return value.get(0);
         }
         else {
-            // Store to local memory here
-            SC_UNIMPLEMENTED();
+            auto* packed = packValues(value.get(), value.name());
+            return storeToMemory(packed, value.name());
         }
     }
 }
