@@ -50,9 +50,12 @@ ir::StructType* irgen::generateType(sema::StructType const* semaType,
     return result;
 }
 
-/// Only certain types like builtin arithmetic types, pointers, bools or struct types with trivial lifetime may be passed in registers
+/// Only certain types like builtin arithmetic types, pointers, bools or struct
+/// types with trivial lifetime may be passed in registers
 static bool mayPassInRegister(sema::Type const* type) {
-    /// `void` is symbolically passed in a register. Void is only valid for return values in this only means we don't allocate a function parameter for the return value
+    /// `void` is symbolically passed in a register. Void is only valid for
+    /// return values in this only means we don't allocate a function parameter
+    /// for the return value
     if (isa<sema::VoidType>(type)) {
         return true;
     }
@@ -62,7 +65,6 @@ static bool mayPassInRegister(sema::Type const* type) {
     /// For now! This is not necessarily correct for unique pointers
     return type->hasTrivialLifetime();
 }
-
 
 static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
     if (mayPassInRegister(type)) {

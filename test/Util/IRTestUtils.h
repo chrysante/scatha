@@ -10,10 +10,11 @@ namespace scatha::test {
 /// \Returns the `{ ptr, i64 }` anonymous struct type
 ir::Type const* arrayPointerType(ir::Context& ctx);
 
-/// Helper class that can be used to successively check every instruction in a basic blocl
+/// Helper class that can be used to successively check every instruction in a
+/// basic blocl
 struct BBView {
     ir::BasicBlock::ConstIterator itr;
-    
+
     explicit BBView(ir::BasicBlock const& BB): itr(BB.begin()) {}
 
     template <std::derived_from<ir::Instruction> Inst>

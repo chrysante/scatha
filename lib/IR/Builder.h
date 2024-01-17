@@ -67,14 +67,15 @@ public:
     Value* buildStructure(StructType const* type,
                           std::span<Value* const> members,
                           std::string name);
-    
+
     /// If \p elems has one value, that value is returned unchanged
     /// If \p elems has more than one values, this function returns
-    /// `buildStructure(/*type*/, elems, name)` where `/*type*/` is the anonymous struct type with the element types of \p elems
+    /// `buildStructure(/*type*/, elems, name)` where `/*type*/` is the
+    /// anonymous struct type with the element types of \p elems 
+    ///
     /// \pre \p elems must not be empty
-    Value* packValues(std::span<Value* const> elems,
-                      std::string name);
-    
+    Value* packValues(std::span<Value* const> elems, std::string name);
+
     /// Sets the 'add point' to \p newAddPoint
     /// The add point is the iterator before which the `add()` methods insert
     /// instructions
@@ -149,11 +150,16 @@ public:
 
     /// Allocates a local array with possibly dynamic count
     ///
-    /// Inserts a `%name = alloca, <element-type>, <count-type> %count` instruction
-    Alloca* makeLocalArray(Type const* elementType, Value* count, std::string name);
-    
+    /// Inserts a `%name = alloca, <element-type>, <count-type> %count`
+    /// instruction
+    Alloca* makeLocalArray(Type const* elementType,
+                           Value* count,
+                           std::string name);
+
     /// \overload for static count
-    Alloca* makeLocalArray(Type const* elementType, size_t count, std::string name);
+    Alloca* makeLocalArray(Type const* elementType,
+                           size_t count,
+                           std::string name);
 
     /// Allocate stack space for \p value and emit a store instruction storing
     /// \p value into the allocated memory. \Returns a pointer to the allocated

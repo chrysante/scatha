@@ -188,38 +188,37 @@ void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
 void FuncGenContext::genMemberConstruction(ir::Instruction const* before,
                                            sema::ObjectType const& type,
                                            ir::Value* index) {
-//    auto arguments = genArguments(before, typeMap(&type), index);
-//    /// Non-trivial case
-//    if (auto* f = type.specialLifetimeFunction(kind)) {
-//        insert<ir::Call>(before, getFunction(f), arguments);
-//        return;
-//    }
-//    SC_ASSERT(type.hasTrivialLifetime(),
-//              "This function cannot be generated if the member type does not "
-//              "support the operation");
-//    /// Trivial case
-//    using enum sema::SpecialLifetimeFunction;
-//    switch (kind) {
-//    case DefaultConstructor: {
-//        auto* memset = getBuiltin(svm::Builtin::memset);
-//        ir::Value* irZero = ctx.intConstant(0, 64);
-//        std::array<ir::Value*, 3> args = { arguments[0],
-//                                           ctx.intConstant(type.size(), 64),
-//                                           irZero };
-//        insert<ir::Call>(before, memset, args, std::string{});
-//        break;
-//    }
-//    case MoveConstructor:
-//        [[fallthrough]];
-//    case CopyConstructor: {
-//        auto* irType = typeMap(&type);
-//        auto* value = insert<ir::Load>(before, arguments[1], irType, "value");
-//        insert<ir::Store>(before, arguments[0], value);
-//        break;
-//    }
-//    case Destructor:
-//        break;
-//    }
+    //    auto arguments = genArguments(before, typeMap(&type), index);
+    //    /// Non-trivial case
+    //    if (auto* f = type.specialLifetimeFunction(kind)) {
+    //        insert<ir::Call>(before, getFunction(f), arguments);
+    //        return;
+    //    }
+    //    SC_ASSERT(type.hasTrivialLifetime(),
+    //              "This function cannot be generated if the member type does
+    //              not " "support the operation");
+    //    /// Trivial case
+    //    using enum sema::SpecialLifetimeFunction;
+    //    switch (kind) {
+    //    case DefaultConstructor: {
+    //        auto* memset = getBuiltin(svm::Builtin::memset);
+    //        ir::Value* irZero = ctx.intConstant(0, 64);
+    //        std::array<ir::Value*, 3> args = { arguments[0],
+    //                                           ctx.intConstant(type.size(),
+    //                                           64), irZero };
+    //        insert<ir::Call>(before, memset, args, std::string{});
+    //        break;
+    //    }
+    //    case MoveConstructor:
+    //        [[fallthrough]];
+    //    case CopyConstructor: {
+    //        auto* irType = typeMap(&type);
+    //        auto* value = insert<ir::Load>(before, arguments[1], irType,
+    //        "value"); insert<ir::Store>(before, arguments[0], value); break;
+    //    }
+    //    case Destructor:
+    //        break;
+    //    }
 }
 
 static size_t SLFKindNumPtrParams(sema::SpecialLifetimeFunction kind) {

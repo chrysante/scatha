@@ -1,17 +1,17 @@
 #include "Util/FrontendWrapper.h"
 
 #include <span>
-#include <stdexcept>
 #include <sstream>
+#include <stdexcept>
 
-#include "Sema/SymbolTable.h"
-#include "Sema/Analyze.h"
-#include "Parser/Parser.h"
-#include "IRGen/IRGen.h"
+#include "Common/SourceFile.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "Common/SourceFile.h"
+#include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
+#include "Parser/Parser.h"
+#include "Sema/Analyze.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace test;
@@ -26,7 +26,8 @@ static void validateEmpty(std::span<SourceFile const> sources,
     throw std::runtime_error(sstr.str());
 }
 
-std::pair<ir::Context, ir::Module> test::makeIR(std::vector<std::string> sourceTexts) {
+std::pair<ir::Context, ir::Module> test::makeIR(
+    std::vector<std::string> sourceTexts) {
     IssueHandler issues;
     auto sourceFiles = sourceTexts | ranges::views::transform([](auto& text) {
         return SourceFile::make(std::move(text));

@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/CFG.h"
 #include "IR/Type.h"
 #include "Util/FrontendWrapper.h"
 #include "Util/IRTestUtils.h"

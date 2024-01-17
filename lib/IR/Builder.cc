@@ -4,12 +4,12 @@
 
 #include <range/v3/view.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG/Constants.h"
 #include "IR/CFG/Function.h"
 #include "IR/CFG/Instructions.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
-#include "Common/Ranges.h"
 
 using namespace scatha;
 using namespace ir;
@@ -29,13 +29,16 @@ Instruction* BasicBlockBuilder::insert(Instruction const* before,
 }
 
 Value* BasicBlockBuilder::buildStructure(StructType const* type,
-                                       std::span<Value* const> members,
-                                       std::string name) {
+                                         std::span<Value* const> members,
+                                         std::string name) {
     SC_ASSERT(type->numElements() == members.size(), "Size mismatch");
     Value* value = ctx.undef(type);
     for (auto [index, member]: members | ranges::views::enumerate) {
         SC_ASSERT(member->type() == type->elementAt(index), "Type mismatch");
-        value = add<InsertValue>(value, member, std::array{ index }, utl::strcat(name, ".elem.", index));
+        value = add<InsertValue>(value,
+                                 member,
+                                 std::array{ index },
+                                 utl::strcat(name, ".elem.", index));
     }
     value->setName(name);
     return value;
@@ -46,13 +49,15 @@ Value* BasicBlockBuilder::packValues(std::span<Value* const> elems,
     switch (elems.size()) {
     case 0:
         SC_UNREACHABLE();
-    
+
     case 1:
         return elems.front();
-        
-    default:
-        return buildStructure(ctx.anonymousStruct(elems | transform(&Value::type) | ToSmallVector<>), 
-                              elems, std::move(name));
+
+    default: {
+        auto* type = ctx.anonymousStruct(elems | transform(&Value::type) |
+                                         ToSmallVector<>);
+        return buildStructure(type, elems, std::move(name));
+    }
     }
 }
 
@@ -82,8 +87,12 @@ Alloca* FunctionBuilder::makeLocalVariable(Type const* type, std::string name) {
     return addr;
 }
 
-Alloca* FunctionBuilder::makeLocalArray(Type const* elemType, size_t count, std::string name) {
-    return makeLocalArray(elemType, ctx.intConstant(count, 32), std::move(name));
+Alloca* FunctionBuilder::makeLocalArray(Type const* elemType,
+                                        size_t count,
+                                        std::string name) {
+    return makeLocalArray(elemType,
+                          ctx.intConstant(count, 32),
+                          std::move(name));
 }
 
 Alloca* FunctionBuilder::makeLocalArray(Type const* elemType,

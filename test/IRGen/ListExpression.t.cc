@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators_all.hpp>
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/CFG.h"
 #include "IR/Type.h"
 #include "Util/FrontendWrapper.h"
 #include "Util/IRTestUtils.h"
@@ -17,7 +17,7 @@ TEST_CASE("IRGen - Statically generated list expression", "[irgen]") {
     auto& F = mod.front();
     CHECK(F.parameters().empty());
     auto view = BBView(F.entry());
-    
+
     auto& mem = view.nextAs<Alloca>();
     CHECK(mem.allocatedType() == ctx.intType(64));
     CHECK(mem.count() == ctx.intConstant(3, 32));
@@ -35,15 +35,16 @@ TEST_CASE("IRGen - Statically generated list expression", "[irgen]") {
 
 TEST_CASE("IRGen - Dynamically generated list expression", "[irgen]") {
     using namespace ir;
-    auto [ctx, mod] = makeIR({ "public fn foo(data: &[int]) { let arr = [&data]; }" });
+    auto [ctx, mod] =
+        makeIR({ "public fn foo(data: &[int]) { let arr = [&data]; }" });
     auto& F = mod.front();
     CHECK(ranges::distance(F.parameters()) == 2);
     auto view = BBView(F.entry());
-    
+
     auto& mem = view.nextAs<Alloca>();
     CHECK(mem.allocatedType() == arrayPointerType(ctx));
     CHECK(mem.count() == ctx.intConstant(1, 32));
-    
+
     auto& gep = view.nextAs<GetElementPointer>();
     CHECK(gep.basePointer() == &mem);
     CHECK(gep.arrayIndex() == ctx.intConstant(0, 32));

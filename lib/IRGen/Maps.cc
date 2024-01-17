@@ -73,12 +73,19 @@ void irgen::print(ValueMap const& valueMap, std::ostream& str) {
     for (auto& [object, value]: valueMap) {
         str << printObject(*object) << " -> ";
         for (bool first = true; auto* irVal: value.get()) {
-            if (!first) { str << ", "; }
+            if (!first) {
+                str << ", ";
+            }
             first = false;
             ir::printDecl(*irVal, str);
         }
         str << " "
-            << tfmt::format(tfmt::BrightGrey, "[", value.location(), ", ", value.representation(), "]");
+            << tfmt::format(tfmt::BrightGrey,
+                            "[",
+                            value.location(),
+                            ", ",
+                            value.representation(),
+                            "]");
         str << "\n";
     }
     str << "\n";
@@ -120,8 +127,11 @@ FunctionMetaData const& FunctionMap::metaData(
 /// # TypeMap
 
 template <typename Map>
-static void insertImpl(Map& map, typename Map::key_type key, typename Map::mapped_type value) {
-    [[maybe_unused]] bool success = map.insert({ key, std::move(value) }).second;
+static void insertImpl(Map& map,
+                       typename Map::key_type key,
+                       typename Map::mapped_type value) {
+    [[maybe_unused]] bool success =
+        map.insert({ key, std::move(value) }).second;
     SC_ASSERT(success, "Failed to insert type");
 }
 
@@ -181,7 +191,7 @@ auto TypeMap::compute(sema::Type const* type) const {
         },
     }; // clang-format on
     if constexpr (Repr == ValueRepresentation::Packed) {
-        SC_ASSERT(res.size() == 1, 
+        SC_ASSERT(res.size() == 1,
                   "Packed types must be represented by one IR type only");
         return res.front();
     }
@@ -190,9 +200,7 @@ auto TypeMap::compute(sema::Type const* type) const {
     }
 }
 
-static auto mapChached(auto& cache,
-                                  sema::Type const* key,
-                                  auto compute) {
+static auto mapChached(auto& cache, sema::Type const* key, auto compute) {
     auto itr = cache.find(key);
     if (itr != cache.end()) {
         return itr->second;
@@ -208,7 +216,8 @@ ir::Type const* TypeMap::packed(sema::Type const* type) const {
                       std::bind_front(&TypeMap::compute<Packed>, this));
 }
 
-utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(sema::Type const* type) const {
+utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(
+    sema::Type const* type) const {
     return mapChached(unpackedMap,
                       type,
                       std::bind_front(&TypeMap::compute<Unpacked>, this));

@@ -1,11 +1,11 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "IR/CFG.h"
+#include "IR/Context.h"
+#include "IR/IRParser.h"
+#include "IR/Module.h"
 #include "Opt/PassTest.h"
 #include "Opt/Passes.h"
-#include "IR/IRParser.h"
-#include "IR/Context.h"
-#include "IR/Module.h"
-#include "IR/CFG.h"
 
 using namespace scatha;
 using namespace opt;
@@ -375,7 +375,8 @@ func i1 @test() {
     %a = alloca i32, i32 1
     %res = ucmp eq ptr %a, ptr nullptr
     return i1 %res
-})").value();
+})")
+                          .value();
     auto& F = mod.front();
     opt::pointerAnalysis(ctx, F);
     opt::instCombine(ctx, F);

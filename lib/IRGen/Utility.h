@@ -36,9 +36,21 @@ std::optional<size_t> getStaticArraySize(sema::Type const* type);
 /// Creates an anonymous struct type with members `ptr` and `i64`
 ir::StructType const* makeArrayPtrType(ir::Context& ctx);
 
-/// \Returns `Register` if either \p a or \p b is `Register`, otherwise returns
-/// `Memory`
-ValueLocation commonLocation(ValueLocation a, ValueLocation b);
+/// \Returns \p a if `a == b` or \p fallback otherwise
+inline ValueLocation commonLocation(
+    ValueLocation a,
+    ValueLocation b,
+    ValueLocation fallback = ValueLocation::Register) {
+    return a == b ? a : fallback;
+}
+
+/// \Returns \p a if `a == b` or \p fallback otherwise
+inline ValueRepresentation commonRepresentation(
+    ValueRepresentation a,
+    ValueRepresentation b,
+    ValueRepresentation fallback = ValueRepresentation::Packed) {
+    return a == b ? a : fallback;
+}
 
 /// Convenience wrapper to make `std::array<size_t, N>` in a less verbose way
 template <size_t N>

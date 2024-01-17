@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators_all.hpp>
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/CFG.h"
 #include "IR/Type.h"
 #include "Util/FrontendWrapper.h"
 #include "Util/IRTestUtils.h"
@@ -20,7 +20,7 @@ fn bar(data: &[int]) {}
     auto& F = mod.front();
     CHECK(ranges::distance(F.parameters()) == 2);
     auto view = BBView(F.entry());
-    
+
     auto& call = view.nextAs<Call>();
     CHECK(call.function() == F.next());
     CHECK(call.argumentAt(0) == &F.parameters().front());
@@ -38,7 +38,7 @@ fn baz() -> *[int] {}
     auto& F = mod.front();
     CHECK(ranges::distance(F.parameters()) == 2);
     auto view = BBView(F.entry());
-    
+
     auto& callBaz = view.nextAs<Call>();
     CHECK(callBaz.arguments().empty());
     auto& data = view.nextAs<ExtractValue>();
@@ -59,14 +59,15 @@ fn bar() -> [int, 10] {}
 )" });
     auto& F = mod.front();
     auto view = BBView(F.entry());
- 
+
     auto& mem = view.nextAs<Alloca>();
     auto& call = view.nextAs<Call>();
     CHECK(call.argumentAt(0) == &mem);
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Pass return value in memory to return statement", "[irgen]") {
+TEST_CASE("IRGen - Pass return value in memory to return statement",
+          "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() -> [int, 10] { return bar(); }
@@ -76,7 +77,7 @@ fn bar() -> [int, 10] {}
     CHECK(ranges::distance(F.parameters()) == 1);
     CHECK(isa<VoidType>(F.returnType()));
     auto view = BBView(F.entry());
- 
+
     auto& call = view.nextAs<Call>();
     CHECK(call.argumentAt(0) == &F.parameters().front());
     CHECK_NOTHROW(view.nextAs<Return>());
@@ -90,7 +91,7 @@ fn bar() -> [int, 10] {}
 )" });
     auto& F = mod.front();
     auto view = BBView(F.entry());
- 
+
     CHECK_NOTHROW(view.nextAs<Alloca>());
     CHECK_NOTHROW(view.nextAs<Call>());
     auto& ret = view.nextAs<Return>();
@@ -105,7 +106,7 @@ fn bar() -> &[int] {}
 )" });
     auto& F = mod.front();
     auto view = BBView(F.entry());
- 
+
     auto& call = view.nextAs<Call>();
     auto& count = view.nextAs<ExtractValue>();
     CHECK(count.baseValue() == &call);

@@ -26,7 +26,7 @@ public:
 
     /// \Returns the number of IR parameters that are occupied by this value
     size_t numParams() const { return _numParams; }
-    
+
 private:
     ValueLocation _loc;
     uint8_t _numParams;

@@ -62,7 +62,3 @@ std::optional<size_t> irgen::getStaticArraySize(sema::Type const* type) {
 ir::StructType const* irgen::makeArrayPtrType(ir::Context& ctx) {
     return ctx.anonymousStruct({ ctx.ptrType(), ctx.intType(64) });
 }
-
-ValueLocation irgen::commonLocation(ValueLocation a, ValueLocation b) {
-    return a == b ? a : ValueLocation::Register;
-}

@@ -96,20 +96,6 @@ ir::Call* FuncGenContextBase::callMemset(ir::Value* dest,
     return callMemset(dest, ctx.intConstant(numBytes, 64), value);
 }
 
-ir::Value* FuncGenContextBase::toThinPointer(ir::Value* ptr) {
-    if (ptr->type() == arrayPtrType) {
-        return add<ir::ExtractValue>(ptr, std::array{ size_t{ 0 } }, "ptr");
-    }
-    return ptr;
-}
-
-ir::Value* FuncGenContextBase::makeArrayPointer(ir::Value* addr,
-                                                ir::Value* count) {
-    return buildStructure(arrayPtrType,
-                          std::array<ir::Value*, 2>{ addr, count },
-                          "array.ptr");
-}
-
 static bool isDynArray(sema::ObjectType const* type) {
     auto* arr = dyncast<sema::ArrayType const*>(type);
     return arr && arr->isDynamic();
@@ -120,11 +106,14 @@ static bool isDynArrayPointer(sema::ObjectType const* type) {
     return ptr && isDynArray(ptr->base().get());
 }
 
-ir::Value*  FuncGenContextBase::toPackedRegister(Value const& value) {
-    SC_ASSERT(!isDynArray(value.type()), "Cannot have dynamic array in register");
+ir::Value* FuncGenContextBase::toPackedRegister(Value const& value) {
+    SC_ASSERT(!isDynArray(value.type()),
+              "Cannot have dynamic array in register");
     if (value.isMemory()) {
         /// `{ Memory, {Packed,Unpacked} } -> { Register, Packed }`
-        return add<ir::Load>(value.get(0), typeMap.packed(value.type()), value.name());
+        return add<ir::Load>(value.get(0),
+                             typeMap.packed(value.type()),
+                             value.name());
     }
     else {
         if (value.isPacked()) {
@@ -138,11 +127,11 @@ ir::Value*  FuncGenContextBase::toPackedRegister(Value const& value) {
     }
 }
 
-ir::Value*  FuncGenContextBase::toPackedMemory(Value const& value) {
+ir::Value* FuncGenContextBase::toPackedMemory(Value const& value) {
     if (isDynArray(value.type())) {
         if (value.isMemory()) {
             SC_ASSERT(value.isUnpacked(), "");
-            return packValues(ValueArray{ value.get(0), value.get(1) }, value.name());
+            return packValues(value.get(), value.name());
         }
         else {
             // Store to local memory here
@@ -160,8 +149,10 @@ ir::Value*  FuncGenContextBase::toPackedMemory(Value const& value) {
     }
 }
 
-utl::small_vector<ir::Value*, 2>  FuncGenContextBase::toUnpackedRegister(Value const& value) {
-    SC_ASSERT(!isDynArray(value.type()), "Cannot have dynamic array in register");
+utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedRegister(
+    Value const& value) {
+    SC_ASSERT(!isDynArray(value.type()),
+              "Cannot have dynamic array in register");
     if (value.isMemory()) {
         /// `{ Memory, {Packed,Unpacked} } -> { Register, Unpacked }`
         if (isDynArrayPointer(value.type())) {
@@ -171,14 +162,15 @@ utl::small_vector<ir::Value*, 2>  FuncGenContextBase::toUnpackedRegister(Value c
         else {
             auto types = typeMap.unpacked(value.type());
             SC_ASSERT(types.size() == 1, "");
-            return {add<ir::Load>(value.get(0), types.front(), value.name())};
+            return { add<ir::Load>(value.get(0), types.front(), value.name()) };
         }
     }
     else {
         if (value.isPacked()) {
             /// `{ Register, Packed } -> { Register, Unpacked }`
             if (isDynArrayPointer(value.type())) {
-                return unpackDynArrayPointerInRegister(value.get(0), value.name());
+                return unpackDynArrayPointerInRegister(value.get(0),
+                                                       value.name());
             }
             else {
                 return { value.get(0) };
@@ -191,7 +183,8 @@ utl::small_vector<ir::Value*, 2>  FuncGenContextBase::toUnpackedRegister(Value c
     }
 }
 
-utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedMemory(Value const& value) {
+utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedMemory(
+    Value const& value) {
     if (value.isMemory()) {
         return value.get() | ToSmallVector<2>;
     }
@@ -204,10 +197,12 @@ utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedMemory(Value cons
         return value.get(0);
     }();
     return concat(single(storeToMemory(first, value.name())),
-                  value.get().subspan(1)) | ToSmallVector<2>;
+                  value.get().subspan(1)) |
+           ToSmallVector<2>;
 }
 
-Value FuncGenContextBase::getArraySize(sema::Type const* semaType, Value const& value) {
+Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
+                                       Value const& value) {
     auto name = utl::strcat(value.name(), ".count");
     if (auto* base = getPtrOrRefBase(semaType)) {
         semaType = base;
@@ -218,44 +213,47 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType, Value const& 
     if (!arrType->isDynamic()) {
         return Value(name,
                      sizeType,
-                     {ctx.intConstant(arrType->count(), 64)},
+                     { ctx.intConstant(arrType->count(), 64) },
                      Register,
                      Unpacked);
     }
     if (value.location() == Memory) {
         if (value.representation() == Unpacked) {
-            /// This case is weird, but for unpacked memory values the metadata values like array size are always in registers
-            return Value(name, sizeType, {value.get(1)}, Register, Unpacked);
+            /// This case is weird, but for unpacked memory values the metadata
+            /// values like array size are always in registers
+            return Value(name, sizeType, { value.get(1) }, Register, Unpacked);
         }
         else {
             auto* addr = add<ir::GetElementPointer>(ctx,
                                                     arrayPtrType,
                                                     value.get(0),
                                                     nullptr,
-                                                    IndexArray{1},
+                                                    IndexArray{ 1 },
                                                     utl::strcat(name, ".addr"));
-            return Value(name, sizeType, {addr}, Memory, Unpacked);
+            return Value(name, sizeType, { addr }, Memory, Unpacked);
         }
-        
     }
     else {
         // Now value.location() == Register
         if (value.representation() == Unpacked) {
-            return Value(name, sizeType, {value.get(1)}, Register, Unpacked);
+            return Value(name, sizeType, { value.get(1) }, Register, Unpacked);
         }
         else {
-            auto* size = add<ir::ExtractValue>(value.get(0),
-                                               IndexArray{1},
-                                               name);
-            return Value(name, sizeType, {size}, Register, Unpacked);
+            auto* size =
+                add<ir::ExtractValue>(value.get(0), IndexArray{ 1 }, name);
+            return Value(name, sizeType, { size }, Register, Unpacked);
         }
     }
 }
 
-utl::small_vector<ir::Value*, 2> FuncGenContextBase::unpackDynArrayPointerInRegister(ir::Value* ptr, std::string name) {
-    auto* data = add<ir::ExtractValue>(ptr, IndexArray{0}, utl::strcat(name, ".data"));
-    auto* count = add<ir::ExtractValue>(ptr, IndexArray{1}, utl::strcat(name, ".count"));
-    return {data, count};
+utl::small_vector<ir::Value*, 2> FuncGenContextBase::
+    unpackDynArrayPointerInRegister(ir::Value* ptr, std::string name) {
+    auto* data =
+        add<ir::ExtractValue>(ptr, IndexArray{ 0 }, utl::strcat(name, ".data"));
+    auto* count = add<ir::ExtractValue>(ptr,
+                                        IndexArray{ 1 },
+                                        utl::strcat(name, ".count"));
+    return { data, count };
 }
 
 ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,

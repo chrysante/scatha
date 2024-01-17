@@ -1,14 +1,14 @@
 #ifndef SCATHA_IRGEN_VALUE_H_
 #define SCATHA_IRGEN_VALUE_H_
 
-#include <iosfwd>
-#include <string_view>
-#include <span>
 #include <initializer_list>
+#include <iosfwd>
+#include <span>
+#include <string_view>
 
+#include <range/v3/view.hpp>
 #include <utl/hash.hpp>
 #include <utl/vector.hpp>
-#include <range/v3/view.hpp>
 
 #include "Common/Base.h"
 #include "Common/Ranges.h"
@@ -26,11 +26,11 @@ std::string_view toString(ValueLocation);
 /// Print to ostream
 std::ostream& operator<<(std::ostream& ostream, ValueLocation);
 
-/// Some types ("fat pointer" types) can have different representations depending on the context.
-/// For example a pointer to a dynamic array `*[int]` can be represented as a value of type `{ ptr, i64 }` (packed) or as two seperate values of type `ptr`, `i64` (unpacked)
-enum class ValueRepresentation {
-    Packed, Unpacked
-};
+/// Some types ("fat pointer" types) can have different representations
+/// depending on the context. For example a pointer to a dynamic array `*[int]`
+/// can be represented as a value of type `{ ptr, i64 }` (packed) or as two
+/// seperate values of type `ptr`, `i64` (unpacked)
+enum class ValueRepresentation { Packed, Unpacked };
 
 /// Convert to string
 std::string_view toString(ValueRepresentation);
@@ -42,7 +42,7 @@ std::ostream& operator<<(std::ostream& ostream, ValueRepresentation);
 class Value {
 public:
     /// # Static constructors
-    
+
     explicit Value(std::string name,
                    sema::ObjectType const* type,
                    std::span<ir::Value* const> values,
@@ -53,7 +53,7 @@ public:
         _vals(values | ToSmallVector<2>),
         _loc(loc),
         _repr(repr) {}
-    
+
     explicit Value(std::string name,
                    sema::ObjectType const* type,
                    std::initializer_list<ir::Value*> values,
@@ -66,17 +66,15 @@ public:
 
     /// TODO: Document this
     SC_NODEBUG std::span<ir::Value* const> get() const { return _vals; }
-    
+
     /// TODO: Document this
     SC_NODEBUG ir::Value* get(size_t index) const {
         SC_EXPECT(index < _vals.size());
         return _vals[index];
     }
-    
+
     /// TODO: Document this
-    SC_NODEBUG sema::ObjectType const* type() const {
-        return _type;
-    }
+    SC_NODEBUG sema::ObjectType const* type() const { return _type; }
 
     /// \Returns the location of the value
     SC_NODEBUG ValueLocation location() const { return _loc; }
@@ -93,13 +91,17 @@ public:
 
     /// \Returns the representation of this value
     ValueRepresentation representation() const { return _repr; }
-    
+
     /// \Returns `true` is this value is in packed representation
-    bool isPacked() const { return representation() == ValueRepresentation::Packed; }
-    
+    bool isPacked() const {
+        return representation() == ValueRepresentation::Packed;
+    }
+
     /// \Returns `true` is this value is in unpacked representation
-    bool isUnpacked() const { return representation() == ValueRepresentation::Unpacked; }
-    
+    bool isUnpacked() const {
+        return representation() == ValueRepresentation::Unpacked;
+    }
+
 private:
     std::string _name;
     sema::ObjectType const* _type;

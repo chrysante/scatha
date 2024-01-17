@@ -1,7 +1,7 @@
 #include "Util/IRTestUtils.h"
 
-#include "IR/Type.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace test;

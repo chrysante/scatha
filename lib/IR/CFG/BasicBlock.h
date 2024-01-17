@@ -69,7 +69,7 @@ public:
     template <typename TermInst = TerminatorInst>
     TermInst* terminator() {
         return const_cast<TermInst*>(
-            static_cast<BasicBlock const*>(this)->terminator());
+            static_cast<BasicBlock const*>(this)->terminator<TermInst>());
     }
 
     /// \returns `true` if the terminator is the only instruction in the basic

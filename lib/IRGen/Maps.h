@@ -91,7 +91,8 @@ public:
     ir::Type const* packed(sema::Type const* type) const;
 
     /// Translate \p type to corresponding unpacked IR types
-    utl::small_vector<ir::Type const*, 2> unpacked(sema::Type const* type) const;
+    utl::small_vector<ir::Type const*, 2> unpacked(
+        sema::Type const* type) const;
 
     /// \Returns the meta data associated with \p type
     StructMetaData const& metaData(sema::Type const* type) const;
@@ -103,8 +104,9 @@ private:
     ir::Context* ctx;
     /// Mutable to cache results in const getter functions
     mutable utl::hashmap<sema::Type const*, ir::Type const*> packedMap;
-    mutable utl::hashmap<sema::Type const*, utl::small_vector<ir::Type const*, 2>> unpackedMap;
-//    mutable utl::hashmap<ir::Type const*, sema::Type const*> backMap;
+    mutable utl::hashmap<sema::Type const*,
+                         utl::small_vector<ir::Type const*, 2>>
+        unpackedMap;
     utl::hashmap<sema::StructType const*, StructMetaData> meta;
 };
 
@@ -128,7 +130,7 @@ ir::Visibility mapVisibility(sema::Function const* function);
 
 /// \Returns an appropriate name for the result of the binary operation \p op
 std::string binaryOpResultName(ast::BinaryOperator op);
-    
+
 } // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_MAPS_H_

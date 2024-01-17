@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/CFG.h"
 #include "IR/Type.h"
 #include "Util/FrontendWrapper.h"
 #include "Util/IRTestUtils.h"
@@ -10,16 +10,19 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Count of dynamic array pointer in dynamic array", "[irgen]") {
+TEST_CASE("IRGen - Count of dynamic array pointer in dynamic array",
+          "[irgen]") {
     using namespace ir;
-    auto [ctx, mod] = makeIR({ "public fn foo(p: *[*[int]]) -> int { return p[0].count; }" });
+    auto [ctx, mod] =
+        makeIR({ "public fn foo(p: *[*[int]]) -> int { return p[0].count; }" });
     auto& F = mod.front();
     CHECK(ranges::distance(F.parameters()) == 2);
     auto view = BBView(F.entry());
-    
+
     auto& mem = view.nextAs<Alloca>();
     CHECK(mem.allocatedType() == arrayPointerType(ctx));
-    CHECK(view.nextAs<InsertValue>().insertedValue() == &F.parameters().front());
+    CHECK(view.nextAs<InsertValue>().insertedValue() ==
+          &F.parameters().front());
     auto& p = view.nextAs<InsertValue>();
     CHECK(p.insertedValue() == &F.parameters().back());
     CHECK(view.nextAs<Store>().value() == &p);
