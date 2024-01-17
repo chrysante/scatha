@@ -100,7 +100,9 @@ struct FuncGenContext: FuncGenContextBase {
     //Value getValueImpl(ast::FunctionCall const&);
     Value getValueImpl(ast::Subscript const&);
     //Value getValueImpl(ast::SubscriptSlice const&);
-    //Value getValueImpl(ast::ListExpression const&);
+    Value getValueImpl(ast::ListExpression const&);
+    bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
+    void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
     //Value getValueImpl(ast::MoveExpr const&);
     //Value getValueImpl(ast::UniqueExpr const&);
     Value getValueImpl(ast::Conversion const&);
@@ -122,31 +124,6 @@ struct FuncGenContext: FuncGenContextBase {
         SC_UNREACHABLE();
     }
     //Value getValueImpl(ast::NonTrivAssignExpr const&);
-
-    /// # Expression specific utilities
-
-    /// Generates function call argument(s) for the expression \p expr
-    /// In particalur this functions decides depending on the passing
-    /// convention\p PC if the argument is passed by register or in memory and
-    /// loads or stores it accordingly of necessary. This function also emits
-    /// two call arguments for dynamic array pointers.
-    /// If \p value is null this function will generate the code for the
-    /// argument.
-    void unpackArgument(PassingConvention const& PC,
-                        sema::Type const* paramType,
-                        ast::Expression const* expr,
-                        Value value,
-                        utl::vector<ir::Value*>& irArgsOut);
-    /// Calls `unpackArgument()` in a loop and returns the unpacked IR argument
-    /// values
-    utl::small_vector<ir::Value*> unpackArguments(
-        std::span<PassingConvention const> PCs,
-        std::span<sema::Type const* const> paramTypes,
-        std::span<ast::Expression const* const> arguments,
-        std::span<Value> argValues);
-    ir::ArrayType const* getListType(ast::ListExpression const& list);
-    bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
-    void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
 
     /// # General utilities
 
@@ -1034,42 +1011,6 @@ Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
 //    return value;
 //}
 
-//void FuncGenContext::unpackArgument(PassingConvention const& PC,
-//                                    sema::Type const* paramType,
-//                                    ast::Expression const* expr,
-//                                    Value value,
-//                                    utl::vector<ir::Value*>& irArguments) {
-//    if (!value) {
-//        value = getValue(expr);
-//    }
-//    auto* object = expr->object();
-//    if (isa<sema::ReferenceType>(paramType)) {
-//        SC_ASSERT(value.isMemory(),
-//                  "Need value in memory to pass by reference");
-//        irArguments.push_back(toThinPointer(toMemory(value, *expr)));
-//    }
-//    else {
-//        irArguments.push_back(
-//            toThinPointer(toValueLocation(PC.location(), value, *expr)));
-//    }
-//    if (PC.numParams() == 2) {
-//        irArguments.push_back(toRegister(valueMap.arraySize(object), *expr));
-//    }
-//}
-
-utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
-    std::span<PassingConvention const> PCs,
-    std::span<sema::Type const* const> paramTypes,
-    std::span<ast::Expression const* const> arguments,
-    std::span<Value> argValues) {
-    auto PCsAndArgs = ranges::views::zip(PCs, paramTypes, arguments, argValues);
-    utl::small_vector<ir::Value*> irArguments;
-    for (auto [PC, paramType, argExpr, argValue]: PCsAndArgs) {
-        unpackArgument(PC, paramType, argExpr, argValue, irArguments);
-    }
-    return irArguments;
-}
-
 Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayAddr = getValue<Unpacked>(expr.callee(), Memory).front();
     auto* index = getValue<Packed>(expr.argument(0), Register);
@@ -1103,16 +1044,6 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
 //    return result;
 //}
 
-//ir::ArrayType const* FuncGenContext::getListType(
-//    ast::ListExpression const& list) {
-//    auto* semaType = cast<sema::ArrayType const*>(list.type().get());
-//    SC_ASSERT(!semaType->isDynamic(), "");
-//    if (isFatPointer(semaType->elementType())) {
-//        return ctx.arrayType(arrayPtrType, semaType->count());
-//    }
-//    return cast<ir::ArrayType const*>(typeMap(semaType));
-//}
-
 static ir::Constant* evalConstant(ir::Context& ctx,
                                   ast::Expression const* expr) {
     if (auto* val = dyncast<sema::IntValue const*>(expr->constantValue())) {
@@ -1121,85 +1052,56 @@ static ir::Constant* evalConstant(ir::Context& ctx,
     return nullptr;
 }
 
-//bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
-//                                       ir::Alloca* dest) {
-//    auto* type = cast<sema::ArrayType const*>(list.type().get());
-//    auto* elemType = type->elementType();
-//    utl::small_vector<ir::Constant*> elems;
-//    elems.reserve(type->size());
-//    for (auto* expr: list.elements()) {
-//        SC_ASSERT(elemType == expr->type().get(), "Invalid type");
-//        auto* constant = evalConstant(ctx, expr);
-//        if (!constant) {
-//            return false;
-//        }
-//        elems.push_back(constant);
-//    }
-//    auto* irType = ctx.arrayType(typeMap(elemType), list.elements().size());
-//    auto* value = ctx.arrayConstant(elems, irType);
-//    auto name = nameFromSourceLoc("array", list.sourceLocation());
-//    auto* source = mod.makeGlobalConstant(ctx, value, std::move(name));
-//    callMemcpy(dest, source, irType->size());
-//    return true;
-//}
+/// Expressions like `[1, 2, 3]` where all elements are constants can be allocated in static memory and then the list expression translates to a memcpy
+bool FuncGenContext::genStaticListData(ast::ListExpression const& list,
+                                       ir::Alloca* dest) {
+    auto* type = cast<sema::ArrayType const*>(list.type().get());
+    SC_ASSERT(!type->isDynamic(), "Cannot allocate dynamic array in local memory");
+    auto* elemType = type->elementType();
+    utl::small_vector<ir::Constant*> elems;
+    elems.reserve(type->size());
+    for (auto* expr: list.elements()) {
+        SC_ASSERT(elemType == expr->type().get(), "Invalid type");
+        auto* constant = evalConstant(ctx, expr);
+        if (!constant) {
+            return false;
+        }
+        elems.push_back(constant);
+    }
+    auto* irType = ctx.arrayType(typeMap.packed(elemType), type->count());
+    auto* value = ctx.arrayConstant(elems, irType);
+    auto name = nameFromSourceLoc("listexpr", list.sourceLocation());
+    auto* global = mod.makeGlobalConstant(ctx, value, std::move(name));
+    callMemcpy(dest, global, irType->size());
+    return true;
+}
 
-//void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
-//                                        ir::Alloca* dest) {
-//    auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
-//    auto* elemType = getListType(list)->elementType();
-//    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
-//        if (isFatPointer(arrayType->elementType())) {
-//            auto* ptr =
-//                add<ir::GetElementPointer>(elemType,
-//                                           dest,
-//                                           ctx.intConstant(index, 32),
-//                                           IndexArray{ 0 },
-//                                           utl::strcat("elem.ptr.", index));
-//            add<ir::Store>(ptr, getValue<Register>(elem));
-//            auto* size =
-//                add<ir::GetElementPointer>(elemType,
-//                                           dest,
-//                                           ctx.intConstant(index, 32),
-//                                           IndexArray{ 1 },
-//                                           utl::strcat("elem.size.", index));
-//            add<ir::Store>(size,
-//                           toRegister(valueMap.arraySize(elem->object()),
-//                                      list));
-//        }
-//        else {
-//            auto* gep = add<ir::GetElementPointer>(elemType,
-//                                                   dest,
-//                                                   ctx.intConstant(index, 32),
-//                                                   IndexArray{},
-//                                                   utl::strcat("elem.", index));
-//            auto value = getValue(elem);
-//
-//            if (arrayType->elementType()->hasTrivialLifetime()) {
-//                add<ir::Store>(gep, toRegister(value, list));
-//            }
-//            else {
-//                toMemory(value, list)->replaceAllUsesWith(gep);
-//            }
-//        }
-//    }
-//}
+/// General case list expressions like `[computeValue(), parseInt("123")]` must be generated by a sequence of store instructions
+void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
+                                        ir::Alloca* dest) {
+    auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
+    auto* elemType = typeMap.packed(arrayType->elementType());
+    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
+        auto* elemAddr = add<ir::GetElementPointer>(elemType,
+                                               dest,
+                                               ctx.intConstant(index, 32),
+                                               IndexArray{},
+                                               utl::strcat("listexpr.elem.", index));
+        auto* valAddr = getValue<Packed>(elem, Memory);
+        valAddr->replaceAllUsesWith(elemAddr);
+    }
+}
 
-//Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
-//    auto* semaType = cast<sema::ArrayType const*>(list.type().get());
-//    auto* irType = getListType(list);
-//    auto* array = makeLocalVariable(irType, "list");
-//    Value size(ctx.intConstant(list.children().size(), 64), Register);
-//    /// We try to insert because a list expression of the same type might have
-//    /// already added the value here
-//    valueMap.tryInsert(semaType->findProperty(sema::PropertyKind::ArraySize),
-//                       size);
-//    auto value = Value(array, irType, Memory);
-//    if (!genStaticListData(list, array)) {
-//        genDynamicListData(list, array);
-//    }
-//    valueMap.insertArraySize(list.object(), size);
-//    return value;
-//}
+Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
+    auto* type = cast<sema::ArrayType const*>(list.type().get());
+    auto* irElemType = typeMap.packed(type->elementType());
+    std::string name = "listexpr";
+    auto* array = makeLocalArray(irElemType, type->count(), name);
+    if (!genStaticListData(list, array)) {
+        genDynamicListData(list, array);
+    }
+    return Value(name, list.type().get(), {array}, Memory, Unpacked);
+}
 
 //Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
 //    auto value = getValue(expr.value());
