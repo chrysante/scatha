@@ -55,9 +55,9 @@ struct FuncGenContext: FuncGenContextBase {
                            PassingConvention pc,
                            List<ir::Parameter>::iterator& paramItr);
     //void generateImpl(ast::VariableDeclaration const&);
-    //void generateImpl(ast::ExpressionStatement const&);
+    void generateImpl(ast::ExpressionStatement const&);
     //void generateImpl(ast::EmptyStatement const&) {}
-    //void generateImpl(ast::ReturnStatement const&);
+    void generateImpl(ast::ReturnStatement const&);
     //void generateImpl(ast::IfStatement const&);
     //void generateImpl(ast::LoopStatement const&);
     //void generateImpl(ast::JumpStatement const&);
@@ -81,17 +81,17 @@ struct FuncGenContext: FuncGenContextBase {
     SC_NODEBUG ir::Value* getValue(ast::Expression const* expr);
 
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
-    //Value getValueImpl(ast::Identifier const&);
+    Value getValueImpl(ast::Identifier const&);
     //Value getValueImpl(ast::Literal const&);
     //Value getValueImpl(ast::UnaryExpression const&);
     //Value getValueImpl(ast::BinaryExpression const&);
-    //Value getValueImpl(ast::MemberAccess const&);
-    //Value genMemberAccess(ast::MemberAccess const&, sema::Variable const&);
-    //Value genMemberAccess(ast::MemberAccess const&, sema::Property const&);
-    //Value genMemberAccess(ast::MemberAccess const&, sema::Temporary const&) {
-    //    SC_UNREACHABLE();
-    //}
-    //Value getValueImpl(ast::DereferenceExpression const&);
+    Value getValueImpl(ast::MemberAccess const&);
+    Value genMemberAccess(ast::MemberAccess const&, sema::Variable const&);
+    Value genMemberAccess(ast::MemberAccess const&, sema::Property const&);
+    Value genMemberAccess(ast::MemberAccess const&, sema::Temporary const&) {
+        SC_UNREACHABLE();
+    }
+    Value getValueImpl(ast::DereferenceExpression const&);
     //Value getValueImpl(ast::AddressOfExpression const&);
     //Value getValueImpl(ast::Conditional const&);
     //Value getValueImpl(ast::FunctionCall const&);
@@ -102,22 +102,22 @@ struct FuncGenContext: FuncGenContextBase {
     //Value getValueImpl(ast::UniqueExpr const&);
     //Value getValueImpl(ast::Conversion const&);
     //Value getValueImpl(ast::UninitTemporary const&);
-    //Value getValueImpl(ast::ConstructExpr const&);
+    Value getValueImpl(ast::ConstructExpr const&);
     //Value genConstructDynArray(ast::ConstructExpr const&,
     //                           sema::ArrayType const&);
     //Value genConstructNonTrivial(ast::ConstructExpr const&);
-    //SC_NODEBUG Value genConstructTrivial(ast::ConstructExpr const&,
-    //                                     sema::Type const&);
-    //Value genConstructTrivialImpl(ast::ConstructExpr const&,
-    //                              sema::ObjectType const&);
-    //Value genConstructTrivialImpl(ast::ConstructExpr const&,
-    //                              sema::StructType const&);
-    //Value genConstructTrivialImpl(ast::ConstructExpr const&,
-    //                              sema::ArrayType const&);
-    //Value genConstructTrivialImpl(ast::ConstructExpr const&,
-    //                              sema::Type const&) {
-    //    SC_UNREACHABLE();
-    //}
+    SC_NODEBUG Value genConstructTrivial(ast::ConstructExpr const&,
+                                         sema::Type const&);
+    Value genConstructTrivialImpl(ast::ConstructExpr const&,
+                                  sema::ObjectType const&);
+    Value genConstructTrivialImpl(ast::ConstructExpr const&,
+                                  sema::StructType const&);
+    Value genConstructTrivialImpl(ast::ConstructExpr const&,
+                                  sema::ArrayType const&);
+    Value genConstructTrivialImpl(ast::ConstructExpr const&,
+                                  sema::Type const&) {
+        SC_UNREACHABLE();
+    }
     //Value getValueImpl(ast::NonTrivAssignExpr const&);
 
     /// # Expression specific utilities
@@ -231,34 +231,50 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     insertAllocas();
 }
 
+static sema::ObjectType const* stripRef(sema::Type const* type) {
+    if (auto* ref = dyncast<sema::ReferenceType const*>(type)) {
+        return ref->base().get();
+    }
+    return cast<sema::ObjectType const*>(type);
+}
+
 void FuncGenContext::generateParameter(
     ast::ParameterDeclaration const* paramDecl,
     PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) 
 {
-    auto next = [&]() { return std::to_address(irParamItr++); };
+    auto params = utl::small_vector<ir::Value*>(pc.numParams(), [&]() {
+        return std::to_address(irParamItr++);
+    });
     std::string name = isa<ast::ThisParameter>(paramDecl) ?
                            "this" :
                            std::string(paramDecl->name());
     auto* semaParam = paramDecl->object();
+    auto* paramType = stripRef(semaParam->type());
     switch (pc.location()) {
     case Register: {
-        auto params = utl::small_vector<ir::Value*>(pc.numParams(), next);
         /// Reference parameters are special: We don't store them to memory because they cannot be reassigned
         if (isa<sema::ReferenceType>(semaParam->type())) {
-            valueMap.insert(Value::Unpacked(semaParam,
-                                            params,
-                                            Register));
+            valueMap.insert(semaParam, Value(name,
+                                             paramType,
+                                             params, Memory, Unpacked));
+        }
+        else if (params.size() == 1) {
+            auto* val = params.front();
+            auto* mem = storeToMemory(val, name);
+            valueMap.insert(semaParam, Value(name, paramType, ValueArray{mem}, Memory, Unpacked));
         }
         else {
-            auto* mem = storeToMemory(packValues(params, name), name);
-            valueMap.insert(Value::Packed(semaParam, mem, Memory));
+            auto* packedVal = packValues(params, name);
+            auto* mem = storeToMemory(packedVal, name);
+            valueMap.insert(semaParam, Value(name, paramType, {mem}, Memory, Packed));
         }
         break;
     }
 
     case Memory:
-        valueMap.insert(Value::Packed(semaParam, next(), Memory));
+        SC_ASSERT(params.size() == 1, "");
+        valueMap.insert(semaParam, Value(name, paramType, params, Memory, Unpacked));
         break;
     }
 }
@@ -311,41 +327,38 @@ void FuncGenContext::generateParameter(
 //    emitDtorCalls(dtorStack, varDecl);
 //}
 
-//void FuncGenContext::generateImpl(
-//    ast::ExpressionStatement const& exprStatement) {
-//    (void)getValue(exprStatement.expression());
-//    emitDtorCalls(exprStatement.dtorStack(), exprStatement);
-//}
+void FuncGenContext::generateImpl(
+    ast::ExpressionStatement const& exprStatement) {
+    (void)getValue(exprStatement.expression());
+    emitDtorCalls(exprStatement.dtorStack(), exprStatement);
+}
 
-//void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
-//    if (!retStmt.expression()) {
-//        emitDtorCalls(retStmt.dtorStack(), retStmt);
-//        add<ir::Return>(ctx.voidValue());
-//        return;
-//    }
-//    auto retval = getValue(retStmt.expression());
-//    ir::Value* actualRetval = nullptr;
-//    auto retvalLocation = getCC(&semaFn).returnValue().location();
-//    switch (retvalLocation) {
-//    case Register: {
-//        /// Pointers we keep in registers but references directly refer to the
-//        /// value in memory
-//        auto valueLocation =
-//            isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
-//        if (isFatPointer(semaFn.returnType())) {
-//            auto size = valueMap.arraySize(retStmt.expression()->object());
-//            ValueArray elems = {
-//                toThinPointer(toValueLocation(valueLocation, retval, retStmt)),
-//                toRegister(size, retStmt)
-//            };
-//            actualRetval = buildStructure(arrayPtrType, elems, "retval");
-//        }
-//        else {
-//            actualRetval = toValueLocation(valueLocation, retval, retStmt);
-//        }
-//        break;
-//    }
-//    case Memory: {
+void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
+    /// Simple case of `return;` in a void function
+    if (!retStmt.expression()) {
+        emitDtorCalls(retStmt.dtorStack(), retStmt);
+        add<ir::Return>(ctx.voidValue());
+        return;
+    }
+    
+    /// More complex `return <value>;` case
+    auto retval = getValue(retStmt.expression());
+    auto targetLocation = getCC(&semaFn).returnValue().location();
+    switch (targetLocation) {
+    case Register: {
+        /// Pointers we keep in registers but references directly refer to the
+        /// value in memory
+        auto destLocation =
+            isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
+        auto* value = destLocation == Memory ? 
+            toPackedMemory(retval) :
+            toPackedRegister(retval);
+        emitDtorCalls(retStmt.dtorStack(), retStmt);
+        add<ir::Return>(value);
+        return;
+    }
+    case Memory: {
+        SC_UNIMPLEMENTED();
 //        auto* retvalDest = &irFn.parameters().front();
 //        if (retval.isMemory()) {
 //            if (auto* allocaInst = dyncast<ir::Alloca*>(retval.get())) {
@@ -362,14 +375,9 @@ void FuncGenContext::generateParameter(
 //        }
 //        actualRetval = ctx.voidValue();
 //        break;
-//    }
-//    }
-//    /// We call destructors as the very last step before issuing the return
-//    /// instruction
-//    emitDtorCalls(retStmt.dtorStack(), retStmt);
-//    auto* retInst = add<ir::Return>(actualRetval);
-//    addSourceLoc(retInst, retStmt);
-//}
+    }
+    }
+}
 
 //void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
 //    auto* condition = getValue<Register>(stmt.condition());
@@ -501,25 +509,22 @@ void FuncGenContext::generateParameter(
     return cast<ir::IntegralType const*>(type)->bitwidth() == width;
 }
 
-//Value FuncGenContext::getValue(ast::Expression const* expr) {
-//    SC_EXPECT(expr);
-//    auto result =
-//        visit(*expr, [&](auto& expr) SC_NODEBUG { return getValueImpl(expr); });
-//    valueMap.tryInsert(expr->object(), result);
-//    return result;
-//}
+Value FuncGenContext::getValue(ast::Expression const* expr) {
+    SC_EXPECT(expr);
+    auto result =
+        visit(*expr, [&](auto& expr) SC_NODEBUG { return getValueImpl(expr); });
+    valueMap.tryInsert(expr->object(), result);
+    return result;
+}
 
 template <ValueLocation Loc>
 ir::Value* FuncGenContext::getValue(ast::Expression const* expr) {
     return toValueLocation(Loc, getValue(expr), *expr);
 }
 
-//Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
-//    /// Because identifier expressions always have reference type, we take the
-//    /// address of the referred to value and put it in a register
-//    Value value = valueMap(id.object());
-//    return value;
-//}
+Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
+    return valueMap(id.object());
+}
 
 //Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
 //    using enum ast::LiteralKind;
@@ -814,13 +819,13 @@ static std::string getResultName(ast::BinaryOperator op) {
 //    SC_UNREACHABLE();
 //}
 
-//Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
-//    return visit(*expr.member()->object(),
-//                 [&](auto& obj) { return genMemberAccess(expr, obj); });
-//}
+Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
+    return visit(*expr.member()->object(),
+                 [&](auto& obj) { return genMemberAccess(expr, obj); });
+}
 
-//Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
-//                                      sema::Variable const& var) {
+Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
+                                      sema::Variable const& var) {
 //    Value base = getValue(expr.accessed());
 //    auto const& metaData = typeMap.metaData(expr.accessed()->type().get());
 //    size_t const irIndex = metaData.indexMap[var.index()];
@@ -861,23 +866,18 @@ static std::string getResultName(ast::BinaryOperator op) {
 //        return Value(result, accessedType, Memory);
 //    }
 //    }
-//    SC_UNREACHABLE();
-//}
+    SC_UNREACHABLE();
+}
 
-//Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
-//                                      sema::Property const& prop) {
-//    using enum sema::PropertyKind;
-//    switch (prop.kind()) {
-//    case ArraySize: {
-//        auto* arrayType =
-//            cast<sema::ArrayType const*>(expr.accessed()->type().get());
-//        /// If the array is dynamic we must generate its value to get the size
-//        if (arrayType->isDynamic()) {
-//            getValue(expr.accessed());
-//        }
-//        return valueMap.arraySize(expr.accessed()->object());
-//    }
-//    case ArrayEmpty: {
+Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
+                                      sema::Property const& prop) {
+    using enum sema::PropertyKind;
+    switch (prop.kind()) {
+    case ArraySize: {
+        return getArraySize(expr.accessed()->type().get(), getValue(expr.accessed()));
+    }
+    case ArrayEmpty: {
+        SC_UNIMPLEMENTED();
 //        auto* arrayType =
 //            cast<sema::ArrayType const*>(expr.accessed()->type().get());
 //        if (arrayType->isDynamic()) {
@@ -893,10 +893,11 @@ static std::string getResultName(ast::BinaryOperator op) {
 //        else {
 //            return Value(ctx.boolConstant(arrayType->count() == 0), Register);
 //        }
-//    }
-//    case ArrayFront:
-//        [[fallthrough]];
-//    case ArrayBack: {
+    }
+    case ArrayFront:
+        [[fallthrough]];
+    case ArrayBack: {
+        SC_UNIMPLEMENTED();
 //        // TODO: Check that array is not empty
 //        auto* arrayType =
 //            cast<sema::ArrayType const*>(expr.accessed()->type().get());
@@ -967,17 +968,19 @@ static std::string getResultName(ast::BinaryOperator op) {
 //            }
 //        }
 //        }
-//    }
-//    default:
-//        SC_UNREACHABLE();
-//    }
-//}
+    }
+    default:
+        SC_UNREACHABLE();
+    }
+}
 
-//Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
-//    auto* ptr = getValue<Register>(expr.referred());
-//    valueMap.insertArraySizeOf(expr.object(), expr.referred()->object());
-//    return Value(toThinPointer(ptr), typeMap(expr.type()), Memory);
-//}
+Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
+    auto value = getValue(expr.referred());
+    return Value(utl::strcat(value.name(), ".deref"),
+                 expr.type().get(),
+                 toUnpackedRegister(value),
+                 Register, Unpacked);
+}
 
 //Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
 //    auto* ptr = getValue<Memory>(expr.referred());
@@ -1047,13 +1050,6 @@ static std::string getResultName(ast::BinaryOperator op) {
 //    }
 //    return value;
 //}
-
-static sema::Type const* stripRef(sema::Type const* type) {
-    if (auto* ref = dyncast<sema::ReferenceType const*>(type)) {
-        return ref->base().get();
-    }
-    return type;
-}
 
 //Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
 //    ir::Callable* function = getFunction(call.function());
@@ -1642,16 +1638,18 @@ static bool isCopyCtor(sema::Function const& F) {
     return md->isSLF() && md->SLFKind() == CopyConstructor;
 }
 
-//Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
-//    if (auto* type = getDynArrayType(expr.type().get())) {
-//        return genConstructDynArray(expr, *type);
-//    }
-//    /// If we have a constructor we just call that
-//    if (!expr.isTrivial()) {
+Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
+    if (auto* type = getDynArrayType(expr.type().get())) {
+        SC_UNIMPLEMENTED();
+        // return genConstructDynArray(expr, *type);
+    }
+    /// If we have a constructor we just call that
+    if (!expr.isTrivial()) {
+        SC_UNIMPLEMENTED();
 //        return genConstructNonTrivial(expr);
-//    }
-//    return genConstructTrivial(expr, *expr.type());
-//}
+    }
+    return genConstructTrivial(expr, *expr.type());
+}
 
 //Value FuncGenContext::genConstructDynArray(ast::ConstructExpr const& expr,
 //                                           sema::ArrayType const& type) {
@@ -1755,52 +1753,50 @@ static bool isCopyCtor(sema::Function const& F) {
 //    return Value(irArguments.front(), type, Memory);
 //}
 
-//Value FuncGenContext::genConstructTrivial(ast::ConstructExpr const& expr,
-//                                          sema::Type const& type) {
-//    return visit(type, [&](auto& type) SC_NODEBUG {
-//        return genConstructTrivialImpl(expr, type);
-//    });
-//}
+Value FuncGenContext::genConstructTrivial(ast::ConstructExpr const& expr,
+                                          sema::Type const& type) {
+    return visit(type, [&](auto& type) SC_NODEBUG {
+        return genConstructTrivialImpl(expr, type);
+    });
+}
 
-//Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
-//                                              sema::ObjectType const& type) {
-//    if (expr.arguments().size() == 1) {
-//        auto* arg = expr.arguments().front();
-//        auto* value = getValue<Register>(arg);
-//        valueMap.insertArraySizeOf(expr.object(), arg->object());
-//        return Value(value, Register);
-//    }
-//    SC_ASSERT(expr.arguments().empty(), "Must be one element or empty");
-//    // clang-format off
-//    auto* value = SC_MATCH (type) {
-//        [&](sema::BoolType const&) {
-//            /// Bools are default initialized to `false`
-//            return ctx.boolConstant(false);
-//        },
-//        [&](sema::ByteType const&) {
-//            return ctx.intConstant(0, 8);
-//        },
-//        [&](sema::IntType const& type) {
-//            return ctx.intConstant(0, type.bitwidth());
-//        },
-//        [&](sema::FloatType const& type) {
-//            return ctx.floatConstant(0, type.bitwidth());
-//        },
-//        [&](sema::NullPtrType const&) {
-//            return ctx.nullpointer();
-//        },
-//        [&](sema::RawPtrType const&) {
-//            return ctx.nullpointer();
-//        },
-//        [&](sema::ObjectType const&) -> ir::Value* {
-//            SC_UNREACHABLE();
-//        },
-//    }; // clang-format on
-//    return Value(value, Register);
-//}
+Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
+                                              sema::ObjectType const& type) {
+    if (expr.arguments().size() == 1) {
+        return getValue(expr.arguments().front());
+    }
+    SC_ASSERT(expr.arguments().empty(), "Must be one element or empty");
+    // clang-format off
+    auto* value = SC_MATCH (type) {
+        [&](sema::BoolType const&) {
+            /// Bools are default initialized to `false`
+            return ctx.boolConstant(false);
+        },
+        [&](sema::ByteType const&) {
+            return ctx.intConstant(0, 8);
+        },
+        [&](sema::IntType const& type) {
+            return ctx.intConstant(0, type.bitwidth());
+        },
+        [&](sema::FloatType const& type) {
+            return ctx.floatConstant(0, type.bitwidth());
+        },
+        [&](sema::NullPtrType const&) {
+            return ctx.nullpointer();
+        },
+        [&](sema::RawPtrType const&) {
+            return ctx.nullpointer();
+        },
+        [&](sema::ObjectType const&) -> ir::Value* {
+            SC_UNREACHABLE();
+        },
+    }; // clang-format on
+    return Value("tmp", expr.type().get(), {value}, Register, Packed);
+}
 
-//Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
-//                                              sema::StructType const& type) {
+Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
+                                              sema::StructType const& type) {
+    SC_UNIMPLEMENTED();
 //    if (expr.arguments().empty()) {
 //        auto* irType = typeMap(&type);
 //        auto* addr = makeLocalVariable(irType, "tmp");
@@ -1839,10 +1835,11 @@ static bool isCopyCtor(sema::Function const& F) {
 //        }
 //        return Value(aggregate, Register);
 //    }
-//}
+}
 
-//Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
-//                                              sema::ArrayType const& type) {
+Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
+                                              sema::ArrayType const& type) {
+    SC_UNIMPLEMENTED();
 //    switch (expr.arguments().size()) {
 //    case 0: {
 //        auto* irType = typeMap(&type);
@@ -1873,7 +1870,7 @@ static bool isCopyCtor(sema::Function const& F) {
 //    default:
 //        SC_UNIMPLEMENTED();
 //    }
-//}
+}
 
 //Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
 //    /// If the values are different, we  call the destructor of LHS and the copy

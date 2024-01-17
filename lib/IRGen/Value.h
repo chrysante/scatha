@@ -8,6 +8,7 @@
 
 #include <utl/hash.hpp>
 #include <utl/vector.hpp>
+#include <range/v3/view.hpp>
 
 #include "Common/Base.h"
 #include "Common/Ranges.h"
@@ -42,32 +43,86 @@ class Value {
 public:
     /// # Static constructors
     
-    /// Create a packed value
-    static Value Packed(sema::Object const* semaObj,
-                  ir::Value* value,
-                  ValueLocation loc) {
-        return Value(semaObj, std::array{ value }, loc, ValueRepresentation::Packed);
-    }
+    explicit Value(std::string name,
+                   sema::ObjectType const* type,
+                   std::span<ir::Value* const> values,
+                   ValueLocation loc,
+                   ValueRepresentation repr):
+        _name(std::move(name)),
+        _type(type),
+        _vals(values | ToSmallVector<2>),
+        _loc(loc),
+        _repr(repr) {}
     
-    /// Create an unpacked value
-    static Value Unpacked(sema::Object const* semaObj,
-                    std::span<ir::Value* const> values,
-                    ValueLocation loc) {
-        return Value(semaObj, values, loc, ValueRepresentation::Unpacked);
-    }
+    explicit Value(std::string name,
+                   sema::ObjectType const* type,
+                   std::initializer_list<ir::Value*> values,
+                   ValueLocation loc,
+                   ValueRepresentation repr):
+        Value(std::move(name), type, std::span(values), loc, repr) {}
     
-    /// \overload
-    static Value Unpacked(sema::Object const* semaObj,
-                    std::initializer_list<ir::Value*> values,
-                    ValueLocation loc) {
-        return Unpacked(semaObj, std::span(values), loc);
-    }
+//    /// ???
+//    static Value MemoryUnpacked(std::string name,
+//                                sema::ObjectType const* type,
+//                                std::span<ir::Value* const> values) {
+//        using namespace ranges::views;
+//        return Value(std::move(name),
+//                     type,
+//                     values | ToSmallVector<2>,
+//                     ValueLocation::Memory,
+//                     ValueRepresentation::Unpacked);
+//    }
+//    
+//    /// Create a packed value in memory
+//    static Value MemoryPacked(std::string name,
+//                              sema::ObjectType const* type,
+//                              ir::Value* addr) {
+//        return Value(std::move(name),
+//                     type,
+//                     { addr },
+//                     ValueLocation::Memory,
+//                     ValueRepresentation::Packed);
+//    }
+//    
+//    /// Create an unpacked value in a register
+//    static Value RegisterUnpacked(std::string name,
+//                                  sema::ObjectType const* type,
+//                                  std::span<ir::Value* const> values) {
+//        using namespace ranges::views;
+//        return Value(std::move(name),
+//                     type,
+//                     values | ToSmallVector<2>,
+//                     ValueLocation::Register,
+//                     ValueRepresentation::Unpacked);
+//    }
+//    
+//    /// Create a packed value in a register
+//    static Value RegisterPacked(std::string name,
+//                                sema::ObjectType const* type,
+//                                ir::Value* value) {
+//        return Value(std::move(name),
+//                     type,
+//                     { value },
+//                     ValueLocation::Register,
+//                     ValueRepresentation::Packed);
+//    }
     
-    /// TODO: Document this
-    sema::Object const* semaObject() const { return semaObj; }
-    
+    /// \Returns the name of this value
+    std::string const& name() const { return _name; }
+
     /// TODO: Document this
     SC_NODEBUG std::span<ir::Value* const> get() const { return _vals; }
+    
+    /// TODO: Document this
+    SC_NODEBUG ir::Value* get(size_t index) const {
+        SC_EXPECT(index < _vals.size());
+        return _vals[index];
+    }
+    
+    /// TODO: Document this
+    SC_NODEBUG sema::ObjectType const* type() const {
+        return _type;
+    }
 
     /// \Returns the location of the value
     SC_NODEBUG ValueLocation location() const { return _loc; }
@@ -92,18 +147,21 @@ public:
     bool isUnpacked() const { return representation() == ValueRepresentation::Unpacked; }
     
 private:
-    explicit Value(sema::Object const* semaObj,
-                   std::span<ir::Value* const> values,
-                   ValueLocation location,
-                   ValueRepresentation repr):
-        semaObj(semaObj),
-        _vals(values | ToSmallVector<>),
-        _loc(location),
-        _repr(repr) {}
+//    explicit Value(std::string name,
+//                   sema::ObjectType const* type,
+//                   utl::small_vector<ir::Value*, 2> vals,
+//                   ValueLocation loc,
+//                   ValueRepresentation repr):
+//        _name(std::move(name)),
+//        _type(type),
+//        _vals(std::move(vals)),
+//        _loc(loc),
+//        _repr(repr) {}
     
-    sema::Object const* semaObj;
+    std::string _name;
+    sema::ObjectType const* _type;
     utl::small_vector<ir::Value*, 2> _vals;
-    ValueLocation _loc = {};
+    ValueLocation _loc;
     ValueRepresentation _repr;
 };
 
