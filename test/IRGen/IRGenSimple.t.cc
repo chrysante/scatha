@@ -129,3 +129,35 @@ TEST_CASE("IRGen - Return count of reference to dynamic array pointer", "[irgen]
     CHECK(size.baseValue() == &load);
     CHECK(view.nextAs<Return>().value() == &size);
 }
+
+TEST_CASE("IRGen - Pass reference to dynamic array through function", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ "public fn foo(ref: &[int]) -> &[int] { return ref; }" });
+    auto& F = mod.front();
+    CHECK(ranges::distance(F.parameters()) == 2);
+    auto view = BBView(F.entry());
+    
+    auto& insert1 = view.nextAs<InsertValue>();
+    CHECK(insert1.insertedValue() == &F.parameters().front());
+    auto& insert2 = view.nextAs<InsertValue>();
+    CHECK(insert2.insertedValue() == &F.parameters().back());
+    CHECK(view.nextAs<Return>().value() == &insert2);
+}
+
+TEST_CASE("IRGen - Assign to reference to dynamic array pointer", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ "public fn foo(p: &mut *[int], q: *[int]) { p = q; }" });
+    auto& F = mod.front();
+    CHECK(ranges::distance(F.parameters()) == 3);
+    auto view = BBView(F.entry());
+    
+    CHECK_NOTHROW(view.nextAs<Alloca>());
+    CHECK_NOTHROW(view.nextAs<InsertValue>());
+    CHECK_NOTHROW(view.nextAs<InsertValue>());
+    CHECK_NOTHROW(view.nextAs<Store>());
+    auto& q = view.nextAs<Load>();
+    auto& store = view.nextAs<Store>();
+    CHECK(store.address() == &F.parameters().front());
+    CHECK(store.value() == &q);
+    CHECK_NOTHROW(view.nextAs<Return>());
+}

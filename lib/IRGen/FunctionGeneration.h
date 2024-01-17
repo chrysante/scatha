@@ -120,6 +120,27 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     /// - any other object, we return a value of type `ptr` (to the object)
     utl::small_vector<ir::Value*, 2>  toUnpackedMemory(Value const& value);
     
+    /// Dispatches to the `to{Packed,Unpacked}{Register,Memory}` function according to \p Prepr and \p loc
+    template <ValueRepresentation Repr>
+    auto to(Value const& value, ValueLocation loc) {
+        if constexpr (Repr == ValueRepresentation::Packed) {
+            if (loc == ValueLocation::Register) {
+                return toPackedRegister(value);
+            }
+            else {
+                return toPackedMemory(value);
+            }
+        }
+        else {
+            if (loc == ValueLocation::Register) {
+                return toUnpackedRegister(value);
+            }
+            else {
+                return toUnpackedMemory(value);
+            }
+        }
+    }
+    
     /// \param semaType The type of the expression that we want to get the array size of
     /// \Returns the array size of the array or pointer or reference to array \p value
     /// \Pre \p value must be an array or a pointer or reference to an array

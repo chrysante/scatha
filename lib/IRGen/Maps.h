@@ -4,6 +4,7 @@
 #include <functional>
 #include <iosfwd>
 #include <optional>
+#include <string>
 
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
@@ -125,6 +126,9 @@ ir::FunctionAttribute mapFuncAttrs(sema::FunctionAttribute attr);
 
 ir::Visibility mapVisibility(sema::Function const* function);
 
+/// \Returns an appropriate name for the result of the binary operation \p op
+std::string binaryOpResultName(ast::BinaryOperator op);
+    
 } // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_MAPS_H_

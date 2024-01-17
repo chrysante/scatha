@@ -138,8 +138,26 @@ ir::Value*  FuncGenContextBase::toPackedRegister(Value const& value) {
     }
 }
 
-ir::Value*  FuncGenContextBase::toPackedMemory(Value const&) {
-    SC_UNIMPLEMENTED();
+ir::Value*  FuncGenContextBase::toPackedMemory(Value const& value) {
+    if (isDynArray(value.type())) {
+        if (value.isMemory()) {
+            SC_ASSERT(value.isUnpacked(), "");
+            return packValues(ValueArray{ value.get(0), value.get(1) }, value.name());
+        }
+        else {
+            // Store to local memory here
+            SC_UNIMPLEMENTED();
+        }
+    }
+    else {
+        if (value.isMemory()) {
+            return value.get(0);
+        }
+        else {
+            // Store to local memory here
+            SC_UNIMPLEMENTED();
+        }
+    }
 }
 
 utl::small_vector<ir::Value*, 2>  FuncGenContextBase::toUnpackedRegister(Value const& value) {

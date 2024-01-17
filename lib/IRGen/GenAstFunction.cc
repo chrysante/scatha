@@ -77,14 +77,16 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
 
-    template <ValueLocation Loc>
-    SC_NODEBUG ir::Value* getValue(ast::Expression const* expr);
+    template <ValueRepresentation Repr>
+    SC_NODEBUG ir::Value* getValue(ast::Expression const* expr, ValueLocation loc) {
+        return to<Repr>(getValue(expr), loc);
+    }
 
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
     //Value getValueImpl(ast::Literal const&);
     //Value getValueImpl(ast::UnaryExpression const&);
-    //Value getValueImpl(ast::BinaryExpression const&);
+    Value getValueImpl(ast::BinaryExpression const&);
     Value getValueImpl(ast::MemberAccess const&);
     Value genMemberAccess(ast::MemberAccess const&, sema::Variable const&);
     Value genMemberAccess(ast::MemberAccess const&, sema::Property const&);
@@ -146,21 +148,6 @@ struct FuncGenContext: FuncGenContextBase {
     void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
 
     /// # General utilities
-
-    /// If the value \p value is already in a register, returns that.
-    /// Otherwise loads the value from memory and returns the `load` instruction
-    ir::Value* toRegister(Value value, ast::ASTNode const& sourceNode);
-
-    /// If the value \p value is in memory, returns the address.
-    /// Otherwise allocates stack memory, stores the value and returns the
-    /// address
-    ir::Value* toMemory(Value value, ast::ASTNode const& sourceNode);
-
-    /// \Returns `toRegister(value)` or `toMemory(value)` depending on \p
-    /// location
-    ir::Value* toValueLocation(ValueLocation location,
-                               Value value,
-                               ast::ASTNode const& sourceNode);
 
     /// Add source location of \p expr to \p inst
     void addSourceLoc(ir::Instruction* inst, ast::ASTNode const& sourceNode);
@@ -517,11 +504,6 @@ Value FuncGenContext::getValue(ast::Expression const* expr) {
     return result;
 }
 
-template <ValueLocation Loc>
-ir::Value* FuncGenContext::getValue(ast::Expression const* expr) {
-    return toValueLocation(Loc, getValue(expr), *expr);
-}
-
 Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
     return valueMap(id.object());
 }
@@ -608,107 +590,42 @@ Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
 //    }
 //}
 
-static std::string getResultName(ast::BinaryOperator op) {
+Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
+    auto* type = expr.lhs()->type().get();
+    auto resName = binaryOpResultName(expr.operation());
     using enum ast::BinaryOperator;
-    switch (op) {
+    switch (expr.operation()) {
     case Multiplication:
-        return "prod";
+        [[fallthrough]];
     case Division:
-        return "quot";
+        [[fallthrough]];
     case Remainder:
-        return "rem";
+        [[fallthrough]];
     case Addition:
-        return "sum";
+        [[fallthrough]];
     case Subtraction:
-        return "diff";
+        [[fallthrough]];
     case LeftShift:
-        return "lshift";
+        [[fallthrough]];
     case RightShift:
-        return "rshift";
-    case Less:
-        return "ls";
-    case LessEq:
-        return "lseq";
-    case Greater:
-        return "grt";
-    case GreaterEq:
-        return "grteq";
-    case Equals:
-        return "eq";
-    case NotEquals:
-        return "neq";
+        [[fallthrough]];
     case BitwiseAnd:
-        return "and";
+        [[fallthrough]];
     case BitwiseXOr:
-        return "xor";
-    case BitwiseOr:
-        return "or";
-    case LogicalAnd:
-        return "land";
-    case LogicalOr:
-        return "lor";
-    case Assignment:
-        return "?";
-    case AddAssignment:
-        return "sum";
-    case SubAssignment:
-        return "diff";
-    case MulAssignment:
-        return "prod";
-    case DivAssignment:
-        return "quot";
-    case RemAssignment:
-        return "rem";
-    case LSAssignment:
-        return "lshift";
-    case RSAssignment:
-        return "rshift";
-    case AndAssignment:
-        return "and";
-    case OrAssignment:
-        return "or";
-    case XOrAssignment:
-        return "xor";
-    case Comma:
-        return "?";
-    }
-    SC_UNREACHABLE();
-}
-
-//Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
-//    auto* type = expr.lhs()->type().get();
-//    auto resName = getResultName(expr.operation());
-//    using enum ast::BinaryOperator;
-//    switch (expr.operation()) {
-//    case Multiplication:
-//        [[fallthrough]];
-//    case Division:
-//        [[fallthrough]];
-//    case Remainder:
-//        [[fallthrough]];
-//    case Addition:
-//        [[fallthrough]];
-//    case Subtraction:
-//        [[fallthrough]];
-//    case LeftShift:
-//        [[fallthrough]];
-//    case RightShift:
-//        [[fallthrough]];
-//    case BitwiseAnd:
-//        [[fallthrough]];
-//    case BitwiseXOr:
-//        [[fallthrough]];
-//    case BitwiseOr: {
+        [[fallthrough]];
+    case BitwiseOr: {
+        SC_UNIMPLEMENTED();
 //        auto* lhs = getValue<Register>(expr.lhs());
 //        auto* rhs = getValue<Register>(expr.rhs());
 //        auto operation = mapArithmeticOp(type, expr.operation());
 //        auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, resName);
 //        return Value(result, Register);
-//    }
-//
-//    case LogicalAnd:
-//        [[fallthrough]];
-//    case LogicalOr: {
+    }
+
+    case LogicalAnd:
+        [[fallthrough]];
+    case LogicalOr: {
+        SC_UNIMPLEMENTED();
 //        ir::Value* const lhs = getValue<Register>(expr.lhs());
 //        SC_ASSERT(isIntType(1, lhs->type()), "Need i1 for logical operation");
 //        auto* startBlock = &currentBlock();
@@ -743,66 +660,60 @@ static std::string getResultName(ast::BinaryOperator op) {
 //                "log.or");
 //            return Value(result, Register);
 //        }
-//    }
-//
-//    case Less:
-//        [[fallthrough]];
-//    case LessEq:
-//        [[fallthrough]];
-//    case Greater:
-//        [[fallthrough]];
-//    case GreaterEq:
-//        [[fallthrough]];
-//    case Equals:
-//        [[fallthrough]];
-//    case NotEquals: {
+    }
+
+    case Less:
+        [[fallthrough]];
+    case LessEq:
+        [[fallthrough]];
+    case Greater:
+        [[fallthrough]];
+    case GreaterEq:
+        [[fallthrough]];
+    case Equals:
+        [[fallthrough]];
+    case NotEquals: {
+        SC_UNIMPLEMENTED();
 //        auto* result =
-//            add<ir::CompareInst>(toThinPointer(getValue<Register>(expr.lhs())),
-//                                 toThinPointer(getValue<Register>(expr.rhs())),
+//            add<ir::CompareInst>(toThinPointer(getValue<Packed>(expr.lhs())),
+//                                 toThinPointer(getValue<Packed>(expr.rhs())),
 //                                 mapCompareMode(type),
 //                                 mapCompareOp(expr.operation()),
 //                                 resName);
 //        return Value(result, Register);
-//    }
-//
-//    case Comma:
-//        getValue(expr.lhs());
-//        return getValue(expr.rhs());
-//
-//    case Assignment: {
-//        auto lhs = getValue<Memory>(expr.lhs());
-//        auto rhs = getValue<Register>(expr.rhs());
-//        add<ir::Store>(lhs, rhs);
-//        /// It is never a reference because expressions don't have reference
-//        /// type
-//        if (isFatPointer(expr.lhs())) {
-//            auto lhsSize = valueMap.arraySize(expr.lhs()->object());
-//            SC_ASSERT(lhsSize.location() == Memory,
-//                      "Must be in memory to reassign");
-//            auto rhsSize = valueMap.arraySize(expr.rhs()->object());
-//            add<ir::Store>(lhsSize.get(), toRegister(rhsSize, expr));
-//        }
-//        return Value();
-//    }
-//    case AddAssignment:
-//        [[fallthrough]];
-//    case SubAssignment:
-//        [[fallthrough]];
-//    case MulAssignment:
-//        [[fallthrough]];
-//    case DivAssignment:
-//        [[fallthrough]];
-//    case RemAssignment:
-//        [[fallthrough]];
-//    case LSAssignment:
-//        [[fallthrough]];
-//    case RSAssignment:
-//        [[fallthrough]];
-//    case AndAssignment:
-//        [[fallthrough]];
-//    case OrAssignment:
-//        [[fallthrough]];
-//    case XOrAssignment: {
+    }
+
+    case Comma:
+        (void)getValue(expr.lhs()); /// Evaluate and discard LHS
+        return getValue(expr.rhs()); /// Evaluate and return RHS
+
+    case Assignment: {
+        auto* lhs = getValue<Packed>(expr.lhs(), Memory);
+        auto* rhs = getValue<Packed>(expr.rhs(), Register);
+        add<ir::Store>(lhs, rhs);
+        return Value("assignment.result", symbolTable.Void(),
+                     { ctx.voidValue() }, Register, Packed);
+    }
+    case AddAssignment:
+        [[fallthrough]];
+    case SubAssignment:
+        [[fallthrough]];
+    case MulAssignment:
+        [[fallthrough]];
+    case DivAssignment:
+        [[fallthrough]];
+    case RemAssignment:
+        [[fallthrough]];
+    case LSAssignment:
+        [[fallthrough]];
+    case RSAssignment:
+        [[fallthrough]];
+    case AndAssignment:
+        [[fallthrough]];
+    case OrAssignment:
+        [[fallthrough]];
+    case XOrAssignment: {
+        SC_UNIMPLEMENTED();
 //        auto lhs = getValue(expr.lhs());
 //        SC_ASSERT(lhs.isMemory(), "");
 //        auto rhs = getValue<Register>(expr.rhs());
@@ -814,10 +725,10 @@ static std::string getResultName(ast::BinaryOperator op) {
 //                                      resName);
 //        add<ir::Store>(lhs.get(), rhs);
 //        return Value();
-//    }
-//    }
-//    SC_UNREACHABLE();
-//}
+    }
+    }
+    SC_UNREACHABLE();
+}
 
 Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
     return visit(*expr.member()->object(),
@@ -1945,18 +1856,6 @@ void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack,
 //    }
 //    SC_UNREACHABLE();
 //}
-
-ir::Value* FuncGenContext::toValueLocation(ValueLocation location,
-                                           Value value,
-                                           ast::ASTNode const& sourceNode) {
-    switch (location) {
-    case Register:
-        return toRegister(value, sourceNode);
-    case Memory:
-        return toMemory(value, sourceNode);
-    }
-    SC_UNREACHABLE();
-}
 
 void FuncGenContext::addSourceLoc(ir::Instruction* inst,
                                   ast::ASTNode const& sourceNode) {

@@ -397,3 +397,70 @@ ir::Visibility irgen::mapVisibility(sema::Function const* function) {
     }
     return ir::Visibility::External;
 }
+
+std::string irgen::binaryOpResultName(ast::BinaryOperator op) {
+    using enum ast::BinaryOperator;
+    switch (op) {
+    case Multiplication:
+        return "prod";
+    case Division:
+        return "quot";
+    case Remainder:
+        return "rem";
+    case Addition:
+        return "sum";
+    case Subtraction:
+        return "diff";
+    case LeftShift:
+        return "lshift";
+    case RightShift:
+        return "rshift";
+    case Less:
+        return "ls";
+    case LessEq:
+        return "lseq";
+    case Greater:
+        return "grt";
+    case GreaterEq:
+        return "grteq";
+    case Equals:
+        return "eq";
+    case NotEquals:
+        return "neq";
+    case BitwiseAnd:
+        return "and";
+    case BitwiseXOr:
+        return "xor";
+    case BitwiseOr:
+        return "or";
+    case LogicalAnd:
+        return "land";
+    case LogicalOr:
+        return "lor";
+    case Assignment:
+        return "?";
+    case AddAssignment:
+        return "sum";
+    case SubAssignment:
+        return "diff";
+    case MulAssignment:
+        return "prod";
+    case DivAssignment:
+        return "quot";
+    case RemAssignment:
+        return "rem";
+    case LSAssignment:
+        return "lshift";
+    case RSAssignment:
+        return "rshift";
+    case AndAssignment:
+        return "and";
+    case OrAssignment:
+        return "or";
+    case XOrAssignment:
+        return "xor";
+    case Comma:
+        return "?";
+    }
+    SC_UNREACHABLE();
+}

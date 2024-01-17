@@ -60,53 +60,7 @@ public:
                    ValueLocation loc,
                    ValueRepresentation repr):
         Value(std::move(name), type, std::span(values), loc, repr) {}
-    
-//    /// ???
-//    static Value MemoryUnpacked(std::string name,
-//                                sema::ObjectType const* type,
-//                                std::span<ir::Value* const> values) {
-//        using namespace ranges::views;
-//        return Value(std::move(name),
-//                     type,
-//                     values | ToSmallVector<2>,
-//                     ValueLocation::Memory,
-//                     ValueRepresentation::Unpacked);
-//    }
-//    
-//    /// Create a packed value in memory
-//    static Value MemoryPacked(std::string name,
-//                              sema::ObjectType const* type,
-//                              ir::Value* addr) {
-//        return Value(std::move(name),
-//                     type,
-//                     { addr },
-//                     ValueLocation::Memory,
-//                     ValueRepresentation::Packed);
-//    }
-//    
-//    /// Create an unpacked value in a register
-//    static Value RegisterUnpacked(std::string name,
-//                                  sema::ObjectType const* type,
-//                                  std::span<ir::Value* const> values) {
-//        using namespace ranges::views;
-//        return Value(std::move(name),
-//                     type,
-//                     values | ToSmallVector<2>,
-//                     ValueLocation::Register,
-//                     ValueRepresentation::Unpacked);
-//    }
-//    
-//    /// Create a packed value in a register
-//    static Value RegisterPacked(std::string name,
-//                                sema::ObjectType const* type,
-//                                ir::Value* value) {
-//        return Value(std::move(name),
-//                     type,
-//                     { value },
-//                     ValueLocation::Register,
-//                     ValueRepresentation::Packed);
-//    }
-    
+
     /// \Returns the name of this value
     std::string const& name() const { return _name; }
 
