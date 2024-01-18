@@ -171,3 +171,37 @@ std::string_view sema::toString(ConstantKind k) {
 std::ostream& sema::operator<<(std::ostream& str, ConstantKind k) {
     return str << toString(k);
 }
+
+std::string_view sema::toString(ValueCatConversion conv) {
+    return std::array{
+#define SC_VALUECATCONV_DEF(Name, ...) std::string_view(#Name),
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
+}
+
+std::ostream& sema::operator<<(std::ostream& ostream, ValueCatConversion conv) {
+    return ostream << toString(conv);
+}
+
+std::string_view sema::toString(MutConversion conv) {
+    return std::array{
+#define SC_MUTCONV_DEF(Name, ...) std::string_view(#Name),
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
+}
+
+std::ostream& sema::operator<<(std::ostream& ostream, MutConversion conv) {
+    return ostream << toString(conv);
+}
+
+std::string_view sema::toString(ObjectTypeConversion conv) {
+    return std::array{
+#define SC_OBJTYPECONV_DEF(Name, ...) std::string_view(#Name),
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
+}
+
+std::ostream& sema::operator<<(std::ostream& ostream,
+                               ObjectTypeConversion conv) {
+    return ostream << toString(conv);
+}

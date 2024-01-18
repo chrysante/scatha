@@ -473,3 +473,75 @@ std::string irgen::binaryOpResultName(ast::BinaryOperator op) {
     }
     SC_UNREACHABLE();
 }
+
+ir::Conversion irgen::mapArithmeticConv(sema::ObjectTypeConversion conv) {
+    using enum sema::ObjectTypeConversion;
+    switch (conv) {
+    case SS_Trunc:
+        return ir::Conversion::Trunc;
+    case SU_Trunc:
+        return ir::Conversion::Trunc;
+    case US_Trunc:
+        return ir::Conversion::Trunc;
+    case UU_Trunc:
+        return ir::Conversion::Trunc;
+    case SS_Widen:
+        return ir::Conversion::Sext;
+    case SU_Widen:
+        return ir::Conversion::Zext;
+    case US_Widen:
+        return ir::Conversion::Zext;
+    case UU_Widen:
+        return ir::Conversion::Zext;
+    case Float_Trunc:
+        return ir::Conversion::Ftrunc;
+    case Float_Widen:
+        return ir::Conversion::Fext;
+    case SignedToFloat:
+        return ir::Conversion::StoF;
+    case UnsignedToFloat:
+        return ir::Conversion::UtoF;
+    case FloatToSigned:
+        return ir::Conversion::FtoS;
+    case FloatToUnsigned:
+        return ir::Conversion::FtoU;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+std::string irgen::arithmeticConvName(sema::ObjectTypeConversion conv) {
+    using enum sema::ObjectTypeConversion;
+    switch (conv) {
+    case SS_Trunc:
+        return "trunc";
+    case SU_Trunc:
+        return "trunc";
+    case US_Trunc:
+        return "trunc";
+    case UU_Trunc:
+        return "trunc";
+    case SS_Widen:
+        return "sext";
+    case SU_Widen:
+        return "zext";
+    case US_Widen:
+        return "zext";
+    case UU_Widen:
+        return "zext";
+    case Float_Trunc:
+        return "ftrunc";
+    case Float_Widen:
+        return "fext";
+    case SignedToFloat:
+        return "stof";
+    case UnsignedToFloat:
+        return "utof";
+    case FloatToSigned:
+        return "ftos";
+    case FloatToUnsigned:
+        return "ftou";
+    default:
+        SC_UNREACHABLE();
+    }
+}

@@ -1140,8 +1140,8 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
 
         case sema::ValueCatConversion::MaterializeTemporary: {
             auto value = getValue(expr);
-            return Value(utl::strcat(value.name(), ".conv"),
-                         conv.type().get(),
+            return Value(value.name(),
+                         value.type(),
                          toUnpackedMemory(value),
                          Memory,
                          Unpacked);
@@ -1150,100 +1150,46 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         SC_UNREACHABLE();
     }();
 
-    switch (conv.conversion()->objectConversion()) {
-        using enum sema::ObjectTypeConversion;
+    sema::ObjectTypeConversion convKind = conv.conversion()->objectConversion();
+    using enum sema::ObjectTypeConversion;
+    switch (convKind) {
     case None:
         return refConvResult;
-        //    case NullPtrToPtr:
-        //        if (isFatPointer(&conv)) {
-        //            valueMap.insertArraySize(conv.object(),
-        //                                     Value(ctx.intConstant(0, 64),
-        //                                     Register));
-        //        }
-        //        return refConvResult;
-        //    case NullPtrToUniquePtr: {
-        //        Value value(toMemory(refConvResult, conv),
-        //                    refConvResult.type(),
-        //                    Memory);
-        //        if (isFatPointer(&conv)) {
-        //            valueMap.insertArraySize(conv.object(),
-        //                                     Value(ctx.intConstant(0, 64),
-        //                                     Register));
-        //        }
-        //        return value;
-        //    }
-        //    case UniquePtrToPtr:
-        //        valueMap.insertArraySizeOf(conv.object(),
-        //        conv.expression()->object()); return refConvResult;
-        //    case Array_FixedToDynamic: {
-        //        valueMap.insertArraySizeOf(conv.object(), expr->object());
-        //        if (!isa<sema::PointerType>(*expr->type())) {
-        //            return refConvResult;
-        //        }
-        //        auto* count =
-        //            toRegister(valueMap.arraySize(conv.expression()->object()),
-        //            conv);
-        //        auto* arrayPtr =
-        //            makeArrayPointer(toRegister(refConvResult, conv), count);
-        //        return Value(arrayPtr, Register);
-        //    }
-        //    case Reinterpret_Array_ToByte:
-        //        [[fallthrough]];
-        //    case Reinterpret_Array_FromByte: {
-        //        auto* fromType =
-        //            cast<sema::ArrayType
-        //            const*>(stripPtr(expr->type().get()));
-        //        auto* toType =
-        //            cast<sema::ArrayType const*>(stripPtr(conv.type().get()));
-        //        size_t fromElemSize = fromType->elementType()->size();
-        //        size_t toElemSize = toType->elementType()->size();
-        //        auto data = refConvResult;
-        //        if (!toType->isDynamic()) {
-        //            SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
-        //            return data;
-        //        }
-        //        if (fromType->isDynamic()) {
-        //            auto fromCount = valueMap.arraySize(expr->object());
-        //            if (conv.conversion()->objectConversion() ==
-        //                Reinterpret_Array_ToByte)
-        //            {
-        //                auto* newCount =
-        //                    makeCountToByteSize(toRegister(fromCount, conv),
-        //                                        fromElemSize);
-        //                valueMap.insertArraySize(conv.object(),
-        //                                         Value(newCount, Register));
-        //            }
-        //            else {
-        //                auto* newCount =
-        //                    add<ir::ArithmeticInst>(toRegister(fromCount,
-        //                    conv),
-        //                                            ctx.intConstant(toElemSize,
-        //                                            64),
-        //                                            ir::ArithmeticOperation::SDiv,
-        //                                            "reinterpret.count");
-        //                valueMap.insertArraySize(conv.object(),
-        //                                         Value(newCount, Register));
-        //            }
-        //        }
-        //        else {
-        //            switch (conv.conversion()->objectConversion()) {
-        //            case Reinterpret_Array_ToByte:
-        //                valueMap.insertArraySize(conv.object(),
-        //                                         fromType->count() *
-        //                                         fromElemSize);
-        //                break;
-        //            case Reinterpret_Array_FromByte:
-        //                valueMap.insertArraySize(conv.object(),
-        //                                         fromType->count() /
-        //                                         toElemSize);
-        //                break;
-        //            default:
-        //                SC_UNREACHABLE();
-        //            }
-        //        }
-        //        return data;
-        //    }
-        //    case Reinterpret_Value_ToByteArray: {
+    case NullPtrToPtr:
+        return Value(refConvResult.name(),
+                     conv.type().get(),
+                     { refConvResult.get(0), ctx.intConstant(0, 64) },
+                     Register,
+                     Unpacked);
+    case NullPtrToUniquePtr: {
+        /// Here we have to consider if we want to keep unique pointers in
+        /// memory all the time or if it is okay to have them in registers
+        SC_UNIMPLEMENTED();
+    }
+    case UniquePtrToPtr:
+        return refConvResult;
+    case Array_FixedToDynamic: {
+        /// It would be nicer to have two cases `Array_FixedToDynamic` and
+        /// `ArrayPointer_FixedToDynamic` but refactoring sema conversion is a
+        /// major project that has to be done later
+        SC_ASSERT(
+            isa<sema::PointerType>(*expr->type()) || refConvResult.isMemory(),
+            "Dynamic arrays cannot be in registers. For rvalues we should have a MaterializeTemporary conversion before this case");
+        ValueLocation loc = refConvResult.location();
+        auto* data = to(loc, Unpacked, refConvResult).front();
+        size_t count = getStaticArraySize(stripPtr(expr->type().get())).value();
+        return Value(refConvResult.name(),
+                     conv.type().get(),
+                     { data, ctx.intConstant(count, 64) },
+                     loc,
+                     Unpacked);
+    }
+    case Reinterpret_Array_ToByte:
+        [[fallthrough]];
+    case Reinterpret_Array_FromByte:
+        SC_UNIMPLEMENTED();
+    case Reinterpret_Value_ToByteArray: {
+        SC_UNIMPLEMENTED();
         //        auto data = refConvResult;
         //        auto* fromType = stripPtr(expr->type().get());
         //        auto* toType =
@@ -1252,8 +1198,9 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         //            valueMap.insertArraySize(conv.object(), fromType->size());
         //        }
         //        return data;
-        //    }
-        //    case Reinterpret_Value_FromByteArray: {
+    }
+    case Reinterpret_Value_FromByteArray: {
+        SC_UNIMPLEMENTED();
         //        Value data = refConvResult;
         //        auto* fromType =
         //            cast<sema::ArrayType
@@ -1273,97 +1220,53 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         //            return Value(toThinPointer(data.get()), Register);
         //        }
         //        return data;
-        //    }
-        //    case Reinterpret_Value: {
+    }
+    case Reinterpret_Value: {
+        SC_UNIMPLEMENTED();
         //        auto* result =
         //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
         //                                               typeMap(conv.type()),
         //                                               ir::Conversion::Bitcast,
         //                                               "reinterpret");
         //        return Value(result, Register);
-        //    }
-        //    case SS_Trunc:
-        //        [[fallthrough]];
-        //    case SU_Trunc:
-        //        [[fallthrough]];
-        //    case US_Trunc:
-        //        [[fallthrough]];
-        //    case UU_Trunc: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::Trunc,
-        //                                               "trunc");
-        //        return Value(result, Register);
-        //    }
-        //    case SS_Widen:
-        //        [[fallthrough]];
-        //    case SU_Widen: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::Sext,
-        //                                               "sext");
-        //        return Value(result, Register);
-        //    }
-        //    case US_Widen:
-        //        [[fallthrough]];
-        //    case UU_Widen: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::Zext,
-        //                                               "zext");
-        //        return Value(result, Register);
-        //    }
-        //    case Float_Trunc: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::Ftrunc,
-        //                                               "ftrunc");
-        //        return Value(result, Register);
-        //    }
-        //    case Float_Widen: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::Fext,
-        //                                               "fext");
-        //        return Value(result, Register);
-        //    }
-        //    case SignedToFloat: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::StoF,
-        //                                               "stof");
-        //        return Value(result, Register);
-        //    }
-        //    case UnsignedToFloat: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::UtoF,
-        //                                               "utof");
-        //        return Value(result, Register);
-        //    }
-        //    case FloatToSigned: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::FtoS,
-        //                                               "ftos");
-        //        return Value(result, Register);
-        //    }
-        //    case FloatToUnsigned: {
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::FtoU,
-        //                                               "ftou");
-        //        return Value(result, Register);
-        //    }
+    }
+    case SS_Trunc:
+        [[fallthrough]];
+    case SU_Trunc:
+        [[fallthrough]];
+    case US_Trunc:
+        [[fallthrough]];
+    case UU_Trunc:
+        [[fallthrough]];
+    case SS_Widen:
+        [[fallthrough]];
+    case SU_Widen:
+        [[fallthrough]];
+    case US_Widen:
+        [[fallthrough]];
+    case UU_Widen:
+        [[fallthrough]];
+    case Float_Trunc:
+        [[fallthrough]];
+    case Float_Widen:
+        [[fallthrough]];
+    case SignedToFloat:
+        [[fallthrough]];
+    case UnsignedToFloat:
+        [[fallthrough]];
+    case FloatToSigned:
+        [[fallthrough]];
+    case FloatToUnsigned: {
+        auto name = utl::strcat(refConvResult.name(),
+                                ".",
+                                arithmeticConvName(convKind));
+        auto* result =
+            add<ir::ConversionInst>(to<Packed>(Register, refConvResult),
+                                    typeMap.packed(conv.type().get()),
+                                    mapArithmeticConv(convKind),
+                                    name);
+        return Value(name, conv.type().get(), { result }, Register, Packed);
+    }
     }
     SC_UNREACHABLE();
 }

@@ -131,6 +131,12 @@ ir::Visibility mapVisibility(sema::Function const* function);
 /// \Returns an appropriate name for the result of the binary operation \p op
 std::string binaryOpResultName(ast::BinaryOperator op);
 
+///
+ir::Conversion mapArithmeticConv(sema::ObjectTypeConversion conv);
+
+///
+std::string arithmeticConvName(sema::ObjectTypeConversion conv);
+
 } // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_MAPS_H_

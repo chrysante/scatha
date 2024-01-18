@@ -13,36 +13,6 @@
 
 namespace scatha::sema {
 
-/// Conversion between reference qualifications
-enum class ValueCatConversion : uint8_t {
-#define SC_VALUECATCONV_DEF(Name, ...) Name,
-#include "Sema/Analysis/Conversion.def"
-};
-
-std::string_view toString(ValueCatConversion conv);
-
-std::ostream& operator<<(std::ostream& ostream, ValueCatConversion conv);
-
-/// Conversion between mutability qualifications
-enum class MutConversion : uint8_t {
-#define SC_MUTCONV_DEF(Name, ...) Name,
-#include "Sema/Analysis/Conversion.def"
-};
-
-std::string_view toString(MutConversion conv);
-
-std::ostream& operator<<(std::ostream& ostream, MutConversion conv);
-
-/// Conversion between different object types
-enum class ObjectTypeConversion : uint8_t {
-#define SC_OBJTYPECONV_DEF(Name, ...) Name,
-#include "Sema/Analysis/Conversion.def"
-};
-
-std::string_view toString(ObjectTypeConversion conv);
-
-std::ostream& operator<<(std::ostream& ostream, ObjectTypeConversion conv);
-
 /// Represents a conversion of a value from one type to another
 class Conversion {
 public:

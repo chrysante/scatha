@@ -211,7 +211,8 @@ struct PrintCtx {
                                   utl::streammanip([&](std::ostream&  str) {
                     auto printEnum = [&, first = true](auto val) mutable {
                         if (val == decltype(val)::None) { return; }
-                        if (!first) { first = true; str << ", "; }
+                        if (!first) { str << ", "; }
+                        first = false; 
                         str << val;
                     };
                     printEnum(conv.conversion()->valueCatConversion());

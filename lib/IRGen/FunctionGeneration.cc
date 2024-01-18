@@ -110,10 +110,19 @@ ir::Value* FuncGenContextBase::toPackedRegister(Value const& value) {
     SC_ASSERT(!isDynArray(value.type()),
               "Cannot have dynamic array in register");
     if (value.isMemory()) {
-        /// `{ Memory, {Packed,Unpacked} } -> { Register, Packed }`
-        return add<ir::Load>(value.get(0),
-                             typeMap.packed(value.type()),
-                             value.name());
+        /// `{ Memory, Packed } -> { Register, Packed }`
+        if (value.isPacked() || !isDynArrayPointer(value.type())) {
+            return add<ir::Load>(value.get(0),
+                                 typeMap.packed(value.type()),
+                                 value.name());
+        }
+        /// `{ Memory, Unpacked } -> { Register, Packed }`
+        else {
+            auto* data = add<ir::Load>(value.get(0),
+                                       ctx.ptrType(),
+                                       utl::strcat(value.name(), ".data"));
+            return packValues(ValueArray{ data, value.get(1) }, value.name());
+        }
     }
     else {
         if (value.isPacked()) {

@@ -947,6 +947,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         auto args = fc.arguments() | ranges::views::transform([](auto* arg) {
             return arg->extractFromParent();
         }) | ToSmallVector<>;
+        /// TODO: Allocate ConstructExpr only for user defined types.
+        /// For builtin types conversion nodes are enough
         auto owner = allocate<ast::ConstructExpr>(std::move(args),
                                                   targetType,
                                                   fc.sourceRange());
