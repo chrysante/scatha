@@ -15,12 +15,6 @@ using namespace irgen;
 
 namespace {
 
-struct LoopDesc {
-    ir::BasicBlock* body;
-    ir::Value* index;
-    ir::Instruction const* insertPoint;
-};
-
 struct FuncGenContext: FuncGenContextBase {
     sema::ObjectType const* parentType;
     sema::SpecialLifetimeFunction kind;
@@ -38,7 +32,7 @@ struct FuncGenContext: FuncGenContextBase {
     ir::Value* getUniquePtrCountAddr(ir::Value* thisPtr);
     void genImpl(sema::ObjectType const&) { SC_UNREACHABLE(); }
 
-    void genMemberConstruction(ir::Instruction const* before,
+    void genMemberConstruction(ir::BasicBlock::ConstIterator before,
                                sema::ObjectType const& memberType,
                                ir::Value* index);
 
@@ -46,12 +40,6 @@ struct FuncGenContext: FuncGenContextBase {
     utl::small_vector<ir::Value*, 2> genArguments(ir::Instruction const* before,
                                                   ir::Type const* inType,
                                                   ir::Value* index);
-
-    /// \Returns the loop structure
-    LoopDesc genLoop(ir::Value* count);
-
-    /// \overload
-    LoopDesc genLoop(size_t count);
 };
 
 } // namespace
@@ -77,7 +65,7 @@ void FuncGenContext::generate() {
 void FuncGenContext::genImpl(sema::StructType const& type) {
     for (auto* var: type.memberVariables()) {
         /// `cast` is safe here because data member must be of object type
-        genMemberConstruction(currentBlock().end().to_address(),
+        genMemberConstruction(currentBlock().end(),
                               *cast<sema::ObjectType const*>(var->type()),
                               ctx.intConstant(var->index(), 64));
     }
@@ -94,7 +82,7 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
             return ctx.intConstant(type.count(), 64);
         }
     }();
-    auto loop = genLoop(count);
+    auto loop = generateForLoop("arraylifetime", count);
     withBlockCurrent(loop.body, [&] {
         genMemberConstruction(loop.insertPoint, *elemType, loop.index);
     });
@@ -185,7 +173,7 @@ void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
     }
 }
 
-void FuncGenContext::genMemberConstruction(ir::Instruction const* before,
+void FuncGenContext::genMemberConstruction(ir::BasicBlock::ConstIterator before,
                                            sema::ObjectType const& type,
                                            ir::Value* index) {
     //    auto arguments = genArguments(before, typeMap(&type), index);
@@ -263,36 +251,4 @@ utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
         }
     }
     return args;
-}
-
-LoopDesc FuncGenContext::genLoop(ir::Value* count) {
-    auto* pred = &currentBlock();
-    auto* body = newBlock("loop.body");
-    auto* end = newBlock("loop.end");
-
-    add<ir::Goto>(body);
-    add(body);
-
-    auto* phi =
-        add<ir::Phi>(std::array{ ir::PhiMapping{ pred, ctx.intConstant(0, 64) },
-                                 ir::PhiMapping{ body, nullptr } },
-                     "counter");
-    auto* inc = add<ir::ArithmeticInst>(phi,
-                                        ctx.intConstant(1, 64),
-                                        ir::ArithmeticOperation::Add,
-                                        "loop.inc");
-    phi->setArgument(1, inc);
-    auto* cond = add<ir::CompareInst>(inc,
-                                      count,
-                                      ir::CompareMode::Unsigned,
-                                      ir::CompareOperation::Equal,
-                                      "loop.test");
-    add<ir::Branch>(cond, end, body);
-    add(end);
-
-    return LoopDesc{ body, phi, inc };
-}
-
-LoopDesc FuncGenContext::genLoop(size_t count) {
-    return genLoop(ctx.intConstant(count, 64));
 }

@@ -8,6 +8,7 @@
 
 #include "AST/Fwd.h"
 #include "IR/Builder.h"
+#include "IR/CFG/BasicBlock.h"
 #include "IR/Fwd.h"
 #include "IRGen/CallingConvention.h"
 #include "IRGen/IRGen.h"
@@ -48,6 +49,13 @@ void generateSynthFunction(Config config, FuncGenParameters);
 void generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
                              Config config,
                              FuncGenParameters);
+
+/// Metadata for synthesized loop generation
+struct CountedForLoopDesc {
+    ir::BasicBlock* body;
+    ir::Value* index;
+    ir::BasicBlock::ConstIterator insertPoint;
+};
 
 /// Base class of context objects for function generation of both user defined
 /// and compiler generated functions
@@ -142,6 +150,16 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
 
     /// Emits a multiply instruction to obtain the byte size of an array
     ir::Value* makeCountToByteSize(ir::Value* count, size_t elemSize);
+
+    /// Generates a for loop with trip count \p tripCount at the current
+    /// position.
+    /// \param name is used to generate descriptive names for the basic blocks
+    /// \Returns the loop metadata
+    CountedForLoopDesc generateForLoop(std::string_view name,
+                                       ir::Value* tripCount);
+
+    /// \overload for static trip count
+    CountedForLoopDesc generateForLoop(std::string_view name, size_t tripCount);
 };
 
 template <ValueRepresentation Repr>
