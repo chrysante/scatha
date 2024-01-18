@@ -76,6 +76,13 @@ public:
     /// \pre \p elems must not be empty
     Value* packValues(std::span<Value* const> elems, std::string name);
 
+    /// If \p values has one element, that values is returned.
+    /// Otherwise generates a binary left fold over \p op of the arguments \p
+    /// values and returns the result \pre \p values must not be empty
+    ir::Value* foldValues(ir::ArithmeticOperation op,
+                          std::span<Value* const> values,
+                          std::string name);
+
     /// Sets the 'add point' to \p newAddPoint
     /// The add point is the iterator before which the `add()` methods insert
     /// instructions

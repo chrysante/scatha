@@ -43,3 +43,87 @@ public fn foo(x: &X) -> int { return x.ptr[10]; }
     auto& addrGep = dyncast<GetElementPointer const&>(*addrLoad.address());
     CHECK(addrGep.basePointer() == &F.parameters().front());
 }
+
+TEST_CASE("IRGen - 'empty' property", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] =
+        makeIR({ "public fn foo(n: &[int]) { return n.empty; }" });
+    auto& F = mod.front();
+    auto view = BBView(F.entry());
+
+    auto& cmp = view.nextAs<CompareInst>();
+    CHECK(cmp.lhs() == &F.parameters().back());
+    CHECK(cmp.rhs() == ctx.intConstant(0, 64));
+    auto& ret = view.nextAs<Return>();
+    CHECK(ret.value() == &cmp);
+}
+
+TEST_CASE("IRGen - 'front' property on register array", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ R"(
+public fn foo() { return get().front; }
+fn get() -> [int, 2] {}
+)" });
+    auto& F = mod.front();
+    auto view = BBView(F.entry());
+
+    auto& call = view.nextAs<Call>();
+    auto& extract = view.nextAs<ExtractValue>();
+    CHECK(extract.baseValue() == &call);
+    CHECK(extract.memberIndices().size() == 1);
+    CHECK(extract.memberIndices().front() == 0);
+    auto& ret = view.nextAs<Return>();
+    CHECK(ret.value() == &extract);
+}
+
+TEST_CASE("IRGen - 'back' property on register array", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ R"(
+public fn foo() { return get().back; }
+fn get() -> [byte, 8] {}
+)" });
+    auto& F = mod.front();
+    auto view = BBView(F.entry());
+
+    auto& call = view.nextAs<Call>();
+    auto& extract = view.nextAs<ExtractValue>();
+    CHECK(extract.baseValue() == &call);
+    CHECK(extract.memberIndices().size() == 1);
+    CHECK(extract.memberIndices().front() == 7);
+    auto& ret = view.nextAs<Return>();
+    CHECK(ret.value() == &extract);
+}
+
+TEST_CASE("IRGen - 'front' property on memory array", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] =
+        makeIR({ "public fn foo(n: &[int]) { return n.front; }" });
+    auto& F = mod.front();
+    auto view = BBView(F.entry());
+
+    auto& gep = view.nextAs<GetElementPointer>();
+    CHECK(gep.basePointer() == &F.parameters().front());
+    CHECK(gep.arrayIndex() == ctx.intConstant(0, 64));
+    auto& load = view.nextAs<Load>();
+    CHECK(load.address() == &gep);
+    auto& ret = view.nextAs<Return>();
+    CHECK(ret.value() == &load);
+}
+
+TEST_CASE("IRGen - 'back' property on memory array", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ "public fn foo(n: &[int]) { return n.back; }" });
+    auto& F = mod.front();
+    auto view = BBView(F.entry());
+
+    auto& sub = view.nextAs<ArithmeticInst>();
+    CHECK(sub.lhs() == &F.parameters().back());
+    CHECK(sub.rhs() == ctx.intConstant(1, 64));
+    auto& gep = view.nextAs<GetElementPointer>();
+    CHECK(gep.basePointer() == &F.parameters().front());
+    CHECK(gep.arrayIndex() == &sub);
+    auto& load = view.nextAs<Load>();
+    CHECK(load.address() == &gep);
+    auto& ret = view.nextAs<Return>();
+    CHECK(ret.value() == &load);
+}

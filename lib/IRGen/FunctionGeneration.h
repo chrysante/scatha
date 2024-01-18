@@ -70,20 +70,6 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     ///
     ir::ForeignFunction* getBuiltin(svm::Builtin builtin);
 
-    /// Emit a call to `memcpy`
-    ir::Call* callMemcpy(ir::Value* dest,
-                         ir::Value* source,
-                         ir::Value* numBytes);
-
-    /// \overload for `size_t numBytes`
-    ir::Call* callMemcpy(ir::Value* dest, ir::Value* source, size_t numBytes);
-
-    /// Emit a call to `memset`
-    ir::Call* callMemset(ir::Value* dest, ir::Value* numBytes, int value);
-
-    /// \overload for `size_t numBytes`
-    ir::Call* callMemset(ir::Value* dest, size_t numBytes, int value);
-
     /// \Returns \p value in a register as a packed value
     /// This means if the value is
     /// - a dynamic array pointer, we return a value of type `{ ptr, i64 }`
@@ -119,43 +105,20 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     /// Dispatches to the `to{Packed,Unpacked}{Register,Memory}` function
     /// according to \p Prepr and \p loc
     template <ValueRepresentation Repr>
-    auto to(ValueLocation loc, Value const& value) {
-        if constexpr (Repr == ValueRepresentation::Packed) {
-            if (loc == ValueLocation::Register) {
-                return toPackedRegister(value);
-            }
-            else {
-                return toPackedMemory(value);
-            }
-        }
-        else {
-            if (loc == ValueLocation::Register) {
-                return toUnpackedRegister(value);
-            }
-            else {
-                return toUnpackedMemory(value);
-            }
-        }
-    }
+    auto to(ValueLocation loc, Value const& value);
 
     /// \overload for non-template argument \p repr
     utl::small_vector<ir::Value*, 2> to(ValueLocation loc,
                                         ValueRepresentation repr,
-                                        Value const& value) {
-        using enum ValueRepresentation;
-        if (repr == Packed) {
-            return { to<Packed>(loc, value) };
-        }
-        else {
-            return to<Unpacked>(loc, value);
-        }
-    }
+                                        Value const& value);
 
     /// \param semaType The type of the expression that we want to get the array
-    /// size of \Returns the array size of the array or pointer or reference to
+    /// size of
+    /// \Returns the array size of the array or pointer or reference to
     /// array \p value \Pre \p value must be an array or a pointer or reference
     /// to an array If \p value is a statically sized array, the static size is
-    /// returned as a constant Otherwise ....
+    /// returned as a constant
+    /// Otherwise ...
     Value getArraySize(sema::Type const* semaType, Value const& value);
 
     /// Insert two `ExtractValue` instructions (one for the data pointer and one
@@ -163,9 +126,55 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     utl::small_vector<ir::Value*, 2> unpackDynArrayPointerInRegister(
         ir::Value* ptr, std::string name);
 
+    /// Emit a call to `memcpy`
+    ir::Call* callMemcpy(ir::Value* dest,
+                         ir::Value* source,
+                         ir::Value* numBytes);
+
+    /// \overload for `size_t numBytes`
+    ir::Call* callMemcpy(ir::Value* dest, ir::Value* source, size_t numBytes);
+
+    /// Emit a call to `memset`
+    ir::Call* callMemset(ir::Value* dest, ir::Value* numBytes, int value);
+
+    /// \overload for `size_t numBytes`
+    ir::Call* callMemset(ir::Value* dest, size_t numBytes, int value);
+
     /// Emits a multiply instruction to obtain the byte size of an array
     ir::Value* makeCountToByteSize(ir::Value* count, size_t elemSize);
 };
+
+template <ValueRepresentation Repr>
+auto FuncGenContextBase::to(ValueLocation loc, Value const& value) {
+    if constexpr (Repr == ValueRepresentation::Packed) {
+        if (loc == ValueLocation::Register) {
+            return toPackedRegister(value);
+        }
+        else {
+            return toPackedMemory(value);
+        }
+    }
+    else {
+        if (loc == ValueLocation::Register) {
+            return toUnpackedRegister(value);
+        }
+        else {
+            return toUnpackedMemory(value);
+        }
+    }
+}
+
+/// \overload for non-template argument \p repr
+inline utl::small_vector<ir::Value*, 2> FuncGenContextBase::to(
+    ValueLocation loc, ValueRepresentation repr, Value const& value) {
+    using enum ValueRepresentation;
+    if (repr == Packed) {
+        return { to<Packed>(loc, value) };
+    }
+    else {
+        return to<Unpacked>(loc, value);
+    }
+}
 
 } // namespace scatha::irgen
 

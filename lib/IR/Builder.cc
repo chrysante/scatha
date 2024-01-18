@@ -61,6 +61,17 @@ Value* BasicBlockBuilder::packValues(std::span<Value* const> elems,
     }
 }
 
+ir::Value* BasicBlockBuilder::foldValues(ir::ArithmeticOperation op,
+                                         std::span<Value* const> values,
+                                         std::string name) {
+    SC_EXPECT(!values.empty());
+    auto* result = values.front();
+    for (auto* value: values | drop(1)) {
+        result = add<ArithmeticInst>(result, value, op, name);
+    }
+    return result;
+}
+
 FunctionBuilder::FunctionBuilder(Context& ctx, Function* function):
     BasicBlockBuilder(ctx, nullptr), function(*function) {}
 

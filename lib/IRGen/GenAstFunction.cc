@@ -100,7 +100,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::Conditional const&);
     Value getValueImpl(ast::FunctionCall const&);
     Value getValueImpl(ast::Subscript const&);
-    // Value getValueImpl(ast::SubscriptSlice const&);
+    Value getValueImpl(ast::SubscriptSlice const&);
     Value getValueImpl(ast::ListExpression const&);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
     void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
@@ -660,14 +660,24 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case Equals:
         [[fallthrough]];
     case NotEquals: {
-        SC_UNIMPLEMENTED();
-        //        auto* result =
-        //            add<ir::CompareInst>(toThinPointer(getValue<Packed>(expr.lhs())),
-        //                                 toThinPointer(getValue<Packed>(expr.rhs())),
-        //                                 mapCompareMode(type),
-        //                                 mapCompareOp(expr.operation()),
-        //                                 resName);
-        //        return Value(result, Register);
+        auto lhs = getValue<Unpacked>(Register, expr.lhs());
+        auto rhs = getValue<Unpacked>(Register, expr.rhs());
+        auto values = zip(lhs, rhs) | transform([&](auto p) -> ir::Value* {
+            auto [lhs, rhs] = p;
+            return add<ir::CompareInst>(lhs,
+                                        rhs,
+                                        mapCompareMode(type),
+                                        mapCompareOp(expr.operation()),
+                                        resName);
+        }) | ToSmallVector<>;
+        using enum ir::ArithmeticOperation;
+        auto* combined =
+            foldValues(expr.operation() == Equals ? And : Or, values, resName);
+        return Value(resName,
+                     expr.type().get(),
+                     { combined },
+                     Register,
+                     Packed);
     }
 
     case Comma:
@@ -762,108 +772,67 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                             getValue(expr.accessed()));
     }
     case ArrayEmpty: {
-        SC_UNIMPLEMENTED();
-        //        auto* arrayType =
-        //            cast<sema::ArrayType
-        //            const*>(expr.accessed()->type().get());
-        //        if (arrayType->isDynamic()) {
-        //            getValue(expr.accessed());
-        //            auto size = valueMap.arraySize(expr.accessed()->object());
-        //            auto* empty = add<ir::CompareInst>(toRegister(size, expr),
-        //                                               ctx.intConstant(0, 64),
-        //                                               ir::CompareMode::Signed,
-        //                                               ir::CompareOperation::Equal,
-        //                                               "empty");
-        //            return Value(empty, Register);
-        //        }
-        //        else {
-        //            return Value(ctx.boolConstant(arrayType->count() == 0),
-        //            Register);
-        //        }
+        auto* arrayType =
+            cast<sema::ArrayType const*>(expr.accessed()->type().get());
+        auto accessed = getValue(expr.accessed());
+        auto* empty = [&]() -> ir::Value* {
+            if (!arrayType->isDynamic()) {
+                return ctx.boolConstant(arrayType->count());
+            }
+            auto* size = to<Packed>(Register,
+                                    getArraySize(expr.accessed()->type().get(),
+                                                 accessed));
+            return add<ir::CompareInst>(size,
+                                        ctx.intConstant(0, 64),
+                                        ir::CompareMode::Signed,
+                                        ir::CompareOperation::Equal,
+                                        "empty");
+        }();
+        return Value("empty", expr.type().get(), { empty }, Register, Packed);
     }
     case ArrayFront:
         [[fallthrough]];
     case ArrayBack: {
-        SC_UNIMPLEMENTED();
-        //        // TODO: Check that array is not empty
-        //        auto* arrayType =
-        //            cast<sema::ArrayType
-        //            const*>(expr.accessed()->type().get());
-        //        auto array = getValue(expr.accessed());
-        //        switch (array.location()) {
-        //        case Register: {
-        //            SC_ASSERT(!arrayType->isDynamic(),
-        //                      "Can't have dynamic array in register");
-        //            size_t index = prop.kind() == ArrayFront ? 0 :
-        //                                                       arrayType->count()
-        //                                                       - 1;
-        //
-        //            if (isFatPointer(arrayType->elementType())) {
-        //                auto* data = add<ir::ExtractValue>(array.get(),
-        //                                                   IndexArray{ index,
-        //                                                   0 },
-        //                                                   "array.front.data");
-        //                auto* size = add<ir::ExtractValue>(array.get(),
-        //                                                   IndexArray{ index,
-        //                                                   1 },
-        //                                                   "array.front.size");
-        //                valueMap.insertArraySize(expr.object(), Value(size,
-        //                Register)); return Value(data, Register);
-        //            }
-        //            else {
-        //                auto* elem = add<ir::ExtractValue>(array.get(),
-        //                                                   IndexArray{ index
-        //                                                   }, "array.front");
-        //                return Value(elem, Register);
-        //            }
-        //        }
-        //        case Memory: {
-        //            auto* irElemType = typeMap(arrayType->elementType());
-        //            auto* index = [&]() -> ir::Value* {
-        //                if (prop.kind() == ArrayFront) {
-        //                    return ctx.intConstant(0, 64);
-        //                }
-        //                if (!arrayType->isDynamic()) {
-        //                    return ctx.intConstant(arrayType->count() - 1,
-        //                    64);
-        //                }
-        //                auto count =
-        //                valueMap.arraySize(expr.accessed()->object()); return
-        //                add<ir::ArithmeticInst>(toRegister(count, expr),
-        //                                               ctx.intConstant(1, 64),
-        //                                               ir::ArithmeticOperation::Sub,
-        //                                               "back.index");
-        //            }();
-        //            if (isFatPointer(arrayType->elementType())) {
-        //                auto* arrayView = arrayPtrType;
-        //                auto* irSizeType = ctx.intType(64);
-        //                auto* data = add<ir::GetElementPointer>(arrayView,
-        //                                                        array.get(),
-        //                                                        index,
-        //                                                        IndexArray{ 0
-        //                                                        },
-        //                                                        "array.front.data");
-        //                auto* size = add<ir::GetElementPointer>(arrayView,
-        //                                                        array.get(),
-        //                                                        index,
-        //                                                        IndexArray{ 1
-        //                                                        },
-        //                                                        "array.front.size");
-        //                valueMap.insertArraySize(expr.object(),
-        //                                         Value(size, irSizeType,
-        //                                         Memory));
-        //                return Value(data, irElemType, Memory);
-        //            }
-        //            else {
-        //                auto* elem = add<ir::GetElementPointer>(irElemType,
-        //                                                        array.get(),
-        //                                                        index,
-        //                                                        IndexArray{},
-        //                                                        "array.front");
-        //                return Value(elem, irElemType, Memory);
-        //            }
-        //        }
-        //        }
+        // TODO: Check that array is not empty
+        auto* arrayType =
+            cast<sema::ArrayType const*>(expr.accessed()->type().get());
+        bool isFront = prop.kind() == ArrayFront;
+        auto accessed = getValue(expr.accessed());
+        auto name = utl::strcat(accessed.name(), isFront ? ".front" : ".back");
+        switch (accessed.location()) {
+        case Register: {
+            size_t index = isFront ? 0 : arrayType->count() - 1;
+            auto* elem = add<ir::ExtractValue>(to<Packed>(Register, accessed),
+                                               IndexArray{ index },
+                                               name);
+            return Value(name, expr.type().get(), { elem }, Register, Packed);
+        }
+        case Memory: {
+            auto* index = [&]() -> ir::Value* {
+                if (isFront) {
+                    return ctx.intConstant(0, 64);
+                }
+                if (!arrayType->isDynamic()) {
+                    return ctx.intConstant(arrayType->count() - 1, 64);
+                }
+                auto count =
+                    getArraySize(expr.accessed()->type().get(), accessed);
+                return add<ir::ArithmeticInst>(to<Packed>(Register, count),
+                                               ctx.intConstant(1, 64),
+                                               ir::ArithmeticOperation::Sub,
+                                               "back.index");
+            }();
+            auto* irElemType = typeMap.packed(expr.type().get());
+            auto* elem =
+                add<ir::GetElementPointer>(irElemType,
+                                           to<Unpacked>(Memory, accessed)
+                                               .front(),
+                                           index,
+                                           IndexArray{},
+                                           utl::strcat(name, ".addr"));
+            return Value(name, expr.type().get(), { elem }, Memory, Packed);
+        }
+        }
     }
     default:
         SC_UNREACHABLE();
@@ -983,26 +952,24 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
                  Packed);
 }
 
-// Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
-//     auto* arrayType = cast<sema::ArrayType
-//     const*>(expr.callee()->type().get()); auto* elemType =
-//     typeMap(arrayType->elementType()); auto array = getValue(expr.callee());
-//     auto lower = getValue<Register>(expr.lower());
-//     auto upper = getValue<Register>(expr.upper());
-//     SC_ASSERT(array.location() == Memory, "Must be in memory to be sliced");
-//     auto* addr = add<ir::GetElementPointer>(elemType,
-//                                             array.get(),
-//                                             lower,
-//                                             IndexArray{},
-//                                             "elem.ptr");
-//     Value result(addr, typeMap(expr.type()), Memory);
-//     auto* size = add<ir::ArithmeticInst>(upper,
-//                                          lower,
-//                                          ir::ArithmeticOperation::Sub,
-//                                          "slice.count");
-//     valueMap.insertArraySize(expr.object(), Value(size, Register));
-//     return result;
-// }
+Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
+    auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
+    auto* elemType = typeMap.packed(arrayType->elementType());
+    auto array = getValue(expr.callee());
+    auto lower = getValue<Packed>(Register, expr.lower());
+    auto upper = getValue<Packed>(Register, expr.upper());
+    auto name = utl::strcat(array.name(), ".slice");
+    auto* addr = add<ir::GetElementPointer>(elemType,
+                                            to<Unpacked>(Memory, array).front(),
+                                            lower,
+                                            IndexArray{},
+                                            utl::strcat(name, ".addr"));
+    auto* size = add<ir::ArithmeticInst>(upper,
+                                         lower,
+                                         ir::ArithmeticOperation::Sub,
+                                         utl::strcat(name, ".count"));
+    return Value(name, expr.type().get(), { addr, size }, Memory, Unpacked);
+}
 
 static ir::Constant* evalConstant(ir::Context& ctx,
                                   ast::Expression const* expr) {
