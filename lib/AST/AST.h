@@ -1540,6 +1540,100 @@ private:
     sema::Function* _function;
 };
 
+/// Abstract base class of the `*ConstructExpr` classes
+class SCATHA_API ConstructBase: public CallLike {
+public:
+    /// The expression denoting the type that is being constructed
+    /// This is not necessarily non-null even for correct programs
+    AST_PROPERTY(0, Expression, targetTypeExpr, TargetTypeExpr)
+
+    /// The type being constructed. If `targetTypeExpr()` is non-null it denotes
+    /// this type
+    sema::ObjectType const* constructedType() const { return constrType; }
+
+protected:
+    ConstructBase(NodeType nodeType,
+                  UniquePtr<Expression> typeExpr,
+                  utl::small_vector<UniquePtr<Expression>> arguments,
+                  SourceRange sourceRange,
+                  sema::ObjectType const* constructedType):
+        CallLike(nodeType,
+                 std::move(typeExpr),
+                 std::move(arguments),
+                 sourceRange),
+        constrType(constructedType) {}
+
+    ///
+    void decorateConstruct(sema::Entity* entity) {
+        decorateValue(entity, sema::ValueCategory::RValue);
+    }
+
+private:
+    sema::ObjectType const* constrType;
+};
+
+/// Concrete node that is only inserted by semantic analysis.
+/// Represents an expression like `Foo()` or the initializer of a variable
+/// declaration `var f: Foo;` where `Foo` is trivially default constructible
+class SCATHA_API TrivDefConstructExpr: public ConstructBase {
+public:
+    ///
+    explicit TrivDefConstructExpr(UniquePtr<Expression> typeExpr,
+                                  SourceRange sourceRange,
+                                  sema::ObjectType const* constructedType):
+        ConstructBase(NodeType::TrivDefConstructExpr,
+                      std::move(typeExpr),
+                      {},
+                      sourceRange,
+                      constructedType) {}
+
+    /// All trivial construct expressions inherit this from `ConstructBase`
+    using ConstructBase::decorateConstruct;
+};
+
+/// Concrete node that is only inserted by semantic analysis.
+/// Represents the initializer of a variable declaration `var g = f;` where `f`
+/// is of trivially copyable type
+class SCATHA_API TrivCopyConstructExpr: public ConstructBase {
+public:
+    explicit TrivCopyConstructExpr(UniquePtr<Expression> typeExpr,
+                                   UniquePtr<Expression> argument,
+                                   SourceRange sourceRange,
+                                   sema::ObjectType const* constructedType):
+        ConstructBase(NodeType::TrivCopyConstructExpr,
+                      std::move(typeExpr),
+                      toSmallVector(std::move(argument)),
+                      sourceRange,
+                      constructedType) {}
+
+    /// The expression denoting the value being copied
+    AST_PROPERTY(1, Expression, argument, Argument)
+
+    /// All trivial construct expressions inherit this from `ConstructBase`
+    using ConstructBase::decorateConstruct;
+};
+
+/// Concrete node that is only inserted by semantic analysis.
+/// Represents an expression like `Foo(1, 2.0, true)` where `Foo` has data
+/// members of type `int`, `double` and `bool` in this order and ia trivially
+/// constructible
+class SCATHA_API AggregateConstructExpr: public ConstructBase {
+public:
+    explicit AggregateConstructExpr(
+        UniquePtr<Expression> typeExpr,
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        SourceRange sourceRange,
+        sema::ObjectType const* constructedType):
+        ConstructBase(NodeType::AggregateConstructExpr,
+                      std::move(typeExpr),
+                      std::move(arguments),
+                      sourceRange,
+                      constructedType) {}
+
+    /// All trivial construct expressions inherit this from `ConstructBase`
+    using ConstructBase::decorateConstruct;
+};
+
 /// Concrete node representing an assignment of a non-trivial value
 /// We need this node to tell the IR generator to invoke the destructor of the
 /// value before calling the copy constructor again

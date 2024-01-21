@@ -513,12 +513,18 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         }
     }
     /// Otherwise we construct an object of the declared type without arguments
-    else {
-        auto* objType = cast<ObjectType const*>(type);
+    else if (auto* objType = cast<ObjectType const*>(type);
+             objType->hasTrivialLifetime())
+    {
         auto constructExpr =
-            allocate<ast::ConstructExpr>(objType, varDecl.sourceRange());
+            allocate<ast::TrivDefConstructExpr>(nullptr,
+                                                varDecl.sourceRange(),
+                                                objType);
         initExpr = varDecl.setInitExpr(std::move(constructExpr));
         initExpr = analyzeValue(initExpr, varDecl.dtorStack());
+    }
+    else {
+        SC_UNIMPLEMENTED();
     }
     /// If our variable is of object type, we pop the last destructor _in the
     /// stack of this declaration_ because it corresponds to the object whose

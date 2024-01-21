@@ -109,21 +109,11 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::Conversion const&);
     // Value getValueImpl(ast::UninitTemporary const&);
     Value getValueImpl(ast::ConstructExpr const&);
-    // Value genConstructDynArray(ast::ConstructExpr const&,
-    //                            sema::ArrayType const&);
-    // Value genConstructNonTrivial(ast::ConstructExpr const&);
-    SC_NODEBUG Value genConstructTrivial(ast::ConstructExpr const&,
-                                         sema::Type const&);
-    Value genConstructTrivialImpl(ast::ConstructExpr const&,
-                                  sema::ObjectType const&);
-    Value genConstructTrivialImpl(ast::ConstructExpr const&,
-                                  sema::StructType const&);
-    Value genConstructTrivialImpl(ast::ConstructExpr const&,
-                                  sema::ArrayType const&);
-    Value genConstructTrivialImpl(ast::ConstructExpr const&,
-                                  sema::Type const&) {
-        SC_UNREACHABLE();
-    }
+
+    Value getValueImpl(ast::TrivDefConstructExpr const&);
+    Value getValueImpl(ast::TrivCopyConstructExpr const&);
+    Value getValueImpl(ast::AggregateConstructExpr const&);
+
     // Value getValueImpl(ast::NonTrivAssignExpr const&);
 
     /// # General utilities
@@ -1292,16 +1282,17 @@ static bool isCopyCtor(sema::Function const& F) {
 }
 
 Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
-    if (auto* type = getDynArrayType(expr.type().get())) {
-        SC_UNIMPLEMENTED();
-        // return genConstructDynArray(expr, *type);
-    }
-    /// If we have a constructor we just call that
-    if (!expr.isTrivial()) {
-        SC_UNIMPLEMENTED();
-        //        return genConstructNonTrivial(expr);
-    }
-    return genConstructTrivial(expr, *expr.type());
+    SC_UNREACHABLE(); // This will be removed
+    //    if (auto* type = dynArrayTypeCast(expr.type().get())) {
+    //        SC_UNIMPLEMENTED();
+    //        // return genConstructDynArray(expr, *type);
+    //    }
+    //    /// If we have a constructor we just call that
+    //    if (!expr.isTrivial()) {
+    //        SC_UNIMPLEMENTED();
+    //        //        return genConstructNonTrivial(expr);
+    //    }
+    //    return genConstructTrivial(expr, *expr.type());
 }
 
 // Value FuncGenContext::genConstructDynArray(ast::ConstructExpr const& expr,
@@ -1409,128 +1400,95 @@ Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
 //     return Value(irArguments.front(), type, Memory);
 // }
 
-Value FuncGenContext::genConstructTrivial(ast::ConstructExpr const& expr,
-                                          sema::Type const& type) {
-    return visit(type, [&](auto& type) SC_NODEBUG {
-        return genConstructTrivialImpl(expr, type);
-    });
-}
+// static Value rpValue(std::string name, sema::ObjectType const* type,
+// ir::Value* value) {
+//     return Value(std::move(name), type, { value }, Register, Packed);
+// }
 
-Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
-                                              sema::ObjectType const& type) {
-    if (expr.arguments().size() == 1) {
-        auto value = getValue(expr.arguments().front());
-        return Value(value.name(),
-                     &type,
-                     { toPackedRegister(value) },
+Value FuncGenContext::getValueImpl(ast::TrivDefConstructExpr const& expr) {
+    auto* type = expr.type().get();
+    auto* irType = typeMap.packed(type);
+    std::string name = "tmp";
+    if (irType->size() <= PreferredMaxRegisterValueSize) {
+        return Value(name,
+                     type,
+                     { makeZeroConstant(irType) },
                      Register,
                      Packed);
     }
-    SC_ASSERT(expr.arguments().empty(), "Must be one element or empty");
-    // clang-format off
-    auto* value = SC_MATCH (type) {
-        [&](sema::BoolType const&) {
-            /// Bools are default initialized to `false`
-            return ctx.boolConstant(false);
-        },
-        [&](sema::ByteType const&) {
-            return ctx.intConstant(0, 8);
-        },
-        [&](sema::IntType const& type) {
-            return ctx.intConstant(0, type.bitwidth());
-        },
-        [&](sema::FloatType const& type) {
-            return ctx.floatConstant(0, type.bitwidth());
-        },
-        [&](sema::NullPtrType const&) {
-            return ctx.nullpointer();
-        },
-        [&](sema::RawPtrType const&) {
-            return ctx.nullpointer();
-        },
-        [&](sema::ObjectType const&) -> ir::Value* {
-            SC_UNREACHABLE();
-        },
-    }; // clang-format on
-    return Value("tmp", &type, { value }, Register, Packed);
+    else {
+        auto* addr = makeLocalVariable(irType, name);
+        callMemset(addr, irType->size(), 0);
+        return Value(name, type, { addr }, Memory, Packed);
+    }
 }
 
-Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
-                                              sema::StructType const& type) {
-    SC_UNIMPLEMENTED();
-    //    if (expr.arguments().empty()) {
-    //        auto* irType = typeMap(&type);
-    //        auto* addr = makeLocalVariable(irType, "tmp");
-    //        auto* call = callMemset(addr, irType->size(), 0);
-    //        addSourceLoc(call, expr);
-    //        return Value(addr, irType, Memory);
-    //    }
-    //    else if (expr.arguments().size() == 1 &&
-    //             expr.arguments().front()->type().get() == expr.type().get())
-    //    {
-    //        auto* arg = expr.arguments().front();
-    //        auto* value = getValue<Register>(arg);
-    //        valueMap.insertArraySizeOf(expr.object(), arg->object());
-    //        return Value(value, Register);
-    //    }
-    //    else {
-    //        ir::Value* aggregate = ctx.undef(typeMap(expr.type()));
-    //        size_t index = 0;
-    //        for (auto* arg: expr.arguments()) {
-    //            auto* member = getValue<Register>(arg);
-    //            auto* inst = add<ir::InsertValue>(aggregate,
-    //                                              member,
-    //                                              IndexArray{ index++ },
-    //                                              "aggregate");
-    //            addSourceLoc(inst, *arg);
-    //            aggregate = inst;
-    //            if (isFatPointer(arg->type().get())) {
-    //                auto size = valueMap.arraySize(arg->object());
-    //                auto* inst = add<ir::InsertValue>(aggregate,
-    //                                                  toRegister(size, *arg),
-    //                                                  IndexArray{ index++ },
-    //                                                  "aggregate");
-    //                addSourceLoc(inst, *arg);
-    //                aggregate = inst;
-    //            }
-    //        }
-    //        return Value(aggregate, Register);
-    //    }
+Value FuncGenContext::getValueImpl(ast::TrivCopyConstructExpr const& expr) {
+    auto value = getValue(expr.arguments().front());
+    auto* type = expr.type().get();
+    std::string name = "tmp";
+    if (type->size() <= PreferredMaxRegisterValueSize) {
+        return Value(name, type, { toPackedRegister(value) }, Register, Packed);
+    }
+    else {
+        auto* irType = typeMap.packed(type);
+        auto* addr = makeLocalVariable(irType, name);
+        auto* call = callMemcpy(addr, toPackedMemory(value), irType->size());
+        addSourceLoc(call, expr);
+        return Value(name, type, { addr }, Memory, Packed);
+    }
 }
 
-Value FuncGenContext::genConstructTrivialImpl(ast::ConstructExpr const& expr,
-                                              sema::ArrayType const& type) {
-    SC_ASSERT(!type.isDynamic(), "Dynamic arrays have their own function");
-    std::string name = "tmp.array";
-    auto* irElemType = typeMap.packed(type.elementType());
-    switch (expr.arguments().size()) {
-    case 0: {
-        auto* addr = makeLocalArray(irElemType,
-                                    type.count(),
-                                    utl::strcat(name, ".addr"));
-        callMemset(addr, irElemType->size() * type.count(), 0);
-        return Value(name, &type, { addr }, Memory, Unpacked);
-    }
-    case 1: {
-        auto* arg = expr.arguments().front();
-        if (type.size() <= PreferredMaxRegisterValueSize) {
-            auto* value = getValue<Unpacked>(Register, arg).front();
-            return Value(name, &type, { value }, Register, Unpacked);
+Value FuncGenContext::getValueImpl(ast::AggregateConstructExpr const& expr) {
+    auto* type = expr.type().get();
+    auto* irType = cast<ir::StructType const*>(typeMap.packed(type));
+    std::string name = "aggregate";
+    if (irType->size() <= PreferredMaxRegisterValueSize) {
+        utl::small_vector<ir::Value*> values;
+        for (auto* arg: expr.arguments()) {
+            for (auto* value: getValue<Unpacked>(Register, arg)) {
+                values.push_back(value);
+            }
         }
-        else {
-            auto source = getValue(arg);
-            SC_ASSERT(
-                source.isMemory(),
-                "Should be in memory if size is beyond preferred register size limit");
-            auto* addr = makeLocalArray(irElemType,
-                                        type.count(),
-                                        utl::strcat(name, ".addr"));
-            callMemcpy(addr, source.get(0), irElemType->size() * type.count());
-            return Value(name, &type, { addr }, Memory, Packed);
-        }
+        auto* aggregate = buildStructure(irType, values, name);
+        return Value(name, type, { aggregate }, Register, Packed);
     }
-    default:
-        SC_UNREACHABLE();
+    else {
+        ir::Value* mem = makeLocalVariable(irType, name);
+        size_t index = 0;
+        auto elemAddrName = [&] {
+            return utl::strcat(name, ".elem.", index, ".addr");
+        };
+        for (auto* arg: expr.arguments()) {
+            auto value = getValue(arg);
+            auto members = to<Unpacked>(value.location(), value);
+            auto* dest = add<ir::GetElementPointer>(ctx,
+                                                    irType,
+                                                    mem,
+                                                    nullptr,
+                                                    IndexArray{ index },
+                                                    elemAddrName());
+            if (value.isMemory()) {
+                callMemcpy(dest,
+                           members.front(),
+                           irType->elementAt(index)->size());
+            }
+            else {
+                add<ir::Store>(ctx, dest, members.front());
+            }
+            ++index;
+            for (auto* member: members | drop(1)) {
+                auto* dest = add<ir::GetElementPointer>(ctx,
+                                                        irType,
+                                                        mem,
+                                                        nullptr,
+                                                        IndexArray{ index },
+                                                        elemAddrName());
+                add<ir::Store>(ctx, dest, member);
+                ++index;
+            }
+        }
+        return Value(name, type, { mem }, Memory, Packed);
     }
 }
 
