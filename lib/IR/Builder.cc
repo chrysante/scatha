@@ -61,15 +61,42 @@ Value* BasicBlockBuilder::packValues(std::span<Value* const> elems,
     }
 }
 
-ir::Value* BasicBlockBuilder::foldValues(ir::ArithmeticOperation op,
-                                         std::span<Value* const> values,
-                                         std::string name) {
+Value* BasicBlockBuilder::foldValues(ArithmeticOperation op,
+                                     std::span<Value* const> values,
+                                     std::string name) {
     SC_EXPECT(!values.empty());
     auto* result = values.front();
     for (auto* value: values | drop(1)) {
         result = add<ArithmeticInst>(result, value, op, name);
     }
     return result;
+}
+
+Constant* BasicBlockBuilder::makeZeroConstant(Type const* type) {
+    // clang-format off
+    return SC_MATCH_R (Constant*, *type) {
+        [&](IntegralType const& type) {
+            return ctx.intConstant(0, type.bitwidth());
+        },
+        [&](FloatType const& type) {
+            return ctx.floatConstant(0, type.bitwidth());
+        },
+        [&](PointerType const&) {
+            return ctx.nullpointer();
+        },
+        [&](StructType const& type) {
+            auto elems = type.elements() | transform([&](Type const* type) {
+                return makeZeroConstant(type);
+            }) | ToSmallVector<>;
+            return ctx.structConstant(elems, &type);
+        },
+        [&](ArrayType const& type) {
+            utl::small_vector<Constant*> elems(
+                type.count(), makeZeroConstant(type.elementType()));
+            return ctx.arrayConstant(elems, &type);
+        },
+        [&](Type const&) { SC_UNREACHABLE(); }
+    }; // clang-format on
 }
 
 FunctionBuilder::FunctionBuilder(Context& ctx, Function* function):

@@ -90,6 +90,9 @@ public:
         instAddPoint = newAddPoint;
     }
 
+    /// \Returns the constant of type \p type with value all bits set to zero
+    ir::Constant* makeZeroConstant(ir::Type const* type);
+
 private:
     friend class FunctionBuilder;
     Context& ctx;
