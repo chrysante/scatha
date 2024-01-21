@@ -371,3 +371,15 @@ AccessControl sema::determineAccessControl(Scope const& scope,
     }
     return determineAccessControlByContext(scope);
 }
+
+sema::ArrayType const* sema::dynArrayTypeCast(sema::Type const* type) {
+    auto* AT = dyncast<sema::ArrayType const*>(type);
+    if (AT && AT->isDynamic()) {
+        return AT;
+    }
+    return nullptr;
+}
+
+bool sema::isDynArray(sema::Type const& type) {
+    return !!dynArrayTypeCast(&type);
+}

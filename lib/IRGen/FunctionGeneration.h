@@ -104,8 +104,8 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
 
     /// \Returns \p value in memory as unpacked values
     /// This means if the value is
-    /// - a dynamic array pointer, we return a value of type `ptr` (to `{ ptr,
-    /// i64 }`) (same case as 3)
+    /// - a dynamic array pointer, we return a value of type `ptr` (to
+    /// `{ ptr, i64 }`) (same case as 3)
     /// - a dynamic array, we return values of type `ptr, i64`
     /// - any other object, we return a value of type `ptr` (to the object)
     utl::small_vector<ir::Value*, 2> toUnpackedMemory(Value const& value);
@@ -182,7 +182,6 @@ auto FuncGenContextBase::to(ValueLocation loc, Value const& value) {
     }
 }
 
-/// \overload for non-template argument \p repr
 inline utl::small_vector<ir::Value*, 2> FuncGenContextBase::to(
     ValueLocation loc, ValueRepresentation repr, Value const& value) {
     using enum ValueRepresentation;

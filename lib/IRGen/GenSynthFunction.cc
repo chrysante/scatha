@@ -8,6 +8,7 @@
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "IRGen/Utility.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -230,7 +231,7 @@ utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
     size_t numParams = SLFKindNumPtrParams(kind);
     auto& params = irFn.parameters();
     auto* parentType = cast<sema::Type const*>(semaFn.parent());
-    int stride = getDynArrayType(parentType) ? 2 : 1;
+    int stride = isDynArray(*parentType) ? 2 : 1;
     size_t loopIndex = 0;
     for (auto itr = params.begin(); itr != params.end();
          std::advance(itr, stride))

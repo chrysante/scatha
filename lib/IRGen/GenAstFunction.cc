@@ -15,6 +15,7 @@
 #include "IRGen/Value.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
 #include "Sema/SymbolTable.h"

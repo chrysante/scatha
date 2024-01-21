@@ -530,9 +530,9 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     if (!objConv) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
     }
-    /// Kind of hacky but for now we exclude unique pointers from this
+    /// Kind of hacky but for now we only want to "construct" user defined types
     bool isObjConstr = *valueCatConv == ValueCatConversion::LValueToRValue &&
-                       !isa<UniquePtrType>(*to);
+                       isa<StructType>(*to);
     if (isObjConstr) {
         *valueCatConv = ValueCatConversion::None;
     }

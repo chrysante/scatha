@@ -57,6 +57,13 @@ AccessControl determineAccessControl(Scope const& scope,
 ///
 AccessControl determineAccessControlByContext(Scope const& scope);
 
+/// \Returns \p type downcast to `ArrayType` if it is a dynamic array type, null
+/// otherwise
+sema::ArrayType const* dynArrayTypeCast(sema::Type const* type);
+
+/// \Returns `true` if \p type is a dynamic array type
+bool isDynArray(sema::Type const& type);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_UTILITY_H_
