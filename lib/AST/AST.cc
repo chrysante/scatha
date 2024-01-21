@@ -38,6 +38,10 @@ ASTNode* ASTNode::replaceChild(ASTNode const* old, UniquePtr<ASTNode> repl) {
     return result;
 }
 
+ASTNode* ASTNode::replace(UniquePtr<ASTNode> repl) {
+    return parent()->replaceChild(this, std::move(repl));
+}
+
 size_t ASTNode::indexOf(ASTNode const* child) const {
     auto itr = ranges::find_if(_children, [&](auto& otherChild) {
         return otherChild.get() == child;

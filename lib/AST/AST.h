@@ -290,6 +290,17 @@ public:
             replaceChild(old, uniquePtrCast<ASTNode>(std::move(repl))));
     }
 
+    /// Replace `this` node with new node \p repl
+    /// `this` is destroyed after the call
+    /// \Returns \p repl as a raw pointer
+    ASTNode* replace(UniquePtr<ASTNode> repl);
+
+    /// \overload for generic type
+    template <typename T>
+    T* replace(UniquePtr<T> repl) {
+        return cast<T*>(replace(uniquePtrCast<ASTNode>(std::move(repl))));
+    }
+
     /// Get the index of child \p child
     /// \pre \p child must be a child of this node
     SC_NODEBUG size_t indexOf(ASTNode const* child) const;
