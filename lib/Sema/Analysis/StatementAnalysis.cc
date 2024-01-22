@@ -12,7 +12,7 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/Utility.h"
-#include "Sema/DtorStack.h"
+#include "Sema/CleanupStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
@@ -27,8 +27,10 @@ static void gatherParentDestructorsImpl(ast::Statement& stmt, auto condition) {
          condition(parentScope);
          parentScope = dyncast<ast::Statement*>(parentScope->parent()))
     {
-        for (auto dtorCall: parentScope->dtorStack() | ranges::views::reverse) {
-            stmt.pushDtor(dtorCall);
+        for (auto dtorCall:
+             parentScope->cleanupStack() | ranges::views::reverse)
+        {
+            stmt.pushCleanup(dtorCall);
         }
     }
 }
@@ -75,12 +77,14 @@ struct StmtContext {
     void analyzeImpl(ast::EmptyStatement&) {}
     void analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
-    ast::Expression* analyzeExpr(ast::Expression* expr, DtorStack& dtorStack) {
-        return sema::analyzeExpression(expr, dtorStack, ctx);
+    ast::Expression* analyzeExpr(ast::Expression* expr,
+                                 CleanupStack& cleanupStack) {
+        return sema::analyzeExpression(expr, cleanupStack, ctx);
     }
 
-    ast::Expression* analyzeValue(ast::Expression* expr, DtorStack& dtorStack) {
-        return sema::analyzeValueExpr(expr, dtorStack, ctx);
+    ast::Expression* analyzeValue(ast::Expression* expr,
+                                  CleanupStack& cleanupStack) {
+        return sema::analyzeValueExpr(expr, cleanupStack, ctx);
     }
 
     Type const* analyzeType(ast::Expression* expr) {
@@ -189,7 +193,7 @@ void StmtContext::analyzeImpl(ast::ImportStatement& stmt) {
     stmt.decorateStmt(lib);
     /// Then once the library name is available in the current scope we can
     /// analyze the import expression
-    if (!analyzeExpr(stmt.libExpr(), stmt.dtorStack())) {
+    if (!analyzeExpr(stmt.libExpr(), stmt.cleanupStack())) {
         return;
     }
     if (stmt.importKind() == ImportKind::Unscoped) {
@@ -458,7 +462,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
         return;
     }
-    auto* initExpr = analyzeValue(varDecl.initExpr(), varDecl.dtorStack());
+    auto* initExpr = analyzeValue(varDecl.initExpr(), varDecl.cleanupStack());
     auto declType = analyzeType(varDecl.typeExpr());
     auto initType = initExpr ? initExpr->type().get() : nullptr;
     auto type = declType ? declType : initType;
@@ -507,12 +511,12 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
                              initExpr,
                              variable->getQualType(),
                              refToLValue(type),
-                             varDecl.dtorStack(),
+                             varDecl.cleanupStack(),
                              ctx);
         if (!isa<ReferenceType>(type) && !initExpr->isRValue() &&
             !isa<ast::ObjTypeConvExpr>(conv))
         {
-            conv = insertConstruction(conv, varDecl.dtorStack(), ctx);
+            conv = insertConstruction(conv, varDecl.cleanupStack(), ctx);
         }
         initExpr = conv;
     }
@@ -525,7 +529,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
                                                 varDecl.sourceRange(),
                                                 objType);
         initExpr = varDecl.setInitExpr(std::move(constructExpr));
-        initExpr = analyzeValue(initExpr, varDecl.dtorStack());
+        initExpr = analyzeValue(initExpr, varDecl.cleanupStack());
     }
     else {
         SC_UNIMPLEMENTED();
@@ -535,8 +539,8 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// lifetime this variable shall extend. Then we push the destructor to the
     /// stack of the parent statement.
     if (!isa<ReferenceType>(varDecl.type())) {
-        popTopLevelDtor(initExpr, varDecl.dtorStack());
-        cast<ast::Statement*>(varDecl.parent())->pushDtor(variable);
+        popTopLevelDtor(initExpr, varDecl.cleanupStack());
+        cast<ast::Statement*>(varDecl.parent())->pushCleanup(variable);
     }
     /// Propagate constant value
     if (variable->isConst() && initExpr) {
@@ -546,7 +550,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
 
 void StmtContext::analyzeImpl(ast::ExpressionStatement& es) {
     SC_EXPECT(sym.currentScope().kind() == ScopeKind::Function);
-    analyzeValue(es.expression(), es.dtorStack());
+    analyzeValue(es.expression(), es.cleanupStack());
 }
 
 void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
@@ -568,7 +572,7 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
         return;
     }
     /// We return an expression
-    if (!analyzeValue(rs.expression(), rs.dtorStack())) {
+    if (!analyzeValue(rs.expression(), rs.cleanupStack())) {
         return;
     }
     if (isa<VoidType>(returnType)) {
@@ -583,10 +587,10 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
             rs.expression(),
             getQualType(returnType),
             refToLValue(returnType),
-            rs.dtorStack(),
+            rs.cleanupStack(),
             ctx);
     if (!returnsRef()) {
-        popTopLevelDtor(rs.expression(), rs.dtorStack());
+        popTopLevelDtor(rs.expression(), rs.cleanupStack());
     }
 }
 
@@ -595,12 +599,12 @@ void StmtContext::analyzeImpl(ast::IfStatement& stmt) {
         ctx.issue<GenericBadStmt>(&stmt, GenericBadStmt::InvalidScope);
         return;
     }
-    if (analyzeValue(stmt.condition(), stmt.dtorStack())) {
+    if (analyzeValue(stmt.condition(), stmt.cleanupStack())) {
         convert(Implicit,
                 stmt.condition(),
                 sym.Bool(),
                 RValue,
-                stmt.dtorStack(),
+                stmt.cleanupStack(),
                 ctx);
     }
     analyze(*stmt.thenBlock());

@@ -40,7 +40,7 @@ struct InstContext {
     void instantiateFunction(ast::FunctionDefinition& def);
 
     bool instantiateSMF(ast::FunctionDefinition& def,
-                        SpecialMemberFunction SMF,
+                        SpecialMemberFunctionDepr SMF,
                         StructType* parent);
 
     FunctionType const* analyzeSignature(ast::FunctionDefinition&,
@@ -176,10 +176,10 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     return sortedStructTypes;
 }
 
-static std::optional<SpecialMemberFunction> getSMFKind(
+static std::optional<SpecialMemberFunctionDepr> getSMFKind(
     ast::FunctionDefinition const& funcDef) {
-    for (uint8_t i = 0; i < EnumSize<SpecialMemberFunction>; ++i) {
-        SpecialMemberFunction SMF{ i };
+    for (uint8_t i = 0; i < EnumSize<SpecialMemberFunctionDepr>; ++i) {
+        SpecialMemberFunctionDepr SMF{ i };
         if (toString(SMF) == funcDef.name()) {
             return SMF;
         }
@@ -278,7 +278,7 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
 }
 
 bool InstContext::instantiateSMF(ast::FunctionDefinition& def,
-                                 SpecialMemberFunction SMF,
+                                 SpecialMemberFunctionDepr SMF,
                                  StructType* parent) {
     auto* F = def.function();
     if (parent) {
@@ -302,7 +302,7 @@ bool InstContext::instantiateSMF(ast::FunctionDefinition& def,
         ctx.issue<BadSMF>(&def, BadSMF::BadFirstParam, SMF, parent);
         return false;
     }
-    using enum SpecialMemberFunction;
+    using enum SpecialMemberFunctionDepr;
     switch (SMF) {
     case New:
         break;

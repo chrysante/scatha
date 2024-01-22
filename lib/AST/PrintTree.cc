@@ -14,6 +14,7 @@
 #include "Common/TreeFormatter.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/CleanupStack.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;

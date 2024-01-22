@@ -96,6 +96,25 @@ SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Destructor)
 #undef SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF
 
 // ===--------------------------------------------------------------------=== //
+// === List of all special member functions ------------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+// NEW special member functions
+
+#ifndef SC_SEMA_SMF_DEF
+#   define SC_SEMA_SMF_DEF(Name)
+#endif
+
+SC_SEMA_SMF_DEF(DefaultConstructor)
+SC_SEMA_SMF_DEF(CopyConstructor)
+SC_SEMA_SMF_DEF(CopyAssignment)
+SC_SEMA_SMF_DEF(MoveConstructor)
+SC_SEMA_SMF_DEF(MoveAssignment)
+SC_SEMA_SMF_DEF(Destructor)
+
+#undef SC_SEMA_SMF_DEF
+
+// ===--------------------------------------------------------------------=== //
 // === List of all access control kinds ----------------------------------=== //
 // ===--------------------------------------------------------------------=== //
 

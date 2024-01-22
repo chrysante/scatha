@@ -134,20 +134,21 @@ std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
     return str << toString(k);
 }
 
-std::string_view sema::toString(SpecialMemberFunction SMF) {
+std::string_view sema::toString(SpecialMemberFunctionDepr SMF) {
     return std::array{
 #define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(name, str) std::string_view(str),
 #include "Sema/Lists.def"
     }[static_cast<size_t>(SMF)];
 }
 
-std::ostream& sema::operator<<(std::ostream& str, SpecialMemberFunction SMF) {
+std::ostream& sema::operator<<(std::ostream& str,
+                               SpecialMemberFunctionDepr SMF) {
     return str << toString(SMF);
 }
 
-SpecialMemberFunction sema::toSMF(SpecialLifetimeFunction SLF) {
-    using enum SpecialLifetimeFunction;
-    using enum SpecialMemberFunction;
+SpecialMemberFunctionDepr sema::toSMF(SpecialLifetimeFunctionDepr SLF) {
+    using enum SpecialLifetimeFunctionDepr;
+    using enum SpecialMemberFunctionDepr;
     switch (SLF) {
     case DefaultConstructor:
         return New;

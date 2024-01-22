@@ -489,23 +489,24 @@ class SMFMetadata {
 public:
     SMFMetadata() = default;
 
-    SMFMetadata(SpecialMemberFunction smfKind,
-                SpecialLifetimeFunction slfKind = SpecialLifetimeFunction(0xf)):
+    SMFMetadata(
+        SpecialMemberFunctionDepr smfKind,
+        SpecialLifetimeFunctionDepr slfKind = SpecialLifetimeFunctionDepr(0xf)):
         smfKind(smfKind), slfKind(slfKind) {}
 
     /// Special member function kind (`New`, `Move`, `Delete`)
-    SC_NODEBUG SpecialMemberFunction kind() const {
-        SC_EXPECT(smfKind != SpecialMemberFunction(0xf));
+    SC_NODEBUG SpecialMemberFunctionDepr kind() const {
+        SC_EXPECT(smfKind != SpecialMemberFunctionDepr(0xf));
         return smfKind;
     }
 
     /// \Returns `true` if this function is a special lifetime function
-    bool isSLF() const { return slfKind != SpecialLifetimeFunction(0xf); }
+    bool isSLF() const { return slfKind != SpecialLifetimeFunctionDepr(0xf); }
 
     /// Special lifetime function kind (`DefaultConstructor`, `CopyConstructor`,
     /// `MoveConstructor`, `Destructor`)
     /// \pre Calls to this function must be guarded by a call to `isSLF()`
-    SC_NODEBUG SpecialLifetimeFunction SLFKind() const {
+    SC_NODEBUG SpecialLifetimeFunctionDepr SLFKind() const {
         SC_EXPECT(isSLF());
         return slfKind;
     }
@@ -513,8 +514,8 @@ public:
 private:
     friend class Function;
 
-    SpecialMemberFunction smfKind   : 4 = SpecialMemberFunction(0xf);
-    SpecialLifetimeFunction slfKind : 4 = SpecialLifetimeFunction(0xf);
+    SpecialMemberFunctionDepr smfKind   : 4 = SpecialMemberFunctionDepr(0xf);
+    SpecialLifetimeFunctionDepr slfKind : 4 = SpecialLifetimeFunctionDepr(0xf);
 };
 
 static_assert(sizeof(SMFMetadata) == 1);
@@ -568,7 +569,7 @@ public:
     /// \Returns the special member function metadata or `std::nullopt` if this
     /// function is not a special member function
     SC_NODEBUG std::optional<SMFMetadata> getSMFMetadata() const {
-        return smfMetadata.smfKind != SpecialMemberFunction(0xf) ?
+        return smfMetadata.smfKind != SpecialMemberFunctionDepr(0xf) ?
                    std::optional(smfMetadata) :
                    std::nullopt;
     }
@@ -692,14 +693,14 @@ public:
     void setAlign(size_t value) { _align = value; }
 
     ///
-    void addSpecialMemberFunction(SpecialMemberFunction kind,
+    void addSpecialMemberFunction(SpecialMemberFunctionDepr kind,
                                   Function* function) {
         SMFs[kind].push_back(function);
     }
 
     ///
     SC_NODEBUG std::span<Function* const> specialMemberFunctions(
-        SpecialMemberFunction kind) const {
+        SpecialMemberFunctionDepr kind) const {
         auto itr = SMFs.find(kind);
         if (itr != SMFs.end()) {
             return itr->second;
@@ -709,7 +710,7 @@ public:
 
     ///
     SC_NODEBUG Function* specialLifetimeFunction(
-        SpecialLifetimeFunction kind) const {
+        SpecialLifetimeFunctionDepr kind) const {
         return SLFs[static_cast<size_t>(kind)];
     }
 
@@ -724,12 +725,12 @@ public:
 
     /// See above
     void setSpecialLifetimeFunctions(
-        std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLFs) {
+        std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs) {
         this->SLFs = SLFs;
     }
 
     /// See above
-    void setSpecialLifetimeFunction(SpecialLifetimeFunction kind,
+    void setSpecialLifetimeFunction(SpecialLifetimeFunctionDepr kind,
                                     Function* function) {
         SLFs[(size_t)kind] = function;
     }
@@ -753,8 +754,9 @@ private:
 
     size_t _size;
     size_t _align;
-    utl::hashmap<SpecialMemberFunction, utl::small_vector<Function*, 1>> SMFs;
-    std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLFs = {};
+    utl::hashmap<SpecialMemberFunctionDepr, utl::small_vector<Function*, 1>>
+        SMFs;
+    std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs = {};
     bool _hasTrivialLifetime     : 1 = true; // Only used by structs
     bool _isDefaultConstructible : 1 = true;
 };

@@ -19,7 +19,7 @@
 #include "Common/APInt.h"
 #include "Common/SourceLocation.h"
 #include "Common/UniquePtr.h"
-#include "Sema/DtorStack.h"
+#include "Sema/CleanupStack.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 
@@ -657,16 +657,21 @@ public:
     /// Expression to evaluate if condition is false
     AST_PROPERTY(2, Expression, elseExpr, ElseExpr)
 
-    SC_NODEBUG sema::DtorStack& branchDTorStack(size_t index) {
-        return branchDtors[index];
+    /// \Returns the cleanup stack associated with the branch at index \p index
+    /// \Pre \p index must be 0 or 1
+    SC_NODEBUG sema::CleanupStack& branchCleanupStack(size_t index) {
+        SC_EXPECT(index < 2);
+        return branchCleanups[index];
     }
 
-    SC_NODEBUG sema::DtorStack const& branchDTorStack(size_t index) const {
-        return branchDtors[index];
+    /// \overload
+    SC_NODEBUG sema::CleanupStack const& branchCleanupStack(
+        size_t index) const {
+        return branchCleanups[index];
     }
 
 private:
-    sema::DtorStack branchDtors[2];
+    sema::CleanupStack branchCleanups[2];
 };
 
 /// Move expression
@@ -832,18 +837,24 @@ public:
 
     AST_DERIVED_COMMON(Statement)
 
-    /// Push an object to the stack of destructors to execute after this
-    /// statement
-    void pushDtor(sema::Object* object) { _dtorStack.push(object); }
+    /// Push an object to the cleanup stack for that object to be cleaned up
+    /// after this statement
+    void pushCleanup(sema::Object* object) { _cleanupStack.push(object); }
 
     /// \overload
-    void pushDtor(sema::DestructorCall dtorCall) { _dtorStack.push(dtorCall); }
+    void pushCleanup(sema::CleanupOperation dtorCall) {
+        _cleanupStack.push(dtorCall);
+    }
 
-    /// \Returns the destructor stack associated with this statement
-    SC_NODEBUG sema::DtorStack const& dtorStack() const { return _dtorStack; }
+    /// \Returns the stack of cleanup operations associated with this statement
+    /// Cleanup operations can be destructor calls or inline object destruction
+    /// like destroying array elements in a loop or deallocating unique pointers
+    SC_NODEBUG sema::CleanupStack const& cleanupStack() const {
+        return _cleanupStack;
+    }
 
     /// \overload
-    SC_NODEBUG sema::DtorStack& dtorStack() { return _dtorStack; }
+    SC_NODEBUG sema::CleanupStack& cleanupStack() { return _cleanupStack; }
 
     /// **Decoration provided by semantic analysis**
 
@@ -866,7 +877,7 @@ public:
 
 private:
     sema::Entity* _entity = nullptr;
-    sema::DtorStack _dtorStack;
+    sema::CleanupStack _cleanupStack;
 };
 
 /// Abstract node representing a declaration.
@@ -1411,25 +1422,25 @@ public:
     SC_NODEBUG LoopKind kind() const { return _kind; }
 
     /// The destructor stack of the loop condition
-    SC_NODEBUG sema::DtorStack& conditionDtorStack() { return _condDtors; }
+    SC_NODEBUG sema::CleanupStack& conditionDtorStack() { return _condDtors; }
 
     /// \overload
-    SC_NODEBUG sema::DtorStack const& conditionDtorStack() const {
+    SC_NODEBUG sema::CleanupStack const& conditionDtorStack() const {
         return _condDtors;
     }
 
     /// The destructor stack of the loop increment expression
-    SC_NODEBUG sema::DtorStack& incrementDtorStack() { return _incDtors; }
+    SC_NODEBUG sema::CleanupStack& incrementDtorStack() { return _incDtors; }
 
     /// \overload
-    SC_NODEBUG sema::DtorStack const& incrementDtorStack() const {
+    SC_NODEBUG sema::CleanupStack const& incrementDtorStack() const {
         return _incDtors;
     }
 
 private:
     LoopKind _kind;
-    sema::DtorStack _condDtors;
-    sema::DtorStack _incDtors;
+    sema::CleanupStack _condDtors;
+    sema::CleanupStack _incDtors;
 };
 
 /// Represents a `break` or `continue` statement.
@@ -1684,6 +1695,22 @@ public:
 
     /// All trivial construct expressions inherit this from `ConstructBase`
     using ConstructBase::decorateConstruct;
+};
+
+/// Represents _any_ nontrivial object
+class SCATHA_API NontrivConstructExpr: public ConstructBase {
+public:
+    explicit NontrivConstructExpr(
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        SourceRange sourceRange,
+        sema::ObjectType const* constructedType):
+        ConstructBase(NodeType::NontrivConstructExpr,
+                      nullptr,
+                      std::move(arguments),
+                      sourceRange,
+                      constructedType) {}
+
+private:
 };
 
 /// Concrete node representing an assignment of a non-trivial value

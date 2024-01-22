@@ -11,7 +11,7 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/OverloadResolution.h"
-#include "Sema/DtorStack.h"
+#include "Sema/CleanupStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -21,11 +21,11 @@ using namespace ranges::views;
 using enum ValueCategory;
 using enum ConversionKind;
 
-/// # Destructos
-/// We also implement DtorStack here to save a .cc file
+/// # Cleanups
+/// We also implement `CleanupStack` here to save a .cc file
 
-static std::optional<DestructorCall> makeDTorCall(Object* obj) {
-    using enum SpecialLifetimeFunction;
+static std::optional<CleanupOperation> makeCleanup(Object* obj) {
+    using enum SpecialLifetimeFunctionDepr;
     auto* type = dyncast<ObjectType const*>(obj->type());
     if (!type) {
         return std::nullopt;
@@ -34,18 +34,18 @@ static std::optional<DestructorCall> makeDTorCall(Object* obj) {
     if (!dtor) {
         return std::nullopt;
     }
-    return DestructorCall{ obj, dtor };
+    return CleanupOperation{ obj, LifetimeOperation(dtor) };
 }
 
-void DtorStack::push(Object* obj) {
-    if (auto dtorCall = makeDTorCall(obj)) {
+void CleanupStack::push(Object* obj) {
+    if (auto dtorCall = makeCleanup(obj)) {
         push(*dtorCall);
     }
 }
 
-void DtorStack::push(DestructorCall dtorCall) { dtorCalls.push(dtorCall); }
+void CleanupStack::push(CleanupOperation cleanup) { dtorCalls.push(cleanup); }
 
-void sema::print(DtorStack const& stack, std::ostream& str) {
+void sema::print(CleanupStack const& stack, std::ostream& str) {
     for (auto& call: stack) {
         // clang-format off
         SC_MATCH (*call.object) {
@@ -61,14 +61,14 @@ void sema::print(DtorStack const& stack, std::ostream& str) {
     }
 }
 
-void sema::print(DtorStack const& stack) { print(stack, std::cout); }
+void sema::print(CleanupStack const& stack) { print(stack, std::cout); }
 
-void sema::popTopLevelDtor(ast::Expression* expr, DtorStack& dtors) {
+void sema::popTopLevelDtor(ast::Expression* expr, CleanupStack& dtors) {
     if (!expr || !expr->isDecorated()) {
         return;
     }
     auto* type = expr->type().get();
-    using enum SpecialLifetimeFunction;
+    using enum SpecialLifetimeFunctionDepr;
     if (type && type->specialLifetimeFunction(Destructor)) {
         SC_ASSERT(expr->object() == dtors.top().object,
                   "We want to prolong the lifetime of the object defined by "
@@ -81,27 +81,26 @@ void sema::popTopLevelDtor(ast::Expression* expr, DtorStack& dtors) {
 
 namespace {
 
-/// Wrapper around `std::array` that can be indexed by `SpecialLifetimeFunction`
-/// enum values
-struct SLFArray: std::array<Function*, EnumSize<SpecialLifetimeFunction>> {
-    using Base = std::array<Function*, EnumSize<SpecialLifetimeFunction>>;
-    auto& operator[](SpecialLifetimeFunction index) {
+/// Wrapper around `std::array` that can be indexed by
+/// `SpecialLifetimeFunctionDepr` enum values
+struct SLFArray: std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> {
+    using Base = std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>>;
+    auto& operator[](SpecialLifetimeFunctionDepr index) {
         return Base::operator[](static_cast<size_t>(index));
     }
-    auto const& operator[](SpecialLifetimeFunction index) const {
+    auto const& operator[](SpecialLifetimeFunctionDepr index) const {
         return Base::operator[](static_cast<size_t>(index));
     }
 };
 
 } // namespace
 
-static FunctionType const* makeLifetimeSignature(SpecialLifetimeFunction key,
-                                                 ObjectType& type,
-                                                 SymbolTable& sym) {
+static FunctionType const* makeLifetimeSignature(
+    SpecialLifetimeFunctionDepr key, ObjectType& type, SymbolTable& sym) {
     auto* self = sym.reference(QualType::Mut(&type));
     auto* rhs = sym.reference(QualType::Const(&type));
     auto* ret = sym.Void();
-    using enum SpecialLifetimeFunction;
+    using enum SpecialLifetimeFunctionDepr;
     switch (key) {
     case DefaultConstructor:
         return sym.functionType({ self }, ret);
@@ -115,7 +114,7 @@ static FunctionType const* makeLifetimeSignature(SpecialLifetimeFunction key,
     SC_UNREACHABLE();
 }
 
-static Function* generateSLF(SpecialLifetimeFunction key,
+static Function* generateSLF(SpecialLifetimeFunctionDepr key,
                              ObjectType& type,
                              SymbolTable& sym) {
     auto SMFKind = toSMF(key);
@@ -132,8 +131,8 @@ static Function* generateSLF(SpecialLifetimeFunction key,
 }
 
 static SLFArray getDefinedSLFs(SymbolTable& sym, StructType& type) {
-    using enum SpecialMemberFunction;
-    using enum SpecialLifetimeFunction;
+    using enum SpecialMemberFunctionDepr;
+    using enum SpecialLifetimeFunctionDepr;
     SLFArray result{};
     Type const* mutRef = sym.reference(QualType::Mut(&type));
     Type const* constRef = sym.reference(QualType::Const(&type));
@@ -172,8 +171,8 @@ static SLFArray getDefinedSLFs(SymbolTable& sym, StructType& type) {
 }
 
 static bool computeDefaultConstructible(StructType& type, SLFArray const& SLF) {
-    using enum SpecialLifetimeFunction;
-    using enum SpecialMemberFunction;
+    using enum SpecialLifetimeFunctionDepr;
+    using enum SpecialMemberFunctionDepr;
     /// If we have a default constructor we are clearly default constructible
     if (SLF[DefaultConstructor]) {
         return true;
@@ -186,15 +185,15 @@ static bool computeDefaultConstructible(StructType& type, SLFArray const& SLF) {
 }
 
 static bool computeTrivialLifetime(StructType& type, SLFArray const& SLF) {
-    using enum SpecialLifetimeFunction;
+    using enum SpecialLifetimeFunctionDepr;
     return !SLF[CopyConstructor] && !SLF[MoveConstructor] && !SLF[Destructor] &&
            ranges::all_of(type.memberVariables(), [](auto* var) {
         return !var->type() || var->type()->hasTrivialLifetime();
     });
 }
 
-static bool allMembersHave(StructType& type, SpecialLifetimeFunction fn) {
-    SC_ASSERT(fn != SpecialLifetimeFunction::DefaultConstructor,
+static bool allMembersHave(StructType& type, SpecialLifetimeFunctionDepr fn) {
+    SC_ASSERT(fn != SpecialLifetimeFunctionDepr::DefaultConstructor,
               "This function is only for copy/move constructor and destructor");
     return ranges::all_of(type.members(), [&](auto* type) {
         if (!type) {
@@ -211,8 +210,8 @@ static bool allMembersHave(StructType& type, SpecialLifetimeFunction fn) {
 static void declareSLFs(ObjectType&, SymbolTable&) { SC_UNREACHABLE(); }
 
 static void declareSLFs(StructType& type, SymbolTable& sym) {
-    using enum SpecialMemberFunction;
-    using enum SpecialLifetimeFunction;
+    using enum SpecialMemberFunctionDepr;
+    using enum SpecialLifetimeFunctionDepr;
     auto SLF = getDefinedSLFs(sym, type);
     bool const isDefaultConstructible = computeDefaultConstructible(type, SLF);
     bool const hasTrivialLifetime = computeTrivialLifetime(type, SLF);
@@ -266,7 +265,8 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
         if (F) {
             auto md = F->getSMFMetadata();
             SC_EXPECT(md);
-            F->setSMFMetadata({ md->kind(), (SpecialLifetimeFunction)index });
+            F->setSMFMetadata(
+                { md->kind(), (SpecialLifetimeFunctionDepr)index });
         }
     }
 }
@@ -274,7 +274,7 @@ static void declareSLFs(StructType& type, SymbolTable& sym) {
 static void declareSLFs(ArrayType& type, SymbolTable& sym) {
     auto* elemType = type.elementType();
     SLFArray SLF{};
-    for (auto key: EnumRange<SpecialLifetimeFunction>()) {
+    for (auto key: EnumRange<SpecialLifetimeFunctionDepr>()) {
         if (elemType->specialLifetimeFunction(key)) {
             SLF[key] = generateSLF(key, type, sym);
         }
@@ -283,7 +283,7 @@ static void declareSLFs(ArrayType& type, SymbolTable& sym) {
 }
 
 static void declareSLFs(UniquePtrType& type, SymbolTable& sym) {
-    using enum SpecialLifetimeFunction;
+    using enum SpecialLifetimeFunctionDepr;
     SLFArray SLF{};
     SLF[DefaultConstructor] = generateSLF(DefaultConstructor, type, sym);
     SLF[CopyConstructor] = nullptr;
@@ -386,7 +386,7 @@ bool sema::isDynArray(sema::Type const& type) {
 }
 
 ast::Expression* sema::insertConstruction(ast::Expression* expr,
-                                          DtorStack& dtors,
+                                          CleanupStack& dtors,
                                           AnalysisContext& ctx) {
     auto* type = expr->type().get();
     if (type->hasTrivialLifetime()) {

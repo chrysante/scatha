@@ -221,17 +221,17 @@ public:
     BadSMF(Scope const* scope,
            ast::FunctionDefinition const* funcdef,
            Reason reason,
-           SpecialMemberFunction SMF,
+           SpecialMemberFunctionDepr SMF,
            StructType const* parent);
 
-    SpecialMemberFunction SMF() const { return smf; }
+    SpecialMemberFunctionDepr SMF() const { return smf; }
 
     StructType const* parent() const { return _parent; }
 
 private:
     void format(std::ostream& str) const override;
 
-    SpecialMemberFunction smf;
+    SpecialMemberFunctionDepr smf;
     StructType const* _parent;
 };
 

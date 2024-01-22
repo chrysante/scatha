@@ -670,7 +670,7 @@ ast::Expression* sema::convert(ConversionKind kind,
                                ast::Expression* expr,
                                QualType to,
                                ValueCategory toValueCat,
-                               DtorStack& dtors,
+                               CleanupStack& dtors,
                                AnalysisContext& ctx) {
     auto convres = computeConversion(kind, expr, to, toValueCat);
     if (!convres) {
@@ -804,7 +804,7 @@ QualType sema::commonType(SymbolTable& sym,
 
 ast::Expression* sema::insertConversion(ast::Expression* expr,
                                         Conversion conv,
-                                        DtorStack& dtors,
+                                        CleanupStack& dtors,
                                         AnalysisContext& ctx) {
     if (auto mutConv = conv.mutConversion()) {
         expr = ast::insertNode<ast::MutConvExpr>(expr, *mutConv);

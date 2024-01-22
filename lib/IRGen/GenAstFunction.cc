@@ -67,7 +67,7 @@ struct FuncGenContext: FuncGenContextBase {
     void callDtor(sema::Object const* object,
                   sema::Function const* dtor,
                   ast::ASTNode const& sourceNode);
-    void emitDtorCalls(sema::DtorStack const& dtorStack,
+    void emitDtorCalls(sema::CleanupStack const& cleanupStack,
                        ast::ASTNode const& sourceNode);
 
     /// Creates array size values and stores them in `objectMap` if declared
@@ -150,13 +150,13 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     for (auto* statement: cmpStmt.statements()) {
         generate(*statement);
     }
-    emitDtorCalls(cmpStmt.dtorStack(), cmpStmt);
+    emitDtorCalls(cmpStmt.cleanupStack(), cmpStmt);
 }
 
-static sema::SpecialLifetimeFunction toSLFKindToGenerate(
-    sema::SpecialMemberFunction kind) {
-    using enum sema::SpecialMemberFunction;
-    using enum sema::SpecialLifetimeFunction;
+static sema::SpecialLifetimeFunctionDepr toSLFKindToGenerate(
+    sema::SpecialMemberFunctionDepr kind) {
+    using enum sema::SpecialMemberFunctionDepr;
+    using enum sema::SpecialLifetimeFunctionDepr;
     if (kind == Delete) {
         return Destructor;
     }
@@ -252,7 +252,7 @@ void FuncGenContext::generateParameter(
 }
 
 void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
-    auto dtorStack = varDecl.dtorStack();
+    auto cleanupStack = varDecl.cleanupStack();
     auto* var = varDecl.variable();
     std::string name = std::string(var->name());
     if (isa<sema::ReferenceType>(var->type())) {
@@ -269,19 +269,19 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
                               Memory,
                               Packed));
     }
-    emitDtorCalls(dtorStack, varDecl);
+    emitDtorCalls(cleanupStack, varDecl);
 }
 
 void FuncGenContext::generateImpl(
     ast::ExpressionStatement const& exprStatement) {
     (void)getValue(exprStatement.expression());
-    emitDtorCalls(exprStatement.dtorStack(), exprStatement);
+    emitDtorCalls(exprStatement.cleanupStack(), exprStatement);
 }
 
 void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
     /// Simple case of `return;` in a void function
     if (!retStmt.expression()) {
-        emitDtorCalls(retStmt.dtorStack(), retStmt);
+        emitDtorCalls(retStmt.cleanupStack(), retStmt);
         add<ir::Return>(ctx.voidValue());
         return;
     }
@@ -296,7 +296,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         auto destLocation =
             isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
         auto* value = to<Packed>(destLocation, retval);
-        emitDtorCalls(retStmt.dtorStack(), retStmt);
+        emitDtorCalls(retStmt.cleanupStack(), retStmt);
         add<ir::Return>(value);
         return;
     }
@@ -316,7 +316,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         else {
             add<ir::Store>(retvalDest, toPackedRegister(retval));
         }
-        emitDtorCalls(retStmt.dtorStack(), retStmt);
+        emitDtorCalls(retStmt.cleanupStack(), retStmt);
         add<ir::Return>(ctx.voidValue());
         return;
     }
@@ -325,7 +325,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
 
 void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
     auto* condition = getValue<Packed>(Register, stmt.condition());
-    emitDtorCalls(stmt.dtorStack(), stmt);
+    emitDtorCalls(stmt.cleanupStack(), stmt);
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
     auto* endBlock = newBlock("if.end");
@@ -428,11 +428,11 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         break;
     }
     }
-    emitDtorCalls(loopStmt.dtorStack(), loopStmt);
+    emitDtorCalls(loopStmt.cleanupStack(), loopStmt);
 }
 
 void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
-    emitDtorCalls(jump.dtorStack(), jump);
+    emitDtorCalls(jump.cleanupStack(), jump);
     auto* dest = [&] {
         auto& currentLoop = loopStack.top();
         switch (jump.kind()) {
@@ -1287,7 +1287,7 @@ static bool isCopyCtor(sema::Function const& F) {
     if (!md) {
         return false;
     }
-    using enum sema::SpecialLifetimeFunction;
+    using enum sema::SpecialLifetimeFunctionDepr;
     return md->isSLF() && md->SLFKind() == CopyConstructor;
 }
 
@@ -1539,10 +1539,11 @@ void FuncGenContext::callDtor(sema::Object const* object,
     //    add<ir::Call>(function, ValueArray{ value }, std::string{});
 }
 
-void FuncGenContext::emitDtorCalls(sema::DtorStack const& dtorStack,
+void FuncGenContext::emitDtorCalls(sema::CleanupStack const& cleanupStack,
                                    ast::ASTNode const& sourceNode) {
-    for (auto call: dtorStack) {
-        callDtor(call.object, call.destructor, sourceNode);
+    for (auto call: cleanupStack) {
+        SC_UNIMPLEMENTED();
+        //        callDtor(call.object, call.destructor, sourceNode);
     }
 }
 

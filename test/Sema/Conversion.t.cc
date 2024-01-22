@@ -8,7 +8,7 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
-#include "Sema/DtorStack.h"
+#include "Sema/CleanupStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -99,7 +99,7 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
         return cast<IntValue const*>(base.operand()->constantValue())->value();
     };
 
-    DtorStack dtors;
+    CleanupStack dtors;
 
     /// # Widening
     SECTION("u32(5) to u64") {

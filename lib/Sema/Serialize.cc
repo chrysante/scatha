@@ -82,15 +82,15 @@ SERIALIZE_ENUM_BEGIN(AccessControl)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
-SERIALIZE_ENUM_BEGIN(SpecialMemberFunction)
+SERIALIZE_ENUM_BEGIN(SpecialMemberFunctionDepr)
 #define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(SMF, _)                            \
-    SERIALIZE_ENUM_ELEM(SpecialMemberFunction::SMF, #SMF)
+    SERIALIZE_ENUM_ELEM(SpecialMemberFunctionDepr::SMF, #SMF)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
-SERIALIZE_ENUM_BEGIN(SpecialLifetimeFunction)
+SERIALIZE_ENUM_BEGIN(SpecialLifetimeFunctionDepr)
 #define SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(SLF)                             \
-    SERIALIZE_ENUM_ELEM(SpecialLifetimeFunction::SLF, #SLF)
+    SERIALIZE_ENUM_ELEM(SpecialLifetimeFunctionDepr::SLF, #SLF)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
@@ -108,12 +108,12 @@ void to_json(json& j, EntityType e) { serializeEnum(j, e); }
 void from_json(json const& j, EntityType& e) { deserializeEnum(j, e); }
 void to_json(json& j, AccessControl e) { serializeEnum(j, e); }
 void from_json(json const& j, AccessControl& e) { deserializeEnum(j, e); }
-void to_json(json& j, SpecialMemberFunction e) { serializeEnum(j, e); }
-void from_json(json const& j, SpecialMemberFunction& e) {
+void to_json(json& j, SpecialMemberFunctionDepr e) { serializeEnum(j, e); }
+void from_json(json const& j, SpecialMemberFunctionDepr& e) {
     deserializeEnum(j, e);
 }
-void to_json(json& j, SpecialLifetimeFunction e) { serializeEnum(j, e); }
-void from_json(json const& j, SpecialLifetimeFunction& e) {
+void to_json(json& j, SpecialLifetimeFunctionDepr e) { serializeEnum(j, e); }
+void from_json(json const& j, SpecialLifetimeFunctionDepr& e) {
     deserializeEnum(j, e);
 }
 void to_json(json& j, FunctionKind e) { serializeEnum(j, e); }
@@ -127,13 +127,13 @@ void to_json(json& j, SMFMetadata md) {
 }
 
 void from_json(json const& j, SMFMetadata& md) {
-    auto smf = j.at("kind").get<SpecialMemberFunction>();
+    auto smf = j.at("kind").get<SpecialMemberFunctionDepr>();
     auto slfItr = j.find("slf_kind");
     if (slfItr == j.end()) {
         md = { smf };
     }
     else {
-        md = { smf, slfItr->get<SpecialLifetimeFunction>() };
+        md = { smf, slfItr->get<SpecialLifetimeFunctionDepr>() };
     }
 }
 

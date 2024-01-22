@@ -27,12 +27,12 @@ using enum BadExpr::Reason;
 namespace {
 
 struct ExprContext {
-    DtorStack* dtorStack;
+    CleanupStack* cleanupStack;
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
 
-    ExprContext(sema::AnalysisContext& ctx, DtorStack* dtorStack):
-        dtorStack(dtorStack), ctx(ctx), sym(ctx.symbolTable()) {}
+    ExprContext(sema::AnalysisContext& ctx, CleanupStack* cleanupStack):
+        cleanupStack(cleanupStack), ctx(ctx), sym(ctx.symbolTable()) {}
 
     SC_NODEBUG ast::Expression* analyze(ast::Expression*);
 
@@ -105,15 +105,15 @@ static bool isAny(T const& t) {
 }
 
 ast::Expression* sema::analyzeExpression(ast::Expression* expr,
-                                         DtorStack& dtorStack,
+                                         CleanupStack& cleanupStack,
                                          AnalysisContext& ctx) {
-    return ExprContext(ctx, &dtorStack).analyze(expr);
+    return ExprContext(ctx, &cleanupStack).analyze(expr);
 }
 
 ast::Expression* sema::analyzeValueExpr(ast::Expression* expr,
-                                        DtorStack& dtorStack,
+                                        CleanupStack& cleanupStack,
                                         AnalysisContext& ctx) {
-    return ExprContext(ctx, &dtorStack).analyzeValue(expr);
+    return ExprContext(ctx, &cleanupStack).analyzeValue(expr);
 }
 
 Type const* sema::analyzeTypeExpr(ast::Expression* expr, AnalysisContext& ctx) {
@@ -151,15 +151,15 @@ bool ExprContext::analyzeValues(auto&& exprs) {
 }
 
 Type const* ExprContext::analyzeType(ast::Expression* expr) {
-    auto* stashed = dtorStack;
-    DtorStack tmpDtorStack;
-    dtorStack = &tmpDtorStack;
+    auto* stashed = cleanupStack;
+    CleanupStack tmpDtorStack;
+    cleanupStack = &tmpDtorStack;
     expr = analyze(expr);
     if (expr && expr->isDecorated() && expr->isType()) {
-        SC_ASSERT(!expr->isType() || dtorStack->empty(),
+        SC_ASSERT(!expr->isType() || cleanupStack->empty(),
                   "Type expression should not trigger destructor calls");
     }
-    dtorStack = stashed;
+    cleanupStack = stashed;
     if (!expectType(expr)) {
         return nullptr;
     }
@@ -444,7 +444,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
             analyze(assign.get());
             return expr.parent()->replaceChild(&expr, std::move(assign));
         }
-        if (!convert(Implicit, expr.rhs(), lhsType, RValue, *dtorStack, ctx)) {
+        if (!convert(Implicit, expr.rhs(), lhsType, RValue, *cleanupStack, ctx))
+        {
             success = false;
         }
         if (!success) {
@@ -457,8 +458,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
 
     /// Convert the operands to common type
     bool cnv = true;
-    cnv &= !!convert(Implicit, expr.lhs(), commonType, RValue, *dtorStack, ctx);
-    cnv &= !!convert(Implicit, expr.rhs(), commonType, RValue, *dtorStack, ctx);
+    cnv &=
+        !!convert(Implicit, expr.lhs(), commonType, RValue, *cleanupStack, ctx);
+    cnv &=
+        !!convert(Implicit, expr.rhs(), commonType, RValue, *cleanupStack, ctx);
     SC_ASSERT(cnv, "Conversion must succeed because we have a common type");
     expr.decorateValue(sym.temporary(resultType), RValue);
     setConstantValue(expr);
@@ -748,18 +751,23 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
 
 ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     if (analyzeValue(c.condition())) {
-        convert(Implicit, c.condition(), sym.Bool(), RValue, *dtorStack, ctx);
+        convert(Implicit,
+                c.condition(),
+                sym.Bool(),
+                RValue,
+                *cleanupStack,
+                ctx);
     }
-    auto* commonDtors = dtorStack;
-    auto* lhsDtors = &c.branchDTorStack(0);
-    auto* rhsDtors = &c.branchDTorStack(1);
+    auto* commonDtors = cleanupStack;
+    auto* lhsDtors = &c.branchCleanupStack(0);
+    auto* rhsDtors = &c.branchCleanupStack(1);
 
     bool success = true;
-    dtorStack = lhsDtors;
+    cleanupStack = lhsDtors;
     success &= !!analyzeValue(c.thenExpr());
-    dtorStack = rhsDtors;
+    cleanupStack = rhsDtors;
     success &= !!analyzeValue(c.elseExpr());
-    dtorStack = commonDtors;
+    cleanupStack = commonDtors;
     if (!success) {
         return nullptr;
     }
@@ -776,13 +784,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
                          c.thenExpr(),
                          commonType,
                          commonValueCat,
-                         c.branchDTorStack(0),
+                         c.branchCleanupStack(0),
                          ctx);
     success &= !!convert(Implicit,
                          c.elseExpr(),
                          commonType,
                          commonValueCat,
-                         c.branchDTorStack(1),
+                         c.branchCleanupStack(1),
                          ctx);
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
@@ -809,7 +817,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
         ctx.badExpr(&expr, BadExpr::MoveExprRValue);
     }
     if (!type->hasTrivialLifetime()) {
-        using enum SpecialLifetimeFunction;
+        using enum SpecialLifetimeFunctionDepr;
         auto* moveCtor = type->specialLifetimeFunction(MoveConstructor);
         auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
         auto* ctor = moveCtor ? moveCtor : copyCtor;
@@ -823,7 +831,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
         expr.setFunction(ctor);
     }
     expr.decorateValue(sym.temporary(expr.value()->type()), RValue);
-    dtorStack->push(expr.object());
+    cleanupStack->push(expr.object());
     return &expr;
 }
 
@@ -837,10 +845,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
     }
     /// We pop the top level dtor because unique ptr extends the lifetime of the
     /// object
-    popTopLevelDtor(expr.value(), *dtorStack);
+    popTopLevelDtor(expr.value(), *cleanupStack);
     auto* type = sym.uniquePointer(expr.value()->type());
     expr.decorateValue(sym.temporary(type), RValue);
-    dtorStack->push(expr.object());
+    cleanupStack->push(expr.object());
     return &expr;
 }
 
@@ -853,7 +861,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         ctx.badExpr(&expr, SubscriptArgCount);
         return nullptr;
     }
-    convert(Implicit, expr.argument(0), sym.S64(), RValue, *dtorStack, ctx);
+    convert(Implicit, expr.argument(0), sym.S64(), RValue, *cleanupStack, ctx);
     auto mutability = expr.callee()->type().mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
     expr.decorateValue(sym.temporary(elemType), expr.callee()->valueCategory());
@@ -865,8 +873,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     if (!arrayType) {
         return nullptr;
     }
-    convert(Implicit, expr.lower(), sym.S64(), RValue, *dtorStack, ctx);
-    convert(Implicit, expr.upper(), sym.S64(), RValue, *dtorStack, ctx);
+    convert(Implicit, expr.lower(), sym.S64(), RValue, *cleanupStack, ctx);
+    convert(Implicit, expr.upper(), sym.S64(), RValue, *cleanupStack, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
     expr.decorateValue(sym.temporary(dynArrayType),
                        expr.callee()->valueCategory());
@@ -911,7 +919,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
 
 static void convertArguments(auto const& arguments,
                              auto const& conversions,
-                             DtorStack& dtors,
+                             CleanupStack& dtors,
                              AnalysisContext& ctx) {
     for (auto [arg, conv]: ranges::views::zip(arguments, conversions)) {
         insertConversion(arg, conv, dtors, ctx);
@@ -954,7 +962,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                                   arg,
                                   genExpr->type(),
                                   genExpr->valueCategory(),
-                                  *dtorStack,
+                                  *cleanupStack,
                                   ctx);
         fc.parent()->replaceChild(&fc, fc.extractArgument(0));
         return converted;
@@ -1009,9 +1017,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     QualType type = getQualType(returnType);
     auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
     fc.decorateCall(sym.temporary(type), valueCat, type, function);
-    convertArguments(fc.arguments(), result.conversions, *dtorStack, ctx);
+    convertArguments(fc.arguments(), result.conversions, *cleanupStack, ctx);
     if (valueCat == RValue) {
-        dtorStack->push(fc.object());
+        cleanupStack->push(fc.object());
     }
     return &fc;
 }
@@ -1023,7 +1031,7 @@ ast::Expression* ExprContext::rewriteTrivConstruction(ast::FunctionCall& expr) {
                 expr.argument(0),
                 constructedType,
                 RValue,
-                *dtorStack,
+                *cleanupStack,
                 ctx);
         return expr.replace(expr.extractArgument(0));
     }
@@ -1061,7 +1069,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     for (auto* expr: list.elements()) {
         expr = analyze(expr);
         success &= !!expr;
-        popTopLevelDtor(expr, *dtorStack);
+        popTopLevelDtor(expr, *cleanupStack);
     }
     if (!success) {
         return nullptr;
@@ -1095,13 +1103,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         }
         for (auto* expr: list.elements()) {
             bool const succ =
-                convert(Implicit, expr, commonType, RValue, *dtorStack, ctx);
+                convert(Implicit, expr, commonType, RValue, *cleanupStack, ctx);
             SC_ASSERT(succ, "Conversion failed despite common type");
         }
         auto* arrayType =
             sym.arrayType(commonType.get(), list.elements().size());
         list.decorateValue(sym.temporary(arrayType), RValue);
-        dtorStack->push(list.object());
+        cleanupStack->push(list.object());
         return &list;
     }
     case EntityCategory::Type: {
@@ -1156,13 +1164,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
                              expr.source(),
                              expr.dest()->type(),
                              RValue,
-                             *dtorStack,
+                             *cleanupStack,
                              ctx);
         if (!conv) {
             return nullptr;
         }
     }
-    using enum SpecialLifetimeFunction;
+    using enum SpecialLifetimeFunctionDepr;
     auto* type = expr.dest()->type().get();
     auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
     auto* moveCtor = type->specialLifetimeFunction(MoveConstructor);
@@ -1251,7 +1259,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
     }
     auto* object = sym.temporary(conv.targetType());
     if (conv.conversion() == ObjectTypeConversion::NullptrToUniquePtr) {
-        dtorStack->push(object);
+        cleanupStack->push(object);
     }
     conv.decorateValue(object, expr->valueCategory());
     conv.setConstantValue(evalConversion(conv.conversion(),
@@ -1277,12 +1285,12 @@ static bool ctorIsPseudo(ObjectType const* type, auto const& args) {
         return true;
     }
     /// Trivial lifetime general constructor call
-    using enum SpecialMemberFunction;
+    using enum SpecialMemberFunctionDepr;
     return type->specialMemberFunctions(New).empty();
 }
 
 static bool canConstructTrivialType(ast::ConstructExpr& expr,
-                                    DtorStack& dtors,
+                                    CleanupStack& dtors,
                                     AnalysisContext& ctx) {
     auto* type = expr.constructedType();
     auto arguments = expr.arguments();
@@ -1339,7 +1347,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
     }
     /// Trivial case
     if (ctorIsPseudo(type, expr.arguments())) {
-        if (!canConstructTrivialType(expr, *dtorStack, ctx)) {
+        if (!canConstructTrivialType(expr, *cleanupStack, ctx)) {
             return nullptr;
         }
         expr.decorateConstruct(sym.temporary(type), nullptr);
@@ -1353,7 +1361,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         obj->decorateValue(sym.temporary(type), LValue);
         expr.insertArgument(0, std::move(obj));
     }
-    using enum SpecialMemberFunction;
+    using enum SpecialMemberFunctionDepr;
     auto ctorSet = type->specialMemberFunctions(New);
     SC_ASSERT(!ctorSet.empty(), "Trivial lifetime case is handled above");
     auto result = performOverloadResolution(&expr,
@@ -1366,9 +1374,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         ctx.issueHandler().push(std::move(result.error));
         return nullptr;
     }
-    convertArguments(expr.arguments(), result.conversions, *dtorStack, ctx);
+    convertArguments(expr.arguments(), result.conversions, *cleanupStack, ctx);
     expr.decorateConstruct(sym.temporary(type), result.function);
-    dtorStack->push(expr.object());
+    cleanupStack->push(expr.object());
     return &expr;
 }
 
@@ -1407,7 +1415,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::AggregateConstructExpr& expr) {
                              arg,
                              getQualType(type),
                              RValue,
-                             *dtorStack,
+                             *cleanupStack,
                              ctx);
     }
     if (!success) {
@@ -1420,7 +1428,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::AggregateConstructExpr& expr) {
 ast::Expression* ExprContext::analyzeDynArrayConstruction(
     ast::ConstructExpr& expr, ArrayType const* type) {
     SC_EXPECT(type->isDynamic());
-    using enum SpecialLifetimeFunction;
+    using enum SpecialLifetimeFunctionDepr;
     if (!isa<ast::UniqueExpr>(expr.parent())) {
         ctx.issue<BadExpr>(&expr, DynArrayConstrAutoStorage);
     }
@@ -1429,7 +1437,7 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
     switch (expr.arguments().size()) {
     case 0: {
         expr.decorateConstruct(sym.temporary(type), defCtor);
-        dtorStack->push(expr.object());
+        cleanupStack->push(expr.object());
         return &expr;
     }
     case 1: {
@@ -1438,9 +1446,9 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
             computeConversion(ConversionKind::Implicit, arg, sym.Int(), RValue);
         /// `[Type](count)` expression
         if (intConv) {
-            insertConversion(arg, *intConv, *dtorStack, ctx);
+            insertConversion(arg, *intConv, *cleanupStack, ctx);
             expr.decorateConstruct(sym.temporary(type), defCtor);
-            dtorStack->push(expr.object());
+            cleanupStack->push(expr.object());
             return &expr;
         }
         /// `[Type](other_array)` expression
@@ -1448,7 +1456,7 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
             argArrTy && argArrTy->elementType() == type->elementType())
         {
             expr.decorateConstruct(sym.temporary(type), copyCtor);
-            dtorStack->push(expr.object());
+            cleanupStack->push(expr.object());
             return &expr;
         }
         ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);

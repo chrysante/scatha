@@ -46,7 +46,7 @@ void generateSynthFunction(Config config, FuncGenParameters);
 /// function of kind \p kind
 /// This is used to generate default construction and destruction of member
 /// objects in user defined lifetime functions
-void generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
+void generateSynthFunctionAs(sema::SpecialLifetimeFunctionDepr kind,
                              Config config,
                              FuncGenParameters);
 

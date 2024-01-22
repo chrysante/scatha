@@ -85,7 +85,7 @@ SCTEST_API ast::Expression* convert(ConversionKind kind,
                                     ast::Expression* expr,
                                     QualType to,
                                     ValueCategory toValueCat,
-                                    DtorStack& dtors,
+                                    CleanupStack& dtors,
                                     AnalysisContext& ctx);
 
 /// Find the common type of \p a and \p b
@@ -107,7 +107,7 @@ SCTEST_API QualType
 /// \Returns a pointer to the added conversion node
 SCTEST_API ast::Expression* insertConversion(ast::Expression* expr,
                                              sema::Conversion conv,
-                                             DtorStack& dtors,
+                                             CleanupStack& dtors,
                                              AnalysisContext& ctx);
 
 } // namespace scatha::sema

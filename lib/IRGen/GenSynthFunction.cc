@@ -18,9 +18,9 @@ namespace {
 
 struct FuncGenContext: FuncGenContextBase {
     sema::ObjectType const* parentType;
-    sema::SpecialLifetimeFunction kind;
+    sema::SpecialLifetimeFunctionDepr kind;
 
-    FuncGenContext(sema::SpecialLifetimeFunction kind, auto&... args):
+    FuncGenContext(sema::SpecialLifetimeFunctionDepr kind, auto&... args):
         FuncGenContextBase(args...),
         parentType(cast<sema::ObjectType const*>(semaFn.parent())),
         kind(kind) {}
@@ -51,7 +51,7 @@ void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
                             params);
 }
 
-void irgen::generateSynthFunctionAs(sema::SpecialLifetimeFunction kind,
+void irgen::generateSynthFunctionAs(sema::SpecialLifetimeFunctionDepr kind,
                                     Config config,
                                     FuncGenParameters params) {
     FuncGenContext synthContext(kind, config, params);
@@ -101,7 +101,7 @@ ir::Value* FuncGenContext::getUniquePtrCountAddr(ir::Value* thisPtr) {
 void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
     auto* arrayType = dyncast<sema::ArrayType const*>(type.base().get());
     bool isDynArray = arrayType ? arrayType->isDynamic() : false;
-    using enum sema::SpecialLifetimeFunction;
+    using enum sema::SpecialLifetimeFunctionDepr;
     switch (kind) {
     case DefaultConstructor: {
         auto* self = &irFn.parameters().front();
@@ -187,7 +187,7 @@ void FuncGenContext::genMemberConstruction(ir::BasicBlock::ConstIterator before,
     //              "This function cannot be generated if the member type does
     //              not " "support the operation");
     //    /// Trivial case
-    //    using enum sema::SpecialLifetimeFunction;
+    //    using enum sema::SpecialLifetimeFunctionDepr;
     //    switch (kind) {
     //    case DefaultConstructor: {
     //        auto* memset = getBuiltin(svm::Builtin::memset);
@@ -210,8 +210,8 @@ void FuncGenContext::genMemberConstruction(ir::BasicBlock::ConstIterator before,
     //    }
 }
 
-static size_t SLFKindNumPtrParams(sema::SpecialLifetimeFunction kind) {
-    using enum sema::SpecialLifetimeFunction;
+static size_t SLFKindNumPtrParams(sema::SpecialLifetimeFunctionDepr kind) {
+    using enum sema::SpecialLifetimeFunctionDepr;
     switch (kind) {
     case DefaultConstructor:
         return 1;

@@ -13,7 +13,7 @@ namespace scatha::sema {
 
 /// If the expression \p expr is of non-trivial lifetime type, this function
 /// pops the top element off the destructor stack \p dtors
-void popTopLevelDtor(ast::Expression* expr, DtorStack& dtors);
+void popTopLevelDtor(ast::Expression* expr, CleanupStack& dtors);
 
 /// # Special lifetime functions
 
@@ -21,6 +21,9 @@ void popTopLevelDtor(ast::Expression* expr, DtorStack& dtors);
 /// This is used by Instantiation to analyze structs and by symbol table to
 /// generate array types.
 void declareSpecialLifetimeFunctions(ObjectType& type, SymbolTable& sym);
+
+///
+void analyzeLifetime(ObjectType& type, SymbolTable& sym);
 
 /// # Other utils
 
@@ -66,7 +69,7 @@ bool isDynArray(sema::Type const& type);
 
 /// Inserts a `{Triv,Nontriv}CopyConstructExpr` above \p expr
 ast::Expression* insertConstruction(ast::Expression* expr,
-                                    DtorStack& dtors,
+                                    CleanupStack& dtors,
                                     AnalysisContext& ctx);
 
 } // namespace scatha::sema

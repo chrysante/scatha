@@ -328,7 +328,7 @@ static IssueSeverity toSeverity(BadSMF::Reason reason) {
 BadSMF::BadSMF(Scope const* scope,
                ast::FunctionDefinition const* funcdef,
                Reason reason,
-               SpecialMemberFunction SMF,
+               SpecialMemberFunctionDepr SMF,
                StructType const* parent):
     BadFuncDef(InitAsBase{}, scope, funcdef, toSeverity(reason)),
     _reason(reason),
