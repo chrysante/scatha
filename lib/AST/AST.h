@@ -1451,29 +1451,71 @@ private:
 
 /// # Synthetical nodes inserted by Sema
 
-/// Concrete node representing a type conversion
-class SCATHA_API Conversion: public Expression {
+/// Abstract base class of all conversion nodes
+class SCATHA_API ConvExprBase: public Expression {
 public:
-    explicit Conversion(UniquePtr<Expression> expr,
-                        std::unique_ptr<sema::Conversion> conv);
-
-    ~Conversion();
-
-    AST_DERIVED_COMMON(Conversion)
-
-    /// The target type of the conversion
-    SC_NODEBUG sema::QualType targetType() const;
-
-    /// The conversion
-    SC_NODEBUG sema::Conversion const* conversion() const {
-        return _conv.get();
-    }
+    AST_DERIVED_COMMON(ConvExprBase)
 
     /// The expression being converted
     AST_PROPERTY(0, Expression, expression, Expression)
 
+protected:
+    explicit ConvExprBase(NodeType nodeType, UniquePtr<Expression> expr):
+        Expression(nodeType, expr->sourceRange(), std::move(expr)) {}
+};
+
+/// Concrete node representing conversion between value categories
+class SCATHA_API ValueCatConvExpr: public ConvExprBase {
+public:
+    explicit ValueCatConvExpr(UniquePtr<Expression> expr,
+                              sema::ValueCatConversion conv):
+        ConvExprBase(NodeType::ValueCatConvExpr, std::move(expr)), conv(conv) {}
+
+    AST_DERIVED_COMMON(ValueCatConvExpr)
+
+    /// The kind of conversion
+    SC_NODEBUG sema::ValueCatConversion conversion() const { return conv; }
+
 private:
-    std::unique_ptr<sema::Conversion> _conv;
+    sema::ValueCatConversion conv;
+};
+
+/// Concrete node representing change of mutability
+class SCATHA_API MutConvExpr: public ConvExprBase {
+public:
+    explicit MutConvExpr(UniquePtr<Expression> expr, sema::MutConversion conv):
+        ConvExprBase(NodeType::MutConvExpr, std::move(expr)), conv(conv) {}
+
+    AST_DERIVED_COMMON(MutConvExpr)
+
+    /// The kind of conversion
+    SC_NODEBUG sema::MutConversion conversion() const { return conv; }
+
+private:
+    sema::MutConversion conv;
+};
+
+/// Concrete node representing conversion between object types
+class SCATHA_API ObjTypeConvExpr: public ConvExprBase {
+public:
+    explicit ObjTypeConvExpr(UniquePtr<Expression> expr,
+                             sema::ObjectTypeConversion conv,
+                             sema::ObjectType const* targetType):
+        ConvExprBase(NodeType::ObjTypeConvExpr, std::move(expr)),
+        conv(conv),
+        target(targetType) {}
+
+    AST_DERIVED_COMMON(ObjTypeConvExpr)
+
+    /// The kind of conversion
+    SC_NODEBUG sema::ObjectTypeConversion conversion() const { return conv; }
+
+    /// \Returns the object type that we convert to
+    sema::ObjectType const* targetType() const { return target; }
+
+private:
+    sema::ObjectTypeConversion conv;
+    sema::ObjectType const* target;
 };
 
 /// Concrete node representing an uninitialized temporary. This node is meant as
@@ -1596,6 +1638,7 @@ public:
 /// is of trivially copyable type
 class SCATHA_API TrivCopyConstructExpr: public ConstructBase {
 public:
+    ///
     explicit TrivCopyConstructExpr(UniquePtr<Expression> typeExpr,
                                    UniquePtr<Expression> argument,
                                    SourceRange sourceRange,
@@ -1605,6 +1648,15 @@ public:
                       toSmallVector(std::move(argument)),
                       sourceRange,
                       constructedType) {}
+
+    /// \Overload without target type expression
+    explicit TrivCopyConstructExpr(UniquePtr<Expression> argument,
+                                   SourceRange sourceRange,
+                                   sema::ObjectType const* constructedType):
+        TrivCopyConstructExpr(nullptr,
+                              std::move(argument),
+                              sourceRange,
+                              constructedType) {}
 
     /// The expression denoting the value being copied
     AST_PROPERTY(1, Expression, argument, Argument)

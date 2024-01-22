@@ -498,19 +498,23 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     varDecl.decorateVarDecl(variable);
     /// If we have an init expression we convert it to the type of the variable.
-    /// If the type is derived from the init expression then this is a no-op
-    if (varDecl.initExpr()) {
-        /// Test `initExpr` because the variable may have an invalid init
-        /// expression, in this case `varDecl.initExpr()` is not null but
-        /// `initExpr` is.
-        if (initExpr) {
-            initExpr = convert(Implicit,
-                               initExpr,
-                               variable->getQualType(),
-                               refToLValue(type),
-                               varDecl.dtorStack(),
-                               ctx);
+    /// If the type is derived from the init expression then this is a no-op.
+    /// We test `initExpr` instead of `varDecl.initExpr()` because the variable
+    /// may have an invalid init expression, in this case `varDecl.initExpr()`
+    /// is not null but `initExpr` is.
+    if (initExpr) {
+        auto* conv = convert(Implicit,
+                             initExpr,
+                             variable->getQualType(),
+                             refToLValue(type),
+                             varDecl.dtorStack(),
+                             ctx);
+        if (!isa<ReferenceType>(type) && !initExpr->isRValue() &&
+            !isa<ast::ObjTypeConvExpr>(conv))
+        {
+            conv = insertConstruction(conv, varDecl.dtorStack(), ctx);
         }
+        initExpr = conv;
     }
     /// Otherwise we construct an object of the declared type without arguments
     else if (auto* objType = cast<ObjectType const*>(type);

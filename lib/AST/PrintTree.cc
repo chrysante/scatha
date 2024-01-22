@@ -206,19 +206,9 @@ struct PrintCtx {
             [&](LoopStatement const& loop) {
                 str << nodeHeader(&formatter, &node, loop.kind()) << '\n';
             },
-            [&](Conversion const& conv) {
+            [&](std::derived_from<ConvExprBase> auto const& expr) {
                 str << nodeHeader(&formatter, &node,
-                                  utl::streammanip([&](std::ostream&  str) {
-                    auto printEnum = [&, first = true](auto val) mutable {
-                        if (val == decltype(val)::None) { return; }
-                        if (!first) { str << ", "; }
-                        first = false; 
-                        str << val;
-                    };
-                    printEnum(conv.conversion()->valueCatConversion());
-                    printEnum(conv.conversion()->objectConversion());
-                    printEnum(conv.conversion()->mutConversion());
-                })) << '\n';
+                                  expr.conversion()) << "\n";
             }
         }); // clang-format on
 

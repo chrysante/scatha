@@ -78,8 +78,9 @@ UniquePtr<Value> evalBinary(ast::BinaryOperator op,
                             Value const* lhs,
                             Value const* rhs);
 
-UniquePtr<Value> evalConversion(sema::Conversion const* conv,
-                                Value const* operand);
+UniquePtr<Value> evalConversion(sema::ObjectTypeConversion conv,
+                                Value const* operand,
+                                ObjectType const* targetType);
 
 UniquePtr<Value> evalConditional(Value const* condition,
                                  Value const* thenValue,

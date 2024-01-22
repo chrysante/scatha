@@ -96,10 +96,7 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
             allocate<IntValue>(apValue, arithType->isSigned()));
     };
     auto getResult = [&] {
-        return cast<IntValue const*>(
-                   cast<ast::Expression const*>(expr->parent())
-                       ->constantValue())
-            ->value();
+        return cast<IntValue const*>(base.operand()->constantValue())->value();
     };
 
     DtorStack dtors;

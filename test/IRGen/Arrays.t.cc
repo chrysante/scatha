@@ -19,8 +19,7 @@ TEST_CASE("IRGen - Statically generated list expression", "[irgen]") {
     auto view = BBView(F.entry());
 
     auto& mem = view.nextAs<Alloca>();
-    CHECK(mem.allocatedType() == ctx.intType(64));
-    CHECK(mem.count() == ctx.intConstant(3, 32));
+    CHECK(mem.allocatedSize().value() == 3 * 8);
     auto& memcpy = view.nextAs<Call>();
     CHECK(memcpy.function()->name() == "__builtin_memcpy");
     CHECK(memcpy.argumentAt(0) == &mem);
@@ -44,7 +43,6 @@ TEST_CASE("IRGen - Dynamically generated list expression", "[irgen]") {
     auto& mem = view.nextAs<Alloca>();
     CHECK(mem.allocatedType() == arrayPointerType(ctx));
     CHECK(mem.count() == ctx.intConstant(1, 32));
-
     auto& gep = view.nextAs<GetElementPointer>();
     CHECK(gep.basePointer() == &mem);
     CHECK(gep.arrayIndex() == ctx.intConstant(0, 32));
@@ -64,12 +62,29 @@ TEST_CASE("IRGen - Default constructed small local array", "[irgen]") {
     auto view = BBView(F.entry());
 
     auto& mem = view.nextAs<Alloca>();
-    CHECK(mem.count() == ctx.intConstant(2, 32));
-    CHECK(mem.allocatedType() == ctx.intType(64));
+    CHECK(mem.allocatedSize().value() == 2 * 8);
+    auto& store = view.nextAs<Store>();
+    CHECK(store.address() == &mem);
+    CHECK(store.value() ==
+          ctx.arrayConstant(std::array<Constant*, 2>{ ctx.intConstant(0, 64),
+                                                      ctx.intConstant(0, 64) },
+                            ctx.arrayType(ctx.intType(64), 2)));
+    CHECK_NOTHROW(view.nextAs<Return>());
+}
+
+TEST_CASE("IRGen - Default constructed big local array", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ "public fn foo() { let data: [int, 10]; }" });
+    auto& F = mod.front();
+    CHECK(F.parameters().empty());
+    auto view = BBView(F.entry());
+
+    auto& mem = view.nextAs<Alloca>();
+    CHECK(mem.allocatedSize().value() == 10 * 8);
     auto& memset = view.nextAs<Call>();
     CHECK(memset.function()->name() == "__builtin_memset");
     CHECK(memset.argumentAt(0) == &mem);
-    CHECK(memset.argumentAt(1) == ctx.intConstant(16, 64));
+    CHECK(memset.argumentAt(1) == ctx.intConstant(80, 64));
     CHECK(memset.argumentAt(2) == ctx.intConstant(0, 64));
     CHECK_NOTHROW(view.nextAs<Return>());
 }
@@ -102,8 +117,7 @@ TEST_CASE("IRGen - Copy constructed big local array", "[irgen]") {
     auto view = BBView(F.entry());
 
     auto& mem = view.nextAs<Alloca>();
-    CHECK(mem.allocatedType() == ctx.intType(64));
-    CHECK(mem.count() == ctx.intConstant(8, 32));
+    CHECK(mem.allocatedSize().value() == 8 * 8);
     auto& memcpy = view.nextAs<Call>();
     CHECK(memcpy.function()->name() == "__builtin_memcpy");
     CHECK(memcpy.argumentAt(0) == &mem);

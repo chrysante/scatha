@@ -107,8 +107,13 @@ struct FuncGenContext: FuncGenContextBase {
     void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
     // Value getValueImpl(ast::MoveExpr const&);
     // Value getValueImpl(ast::UniqueExpr const&);
-    Value getValueImpl(ast::Conversion const&);
+    //    Value getValueImpl(ast::Conversion const&);
     // Value getValueImpl(ast::UninitTemporary const&);
+
+    Value getValueImpl(ast::ValueCatConvExpr const&);
+    Value getValueImpl(ast::MutConvExpr const&);
+    Value getValueImpl(ast::ObjTypeConvExpr const&);
+
     Value getValueImpl(ast::ConstructExpr const&);
 
     Value getValueImpl(ast::TrivDefConstructExpr const&);
@@ -1120,36 +1125,36 @@ static sema::ObjectType const* stripPtr(sema::ObjectType const* type) {
     return type;
 }
 
-Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
+Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
+    auto value = getValue(conv.expression());
+    using enum sema::ValueCatConversion;
+    switch (conv.conversion()) {
+    case LValueToRValue:
+        return value;
+
+    case MaterializeTemporary:
+        return Value(value.name(),
+                     value.type(),
+                     to(Memory, value.representation(), value),
+                     Memory,
+                     value.representation());
+    }
+}
+
+Value FuncGenContext::getValueImpl(ast::MutConvExpr const& conv) {
+    /// Mutability conversions are meaningless in IR
+    return getValue(conv.expression());
+}
+
+Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     auto* expr = conv.expression();
-    Value refConvResult = [&]() -> Value {
-        switch (conv.conversion()->valueCatConversion()) {
-        case sema::ValueCatConversion::None:
-            [[fallthrough]];
-        case sema::ValueCatConversion::LValueToRValue:
-            return getValue(expr);
-
-        case sema::ValueCatConversion::MaterializeTemporary: {
-            auto value = getValue(expr);
-            return Value(value.name(),
-                         value.type(),
-                         toUnpackedMemory(value),
-                         Memory,
-                         Unpacked);
-        }
-        }
-        SC_UNREACHABLE();
-    }();
-
-    sema::ObjectTypeConversion convKind = conv.conversion()->objectConversion();
+    auto value = getValue(expr);
     using enum sema::ObjectTypeConversion;
-    switch (convKind) {
-    case None:
-        return refConvResult;
+    switch (conv.conversion()) {
     case NullPtrToPtr:
-        return Value(refConvResult.name(),
+        return Value(value.name(),
                      conv.type().get(),
-                     { refConvResult.get(0), ctx.intConstant(0, 64) },
+                     { value.get(0), ctx.intConstant(0, 64) },
                      Register,
                      Unpacked);
     case NullPtrToUniquePtr: {
@@ -1158,18 +1163,18 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         SC_UNIMPLEMENTED();
     }
     case UniquePtrToPtr:
-        return refConvResult;
+        return value;
     case Array_FixedToDynamic: {
         /// It would be nicer to have two cases `Array_FixedToDynamic` and
         /// `ArrayPointer_FixedToDynamic` but refactoring sema conversion is a
         /// major project that has to be done later
         SC_ASSERT(
-            isa<sema::PointerType>(*expr->type()) || refConvResult.isMemory(),
+            isa<sema::PointerType>(*expr->type()) || value.isMemory(),
             "Dynamic arrays cannot be in registers. For rvalues we should have a MaterializeTemporary conversion before this case");
-        ValueLocation loc = refConvResult.location();
-        auto* data = to(loc, Unpacked, refConvResult).front();
+        ValueLocation loc = value.location();
+        auto* data = to(loc, Unpacked, value).front();
         size_t count = getStaticArraySize(stripPtr(expr->type().get())).value();
-        return Value(refConvResult.name(),
+        return Value(value.name(),
                      conv.type().get(),
                      { data, ctx.intConstant(count, 64) },
                      loc,
@@ -1181,7 +1186,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
         SC_UNIMPLEMENTED();
     case Reinterpret_Value_ToByteArray: {
         SC_UNIMPLEMENTED();
-        //        auto data = refConvResult;
+        //        auto data = value;
         //        auto* fromType = stripPtr(expr->type().get());
         //        auto* toType =
         //            cast<sema::ArrayType const*>(stripPtr(conv.type().get()));
@@ -1192,7 +1197,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     }
     case Reinterpret_Value_FromByteArray: {
         SC_UNIMPLEMENTED();
-        //        Value data = refConvResult;
+        //        Value data = value;
         //        auto* fromType =
         //            cast<sema::ArrayType
         //            const*>(stripPtr(expr->type().get()));
@@ -1215,7 +1220,7 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case Reinterpret_Value: {
         SC_UNIMPLEMENTED();
         //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(refConvResult, conv),
+        //        add<ir::ConversionInst>(toRegister(value, conv),
         //                                               typeMap(conv.type()),
         //                                               ir::Conversion::Bitcast,
         //                                               "reinterpret");
@@ -1248,18 +1253,17 @@ Value FuncGenContext::getValueImpl(ast::Conversion const& conv) {
     case FloatToSigned:
         [[fallthrough]];
     case FloatToUnsigned: {
-        auto name = utl::strcat(refConvResult.name(),
+        auto name = utl::strcat(value.name(),
                                 ".",
-                                arithmeticConvName(convKind));
+                                arithmeticConvName(conv.conversion()));
         auto* result =
-            add<ir::ConversionInst>(to<Packed>(Register, refConvResult),
+            add<ir::ConversionInst>(to<Packed>(Register, value),
                                     typeMap.packed(conv.type().get()),
-                                    mapArithmeticConv(convKind),
+                                    mapArithmeticConv(conv.conversion()),
                                     name);
         return Value(name, conv.type().get(), { result }, Register, Packed);
     }
     }
-    SC_UNREACHABLE();
 }
 
 // Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {

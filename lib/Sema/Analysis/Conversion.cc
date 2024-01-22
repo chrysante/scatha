@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <ostream>
+#include <variant>
 
 #include <range/v3/view.hpp>
 
@@ -18,14 +19,76 @@ using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
 
-bool Conversion::isNoop() const {
-    return valueCatConversion() == ValueCatConversion::None &&
-           mutConversion() == MutConversion::None &&
-           objectConversion() == ObjectTypeConversion::None;
+namespace scatha::internal {
+namespace {
+enum class NoopT : char;
+enum class ConvErrorT : char;
+} // namespace
+} // namespace scatha::internal
+
+namespace {
+
+/// Tag representing a conversion kind that does nothing
+static constexpr internal::NoopT Noop{};
+
+/// Tag  representing a conversion error
+static constexpr internal::ConvErrorT ConvError{};
+
+/// Badly named functor that adds two states to the `Conv` type: one one noop
+/// state and one error state
+template <typename Conv>
+class ConvExp {
+public:
+    /// Construct from a conversion
+    ConvExp(Conv conv): val(conv) {}
+
+    /// Construct a noop
+    ConvExp(internal::NoopT): val(internal::NoopT{}) {}
+
+    /// Construct a conversion error
+    ConvExp(internal::ConvErrorT): val(internal::ConvErrorT{}) {}
+
+    /// \Returns `true` if this object holds a conversion
+    bool isConv() const { return std::holds_alternative<Conv>(val); }
+
+    /// \Returns `true` if this object holds a noop-conversion
+    bool isNoop() const { return std::holds_alternative<internal::NoopT>(val); }
+
+    /// \Returns `true` if this object holds a conversion error
+    bool isError() const {
+        return std::holds_alternative<internal::ConvErrorT>(val);
+    }
+
+    /// \Returns the value of the conversion kind.
+    /// \Pre requires `isConv()` to be `true`
+    Conv value() const {
+        SC_EXPECT(isConv());
+        return std::get<Conv>(val);
+    }
+
+private:
+    std::variant<Conv, internal::NoopT, internal::ConvErrorT> val;
+};
+
+} // namespace
+
+/// Converts the non-erroneous `ConvExp<Conv>` \p c to a `std::optional<Conv>`
+/// \Returns `std::nullopt` if \p c is a noop or the conversion if \p c holds a
+/// conversion
+/// \Pre \p c must not hold a conversion error
+template <typename Conv>
+static std::optional<Conv> toOpt(ConvExp<Conv> c) {
+    SC_EXPECT(!c.isError());
+    if (c.isNoop()) {
+        return std::nullopt;
+    }
+    return c.value();
 }
 
-static std::optional<ObjectTypeConversion> implicitIntConversion(
-    IntType const& from, IntType const& to) {
+/// \Pre expects \p from and \p to to not be the same
+static ConvExp<ObjectTypeConversion> implicitIntConversion(IntType const& from,
+                                                           IntType const& to) {
+    SC_EXPECT(&from != &to);
     using enum ObjectTypeConversion;
     if (from.isSigned()) {
         if (to.isSigned()) {
@@ -33,27 +96,29 @@ static std::optional<ObjectTypeConversion> implicitIntConversion(
             if (from.bitwidth() <= to.bitwidth()) {
                 return SS_Widen;
             }
-            return std::nullopt;
+            return ConvError;
         }
         /// ** `Signed -> Unsigned` **
-        return std::nullopt;
+        return ConvError;
     }
     if (to.isSigned()) {
         /// ** `Unsigned -> Signed` **
         if (from.bitwidth() < to.bitwidth()) {
             return US_Widen;
         }
-        return std::nullopt;
+        return ConvError;
     }
     /// ** `Unsigned -> Unsigned` **
     if (from.bitwidth() <= to.bitwidth()) {
         return UU_Widen;
     }
-    return std::nullopt;
+    return ConvError;
 }
 
-static std::optional<ObjectTypeConversion> explicitIntConversion(
-    IntType const& from, IntType const& to) {
+/// \Pre expects \p from and \p to to not be the same
+static ConvExp<ObjectTypeConversion> explicitIntConversion(IntType const& from,
+                                                           IntType const& to) {
+    SC_EXPECT(&from != &to);
     using enum ObjectTypeConversion;
     if (from.isSigned()) {
         if (to.isSigned()) {
@@ -83,13 +148,14 @@ static std::optional<ObjectTypeConversion> explicitIntConversion(
     return SU_Trunc;
 }
 
-static std::optional<ObjectTypeConversion> determineObjConv(
-    ConversionKind kind, ObjectType const* from, ObjectType const* to) {
+static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
+                                                      ObjectType const* from,
+                                                      ObjectType const* to) {
     using enum ObjectTypeConversion;
     if (from == to) {
-        return None;
+        return Noop;
     }
-    using RetType = std::optional<ObjectTypeConversion>;
+    using RetType = ConvExp<ObjectTypeConversion>;
     auto implAndExplArrayToArrayConv = [](ArrayType const& from,
                                           ArrayType const& to) -> RetType {
         if (from.elementType() == to.elementType() && !from.isDynamic() &&
@@ -97,32 +163,32 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         {
             return Array_FixedToDynamic;
         }
-        return std::nullopt;
+        return ConvError;
     };
     // clang-format off
     auto pointerConv = utl::overload{
         [&]([[maybe_unused]] NullPtrType const& from,
-            [[maybe_unused]] RawPtrType const& to) -> RetType {
+            [[maybe_unused]] RawPtrType const& to) {
             return NullPtrToPtr;
         },
         [&]([[maybe_unused]] NullPtrType const& from,
-            [[maybe_unused]] UniquePtrType const& to) -> RetType {
+            [[maybe_unused]] UniquePtrType const& to) {
             return NullPtrToUniquePtr;
         },
         [&](PointerType const& from, PointerType const& to) -> RetType {
             if (from.base().isConst() && to.base().isMut()) {
-                return std::nullopt;
+                return ConvError;
             }
             if (from.base().get() == to.base().get()) {
-                return SC_MATCH (from, to){
+                return SC_MATCH_R (RetType, from, to){
                     [](PointerType const&, PointerType const&) {
-                        return std::optional(None);
+                        return Noop;
                     },
                     [](UniquePtrType const&, RawPtrType const&) {
-                        return std::optional(UniquePtrToPtr);
+                        return UniquePtrToPtr;
                     },
                     [](RawPtrType const&, UniquePtrType const&) {
-                        return std::nullopt;
+                        return ConvError;
                     }
                 };
             }
@@ -131,7 +197,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                                         from.base().get(),
                                         to.base().get());
             }
-            return std::nullopt;
+            return ConvError;
         },
     }; // clang-format on
 
@@ -141,11 +207,11 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         return SC_MATCH (*from, *to) {
             [&]([[maybe_unused]] IntType const& from, 
                 [[maybe_unused]] ByteType const& to) -> RetType {
-                return std::nullopt;
+                return ConvError;
             },
             [&]([[maybe_unused]] ByteType const& from, 
                 [[maybe_unused]] IntType const& to) -> RetType {
-                return std::nullopt;
+                return ConvError;
             },
             [&](IntType const& from, IntType const& to) -> RetType {
                 return implicitIntConversion(from, to);
@@ -154,20 +220,20 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 if (from.bitwidth() <= to.bitwidth()) {
                     return Float_Widen;
                 }
-                return std::nullopt;
+                return ConvError;
             },
             [&]([[maybe_unused]] IntType const& from,
                 [[maybe_unused]] FloatType const& to) -> RetType {
-                return std::nullopt;
+                return ConvError;
             },
             [&]([[maybe_unused]] FloatType const& from,
                 [[maybe_unused]] IntType const& to) -> RetType {
-                return std::nullopt;
+                return ConvError;
             },
             implAndExplArrayToArrayConv,
             pointerConv,
             [&](ObjectType const&, ObjectType const&) -> RetType {
-                return std::nullopt;
+                return ConvError;
             }
         }; // clang-format on
     case ConversionKind::Explicit:
@@ -207,7 +273,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             pointerConv,
             [&]([[maybe_unused]] ObjectType const& from,
                 [[maybe_unused]] ObjectType const& to) -> RetType {
-                return std::nullopt;
+                return ConvError;
             }
         }; // clang-format on
     case ConversionKind::Reinterpret:
@@ -217,68 +283,68 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 if (from.size() != to.size()) {
                     return Reinterpret_Value;
                 }
-                return None;
+                return Noop;
             },
             [&](ByteType const& from, IntType const& to) -> RetType {
                 if (from.size() != to.size()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 return Reinterpret_Value;
             },
             [&](IntType const& from, IntType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 return Reinterpret_Value;
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
-                return None;
+                return Noop;
             },
             [&](IntType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 return Reinterpret_Value;
             },
             [&](FloatType const& from, IntType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 return Reinterpret_Value;
             },
             [&](ArrayType const& from, ObjectType const& to) -> RetType {
                 auto* fromElem = from.elementType();
                 if (!isa<ByteType>(fromElem)) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 if (!from.isDynamic() && from.count() != to.size()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 return Reinterpret_Value_FromByteArray;
             },
             [&](ObjectType const& from, ArrayType const& to) -> RetType {
                 auto* toElem = to.elementType();
                 if (!isa<ByteType>(toElem)) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 if (!to.isDynamic() && to.count() != from.size()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 return Reinterpret_Value_ToByteArray;
             },
             [&](ArrayType const& from, ArrayType const& to) -> RetType {
                 if (!to.isDynamic() && from.isDynamic()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 if (!to.isDynamic() && from.size() != to.size()) {
-                    return std::nullopt;
+                    return ConvError;
                 }
                 return visit(*from.elementType(), *to.elementType(), utl::overload{
                     [](ByteType const&, ByteType const&) -> RetType {
-                        return None;
+                        return Noop;
                     },
                     [](ByteType const&, ObjectType const&) -> RetType {
                         return Reinterpret_Array_FromByte;
@@ -287,21 +353,21 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                         return Reinterpret_Array_ToByte;
                     },
                     [](ObjectType const&, ObjectType const&) -> RetType {
-                        return std::nullopt;
+                        return ConvError;
                     }
                 });
             },
             pointerConv,
             [&]([[maybe_unused]] ObjectType const& from,
                 [[maybe_unused]] ObjectType const& to) -> RetType {
-                return std::nullopt;
+                return ConvError;
             }
         }; // clang-format on
     }
     SC_UNREACHABLE();
 }
 
-static std::optional<ValueCatConversion> determineValueCatConv(
+static ConvExp<ValueCatConversion> determineValueCatConv(
     ConversionKind kind,
     ValueCategory from,
     ValueCategory to,
@@ -311,7 +377,7 @@ static std::optional<ValueCatConversion> determineValueCatConv(
     using enum Mutability;
 
     if (from == to) {
-        return None;
+        return Noop;
     }
     if (from == LValue) {
         return LValueToRValue;
@@ -323,51 +389,60 @@ static std::optional<ValueCatConversion> determineValueCatConv(
             return MaterializeTemporary;
         }
         else {
-            return std::nullopt;
+            return ConvError;
         }
     case Explicit:
         return MaterializeTemporary;
     case Reinterpret:
-        return std::nullopt;
+        return ConvError;
     }
     SC_UNREACHABLE();
 }
 
-static std::optional<MutConversion> determineMutConv(ConversionKind,
-                                                     Mutability from,
-                                                     Mutability to) {
+static ConvExp<MutConversion> determineMutConv(ConversionKind,
+                                               Mutability from,
+                                               Mutability to) {
     /// No mutability conversion happens
     if (from == to) {
-        return MutConversion::None;
+        return Noop;
     }
     switch (from) {
     case Mutability::Mutable: // Mutable to Const:
         return MutConversion::MutToConst;
     case Mutability::Const: // Const to Mutable
-        return std::nullopt;
+        return ConvError;
     }
     SC_UNREACHABLE();
 }
 
-static int getRank(ValueCatConversion conv) {
+static int getRank(std::optional<ValueCatConversion> conv) {
+    if (!conv) {
+        return 0;
+    }
     return std::array{
 #define SC_VALUECATCONV_DEF(Name, Rank) Rank,
 #include "Sema/Analysis/Conversion.def"
-    }[static_cast<size_t>(conv)];
+    }[(size_t)conv.value()];
 }
 
-static int getRank(MutConversion conv) {
+static int getRank(std::optional<MutConversion> conv) {
+    if (!conv) {
+        return 0;
+    }
     return std::array{
 #define SC_MUTCONV_DEF(Name, Rank) Rank,
 #include "Sema/Analysis/Conversion.def"
-    }[static_cast<size_t>(conv)];
+    }[(size_t)conv.value()];
 }
 
-static int getRank(ObjectTypeConversion conv) {
+static int getRank(std::optional<ObjectTypeConversion> conv) {
+    if (!conv) {
+        return 0;
+    }
     return std::array{
 #define SC_OBJTYPECONV_DEF(Name, Rank) Rank,
 #include "Sema/Analysis/Conversion.def"
-    }[static_cast<size_t>(conv)];
+    }[(size_t)conv.value()];
 }
 
 int sema::computeRank(Conversion const& conv) {
@@ -408,95 +483,98 @@ static APInt computeIntegralFloatLimit(size_t fromBitwidth, size_t toBitwidth) {
                 utl::narrow_cast<int>(prec.mantissaWidth + 1));
 }
 
-static std::optional<ObjectTypeConversion> tryImplicitConstConv(
-    Value const* value, ObjectType const* from, ObjectType const* to) {
+static bool isLossless(std::optional<ObjectTypeConversion> conv,
+                       Value const* value,
+                       ObjectType const* from,
+                       ObjectType const* to) {
+    /// TODO: Introduce `SignedToUnsigned` and vv. conversion
+    /// Unfortunately `Noop` also represents signed -> unsigned and vv.
+    /// conversion (because they are noops in hardware)
+    if (!conv) {
+        auto* iFrom = dyncast<IntType const*>(from);
+        auto* iTo = dyncast<IntType const*>(to);
+        if (iFrom && iTo) {
+            /// If we are changing signedness, make sure the value does not
+            /// change This is equivalent to the high bit being == 0
+            if (iFrom->signedness() != iTo->signedness()) {
+                return cast<IntValue const*>(value)->value().highbit() == 0;
+            }
+            return true;
+        }
+        /// Float to float conversions come later
+        return false;
+    }
     using enum ObjectTypeConversion;
+    switch (*conv) {
+    case SS_Trunc:
+        [[fallthrough]];
+    case SU_Trunc:
+        [[fallthrough]];
+    case US_Trunc:
+        [[fallthrough]];
+    case UU_Trunc:
+        return fits(cast<IntValue const*>(value)->value(),
+                    cast<ArithmeticType const*>(to)->bitwidth(),
+                    cast<ArithmeticType const*>(to)->isSigned());
+    case SS_Widen:
+        return true;
+    case SU_Widen:
+        [[fallthrough]];
+    case US_Widen: {
+        auto intVal = cast<IntValue const*>(value)->value();
+        return !intVal.negative();
+    }
+    case UU_Widen:
+        return true;
+
+    case Float_Trunc:
+        return fits(cast<FloatValue const*>(value)->value(),
+                    cast<FloatType const*>(to)->bitwidth());
+
+    case Float_Widen:
+        return true;
+
+    case SignedToFloat: {
+        auto* fromInt = cast<IntType const*>(from);
+        auto* toFloat = cast<FloatType const*>(to);
+        auto val = cast<IntValue const*>(value);
+        APInt limit =
+            computeIntegralFloatLimit(fromInt->bitwidth(), toFloat->bitwidth());
+        if (scmp(val->value(), limit) <= 0) {
+            return true;
+        }
+        if (scmp(val->value(), negate(limit)) >= 0) {
+            return true;
+        }
+        return false;
+    }
+    case UnsignedToFloat: {
+        auto* fromInt = cast<IntType const*>(from);
+        auto* toFloat = cast<FloatType const*>(to);
+        auto val = cast<IntValue const*>(value);
+        APInt limit =
+            computeIntegralFloatLimit(fromInt->bitwidth(), toFloat->bitwidth());
+        if (ucmp(val->value(), limit) <= 0) {
+            return true;
+        }
+    }
+    case FloatToSigned:
+        [[fallthrough]];
+    case FloatToUnsigned:
+        return false;
+    default:
+        return false;
+    }
+}
+
+static ConvExp<ObjectTypeConversion> tryImplicitConstConv(
+    Value const* value, ObjectType const* from, ObjectType const* to) {
     /// We try an explicit conversion
     auto result = determineObjConv(ConversionKind::Explicit, from, to);
-    if (!result) {
-        return std::nullopt;
+    if (result.isError() || !isLossless(toOpt(result), value, from, to)) {
+        return ConvError;
     }
-    /// If the explicit conversion succeeds, we check if we lose precision
-    bool const lossless = [&] {
-        switch (*result) {
-        case None: {
-            auto* iFrom = dyncast<IntType const*>(from);
-            auto* iTo = dyncast<IntType const*>(to);
-            if (iFrom && iTo) {
-                /// If we are changing signedness, make sure the value does not
-                /// change This is equivalent to the high bit being == 0
-                if (iFrom->signedness() != iTo->signedness()) {
-                    return cast<IntValue const*>(value)->value().highbit() == 0;
-                }
-                return true;
-            }
-            /// Float to float conversions come later
-            return false;
-        }
-        case SS_Trunc:
-            [[fallthrough]];
-        case SU_Trunc:
-            [[fallthrough]];
-        case US_Trunc:
-            [[fallthrough]];
-        case UU_Trunc:
-            return fits(cast<IntValue const*>(value)->value(),
-                        cast<ArithmeticType const*>(to)->bitwidth(),
-                        cast<ArithmeticType const*>(to)->isSigned());
-        case SS_Widen:
-            return true;
-        case SU_Widen:
-            [[fallthrough]];
-        case US_Widen: {
-            auto intVal = cast<IntValue const*>(value)->value();
-            return !intVal.negative();
-        }
-        case UU_Widen:
-            return true;
-
-        case Float_Trunc:
-            return fits(cast<FloatValue const*>(value)->value(),
-                        cast<FloatType const*>(to)->bitwidth());
-
-        case Float_Widen:
-            return true;
-
-        case SignedToFloat: {
-            auto* fromInt = cast<IntType const*>(from);
-            auto* toFloat = cast<FloatType const*>(to);
-            auto val = cast<IntValue const*>(value);
-            APInt limit = computeIntegralFloatLimit(fromInt->bitwidth(),
-                                                    toFloat->bitwidth());
-            if (scmp(val->value(), limit) <= 0) {
-                return true;
-            }
-            if (scmp(val->value(), negate(limit)) >= 0) {
-                return true;
-            }
-            return false;
-        }
-        case UnsignedToFloat: {
-            auto* fromInt = cast<IntType const*>(from);
-            auto* toFloat = cast<FloatType const*>(to);
-            auto val = cast<IntValue const*>(value);
-            APInt limit = computeIntegralFloatLimit(fromInt->bitwidth(),
-                                                    toFloat->bitwidth());
-            if (ucmp(val->value(), limit) <= 0) {
-                return true;
-            }
-        }
-        case FloatToSigned:
-            [[fallthrough]];
-        case FloatToUnsigned:
-            return false;
-        default:
-            return false;
-        }
-    }();
-    if (lossless) {
-        return result;
-    }
-    return std::nullopt;
+    return result;
 }
 
 Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
@@ -508,40 +586,34 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
                                               expr->valueCategory(),
                                               toValueCat,
                                               to.mutability());
-    if (!valueCatConv) {
+    if (valueCatConv.isError()) {
         return std::make_unique<BadValueCatConv>(nullptr, expr, toValueCat);
     }
-    std::optional mutConv = MutConversion::None;
-    if (toValueCat != RValue) {
-        mutConv =
+    ConvExp<MutConversion> mutConv =
+        toValueCat == RValue ?
+            Noop :
             determineMutConv(kind, expr->type().mutability(), to.mutability());
-    }
-    if (!mutConv) {
+    if (mutConv.isError()) {
         return std::make_unique<BadMutConv>(nullptr, expr, to.mutability());
     }
     auto objConv = determineObjConv(kind, expr->type().get(), to.get());
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
-    if (kind == ConversionKind::Implicit && !objConv && expr->constantValue()) {
+    if (kind == ConversionKind::Implicit && objConv.isError() &&
+        expr->constantValue())
+    {
         objConv = tryImplicitConstConv(expr->constantValue(),
                                        expr->type().get(),
                                        to.get());
     }
-    if (!objConv) {
+    if (objConv.isError()) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
-    }
-    /// Kind of hacky but for now we only want to "construct" user defined types
-    bool isObjConstr = *valueCatConv == ValueCatConversion::LValueToRValue &&
-                       isa<StructType>(*to);
-    if (isObjConstr) {
-        *valueCatConv = ValueCatConversion::None;
     }
     return Conversion(expr->type(),
                       to,
-                      *valueCatConv,
-                      *mutConv,
-                      *objConv,
-                      isObjConstr);
+                      toOpt(valueCatConv),
+                      toOpt(mutConv),
+                      toOpt(objConv));
 }
 
 ast::Expression* sema::convert(ConversionKind kind,
@@ -684,15 +756,16 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
                                         Conversion conv,
                                         DtorStack& dtors,
                                         AnalysisContext& ctx) {
-    if (!conv.isNoop()) {
-        expr = ast::insertNode<ast::Conversion>(expr,
-                                                std::make_unique<Conversion>(
-                                                    conv));
-        expr = analyzeValueExpr(expr, dtors, ctx);
+    if (auto mutConv = conv.mutConversion()) {
+        expr = ast::insertNode<ast::MutConvExpr>(expr, *mutConv);
     }
-    if (conv.isObjectConstruction()) {
-        expr = ast::insertNode<ast::ConstructExpr>(expr);
-        expr = analyzeValueExpr(expr, dtors, ctx);
+    if (auto vcConv = conv.valueCatConversion()) {
+        expr = ast::insertNode<ast::ValueCatConvExpr>(expr, *vcConv);
     }
-    return expr;
+    if (auto objConv = conv.objectConversion()) {
+        expr = ast::insertNode<ast::ObjTypeConvExpr>(expr,
+                                                     *objConv,
+                                                     conv.targetType().get());
+    }
+    return analyzeValueExpr(expr, dtors, ctx);
 }

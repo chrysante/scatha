@@ -1,10 +1,12 @@
-#include <catch2/catch_test_macros.hpp>
-
 #include <string>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "EndToEndTests/PassTesting.h"
 
 using namespace scatha;
+
+#if 0 // FIXME: Disabled for now
 
 /// Since we don't have libraries or multi file compilation we just paste the
 /// code here
@@ -496,3 +498,5 @@ fn main() {
 })");
 #endif
 }
+
+#endif

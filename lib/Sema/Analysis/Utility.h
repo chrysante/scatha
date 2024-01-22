@@ -59,10 +59,15 @@ AccessControl determineAccessControlByContext(Scope const& scope);
 
 /// \Returns \p type downcast to `ArrayType` if it is a dynamic array type, null
 /// otherwise
-sema::ArrayType const* dynArrayTypeCast(sema::Type const* type);
+ArrayType const* dynArrayTypeCast(sema::Type const* type);
 
 /// \Returns `true` if \p type is a dynamic array type
 bool isDynArray(sema::Type const& type);
+
+/// Inserts a `{Triv,Nontriv}CopyConstructExpr` above \p expr
+ast::Expression* insertConstruction(ast::Expression* expr,
+                                    DtorStack& dtors,
+                                    AnalysisContext& ctx);
 
 } // namespace scatha::sema
 

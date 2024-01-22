@@ -9,6 +9,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/DtorStack.h"
 #include "Sema/Entity.h"
@@ -382,4 +383,20 @@ sema::ArrayType const* sema::dynArrayTypeCast(sema::Type const* type) {
 
 bool sema::isDynArray(sema::Type const& type) {
     return !!dynArrayTypeCast(&type);
+}
+
+ast::Expression* sema::insertConstruction(ast::Expression* expr,
+                                          DtorStack& dtors,
+                                          AnalysisContext& ctx) {
+    auto* type = expr->type().get();
+    if (type->hasTrivialLifetime()) {
+        auto* constr =
+            ast::insertNode<ast::TrivCopyConstructExpr>(expr,
+                                                        expr->sourceRange(),
+                                                        type);
+        return analyzeValueExpr(constr, dtors, ctx);
+    }
+    else {
+        SC_UNIMPLEMENTED();
+    }
 }

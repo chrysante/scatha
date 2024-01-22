@@ -93,17 +93,6 @@ void FunctionCall::decorateCall(sema::Object* object,
     _function = calledFunction;
 }
 
-Conversion::Conversion(UniquePtr<Expression> expr,
-                       std::unique_ptr<sema::Conversion> conv):
-    Expression(NodeType::Conversion, expr->sourceRange(), std::move(expr)),
-    _conv(std::move(conv)) {}
-
-Conversion::~Conversion() = default;
-
-sema::QualType Conversion::targetType() const {
-    return conversion()->targetType();
-}
-
 void VarDeclBase::decorateVarDecl(sema::Entity* entity) {
     if (auto* object = dyncast<sema::Object*>(entity)) {
         _type = object->type();

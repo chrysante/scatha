@@ -2,6 +2,7 @@
 #define SCATHA_SEMA_ANALYSIS_CONVERSION_H_
 
 #include <iosfwd>
+#include <optional>
 #include <string_view>
 
 #include "AST/Fwd.h"
@@ -18,16 +19,14 @@ class Conversion {
 public:
     Conversion(QualType fromType,
                QualType toType,
-               ValueCatConversion valueCatConv,
-               MutConversion mutConv,
-               ObjectTypeConversion objConv,
-               bool isObjectConstruction):
+               std::optional<ValueCatConversion> valueCatConv,
+               std::optional<MutConversion> mutConv,
+               std::optional<ObjectTypeConversion> objConv):
         from(fromType),
         to(toType),
         valueCatConv(valueCatConv),
         mutConv(mutConv),
-        objConv(objConv),
-        isObjConstr(isObjectConstruction) {}
+        objConv(objConv) {}
 
     /// The type of the value before the conversion
     QualType originType() const { return from; }
@@ -37,29 +36,26 @@ public:
 
     /// The conversion between value categories.
     /// This only differs from `None` if no object conversion occurs
-    ValueCatConversion valueCatConversion() const { return valueCatConv; }
+    std::optional<ValueCatConversion> valueCatConversion() const {
+        return valueCatConv;
+    }
 
     /// The mutability conversion kind
-    MutConversion mutConversion() const { return mutConv; }
+    std::optional<MutConversion> mutConversion() const { return mutConv; }
 
     /// The object conversion kind
-    ObjectTypeConversion objectConversion() const { return objConv; }
-
-    /// \Returns `true` if this conversion constructs a new object. This flag
-    /// should be removed in favor of a better solution since it is only used
-    /// temporarily during analysis.
-    bool isObjectConstruction() const { return isObjConstr; }
-
-    /// \Returns `true` if all of the conversions are `None`
-    bool isNoop() const;
+    std::optional<ObjectTypeConversion> objectConversion() const {
+        return objConv;
+    }
 
 private:
     QualType from;
     QualType to;
-    ValueCatConversion valueCatConv{};
-    MutConversion mutConv{};
-    ObjectTypeConversion objConv{};
-    bool isObjConstr{};
+    /// All conversion enums are one byte in size so due to padding we don't
+    /// waste space by directly storing optionals
+    std::optional<ValueCatConversion> valueCatConv{};
+    std::optional<MutConversion> mutConv{};
+    std::optional<ObjectTypeConversion> objConv{};
 };
 
 /// Different kinds of conversion, used to select appropriate conversion

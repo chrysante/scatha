@@ -8,7 +8,6 @@
 #   define SC_VALUECATCONV_DEF(Name, Rank)
 #endif
 
-SC_VALUECATCONV_DEF(None,                 0)
 SC_VALUECATCONV_DEF(LValueToRValue,       0)
 SC_VALUECATCONV_DEF(MaterializeTemporary, 1)
 
@@ -22,7 +21,6 @@ SC_VALUECATCONV_DEF(MaterializeTemporary, 1)
 #   define SC_MUTCONV_DEF(Name, Rank)
 #endif
 
-SC_MUTCONV_DEF(None,         0)
 SC_MUTCONV_DEF(MutToConst,   1)
 
 #undef SC_MUTCONV_DEF
@@ -34,8 +32,6 @@ SC_MUTCONV_DEF(MutToConst,   1)
 #ifndef SC_OBJTYPECONV_DEF
 #   define SC_OBJTYPECONV_DEF(Name, Rank)
 #endif
-
-SC_OBJTYPECONV_DEF(None,                            0)
 
 SC_OBJTYPECONV_DEF(NullPtrToPtr,                    0)
 SC_OBJTYPECONV_DEF(NullPtrToUniquePtr,              0)

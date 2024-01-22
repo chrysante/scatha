@@ -20,7 +20,7 @@ namespace scatha::ast {
 enum class NodeType {
 #define SC_ASTNODE_DEF(ASTNode, ...) ASTNode,
 #include <scatha/AST/Lists.def>
-    LAST = Conversion
+    LAST = ObjTypeConvExpr
 };
 
 ///

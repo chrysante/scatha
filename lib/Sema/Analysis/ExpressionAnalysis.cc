@@ -65,7 +65,9 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::GenericExpression&);
     ast::Expression* analyzeImpl(ast::ListExpression&);
     ast::Expression* analyzeImpl(ast::NonTrivAssignExpr&);
-    ast::Expression* analyzeImpl(ast::Conversion&);
+    ast::Expression* analyzeImpl(ast::ValueCatConvExpr&);
+    ast::Expression* analyzeImpl(ast::MutConvExpr&);
+    ast::Expression* analyzeImpl(ast::ObjTypeConvExpr&);
     ast::Expression* analyzeImpl(ast::ConstructExpr&);
     ast::Expression* analyzeDynArrayConstruction(ast::ConstructExpr&,
                                                  ArrayType const* type);
@@ -1183,23 +1185,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
     return &expr;
 }
 
-static Object* getConvertedEntity(Entity* original,
-                                  Conversion const& conv,
-                                  SymbolTable& sym) {
-    if (conv.objectConversion() == ObjectTypeConversion::None ||
-        conv.objectConversion() == ObjectTypeConversion::Array_FixedToDynamic)
-    {
-        return cast<Object*>(original);
-    }
-    return sym.temporary(conv.targetType());
-}
-
-static ValueCategory getValueCat(ValueCategory original,
-                                 ValueCatConversion conv) {
+/// \Returns the target value category given the value category conversion \p
+/// conv
+static ValueCategory targetValueCat(ValueCatConversion conv) {
     using enum ValueCatConversion;
     switch (conv) {
-    case None:
-        return original;
     case LValueToRValue:
         return RValue;
     case MaterializeTemporary:
@@ -1208,24 +1198,66 @@ static ValueCategory getValueCat(ValueCategory original,
     SC_UNREACHABLE();
 }
 
-/// Guaranteed to succeed as long as the converted value has no issues because
-/// we only insert conversion nodes if conversions are valid
-ast::Expression* ExprContext::analyzeImpl(ast::Conversion& expr) {
-    if (!analyzeValue(expr.expression())) {
+/// \Returns a temporary if the conversion \p conv creates a new object or the
+/// \p original otherwise
+static Object* convertedObject(Entity* original,
+                               ValueCatConversion conv,
+                               SymbolTable& sym) {
+    auto* obj = cast<Object*>(original);
+    if (conv == ValueCatConversion::LValueToRValue) {
+        return sym.temporary(obj->getQualType());
+    }
+    return obj;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::ValueCatConvExpr& vcConv) {
+    auto* expr = vcConv.expression();
+    if (!analyzeValue(expr)) {
         return nullptr;
     }
-    auto* conv = expr.conversion();
-    auto* entity = getConvertedEntity(expr.expression()->entity(), *conv, sym);
-    expr.decorateValue(entity,
-                       getValueCat(expr.expression()->valueCategory(),
-                                   conv->valueCatConversion()),
-                       conv->targetType());
-    if (conv->objectConversion() == ObjectTypeConversion::NullPtrToUniquePtr) {
-        dtorStack->push(entity);
+    auto valueCat = targetValueCat(vcConv.conversion());
+    vcConv.decorateValue(convertedObject(expr->entity(),
+                                         vcConv.conversion(),
+                                         sym),
+                         valueCat);
+    vcConv.setConstantValue(clone(expr->constantValue()));
+    return &vcConv;
+}
+
+static QualType mutConvType(QualType original, MutConversion conv) {
+    using enum MutConversion;
+    switch (conv) {
+    case MutToConst:
+        return QualType::Const(original.get());
     }
-    expr.setConstantValue(
-        evalConversion(conv, expr.expression()->constantValue()));
-    return &expr;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::MutConvExpr& mutConv) {
+    auto* expr = mutConv.expression();
+    if (!analyzeValue(expr)) {
+        return nullptr;
+    }
+    mutConv.decorateValue(expr->entity(),
+                          expr->valueCategory(),
+                          mutConvType(expr->type(), mutConv.conversion()));
+    mutConv.setConstantValue(clone(expr->constantValue()));
+    return &mutConv;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
+    auto* expr = conv.expression();
+    if (!analyzeValue(expr)) {
+        return nullptr;
+    }
+    auto* object = sym.temporary(conv.targetType());
+    if (conv.conversion() == ObjectTypeConversion::NullPtrToUniquePtr) {
+        dtorStack->push(object);
+    }
+    conv.decorateValue(object, expr->valueCategory());
+    conv.setConstantValue(evalConversion(conv.conversion(),
+                                         expr->constantValue(),
+                                         conv.targetType()));
+    return &conv;
 }
 
 /// Decides whether the constructor call is a pseudo constructor call or an
@@ -1350,20 +1382,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivCopyConstructExpr& expr) {
         return nullptr;
     }
     auto* type = expr.constructedType();
-    if (isa<StructType>(type)) {
-        expr.decorateConstruct(sym.temporary(type));
-        return &expr;
-    }
-    if (isa<ArrayType>(type)) {
-        SC_UNIMPLEMENTED();
-    }
-    auto* converted = convert(Explicit,
-                              expr.argument(),
-                              getQualType(type),
-                              RValue,
-                              *dtorStack,
-                              ctx);
-    return expr.replace(converted->extractFromParent());
+    expr.decorateConstruct(sym.temporary(type));
+    return &expr;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::AggregateConstructExpr& expr) {

@@ -304,20 +304,16 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
     }
 }
 
-static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
-                                         IntValue const* operand) {
-    SC_ASSERT(operand, "");
-    auto* to = dyncast<ArithmeticType const*>(conv->targetType().get());
+static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
+                                         IntValue const* operand,
+                                         ObjectType const* targetType) {
+    auto* to = dyncast<ArithmeticType const*>(targetType);
     if (!to) {
         return nullptr;
     }
     APInt value = operand->value();
-
     using enum ObjectTypeConversion;
-    switch (conv->objectConversion()) {
-    case None:
-        return allocate<IntValue>(zext(value, to->bitwidth()), to->isSigned());
-
+    switch (conv) {
     case Reinterpret_Value:
         return nullptr;
 
@@ -351,17 +347,13 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
     }
 }
 
-static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
-                                         FloatValue const* operand) {
-    SC_EXPECT(operand);
-    auto* to = cast<ArithmeticType const*>(conv->targetType().get());
+static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
+                                         FloatValue const* operand,
+                                         ObjectType const* targetType) {
+    auto* to = cast<ArithmeticType const*>(targetType);
     APFloat value = operand->value();
-
     using enum ObjectTypeConversion;
-    switch (conv->objectConversion()) {
-    case None:
-        return clone(operand);
-
+    switch (conv) {
     case Float_Trunc:
         SC_ASSERT(isa<FloatType>(to), "");
         SC_ASSERT(to->bitwidth() == 32, "");
@@ -387,13 +379,15 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
     }
 }
 
-UniquePtr<Value> sema::evalConversion(sema::Conversion const* conv,
-                                      Value const* operand) {
+UniquePtr<Value> sema::evalConversion(ObjectTypeConversion conv,
+                                      Value const* operand,
+                                      ObjectType const* targetType) {
     if (!operand) {
         return nullptr;
     }
-    return visit(*operand,
-                 [&](auto& op) { return doEvalConversion(conv, &op); });
+    return visit(*operand, [&](auto& op) {
+        return doEvalConversion(conv, &op, targetType);
+    });
 }
 
 UniquePtr<Value> sema::evalConditional(Value const* condition,

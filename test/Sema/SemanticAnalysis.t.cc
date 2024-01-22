@@ -1,7 +1,6 @@
-#include <catch2/catch_test_macros.hpp>
-
 #include <array>
 
+#include <catch2/catch_test_macros.hpp>
 #include <range/v3/algorithm.hpp>
 
 #include "AST/AST.h"
