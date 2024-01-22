@@ -59,6 +59,18 @@ public:
         return std::holds_alternative<internal::ConvErrorT>(val);
     }
 
+    ///
+    template <std::invocable<Conv> F>
+    ConvExp<std::invoke_result_t<F, Conv>> transform(F&& f) const {
+        using R = ConvExp<std::invoke_result_t<F, Conv>>;
+        // clang-format off
+        return std::visit(utl::overload{
+            [&](Conv const& conv) -> R { return std::invoke(f, conv); },
+            [&](internal::NoopT) -> R { return Noop; },
+            [&](internal::ConvErrorT) -> R { return ConvError; },
+        }, val); // clang-format on
+    }
+
     /// \Returns the value of the conversion kind.
     /// \Pre requires `isConv()` to be `true`
     Conv value() const {
@@ -148,6 +160,81 @@ static ConvExp<ObjectTypeConversion> explicitIntConversion(IntType const& from,
     return SU_Trunc;
 }
 
+static ConvExp<ObjectTypeConversion> implAndExplArrayToArrayConv(
+    ArrayType const& from, ArrayType const& to) {
+    using enum ObjectTypeConversion;
+    if (from.elementType() == to.elementType() && !from.isDynamic() &&
+        to.isDynamic())
+    {
+        return ArrayRef_FixedToDynamic;
+    }
+    return ConvError;
+};
+
+static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
+                                                      ObjectType const* from,
+                                                      ObjectType const* to);
+
+/// Maps reference conversions to pointer conversions
+static ObjectTypeConversion convRefToPtr(ObjectTypeConversion conv) {
+    using enum ObjectTypeConversion;
+    switch (conv) {
+    case ArrayRef_FixedToDynamic:
+        return ArrayRef_FixedToDynamic;
+    case Reinterpret_ValuePtr:
+        return Reinterpret_ValueRef;
+    case Reinterpret_ValueRef_ToByteArray:
+        return Reinterpret_ValuePtr_ToByteArray;
+    case Reinterpret_ValueRef_FromByteArray:
+        return Reinterpret_ValuePtr_FromByteArray;
+    case Reinterpret_ArrayRef_ToByte:
+        return Reinterpret_ArrayPtr_ToByte;
+    case Reinterpret_ArrayRef_FromByte:
+        return Reinterpret_ArrayPtr_FromByte;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+// clang-format off
+template <ConversionKind Kind, typename R = ConvExp<ObjectTypeConversion>>
+static constexpr utl::overload PointerConv{
+    [](NullPtrType const&, RawPtrType const&) {
+        using enum ObjectTypeConversion;
+        return NullptrToRawPtr;
+    },
+    [](NullPtrType const&, UniquePtrType const&) {
+        using enum ObjectTypeConversion;
+        return NullptrToUniquePtr;
+    },
+    [](PointerType const& from, PointerType const& to) -> R {
+        using enum ObjectTypeConversion;
+        if (from.base().isConst() && to.base().isMut()) {
+            return ConvError;
+        }
+        if (from.base().get() == to.base().get()) {
+            return SC_MATCH_R(R, from, to){
+                [](PointerType const&, PointerType const&) {
+                    return Noop;
+                },
+                [](UniquePtrType const&, RawPtrType const&) {
+                    return UniqueToRawPtr;
+                },
+                [](RawPtrType const&, UniquePtrType const&) {
+                    return ConvError;
+                }
+            };
+        }
+        if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
+            auto conv = determineObjConv(Kind,
+                                         from.base().get(),
+                                         to.base().get());
+            return conv.transform(convRefToPtr);
+        }
+        return ConvError;
+    }
+}; // clang-format on
+
 static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                                                       ObjectType const* from,
                                                       ObjectType const* to) {
@@ -156,64 +243,17 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
         return Noop;
     }
     using RetType = ConvExp<ObjectTypeConversion>;
-    auto implAndExplArrayToArrayConv = [](ArrayType const& from,
-                                          ArrayType const& to) -> RetType {
-        if (from.elementType() == to.elementType() && !from.isDynamic() &&
-            to.isDynamic())
-        {
-            return Array_FixedToDynamic;
-        }
-        return ConvError;
-    };
-    // clang-format off
-    auto pointerConv = utl::overload{
-        [&]([[maybe_unused]] NullPtrType const& from,
-            [[maybe_unused]] RawPtrType const& to) {
-            return NullPtrToPtr;
-        },
-        [&]([[maybe_unused]] NullPtrType const& from,
-            [[maybe_unused]] UniquePtrType const& to) {
-            return NullPtrToUniquePtr;
-        },
-        [&](PointerType const& from, PointerType const& to) -> RetType {
-            if (from.base().isConst() && to.base().isMut()) {
-                return ConvError;
-            }
-            if (from.base().get() == to.base().get()) {
-                return SC_MATCH_R (RetType, from, to){
-                    [](PointerType const&, PointerType const&) {
-                        return Noop;
-                    },
-                    [](UniquePtrType const&, RawPtrType const&) {
-                        return UniquePtrToPtr;
-                    },
-                    [](RawPtrType const&, UniquePtrType const&) {
-                        return ConvError;
-                    }
-                };
-            }
-            if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
-                return determineObjConv(kind,
-                                        from.base().get(),
-                                        to.base().get());
-            }
-            return ConvError;
-        },
-    }; // clang-format on
-
     switch (kind) {
     case ConversionKind::Implicit:
         // clang-format off
-        return SC_MATCH (*from, *to) {
-            [&]([[maybe_unused]] IntType const& from, 
-                [[maybe_unused]] ByteType const& to) -> RetType {
+        return SC_MATCH_R (RetType, *from, *to) {
+            [&](IntType const&, ByteType const&) {
                 return ConvError;
             },
-            [&]([[maybe_unused]] ByteType const& from, 
-                [[maybe_unused]] IntType const& to) -> RetType {
+            [&](ByteType const&, IntType const&) {
                 return ConvError;
             },
-            [&](IntType const& from, IntType const& to) -> RetType {
+            [&](IntType const& from, IntType const& to) {
                 return implicitIntConversion(from, to);
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
@@ -222,66 +262,71 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 }
                 return ConvError;
             },
-            [&]([[maybe_unused]] IntType const& from,
-                [[maybe_unused]] FloatType const& to) -> RetType {
+            [&](IntType const&, FloatType const&) {
                 return ConvError;
             },
-            [&]([[maybe_unused]] FloatType const& from,
-                [[maybe_unused]] IntType const& to) -> RetType {
+            [&](FloatType const&, IntType const&) {
                 return ConvError;
             },
-            implAndExplArrayToArrayConv,
-            pointerConv,
-            [&](ObjectType const&, ObjectType const&) -> RetType {
+            [&](ArrayType const& from, ArrayType const& to) {
+                return implAndExplArrayToArrayConv(from, to);
+            },
+            [&](std::derived_from<PointerType> auto const& from,
+                std::derived_from<PointerType> auto const& to) {
+                return PointerConv<ConversionKind::Implicit>(from, to);
+            },
+            [&](ObjectType const&, ObjectType const&) {
                 return ConvError;
             }
         }; // clang-format on
     case ConversionKind::Explicit:
         // clang-format off
-        return SC_MATCH (*from, *to) {
-            [&](IntType const& from, ByteType const& to) -> RetType {
+        return SC_MATCH_R (RetType, *from, *to) {
+            [&](IntType const& from, ByteType const& to) {
                 if (from.isSigned()) {
                     return from.size() == to.size() ? SU_Widen : SU_Trunc;
                 }
                 return from.size() == to.size() ? UU_Widen : UU_Trunc;
             },
             [&]([[maybe_unused]] ByteType const& from,
-                [[maybe_unused]] IntType const& to) -> RetType {
+                [[maybe_unused]] IntType const& to) {
                 if (to.isSigned()) {
                     return US_Widen;
                 }
                 return UU_Widen;
             },
-            [&](IntType const& from, IntType const& to) -> RetType {
+            [&](IntType const& from, IntType const& to) {
                 return explicitIntConversion(from, to);
             },
-            [&](FloatType const& from, FloatType const& to) -> RetType {
+            [&](FloatType const& from, FloatType const& to) {
                 if (from.bitwidth() <= to.bitwidth()) {
                     return Float_Widen;
                 }
                 return Float_Trunc;
             },
-            [&]([[maybe_unused]] IntType const& from,
-                [[maybe_unused]] FloatType const& to) -> RetType {
+            [&](IntType const& from, FloatType const&) {
                 return from.isSigned() ? SignedToFloat : UnsignedToFloat;
             },
-            [&]([[maybe_unused]] FloatType const& from,
-                IntType const& to) -> RetType {
+            [&](FloatType const&, IntType const& to) {
                 return to.isSigned() ? FloatToSigned : FloatToUnsigned;
             },
-            implAndExplArrayToArrayConv,
-            pointerConv,
-            [&]([[maybe_unused]] ObjectType const& from,
-                [[maybe_unused]] ObjectType const& to) -> RetType {
+            [&](ArrayType const& from, ArrayType const& to) {
+                return implAndExplArrayToArrayConv(from, to);
+            },
+            [&](std::derived_from<PointerType> auto const& from,
+                std::derived_from<PointerType> auto const& to) {
+                return PointerConv<ConversionKind::Explicit>(from, to);
+            },
+            [&](ObjectType const&, ObjectType const&) {
                 return ConvError;
             }
         }; // clang-format on
     case ConversionKind::Reinterpret:
         // clang-format off
-        return SC_MATCH (*from, *to) {
+        return SC_MATCH_R (RetType, *from, *to) {
             [&](IntType const& from, ByteType const& to) -> RetType {
                 if (from.size() != to.size()) {
-                    return Reinterpret_Value;
+                    return Reinterpret_ValueRef;
                 }
                 return Noop;
             },
@@ -289,13 +334,13 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 if (from.size() != to.size()) {
                     return ConvError;
                 }
-                return Reinterpret_Value;
+                return Reinterpret_ValueRef;
             },
             [&](IntType const& from, IntType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
                     return ConvError;
                 }
-                return Reinterpret_Value;
+                return Reinterpret_ValueRef;
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
@@ -307,13 +352,13 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 if (from.bitwidth() != to.bitwidth()) {
                     return ConvError;
                 }
-                return Reinterpret_Value;
+                return Reinterpret_ValueRef;
             },
             [&](FloatType const& from, IntType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
                     return ConvError;
                 }
-                return Reinterpret_Value;
+                return Reinterpret_ValueRef;
             },
             [&](ArrayType const& from, ObjectType const& to) -> RetType {
                 auto* fromElem = from.elementType();
@@ -323,7 +368,7 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 if (!from.isDynamic() && from.count() != to.size()) {
                     return ConvError;
                 }
-                return Reinterpret_Value_FromByteArray;
+                return Reinterpret_ValueRef_FromByteArray;
             },
             [&](ObjectType const& from, ArrayType const& to) -> RetType {
                 auto* toElem = to.elementType();
@@ -333,7 +378,7 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 if (!to.isDynamic() && to.count() != from.size()) {
                     return ConvError;
                 }
-                return Reinterpret_Value_ToByteArray;
+                return Reinterpret_ValueRef_ToByteArray;
             },
             [&](ArrayType const& from, ArrayType const& to) -> RetType {
                 if (!to.isDynamic() && from.isDynamic()) {
@@ -342,24 +387,29 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 if (!to.isDynamic() && from.size() != to.size()) {
                     return ConvError;
                 }
-                return visit(*from.elementType(), *to.elementType(), utl::overload{
-                    [](ByteType const&, ByteType const&) -> RetType {
+                return SC_MATCH_R (RetType,
+                                   *from.elementType(),
+                                   *to.elementType()) {
+                    [](ByteType const&, ByteType const&) {
                         return Noop;
                     },
-                    [](ByteType const&, ObjectType const&) -> RetType {
-                        return Reinterpret_Array_FromByte;
+                    [](ByteType const&, ObjectType const&) {
+                        return Reinterpret_ArrayRef_FromByte;
                     },
-                    [](ObjectType const&, ByteType const&) -> RetType {
-                        return Reinterpret_Array_ToByte;
+                    [](ObjectType const&, ByteType const&) {
+                        return Reinterpret_ArrayRef_ToByte;
                     },
-                    [](ObjectType const&, ObjectType const&) -> RetType {
+                    [](ObjectType const&, ObjectType const&) {
                         return ConvError;
                     }
-                });
+                };
             },
-            pointerConv,
+            [&](std::derived_from<PointerType> auto const& from,
+                std::derived_from<PointerType> auto const& to) {
+                return PointerConv<ConversionKind::Reinterpret>(from, to);
+            },
             [&]([[maybe_unused]] ObjectType const& from,
-                [[maybe_unused]] ObjectType const& to) -> RetType {
+                [[maybe_unused]] ObjectType const& to) {
                 return ConvError;
             }
         }; // clang-format on

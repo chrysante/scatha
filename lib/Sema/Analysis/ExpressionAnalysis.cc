@@ -1250,7 +1250,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
         return nullptr;
     }
     auto* object = sym.temporary(conv.targetType());
-    if (conv.conversion() == ObjectTypeConversion::NullPtrToUniquePtr) {
+    if (conv.conversion() == ObjectTypeConversion::NullptrToUniquePtr) {
         dtorStack->push(object);
     }
     conv.decorateValue(object, expr->valueCategory());

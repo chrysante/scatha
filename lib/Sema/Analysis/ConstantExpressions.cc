@@ -314,7 +314,9 @@ static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
     APInt value = operand->value();
     using enum ObjectTypeConversion;
     switch (conv) {
-    case Reinterpret_Value:
+    case Reinterpret_ValuePtr:
+        [[fallthrough]];
+    case Reinterpret_ValueRef:
         return nullptr;
 
     case SS_Trunc:

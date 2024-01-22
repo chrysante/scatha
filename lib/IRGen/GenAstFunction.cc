@@ -1151,20 +1151,22 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     auto value = getValue(expr);
     using enum sema::ObjectTypeConversion;
     switch (conv.conversion()) {
-    case NullPtrToPtr:
+    case NullptrToRawPtr:
         return Value(value.name(),
                      conv.type().get(),
                      { value.get(0), ctx.intConstant(0, 64) },
                      Register,
                      Unpacked);
-    case NullPtrToUniquePtr: {
+    case NullptrToUniquePtr: {
         /// Here we have to consider if we want to keep unique pointers in
         /// memory all the time or if it is okay to have them in registers
         SC_UNIMPLEMENTED();
     }
-    case UniquePtrToPtr:
+    case UniqueToRawPtr:
         return value;
-    case Array_FixedToDynamic: {
+    case ArrayPtr_FixedToDynamic:
+        [[fallthrough]];
+    case ArrayRef_FixedToDynamic: {
         /// It would be nicer to have two cases `Array_FixedToDynamic` and
         /// `ArrayPointer_FixedToDynamic` but refactoring sema conversion is a
         /// major project that has to be done later
@@ -1180,6 +1182,7 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                      loc,
                      Unpacked);
     }
+#if 0
     case Reinterpret_Array_ToByte:
         [[fallthrough]];
     case Reinterpret_Array_FromByte:
@@ -1226,6 +1229,7 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         //                                               "reinterpret");
         //        return Value(result, Register);
     }
+#endif
     case SS_Trunc:
         [[fallthrough]];
     case SU_Trunc:
@@ -1264,6 +1268,7 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         return Value(name, conv.type().get(), { result }, Register, Packed);
     }
     }
+    SC_UNIMPLEMENTED();
 }
 
 // Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {

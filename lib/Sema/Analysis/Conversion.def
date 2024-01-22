@@ -33,19 +33,27 @@ SC_MUTCONV_DEF(MutToConst,   1)
 #   define SC_OBJTYPECONV_DEF(Name, Rank)
 #endif
 
-SC_OBJTYPECONV_DEF(NullPtrToPtr,                    0)
-SC_OBJTYPECONV_DEF(NullPtrToUniquePtr,              0)
-SC_OBJTYPECONV_DEF(UniquePtrToPtr,                  1)
+SC_OBJTYPECONV_DEF(NullptrToRawPtr,                 0)
+SC_OBJTYPECONV_DEF(NullptrToUniquePtr,              0)
+SC_OBJTYPECONV_DEF(UniqueToRawPtr,                  1)
 
-/// # Only valid for reference and pointer target types
+/// # Only valid for pointer target types
+
+SC_OBJTYPECONV_DEF(ArrayPtr_FixedToDynamic,            1)
+SC_OBJTYPECONV_DEF(Reinterpret_ValuePtr,               2)
+SC_OBJTYPECONV_DEF(Reinterpret_ValuePtr_ToByteArray,   2)
+SC_OBJTYPECONV_DEF(Reinterpret_ValuePtr_FromByteArray, 2)
+SC_OBJTYPECONV_DEF(Reinterpret_ArrayPtr_ToByte,        2)
+SC_OBJTYPECONV_DEF(Reinterpret_ArrayPtr_FromByte,      2)
+
+/// # Only valid for reference target types
     
-SC_OBJTYPECONV_DEF(Array_FixedToDynamic,            1)
-
-SC_OBJTYPECONV_DEF(Reinterpret_Value,               2)
-SC_OBJTYPECONV_DEF(Reinterpret_Value_ToByteArray,   2)
-SC_OBJTYPECONV_DEF(Reinterpret_Value_FromByteArray, 2)
-SC_OBJTYPECONV_DEF(Reinterpret_Array_ToByte,        2)
-SC_OBJTYPECONV_DEF(Reinterpret_Array_FromByte,      2)
+SC_OBJTYPECONV_DEF(ArrayRef_FixedToDynamic,            1)
+SC_OBJTYPECONV_DEF(Reinterpret_ValueRef,               2)
+SC_OBJTYPECONV_DEF(Reinterpret_ValueRef_ToByteArray,   2)
+SC_OBJTYPECONV_DEF(Reinterpret_ValueRef_FromByteArray, 2)
+SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_ToByte,        2)
+SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_FromByte,      2)
 
 /// ## Only valid for value target types
 
