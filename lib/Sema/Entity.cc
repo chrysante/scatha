@@ -15,7 +15,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
-#include "Sema/LifetimeOperation.h"
+#include "Sema/LifetimeMetadata.h"
 #include "Sema/NameMangling.h"
 
 using namespace scatha;

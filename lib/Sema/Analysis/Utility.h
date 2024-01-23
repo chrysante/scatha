@@ -22,9 +22,6 @@ void popTopLevelDtor(ast::Expression* expr, CleanupStack& dtors);
 /// generate array types.
 void declareSpecialLifetimeFunctions(ObjectType& type, SymbolTable& sym);
 
-///
-void analyzeLifetime(ObjectType& type, SymbolTable& sym);
-
 /// # Other utils
 
 /// \Returns the function in the list \p functions that exactly matches the

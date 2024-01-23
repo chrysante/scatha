@@ -107,9 +107,7 @@ SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Destructor)
 
 SC_SEMA_SMF_DEF(DefaultConstructor)
 SC_SEMA_SMF_DEF(CopyConstructor)
-SC_SEMA_SMF_DEF(CopyAssignment)
 SC_SEMA_SMF_DEF(MoveConstructor)
-SC_SEMA_SMF_DEF(MoveAssignment)
 SC_SEMA_SMF_DEF(Destructor)
 
 #undef SC_SEMA_SMF_DEF

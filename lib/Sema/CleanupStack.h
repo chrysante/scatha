@@ -9,7 +9,7 @@
 #include "AST/Fwd.h"
 #include "Common/Base.h"
 #include "Sema/Fwd.h"
-#include "Sema/LifetimeOperation.h"
+#include "Sema/LifetimeMetadata.h"
 
 namespace scatha::sema {
 

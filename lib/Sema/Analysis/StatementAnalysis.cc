@@ -461,10 +461,15 @@ static UniquePtr<ast::ConstructBase> allocateConstruction( // TODO: Add 'kind'
     if (type->hasTrivialLifetime()) {
         return allocate<ast::TrivDefConstructExpr>(nullptr, sourceRange, type);
     }
-    else {
+    else if (auto* structType = dyncast<StructType const*>(type)) {
         return allocate<ast::NontrivConstructExpr>(std::move(args),
                                                    sourceRange,
-                                                   type);
+                                                   structType);
+    }
+    else {
+        return allocate<ast::NontrivInlineConstructExpr>(std::move(args),
+                                                         sourceRange,
+                                                         type);
     }
 }
 

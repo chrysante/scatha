@@ -14,7 +14,7 @@
 #include "Sema/Analysis/StatementAnalysis.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
-#include "Sema/LifetimeOperation.h"
+#include "Sema/LifetimeMetadata.h"
 #include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
 
@@ -58,8 +58,8 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::MoveExpr&);
     ast::Expression* analyzeImpl(ast::UniqueExpr&);
     ast::Expression* analyzeImpl(ast::FunctionCall&);
-    ast::Expression* rewriteTrivConstruction(ast::FunctionCall&);
-    ast::Expression* rewriteNontrivConstruction(ast::FunctionCall&);
+    ast::Expression* rewriteFunctionalCast(ast::FunctionCall&,
+                                           Type const& type);
     ast::Expression* analyzeImpl(ast::Subscript&);
     ast::Expression* analyzeImpl(ast::SubscriptSlice&);
     ArrayType const* analyzeSubscriptCommon(ast::CallLike&);
@@ -971,20 +971,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     /// if our object is a type, then we rewrite the AST so we end up with just
-    /// a conversion node
+    /// a conversion or construct expr
     if (auto* type = dyncast<Type const*>(fc.callee()->entity())) {
-        if (auto* objType = dyncast<ObjectType const*>(type)) {
-            if (objType->hasTrivialLifetime() && !isDynArray(*objType)) {
-                return rewriteTrivConstruction(fc);
-            }
-            else {
-                return rewriteNontrivConstruction(fc);
-            }
-        }
-        else {
-            /// Cast to reference type
-            SC_UNIMPLEMENTED();
-        }
+        return rewriteFunctionalCast(fc, *type);
     }
 
     /// Make sure we have an overload set as our called object
@@ -1026,44 +1015,76 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     return &fc;
 }
 
-ast::Expression* ExprContext::rewriteTrivConstruction(ast::FunctionCall& expr) {
-    auto* constructedType = cast<ObjectType const*>(expr.callee()->entity());
-    if (isa<BuiltinType>(constructedType) && expr.arguments().size() == 1) {
+ast::Expression* ExprContext::rewriteFunctionalCast(ast::FunctionCall& expr,
+                                                    Type const& type) {
+    /// Reference types
+    if (auto* refType = dyncast<ReferenceType const*>(&type)) {
+        SC_UNIMPLEMENTED();
+    }
+    /// Function types
+    if (auto* fnType = dyncast<FunctionType const*>(&type)) {
+        SC_UNIMPLEMENTED();
+    }
+    /// Dynamic array types
+    if (auto* arrayType = dynArrayTypeCast(&type)) {
+        SC_UNIMPLEMENTED();
+    }
+    auto* objType = cast<ObjectType const*>(&type);
+    /// Functional cast to builtin type
+    if (isa<BuiltinType>(objType) && expr.arguments().size() == 1) {
         convert(ConversionKind::Explicit,
                 expr.argument(0),
-                constructedType,
+                objType,
                 RValue,
                 *cleanupStack,
                 ctx);
         return expr.replace(expr.extractArgument(0));
     }
-    auto newExpr = [&]() -> UniquePtr<ast::Expression> {
-        if (expr.arguments().empty()) {
-            return allocate<ast::TrivDefConstructExpr>(expr.extractCallee(),
-                                                       expr.sourceRange(),
-                                                       constructedType);
-        }
-        if (expr.arguments().size() == 1 &&
-            expr.argument(0)->type().get() == constructedType)
-        {
+    /// Trivial object type construction
+    if (objType->hasTrivialLifetime()) {
+        auto newExpr = [&]() -> UniquePtr<ast::Expression> {
+            if (expr.arguments().empty()) {
+                return allocate<ast::TrivDefConstructExpr>(expr.extractCallee(),
+                                                           expr.sourceRange(),
+                                                           objType);
+            }
+            if (expr.arguments().size() == 1 &&
+                expr.argument(0)->type().get() == objType)
+            {
 
-            return allocate<ast::TrivCopyConstructExpr>(expr.extractCallee(),
-                                                        expr.extractArgument(0),
-                                                        expr.sourceRange(),
-                                                        constructedType);
-        }
-        return allocate<ast::AggregateConstructExpr>(
-            expr.extractCallee(),
-            expr.arguments() | transform(&ast::Expression::extractFromParent) |
-                ToSmallVector<>,
-            expr.sourceRange(),
-            constructedType);
-    }();
-    return analyzeValue(expr.replace(std::move(newExpr)));
-}
-
-ast::Expression* ExprContext::rewriteNontrivConstruction(ast::FunctionCall&) {
-    SC_UNIMPLEMENTED();
+                return allocate<ast::TrivCopyConstructExpr>(
+                    expr.extractCallee(),
+                    expr.extractArgument(0),
+                    expr.sourceRange(),
+                    objType);
+            }
+            return allocate<ast::AggregateConstructExpr>(
+                expr.extractCallee(),
+                expr.arguments() |
+                    transform(&ast::Expression::extractFromParent) |
+                    ToSmallVector<>,
+                expr.sourceRange(),
+                objType);
+        }();
+        return analyzeValue(expr.replace(std::move(newExpr)));
+    }
+    auto args = expr.arguments() |
+                transform(&ast::Expression::extractFromParent) |
+                ToSmallVector<>;
+    /// Nontrivial object type construction
+    if (auto* structType = dyncast<StructType const*>(objType)) {
+        auto newExpr = allocate<ast::NontrivConstructExpr>(std::move(args),
+                                                           expr.sourceRange(),
+                                                           structType);
+        return analyzeValue(expr.replace(std::move(newExpr)));
+    }
+    else {
+        auto newExpr =
+            allocate<ast::NontrivInlineConstructExpr>(std::move(args),
+                                                      expr.sourceRange(),
+                                                      objType);
+        return analyzeValue(expr.replace(std::move(newExpr)));
+    }
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
@@ -1430,8 +1451,26 @@ ast::Expression* ExprContext::analyzeImpl(ast::AggregateConstructExpr& expr) {
 ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
     auto* obj = sym.temporary(expr.constructedType());
     cleanupStack->push(obj);
+    auto* type = expr.constructedType();
+    /// Only used for overload resolution. Will be deallocated when this
+    /// function returns
+    auto uninitTmp = allocate<ast::UninitTemporary>(type);
+    auto args = concat(single(uninitTmp.get()), expr.arguments()) |
+                ToSmallVector<>;
+    auto orResult =
+        performOverloadResolution(&expr, type->constructors(), args);
+    if (orResult.error) {
+        ctx.issueHandler().push(std::move(orResult.error));
+        return nullptr;
+    }
+    SC_ASSERT(orResult.conversions.front().isNoop(), "");
+    for (auto [conv, arg]:
+         zip(orResult.conversions | drop(1), expr.arguments()))
+    {
+        insertConversion(arg, conv, *cleanupStack, ctx);
+    }
     // Ignore for now
-    expr.decorateValue(obj, RValue);
+    expr.decorateConstruct(obj, orResult.function);
     return &expr;
 }
 

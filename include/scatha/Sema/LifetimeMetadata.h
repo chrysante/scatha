@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_LIFETIMEOPERATION_H_
-#define SCATHA_SEMA_LIFETIMEOPERATION_H_
+#ifndef SCATHA_SEMA_LIFETIMEMETADATA_H_
+#define SCATHA_SEMA_LIFETIMEMETADATA_H_
 
 #include <iosfwd>
 
@@ -36,8 +36,10 @@ public:
     };
 
     /// Construct a non trivial lifetime operation from a function
-    explicit LifetimeOperation(Function* function):
-        _kind(Nontrivial), fn(function) {}
+    /// `kind()` will be set to `Nontrivial` if \p function is nonnull or
+    /// `Deleted` otherwise
+    LifetimeOperation(Function* function):
+        _kind(function ? Nontrivial : Deleted), fn(function) {}
 
     /// Implicitly construct a lifetime operation from its kind.
     /// \Pre \p kind must not be `Nontrivial`. Use other constructor to
@@ -64,19 +66,14 @@ std::ostream& operator<<(std::ostream& ostream, LifetimeOperation op);
 /// Lifetime metadata for an object type with nontrivial lifetime
 class LifetimeMetadata {
 public:
-    LifetimeMetadata(std::span<LifetimeOperation const> allConstructors,
-                     LifetimeOperation defaultConstructor,
+    LifetimeMetadata(LifetimeOperation defaultConstructor,
                      LifetimeOperation copyConstructor,
                      LifetimeOperation moveConstructor,
                      LifetimeOperation destructor):
-        allCtors(allConstructors | ToSmallVector<>),
         defCtor(defaultConstructor),
         copyCtor(copyConstructor),
         moveCtor(moveConstructor),
         dtor(destructor) {}
-
-    /// \Returns a list of all defined constructors
-    std::span<LifetimeOperation const> constructors() const { return allCtors; }
 
     /// \Returns the default constructor
     LifetimeOperation defaultConstructor() const { return defCtor; }
@@ -91,7 +88,6 @@ public:
     LifetimeOperation destructor() const { return dtor; }
 
 private:
-    utl::small_vector<LifetimeOperation> allCtors;
     LifetimeOperation defCtor;
     LifetimeOperation copyCtor;
     LifetimeOperation moveCtor;
@@ -100,4 +96,4 @@ private:
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_LIFETIMEOPERATION_H_
+#endif // SCATHA_SEMA_LIFETIMEMETADATA_H_

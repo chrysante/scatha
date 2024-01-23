@@ -48,6 +48,11 @@ public:
         return objConv;
     }
 
+    /// \Returns `true` if all conversions are `std::nullopt`
+    bool isNoop() const {
+        return !valueCatConversion() && !mutConversion() && !objectConversion();
+    }
+
 private:
     QualType from;
     QualType to;

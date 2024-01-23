@@ -153,6 +153,15 @@ inline std::strong_ordering operator<=>(AccessControl A, AccessControl B) {
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };
 
+/// Different kinds of special member functions
+enum class SMFKind : uint8_t {
+#define SC_SEMA_SMF_DEF(Name) Name,
+#include <scatha/Sema/Lists.def>
+};
+
+/// \Returns the name of the special member function kind \p kind
+std::string toName(SMFKind kind);
+
 /// Special member functions
 /// These are all constructors, destructor, and perhaps more to come
 enum class SpecialMemberFunctionDepr : uint8_t {

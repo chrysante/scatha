@@ -1536,6 +1536,11 @@ public:
     explicit UninitTemporary(SourceRange sourceRange):
         Expression(NodeType::UninitTemporary, sourceRange) {}
 
+    explicit UninitTemporary(sema::ObjectType const* type):
+        Expression(NodeType::UninitTemporary, {}) {
+        decorateValue(nullptr, sema::ValueCategory::LValue, type);
+    }
+
     AST_DERIVED_COMMON(UninitTemporary)
 };
 
@@ -1697,14 +1702,37 @@ public:
     using ConstructBase::decorateConstruct;
 };
 
-/// Represents _any_ nontrivial object
+/// Represents nontrivial object construction of struct types. Other types like
+/// arrays and unique pointers are constructed by `NontrivInlineConstructExpr`
 class SCATHA_API NontrivConstructExpr: public ConstructBase {
 public:
     explicit NontrivConstructExpr(
         utl::small_vector<UniquePtr<Expression>> arguments,
         SourceRange sourceRange,
+        sema::StructType const* constructedType);
+
+    /// \Returns the being constructed
+    sema::StructType const* constructedType() const;
+
+    /// \Returns the constructor selected by semantic analysis
+    sema::Function const* constructor() const { return ctor; }
+
+    ///
+    void decorateConstruct(sema::Object* obj,
+                           sema::Function const* constructor);
+
+private:
+    sema::Function const* ctor = nullptr;
+};
+
+/// Represents nontrivial object construction of array and unique pointer types
+class SCATHA_API NontrivInlineConstructExpr: public ConstructBase {
+public:
+    explicit NontrivInlineConstructExpr(
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        SourceRange sourceRange,
         sema::ObjectType const* constructedType):
-        ConstructBase(NodeType::NontrivConstructExpr,
+        ConstructBase(NodeType::NontrivInlineConstructExpr,
                       nullptr,
                       std::move(arguments),
                       sourceRange,

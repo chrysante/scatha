@@ -93,6 +93,26 @@ void FunctionCall::decorateCall(sema::Object* object,
     _function = calledFunction;
 }
 
+NontrivConstructExpr::NontrivConstructExpr(
+    utl::small_vector<UniquePtr<Expression>> arguments,
+    SourceRange sourceRange,
+    sema::StructType const* constructedType):
+    ConstructBase(NodeType::NontrivConstructExpr,
+                  nullptr,
+                  std::move(arguments),
+                  sourceRange,
+                  constructedType) {}
+
+sema::StructType const* NontrivConstructExpr::constructedType() const {
+    return cast<sema::StructType const*>(ConstructBase::constructedType());
+}
+
+void NontrivConstructExpr::decorateConstruct(
+    sema::Object* obj, sema::Function const* constructor) {
+    ctor = constructor;
+    decorateValue(obj, sema::ValueCategory::RValue);
+}
+
 void VarDeclBase::decorateVarDecl(sema::Entity* entity) {
     if (auto* object = dyncast<sema::Object*>(entity)) {
         _type = object->type();

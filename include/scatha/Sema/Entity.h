@@ -566,6 +566,16 @@ public:
         return kind() == FunctionKind::Foreign;
     }
 
+    /// Sets the kind of special member function. May only be called if this function is a special member function
+    void setSMFKind(SMFKind kind) { _smfKind = kind; }
+
+    /// \Returns the kind of special member functions if this function is a
+    /// special member or `std::nullopt`
+    std::optional<SMFKind> smfKind() const {
+        return _smfKind == SMFKind{ 0xFF } ? std::nullopt :
+                                             std::optional(_smfKind);
+    }
+
     /// \Returns the special member function metadata or `std::nullopt` if this
     /// function is not a special member function
     SC_NODEBUG std::optional<SMFMetadata> getSMFMetadata() const {
@@ -605,7 +615,8 @@ private:
     friend class SymbolTable;
     FunctionType const* _type;
     FunctionAttribute attrs;                           // 4 bytes
-    SMFMetadata smfMetadata = {};                      // 1 byte
+    SMFMetadata smfMetadata = {};                      // 1 byte, depr
+    SMFKind _smfKind = SMFKind{ 0xFF };                // 1 byte
     FunctionKind _kind     : 4 = FunctionKind::Native; // 4 bits
     bool _hasSig           : 1 = false;
     bool _isMember         : 1 = false;
@@ -705,13 +716,14 @@ public:
         return lifetimeMD.get();
     }
 
+    /// **Deprecated**
     ///
     void addSpecialMemberFunction(SpecialMemberFunctionDepr kind,
                                   Function* function) {
         SMFs[kind].push_back(function);
     }
 
-    ///
+    /// **Deprecated**
     SC_NODEBUG std::span<Function* const> specialMemberFunctions(
         SpecialMemberFunctionDepr kind) const {
         auto itr = SMFs.find(kind);
@@ -721,27 +733,31 @@ public:
         return {};
     }
 
-    ///
+    /// **Deprecated**
     SC_NODEBUG Function* specialLifetimeFunction(
         SpecialLifetimeFunctionDepr kind) const {
         return SLFs[static_cast<size_t>(kind)];
     }
 
+    /// **Deprecated**
     /// These functions should be only accessible by the implementation of
     /// `instantiateEntities()` but it's just to cumbersome to make it private
     void setIsDefaultConstructible(bool value) {
         _isDefaultConstructible = value;
     }
 
+    /// **Deprecated**
     /// See above
     void setHasTrivialLifetime(bool value) { _hasTrivialLifetime = value; }
 
+    /// **Deprecated**
     /// See above
     void setSpecialLifetimeFunctions(
         std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs) {
         this->SLFs = SLFs;
     }
 
+    /// **Deprecated**
     /// See above
     void setSpecialLifetimeFunction(SpecialLifetimeFunctionDepr kind,
                                     Function* function) {
@@ -911,6 +927,20 @@ public:
 
     /// Sets the member variable of this structure at index \p index
     void setMemberVariable(size_t index, Variable* var);
+
+    ///
+    void setLifetimeFunctions(std::span<Function* const> ctors,
+                              Function* moveCtor,
+                              Function* dtor);
+
+    /// \Returns the constructors (`new` functions) of this struct
+    std::span<Function* const> constructors() const;
+
+    /// \Returns the move constructor of this struct
+    Function* moveConstructor() const;
+
+    /// \Returns the destructor of this struct
+    Function* destructor() const;
 
 private:
     friend class Type;
