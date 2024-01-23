@@ -9,12 +9,12 @@
 #include <scatha/CodeGen/CodeGen.h>
 #include <scatha/CodeGen/Logger.h>
 #include <scatha/CodeGen/Passes.h>
-#include <scatha/Common/ExecutableWriter.h>
 #include <scatha/Common/Logging.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
 #include <scatha/IR/Print.h>
 #include <scatha/IRGen/IRGen.h>
+#include <scatha/Invocation/ExecutableWriter.h>
 #include <scatha/MIR/Context.h>
 #include <scatha/MIR/Module.h>
 #include <scatha/MIR/Print.h>
@@ -46,7 +46,7 @@ int scatha::inspectMain(InspectOptions options) {
                                 sema::SymbolTable const& sym) {
             if (options.ast) {
                 header("AST");
-                ast::printTree(ast);
+                ast::print(ast);
             }
             if (options.sym) {
                 header("Symbol Table");

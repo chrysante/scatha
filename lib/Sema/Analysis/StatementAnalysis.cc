@@ -451,6 +451,23 @@ void StmtContext::analyzeImpl(ast::CompoundStatement& block) {
     });
 }
 
+static UniquePtr<ast::ConstructBase> allocateConstruction( // TODO: Add 'kind'
+                                                           // argument
+    utl::small_vector<UniquePtr<ast::Expression>> args,
+    SourceRange sourceRange,
+    ObjectType const* type) {
+    // FIXME: Assuming default construction for now
+    SC_ASSERT(args.empty(), "See comment");
+    if (type->hasTrivialLifetime()) {
+        return allocate<ast::TrivDefConstructExpr>(nullptr, sourceRange, type);
+    }
+    else {
+        return allocate<ast::NontrivConstructExpr>(std::move(args),
+                                                   sourceRange,
+                                                   type);
+    }
+}
+
 void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(!varDecl.isDecorated(),
               "We should not have handled local variables in prepass.");
@@ -521,18 +538,14 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         initExpr = conv;
     }
     /// Otherwise we construct an object of the declared type without arguments
-    else if (auto* objType = cast<ObjectType const*>(type);
-             objType->hasTrivialLifetime())
-    {
-        auto constructExpr =
-            allocate<ast::TrivDefConstructExpr>(nullptr,
-                                                varDecl.sourceRange(),
-                                                objType);
-        initExpr = varDecl.setInitExpr(std::move(constructExpr));
-        initExpr = analyzeValue(initExpr, varDecl.cleanupStack());
-    }
     else {
-        SC_UNIMPLEMENTED();
+        /// Cannot be a reference type because reference type variables require
+        /// init expressions
+        auto* objType = cast<ObjectType const*>(type);
+        auto constructExpr =
+            allocateConstruction({}, varDecl.sourceRange(), objType);
+        initExpr = analyzeValue(varDecl.setInitExpr(std::move(constructExpr)),
+                                varDecl.cleanupStack());
     }
     /// If our variable is of object type, we pop the last destructor _in the
     /// stack of this declaration_ because it corresponds to the object whose

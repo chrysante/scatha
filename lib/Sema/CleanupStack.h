@@ -30,22 +30,25 @@ public:
     void push(CleanupOperation dtorCall);
 
     /// Pop the top destructor call off the stack
-    void pop() { dtorCalls.pop(); }
+    void pop() { operations.pop(); }
 
     /// \Returns `true` if the stack is empty
-    bool empty() const { return dtorCalls.empty(); }
+    bool empty() const { return operations.empty(); }
+
+    /// \Returns the number of operations in this cleanup stack
+    size_t size() const { return operations.size(); }
 
     /// \Returns the top of the stack
-    CleanupOperation top() const { return dtorCalls.top(); }
+    CleanupOperation top() const { return operations.top(); }
 
     /// \Returns an iterator to the top of the stack
-    auto begin() const { return dtorCalls.rbegin(); }
+    auto begin() const { return operations.rbegin(); }
 
     /// \Returns an iterator past the bottom of the stack
-    auto end() const { return dtorCalls.rend(); }
+    auto end() const { return operations.rend(); }
 
 private:
-    utl::stack<CleanupOperation> dtorCalls;
+    utl::stack<CleanupOperation> operations;
 };
 
 ///

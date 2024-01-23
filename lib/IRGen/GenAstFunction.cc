@@ -78,8 +78,8 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
 
-    /// \Returns single value if `Repr == Packed` or vector of values if `Repr
-    /// == Unpacked`
+    /// \Returns single value if `Repr == Packed` or vector of values if 
+    /// `Repr == Unpacked`
     template <ValueRepresentation Repr>
     SC_NODEBUG auto getValue(ValueLocation loc, ast::Expression const* expr) {
         return to<Repr>(loc, getValue(expr));

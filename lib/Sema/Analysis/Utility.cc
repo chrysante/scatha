@@ -43,7 +43,7 @@ void CleanupStack::push(Object* obj) {
     }
 }
 
-void CleanupStack::push(CleanupOperation cleanup) { dtorCalls.push(cleanup); }
+void CleanupStack::push(CleanupOperation cleanup) { operations.push(cleanup); }
 
 void sema::print(CleanupStack const& stack, std::ostream& str) {
     for (auto& call: stack) {

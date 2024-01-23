@@ -75,6 +75,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::TrivDefConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivCopyConstructExpr&);
     ast::Expression* analyzeImpl(ast::AggregateConstructExpr&);
+    ast::Expression* analyzeImpl(ast::NontrivConstructExpr&);
 
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
@@ -1422,6 +1423,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::AggregateConstructExpr& expr) {
         return nullptr;
     }
     expr.decorateConstruct(sym.temporary(structType));
+    return &expr;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
+    auto* obj = sym.temporary(expr.constructedType());
+    cleanupStack->push(obj);
+    // Ignore for now
+    expr.decorateValue(obj, RValue);
     return &expr;
 }
 

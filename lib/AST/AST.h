@@ -1709,8 +1709,6 @@ public:
                       std::move(arguments),
                       sourceRange,
                       constructedType) {}
-
-private:
 };
 
 /// Concrete node representing an assignment of a non-trivial value
