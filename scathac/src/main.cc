@@ -45,6 +45,8 @@ int main(int argc, char* argv[]) {
     inspect->add_flag("--isel", inspectOptions.isel, "Run the experimental ISel pipeline");
     inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
     inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
+    inspect->add_flag("--frontend", inspectOptions.onlyFrontend, "Only run the frontend. No IR or bytecode will be generated");
+    
     
     CLI::App* graph = compiler.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
     GraphOptions graphOptions{};

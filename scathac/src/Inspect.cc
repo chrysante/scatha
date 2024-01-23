@@ -52,6 +52,9 @@ int scatha::inspectMain(InspectOptions options) {
                 header("Symbol Table");
                 sema::print(sym);
             }
+            if (options.onlyFrontend) {
+                invocation.stop();
+            }
         },
         .optCallback = [&](ir::Context const&, ir::Module const& mod) {
             if (options.emitIR) {

@@ -15,6 +15,7 @@ struct InspectOptions: OptionsBase {
     bool codegen;
     bool isel; // Experimental
     bool assembly;
+    bool onlyFrontend;
 };
 
 /// Main function of the `inspect` tool
