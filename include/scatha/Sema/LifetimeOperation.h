@@ -3,7 +3,11 @@
 
 #include <iosfwd>
 
+#include <range/v3/view.hpp>
+#include <utl/vector.hpp>
+
 #include <scatha/Common/Base.h>
+#include <scatha/Common/Ranges.h>
 #include <scatha/Sema/Fwd.h>
 
 namespace scatha::sema {
@@ -47,10 +51,7 @@ public:
 
     /// \Returns the function that performs this operation. This is non-null iff
     /// `kind() == Nontrivial`
-    Function* function() { return fn; }
-
-    /// \overload
-    Function const* function() const { return fn; }
+    Function* function() const { return fn; }
 
 private:
     Kind _kind;
@@ -59,6 +60,43 @@ private:
 
 /// Pretty print the lifetime operation \p op to \p ostream
 std::ostream& operator<<(std::ostream& ostream, LifetimeOperation op);
+
+/// Lifetime metadata for an object type with nontrivial lifetime
+class LifetimeMetadata {
+public:
+    LifetimeMetadata(std::span<LifetimeOperation const> allConstructors,
+                     LifetimeOperation defaultConstructor,
+                     LifetimeOperation copyConstructor,
+                     LifetimeOperation moveConstructor,
+                     LifetimeOperation destructor):
+        allCtors(allConstructors | ToSmallVector<>),
+        defCtor(defaultConstructor),
+        copyCtor(copyConstructor),
+        moveCtor(moveConstructor),
+        dtor(destructor) {}
+
+    /// \Returns a list of all defined constructors
+    std::span<LifetimeOperation const> constructors() const { return allCtors; }
+
+    /// \Returns the default constructor
+    LifetimeOperation defaultConstructor() const { return defCtor; }
+
+    /// \Returns the copy constructor
+    LifetimeOperation copyConstructor() const { return copyCtor; }
+
+    /// \Returns the move constructor
+    LifetimeOperation moveConstructor() const { return moveCtor; }
+
+    /// \Returns the destructor
+    LifetimeOperation destructor() const { return dtor; }
+
+private:
+    utl::small_vector<LifetimeOperation> allCtors;
+    LifetimeOperation defCtor;
+    LifetimeOperation copyCtor;
+    LifetimeOperation moveCtor;
+    LifetimeOperation dtor;
+};
 
 } // namespace scatha::sema
 

@@ -18,6 +18,7 @@ class SemanticIssue;
 class SymbolTable;
 class CleanupStack;
 class NameMangler;
+class LifetimeMetadata;
 
 size_t constexpr InvalidSize = ~size_t(0);
 

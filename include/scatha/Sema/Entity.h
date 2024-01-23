@@ -688,9 +688,22 @@ private:
 /// Abstract class representing the type of an object
 class SCATHA_API ObjectType: public Type {
 public:
+    ~ObjectType();
+
+    ///
     void setSize(size_t value) { _size = value; }
 
+    ///
     void setAlign(size_t value) { _align = value; }
+
+    ///
+    void setLifetimeMetadata(LifetimeMetadata md);
+
+    /// \Returns the lifetime metadata associated with this type.
+    /// This is nonnull iff `hasTrivialLifetime()` is false
+    LifetimeMetadata const* lifetimeMetadata() const {
+        return lifetimeMD.get();
+    }
 
     ///
     void addSpecialMemberFunction(SpecialMemberFunctionDepr kind,
@@ -754,6 +767,7 @@ private:
 
     size_t _size;
     size_t _align;
+    std::unique_ptr<LifetimeMetadata> lifetimeMD;
     utl::hashmap<SpecialMemberFunctionDepr, utl::small_vector<Function*, 1>>
         SMFs;
     std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs = {};

@@ -1,5 +1,6 @@
 #include "Sema/Entity.h"
 
+#include <memory>
 #include <sstream>
 
 #include <range/v3/algorithm.hpp>
@@ -14,6 +15,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
+#include "Sema/LifetimeOperation.h"
 #include "Sema/NameMangling.h"
 
 using namespace scatha;
@@ -299,6 +301,12 @@ FunctionType::FunctionType(utl::small_vector<Type const*> argumentTypes,
          computeFnTypeAccCtrl(argumentTypes, returnType)),
     _argumentTypes(std::move(argumentTypes)),
     _returnType(returnType) {}
+
+void ObjectType::setLifetimeMetadata(LifetimeMetadata md) {
+    lifetimeMD = std::make_unique<LifetimeMetadata>(std::move(md));
+}
+
+ObjectType::~ObjectType() = default;
 
 ObjectType::ObjectType(EntityType entityType,
                        ScopeKind scopeKind,

@@ -78,7 +78,7 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
 
-    /// \Returns single value if `Repr == Packed` or vector of values if 
+    /// \Returns single value if `Repr == Packed` or vector of values if
     /// `Repr == Unpacked`
     template <ValueRepresentation Repr>
     SC_NODEBUG auto getValue(ValueLocation loc, ast::Expression const* expr) {
@@ -682,6 +682,8 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
 
     case Assignment: {
         auto* lhs = getValue<Packed>(Memory, expr.lhs());
+        /// TODO: Don't load to register unconditionally.
+        /// Use `memcpy` for large types
         auto* rhs = getValue<Packed>(Register, expr.rhs());
         add<ir::Store>(lhs, rhs);
         return Value("assignment.result",
