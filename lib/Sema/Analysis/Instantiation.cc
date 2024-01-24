@@ -74,6 +74,13 @@ utl::vector<StructType const*> sema::instantiateEntities(
         /// Const cast is fine because we just have the pointers as const to
         /// return them soon, they all have mutable origin.
         auto* mutType = const_cast<StructType*>(type);
+        /// Members of array type may not have lifetime analyzed here
+        for (auto* member: mutType->members() | Filter<ObjectType>) {
+            if (!member->hasLifetimeMetadata()) {
+                analyzeLifetime(const_cast<ObjectType&>(*member),
+                                ctx.symbolTable());
+            }
+        }
         analyzeLifetime(*mutType, ctx.symbolTable());
     }
     return structs;

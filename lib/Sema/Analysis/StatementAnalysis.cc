@@ -451,25 +451,28 @@ void StmtContext::analyzeImpl(ast::CompoundStatement& block) {
     });
 }
 
-static UniquePtr<ast::ConstructBase> allocateConstruction( // TODO: Add 'kind'
-                                                           // argument
-    utl::small_vector<UniquePtr<ast::Expression>> args,
-    SourceRange sourceRange,
-    ObjectType const* type) {
-    // FIXME: Assuming default construction for now
-    SC_ASSERT(args.empty(), "See comment");
-    if (type->hasTrivialLifetime()) {
+static UniquePtr<ast::ConstructBase> allocateDefaultConstruction(
+    SourceRange sourceRange, ObjectType const* type) {
+    auto& md = type->lifetimeMetadata();
+    if (md.defaultConstructor().isTrivial()) {
         return allocate<ast::TrivDefConstructExpr>(nullptr, sourceRange, type);
     }
-    else if (auto* structType = dyncast<StructType const*>(type)) {
-        return allocate<ast::NontrivConstructExpr>(std::move(args),
+    auto defConstr = md.defaultConstructor();
+    SC_ASSERT(!defConstr.isDeleted(), "Should be caught earlier");
+    using enum LifetimeOperation::Kind;
+    using ArgList = utl::small_vector<UniquePtr<ast::Expression>>;
+    switch (defConstr.kind()) {
+    case Nontrivial:
+        return allocate<ast::NontrivConstructExpr>(ArgList{},
                                                    sourceRange,
-                                                   structType);
-    }
-    else {
-        return allocate<ast::NontrivInlineConstructExpr>(std::move(args),
+                                                   cast<StructType const*>(
+                                                       type));
+    case NontrivialInline:
+        return allocate<ast::NontrivInlineConstructExpr>(ArgList{},
                                                          sourceRange,
                                                          type);
+    default:
+        SC_UNREACHABLE();
     }
 }
 
@@ -562,7 +565,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         /// init expressions
         auto* objType = cast<ObjectType const*>(deducedType);
         auto constructExpr =
-            allocateConstruction({}, varDecl.sourceRange(), objType);
+            allocateDefaultConstruction(varDecl.sourceRange(), objType);
         validatedInitExpr =
             analyzeValue(varDecl.setInitExpr(std::move(constructExpr)),
                          varDecl.cleanupStack());

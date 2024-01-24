@@ -388,6 +388,7 @@ T* SymbolTable::declareBuiltinType(Args&&... args) {
         impl->addEntity<T>(std::forward<Args>(args)..., &currentScope());
     type->setBuiltin();
     addToCurrentScope(type);
+    analyzeLifetime(*type, *this);
     return type;
 }
 
@@ -786,7 +787,9 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                     LValue,
                     accessCtrl);
     });
-    analyzeLifetime(*arrayType, *this);
+    if (arrayType->elementType()->hasLifetimeMetadata()) {
+        analyzeLifetime(*arrayType, *this);
+    }
     const_cast<ObjectType*>(elementType)->parent()->addChild(arrayType);
     return arrayType;
 }
@@ -833,7 +836,11 @@ T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
 }
 
 RawPtrType const* SymbolTable::pointer(QualType pointee) {
-    return impl->ptrLikeImpl(impl->ptrTypes, pointee);
+    return impl->ptrLikeImpl<RawPtrType>(impl->ptrTypes,
+                                         pointee,
+                                         [&](RawPtrType* type) {
+        analyzeLifetime(*type, *this);
+    });
 }
 
 ReferenceType const* SymbolTable::reference(QualType referred) {

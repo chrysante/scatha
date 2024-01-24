@@ -58,11 +58,6 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
-    auto* fnDecl = file->statement<FunctionDefinition>(0);
-    CHECK(fnDecl->returnType() == sym.S64());
-    CHECK(fnDecl->parameter(0)->type() == sym.S64());
-    CHECK(fnDecl->parameter(1)->type() == sym.S64());
-    CHECK(fnDecl->parameter(2)->type() == sym.F64());
     auto* fn = file->statement<FunctionDefinition>(0);
     CHECK(fn->returnType() == sym.S64());
     CHECK(fn->parameter(0)->type() == sym.S64());

@@ -718,10 +718,18 @@ public:
     ///
     void setLifetimeMetadata(LifetimeMetadata md);
 
+    /// \Returns `true` if `setLifetimeMetadata` has been called.
+    /// Eventually this will be true for all object types. During instantiation
+    /// however this may return false. This function is used to guard against
+    /// premature lifetime analysis of derived types like arrays.
+    bool hasLifetimeMetadata() const { return lifetimeMD != nullptr; }
+
     /// \Returns the lifetime metadata associated with this type.
     /// This is nonnull iff `hasTrivialLifetime()` is false
-    LifetimeMetadata const* lifetimeMetadata() const {
-        return lifetimeMD.get();
+    /// \Pre Lifetime of this type must have been analyzed
+    LifetimeMetadata const& lifetimeMetadata() const {
+        SC_EXPECT(hasLifetimeMetadata());
+        return *lifetimeMD;
     }
 
     /// **Deprecated**

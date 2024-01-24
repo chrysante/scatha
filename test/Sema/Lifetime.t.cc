@@ -42,24 +42,22 @@ public struct WithNontrivMember {
     SECTION("Empty") {
         auto* type = lookup<StructType>(sym, "Empty");
         CHECK(type->hasTrivialLifetime());
-        auto* md = type->lifetimeMetadata();
-        REQUIRE(md);
-        CHECK(md->defaultConstructor().isTrivial());
-        CHECK(md->copyConstructor().isTrivial());
-        CHECK(md->moveConstructor().isTrivial());
-        CHECK(md->destructor().isTrivial());
+        auto& md = type->lifetimeMetadata();
+        CHECK(md.defaultConstructor().isTrivial());
+        CHECK(md.copyConstructor().isTrivial());
+        CHECK(md.moveConstructor().isTrivial());
+        CHECK(md.destructor().isTrivial());
     }
 
     SECTION("Trivial") {
         auto* type = lookup<StructType>(sym, "Trivial");
         CHECK(type->hasTrivialLifetime());
-        auto* md = type->lifetimeMetadata();
-        REQUIRE(md);
-        REQUIRE(md->defaultConstructor().function());
-        CHECK(md->defaultConstructor().function()->isNative());
-        CHECK(md->copyConstructor().isTrivial());
-        CHECK(md->moveConstructor().isTrivial());
-        CHECK(md->destructor().isTrivial());
+        auto& md = type->lifetimeMetadata();
+        REQUIRE(md.defaultConstructor().function());
+        CHECK(md.defaultConstructor().function()->isNative());
+        CHECK(md.copyConstructor().isTrivial());
+        CHECK(md.moveConstructor().isTrivial());
+        CHECK(md.destructor().isTrivial());
     }
 
     SECTION("Trivial array") {
@@ -67,36 +65,33 @@ public struct WithNontrivMember {
         auto* type = sym.arrayType(elemType, 2);
         CHECK(type->hasTrivialLifetime());
         using enum LifetimeOperation::Kind;
-        auto* md = type->lifetimeMetadata();
-        REQUIRE(md);
-        CHECK(md->defaultConstructor().kind() == NontrivialInline);
-        CHECK(md->copyConstructor().isTrivial());
-        CHECK(md->moveConstructor().isTrivial());
-        CHECK(md->destructor().isTrivial());
+        auto& md = type->lifetimeMetadata();
+        CHECK(md.defaultConstructor().kind() == NontrivialInline);
+        CHECK(md.copyConstructor().isTrivial());
+        CHECK(md.moveConstructor().isTrivial());
+        CHECK(md.destructor().isTrivial());
     }
 
     SECTION("Nontrivial") {
         auto* type = lookup<StructType>(sym, "Nontrivial");
         CHECK(!type->hasTrivialLifetime());
-        auto* md = type->lifetimeMetadata();
-        REQUIRE(md);
-        CHECK(md->defaultConstructor().isDeleted());
-        CHECK(md->copyConstructor().isDeleted());
-        CHECK(md->moveConstructor().isDeleted());
-        CHECK(md->destructor().function());
+        auto& md = type->lifetimeMetadata();
+        CHECK(md.defaultConstructor().isDeleted());
+        CHECK(md.copyConstructor().isDeleted());
+        CHECK(md.moveConstructor().isDeleted());
+        CHECK(md.destructor().function());
     }
 
     SECTION("Nontrivial2") {
         auto* type = lookup<StructType>(sym, "Nontrivial2");
         CHECK(!type->hasTrivialLifetime());
-        auto* md = type->lifetimeMetadata();
-        REQUIRE(md);
-        CHECK(md->defaultConstructor().isDeleted());
-        REQUIRE(md->copyConstructor().function());
-        CHECK(md->copyConstructor().function()->isNative());
-        CHECK(md->moveConstructor().isDeleted());
-        REQUIRE(md->destructor().function());
-        CHECK(md->destructor().function()->isNative());
+        auto& md = type->lifetimeMetadata();
+        CHECK(md.defaultConstructor().isDeleted());
+        REQUIRE(md.copyConstructor().function());
+        CHECK(md.copyConstructor().function()->isNative());
+        CHECK(md.moveConstructor().isDeleted());
+        REQUIRE(md.destructor().function());
+        CHECK(md.destructor().function()->isNative());
     }
 
     SECTION("Nontrivial2 array") {
@@ -104,24 +99,61 @@ public struct WithNontrivMember {
         auto* type = sym.arrayType(elemType, 2);
         CHECK(!type->hasTrivialLifetime());
         using enum LifetimeOperation::Kind;
-        auto* md = type->lifetimeMetadata();
-        REQUIRE(md);
-        CHECK(md->defaultConstructor().isDeleted());
-        CHECK(md->copyConstructor().kind() == NontrivialInline);
-        CHECK(md->moveConstructor().isDeleted());
-        CHECK(md->destructor().kind() == NontrivialInline);
+        auto& md = type->lifetimeMetadata();
+        CHECK(md.defaultConstructor().isDeleted());
+        CHECK(md.copyConstructor().kind() == NontrivialInline);
+        CHECK(md.moveConstructor().isDeleted());
+        CHECK(md.destructor().kind() == NontrivialInline);
     }
 
     SECTION("WithNontrivMember") {
         auto* type = lookup<StructType>(sym, "WithNontrivMember");
         CHECK(!type->hasTrivialLifetime());
-        auto* md = type->lifetimeMetadata();
-        REQUIRE(md);
-        CHECK(md->defaultConstructor().isDeleted());
-        REQUIRE(md->copyConstructor().function());
-        CHECK(md->copyConstructor().function()->isGenerated());
-        CHECK(md->moveConstructor().isDeleted());
-        REQUIRE(md->destructor().function());
-        CHECK(md->destructor().function()->isGenerated());
+        auto& md = type->lifetimeMetadata();
+        CHECK(md.defaultConstructor().isDeleted());
+        REQUIRE(md.copyConstructor().function());
+        CHECK(md.copyConstructor().function()->isGenerated());
+        CHECK(md.moveConstructor().isDeleted());
+        REQUIRE(md.destructor().function());
+        CHECK(md.destructor().function()->isGenerated());
     }
+}
+
+TEST_CASE("Non-aggregate object construction AST rewrites",
+          "[sema][lifetime]") {
+    auto const text = R"(
+struct Trivial {
+    fn new(&mut this) {}
+    fn new(&mut this, n: int) {}
+}
+fn foo() {
+    var t: Trivial;
+    var s = Trivial(1);
+    var r = t;
+}
+)";
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+    REQUIRE(iss.empty());
+
+    auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+
+    /// Struct definition
+    auto* trivial = file->statement<StructDefinition>(0);
+    auto* defCtor = trivial->body()->statement<FunctionDefinition>(0);
+    auto* intCtor = trivial->body()->statement<FunctionDefinition>(1);
+
+    /// Function definition
+    auto* foo = file->statement<FunctionDefinition>(1);
+
+    auto* t = foo->body()->statement<VariableDeclaration>(0);
+    auto* tConstr = t->initExpr<NontrivConstructExpr>();
+    CHECK(tConstr->constructor() == defCtor->function());
+
+    auto* s = foo->body()->statement<VariableDeclaration>(1);
+    auto* sConstr = s->initExpr<NontrivConstructExpr>();
+    CHECK(sConstr->constructor() == intCtor->function());
+
+    auto* r = foo->body()->statement<VariableDeclaration>(2);
+    auto* rConstr = r->initExpr<TrivCopyConstructExpr>();
+    CHECK(rConstr->CallLike::argument<Identifier>(0)->entity() == t->entity());
 }

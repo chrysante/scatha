@@ -67,6 +67,12 @@ using namespace ranges::views;
 
 namespace {
 
+enum class SMFAvail { NotAnalyzable, Deleted, Available, Trivial };
+
+std::strong_ordering operator<=>(SMFAvail a, SMFAvail b) {
+    return (int)a <=> (int)b;
+}
+
 struct LifetimeAnalyzer {
     SymbolTable& sym;
 
@@ -76,7 +82,7 @@ struct LifetimeAnalyzer {
         visit(type, [this](auto& type) { analyzeImpl(type); });
     }
 
-    void analyzeImpl(ObjectType&) { SC_UNREACHABLE(); }
+    void analyzeImpl(ObjectType& type);
 
     void analyzeImpl(ArrayType& type);
 
@@ -105,16 +111,6 @@ struct LifetimeAnalyzer {
 
 } // namespace
 
-namespace {
-
-enum class SMFAvail { NotAnalyzable, Deleted, Available, Trivial };
-
-std::strong_ordering operator<=>(SMFAvail a, SMFAvail b) {
-    return (int)a <=> (int)b;
-}
-
-} // namespace
-
 ///
 static SMFAvail SMFOperationAvail(SMFKind kind, Type const* type) {
     if (!type) {
@@ -129,11 +125,7 @@ static SMFAvail SMFOperationAvail(SMFKind kind, Type const* type) {
             SC_UNREACHABLE();
         },
         [&](ObjectType const& type) {
-            auto* md = type.lifetimeMetadata();
-            if (!md) {
-                return SMFAvail::Trivial;
-            }
-            auto op = md->operation(kind);
+            auto op = type.lifetimeMetadata().operation(kind);
             if (op.isTrivial()) {
                 return SMFAvail::Trivial;
             }
@@ -143,6 +135,11 @@ static SMFAvail SMFOperationAvail(SMFKind kind, Type const* type) {
             return SMFAvail::Deleted;
         }
     }; // clang-format on
+}
+
+void LifetimeAnalyzer::analyzeImpl(ObjectType& type) {
+    using enum LifetimeOperation::Kind;
+    type.setLifetimeMetadata({ Trivial, Trivial, Trivial, Trivial });
 }
 
 void LifetimeAnalyzer::analyzeImpl(ArrayType& type) {
