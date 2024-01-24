@@ -1549,37 +1549,6 @@ void FuncGenContext::emitDtorCalls(sema::CleanupStack const& cleanupStack,
     }
 }
 
-// ir::Value* FuncGenContext::toRegister(Value value,
-//                                       ast::ASTNode const& sourceNode) {
-//     if (isa<ir::RecordType>(value.type())) {
-//         auto* semaType = typeMap(value.type());
-//         SC_ASSERT(!semaType || semaType->hasTrivialLifetime(),
-//                   "We can only have trivial lifetime types in registers");
-//     }
-//     switch (value.location()) {
-//     case Register:
-//         return value.get();
-//     case Memory:
-//         auto* load = add<ir::Load>(value.get(),
-//                                    value.type(),
-//                                    std::string(value.get()->name()));
-//         addSourceLoc(load, sourceNode);
-//         return load;
-//     }
-//     SC_UNREACHABLE();
-// }
-
-// ir::Value* FuncGenContext::toMemory(Value value, ast::ASTNode const&) {
-//     switch (value.location()) {
-//     case Register:
-//         return storeToMemory(value.get());
-//
-//     case Memory:
-//         return value.get();
-//     }
-//     SC_UNREACHABLE();
-// }
-
 void FuncGenContext::addSourceLoc(ir::Instruction* inst,
                                   ast::ASTNode const& sourceNode) {
     if (!config.generateDebugSymbols) {
