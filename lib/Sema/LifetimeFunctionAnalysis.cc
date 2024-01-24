@@ -79,16 +79,21 @@ struct LifetimeAnalyzer {
     void analyzeImpl(ObjectType&) { SC_UNREACHABLE(); }
 
     void analyzeImpl(ArrayType& type);
+
+    LifetimeOperation resolveArrayOp(SMFKind kind, ArrayType& type);
+
+    void analyzeImpl(UniquePtrType& type);
+
     void analyzeImpl(StructType& type);
 
     Function* findSMF(SMFKind kind,
                       StructType& type,
                       std::span<Function* const> functions);
 
-    LifetimeOperation resolveOperation(SMFKind kind,
-                                       Function* userDefined,
-                                       StructType& type,
-                                       bool generateCondition);
+    LifetimeOperation resolveStructOp(SMFKind kind,
+                                      Function* userDefined,
+                                      StructType& type,
+                                      bool generateCondition);
 
     ///
     Function* generateSMF(SMFKind kind, StructType& type);
@@ -100,13 +105,9 @@ struct LifetimeAnalyzer {
 
 } // namespace
 
-void LifetimeAnalyzer::analyzeImpl(ArrayType& type) {
-    SC_ASSERT(type.hasTrivialLifetime(), "For now");
-}
-
 namespace {
 
-enum class SMFAvail { Deleted, Available, Trivial };
+enum class SMFAvail { NotAnalyzable, Deleted, Available, Trivial };
 
 std::strong_ordering operator<=>(SMFAvail a, SMFAvail b) {
     return (int)a <=> (int)b;
@@ -116,6 +117,9 @@ std::strong_ordering operator<=>(SMFAvail a, SMFAvail b) {
 
 ///
 static SMFAvail SMFOperationAvail(SMFKind kind, Type const* type) {
+    if (!type) {
+        return SMFAvail::NotAnalyzable;
+    }
     // clang-format off
     return SC_MATCH (*type) {
         [&](ReferenceType const&) {
@@ -141,6 +145,35 @@ static SMFAvail SMFOperationAvail(SMFKind kind, Type const* type) {
     }; // clang-format on
 }
 
+void LifetimeAnalyzer::analyzeImpl(ArrayType& type) {
+    auto* elemType = type.elementType();
+    SC_ASSERT(elemType, "Should not be instantiated with null");
+    using enum SMFKind;
+    type.setLifetimeMetadata({ resolveArrayOp(DefaultConstructor, type),
+                               resolveArrayOp(CopyConstructor, type),
+                               resolveArrayOp(MoveConstructor, type),
+                               resolveArrayOp(Destructor, type) });
+}
+
+LifetimeOperation LifetimeAnalyzer::resolveArrayOp(SMFKind kind,
+                                                   ArrayType& type) {
+    auto elemAvail = SMFOperationAvail(kind, type.elementType());
+    using enum SMFAvail;
+    switch (elemAvail) {
+    case NotAnalyzable:
+        // TODO: Perhaps return a poison function here?
+        return LifetimeOperation::Trivial;
+    case Deleted:
+        return LifetimeOperation::Deleted;
+    case Available:
+        return LifetimeOperation::NontrivialInline;
+    case Trivial:
+        return LifetimeOperation::Trivial;
+    }
+}
+
+void LifetimeAnalyzer::analyzeImpl(UniquePtrType& type) { SC_UNIMPLEMENTED(); }
+
 /// This also exists in ExpressionAnalysis. We might want to make this a member
 /// of `Scope`
 static utl::small_vector<Function*> findFunctions(Scope& scope,
@@ -160,19 +193,13 @@ void LifetimeAnalyzer::analyzeImpl(StructType& type) {
     Function* userMoveCtor = findSMF(MoveConstructor, type, moveFns);
     Function* userDtor = findSMF(Destructor, type, deleteFns);
 
-    bool generateDefCtor = newFns.empty();
-    LifetimeOperation defCtor = resolveOperation(DefaultConstructor,
-                                                 userDefCtor,
-                                                 type,
-                                                 generateDefCtor);
-    bool generateLifetime = !userCopyCtor && !userMoveCtor && !userDtor;
-    LifetimeOperation copyCtor =
-        resolveOperation(CopyConstructor, userCopyCtor, type, generateLifetime);
-    LifetimeOperation moveCtor =
-        resolveOperation(MoveConstructor, userMoveCtor, type, generateLifetime);
-    LifetimeOperation dtor =
-        resolveOperation(Destructor, userDtor, type, generateLifetime);
-    type.setLifetimeMetadata({ defCtor, copyCtor, moveCtor, dtor });
+    bool genLifetime = !userCopyCtor && !userMoveCtor && !userDtor;
+    bool genDefCtor = genLifetime && newFns.empty();
+    type.setLifetimeMetadata(
+        { resolveStructOp(DefaultConstructor, userDefCtor, type, genDefCtor),
+          resolveStructOp(CopyConstructor, userCopyCtor, type, genLifetime),
+          resolveStructOp(MoveConstructor, userMoveCtor, type, genLifetime),
+          resolveStructOp(Destructor, userDtor, type, genLifetime) });
 }
 
 void sema::analyzeLifetime(ObjectType& type, SymbolTable& sym) {
@@ -186,26 +213,29 @@ Function* LifetimeAnalyzer::findSMF(SMFKind kind,
     return findBySignature(functions, funcType->argumentTypes());
 }
 
-LifetimeOperation LifetimeAnalyzer::resolveOperation(SMFKind kind,
-                                                     Function* userDefined,
-                                                     StructType& type,
-                                                     bool generateCondition) {
-    if (userDefined) {
-        return userDefined;
+LifetimeOperation LifetimeAnalyzer::resolveStructOp(SMFKind kind,
+                                                    Function* userDef,
+                                                    StructType& type,
+                                                    bool generateCond) {
+    if (userDef) {
+        return userDef;
     }
-    if (!generateCondition) {
+    if (!generateCond) {
         return LifetimeOperation::Deleted;
     }
+    using enum SMFAvail;
     auto memberOpAvail = type.members() |
                          transform(std::bind_front(SMFOperationAvail, kind));
-    auto maxAvail =
-        ranges::accumulate(memberOpAvail, SMFAvail::Trivial, ranges::min);
+    auto maxAvail = ranges::accumulate(memberOpAvail, Trivial, ranges::min);
     switch (maxAvail) {
-    case SMFAvail::Deleted:
+    case NotAnalyzable:
+        // TODO: Perhaps return a poison function here?
+        return LifetimeOperation::Trivial;
+    case Deleted:
         return LifetimeOperation::Deleted;
-    case SMFAvail::Available:
-        return LifetimeOperation::Nontrivial;
-    case SMFAvail::Trivial:
+    case Available:
+        return generateSMF(kind, type);
+    case Trivial:
         return LifetimeOperation::Trivial;
     }
 }
