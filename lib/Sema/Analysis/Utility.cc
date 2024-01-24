@@ -389,14 +389,21 @@ ast::Expression* sema::insertConstruction(ast::Expression* expr,
                                           CleanupStack& dtors,
                                           AnalysisContext& ctx) {
     auto* type = expr->type().get();
-    if (type->hasTrivialLifetime()) {
-        auto* constr =
-            ast::insertNode<ast::TrivCopyConstructExpr>(expr,
-                                                        expr->sourceRange(),
-                                                        type);
-        return analyzeValueExpr(constr, dtors, ctx);
-    }
-    else {
+    auto* constr = [&]() -> ast::Expression* {
+        if (type->hasTrivialLifetime()) {
+            return ast::insertNode<
+                ast::TrivCopyConstructExpr>(expr, expr->sourceRange(), type);
+        }
+        if (auto* sType = dyncast<StructType const*>(type)) {
+            return ast::insertNode(expr, [&](UniquePtr<ast::Expression> expr) {
+                auto args = toSmallVector(std::move(expr));
+                return allocate<ast::NontrivConstructExpr>(std::move(args),
+                                                           args.front()
+                                                               ->sourceRange(),
+                                                           sType);
+            });
+        }
         SC_UNIMPLEMENTED();
-    }
+    }();
+    return analyzeValueExpr(constr, dtors, ctx);
 }

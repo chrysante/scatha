@@ -346,6 +346,15 @@ NodeType dyncast_get_type(std::derived_from<ASTNode> auto const& node) {
     return node.nodeType();
 }
 
+/// \overload
+template <typename Node, std::invocable<UniquePtr<Node>> F>
+auto* insertNode(Node* node, F&& constructor) {
+    SC_EXPECT(node->parent());
+    auto* parent = node->parent();
+    size_t index = node->indexInParent();
+    return parent->setChild(index, constructor(node->extractFromParent()));
+}
+
 /// Allocates an AST node of type \p T and inserts it as the parent of \p node
 /// \p node is extracted and used as the first argument to construct \p T
 /// \p args are the remaining arguments to construction of \p T
@@ -354,12 +363,9 @@ NodeType dyncast_get_type(std::derived_from<ASTNode> auto const& node) {
 template <std::derived_from<ast::ASTNode> T, typename Node, typename... Args>
     requires std::constructible_from<T, UniquePtr<Node>, Args...>
 T* insertNode(Node* node, Args&&... args) {
-    SC_EXPECT(node->parent());
-    auto* parent = node->parent();
-    size_t index = node->indexInParent();
-    auto newNode =
-        allocate<T>(node->extractFromParent(), std::forward<Args>(args)...);
-    return parent->setChild(index, std::move(newNode));
+    return insertNode(node, [&](UniquePtr<Node>&& node) {
+        return allocate<T>(std::move(node), std::forward<Args>(args)...);
+    });
 }
 
 /// MARK: Expressions
@@ -1535,11 +1541,6 @@ class UninitTemporary: public Expression {
 public:
     explicit UninitTemporary(SourceRange sourceRange):
         Expression(NodeType::UninitTemporary, sourceRange) {}
-
-    explicit UninitTemporary(sema::ObjectType const* type):
-        Expression(NodeType::UninitTemporary, {}) {
-        decorateValue(nullptr, sema::ValueCategory::LValue, type);
-    }
 
     AST_DERIVED_COMMON(UninitTemporary)
 };

@@ -1448,17 +1448,28 @@ ast::Expression* ExprContext::analyzeImpl(ast::AggregateConstructExpr& expr) {
     return &expr;
 }
 
+static utl::small_vector<Function*> findFunctions(Scope& scope,
+                                                  std::string_view name) {
+    auto entities = scope.findEntities(name);
+    return entities | transform(cast<Function*>) | ToSmallVector<>;
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
     auto* obj = sym.temporary(expr.constructedType());
     cleanupStack->push(obj);
     auto* type = expr.constructedType();
+    auto ctors = findFunctions(const_cast<StructType&>(*type), "new");
+    if (ctors.empty()) {
+        // TODO: Push error
+        SC_UNIMPLEMENTED();
+    }
     /// Only used for overload resolution. Will be deallocated when this
     /// function returns
-    auto uninitTmp = allocate<ast::UninitTemporary>(type);
+    auto uninitTmp = allocate<ast::UninitTemporary>(SourceRange{});
+    uninitTmp->decorateValue(sym.temporary(type), LValue);
     auto args = concat(single(uninitTmp.get()), expr.arguments()) |
                 ToSmallVector<>;
-    auto orResult =
-        performOverloadResolution(&expr, type->constructors(), args);
+    auto orResult = performOverloadResolution(&expr, ctors, args);
     if (orResult.error) {
         ctx.issueHandler().push(std::move(orResult.error));
         return nullptr;

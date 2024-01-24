@@ -303,7 +303,10 @@ FunctionType::FunctionType(utl::small_vector<Type const*> argumentTypes,
     _returnType(returnType) {}
 
 void ObjectType::setLifetimeMetadata(LifetimeMetadata md) {
-    lifetimeMD = std::make_unique<LifetimeMetadata>(std::move(md));
+    lifetimeMD = std::make_unique<LifetimeMetadata>(md);
+    _hasTrivialLifetime = md.copyConstructor().isTrivial() &&
+                          md.moveConstructor().isTrivial() &&
+                          md.destructor().isTrivial();
 }
 
 ObjectType::~ObjectType() = default;

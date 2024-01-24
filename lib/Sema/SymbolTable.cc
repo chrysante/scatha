@@ -23,6 +23,7 @@
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
+#include "Sema/LifetimeFunctionAnalysis.h"
 #include "Sema/SemaIssues.h"
 #include "Sema/Serialize.h"
 
@@ -785,7 +786,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                     LValue,
                     accessCtrl);
     });
-    declareSpecialLifetimeFunctions(*arrayType, *this);
+    analyzeLifetime(*arrayType, *this);
     const_cast<ObjectType*>(elementType)->parent()->addChild(arrayType);
     return arrayType;
 }
@@ -843,7 +844,7 @@ UniquePtrType const* SymbolTable::uniquePointer(QualType pointee) {
     return impl->ptrLikeImpl<UniquePtrType>(impl->uniquePtrTypes,
                                             pointee,
                                             [&](UniquePtrType* type) {
-        declareSpecialLifetimeFunctions(*type, *this);
+        analyzeLifetime(*type, *this);
     });
 }
 

@@ -242,7 +242,16 @@ struct PrintCtx {
                 [&](std::derived_from<ConvExprBase> auto const& expr) {
                     str << nodeHeader(formatter, node,
                                       expr.conversion()) << "\n";
-                }
+                },
+                [&](NontrivConstructExpr const& expr) {
+                    str << nodeHeader(formatter, expr) << "\n";
+                    formatter.push(expr.children().empty() ? Level::Free :
+                                                             Level::Occupied);
+                    str << formatter.beginLine()
+                        << tfmt::format(BrightGrey, "Selected constructor: ")
+                        << funcDecl(expr.constructor()) << "\n";
+                    formatter.pop();
+                },
             }; // clang-format on
             if (auto* stmt = dyncast<Statement const*>(&node)) {
                 formatter.push(node.children().empty() ? Level::Free :

@@ -1,6 +1,7 @@
 #ifndef SCATHA_SEMA_LIFETIMEMETADATA_H_
 #define SCATHA_SEMA_LIFETIMEMETADATA_H_
 
+#include <array>
 #include <iosfwd>
 
 #include <range/v3/view.hpp>
@@ -55,6 +56,12 @@ public:
     /// `kind() == Nontrivial`
     Function* function() const { return fn; }
 
+    /// \Returns `kind() == Trivial`
+    bool isTrivial() const { return kind() == Trivial; }
+
+    /// \Returns `kind() == Deleted`
+    bool isDeleted() const { return kind() == Deleted; }
+
 private:
     Kind _kind;
     Function* fn = nullptr;
@@ -70,28 +77,36 @@ public:
                      LifetimeOperation copyConstructor,
                      LifetimeOperation moveConstructor,
                      LifetimeOperation destructor):
-        defCtor(defaultConstructor),
-        copyCtor(copyConstructor),
-        moveCtor(moveConstructor),
-        dtor(destructor) {}
+        ops{
+            defaultConstructor, copyConstructor, moveConstructor, destructor
+        } {}
 
     /// \Returns the default constructor
-    LifetimeOperation defaultConstructor() const { return defCtor; }
+    LifetimeOperation defaultConstructor() const {
+        return operation(SMFKind::DefaultConstructor);
+    }
 
     /// \Returns the copy constructor
-    LifetimeOperation copyConstructor() const { return copyCtor; }
+    LifetimeOperation copyConstructor() const {
+        return operation(SMFKind::CopyConstructor);
+    }
 
     /// \Returns the move constructor
-    LifetimeOperation moveConstructor() const { return moveCtor; }
+    LifetimeOperation moveConstructor() const {
+        return operation(SMFKind::MoveConstructor);
+    }
 
     /// \Returns the destructor
-    LifetimeOperation destructor() const { return dtor; }
+    LifetimeOperation destructor() const {
+        return operation(SMFKind::Destructor);
+    }
+
+    LifetimeOperation operation(SMFKind kind) const {
+        return ops[(size_t)kind];
+    }
 
 private:
-    LifetimeOperation defCtor;
-    LifetimeOperation copyCtor;
-    LifetimeOperation moveCtor;
-    LifetimeOperation dtor;
+    std::array<LifetimeOperation, 4> ops;
 };
 
 } // namespace scatha::sema

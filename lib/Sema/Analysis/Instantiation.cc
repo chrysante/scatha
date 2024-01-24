@@ -15,6 +15,7 @@
 #include "Sema/Analysis/StructDependencyGraph.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
+#include "Sema/LifetimeFunctionAnalysis.h"
 #include "Sema/QualType.h"
 #include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
@@ -73,7 +74,7 @@ utl::vector<StructType const*> sema::instantiateEntities(
         /// Const cast is fine because we just have the pointers as const to
         /// return them soon, they all have mutable origin.
         auto* mutType = const_cast<StructType*>(type);
-        declareSpecialLifetimeFunctions(*mutType, ctx.symbolTable());
+        analyzeLifetime(*mutType, ctx.symbolTable());
     }
     return structs;
 }

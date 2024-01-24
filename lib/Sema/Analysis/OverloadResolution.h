@@ -33,7 +33,8 @@ struct OverloadResolutionResult {
 enum class ORKind { FreeFunction, MemberFunction };
 
 /// Performs overload resolution
-/// \param parentExpr is needed to construct OR errors
+/// \param parentExpr Needed to construct OR errors
+/// \param overloadSet Must not be empty
 SCTEST_API OverloadResolutionResult
     performOverloadResolution(ast::Expression const* parentExpr,
                               std::span<Function* const> overloadSet,

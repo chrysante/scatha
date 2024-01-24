@@ -102,13 +102,13 @@ SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Destructor)
 // NEW special member functions
 
 #ifndef SC_SEMA_SMF_DEF
-#   define SC_SEMA_SMF_DEF(Name)
+#   define SC_SEMA_SMF_DEF(Name, Spelling)
 #endif
 
-SC_SEMA_SMF_DEF(DefaultConstructor)
-SC_SEMA_SMF_DEF(CopyConstructor)
-SC_SEMA_SMF_DEF(MoveConstructor)
-SC_SEMA_SMF_DEF(Destructor)
+SC_SEMA_SMF_DEF(DefaultConstructor, "new")
+SC_SEMA_SMF_DEF(CopyConstructor,    "new")
+SC_SEMA_SMF_DEF(MoveConstructor,    "move")
+SC_SEMA_SMF_DEF(Destructor,         "delete")
 
 #undef SC_SEMA_SMF_DEF
 

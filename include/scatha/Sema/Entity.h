@@ -566,7 +566,8 @@ public:
         return kind() == FunctionKind::Foreign;
     }
 
-    /// Sets the kind of special member function. May only be called if this function is a special member function
+    /// Sets the kind of special member function. May only be called if this
+    /// function is a special member function
     void setSMFKind(SMFKind kind) { _smfKind = kind; }
 
     /// \Returns the kind of special member functions if this function is a
@@ -927,20 +928,6 @@ public:
 
     /// Sets the member variable of this structure at index \p index
     void setMemberVariable(size_t index, Variable* var);
-
-    ///
-    void setLifetimeFunctions(std::span<Function* const> ctors,
-                              Function* moveCtor,
-                              Function* dtor);
-
-    /// \Returns the constructors (`new` functions) of this struct
-    std::span<Function* const> constructors() const;
-
-    /// \Returns the move constructor of this struct
-    Function* moveConstructor() const;
-
-    /// \Returns the destructor of this struct
-    Function* destructor() const;
 
 private:
     friend class Type;

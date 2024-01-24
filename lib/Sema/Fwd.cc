@@ -134,6 +134,13 @@ std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
     return str << toString(k);
 }
 
+std::string sema::toSpelling(SMFKind kind) {
+    return std::array{
+#define SC_SEMA_SMF_DEF(Name, Spelling) Spelling,
+#include "Sema/Lists.def"
+    }[(size_t)kind];
+}
+
 std::string_view sema::toString(SpecialMemberFunctionDepr SMF) {
     return std::array{
 #define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(name, str) std::string_view(str),

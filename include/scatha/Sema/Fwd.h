@@ -155,12 +155,12 @@ enum class Signedness { Signed, Unsigned };
 
 /// Different kinds of special member functions
 enum class SMFKind : uint8_t {
-#define SC_SEMA_SMF_DEF(Name) Name,
+#define SC_SEMA_SMF_DEF(Name, Spelling) Name,
 #include <scatha/Sema/Lists.def>
 };
 
-/// \Returns the name of the special member function kind \p kind
-std::string toName(SMFKind kind);
+/// \Returns the spelling of the special member function kind \p kind
+std::string toSpelling(SMFKind kind);
 
 /// Special member functions
 /// These are all constructors, destructor, and perhaps more to come

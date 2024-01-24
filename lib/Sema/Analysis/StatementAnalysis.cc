@@ -529,18 +529,22 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// may have an invalid init expression, in this case `varDecl.initExpr()`
     /// is not null but `initExpr` is.
     if (initExpr) {
-        auto* conv = convert(Implicit,
-                             initExpr,
-                             variable->getQualType(),
-                             refToLValue(type),
-                             varDecl.cleanupStack(),
-                             ctx);
-        if (!isa<ReferenceType>(type) && !initExpr->isRValue() &&
-            !isa<ast::ObjTypeConvExpr>(conv))
-        {
-            conv = insertConstruction(conv, varDecl.cleanupStack(), ctx);
+        if (isa<BuiltinType>(type)) {
+            initExpr = convert(Implicit,
+                               initExpr,
+                               variable->getQualType(),
+                               refToLValue(type),
+                               varDecl.cleanupStack(),
+                               ctx);
+            if (!isa<ast::ObjTypeConvExpr>(initExpr)) {
+                initExpr =
+                    insertConstruction(initExpr, varDecl.cleanupStack(), ctx);
+            }
         }
-        initExpr = conv;
+        else if (!isa<ReferenceType>(type) && !initExpr->isRValue()) {
+            initExpr =
+                insertConstruction(initExpr, varDecl.cleanupStack(), ctx);
+        }
     }
     /// Otherwise we construct an object of the declared type without arguments
     else {

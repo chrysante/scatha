@@ -69,6 +69,7 @@ OverloadResolutionResult sema::performOverloadResolution(
     std::span<Function* const> overloadSet,
     std::span<ast::Expression const* const> arguments,
     ORKind kind) {
+    SC_EXPECT(!overloadSet.empty());
     utl::small_vector<OverloadResolutionResult, 4> results;
     /// Contains ranks and the index of the matching result structure in
     /// `results`
