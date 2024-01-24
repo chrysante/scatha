@@ -449,10 +449,10 @@ StructType::StructType(std::string name,
                  accessControl) {}
 
 void StructType::setMemberVariable(size_t index, Variable* var) {
-    if (index >= _memberVars.size()) {
-        _memberVars.resize(index + 1);
+    if (index >= memberVars.size()) {
+        memberVars.resize(index + 1);
     }
-    _memberVars[index] = var;
+    memberVars[index] = var;
 }
 
 static Scope* getParent(ObjectType const* type) {

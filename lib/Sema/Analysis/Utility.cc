@@ -381,16 +381,31 @@ ArrayType const* sema::dynArrayTypeCast(Type const* type) {
     return nullptr;
 }
 
-bool sema::isDynArray(Type const& type) {
-    return !!dynArrayTypeCast(&type);
-}
+bool sema::isDynArray(Type const& type) { return !!dynArrayTypeCast(&type); }
+
+/// We define `isUserDefined` as a function object to pass it to higher order ranges functions
+struct {
+    bool operator()(Function const* f) const { return f->isNative(); }
+    bool operator()(LifetimeOperation op) const {
+        auto* f = op.function();
+        return f && (*this)(f);
+    }
+} static constexpr isUserDefined{};
 
 bool sema::isAggregate(Type const& t) {
     auto* type = dyncast<StructType const*>(&t);
     if (!type) {
         return false;
     }
-    SC_UNIMPLEMENTED();
+    if (ranges::any_of(type->lifetimeMetadata().operations(), isUserDefined)) {
+        return false;
+    }
+    if (ranges::any_of(type->constructors(), isUserDefined)) {
+        return false;
+    }
+    return ranges::all_of(type->memberVariables(), [&](Variable const* var) {
+        return var->accessControl() <= type->accessControl();
+    });
 }
 
 ast::Expression* sema::insertConstruction(ast::Expression* expr,

@@ -603,7 +603,8 @@ ORError::ORError(ast::Expression const* expr,
     header("Cannot resolve function call");
     switch (reason()) {
     case NoMatch:
-        primary(sourceRange(), [name = overloadSet.front()->name()](std::ostream& str) {
+        primary(sourceRange(),
+                [name = overloadSet.front()->name()](std::ostream& str) {
             str << "No matching function to call for " << name;
         });
         for (auto* function: overloadSet) {

@@ -923,12 +923,12 @@ public:
 
     /// The member variables of this type in the order of declaration.
     SC_NODEBUG std::span<Variable* const> memberVariables() {
-        return _memberVars;
+        return memberVars;
     }
 
     /// \overload
     SC_NODEBUG std::span<Variable const* const> memberVariables() const {
-        return _memberVars;
+        return memberVars;
     }
 
     /// \Returns a view over the member types in this struct
@@ -939,10 +939,20 @@ public:
 
     /// Adds a variable to the end of the list of member variables of this
     /// structure
-    void pushMemberVariable(Variable* var) { _memberVars.push_back(var); }
+    void pushMemberVariable(Variable* var) { memberVars.push_back(var); }
 
     /// Sets the member variable of this structure at index \p index
     void setMemberVariable(size_t index, Variable* var);
+
+    /// \Returns a view over all user defined and compiler generated
+    /// constructors. This field will be set after `analyzeLifetime()` has been
+    /// called on this type
+    std::span<Function* const> constructors() const { return ctors; }
+
+    /// Shall only called by called by `analyzeLifetime()`
+    void setConstructors(std::span<Function* const> ctors) {
+        this->ctors = ctors | ToSmallVector<>;
+    }
 
 private:
     friend class Type;
@@ -951,7 +961,8 @@ private:
     /// trivial
     bool hasTrivialLifetimeImpl() const { return _hasTrivialLifetime; }
 
-    utl::small_vector<Variable*> _memberVars;
+    utl::small_vector<Variable*> memberVars;
+    utl::small_vector<Function*> ctors;
 };
 
 /// Concrete class representing the type of an array

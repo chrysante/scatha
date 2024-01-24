@@ -193,6 +193,9 @@ void LifetimeAnalyzer::analyzeImpl(StructType& type) {
           resolveStructOp(CopyConstructor, userCopyCtor, type, genLifetime),
           resolveStructOp(MoveConstructor, userMoveCtor, type, genLifetime),
           resolveStructOp(Destructor, userDtor, type, genLifetime) });
+    /// We call `findFunctions()` here again because compiler generated
+    /// functions may have been added since the last call
+    type.setConstructors(type.findFunctions("new"));
 }
 
 void sema::analyzeLifetime(ObjectType& type, SymbolTable& sym) {

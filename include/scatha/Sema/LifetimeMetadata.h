@@ -101,9 +101,13 @@ public:
         return operation(SMFKind::Destructor);
     }
 
+    /// \Returns the lifetime operation \p kind
     LifetimeOperation operation(SMFKind kind) const {
         return ops[(size_t)kind];
     }
+
+    /// \Returns a view over all lifetime operations
+    std::span<LifetimeOperation const> operations() const { return ops; }
 
 private:
     std::array<LifetimeOperation, 4> ops;

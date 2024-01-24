@@ -1055,6 +1055,7 @@ ast::Expression* ExprContext::rewriteFunctionalCast(ast::FunctionCall& expr,
         return analyzeValue(expr.replace(std::move(copy)));
     }
     /// Trivial object type construction
+#warning Rework this, this makes no sense
     if (objType->findFunctions("new").empty()) {
         auto newExpr = [&]() -> UniquePtr<ast::Expression> {
             if (expr.arguments().empty()) {
@@ -1400,8 +1401,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
     auto* obj = sym.temporary(expr.constructedType());
     cleanupStack->push(obj);
     auto* type = expr.constructedType();
-    auto ctors = const_cast<StructType*>(type)->findFunctions("new");
-    if (ctors.empty()) {
+    if (type->constructors().empty()) {
         // TODO: Push error
         SC_UNIMPLEMENTED();
     }
@@ -1411,7 +1411,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
     uninitTmp->decorateValue(sym.temporary(type), LValue);
     auto args = concat(single(uninitTmp.get()), expr.arguments()) |
                 ToSmallVector<>;
-    auto orResult = performOverloadResolution(&expr, ctors, args);
+    auto orResult =
+        performOverloadResolution(&expr, type->constructors(), args);
     if (orResult.error) {
         ctx.issueHandler().push(std::move(orResult.error));
         return nullptr;

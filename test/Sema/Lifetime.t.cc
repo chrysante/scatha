@@ -4,6 +4,7 @@
 #include <range/v3/algorithm.hpp>
 
 #include "AST/AST.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemaIssues.h"
 #include "Sema/SemaUtil.h"
@@ -156,4 +157,41 @@ fn foo() {
     auto* r = foo->body()->statement<VariableDeclaration>(2);
     auto* rConstr = r->initExpr<TrivCopyConstructExpr>();
     CHECK(rConstr->CallLike::argument<Identifier>(0)->entity() == t->entity());
+}
+
+TEST_CASE("Aggregates", "[sema][lifetime]") {
+    auto const text = R"(
+public struct Empty {}
+public struct DefCtor {
+    fn new(&mut this) {}
+    var i: int;
+}
+public struct Nontrivial {
+    fn new(&mut this, rhs: &Nontrivial) {}
+    fn delete(&mut this) {}
+}
+public struct NontrivMember {
+    var nontriv: Nontrivial;
+}
+public struct PrivateMember {
+    private var n: int;
+}
+public struct InternalMember {
+    internal var n: int;
+}
+)";
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+
+    auto* Empty = lookup<StructType>(sym, "Empty");
+    CHECK(isAggregate(*Empty));
+    auto* DefCtor = lookup<StructType>(sym, "DefCtor");
+    CHECK(!isAggregate(*DefCtor));
+    auto* Nontrivial = lookup<StructType>(sym, "Nontrivial");
+    CHECK(!isAggregate(*Nontrivial));
+    auto* NontrivMember = lookup<StructType>(sym, "NontrivMember");
+    CHECK(isAggregate(*NontrivMember));
+    auto* PrivateMember = lookup<StructType>(sym, "PrivateMember");
+    CHECK(!isAggregate(*PrivateMember));
+    auto* InternalMember = lookup<StructType>(sym, "InternalMember");
+    CHECK(!isAggregate(*InternalMember));
 }

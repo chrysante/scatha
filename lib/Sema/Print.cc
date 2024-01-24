@@ -82,8 +82,11 @@ void PrintContext::print(Entity const& entity) {
         if (entity.hasAccessControl()) {
             str << entity.accessControl() << " ";
         }
-        if (auto* fn = dyncast<Function const*>(&entity); fn && fn->isGenerated()) {
-            str << "generated" << " ";
+        if (auto* fn = dyncast<Function const*>(&entity);
+            fn && fn->isGenerated())
+        {
+            str << "generated"
+                << " ";
         }
         str << entity.entityType() << "]";
     });
