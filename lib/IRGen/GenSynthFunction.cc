@@ -99,6 +99,7 @@ ir::Value* FuncGenContext::getUniquePtrCountAddr(ir::Value* thisPtr) {
 }
 
 void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
+#if 0
     auto* arrayType = dyncast<sema::ArrayType const*>(type.base().get());
     bool isDynArray = arrayType ? arrayType->isDynamic() : false;
     using enum sema::SpecialLifetimeFunctionDepr;
@@ -172,6 +173,7 @@ void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
         break;
     }
     }
+#endif
 }
 
 void FuncGenContext::genMemberConstruction(ir::BasicBlock::ConstIterator before,

@@ -805,6 +805,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
+    SC_UNIMPLEMENTED();
+#if 0
     if (!analyzeValue(expr.value())) {
         return nullptr;
     }
@@ -835,6 +837,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
     expr.decorateValue(sym.temporary(expr.value()->type()), RValue);
     cleanupStack->push(expr.object());
     return &expr;
+#endif
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
@@ -1176,7 +1179,62 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     SC_UNREACHABLE();
 }
 
+ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
+    SC_UNIMPLEMENTED();
+#if 0
+    bool success = true;
+    for (auto* arg: expr.arguments()) {
+        success &= !!analyzeValue(arg);
+    }
+    if (!success) {
+        return nullptr;
+    }
+    auto* type = expr.constructedType();
+    /// Dynamic array construction is always a special case
+    if (auto* arrayType = dyncast<ArrayType const*>(type);
+        arrayType && arrayType->isDynamic())
+    {
+        return analyzeDynArrayConstruction(expr, arrayType);
+    }
+    /// Trivial case
+    if (ctorIsPseudo(type, expr.arguments())) {
+        if (!canConstructTrivialType(expr, *cleanupStack, ctx)) {
+            return nullptr;
+        }
+        expr.decorateConstruct(sym.temporary(type), nullptr);
+        return &expr;
+    }
+    /// Non-trivial case
+    if (expr.arguments().empty() ||
+        !isa<ast::UninitTemporary>(expr.argument(0)))
+    {
+        auto obj = allocate<ast::UninitTemporary>(expr.sourceRange());
+        obj->decorateValue(sym.temporary(type), LValue);
+        expr.insertArgument(0, std::move(obj));
+    }
+    using enum SpecialMemberFunctionDepr;
+    auto ctorSet = type->specialMemberFunctions(New);
+    SC_ASSERT(!ctorSet.empty(), "Trivial lifetime case is handled above");
+    auto result = performOverloadResolution(&expr,
+                                            ctorSet,
+                                            expr.arguments() | ToAddress |
+                                                ToSmallVector<>,
+                                            ORKind::MemberFunction);
+    if (result.error) {
+        result.error->setSourceRange(expr.sourceRange());
+        ctx.issueHandler().push(std::move(result.error));
+        return nullptr;
+    }
+    convertArguments(expr.arguments(), result.conversions, *cleanupStack, ctx);
+    expr.decorateConstruct(sym.temporary(type), result.function);
+    cleanupStack->push(expr.object());
+    return &expr;
+#endif
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
+    SC_UNIMPLEMENTED();
+#if 0
     bool argsAnalyzed = true;
     argsAnalyzed &= !!analyzeValue(expr.dest());
     argsAnalyzed &= !!analyzeValue(expr.source());
@@ -1215,6 +1273,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
         expr.decorateAssign(sym.temporary(sym.Void()), dtor, ctor);
     }
     return &expr;
+#endif
 }
 
 /// \Returns the target value category given the value category conversion \p
@@ -1290,118 +1349,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
                                          expr->constantValue(),
                                          conv.targetType()));
     return &conv;
-}
-
-/// Decides whether the constructor call is a pseudo constructor call or an
-/// actual constructor call. This is probably a half baked solution and should
-/// be revisited.
-static bool ctorIsPseudo(ObjectType const* type, auto const& args) {
-    /// We just assume pseudo constructor instead of asserting non-null
-    if (!type) {
-        return true;
-    }
-    /// Non-trivial lifetime type has no pseudo constructors
-    if (!type->hasTrivialLifetime()) {
-        return false;
-    }
-    /// Trivial lifetime copy constructor call
-    if (args.size() == 1 && args.front()->type().get() == type) {
-        return true;
-    }
-    /// Trivial lifetime general constructor call
-    using enum SpecialMemberFunctionDepr;
-    return type->specialMemberFunctions(New).empty();
-}
-
-static bool canConstructTrivialType(ast::ConstructExpr& expr,
-                                    CleanupStack& dtors,
-                                    AnalysisContext& ctx) {
-    auto* type = expr.constructedType();
-    auto arguments = expr.arguments();
-    if (arguments.size() == 0) {
-        return true;
-    }
-    if (arguments.size() == 1 &&
-        (!isa<StructType>(type) || type == arguments.front()->type().get()))
-    {
-        /// We convert explicitly here because it allows expressions like
-        /// `int(1.0)`
-        return !!convert(Explicit,
-                         arguments.front(),
-                         getQualType(type, Mutability::Const),
-                         LValue, // So we don't end up in infinite recursion :/
-                         dtors,
-                         ctx);
-    }
-    if (auto* structType = dyncast<StructType const*>(type)) {
-        if (arguments.size() != structType->members().size()) {
-            ctx.badExpr(&expr, CannotConstructType);
-            return false;
-        }
-        bool success = true;
-        for (auto [arg, type]:
-             ranges::views::zip(arguments, structType->members()))
-        {
-            success &= !!convert(Implicit,
-                                 arg,
-                                 getQualType(type, Mutability::Const),
-                                 RValue,
-                                 dtors,
-                                 ctx);
-        }
-        return success;
-    }
-    return false;
-}
-
-ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
-    bool success = true;
-    for (auto* arg: expr.arguments()) {
-        success &= !!analyzeValue(arg);
-    }
-    if (!success) {
-        return nullptr;
-    }
-    auto* type = expr.constructedType();
-    /// Dynamic array construction is always a special case
-    if (auto* arrayType = dyncast<ArrayType const*>(type);
-        arrayType && arrayType->isDynamic())
-    {
-        return analyzeDynArrayConstruction(expr, arrayType);
-    }
-    /// Trivial case
-    if (ctorIsPseudo(type, expr.arguments())) {
-        if (!canConstructTrivialType(expr, *cleanupStack, ctx)) {
-            return nullptr;
-        }
-        expr.decorateConstruct(sym.temporary(type), nullptr);
-        return &expr;
-    }
-    /// Non-trivial case
-    if (expr.arguments().empty() ||
-        !isa<ast::UninitTemporary>(expr.argument(0)))
-    {
-        auto obj = allocate<ast::UninitTemporary>(expr.sourceRange());
-        obj->decorateValue(sym.temporary(type), LValue);
-        expr.insertArgument(0, std::move(obj));
-    }
-    using enum SpecialMemberFunctionDepr;
-    auto ctorSet = type->specialMemberFunctions(New);
-    SC_ASSERT(!ctorSet.empty(), "Trivial lifetime case is handled above");
-    auto result = performOverloadResolution(&expr,
-                                            ctorSet,
-                                            expr.arguments() | ToAddress |
-                                                ToSmallVector<>,
-                                            ORKind::MemberFunction);
-    if (result.error) {
-        result.error->setSourceRange(expr.sourceRange());
-        ctx.issueHandler().push(std::move(result.error));
-        return nullptr;
-    }
-    convertArguments(expr.arguments(), result.conversions, *cleanupStack, ctx);
-    expr.decorateConstruct(sym.temporary(type), result.function);
-    cleanupStack->push(expr.object());
-    return &expr;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::TrivDefConstructExpr& expr) {
@@ -1482,6 +1429,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
 
 ast::Expression* ExprContext::analyzeDynArrayConstruction(
     ast::ConstructExpr& expr, ArrayType const* type) {
+    SC_UNIMPLEMENTED();
+#if 0
     SC_EXPECT(type->isDynamic());
     using enum SpecialLifetimeFunctionDepr;
     if (!isa<ast::UniqueExpr>(expr.parent())) {
@@ -1521,6 +1470,7 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
         ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
         return nullptr;
     }
+#endif
 }
 
 void ExprContext::dereferencePointer(ast::Expression* expr) {

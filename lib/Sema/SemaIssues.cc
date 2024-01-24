@@ -595,17 +595,18 @@ ORError::ORError(ast::Expression const* expr,
                  std::vector<Function const*> matches,
                  std::unordered_map<Function const*, ORMatchError> matchErrors):
     SemaIssue(nullptr, getSourceRange(expr), IssueSeverity::Error),
-    os(os | ranges::to<std::vector>),
+    overloadSet(os | ranges::to<std::vector>),
     argTypes(argTypes),
     matches(matches),
     matchErrors(matchErrors) {
+    SC_ASSERT(!overloadSet.empty(), "Cannot make call to empty overload set");
     header("Cannot resolve function call");
     switch (reason()) {
     case NoMatch:
-        primary(sourceRange(), [=](std::ostream& str) {
-            str << "No matching function to call for " << os.front()->name();
+        primary(sourceRange(), [name = overloadSet.front()->name()](std::ostream& str) {
+            str << "No matching function to call for " << name;
         });
-        for (auto* function: os) {
+        for (auto* function: overloadSet) {
             secondary(getSourceRange(function->definition()),
                       [=](std::ostream& str) {
                 auto itr = matchErrors.find(function);
@@ -639,7 +640,7 @@ ORError::ORError(ast::Expression const* expr,
         break;
     case Ambiguous:
         primary(sourceRange(), [=](std::ostream& str) {
-            str << "Ambiguous function call to " << os.front()->name();
+            str << "Ambiguous function call to " << overloadSet.front()->name();
         });
         for (auto* function: matches) {
             secondary(getSourceRange(function->definition()),

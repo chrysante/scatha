@@ -455,7 +455,7 @@ private:
         std::unordered_map<Function const*, ORMatchError> matchErrors);
 
     /// List of all functions in the overload set
-    std::vector<Function const*> os;
+    std::vector<Function const*> overloadSet;
 
     /// List of types of the call argument types
     std::vector<std::pair<QualType, ValueCategory>> argTypes;

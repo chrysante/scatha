@@ -60,10 +60,15 @@ AccessControl determineAccessControlByContext(Scope const& scope);
 
 /// \Returns \p type downcast to `ArrayType` if it is a dynamic array type, null
 /// otherwise
-ArrayType const* dynArrayTypeCast(sema::Type const* type);
+ArrayType const* dynArrayTypeCast(Type const* type);
 
 /// \Returns `true` if \p type is a dynamic array type
-bool isDynArray(sema::Type const& type);
+bool isDynArray(Type const& type);
+
+/// \Returns `true` if the type \p type is an _aggregate_ type.
+///
+/// An _aggregate_ type is a struct type which has no user defined lifetime functions and no data members which stronger access control than \p type itself
+bool isAggregate(Type const& type);
 
 /// Inserts a `{Triv,Nontriv}CopyConstructExpr` above \p expr
 ast::Expression* insertConstruction(ast::Expression* expr,

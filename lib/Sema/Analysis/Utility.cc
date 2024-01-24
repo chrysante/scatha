@@ -373,16 +373,24 @@ AccessControl sema::determineAccessControl(Scope const& scope,
     return determineAccessControlByContext(scope);
 }
 
-sema::ArrayType const* sema::dynArrayTypeCast(sema::Type const* type) {
-    auto* AT = dyncast<sema::ArrayType const*>(type);
+ArrayType const* sema::dynArrayTypeCast(Type const* type) {
+    auto* AT = dyncast<ArrayType const*>(type);
     if (AT && AT->isDynamic()) {
         return AT;
     }
     return nullptr;
 }
 
-bool sema::isDynArray(sema::Type const& type) {
+bool sema::isDynArray(Type const& type) {
     return !!dynArrayTypeCast(&type);
+}
+
+bool sema::isAggregate(Type const& t) {
+    auto* type = dyncast<StructType const*>(&t);
+    if (!type) {
+        return false;
+    }
+    SC_UNIMPLEMENTED();
 }
 
 ast::Expression* sema::insertConstruction(ast::Expression* expr,
