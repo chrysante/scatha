@@ -484,9 +484,11 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
         return;
     }
-    auto* initExpr = analyzeValue(varDecl.initExpr(), varDecl.cleanupStack());
+    auto* validatedInitExpr =
+        analyzeValue(varDecl.initExpr(), varDecl.cleanupStack());
     auto declType = analyzeType(varDecl.typeExpr());
-    auto initType = initExpr ? initExpr->type().get() : nullptr;
+    auto initType = validatedInitExpr ? validatedInitExpr->type().get() :
+                                        nullptr;
     auto type = declType ? declType : initType;
     /// We cannot deduce the type of the variable
     if (!type) {
@@ -503,11 +505,11 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         ctx.issue<BadVarDecl>(&varDecl,
                               BadVarDecl::IncompleteType,
                               type,
-                              initExpr);
+                              validatedInitExpr);
         return;
     }
     /// Reference variables must be initalized explicitly
-    if (isa<ReferenceType>(type) && !initExpr) {
+    if (isa<ReferenceType>(type) && !validatedInitExpr) {
         sym.declarePoison(varDecl.nameIdentifier(),
                           EntityCategory::Value,
                           AccessControl::Private);
@@ -525,25 +527,25 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     varDecl.decorateVarDecl(variable);
     /// If we have an init expression we convert it to the type of the variable.
     /// If the type is derived from the init expression then this is a no-op.
-    /// We test `initExpr` instead of `varDecl.initExpr()` because the variable
-    /// may have an invalid init expression, in this case `varDecl.initExpr()`
-    /// is not null but `initExpr` is.
-    if (initExpr) {
+    if (validatedInitExpr) {
         if (isa<BuiltinType>(type)) {
-            initExpr = convert(Implicit,
-                               initExpr,
-                               variable->getQualType(),
-                               refToLValue(type),
-                               varDecl.cleanupStack(),
-                               ctx);
-            if (!isa<ast::ObjTypeConvExpr>(initExpr)) {
-                initExpr =
-                    insertConstruction(initExpr, varDecl.cleanupStack(), ctx);
+            auto* conv = convert(Implicit,
+                                 validatedInitExpr,
+                                 variable->getQualType(),
+                                 refToLValue(type),
+                                 varDecl.cleanupStack(),
+                                 ctx);
+            if (!isa<ast::ObjTypeConvExpr>(conv) &&
+                !validatedInitExpr->isRValue())
+            {
+                conv = insertConstruction(conv, varDecl.cleanupStack(), ctx);
             }
+            validatedInitExpr = conv;
         }
-        else if (!isa<ReferenceType>(type) && !initExpr->isRValue()) {
-            initExpr =
-                insertConstruction(initExpr, varDecl.cleanupStack(), ctx);
+        else if (!isa<ReferenceType>(type) && !validatedInitExpr->isRValue()) {
+            validatedInitExpr = insertConstruction(validatedInitExpr,
+                                                   varDecl.cleanupStack(),
+                                                   ctx);
         }
     }
     /// Otherwise we construct an object of the declared type without arguments
@@ -553,20 +555,21 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         auto* objType = cast<ObjectType const*>(type);
         auto constructExpr =
             allocateConstruction({}, varDecl.sourceRange(), objType);
-        initExpr = analyzeValue(varDecl.setInitExpr(std::move(constructExpr)),
-                                varDecl.cleanupStack());
+        validatedInitExpr =
+            analyzeValue(varDecl.setInitExpr(std::move(constructExpr)),
+                         varDecl.cleanupStack());
     }
     /// If our variable is of object type, we pop the last destructor _in the
     /// stack of this declaration_ because it corresponds to the object whose
     /// lifetime this variable shall extend. Then we push the destructor to the
     /// stack of the parent statement.
     if (!isa<ReferenceType>(varDecl.type())) {
-        popTopLevelDtor(initExpr, varDecl.cleanupStack());
+        popTopLevelDtor(validatedInitExpr, varDecl.cleanupStack());
         cast<ast::Statement*>(varDecl.parent())->pushCleanup(variable);
     }
     /// Propagate constant value
-    if (variable->isConst() && initExpr) {
-        variable->setConstantValue(clone(initExpr->constantValue()));
+    if (variable->isConst() && validatedInitExpr) {
+        variable->setConstantValue(clone(validatedInitExpr->constantValue()));
     }
 }
 
