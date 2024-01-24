@@ -172,9 +172,13 @@ LifetimeOperation LifetimeAnalyzer::resolveArrayOp(SMFKind kind,
     }
 }
 
-void LifetimeAnalyzer::analyzeImpl(UniquePtrType& type) { SC_UNIMPLEMENTED(); }
+void LifetimeAnalyzer::analyzeImpl(UniquePtrType& type) {
+    using enum LifetimeOperation::Kind;
+    type.setLifetimeMetadata(
+        { NontrivialInline, Deleted, NontrivialInline, NontrivialInline });
+}
 
-/// This also exists in ExpressionAnalysis. We might want to make this a member
+/// This also exists in expression analysis. We might want to make this a member
 /// of `Scope`
 static utl::small_vector<Function*> findFunctions(Scope& scope,
                                                   std::string_view name) {

@@ -489,27 +489,27 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     auto declType = analyzeType(varDecl.typeExpr());
     auto initType = validatedInitExpr ? validatedInitExpr->type().get() :
                                         nullptr;
-    auto type = declType ? declType : initType;
+    auto deducedType = declType ? declType : initType;
     /// We cannot deduce the type of the variable
-    if (!type) {
+    if (!deducedType) {
         sym.declarePoison(varDecl.nameIdentifier(),
                           EntityCategory::Value,
                           AccessControl::Private);
         return;
     }
     /// The type must be complete, that means no `void` and no dynamic arrays
-    if (!type->isComplete()) {
+    if (!deducedType->isComplete()) {
         sym.declarePoison(varDecl.nameIdentifier(),
                           EntityCategory::Value,
                           AccessControl::Private);
         ctx.issue<BadVarDecl>(&varDecl,
                               BadVarDecl::IncompleteType,
-                              type,
+                              deducedType,
                               validatedInitExpr);
         return;
     }
     /// Reference variables must be initalized explicitly
-    if (isa<ReferenceType>(type) && !validatedInitExpr) {
+    if (isa<ReferenceType>(deducedType) && !validatedInitExpr) {
         sym.declarePoison(varDecl.nameIdentifier(),
                           EntityCategory::Value,
                           AccessControl::Private);
@@ -518,7 +518,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     /// If the symbol table complains we also return early
     auto* variable = sym.defineVariable(&varDecl,
-                                        type,
+                                        deducedType,
                                         varDecl.mutability(),
                                         AccessControl::Private);
     if (!variable) {
@@ -528,11 +528,11 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// If we have an init expression we convert it to the type of the variable.
     /// If the type is derived from the init expression then this is a no-op.
     if (validatedInitExpr) {
-        if (isa<BuiltinType>(type)) {
+        if (isa<BuiltinType>(deducedType)) {
             auto* conv = convert(Implicit,
                                  validatedInitExpr,
                                  variable->getQualType(),
-                                 refToLValue(type),
+                                 RValue,
                                  varDecl.cleanupStack(),
                                  ctx);
             if (!isa<ast::ObjTypeConvExpr>(conv) &&
@@ -542,7 +542,15 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
             }
             validatedInitExpr = conv;
         }
-        else if (!isa<ReferenceType>(type) && !validatedInitExpr->isRValue()) {
+        else if (isa<ReferenceType>(deducedType)) {
+            validatedInitExpr = convert(Implicit,
+                                        validatedInitExpr,
+                                        variable->getQualType(),
+                                        LValue,
+                                        varDecl.cleanupStack(),
+                                        ctx);
+        }
+        else if (!validatedInitExpr->isRValue()) {
             validatedInitExpr = insertConstruction(validatedInitExpr,
                                                    varDecl.cleanupStack(),
                                                    ctx);
@@ -552,7 +560,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     else {
         /// Cannot be a reference type because reference type variables require
         /// init expressions
-        auto* objType = cast<ObjectType const*>(type);
+        auto* objType = cast<ObjectType const*>(deducedType);
         auto constructExpr =
             allocateConstruction({}, varDecl.sourceRange(), objType);
         validatedInitExpr =
