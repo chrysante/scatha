@@ -21,9 +21,15 @@ using test::lookup;
 TEST_CASE("Lifetime operation analysis", "[sema][lifetime]") {
     auto const text = R"(
 public struct Empty {}
-public struct Trivial { fn new(&mut this) {} }
-public struct Nontrivial { fn delete(&mut this) {} }
-public struct Nontrivial2 { 
+public struct Trivial { 
+    fn new(&mut this) {}
+    var i: int;
+}
+public struct Nontrivial {
+    fn delete(&mut this) {}
+    var i: int;
+}
+public struct Nontrivial2 {
     fn new(&mut this, rhs: &Nontrivial2) {}
     fn delete(&mut this) {}
 }
