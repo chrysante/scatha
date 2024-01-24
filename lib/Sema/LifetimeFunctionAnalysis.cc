@@ -178,18 +178,10 @@ void LifetimeAnalyzer::analyzeImpl(UniquePtrType& type) {
         { NontrivialInline, Deleted, NontrivialInline, NontrivialInline });
 }
 
-/// This also exists in expression analysis. We might want to make this a member
-/// of `Scope`
-static utl::small_vector<Function*> findFunctions(Scope& scope,
-                                                  std::string_view name) {
-    auto entities = scope.findEntities(name);
-    return entities | transform(cast<Function*>) | ToSmallVector<>;
-}
-
 void LifetimeAnalyzer::analyzeImpl(StructType& type) {
-    auto newFns = findFunctions(type, "new");
-    auto moveFns = findFunctions(type, "move");
-    auto deleteFns = findFunctions(type, "delete");
+    auto newFns = type.findFunctions("new");
+    auto moveFns = type.findFunctions("move");
+    auto deleteFns = type.findFunctions("delete");
     using enum SMFKind;
 
     Function* userDefCtor = findSMF(DefaultConstructor, type, newFns);

@@ -164,6 +164,22 @@ Property const* Scope::findProperty(PropertyKind kind) const {
     return itr == _properties.end() ? nullptr : itr->second;
 }
 
+template <typename F>
+static utl::small_vector<F*> findFunctionsImpl(auto& scope,
+                                               std::string_view name) {
+    auto entities = scope.findEntities(name);
+    return entities | transform(cast<F*>) | ToSmallVector<>;
+}
+
+utl::small_vector<Function*> Scope::findFunctions(std::string_view name) {
+    return findFunctionsImpl<Function>(*this, name);
+}
+
+utl::small_vector<Function const*> Scope::findFunctions(
+    std::string_view name) const {
+    return findFunctionsImpl<Function const>(*this, name);
+}
+
 void Scope::addChild(Entity* entity) {
     SC_ASSERT(entity->parent() == nullptr || entity->parent() == this,
               "entity already has a parent");

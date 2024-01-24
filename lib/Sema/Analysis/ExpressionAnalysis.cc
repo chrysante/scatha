@@ -1040,23 +1040,24 @@ ast::Expression* ExprContext::rewriteFunctionalCast(ast::FunctionCall& expr,
                 ctx);
         return expr.replace(expr.extractArgument(0));
     }
+    /// Trivial copy construction
+    if (objType->hasTrivialLifetime() && expr.arguments().size() == 1 &&
+        expr.argument(0)->type().get() == objType)
+    {
+        auto copy =
+            allocate<ast::TrivCopyConstructExpr>(expr.extractCallee(),
+                                                 expr.extractArgument(0),
+                                                 expr.sourceRange(),
+                                                 objType);
+        return analyzeValue(expr.replace(std::move(copy)));
+    }
     /// Trivial object type construction
-    if (objType->hasTrivialLifetime()) {
+    if (objType->findFunctions("new").empty()) {
         auto newExpr = [&]() -> UniquePtr<ast::Expression> {
             if (expr.arguments().empty()) {
                 return allocate<ast::TrivDefConstructExpr>(expr.extractCallee(),
                                                            expr.sourceRange(),
                                                            objType);
-            }
-            if (expr.arguments().size() == 1 &&
-                expr.argument(0)->type().get() == objType)
-            {
-
-                return allocate<ast::TrivCopyConstructExpr>(
-                    expr.extractCallee(),
-                    expr.extractArgument(0),
-                    expr.sourceRange(),
-                    objType);
             }
             return allocate<ast::AggregateConstructExpr>(
                 expr.extractCallee(),
@@ -1448,17 +1449,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::AggregateConstructExpr& expr) {
     return &expr;
 }
 
-static utl::small_vector<Function*> findFunctions(Scope& scope,
-                                                  std::string_view name) {
-    auto entities = scope.findEntities(name);
-    return entities | transform(cast<Function*>) | ToSmallVector<>;
-}
-
 ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
     auto* obj = sym.temporary(expr.constructedType());
     cleanupStack->push(obj);
     auto* type = expr.constructedType();
-    auto ctors = findFunctions(const_cast<StructType&>(*type), "new");
+    auto ctors = const_cast<StructType*>(type)->findFunctions("new");
     if (ctors.empty()) {
         // TODO: Push error
         SC_UNIMPLEMENTED();

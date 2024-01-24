@@ -366,6 +366,13 @@ public:
     /// \overload
     Property const* findProperty(PropertyKind kind) const;
 
+    /// \Returns a list of the functions in this scope with name \p name
+    utl::small_vector<Function*> findFunctions(std::string_view name);
+
+    /// \overload
+    utl::small_vector<Function const*> findFunctions(
+        std::string_view name) const;
+
     /// \Returns `true` if \p scope is a child scope of this
     SC_NODEBUG bool isChildScope(Scope const* scope) const {
         return _children.contains(scope);
