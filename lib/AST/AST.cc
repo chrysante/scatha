@@ -113,6 +113,21 @@ void NontrivConstructExpr::decorateConstruct(
     decorateValue(obj, sema::ValueCategory::RValue);
 }
 
+NontrivAggrConstructExpr::NontrivAggrConstructExpr(
+    UniquePtr<Expression> typeExpr,
+    utl::small_vector<UniquePtr<Expression>> arguments,
+    SourceRange sourceRange,
+    sema::StructType const* constructedType):
+    ConstructBase(NodeType::NontrivAggrConstructExpr,
+                  std::move(typeExpr),
+                  std::move(arguments),
+                  sourceRange,
+                  constructedType) {}
+
+sema::StructType const* NontrivAggrConstructExpr::constructedType() const {
+    return cast<sema::StructType const*>(ConstructBase::constructedType());
+}
+
 void VarDeclBase::decorateVarDecl(sema::Entity* entity) {
     if (auto* object = dyncast<sema::Object*>(entity)) {
         _type = object->type();

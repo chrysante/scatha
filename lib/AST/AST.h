@@ -1683,17 +1683,17 @@ public:
 };
 
 /// Concrete node that is only inserted by semantic analysis.
-/// Represents an expression like `Foo(1, 2.0, true)` where `Foo` has data
-/// members of type `int`, `double` and `bool` in this order and ia trivially
-/// constructible
-class SCATHA_API AggregateConstructExpr: public ConstructBase {
+/// Represents non-default aggregate construction, i.e. an expression like
+/// `Foo(1, 2.0, true)` where `Foo` has data members of type `int`, `double` and
+/// `bool` in this order and is trivially constructible
+class SCATHA_API TrivAggrConstructExpr: public ConstructBase {
 public:
-    explicit AggregateConstructExpr(
+    explicit TrivAggrConstructExpr(
         UniquePtr<Expression> typeExpr,
         utl::small_vector<UniquePtr<Expression>> arguments,
         SourceRange sourceRange,
         sema::ObjectType const* constructedType):
-        ConstructBase(NodeType::AggregateConstructExpr,
+        ConstructBase(NodeType::TrivAggrConstructExpr,
                       std::move(typeExpr),
                       std::move(arguments),
                       sourceRange,
@@ -1724,6 +1724,25 @@ public:
 
 private:
     sema::Function const* ctor = nullptr;
+};
+
+/// Concrete node that is only inserted by semantic analysis.
+/// Represents non-default non-trivial aggregate construction, i.e. an
+/// expression like `Foo(Bar(), 2.0, true)` where `Foo` has data members of
+/// non-trivial lifetime
+class SCATHA_API NontrivAggrConstructExpr: public ConstructBase {
+public:
+    explicit NontrivAggrConstructExpr(
+        UniquePtr<Expression> typeExpr,
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        SourceRange sourceRange,
+        sema::StructType const* constructedType);
+
+    /// \Returns the being constructed
+    sema::StructType const* constructedType() const;
+
+    /// All trivial construct expressions inherit this from `ConstructBase`
+    using ConstructBase::decorateConstruct;
 };
 
 /// Represents nontrivial object construction of array and unique pointer types

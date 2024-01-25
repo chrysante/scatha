@@ -118,7 +118,7 @@ struct FuncGenContext: FuncGenContextBase {
 
     Value getValueImpl(ast::TrivDefConstructExpr const&);
     Value getValueImpl(ast::TrivCopyConstructExpr const&);
-    Value getValueImpl(ast::AggregateConstructExpr const&);
+    Value getValueImpl(ast::TrivAggrConstructExpr const&);
 
     // Value getValueImpl(ast::NonTrivAssignExpr const&);
 
@@ -1451,7 +1451,7 @@ Value FuncGenContext::getValueImpl(ast::TrivCopyConstructExpr const& expr) {
     }
 }
 
-Value FuncGenContext::getValueImpl(ast::AggregateConstructExpr const& expr) {
+Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
     auto* type = expr.type().get();
     auto* irType = cast<ir::StructType const*>(typeMap.packed(type));
     std::string name = "aggregate";
