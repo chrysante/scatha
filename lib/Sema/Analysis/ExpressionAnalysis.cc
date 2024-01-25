@@ -956,7 +956,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// If our callee is a generic expression, we assert that it is a
     /// `reinterpret` expression and rewrite the AST
     if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.callee())) {
-        SC_UNIMPLEMENTED(); /// The call to `convert` should be in its own case
         SC_ASSERT(genExpr->callee()->entity()->name() == "reinterpret", "");
         if (fc.arguments().size() != 1) {
             ctx.badExpr(&fc, GenericBadExpr);
@@ -969,7 +968,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                                                    genExpr->valueCategory(),
                                                    *cleanupStack,
                                                    ctx);
-        return analyze(fc.replace(fc.extractArgument(0)));
+        return fc.replace(fc.extractArgument(0));
     }
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion or construct expr

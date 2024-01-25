@@ -150,3 +150,24 @@ fn get() -> &int {}
     auto& ret = view.nextAs<Return>();
     CHECK(ret.value() == &load);
 }
+
+TEST_CASE("Array ref call result directly passed to other call", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ R"(
+public fn foo() { take(make()); }
+fn take(a: &[int]) {}
+fn make() -> &[int] {}
+)" });
+    auto& foo = mod.front();
+    auto view = BBView(foo.entry());
+
+    auto& firstCall = view.nextAs<Call>();
+    auto& data = view.nextAs<ExtractValue>();
+    CHECK(data.baseValue() == &firstCall);
+    auto& count = view.nextAs<ExtractValue>();
+    CHECK(count.baseValue() == &firstCall);
+    auto& secondCall = view.nextAs<Call>();
+    CHECK(secondCall.argumentAt(0) == &data);
+    CHECK(secondCall.argumentAt(1) == &count);
+    CHECK_NOTHROW(view.nextAs<Return>());
+}

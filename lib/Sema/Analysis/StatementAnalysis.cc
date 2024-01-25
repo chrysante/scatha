@@ -562,7 +562,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// If we have an init expression we convert it to the type of the variable.
     /// If the type is derived from the init expression then this is a no-op.
     if (validatedInitExpr) {
-        if (isa<BuiltinType>(deducedType)) {
+        if (isa<BuiltinType>(deducedType) || isa<PointerType>(deducedType)) {
             auto* conv = convert(Implicit,
                                  validatedInitExpr,
                                  variable->getQualType(),
