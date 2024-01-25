@@ -64,20 +64,16 @@ struct FuncGenContext: FuncGenContextBase {
     void generateImpl(ast::JumpStatement const&);
 
     /// # Statement specific utilities
-    void generateCleanups(sema::CleanupStack const& cleanupStack,
-                          ast::ASTNode const& sourceNode);
+    void generateCleanups(sema::CleanupStack const& cleanupStack);
 
-    void generateCleanup(sema::Object const* object,
-                         sema::LifetimeOperation destroy,
-                         ast::ASTNode const& sourceNode);
+    void generateCleanup(Value const& value, sema::LifetimeOperation destroy);
 
-    void inlineCleanup(sema::Object const* object);
-    void inlineCleanupImpl(sema::Object const*, sema::Type const&) {
+    void inlineCleanup(Value const& value);
+    void inlineCleanupImpl(Value const&, sema::Type const&) {
         SC_UNREACHABLE();
     }
-    void inlineCleanupImpl(sema::Object const* object, sema::ArrayType const&);
-    void inlineCleanupImpl(sema::Object const* object,
-                           sema::UniquePtrType const&);
+    void inlineCleanupImpl(Value const& value, sema::ArrayType const&);
+    void inlineCleanupImpl(Value const& value, sema::UniquePtrType const&);
 
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
@@ -169,7 +165,7 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     for (auto* statement: cmpStmt.statements()) {
         generate(*statement);
     }
-    generateCleanups(cmpStmt.cleanupStack(), cmpStmt);
+    generateCleanups(cmpStmt.cleanupStack());
 }
 
 static std::optional<sema::SMFKind> prologueAsSMF(sema::Function const& F) {
@@ -297,19 +293,19 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
                               Memory,
                               Packed));
     }
-    generateCleanups(cleanupStack, varDecl);
+    generateCleanups(cleanupStack);
 }
 
 void FuncGenContext::generateImpl(
     ast::ExpressionStatement const& exprStatement) {
     (void)getValue(exprStatement.expression());
-    generateCleanups(exprStatement.cleanupStack(), exprStatement);
+    generateCleanups(exprStatement.cleanupStack());
 }
 
 void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
     /// Simple case of `return;` in a void function
     if (!retStmt.expression()) {
-        generateCleanups(retStmt.cleanupStack(), retStmt);
+        generateCleanups(retStmt.cleanupStack());
         add<ir::Return>(ctx.voidValue());
         return;
     }
@@ -323,7 +319,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         /// value in memory
         auto destLocation = CC.returnValue().locationAtCallsite();
         auto* value = to<Packed>(destLocation, retval);
-        generateCleanups(retStmt.cleanupStack(), retStmt);
+        generateCleanups(retStmt.cleanupStack());
         add<ir::Return>(value);
         return;
     }
@@ -343,7 +339,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
         else {
             add<ir::Store>(retvalDest, toPackedRegister(retval));
         }
-        generateCleanups(retStmt.cleanupStack(), retStmt);
+        generateCleanups(retStmt.cleanupStack());
         add<ir::Return>(ctx.voidValue());
         return;
     }
@@ -352,7 +348,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
 
 void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
     auto* condition = getValue<Packed>(Register, stmt.condition());
-    generateCleanups(stmt.cleanupStack(), stmt);
+    generateCleanups(stmt.cleanupStack());
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
     auto* endBlock = newBlock("if.end");
@@ -381,7 +377,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Packed>(Register, loopStmt.condition());
-        generateCleanups(loopStmt.conditionDtorStack(), loopStmt);
+        generateCleanups(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push({ .header = loopHeader,
                          .body = loopBody,
@@ -396,7 +392,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Inc
         add(loopInc);
         getValue(loopStmt.increment());
-        generateCleanups(loopStmt.incrementDtorStack(), loopStmt);
+        generateCleanups(loopStmt.incrementDtorStack());
         add<ir::Goto>(loopHeader);
 
         /// End
@@ -414,7 +410,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Packed>(Register, loopStmt.condition());
-        generateCleanups(loopStmt.conditionDtorStack(), loopStmt);
+        generateCleanups(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push(
             { .header = loopHeader, .body = loopBody, .end = loopEnd });
@@ -446,7 +442,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         /// Footer
         add(loopFooter);
         auto* condition = getValue<Packed>(Register, loopStmt.condition());
-        generateCleanups(loopStmt.conditionDtorStack(), loopStmt);
+        generateCleanups(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
 
         /// End
@@ -455,11 +451,11 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
         break;
     }
     }
-    generateCleanups(loopStmt.cleanupStack(), loopStmt);
+    generateCleanups(loopStmt.cleanupStack());
 }
 
 void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
-    generateCleanups(jump.cleanupStack(), jump);
+    generateCleanups(jump.cleanupStack());
     auto* dest = [&] {
         auto& currentLoop = loopStack.top();
         switch (jump.kind()) {
@@ -1584,7 +1580,7 @@ Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
 Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
     auto* type = expr.constructedType();
     auto* irElemType = typeMap.packed(type->elementType());
-    std::string name = "dynarray";
+    std::string name = "array";
     auto* count = getValue<Packed>(Register, expr.argument(0));
     auto* arrayBegin = makeLocalArray(irElemType, count, name);
     /// Trivial default construction we can do with a memset, no need to
@@ -1644,65 +1640,81 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
 
 /// MARK: - General utilities
 
-void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack,
-                                      ast::ASTNode const& sourceNode) {
+void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
-        generateCleanup(cleanup.object, cleanup.destroy, sourceNode);
+        generateCleanup(valueMap(cleanup.object), cleanup.destroy);
     }
 }
 
-void FuncGenContext::generateCleanup(sema::Object const* object,
-                                     sema::LifetimeOperation destroy,
-                                     ast::ASTNode const&) {
+void FuncGenContext::generateCleanup(Value const& value,
+                                     sema::LifetimeOperation destroy) {
     using enum sema::LifetimeOperation::Kind;
     switch (destroy.kind()) {
     case Trivial:
-        /// These aren't actually generated but we can wouldn't have to do
-        /// anything here
         break;
     case Nontrivial: {
         auto* function = getFunction(destroy.function());
         SC_ASSERT(ranges::distance(function->parameters()) == 1 &&
                       function->parameters().front().type() == ctx.ptrType(),
                   "Shall have single pointer argument");
-        auto value = valueMap(object);
         SC_ASSERT(value.isMemory(), "Must be in memory");
         auto* addr = to<Packed>(Memory, value);
         add<ir::Call>(function, ValueArray{ addr }, std::string{});
         break;
     }
     case NontrivialInline:
-        inlineCleanup(object);
+        inlineCleanup(value);
         break;
     case Deleted:
         SC_UNREACHABLE();
     }
 }
 
-void FuncGenContext::inlineCleanup(sema::Object const* object) {
-    visit(*object->type(),
-          [&](auto& type) { inlineCleanupImpl(object, type); });
+void FuncGenContext::inlineCleanup(Value const& value) {
+    visit(*value.type(), [&](auto& type) { inlineCleanupImpl(value, type); });
 }
 
-void FuncGenContext::inlineCleanupImpl(sema::Object const* object,
+void FuncGenContext::inlineCleanupImpl(Value const& value,
                                        sema::ArrayType const& type) {
-    SC_UNIMPLEMENTED();
+    auto* arrayBegin = to<Unpacked>(Memory, value).front();
+    auto loop =
+        generateForLoop("array.destr",
+                        to<Packed>(Register, getArraySize(&type, value)));
+    withBlockCurrent(loop.body, loop.insertPoint, [&] {
+        auto* elemType = type.elementType();
+        auto* irElemType = typeMap.packed(elemType);
+        auto* gep = add<ir::GetElementPointer>(ctx,
+                                               irElemType,
+                                               arrayBegin,
+                                               loop.index,
+                                               IndexArray{},
+                                               "array.elem");
+        generateCleanup(Value("array.elem",
+                              type.elementType(),
+                              { gep },
+                              Memory,
+                              Packed),
+                        elemType->lifetimeMetadata().destructor());
+    });
 }
 
-void FuncGenContext::inlineCleanupImpl(sema::Object const* object,
+void FuncGenContext::inlineCleanupImpl(Value const& value,
                                        sema::UniquePtrType const& type) {
-    auto value = valueMap(object);
     auto elems = to<Unpacked>(Register, value);
+    auto* pointeeType = type.base().get();
     auto [bytesize, align] = [&]() -> ValueArray<2> {
         if (elems.size() == 1) {
             return { ctx.intConstant(type.size(), 64),
                      ctx.intConstant(type.align(), 64) };
         }
         auto* elemType =
-            cast<sema::ArrayType const*>(type.base().get())->elementType();
+            cast<sema::ArrayType const*>(pointeeType)->elementType();
         return { makeCountToByteSize(elems[1], elemType->size()),
                  ctx.intConstant(elemType->align(), 64) };
     }();
+    auto valueDtor = pointeeType->lifetimeMetadata().destructor();
+    generateCleanup(Value("pointee", pointeeType, elems, Memory, Unpacked),
+                    valueDtor);
     auto* dealloc = getBuiltin(svm::Builtin::dealloc);
     add<ir::Call>(dealloc, ValueArray{ elems.front(), bytesize, align });
 }
