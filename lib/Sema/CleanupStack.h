@@ -17,6 +17,8 @@ namespace scatha::sema {
 struct CleanupOperation {
     Object* object;
     LifetimeOperation destroy;
+
+    bool operator==(CleanupOperation const&) const = default;
 };
 
 /// Stack of cleanup operations

@@ -854,7 +854,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
     }
     /// We pop the top level dtor because unique ptr extends the lifetime of the
     /// object
-    popTopLevelDtor(expr.value(), *cleanupStack);
+    popTopLevelCleanup(expr.value(), *cleanupStack);
     auto* type = sym.uniquePointer(expr.value()->type());
     expr.decorateValue(sym.temporary(type), RValue);
     cleanupStack->push(expr.object());
@@ -936,16 +936,12 @@ static void convertArguments(auto const& arguments,
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
-    bool success = analyze(fc.callee());
     auto orKind = ORKind::FreeFunction;
-    /// We analyze all the arguments
-    for (size_t i = 0; i < fc.arguments().size(); ++i) {
-        success &= !!analyzeValue(fc.argument(i));
-    }
+    bool success = analyze(fc.callee());
+    success &= analyzeValues(fc.arguments());
     if (!success) {
         return nullptr;
     }
-
     /// If our object is a member access into a value, we rewrite the AST
     if (auto* ma = dyncast<ast::MemberAccess*>(fc.callee());
         ma && ma->accessed()->isValue())
@@ -957,26 +953,24 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         fc.setCallee(std::move(memFunc));
         orKind = ORKind::MemberFunction;
     }
-
     /// If our callee is a generic expression, we assert that it is a
     /// `reinterpret` expression and rewrite the AST
     if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.callee())) {
+        SC_UNIMPLEMENTED(); /// The call to `convert` should be in its own case
         SC_ASSERT(genExpr->callee()->entity()->name() == "reinterpret", "");
         if (fc.arguments().size() != 1) {
             ctx.badExpr(&fc, GenericBadExpr);
             return nullptr;
         }
         auto* arg = fc.argument(0);
-        auto* converted = convert(Reinterpret,
-                                  arg,
-                                  genExpr->type(),
-                                  genExpr->valueCategory(),
-                                  *cleanupStack,
-                                  ctx);
-        fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-        return converted;
+        [[maybe_unused]] auto* converted = convert(Reinterpret,
+                                                   arg,
+                                                   genExpr->type(),
+                                                   genExpr->valueCategory(),
+                                                   *cleanupStack,
+                                                   ctx);
+        return analyze(fc.replace(fc.extractArgument(0)));
     }
-
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion or construct expr
     if (auto* type = dyncast<Type const*>(fc.callee()->entity())) {
@@ -986,14 +980,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                                                ConversionKind::Explicit);
         return analyzeValue(fc.replace(std::move(constr)));
     }
-
     /// Make sure we have an overload set as our called object
     auto* overloadSet = dyncast<OverloadSet*>(fc.callee()->entity());
     if (!overloadSet) {
         ctx.badExpr(&fc, ObjectNotCallable);
         return nullptr;
     }
-
     /// Perform overload resolution
     auto result = performOverloadResolution(&fc,
                                             *overloadSet,
@@ -1081,15 +1073,21 @@ UniquePtr<ast::Expression> ExprContext::allocateTypeConstruction(
                                                              .sourceRange(),
                                                          objType);
     }
-    /// Trivial copy construction
-    if (objType->hasTrivialLifetime() && arguments.size() == 1 &&
-        arguments.front()->type().get() == objType)
-    {
-        return allocate<ast::TrivCopyConstructExpr>(nullptr,
-                                                    arguments[0]
-                                                        ->extractFromParent(),
-                                                    parentExpr.sourceRange(),
-                                                    objType);
+    /// Copy construction
+    if (arguments.size() == 1 && arguments.front()->type().get() == objType) {
+        auto* arg = arguments.front();
+        /// For RValues we never want to invoke a copy constructor
+        if (arg->isRValue()) {
+            return arg->extractFromParent();
+        }
+        if (md.copyConstructor().isTrivial()) {
+            return allocate<ast::TrivCopyConstructExpr>(
+                nullptr,
+                arg->extractFromParent(),
+                parentExpr.sourceRange(),
+                objType);
+        }
+        /// Nontrivial copy construction is handled later...
     }
     /// Aggregate construction
     if (isAggregate(objType)) {
@@ -1127,7 +1125,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     for (auto* expr: list.elements()) {
         expr = analyze(expr);
         success &= !!expr;
-        popTopLevelDtor(expr, *cleanupStack);
+        popTopLevelCleanup(expr, *cleanupStack);
     }
     if (!success) {
         return nullptr;
@@ -1428,12 +1426,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivAggrConstructExpr& expr) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
+    auto* type = expr.constructedType();
+    auto* obj = sym.temporary(type);
+    cleanupStack->push(obj);
     if (!analyzeValues(expr.arguments())) {
         return nullptr;
     }
-    auto* obj = sym.temporary(expr.constructedType());
-    cleanupStack->push(obj);
-    auto* type = expr.constructedType();
     if (type->constructors().empty()) {
         // TODO: Push error
         SC_UNIMPLEMENTED();
@@ -1466,8 +1464,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
         return nullptr;
     }
     auto* type = expr.constructedType();
-    auto* obj = sym.temporary(type);
-    cleanupStack->push(obj);
     if (expr.arguments().size() != type->members().size()) {
         ctx.badExpr(&expr, CannotConstructType);
         return nullptr;
@@ -1481,11 +1477,18 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
                                                argType,
                                                std::array{ arg },
                                                ConversionKind::Implicit);
-        success &= !!analyzeValue(expr.setChild(index, std::move(constr)));
+        auto* analyzed = analyzeValue(expr.setChild(index, std::move(constr)));
+        if (!analyzed) {
+            success = false;
+            continue;
+        }
+        popTopLevelCleanup(analyzed, *cleanupStack);
     }
     if (!success) {
         return nullptr;
     }
+    auto* obj = sym.temporary(type);
+    cleanupStack->push(obj);
     expr.decorateConstruct(obj);
     return &expr;
 }

@@ -575,7 +575,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// lifetime this variable shall extend. Then we push the destructor to the
     /// stack of the parent statement.
     if (!isa<ReferenceType>(varDecl.type())) {
-        popTopLevelDtor(validatedInitExpr, varDecl.cleanupStack());
+        popTopLevelCleanup(validatedInitExpr, varDecl.cleanupStack());
         cast<ast::Statement*>(varDecl.parent())->pushCleanup(variable);
     }
     /// Propagate constant value
@@ -626,7 +626,7 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
             rs.cleanupStack(),
             ctx);
     if (!returnsRef()) {
-        popTopLevelDtor(rs.expression(), rs.cleanupStack());
+        popTopLevelCleanup(rs.expression(), rs.cleanupStack());
     }
 }
 

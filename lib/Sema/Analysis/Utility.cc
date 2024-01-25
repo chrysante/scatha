@@ -24,17 +24,20 @@ using enum ConversionKind;
 /// # Cleanups
 /// We also implement `CleanupStack` here to save a .cc file
 
-static std::optional<CleanupOperation> makeCleanup(Object* obj) {
-    using enum SpecialLifetimeFunctionDepr;
+static std::optional<CleanupOperation> makeCleanup(Entity* entity) {
+    auto* obj = dyncast<Object*>(entity);
+    if (!obj) {
+        return std::nullopt;
+    }
     auto* type = dyncast<ObjectType const*>(obj->type());
     if (!type) {
         return std::nullopt;
     }
-    auto* dtor = type->specialLifetimeFunction(Destructor);
-    if (!dtor) {
+    auto dtor = type->lifetimeMetadata().destructor();
+    if (dtor.isTrivial()) {
         return std::nullopt;
     }
-    return CleanupOperation{ obj, LifetimeOperation(dtor) };
+    return CleanupOperation{ obj, dtor };
 }
 
 void CleanupStack::push(Object* obj) {
@@ -63,18 +66,18 @@ void sema::print(CleanupStack const& stack, std::ostream& str) {
 
 void sema::print(CleanupStack const& stack) { print(stack, std::cout); }
 
-void sema::popTopLevelDtor(ast::Expression* expr, CleanupStack& dtors) {
+void sema::popTopLevelCleanup(ast::Expression* expr, CleanupStack& dtors) {
     if (!expr || !expr->isDecorated()) {
         return;
     }
-    auto* type = expr->type().get();
-    using enum SpecialLifetimeFunctionDepr;
-    if (type && type->specialLifetimeFunction(Destructor)) {
-        SC_ASSERT(expr->object() == dtors.top().object,
-                  "We want to prolong the lifetime of the object defined by "
-                  "expr, so that object better be on top of the stack");
-        dtors.pop();
+    auto cleanup = makeCleanup(expr->entity());
+    if (!cleanup) {
+        return;
     }
+    SC_ASSERT(*cleanup == dtors.top(),
+              "We want to prolong the lifetime of the object defined by "
+              "expr, so that object better be on top of the stack");
+    dtors.pop();
 }
 
 /// # Special lifetime functions

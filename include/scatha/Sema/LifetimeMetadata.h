@@ -62,6 +62,8 @@ public:
     /// \Returns `kind() == Deleted`
     bool isDeleted() const { return kind() == Deleted; }
 
+    bool operator==(LifetimeOperation const&) const = default;
+
 private:
     Kind _kind;
     Function* fn = nullptr;
