@@ -134,6 +134,12 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     utl::small_vector<ir::Value*, 2> unpackDynArrayPointerInRegister(
         ir::Value* ptr, std::string name);
 
+    /// Insert two `GetElementPointer` instructions (one for the data pointer
+    /// and one for the size), loads the count into a register and returns the
+    /// two values
+    utl::small_vector<ir::Value*, 2> unpackDynArrayPointerInMemory(
+        ir::Value* ptr, std::string name);
+
     /// Emit a call to `memcpy`
     ir::Call* callMemcpy(ir::Value* dest,
                          ir::Value* source,

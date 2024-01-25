@@ -196,9 +196,32 @@ static ObjectTypeConversion convRefToPtr(ObjectTypeConversion conv) {
     }
 }
 
+template <ConversionKind Kind, typename R = ConvExp<ObjectTypeConversion>>
+static constexpr auto PointerConv =
+    [](PointerType const& from, PointerType const& to) -> R {
+    using enum ObjectTypeConversion;
+    if (from.base().isConst() && to.base().isMut()) {
+        return ConvError;
+    }
+    if (from.base().get() == to.base().get()) {
+        return SC_MATCH_R(R, from, to){
+            [](PointerType const&, PointerType const&) { return Noop; },
+            [](UniquePtrType const&, RawPtrType const&) {
+            return UniqueToRawPtr;
+        },
+            [](RawPtrType const&, UniquePtrType const&) { return ConvError; }
+        };
+    }
+    if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
+        auto conv = determineObjConv(Kind, from.base().get(), to.base().get());
+        return conv.transform(convRefToPtr);
+    }
+    return ConvError;
+};
+
 // clang-format off
 template <ConversionKind Kind, typename R = ConvExp<ObjectTypeConversion>>
-static constexpr utl::overload PointerConv{
+static constexpr utl::overload FromNullPointerConv{
     [](NullPtrType const&, RawPtrType const&) {
         using enum ObjectTypeConversion;
         return NullptrToRawPtr;
@@ -206,32 +229,6 @@ static constexpr utl::overload PointerConv{
     [](NullPtrType const&, UniquePtrType const&) {
         using enum ObjectTypeConversion;
         return NullptrToUniquePtr;
-    },
-    [](PointerType const& from, PointerType const& to) -> R {
-        using enum ObjectTypeConversion;
-        if (from.base().isConst() && to.base().isMut()) {
-            return ConvError;
-        }
-        if (from.base().get() == to.base().get()) {
-            return SC_MATCH_R(R, from, to){
-                [](PointerType const&, PointerType const&) {
-                    return Noop;
-                },
-                [](UniquePtrType const&, RawPtrType const&) {
-                    return UniqueToRawPtr;
-                },
-                [](RawPtrType const&, UniquePtrType const&) {
-                    return ConvError;
-                }
-            };
-        }
-        if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
-            auto conv = determineObjConv(Kind,
-                                         from.base().get(),
-                                         to.base().get());
-            return conv.transform(convRefToPtr);
-        }
-        return ConvError;
     }
 }; // clang-format on
 
@@ -275,6 +272,10 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 std::derived_from<PointerType> auto const& to) {
                 return PointerConv<ConversionKind::Implicit>(from, to);
             },
+            [&](NullPtrType const& from,
+                std::derived_from<PointerType> auto const& to) {
+                return FromNullPointerConv<ConversionKind::Implicit>(from, to);
+            },
             [&](ObjectType const&, ObjectType const&) {
                 return ConvError;
             }
@@ -316,6 +317,10 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
             [&](std::derived_from<PointerType> auto const& from,
                 std::derived_from<PointerType> auto const& to) {
                 return PointerConv<ConversionKind::Explicit>(from, to);
+            },
+            [&](NullPtrType const& from,
+                std::derived_from<PointerType> auto const& to) {
+                return FromNullPointerConv<ConversionKind::Implicit>(from, to);
             },
             [&](ObjectType const&, ObjectType const&) {
                 return ConvError;
@@ -407,6 +412,10 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
             [&](std::derived_from<PointerType> auto const& from,
                 std::derived_from<PointerType> auto const& to) {
                 return PointerConv<ConversionKind::Reinterpret>(from, to);
+            },
+            [&](NullPtrType const& from,
+                std::derived_from<PointerType> auto const& to) {
+                return FromNullPointerConv<ConversionKind::Implicit>(from, to);
             },
             [&]([[maybe_unused]] ObjectType const& from,
                 [[maybe_unused]] ObjectType const& to) {

@@ -202,24 +202,29 @@ utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedRegister(
 
 utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedMemory(
     Value const& value) {
-    auto first = [&]() -> utl::small_vector<ir::Value*> {
-        if (value.isPacked() && isDynArray(value.type())) {
-            auto* data =
-                add<ir::ExtractValue>(value.get(0),
-                                      IndexArray{ 0 },
-                                      utl::strcat(value.name(), ".data"));
-            auto* count =
-                add<ir::ExtractValue>(value.get(0),
-                                      IndexArray{ 1 },
-                                      utl::strcat(value.name(), ".count"));
-            return { data, count };
+    if (value.isMemory()) {
+        if (value.isPacked()) {
+            if (isDynArray(value.type())) {
+                /// This means `value.get(0)` is an array pointer in a register
+                SC_EXPECT(value.get(0)->type() == arrayPtrType);
+                return unpackDynArrayPointerInRegister(value.get(0),
+                                                       value.name());
+            }
+            if (isDynArrayPointer(value.type())) {
+                return unpackDynArrayPointerInMemory(value.get(0),
+                                                     value.name());
+            }
         }
-        return { value.get(0) };
-    }();
-    if (value.isRegister()) {
-        first[0] = storeToMemory(first[0], value.name());
+        return value.get() | ToSmallVector<>;
     }
-    return concat(first, value.get().subspan(1)) | ToSmallVector<2>;
+    else {
+        if (value.isPacked() && isDynArrayPointer(value.type())) {
+            return unpackDynArrayPointerInRegister(value.get(0), value.name());
+        }
+        return concat(single(storeToMemory(value.get(0))),
+                      value.get().subspan(1)) |
+               ToSmallVector<2>;
+    }
 }
 
 Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
@@ -273,13 +278,35 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
 }
 
 utl::small_vector<ir::Value*, 2> FuncGenContextBase::
-    unpackDynArrayPointerInRegister(ir::Value* ptr, std::string name) {
-    auto* data =
-        add<ir::ExtractValue>(ptr, IndexArray{ 0 }, utl::strcat(name, ".data"));
-    auto* count = add<ir::ExtractValue>(ptr,
+    unpackDynArrayPointerInRegister(ir::Value* pointer, std::string name) {
+    auto* data = add<ir::ExtractValue>(pointer,
+                                       IndexArray{ 0 },
+                                       utl::strcat(name, ".data"));
+    auto* count = add<ir::ExtractValue>(pointer,
                                         IndexArray{ 1 },
                                         utl::strcat(name, ".count"));
     return { data, count };
+}
+
+utl::small_vector<ir::Value*, 2> FuncGenContextBase::
+    unpackDynArrayPointerInMemory(ir::Value* ptr, std::string name) {
+    auto* dataAddr =
+        add<ir::GetElementPointer>(ctx,
+                                   arrayPtrType,
+                                   ptr,
+                                   nullptr,
+                                   IndexArray{ 0 },
+                                   utl::strcat(name, ".data.addr"));
+    auto* countAddr =
+        add<ir::GetElementPointer>(ctx,
+                                   arrayPtrType,
+                                   ptr,
+                                   nullptr,
+                                   IndexArray{ 1 },
+                                   utl::strcat(name, ".count.addr"));
+    auto* count =
+        add<ir::Load>(countAddr, ctx.intType(64), utl::strcat(name, ".count"));
+    return { dataAddr, count };
 }
 
 ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,
