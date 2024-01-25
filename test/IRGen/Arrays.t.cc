@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Statically generated list expression", "[irgen]") {
+TEST_CASE("Statically generated list expression", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ "public fn foo() { let data = [1, 2, 3]; }" });
     auto& F = mod.front();
@@ -32,7 +32,7 @@ TEST_CASE("IRGen - Statically generated list expression", "[irgen]") {
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Dynamically generated list expression", "[irgen]") {
+TEST_CASE("Dynamically generated list expression", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(data: &[int]) { let arr = [&data]; }" });
@@ -54,7 +54,7 @@ TEST_CASE("IRGen - Dynamically generated list expression", "[irgen]") {
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Default constructed small local array", "[irgen]") {
+TEST_CASE("Default constructed small local array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ "public fn foo() { let data: [int, 2]; }" });
     auto& F = mod.front();
@@ -72,7 +72,7 @@ TEST_CASE("IRGen - Default constructed small local array", "[irgen]") {
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Default constructed big local array", "[irgen]") {
+TEST_CASE("Default constructed big local array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ "public fn foo() { let data: [int, 10]; }" });
     auto& F = mod.front();
@@ -89,7 +89,7 @@ TEST_CASE("IRGen - Default constructed big local array", "[irgen]") {
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Copy constructed small local array", "[irgen]") {
+TEST_CASE("Copy constructed small local array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(data: &[int, 2]) { let data2 = data; }" });
@@ -108,7 +108,7 @@ TEST_CASE("IRGen - Copy constructed small local array", "[irgen]") {
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Copy constructed big local array", "[irgen]") {
+TEST_CASE("Copy constructed big local array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(data: &[int, 8]) { let data2 = data; }" });

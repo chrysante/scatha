@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Non-trivial aggregate construction", "[irgen]") {
+TEST_CASE("Non-trivial aggregate construction", "[irgen]") {
     using namespace ir;
     std::string source = GENERATE(R"(
 struct Nontrivial {

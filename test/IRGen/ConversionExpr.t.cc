@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Array static to dynamic conversion", "[irgen]") {
+TEST_CASE("Array static to dynamic conversion", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo(a: &[int, 3]) -> &[int]  { return a; }
@@ -27,7 +27,7 @@ public fn foo(a: &[int, 3]) -> &[int]  { return a; }
     CHECK(ret.value() == &insertCount);
 }
 
-TEST_CASE("IRGen - Array pointer static to dynamic conversion", "[irgen]") {
+TEST_CASE("Array pointer static to dynamic conversion", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo(a: *[int, 3]) -> *[int]  { return a; }

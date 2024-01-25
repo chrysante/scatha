@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Function call with reference to dynamic array", "[irgen]") {
+TEST_CASE("Function call with reference to dynamic array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo(data: &[int]) { bar(data); }
@@ -28,7 +28,7 @@ fn bar(data: &[int]) {}
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Unpacking return value", "[irgen]") {
+TEST_CASE("Unpacking return value", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo(data: &[int]) { bar(*baz()); }
@@ -51,7 +51,7 @@ fn baz() -> *[int] {}
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Return value passed on stack", "[irgen]") {
+TEST_CASE("Return value passed on stack", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() { bar(); }
@@ -66,7 +66,7 @@ fn bar() -> [int, 10] {}
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Pass return value in memory to return statement",
+TEST_CASE("Pass return value in memory to return statement",
           "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
@@ -83,7 +83,7 @@ fn bar() -> [int, 10] {}
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Return .count of static array return value", "[irgen]") {
+TEST_CASE("Return .count of static array return value", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() -> int { return bar().count; }
@@ -98,7 +98,7 @@ fn bar() -> [int, 10] {}
     CHECK(ret.value() == ctx.intConstant(10, 64));
 }
 
-TEST_CASE("IRGen - Return .count of dynamic array return value", "[irgen]") {
+TEST_CASE("Return .count of dynamic array return value", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() -> int { return bar().count; }
@@ -114,7 +114,7 @@ fn bar() -> &[int] {}
     CHECK(ret.value() == &count);
 }
 
-TEST_CASE("IRGen - Function call with big object by value", "[irgen]") {
+TEST_CASE("Function call with big object by value", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() { bar([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]); }
@@ -134,7 +134,7 @@ fn bar(arr: [int, 10]) {}
     CHECK(call.argumentAt(0) == &mem);
 }
 
-TEST_CASE("IRGen - Function call returns reference", "[irgen]") {
+TEST_CASE("Function call returns reference", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() -> int { return get(); }

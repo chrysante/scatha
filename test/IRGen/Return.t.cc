@@ -10,7 +10,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Return trivial by value argument", "[irgen]") {
+TEST_CASE("Return trivial by value argument", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(value: int) -> int { return value; }" });
@@ -34,7 +34,7 @@ TEST_CASE("IRGen - Return trivial by value argument", "[irgen]") {
     CHECK(ret.value() == &load);
 }
 
-TEST_CASE("IRGen - Return trivial by reference argument", "[irgen]") {
+TEST_CASE("Return trivial by reference argument", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(value: &int) -> int { return value; }" });
@@ -50,7 +50,7 @@ TEST_CASE("IRGen - Return trivial by reference argument", "[irgen]") {
     CHECK(ret.value() == &load);
 }
 
-TEST_CASE("IRGen - Return trivial by pointer argument", "[irgen]") {
+TEST_CASE("Return trivial by pointer argument", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(ptr: *int) -> int { return *ptr; }" });
@@ -72,7 +72,7 @@ TEST_CASE("IRGen - Return trivial by pointer argument", "[irgen]") {
     CHECK(view.nextAs<Return>().value() == &loadInt);
 }
 
-TEST_CASE("IRGen - Return count of dynamic array reference", "[irgen]") {
+TEST_CASE("Return count of dynamic array reference", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(data: &[int]) { return data.count; }" });
@@ -84,7 +84,7 @@ TEST_CASE("IRGen - Return count of dynamic array reference", "[irgen]") {
     CHECK(ret.value() == &F.parameters().back());
 }
 
-TEST_CASE("IRGen - Return count of dynamic array pointer", "[irgen]") {
+TEST_CASE("Return count of dynamic array pointer", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(data: *[int]) { return data.count; }" });
@@ -106,7 +106,7 @@ TEST_CASE("IRGen - Return count of dynamic array pointer", "[irgen]") {
     CHECK(view.nextAs<Return>().value() == &size);
 }
 
-TEST_CASE("IRGen - Return count of reference to dynamic array pointer",
+TEST_CASE("Return count of reference to dynamic array pointer",
           "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
@@ -124,7 +124,7 @@ TEST_CASE("IRGen - Return count of reference to dynamic array pointer",
     CHECK(view.nextAs<Return>().value() == &size);
 }
 
-TEST_CASE("IRGen - Pass reference to dynamic array through function",
+TEST_CASE("Pass reference to dynamic array through function",
           "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
@@ -141,7 +141,7 @@ TEST_CASE("IRGen - Pass reference to dynamic array through function",
 }
 
 /// TODO: Move to assign.t file
-TEST_CASE("IRGen - Assign to reference to dynamic array pointer", "[irgen]") {
+TEST_CASE("Assign to reference to dynamic array pointer", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(p: &mut *[int], q: *[int]) { p = q; }" });

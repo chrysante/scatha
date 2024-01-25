@@ -10,7 +10,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Parameter generation", "[irgen]") {
+TEST_CASE("Parameter generation", "[irgen]") {
     using namespace ir;
     SECTION("Static array pointer") {
         auto [ctx, mod] = makeIR({ "public fn foo(data: *[int, 3]) {}" });

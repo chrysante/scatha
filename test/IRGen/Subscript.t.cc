@@ -10,7 +10,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Count of dynamic array pointer in dynamic array",
+TEST_CASE("Count of dynamic array pointer in dynamic array",
           "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =

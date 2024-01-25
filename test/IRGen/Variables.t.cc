@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Local variable of trivial type", "[irgen]") {
+TEST_CASE("Local variable of trivial type", "[irgen]") {
     using namespace ir;
     std::string source =
         GENERATE("public fn foo() { var i: int; }", // No initializer
@@ -29,7 +29,7 @@ TEST_CASE("IRGen - Local variable of trivial type", "[irgen]") {
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Local variable copy of trivial type parameter", "[irgen]") {
+TEST_CASE("Local variable copy of trivial type parameter", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ "public fn foo(n: int) { let i = n; }" });
     auto& F = mod.front();
@@ -49,7 +49,7 @@ TEST_CASE("IRGen - Local variable copy of trivial type parameter", "[irgen]") {
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("IRGen - Local reference variable to parameter", "[irgen]") {
+TEST_CASE("Local reference variable to parameter", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ "public fn foo(n: &int) { let i: &int = n; }" });
     auto& F = mod.front();
@@ -57,7 +57,7 @@ TEST_CASE("IRGen - Local reference variable to parameter", "[irgen]") {
     CHECK(F.entry().emptyExceptTerminator());
 }
 
-TEST_CASE("IRGen - Local variable array pointer to array reference argument",
+TEST_CASE("Local variable array pointer to array reference argument",
           "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =

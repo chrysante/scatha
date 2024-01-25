@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Member access simple", "[irgen]") {
+TEST_CASE("Member access simple", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public struct X { var i: int; }
@@ -28,7 +28,7 @@ public fn foo(x: &X) -> int { return x.i; }
     CHECK(ret.value() == &load);
 }
 
-TEST_CASE("IRGen - Member access dynamic array pointer member", "[irgen]") {
+TEST_CASE("Member access dynamic array pointer member", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public struct X { var ptr: *[int]; }
@@ -44,7 +44,7 @@ public fn foo(x: &X) -> int { return x.ptr[10]; }
     CHECK(addrGep.basePointer() == &F.parameters().front());
 }
 
-TEST_CASE("IRGen - 'empty' property", "[irgen]") {
+TEST_CASE("'empty' property", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(n: &[int]) { return n.empty; }" });
@@ -58,7 +58,7 @@ TEST_CASE("IRGen - 'empty' property", "[irgen]") {
     CHECK(ret.value() == &cmp);
 }
 
-TEST_CASE("IRGen - 'front' property on register array", "[irgen]") {
+TEST_CASE("'front' property on register array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() { return get().front; }
@@ -76,7 +76,7 @@ fn get() -> [int, 2] {}
     CHECK(ret.value() == &extract);
 }
 
-TEST_CASE("IRGen - 'back' property on register array", "[irgen]") {
+TEST_CASE("'back' property on register array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() { return get().back; }
@@ -94,7 +94,7 @@ fn get() -> [byte, 8] {}
     CHECK(ret.value() == &extract);
 }
 
-TEST_CASE("IRGen - 'front' property on memory array", "[irgen]") {
+TEST_CASE("'front' property on memory array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(n: &[int]) { return n.front; }" });
@@ -110,7 +110,7 @@ TEST_CASE("IRGen - 'front' property on memory array", "[irgen]") {
     CHECK(ret.value() == &load);
 }
 
-TEST_CASE("IRGen - 'back' property on memory array", "[irgen]") {
+TEST_CASE("'back' property on memory array", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ "public fn foo(n: &[int]) { return n.back; }" });
     auto& F = mod.front();

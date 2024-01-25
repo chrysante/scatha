@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("IRGen - Dynamic array reference in conditional expression",
+TEST_CASE("Dynamic array reference in conditional expression",
           "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
@@ -35,7 +35,7 @@ public fn foo(a: &[int], b: &[int]) -> &[int] { return true ? a : b; }
     CHECK(ret.value() == &insertCount);
 }
 
-TEST_CASE("IRGen - .count on conditional expression", "[irgen]") {
+TEST_CASE(".count on conditional expression", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo(a: &[int], b: &[int]) { return (true ? a : b).count; }
