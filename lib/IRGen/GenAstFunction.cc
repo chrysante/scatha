@@ -1159,8 +1159,22 @@ Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
     auto value = getValue(conv.expression());
     using enum sema::ValueCatConversion;
     switch (conv.conversion()) {
-    case LValueToRValue:
-        return value;
+    case LValueToRValue: {
+        auto repr = value.representation();
+        if (value.type()->size() <= PreferredMaxRegisterValueSize) {
+            return Value(value.name(),
+                         value.type(),
+                         to(Register, repr, value),
+                         Register,
+                         repr);
+        }
+        else {
+            auto* irType = typeMap.packed(value.type());
+            auto* mem = makeLocalVariable(irType, value.name());
+            callMemcpy(mem, toPackedMemory(value), irType->size());
+            return Value(value.name(), value.type(), { mem }, Memory, Packed);
+        }
+    }
 
     case MaterializeTemporary:
         return Value(value.name(),

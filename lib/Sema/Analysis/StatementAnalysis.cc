@@ -563,18 +563,12 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// If the type is derived from the init expression then this is a no-op.
     if (validatedInitExpr) {
         if (isa<BuiltinType>(deducedType)) {
-            auto* conv = convert(Implicit,
-                                 validatedInitExpr,
-                                 variable->getQualType(),
-                                 RValue,
-                                 varDecl.cleanupStack(),
-                                 ctx);
-            if (!isa<ast::ObjTypeConvExpr>(conv) &&
-                !validatedInitExpr->isRValue())
-            {
-                conv = insertConstruction(conv, varDecl.cleanupStack(), ctx);
-            }
-            validatedInitExpr = conv;
+            validatedInitExpr = convert(Implicit,
+                                        validatedInitExpr,
+                                        variable->getQualType(),
+                                        RValue,
+                                        varDecl.cleanupStack(),
+                                        ctx);
         }
         else if (isa<ReferenceType>(deducedType)) {
             validatedInitExpr = convert(Implicit,
