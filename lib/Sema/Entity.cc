@@ -510,14 +510,12 @@ static std::string makeIndirectName(std::string_view indirection,
 PointerType::PointerType(EntityType entityType,
                          QualType base,
                          std::string name):
-    ObjectType(entityType,
-               ScopeKind::Invalid,
-               std::move(name),
-               getParent(base.get()),
-               ptrSize(base),
-               ptrAlign(),
-               nullptr,
-               base->accessControl()),
+    BuiltinType(entityType,
+                std::move(name),
+                getParent(base.get()),
+                ptrSize(base),
+                ptrAlign(),
+                base->accessControl()),
     PtrRefTypeBase(base) {}
 
 RawPtrType::RawPtrType(QualType base):

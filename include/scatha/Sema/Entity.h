@@ -49,10 +49,10 @@
 /// │        │  │  ├─ ByteType
 /// │        │  │  ├─ IntType
 /// │        │  │  └─ FloatType
-/// │        │  └─ NullPtrType
-/// │        ├─ PointerType
-/// │        │  ├─ RawPtrType
-/// │        │  └─ UniquePtrType
+/// │        │  ├─ NullPtrType
+/// │        │  └─ PointerType
+/// │        │     ├─ RawPtrType
+/// │        │     └─ UniquePtrType
 /// │        └─ CompoundType
 /// │           ├─ StructType
 /// │           └─ ArrayType
@@ -892,7 +892,7 @@ private:
 };
 
 /// Abstract base class of raw pointer and unique pointer
-class SCATHA_API PointerType: public ObjectType, public PtrRefTypeBase {
+class SCATHA_API PointerType: public BuiltinType, public PtrRefTypeBase {
 protected:
     explicit PointerType(EntityType entityType,
                          QualType base,
