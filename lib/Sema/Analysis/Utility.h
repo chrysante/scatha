@@ -15,14 +15,6 @@ namespace scatha::sema {
 /// pops the top element off the destructor stack \p dtors
 void popTopLevelCleanup(ast::Expression* expr, CleanupStack& dtors);
 
-/// # Special lifetime functions
-
-/// Declares the appropriate special lifetime functions of \p type
-/// This is used by Instantiation to analyze structs and by symbol table to
-/// generate array types.
-[[deprecated]] void declareSpecialLifetimeFunctions(ObjectType& type,
-                                                    SymbolTable& sym);
-
 /// # Other utils
 
 /// \Returns the function in the list \p functions that exactly matches the
