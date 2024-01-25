@@ -13,6 +13,7 @@
 #include <utl/function_view.hpp>
 
 #include "Sema/Entity.h"
+#include "Sema/LifetimeMetadata.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -94,6 +95,14 @@ SERIALIZE_ENUM_BEGIN(SpecialLifetimeFunctionDepr)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
+SERIALIZE_ENUM_BEGIN(LifetimeOperation::Kind)
+SERIALIZE_ENUM_ELEM(LifetimeOperation::Kind::Trivial, "Trivial")
+SERIALIZE_ENUM_ELEM(LifetimeOperation::Kind::Nontrivial, "Nontrivial")
+SERIALIZE_ENUM_ELEM(LifetimeOperation::Kind::NontrivialInline,
+                    "NontrivialInline")
+SERIALIZE_ENUM_ELEM(LifetimeOperation::Kind::Deleted, "Deleted")
+SERIALIZE_ENUM_END()
+
 SERIALIZE_ENUM_BEGIN(FunctionKind)
 SERIALIZE_ENUM_ELEM(FunctionKind::Native, "Native")
 SERIALIZE_ENUM_ELEM(FunctionKind::Foreign, "Foreign")
@@ -114,6 +123,10 @@ void from_json(json const& j, SpecialMemberFunctionDepr& e) {
 }
 void to_json(json& j, SpecialLifetimeFunctionDepr e) { serializeEnum(j, e); }
 void from_json(json const& j, SpecialLifetimeFunctionDepr& e) {
+    deserializeEnum(j, e);
+}
+void to_json(json& j, LifetimeOperation::Kind e) { serializeEnum(j, e); }
+void from_json(json const& j, LifetimeOperation::Kind& e) {
     deserializeEnum(j, e);
 }
 void to_json(json& j, FunctionKind e) { serializeEnum(j, e); }
@@ -428,6 +441,7 @@ struct Field {
     static constexpr std::string_view ReturnType = "return_type";
     static constexpr std::string_view ArgumentTypes = "argument_types";
     static constexpr std::string_view SMFMetadata = "smf_metadata";
+    static constexpr std::string_view LifetimeOpKind = "lifetime_op_kind";
     static constexpr std::string_view FunctionKind = "function_kind";
     static constexpr std::string_view Size = "size";
     static constexpr std::string_view Align = "align";
