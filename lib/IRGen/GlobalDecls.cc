@@ -69,10 +69,10 @@ static bool mayPassInRegister(sema::Type const* type) {
 
 static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
     if (mayPassInRegister(type)) {
-        return { Register, isRetval ? 0u : isFatPointer(type) ? 2u : 1u };
+        return { type, Register, isRetval ? 0u : isFatPointer(type) ? 2u : 1u };
     }
     else {
-        return { Memory, 1 };
+        return { type, Memory, 1 };
     }
 }
 

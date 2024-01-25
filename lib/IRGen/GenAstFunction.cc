@@ -912,7 +912,8 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
         }
         return "call.result";
     }();
-    auto retvalLocation = getCC(call.function()).returnValue().location();
+    auto CC = getCC(call.function());
+    auto retvalLocation = CC.returnValue().location();
     utl::small_vector<ir::Value*> irArguments;
     /// Allocate return value storage
     if (retvalLocation == Memory) {
@@ -921,12 +922,11 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             makeLocalVariable(irReturnType, utl::strcat(name, ".addr")));
     }
     /// Unpack arguments
-    for (auto [targetType, arg]:
-         ranges::views::zip(call.function()->argumentTypes(), call.arguments()))
-    {
-        auto targetLoc = isa<sema::ReferenceType>(targetType) ? Memory :
-                                                                Register;
-        auto unpacked = getValue<Unpacked>(targetLoc, arg);
+    for (auto [PC, arg]: zip(CC.arguments(), call.arguments())) {
+        auto loc = isa<sema::ReferenceType>(PC.semaType()) ? Memory :
+                                                             PC.location();
+        auto unpacked = getValue<Unpacked>(loc, arg);
+        SC_ASSERT(PC.numParams() == unpacked.size(), "Argument count mismatch");
         irArguments.insert(irArguments.end(), unpacked.begin(), unpacked.end());
     }
     auto* callInst = add<ir::Call>(function, irArguments, name);

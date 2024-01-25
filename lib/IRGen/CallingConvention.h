@@ -18,8 +18,15 @@ namespace scatha::irgen {
 /// Description of how a value is passed to and returned from function calls.
 class PassingConvention {
 public:
-    PassingConvention(ValueLocation loc, size_t numParams):
-        _loc(loc), _numParams(utl::narrow_cast<uint8_t>(numParams)) {}
+    PassingConvention(sema::Type const* type,
+                      ValueLocation loc,
+                      size_t numParams):
+        _type(type),
+        _loc(loc),
+        _numParams(utl::narrow_cast<uint8_t>(numParams)) {}
+
+    /// \Returns the sema type of this argument
+    sema::Type const* semaType() const { return _type; }
 
     /// Location type of the argument. Either `Register` or `Stack`
     ValueLocation location() const { return _loc; }
@@ -28,6 +35,7 @@ public:
     size_t numParams() const { return _numParams; }
 
 private:
+    sema::Type const* _type;
     ValueLocation _loc;
     uint8_t _numParams;
 };

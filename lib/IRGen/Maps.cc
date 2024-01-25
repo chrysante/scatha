@@ -168,8 +168,6 @@ auto TypeMap::compute(sema::Type const* type) const {
             SC_UNREACHABLE();
         },
         [&](sema::ArrayType const& type) {
-//            SC_ASSERT(!type.isDynamic(),
-//                      "Cannot represent dynamic arrays as IR types");
             res = { ctx->arrayType(packed(type.elementType()),
                                    type.count()) };
         },

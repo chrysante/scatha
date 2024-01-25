@@ -113,3 +113,23 @@ fn bar() -> &[int] {}
     auto& ret = view.nextAs<Return>();
     CHECK(ret.value() == &count);
 }
+
+TEST_CASE("IRGen - Function call with big object by value", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ R"(
+public fn foo() { bar([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]); }
+fn bar(arr: [int, 10]) {}
+)" });
+    auto& F = mod.front();
+    auto view = BBView(F.entry());
+
+    auto& mem = view.nextAs<Alloca>();
+    CHECK(mem.allocatedType() == ctx.intType(64));
+    CHECK(mem.count() == ctx.intConstant(10, 32));
+    auto& memcpy = view.nextAs<Call>();
+    CHECK(memcpy.function()->name() == "__builtin_memcpy");
+    CHECK(memcpy.argumentAt(0) == &mem);
+    CHECK(memcpy.argumentAt(1) == ctx.intConstant(80, 64));
+    auto& call = view.nextAs<Call>();
+    CHECK(call.argumentAt(0) == &mem);
+}
