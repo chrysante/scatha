@@ -66,8 +66,7 @@ fn bar() -> [int, 10] {}
     CHECK_NOTHROW(view.nextAs<Return>());
 }
 
-TEST_CASE("Pass return value in memory to return statement",
-          "[irgen]") {
+TEST_CASE("Pass return value in memory to return statement", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo() -> [int, 10] { return bar(); }

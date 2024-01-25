@@ -106,8 +106,7 @@ TEST_CASE("Return count of dynamic array pointer", "[irgen]") {
     CHECK(view.nextAs<Return>().value() == &size);
 }
 
-TEST_CASE("Return count of reference to dynamic array pointer",
-          "[irgen]") {
+TEST_CASE("Return count of reference to dynamic array pointer", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(data: &*[int]) { return data.count; }" });
@@ -124,8 +123,7 @@ TEST_CASE("Return count of reference to dynamic array pointer",
     CHECK(view.nextAs<Return>().value() == &size);
 }
 
-TEST_CASE("Pass reference to dynamic array through function",
-          "[irgen]") {
+TEST_CASE("Pass reference to dynamic array through function", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] =
         makeIR({ "public fn foo(ref: &[int]) -> &[int] { return ref; }" });

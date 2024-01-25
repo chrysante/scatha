@@ -11,8 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-TEST_CASE("Dynamic array reference in conditional expression",
-          "[irgen]") {
+TEST_CASE("Dynamic array reference in conditional expression", "[irgen]") {
     using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public fn foo(a: &[int], b: &[int]) -> &[int] { return true ? a : b; }
