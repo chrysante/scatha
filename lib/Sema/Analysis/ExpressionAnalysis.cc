@@ -81,6 +81,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::TrivAggrConstructExpr&);
     ast::Expression* analyzeImpl(ast::NontrivConstructExpr&);
     ast::Expression* analyzeImpl(ast::NontrivAggrConstructExpr&);
+    ast::Expression* analyzeImpl(ast::DynArrayConstructExpr&);
 
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
@@ -1038,7 +1039,9 @@ UniquePtr<ast::Expression> ExprContext::allocateTypeConstruction(
     }
     /// Dynamic array types
     if (auto* arrayType = dynArrayTypeCast(targetType)) {
-        SC_UNIMPLEMENTED();
+        return allocate<ast::DynArrayConstructExpr>(extract(arguments),
+                                                    parentExpr.sourceRange(),
+                                                    arrayType);
     }
     auto* objType = cast<ObjectType const*>(targetType);
     /// Functional cast to builtin type
@@ -1490,6 +1493,42 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
     cleanupStack->push(obj);
     expr.decorateConstruct(obj);
     return &expr;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
+    auto* type = expr.constructedType();
+    SC_EXPECT(type->isDynamic());
+    if (!analyzeValues(expr.arguments())) {
+        return nullptr;
+    }
+    if (!isa<ast::UniqueExpr>(expr.parent())) {
+        ctx.issue<BadExpr>(&expr, DynArrayConstrAutoStorage);
+    }
+    switch (expr.arguments().size()) {
+    case 1: {
+        auto* arg = expr.argument(0);
+        arg = convert(Implicit, arg, sym.Int(), RValue, *cleanupStack, ctx);
+        if (!arg) {
+            return nullptr;
+        }
+        auto elemConstr =
+            allocateTypeConstruction(*arg,
+                                     type->elementType(),
+                                     std::array<ast::Expression*, 0>{},
+                                     Implicit);
+        expr.setElementConstruction(std::move(elemConstr));
+        if (!analyzeValue(expr.elementConstruction())) {
+            return nullptr;
+        }
+        popTopLevelCleanup(expr.elementConstruction(), *cleanupStack);
+        expr.decorateConstruct(sym.temporary(type));
+        cleanupStack->push(expr.object());
+        return &expr;
+    }
+    default:
+        ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
+        return nullptr;
+    }
 }
 
 ast::Expression* ExprContext::analyzeDynArrayConstruction(

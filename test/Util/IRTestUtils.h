@@ -14,13 +14,16 @@ ir::Type const* arrayPointerType(ir::Context& ctx);
 /// basic blocl
 struct BBView {
     ir::BasicBlock::ConstIterator itr;
+    ir::BasicBlock const* BB;
 
-    explicit BBView(ir::BasicBlock const& BB): itr(BB.begin()) {}
+    explicit BBView(ir::BasicBlock const& BB): itr(BB.begin()), BB(&BB) {}
 
     template <std::derived_from<ir::Instruction> Inst>
     Inst const& nextAs() {
         return dyncast<Inst const&>(*itr++);
     }
+
+    BBView nextBlock() const { return BBView(*BB->next()); }
 };
 
 } // namespace scatha::test

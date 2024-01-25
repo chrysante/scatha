@@ -65,4 +65,20 @@ ValueArray(T...) -> ValueArray<sizeof...(T)>;
 
 } // namespace scatha::irgen
 
+template <std::size_t N>
+struct std::tuple_size<scatha::irgen::ValueArray<N>>:
+    std::integral_constant<std::size_t, N> {};
+
+template <std::size_t I, size_t N>
+struct std::tuple_element<I, scatha::irgen::ValueArray<N>>:
+    std::type_identity<scatha::ir::Value*> {};
+
+template <std::size_t N>
+struct std::tuple_size<scatha::irgen::IndexArray<N>>:
+    std::integral_constant<std::size_t, N> {};
+
+template <std::size_t I, size_t N>
+struct std::tuple_element<I, scatha::irgen::IndexArray<N>>:
+    std::type_identity<std::size_t> {};
+
 #endif // SCATHA_IRGEN_UTILITY_H_

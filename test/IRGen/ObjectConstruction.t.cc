@@ -13,7 +13,7 @@ using namespace test;
 
 TEST_CASE("Non-trivial aggregate construction", "[irgen]") {
     using namespace ir;
-    std::string source = GENERATE(R"(
+    std::string source = R"(
 struct Nontrivial {
     fn new(&mut this, n: int) {}
     fn new(&mut this, rhs: &Nontrivial) {}
@@ -26,7 +26,7 @@ struct Aggr {
 public fn foo() {
     let value = Aggr(Nontrivial(1), 2);
 }
-)");
+)";
     auto [ctx, mod] = makeIR({ source });
     auto& F = mod.front();
     CHECK(F.parameters().empty());

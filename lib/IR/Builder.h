@@ -86,7 +86,7 @@ public:
     /// Sets the 'add point' to \p newAddPoint
     /// The add point is the iterator before which the `add()` methods insert
     /// instructions
-    void setAddPoint(BasicBlock::Iterator newAddPoint) {
+    void setAddPoint(BasicBlock::ConstIterator newAddPoint) {
         instAddPoint = newAddPoint;
     }
 
@@ -97,7 +97,7 @@ private:
     friend class FunctionBuilder;
     Context& ctx;
     BasicBlock* currentBB;
-    BasicBlock::Iterator instAddPoint;
+    BasicBlock::ConstIterator instAddPoint;
 };
 
 /// Helper class to build IR functions
@@ -119,7 +119,7 @@ public:
     void makeBlockCurrent(BasicBlock* BB) { makeBlockCurrent(BB, BB->end()); }
 
     ///
-    void makeBlockCurrent(BasicBlock* BB, BasicBlock::Iterator addPoint) {
+    void makeBlockCurrent(BasicBlock* BB, BasicBlock::ConstIterator addPoint) {
         currentBB = BB;
         instAddPoint = addPoint;
     }
@@ -133,7 +133,7 @@ public:
     ///
     template <std::invocable F>
     decltype(auto) withBlockCurrent(BasicBlock* BB,
-                                    BasicBlock::Iterator addPoint,
+                                    BasicBlock::ConstIterator addPoint,
                                     F&& f) {
         auto* stashed = &currentBlock();
         auto stashedAddPoint = instAddPoint;

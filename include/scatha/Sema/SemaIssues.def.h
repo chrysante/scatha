@@ -349,17 +349,17 @@ SC_SEMA_BADEXPR_DEF(FunctionCall,
                     Error,
                     "Cannot deduce return type on recursive function")
 
-SC_SEMA_BADEXPR_DEF(ConstructExpr,
+SC_SEMA_BADEXPR_DEF(ConstructBase,
                     CannotConstructType,
                     Error,
                     "Cannot construct type")
 
-SC_SEMA_BADEXPR_DEF(ConstructExpr,
+SC_SEMA_BADEXPR_DEF(ConstructBase,
                     DynArrayConstrBadArgs,
                     Error,
                     "Cannot construct dynamic array from the given arguments")
 
-SC_SEMA_BADEXPR_DEF(ConstructExpr,
+SC_SEMA_BADEXPR_DEF(ConstructBase,
                     DynArrayConstrAutoStorage,
                     Error,
                     "Cannot construct dynamic array in automatic storage")

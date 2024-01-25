@@ -233,8 +233,7 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
     if (auto* base = getPtrOrRefBase(semaType)) {
         semaType = base;
     }
-    auto* arrType = dyncast<sema::ArrayType const*>(semaType);
-    SC_ASSERT(arrType, "Need an array to get array size");
+    auto* arrType = cast<sema::ArrayType const*>(semaType);
     auto* sizeType = symbolTable.Int();
     if (!arrType->isDynamic()) {
         return Value(name,
@@ -311,6 +310,11 @@ utl::small_vector<ir::Value*, 2> FuncGenContextBase::
 
 ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,
                                                    size_t elemSize) {
+    if (auto* constant = dyncast<ir::IntegralConstant*>(count)) {
+        auto count = constant->value();
+        auto bytesize = mul(count, APInt(elemSize, count.bitwidth()));
+        return ctx.intConstant(bytesize);
+    }
     return add<ir::ArithmeticInst>(count,
                                    ctx.intConstant(elemSize, 64),
                                    ir::ArithmeticOperation::Mul,

@@ -64,11 +64,20 @@ struct FuncGenContext: FuncGenContextBase {
     void generateImpl(ast::JumpStatement const&);
 
     /// # Statement specific utilities
+    void generateCleanups(sema::CleanupStack const& cleanupStack,
+                          ast::ASTNode const& sourceNode);
+
     void generateCleanup(sema::Object const* object,
                          sema::LifetimeOperation destroy,
                          ast::ASTNode const& sourceNode);
-    void generateCleanups(sema::CleanupStack const& cleanupStack,
-                          ast::ASTNode const& sourceNode);
+
+    void inlineCleanup(sema::Object const* object);
+    void inlineCleanupImpl(sema::Object const*, sema::Type const&) {
+        SC_UNREACHABLE();
+    }
+    void inlineCleanupImpl(sema::Object const* object, sema::ArrayType const&);
+    void inlineCleanupImpl(sema::Object const* object,
+                           sema::UniquePtrType const&);
 
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
@@ -115,9 +124,7 @@ struct FuncGenContext: FuncGenContextBase {
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
     void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
     // Value getValueImpl(ast::MoveExpr const&);
-    // Value getValueImpl(ast::UniqueExpr const&);
-    //    Value getValueImpl(ast::Conversion const&);
-    // Value getValueImpl(ast::UninitTemporary const&);
+    Value getValueImpl(ast::UniqueExpr const&);
 
     Value getValueImpl(ast::ValueCatConvExpr const&);
     Value getValueImpl(ast::MutConvExpr const&);
@@ -130,6 +137,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::TrivAggrConstructExpr const&);
     Value getValueImpl(ast::NontrivConstructExpr const&);
     Value getValueImpl(ast::NontrivAggrConstructExpr const&);
+    Value getValueImpl(ast::DynArrayConstructExpr const&);
 
     // Value getValueImpl(ast::NonTrivAssignExpr const&);
 
@@ -1090,63 +1098,63 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
 //     return result;
 // }
 
-// Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
-//     auto backItr = std::prev(currentBlock().end());
-//     auto* addr = getValue<Memory>(expr.value());
-//     SC_ASSERT(
-//         isa<ir::Alloca>(addr) || isa<ir::NullPointerConstant>(addr),
-//         "We expect the argument to be constructed in local memory and we will
-//         rewrite it to heap allocation");
-//     ir::Instruction* insertBefore = backItr->next();
-//     ir::Callable* alloc = getBuiltin(svm::Builtin::alloc);
-//     sema::ObjectType const* baseType =
-//         cast<sema::UniquePtrType const&>(*expr.type()).base().get();
-//     ir::Value* bytesize = [&]() -> ir::Value* {
-//         if (auto* arrayType = dyncast<sema::ArrayType const*>(baseType)) {
-//             size_t elemSize = arrayType->elementType()->size();
-//             auto* count =
-//                 toRegister(valueMap.arraySize(expr.value()->object()), expr);
-//             if (auto* countInst = dyncast<ir::Instruction*>(count)) {
-//                 insertBefore = countInst->next();
-//             }
-//             return withBlockCurrent(&currentBlock(),
-//                                     ir::BasicBlock::Iterator(insertBefore),
-//                                     [&] {
-//                 return makeCountToByteSize(count, elemSize);
-//             });
-//         }
-//         else {
-//             return ctx.intConstant(baseType->size(), 64);
-//         }
-//     }();
-//     ValueArray args = { bytesize, ctx.intConstant(baseType->align(), 64) };
-//     ir::Value* arrayPtr = insert<ir::Call>(insertBefore, alloc, args,
-//     "alloc"); ir::Value* ptr = insert<ir::ExtractValue>(insertBefore,
-//                                               arrayPtr,
-//                                               IndexArray{ 0 },
-//                                               "pointer");
-//     addr->replaceAllUsesWith(ptr);
-//     if (!isFatPointer(&expr)) {
-//         return Value(storeToMemory(ptr), ctx.ptrType(), Memory);
-//     }
-//     else {
-//         auto* count =
-//             toRegister(valueMap.arraySize(expr.value()->object()), expr);
-//         arrayPtr = makeArrayPointer(ptr, count);
-//         auto* ptrAddr = storeToMemory(arrayPtr);
-//         valueMap.insertArraySize(expr.object(), [=, this] {
-//             auto* sizeAddr =
-//                 add<ir::GetElementPointer>(ctx,
-//                                            arrayPtrType,
-//                                            ptrAddr,
-//                                            nullptr,
-//                                            IndexArray{ 1 },
-//                                            "unique.array.size.addr");
-//             return Value(sizeAddr, ctx.intType(64), Memory);
-//         });
-//         return Value(ptrAddr, arrayPtrType, Memory);
-//     }
-// }
+Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
+    auto* currentBBBefore = &currentBlock();
+    auto backItr = std::prev(currentBlock().end());
+    auto value = getValue(expr.value());
+    auto* addr = to<Unpacked>(Memory, value).front();
+    SC_ASSERT(
+        isa<ir::Alloca>(addr) || isa<ir::NullPointerConstant>(addr),
+        "We expect the argument to be constructed in local memory and we will rewrite it to heap allocation");
+    /// We increment what used to be the back iterator here. Because we
+    /// generated our expression in the meantime this now points to the first
+    /// instruction generated by the expression
+    auto insertBefore = std::next(backItr);
+    ir::Callable* alloc = getBuiltin(svm::Builtin::alloc);
+    sema::ObjectType const* baseType =
+        cast<sema::UniquePtrType const&>(*expr.type()).base().get();
+    std::string name = "unique";
+    ir::Value* arrayCount = [&]() -> ir::Value* {
+        if (isa<sema::ArrayType>(baseType)) {
+            return to<Packed>(Register, getArraySize(baseType, value));
+        }
+        return nullptr;
+    }();
+    ir::Value* bytesize = [&]() -> ir::Value* {
+        if (auto* arrayType = dyncast<sema::ArrayType const*>(baseType)) {
+            size_t elemSize = arrayType->elementType()->size();
+            if (auto* inst = dyncast<ir::Instruction*>(arrayCount)) {
+                currentBBBefore = inst->parent();
+                insertBefore = std::next(ir::BasicBlock::Iterator(inst));
+            }
+            return withBlockCurrent(currentBBBefore, insertBefore, [&] {
+                return makeCountToByteSize(arrayCount, elemSize);
+            });
+        }
+        else {
+            return ctx.intConstant(baseType->size(), 64);
+        }
+    }();
+    ValueArray args = { bytesize, ctx.intConstant(baseType->align(), 64) };
+    return withBlockCurrent(currentBBBefore, insertBefore, [&] {
+        ir::Value* arrayPtr =
+            add<ir::Call>(alloc, args, utl::strcat(name, ".alloc"));
+        ir::Value* ptr = add<ir::ExtractValue>(arrayPtr,
+                                               IndexArray{ 0 },
+                                               utl::strcat(name, ".pointer"));
+        addr->replaceAllUsesWith(ptr);
+        if (arrayCount) {
+            return Value(name,
+                         expr.type().get(),
+                         { ptr, arrayCount },
+                         Register,
+                         Unpacked);
+        }
+        else {
+            return Value(name, expr.type().get(), { ptr }, Register, Packed);
+        }
+    });
+}
 
 static sema::ObjectType const* stripPtr(sema::ObjectType const* type) {
     if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
@@ -1573,6 +1581,41 @@ Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
     return Value(name, type, { mem }, Memory, Packed);
 }
 
+Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
+    auto* type = expr.constructedType();
+    auto* irElemType = typeMap.packed(type->elementType());
+    std::string name = "dynarray";
+    auto* count = getValue<Packed>(Register, expr.argument(0));
+    auto* arrayBegin = makeLocalArray(irElemType, count, name);
+    /// Trivial default construction we can do with a memset, no need to
+    /// generate a loop here
+    if (isa<ast::TrivDefConstructExpr>(expr.elementConstruction())) {
+        callMemset(arrayBegin,
+                   makeCountToByteSize(count, irElemType->size()),
+                   0);
+    }
+    else {
+        auto loop = generateForLoop(utl::strcat(name, ".constr"), count);
+        withBlockCurrent(loop.body, loop.insertPoint, [&] {
+            auto* elemAddr =
+                add<ir::GetElementPointer>(ctx,
+                                           irElemType,
+                                           arrayBegin,
+                                           loop.index,
+                                           IndexArray{},
+                                           utl::strcat(name, ".elem.addr"));
+            auto* elem = getValue<Packed>(Memory, expr.elementConstruction());
+            SC_ASSERT(isa<ir::Alloca>(elem), "Must be local");
+            elem->replaceAllUsesWith(elemAddr);
+        });
+    }
+    return Value(name,
+                 expr.type().get(),
+                 { arrayBegin, count },
+                 Memory,
+                 Unpacked);
+}
+
 // Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
 //     /// If the values are different, we  call the destructor of LHS and the
 //     copy
@@ -1601,6 +1644,13 @@ Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
 
 /// MARK: - General utilities
 
+void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack,
+                                      ast::ASTNode const& sourceNode) {
+    for (auto cleanup: cleanupStack) {
+        generateCleanup(cleanup.object, cleanup.destroy, sourceNode);
+    }
+}
+
 void FuncGenContext::generateCleanup(sema::Object const* object,
                                      sema::LifetimeOperation destroy,
                                      ast::ASTNode const&) {
@@ -1622,18 +1672,39 @@ void FuncGenContext::generateCleanup(sema::Object const* object,
         break;
     }
     case NontrivialInline:
-        SC_UNIMPLEMENTED();
+        inlineCleanup(object);
         break;
     case Deleted:
         SC_UNREACHABLE();
     }
 }
 
-void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack,
-                                      ast::ASTNode const& sourceNode) {
-    for (auto cleanup: cleanupStack) {
-        generateCleanup(cleanup.object, cleanup.destroy, sourceNode);
-    }
+void FuncGenContext::inlineCleanup(sema::Object const* object) {
+    visit(*object->type(),
+          [&](auto& type) { inlineCleanupImpl(object, type); });
+}
+
+void FuncGenContext::inlineCleanupImpl(sema::Object const* object,
+                                       sema::ArrayType const& type) {
+    SC_UNIMPLEMENTED();
+}
+
+void FuncGenContext::inlineCleanupImpl(sema::Object const* object,
+                                       sema::UniquePtrType const& type) {
+    auto value = valueMap(object);
+    auto elems = to<Unpacked>(Register, value);
+    auto [bytesize, align] = [&]() -> ValueArray<2> {
+        if (elems.size() == 1) {
+            return { ctx.intConstant(type.size(), 64),
+                     ctx.intConstant(type.align(), 64) };
+        }
+        auto* elemType =
+            cast<sema::ArrayType const*>(type.base().get())->elementType();
+        return { makeCountToByteSize(elems[1], elemType->size()),
+                 ctx.intConstant(elemType->align(), 64) };
+    }();
+    auto* dealloc = getBuiltin(svm::Builtin::dealloc);
+    add<ir::Call>(dealloc, ValueArray{ elems.front(), bytesize, align });
 }
 
 void FuncGenContext::addSourceLoc(ir::Instruction* inst,

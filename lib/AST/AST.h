@@ -1759,6 +1759,25 @@ public:
                       constructedType) {}
 };
 
+/// Represents construction of dynamic array
+class SCATHA_API DynArrayConstructExpr: public ConstructBase {
+public:
+    explicit DynArrayConstructExpr(
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        SourceRange sourceRange,
+        sema::ArrayType const* constructedType);
+
+    /// \Returns the being constructed
+    sema::ArrayType const* constructedType() const;
+
+    using ConstructBase::decorateConstruct;
+
+    /// The expression that is executed in a loop to initialize the elements
+    /// \Warning Here we reuse index zero that `CallLike` already uses for the
+    /// 'callee'. We hope this will be fine
+    AST_PROPERTY(0, Expression, elementConstruction, ElementConstruction)
+};
+
 /// Concrete node representing an assignment of a non-trivial value
 /// We need this node to tell the IR generator to invoke the destructor of the
 /// value before calling the copy constructor again

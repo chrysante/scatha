@@ -128,6 +128,20 @@ sema::StructType const* NontrivAggrConstructExpr::constructedType() const {
     return cast<sema::StructType const*>(ConstructBase::constructedType());
 }
 
+DynArrayConstructExpr::DynArrayConstructExpr(
+    utl::small_vector<UniquePtr<Expression>> arguments,
+    SourceRange sourceRange,
+    sema::ArrayType const* constructedType):
+    ConstructBase(NodeType::DynArrayConstructExpr,
+                  nullptr,
+                  std::move(arguments),
+                  sourceRange,
+                  constructedType) {}
+
+sema::ArrayType const* DynArrayConstructExpr::constructedType() const {
+    return cast<sema::ArrayType const*>(ConstructBase::constructedType());
+}
+
 void VarDeclBase::decorateVarDecl(sema::Entity* entity) {
     if (auto* object = dyncast<sema::Object*>(entity)) {
         _type = object->type();
