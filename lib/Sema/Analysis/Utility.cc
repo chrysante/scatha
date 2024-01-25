@@ -193,6 +193,10 @@ bool sema::isAggregate(Type const* t) {
     });
 }
 
+bool sema::isNewMoveDelete(sema::Function const& F) {
+    return ranges::contains(std::array{ "new", "move", "delete" }, F.name());
+}
+
 ast::Expression* sema::insertConstruction(ast::Expression* expr,
                                           CleanupStack& dtors,
                                           AnalysisContext& ctx) {

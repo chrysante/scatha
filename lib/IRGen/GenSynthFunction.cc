@@ -18,9 +18,9 @@ namespace {
 
 struct FuncGenContext: FuncGenContextBase {
     sema::ObjectType const* parentType;
-    sema::SpecialLifetimeFunctionDepr kind;
+    sema::SMFKind kind;
 
-    FuncGenContext(sema::SpecialLifetimeFunctionDepr kind, auto&... args):
+    FuncGenContext(sema::SMFKind kind, auto&... args):
         FuncGenContextBase(args...),
         parentType(cast<sema::ObjectType const*>(semaFn.parent())),
         kind(kind) {}
@@ -46,12 +46,10 @@ struct FuncGenContext: FuncGenContextBase {
 } // namespace
 
 void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
-    generateSynthFunctionAs(params.semaFn.getSMFMetadata()->SLFKind(),
-                            config,
-                            params);
+    generateSynthFunctionAs(params.semaFn.smfKind().value(), config, params);
 }
 
-void irgen::generateSynthFunctionAs(sema::SpecialLifetimeFunctionDepr kind,
+void irgen::generateSynthFunctionAs(sema::SMFKind kind,
                                     Config config,
                                     FuncGenParameters params) {
     FuncGenContext synthContext(kind, config, params);
@@ -212,8 +210,8 @@ void FuncGenContext::genMemberConstruction(ir::BasicBlock::ConstIterator before,
     //    }
 }
 
-static size_t SLFKindNumPtrParams(sema::SpecialLifetimeFunctionDepr kind) {
-    using enum sema::SpecialLifetimeFunctionDepr;
+static size_t SMFKindNumPtrParams(sema::SMFKind kind) {
+    using enum sema::SMFKind;
     switch (kind) {
     case DefaultConstructor:
         return 1;
@@ -230,7 +228,7 @@ static size_t SLFKindNumPtrParams(sema::SpecialLifetimeFunctionDepr kind) {
 utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
     ir::Instruction const* before, ir::Type const* inType, ir::Value* index) {
     utl::small_vector<ir::Value*, 2> args;
-    size_t numParams = SLFKindNumPtrParams(kind);
+    size_t numParams = SMFKindNumPtrParams(kind);
     auto& params = irFn.parameters();
     auto* parentType = cast<sema::Type const*>(semaFn.parent());
     int stride = isDynArray(*parentType) ? 2 : 1;

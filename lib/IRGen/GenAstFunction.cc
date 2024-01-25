@@ -164,14 +164,20 @@ void FuncGenContext::generateImpl(ast::CompoundStatement const& cmpStmt) {
     generateCleanups(cmpStmt.cleanupStack(), cmpStmt);
 }
 
-static sema::SpecialLifetimeFunctionDepr toSLFKindToGenerate(
-    sema::SpecialMemberFunctionDepr kind) {
-    using enum sema::SpecialMemberFunctionDepr;
-    using enum sema::SpecialLifetimeFunctionDepr;
-    if (kind == Delete) {
+static std::optional<sema::SMFKind> prologueAsSMF(sema::Function const& F) {
+    using enum sema::SMFKind;
+    if (F.name() == "new" || F.name() == "move") {
+        return DefaultConstructor;
+    }
+    return std::nullopt;
+}
+
+static std::optional<sema::SMFKind> epilogueAsSMF(sema::Function const& F) {
+    using enum sema::SMFKind;
+    if (auto kind = F.smfKind(); kind && *kind == Destructor) {
         return Destructor;
     }
-    return DefaultConstructor;
+    return std::nullopt;
 }
 
 void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
@@ -180,9 +186,8 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     /// equivalent function and then append the user defined code. This way in a
     /// user defined destructor all member destructors get called and in a user
     /// defined constructor all member variables get initialized automatically
-    if (auto md = semaFn.getSMFMetadata()) {
-        auto kind = toSLFKindToGenerate(md->kind());
-        generateSynthFunctionAs(kind, config, *this);
+    if (auto kind = prologueAsSMF(semaFn)) {
+        generateSynthFunctionAs(*kind, config, *this);
         makeBlockCurrent(&irFn.back());
     }
     else {
@@ -201,6 +206,10 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
         generateParameter(paramDecl, pc, irParamItr);
     }
     generate(*def.body());
+    if (auto kind = epilogueAsSMF(semaFn)) {
+        generateSynthFunctionAs(*kind, config, *this);
+        makeBlockCurrent(&irFn.back());
+    }
     insertAllocas();
 }
 
@@ -1302,15 +1311,6 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
 //     auto* address = makeLocalVariable(type, "anon");
 //     return Value(address, type, Memory);
 // }
-
-static bool isCopyCtor(sema::Function const& F) {
-    auto md = F.getSMFMetadata();
-    if (!md) {
-        return false;
-    }
-    using enum sema::SpecialLifetimeFunctionDepr;
-    return md->isSLF() && md->SLFKind() == CopyConstructor;
-}
 
 Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
     SC_UNREACHABLE(); // This will be removed

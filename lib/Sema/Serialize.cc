@@ -83,15 +83,8 @@ SERIALIZE_ENUM_BEGIN(AccessControl)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
-SERIALIZE_ENUM_BEGIN(SpecialMemberFunctionDepr)
-#define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(SMF, _)                            \
-    SERIALIZE_ENUM_ELEM(SpecialMemberFunctionDepr::SMF, #SMF)
-#include "Sema/Lists.def"
-SERIALIZE_ENUM_END()
-
-SERIALIZE_ENUM_BEGIN(SpecialLifetimeFunctionDepr)
-#define SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(SLF)                             \
-    SERIALIZE_ENUM_ELEM(SpecialLifetimeFunctionDepr::SLF, #SLF)
+SERIALIZE_ENUM_BEGIN(SMFKind)
+#define SC_SEMA_SMF_DEF(Kind, _) SERIALIZE_ENUM_ELEM(SMFKind::Kind, #Kind)
 #include "Sema/Lists.def"
 SERIALIZE_ENUM_END()
 
@@ -117,38 +110,12 @@ void to_json(json& j, EntityType e) { serializeEnum(j, e); }
 void from_json(json const& j, EntityType& e) { deserializeEnum(j, e); }
 void to_json(json& j, AccessControl e) { serializeEnum(j, e); }
 void from_json(json const& j, AccessControl& e) { deserializeEnum(j, e); }
-void to_json(json& j, SpecialMemberFunctionDepr e) { serializeEnum(j, e); }
-void from_json(json const& j, SpecialMemberFunctionDepr& e) {
-    deserializeEnum(j, e);
-}
-void to_json(json& j, SpecialLifetimeFunctionDepr e) { serializeEnum(j, e); }
-void from_json(json const& j, SpecialLifetimeFunctionDepr& e) {
-    deserializeEnum(j, e);
-}
 void to_json(json& j, LifetimeOperation::Kind e) { serializeEnum(j, e); }
 void from_json(json const& j, LifetimeOperation::Kind& e) {
     deserializeEnum(j, e);
 }
 void to_json(json& j, FunctionKind e) { serializeEnum(j, e); }
 void from_json(json const& j, FunctionKind& e) { deserializeEnum(j, e); }
-
-void to_json(json& j, SMFMetadata md) {
-    j["kind"] = md.kind();
-    if (md.isSLF()) {
-        j["slf_kind"] = md.SLFKind();
-    }
-}
-
-void from_json(json const& j, SMFMetadata& md) {
-    auto smf = j.at("kind").get<SpecialMemberFunctionDepr>();
-    auto slfItr = j.find("slf_kind");
-    if (slfItr == j.end()) {
-        md = { smf };
-    }
-    else {
-        md = { smf, slfItr->get<SpecialLifetimeFunctionDepr>() };
-    }
-}
 
 } // namespace scatha::sema
 
@@ -440,13 +407,11 @@ struct Field {
         "foreign_dependencies";
     static constexpr std::string_view ReturnType = "return_type";
     static constexpr std::string_view ArgumentTypes = "argument_types";
-    static constexpr std::string_view SMFMetadata = "smf_metadata";
+    static constexpr std::string_view SMFKind = "smf_kind";
     static constexpr std::string_view LifetimeOpKind = "lifetime_op_kind";
     static constexpr std::string_view FunctionKind = "function_kind";
     static constexpr std::string_view Size = "size";
     static constexpr std::string_view Align = "align";
-    static constexpr std::string_view DefaultConstructible =
-        "default_constructible";
     static constexpr std::string_view Type = "type";
     static constexpr std::string_view Mutable = "mutable";
     static constexpr std::string_view Index = "index";
@@ -528,8 +493,8 @@ struct Serializer {
         j[Field::ReturnType] = serializeTypename(function.returnType());
         j[Field::ArgumentTypes] = function.argumentTypes() |
                                   transform(serializeTypename);
-        if (auto md = function.getSMFMetadata()) {
-            j[Field::SMFMetadata] = *md;
+        if (auto kind = function.smfKind()) {
+            j[Field::SMFKind] = *kind;
         }
         j[Field::FunctionKind] = function.kind();
         gatherLibraryDependencies(*function.type());
@@ -740,9 +705,6 @@ struct Deserializer: TypeMapBase {
             sym.declareFunction(get<std::string>(obj, Field::Name),
                                 sym.functionType(argTypes, retType),
                                 get(obj, Field::AccessControl));
-        if (auto md = tryGet<SMFMetadata>(obj, Field::SMFMetadata)) {
-            SC_UNIMPLEMENTED();
-        }
         function->setKind(get<FunctionKind>(obj, Field::FunctionKind));
     }
 

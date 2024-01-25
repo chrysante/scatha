@@ -302,8 +302,7 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
     if (semaFn->name() == "main") {
         analyzeMainFunction(def);
     }
-    if (ranges::contains(std::array{ "new", "move", "delete" }, semaFn->name()))
-    {
+    if (isNewMoveDelete(*semaFn)) {
         analyzeNewMoveDelete(def);
     }
 }

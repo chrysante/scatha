@@ -998,7 +998,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
     auto* function = result.function;
     /// Cannot explicitly call special member functions
-    if (function->getSMFMetadata()) {
+    if (isNewMoveDelete(*function)) {
         ctx.badExpr(&fc, ExplicitSMFCall);
         return nullptr;
     }

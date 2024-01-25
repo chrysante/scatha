@@ -491,42 +491,6 @@ private:
 
 /// # Function
 
-/// Metadata for special member functions
-class SMFMetadata {
-public:
-    SMFMetadata() = default;
-
-    SMFMetadata(
-        SpecialMemberFunctionDepr smfKind,
-        SpecialLifetimeFunctionDepr slfKind = SpecialLifetimeFunctionDepr(0xf)):
-        smfKind(smfKind), slfKind(slfKind) {}
-
-    /// Special member function kind (`New`, `Move`, `Delete`)
-    SC_NODEBUG SpecialMemberFunctionDepr kind() const {
-        SC_EXPECT(smfKind != SpecialMemberFunctionDepr(0xf));
-        return smfKind;
-    }
-
-    /// \Returns `true` if this function is a special lifetime function
-    bool isSLF() const { return slfKind != SpecialLifetimeFunctionDepr(0xf); }
-
-    /// Special lifetime function kind (`DefaultConstructor`, `CopyConstructor`,
-    /// `MoveConstructor`, `Destructor`)
-    /// \pre Calls to this function must be guarded by a call to `isSLF()`
-    SC_NODEBUG SpecialLifetimeFunctionDepr SLFKind() const {
-        SC_EXPECT(isSLF());
-        return slfKind;
-    }
-
-private:
-    friend class Function;
-
-    SpecialMemberFunctionDepr smfKind   : 4 = SpecialMemberFunctionDepr(0xf);
-    SpecialLifetimeFunctionDepr slfKind : 4 = SpecialLifetimeFunctionDepr(0xf);
-};
-
-static_assert(sizeof(SMFMetadata) == 1);
-
 /// Represents a builtin or user defined function
 class SCATHA_API Function: public Scope {
 public:
@@ -584,17 +548,6 @@ public:
                                              std::optional(_smfKind);
     }
 
-    /// \Returns the special member function metadata or `std::nullopt` if this
-    /// function is not a special member function
-    SC_NODEBUG std::optional<SMFMetadata> getSMFMetadata() const {
-        return smfMetadata.smfKind != SpecialMemberFunctionDepr(0xf) ?
-                   std::optional(smfMetadata) :
-                   std::nullopt;
-    }
-
-    ///
-    void setSMFMetadata(SMFMetadata metadata) { smfMetadata = metadata; }
-
     /// The address of this function in the compiled binary
     /// Only has a value if this function is declared externally visible and
     /// program has been compiled
@@ -623,7 +576,6 @@ private:
     friend class SymbolTable;
     FunctionType const* _type;
     FunctionAttribute attrs;                           // 4 bytes
-    SMFMetadata smfMetadata = {};                      // 1 byte, depr
     SMFKind _smfKind = SMFKind{ 0xFF };                // 1 byte
     FunctionKind _kind     : 4 = FunctionKind::Native; // 4 bits
     bool _hasSig           : 1 = false;
@@ -749,9 +701,6 @@ private:
     size_t _size;
     size_t _align;
     std::unique_ptr<LifetimeMetadata> lifetimeMD;
-    utl::hashmap<SpecialMemberFunctionDepr, utl::small_vector<Function*, 1>>
-        SMFs;
-    std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs = {};
 };
 
 /// Concrete class representing a builtin type

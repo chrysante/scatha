@@ -141,34 +141,6 @@ std::string sema::toSpelling(SMFKind kind) {
     }[(size_t)kind];
 }
 
-std::string_view sema::toString(SpecialMemberFunctionDepr SMF) {
-    return std::array{
-#define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(name, str) std::string_view(str),
-#include "Sema/Lists.def"
-    }[static_cast<size_t>(SMF)];
-}
-
-std::ostream& sema::operator<<(std::ostream& str,
-                               SpecialMemberFunctionDepr SMF) {
-    return str << toString(SMF);
-}
-
-SpecialMemberFunctionDepr sema::toSMF(SpecialLifetimeFunctionDepr SLF) {
-    using enum SpecialLifetimeFunctionDepr;
-    using enum SpecialMemberFunctionDepr;
-    switch (SLF) {
-    case DefaultConstructor:
-        return New;
-    case CopyConstructor:
-        return New;
-    case MoveConstructor:
-        return Move;
-    case Destructor:
-        return Delete;
-    }
-    SC_UNREACHABLE();
-}
-
 std::string_view sema::toString(ConstantKind k) {
     return std::array{
 #define SC_SEMA_CONSTKIND_DEF(Kind, ...) std::string_view(#Kind),
