@@ -133,3 +133,21 @@ fn bar(arr: [int, 10]) {}
     auto& call = view.nextAs<Call>();
     CHECK(call.argumentAt(0) == &mem);
 }
+
+TEST_CASE("IRGen - Function call returns reference", "[irgen]") {
+    using namespace ir;
+    auto [ctx, mod] = makeIR({ R"(
+public fn foo() -> int { return get(); }
+fn get() -> &int {}
+)" });
+    auto& foo = mod.front();
+    auto& get = mod.back();
+    auto view = BBView(foo.entry());
+
+    auto& call = view.nextAs<Call>();
+    CHECK(call.function() == &get);
+    auto& load = view.nextAs<Load>();
+    CHECK(load.address() == &call);
+    auto& ret = view.nextAs<Return>();
+    CHECK(ret.value() == &load);
+}

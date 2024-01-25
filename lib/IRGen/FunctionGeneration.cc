@@ -240,14 +240,19 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
             /// values like array size are always in registers
             return Value(name, sizeType, { value.get(1) }, Register, Unpacked);
         }
-        else {
+        else if (isa<sema::PointerType>(semaType)) {
             auto* addr = add<ir::GetElementPointer>(ctx,
                                                     arrayPtrType,
                                                     value.get(0),
                                                     nullptr,
                                                     IndexArray{ 1 },
                                                     utl::strcat(name, ".addr"));
-            return Value(name, sizeType, { addr }, Memory, Unpacked);
+            return Value(name, sizeType, { addr }, Memory, Packed);
+        }
+        else {
+            auto* size =
+                add<ir::ExtractValue>(value.get(0), IndexArray{ 1 }, name);
+            return Value(name, sizeType, { size }, Register, Packed);
         }
     }
     else {

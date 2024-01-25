@@ -28,8 +28,12 @@ public:
     /// \Returns the sema type of this argument
     sema::Type const* semaType() const { return _type; }
 
-    /// Location type of the argument. Either `Register` or `Stack`
+    /// \Returns the location of the argument. Either `Register` or `Stack`
     ValueLocation location() const { return _loc; }
+
+    /// \Returns the location of the argument at the call site. This is `Memory`
+    /// if `semaType()` is a reference type, otherwise it is `location()`
+    ValueLocation locationAtCallsite() const;
 
     /// \Returns the number of IR parameters that are occupied by this value
     size_t numParams() const { return _numParams; }

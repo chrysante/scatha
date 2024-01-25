@@ -299,13 +299,12 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
 
     /// More complex `return <value>;` case
     auto retval = getValue(retStmt.expression());
-    auto targetLocation = getCC(&semaFn).returnValue().location();
-    switch (targetLocation) {
+    auto CC = getCC(&semaFn);
+    switch (CC.returnValue().location()) {
     case Register: {
         /// Pointers we keep in registers but references directly refer to the
         /// value in memory
-        auto destLocation =
-            isa<sema::ReferenceType>(*semaFn.returnType()) ? Memory : Register;
+        auto destLocation = CC.returnValue().locationAtCallsite();
         auto* value = to<Packed>(destLocation, retval);
         generateCleanups(retStmt.cleanupStack(), retStmt);
         add<ir::Return>(value);
@@ -936,16 +935,18 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     }
     auto* callInst = add<ir::Call>(function, irArguments, name);
     auto* retval = retvalLocation == Memory ? irArguments.front() : callInst;
-    return Value(name, call.type().get(), { retval }, retvalLocation, Packed);
+    return Value(name,
+                 call.type().get(),
+                 { retval },
+                 CC.returnValue().locationAtCallsite(),
+                 Packed);
 }
 
 utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
     auto&& passingConventions, auto&& values) {
     utl::small_vector<ir::Value*> irArguments;
     for (auto [PC, value]: zip(passingConventions, values)) {
-        auto loc = isa<sema::ReferenceType>(PC.semaType()) ? Memory :
-                                                             PC.location();
-        auto unpacked = to<Unpacked>(loc, value);
+        auto unpacked = to<Unpacked>(PC.locationAtCallsite(), value);
         SC_ASSERT(PC.numParams() == unpacked.size(), "Argument count mismatch");
         irArguments.insert(irArguments.end(), unpacked.begin(), unpacked.end());
     }

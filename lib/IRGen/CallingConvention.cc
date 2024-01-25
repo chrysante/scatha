@@ -4,8 +4,17 @@
 
 #include <range/v3/view.hpp>
 
+#include "Sema/Entity.h"
+
 using namespace scatha;
 using namespace irgen;
+
+ValueLocation PassingConvention::locationAtCallsite() const {
+    if (isa<sema::ReferenceType>(semaType())) {
+        return ValueLocation::Memory;
+    }
+    return location();
+}
 
 std::ostream& irgen::operator<<(std::ostream& str, PassingConvention PC) {
     return str << "[" << PC.location() << ", " << PC.numParams() << "]";
