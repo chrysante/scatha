@@ -111,6 +111,13 @@ public:
     /// \Returns a view over all lifetime operations
     std::span<LifetimeOperation const> operations() const { return ops; }
 
+    /// \Returns `true` if the lifetime operations _copyConstructor_,
+    /// _moveConstructor_ and _destructor_ are trivial
+    bool trivialLifetime() const {
+        return copyConstructor().isTrivial() && moveConstructor().isTrivial() &&
+               destructor().isTrivial();
+    }
+
 private:
     std::array<LifetimeOperation, 4> ops;
 };

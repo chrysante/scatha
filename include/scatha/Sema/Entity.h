@@ -648,8 +648,9 @@ public:
     /// Specifically this returns `true` for `void` and dynamic array types
     SC_NODEBUG bool isComplete() const;
 
-    ///
-    SC_NODEBUG bool isDefaultConstructible() const;
+    /// Convenience method
+    /// \Returns `isComplete() || isa<VoidType>(this)`
+    bool isCompleteOrVoid() const;
 
     ///
     SC_NODEBUG bool hasTrivialLifetime() const;
@@ -668,8 +669,6 @@ private:
 
     size_t sizeImpl() const { return InvalidSize; }
     size_t alignImpl() const { return InvalidSize; }
-    bool isDefaultConstructibleImpl() const { return true; }
-    bool hasTrivialLifetimeImpl() const { return true; }
 };
 
 /// Represents the signature, aka parameter types and return type of a function
@@ -725,59 +724,10 @@ public:
     bool hasLifetimeMetadata() const { return lifetimeMD != nullptr; }
 
     /// \Returns the lifetime metadata associated with this type.
-    /// This is nonnull iff `hasTrivialLifetime()` is false
     /// \Pre Lifetime of this type must have been analyzed
     LifetimeMetadata const& lifetimeMetadata() const {
         SC_EXPECT(hasLifetimeMetadata());
         return *lifetimeMD;
-    }
-
-    /// **Deprecated**
-    ///
-    void addSpecialMemberFunction(SpecialMemberFunctionDepr kind,
-                                  Function* function) {
-        SMFs[kind].push_back(function);
-    }
-
-    /// **Deprecated**
-    SC_NODEBUG std::span<Function* const> specialMemberFunctions(
-        SpecialMemberFunctionDepr kind) const {
-        auto itr = SMFs.find(kind);
-        if (itr != SMFs.end()) {
-            return itr->second;
-        }
-        return {};
-    }
-
-    /// **Deprecated**
-    SC_NODEBUG Function* specialLifetimeFunction(
-        SpecialLifetimeFunctionDepr kind) const {
-        return SLFs[static_cast<size_t>(kind)];
-    }
-
-    /// **Deprecated**
-    /// These functions should be only accessible by the implementation of
-    /// `instantiateEntities()` but it's just to cumbersome to make it private
-    void setIsDefaultConstructible(bool value) {
-        _isDefaultConstructible = value;
-    }
-
-    /// **Deprecated**
-    /// See above
-    void setHasTrivialLifetime(bool value) { _hasTrivialLifetime = value; }
-
-    /// **Deprecated**
-    /// See above
-    void setSpecialLifetimeFunctions(
-        std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs) {
-        this->SLFs = SLFs;
-    }
-
-    /// **Deprecated**
-    /// See above
-    void setSpecialLifetimeFunction(SpecialLifetimeFunctionDepr kind,
-                                    Function* function) {
-        SLFs[(size_t)kind] = function;
     }
 
 protected:
@@ -795,7 +745,6 @@ private:
     friend class StructType;
     size_t sizeImpl() const { return _size; }
     size_t alignImpl() const { return _align; }
-    bool isDefaultConstructibleImpl() const { return _isDefaultConstructible; }
 
     size_t _size;
     size_t _align;
@@ -803,8 +752,6 @@ private:
     utl::hashmap<SpecialMemberFunctionDepr, utl::small_vector<Function*, 1>>
         SMFs;
     std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs = {};
-    bool _hasTrivialLifetime     : 1 = true; // Only used by structs
-    bool _isDefaultConstructible : 1 = true;
 };
 
 /// Concrete class representing a builtin type
@@ -894,14 +841,6 @@ public:
     explicit NullPtrType(Scope* parent);
 };
 
-/// ## About trivial lifetime
-/// Types are said to have _trivial lifetime_ if the destructor, the copy
-/// constructor and the move constructor are _trivial_. The lifetime functions
-/// of builtin types are always trivial. For struct types a lifetime function is
-/// trivial if it is not user defined and the corresponding lifetime function is
-/// trivial for all data members. For array types a lifetime function is trivial
-/// if the corresponding lifetime function of the element type is trivial.
-
 /// Abstract base class of `StructType` and `ArrayType`
 class SCATHA_API CompoundType: public ObjectType {
 protected:
@@ -955,12 +894,6 @@ public:
     }
 
 private:
-    friend class Type;
-    /// Structure type has trivial lifetime if no user defined copy constructor,
-    /// move constructor or destructor are present and all member types are
-    /// trivial
-    bool hasTrivialLifetimeImpl() const { return _hasTrivialLifetime; }
-
     utl::small_vector<Variable*> memberVars;
     utl::small_vector<Function*> ctors;
 };
@@ -992,13 +925,6 @@ public:
     void recomputeSize();
 
 private:
-    static std::string makeName(ObjectType const* elemType, size_t size);
-
-    friend class Type;
-    bool hasTrivialLifetimeImpl() const {
-        return elementType()->hasTrivialLifetime();
-    }
-
     ObjectType* elemType;
     size_t _count;
 };
@@ -1034,11 +960,6 @@ public:
 class SCATHA_API UniquePtrType: public PointerType {
 public:
     explicit UniquePtrType(QualType base);
-
-private:
-    friend class Type;
-    bool isDefaultConstructibleImpl() const { return true; }
-    bool hasTrivialLifetimeImpl() const { return false; }
 };
 
 /// Represents a reference type
@@ -1050,7 +971,6 @@ private:
     friend class Type;
     size_t sizeImpl() const { return 0; }
     size_t alignImpl() const { return 0; }
-    bool isDefaultConstructibleImpl() const { return false; }
 };
 
 /// # OverloadSet

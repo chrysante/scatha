@@ -262,14 +262,15 @@ size_t Type::align() const {
 
 bool Type::isComplete() const { return size() != InvalidSize; }
 
-bool Type::isDefaultConstructible() const {
-    return visit(*this,
-                 [](auto& self) { return self.isDefaultConstructibleImpl(); });
+bool Type::isCompleteOrVoid() const {
+    return isComplete() || isa<VoidType>(this);
 }
 
 bool Type::hasTrivialLifetime() const {
-    return visit(*this,
-                 [](auto& self) { return self.hasTrivialLifetimeImpl(); });
+    if (auto* objType = dyncast<ObjectType const*>(this)) {
+        return objType->lifetimeMetadata().trivialLifetime();
+    }
+    return true;
 }
 
 FunctionType::FunctionType(std::span<Type const* const> argumentTypes,
@@ -320,9 +321,6 @@ FunctionType::FunctionType(utl::small_vector<Type const*> argumentTypes,
 
 void ObjectType::setLifetimeMetadata(LifetimeMetadata md) {
     lifetimeMD = std::make_unique<LifetimeMetadata>(md);
-    _hasTrivialLifetime = md.copyConstructor().isTrivial() &&
-                          md.moveConstructor().isTrivial() &&
-                          md.destructor().isTrivial();
 }
 
 ObjectType::~ObjectType() = default;
@@ -473,10 +471,20 @@ static size_t computeArrayAlign(ObjectType* elementType) {
     return elementType->align();
 }
 
+static std::string makeArrayName(ObjectType const* elemType, size_t count) {
+    std::stringstream sstr;
+    sstr << "[" << getTypename(elemType);
+    if (count != ArrayType::DynamicCount) {
+        sstr << "," << count;
+    }
+    sstr << "]";
+    return std::move(sstr).str();
+}
+
 ArrayType::ArrayType(ObjectType* elementType, size_t count):
     CompoundType(EntityType::ArrayType,
                  ScopeKind::Type,
-                 makeName(elementType, count),
+                 makeArrayName(elementType, count),
                  getParent(elementType),
                  computeArraySize(elementType, count),
                  computeArrayAlign(elementType),
@@ -485,20 +493,9 @@ ArrayType::ArrayType(ObjectType* elementType, size_t count):
     elemType(elementType),
     _count(count) {}
 
-std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
-    std::stringstream sstr;
-    sstr << "[" << getTypename(elemType);
-    if (count != DynamicCount) {
-        sstr << "," << count;
-    }
-    sstr << "]";
-    return std::move(sstr).str();
-}
-
 void ArrayType::recomputeSize() {
     setSize(computeArraySize(elementType(), count()));
     setAlign(computeArrayAlign(elementType()));
-    setName(makeName(elementType(), count()));
 }
 
 static size_t ptrSize(QualType base) { return isa<ArrayType>(*base) ? 16 : 8; }

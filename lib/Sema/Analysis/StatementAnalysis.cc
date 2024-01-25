@@ -63,7 +63,8 @@ struct StmtContext {
                                   ast::Literal& lit);
     void analyzeImpl(ast::FunctionDefinition&);
     bool validateForeignFunction(ast::FunctionDefinition&);
-    void analyzeMainFunction();
+    void analyzeMainFunction(ast::FunctionDefinition& def);
+    void analyzeNewMoveDelete(ast::FunctionDefinition& def);
     void analyzeImpl(ast::ParameterDeclaration&);
     void analyzeImpl(ast::ThisParameter&);
     void analyzeImpl(ast::StructDefinition&);
@@ -299,7 +300,11 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
     /// We perform the extra checks on main in the end because here we have
     /// deduced the return type
     if (semaFn->name() == "main") {
-        analyzeMainFunction();
+        analyzeMainFunction(def);
+    }
+    if (ranges::contains(std::array{ "new", "move", "delete" }, semaFn->name()))
+    {
+        analyzeNewMoveDelete(def);
     }
 }
 
@@ -367,7 +372,8 @@ static bool argumentsAreValidForMain(std::span<Type const* const> types,
 }
 
 /// Here we perform all checks and transforms on `main` that make it special
-void StmtContext::analyzeMainFunction() {
+void StmtContext::analyzeMainFunction(ast::FunctionDefinition& def) {
+    SC_EXPECT(semaFn == def.function());
     if (auto specifiedAccessControl = semaFn->definition()->accessControl()) {
         // TODO: Push an error here
         SC_ASSERT(*specifiedAccessControl == AccessControl::Public,
@@ -379,13 +385,39 @@ void StmtContext::analyzeMainFunction() {
     /// are many test cases where main returns bool or double
     auto* retType = semaFn->returnType();
     if (!retType->hasTrivialLifetime()) {
-        ctx.issue<BadFuncDef>(currentFunction,
-                              BadFuncDef::MainMustReturnTrivial);
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::MainMustReturnTrivial);
     }
     /// Only certain argument types are valid for main
     if (!argumentsAreValidForMain(semaFn->argumentTypes(), sym)) {
-        ctx.issue<BadFuncDef>(currentFunction,
-                              BadFuncDef::MainInvalidArguments);
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::MainInvalidArguments);
+    }
+}
+
+void StmtContext::analyzeNewMoveDelete(ast::FunctionDefinition& def) {
+    SC_EXPECT(semaFn == def.function());
+    auto* parent = dyncast<StructType*>(semaFn->parent());
+    if (!parent) {
+        ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, parent);
+    }
+    if (def.returnTypeExpr()) {
+        ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, parent);
+    }
+    Type const* mutRef = sym.reference(QualType::Mut(parent));
+    if (semaFn->argumentCount() == 0) {
+        ctx.issue<BadSMF>(&def, BadSMF::NoParams, parent);
+    }
+    else if (semaFn->argumentType(0) != mutRef) {
+        ctx.issue<BadSMF>(&def, BadSMF::BadFirstParam, parent);
+    }
+    if (semaFn->name() == "move") {
+        if (semaFn->argumentCount() != 2 || semaFn->argumentType(1) != mutRef) {
+            ctx.issue<BadSMF>(&def, BadSMF::MoveSignature, parent);
+        }
+    }
+    else if (semaFn->name() == "delete") {
+        if (semaFn->argumentCount() != 1) {
+            ctx.issue<BadSMF>(&def, BadSMF::DeleteSignature, parent);
+        }
     }
 }
 
