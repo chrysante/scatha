@@ -143,29 +143,30 @@ SC_SEMA_BADFUNCDEF_DEF(InvalidReturnTypeForFFI,
 
 SC_SEMA_BADSMF_DEF(HasReturnType,
                    Error,
-                   "Function '" << SMF() << "' must not have a return type")
+                   "Function '" << name() << "' must not have a return type")
 SC_SEMA_BADSMF_DEF(NotInStruct,
                    Error,
-                   "Function '" << SMF() << "' must be a member function")
+                   "Function '" << name() << "' must be a member function")
 SC_SEMA_BADSMF_DEF(NoParams,
                    Error,
-                   "Function '" << SMF()
+                   "Function '" << name()
                                 << "' must have at least one parameter of type "
                                 << "&mut " << parent()->name())
 SC_SEMA_BADSMF_DEF(BadFirstParam,
                    Error,
                    "The first parameter to function '"
-                       << SMF() << "' must be of type "
+                       << name() << "' must be of type "
                        << "&mut " << parent()->name())
 SC_SEMA_BADSMF_DEF(MoveSignature,
                    Error,
                    "The parameters types of function '"
-                       << SMF() << "' must be "
+                       << name() << "' must be "
                        << "&mut " << parent()->name() << ", "
                        << "&mut " << parent()->name())
 SC_SEMA_BADSMF_DEF(DeleteSignature,
                    Error,
-                   "Function '" << SMF() << "' must have exactly one parameter")
+                   "Function '" << name()
+                                << "' must have exactly one parameter")
 
 #undef SC_SEMA_BADSMF_DEF
 

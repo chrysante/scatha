@@ -262,9 +262,8 @@ size_t Type::align() const {
 
 bool Type::isComplete() const { return size() != InvalidSize; }
 
-bool Type::isDefaultConstructible() const {
-    return visit(*this,
-                 [](auto& self) { return self.isDefaultConstructibleImpl(); });
+bool Type::isCompleteOrVoid() const {
+    return isComplete() || isa<VoidType>(this);
 }
 
 bool Type::hasTrivialLifetime() const {

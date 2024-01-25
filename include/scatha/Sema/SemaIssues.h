@@ -197,6 +197,9 @@ public:
 
     SC_SEMA_DERIVED_STMT(FunctionDefinition, definition)
 
+    /// \Returns the name of the defined function
+    std::string_view name() const;
+
 protected:
     struct InitAsBase {};
     BadFuncDef(InitAsBase,
@@ -221,17 +224,13 @@ public:
     BadSMF(Scope const* scope,
            ast::FunctionDefinition const* funcdef,
            Reason reason,
-           SpecialMemberFunctionDepr SMF,
            StructType const* parent);
-
-    SpecialMemberFunctionDepr SMF() const { return smf; }
 
     StructType const* parent() const { return _parent; }
 
 private:
     void format(std::ostream& str) const override;
 
-    SpecialMemberFunctionDepr smf;
     StructType const* _parent;
 };
 

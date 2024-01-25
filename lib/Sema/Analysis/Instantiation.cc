@@ -40,12 +40,7 @@ struct InstContext {
 
     void instantiateFunction(ast::FunctionDefinition& def);
 
-    bool instantiateSMF(ast::FunctionDefinition& def,
-                        SpecialMemberFunctionDepr SMF,
-                        StructType* parent);
-
-    FunctionType const* analyzeSignature(ast::FunctionDefinition&,
-                                         Type const* returnType) const;
+    FunctionType const* analyzeSignature(ast::FunctionDefinition& def) const;
 
     Type const* analyzeParam(ast::ParameterDeclaration&) const;
 
@@ -184,17 +179,6 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     return sortedStructTypes;
 }
 
-static std::optional<SpecialMemberFunctionDepr> getSMFKind(
-    ast::FunctionDefinition const& funcDef) {
-    for (uint8_t i = 0; i < EnumSize<SpecialMemberFunctionDepr>; ++i) {
-        SpecialMemberFunctionDepr SMF{ i };
-        if (toString(SMF) == funcDef.name()) {
-            return SMF;
-        }
-    }
-    return std::nullopt;
-}
-
 void InstContext::instantiateStructureType(SDGNode& node) {
     ast::StructDefinition& structDef =
         cast<ast::StructDefinition&>(*node.astNode);
@@ -265,15 +249,9 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     auto* F = def.function();
     sym.makeScopeCurrent(F->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto SMF = getSMFKind(def);
-    auto* returnType = SMF ? sym.Void() : nullptr;
-    auto result = sym.setFunctionType(F, analyzeSignature(def, returnType));
+    auto result = sym.setFunctionType(F, analyzeSignature(def));
     if (!result) {
         return;
-    }
-    if (SMF) {
-        auto* parent = dyncast<StructType*>(F->parent());
-        instantiateSMF(def, *SMF, parent);
     }
     if (def.externalLinkage()) {
         if (*def.externalLinkage() != "C") {
@@ -285,66 +263,23 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     }
 }
 
-bool InstContext::instantiateSMF(ast::FunctionDefinition& def,
-                                 SpecialMemberFunctionDepr SMF,
-                                 StructType* parent) {
-    auto* F = def.function();
-    if (parent) {
-        parent->addSpecialMemberFunction(SMF, F);
-    }
-    F->setSMFMetadata(SMFMetadata(SMF));
-    if (!parent) {
-        ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, SMF, parent);
-        return false;
-    }
-    if (def.returnTypeExpr()) {
-        ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, SMF, parent);
-        return false;
-    }
-    Type const* mutRef = sym.reference(QualType::Mut(parent));
-    if (F->argumentCount() == 0) {
-        ctx.issue<BadSMF>(&def, BadSMF::NoParams, SMF, parent);
-        return false;
-    }
-    if (F->argumentType(0) != mutRef) {
-        ctx.issue<BadSMF>(&def, BadSMF::BadFirstParam, SMF, parent);
-        return false;
-    }
-    using enum SpecialMemberFunctionDepr;
-    switch (SMF) {
-    case New:
-        break;
-    case Move:
-        if (F->argumentCount() != 2 || F->argumentType(1) != mutRef) {
-            ctx.issue<BadSMF>(&def, BadSMF::MoveSignature, SMF, parent);
-            return false;
-        }
-        break;
-    case Delete:
-        if (F->argumentCount() != 1) {
-            ctx.issue<BadSMF>(&def, BadSMF::DeleteSignature, SMF, parent);
-            return false;
-        }
-        break;
-    }
-    return true;
-}
-
 FunctionType const* InstContext::analyzeSignature(
-    ast::FunctionDefinition& decl, Type const* returnType) const {
+    ast::FunctionDefinition& decl) const {
     auto argumentTypes = decl.parameters() |
                          ranges::views::transform([&](auto* param) {
         return analyzeParam(*param);
     }) | ToSmallVector<>;
     /// If the return type is not specified it will be deduced during function
     /// analysis
-    if (!returnType && decl.returnTypeExpr()) {
-        returnType = analyzeTypeExpr(decl.returnTypeExpr(), ctx);
+    auto* expr = decl.returnTypeExpr();
+    auto* retType = expr ? analyzeTypeExpr(expr, ctx) : nullptr;
+    if (!retType) {
+        return sym.functionType(argumentTypes, nullptr);
     }
-    if (returnType && returnType != sym.Void() && !returnType->isComplete()) {
+    if (!retType->isCompleteOrVoid()) {
         ctx.issue<BadPassedType>(decl.returnTypeExpr(), BadPassedType::Return);
     }
-    return sym.functionType(argumentTypes, returnType);
+    return sym.functionType(argumentTypes, retType);
 }
 
 Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {

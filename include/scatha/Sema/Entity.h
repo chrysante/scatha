@@ -648,8 +648,9 @@ public:
     /// Specifically this returns `true` for `void` and dynamic array types
     SC_NODEBUG bool isComplete() const;
 
-    ///
-    SC_NODEBUG bool isDefaultConstructible() const;
+    /// Convenience method
+    /// \Returns `isComplete() || isa<VoidType>(this)`
+    bool isCompleteOrVoid() const;
 
     ///
     SC_NODEBUG bool hasTrivialLifetime() const;
@@ -668,7 +669,6 @@ private:
 
     size_t sizeImpl() const { return InvalidSize; }
     size_t alignImpl() const { return InvalidSize; }
-    bool isDefaultConstructibleImpl() const { return true; }
     bool hasTrivialLifetimeImpl() const { return true; }
 };
 
@@ -732,53 +732,8 @@ public:
         return *lifetimeMD;
     }
 
-    /// **Deprecated**
-    ///
-    void addSpecialMemberFunction(SpecialMemberFunctionDepr kind,
-                                  Function* function) {
-        SMFs[kind].push_back(function);
-    }
-
-    /// **Deprecated**
-    SC_NODEBUG std::span<Function* const> specialMemberFunctions(
-        SpecialMemberFunctionDepr kind) const {
-        auto itr = SMFs.find(kind);
-        if (itr != SMFs.end()) {
-            return itr->second;
-        }
-        return {};
-    }
-
-    /// **Deprecated**
-    SC_NODEBUG Function* specialLifetimeFunction(
-        SpecialLifetimeFunctionDepr kind) const {
-        return SLFs[static_cast<size_t>(kind)];
-    }
-
-    /// **Deprecated**
-    /// These functions should be only accessible by the implementation of
-    /// `instantiateEntities()` but it's just to cumbersome to make it private
-    void setIsDefaultConstructible(bool value) {
-        _isDefaultConstructible = value;
-    }
-
-    /// **Deprecated**
-    /// See above
+    /// Only used by deserialization
     void setHasTrivialLifetime(bool value) { _hasTrivialLifetime = value; }
-
-    /// **Deprecated**
-    /// See above
-    void setSpecialLifetimeFunctions(
-        std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs) {
-        this->SLFs = SLFs;
-    }
-
-    /// **Deprecated**
-    /// See above
-    void setSpecialLifetimeFunction(SpecialLifetimeFunctionDepr kind,
-                                    Function* function) {
-        SLFs[(size_t)kind] = function;
-    }
 
 protected:
     explicit ObjectType(EntityType entityType,
@@ -795,7 +750,6 @@ private:
     friend class StructType;
     size_t sizeImpl() const { return _size; }
     size_t alignImpl() const { return _align; }
-    bool isDefaultConstructibleImpl() const { return _isDefaultConstructible; }
 
     size_t _size;
     size_t _align;
@@ -803,8 +757,7 @@ private:
     utl::hashmap<SpecialMemberFunctionDepr, utl::small_vector<Function*, 1>>
         SMFs;
     std::array<Function*, EnumSize<SpecialLifetimeFunctionDepr>> SLFs = {};
-    bool _hasTrivialLifetime     : 1 = true; // Only used by structs
-    bool _isDefaultConstructible : 1 = true;
+    bool _hasTrivialLifetime : 1 = true; // Only used by structs
 };
 
 /// Concrete class representing a builtin type
@@ -1037,7 +990,6 @@ public:
 
 private:
     friend class Type;
-    bool isDefaultConstructibleImpl() const { return true; }
     bool hasTrivialLifetimeImpl() const { return false; }
 };
 
@@ -1050,7 +1002,6 @@ private:
     friend class Type;
     size_t sizeImpl() const { return 0; }
     size_t alignImpl() const { return 0; }
-    bool isDefaultConstructibleImpl() const { return false; }
 };
 
 /// # OverloadSet

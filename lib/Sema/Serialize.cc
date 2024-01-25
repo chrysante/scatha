@@ -541,7 +541,6 @@ struct Serializer {
         json j = serializeCommon(type);
         j[Field::Size] = type.size();
         j[Field::Align] = type.align();
-        j[Field::DefaultConstructible] = type.isDefaultConstructible();
         j[Field::TrivialLifetime] = type.hasTrivialLifetime();
         for (auto* entity: type.entities()) {
             if (!entity->isPublic()) {
@@ -715,8 +714,6 @@ struct Deserializer: TypeMapBase {
         insertType(obj, type);
         type->setSize(get<size_t>(obj, Field::Size));
         type->setAlign(get<size_t>(obj, Field::Align));
-        type->setIsDefaultConstructible(
-            get<bool>(obj, Field::DefaultConstructible));
         type->setHasTrivialLifetime(get<bool>(obj, Field::TrivialLifetime));
         if (auto children = tryGet(obj, Field::Children)) {
             sym.withScopeCurrent(type, [&] { preparseTypes(*children); });
@@ -747,12 +744,7 @@ struct Deserializer: TypeMapBase {
                                 sym.functionType(argTypes, retType),
                                 get(obj, Field::AccessControl));
         if (auto md = tryGet<SMFMetadata>(obj, Field::SMFMetadata)) {
-            function->setSMFMetadata(*md);
-            getStruct(function)->addSpecialMemberFunction(md->kind(), function);
-            if (md->isSLF()) {
-                getStruct(function)->setSpecialLifetimeFunction(md->SLFKind(),
-                                                                function);
-            }
+            SC_UNIMPLEMENTED();
         }
         function->setKind(get<FunctionKind>(obj, Field::FunctionKind));
     }

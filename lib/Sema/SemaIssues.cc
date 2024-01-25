@@ -305,6 +305,8 @@ BadFuncDef::BadFuncDef(InitAsBase,
                        Reason reason):
     BadDecl(scope, funcdef, severity), _reason(reason) {}
 
+std::string_view BadFuncDef::name() const { return definition()->name(); }
+
 void BadFuncDef::format(std::ostream& str) const {
     switch (reason()) {
 #define SC_SEMA_BADFUNCDEF_DEF(reason, _, message)                             \
@@ -328,11 +330,9 @@ static IssueSeverity toSeverity(BadSMF::Reason reason) {
 BadSMF::BadSMF(Scope const* scope,
                ast::FunctionDefinition const* funcdef,
                Reason reason,
-               SpecialMemberFunctionDepr SMF,
                StructType const* parent):
     BadFuncDef(InitAsBase{}, scope, funcdef, toSeverity(reason)),
     _reason(reason),
-    smf(SMF),
     _parent(parent) {}
 
 void BadSMF::format(std::ostream& str) const {
