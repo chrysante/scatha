@@ -383,7 +383,8 @@ ArrayType const* sema::dynArrayTypeCast(Type const* type) {
 
 bool sema::isDynArray(Type const& type) { return !!dynArrayTypeCast(&type); }
 
-/// We define `isUserDefined` as a function object to pass it to higher order ranges functions
+/// We define `isUserDefined` as a function object to pass it to higher order
+/// ranges functions
 struct {
     bool operator()(Function const* f) const { return f->isNative(); }
     bool operator()(LifetimeOperation op) const {
@@ -392,8 +393,8 @@ struct {
     }
 } static constexpr isUserDefined{};
 
-bool sema::isAggregate(Type const& t) {
-    auto* type = dyncast<StructType const*>(&t);
+bool sema::isAggregate(Type const* t) {
+    auto* type = dyncast<StructType const*>(t);
     if (!type) {
         return false;
     }

@@ -1043,39 +1043,55 @@ ast::Expression* ExprContext::rewriteFunctionalCast(ast::FunctionCall& expr,
                 ctx);
         return expr.replace(expr.extractArgument(0));
     }
-    /// Trivial copy construction
-    if (objType->hasTrivialLifetime() && expr.arguments().size() == 1 &&
-        expr.argument(0)->type().get() == objType)
-    {
-        auto copy =
-            allocate<ast::TrivCopyConstructExpr>(expr.extractCallee(),
-                                                 expr.extractArgument(0),
-                                                 expr.sourceRange(),
-                                                 objType);
-        return analyzeValue(expr.replace(std::move(copy)));
-    }
-    /// Trivial object type construction
-#warning Rework this, this makes no sense
-    if (objType->findFunctions("new").empty()) {
-        auto newExpr = [&]() -> UniquePtr<ast::Expression> {
-            if (expr.arguments().empty()) {
+    auto& md = objType->lifetimeMetadata();
+    auto args = expr.arguments() |
+                transform(&ast::Expression::extractFromParent) |
+                ToSmallVector<>;
+    /// Default construction
+    if (args.empty()) {
+        auto ctor = md.defaultConstructor();
+        if (ctor.isDeleted()) {
+            // TODO: Push error
+            SC_UNIMPLEMENTED();
+            return nullptr;
+        }
+        auto constr = [&]() -> UniquePtr<ast::Expression> {
+            if (ctor.isTrivial()) {
                 return allocate<ast::TrivDefConstructExpr>(expr.extractCallee(),
                                                            expr.sourceRange(),
                                                            objType);
             }
-            return allocate<ast::AggregateConstructExpr>(
-                expr.extractCallee(),
-                expr.arguments() |
-                    transform(&ast::Expression::extractFromParent) |
-                    ToSmallVector<>,
-                expr.sourceRange(),
-                objType);
+            if (ctor.function()) {
+                return allocate<ast::NontrivConstructExpr>(
+                    std::move(args),
+                    expr.sourceRange(),
+                    cast<StructType const*>(objType));
+            }
+            return allocate<ast::NontrivInlineConstructExpr>(std::move(args),
+                                                             expr.sourceRange(),
+                                                             objType);
         }();
-        return analyzeValue(expr.replace(std::move(newExpr)));
+        return analyzeValue(expr.replace(std::move(constr)));
     }
-    auto args = expr.arguments() |
-                transform(&ast::Expression::extractFromParent) |
-                ToSmallVector<>;
+    /// Trivial copy construction
+    if (objType->hasTrivialLifetime() && args.size() == 1 &&
+        args.front()->type().get() == objType)
+    {
+        auto copy = allocate<ast::TrivCopyConstructExpr>(expr.extractCallee(),
+                                                         std::move(args[0]),
+                                                         expr.sourceRange(),
+                                                         objType);
+        return analyzeValue(expr.replace(std::move(copy)));
+    }
+    /// Aggregate construction
+    if (isAggregate(objType)) {
+        auto constr =
+            allocate<ast::AggregateConstructExpr>(expr.extractCallee(),
+                                                  std::move(args),
+                                                  expr.sourceRange(),
+                                                  objType);
+        return analyzeValue(expr.replace(std::move(constr)));
+    }
     /// Nontrivial object type construction
     if (auto* structType = dyncast<StructType const*>(objType)) {
         auto newExpr = allocate<ast::NontrivConstructExpr>(std::move(args),

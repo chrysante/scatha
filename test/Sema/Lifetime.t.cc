@@ -183,15 +183,15 @@ public struct InternalMember {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
 
     auto* Empty = lookup<StructType>(sym, "Empty");
-    CHECK(isAggregate(*Empty));
+    CHECK(isAggregate(Empty));
     auto* DefCtor = lookup<StructType>(sym, "DefCtor");
-    CHECK(!isAggregate(*DefCtor));
+    CHECK(!isAggregate(DefCtor));
     auto* Nontrivial = lookup<StructType>(sym, "Nontrivial");
-    CHECK(!isAggregate(*Nontrivial));
+    CHECK(!isAggregate(Nontrivial));
     auto* NontrivMember = lookup<StructType>(sym, "NontrivMember");
-    CHECK(isAggregate(*NontrivMember));
+    CHECK(isAggregate(NontrivMember));
     auto* PrivateMember = lookup<StructType>(sym, "PrivateMember");
-    CHECK(!isAggregate(*PrivateMember));
+    CHECK(!isAggregate(PrivateMember));
     auto* InternalMember = lookup<StructType>(sym, "InternalMember");
-    CHECK(!isAggregate(*InternalMember));
+    CHECK(!isAggregate(InternalMember));
 }

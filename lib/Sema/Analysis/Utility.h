@@ -70,7 +70,7 @@ bool isDynArray(Type const& type);
 /// An _aggregate_ type is a struct type which has no user defined lifetime
 /// functions and no data members which stronger access control than \p type
 /// itself
-SCATHA_API bool isAggregate(Type const& type);
+SCATHA_API bool isAggregate(Type const* type);
 
 /// Inserts a `{Triv,Nontriv}CopyConstructExpr` above \p expr
 ast::Expression* insertConstruction(ast::Expression* expr,
