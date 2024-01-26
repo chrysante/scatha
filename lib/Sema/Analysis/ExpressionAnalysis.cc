@@ -58,11 +58,6 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::MoveExpr&);
     ast::Expression* analyzeImpl(ast::UniqueExpr&);
     ast::Expression* analyzeImpl(ast::FunctionCall&);
-    UniquePtr<ast::Expression> allocateTypeConstruction(
-        ast::Expression& parentExpr,
-        Type const* targetType,
-        std::span<ast::Expression* const> arguments,
-        ConversionKind convKind);
     ast::Expression* analyzeImpl(ast::Subscript&);
     ast::Expression* analyzeImpl(ast::SubscriptSlice&);
     ArrayType const* analyzeSubscriptCommon(ast::CallLike&);
@@ -84,6 +79,15 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::DynArrayConstructExpr&);
 
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
+
+    /// Allocates  construct expression or conversion that is appropriate to
+    /// construct an object of type \p targetType from the arguments \p
+    /// arguments
+    UniquePtr<ast::Expression> allocateObjectConstruction(
+        SourceRange sourceRng,
+        Type const* targetType,
+        std::span<ast::Expression* const> arguments,
+        ConversionKind convKind);
 
     /// If \p expr is a pointer, inserts a `DereferenceExpression` as its
     /// parent. Expects \p expr to be analyzed. This is used to implicitly
@@ -765,16 +769,16 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
                 *cleanupStack,
                 ctx);
     }
-    auto* commonDtors = cleanupStack;
-    auto* lhsDtors = &c.branchCleanupStack(0);
-    auto* rhsDtors = &c.branchCleanupStack(1);
+    auto* commonCleanups = cleanupStack;
+    auto* thenCleanups = &c.branchCleanupStack(0);
+    auto* elseCleanups = &c.branchCleanupStack(1);
 
     bool success = true;
-    cleanupStack = lhsDtors;
+    cleanupStack = thenCleanups;
     success &= !!analyzeValue(c.thenExpr());
-    cleanupStack = rhsDtors;
+    cleanupStack = elseCleanups;
     success &= !!analyzeValue(c.elseExpr());
-    cleanupStack = commonDtors;
+    cleanupStack = commonCleanups;
     if (!success) {
         return nullptr;
     }
@@ -791,18 +795,38 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
                          c.thenExpr(),
                          commonType,
                          commonValueCat,
-                         c.branchCleanupStack(0),
+                         *thenCleanups,
                          ctx);
     success &= !!convert(Implicit,
                          c.elseExpr(),
                          commonType,
                          commonValueCat,
-                         c.branchCleanupStack(1),
+                         *elseCleanups,
                          ctx);
+#if 0
+    success &= !!construct(Implicit,
+                         c.thenExpr(),
+                         fromQualType(commonType, commonValueCat, sym),
+                           *thenCleanups,
+                         ctx);
+    success &= !!construct(Implicit,
+                         c.elseExpr(),
+                         fromQualType(commonType, commonValueCat, sym),
+                           *elseCleanups,
+                         ctx);
+#endif
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
-    c.decorateValue(sym.temporary(commonType), commonValueCat);
+    auto* obj = sym.temporary(commonType);
+#if 0 // Not yet user about this
+    if (commonValueCat == RValue) {
+        popCleanup(c.thenExpr(), *thenCleanups);
+        popCleanup(c.elseExpr(), *elseCleanups);
+        commonCleanups->push(obj);
+    }
+#endif
+    c.decorateValue(obj, commonValueCat);
     c.setConstantValue(evalConditional(c.condition()->constantValue(),
                                        c.thenExpr()->constantValue(),
                                        c.elseExpr()->constantValue()));
@@ -932,9 +956,9 @@ static void convertArgsAndPopCleanups(auto const& arguments,
                                       CleanupStack& dtors,
                                       AnalysisContext& ctx) {
     for (auto [arg, conv]: ranges::views::zip(arguments, conversions)) {
-        auto* expr = insertConversion(arg, conv, dtors, ctx);
         /// The called function will clean up the arguments
-        removeCleanup(expr, dtors);
+        removeCleanup(arg, dtors);
+        insertConversion(arg, conv, dtors, ctx);
     }
 }
 
@@ -976,10 +1000,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion or construct expr
     if (auto* type = dyncast<Type const*>(fc.callee()->entity())) {
-        auto constr = allocateTypeConstruction(fc,
-                                               type,
-                                               fc.arguments() | ToSmallVector<>,
-                                               ConversionKind::Explicit);
+        auto constr =
+            allocateObjectConstruction(fc.sourceRange(),
+                                       type,
+                                       fc.arguments() | ToSmallVector<>,
+                                       ConversionKind::Explicit);
         return analyzeValue(fc.replace(std::move(constr)));
     }
     /// Make sure we have an overload set as our called object
@@ -1021,110 +1046,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         cleanupStack->push(fc.object());
     }
     return &fc;
-}
-
-static utl::small_vector<UniquePtr<ast::Expression>> extract(
-    std::span<ast::Expression* const> exprs) {
-    return exprs | transform(&ast::Expression::extractFromParent) |
-           ToSmallVector<>;
-}
-
-UniquePtr<ast::Expression> ExprContext::allocateTypeConstruction(
-    ast::Expression& parentExpr,
-    Type const* targetType,
-    std::span<ast::Expression* const> arguments,
-    ConversionKind convKind) {
-    /// Reference types
-    if (auto* refType = dyncast<ReferenceType const*>(targetType)) {
-        SC_UNIMPLEMENTED();
-    }
-    /// Function types
-    if (auto* fnType = dyncast<FunctionType const*>(targetType)) {
-        SC_UNIMPLEMENTED();
-    }
-    /// Dynamic array types
-    if (auto* arrayType = dynArrayTypeCast(targetType)) {
-        return allocate<ast::DynArrayConstructExpr>(extract(arguments),
-                                                    parentExpr.sourceRange(),
-                                                    arrayType);
-    }
-    auto* objType = cast<ObjectType const*>(targetType);
-    /// Functional cast to builtin type
-    if (isa<BuiltinType>(objType) && arguments.size() == 1) {
-        auto* arg = arguments.front();
-        convert(convKind, arg, objType, RValue, *cleanupStack, ctx);
-        return arg->extractFromParent();
-    }
-    auto& md = objType->lifetimeMetadata();
-    /// Default construction
-    if (arguments.empty()) {
-        auto ctor = md.defaultConstructor();
-        if (ctor.isDeleted()) {
-            // TODO: Push error
-            SC_UNIMPLEMENTED();
-            return nullptr;
-        }
-        if (ctor.isTrivial()) {
-            return allocate<ast::TrivDefConstructExpr>(nullptr,
-                                                       parentExpr.sourceRange(),
-                                                       objType);
-        }
-        if (ctor.function()) {
-            return allocate<ast::NontrivConstructExpr>(extract(arguments),
-                                                       parentExpr.sourceRange(),
-                                                       cast<StructType const*>(
-                                                           objType));
-        }
-        return allocate<ast::NontrivInlineConstructExpr>(extract(arguments),
-                                                         parentExpr
-                                                             .sourceRange(),
-                                                         objType);
-    }
-    /// Copy construction
-    if (arguments.size() == 1 && arguments.front()->type().get() == objType) {
-        auto* arg = arguments.front();
-        /// For RValues we never want to invoke a copy constructor
-        if (arg->isRValue()) {
-            return arg->extractFromParent();
-        }
-        if (md.copyConstructor().isTrivial()) {
-            return allocate<ast::TrivCopyConstructExpr>(
-                nullptr,
-                arg->extractFromParent(),
-                parentExpr.sourceRange(),
-                objType);
-        }
-        /// Nontrivial copy construction is handled later...
-    }
-    /// Aggregate construction
-    if (isAggregate(objType)) {
-        if (objType->hasTrivialLifetime()) {
-            return allocate<ast::TrivAggrConstructExpr>(nullptr,
-                                                        extract(arguments),
-                                                        parentExpr
-                                                            .sourceRange(),
-                                                        objType);
-        }
-        else {
-            return allocate<ast::NontrivAggrConstructExpr>(
-                nullptr,
-                extract(arguments),
-                parentExpr.sourceRange(),
-                cast<StructType const*>(objType));
-        }
-    }
-    /// Nontrivial object type construction
-    if (auto* structType = dyncast<StructType const*>(objType)) {
-        return allocate<ast::NontrivConstructExpr>(extract(arguments),
-                                                   parentExpr.sourceRange(),
-                                                   structType);
-    }
-    else {
-        return allocate<ast::NontrivInlineConstructExpr>(extract(arguments),
-                                                         parentExpr
-                                                             .sourceRange(),
-                                                         objType);
-    }
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
@@ -1434,8 +1355,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivAggrConstructExpr& expr) {
 
 ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
     auto* type = expr.constructedType();
-    auto* obj = sym.temporary(type);
-    cleanupStack->push(obj);
     if (!analyzeValues(expr.arguments())) {
         return nullptr;
     }
@@ -1460,8 +1379,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
                               orResult.conversions | drop(1),
                               *cleanupStack,
                               ctx);
-    // Ignore for now
+    auto* obj = sym.temporary(type);
     expr.decorateConstruct(obj, orResult.function);
+    cleanupStack->push(obj);
     return &expr;
 }
 
@@ -1479,10 +1399,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
          ranges::views::zip(expr.arguments(), type->members()))
     {
         size_t index = arg->indexInParent();
-        auto constr = allocateTypeConstruction(*arg,
-                                               argType,
-                                               std::array{ arg },
-                                               ConversionKind::Implicit);
+        auto constr = allocateObjectConstruction(arg->sourceRange(),
+                                                 argType,
+                                                 std::array{ arg },
+                                                 ConversionKind::Implicit);
         auto* analyzed = analyzeValue(expr.setChild(index, std::move(constr)));
         if (!analyzed) {
             success = false;
@@ -1516,10 +1436,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
             return nullptr;
         }
         auto elemConstr =
-            allocateTypeConstruction(*arg,
-                                     type->elementType(),
-                                     std::array<ast::Expression*, 0>{},
-                                     Implicit);
+            allocateObjectConstruction(arg->sourceRange(),
+                                       type->elementType(),
+                                       std::array<ast::Expression*, 0>{},
+                                       Implicit);
         expr.setElementConstruction(std::move(elemConstr));
         if (!analyzeValue(expr.elementConstruction())) {
             return nullptr;
@@ -1579,6 +1499,110 @@ ast::Expression* ExprContext::analyzeDynArrayConstruction(
         return nullptr;
     }
 #endif
+}
+
+static utl::small_vector<UniquePtr<ast::Expression>> extract(
+    std::span<ast::Expression* const> exprs) {
+    return exprs | transform(&ast::Expression::extractFromParent) |
+           ToSmallVector<>;
+}
+
+UniquePtr<ast::Expression> ExprContext::allocateObjectConstruction(
+    SourceRange sourceRng,
+    Type const* targetType,
+    std::span<ast::Expression* const> arguments,
+    ConversionKind convKind) {
+    /// Function types
+    if (auto* fnType = dyncast<FunctionType const*>(targetType)) {
+        SC_UNIMPLEMENTED();
+    }
+    /// Functional cast to builtin type
+    if (arguments.size() == 1 &&
+        (isa<BuiltinType>(targetType) || isa<ReferenceType>(targetType)))
+    {
+        auto* arg = arguments.front();
+        arg = convert(convKind,
+                      arg,
+                      getQualType(targetType),
+                      refToLValue(targetType),
+                      *cleanupStack,
+                      ctx);
+        return arg ? arg->extractFromParent() : nullptr;
+    }
+    /// Dynamic array types
+    if (auto* arrayType = dynArrayTypeCast(targetType)) {
+        return allocate<ast::DynArrayConstructExpr>(extract(arguments),
+                                                    sourceRng,
+                                                    arrayType);
+    }
+    auto* objType = cast<ObjectType const*>(targetType);
+    auto& md = objType->lifetimeMetadata();
+    /// Default construction
+    if (arguments.empty()) {
+        auto ctor = md.defaultConstructor();
+        if (ctor.isDeleted()) {
+            // TODO: Push error
+            SC_UNIMPLEMENTED();
+            return nullptr;
+        }
+        if (ctor.isTrivial()) {
+            return allocate<ast::TrivDefConstructExpr>(nullptr,
+                                                       sourceRng,
+                                                       objType);
+        }
+        if (ctor.function()) {
+            return allocate<ast::NontrivConstructExpr>(extract(arguments),
+                                                       sourceRng,
+                                                       cast<StructType const*>(
+                                                           objType));
+        }
+        return allocate<ast::NontrivInlineConstructExpr>(extract(arguments),
+                                                         sourceRng,
+                                                         objType);
+    }
+    /// Copy construction
+    if (arguments.size() == 1 && arguments.front()->type().get() == objType) {
+        auto* arg = arguments.front();
+        /// For RValues we never want to invoke a copy constructor
+        if (arg->isRValue()) {
+            return arg->extractFromParent();
+        }
+        if (md.copyConstructor().isTrivial()) {
+            return allocate<ast::TrivCopyConstructExpr>(
+                nullptr,
+                arg->extractFromParent(),
+                sourceRng,
+                objType);
+        }
+        /// Nontrivial copy construction is handled later...
+    }
+    /// Aggregate construction
+    if (isAggregate(objType)) {
+        if (objType->hasTrivialLifetime()) {
+            return allocate<ast::TrivAggrConstructExpr>(nullptr,
+                                                        extract(arguments),
+                                                        sourceRng,
+                                                        objType);
+        }
+        else {
+            return allocate<ast::NontrivAggrConstructExpr>(
+                nullptr,
+                extract(arguments),
+                sourceRng,
+                cast<StructType const*>(objType));
+        }
+    }
+    /// Nontrivial object type construction
+    if (auto* structType = dyncast<StructType const*>(objType)) {
+        return allocate<ast::NontrivConstructExpr>(extract(arguments),
+                                                   sourceRng,
+                                                   structType);
+    }
+    else {
+        return allocate<ast::NontrivInlineConstructExpr>(extract(arguments),
+                                                         sourceRng,
+                                                         objType);
+    }
 }
 
 void ExprContext::dereferencePointer(ast::Expression* expr) {

@@ -601,10 +601,10 @@ ORError::ORError(ast::Expression const* expr,
     matchErrors(matchErrors) {
     SC_ASSERT(!overloadSet.empty(), "Cannot make call to empty overload set");
     header("Cannot resolve function call");
+    auto name = overloadSet.front()->name();
     switch (reason()) {
     case NoMatch:
-        primary(sourceRange(),
-                [name = overloadSet.front()->name()](std::ostream& str) {
+        primary(sourceRange(), [=](std::ostream& str) {
             str << "No matching function to call for " << name;
         });
         for (auto* function: overloadSet) {
@@ -641,7 +641,7 @@ ORError::ORError(ast::Expression const* expr,
         break;
     case Ambiguous:
         primary(sourceRange(), [=](std::ostream& str) {
-            str << "Ambiguous function call to " << overloadSet.front()->name();
+            str << "Ambiguous function call to " << name;
         });
         for (auto* function: matches) {
             secondary(getSourceRange(function->definition()),
