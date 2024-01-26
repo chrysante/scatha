@@ -339,6 +339,12 @@ public:
     FloatType const* Double() const { return F64(); }
     /// @}
 
+    /// Used by instantiation. This function traverses all instantiated types
+    /// (only array types at this point) which may not have their lifetime
+    /// analyzed, because they have been instantiated before their element type
+    /// had lifetime metadata, and analyzes the lifetime
+    void analyzeMissingLifetimes();
+
 private:
     NativeLibrary* getOrImportNativeLib(std::string_view name,
                                         ast::ASTNode* astNode);

@@ -978,6 +978,16 @@ std::vector<Entity const*> SymbolTable::entities() const {
     return impl->entities | ToConstAddress | ranges::to<std::vector>;
 }
 
+void SymbolTable::analyzeMissingLifetimes() {
+    for (auto* type: impl->arrayTypes.values() | values) {
+        if (!type->hasLifetimeMetadata() &&
+            type->elementType()->hasLifetimeMetadata())
+        {
+            analyzeLifetime(const_cast<ArrayType&>(*type), *this);
+        }
+    }
+}
+
 template <typename E, typename... Args>
     requires std::constructible_from<E, Args...>
 E* SymbolTable::Impl::addEntity(Args&&... args) {

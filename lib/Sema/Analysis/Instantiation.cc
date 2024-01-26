@@ -78,6 +78,7 @@ utl::vector<StructType const*> sema::instantiateEntities(
         }
         analyzeLifetime(*mutType, ctx.symbolTable());
     }
+    ctx.symbolTable().analyzeMissingLifetimes();
     return structs;
 }
 

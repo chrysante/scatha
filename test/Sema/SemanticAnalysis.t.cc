@@ -575,3 +575,14 @@ TEST_CASE("Using private variables in member functions", "[sema]") {
     CHECK(iss.noneOnLine(12));
     CHECK(iss.findOnLine<BadExpr>(13, BadExpr::AccessDenied));
 }
+
+TEST_CASE("Array lifetimes properly analyzed", "[sema]") {
+    /// In this sample program the type `[X, 1]` would not have its lifetime
+    /// analyzed because it is instantiated before `X` has its lifetime analyzed
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct X {}
+fn foo(x: [X, 1]) {}
+fn bar() { let x = [X()]; }
+)");
+    CHECK(iss.empty());
+}
