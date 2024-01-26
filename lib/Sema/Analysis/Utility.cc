@@ -40,6 +40,13 @@ static std::optional<CleanupOperation> makeCleanup(Entity* entity) {
     return CleanupOperation{ obj, dtor };
 }
 
+static std::optional<CleanupOperation> makeCleanup(ast::Expression* expr) {
+    if (!expr || !expr->isDecorated()) {
+        return std::nullopt;
+    }
+    return makeCleanup(expr->entity());
+}
+
 void CleanupStack::push(Object* obj) {
     if (auto dtorCall = makeCleanup(obj)) {
         push(*dtorCall);
@@ -47,6 +54,13 @@ void CleanupStack::push(Object* obj) {
 }
 
 void CleanupStack::push(CleanupOperation cleanup) { operations.push(cleanup); }
+
+void CleanupStack::remove(CleanupOperation op) {
+    auto& cont = operations.container();
+    auto itr = ranges::find(cont, op);
+    SC_ASSERT(itr != cont.end(), "op is not in this stack");
+    cont.erase(itr);
+}
 
 void sema::print(CleanupStack const& stack, std::ostream& str) {
     for (auto& call: stack) {
@@ -66,11 +80,8 @@ void sema::print(CleanupStack const& stack, std::ostream& str) {
 
 void sema::print(CleanupStack const& stack) { print(stack, std::cout); }
 
-void sema::popTopLevelCleanup(ast::Expression* expr, CleanupStack& dtors) {
-    if (!expr || !expr->isDecorated()) {
-        return;
-    }
-    auto cleanup = makeCleanup(expr->entity());
+void sema::popCleanup(ast::Expression* expr, CleanupStack& dtors) {
+    auto cleanup = makeCleanup(expr);
     if (!cleanup) {
         return;
     }
@@ -78,6 +89,14 @@ void sema::popTopLevelCleanup(ast::Expression* expr, CleanupStack& dtors) {
               "We want to prolong the lifetime of the object defined by "
               "expr, so that object better be on top of the stack");
     dtors.pop();
+}
+
+void sema::removeCleanup(ast::Expression* expr, CleanupStack& dtors) {
+    auto cleanup = makeCleanup(expr);
+    if (!cleanup) {
+        return;
+    }
+    dtors.remove(*cleanup);
 }
 
 /// # Other utils

@@ -253,12 +253,12 @@ struct PrintCtx {
                     formatter.pop();
                 },
             }; // clang-format on
-            if (auto* stmt = dyncast<Statement const*>(&node)) {
-                formatter.push(node.children().empty() ? Level::Free :
-                                                         Level::Occupied);
-                printCleanupStack(str, formatter, stmt->cleanupStack());
-                formatter.pop();
-            }
+        }
+        if (auto* stmt = dyncast<Statement const*>(&node)) {
+            formatter.push(node.children().empty() ? Level::Free :
+                                                     Level::Occupied);
+            printCleanupStack(str, formatter, stmt->cleanupStack());
+            formatter.pop();
         }
         visit(node, [&](auto& node) { printChildren(node); });
     }

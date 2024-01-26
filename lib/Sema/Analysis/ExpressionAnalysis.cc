@@ -855,7 +855,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
     }
     /// We pop the top level dtor because unique ptr extends the lifetime of the
     /// object
-    popTopLevelCleanup(expr.value(), *cleanupStack);
+    popCleanup(expr.value(), *cleanupStack);
     auto* type = sym.uniquePointer(expr.value()->type());
     expr.decorateValue(sym.temporary(type), RValue);
     cleanupStack->push(expr.object());
@@ -927,12 +927,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
     return &expr;
 }
 
-static void convertArguments(auto const& arguments,
-                             auto const& conversions,
-                             CleanupStack& dtors,
-                             AnalysisContext& ctx) {
+static void convertArgsAndPopCleanups(auto const& arguments,
+                                      auto const& conversions,
+                                      CleanupStack& dtors,
+                                      AnalysisContext& ctx) {
     for (auto [arg, conv]: ranges::views::zip(arguments, conversions)) {
-        insertConversion(arg, conv, dtors, ctx);
+        auto* expr = insertConversion(arg, conv, dtors, ctx);
+        /// The called function will clean up the arguments
+        removeCleanup(expr, dtors);
     }
 }
 
@@ -1011,7 +1013,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     QualType type = getQualType(returnType);
     auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
     fc.decorateCall(sym.temporary(type), valueCat, type, function);
-    convertArguments(fc.arguments(), result.conversions, *cleanupStack, ctx);
+    convertArgsAndPopCleanups(fc.arguments(),
+                              result.conversions,
+                              *cleanupStack,
+                              ctx);
     if (valueCat == RValue) {
         cleanupStack->push(fc.object());
     }
@@ -1127,7 +1132,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     for (auto* expr: list.elements()) {
         expr = analyze(expr);
         success &= !!expr;
-        popTopLevelCleanup(expr, *cleanupStack);
+        popCleanup(expr, *cleanupStack);
     }
     if (!success) {
         return nullptr;
@@ -1256,7 +1261,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
         ctx.issueHandler().push(std::move(result.error));
         return nullptr;
     }
-    convertArguments(expr.arguments(), result.conversions, *cleanupStack, ctx);
+    convertArgsAndPopCleanups(expr.arguments(), result.conversions, *cleanupStack, ctx);
     expr.decorateConstruct(sym.temporary(type), result.function);
     cleanupStack->push(expr.object());
     return &expr;
@@ -1451,11 +1456,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
         return nullptr;
     }
     SC_ASSERT(orResult.conversions.front().isNoop(), "");
-    for (auto [conv, arg]:
-         zip(orResult.conversions | drop(1), expr.arguments()))
-    {
-        insertConversion(arg, conv, *cleanupStack, ctx);
-    }
+    convertArgsAndPopCleanups(expr.arguments(),
+                              orResult.conversions | drop(1),
+                              *cleanupStack,
+                              ctx);
     // Ignore for now
     expr.decorateConstruct(obj, orResult.function);
     return &expr;
@@ -1484,7 +1488,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
             success = false;
             continue;
         }
-        popTopLevelCleanup(analyzed, *cleanupStack);
+        popCleanup(analyzed, *cleanupStack);
     }
     if (!success) {
         return nullptr;
@@ -1520,7 +1524,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
         if (!analyzeValue(expr.elementConstruction())) {
             return nullptr;
         }
-        popTopLevelCleanup(expr.elementConstruction(), *cleanupStack);
+        popCleanup(expr.elementConstruction(), *cleanupStack);
         expr.decorateConstruct(sym.temporary(type));
         cleanupStack->push(expr.object());
         return &expr;

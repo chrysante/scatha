@@ -929,12 +929,7 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     ir::Callable* function = getFunction(call.function());
-    auto name = [&]() -> std::string {
-        if (isa<ir::VoidType>(function->returnType())) {
-            return {};
-        }
-        return "call.result";
-    }();
+    auto name = "call.result";
     auto CC = getCC(call.function());
     auto retvalLocation = CC.returnValue().location();
     auto irArguments =
@@ -946,7 +941,13 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
                            makeLocalVariable(irReturnType,
                                              utl::strcat(name, ".addr")));
     }
-    auto* callInst = add<ir::Call>(function, irArguments, name);
+    auto instName = [&]() -> std::string {
+        if (isa<ir::VoidType>(function->returnType())) {
+            return {};
+        }
+        return name;
+    }();
+    auto* callInst = add<ir::Call>(function, irArguments, instName);
     auto* retval = retvalLocation == Memory ? irArguments.front() : callInst;
     return Value(name,
                  call.type().get(),

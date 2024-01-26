@@ -12,8 +12,16 @@ namespace scatha::sema {
 /// # Destructors
 
 /// If the expression \p expr is of non-trivial lifetime type, this function
-/// pops the top element off the destructor stack \p dtors
-void popTopLevelCleanup(ast::Expression* expr, CleanupStack& dtors);
+/// pops the top element off the cleanup stack \p cleanups
+/// \Pre the entity of \p expr must have a trivial destructor or be the top of
+/// \p cleanup stack
+void popCleanup(ast::Expression* expr, CleanupStack& cleanups);
+
+/// If the expression \p expr is of non-trivial lifetime type, this function
+/// erases the cleanup of the entity of \p expr in the cleanup stack \p cleanups
+/// \Pre the entity of \p expr must have a trivial destructor or be in \p
+/// cleanup stack
+void removeCleanup(ast::Expression* expr, CleanupStack& cleanups);
 
 /// # Other utils
 

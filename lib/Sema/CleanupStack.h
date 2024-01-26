@@ -28,11 +28,15 @@ public:
     /// The operation is derived from the type of \p obj
     void push(Object* obj);
 
-    /// Push destructor call \p dtorCall onto the stack.
-    void push(CleanupOperation dtorCall);
+    /// Push cleanup operation \p op onto the stack.
+    void push(CleanupOperation op);
 
-    /// Pop the top destructor call off the stack
+    /// Pop the top cleanup operation off the stack
     void pop() { operations.pop(); }
+
+    /// Erases the cleanup operation \p op from the stack
+    /// \Pre \p op must be in the stack
+    void remove(CleanupOperation op);
 
     /// \Returns `true` if the stack is empty
     bool empty() const { return operations.empty(); }

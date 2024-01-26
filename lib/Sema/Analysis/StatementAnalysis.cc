@@ -284,6 +284,11 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
     sym.withScopePushed(semaFn, [&] {
         for (auto* param: def.parameters()) {
             analyze(*param);
+            /// Functions are responsible to clean up their arguments
+            if (param->isDecorated() && def.body()) {
+                auto* obj = cast<Object*>(param->entity());
+                def.body()->cleanupStack().push(obj);
+            }
         }
     });
     if (def.externalLinkage()) {
@@ -600,7 +605,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// lifetime this variable shall extend. Then we push the destructor to the
     /// stack of the parent statement.
     if (!isa<ReferenceType>(varDecl.type())) {
-        popTopLevelCleanup(validatedInitExpr, varDecl.cleanupStack());
+        popCleanup(validatedInitExpr, varDecl.cleanupStack());
         cast<ast::Statement*>(varDecl.parent())->pushCleanup(variable);
     }
     /// Propagate constant value
@@ -609,9 +614,9 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
 }
 
-void StmtContext::analyzeImpl(ast::ExpressionStatement& es) {
+void StmtContext::analyzeImpl(ast::ExpressionStatement& stmt) {
     SC_EXPECT(sym.currentScope().kind() == ScopeKind::Function);
-    analyzeValue(es.expression(), es.cleanupStack());
+    analyzeValue(stmt.expression(), stmt.cleanupStack());
 }
 
 void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
@@ -644,6 +649,7 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
         returnType = rs.expression()->type().get();
         deduceReturnTypeTo(&rs, returnType);
     }
+#warning Here we need to conditionally insert construct exprs
     convert(Implicit,
             rs.expression(),
             getQualType(returnType),
@@ -651,7 +657,7 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
             rs.cleanupStack(),
             ctx);
     if (!returnsRef()) {
-        popTopLevelCleanup(rs.expression(), rs.cleanupStack());
+        popCleanup(rs.expression(), rs.cleanupStack());
     }
 }
 
