@@ -946,8 +946,10 @@ static void convertArgsAndPopCleanups(auto const& arguments,
                                       AnalysisContext& ctx) {
     for (auto [arg, conv]: ranges::views::zip(arguments, conversions)) {
         /// The called function will clean up the arguments
-        removeCleanup(arg, dtors);
-        insertConversion(arg, conv, dtors, ctx);
+        auto* converted = insertConversion(arg, conv, dtors, ctx);
+        if (converted->isRValue()) {
+            removeCleanup(converted, dtors);
+        }
     }
 }
 
