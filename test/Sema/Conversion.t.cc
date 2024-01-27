@@ -13,6 +13,7 @@
 #include "Sema/SemaUtil.h"
 #include "Sema/SimpleAnalzyer.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/ThinExpr.h"
 
 using namespace scatha;
 using namespace sema;
@@ -188,16 +189,48 @@ TEST_CASE("Common type", "[sema][conv]") {
 
 TEST_CASE("Object construction", "[sema][conv]") {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct Triv {}
 struct NontrivDefault { fn new(&mut this) {} }
 struct NoDefault { fn new(&mut this, rhs: &NoDefault) {} }
+struct Aggregate { var n: int; var nodef: NoDefault; }
 )");
     using enum ConversionKind;
+    using enum ObjectTypeConversion;
+
+    auto* Triv = lookup<StructType>(sym, "Triv");
+    auto* NontrivDefault = lookup<StructType>(sym, "NontrivDefault");
+    auto* NoDefault = lookup<StructType>(sym, "NoDefault");
+    auto* Aggregate = lookup<StructType>(sym, "Aggregate");
+
+    /// Trivial type
+    CHECK(computeObjectConstruction(Implicit, Triv, {}).value() ==
+          TrivDefConstruct);
     CHECK(computeObjectConstruction(Implicit,
-                                    lookup<StructType>(sym, "NontrivDefault"),
-                                    {})
-              .value() == ObjectTypeConversion::NontrivConstruct);
+                                    Triv,
+                                    std::array{ ThinExpr(Triv, LValue) })
+              .value() == TrivCopyConstruct);
     CHECK(computeObjectConstruction(Implicit,
-                                    lookup<StructType>(sym, "NoDefault"),
-                                    {})
-              .isError());
+                                    Triv,
+                                    std::array{ ThinExpr(Triv, RValue) })
+              .isNoop());
+
+    /// Trivial type with user defined default constructor
+    CHECK(computeObjectConstruction(Implicit, NontrivDefault, {}).value() ==
+          NontrivConstruct);
+
+    /// Type without default constructor
+    CHECK(computeObjectConstruction(Implicit, NoDefault, {}).isError());
+
+    /// Nontrivial aggregate type
+    CHECK(computeObjectConstruction(Explicit,
+                                    Aggregate,
+                                    std::array{ ThinExpr(sym.Int(), LValue),
+                                                ThinExpr(NoDefault, LValue) })
+              .value() == NontrivAggrConstruct);
+
+    /// Dynamic array of nontrivial type
+    CHECK(computeObjectConstruction(Explicit,
+                                    sym.arrayType(Aggregate),
+                                    std::array{ ThinExpr(sym.Int(), LValue) })
+              .value() == DynArrayConstruct);
 }
