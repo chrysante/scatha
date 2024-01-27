@@ -792,23 +792,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
                          commonValueCat,
                          *elseCleanups,
                          ctx);
-#if 0
-    success &= !!construct(Implicit,
-                         c.thenExpr(),
-                         fromQualType(commonType, commonValueCat, sym),
-                           *thenCleanups,
-                         ctx);
-    success &= !!construct(Implicit,
-                         c.elseExpr(),
-                         fromQualType(commonType, commonValueCat, sym),
-                           *elseCleanups,
-                         ctx);
-#endif
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
     auto* obj = sym.temporary(commonType);
-#if 0 // Not yet user about this
+#if 0 // Not yet sure about this
     if (commonValueCat == RValue) {
         popCleanup(c.thenExpr(), *thenCleanups);
         popCleanup(c.elseExpr(), *elseCleanups);

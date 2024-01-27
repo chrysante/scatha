@@ -117,7 +117,7 @@ static constexpr utl::streammanip formatLifetimeOp = [](std::ostream& str,
     using enum LifetimeOperation::Kind;
     switch (op.kind()) {
     case Trivial:
-        str << tfmt::format(Blue, "Trivial");
+        str << tfmt::format(BrightBlue, "Trivial");
         break;
     case Nontrivial:
         str << tfmt::format(Green, "Nontrivial: ") << format(op.function())
