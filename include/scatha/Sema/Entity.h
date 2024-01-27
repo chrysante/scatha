@@ -244,7 +244,7 @@ protected:
                     Scope* parentScope,
                     Type const* type,
                     Mutability mutability,
-                    ast::ASTNode* astNode = nullptr);
+                    ast::ASTNode* astNode);
 
     void setMutability(Mutability mut) { _mut = mut; }
 
@@ -312,7 +312,8 @@ public:
                       Type const* type,
                       Mutability mut,
                       ValueCategory valueCat,
-                      AccessControl accessControl);
+                      AccessControl accessControl,
+                      ast::ASTNode* astNode);
 
     /// The kind of property
     SC_NODEBUG PropertyKind kind() const { return _kind; }
@@ -330,7 +331,10 @@ private:
 /// Represents a temporary object
 class SCATHA_API Temporary: public Object {
 public:
-    explicit Temporary(size_t id, Scope* parentScope, QualType type);
+    explicit Temporary(size_t id,
+                       Scope* parentScope,
+                       QualType type,
+                       ast::ASTNode* node);
 
     Temporary(Temporary const&) = delete;
 

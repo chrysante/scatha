@@ -53,7 +53,7 @@ TEST_CASE("Overload resolution", "[sema]") {
                                            ast::UnaryOperatorNotation::Prefix,
                                            nullptr,
                                            SourceRange{});
-        result->decorateValue(sym.temporary(type), valueCat);
+        result->decorateValue(sym.temporary(nullptr, type), valueCat);
         return result;
     };
     // clang-format off

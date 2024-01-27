@@ -107,23 +107,29 @@ Property::Property(PropertyKind kind,
                    Type const* type,
                    Mutability mut,
                    ValueCategory valueCat,
-                   AccessControl accessControl):
+                   AccessControl accessControl,
+                   ast::ASTNode* astNode):
     VarBase(EntityType::Property,
             std::string(toString(kind)),
             parentScope,
             type,
-            mut),
+            mut,
+            astNode),
     _kind(kind),
     _valueCat(valueCat) {
     setAccessControl(accessControl);
 }
 
-Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
+Temporary::Temporary(size_t id,
+                     Scope* parentScope,
+                     QualType type,
+                     ast::ASTNode* node):
     Object(EntityType::Temporary,
            std::string{},
            parentScope,
            type.get(),
-           type.mutability()),
+           type.mutability(),
+           node),
     _id(id) {}
 
 Scope::Scope(EntityType entityType,

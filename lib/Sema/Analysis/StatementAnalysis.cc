@@ -464,7 +464,8 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
                                type,
                                mut,
                                LValue,
-                               AccessControl::Private);
+                               AccessControl::Private,
+                               &thisParam);
     }();
     if (param) {
         thisParam.decorateVarDecl(param);

@@ -35,7 +35,7 @@ TEST_CASE("Implicit conversion rank", "[sema][conv]") {
     INFO("From: " << fromCat);
     INFO("To:   " << toCat);
     SECTION("1") {
-        expr.decorateValue(sym.temporary(sym.U16()), fromCat);
+        expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit,
                                       &expr,
                                       sym.U16(),
@@ -43,7 +43,7 @@ TEST_CASE("Implicit conversion rank", "[sema][conv]") {
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("2") {
-        expr.decorateValue(sym.temporary(sym.S64()), fromCat);
+        expr.decorateValue(sym.temporary(nullptr, sym.S64()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit,
                                       &expr,
                                       sym.S64(),
@@ -51,7 +51,7 @@ TEST_CASE("Implicit conversion rank", "[sema][conv]") {
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("3") {
-        expr.decorateValue(sym.temporary(sym.U16()), fromCat);
+        expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit,
                                       &expr,
                                       sym.S32(),
@@ -59,7 +59,7 @@ TEST_CASE("Implicit conversion rank", "[sema][conv]") {
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("4") {
-        expr.decorateValue(sym.temporary(sym.U16()), fromCat);
+        expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit,
                                       &expr,
                                       sym.U32(),
@@ -67,7 +67,7 @@ TEST_CASE("Implicit conversion rank", "[sema][conv]") {
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("5") {
-        expr.decorateValue(sym.temporary(sym.S16()), fromCat);
+        expr.decorateValue(sym.temporary(nullptr, sym.S16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit,
                                       &expr,
                                       sym.U32(),
@@ -90,7 +90,7 @@ TEST_CASE("Arithemetic conversions", "[sema][conv]") {
              SourceRange{});
     auto* expr = base.operand();
     auto setType = [&](QualType type) {
-        expr->decorateValue(sym.temporary(type), LValue);
+        expr->decorateValue(sym.temporary(nullptr, type), LValue);
     };
     auto set = [&](QualType type, auto value) {
         setType(type);

@@ -151,15 +151,18 @@ public:
                              Mutability mutability,
                              AccessControl accessControl);
 
-    ///
+    /// ...
+    /// \param astNode is defaulted to null because in most cases properties
+    /// don't have source locations
     Property* addProperty(PropertyKind kind,
                           Type const* type,
                           Mutability mut,
                           ValueCategory valueCat,
-                          AccessControl accessControl);
+                          AccessControl accessControl,
+                          ast::ASTNode* astNode = nullptr);
 
     /// Creates a new unique temporary object of type \p type
-    Temporary* temporary(QualType type);
+    Temporary* temporary(ast::ASTNode* astNode, QualType type);
 
     /// Declares an anonymous scope within the current scope.
     Scope* addAnonymousScope();

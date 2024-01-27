@@ -651,22 +651,26 @@ Property* SymbolTable::addProperty(PropertyKind kind,
                                    Type const* type,
                                    Mutability mut,
                                    ValueCategory valueCat,
-                                   AccessControl accessControl) {
+                                   AccessControl accessControl,
+                                   ast::ASTNode* astNode) {
     auto* prop = impl->addEntity<Property>(kind,
                                            &currentScope(),
                                            type,
                                            mut,
                                            valueCat,
-                                           accessControl);
+                                           accessControl,
+                                           astNode);
     validateAccessControl(*prop);
     addToCurrentScope(prop);
     addGlobalAliasIfInternalAtFilescope(prop);
     return prop;
 }
 
-Temporary* SymbolTable::temporary(QualType type) {
-    auto* temp =
-        impl->addEntity<Temporary>(impl->temporaryID++, &currentScope(), type);
+Temporary* SymbolTable::temporary(ast::ASTNode* astNode, QualType type) {
+    auto* temp = impl->addEntity<Temporary>(impl->temporaryID++,
+                                            &currentScope(),
+                                            type,
+                                            astNode);
     return temp;
 }
 
