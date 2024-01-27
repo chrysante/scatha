@@ -5,11 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <type_traits>
-
-#ifdef _MSC_VER
 #include <exception>
-#endif
+#include <type_traits>
 
 #ifndef SC_DEBUG
 #ifdef NDEBUG
@@ -93,7 +90,7 @@
 #if SC_DEBUG
 #define SC_UNREACHABLE(...)                                                    \
     (::scatha::internal::unreachable(__FILE__, __LINE__, SC_PRETTY_FUNC),      \
-     SC_DEBUGFAIL_IMPL())
+     ::scatha::internal::handleAssertFailure())
 
 #else // SC_DEBUG
 #define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
@@ -102,7 +99,7 @@
 /// # SC_UNIMPLEMENTED
 #define SC_UNIMPLEMENTED()                                                     \
     (::scatha::internal::unimplemented(__FILE__, __LINE__, SC_PRETTY_FUNC),    \
-     SC_DEBUGFAIL_IMPL())
+     ::scatha::internal::handleAssertFailure())
 
 /// # SC_DEBUGBREAK
 #define SC_DEBUGBREAK() SC_DEBUGBREAK_IMPL()
@@ -116,7 +113,7 @@
                                                     SC_PRETTY_FUNC,            \
                                                     #COND,                     \
                                                     MSG),                      \
-               SC_DEBUGFAIL_IMPL()))
+               ::scatha::internal::handleAssertFailure()))
 #else // SC_DEBUG
 #define SC_ASSERT(COND, MSG) (void)sizeof((bool)(COND))
 #endif // SC_DEBUG
@@ -221,6 +218,39 @@ void SCATHA_API assertionFailure(char const* file,
 
 /// Calls `std::abort()`
 void SCATHA_API relfail();
+
+/// Calls `std::abort()`
+void SCATHA_API doAbort();
+
+/// Exception class to be thrown if the installed assertion handler is `Throw`
+struct SCATHA_API AssertionFailure: std::exception {
+    char const* what() const noexcept override { return "Failed assertion"; }
+};
+
+/// Different ways to handle assertion failures
+enum class AssertFailureHandler { Break, Abort, Throw };
+
+/// Retrieve the way to handle assertion failures set by the environment
+SCATHA_API AssertFailureHandler getAssertFailureHandler();
+
+[[noreturn]]
+#if defined(__GNUC__)
+__attribute__((always_inline, nodebug))
+#elif defined(_MSC_VER)
+__forceinline
+#endif
+inline void
+    handleAssertFailure() {
+    using enum AssertFailureHandler;
+    switch (getAssertFailureHandler()) {
+    case Break:
+        SC_DEBUGBREAK();
+    case Abort:
+        doAbort();
+    case Throw:
+        throw AssertionFailure();
+    }
+}
 
 } // namespace scatha::internal
 

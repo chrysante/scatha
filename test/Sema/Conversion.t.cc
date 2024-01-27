@@ -188,11 +188,16 @@ TEST_CASE("Common type", "[sema][conv]") {
 
 TEST_CASE("Object construction", "[sema][conv]") {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
-struct X { fn new(&mut this) {} }
+struct NontrivDefault { fn new(&mut this) {} }
+struct NoDefault { fn new(&mut this, rhs: &NoDefault) {} }
 )");
     using enum ConversionKind;
-    auto constr =
-        computeObjectConstruction(Implicit, lookup<StructType>(sym, "X"), {});
-    REQUIRE(constr.hasValue());
-    CHECK(constr.value() == ObjectTypeConversion::NontrivConstruct);
+    CHECK(computeObjectConstruction(Implicit,
+                                    lookup<StructType>(sym, "NontrivDefault"),
+                                    {})
+              .value() == ObjectTypeConversion::NontrivConstruct);
+    CHECK(computeObjectConstruction(Implicit,
+                                    lookup<StructType>(sym, "NoDefault"),
+                                    {})
+              .isError());
 }

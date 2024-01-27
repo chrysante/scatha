@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string_view>
 
 #include <termfmt/termfmt.h>
 #include <utl/streammanip.hpp>
@@ -42,3 +43,25 @@ void internal::assertionFailure(char const* file,
 }
 
 void internal::relfail() { std::abort(); }
+
+void internal::doAbort() { std::abort(); }
+
+static std::string_view getHandlerName() {
+    auto* name = std::getenv("SC_ASSERTION_HANDLER");
+    return name ? std::string_view(name) : std::string_view();
+}
+
+internal::AssertFailureHandler internal::getAssertFailureHandler() {
+    auto handler = getHandlerName();
+    using enum internal::AssertFailureHandler;
+    if (handler == "BREAK") {
+        return Break;
+    }
+    if (handler == "ABORT") {
+        return Abort;
+    }
+    if (handler == "THROW") {
+        return Throw;
+    }
+    return Abort;
+}
