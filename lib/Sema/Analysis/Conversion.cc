@@ -702,10 +702,20 @@ static Mutability commonMutability(Mutability a, Mutability b) {
     return a == Mutability::Mutable ? b : a;
 }
 
+static Mutability commonMutability(QualType a, QualType b) {
+    return commonMutability(a.mutability(), b.mutability());
+}
+
 static RawPtrType const* commonPointer(SymbolTable& sym,
                                        QualType aBase,
                                        QualType bBase) {
-    SC_EXPECT(aBase != bBase);
+    if (aBase == bBase) {
+        return sym.pointer(aBase);
+    }
+    if (aBase.get() == bBase.get()) {
+        return sym.pointer(
+            QualType(aBase.get(), commonMutability(aBase, bBase)));
+    }
     // clang-format off
     return SC_MATCH (*aBase, *bBase) {
         [&](ArrayType const& a, ArrayType const& b) -> RawPtrType const* {
@@ -758,9 +768,6 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             return &type;
         },
         [&](RawPtrType const& a, RawPtrType const& b) -> RawPtrType const* {
-            if (a.base() == b.base()) {
-                return &a;
-            }
             return commonPointer(sym, a.base(), b.base());
         },
         [&](ObjectType const&, ObjectType const&) -> ObjectType const* {

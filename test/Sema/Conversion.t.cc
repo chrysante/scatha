@@ -172,19 +172,19 @@ TEST_CASE("Arithemetic conversions", "[sema][conv]") {
 
 TEST_CASE("Common type", "[sema][conv]") {
     SymbolTable sym;
-    auto S64 = sym.S64();
-    auto Byte = sym.Byte();
-    auto U64 = sym.U64();
-    auto U32 = sym.U32();
+    auto* S64 = sym.S64();
+    auto* Byte = sym.Byte();
+    auto* U64 = sym.U64();
+    auto* U32 = sym.U32();
 
-    SECTION("s64, s64 -> s64") {
-        CHECK(commonType(sym, S64, S64) == QualType::Mut(S64));
-    }
-    SECTION("s64, byte -> None") { CHECK(!commonType(sym, S64, Byte)); }
-    SECTION("s64, u64 -> None") { CHECK(!commonType(sym, S64, U64)); }
-    SECTION("s64, u32 -> s64") {
-        CHECK(commonType(sym, S64, U32) == QualType::Mut(S64));
-    }
+    CHECK(commonType(sym, S64, S64) == QualType::Mut(S64));
+    CHECK(!commonType(sym, S64, Byte));
+    CHECK(!commonType(sym, S64, U64));
+    CHECK(commonType(sym, S64, U32) == QualType::Mut(S64));
+    CHECK(commonType(sym,
+                     sym.pointer(QualType::Mut(S64)),
+                     sym.pointer(QualType::Const(S64)))
+              .get() == sym.pointer(QualType::Const(S64)));
 }
 
 TEST_CASE("Object construction", "[sema][conv]") {

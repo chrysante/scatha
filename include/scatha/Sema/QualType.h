@@ -26,12 +26,18 @@ public:
     }
 
     /// Construct an empty `QualType`
-    QualType(std::nullptr_t = nullptr): _type(nullptr), _mut{} {}
+    QualType(): _type(nullptr), _mut{} {}
+
+    /// Construct an empty `QualType`
+    QualType(std::nullptr_t): QualType() {}
+
+    /// Construct a `QualType` with base type \p type
+    /// Mutability defaults to mutable
+    QualType(ObjectType const* type): QualType(type, Mutability::Mutable) {}
 
     /// Construct a `QualType` with base type \p type and mutability qualifier
     /// \p mut
-    QualType(ObjectType const* type, Mutability mut = Mutability::Mutable):
-        _type(type), _mut(mut) {}
+    QualType(ObjectType const* type, Mutability mut): _type(type), _mut(mut) {}
 
     /// \Returns the unqualified type
     ObjectType const* get() const { return _type; }
