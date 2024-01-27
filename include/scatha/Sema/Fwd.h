@@ -157,7 +157,14 @@ enum class SMFKind : uint8_t {
 #include <scatha/Sema/Lists.def>
 };
 
-/// \Returns the spelling of the special member function kind \p kind
+/// \Returns the name of \p kind
+std::string toString(SMFKind kind);
+
+///
+std::ostream& operator<<(std::ostream& ostream, SMFKind kind);
+
+/// \Returns the spelling (i.e. "new", "move" or "delete") of the special member
+/// function kind \p kind
 SCATHA_API std::string toSpelling(SMFKind kind);
 
 ///

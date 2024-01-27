@@ -1,6 +1,7 @@
 #include "Sema/Fwd.h"
 
 #include <ostream>
+#include <string>
 
 #include <utl/hashtable.hpp>
 
@@ -132,6 +133,17 @@ std::string_view sema::toString(FunctionKind k) {
 
 std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
     return str << toString(k);
+}
+
+std::string sema::toString(SMFKind kind) {
+    return std::string(std::array{
+#define SC_SEMA_SMF_DEF(Name, Spelling) std::string_view(#Name),
+#include "Sema/Lists.def"
+    }[(size_t)kind]);
+}
+
+std::ostream& sema::operator<<(std::ostream& ostream, SMFKind kind) {
+    return ostream << toString(kind);
 }
 
 std::string sema::toSpelling(SMFKind kind) {
