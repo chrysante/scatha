@@ -280,7 +280,9 @@ struct PrintCtx {
         }
         formatter.pop();
         formatter.push(Level::LastChild);
-        print(*node.body());
+        if (node.body()) {
+            print(*node.body());
+        }
         formatter.pop();
     }
 

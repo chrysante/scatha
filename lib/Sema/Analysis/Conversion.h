@@ -41,7 +41,10 @@ public:
     ConvExp(Conv conv): val(conv) {}
 
     /// \Returns `true` if this object holds a conversion
-    bool isConv() const { return std::holds_alternative<Conv>(val); }
+    bool hasValue() const { return std::holds_alternative<Conv>(val); }
+
+    /// \Returns `hasValue()`
+    explicit operator bool() const { return hasValue(); }
 
     /// \Returns `true` if this object holds a noop-conversion
     bool isNoop() const {
@@ -66,9 +69,9 @@ public:
     }
 
     /// \Returns the value of the conversion kind.
-    /// \Pre requires `isConv()` to be `true`
+    /// \Pre requires `hasValue()` to be `true`
     Conv value() const {
-        SC_EXPECT(isConv());
+        SC_EXPECT(hasValue());
         return std::get<Conv>(val);
     }
 

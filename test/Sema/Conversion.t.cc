@@ -10,14 +10,17 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/CleanupStack.h"
 #include "Sema/Entity.h"
+#include "Sema/SemaUtil.h"
+#include "Sema/SimpleAnalzyer.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace sema;
+using namespace test;
 using enum ValueCategory;
 using enum ConversionKind;
 
-TEST_CASE("Implicit conversion rank", "[sema]") {
+TEST_CASE("Implicit conversion rank", "[sema][conv]") {
     sema::SymbolTable sym;
     ast::UnaryExpression expr(ast::UnaryOperator::Promotion,
                               ast::UnaryOperatorNotation::Prefix,
@@ -72,7 +75,7 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
     }
 }
 
-TEST_CASE("Arithemetic conversions", "[sema]") {
+TEST_CASE("Arithemetic conversions", "[sema][conv]") {
     sema::SymbolTable sym;
     IssueHandler iss;
     sema::AnalysisContext ctx(sym, iss);
@@ -166,7 +169,7 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
     CHECK(dtors.empty());
 }
 
-TEST_CASE("Common type", "[sema]") {
+TEST_CASE("Common type", "[sema][conv]") {
     SymbolTable sym;
     auto S64 = sym.S64();
     auto Byte = sym.Byte();
@@ -181,4 +184,15 @@ TEST_CASE("Common type", "[sema]") {
     SECTION("s64, u32 -> s64") {
         CHECK(commonType(sym, S64, U32) == QualType::Mut(S64));
     }
+}
+
+TEST_CASE("Object construction", "[sema][conv]") {
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct X { fn new(&mut this) {} }
+)");
+    using enum ConversionKind;
+    auto constr =
+        computeObjectConstruction(Implicit, lookup<StructType>(sym, "X"), {});
+    REQUIRE(constr.hasValue());
+    CHECK(constr.value() == ObjectTypeConversion::NontrivConstruct);
 }

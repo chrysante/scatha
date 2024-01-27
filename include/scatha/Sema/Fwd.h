@@ -158,7 +158,7 @@ enum class SMFKind : uint8_t {
 };
 
 /// \Returns the spelling of the special member function kind \p kind
-std::string toSpelling(SMFKind kind);
+SCATHA_API std::string toSpelling(SMFKind kind);
 
 ///
 enum class FunctionAttribute : unsigned {
@@ -194,9 +194,10 @@ enum class ValueCatConversion : uint8_t {
 #include <scatha/Sema/Conversion.def>
 };
 
-std::string_view toString(ValueCatConversion conv);
+SCATHA_API std::string_view toString(ValueCatConversion conv);
 
-std::ostream& operator<<(std::ostream& ostream, ValueCatConversion conv);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    ValueCatConversion conv);
 
 /// Conversion between mutability qualifications
 enum class MutConversion : uint8_t {
@@ -204,9 +205,9 @@ enum class MutConversion : uint8_t {
 #include <scatha/Sema/Conversion.def>
 };
 
-std::string_view toString(MutConversion conv);
+SCATHA_API std::string_view toString(MutConversion conv);
 
-std::ostream& operator<<(std::ostream& ostream, MutConversion conv);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream, MutConversion conv);
 
 /// Conversion between different object types
 enum class ObjectTypeConversion : uint8_t {
@@ -214,9 +215,10 @@ enum class ObjectTypeConversion : uint8_t {
 #include <scatha/Sema/Conversion.def>
 };
 
-std::string_view toString(ObjectTypeConversion conv);
+SCATHA_API std::string_view toString(ObjectTypeConversion conv);
 
-std::ostream& operator<<(std::ostream& ostream, ObjectTypeConversion conv);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    ObjectTypeConversion conv);
 
 /// \Returns `true` if \p conv is one of the cases corresponding to AST
 /// construct expr nodes
