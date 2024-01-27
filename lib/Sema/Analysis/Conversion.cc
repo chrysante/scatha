@@ -14,75 +14,11 @@
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/ThinExpr.h"
 
 using namespace scatha;
 using namespace sema;
 using enum ValueCategory;
-
-namespace scatha::internal {
-namespace {
-enum class NoopT : char;
-enum class ConvErrorT : char;
-} // namespace
-} // namespace scatha::internal
-
-namespace {
-
-/// Tag representing a conversion kind that does nothing
-static constexpr internal::NoopT Noop{};
-
-/// Tag  representing a conversion error
-static constexpr internal::ConvErrorT ConvError{};
-
-/// Badly named functor that adds two states to the `Conv` type: one one noop
-/// state and one error state
-template <typename Conv>
-class ConvExp {
-public:
-    /// Construct from a conversion
-    ConvExp(Conv conv): val(conv) {}
-
-    /// Construct a noop
-    ConvExp(internal::NoopT): val(internal::NoopT{}) {}
-
-    /// Construct a conversion error
-    ConvExp(internal::ConvErrorT): val(internal::ConvErrorT{}) {}
-
-    /// \Returns `true` if this object holds a conversion
-    bool isConv() const { return std::holds_alternative<Conv>(val); }
-
-    /// \Returns `true` if this object holds a noop-conversion
-    bool isNoop() const { return std::holds_alternative<internal::NoopT>(val); }
-
-    /// \Returns `true` if this object holds a conversion error
-    bool isError() const {
-        return std::holds_alternative<internal::ConvErrorT>(val);
-    }
-
-    ///
-    template <std::invocable<Conv> F>
-    ConvExp<std::invoke_result_t<F, Conv>> transform(F&& f) const {
-        using R = ConvExp<std::invoke_result_t<F, Conv>>;
-        // clang-format off
-        return std::visit(utl::overload{
-            [&](Conv const& conv) -> R { return std::invoke(f, conv); },
-            [&](internal::NoopT) -> R { return Noop; },
-            [&](internal::ConvErrorT) -> R { return ConvError; },
-        }, val); // clang-format on
-    }
-
-    /// \Returns the value of the conversion kind.
-    /// \Pre requires `isConv()` to be `true`
-    Conv value() const {
-        SC_EXPECT(isConv());
-        return std::get<Conv>(val);
-    }
-
-private:
-    std::variant<Conv, internal::NoopT, internal::ConvErrorT> val;
-};
-
-} // namespace
 
 /// Converts the non-erroneous `ConvExp<Conv>` \p c to a `std::optional<Conv>`
 /// \Returns `std::nullopt` if \p c is a noop or the conversion if \p c holds a
@@ -100,7 +36,9 @@ static std::optional<Conv> toOpt(ConvExp<Conv> c) {
 /// \Pre expects \p from and \p to to not be the same
 static ConvExp<ObjectTypeConversion> implicitIntConversion(IntType const& from,
                                                            IntType const& to) {
-    SC_EXPECT(&from != &to);
+    if (&from == &to) {
+        return ConvNoop;
+    }
     using enum ObjectTypeConversion;
     if (from.isSigned()) {
         if (to.isSigned()) {
@@ -130,7 +68,9 @@ static ConvExp<ObjectTypeConversion> implicitIntConversion(IntType const& from,
 /// \Pre expects \p from and \p to to not be the same
 static ConvExp<ObjectTypeConversion> explicitIntConversion(IntType const& from,
                                                            IntType const& to) {
-    SC_EXPECT(&from != &to);
+    if (&from == &to) {
+        return ConvNoop;
+    }
     using enum ObjectTypeConversion;
     if (from.isSigned()) {
         if (to.isSigned()) {
@@ -163,6 +103,9 @@ static ConvExp<ObjectTypeConversion> explicitIntConversion(IntType const& from,
 static ConvExp<ObjectTypeConversion> implAndExplArrayToArrayConv(
     ArrayType const& from, ArrayType const& to) {
     using enum ObjectTypeConversion;
+    if (&from == &to) {
+        return ConvNoop;
+    }
     if (from.elementType() == to.elementType() && !from.isDynamic() &&
         to.isDynamic())
     {
@@ -171,9 +114,10 @@ static ConvExp<ObjectTypeConversion> implAndExplArrayToArrayConv(
     return ConvError;
 };
 
+/// Forward declaration here because `PointerConv` uses this recursively
 static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
-                                                      ObjectType const* from,
-                                                      ObjectType const* to);
+                                                      ThinExpr from,
+                                                      ThinExpr to);
 
 /// Maps reference conversions to pointer conversions
 static ObjectTypeConversion convRefToPtr(ObjectTypeConversion conv) {
@@ -200,12 +144,15 @@ template <ConversionKind Kind, typename R = ConvExp<ObjectTypeConversion>>
 static constexpr auto PointerConv =
     [](PointerType const& from, PointerType const& to) -> R {
     using enum ObjectTypeConversion;
+    if (&from == &to) {
+        return ConvNoop;
+    }
     if (from.base().isConst() && to.base().isMut()) {
         return ConvError;
     }
     if (from.base().get() == to.base().get()) {
         return SC_MATCH_R(R, from, to){
-            [](PointerType const&, PointerType const&) { return Noop; },
+            [](PointerType const&, PointerType const&) { return ConvNoop; },
             [](UniquePtrType const&, RawPtrType const&) {
             return UniqueToRawPtr;
         },
@@ -213,7 +160,9 @@ static constexpr auto PointerConv =
         };
     }
     if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
-        auto conv = determineObjConv(Kind, from.base().get(), to.base().get());
+        auto conv = determineObjConv(Kind,
+                                     { from.base(), LValue },
+                                     { to.base(), LValue });
         return conv.transform(convRefToPtr);
     }
     return ConvError;
@@ -232,18 +181,28 @@ static constexpr utl::overload FromNullPointerConv{
     }
 }; // clang-format on
 
-static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
-                                                      ObjectType const* from,
-                                                      ObjectType const* to) {
-    using enum ObjectTypeConversion;
-    if (from == to) {
-        return Noop;
+template <ConversionKind Kind, typename R = ConvExp<ObjectTypeConversion>>
+static constexpr auto UserDefinedConv = [](ThinExpr from, ThinExpr to) -> R {
+    if (to.isLValue()) {
+        if (from.type().get() == to.type().get()) {
+            return ConvNoop;
+        }
+        else {
+            return ConvError;
+        }
     }
+    return computeObjectConstruction(Kind, to.type().get(), std::array{ from });
+};
+
+static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
+                                                      ThinExpr from,
+                                                      ThinExpr to) {
+    using enum ObjectTypeConversion;
     using RetType = ConvExp<ObjectTypeConversion>;
     switch (kind) {
     case ConversionKind::Implicit:
         // clang-format off
-        return SC_MATCH_R (RetType, *from, *to) {
+        return SC_MATCH_R (RetType, *from.type(), *to.type()) {
             [&](IntType const&, ByteType const&) {
                 return ConvError;
             },
@@ -254,6 +213,9 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return implicitIntConversion(from, to);
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
+                if (&from == &to) {
+                    return ConvNoop;
+                }
                 if (from.bitwidth() <= to.bitwidth()) {
                     return Float_Widen;
                 }
@@ -277,12 +239,12 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return FromNullPointerConv<ConversionKind::Implicit>(from, to);
             },
             [&](ObjectType const&, ObjectType const&) {
-                return ConvError;
+                return UserDefinedConv<ConversionKind::Implicit>(from, to);
             }
         }; // clang-format on
     case ConversionKind::Explicit:
         // clang-format off
-        return SC_MATCH_R (RetType, *from, *to) {
+        return SC_MATCH_R (RetType, *from.type(), *to.type()) {
             [&](IntType const& from, ByteType const& to) {
                 if (from.isSigned()) {
                     return from.size() == to.size() ? SU_Widen : SU_Trunc;
@@ -299,7 +261,10 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
             [&](IntType const& from, IntType const& to) {
                 return explicitIntConversion(from, to);
             },
-            [&](FloatType const& from, FloatType const& to) {
+            [&](FloatType const& from, FloatType const& to) -> RetType {
+                if (&from == &to) {
+                    return ConvNoop;
+                }
                 if (from.bitwidth() <= to.bitwidth()) {
                     return Float_Widen;
                 }
@@ -323,17 +288,17 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return FromNullPointerConv<ConversionKind::Implicit>(from, to);
             },
             [&](ObjectType const&, ObjectType const&) {
-                return ConvError;
+                return UserDefinedConv<ConversionKind::Explicit>(from, to);
             }
         }; // clang-format on
     case ConversionKind::Reinterpret:
         // clang-format off
-        return SC_MATCH_R (RetType, *from, *to) {
+        return SC_MATCH_R (RetType, *from.type(), *to.type()) {
             [&](IntType const& from, ByteType const& to) -> RetType {
                 if (from.size() != to.size()) {
                     return Reinterpret_ValueRef;
                 }
-                return Noop;
+                return ConvNoop;
             },
             [&](ByteType const& from, IntType const& to) -> RetType {
                 if (from.size() != to.size()) {
@@ -342,16 +307,22 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return Reinterpret_ValueRef;
             },
             [&](IntType const& from, IntType const& to) -> RetType {
+                if (&from == &to) {
+                    return ConvNoop;
+                }
                 if (from.bitwidth() != to.bitwidth()) {
                     return ConvError;
                 }
                 return Reinterpret_ValueRef;
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
+                if (&from == &to) {
+                    return ConvNoop;
+                }
                 if (from.bitwidth() != to.bitwidth()) {
                     return ConvError;
                 }
-                return Noop;
+                return ConvNoop;
             },
             [&](IntType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
@@ -386,6 +357,9 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return Reinterpret_ValueRef_ToByteArray;
             },
             [&](ArrayType const& from, ArrayType const& to) -> RetType {
+                if (&from == &to) {
+                    return ConvNoop;
+                }
                 if (!to.isDynamic() && from.isDynamic()) {
                     return ConvError;
                 }
@@ -396,7 +370,7 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                                    *from.elementType(),
                                    *to.elementType()) {
                     [](ByteType const&, ByteType const&) {
-                        return Noop;
+                        return ConvNoop;
                     },
                     [](ByteType const&, ObjectType const&) {
                         return Reinterpret_ArrayRef_FromByte;
@@ -418,7 +392,10 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return FromNullPointerConv<ConversionKind::Implicit>(from, to);
             },
             [&]([[maybe_unused]] ObjectType const& from,
-                [[maybe_unused]] ObjectType const& to) {
+                [[maybe_unused]] ObjectType const& to) -> RetType {
+                if (&from == &to) {
+                    return ConvNoop;
+                }
                 return ConvError;
             }
         }; // clang-format on
@@ -436,7 +413,7 @@ static ConvExp<ValueCatConversion> determineValueCatConv(
     using enum Mutability;
 
     if (from == to) {
-        return Noop;
+        return ConvNoop;
     }
     if (from == LValue) {
         return LValueToRValue;
@@ -463,7 +440,7 @@ static ConvExp<MutConversion> determineMutConv(ConversionKind,
                                                Mutability to) {
     /// No mutability conversion happens
     if (from == to) {
-        return Noop;
+        return ConvNoop;
     }
     switch (from) {
     case Mutability::Mutable: // Mutable to Const:
@@ -547,7 +524,7 @@ static bool isLossless(std::optional<ObjectTypeConversion> conv,
                        ObjectType const* from,
                        ObjectType const* to) {
     /// TODO: Introduce `SignedToUnsigned` and vv. conversion
-    /// Unfortunately `Noop` also represents signed -> unsigned and vv.
+    /// Unfortunately `ConvNoop` also represents signed -> unsigned and vv.
     /// conversion (because they are noops in hardware)
     if (!conv) {
         auto* iFrom = dyncast<IntType const*>(from);
@@ -626,11 +603,14 @@ static bool isLossless(std::optional<ObjectTypeConversion> conv,
     }
 }
 
-static ConvExp<ObjectTypeConversion> tryImplicitConstConv(
-    Value const* value, ObjectType const* from, ObjectType const* to) {
+static ConvExp<ObjectTypeConversion> tryImplicitConstConv(Value const* value,
+                                                          ThinExpr from,
+                                                          ThinExpr to) {
     /// We try an explicit conversion
     auto result = determineObjConv(ConversionKind::Explicit, from, to);
-    if (result.isError() || !isLossless(toOpt(result), value, from, to)) {
+    if (result.isError() ||
+        !isLossless(toOpt(result), value, from.type().get(), to.type().get()))
+    {
         return ConvError;
     }
     return result;
@@ -650,20 +630,20 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     }
     ConvExp<MutConversion> mutConv =
         toValueCat == RValue ?
-            Noop :
+            ConvNoop :
             determineMutConv(kind, expr->type().mutability(), to.mutability());
     if (mutConv.isError()) {
         return std::make_unique<BadMutConv>(nullptr, expr, to.mutability());
     }
-    auto objConv = determineObjConv(kind, expr->type().get(), to.get());
+    auto objConv = determineObjConv(kind, expr, { to, toValueCat });
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
     if (kind == ConversionKind::Implicit && objConv.isError() &&
         expr->constantValue())
     {
         objConv = tryImplicitConstConv(expr->constantValue(),
-                                       expr->type().get(),
-                                       to.get());
+                                       expr,
+                                       { to, toValueCat });
     }
     if (objConv.isError()) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
@@ -811,20 +791,149 @@ QualType sema::commonType(SymbolTable& sym,
     }) | ToSmallVector<>);
 }
 
+ConvExp<ObjectTypeConversion> sema::computeObjectConstruction(
+    ConversionKind kind,
+    ObjectType const* targetType,
+    std::span<ThinExpr const> arguments) {
+    SC_EXPECT(kind != ConversionKind::Reinterpret);
+    using enum ObjectTypeConversion;
+    auto& md = targetType->lifetimeMetadata();
+    /// Dynamic array types
+    if (isDynArray(*targetType)) {
+        return DynArrayConstruct;
+    }
+    /// Default construction
+    if (arguments.empty()) {
+        using enum LifetimeOperation::Kind;
+        switch (md.defaultConstructor().kind()) {
+        case Deleted:
+            return ConvError;
+        case Trivial:
+            return TrivDefConstruct;
+        case Nontrivial:
+            return NontrivConstruct;
+        case NontrivialInline:
+            return NontrivInlineConstruct;
+        }
+    }
+    /// Copy construction
+    if (arguments.size() == 1 && arguments.front().type().get() == targetType) {
+
+        if (arguments.front().isRValue()) {
+            return ConvNoop;
+        }
+
+        using enum LifetimeOperation::Kind;
+        switch (md.copyConstructor().kind()) {
+        case Deleted:
+            return ConvError;
+        case Trivial:
+            return TrivCopyConstruct;
+        case Nontrivial:
+            return NontrivConstruct;
+        case NontrivialInline:
+            return NontrivInlineConstruct;
+        }
+    }
+    /// The following conversions are explicit
+    if (kind != ConversionKind::Explicit) {
+        return ConvError;
+    }
+    /// Aggregate construction
+    if (isAggregate(targetType)) {
+        if (targetType->hasTrivialLifetime()) {
+            return TrivAggrConstruct;
+        }
+        else {
+            return NontrivAggrConstruct;
+        }
+    }
+    /// Nontrivial object type construction
+    if (isa<StructType>(targetType)) {
+        return NontrivConstruct;
+    }
+    else {
+        return NontrivInlineConstruct;
+    }
+}
+
+UniquePtr<ast::ConstructBase> sema::allocateObjectConstruction(
+    ObjectTypeConversion kind,
+    SourceRange sourceRng,
+    ObjectType const* targetType,
+    utl::small_vector<UniquePtr<ast::Expression>> arguments) {
+    using enum ObjectTypeConversion;
+    switch (kind) {
+    case TrivDefConstruct:
+        SC_EXPECT(arguments.empty());
+        return allocate<ast::TrivDefConstructExpr>(sourceRng, targetType);
+    case TrivCopyConstruct:
+        SC_EXPECT(arguments.size() == 1);
+        return allocate<ast::TrivCopyConstructExpr>(std::move(
+                                                        arguments.front()),
+                                                    sourceRng,
+                                                    targetType);
+    case TrivAggrConstruct:
+        return allocate<ast::TrivAggrConstructExpr>(std::move(arguments),
+                                                    sourceRng,
+                                                    targetType);
+    case NontrivAggrConstruct:
+        return allocate<ast::NontrivAggrConstructExpr>(std::move(arguments),
+                                                       sourceRng,
+                                                       cast<StructType const*>(
+                                                           targetType));
+    case NontrivConstruct:
+        return allocate<ast::NontrivConstructExpr>(std::move(arguments),
+                                                   sourceRng,
+                                                   cast<StructType const*>(
+                                                       targetType));
+    case NontrivInlineConstruct:
+        return allocate<ast::NontrivInlineConstructExpr>(std::move(arguments),
+                                                         sourceRng,
+                                                         targetType);
+    case DynArrayConstruct:
+        return allocate<ast::DynArrayConstructExpr>(std::move(arguments),
+                                                    sourceRng,
+                                                    cast<ArrayType const*>(
+                                                        targetType));
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 ast::Expression* sema::insertConversion(ast::Expression* expr,
                                         Conversion conv,
                                         CleanupStack& dtors,
                                         AnalysisContext& ctx) {
-    if (auto mutConv = conv.mutConversion()) {
+    auto mutConv = conv.mutConversion();
+    auto vcConv = conv.valueCatConversion();
+    auto objConv = conv.objectConversion();
+    if (mutConv) {
         expr = ast::insertNode<ast::MutConvExpr>(expr, *mutConv);
     }
-    if (auto vcConv = conv.valueCatConversion()) {
-        expr = ast::insertNode<ast::ValueCatConvExpr>(expr, *vcConv);
+    if (vcConv) {
+        if (*vcConv != ValueCatConversion::LValueToRValue || !objConv ||
+            !isConstruction(*objConv))
+        {
+            expr = ast::insertNode<ast::ValueCatConvExpr>(expr, *vcConv);
+        }
     }
-    if (auto objConv = conv.objectConversion()) {
-        expr = ast::insertNode<ast::ObjTypeConvExpr>(expr,
-                                                     *objConv,
-                                                     conv.targetType().get());
+    if (objConv) {
+        if (isConstruction(*objConv)) {
+            expr = ast::insertNode(expr, [&](UniquePtr<ast::Expression> expr) {
+                return allocateObjectConstruction(*objConv,
+                                                  expr->sourceRange(),
+                                                  conv.targetType().get(),
+                                                  toSmallVector(
+                                                      std::move(expr)));
+            });
+        }
+        else {
+            expr =
+                ast::insertNode<ast::ObjTypeConvExpr>(expr,
+                                                      *objConv,
+                                                      conv.targetType().get());
+        }
     }
     return analyzeValueExpr(expr, dtors, ctx);
 }

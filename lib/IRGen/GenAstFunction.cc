@@ -914,9 +914,21 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     });
     SC_ASSERT(thenResolved.size() == elseResolved.size(),
               "Must be same representation");
-
-    /// Generate end block.
     add(endBlock);
+    /// If both values are rvalues in local memory they can share the memory
+    if (auto* mem = dyncast<ir::Alloca*>(thenResolved.front());
+        loc == Memory && condExpr.isRValue() && mem)
+    {
+        SC_ASSERT(isa<ir::Alloca>(elseResolved.front()), "");
+        SC_ASSERT(elseResolved.size() == 1, "For now");
+        elseResolved.front()->replaceAllUsesWith(thenResolved.front());
+        return Value("cond",
+                     condExpr.type().get(),
+                     { thenResolved.front() },
+                     loc,
+                     repr);
+    }
+    /// Generate end block.
     auto phis = zip(thenResolved, elseResolved) |
                 transform([&](auto p) -> ir::Value* {
         auto& [thenVal, elseVal] = p;

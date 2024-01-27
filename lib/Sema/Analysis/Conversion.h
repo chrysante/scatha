@@ -7,12 +7,74 @@
 
 #include "AST/Fwd.h"
 #include "Common/Expected.h"
+#include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 #include "Sema/SemaIssues.h"
 
 namespace scatha::sema {
+
+namespace internal {
+enum class ConvNoopT : char;
+enum class ConvErrorT : char;
+} // namespace internal
+
+/// Tag representing a conversion kind that does nothing
+inline constexpr internal::ConvNoopT ConvNoop{};
+
+/// Tag  representing a conversion error
+inline constexpr internal::ConvErrorT ConvError{};
+
+/// Badly named functor that adds two states to the `Conv` type: one one noop
+/// state and one error state
+template <typename Conv>
+class ConvExp {
+public:
+    /// Construct a noop
+    ConvExp(internal::ConvNoopT): val(ConvNoop) {}
+
+    /// Construct a conversion error
+    ConvExp(internal::ConvErrorT): val(ConvError) {}
+
+    /// Construct from a conversion
+    ConvExp(Conv conv): val(conv) {}
+
+    /// \Returns `true` if this object holds a conversion
+    bool isConv() const { return std::holds_alternative<Conv>(val); }
+
+    /// \Returns `true` if this object holds a noop-conversion
+    bool isNoop() const {
+        return std::holds_alternative<internal::ConvNoopT>(val);
+    }
+
+    /// \Returns `true` if this object holds a conversion error
+    bool isError() const {
+        return std::holds_alternative<internal::ConvErrorT>(val);
+    }
+
+    ///
+    template <std::invocable<Conv> F>
+    ConvExp<std::invoke_result_t<F, Conv>> transform(F&& f) const {
+        using R = ConvExp<std::invoke_result_t<F, Conv>>;
+        // clang-format off
+        return std::visit(utl::overload{
+            [&](Conv const& conv) -> R { return std::invoke(f, conv); },
+            [&](internal::ConvNoopT) -> R { return ConvNoop; },
+            [&](internal::ConvErrorT) -> R { return ConvError; },
+        }, val); // clang-format on
+    }
+
+    /// \Returns the value of the conversion kind.
+    /// \Pre requires `isConv()` to be `true`
+    Conv value() const {
+        SC_EXPECT(isConv());
+        return std::get<Conv>(val);
+    }
+
+private:
+    std::variant<Conv, internal::ConvNoopT, internal::ConvErrorT> val;
+};
 
 /// Represents a conversion of a value from one type to another
 class Conversion {
@@ -58,9 +120,9 @@ private:
     QualType to;
     /// All conversion enums are one byte in size so due to padding we don't
     /// waste space by directly storing optionals
-    std::optional<ValueCatConversion> valueCatConv{};
-    std::optional<MutConversion> mutConv{};
-    std::optional<ObjectTypeConversion> objConv{};
+    std::optional<ValueCatConversion> valueCatConv;
+    std::optional<MutConversion> mutConv;
+    std::optional<ObjectTypeConversion> objConv;
 };
 
 /// Different kinds of conversion, used to select appropriate conversion
@@ -106,6 +168,24 @@ SCTEST_API QualType commonType(SymbolTable& symbolTable,
 SCTEST_API QualType
     commonType(SymbolTable& symbolTable,
                std::span<ast::Expression const* const> expressions);
+
+/// Computes which AST node must be inserted to model the construction of an
+/// object of \p targetType from arguments of types \p argTypes \Param kind Must
+/// be `Implicit` or `Explicit`. Implicit constructions are default construction
+/// and copy construction, all other constructions are only selected if this is
+/// `Explicit` \Returns the computed AST node type or nullopt if construction is
+/// not possible
+SCATHA_API ConvExp<ObjectTypeConversion> computeObjectConstruction(
+    ConversionKind kind,
+    ObjectType const* targetType,
+    std::span<ThinExpr const> arguments);
+
+/// Allocates an AST construct expr node of type \p nodeType
+SCATHA_API UniquePtr<ast::ConstructBase> allocateObjectConstruction(
+    ObjectTypeConversion conv,
+    SourceRange sourceRng,
+    ObjectType const* targetType,
+    utl::small_vector<UniquePtr<ast::Expression>> arguments);
 
 /// Inserts an AST conversion node into the position of \p expr and makes
 /// \p expr a child of the new node.

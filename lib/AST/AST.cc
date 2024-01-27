@@ -114,12 +114,11 @@ void NontrivConstructExpr::decorateConstruct(
 }
 
 NontrivAggrConstructExpr::NontrivAggrConstructExpr(
-    UniquePtr<Expression> typeExpr,
     utl::small_vector<UniquePtr<Expression>> arguments,
     SourceRange sourceRange,
     sema::StructType const* constructedType):
     ConstructBase(NodeType::NontrivAggrConstructExpr,
-                  std::move(typeExpr),
+                  nullptr,
                   std::move(arguments),
                   sourceRange,
                   constructedType) {}

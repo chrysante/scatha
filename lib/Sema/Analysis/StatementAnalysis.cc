@@ -491,7 +491,7 @@ static UniquePtr<ast::ConstructBase> allocateDefaultConstruction(
     SourceRange sourceRange, ObjectType const* type) {
     auto& md = type->lifetimeMetadata();
     if (md.defaultConstructor().isTrivial()) {
-        return allocate<ast::TrivDefConstructExpr>(nullptr, sourceRange, type);
+        return allocate<ast::TrivDefConstructExpr>(sourceRange, type);
     }
     auto defConstr = md.defaultConstructor();
     SC_ASSERT(!defConstr.isDeleted(), "Should be caught earlier");
@@ -649,7 +649,6 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
         returnType = rs.expression()->type().get();
         deduceReturnTypeTo(&rs, returnType);
     }
-#warning Here we need to conditionally insert construct exprs
     convert(Implicit,
             rs.expression(),
             getQualType(returnType),

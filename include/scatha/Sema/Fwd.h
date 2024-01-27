@@ -19,6 +19,8 @@ class SymbolTable;
 class CleanupStack;
 class NameMangler;
 class LifetimeMetadata;
+class QualType;
+class ThinExpr;
 
 size_t constexpr InvalidSize = ~size_t(0);
 
@@ -62,10 +64,6 @@ using VoidParent = void;
 #include <scatha/Sema/Lists.def>
 
 namespace scatha::sema {
-
-/// Forward declaration of `QualType` class
-/// See "Sema/QualType.h" for details.
-class QualType;
 
 enum class EntityCategory { Indeterminate, Value, Type, Namespace };
 
@@ -219,6 +217,10 @@ enum class ObjectTypeConversion : uint8_t {
 std::string_view toString(ObjectTypeConversion conv);
 
 std::ostream& operator<<(std::ostream& ostream, ObjectTypeConversion conv);
+
+/// \Returns `true` if \p conv is one of the cases corresponding to AST
+/// construct expr nodes
+SCATHA_API bool isConstruction(ObjectTypeConversion conv);
 
 } // namespace scatha::sema
 

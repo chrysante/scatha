@@ -185,3 +185,9 @@ std::ostream& sema::operator<<(std::ostream& ostream,
                                ObjectTypeConversion conv) {
     return ostream << toString(conv);
 }
+
+bool sema::isConstruction(ObjectTypeConversion conv) {
+    using enum ObjectTypeConversion;
+    return (int)conv >= (int)TrivDefConstruct &&
+           (int)conv <= (int)DynArrayConstruct;
+}

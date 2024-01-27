@@ -57,7 +57,15 @@
 ///    ├─ NonTrivAssignExpr
 ///    ├─ AddressOfExpression
 ///    ├─ DereferenceExpression
-///    └─ Conversion
+///    ├─ Conversion
+///    └─ ConstructBase
+///       ├─ TrivDefConstructExpr
+///       ├─ TrivCopyConstructExpr
+///       ├─ TrivAggrConstructExpr
+///       ├─ NontrivAggrConstructExpr
+///       ├─ NontrivConstructExpr
+///       ├─ NontrivInlineConstructExpr
+///       └─ DynArrayConstructExpr
 /// ```
 
 #define AST_DERIVED_COMMON(Type)                                               \
@@ -1637,11 +1645,10 @@ private:
 class SCATHA_API TrivDefConstructExpr: public ConstructBase {
 public:
     ///
-    explicit TrivDefConstructExpr(UniquePtr<Expression> typeExpr,
-                                  SourceRange sourceRange,
+    explicit TrivDefConstructExpr(SourceRange sourceRange,
                                   sema::ObjectType const* constructedType):
         ConstructBase(NodeType::TrivDefConstructExpr,
-                      std::move(typeExpr),
+                      nullptr,
                       {},
                       sourceRange,
                       constructedType) {}
@@ -1656,24 +1663,14 @@ public:
 class SCATHA_API TrivCopyConstructExpr: public ConstructBase {
 public:
     ///
-    explicit TrivCopyConstructExpr(UniquePtr<Expression> typeExpr,
-                                   UniquePtr<Expression> argument,
-                                   SourceRange sourceRange,
-                                   sema::ObjectType const* constructedType):
-        ConstructBase(NodeType::TrivCopyConstructExpr,
-                      std::move(typeExpr),
-                      toSmallVector(std::move(argument)),
-                      sourceRange,
-                      constructedType) {}
-
-    /// \Overload without target type expression
     explicit TrivCopyConstructExpr(UniquePtr<Expression> argument,
                                    SourceRange sourceRange,
                                    sema::ObjectType const* constructedType):
-        TrivCopyConstructExpr(nullptr,
-                              std::move(argument),
-                              sourceRange,
-                              constructedType) {}
+        ConstructBase(NodeType::TrivCopyConstructExpr,
+                      nullptr,
+                      toSmallVector(std::move(argument)),
+                      sourceRange,
+                      constructedType) {}
 
     /// The expression denoting the value being copied
     AST_PROPERTY(1, Expression, argument, Argument)
@@ -1689,15 +1686,32 @@ public:
 class SCATHA_API TrivAggrConstructExpr: public ConstructBase {
 public:
     explicit TrivAggrConstructExpr(
-        UniquePtr<Expression> typeExpr,
         utl::small_vector<UniquePtr<Expression>> arguments,
         SourceRange sourceRange,
         sema::ObjectType const* constructedType):
         ConstructBase(NodeType::TrivAggrConstructExpr,
-                      std::move(typeExpr),
+                      nullptr,
                       std::move(arguments),
                       sourceRange,
                       constructedType) {}
+
+    /// All trivial construct expressions inherit this from `ConstructBase`
+    using ConstructBase::decorateConstruct;
+};
+
+/// Concrete node that is only inserted by semantic analysis.
+/// Represents non-default non-trivial aggregate construction, i.e. an
+/// expression like `Foo(Bar(), 2.0, true)` where `Foo` has data members of
+/// non-trivial lifetime
+class SCATHA_API NontrivAggrConstructExpr: public ConstructBase {
+public:
+    explicit NontrivAggrConstructExpr(
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        SourceRange sourceRange,
+        sema::StructType const* constructedType);
+
+    /// \Returns the being constructed
+    sema::StructType const* constructedType() const;
 
     /// All trivial construct expressions inherit this from `ConstructBase`
     using ConstructBase::decorateConstruct;
@@ -1724,25 +1738,6 @@ public:
 
 private:
     sema::Function const* ctor = nullptr;
-};
-
-/// Concrete node that is only inserted by semantic analysis.
-/// Represents non-default non-trivial aggregate construction, i.e. an
-/// expression like `Foo(Bar(), 2.0, true)` where `Foo` has data members of
-/// non-trivial lifetime
-class SCATHA_API NontrivAggrConstructExpr: public ConstructBase {
-public:
-    explicit NontrivAggrConstructExpr(
-        UniquePtr<Expression> typeExpr,
-        utl::small_vector<UniquePtr<Expression>> arguments,
-        SourceRange sourceRange,
-        sema::StructType const* constructedType);
-
-    /// \Returns the being constructed
-    sema::StructType const* constructedType() const;
-
-    /// All trivial construct expressions inherit this from `ConstructBase`
-    using ConstructBase::decorateConstruct;
 };
 
 /// Represents nontrivial object construction of array and unique pointer types

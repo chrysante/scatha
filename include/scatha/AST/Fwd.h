@@ -17,7 +17,7 @@ namespace scatha::ast {
 #include <scatha/AST/Lists.def>
 
 /// List of all  AST node types.
-enum class NodeType {
+enum class NodeType : uint8_t {
 #define SC_ASTNODE_DEF(ASTNode, ...) ASTNode,
 #include <scatha/AST/Lists.def>
     LAST = ObjTypeConvExpr

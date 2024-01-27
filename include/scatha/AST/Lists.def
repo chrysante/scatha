@@ -45,13 +45,25 @@ SC_ASTNODE_DEF(CallLike,                   Expression,           Abstract)
 SC_ASTNODE_DEF(FunctionCall,               CallLike,             Concrete)
 SC_ASTNODE_DEF(ConstructExpr,              CallLike,             Concrete) // Deprecated
 SC_ASTNODE_DEF(ConstructBase,              CallLike,             Abstract)
-SC_ASTNODE_DEF(TrivDefConstructExpr,       ConstructBase,        Concrete)
-SC_ASTNODE_DEF(TrivCopyConstructExpr,      ConstructBase,        Concrete)
-SC_ASTNODE_DEF(TrivAggrConstructExpr,      ConstructBase,        Concrete)
-SC_ASTNODE_DEF(NontrivAggrConstructExpr,   ConstructBase,        Concrete)
-SC_ASTNODE_DEF(NontrivConstructExpr,       ConstructBase,        Concrete)
-SC_ASTNODE_DEF(NontrivInlineConstructExpr, ConstructBase,        Concrete)
-SC_ASTNODE_DEF(DynArrayConstructExpr,      ConstructBase,        Concrete)
+
+/// AST construction nodes
+/// These are defined with a seperate macro because these are also part of
+/// `sema::ObjectTypeConversion`
+
+#ifndef SC_ASTNODE_CONSTR_DEF
+#define SC_ASTNODE_CONSTR_DEF(Name, ...) SC_ASTNODE_DEF(Name##Expr, __VA_ARGS__)
+#endif
+
+SC_ASTNODE_CONSTR_DEF(TrivDefConstruct,       ConstructBase,        Concrete)
+SC_ASTNODE_CONSTR_DEF(TrivCopyConstruct,      ConstructBase,        Concrete)
+SC_ASTNODE_CONSTR_DEF(TrivAggrConstruct,      ConstructBase,        Concrete)
+SC_ASTNODE_CONSTR_DEF(NontrivAggrConstruct,   ConstructBase,        Concrete)
+SC_ASTNODE_CONSTR_DEF(NontrivConstruct,       ConstructBase,        Concrete)
+SC_ASTNODE_CONSTR_DEF(NontrivInlineConstruct, ConstructBase,        Concrete)
+SC_ASTNODE_CONSTR_DEF(DynArrayConstruct,      ConstructBase,        Concrete)
+
+#undef SC_ASTNODE_CONSTR_DEF
+
 SC_ASTNODE_DEF(Subscript,                  CallLike,             Concrete)
 SC_ASTNODE_DEF(SubscriptSlice,             CallLike,             Concrete)
 SC_ASTNODE_DEF(GenericExpression,          CallLike,             Concrete)

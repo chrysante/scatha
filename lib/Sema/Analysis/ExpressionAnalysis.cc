@@ -17,6 +17,7 @@
 #include "Sema/LifetimeMetadata.h"
 #include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/ThinExpr.h"
 
 using namespace scatha;
 using namespace sema;
@@ -68,9 +69,6 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::MutConvExpr&);
     ast::Expression* analyzeImpl(ast::ObjTypeConvExpr&);
     ast::Expression* analyzeImpl(ast::ConstructExpr&);
-    ast::Expression* analyzeDynArrayConstruction(ast::ConstructExpr&,
-                                                 ArrayType const* type);
-
     ast::Expression* analyzeImpl(ast::TrivDefConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivCopyConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivAggrConstructExpr&);
@@ -79,15 +77,6 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::DynArrayConstructExpr&);
 
     ast::Expression* analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
-
-    /// Allocates  construct expression or conversion that is appropriate to
-    /// construct an object of type \p targetType from the arguments \p
-    /// arguments
-    UniquePtr<ast::Expression> allocateObjectConstruction(
-        SourceRange sourceRng,
-        Type const* targetType,
-        std::span<ast::Expression* const> arguments,
-        ConversionKind convKind);
 
     /// If \p expr is a pointer, inserts a `DereferenceExpression` as its
     /// parent. Expects \p expr to be analyzed. This is used to implicitly
@@ -962,6 +951,32 @@ static void convertArgsAndPopCleanups(auto const& arguments,
     }
 }
 
+static utl::small_vector<UniquePtr<ast::Expression>> extract(
+    auto const& expressions) {
+    return expressions | transform(&ast::Expression::extractFromParent) |
+           ToSmallVector<>;
+}
+
+static UniquePtr<ast::Expression> computeAndAllocateObjConstr(
+    SourceRange sourceRng,
+    ObjectType const* type,
+    std::span<ast::Expression* const> args) {
+    auto conv =
+        computeObjectConstruction(Explicit,
+                                  type,
+                                  args |
+                                      ranges::to<utl::small_vector<ThinExpr>>);
+    if (conv.isError()) {
+        // TODO: Push error
+        SC_UNIMPLEMENTED();
+    }
+    SC_ASSERT(!conv.isNoop(), "Should not be possible");
+    return allocateObjectConstruction(conv.value(),
+                                      sourceRng,
+                                      type,
+                                      extract(args));
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto orKind = ORKind::FreeFunction;
     bool success = analyze(fc.callee());
@@ -999,13 +1014,25 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion or construct expr
-    if (auto* type = dyncast<Type const*>(fc.callee()->entity())) {
-        auto constr =
-            allocateObjectConstruction(fc.sourceRange(),
-                                       type,
-                                       fc.arguments() | ToSmallVector<>,
-                                       ConversionKind::Explicit);
-        return analyzeValue(fc.replace(std::move(constr)));
+    if (auto* type = dyncast<ObjectType const*>(fc.callee()->entity())) {
+        /// Kinda ugly that we need this check here. Maybe we can refactor that
+        /// in the future
+        if (fc.arguments().size() == 1) {
+            auto* arg = fc.replace(fc.argument(0)->extractFromParent());
+            return convert(Explicit,
+                           arg,
+                           QualType::Mut(type),
+                           RValue,
+                           *cleanupStack,
+                           ctx);
+        }
+        else {
+            auto constr =
+                computeAndAllocateObjConstr(fc.sourceRange(),
+                                            type,
+                                            fc.arguments() | ToSmallVector<>);
+            return analyzeValue(fc.replace(std::move(constr)));
+        }
     }
     /// Make sure we have an overload set as our called object
     auto* overloadSet = dyncast<OverloadSet*>(fc.callee()->entity());
@@ -1398,17 +1425,17 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
     for (auto [arg, argType]:
          ranges::views::zip(expr.arguments(), type->members()))
     {
-        size_t index = arg->indexInParent();
-        auto constr = allocateObjectConstruction(arg->sourceRange(),
-                                                 argType,
-                                                 std::array{ arg },
-                                                 ConversionKind::Implicit);
-        auto* analyzed = analyzeValue(expr.setChild(index, std::move(constr)));
-        if (!analyzed) {
+        auto* conv = convert(Implicit,
+                             arg,
+                             QualType::Mut(cast<ObjectType const*>(argType)),
+                             RValue,
+                             *cleanupStack,
+                             ctx);
+        if (!conv) {
             success = false;
             continue;
         }
-        popCleanup(analyzed, *cleanupStack);
+        popCleanup(conv, *cleanupStack);
     }
     if (!success) {
         return nullptr;
@@ -1435,12 +1462,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
         if (!arg) {
             return nullptr;
         }
-        auto elemConstr =
-            allocateObjectConstruction(arg->sourceRange(),
-                                       type->elementType(),
-                                       std::array<ast::Expression*, 0>{},
-                                       Implicit);
-        expr.setElementConstruction(std::move(elemConstr));
+        auto constr = computeAndAllocateObjConstr(expr.sourceRange(),
+                                                  type->elementType(),
+                                                  {});
+        expr.setElementConstruction(std::move(constr));
         if (!analyzeValue(expr.elementConstruction())) {
             return nullptr;
         }
@@ -1452,156 +1477,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
     default:
         ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
         return nullptr;
-    }
-}
-
-ast::Expression* ExprContext::analyzeDynArrayConstruction(
-    ast::ConstructExpr& expr, ArrayType const* type) {
-    SC_UNIMPLEMENTED();
-#if 0
-    SC_EXPECT(type->isDynamic());
-    using enum SpecialLifetimeFunctionDepr;
-    if (!isa<ast::UniqueExpr>(expr.parent())) {
-        ctx.issue<BadExpr>(&expr, DynArrayConstrAutoStorage);
-    }
-    auto* defCtor = type->specialLifetimeFunction(DefaultConstructor);
-    auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
-    switch (expr.arguments().size()) {
-    case 0: {
-        expr.decorateConstruct(sym.temporary(type), defCtor);
-        cleanupStack->push(expr.object());
-        return &expr;
-    }
-    case 1: {
-        auto* arg = expr.argument(0);
-        auto intConv =
-            computeConversion(ConversionKind::Implicit, arg, sym.Int(), RValue);
-        /// `[Type](count)` expression
-        if (intConv) {
-            insertConversion(arg, *intConv, *cleanupStack, ctx);
-            expr.decorateConstruct(sym.temporary(type), defCtor);
-            cleanupStack->push(expr.object());
-            return &expr;
-        }
-        /// `[Type](other_array)` expression
-        if (auto* argArrTy = dyncast<ArrayType const*>(arg->type().get());
-            argArrTy && argArrTy->elementType() == type->elementType())
-        {
-            expr.decorateConstruct(sym.temporary(type), copyCtor);
-            cleanupStack->push(expr.object());
-            return &expr;
-        }
-        ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
-        return nullptr;
-    }
-    default:
-        ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
-        return nullptr;
-    }
-#endif
-}
-
-static utl::small_vector<UniquePtr<ast::Expression>> extract(
-    std::span<ast::Expression* const> exprs) {
-    return exprs | transform(&ast::Expression::extractFromParent) |
-           ToSmallVector<>;
-}
-
-UniquePtr<ast::Expression> ExprContext::allocateObjectConstruction(
-    SourceRange sourceRng,
-    Type const* targetType,
-    std::span<ast::Expression* const> arguments,
-    ConversionKind convKind) {
-    /// Function types
-    if (auto* fnType = dyncast<FunctionType const*>(targetType)) {
-        SC_UNIMPLEMENTED();
-    }
-    /// Functional cast to builtin type
-    if (arguments.size() == 1 &&
-        (isa<BuiltinType>(targetType) || isa<ReferenceType>(targetType)))
-    {
-        auto* arg = arguments.front();
-        arg = convert(convKind,
-                      arg,
-                      getQualType(targetType),
-                      refToLValue(targetType),
-                      *cleanupStack,
-                      ctx);
-        return arg ? arg->extractFromParent() : nullptr;
-    }
-    /// Dynamic array types
-    if (auto* arrayType = dynArrayTypeCast(targetType)) {
-        return allocate<ast::DynArrayConstructExpr>(extract(arguments),
-                                                    sourceRng,
-                                                    arrayType);
-    }
-    auto* objType = cast<ObjectType const*>(targetType);
-    auto& md = objType->lifetimeMetadata();
-    /// Default construction
-    if (arguments.empty()) {
-        auto ctor = md.defaultConstructor();
-        if (ctor.isDeleted()) {
-            // TODO: Push error
-            SC_UNIMPLEMENTED();
-            return nullptr;
-        }
-        if (ctor.isTrivial()) {
-            return allocate<ast::TrivDefConstructExpr>(nullptr,
-                                                       sourceRng,
-                                                       objType);
-        }
-        if (ctor.function()) {
-            return allocate<ast::NontrivConstructExpr>(extract(arguments),
-                                                       sourceRng,
-                                                       cast<StructType const*>(
-                                                           objType));
-        }
-        return allocate<ast::NontrivInlineConstructExpr>(extract(arguments),
-                                                         sourceRng,
-                                                         objType);
-    }
-    /// Copy construction
-    if (arguments.size() == 1 && arguments.front()->type().get() == objType) {
-        auto* arg = arguments.front();
-        /// For RValues we never want to invoke a copy constructor
-        if (arg->isRValue()) {
-            return arg->extractFromParent();
-        }
-        if (md.copyConstructor().isTrivial()) {
-            return allocate<ast::TrivCopyConstructExpr>(
-                nullptr,
-                arg->extractFromParent(),
-                sourceRng,
-                objType);
-        }
-        /// Nontrivial copy construction is handled later...
-    }
-    /// Aggregate construction
-    if (isAggregate(objType)) {
-        if (objType->hasTrivialLifetime()) {
-            return allocate<ast::TrivAggrConstructExpr>(nullptr,
-                                                        extract(arguments),
-                                                        sourceRng,
-                                                        objType);
-        }
-        else {
-            return allocate<ast::NontrivAggrConstructExpr>(
-                nullptr,
-                extract(arguments),
-                sourceRng,
-                cast<StructType const*>(objType));
-        }
-    }
-    /// Nontrivial object type construction
-    if (auto* structType = dyncast<StructType const*>(objType)) {
-        return allocate<ast::NontrivConstructExpr>(extract(arguments),
-                                                   sourceRng,
-                                                   structType);
-    }
-    else {
-        return allocate<ast::NontrivInlineConstructExpr>(extract(arguments),
-                                                         sourceRng,
-                                                         objType);
     }
 }
 
