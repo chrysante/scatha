@@ -16,7 +16,7 @@ namespace scatha::sema {
 /// Represents a call to a destructor
 struct CleanupOperation {
     Object* object;
-    LifetimeOperation destroy;
+    LifetimeOperation operation;
 
     bool operator==(CleanupOperation const&) const = default;
 };
@@ -24,19 +24,35 @@ struct CleanupOperation {
 /// Stack of cleanup operations
 class SCTEST_API CleanupStack {
 public:
-    /// Push cleanup operation for the object \p obj onto the stack.
-    /// The operation is derived from the type of \p obj
-    void push(Object* obj);
+    /// Pushes \p cleanup unconditionally to the stack
+    void push(CleanupOperation cleanup) { operations.push(cleanup); }
 
-    /// Push cleanup operation \p op onto the stack.
-    void push(CleanupOperation op);
+    /// Push cleanup operation for the object \p obj onto the stack if the
+    /// derived cleanup operation is nontrivial. The operation is derived from
+    /// the type of \p obj \Param ctx is used to push an issue if the object
+    /// type has deleted destructor \Returns `true` if no error occured
+    [[nodiscard]] bool push(Object* obj, AnalysisContext& ctx);
 
-    /// Pop the top cleanup operation off the stack
-    void pop() { operations.pop(); }
+    /// \overload for expressions. Equivalent to `push(expr->object())`
+    [[nodiscard]] bool push(ast::Expression* expr, AnalysisContext& ctx);
 
-    /// Erases the cleanup operation \p op from the stack
-    /// \Pre \p op must be in the stack
-    void remove(CleanupOperation op);
+    /// If the object \p obj is of non-trivial lifetime type, this function
+    /// pops the top element off the cleanup stack \p cleanups
+    /// \Pre the object of \p expr must have a trivial destructor or be the top
+    /// of \p cleanup stack \Note The \p obj parameter is only for validation
+    /// that to top element actually corresponds to \p obj
+    void pop(Object* obj);
+
+    /// \overload for expressions. Equivalent to `pop(expr->object())`
+    void pop(ast::Expression* expr);
+
+    /// If the object \p obj is of non-trivial lifetime type, this function
+    /// erases the cleanup of the object in the stack
+    /// \Pre \p obj must have a trivial destructor or be in this stack
+    void erase(Object* obj);
+
+    /// \overload for expressions. Equivalent to `erase(expr->object())`
+    void erase(ast::Expression* expr);
 
     /// \Returns `true` if the stack is empty
     bool empty() const { return operations.empty(); }

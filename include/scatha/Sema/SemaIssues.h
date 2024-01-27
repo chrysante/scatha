@@ -27,12 +27,13 @@
 /// │  │  └─ StructDefCycle
 /// │  ├─ BadReturnStmt
 /// │  └─ BadReturnTypeDeduction
-/// ├─ BadPassedType
 /// ├─ BadExpr
 /// │  ├─ BadSymRef
 /// │  ├─ BadTypeConv
 /// │  ├─ BadValueCatConv
 /// │  └─ BadMutConv
+/// ├─ BadPassedType
+/// ├─ BadCleanup
 /// └─ ORError
 /// ```
 
@@ -293,21 +294,6 @@ private:
     std::vector<Entity const*> _cycle;
 };
 
-/// Error class for using invalid types as function paramaters or return types
-class SCATHA_API BadPassedType: public SemaIssue {
-public:
-    enum Reason { Argument, Return, ReturnDeduced };
-
-    explicit BadPassedType(Scope const* scope,
-                           ast::Expression const* expr,
-                           Reason reason);
-
-    Reason reason() const { return r; }
-
-private:
-    Reason r;
-};
-
 /// Base class of all statement related issues
 class SCATHA_API BadExpr: public SemaIssue {
 public:
@@ -410,6 +396,28 @@ struct ORMatchError {
 
     /// The problematic argument index
     size_t argIndex = ~size_t{ 0 };
+};
+
+/// Error class for using invalid types as function paramaters or return types
+class SCATHA_API BadPassedType: public SemaIssue {
+public:
+    enum Reason { Argument, Return, ReturnDeduced };
+
+    explicit BadPassedType(Scope const* scope,
+                           ast::Expression const* expr,
+                           Reason reason);
+
+    Reason reason() const { return r; }
+
+private:
+    Reason r;
+};
+
+/// Error class issued when a cleanup of a type with deleted destructor is
+/// requested
+class SCATHA_API BadCleanup: public SemaIssue {
+public:
+    BadCleanup(ast::ASTNode const* node, Object const* object);
 };
 
 /// Overload resolution error

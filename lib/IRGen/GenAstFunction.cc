@@ -1655,7 +1655,7 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
 
 void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
-        generateCleanup(valueMap(cleanup.object), cleanup.destroy);
+        generateCleanup(valueMap(cleanup.object), cleanup.operation);
     }
 }
 

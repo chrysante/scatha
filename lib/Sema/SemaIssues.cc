@@ -589,6 +589,14 @@ void BadMutConv::format(std::ostream& str) const {
         << expr()->type()->name() << " to " << to();
 }
 
+BadCleanup::BadCleanup(ast::ASTNode const* node, Object const* object):
+    SemaIssue(object->parent(), getSourceRange(node), IssueSeverity::Error) {
+    primary(sourceRange(), [=](std::ostream& str) {
+        str << "Deletion of undeletable type " << sema::format(object->type())
+            << " requested here";
+    });
+}
+
 ORError::ORError(ast::Expression const* expr,
                  std::span<Function const* const> os,
                  std::vector<std::pair<QualType, ValueCategory>> argTypes,

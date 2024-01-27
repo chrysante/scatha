@@ -29,12 +29,23 @@ using enum BadExpr::Reason;
 namespace {
 
 struct ExprContext {
-    CleanupStack* cleanupStack;
+    CleanupStack* _cleanupStack;
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
 
+    ///
+    CleanupStack& currentCleanupStack() {
+        SC_EXPECT(_cleanupStack);
+        return *_cleanupStack;
+    }
+
+    ///
+    void setCurrentCleanupStack(CleanupStack& cleanupStack) {
+        _cleanupStack = &cleanupStack;
+    }
+
     ExprContext(sema::AnalysisContext& ctx, CleanupStack* cleanupStack):
-        cleanupStack(cleanupStack), ctx(ctx), sym(ctx.symbolTable()) {}
+        _cleanupStack(cleanupStack), ctx(ctx), sym(ctx.symbolTable()) {}
 
     SC_NODEBUG ast::Expression* analyze(ast::Expression*);
 
@@ -68,7 +79,6 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::ValueCatConvExpr&);
     ast::Expression* analyzeImpl(ast::MutConvExpr&);
     ast::Expression* analyzeImpl(ast::ObjTypeConvExpr&);
-    ast::Expression* analyzeImpl(ast::ConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivDefConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivCopyConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivAggrConstructExpr&);
@@ -151,15 +161,17 @@ bool ExprContext::analyzeValues(auto&& exprs) {
 }
 
 Type const* ExprContext::analyzeType(ast::Expression* expr) {
-    auto* stashed = cleanupStack;
+    /// Annoying hack. Can't use `currentCleanupStack()` here because that
+    /// returns by reference and `_cleanupStack` may be null here
+    auto* stashed = _cleanupStack;
     CleanupStack tmpDtorStack;
-    cleanupStack = &tmpDtorStack;
+    setCurrentCleanupStack(tmpDtorStack);
     expr = analyze(expr);
     if (expr && expr->isDecorated() && expr->isType()) {
-        SC_ASSERT(!expr->isType() || cleanupStack->empty(),
+        SC_ASSERT(!expr->isType() || currentCleanupStack().empty(),
                   "Type expression should not trigger destructor calls");
     }
-    cleanupStack = stashed;
+    _cleanupStack = stashed;
     if (!expectType(expr)) {
         return nullptr;
     }
@@ -444,7 +456,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
             analyze(assign.get());
             return expr.parent()->replaceChild(&expr, std::move(assign));
         }
-        if (!convert(Implicit, expr.rhs(), lhsType, RValue, *cleanupStack, ctx))
+        if (!convert(Implicit,
+                     expr.rhs(),
+                     lhsType,
+                     RValue,
+                     currentCleanupStack(),
+                     ctx))
         {
             success = false;
         }
@@ -458,10 +475,18 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
 
     /// Convert the operands to common type
     bool cnv = true;
-    cnv &=
-        !!convert(Implicit, expr.lhs(), commonType, RValue, *cleanupStack, ctx);
-    cnv &=
-        !!convert(Implicit, expr.rhs(), commonType, RValue, *cleanupStack, ctx);
+    cnv &= !!convert(Implicit,
+                     expr.lhs(),
+                     commonType,
+                     RValue,
+                     currentCleanupStack(),
+                     ctx);
+    cnv &= !!convert(Implicit,
+                     expr.rhs(),
+                     commonType,
+                     RValue,
+                     currentCleanupStack(),
+                     ctx);
     SC_ASSERT(cnv, "Conversion must succeed because we have a common type");
     expr.decorateValue(sym.temporary(resultType), RValue);
     setConstantValue(expr);
@@ -755,19 +780,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
                 c.condition(),
                 sym.Bool(),
                 RValue,
-                *cleanupStack,
+                currentCleanupStack(),
                 ctx);
     }
-    auto* commonCleanups = cleanupStack;
-    auto* thenCleanups = &c.branchCleanupStack(0);
-    auto* elseCleanups = &c.branchCleanupStack(1);
+    auto& commonCleanups = currentCleanupStack();
+    auto& thenCleanups = c.branchCleanupStack(0);
+    auto& elseCleanups = c.branchCleanupStack(1);
 
     bool success = true;
-    cleanupStack = thenCleanups;
+    setCurrentCleanupStack(thenCleanups);
     success &= !!analyzeValue(c.thenExpr());
-    cleanupStack = elseCleanups;
+    setCurrentCleanupStack(elseCleanups);
     success &= !!analyzeValue(c.elseExpr());
-    cleanupStack = commonCleanups;
+    setCurrentCleanupStack(commonCleanups);
     if (!success) {
         return nullptr;
     }
@@ -784,13 +809,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
                          c.thenExpr(),
                          commonType,
                          commonValueCat,
-                         *thenCleanups,
+                         thenCleanups,
                          ctx);
     success &= !!convert(Implicit,
                          c.elseExpr(),
                          commonType,
                          commonValueCat,
-                         *elseCleanups,
+                         elseCleanups,
                          ctx);
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
@@ -798,9 +823,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     auto* obj = sym.temporary(commonType);
 #if 0 // Not yet sure about this
     if (commonValueCat == RValue) {
-        popCleanup(c.thenExpr(), *thenCleanups);
-        popCleanup(c.elseExpr(), *elseCleanups);
-        commonCleanups->push(obj);
+        popCleanup(c.thenExpr(), thenCleanups);
+        popCleanup(c.elseExpr(), elseCleanups);
+        commonCleanups.push(obj);
     }
 #endif
     c.decorateValue(obj, commonValueCat);
@@ -841,7 +866,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
         expr.setFunction(ctor);
     }
     expr.decorateValue(sym.temporary(expr.value()->type()), RValue);
-    cleanupStack->push(expr.object());
+    currentCleanupStack().push(expr.object());
     return &expr;
 #endif
 }
@@ -856,10 +881,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
     }
     /// We pop the top level dtor because unique ptr extends the lifetime of the
     /// object
-    popCleanup(expr.value(), *cleanupStack);
+    currentCleanupStack().pop(expr.value());
     auto* type = sym.uniquePointer(expr.value()->type());
     expr.decorateValue(sym.temporary(type), RValue);
-    cleanupStack->push(expr.object());
+    if (!currentCleanupStack().push(expr.object(), ctx)) {
+        return nullptr;
+    }
     return &expr;
 }
 
@@ -872,7 +899,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         ctx.badExpr(&expr, SubscriptArgCount);
         return nullptr;
     }
-    convert(Implicit, expr.argument(0), sym.S64(), RValue, *cleanupStack, ctx);
+    convert(Implicit,
+            expr.argument(0),
+            sym.S64(),
+            RValue,
+            currentCleanupStack(),
+            ctx);
     auto mutability = expr.callee()->type().mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
     expr.decorateValue(sym.temporary(elemType), expr.callee()->valueCategory());
@@ -884,8 +916,18 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     if (!arrayType) {
         return nullptr;
     }
-    convert(Implicit, expr.lower(), sym.S64(), RValue, *cleanupStack, ctx);
-    convert(Implicit, expr.upper(), sym.S64(), RValue, *cleanupStack, ctx);
+    convert(Implicit,
+            expr.lower(),
+            sym.S64(),
+            RValue,
+            currentCleanupStack(),
+            ctx);
+    convert(Implicit,
+            expr.upper(),
+            sym.S64(),
+            RValue,
+            currentCleanupStack(),
+            ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
     expr.decorateValue(sym.temporary(dynArrayType),
                        expr.callee()->valueCategory());
@@ -930,13 +972,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::GenericExpression& expr) {
 
 static void convertArgsAndPopCleanups(auto const& arguments,
                                       auto const& conversions,
-                                      CleanupStack& dtors,
+                                      CleanupStack& cleanups,
                                       AnalysisContext& ctx) {
     for (auto [arg, conv]: ranges::views::zip(arguments, conversions)) {
         /// The called function will clean up the arguments
-        auto* converted = insertConversion(arg, conv, dtors, ctx);
-        if (converted->isRValue()) {
-            removeCleanup(converted, dtors);
+        auto* converted = insertConversion(arg, conv, cleanups, ctx);
+        if (converted && converted->isRValue()) {
+            cleanups.erase(converted);
         }
     }
 }
@@ -998,7 +1040,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                                                    arg,
                                                    genExpr->type(),
                                                    genExpr->valueCategory(),
-                                                   *cleanupStack,
+                                                   currentCleanupStack(),
                                                    ctx);
         return fc.replace(fc.extractArgument(0));
     }
@@ -1013,7 +1055,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                            arg,
                            QualType::Mut(type),
                            RValue,
-                           *cleanupStack,
+                           currentCleanupStack(),
                            ctx);
         }
         else {
@@ -1057,10 +1099,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     fc.decorateCall(sym.temporary(type), valueCat, type, function);
     convertArgsAndPopCleanups(fc.arguments(),
                               result.conversions,
-                              *cleanupStack,
+                              currentCleanupStack(),
                               ctx);
-    if (valueCat == RValue) {
-        cleanupStack->push(fc.object());
+    if (valueCat == RValue && !currentCleanupStack().push(fc.object(), ctx)) {
+        return nullptr;
     }
     return &fc;
 }
@@ -1070,7 +1112,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     for (auto* expr: list.elements()) {
         expr = analyze(expr);
         success &= !!expr;
-        popCleanup(expr, *cleanupStack);
+        currentCleanupStack().pop(expr);
     }
     if (!success) {
         return nullptr;
@@ -1103,14 +1145,20 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
             return nullptr;
         }
         for (auto* expr: list.elements()) {
-            bool const succ =
-                convert(Implicit, expr, commonType, RValue, *cleanupStack, ctx);
+            bool const succ = convert(Implicit,
+                                      expr,
+                                      commonType,
+                                      RValue,
+                                      currentCleanupStack(),
+                                      ctx);
             SC_ASSERT(succ, "Conversion failed despite common type");
         }
         auto* arrayType =
             sym.arrayType(commonType.get(), list.elements().size());
         list.decorateValue(sym.temporary(arrayType), RValue);
-        cleanupStack->push(list.object());
+        if (!currentCleanupStack().push(list.object(), ctx)) {
+            return nullptr;
+        }
         return &list;
     }
     case EntityCategory::Type: {
@@ -1153,59 +1201,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     SC_UNREACHABLE();
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::ConstructExpr& expr) {
-    SC_UNIMPLEMENTED();
-#if 0
-    bool success = true;
-    for (auto* arg: expr.arguments()) {
-        success &= !!analyzeValue(arg);
-    }
-    if (!success) {
-        return nullptr;
-    }
-    auto* type = expr.constructedType();
-    /// Dynamic array construction is always a special case
-    if (auto* arrayType = dyncast<ArrayType const*>(type);
-        arrayType && arrayType->isDynamic())
-    {
-        return analyzeDynArrayConstruction(expr, arrayType);
-    }
-    /// Trivial case
-    if (ctorIsPseudo(type, expr.arguments())) {
-        if (!canConstructTrivialType(expr, *cleanupStack, ctx)) {
-            return nullptr;
-        }
-        expr.decorateConstruct(sym.temporary(type), nullptr);
-        return &expr;
-    }
-    /// Non-trivial case
-    if (expr.arguments().empty() ||
-        !isa<ast::UninitTemporary>(expr.argument(0)))
-    {
-        auto obj = allocate<ast::UninitTemporary>(expr.sourceRange());
-        obj->decorateValue(sym.temporary(type), LValue);
-        expr.insertArgument(0, std::move(obj));
-    }
-    using enum SpecialMemberFunctionDepr;
-    auto ctorSet = type->specialMemberFunctions(New);
-    SC_ASSERT(!ctorSet.empty(), "Trivial lifetime case is handled above");
-    auto result = performOverloadResolution(&expr,
-                                            ctorSet,
-                                            expr.arguments() | ToAddress |
-                                                ToSmallVector<>,
-                                            ORKind::MemberFunction);
-    if (result.error) {
-        result.error->setSourceRange(expr.sourceRange());
-        ctx.issueHandler().push(std::move(result.error));
-        return nullptr;
-    }
-    convertArgsAndPopCleanups(expr.arguments(), result.conversions, *cleanupStack, ctx);
-    expr.decorateConstruct(sym.temporary(type), result.function);
-    cleanupStack->push(expr.object());
-    return &expr;
-#endif
-}
-
 ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
     SC_UNIMPLEMENTED();
 #if 0
@@ -1220,7 +1215,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
                              expr.source(),
                              expr.dest()->type(),
                              RValue,
-                             *cleanupStack,
+                             currentCleanupStack(),
                              ctx);
         if (!conv) {
             return nullptr;
@@ -1315,8 +1310,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
         return nullptr;
     }
     auto* object = sym.temporary(conv.targetType());
+    /// TODO: See if we can get rid of this if check
     if (conv.conversion() == ObjectTypeConversion::NullptrToUniquePtr) {
-        cleanupStack->push(object);
+        if (!currentCleanupStack().push(object, ctx)) {
+            return nullptr;
+        }
     }
     conv.decorateValue(object, expr->valueCategory());
     conv.setConstantValue(evalConversion(conv.conversion(),
@@ -1360,7 +1358,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivAggrConstructExpr& expr) {
                              arg,
                              getQualType(type),
                              RValue,
-                             *cleanupStack,
+                             currentCleanupStack(),
                              ctx);
     }
     if (!success) {
@@ -1394,11 +1392,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
     SC_ASSERT(orResult.conversions.front().isNoop(), "");
     convertArgsAndPopCleanups(expr.arguments(),
                               orResult.conversions | drop(1),
-                              *cleanupStack,
+                              currentCleanupStack(),
                               ctx);
     auto* obj = sym.temporary(type);
     expr.decorateConstruct(obj, orResult.function);
-    cleanupStack->push(obj);
+    if (!currentCleanupStack().push(obj, ctx)) {
+        return nullptr;
+    }
     return &expr;
 }
 
@@ -1419,19 +1419,21 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
                              arg,
                              QualType::Mut(cast<ObjectType const*>(argType)),
                              RValue,
-                             *cleanupStack,
+                             currentCleanupStack(),
                              ctx);
         if (!conv) {
             success = false;
             continue;
         }
-        popCleanup(conv, *cleanupStack);
+        currentCleanupStack().pop(conv);
     }
     if (!success) {
         return nullptr;
     }
     auto* obj = sym.temporary(type);
-    cleanupStack->push(obj);
+    if (!currentCleanupStack().push(obj, ctx)) {
+        return nullptr;
+    }
     expr.decorateConstruct(obj);
     return &expr;
 }
@@ -1448,7 +1450,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
     switch (expr.arguments().size()) {
     case 1: {
         auto* arg = expr.argument(0);
-        arg = convert(Implicit, arg, sym.Int(), RValue, *cleanupStack, ctx);
+        arg = convert(Implicit,
+                      arg,
+                      sym.Int(),
+                      RValue,
+                      currentCleanupStack(),
+                      ctx);
         if (!arg) {
             return nullptr;
         }
@@ -1459,9 +1466,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
         if (!analyzeValue(expr.elementConstruction())) {
             return nullptr;
         }
-        popCleanup(expr.elementConstruction(), *cleanupStack);
+        currentCleanupStack().pop(expr.elementConstruction());
         expr.decorateConstruct(sym.temporary(type));
-        cleanupStack->push(expr.object());
+        if (!currentCleanupStack().push(expr.object(), ctx)) {
+            return nullptr;
+        }
         return &expr;
     }
     default:

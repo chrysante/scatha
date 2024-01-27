@@ -1,6 +1,7 @@
 #include "Sema/Analysis/StatementAnalysis.h"
 
 #include <range/v3/algorithm.hpp>
+#include <utl/function_view.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/stack.hpp>
 
@@ -22,27 +23,31 @@ using namespace sema;
 using enum ValueCategory;
 using enum ConversionKind;
 
-static void gatherParentDestructorsImpl(ast::Statement& stmt, auto condition) {
-    for (auto* parentScope = cast<ast::Statement*>(stmt.parent());
-         condition(parentScope);
-         parentScope = dyncast<ast::Statement*>(parentScope->parent()))
-    {
-        for (auto dtorCall:
-             parentScope->cleanupStack() | ranges::views::reverse)
+static void gatherParentCleanupsImpl(
+    ast::Statement& stmt,
+    utl::function_view<bool(ast::ASTNode const*)> condition) {
+    auto* parentScope = cast<ast::Statement*>(stmt.parent());
+    while (condition(parentScope)) {
+        for (auto cleanup: parentScope->cleanupStack() | ranges::views::reverse)
         {
-            stmt.pushCleanup(dtorCall);
+            stmt.cleanupStack().push(cleanup);
         }
+        parentScope = dyncast<ast::Statement*>(parentScope->parent());
     }
 }
 
-static void gatherParentDestructors(ast::ReturnStatement& stmt) {
-    gatherParentDestructorsImpl(stmt, [](auto* parent) {
+/// Copies all cleanup operations from parent scopes of \p stmt and pushes them
+/// to the cleanup stack of \p stmt until the parent function reached
+static void gatherParentCleanups(ast::ReturnStatement& stmt) {
+    gatherParentCleanupsImpl(stmt, [](ast::ASTNode const* parent) {
         return !isa<ast::FunctionDefinition>(parent);
     });
 }
 
-static void gatherParentDestructors(ast::JumpStatement& stmt) {
-    gatherParentDestructorsImpl(stmt, [](auto* parent) {
+/// \overload for jump statements. Walks up the AST until the first loop is
+/// encountered
+static void gatherParentCleanups(ast::JumpStatement& stmt) {
+    gatherParentCleanupsImpl(stmt, [](ast::ASTNode const* parent) {
         return !isa<ast::LoopStatement>(parent);
     });
 }
@@ -287,7 +292,7 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
             /// Functions are responsible to clean up their arguments
             if (param->isDecorated() && def.body()) {
                 auto* obj = cast<Object*>(param->entity());
-                def.body()->cleanupStack().push(obj);
+                (void)def.body()->cleanupStack().push(obj, ctx);
             }
         }
     });
@@ -604,9 +609,11 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// stack of this declaration_ because it corresponds to the object whose
     /// lifetime this variable shall extend. Then we push the destructor to the
     /// stack of the parent statement.
-    if (!isa<ReferenceType>(varDecl.type())) {
-        popCleanup(validatedInitExpr, varDecl.cleanupStack());
-        cast<ast::Statement*>(varDecl.parent())->pushCleanup(variable);
+    if (!isa<ReferenceType>(varDecl.type()) && validatedInitExpr) {
+        varDecl.cleanupStack().pop(validatedInitExpr);
+        auto& parentCleanups =
+            cast<ast::Statement*>(varDecl.parent())->cleanupStack();
+        parentCleanups.push(variable, ctx);
     }
     /// Propagate constant value
     if (variable->isConst() && validatedInitExpr) {
@@ -623,7 +630,7 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
     SC_EXPECT(sym.currentScope().kind() == ScopeKind::Function);
     /// We gather parent destructors here because `analyzeValue()` may add more
     /// constructors and the parent destructors must be lower in the stack
-    gatherParentDestructors(rs);
+    gatherParentCleanups(rs);
     Type const* returnType = currentFunction->returnType();
     /// "Naked" `return;` case
     if (!rs.expression()) {
@@ -656,7 +663,7 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
             rs.cleanupStack(),
             ctx);
     if (!returnsRef()) {
-        popCleanup(rs.expression(), rs.cleanupStack());
+        rs.cleanupStack().pop(rs.expression());
     }
 }
 
@@ -716,7 +723,7 @@ void StmtContext::analyzeImpl(ast::JumpStatement& stmt) {
         }
         parent = parent->parent();
     }
-    gatherParentDestructors(stmt);
+    gatherParentCleanups(stmt);
 }
 
 void StmtContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,

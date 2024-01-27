@@ -24,8 +24,11 @@ using enum ConversionKind;
 /// # Cleanups
 /// We also implement `CleanupStack` here to save a .cc file
 
-static std::optional<CleanupOperation> makeCleanup(Entity* entity) {
-    auto* obj = dyncast<Object*>(entity);
+/// Creates a cleanup operation from \p object
+/// This may return nullopt because the entity could be of reference type or
+/// invalid type. Even if the operation is deleted or trivial an engaged
+/// optional is returned
+static std::optional<CleanupOperation> makeCleanup(Object* obj) {
     if (!obj) {
         return std::nullopt;
     }
@@ -33,33 +36,71 @@ static std::optional<CleanupOperation> makeCleanup(Entity* entity) {
     if (!type) {
         return std::nullopt;
     }
-    auto dtor = type->lifetimeMetadata().destructor();
-    if (dtor.isTrivial()) {
-        return std::nullopt;
-    }
-    return CleanupOperation{ obj, dtor };
+    return CleanupOperation{ obj, type->lifetimeMetadata().destructor() };
 }
 
+/// \overload
 static std::optional<CleanupOperation> makeCleanup(ast::Expression* expr) {
     if (!expr || !expr->isDecorated()) {
         return std::nullopt;
     }
-    return makeCleanup(expr->entity());
+    return makeCleanup(expr->object());
 }
 
-void CleanupStack::push(Object* obj) {
-    if (auto dtorCall = makeCleanup(obj)) {
-        push(*dtorCall);
+bool CleanupStack::push(Object* obj, AnalysisContext& ctx) {
+    auto cleanup = makeCleanup(obj);
+    if (!cleanup || cleanup->operation.isTrivial()) {
+        /// We return `true` because no cleanup is required. No error occured
+        /// here
+        return true;
+    }
+    if (cleanup->operation.isDeleted()) {
+        ctx.issue<BadCleanup>(obj->astNode(), obj);
+        return false;
+    }
+    operations.push(*cleanup);
+    return true;
+}
+
+bool CleanupStack::push(ast::Expression* expr, AnalysisContext& ctx) {
+    if (expr->isValue()) {
+        return push(expr->object(), ctx);
+    }
+    return true;
+}
+
+void CleanupStack::pop(Object* obj) {
+    auto cleanup = makeCleanup(obj);
+    if (!cleanup || cleanup->operation.isTrivial()) {
+        return;
+    }
+    SC_ASSERT(*cleanup == top(),
+              "We want to prolong the lifetime of the object defined by "
+              "expr, so that object better be on top of the stack");
+    operations.pop();
+}
+
+void CleanupStack::pop(ast::Expression* expr) {
+    if (expr->isValue()) {
+        pop(expr->object());
     }
 }
 
-void CleanupStack::push(CleanupOperation cleanup) { operations.push(cleanup); }
-
-void CleanupStack::remove(CleanupOperation op) {
+void CleanupStack::erase(Object* obj) {
+    auto cleanup = makeCleanup(obj);
+    if (!cleanup || cleanup->operation.isTrivial()) {
+        return;
+    }
     auto& cont = operations.container();
-    auto itr = ranges::find(cont, op);
-    SC_ASSERT(itr != cont.end(), "op is not in this stack");
+    auto itr = ranges::find(cont, cleanup);
+    SC_ASSERT(itr != cont.end(), "cleanup is not in this stack");
     cont.erase(itr);
+}
+
+void CleanupStack::erase(ast::Expression* expr) {
+    if (expr->isValue()) {
+        erase(expr->object());
+    }
 }
 
 void sema::print(CleanupStack const& stack, std::ostream& str) {
@@ -79,25 +120,6 @@ void sema::print(CleanupStack const& stack, std::ostream& str) {
 }
 
 void sema::print(CleanupStack const& stack) { print(stack, std::cout); }
-
-void sema::popCleanup(ast::Expression* expr, CleanupStack& dtors) {
-    auto cleanup = makeCleanup(expr);
-    if (!cleanup) {
-        return;
-    }
-    SC_ASSERT(*cleanup == dtors.top(),
-              "We want to prolong the lifetime of the object defined by "
-              "expr, so that object better be on top of the stack");
-    dtors.pop();
-}
-
-void sema::removeCleanup(ast::Expression* expr, CleanupStack& dtors) {
-    auto cleanup = makeCleanup(expr);
-    if (!cleanup) {
-        return;
-    }
-    dtors.remove(*cleanup);
-}
 
 /// # Other utils
 

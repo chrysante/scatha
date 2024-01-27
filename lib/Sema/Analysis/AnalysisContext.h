@@ -55,9 +55,16 @@ public:
 
     /// Conveniece wrapper to emit issues
     template <typename I, typename... Args>
+        requires std::constructible_from<I, Args...>
+    void issue(Args&&... args) {
+        iss->push<I>(std::forward<Args>(args)...);
+    }
+
+    /// \overload that uses the current scope as first argument
+    template <typename I, typename... Args>
         requires std::constructible_from<I, Scope const*, Args...>
     void issue(Args&&... args) {
-        iss->push<I>(&sym->currentScope(), std::forward<Args>(args)...);
+        issue<I>(&sym->currentScope(), std::forward<Args>(args)...);
     }
 
     template <typename... Args>

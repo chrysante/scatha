@@ -851,15 +851,6 @@ public:
 
     AST_DERIVED_COMMON(Statement)
 
-    /// Push an object to the cleanup stack for that object to be cleaned up
-    /// after this statement
-    void pushCleanup(sema::Object* object) { _cleanupStack.push(object); }
-
-    /// \overload
-    void pushCleanup(sema::CleanupOperation dtorCall) {
-        _cleanupStack.push(dtorCall);
-    }
-
     /// \Returns the stack of cleanup operations associated with this statement
     /// Cleanup operations can be destructor calls or inline object destruction
     /// like destroying array elements in a loop or deallocating unique pointers
