@@ -99,6 +99,7 @@ bool opt::splitReturns(Context& ctx, Function& function) {
             auto* retval = phi->argumentAt(0).value;
             ret->setValue(retval);
             block->erase(phi);
+            break;
         }
         default:
             break;

@@ -101,6 +101,9 @@
     (::scatha::internal::unimplemented(__FILE__, __LINE__, SC_PRETTY_FUNC),    \
      ::scatha::internal::handleAssertFailure())
 
+/// # SC_DEBUGFAIL
+#define SC_DEBUGFAIL() SC_DEBUGFAIL_IMPL()
+
 /// # SC_DEBUGBREAK
 #define SC_DEBUGBREAK() SC_DEBUGBREAK_IMPL()
 
@@ -217,10 +220,10 @@ void SCATHA_API assertionFailure(char const* file,
                                  char const* msg);
 
 /// Calls `std::abort()`
-void SCATHA_API relfail();
+[[noreturn]] void SCATHA_API relfail();
 
 /// Calls `std::abort()`
-void SCATHA_API doAbort();
+[[noreturn]] void SCATHA_API doAbort();
 
 /// Exception class to be thrown if the installed assertion handler is `Throw`
 struct SCATHA_API AssertionFailure: std::exception {
@@ -244,7 +247,11 @@ inline void
     using enum AssertFailureHandler;
     switch (getAssertFailureHandler()) {
     case Break:
-        SC_DEBUGBREAK();
+        /// We use `SC_DEBUGFAIL` here instead of `SC_DEBUGBREAK` because this
+        /// function must be annotated with `noreturn` as it is used to handle
+        /// unreachable code. If we want to use `SC_DEBUGBREAK` we must provide
+        /// seperate handlers for assertions and unreachables
+        SC_DEBUGFAIL();
     case Abort:
         doAbort();
     case Throw:

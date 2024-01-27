@@ -593,6 +593,7 @@ static bool isLossless(std::optional<ObjectTypeConversion> conv,
         if (ucmp(val->value(), limit) <= 0) {
             return true;
         }
+        return false;
     }
     case FloatToSigned:
         [[fallthrough]];

@@ -30,7 +30,8 @@ filter "system:linux or macosx"
     buildoptions { 
         "-Wall",
         "-Wextra",
-        "-pedantic"
+        "-pedantic",
+        "-Wimplicit-fallthrough"
     }
 filter "system:macosx"
     xcodebuildsettings { 

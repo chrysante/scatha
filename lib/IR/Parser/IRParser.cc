@@ -1049,6 +1049,7 @@ Type const* IRParser::tryParseType() {
     case TokenKind::LocalIdentifier:
         eatToken();
         reportSemaIssue(token, SemanticIssue::UnexpectedID);
+        return nullptr;
     case TokenKind::IntType:
         eatToken();
         return ctx.intType(token.width());
