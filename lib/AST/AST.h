@@ -1342,12 +1342,7 @@ public:
                   std::move(expression)) {}
 
     /// The expression
-    SC_NODEBUG Expression* expression() { return child<Expression>(0); }
-
-    /// \overload
-    SC_NODEBUG Expression const* expression() const {
-        return child<Expression>(0);
-    }
+    AST_PROPERTY(0, Expression, expression, Expression)
 };
 
 /// Abstract node representing any control flow statement like `if`, `while`,

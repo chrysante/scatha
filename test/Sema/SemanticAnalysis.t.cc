@@ -586,3 +586,26 @@ fn bar() { let x = [X()]; }
 )");
     CHECK(iss.empty());
 }
+
+TEST_CASE("By value member function call with nontrivial copy constructor",
+          "[sema]") {
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+public fn test(x: &X) {
+    x.foo();
+}
+public struct X {
+    fn new(&mut this, x: &X) {}
+    fn delete(&mut this) {}
+    fn foo(this) {}
+})");
+    REQUIRE(iss.empty());
+    auto* testFn = cast<TranslationUnit const*>(ast.get())
+                       ->sourceFile(0)
+                       ->statement<FunctionDefinition>(0);
+    auto* call = testFn->body()
+                     ->statement<ExpressionStatement>(0)
+                     ->expression<FunctionCall>();
+    CHECK(call->callee<Identifier>()->value() == "foo");
+    auto* construct = call->argument<NontrivConstructExpr>(0);
+    CHECK(construct->argument<Identifier>(0)->value() == "x");
+}
