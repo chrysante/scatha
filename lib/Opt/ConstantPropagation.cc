@@ -28,8 +28,7 @@ using namespace ir;
 /// Implemented with help from:
 /// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
 
-SC_REGISTER_PASS(opt::propagateConstants,
-                 "propagateconst",
+SC_REGISTER_PASS(opt::propagateConstants, "propagateconst",
                  PassCategory::Simplification);
 
 namespace {
@@ -88,8 +87,7 @@ FormalValue infimum(FormalValue const& a, FormalValue const& b) {
 }
 
 FormalValue infimum(auto&& range) {
-    return ranges::accumulate(range,
-                              FormalValue{ Unexamined{} },
+    return ranges::accumulate(range, FormalValue{ Unexamined{} },
                               [](FormalValue const& a, FormalValue const& b) {
         return infimum(a, b);
     });
@@ -125,8 +123,7 @@ struct SCCPContext {
 
     bool controlledByConstant(TerminatorInst const& terminator);
 
-    FormalValue evaluateConversion(Conversion conv,
-                                   Type const* targetType,
+    FormalValue evaluateConversion(Conversion conv, Type const* targetType,
                                    FormalValue operand);
 
     FormalValue evaluateArithmetic(ArithmeticOperation operation,

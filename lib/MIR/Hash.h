@@ -18,8 +18,7 @@ template <typename V>
 struct std::hash<scatha::mir::MemoryAddressImpl<V>> {
     std::size_t operator()(
         scatha::mir::MemoryAddressImpl<V> const& addr) const {
-        return utl::hash_combine(addr.baseAddress(),
-                                 addr.dynOffset(),
+        return utl::hash_combine(addr.baseAddress(), addr.dynOffset(),
                                  addr.constantData());
     }
 };

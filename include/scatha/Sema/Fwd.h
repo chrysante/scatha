@@ -57,10 +57,8 @@ using VoidParent = void;
 
 /// Map types to enum values
 #define SC_SEMA_ENTITY_DEF(Type, Parent, Corporeality)                         \
-    SC_DYNCAST_DEFINE(::scatha::sema::Type,                                    \
-                      ::scatha::sema::EntityType::Type,                        \
-                      ::scatha::sema::Parent,                                  \
-                      Corporeality)
+    SC_DYNCAST_DEFINE(::scatha::sema::Type, ::scatha::sema::EntityType::Type,  \
+                      ::scatha::sema::Parent, Corporeality)
 #include <scatha/Sema/Lists.def>
 
 namespace scatha::sema {
@@ -237,8 +235,7 @@ SCATHA_API bool isConstruction(ObjectTypeConversion conv);
 #define SC_SEMA_CONSTKIND_DEF(Type, Parent, Corporeality)                      \
     SC_DYNCAST_DEFINE(::scatha::sema::Type,                                    \
                       ::scatha::sema::ConstantKind::Type,                      \
-                      ::scatha::sema::Parent,                                  \
-                      Corporeality)
+                      ::scatha::sema::Parent, Corporeality)
 #include <scatha/Sema/Lists.def>
 
 namespace scatha::sema {

@@ -35,11 +35,10 @@ enum class ORKind { FreeFunction, MemberFunction };
 /// Performs overload resolution
 /// \param parentExpr Needed to construct OR errors
 /// \param overloadSet Must not be empty
-SCTEST_API OverloadResolutionResult
-    performOverloadResolution(ast::Expression const* parentExpr,
-                              std::span<Function* const> overloadSet,
-                              std::span<ast::Expression const* const> arguments,
-                              ORKind kind = ORKind::FreeFunction);
+SCTEST_API OverloadResolutionResult performOverloadResolution(
+    ast::Expression const* parentExpr, std::span<Function* const> overloadSet,
+    std::span<ast::Expression const* const> arguments,
+    ORKind kind = ORKind::FreeFunction);
 
 } // namespace scatha::sema
 

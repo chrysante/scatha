@@ -35,9 +35,7 @@ Value* BasicBlockBuilder::buildStructure(StructType const* type,
     Value* value = ctx.undef(type);
     for (auto [index, member]: members | ranges::views::enumerate) {
         SC_ASSERT(member->type() == type->elementAt(index), "Type mismatch");
-        value = add<InsertValue>(value,
-                                 member,
-                                 std::array{ index },
+        value = add<InsertValue>(value, member, std::array{ index },
                                  utl::strcat(name, ".elem.", index));
     }
     value->setName(name);
@@ -125,16 +123,13 @@ Alloca* FunctionBuilder::makeLocalVariable(Type const* type, std::string name) {
     return addr;
 }
 
-Alloca* FunctionBuilder::makeLocalArray(Type const* elemType,
-                                        size_t count,
+Alloca* FunctionBuilder::makeLocalArray(Type const* elemType, size_t count,
                                         std::string name) {
-    return makeLocalArray(elemType,
-                          ctx.intConstant(count, 32),
+    return makeLocalArray(elemType, ctx.intConstant(count, 32),
                           std::move(name));
 }
 
-Alloca* FunctionBuilder::makeLocalArray(Type const* elemType,
-                                        Value* count,
+Alloca* FunctionBuilder::makeLocalArray(Type const* elemType, Value* count,
                                         std::string name) {
     auto* addr = new Alloca(ctx, count, elemType, std::move(name));
     allocas.push_back(UniquePtr<Alloca>(addr));

@@ -15,9 +15,7 @@ static nlohmann::json serialize(std::span<std::filesystem::path const> list) {
 }
 
 static nlohmann::json toJSON(SourceLocation loc) {
-    return { size_t(loc.fileIndex),
-             size_t(loc.index),
-             size_t(loc.line),
+    return { size_t(loc.fileIndex), size_t(loc.index), size_t(loc.line),
              size_t(loc.column) };
 }
 

@@ -165,8 +165,7 @@ static std::string_view format(ast::BinaryOperator op) {
     SC_UNREACHABLE();
 }
 
-BadStmt::BadStmt(Scope const* scope,
-                 ast::Statement const* statement,
+BadStmt::BadStmt(Scope const* scope, ast::Statement const* statement,
                  IssueSeverity severity):
     SemaIssue(scope, getSourceRange(statement), severity), stmt(statement) {}
 
@@ -180,8 +179,7 @@ static IssueSeverity toSeverity(GenericBadStmt::Reason reason) {
     SC_UNREACHABLE();
 }
 
-GenericBadStmt::GenericBadStmt(Scope const* scope,
-                               ast::Statement const* stmt,
+GenericBadStmt::GenericBadStmt(Scope const* scope, ast::Statement const* stmt,
                                Reason reason):
     BadStmt(scope, stmt, toSeverity(reason)), _reason(reason) {}
 
@@ -205,8 +203,7 @@ static ast::ImportStatement const* getImportStmt(ast::ASTNode const* node) {
     return node->findAncestor<ast::ImportStatement>();
 }
 
-BadImport::BadImport(Scope const* scope,
-                     ast::ASTNode const* node,
+BadImport::BadImport(Scope const* scope, ast::ASTNode const* node,
                      Reason reason):
     BadStmt(scope, getImportStmt(node), IssueSeverity::Error), _reason(reason) {
     switch (reason) {
@@ -245,8 +242,7 @@ static IssueSeverity toSeverity(BadVarDecl::Reason reason) {
     SC_UNREACHABLE();
 }
 
-BadDecl::BadDecl(Scope const* scope,
-                 ast::Declaration const* declaration,
+BadDecl::BadDecl(Scope const* scope, ast::Declaration const* declaration,
                  IssueSeverity severity):
     BadStmt(scope, declaration, severity) {}
 
@@ -265,10 +261,8 @@ Redefinition::Redefinition(Scope const* scope,
     });
 }
 
-BadVarDecl::BadVarDecl(Scope const* _scope,
-                       ast::VarDeclBase const* _vardecl,
-                       Reason _reason,
-                       Type const* _type,
+BadVarDecl::BadVarDecl(Scope const* _scope, ast::VarDeclBase const* _vardecl,
+                       Reason _reason, Type const* _type,
                        ast::Expression const* _initExpr):
     BadDecl(_scope, _vardecl, toSeverity(_reason)),
     _reason(_reason),
@@ -294,15 +288,12 @@ static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
 }
 
 BadFuncDef::BadFuncDef(Scope const* scope,
-                       ast::FunctionDefinition const* funcdef,
-                       Reason reason):
+                       ast::FunctionDefinition const* funcdef, Reason reason):
     BadFuncDef(InitAsBase{}, scope, funcdef, toSeverity(reason), reason) {}
 
-BadFuncDef::BadFuncDef(InitAsBase,
-                       Scope const* scope,
+BadFuncDef::BadFuncDef(InitAsBase, Scope const* scope,
                        ast::FunctionDefinition const* funcdef,
-                       IssueSeverity severity,
-                       Reason reason):
+                       IssueSeverity severity, Reason reason):
     BadDecl(scope, funcdef, severity), _reason(reason) {}
 
 std::string_view BadFuncDef::name() const { return definition()->name(); }
@@ -327,10 +318,8 @@ static IssueSeverity toSeverity(BadSMF::Reason reason) {
     SC_UNREACHABLE();
 }
 
-BadSMF::BadSMF(Scope const* scope,
-               ast::FunctionDefinition const* funcdef,
-               Reason reason,
-               StructType const* parent):
+BadSMF::BadSMF(Scope const* scope, ast::FunctionDefinition const* funcdef,
+               Reason reason, StructType const* parent):
     BadFuncDef(InitAsBase{}, scope, funcdef, toSeverity(reason)),
     _reason(reason),
     _parent(parent) {}
@@ -345,10 +334,9 @@ void BadSMF::format(std::ostream& str) const {
     }
 }
 
-static utl::streammanip badAccCtrlMessage = [](std::ostream& str,
-                                               AccessControl have,
-                                               AccessControl expected,
-                                               auto becauseOf) {
+static utl::streammanip badAccCtrlMessage =
+    [](std::ostream& str, AccessControl have, AccessControl expected,
+       auto becauseOf) {
     str << "Access control '" << have << "' is too weak for " << becauseOf
         << ". Must be "
         << (expected < AccessControl::Private ? "at least '" : "'") << expected
@@ -363,11 +351,9 @@ static auto doFormat(auto... args) {
     });
 }
 
-BadAccessControl::BadAccessControl(Scope const* scope,
-                                   Entity const* entity,
+BadAccessControl::BadAccessControl(Scope const* scope, Entity const* entity,
                                    Reason reason):
-    BadDecl(scope,
-            dyncast<ast::Declaration const*>(entity->astNode()),
+    BadDecl(scope, dyncast<ast::Declaration const*>(entity->astNode()),
             IssueSeverity::Error),
     _reason(reason) {
     header([=](std::ostream& str) { str << "Invalid access control"; });
@@ -435,8 +421,7 @@ static SourceRange getRetSR(ast::ReturnStatement const* stmt) {
 }
 
 BadReturnTypeDeduction::BadReturnTypeDeduction(
-    Scope const* scope,
-    ast::ReturnStatement const* stmt,
+    Scope const* scope, ast::ReturnStatement const* stmt,
     ast::ReturnStatement const* confl):
     BadStmt(scope, stmt, IssueSeverity::Error), confl(confl) {
     header([=, this](std::ostream& str) {
@@ -460,8 +445,8 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
     hint("Declare data members as pointers to break strong dependencies");
     for (auto [index, entity]: cycle() | ranges::views::enumerate) {
         primary(getSourceRange(entity->astNode()),
-                [=, this, entity = entity, index = index + 1](
-                    std::ostream& str) {
+                [=, this, entity = entity,
+                 index = index + 1](std::ostream& str) {
             if (auto* var = dyncast<Variable const*>(entity)) {
                 auto* type = cast<Type const*>(cycle()[index % cycle().size()]);
                 str << index << ". Member " << var->name()
@@ -475,8 +460,7 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
     }
 }
 
-BadPassedType::BadPassedType(Scope const* scope,
-                             ast::Expression const* expr,
+BadPassedType::BadPassedType(Scope const* scope, ast::Expression const* expr,
                              Reason reason):
     SemaIssue(scope, getSourceRange(expr), IssueSeverity::Error), r(reason) {
     switch (reason) {
@@ -521,8 +505,7 @@ BadExpr::BadExpr(Scope const* scope, ast::ASTNode const* expr, Reason reason):
     _reason(reason),
     _node(expr) {}
 
-BadExpr::BadExpr(Scope const* scope,
-                 ast::ASTNode const* expr,
+BadExpr::BadExpr(Scope const* scope, ast::ASTNode const* expr,
                  IssueSeverity severity):
     SemaIssue(scope, getSourceRange(expr), severity),
     _reason(BadExprNone),
@@ -547,8 +530,7 @@ void BadExpr::format(std::ostream& str) const {
     }
 }
 
-BadSymRef::BadSymRef(Scope const* scope,
-                     ast::Expression const* expr,
+BadSymRef::BadSymRef(Scope const* scope, ast::Expression const* expr,
                      EntityCategory expected):
     BadExpr(scope, expr, IssueSeverity::Error), _expected(expected) {}
 
@@ -635,8 +617,7 @@ ORError::ORError(ast::Expression const* expr,
                     using namespace std::literals;
                     str << "Expected " << function->argumentCount()
                         << singularPlural(function->argumentCount(),
-                                          " argument"sv,
-                                          " arguments"sv)
+                                          " argument"sv, " arguments"sv)
                         << " but have " << argTypes.size();
                     break;
                 case NoArgumentConversion:

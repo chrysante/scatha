@@ -62,8 +62,7 @@ struct EndlIndenter: Indenter {
 
 /// # HTML formatting helpers
 
-utl::vstreammanip<> tableBegin(int border = 0,
-                               int cellborder = 0,
+utl::vstreammanip<> tableBegin(int border = 0, int cellborder = 0,
                                int cellspacing = 0);
 
 utl::vstreammanip<> tableEnd();

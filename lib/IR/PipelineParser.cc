@@ -78,9 +78,7 @@ public:
                 ++index;
                 ++count;
             }
-            return Token(Token::Identifier,
-                         text.substr(begin, count),
-                         line,
+            return Token(Token::Identifier, text.substr(begin, count), line,
                          column);
         }
         throw PipelineLexicalError(line + 1, column + 1, "Invalid token");

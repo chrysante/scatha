@@ -8,9 +8,7 @@ using namespace ir;
 
 User::~User() { clearOperands(); }
 
-User::User(NodeType nodeType,
-           Type const* type,
-           std::string name,
+User::User(NodeType nodeType, Type const* type, std::string name,
            std::span<Value* const> operands):
     Value(nodeType, type, std::move(name)) {
     setOperands(operands);

@@ -32,9 +32,8 @@ template <typename Enum>
     requires requires { EnumSerializer<Enum>::map; }
 void serializeEnum(json& j, Enum e) {
     auto const& map = EnumSerializer<Enum>::map;
-    auto it = std::find_if(map.begin(), map.end(), [e](auto const& p) {
-        return p.first == e;
-    });
+    auto it = std::find_if(map.begin(), map.end(),
+                           [e](auto const& p) { return p.first == e; });
 
     if (it == map.end()) {
         throw std::runtime_error("Failed to serialize enum");
@@ -46,9 +45,8 @@ template <typename Enum>
     requires requires { EnumSerializer<Enum>::map; }
 void deserializeEnum(json const& j, Enum& e) {
     auto const& map = EnumSerializer<Enum>::map;
-    auto it = std::find_if(map.begin(), map.end(), [&j](auto const& p) {
-        return p.second == j;
-    });
+    auto it = std::find_if(map.begin(), map.end(),
+                           [&j](auto const& p) { return p.second == j; });
     if (it == map.end()) {
         throw std::runtime_error("Failed to deserialize enum");
     }
@@ -713,10 +711,8 @@ struct Deserializer: TypeMapBase {
         auto* type = parseTypename(sym, get<std::string>(obj, Field::Type));
         using enum Mutability;
         auto mut = get<bool>(obj, Field::Mutable) ? Mutable : Const;
-        auto* var = sym.defineVariable(get<std::string>(obj, Field::Name),
-                                       type,
-                                       mut,
-                                       get(obj, Field::AccessControl));
+        auto* var = sym.defineVariable(get<std::string>(obj, Field::Name), type,
+                                       mut, get(obj, Field::AccessControl));
         if (auto index = tryGet<size_t>(obj, Field::Index)) {
             auto* type = dyncast<StructType*>(&sym.currentScope());
             // TODO: CHECK type is not null

@@ -67,8 +67,7 @@ static constexpr utl::streammanip nodeType([](std::ostream& str,
     str << ": ";
 });
 
-static void printConstantValue(std::ostream& str,
-                               TreeFormatter& formatter,
+static void printConstantValue(std::ostream& str, TreeFormatter& formatter,
                                sema::Value const& value) {
     str << "\n" << formatter.beginLine() << tfmt::format(BrightGrey, "Value: ");
     // clang-format off
@@ -84,8 +83,7 @@ static void printConstantValue(std::ostream& str,
     }; // clang-format on
 }
 
-static void printCleanupStack(std::ostream& str,
-                              TreeFormatter& formatter,
+static void printCleanupStack(std::ostream& str, TreeFormatter& formatter,
                               sema::CleanupStack const& cleanupStack) {
     if (cleanupStack.empty()) {
         return;

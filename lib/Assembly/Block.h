@@ -20,8 +20,7 @@ public:
     explicit Block(LabelID id, std::string name):
         Block(id, std::move(name), {}) {}
 
-    explicit Block(LabelID id,
-                   std::string name,
+    explicit Block(LabelID id, std::string name,
                    std::initializer_list<Instruction> instructions):
         _id(id), _name(std::move(name)), instructions(instructions) {}
 
@@ -54,8 +53,7 @@ public:
         instructions.insert(position, instruction);
     }
     void insert(ConstIterator position, ranges::range auto&& instructions) {
-        this->instructions.insert(position,
-                                  ranges::begin(instructions),
+        this->instructions.insert(position, ranges::begin(instructions),
                                   ranges::end(instructions));
     }
 

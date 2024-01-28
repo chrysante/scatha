@@ -35,9 +35,7 @@ void InterferenceGraph::colorize() {
     lexOrdering.reserve(size());
     auto neighbours = [](Node* node) { return node->neighbours(); };
     auto nodeView = getNodeView<Node>();
-    utl::find_lex_ordering(nodeView.begin(),
-                           nodeView.end(),
-                           neighbours,
+    utl::find_lex_ordering(nodeView.begin(), nodeView.end(), neighbours,
                            std::back_inserter(lexOrdering));
     bool const isChordal =
         utl::is_chordal(lexOrdering.begin(), lexOrdering.end(), neighbours);
@@ -148,11 +146,9 @@ void cg::generateGraphviz(InterferenceGraph const& graph,
     auto* G = Graph::make(ID(0));
     utl::hashset<std::pair<ID, ID>> edges;
     for (auto* node: graph) {
-        auto* vertex =
-            Vertex::make(ID(node))->label(utl::strcat(toRegLetter(node->reg()),
-                                                      node->reg()->index(),
-                                                      " → H",
-                                                      node->color()));
+        auto* vertex = Vertex::make(ID(node))->label(
+            utl::strcat(toRegLetter(node->reg()), node->reg()->index(), " → H",
+                        node->color()));
         G->add(vertex);
         for (auto* neighbour: node->neighbours()) {
             Edge edge{ ID(node), ID(neighbour) };

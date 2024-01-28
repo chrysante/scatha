@@ -17,11 +17,10 @@
 /// Register a global pass. Same as `SC_REGISTER_PASS` except that \p function
 /// is cast to global pass signature
 #define SC_REGISTER_GLOBAL_PASS(function, name, category)                      \
-    _SC_REGISTER_PASS_IMPL(                                                    \
-        registerGlobal,                                                        \
-        static_cast<bool (*)(ir::Context&, ir::Module&, LocalPass)>(function), \
-        name,                                                                  \
-        category)
+    _SC_REGISTER_PASS_IMPL(registerGlobal,                                     \
+                           static_cast<bool (*)(ir::Context&, ir::Module&,     \
+                                                LocalPass)>(function),         \
+                           name, category)
 
 namespace scatha::ir::internal {
 

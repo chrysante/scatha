@@ -14,8 +14,7 @@ namespace scatha::opt {
 
 SCATHA_API void inlineCallsite(ir::Context& ctx, ir::Call* call);
 
-SCATHA_API void inlineCallsite(ir::Context& ctx,
-                               ir::Call* call,
+SCATHA_API void inlineCallsite(ir::Context& ctx, ir::Call* call,
                                UniquePtr<ir::Function> calleeClone);
 
 } // namespace scatha::opt

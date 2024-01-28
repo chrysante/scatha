@@ -23,9 +23,7 @@ public:
     explicit Type(std::string name, TypeCategory category):
         Type(std::move(name), category, invalidSize(), invalidSize()) {}
 
-    explicit Type(std::string name,
-                  TypeCategory category,
-                  size_t size,
+    explicit Type(std::string name, TypeCategory category, size_t size,
                   size_t align):
         _name(std::move(name)),
         _category(category),
@@ -72,8 +70,7 @@ public:
 class PointerType: public Type {
 public:
     PointerType():
-        Type("ptr",
-             TypeCategory::PointerType,
+        Type("ptr", TypeCategory::PointerType,
              8, /// For now, maybe we want to derive size and align from
                 /// something in the future.
              8) {}
@@ -91,12 +88,9 @@ public:
 
 protected:
     explicit ArithmeticType(std::string_view typenamePrefix,
-                            TypeCategory category,
-                            size_t bitwidth):
-        Type(utl::strcat(typenamePrefix, bitwidth),
-             category,
-             utl::ceil_divide(bitwidth, 8),
-             utl::ceil_divide(bitwidth, 8)),
+                            TypeCategory category, size_t bitwidth):
+        Type(utl::strcat(typenamePrefix, bitwidth), category,
+             utl::ceil_divide(bitwidth, 8), utl::ceil_divide(bitwidth, 8)),
         _bitWidth(bitwidth) {}
 
 private:
@@ -236,10 +230,8 @@ class FunctionType: public Type {
 public:
     explicit FunctionType(Type const* returnType,
                           std::span<Type const* const> parameterTypes):
-        Type(makeName(returnType, parameterTypes),
-             TypeCategory::FunctionType,
-             0,
-             0),
+        Type(makeName(returnType, parameterTypes), TypeCategory::FunctionType,
+             0, 0),
         _parameterTypes(parameterTypes) {}
 
     Type const* returnType() const { return _returnType; }

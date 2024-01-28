@@ -11,20 +11,13 @@ using namespace scatha;
 using namespace ir;
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
-    Alloca(context,
-           context.intConstant(1, 32),
-           allocatedType,
+    Alloca(context, context.intConstant(1, 32), allocatedType,
            std::move(name)) {}
 
-Alloca::Alloca(Context& context,
-               Value* count,
-               Type const* allocatedType,
+Alloca::Alloca(Context& context, Value* count, Type const* allocatedType,
                std::string name):
-    Instruction(NodeType::Alloca,
-                context.ptrType(),
-                std::move(name),
-                ValueArray{ count },
-                std::array{ allocatedType }) {}
+    Instruction(NodeType::Alloca, context.ptrType(), std::move(name),
+                ValueArray{ count }, std::array{ allocatedType }) {}
 
 bool Alloca::isStatic() const { return isa<IntegralConstant>(count()); }
 
@@ -46,31 +39,22 @@ std::optional<size_t> Alloca::allocatedSize() const {
 void Load::setAddress(Value* address) { UnaryInstruction::setOperand(address); }
 
 Store::Store(Context& context, Value* address, Value* value):
-    Instruction(NodeType::Store,
-                context.voidType(),
-                std::string{},
+    Instruction(NodeType::Store, context.voidType(), std::string{},
                 ValueArray{ address, value }) {}
 
 void Store::setAddress(Value* address) { setOperand(0, address); }
 
 void Store::setValue(Value* value) { setOperand(1, value); }
 
-CompareInst::CompareInst(Context& context,
-                         Value* lhs,
-                         Value* rhs,
-                         CompareMode mode,
-                         CompareOperation op,
+CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs,
+                         CompareMode mode, CompareOperation op,
                          std::string name):
-    BinaryInstruction(NodeType::CompareInst,
-                      lhs,
-                      rhs,
-                      context.intType(1),
+    BinaryInstruction(NodeType::CompareInst, lhs, rhs, context.intType(1),
                       std::move(name)),
     _mode(mode),
     _op(op) {}
 
-static Type const* computeUAType(Context& context,
-                                 Value* operand,
+static Type const* computeUAType(Context& context, Value* operand,
                                  UnaryArithmeticOperation op) {
     if (!operand) {
         return nullptr;
@@ -81,14 +65,11 @@ static Type const* computeUAType(Context& context,
     return operand->type();
 }
 
-UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
-                                         Value* operand,
+UnaryArithmeticInst::UnaryArithmeticInst(Context& context, Value* operand,
                                          UnaryArithmeticOperation op,
                                          std::string name):
-    UnaryInstruction(NodeType::UnaryArithmeticInst,
-                     operand,
-                     computeUAType(context, operand, op),
-                     std::move(name)),
+    UnaryInstruction(NodeType::UnaryArithmeticInst, operand,
+                     computeUAType(context, operand, op), std::move(name)),
     _op(op) {}
 
 void UnaryArithmeticInst::setOperand(Context& context, Value* value) {
@@ -96,15 +77,10 @@ void UnaryArithmeticInst::setOperand(Context& context, Value* value) {
     setType(computeUAType(context, value, operation()));
 }
 
-ArithmeticInst::ArithmeticInst(Value* lhs,
-                               Value* rhs,
-                               ArithmeticOperation op,
+ArithmeticInst::ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op,
                                std::string name):
-    BinaryInstruction(NodeType::ArithmeticInst,
-                      lhs,
-                      rhs,
-                      lhs ? lhs->type() : nullptr,
-                      std::move(name)),
+    BinaryInstruction(NodeType::ArithmeticInst, lhs, rhs,
+                      lhs ? lhs->type() : nullptr, std::move(name)),
     _op(op) {}
 
 ArithmeticType const* ArithmeticInst::type() const {
@@ -115,8 +91,7 @@ ArithmeticType const* ArithmeticInst::type() const {
     return cast<ArithmeticType const*>(t);
 }
 
-TerminatorInst::TerminatorInst(NodeType nodeType,
-                               Context& context,
+TerminatorInst::TerminatorInst(NodeType nodeType, Context& context,
                                std::initializer_list<Value*> operands,
                                std::initializer_list<BasicBlock*> targets):
     Instruction(nodeType, context.voidType(), {}),
@@ -153,10 +128,8 @@ Return::Return(Context& context): Return(context, context.voidValue()) {}
 Call::Call(Type const* returnType, Value* function, std::string name):
     Call(returnType, function, std::span<Value* const>{}, std::move(name)) {}
 
-Call::Call(Type const* returnType,
-           Value* function,
-           std::span<Value* const> arguments,
-           std::string name):
+Call::Call(Type const* returnType, Value* function,
+           std::span<Value* const> arguments, std::string name):
     Instruction(NodeType::Call, returnType, std::move(name)) {
     utl::small_vector<Value*> args;
     args.reserve(1 + arguments.size());
@@ -165,8 +138,7 @@ Call::Call(Type const* returnType,
     setOperands(std::move(args));
 }
 
-Call::Call(Callable* function,
-           std::span<Value* const> arguments,
+Call::Call(Callable* function, std::span<Value* const> arguments,
            std::string name):
     Call(function->returnType(), function, arguments, std::move(name)) {}
 
@@ -177,9 +149,7 @@ static auto extract(std::span<PhiMapping const> args, E extractor) {
     using R = std::invoke_result_t<E, PhiMapping>;
     utl::small_vector<R> result;
     result.reserve(args.size());
-    std::transform(args.begin(),
-                   args.end(),
-                   std::back_inserter(result),
+    std::transform(args.begin(), args.end(), std::back_inserter(result),
                    extractor);
     return result;
 }
@@ -229,12 +199,9 @@ BasicBlock const* Phi::predecessorOf(Value const* value) const {
     return nullptr;
 }
 
-Select::Select(Value* condition,
-               Value* thenValue,
-               Value* elseValue,
+Select::Select(Value* condition, Value* thenValue, Value* elseValue,
                std::string name):
-    Instruction(NodeType::Select,
-                thenValue ? thenValue->type() : nullptr,
+    Instruction(NodeType::Select, thenValue ? thenValue->type() : nullptr,
                 std::move(name),
                 ValueArray{ condition, thenValue, elseValue }) {}
 
@@ -255,18 +222,15 @@ void AccessValueInst::setMemberIndices(std::span<size_t const> indices) {
     _indices = indices | ToSmallVector<>;
 }
 
-GetElementPointer::GetElementPointer(Context& context,
-                                     Type const* inboundsType,
-                                     Value* basePointer,
-                                     Value* arrayIndex,
+GetElementPointer::GetElementPointer(Context& context, Type const* inboundsType,
+                                     Value* basePointer, Value* arrayIndex,
                                      std::span<size_t const> memberIndices,
                                      std::string name):
-    AccessValueInst(NodeType::GetElementPointer,
-                    context.ptrType(),
+    AccessValueInst(NodeType::GetElementPointer, context.ptrType(),
                     std::move(name),
-                    ValueArray{ basePointer,
-                                arrayIndex ? arrayIndex :
-                                             context.intConstant(0, 32) },
+                    ValueArray{ basePointer, arrayIndex ?
+                                                 arrayIndex :
+                                                 context.intConstant(0, 32) },
                     std::array{ inboundsType }) {
     setMemberIndices(memberIndices);
 }
@@ -303,12 +267,10 @@ static Type const* tryGetAccessedType(Value const* value,
                    nullptr;
 }
 
-ExtractValue::ExtractValue(Value* baseValue,
-                           std::span<size_t const> indices,
+ExtractValue::ExtractValue(Value* baseValue, std::span<size_t const> indices,
                            std::string name):
     AccessValueInst(NodeType::ExtractValue,
-                    tryGetAccessedType(baseValue, indices),
-                    std::move(name),
+                    tryGetAccessedType(baseValue, indices), std::move(name),
                     ValueArray{ baseValue }) {
     setMemberIndices(indices);
 }
@@ -318,13 +280,10 @@ void ExtractValue::setBaseValue(Value* value) {
     setType(tryGetAccessedType(value, memberIndices()));
 }
 
-InsertValue::InsertValue(Value* baseValue,
-                         Value* insertedValue,
-                         std::span<size_t const> indices,
-                         std::string name):
+InsertValue::InsertValue(Value* baseValue, Value* insertedValue,
+                         std::span<size_t const> indices, std::string name):
     AccessValueInst(NodeType::InsertValue,
-                    baseValue ? baseValue->type() : nullptr,
-                    std::move(name),
+                    baseValue ? baseValue->type() : nullptr, std::move(name),
                     ValueArray{ baseValue, insertedValue }) {
     setMemberIndices(indices);
 }

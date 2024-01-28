@@ -43,17 +43,15 @@ Global* Module::addGlobal(UniquePtr<Global> value) {
     return result;
 }
 
-GlobalVariable* Module::makeGlobalConstant(Context& ctx,
-                                           Constant* value,
+GlobalVariable* Module::makeGlobalConstant(Context& ctx, Constant* value,
                                            std::string name) {
     auto itr = globalConstMap.find(value);
     if (itr != globalConstMap.end()) {
         return itr->second;
     }
-    auto* global = addGlobal(allocate<GlobalVariable>(ctx,
-                                                      ir::GlobalVariable::Const,
-                                                      value,
-                                                      std::move(name)));
+    auto* global =
+        addGlobal(allocate<GlobalVariable>(ctx, ir::GlobalVariable::Const,
+                                           value, std::move(name)));
     globalConstMap.insert({ value, global });
     return global;
 }

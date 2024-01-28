@@ -12,10 +12,8 @@ public:
     Runtime();
 
     ///
-    bool addFunction(std::string name,
-                     sema::FunctionType const* type,
-                     InternalFuncPtr impl,
-                     void* userptr);
+    bool addFunction(std::string name, sema::FunctionType const* type,
+                     InternalFuncPtr impl, void* userptr);
 
     ///
     template <ValidFunction F>
@@ -52,9 +50,7 @@ private:
 template <scatha::ValidFunction F>
 bool scatha::Runtime::addFunction(std::string name, F&& f) {
     auto [impl, userptr] = internal::makeImplAndUserPtr(std::forward<F>(f));
-    return addFunction(std::move(name),
-                       comp.extractSignature<F>(),
-                       impl,
+    return addFunction(std::move(name), comp.extractSignature<F>(), impl,
                        userptr);
 }
 

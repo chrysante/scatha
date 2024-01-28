@@ -92,14 +92,11 @@ struct LifetimeAnalyzer {
 
     void analyzeImpl(StructType& type);
 
-    Function* findSMF(SMFKind kind,
-                      StructType& type,
+    Function* findSMF(SMFKind kind, StructType& type,
                       std::span<Function* const> functions);
 
-    LifetimeOperation resolveStructOp(SMFKind kind,
-                                      Function* userDefined,
-                                      StructType& type,
-                                      bool generateCondition);
+    LifetimeOperation resolveStructOp(SMFKind kind, Function* userDefined,
+                                      StructType& type, bool generateCondition);
 
     ///
     Function* generateSMF(SMFKind kind, StructType& type);
@@ -202,8 +199,7 @@ void sema::analyzeLifetime(ObjectType& type, SymbolTable& sym) {
     LifetimeAnalyzer(sym).analyze(type);
 }
 
-Function* LifetimeAnalyzer::findSMF(SMFKind kind,
-                                    StructType& type,
+Function* LifetimeAnalyzer::findSMF(SMFKind kind, StructType& type,
                                     std::span<Function* const> functions) {
     auto* funcType = makeSMFType(kind, type);
     return findBySignature(functions, funcType->argumentTypes());
@@ -239,8 +235,7 @@ LifetimeOperation LifetimeAnalyzer::resolveStructOp(SMFKind kind,
 
 Function* LifetimeAnalyzer::generateSMF(SMFKind kind, StructType& type) {
     Function* function = sym.withScopeCurrent(&type, [&] {
-        return sym.declareFunction(toSpelling(kind),
-                                   makeSMFType(kind, type),
+        return sym.declareFunction(toSpelling(kind), makeSMFType(kind, type),
                                    type.accessControl());
     });
     SC_ASSERT(function, "Name can't be used by other symbol");

@@ -154,8 +154,7 @@ static Asm::MemoryAddress convertAddress(mir::MemoryAddressImpl<V> addr) {
     return Asm::MemoryAddress(RegisterIndex(base->index()),
                               factor ? RegisterIndex(factor->index()) :
                                        Asm::MemoryAddress::InvalidRegisterIndex,
-                              addr.offsetFactor(),
-                              addr.offsetTerm());
+                              addr.offsetFactor(), addr.offsetTerm());
 }
 
 static Asm::UnaryArithmeticOperation mapUnaryArithmetic(
@@ -244,10 +243,9 @@ void CGContext::genInstImpl(mir::LEAInst const& inst) {
 }
 
 void CGContext::genInstImpl(mir::CompareInst const& inst) {
-    currentBlock->insertBack(Asm::CompareInst(mapCompareMode(inst.mode()),
-                                              toValue(inst.LHS()),
-                                              toValue(inst.RHS()),
-                                              inst.bytewidth()));
+    currentBlock->insertBack(
+        Asm::CompareInst(mapCompareMode(inst.mode()), toValue(inst.LHS()),
+                         toValue(inst.RHS()), inst.bytewidth()));
     addMetadata(inst);
 }
 
@@ -269,8 +267,7 @@ void CGContext::genInstImpl(mir::UnaryArithmeticInst const& inst) {
     auto operand = toRegIdx(inst.operand());
     auto operation = inst.operation();
     currentBlock->insertBack(UnaryArithmeticInst(mapUnaryArithmetic(operation),
-                                                 operand,
-                                                 inst.bytewidth()));
+                                                 operand, inst.bytewidth()));
     addMetadata(inst);
 }
 
@@ -314,34 +311,26 @@ void CGContext::genInstImpl(mir::ConversionInst const& inst) {
         addMetadata(inst);
         break;
     case mir::Conversion::UtoF:
-        currentBlock->insertBack(ConvertInst(operand,
-                                             Asm::Type::Unsigned,
-                                             inst.fromBits(),
-                                             Asm::Type::Float,
+        currentBlock->insertBack(ConvertInst(operand, Asm::Type::Unsigned,
+                                             inst.fromBits(), Asm::Type::Float,
                                              inst.toBits()));
         addMetadata(inst);
         break;
     case mir::Conversion::StoF:
-        currentBlock->insertBack(ConvertInst(operand,
-                                             Asm::Type::Unsigned,
-                                             inst.fromBits(),
-                                             Asm::Type::Float,
+        currentBlock->insertBack(ConvertInst(operand, Asm::Type::Unsigned,
+                                             inst.fromBits(), Asm::Type::Float,
                                              inst.toBits()));
         addMetadata(inst);
         break;
     case mir::Conversion::FtoU:
-        currentBlock->insertBack(ConvertInst(operand,
-                                             Asm::Type::Float,
-                                             inst.fromBits(),
-                                             Asm::Type::Unsigned,
-                                             inst.toBits()));
+        currentBlock->insertBack(
+            ConvertInst(operand, Asm::Type::Float, inst.fromBits(),
+                        Asm::Type::Unsigned, inst.toBits()));
         addMetadata(inst);
         break;
     case mir::Conversion::FtoS:
-        currentBlock->insertBack(ConvertInst(operand,
-                                             Asm::Type::Float,
-                                             inst.fromBits(),
-                                             Asm::Type::Signed,
+        currentBlock->insertBack(ConvertInst(operand, Asm::Type::Float,
+                                             inst.fromBits(), Asm::Type::Signed,
                                              inst.toBits()));
         addMetadata(inst);
         break;

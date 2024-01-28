@@ -59,8 +59,7 @@ void print(ValueMap const& valueMap);
 class FunctionMap {
 public:
     /// Associate \p semaFn with \p irFn and \p metaData
-    void insert(sema::Function const* semaFn,
-                ir::Callable* irFn,
+    void insert(sema::Function const* semaFn, ir::Callable* irFn,
                 FunctionMetadata metaData);
 
     /// Retrieve IR function associated with \p function
@@ -83,8 +82,7 @@ public:
     explicit TypeMap(ir::Context& ctx): ctx(&ctx) {}
 
     /// Inserts as packed representation
-    void insert(sema::StructType const* key,
-                ir::StructType const* value,
+    void insert(sema::StructType const* key, ir::StructType const* value,
                 StructMetadata metaData);
 
     /// Translate \p type to corresponding packed IR type

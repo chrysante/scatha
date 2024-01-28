@@ -110,13 +110,11 @@
 /// # SC_ASSERT
 #if SC_DEBUG
 #define SC_ASSERT(COND, MSG)                                                   \
-    ((COND) ? (void)0 :                                                        \
-              (::scatha::internal::assertionFailure(__FILE__,                  \
-                                                    __LINE__,                  \
-                                                    SC_PRETTY_FUNC,            \
-                                                    #COND,                     \
-                                                    MSG),                      \
-               ::scatha::internal::handleAssertFailure()))
+    ((COND) ?                                                                  \
+         (void)0 :                                                             \
+         (::scatha::internal::assertionFailure(__FILE__, __LINE__,             \
+                                               SC_PRETTY_FUNC, #COND, MSG),    \
+          ::scatha::internal::handleAssertFailure()))
 #else // SC_DEBUG
 #define SC_ASSERT(COND, MSG) (void)sizeof((bool)(COND))
 #endif // SC_DEBUG
@@ -126,13 +124,11 @@
 
 /// # SC_RELASSERT
 #define SC_RELASSERT(COND, MSG)                                                \
-    ((COND) ? (void)0 :                                                        \
-              (::scatha::internal::assertionFailure(__FILE__,                  \
-                                                    __LINE__,                  \
-                                                    SC_PRETTY_FUNC,            \
-                                                    #COND,                     \
-                                                    MSG),                      \
-               ::scatha::internal::relfail()))
+    ((COND) ?                                                                  \
+         (void)0 :                                                             \
+         (::scatha::internal::assertionFailure(__FILE__, __LINE__,             \
+                                               SC_PRETTY_FUNC, #COND, MSG),    \
+          ::scatha::internal::relfail()))
 
 #define SC_ABORT() ::scatha::internal::relfail()
 
@@ -237,10 +233,8 @@ void SCATHA_API unimplemented(char const* file, int line, char const* function);
 
 void SCATHA_API unreachable(char const* file, int line, char const* function);
 
-void SCATHA_API assertionFailure(char const* file,
-                                 int line,
-                                 char const* function,
-                                 char const* expr,
+void SCATHA_API assertionFailure(char const* file, int line,
+                                 char const* function, char const* expr,
                                  char const* msg);
 
 /// Calls `std::abort()`

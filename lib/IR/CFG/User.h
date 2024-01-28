@@ -60,9 +60,7 @@ public:
     bool directlyUses(Value const* value) const;
 
 protected:
-    explicit User(NodeType nodeType,
-                  Type const* type,
-                  std::string name = {},
+    explicit User(NodeType nodeType, Type const* type, std::string name = {},
                   std::span<Value* const> operands = {});
 
     /// Clear all operands and replace with new operands.

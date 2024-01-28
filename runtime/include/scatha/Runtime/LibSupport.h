@@ -31,16 +31,12 @@ struct CppSignature {
 };
 
 ///
-using DeclareCallback = void (*)(void* context,
-                                 char const* name,
+using DeclareCallback = void (*)(void* context, char const* name,
                                  CppSignature sig);
 
 ///
-using DefineCallback = void (*)(void* context,
-                                size_t index,
-                                char const* name,
-                                InternalFuncPtr impl,
-                                void* userptr);
+using DefineCallback = void (*)(void* context, size_t index, char const* name,
+                                InternalFuncPtr impl, void* userptr);
 
 } // namespace scatha
 

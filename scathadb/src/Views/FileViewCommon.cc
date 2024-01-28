@@ -23,8 +23,7 @@ Element sdb::lineNumber(LineInfo line) {
 ElementDecorator sdb::lineMessageDecorator(std::string message) {
     return [=](Element elem) {
         return hbox(
-            { elem,
-              filler(),
+            { elem, filler(),
               hflow(paragraphAlignRight(std::move(message))) | yflex_grow });
     };
 }

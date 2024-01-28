@@ -69,8 +69,7 @@ static void mapSSAToVirtualRegisters(Function& F) {
     }
 }
 
-static BasicBlock::Iterator destroyTailCall(Function& F,
-                                            BasicBlock& BB,
+static BasicBlock::Iterator destroyTailCall(Function& F, BasicBlock& BB,
                                             CallInst& call,
                                             BasicBlock::Iterator itr) {
     size_t const numArgs = call.operands().size() - 1;
@@ -122,9 +121,7 @@ static BasicBlock::Iterator destroyTailCall(Function& F,
     return itr;
 }
 
-static BasicBlock::Iterator destroy(Function& F,
-                                    BasicBlock& BB,
-                                    CallInst& call,
+static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
                                     BasicBlock::Iterator const callItr) {
     if (isTailCall(call)) {
         return destroyTailCall(F, BB, call, callItr);
@@ -144,8 +141,7 @@ static BasicBlock::Iterator destroy(Function& F,
     auto dest =
         std::next(F.calleeRegisters().begin(), static_cast<ssize_t>(numMDRegs));
     for (auto argItr = call.arguments().begin(), end = call.arguments().end();
-         argItr != end;
-         ++dest, ++argItr)
+         argItr != end; ++dest, ++argItr)
     {
         Value* arg = *argItr;
         CalleeRegister* destReg = dest.to_address();
@@ -169,10 +165,8 @@ static BasicBlock::Iterator destroy(Function& F,
     return std::next(callItr);
 }
 
-static BasicBlock::Iterator destroy(Function& F,
-                                    BasicBlock& BB,
-                                    ReturnInst& ret,
-                                    BasicBlock::Iterator itr) {
+static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB,
+                                    ReturnInst& ret, BasicBlock::Iterator itr) {
     for (auto [arg, dest]: zip(ret.operands(), F.virtualReturnValueRegisters()))
     {
         auto* copy = new CopyInst(dest, arg, 8, ret.metadata());
@@ -206,9 +200,7 @@ static BasicBlock::Iterator destroy(Function& F,
     splitBlock->setLiveOut(pred->liveOut());
 }
 
-static BasicBlock::Iterator destroy(Function& F,
-                                    BasicBlock& BB,
-                                    PhiInst& phi,
+static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, PhiInst& phi,
                                     BasicBlock::Iterator itr) {
     auto* dest = phi.dest();
     bool const needTmp = ranges::any_of(BB.predecessors(), [&](auto* pred) {
@@ -220,11 +212,8 @@ static BasicBlock::Iterator destroy(Function& F,
         auto* tmp = new VirtualRegister();
         dest = tmp;
         F.virtualRegisters().add(tmp);
-        BB.insert(&phi,
-                  new CopyInst(phi.dest(),
-                               tmp,
-                               phi.bytewidth(),
-                               phi.metadata()));
+        BB.insert(&phi, new CopyInst(phi.dest(), tmp, phi.bytewidth(),
+                                     phi.metadata()));
         BB.addLiveIn(tmp);
         BB.removeLiveIn(phi.dest());
     }
@@ -263,28 +252,21 @@ static BasicBlock::Iterator destroy(Function& F,
     return BB.erase(itr);
 }
 
-static BasicBlock::Iterator destroy(Function&,
-                                    BasicBlock& BB,
+static BasicBlock::Iterator destroy(Function&, BasicBlock& BB,
                                     SelectInst& select,
                                     BasicBlock::Iterator itr) {
-    auto* copy = new CopyInst(select.dest(),
-                              select.thenValue(),
-                              select.bytewidth(),
-                              select.metadata());
-    auto* cndCopy = new CondCopyInst(select.dest(),
-                                     select.elseValue(),
-                                     select.bytewidth(),
-                                     inverse(select.condition()),
-                                     select.metadata());
+    auto* copy = new CopyInst(select.dest(), select.thenValue(),
+                              select.bytewidth(), select.metadata());
+    auto* cndCopy =
+        new CondCopyInst(select.dest(), select.elseValue(), select.bytewidth(),
+                         inverse(select.condition()), select.metadata());
     BB.insert(itr, copy);
     BB.insert(itr, cndCopy);
     return BB.erase(itr);
 }
 
 /// Base case
-static BasicBlock::Iterator destroy(Function&,
-                                    BasicBlock&,
-                                    Instruction&,
+static BasicBlock::Iterator destroy(Function&, BasicBlock&, Instruction&,
                                     BasicBlock::Iterator itr) {
     return std::next(itr);
 }

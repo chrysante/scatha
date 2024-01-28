@@ -12,8 +12,7 @@ namespace scatha::sema {
 ///
 /// \param TU Translation unit to analyze
 /// \param symbolTable Symbol table to populate.
-SCATHA_API AnalysisResult analyze(ast::ASTNode& TU,
-                                  SymbolTable& symbolTable,
+SCATHA_API AnalysisResult analyze(ast::ASTNode& TU, SymbolTable& symbolTable,
                                   IssueHandler&,
                                   AnalysisOptions const& options = {});
 

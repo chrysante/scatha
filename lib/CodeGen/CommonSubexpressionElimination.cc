@@ -15,8 +15,7 @@ using namespace cg;
 using namespace mir;
 using namespace ranges::views;
 
-static decltype(auto) visitInstPair(Instruction const& A,
-                                    Instruction const& B,
+static decltype(auto) visitInstPair(Instruction const& A, Instruction const& B,
                                     auto&& visitor) {
     SC_EXPECT(A.instType() == B.instType());
     return visit(A, [&]<typename Derived>(Derived const& A) -> decltype(auto) {
@@ -222,8 +221,7 @@ utl::small_vector<utl::hashset<Instruction*>> CSEContext::computeRankMap() {
         return result[index];
     };
     for (auto& inst: BB) {
-        size_t rank = ranges::accumulate(inst.operands(),
-                                         size_t{ 0 },
+        size_t rank = ranges::accumulate(inst.operands(), size_t{ 0 },
                                          [&](size_t acc, Value const* operand) {
             return std::max(acc, ranks[operand] + 1);
         });

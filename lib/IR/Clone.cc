@@ -11,8 +11,7 @@ using namespace scatha;
 using namespace ir;
 
 static Alloca* doClone(Context& context, Alloca* allc) {
-    return new Alloca(context,
-                      allc->allocatedType(),
+    return new Alloca(context, allc->allocatedType(),
                       std::string(allc->name()));
 }
 
@@ -25,33 +24,23 @@ static Store* doClone(Context& context, Store* store) {
 }
 
 static ConversionInst* doClone(Context&, ConversionInst* inst) {
-    return new ConversionInst(inst->operand(),
-                              inst->type(),
-                              inst->conversion(),
+    return new ConversionInst(inst->operand(), inst->type(), inst->conversion(),
                               std::string(inst->name()));
 }
 
 static CompareInst* doClone(Context& context, CompareInst* cmp) {
-    return new CompareInst(context,
-                           cmp->lhs(),
-                           cmp->rhs(),
-                           cmp->mode(),
-                           cmp->operation(),
-                           std::string(cmp->name()));
+    return new CompareInst(context, cmp->lhs(), cmp->rhs(), cmp->mode(),
+                           cmp->operation(), std::string(cmp->name()));
 }
 
 static UnaryArithmeticInst* doClone(Context& context,
                                     UnaryArithmeticInst* inst) {
-    return new UnaryArithmeticInst(context,
-                                   inst->operand(),
-                                   inst->operation(),
+    return new UnaryArithmeticInst(context, inst->operand(), inst->operation(),
                                    std::string(inst->name()));
 }
 
 static ArithmeticInst* doClone(Context&, ArithmeticInst* inst) {
-    return new ArithmeticInst(inst->lhs(),
-                              inst->rhs(),
-                              inst->operation(),
+    return new ArithmeticInst(inst->lhs(), inst->rhs(), inst->operation(),
                               std::string(inst->name()));
 }
 
@@ -60,9 +49,7 @@ static Goto* doClone(Context& context, Goto* inst) {
 }
 
 static Branch* doClone(Context& context, Branch* inst) {
-    return new Branch(context,
-                      inst->condition(),
-                      inst->thenTarget(),
+    return new Branch(context, inst->condition(), inst->thenTarget(),
                       inst->elseTarget());
 }
 
@@ -71,9 +58,7 @@ static Return* doClone(Context& context, Return* inst) {
 }
 
 static Call* doClone(Context&, Call* inst) {
-    return new Call(inst->type(),
-                    inst->function(),
-                    inst->arguments(),
+    return new Call(inst->type(), inst->function(), inst->arguments(),
                     std::string(inst->name()));
 }
 
@@ -83,19 +68,15 @@ static Phi* doClone(Context&, Phi* inst) {
 }
 
 static GetElementPointer* doClone(Context& context, GetElementPointer* inst) {
-    return new GetElementPointer(context,
-                                 inst->inboundsType(),
-                                 inst->basePointer(),
-                                 inst->arrayIndex(),
+    return new GetElementPointer(context, inst->inboundsType(),
+                                 inst->basePointer(), inst->arrayIndex(),
                                  inst->memberIndices() |
                                      ranges::to<utl::small_vector<size_t>>,
                                  std::string(inst->name()));
 }
 
 static Select* doClone(Context&, Select* inst) {
-    return new Select(inst->condition(),
-                      inst->thenValue(),
-                      inst->elseValue(),
+    return new Select(inst->condition(), inst->thenValue(), inst->elseValue(),
                       std::string(inst->name()));
 }
 
@@ -107,8 +88,7 @@ static ExtractValue* doClone(Context&, ExtractValue* inst) {
 }
 
 static InsertValue* doClone(Context&, InsertValue* inst) {
-    return new InsertValue(inst->baseValue(),
-                           inst->insertedValue(),
+    return new InsertValue(inst->baseValue(), inst->insertedValue(),
                            inst->memberIndices() |
                                ranges::to<utl::small_vector<size_t>>,
                            std::string(inst->name()));
@@ -120,8 +100,7 @@ static Instruction* cloneRaw(Context& context, Instruction* inst) {
     });
 }
 
-static BasicBlock* cloneRaw(Context& context,
-                            BasicBlock* bb,
+static BasicBlock* cloneRaw(Context& context, BasicBlock* bb,
                             CloneValueMap& valueMap) {
     auto* result = new BasicBlock(context, std::string(bb->name()));
     for (auto& inst: *bb) {
@@ -145,8 +124,7 @@ UniquePtr<BasicBlock> ir::clone(Context& context, BasicBlock* BB) {
     return clone(context, BB, valueMap);
 }
 
-UniquePtr<BasicBlock> ir::clone(Context& context,
-                                BasicBlock* BB,
+UniquePtr<BasicBlock> ir::clone(Context& context, BasicBlock* BB,
                                 CloneValueMap& valueMap) {
     auto* result = cloneRaw(context, BB, valueMap);
     for (auto& inst: *result) {
@@ -193,8 +171,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
         function->parameters() |
         ranges::views::transform([](Parameter const& p) { return p.type(); }) |
         ToSmallVector<>;
-    auto result = allocate<Function>(context,
-                                     function->returnType(),
+    auto result = allocate<Function>(context, function->returnType(),
                                      makeParameters(paramTypes),
                                      std::string(function->name()),
                                      function->attributes());

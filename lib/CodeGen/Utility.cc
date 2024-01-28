@@ -18,10 +18,8 @@ bool cg::hasSideEffects(Instruction const& inst) {
            isa<CompareInst>(inst) || isa<TestInst>(inst);
 }
 
-static LiveInterval computeLiveInterval(Function& F,
-                                        BasicBlock& BB,
-                                        Register* reg,
-                                        int32_t begin) {
+static LiveInterval computeLiveInterval(Function& F, BasicBlock& BB,
+                                        Register* reg, int32_t begin) {
     int32_t end = begin;
     int32_t first =
         std::max(begin + 1, static_cast<int32_t>(BB.front().index()));

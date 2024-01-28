@@ -98,8 +98,7 @@ public:
 
     /// \overload for use without AST. Here we don't require two step
     /// initialization.
-    Function* declareFunction(std::string name,
-                              FunctionType const* type,
+    Function* declareFunction(std::string name, FunctionType const* type,
                               AccessControl accessControl);
 
     /// Add an overload set to the symbol table. This actually just exists so
@@ -114,8 +113,7 @@ public:
     /// been declared before.
     ///
     /// \returns the declared function or null when an error occurred
-    Function* declareForeignFunction(std::string name,
-                                     FunctionType const* type,
+    Function* declareForeignFunction(std::string name, FunctionType const* type,
                                      FunctionAttribute attrs,
                                      AccessControl accessControl);
 
@@ -140,25 +138,20 @@ public:
     ///
     /// \returns the declared variable if no error occurs
     /// Otherwise emits an error the to issue handler
-    Variable* defineVariable(ast::VarDeclBase* vardecl,
-                             Type const* type,
+    Variable* defineVariable(ast::VarDeclBase* vardecl, Type const* type,
                              Mutability mutability,
                              AccessControl accessControl);
 
     /// \overload for use without AST
-    Variable* defineVariable(std::string name,
-                             Type const* type,
+    Variable* defineVariable(std::string name, Type const* type,
                              Mutability mutability,
                              AccessControl accessControl);
 
     /// ...
     /// \param astNode is defaulted to null because in most cases properties
     /// don't have source locations
-    Property* addProperty(PropertyKind kind,
-                          Type const* type,
-                          Mutability mut,
-                          ValueCategory valueCat,
-                          AccessControl accessControl,
+    Property* addProperty(PropertyKind kind, Type const* type, Mutability mut,
+                          ValueCategory valueCat, AccessControl accessControl,
                           ast::ASTNode* astNode = nullptr);
 
     /// Creates a new unique temporary object of type \p type
@@ -171,22 +164,18 @@ public:
     /// current scope.
     /// Does nothing if \p aliased is already aliased under the same name or
     /// exists with the same name in the current scope
-    Alias* declareAlias(std::string name,
-                        Entity& aliased,
-                        ast::ASTNode* astNode,
-                        AccessControl accessControl);
+    Alias* declareAlias(std::string name, Entity& aliased,
+                        ast::ASTNode* astNode, AccessControl accessControl);
 
     /// Declares an alias to entity \p aliased under the same name in the
     /// current scope.
     /// Does nothing if \p aliased is already aliased under the same name in the
     /// current scope or if \p aliased is a member of the current scope
-    Alias* declareAlias(Entity& aliased,
-                        ast::ASTNode* astNode,
+    Alias* declareAlias(Entity& aliased, ast::ASTNode* astNode,
                         AccessControl accessControl);
 
     /// Declares a poison entity to the current scope.
-    PoisonEntity* declarePoison(ast::Identifier* ID,
-                                EntityCategory category,
+    PoisonEntity* declarePoison(ast::Identifier* ID, EntityCategory category,
                                 AccessControl accessControl);
 
     /// Makes scope \p scope the current scope.
@@ -355,20 +344,14 @@ private:
     ForeignLibrary* getOrImportForeignLib(std::string_view name,
                                           ast::ASTNode* astNode);
 
-    StructType* declareStructImpl(ast::StructDefinition* def,
-                                  std::string name,
+    StructType* declareStructImpl(ast::StructDefinition* def, std::string name,
                                   AccessControl accCtrl);
-    Function* declareFuncImpl(ast::FunctionDefinition* def,
-                              std::string name,
+    Function* declareFuncImpl(ast::FunctionDefinition* def, std::string name,
                               AccessControl accCtrl);
-    Variable* declareVarImpl(ast::VarDeclBase* vardecl,
-                             std::string name,
-                             AccessControl accCtrl,
-                             Mutability mut);
-    Variable* defineVarImpl(ast::VarDeclBase* vardecl,
-                            std::string name,
-                            Type const* type,
-                            Mutability mut,
+    Variable* declareVarImpl(ast::VarDeclBase* vardecl, std::string name,
+                             AccessControl accCtrl, Mutability mut);
+    Variable* defineVarImpl(ast::VarDeclBase* vardecl, std::string name,
+                            Type const* type, Mutability mut,
                             AccessControl accCtrl);
 
     template <typename T, typename... Args>
@@ -384,8 +367,7 @@ private:
     /// \Pre expects \p entity to have access control
     bool validateAccessControl(Entity const& entity);
 
-    bool checkRedef(int kind,
-                    std::string_view name,
+    bool checkRedef(int kind, std::string_view name,
                     ast::Declaration const* declaration,
                     AccessControl accessControl);
 

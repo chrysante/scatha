@@ -9,8 +9,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::rematerialize,
-                 "rematerialize",
+SC_REGISTER_PASS(opt::rematerialize, "rematerialize",
                  PassCategory::Experimental);
 
 namespace {

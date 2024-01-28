@@ -25,8 +25,7 @@ std::pair<mir::Value*, size_t> ValueMap::getAddress(
     return {};
 }
 
-void ValueMap::addAddress(ir::Value const* key,
-                          mir::Value* baseAddr,
+void ValueMap::addAddress(ir::Value const* key, mir::Value* baseAddr,
                           size_t offset) {
     auto [itr, success] = addressMap.insert({ key, { baseAddr, offset } });
     SC_ASSERT(success, "Key already present");

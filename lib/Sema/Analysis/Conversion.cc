@@ -163,8 +163,7 @@ static ConvExp<ObjectTypeConversion> pointerConv(ConversionKind kind,
         }; // clang-format on
     }
     if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
-        auto conv = determineObjConv(kind,
-                                     { from.base(), LValue },
+        auto conv = determineObjConv(kind, { from.base(), LValue },
                                      { to.base(), LValue });
         return conv.transform(convRefToPtr);
     }
@@ -417,9 +416,7 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
 }
 
 static ConvExp<ValueCatConversion> determineValueCatConv(
-    ConversionKind kind,
-    ValueCategory from,
-    ValueCategory to,
+    ConversionKind kind, ValueCategory from, ValueCategory to,
     Mutability toMutability) {
     using enum ConversionKind;
     using enum ValueCatConversion;
@@ -448,8 +445,7 @@ static ConvExp<ValueCatConversion> determineValueCatConv(
     SC_UNREACHABLE();
 }
 
-static ConvExp<MutConversion> determineMutConv(ConversionKind,
-                                               Mutability from,
+static ConvExp<MutConversion> determineMutConv(ConversionKind, Mutability from,
                                                Mutability to) {
     /// No mutability conversion happens
     if (from == to) {
@@ -533,8 +529,7 @@ static APInt computeIntegralFloatLimit(size_t fromBitwidth, size_t toBitwidth) {
 }
 
 static bool isLossless(std::optional<ObjectTypeConversion> conv,
-                       Value const* value,
-                       ObjectType const* from,
+                       Value const* value, ObjectType const* from,
                        ObjectType const* to) {
     /// TODO: Introduce `SignedToUnsigned` and vv. conversion
     /// Unfortunately `ConvNoop` also represents signed -> unsigned and vv.
@@ -631,14 +626,10 @@ static ConvExp<ObjectTypeConversion> tryImplicitConstConv(Value const* value,
 }
 
 Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
-    ConversionKind kind,
-    ast::Expression const* expr,
-    QualType to,
+    ConversionKind kind, ast::Expression const* expr, QualType to,
     ValueCategory toValueCat) {
-    auto valueCatConv = determineValueCatConv(kind,
-                                              expr->valueCategory(),
-                                              toValueCat,
-                                              to.mutability());
+    auto valueCatConv = determineValueCatConv(kind, expr->valueCategory(),
+                                              toValueCat, to.mutability());
     if (valueCatConv.isError()) {
         return std::make_unique<BadValueCatConv>(nullptr, expr, toValueCat);
     }
@@ -655,26 +646,19 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     if (kind == ConversionKind::Implicit && objConv.isError() &&
         expr->constantValue())
     {
-        objConv = tryImplicitConstConv(expr->constantValue(),
-                                       expr,
+        objConv = tryImplicitConstConv(expr->constantValue(), expr,
                                        { to, toValueCat });
     }
     if (objConv.isError()) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
     }
-    return Conversion(expr->type(),
-                      to,
-                      toOpt(valueCatConv),
-                      toOpt(mutConv),
+    return Conversion(expr->type(), to, toOpt(valueCatConv), toOpt(mutConv),
                       toOpt(objConv));
 }
 
-ast::Expression* sema::convert(ConversionKind kind,
-                               ast::Expression* expr,
-                               QualType to,
-                               ValueCategory toValueCat,
-                               CleanupStack& dtors,
-                               AnalysisContext& ctx) {
+ast::Expression* sema::convert(ConversionKind kind, ast::Expression* expr,
+                               QualType to, ValueCategory toValueCat,
+                               CleanupStack& dtors, AnalysisContext& ctx) {
     auto convres = computeConversion(kind, expr, to, toValueCat);
     if (!convres) {
         ctx.issueHandler().push(std::move(convres).error());
@@ -698,8 +682,7 @@ static std::optional<size_t> nextBitwidth(size_t width) {
     }
 }
 
-IntType const* commonTypeSignedUnsigned(SymbolTable& sym,
-                                        IntType const* a,
+IntType const* commonTypeSignedUnsigned(SymbolTable& sym, IntType const* a,
                                         IntType const* b) {
     SC_EXPECT(a->isSigned());
     SC_EXPECT(b->isUnsigned());
@@ -720,8 +703,7 @@ static Mutability commonMutability(QualType a, QualType b) {
     return commonMutability(a.mutability(), b.mutability());
 }
 
-static RawPtrType const* commonPointer(SymbolTable& sym,
-                                       QualType aBase,
+static RawPtrType const* commonPointer(SymbolTable& sym, QualType aBase,
                                        QualType bBase) {
     if (aBase == bBase) {
         return sym.pointer(aBase);
@@ -813,8 +795,7 @@ QualType sema::commonType(SymbolTable& sym,
 }
 
 ConvExp<ObjectTypeConversion> sema::computeObjectConstruction(
-    ConversionKind kind,
-    ObjectType const* targetType,
+    ConversionKind kind, ObjectType const* targetType,
     std::span<ThinExpr const> arguments) {
     SC_EXPECT(kind != ConversionKind::Reinterpret);
     using enum ObjectTypeConversion;
@@ -879,8 +860,7 @@ ConvExp<ObjectTypeConversion> sema::computeObjectConstruction(
 }
 
 UniquePtr<ast::ConstructBase> sema::allocateObjectConstruction(
-    ObjectTypeConversion kind,
-    SourceRange sourceRng,
+    ObjectTypeConversion kind, SourceRange sourceRng,
     ObjectType const* targetType,
     utl::small_vector<UniquePtr<ast::Expression>> arguments) {
     using enum ObjectTypeConversion;
@@ -892,12 +872,10 @@ UniquePtr<ast::ConstructBase> sema::allocateObjectConstruction(
         SC_EXPECT(arguments.size() == 1);
         return allocate<ast::TrivCopyConstructExpr>(std::move(
                                                         arguments.front()),
-                                                    sourceRng,
-                                                    targetType);
+                                                    sourceRng, targetType);
     case TrivAggrConstruct:
         return allocate<ast::TrivAggrConstructExpr>(std::move(arguments),
-                                                    sourceRng,
-                                                    targetType);
+                                                    sourceRng, targetType);
     case NontrivAggrConstruct:
         return allocate<ast::NontrivAggrConstructExpr>(std::move(arguments),
                                                        sourceRng,
@@ -910,8 +888,7 @@ UniquePtr<ast::ConstructBase> sema::allocateObjectConstruction(
                                                        targetType));
     case NontrivInlineConstruct:
         return allocate<ast::NontrivInlineConstructExpr>(std::move(arguments),
-                                                         sourceRng,
-                                                         targetType);
+                                                         sourceRng, targetType);
     case DynArrayConstruct:
         return allocate<ast::DynArrayConstructExpr>(std::move(arguments),
                                                     sourceRng,
@@ -923,24 +900,16 @@ UniquePtr<ast::ConstructBase> sema::allocateObjectConstruction(
 }
 
 ast::Expression* sema::constructInplace(
-    ConversionKind kind,
-    ast::Expression* replace,
-    ObjectType const* targetType,
-    std::span<ast::Expression* const> arguments,
-    CleanupStack& cleanups,
+    ConversionKind kind, ast::Expression* replace, ObjectType const* targetType,
+    std::span<ast::Expression* const> arguments, CleanupStack& cleanups,
     AnalysisContext& ctx) {
     auto insert =
         [parent = replace->parent(),
          index = replace->indexInParent()](UniquePtr<ast::Expression> expr) {
         return parent->setChild(index, std::move(expr));
     };
-    auto result = constructInplace(kind,
-                                   replace,
-                                   insert,
-                                   targetType,
-                                   arguments,
-                                   cleanups,
-                                   ctx);
+    auto result = constructInplace(kind, replace, insert, targetType, arguments,
+                                   cleanups, ctx);
     switch (result.state()) {
     case ConvNoop:
         return replace;
@@ -952,16 +921,12 @@ ast::Expression* sema::constructInplace(
 }
 
 ConvExp<ast::Expression*> sema::constructInplace(
-    ConversionKind kind,
-    ast::ASTNode const* parentNode,
+    ConversionKind kind, ast::ASTNode const* parentNode,
     utl::function_view<ast::Expression*(UniquePtr<ast::Expression>)> insert,
-    ObjectType const* targetType,
-    std::span<ast::Expression* const> arguments,
-    CleanupStack& cleanups,
-    AnalysisContext& ctx) {
+    ObjectType const* targetType, std::span<ast::Expression* const> arguments,
+    CleanupStack& cleanups, AnalysisContext& ctx) {
     auto constrKind =
-        computeObjectConstruction(kind,
-                                  targetType,
+        computeObjectConstruction(kind, targetType,
                                   arguments |
                                       ranges::to<utl::small_vector<ThinExpr>>);
     if (constrKind.isNoop()) {
@@ -972,16 +937,13 @@ ConvExp<ast::Expression*> sema::constructInplace(
         return ConvError;
     }
     auto constr = allocateObjectConstruction(
-        constrKind.value(),
-        parentNode->sourceRange(),
-        targetType,
+        constrKind.value(), parentNode->sourceRange(), targetType,
         arguments | transform(&ast::Expression::extractFromParent) |
             ToSmallVector<>);
     return analyzeValueExpr(insert(std::move(constr)), cleanups, ctx);
 }
 
-ast::Expression* sema::insertConversion(ast::Expression* expr,
-                                        Conversion conv,
+ast::Expression* sema::insertConversion(ast::Expression* expr, Conversion conv,
                                         CleanupStack& dtors,
                                         AnalysisContext& ctx) {
     auto mutConv = conv.mutConversion();
@@ -1000,8 +962,7 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
     if (objConv) {
         if (isConstruction(*objConv)) {
             expr = ast::insertNode(expr, [&](UniquePtr<ast::Expression> expr) {
-                return allocateObjectConstruction(*objConv,
-                                                  expr->sourceRange(),
+                return allocateObjectConstruction(*objConv, expr->sourceRange(),
                                                   conv.targetType().get(),
                                                   toSmallVector(
                                                       std::move(expr)));
@@ -1009,8 +970,7 @@ ast::Expression* sema::insertConversion(ast::Expression* expr,
         }
         else {
             expr =
-                ast::insertNode<ast::ObjTypeConvExpr>(expr,
-                                                      *objConv,
+                ast::insertNode<ast::ObjTypeConvExpr>(expr, *objConv,
                                                       conv.targetType().get());
         }
     }

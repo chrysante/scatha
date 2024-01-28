@@ -36,10 +36,8 @@ struct RecordConstantMap {
         return cast<ConstType*>(itr->second.get());
     }
 
-    utl::hashmap<RecordConstantKey,
-                 UniquePtr<RecordConstant>,
-                 RecordConstantHash,
-                 RecordConstantEqual>
+    utl::hashmap<RecordConstantKey, UniquePtr<RecordConstant>,
+                 RecordConstantHash, RecordConstantEqual>
         map;
 };
 
@@ -106,8 +104,7 @@ static auto* getArithmeticType(size_t bitwidth, auto& types, auto& map) {
 }
 
 IntegralType const* Context::intType(size_t bitwidth) {
-    return getArithmeticType<IntegralType>(bitwidth,
-                                           impl->_types,
+    return getArithmeticType<IntegralType>(bitwidth, impl->_types,
                                            impl->_intTypes);
 }
 
@@ -115,8 +112,7 @@ IntegralType const* Context::boolType() { return intType(1); }
 
 FloatType const* Context::floatType(size_t bitwidth) {
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Other sizes not supported");
-    return getArithmeticType<FloatType>(bitwidth,
-                                        impl->_types,
+    return getArithmeticType<FloatType>(bitwidth, impl->_types,
                                         impl->_floatTypes);
 }
 
@@ -235,23 +231,20 @@ RecordConstant* Context::recordConstant(std::span<ir::Constant* const> elems,
 }
 
 template <typename ConstType, typename IRType>
-static ConstType* recordConstantImpl(auto& constantMap,
-                                     IRType const* type,
+static ConstType* recordConstantImpl(auto& constantMap, IRType const* type,
                                      std::span<ir::Constant* const> elems) {
     return constantMap[type].template get<ConstType>(type, elems);
 }
 
 StructConstant* Context::structConstant(std::span<ir::Constant* const> elems,
                                         StructType const* type) {
-    return recordConstantImpl<StructConstant>(impl->recordConstants,
-                                              type,
+    return recordConstantImpl<StructConstant>(impl->recordConstants, type,
                                               elems);
 }
 
 ArrayConstant* Context::arrayConstant(std::span<ir::Constant* const> elems,
                                       ArrayType const* type) {
-    return recordConstantImpl<ArrayConstant>(impl->recordConstants,
-                                             type,
+    return recordConstantImpl<ArrayConstant>(impl->recordConstants, type,
                                              elems);
 }
 

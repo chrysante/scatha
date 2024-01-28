@@ -101,8 +101,7 @@ struct PhiSentinel {};
 
 template <bool IsConst, typename BB = BasicBlock>
 struct PhiIteratorImpl {
-    using Itr = std::conditional_t<IsConst,
-                                   typename BB::ConstIterator,
+    using Itr = std::conditional_t<IsConst, typename BB::ConstIterator,
                                    typename BB::Iterator>;
 
 public:

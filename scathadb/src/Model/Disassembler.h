@@ -33,10 +33,8 @@ struct Value {
 /// `Value` Constructors
 /// @{
 Value makeRegisterIndex(size_t index);
-Value makeAddress(uint8_t baseRegIdx,
-                  uint8_t offsetRegIdx,
-                  uint8_t offsetFactor,
-                  uint8_t offsetTerm);
+Value makeAddress(uint8_t baseRegIdx, uint8_t offsetRegIdx,
+                  uint8_t offsetFactor, uint8_t offsetTerm);
 Value makeAddress(uint32_t value);
 Value makeValue8(uint64_t value);
 Value makeValue16(uint64_t value);
@@ -66,8 +64,7 @@ struct Instruction {
 
 /// Convert the instruction \p inst to a string. If \p disasm is non-null it is
 /// used to print prettier labels
-std::string toString(Instruction inst,
-                     Disassembly const* disasm = nullptr,
+std::string toString(Instruction inst, Disassembly const* disasm = nullptr,
                      svm::VirtualMachine const* vm = nullptr);
 
 /// Print \p inst to \p ostream

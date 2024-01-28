@@ -94,14 +94,10 @@ void FunctionCall::decorateCall(sema::Object* object,
 }
 
 NontrivConstructExpr::NontrivConstructExpr(
-    utl::small_vector<UniquePtr<Expression>> arguments,
-    SourceRange sourceRange,
+    utl::small_vector<UniquePtr<Expression>> arguments, SourceRange sourceRange,
     sema::StructType const* constructedType):
-    ConstructBase(NodeType::NontrivConstructExpr,
-                  nullptr,
-                  std::move(arguments),
-                  sourceRange,
-                  constructedType) {}
+    ConstructBase(NodeType::NontrivConstructExpr, nullptr, std::move(arguments),
+                  sourceRange, constructedType) {}
 
 sema::StructType const* NontrivConstructExpr::constructedType() const {
     return cast<sema::StructType const*>(ConstructBase::constructedType());
@@ -114,28 +110,20 @@ void NontrivConstructExpr::decorateConstruct(
 }
 
 NontrivAggrConstructExpr::NontrivAggrConstructExpr(
-    utl::small_vector<UniquePtr<Expression>> arguments,
-    SourceRange sourceRange,
+    utl::small_vector<UniquePtr<Expression>> arguments, SourceRange sourceRange,
     sema::StructType const* constructedType):
-    ConstructBase(NodeType::NontrivAggrConstructExpr,
-                  nullptr,
-                  std::move(arguments),
-                  sourceRange,
-                  constructedType) {}
+    ConstructBase(NodeType::NontrivAggrConstructExpr, nullptr,
+                  std::move(arguments), sourceRange, constructedType) {}
 
 sema::StructType const* NontrivAggrConstructExpr::constructedType() const {
     return cast<sema::StructType const*>(ConstructBase::constructedType());
 }
 
 DynArrayConstructExpr::DynArrayConstructExpr(
-    utl::small_vector<UniquePtr<Expression>> arguments,
-    SourceRange sourceRange,
+    utl::small_vector<UniquePtr<Expression>> arguments, SourceRange sourceRange,
     sema::ArrayType const* constructedType):
-    ConstructBase(NodeType::DynArrayConstructExpr,
-                  nullptr,
-                  std::move(arguments),
-                  sourceRange,
-                  constructedType) {}
+    ConstructBase(NodeType::DynArrayConstructExpr, nullptr,
+                  std::move(arguments), sourceRange, constructedType) {}
 
 sema::ArrayType const* DynArrayConstructExpr::constructedType() const {
     return cast<sema::ArrayType const*>(ConstructBase::constructedType());

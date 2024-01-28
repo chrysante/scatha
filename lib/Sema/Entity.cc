@@ -34,9 +34,7 @@ EntityCategory Entity::category() const {
     return visit(*this, [](auto& derived) { return derived.categoryImpl(); });
 }
 
-Entity::Entity(EntityType entityType,
-               std::string name,
-               Scope* parent,
+Entity::Entity(EntityType entityType, std::string name, Scope* parent,
                ast::ASTNode* astNode):
     _entityType(entityType),
     _parent(parent),
@@ -59,12 +57,8 @@ Type const* sema::getEntityType(Entity const& entity) {
     });
 }
 
-Object::Object(EntityType entityType,
-               std::string name,
-               Scope* parentScope,
-               Type const* type,
-               Mutability mut,
-               ast::ASTNode* astNode):
+Object::Object(EntityType entityType, std::string name, Scope* parentScope,
+               Type const* type, Mutability mut, ast::ASTNode* astNode):
     Entity(entityType, std::move(name), parentScope, astNode),
     _type(type),
     _mut(mut) {}
@@ -87,56 +81,32 @@ ValueCategory VarBase::valueCategory() const {
     return visit(*this, [](auto& derived) { return derived.valueCatImpl(); });
 }
 
-Variable::Variable(std::string name,
-                   Scope* parentScope,
-                   ast::ASTNode* astNode,
-                   AccessControl accessControl,
-                   Type const* type,
+Variable::Variable(std::string name, Scope* parentScope, ast::ASTNode* astNode,
+                   AccessControl accessControl, Type const* type,
                    Mutability mut):
-    VarBase(EntityType::Variable,
-            std::move(name),
-            parentScope,
-            type,
-            mut,
+    VarBase(EntityType::Variable, std::move(name), parentScope, type, mut,
             astNode) {
     setAccessControl(accessControl);
 }
 
-Property::Property(PropertyKind kind,
-                   Scope* parentScope,
-                   Type const* type,
-                   Mutability mut,
-                   ValueCategory valueCat,
-                   AccessControl accessControl,
-                   ast::ASTNode* astNode):
-    VarBase(EntityType::Property,
-            std::string(toString(kind)),
-            parentScope,
-            type,
-            mut,
-            astNode),
+Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,
+                   Mutability mut, ValueCategory valueCat,
+                   AccessControl accessControl, ast::ASTNode* astNode):
+    VarBase(EntityType::Property, std::string(toString(kind)), parentScope,
+            type, mut, astNode),
     _kind(kind),
     _valueCat(valueCat) {
     setAccessControl(accessControl);
 }
 
-Temporary::Temporary(size_t id,
-                     Scope* parentScope,
-                     QualType type,
+Temporary::Temporary(size_t id, Scope* parentScope, QualType type,
                      ast::ASTNode* node):
-    Object(EntityType::Temporary,
-           std::string{},
-           parentScope,
-           type.get(),
-           type.mutability(),
-           node),
+    Object(EntityType::Temporary, std::string{}, parentScope, type.get(),
+           type.mutability(), node),
     _id(id) {}
 
-Scope::Scope(EntityType entityType,
-             ScopeKind kind,
-             std::string name,
-             Scope* parent,
-             ast::ASTNode* astNode):
+Scope::Scope(EntityType entityType, ScopeKind kind, std::string name,
+             Scope* parent, ast::ASTNode* astNode):
     Entity(entityType, std::move(name), parent, astNode), _kind(kind) {}
 
 utl::small_ptr_vector<Entity*> Scope::findEntities(std::string_view name,
@@ -226,34 +196,26 @@ GlobalScope::GlobalScope():
     Scope(EntityType::GlobalScope, ScopeKind::Global, {}, nullptr) {}
 
 FileScope::FileScope(std::string filename, Scope* parent):
-    Scope(EntityType::FileScope,
-          ScopeKind::Global,
-          std::move(filename),
+    Scope(EntityType::FileScope, ScopeKind::Global, std::move(filename),
           parent) {}
 
 Library::Library(EntityType entityType, std::string name, Scope* parent):
     Scope(entityType, ScopeKind::Global, std::move(name), parent) {}
 
-NativeLibrary::NativeLibrary(std::string name,
-                             std::filesystem::path codeFile,
+NativeLibrary::NativeLibrary(std::string name, std::filesystem::path codeFile,
                              Scope* parent):
     Library(EntityType::NativeLibrary, std::move(name), parent),
     _codeFile(std::move(codeFile)) {}
 
-ForeignLibrary::ForeignLibrary(std::string name,
-                               std::filesystem::path file,
+ForeignLibrary::ForeignLibrary(std::string name, std::filesystem::path file,
                                Scope* parent):
     Library(EntityType::ForeignLibrary, std::move(name), parent),
     _file(std::move(file)) {}
 
 /// # Types
 
-Type::Type(EntityType entityType,
-           ScopeKind scopeKind,
-           std::string name,
-           Scope* parent,
-           ast::ASTNode* astNode,
-           AccessControl accessControl):
+Type::Type(EntityType entityType, ScopeKind scopeKind, std::string name,
+           Scope* parent, ast::ASTNode* astNode, AccessControl accessControl):
     Scope(entityType, scopeKind, std::move(name), parent, astNode) {
     setAccessControl(accessControl);
 }
@@ -308,19 +270,14 @@ static AccessControl computeFnTypeAccCtrl(
     auto getAccCtrl = [](Type const* type) {
         return type ? type->accessControl() : AccessControl::Public;
     };
-    return ranges::accumulate(argumentTypes,
-                              getAccCtrl(returnType),
-                              ranges::max,
-                              getAccCtrl);
+    return ranges::accumulate(argumentTypes, getAccCtrl(returnType),
+                              ranges::max, getAccCtrl);
 }
 
 FunctionType::FunctionType(utl::small_vector<Type const*> argumentTypes,
                            Type const* returnType):
-    Type(EntityType::FunctionType,
-         ScopeKind::Type,
-         makeFunctionTypeName(argumentTypes, returnType),
-         nullptr,
-         nullptr,
+    Type(EntityType::FunctionType, ScopeKind::Type,
+         makeFunctionTypeName(argumentTypes, returnType), nullptr, nullptr,
          computeFnTypeAccCtrl(argumentTypes, returnType)),
     _argumentTypes(std::move(argumentTypes)),
     _returnType(returnType) {}
@@ -331,72 +288,40 @@ void ObjectType::setLifetimeMetadata(LifetimeMetadata md) {
 
 ObjectType::~ObjectType() = default;
 
-ObjectType::ObjectType(EntityType entityType,
-                       ScopeKind scopeKind,
-                       std::string name,
-                       Scope* parent,
-                       size_t size,
-                       size_t align,
-                       ast::ASTNode* astNode,
+ObjectType::ObjectType(EntityType entityType, ScopeKind scopeKind,
+                       std::string name, Scope* parent, size_t size,
+                       size_t align, ast::ASTNode* astNode,
                        AccessControl accessControl):
-    Type(entityType,
-         scopeKind,
-         std::move(name),
-         parent,
-         astNode,
+    Type(entityType, scopeKind, std::move(name), parent, astNode,
          accessControl),
     _size(size),
     _align(align) {}
 
-BuiltinType::BuiltinType(EntityType entityType,
-                         std::string name,
-                         Scope* parentScope,
-                         size_t size,
-                         size_t align,
+BuiltinType::BuiltinType(EntityType entityType, std::string name,
+                         Scope* parentScope, size_t size, size_t align,
                          AccessControl accessControl):
-    ObjectType(entityType,
-               ScopeKind::Type,
-               std::move(name),
-               parentScope,
-               size,
-               align,
-               nullptr,
-               accessControl) {}
+    ObjectType(entityType, ScopeKind::Type, std::move(name), parentScope, size,
+               align, nullptr, accessControl) {}
 
 VoidType::VoidType(Scope* parentScope):
-    BuiltinType(EntityType::VoidType,
-                "void",
-                parentScope,
-                InvalidSize,
-                InvalidSize,
-                AccessControl::Public) {}
+    BuiltinType(EntityType::VoidType, "void", parentScope, InvalidSize,
+                InvalidSize, AccessControl::Public) {}
 
-ArithmeticType::ArithmeticType(EntityType entityType,
-                               std::string name,
-                               size_t bitwidth,
-                               Signedness signedness,
+ArithmeticType::ArithmeticType(EntityType entityType, std::string name,
+                               size_t bitwidth, Signedness signedness,
                                Scope* parentScope):
-    BuiltinType(entityType,
-                std::move(name),
-                parentScope,
-                utl::ceil_divide(bitwidth, 8),
-                utl::ceil_divide(bitwidth, 8),
+    BuiltinType(entityType, std::move(name), parentScope,
+                utl::ceil_divide(bitwidth, 8), utl::ceil_divide(bitwidth, 8),
                 AccessControl::Public),
     _signed(signedness),
     _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)) {}
 
 BoolType::BoolType(Scope* parentScope):
-    ArithmeticType(EntityType::BoolType,
-                   "bool",
-                   1,
-                   Signedness::Unsigned,
+    ArithmeticType(EntityType::BoolType, "bool", 1, Signedness::Unsigned,
                    parentScope) {}
 
 ByteType::ByteType(Scope* parentScope):
-    ArithmeticType(EntityType::ByteType,
-                   "byte",
-                   8,
-                   Signedness::Unsigned,
+    ArithmeticType(EntityType::ByteType, "byte", 8, Signedness::Unsigned,
                    parentScope) {}
 
 static std::string makeIntName(size_t bitwidth, Signedness signedness) {
@@ -410,47 +335,28 @@ static std::string makeIntName(size_t bitwidth, Signedness signedness) {
 }
 
 IntType::IntType(size_t bitwidth, Signedness signedness, Scope* parentScope):
-    ArithmeticType(EntityType::IntType,
-                   makeIntName(bitwidth, signedness),
-                   bitwidth,
-                   signedness,
-                   parentScope) {}
+    ArithmeticType(EntityType::IntType, makeIntName(bitwidth, signedness),
+                   bitwidth, signedness, parentScope) {}
 
 static std::string makeFloatName(size_t bitwidth) {
     return utl::strcat("f", bitwidth);
 }
 
 FloatType::FloatType(size_t bitwidth, Scope* parentScope):
-    ArithmeticType(EntityType::FloatType,
-                   makeFloatName(bitwidth),
-                   bitwidth,
-                   Signedness::Signed,
-                   parentScope) {
+    ArithmeticType(EntityType::FloatType, makeFloatName(bitwidth), bitwidth,
+                   Signedness::Signed, parentScope) {
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Invalid width");
 }
 
 NullPtrType::NullPtrType(Scope* parent):
-    BuiltinType(EntityType::NullPtrType,
-                "__nullptr_t",
-                parent,
-                1,
-                1,
+    BuiltinType(EntityType::NullPtrType, "__nullptr_t", parent, 1, 1,
                 AccessControl::Public) {}
 
-StructType::StructType(std::string name,
-                       Scope* parentScope,
-                       ast::ASTNode* astNode,
-                       size_t size,
-                       size_t align,
+StructType::StructType(std::string name, Scope* parentScope,
+                       ast::ASTNode* astNode, size_t size, size_t align,
                        AccessControl accessControl):
-    CompoundType(EntityType::StructType,
-                 ScopeKind::Type,
-                 std::move(name),
-                 parentScope,
-                 size,
-                 align,
-                 astNode,
-                 accessControl) {}
+    CompoundType(EntityType::StructType, ScopeKind::Type, std::move(name),
+                 parentScope, size, align, astNode, accessControl) {}
 
 void StructType::setMemberVariable(size_t index, Variable* var) {
     if (index >= memberVars.size()) {
@@ -488,13 +394,10 @@ static std::string makeArrayName(ObjectType const* elemType, size_t count) {
 }
 
 ArrayType::ArrayType(ObjectType* elementType, size_t count):
-    CompoundType(EntityType::ArrayType,
-                 ScopeKind::Type,
-                 makeArrayName(elementType, count),
-                 getParent(elementType),
+    CompoundType(EntityType::ArrayType, ScopeKind::Type,
+                 makeArrayName(elementType, count), getParent(elementType),
                  computeArraySize(elementType, count),
-                 computeArrayAlign(elementType),
-                 nullptr,
+                 computeArrayAlign(elementType), nullptr,
                  elementType->accessControl()),
     elemType(elementType),
     _count(count) {}
@@ -513,45 +416,30 @@ static std::string makeIndirectName(std::string_view indirection,
     return utl::strcat(indirection, base.qualName());
 }
 
-PointerType::PointerType(EntityType entityType,
-                         QualType base,
+PointerType::PointerType(EntityType entityType, QualType base,
                          std::string name):
-    BuiltinType(entityType,
-                std::move(name),
-                getParent(base.get()),
-                ptrSize(base),
-                ptrAlign(),
-                base->accessControl()),
+    BuiltinType(entityType, std::move(name), getParent(base.get()),
+                ptrSize(base), ptrAlign(), base->accessControl()),
     PtrRefTypeBase(base) {}
 
 RawPtrType::RawPtrType(QualType base):
     PointerType(EntityType::RawPtrType, base, makeIndirectName("*", base)) {}
 
 UniquePtrType::UniquePtrType(QualType base):
-    PointerType(EntityType::UniquePtrType,
-                base,
+    PointerType(EntityType::UniquePtrType, base,
                 makeIndirectName("*unique ", base)) {}
 
 ReferenceType::ReferenceType(QualType base):
-    Type(EntityType::ReferenceType,
-         ScopeKind::Invalid,
-         makeIndirectName("&", base),
-         getParent(base.get()),
-         nullptr,
+    Type(EntityType::ReferenceType, ScopeKind::Invalid,
+         makeIndirectName("&", base), getParent(base.get()), nullptr,
          base->accessControl()),
     PtrRefTypeBase(base) {}
 
-Function::Function(std::string name,
-                   FunctionType const* type,
-                   Scope* parentScope,
-                   FunctionAttribute attrs,
-                   ast::ASTNode* astNode,
-                   AccessControl accessControl):
-    Scope(EntityType::Function,
-          ScopeKind::Function,
-          std::move(name),
-          parentScope,
-          astNode),
+Function::Function(std::string name, FunctionType const* type,
+                   Scope* parentScope, FunctionAttribute attrs,
+                   ast::ASTNode* astNode, AccessControl accessControl):
+    Scope(EntityType::Function, ScopeKind::Function, std::move(name),
+          parentScope, astNode),
     _type(type),
     attrs(attrs) {
     setAccessControl(accessControl);
@@ -583,20 +471,15 @@ OverloadSet::OverloadSet(SourceRange loc,
     small_vector(std::move(functions)),
     loc(loc) {}
 
-Alias::Alias(std::string name,
-             Entity& aliased,
-             Scope* parent,
-             ast::ASTNode* astNode,
-             AccessControl accessControl):
+Alias::Alias(std::string name, Entity& aliased, Scope* parent,
+             ast::ASTNode* astNode, AccessControl accessControl):
     Entity(EntityType::Alias, std::move(name), parent, astNode),
     _aliased(&aliased) {
     setAccessControl(accessControl);
 }
 
-PoisonEntity::PoisonEntity(ast::Identifier* ID,
-                           EntityCategory cat,
-                           Scope* parentScope,
-                           AccessControl accessControl):
+PoisonEntity::PoisonEntity(ast::Identifier* ID, EntityCategory cat,
+                           Scope* parentScope, AccessControl accessControl):
     Entity(EntityType::PoisonEntity, std::string(ID->value()), parentScope, ID),
     cat(cat) {
     setAccessControl(accessControl);

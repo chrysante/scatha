@@ -150,8 +150,7 @@ private:
     void eraseCallback(Instruction const& inst);
 
     void addLiveImpl(utl::hashset<Register*>& set, Register* reg, size_t count);
-    void removeLiveImpl(utl::hashset<Register*>& set,
-                        Register* reg,
+    void removeLiveImpl(utl::hashset<Register*>& set, Register* reg,
                         size_t count);
 
     std::string _name;
@@ -182,10 +181,8 @@ public:
 
     /// Construct a `mir::Function` referencing \p irFunc with \p numRegisters
     /// number of virtual registers.
-    explicit Function(ir::Function const* irFunc,
-                      size_t numArgRegisters,
-                      size_t numReturnRegisters,
-                      Visibility vis);
+    explicit Function(ir::Function const* irFunc, size_t numArgRegisters,
+                      size_t numReturnRegisters, Visibility vis);
 
     /// \Returns the register phase this function is in
     RegisterPhase registerPhase() const { return regPhase; }
@@ -300,8 +297,7 @@ public:
     auto allRegisters() {
         using namespace ranges::views;
         return concat(ssaRegisters() | transform(cast<mir::Register&>),
-                      virtualRegisters(),
-                      calleeRegisters(),
+                      virtualRegisters(), calleeRegisters(),
                       hardwareRegisters());
     }
 
@@ -309,8 +305,7 @@ public:
     auto allRegisters() const {
         using namespace ranges::views;
         return concat(ssaRegisters() | transform(cast<mir::Register const&>),
-                      virtualRegisters(),
-                      calleeRegisters(),
+                      virtualRegisters(), calleeRegisters(),
                       hardwareRegisters());
     }
 

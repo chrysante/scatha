@@ -8,8 +8,7 @@ namespace scatha::test {
 
 /// Compiles the text \p source into a library and emits it as \p name
 void compileLibrary(std::filesystem::path name,
-                    std::filesystem::path libSearchPath,
-                    std::string source);
+                    std::filesystem::path libSearchPath, std::string source);
 
 /// Compiles and runs the program \p source that depends on libraries in \p
 /// libSearchPath

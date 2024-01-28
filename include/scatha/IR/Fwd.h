@@ -201,18 +201,15 @@ using VoidParent = void;
 
 /// Map enum `NodeType` to actual node types
 #define SC_VALUENODE_DEF(Node, Parent, Corporeality)                           \
-    SC_DYNCAST_DEFINE(::scatha::ir::Node,                                      \
-                      ::scatha::ir::NodeType::Node,                            \
-                      ::scatha::ir::Parent,                                    \
-                      Corporeality)
+    SC_DYNCAST_DEFINE(::scatha::ir::Node, ::scatha::ir::NodeType::Node,        \
+                      ::scatha::ir::Parent, Corporeality)
 #include <scatha/IR/Lists.def>
 
 /// Map enum `TypeCategory` to actual type category classes
 #define SC_TYPE_CATEGORY_DEF(TypeCat, Parent, Corporeality)                    \
     SC_DYNCAST_DEFINE(::scatha::ir::TypeCat,                                   \
                       ::scatha::ir::TypeCategory::TypeCat,                     \
-                      ::scatha::ir::Parent,                                    \
-                      Corporeality)
+                      ::scatha::ir::Parent, Corporeality)
 #include <scatha/IR/Lists.def>
 
 namespace scatha::ir::internal {

@@ -13,8 +13,7 @@ std::ostream& scatha::operator<<(std::ostream& str, EndlIndenter const& endl) {
     return str << '\n' << static_cast<Indenter const&>(endl);
 }
 
-utl::vstreammanip<> scatha::tableBegin(int border,
-                                       int cellborder,
+utl::vstreammanip<> scatha::tableBegin(int border, int cellborder,
                                        int cellspacing) {
     return [=](std::ostream& str) {
         str << "<table border=\"" << border << "\" cellborder=\"" << cellborder

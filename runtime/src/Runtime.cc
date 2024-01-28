@@ -4,10 +4,8 @@ using namespace scatha;
 
 Runtime::Runtime(): exec(Executor::Make()) {}
 
-bool Runtime::addFunction(std::string name,
-                          sema::FunctionType const* type,
-                          InternalFuncPtr impl,
-                          void* userptr) {
+bool Runtime::addFunction(std::string name, sema::FunctionType const* type,
+                          InternalFuncPtr impl, void* userptr) {
     auto decl = comp.declareFunction(std::move(name), type);
     if (decl) {
         exec->addFunction(decl, impl, userptr);

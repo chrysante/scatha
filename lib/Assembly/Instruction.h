@@ -45,9 +45,7 @@ private:
 /// Represents a `cmov` instruction.
 class CMoveInst: public InstructionBase {
 public:
-    explicit CMoveInst(CompareOperation condition,
-                       Value dest,
-                       Value source,
+    explicit CMoveInst(CompareOperation condition, Value dest, Value source,
                        size_t numBytes):
         _cond(condition), _dest(dest), _src(source), _numBytes(numBytes) {
         verify();
@@ -234,8 +232,7 @@ private:
 class UnaryArithmeticInst: public InstructionBase {
 public:
     explicit UnaryArithmeticInst(UnaryArithmeticOperation op,
-                                 RegisterIndex operand,
-                                 size_t width):
+                                 RegisterIndex operand, size_t width):
         _op(op), _operand(operand), _width(width) {}
 
     UnaryArithmeticOperation operation() const { return _op; }
@@ -254,9 +251,7 @@ private:
 /// Represents a `add`, `sub`, `mul`, ... etc instruction.
 class ArithmeticInst: public InstructionBase {
 public:
-    explicit ArithmeticInst(ArithmeticOperation op,
-                            Value dest,
-                            Value source,
+    explicit ArithmeticInst(ArithmeticOperation op, Value dest, Value source,
                             size_t width):
         _op(op), _dest(dest), _src(source), _width(width) {
         verify();
@@ -308,8 +303,8 @@ private:
 /// Represents the `s*tof*`, `u*tof*`, `f*tos*` and `f*tou*`  instructions.
 class ConvertInst: public InstructionBase {
 public:
-    explicit ConvertInst(
-        RegisterIndex op, Type from, size_t fromBits, Type to, size_t toBits):
+    explicit ConvertInst(RegisterIndex op, Type from, size_t fromBits, Type to,
+                         size_t toBits):
         _op(op),
         _from(from),
         _to(to),

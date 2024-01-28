@@ -80,8 +80,7 @@ struct SrcHighlightCtx {
     std::vector<SourceHighlight>& highlights;
     IssueSeverity severity;
 
-    SrcHighlightCtx(std::ostream& str,
-                    SourceStructureMap& sourceMap,
+    SrcHighlightCtx(std::ostream& str, SourceStructureMap& sourceMap,
                     std::vector<SourceHighlight>& highlights,
                     IssueSeverity severity):
         str(str),
@@ -102,25 +101,20 @@ struct SrcHighlightCtx {
 } // namespace
 
 void scatha::highlightSource(SourceStructureMap& source,
-                             SourceRange sourceRange,
-                             IssueSeverity severity,
+                             SourceRange sourceRange, IssueSeverity severity,
                              std::ostream& str) {
-    highlightSource(source,
-                    { { HighlightKind::Primary, sourceRange, {} } },
-                    severity,
-                    str);
+    highlightSource(source, { { HighlightKind::Primary, sourceRange, {} } },
+                    severity, str);
 }
 
 void scatha::highlightSource(SourceStructureMap& source,
                              std::vector<SourceHighlight> highlights,
-                             IssueSeverity severity,
-                             std::ostream& str) {
+                             IssueSeverity severity, std::ostream& str) {
     SrcHighlightCtx(str, source, highlights, severity).run();
 }
 
 void scatha::highlightSource(SourceStructureMap& source,
-                             SourceRange sourceRange,
-                             IssueSeverity severity) {
+                             SourceRange sourceRange, IssueSeverity severity) {
     highlightSource(source, sourceRange, severity, std::cout);
 }
 
@@ -218,8 +212,7 @@ void SrcHighlightCtx::printMessage(size_t currentColumn,
     }
 }
 
-void SrcHighlightCtx::printLines(int userIdx,
-                                 int count,
+void SrcHighlightCtx::printLines(int userIdx, int count,
                                  SourceStructure const& source) {
     int index = std::clamp(userIdx, 0, int(source.size()));
     int end = std::clamp(userIdx + count, 0, int(source.size()));

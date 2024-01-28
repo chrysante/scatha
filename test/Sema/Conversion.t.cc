@@ -24,8 +24,7 @@ using enum ConversionKind;
 TEST_CASE("Implicit conversion rank", "[sema][conv]") {
     sema::SymbolTable sym;
     ast::UnaryExpression expr(ast::UnaryOperator::Promotion,
-                              ast::UnaryOperatorNotation::Prefix,
-                              nullptr,
+                              ast::UnaryOperatorNotation::Prefix, nullptr,
                               SourceRange{});
     auto fromCat = GENERATE(LValue, RValue);
     auto toCat = GENERATE(LValue, RValue);
@@ -36,42 +35,32 @@ TEST_CASE("Implicit conversion rank", "[sema][conv]") {
     INFO("To:   " << toCat);
     SECTION("1") {
         expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
-        auto conv = computeConversion(ConversionKind::Implicit,
-                                      &expr,
-                                      sym.U16(),
-                                      toCat);
+        auto conv = computeConversion(ConversionKind::Implicit, &expr,
+                                      sym.U16(), toCat);
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("2") {
         expr.decorateValue(sym.temporary(nullptr, sym.S64()), fromCat);
-        auto conv = computeConversion(ConversionKind::Implicit,
-                                      &expr,
-                                      sym.S64(),
-                                      toCat);
+        auto conv = computeConversion(ConversionKind::Implicit, &expr,
+                                      sym.S64(), toCat);
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("3") {
         expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
-        auto conv = computeConversion(ConversionKind::Implicit,
-                                      &expr,
-                                      sym.S32(),
-                                      toCat);
+        auto conv = computeConversion(ConversionKind::Implicit, &expr,
+                                      sym.S32(), toCat);
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("4") {
         expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
-        auto conv = computeConversion(ConversionKind::Implicit,
-                                      &expr,
-                                      sym.U32(),
-                                      toCat);
+        auto conv = computeConversion(ConversionKind::Implicit, &expr,
+                                      sym.U32(), toCat);
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("5") {
         expr.decorateValue(sym.temporary(nullptr, sym.S16()), fromCat);
-        auto conv = computeConversion(ConversionKind::Implicit,
-                                      &expr,
-                                      sym.U32(),
-                                      toCat);
+        auto conv = computeConversion(ConversionKind::Implicit, &expr,
+                                      sym.U32(), toCat);
         CHECK(!conv);
     }
 }
@@ -81,12 +70,10 @@ TEST_CASE("Arithemetic conversions", "[sema][conv]") {
     IssueHandler iss;
     sema::AnalysisContext ctx(sym, iss);
     ast::UnaryExpression
-        base(ast::UnaryOperator::Promotion,
-             ast::UnaryOperatorNotation::Prefix,
+        base(ast::UnaryOperator::Promotion, ast::UnaryOperatorNotation::Prefix,
              allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
                                             ast::UnaryOperatorNotation::Prefix,
-                                            nullptr,
-                                            SourceRange{}),
+                                            nullptr, SourceRange{}),
              SourceRange{});
     auto* expr = base.operand();
     auto setType = [&](QualType type) {
@@ -181,8 +168,7 @@ TEST_CASE("Common type", "[sema][conv]") {
     CHECK(!commonType(sym, S64, Byte));
     CHECK(!commonType(sym, S64, U64));
     CHECK(commonType(sym, S64, U32) == QualType::Mut(S64));
-    CHECK(commonType(sym,
-                     sym.pointer(QualType::Mut(S64)),
+    CHECK(commonType(sym, sym.pointer(QualType::Mut(S64)),
                      sym.pointer(QualType::Const(S64)))
               .get() == sym.pointer(QualType::Const(S64)));
 }
@@ -205,12 +191,10 @@ struct Aggregate { var n: int; var nodef: NoDefault; }
     /// Trivial type
     CHECK(computeObjectConstruction(Implicit, Triv, {}).value() ==
           TrivDefConstruct);
-    CHECK(computeObjectConstruction(Implicit,
-                                    Triv,
+    CHECK(computeObjectConstruction(Implicit, Triv,
                                     std::array{ ThinExpr(Triv, LValue) })
               .value() == TrivCopyConstruct);
-    CHECK(computeObjectConstruction(Implicit,
-                                    Triv,
+    CHECK(computeObjectConstruction(Implicit, Triv,
                                     std::array{ ThinExpr(Triv, RValue) })
               .isNoop());
 
@@ -222,15 +206,13 @@ struct Aggregate { var n: int; var nodef: NoDefault; }
     CHECK(computeObjectConstruction(Implicit, NoDefault, {}).isError());
 
     /// Nontrivial aggregate type
-    CHECK(computeObjectConstruction(Explicit,
-                                    Aggregate,
+    CHECK(computeObjectConstruction(Explicit, Aggregate,
                                     std::array{ ThinExpr(sym.Int(), LValue),
                                                 ThinExpr(NoDefault, LValue) })
               .value() == NontrivAggrConstruct);
 
     /// Dynamic array of nontrivial type
-    CHECK(computeObjectConstruction(Explicit,
-                                    sym.arrayType(Aggregate),
+    CHECK(computeObjectConstruction(Explicit, sym.arrayType(Aggregate),
                                     std::array{ ThinExpr(sym.Int(), LValue) })
               .value() == DynArrayConstruct);
 }

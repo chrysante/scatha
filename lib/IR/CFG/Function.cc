@@ -16,9 +16,7 @@ using namespace ranges::views;
 Parameter::Parameter(Type const* type, size_t index, Callable* parent):
     Parameter(type, index, std::to_string(index), parent) {}
 
-Parameter::Parameter(Type const* type,
-                     size_t index,
-                     std::string name,
+Parameter::Parameter(Type const* type, size_t index, std::string name,
                      Callable* parent):
     Value(NodeType::Parameter, type, std::move(name)),
     ParentNodeBase(parent),
@@ -32,13 +30,9 @@ List<Parameter> ir::makeParameters(std::span<Type const* const> types) {
     return result;
 }
 
-Callable::Callable(NodeType nodeType,
-                   Context& ctx,
-                   Type const* returnType,
-                   List<Parameter> parameters,
-                   std::string name,
-                   FunctionAttribute attr,
-                   Visibility vis):
+Callable::Callable(NodeType nodeType, Context& ctx, Type const* returnType,
+                   List<Parameter> parameters, std::string name,
+                   FunctionAttribute attr, Visibility vis):
     Global(nodeType, ctx.ptrType(), std::move(name)),
     params(std::move(parameters)),
     _returnType(returnType),
@@ -63,19 +57,11 @@ static void uniqueParams(auto&& params, auto&& nameFac) {
     }
 }
 
-Function::Function(Context& ctx,
-                   Type const* returnType,
-                   List<Parameter> parameters,
-                   std::string name,
-                   FunctionAttribute attr,
-                   Visibility vis):
-    Callable(NodeType::Function,
-             ctx,
-             returnType,
-             std::move(parameters),
-             std::move(name),
-             attr,
-             vis),
+Function::Function(Context& ctx, Type const* returnType,
+                   List<Parameter> parameters, std::string name,
+                   FunctionAttribute attr, Visibility vis):
+    Callable(NodeType::Function, ctx, returnType, std::move(parameters),
+             std::move(name), attr, vis),
     nameFac(),
     analysisData(std::make_unique<AnalysisData>()) {
     uniqueParams(this->parameters(), nameFac);
@@ -199,8 +185,7 @@ static FFIType toFFIType(Type const* type) {
     }; // clang-format on
 }
 
-static ForeignFunctionInterface makeFFI(std::string name,
-                                        Type const* retType,
+static ForeignFunctionInterface makeFFI(std::string name, Type const* retType,
                                         std::span<Type const* const> argTypes) {
     return ForeignFunctionInterface(std::move(name),
                                     argTypes | transform(toFFIType) |
@@ -208,20 +193,12 @@ static ForeignFunctionInterface makeFFI(std::string name,
                                     toFFIType(retType));
 }
 
-ForeignFunction::ForeignFunction(Context& ctx,
-                                 Type const* returnType,
-                                 List<Parameter> parameters,
-                                 std::string name,
+ForeignFunction::ForeignFunction(Context& ctx, Type const* returnType,
+                                 List<Parameter> parameters, std::string name,
                                  FunctionAttribute attr):
-    Callable(NodeType::ForeignFunction,
-             ctx,
-             returnType,
-             std::move(parameters),
-             name,
-             attr,
-             Visibility::Internal),
-    ffi(makeFFI(name,
-                returnType,
+    Callable(NodeType::ForeignFunction, ctx, returnType, std::move(parameters),
+             name, attr, Visibility::Internal),
+    ffi(makeFFI(name, returnType,
                 this->parameters() | transform(&Parameter::type) |
                     ToSmallVector<>)) {}
 

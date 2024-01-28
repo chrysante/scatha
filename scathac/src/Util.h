@@ -44,10 +44,8 @@ std::optional<ScathaData> parseScatha(OptionsBase const& options);
 std::pair<ir::Context, ir::Module> parseIR(OptionsBase const& options);
 
 std::pair<ir::Context, ir::Module> genIR(
-    ast::ASTNode const& ast,
-    sema::SymbolTable const& symbolTable,
-    sema::AnalysisResult const& analysisResult,
-    irgen::Config config);
+    ast::ASTNode const& ast, sema::SymbolTable const& symbolTable,
+    sema::AnalysisResult const& analysisResult, irgen::Config config);
 
 /// Apply the specfied optimization level or pipeline to \p mod
 void optimize(ir::Context& ctx, ir::Module& mod, OptionsBase const& options);

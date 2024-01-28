@@ -105,8 +105,7 @@ public:
         PassBase(std::move(name), category), p(std::move(p)) {}
 
     /// Invoke the pass
-    bool operator()(ir::Context& ctx,
-                    ir::Module& mod,
+    bool operator()(ir::Context& ctx, ir::Module& mod,
                     LocalPass localPass) const {
         return p(ctx, mod, std::move(localPass));
     }

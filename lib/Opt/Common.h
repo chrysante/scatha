@@ -30,14 +30,11 @@ bool compareEqual(ir::Phi const* lhs, std::span<ir::PhiMapping const> rhs);
 /// Split the edge from \p from to \p to by inserting an empty basic block in
 /// between
 /// \returns The newly created basic block
-SCTEST_API ir::BasicBlock* splitEdge(std::string name,
-                                     ir::Context& ctx,
-                                     ir::BasicBlock* from,
-                                     ir::BasicBlock* to);
+SCTEST_API ir::BasicBlock* splitEdge(std::string name, ir::Context& ctx,
+                                     ir::BasicBlock* from, ir::BasicBlock* to);
 
 /// \Overload with default name
-SCTEST_API ir::BasicBlock* splitEdge(ir::Context& ctx,
-                                     ir::BasicBlock* from,
+SCTEST_API ir::BasicBlock* splitEdge(ir::Context& ctx, ir::BasicBlock* from,
                                      ir::BasicBlock* to);
 
 /// Removes critical edges from \p function by inserting empty basic blocks
@@ -49,10 +46,8 @@ SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 /// \Note This function can be used to create preheaders for loop header with
 /// multiple inedges from outside the loop
 SCTEST_API ir::BasicBlock* addJoiningPredecessor(
-    ir::Context& ctx,
-    ir::BasicBlock* BB,
-    std::span<ir::BasicBlock* const> preds,
-    std::string name);
+    ir::Context& ctx, ir::BasicBlock* BB,
+    std::span<ir::BasicBlock* const> preds, std::string name);
 
 /// \returns `true` if the instruction \p inst has side effects
 /// Specifically _side effects_ mean

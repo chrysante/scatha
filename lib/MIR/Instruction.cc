@@ -8,11 +8,8 @@
 using namespace scatha;
 using namespace mir;
 
-Instruction::Instruction(InstType instType,
-                         Register* dest,
-                         size_t numDests,
-                         utl::small_vector<Value*> operands,
-                         size_t byteWidth,
+Instruction::Instruction(InstType instType, Register* dest, size_t numDests,
+                         utl::small_vector<Value*> operands, size_t byteWidth,
                          Metadata metadata):
     ProgramPoint(ProgramPoint::Kind_Instruction),
     ObjectWithMetadata(std::move(metadata)),

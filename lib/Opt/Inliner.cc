@@ -15,8 +15,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions,
-                        "inline",
+SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline",
                         PassCategory::Simplification);
 
 using SCC = SCCCallGraph::SCCNode;
@@ -83,8 +82,7 @@ struct Inliner {
     bool inlineSelfRecursion(ir::Function* function);
 
     /// \returns `true` if the self recursion has been eliminated
-    bool inlineSelfRecImpl(ir::Function* clone,
-                           ir::Function* function,
+    bool inlineSelfRecImpl(ir::Function* clone, ir::Function* function,
                            int numLayers);
 
     /// Called for every function in an SCC
@@ -118,8 +116,7 @@ bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
     return inlineFunctions(ctx, mod, opt::defaultPass);
 }
 
-bool opt::inlineFunctions(ir::Context& ctx,
-                          ir::Module& mod,
+bool opt::inlineFunctions(ir::Context& ctx, ir::Module& mod,
                           LocalPass localPass) {
     if (!localPass) {
         localPass = defaultPass;
@@ -328,8 +325,7 @@ bool Inliner::doInline(Call* callInst) {
         auto* arg = callInst->argumentAt(index);
         param->replaceAllUsesWith(arg);
     }
-    if (!inlineSelfRecImpl(clone.get(),
-                           callee,
+    if (!inlineSelfRecImpl(clone.get(), callee,
                            /* numLayers = */ 10))
     {
         return false;
@@ -356,8 +352,7 @@ bool Inliner::inlineSelfRecursion(ir::Function* function) {
     return true;
 }
 
-bool Inliner::inlineSelfRecImpl(ir::Function* clone,
-                                ir::Function* function,
+bool Inliner::inlineSelfRecImpl(ir::Function* clone, ir::Function* function,
                                 int numLayers) {
     SC_ASSERT(callsFunction(clone, function),
               "Function must be self recursive");

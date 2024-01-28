@@ -94,9 +94,7 @@ struct SuggestionResult {
 
 class AutoCompleter {
 public:
-    bool next(std::string& input,
-              int& cursor,
-              SuggestionResult& suggestion,
+    bool next(std::string& input, int& cursor, SuggestionResult& suggestion,
               int offset) {
         if (!valid) {
             buildStructure(input);
@@ -168,8 +166,7 @@ private:
             {
                 return std::tuple{ rel, abs, std::string{} };
             }
-            return std::tuple{ rel.parent_path(),
-                               abs.parent_path(),
+            return std::tuple{ rel.parent_path(), abs.parent_path(),
                                abs.filename().string() };
         }();
         baseName = name;
@@ -344,7 +341,6 @@ struct OpenFilePanelBase: ComponentBase {
 
 ModalView sdb::OpenFilePanel(Model* model) {
     auto state = ModalState::make();
-    return ModalView("Open file",
-                     Make<OpenFilePanelBase>(model, &state->open),
+    return ModalView("Open file", Make<OpenFilePanelBase>(model, &state->open),
                      { .state = state, .closeButton = false });
 }

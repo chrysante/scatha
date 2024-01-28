@@ -58,8 +58,7 @@ public:
     explicit SemaIssue(IssueSeverity severity = IssueSeverity::Error):
         SemaIssue(nullptr, {}, severity) {}
 
-    SemaIssue(Scope const* scope,
-              SourceRange sourceRange,
+    SemaIssue(Scope const* scope, SourceRange sourceRange,
               IssueSeverity severity):
         Issue(sourceRange, severity), _scope(scope) {}
 
@@ -81,8 +80,7 @@ public:
     ast::Statement const* statement() const { return stmt; }
 
 protected:
-    explicit BadStmt(Scope const* scope,
-                     ast::Statement const* statement,
+    explicit BadStmt(Scope const* scope, ast::Statement const* statement,
                      IssueSeverity severity);
 
 private:
@@ -98,8 +96,7 @@ public:
     };
     SC_SEMA_ISSUE_REASON()
 
-    GenericBadStmt(Scope const* scope,
-                   ast::Statement const* statement,
+    GenericBadStmt(Scope const* scope, ast::Statement const* statement,
                    Reason reason);
 
 private:
@@ -133,8 +130,7 @@ private:
 /// Base class of all declaration related issues
 class SCATHA_API BadDecl: public BadStmt {
 protected:
-    explicit BadDecl(Scope const* scope,
-                     ast::Declaration const* declaration,
+    explicit BadDecl(Scope const* scope, ast::Declaration const* declaration,
                      IssueSeverity severity);
 
     SC_SEMA_DERIVED_STMT(Declaration, declaration)
@@ -143,8 +139,7 @@ protected:
 /// Declaration of a name that is already defined in the same scope
 class SCATHA_API Redefinition: public BadDecl {
 public:
-    Redefinition(Scope const* scope,
-                 ast::Declaration const* declaration,
+    Redefinition(Scope const* scope, ast::Declaration const* declaration,
                  Entity const* existing);
 
     /// \Returns the previous declaration of the same name
@@ -163,10 +158,8 @@ public:
     };
     SC_SEMA_ISSUE_REASON()
 
-    BadVarDecl(Scope const* scope,
-               ast::VarDeclBase const* vardecl,
-               Reason reason,
-               Type const* type = nullptr,
+    BadVarDecl(Scope const* scope, ast::VarDeclBase const* vardecl,
+               Reason reason, Type const* type = nullptr,
                ast::Expression const* initExpr = nullptr);
 
     SC_SEMA_DERIVED_STMT(VarDeclBase, declaration)
@@ -192,8 +185,7 @@ public:
     };
     SC_SEMA_ISSUE_REASON()
 
-    BadFuncDef(Scope const* scope,
-               ast::FunctionDefinition const* funcdef,
+    BadFuncDef(Scope const* scope, ast::FunctionDefinition const* funcdef,
                Reason reason);
 
     SC_SEMA_DERIVED_STMT(FunctionDefinition, definition)
@@ -203,10 +195,8 @@ public:
 
 protected:
     struct InitAsBase {};
-    BadFuncDef(InitAsBase,
-               Scope const* scope,
-               ast::FunctionDefinition const* funcdef,
-               IssueSeverity severity,
+    BadFuncDef(InitAsBase, Scope const* scope,
+               ast::FunctionDefinition const* funcdef, IssueSeverity severity,
                Reason reason = {});
 
 private:
@@ -222,10 +212,8 @@ public:
     };
     SC_SEMA_ISSUE_REASON()
 
-    BadSMF(Scope const* scope,
-           ast::FunctionDefinition const* funcdef,
-           Reason reason,
-           StructType const* parent);
+    BadSMF(Scope const* scope, ast::FunctionDefinition const* funcdef,
+           Reason reason, StructType const* parent);
 
     StructType const* parent() const { return _parent; }
 
@@ -241,8 +229,7 @@ public:
     enum Reason { TooWeakForParent, TooWeakForType };
     SC_SEMA_ISSUE_REASON()
 
-    explicit BadAccessControl(Scope const* scope,
-                              Entity const* entity,
+    explicit BadAccessControl(Scope const* scope, Entity const* entity,
                               Reason reason);
 };
 
@@ -257,8 +244,7 @@ public:
 
     SC_SEMA_DERIVED_STMT(ReturnStatement, statement)
 
-    BadReturnStmt(Scope const* scope,
-                  ast::ReturnStatement const* statement,
+    BadReturnStmt(Scope const* scope, ast::ReturnStatement const* statement,
                   Reason reason);
 
 private:
@@ -303,8 +289,7 @@ public:
     };
     SC_SEMA_ISSUE_REASON()
 
-    explicit BadExpr(Scope const* scope,
-                     ast::ASTNode const* expr,
+    explicit BadExpr(Scope const* scope, ast::ASTNode const* expr,
                      Reason reason);
 
     /// \Returns the erroneous AST node
@@ -319,8 +304,7 @@ public:
     void setExpr(ast::ASTNode const* expr);
 
 protected:
-    explicit BadExpr(Scope const* scope,
-                     ast::ASTNode const* expr,
+    explicit BadExpr(Scope const* scope, ast::ASTNode const* expr,
                      IssueSeverity severity);
 
 private:
@@ -332,8 +316,7 @@ private:
 ///
 class SCATHA_API BadSymRef: public BadExpr {
 public:
-    explicit BadSymRef(Scope const* scope,
-                       ast::Expression const* expr,
+    explicit BadSymRef(Scope const* scope, ast::Expression const* expr,
                        EntityCategory expected);
 
     EntityCategory have() const;
@@ -363,8 +346,7 @@ private:
 ///
 class SCATHA_API BadValueCatConv: public BadExpr {
 public:
-    BadValueCatConv(Scope const* scope,
-                    ast::ASTNode const* expr,
+    BadValueCatConv(Scope const* scope, ast::ASTNode const* expr,
                     ValueCategory to):
         BadExpr(scope, expr, IssueSeverity::Error), _to(to) {}
 
@@ -407,8 +389,7 @@ class SCATHA_API BadPassedType: public SemaIssue {
 public:
     enum Reason { Argument, Return, ReturnDeduced };
 
-    explicit BadPassedType(Scope const* scope,
-                           ast::Expression const* expr,
+    explicit BadPassedType(Scope const* scope, ast::Expression const* expr,
                            Reason reason);
 
     Reason reason() const { return r; }
@@ -431,27 +412,19 @@ public:
 
     /// Static constructors @{
     static ORError makeNoMatch(
-        ast::Expression const* expr,
-        std::span<Function const* const> os,
+        ast::Expression const* expr, std::span<Function const* const> os,
         std::vector<std::pair<QualType, ValueCategory>> argTypes,
         std::unordered_map<Function const*, ORMatchError> matchErrors) {
-        return ORError(expr,
-                       std::move(os),
-                       std::move(argTypes),
-                       /* matches = */ {},
-                       std::move(matchErrors));
+        return ORError(expr, std::move(os), std::move(argTypes),
+                       /* matches = */ {}, std::move(matchErrors));
     }
 
     static ORError makeAmbiguous(
-        ast::Expression const* expr,
-        std::span<Function const* const> os,
+        ast::Expression const* expr, std::span<Function const* const> os,
         std::vector<std::pair<QualType, ValueCategory>> argTypes,
         std::vector<Function const*> matches) {
-        return ORError(expr,
-                       std::move(os),
-                       std::move(argTypes),
-                       std::move(matches),
-                       {});
+        return ORError(expr, std::move(os), std::move(argTypes),
+                       std::move(matches), {});
     }
     /// @}
 
@@ -459,8 +432,7 @@ public:
 
 private:
     explicit ORError(
-        ast::Expression const* expr,
-        std::span<Function const* const> os,
+        ast::Expression const* expr, std::span<Function const* const> os,
         std::vector<std::pair<QualType, ValueCategory>> argTypes,
         std::vector<Function const*> matches,
         std::unordered_map<Function const*, ORMatchError> matchErrors);

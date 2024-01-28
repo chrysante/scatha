@@ -193,8 +193,7 @@ struct Context {
     UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(
         ast::SpecifierList specList);
     UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
-        ast::SpecifierList specList,
-        sema::Mutability mutability,
+        ast::SpecifierList specList, sema::Mutability mutability,
         std::optional<Token> declarator = std::nullopt);
     UniquePtr<ast::Statement> parseStatement();
     UniquePtr<ast::ImportStatement> parseImportStatement();
@@ -246,20 +245,16 @@ struct Context {
 
     template <typename Expr>
     UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
-                                          TokenKind open,
-                                          TokenKind close);
+                                          TokenKind open, TokenKind close);
 
     template <typename Expr>
     UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
-                                          TokenKind open,
-                                          TokenKind close,
+                                          TokenKind open, TokenKind close,
                                           auto parseCallback);
 
     template <typename List, typename DList = std::decay_t<List>>
-    std::optional<DList> parseList(TokenKind open,
-                                   TokenKind close,
-                                   TokenKind delimiter,
-                                   auto parseCallback);
+    std::optional<DList> parseList(TokenKind open, TokenKind close,
+                                   TokenKind delimiter, auto parseCallback);
 
     UniquePtr<ast::UnaryExpression> parseUnaryPostfix(
         ast::UnaryOperator op, UniquePtr<ast::Expression> primary);
@@ -366,8 +361,7 @@ UniquePtr<ast::ImportStatement> Context::parseImportStatement() {
         pushExpectedExpression(tokens.peek());
     }
     expectDelimiter(Semicolon);
-    return allocate<ast::ImportStatement>(token.sourceRange(),
-                                          std::move(expr),
+    return allocate<ast::ImportStatement>(token.sourceRange(), std::move(expr),
                                           toImportKind(token.kind()));
 }
 
@@ -439,9 +433,7 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
     using ParamListType =
         utl::small_vector<UniquePtr<ast::ParameterDeclaration>>;
     auto parseList = [this] {
-        return this->parseList<ParamListType>(OpenParan,
-                                              CloseParan,
-                                              Comma,
+        return this->parseList<ParamListType>(OpenParan, CloseParan, Comma,
                                               [this,
                                                index = size_t{ 0 }]() mutable {
             return parseParameterDeclaration(index++);
@@ -478,8 +470,7 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
         merge(declarator.sourceRange(), closeParan.sourceRange());
     if (auto delim = tokens.peek(); delim.kind() == Semicolon) {
         tokens.eat();
-        return allocate<ast::FunctionDefinition>(sourceRange,
-                                                 specList,
+        return allocate<ast::FunctionDefinition>(sourceRange, specList,
                                                  std::move(identifier),
                                                  std::move(*params),
                                                  std::move(returnTypeExpr),
@@ -498,8 +489,7 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
             return nullptr;
         }
     }
-    return allocate<ast::FunctionDefinition>(sourceRange,
-                                             specList,
+    return allocate<ast::FunctionDefinition>(sourceRange, specList,
                                              std::move(identifier),
                                              std::move(*params),
                                              std::move(returnTypeExpr),
@@ -512,8 +502,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
     Token const idToken = tokens.peek();
     if (idToken.kind() == This) {
         tokens.eat();
-        return allocate<ast::ThisParameter>(index,
-                                            thisMutQual,
+        return allocate<ast::ThisParameter>(index, thisMutQual,
                                             /* isRef = */ false,
                                             idToken.sourceRange());
     }
@@ -527,10 +516,8 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
         auto const thisToken = tokens.eat();
         auto sourceRange =
             merge(idToken.sourceRange(), thisToken.sourceRange());
-        return allocate<ast::ThisParameter>(index,
-                                            refMutQual,
-                                            /* isRef = */ true,
-                                            sourceRange);
+        return allocate<ast::ThisParameter>(index, refMutQual,
+                                            /* isRef = */ true, sourceRange);
     }
     auto identifier = parseID();
     if (!identifier) {
@@ -584,8 +571,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
             tokens.eat();
         }
     }
-    return allocate<ast::ParameterDeclaration>(index,
-                                               mutQual,
+    return allocate<ast::ParameterDeclaration>(index, mutQual,
                                                std::move(identifier),
                                                std::move(typeExpr));
 }
@@ -612,8 +598,7 @@ UniquePtr<ast::StructDefinition> Context::parseStructDefinition(
         Token const next = tokens.peek();
         SC_UNIMPLEMENTED(); // Handle issue
     }
-    return allocate<ast::StructDefinition>(declarator.sourceRange(),
-                                           specList,
+    return allocate<ast::StructDefinition>(declarator.sourceRange(), specList,
                                            std::move(identifier),
                                            std::move(body));
 }
@@ -633,8 +618,7 @@ UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration(
 }
 
 UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
-    ast::SpecifierList specList,
-    sema::Mutability mutability,
+    ast::SpecifierList specList, sema::Mutability mutability,
     std::optional<Token> declarator) {
     auto identifier = parseID();
     if (!identifier) {
@@ -668,9 +652,7 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     auto sourceRange = declarator ? declarator->sourceRange() :
                        identifier ? identifier->sourceRange() :
                                     tokens.current().sourceRange();
-    return allocate<ast::VariableDeclaration>(specList,
-                                              mutability,
-                                              sourceRange,
+    return allocate<ast::VariableDeclaration>(specList, mutability, sourceRange,
                                               std::move(identifier),
                                               std::move(typeExpr),
                                               std::move(initExpr));
@@ -807,10 +789,8 @@ UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         SC_UNIMPLEMENTED(); // Handle issue
         return nullptr;
     }();
-    return allocate<ast::IfStatement>(ifToken.sourceRange(),
-                                      std::move(cond),
-                                      std::move(ifBlock),
-                                      std::move(elseBlock));
+    return allocate<ast::IfStatement>(ifToken.sourceRange(), std::move(cond),
+                                      std::move(ifBlock), std::move(elseBlock));
 }
 
 UniquePtr<ast::LoopStatement> Context::parseWhileStatement() {
@@ -828,10 +808,8 @@ UniquePtr<ast::LoopStatement> Context::parseWhileStatement() {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
     return allocate<ast::LoopStatement>(whileToken.sourceRange(),
-                                        ast::LoopKind::While,
-                                        nullptr,
-                                        std::move(cond),
-                                        nullptr,
+                                        ast::LoopKind::While, nullptr,
+                                        std::move(cond), nullptr,
                                         std::move(block));
 }
 
@@ -867,10 +845,8 @@ UniquePtr<ast::LoopStatement> Context::parseDoWhileStatement() {
         tokens.eat();
     }
     return allocate<ast::LoopStatement>(doToken.sourceRange(),
-                                        ast::LoopKind::DoWhile,
-                                        nullptr,
-                                        std::move(cond),
-                                        nullptr,
+                                        ast::LoopKind::DoWhile, nullptr,
+                                        std::move(cond), nullptr,
                                         std::move(block));
 }
 
@@ -905,10 +881,8 @@ UniquePtr<ast::LoopStatement> Context::parseForStatement() {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
     return allocate<ast::LoopStatement>(forToken.sourceRange(),
-                                        ast::LoopKind::For,
-                                        std::move(varDecl),
-                                        std::move(cond),
-                                        std::move(inc),
+                                        ast::LoopKind::For, std::move(varDecl),
+                                        std::move(cond), std::move(inc),
                                         std::move(block));
 }
 
@@ -956,17 +930,10 @@ UniquePtr<ast::Expression> Context::parseComma() {
 
 UniquePtr<ast::Expression> Context::parseAssignment() {
     using enum ast::BinaryOperator;
-    return parseBinaryOperatorRTL<Assignment,
-                                  AddAssignment,
-                                  SubAssignment,
-                                  MulAssignment,
-                                  DivAssignment,
-                                  RemAssignment,
-                                  LSAssignment,
-                                  RSAssignment,
-                                  AndAssignment,
-                                  OrAssignment,
-                                  XOrAssignment>(
+    return parseBinaryOperatorRTL<Assignment, AddAssignment, SubAssignment,
+                                  MulAssignment, DivAssignment, RemAssignment,
+                                  LSAssignment, RSAssignment, AndAssignment,
+                                  OrAssignment, XOrAssignment>(
         [this] { return parseConditional(); });
 }
 
@@ -995,8 +962,7 @@ UniquePtr<ast::Expression> Context::parseConditional() {
         if (!rhs) {
             pushExpectedExpression(tokens.peek());
         }
-        return allocate<ast::Conditional>(std::move(logicalOr),
-                                          std::move(lhs),
+        return allocate<ast::Conditional>(std::move(logicalOr), std::move(lhs),
                                           std::move(rhs),
                                           questionMark.sourceRange());
     }
@@ -1035,10 +1001,9 @@ UniquePtr<ast::Expression> Context::parseEquality() {
 }
 
 UniquePtr<ast::Expression> Context::parseRelational() {
-    return parseBinaryOperatorLTR<ast::BinaryOperator::Less,
-                                  ast::BinaryOperator::LessEq,
-                                  ast::BinaryOperator::Greater,
-                                  ast::BinaryOperator::GreaterEq>(
+    return parseBinaryOperatorLTR<
+        ast::BinaryOperator::Less, ast::BinaryOperator::LessEq,
+        ast::BinaryOperator::Greater, ast::BinaryOperator::GreaterEq>(
         [this] { return parseShift(); });
 }
 
@@ -1073,16 +1038,12 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
             pushExpectedExpression(unaryToken);
         }
         return allocate<ast::UnaryExpression>(
-            operatorType,
-            ast::UnaryOperatorNotation::Prefix,
-            std::move(unary),
+            operatorType, ast::UnaryOperatorNotation::Prefix, std::move(unary),
             token.sourceRange());
     };
     auto parseRef = [&]<typename Expr>(auto... args) {
         auto mutQual = eatMut();
-        return allocate<Expr>(parsePrefix(),
-                              mutQual,
-                              args...,
+        return allocate<Expr>(parsePrefix(), mutQual, args...,
                               token.sourceRange());
     };
     switch (token.kind()) {
@@ -1191,8 +1152,7 @@ UniquePtr<ast::Expression> Context::parseGeneric() {
     }
     if (isGenericID(expr.get()) && tokens.peek().kind() == Less) {
         return parseFunctionCallLike<ast::GenericExpression>(std::move(expr),
-                                                             Less,
-                                                             Greater,
+                                                             Less, Greater,
                                                              [this] {
             return parseAdditive();
         });
@@ -1289,13 +1249,11 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
     case This:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
-                                      ast::LiteralKind::This,
-                                      APInt());
+                                      ast::LiteralKind::This, APInt());
     case StringLiteral:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
-                                      ast::LiteralKind::String,
-                                      token.id());
+                                      ast::LiteralKind::String, token.id());
     case CharLiteral:
         tokens.eat();
         SC_ASSERT(token.id().size() == 1, "Invalid char literal");
@@ -1312,38 +1270,31 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
 template <typename FunctionCallLike>
 UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
     UniquePtr<ast::Expression> primary, TokenKind open, TokenKind close) {
-    return parseFunctionCallLike<FunctionCallLike>(std::move(primary),
-                                                   open,
-                                                   close,
-                                                   [this] {
+    return parseFunctionCallLike<FunctionCallLike>(std::move(primary), open,
+                                                   close, [this] {
         return parseAssignment();
     });
 }
 
 template <typename FunctionCallLike>
 UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
-    UniquePtr<ast::Expression> primary,
-    TokenKind open,
-    TokenKind close,
+    UniquePtr<ast::Expression> primary, TokenKind open, TokenKind close,
     auto parseCallback) {
     auto const& openToken = tokens.peek();
     SC_EXPECT(openToken.kind() == open);
     auto args =
-        parseList<utl::small_vector<UniquePtr<ast::Expression>>>(open,
-                                                                 close,
+        parseList<utl::small_vector<UniquePtr<ast::Expression>>>(open, close,
                                                                  Comma,
                                                                  parseCallback)
             .value(); // TODO: Handle error
     auto const& closeToken = tokens.current();
-    return allocate<FunctionCallLike>(std::move(primary),
-                                      std::move(args),
+    return allocate<FunctionCallLike>(std::move(primary), std::move(args),
                                       merge(openToken.sourceRange(),
                                             closeToken.sourceRange()));
 }
 
 template <typename, typename List>
-std::optional<List> Context::parseList(TokenKind open,
-                                       TokenKind close,
+std::optional<List> Context::parseList(TokenKind open, TokenKind close,
                                        TokenKind delimiter,
                                        auto parseCallback) {
     auto const& openToken = tokens.peek();
@@ -1428,8 +1379,7 @@ UniquePtr<ast::CallLike> Context::parseSubscript(
 UniquePtr<ast::FunctionCall> Context::parseFunctionCall(
     UniquePtr<ast::Expression> primary) {
     return parseFunctionCallLike<ast::FunctionCall>(std::move(primary),
-                                                    OpenParan,
-                                                    CloseParan);
+                                                    OpenParan, CloseParan);
 }
 
 UniquePtr<ast::Expression> Context::parseMemberAccess(
@@ -1444,8 +1394,7 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
         if (!right) {
             issues.push<ExpectedExpression>(tokens.peek());
         }
-        left = allocate<ast::MemberAccess>(std::move(left),
-                                           std::move(right),
+        left = allocate<ast::MemberAccess>(std::move(left), std::move(right),
                                            token.sourceRange());
         continue;
     }
@@ -1592,8 +1541,7 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) {
         if (!right) {
             pushExpectedExpression(rhsToken);
         }
-        left = allocate<ast::BinaryExpression>(op,
-                                               std::move(left),
+        left = allocate<ast::BinaryExpression>(op, std::move(left),
                                                std::move(right),
                                                token.sourceRange());
         return true;
@@ -1627,8 +1575,7 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
         if (!right) {
             pushExpectedExpression(rhsToken);
         }
-        return allocate<ast::BinaryExpression>(op,
-                                               std::move(left),
+        return allocate<ast::BinaryExpression>(op, std::move(left),
                                                std::move(right),
                                                operatorToken.sourceRange());
     };

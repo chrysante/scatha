@@ -156,8 +156,7 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
 }
 
 static std::string replaceSubstrings(
-    std::string text,
-    std::span<std::string_view const> substrs,
+    std::string text, std::span<std::string_view const> substrs,
     std::span<std::string_view const> replacements) {
     for (auto [substr, replacement]: ranges::views::zip(substrs, replacements))
     {

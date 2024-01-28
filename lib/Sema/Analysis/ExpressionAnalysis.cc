@@ -296,8 +296,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
     return &u;
 }
 
-static ObjectType const* getResultType(SymbolTable& sym,
-                                       ObjectType const* type,
+static ObjectType const* getResultType(SymbolTable& sym, ObjectType const* type,
                                        ast::BinaryOperator op) {
     /// For arighmetic assignment we recursively call this function with the
     /// respective non-assignment arithemetic operator
@@ -353,11 +352,7 @@ static ObjectType const* getResultType(SymbolTable& sym,
     case Equals:
         [[fallthrough]];
     case NotEquals:
-        if (isAny<ByteType,
-                  BoolType,
-                  IntType,
-                  FloatType,
-                  NullPtrType,
+        if (isAny<ByteType, BoolType, IntType, FloatType, NullPtrType,
                   PointerType>(type))
         {
             return sym.Bool();
@@ -404,8 +399,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
 
     /// Handle comma operator separately
     if (expr.operation() == ast::BinaryOperator::Comma) {
-        expr.decorateValue(expr.rhs()->object(),
-                           expr.rhs()->valueCategory(),
+        expr.decorateValue(expr.rhs()->object(), expr.rhs()->valueCategory(),
                            expr.rhs()->type());
         setConstantValue(expr);
         return &expr;
@@ -457,12 +451,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
             analyze(assign.get());
             return expr.parent()->replaceChild(&expr, std::move(assign));
         }
-        if (!convert(Implicit,
-                     expr.rhs(),
-                     lhsType,
-                     RValue,
-                     currentCleanupStack(),
-                     ctx))
+        if (!convert(Implicit, expr.rhs(), lhsType, RValue,
+                     currentCleanupStack(), ctx))
         {
             success = false;
         }
@@ -476,18 +466,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
 
     /// Convert the operands to common type
     bool cnv = true;
-    cnv &= !!convert(Implicit,
-                     expr.lhs(),
-                     commonType,
-                     RValue,
-                     currentCleanupStack(),
-                     ctx);
-    cnv &= !!convert(Implicit,
-                     expr.rhs(),
-                     commonType,
-                     RValue,
-                     currentCleanupStack(),
-                     ctx);
+    cnv &= !!convert(Implicit, expr.lhs(), commonType, RValue,
+                     currentCleanupStack(), ctx);
+    cnv &= !!convert(Implicit, expr.rhs(), commonType, RValue,
+                     currentCleanupStack(), ctx);
     SC_ASSERT(cnv, "Conversion must succeed because we have a common type");
     expr.decorateValue(sym.temporary(&expr, resultType), RValue);
     setConstantValue(expr);
@@ -777,12 +759,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
 
 ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     if (analyzeValue(c.condition())) {
-        convert(Implicit,
-                c.condition(),
-                sym.Bool(),
-                RValue,
-                currentCleanupStack(),
-                ctx);
+        convert(Implicit, c.condition(), sym.Bool(), RValue,
+                currentCleanupStack(), ctx);
     }
     auto& commonCleanups = currentCleanupStack();
     auto& thenCleanups = c.branchCleanupStack(0);
@@ -806,18 +784,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
     }
     auto commonValueCat = sema::commonValueCat(c.thenExpr()->valueCategory(),
                                                c.elseExpr()->valueCategory());
-    success &= !!convert(Implicit,
-                         c.thenExpr(),
-                         commonType,
-                         commonValueCat,
-                         thenCleanups,
-                         ctx);
-    success &= !!convert(Implicit,
-                         c.elseExpr(),
-                         commonType,
-                         commonValueCat,
-                         elseCleanups,
-                         ctx);
+    success &= !!convert(Implicit, c.thenExpr(), commonType, commonValueCat,
+                         thenCleanups, ctx);
+    success &= !!convert(Implicit, c.elseExpr(), commonType, commonValueCat,
+                         elseCleanups, ctx);
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
@@ -900,12 +870,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         ctx.badExpr(&expr, SubscriptArgCount);
         return nullptr;
     }
-    convert(Implicit,
-            expr.argument(0),
-            sym.S64(),
-            RValue,
-            currentCleanupStack(),
-            ctx);
+    convert(Implicit, expr.argument(0), sym.S64(), RValue,
+            currentCleanupStack(), ctx);
     auto mutability = expr.callee()->type().mutability();
     auto elemType = QualType(arrayType->elementType(), mutability);
     expr.decorateValue(sym.temporary(&expr, elemType),
@@ -918,17 +884,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     if (!arrayType) {
         return nullptr;
     }
-    convert(Implicit,
-            expr.lower(),
-            sym.S64(),
-            RValue,
-            currentCleanupStack(),
+    convert(Implicit, expr.lower(), sym.S64(), RValue, currentCleanupStack(),
             ctx);
-    convert(Implicit,
-            expr.upper(),
-            sym.S64(),
-            RValue,
-            currentCleanupStack(),
+    convert(Implicit, expr.upper(), sym.S64(), RValue, currentCleanupStack(),
             ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
     expr.decorateValue(sym.temporary(&expr, dynArrayType),
@@ -1012,12 +970,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
             return nullptr;
         }
         auto* arg = fc.argument(0);
-        [[maybe_unused]] auto* converted = convert(Reinterpret,
-                                                   arg,
-                                                   genExpr->type(),
-                                                   genExpr->valueCategory(),
-                                                   currentCleanupStack(),
-                                                   ctx);
+        [[maybe_unused]] auto* converted =
+            convert(Reinterpret, arg, genExpr->type(), genExpr->valueCategory(),
+                    currentCleanupStack(), ctx);
         return fc.replace(fc.extractArgument(0));
     }
     /// if our object is a type, then we rewrite the AST so we end up with just
@@ -1027,20 +982,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         /// in the future
         if (fc.arguments().size() == 1) {
             auto* arg = fc.replace(fc.argument(0)->extractFromParent());
-            return convert(Explicit,
-                           arg,
-                           QualType::Mut(type),
-                           RValue,
-                           currentCleanupStack(),
-                           ctx);
+            return convert(Explicit, arg, QualType::Mut(type), RValue,
+                           currentCleanupStack(), ctx);
         }
         else {
-            return constructInplace(ConversionKind::Explicit,
-                                    &fc,
-                                    type,
+            return constructInplace(ConversionKind::Explicit, &fc, type,
                                     fc.arguments() | ToSmallVector<>,
-                                    currentCleanupStack(),
-                                    ctx);
+                                    currentCleanupStack(), ctx);
         }
     }
     /// Make sure we have an overload set as our called object
@@ -1050,8 +998,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         return nullptr;
     }
     /// Perform overload resolution
-    auto result = performOverloadResolution(&fc,
-                                            *overloadSet,
+    auto result = performOverloadResolution(&fc, *overloadSet,
                                             fc.arguments() | ToSmallVector<>,
                                             orKind);
     if (result.error) {
@@ -1074,10 +1021,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     QualType type = getQualType(returnType);
     auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
     fc.decorateCall(sym.temporary(&fc, type), valueCat, type, function);
-    convertArgsAndPopCleanups(fc.arguments(),
-                              result.conversions,
-                              currentCleanupStack(),
-                              ctx);
+    convertArgsAndPopCleanups(fc.arguments(), result.conversions,
+                              currentCleanupStack(), ctx);
     if (valueCat == RValue && !currentCleanupStack().push(fc.object(), ctx)) {
         return nullptr;
     }
@@ -1122,12 +1067,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
             return nullptr;
         }
         for (auto* expr: list.elements()) {
-            bool const succ = convert(Implicit,
-                                      expr,
-                                      commonType,
-                                      RValue,
-                                      currentCleanupStack(),
-                                      ctx);
+            bool const succ = convert(Implicit, expr, commonType, RValue,
+                                      currentCleanupStack(), ctx);
             SC_ASSERT(succ, "Conversion failed despite common type");
         }
         auto* arrayType =
@@ -1237,10 +1178,8 @@ static ValueCategory targetValueCat(ValueCatConversion conv) {
 
 /// \Returns a temporary if the conversion \p conv creates a new object or the
 /// \p original otherwise
-static Object* convertedObject(ast::ASTNode* astNode,
-                               Entity* original,
-                               ValueCatConversion conv,
-                               SymbolTable& sym) {
+static Object* convertedObject(ast::ASTNode* astNode, Entity* original,
+                               ValueCatConversion conv, SymbolTable& sym) {
     auto* obj = cast<Object*>(original);
     if (conv == ValueCatConversion::LValueToRValue) {
         return sym.temporary(astNode, obj->getQualType());
@@ -1254,10 +1193,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ValueCatConvExpr& vcConv) {
         return nullptr;
     }
     auto valueCat = targetValueCat(vcConv.conversion());
-    vcConv.decorateValue(convertedObject(expr,
-                                         expr->entity(),
-                                         vcConv.conversion(),
-                                         sym),
+    vcConv.decorateValue(convertedObject(expr, expr->entity(),
+                                         vcConv.conversion(), sym),
                          valueCat);
     vcConv.setConstantValue(clone(expr->constantValue()));
     return &vcConv;
@@ -1276,8 +1213,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MutConvExpr& mutConv) {
     if (!analyzeValue(expr)) {
         return nullptr;
     }
-    mutConv.decorateValue(expr->entity(),
-                          expr->valueCategory(),
+    mutConv.decorateValue(expr->entity(), expr->valueCategory(),
                           mutConvType(expr->type(), mutConv.conversion()));
     mutConv.setConstantValue(clone(expr->constantValue()));
     return &mutConv;
@@ -1333,12 +1269,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivAggrConstructExpr& expr) {
     for (auto [arg, type]:
          ranges::views::zip(expr.arguments(), structType->members()))
     {
-        success &= !!convert(Implicit,
-                             arg,
-                             getQualType(type),
-                             RValue,
-                             currentCleanupStack(),
-                             ctx);
+        success &= !!convert(Implicit, arg, getQualType(type), RValue,
+                             currentCleanupStack(), ctx);
     }
     if (!success) {
         return nullptr;
@@ -1369,10 +1301,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
         return nullptr;
     }
     SC_ASSERT(orResult.conversions.front().isNoop(), "");
-    convertArgsAndPopCleanups(expr.arguments(),
-                              orResult.conversions | drop(1),
-                              currentCleanupStack(),
-                              ctx);
+    convertArgsAndPopCleanups(expr.arguments(), orResult.conversions | drop(1),
+                              currentCleanupStack(), ctx);
     auto* obj = sym.temporary(&expr, type);
     expr.decorateConstruct(obj, orResult.function);
     if (!currentCleanupStack().push(obj, ctx)) {
@@ -1428,12 +1358,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
     for (auto [arg, argType]:
          ranges::views::zip(expr.arguments(), type->members()))
     {
-        auto* conv = convert(Implicit,
-                             arg,
+        auto* conv = convert(Implicit, arg,
                              QualType::Mut(cast<ObjectType const*>(argType)),
-                             RValue,
-                             currentCleanupStack(),
-                             ctx);
+                             RValue, currentCleanupStack(), ctx);
         if (!conv) {
             success = false;
             continue;
@@ -1463,11 +1390,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
     switch (expr.arguments().size()) {
     case 1: {
         auto* arg = expr.argument(0);
-        arg = convert(Implicit,
-                      arg,
-                      sym.Int(),
-                      RValue,
-                      currentCleanupStack(),
+        arg = convert(Implicit, arg, sym.Int(), RValue, currentCleanupStack(),
                       ctx);
         if (!arg) {
             return nullptr;
@@ -1475,13 +1398,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
         auto insert = [&](auto constr) {
             return expr.setElementConstruction(std::move(constr));
         };
-        auto* constr = constructInplace(ConversionKind::Implicit,
-                                        &expr,
-                                        insert,
-                                        type->elementType(),
-                                        {},
-                                        currentCleanupStack(),
-                                        ctx)
+        auto* constr = constructInplace(ConversionKind::Implicit, &expr, insert,
+                                        type->elementType(), {},
+                                        currentCleanupStack(), ctx)
                            .valueOr(nullptr);
         if (!constr) {
             return nullptr;

@@ -24,9 +24,7 @@ class SCATHA_API Parameter:
 public:
     explicit Parameter(Type const* type, size_t index, Callable* parent);
 
-    explicit Parameter(Type const* type,
-                       size_t index,
-                       std::string name,
+    explicit Parameter(Type const* type, size_t index, std::string name,
                        Callable* parent);
 
     /// \returns the index of this parameter which may but does not have to be
@@ -77,13 +75,9 @@ public:
     void setVisibility(Visibility vis) { this->vis = vis; }
 
 protected:
-    explicit Callable(NodeType nodeType,
-                      Context& ctx,
-                      Type const* returnType,
-                      List<Parameter> parameters,
-                      std::string name,
-                      FunctionAttribute attr,
-                      Visibility vis);
+    explicit Callable(NodeType nodeType, Context& ctx, Type const* returnType,
+                      List<Parameter> parameters, std::string name,
+                      FunctionAttribute attr, Visibility vis);
 
 private:
     List<Parameter> params;
@@ -120,10 +114,8 @@ public:
         internal::InstructionIteratorImpl<Function::ConstIterator,
                                           BasicBlock::ConstIterator>;
 
-    explicit Function(Context& ctx,
-                      Type const* returnType,
-                      List<Parameter> parameters,
-                      std::string name,
+    explicit Function(Context& ctx, Type const* returnType,
+                      List<Parameter> parameters, std::string name,
                       FunctionAttribute attr,
                       Visibility vis = Visibility::Internal);
 
@@ -207,10 +199,8 @@ private:
 /// Represents a foreign function.
 class SCATHA_API ForeignFunction: public Callable {
 public:
-    explicit ForeignFunction(Context& ctx,
-                             Type const* returnType,
-                             List<Parameter> parameters,
-                             std::string name,
+    explicit ForeignFunction(Context& ctx, Type const* returnType,
+                             List<Parameter> parameters, std::string name,
                              FunctionAttribute attr);
 
     /// Returns the common FFI representation of this function

@@ -27,16 +27,14 @@ void BasicBlock::eraseCallback(Instruction const& inst) {
     mutInst.setDest(nullptr);
 }
 
-void BasicBlock::addLiveImpl(utl::hashset<Register*>& set,
-                             Register* reg,
+void BasicBlock::addLiveImpl(utl::hashset<Register*>& set, Register* reg,
                              size_t count) {
     for (size_t i = 0; i < count; ++i, reg = reg->next()) {
         set.insert(reg);
     }
 }
 
-void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
-                                Register* reg,
+void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set, Register* reg,
                                 size_t count) {
     for (size_t i = 0; i < count; ++i, reg = reg->next()) {
         auto itr = set.find(reg);
@@ -49,10 +47,8 @@ void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
 Callable::Callable(NodeType type, std::string name):
     ListNodeOverride<Callable, Value>(type), _name(std::move(name)) {}
 
-Function::Function(ir::Function const* irFunc,
-                   size_t numArgRegs,
-                   size_t numRetvalRegs,
-                   Visibility vis):
+Function::Function(ir::Function const* irFunc, size_t numArgRegs,
+                   size_t numRetvalRegs, Visibility vis):
     ListNodeOverride<Function, Callable>(NodeType::Function,
                                          std::string(irFunc->name())),
     ssaRegs(this),

@@ -58,8 +58,7 @@ void StructType::computeSizeAndAlign() {
 
 ArrayType::ArrayType(Type const* elementType, size_t count):
     RecordType(utl::strcat("[", elementType->name(), ",", count, "]"),
-               TypeCategory::ArrayType,
-               count * elementType->size(),
+               TypeCategory::ArrayType, count * elementType->size(),
                elementType->align()),
     _elemType(elementType),
     _count(count) {}

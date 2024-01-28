@@ -18,8 +18,7 @@ void Executor::load(Program program) {
 }
 
 void Executor::addFunction(FuncDecl decl, InternalFuncPtr impl, void* userptr) {
-    vm.setFunction(decl.address.slot,
-                   decl.address.index,
+    vm.setFunction(decl.address.slot, decl.address.index,
                    { std::move(decl).name, impl, userptr });
 }
 

@@ -47,8 +47,7 @@ static void prohibitExecution(std::filesystem::path filename) {
 
 /// Copies the program \p program to the file \p file
 static void writeBinary(std::ostream& file, std::span<uint8_t const> program) {
-    std::copy(program.begin(),
-              program.end(),
+    std::copy(program.begin(), program.end(),
               std::ostream_iterator<char>(file));
 }
 

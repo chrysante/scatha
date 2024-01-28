@@ -67,21 +67,17 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Statement specific utilities
     void generateCleanups(sema::CleanupStack const& cleanupStack);
 
-    void generateCleanup(Value const& value,
-                         sema::LifetimeOperation destroy,
+    void generateCleanup(Value const& value, sema::LifetimeOperation destroy,
                          sema::Object const* obj = nullptr);
 
     void inlineCleanup(Value const& value, sema::Object const* obj);
-    void inlineCleanupImpl(Value const&,
-                           sema::Type const&,
+    void inlineCleanupImpl(Value const&, sema::Type const&,
                            sema::Object const*) {
         SC_UNREACHABLE();
     }
-    void inlineCleanupImpl(Value const&,
-                           sema::ArrayType const&,
+    void inlineCleanupImpl(Value const&, sema::ArrayType const&,
                            sema::Object const*);
-    void inlineCleanupImpl(Value const&,
-                           sema::UniquePtrType const&,
+    void inlineCleanupImpl(Value const&, sema::UniquePtrType const&,
                            sema::Object const*);
 
     /// Creates array size values and stores them in `objectMap` if declared
@@ -239,8 +235,7 @@ static sema::ObjectType const* stripRef(sema::Type const* type) {
 }
 
 void FuncGenContext::generateParameter(
-    ast::ParameterDeclaration const* paramDecl,
-    PassingConvention pc,
+    ast::ParameterDeclaration const* paramDecl, PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) {
     auto params = utl::small_vector<ir::Value*>(pc.numParams(), [&]() {
         return std::to_address(irParamItr++);
@@ -256,21 +251,14 @@ void FuncGenContext::generateParameter(
         /// because they cannot be reassigned
         if (isa<sema::ReferenceType>(semaParam->type())) {
             valueMap.insert(semaParam,
-                            Value(name,
-                                  paramType,
-                                  params,
-                                  Memory,
+                            Value(name, paramType, params, Memory,
                                   params.size() == 1 ? Packed : Unpacked));
         }
         else if (params.size() == 1) {
             auto* val = params.front();
             auto* mem = storeToMemory(val, name);
-            valueMap.insert(semaParam,
-                            Value(name,
-                                  paramType,
-                                  ValueArray{ mem },
-                                  Memory,
-                                  Unpacked));
+            valueMap.insert(semaParam, Value(name, paramType, ValueArray{ mem },
+                                             Memory, Unpacked));
         }
         else {
             auto* packedVal = packValues(params, name);
@@ -300,12 +288,8 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
     else {
         auto* address = getValue<Packed>(Memory, varDecl.initExpr());
         address->setName(utl::strcat(name, ".addr"));
-        valueMap.insert(var,
-                        Value(name,
-                              varDecl.initExpr()->type().get(),
-                              { address },
-                              Memory,
-                              Packed));
+        valueMap.insert(var, Value(name, varDecl.initExpr()->type().get(),
+                                   { address }, Memory, Packed));
     }
     generateCleanups(cleanupStack);
 }
@@ -501,29 +485,18 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        return Value("int.lit",
-                     lit.type().get(),
-                     { ctx.intConstant(lit.value<APInt>()) },
-                     Register,
-                     Packed);
+        return Value("int.lit", lit.type().get(),
+                     { ctx.intConstant(lit.value<APInt>()) }, Register, Packed);
     case Boolean:
-        return Value("bool.lit",
-                     lit.type().get(),
-                     { ctx.intConstant(lit.value<APInt>()) },
-                     Register,
-                     Packed);
+        return Value("bool.lit", lit.type().get(),
+                     { ctx.intConstant(lit.value<APInt>()) }, Register, Packed);
     case FloatingPoint:
-        return Value("float.lit",
-                     lit.type().get(),
-                     { ctx.floatConstant(lit.value<APFloat>()) },
-                     Register,
+        return Value("float.lit", lit.type().get(),
+                     { ctx.floatConstant(lit.value<APFloat>()) }, Register,
                      Packed);
     case Null:
-        return Value("null.lit",
-                     lit.type().get(),
-                     { ctx.nullpointer() },
-                     Register,
-                     Packed);
+        return Value("null.lit", lit.type().get(), { ctx.nullpointer() },
+                     Register, Packed);
     case This:
         return valueMap(lit.object());
 
@@ -532,18 +505,13 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         auto name = nameFromSourceLoc("string", lit.sourceLocation());
         auto* data = ctx.stringLiteral(text);
         auto* global = mod.makeGlobalConstant(ctx, data, name);
-        return Value(name,
-                     lit.type().get(),
-                     { global, ctx.intConstant(text.size(), 64) },
-                     Memory,
+        return Value(name, lit.type().get(),
+                     { global, ctx.intConstant(text.size(), 64) }, Memory,
                      Unpacked);
     }
     case Char:
-        return Value("char.lit",
-                     lit.type().get(),
-                     { ctx.intConstant(lit.value<APInt>()) },
-                     Register,
-                     Packed);
+        return Value("char.lit", lit.type().get(),
+                     { ctx.intConstant(lit.value<APInt>()) }, Register, Packed);
     }
     SC_UNREACHABLE();
 }
@@ -572,11 +540,8 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         case ast::UnaryOperatorNotation::Prefix:
             return operand;
         case ast::UnaryOperatorNotation::Postfix:
-            return Value(operand.name(),
-                         expr.type().get(),
-                         { operandValue },
-                         Register,
-                         Packed);
+            return Value(operand.name(), expr.type().get(), { operandValue },
+                         Register, Packed);
         }
     }
 
@@ -589,21 +554,15 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
             isa<sema::IntType>(expr.operand()->type().get()) ? Sub : FSub;
         auto* newValue =
             add<ir::ArithmeticInst>(ctx.arithmeticConstant(0, operand->type()),
-                                    operand,
-                                    operation,
-                                    "negated");
-        return Value("negated",
-                     expr.type().get(),
-                     { newValue },
-                     Register,
+                                    operand, operation, "negated");
+        return Value("negated", expr.type().get(), { newValue }, Register,
                      Packed);
     }
 
     default:
         auto* operand = getValue<Packed>(Register, expr.operand());
         auto* newValue =
-            add<ir::UnaryArithmeticInst>(operand,
-                                         mapUnaryOp(expr.operation()),
+            add<ir::UnaryArithmeticInst>(operand, mapUnaryOp(expr.operation()),
                                          "expr");
         return Value("expr", expr.type().get(), { newValue }, Register, Packed);
     }
@@ -697,19 +656,14 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         auto rhs = getValue<Unpacked>(Register, expr.rhs());
         auto values = zip(lhs, rhs) | transform([&](auto p) -> ir::Value* {
             auto [lhs, rhs] = p;
-            return add<ir::CompareInst>(lhs,
-                                        rhs,
-                                        mapCompareMode(type),
+            return add<ir::CompareInst>(lhs, rhs, mapCompareMode(type),
                                         mapCompareOp(expr.operation()),
                                         resName);
         }) | ToSmallVector<>;
         using enum ir::ArithmeticOperation;
         auto* combined =
             foldValues(expr.operation() == Equals ? And : Or, values, resName);
-        return Value(resName,
-                     expr.type().get(),
-                     { combined },
-                     Register,
+        return Value(resName, expr.type().get(), { combined }, Register,
                      Packed);
     }
 
@@ -723,11 +677,8 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         /// Use `memcpy` for large types
         auto* rhs = getValue<Packed>(Register, expr.rhs());
         add<ir::Store>(lhs, rhs);
-        return Value("assignment.result",
-                     symbolTable.Void(),
-                     { ctx.voidValue() },
-                     Register,
-                     Packed);
+        return Value("assignment.result", symbolTable.Void(),
+                     { ctx.voidValue() }, Register, Packed);
     }
     case AddAssignment:
         [[fallthrough]];
@@ -752,10 +703,8 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         SC_ASSERT(lhs.isMemory(), "Must be in memory to assign");
         auto rhs = getValue<Packed>(Register, expr.rhs());
         auto operation = mapArithmeticAssignOp(type, expr.operation());
-        auto* exprRes = add<ir::ArithmeticInst>(to<Packed>(Register, lhs),
-                                                rhs,
-                                                operation,
-                                                resName);
+        auto* exprRes = add<ir::ArithmeticInst>(to<Packed>(Register, lhs), rhs,
+                                                operation, resName);
         add<ir::Store>(toUnpackedMemory(lhs).front(), exprRes);
         return Value("", expr.type().get(), {}, Register, Packed);
     }
@@ -784,11 +733,9 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             return add<ir::ExtractValue>(baseVal, IndexArray{ index }, name);
         case Memory:
             ir::Value* value =
-                add<ir::GetElementPointer>(typeMap.packed(base.type()),
-                                           baseVal,
+                add<ir::GetElementPointer>(typeMap.packed(base.type()), baseVal,
                                            ctx.intConstant(0, 64),
-                                           IndexArray{ index },
-                                           name);
+                                           IndexArray{ index }, name);
             if (index > metaData.beginIndex) {
                 value = add<ir::Load>(value, type, name);
             }
@@ -814,14 +761,12 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             if (!arrayType->isDynamic()) {
                 return ctx.boolConstant(arrayType->count());
             }
-            auto* size = to<Packed>(Register,
-                                    getArraySize(expr.accessed()->type().get(),
-                                                 accessed));
-            return add<ir::CompareInst>(size,
-                                        ctx.intConstant(0, 64),
+            auto* size =
+                to<Packed>(Register, getArraySize(expr.accessed()->type().get(),
+                                                  accessed));
+            return add<ir::CompareInst>(size, ctx.intConstant(0, 64),
                                         ir::CompareMode::Signed,
-                                        ir::CompareOperation::Equal,
-                                        "empty");
+                                        ir::CompareOperation::Equal, "empty");
         }();
         return Value("empty", expr.type().get(), { empty }, Register, Packed);
     }
@@ -838,8 +783,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         case Register: {
             size_t index = isFront ? 0 : arrayType->count() - 1;
             auto* elem = add<ir::ExtractValue>(to<Packed>(Register, accessed),
-                                               IndexArray{ index },
-                                               name);
+                                               IndexArray{ index }, name);
             return Value(name, expr.type().get(), { elem }, Register, Packed);
         }
         case Memory: {
@@ -862,8 +806,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                 add<ir::GetElementPointer>(irElemType,
                                            to<Unpacked>(Memory, accessed)
                                                .front(),
-                                           index,
-                                           IndexArray{},
+                                           index, IndexArray{},
                                            utl::strcat(name, ".addr"));
             return Value(name, expr.type().get(), { elem }, Memory, Packed);
         }
@@ -877,20 +820,14 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
 Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
     SC_EXPECT(isa<sema::PointerType>(*expr.referred()->type()));
     auto value = getValue(expr.referred());
-    return Value(utl::strcat(value.name(), ".deref"),
-                 expr.type().get(),
-                 toUnpackedRegister(value),
-                 Memory,
-                 Unpacked);
+    return Value(utl::strcat(value.name(), ".deref"), expr.type().get(),
+                 toUnpackedRegister(value), Memory, Unpacked);
 }
 
 Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
     auto value = getValue(expr.referred());
-    return Value(utl::strcat(value.name(), ".addr"),
-                 expr.type().get(),
-                 toUnpackedMemory(value),
-                 Register,
-                 Unpacked);
+    return Value(utl::strcat(value.name(), ".addr"), expr.type().get(),
+                 toUnpackedMemory(value), Register, Unpacked);
 }
 
 Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
@@ -914,8 +851,7 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     /// Make common representation
     auto loc = commonLocation(thenVal.location(), elseVal.location(), Register);
     auto repr = commonRepresentation(thenVal.representation(),
-                                     elseVal.representation(),
-                                     Unpacked);
+                                     elseVal.representation(), Unpacked);
     auto thenResolved = withBlockCurrent(thenBlock, [&] {
         auto vals = to(loc, repr, thenVal);
         add<ir::Goto>(endBlock);
@@ -936,11 +872,8 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
         SC_ASSERT(isa<ir::Alloca>(elseResolved.front()), "");
         SC_ASSERT(elseResolved.size() == 1, "For now");
         elseResolved.front()->replaceAllUsesWith(thenResolved.front());
-        return Value("cond",
-                     condExpr.type().get(),
-                     { thenResolved.front() },
-                     loc,
-                     repr);
+        return Value("cond", condExpr.type().get(), { thenResolved.front() },
+                     loc, repr);
     }
     /// Generate end block.
     auto phis = zip(thenResolved, elseResolved) |
@@ -975,11 +908,8 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     }();
     auto* callInst = add<ir::Call>(function, irArguments, instName);
     auto* retval = retvalLocation == Memory ? irArguments.front() : callInst;
-    return Value(name,
-                 call.type().get(),
-                 { retval },
-                 CC.returnValue().locationAtCallsite(),
-                 Packed);
+    return Value(name, call.type().get(), { retval },
+                 CC.returnValue().locationAtCallsite(), Packed);
 }
 
 utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
@@ -997,15 +927,9 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto* arrayAddr = getValue<Unpacked>(Memory, expr.callee()).front();
     auto* index = getValue<Packed>(Register, expr.argument(0));
     auto* elemType = typeMap.packed(expr.type().get());
-    auto* elemAddr = add<ir::GetElementPointer>(elemType,
-                                                arrayAddr,
-                                                index,
-                                                IndexArray{},
-                                                "elem.addr");
-    return Value("elem",
-                 expr.type().get(),
-                 ValueArray{ elemAddr },
-                 Memory,
+    auto* elemAddr = add<ir::GetElementPointer>(elemType, arrayAddr, index,
+                                                IndexArray{}, "elem.addr");
+    return Value("elem", expr.type().get(), ValueArray{ elemAddr }, Memory,
                  Packed);
 }
 
@@ -1018,11 +942,9 @@ Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto name = utl::strcat(array.name(), ".slice");
     auto* addr = add<ir::GetElementPointer>(elemType,
                                             to<Unpacked>(Memory, array).front(),
-                                            lower,
-                                            IndexArray{},
+                                            lower, IndexArray{},
                                             utl::strcat(name, ".addr"));
-    auto* size = add<ir::ArithmeticInst>(upper,
-                                         lower,
+    auto* size = add<ir::ArithmeticInst>(upper, lower,
                                          ir::ArithmeticOperation::Sub,
                                          utl::strcat(name, ".count"));
     return Value(name, expr.type().get(), { addr, size }, Memory, Unpacked);
@@ -1071,10 +993,8 @@ void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
     auto* elemType = typeMap.packed(arrayType->elementType());
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
         auto* elemAddr =
-            add<ir::GetElementPointer>(elemType,
-                                       dest,
-                                       ctx.intConstant(index, 32),
-                                       IndexArray{},
+            add<ir::GetElementPointer>(elemType, dest,
+                                       ctx.intConstant(index, 32), IndexArray{},
                                        utl::strcat("listexpr.elem.", index));
         auto* valAddr = getValue<Packed>(Memory, elem);
         valAddr->replaceAllUsesWith(elemAddr);
@@ -1162,15 +1082,11 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     return withBlockCurrent(currentBBBefore, insertBefore, [&] {
         ir::Value* arrayPtr =
             add<ir::Call>(alloc, args, utl::strcat(name, ".alloc"));
-        ir::Value* ptr = add<ir::ExtractValue>(arrayPtr,
-                                               IndexArray{ 0 },
+        ir::Value* ptr = add<ir::ExtractValue>(arrayPtr, IndexArray{ 0 },
                                                utl::strcat(name, ".pointer"));
         addr->replaceAllUsesWith(ptr);
         if (arrayCount) {
-            return Value(name,
-                         expr.type().get(),
-                         { ptr, arrayCount },
-                         Register,
+            return Value(name, expr.type().get(), { ptr, arrayCount }, Register,
                          Unpacked);
         }
         else {
@@ -1193,11 +1109,8 @@ Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
     case LValueToRValue: {
         auto repr = value.representation();
         if (value.type()->size() <= PreferredMaxRegisterValueSize) {
-            return Value(value.name(),
-                         value.type(),
-                         to(Register, repr, value),
-                         Register,
-                         repr);
+            return Value(value.name(), value.type(), to(Register, repr, value),
+                         Register, repr);
         }
         else {
             auto* irType = typeMap.packed(value.type());
@@ -1208,10 +1121,8 @@ Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
     }
 
     case MaterializeTemporary:
-        return Value(value.name(),
-                     value.type(),
-                     to(Memory, value.representation(), value),
-                     Memory,
+        return Value(value.name(), value.type(),
+                     to(Memory, value.representation(), value), Memory,
                      value.representation());
     }
 }
@@ -1227,10 +1138,8 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     using enum sema::ObjectTypeConversion;
     switch (conv.conversion()) {
     case NullptrToRawPtr:
-        return Value(value.name(),
-                     conv.type().get(),
-                     { value.get(0), ctx.intConstant(0, 64) },
-                     Register,
+        return Value(value.name(), conv.type().get(),
+                     { value.get(0), ctx.intConstant(0, 64) }, Register,
                      Unpacked);
     case NullptrToUniquePtr: {
         /// Here we have to consider if we want to keep unique pointers in
@@ -1251,11 +1160,8 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         ValueLocation loc = value.location();
         auto* data = to(loc, Unpacked, value).front();
         size_t count = getStaticArraySize(stripPtr(expr->type().get())).value();
-        return Value(value.name(),
-                     conv.type().get(),
-                     { data, ctx.intConstant(count, 64) },
-                     loc,
-                     Unpacked);
+        return Value(value.name(), conv.type().get(),
+                     { data, ctx.intConstant(count, 64) }, loc, Unpacked);
     }
 #if 0
     case Reinterpret_Array_ToByte:
@@ -1332,14 +1238,12 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     case FloatToSigned:
         [[fallthrough]];
     case FloatToUnsigned: {
-        auto name = utl::strcat(value.name(),
-                                ".",
+        auto name = utl::strcat(value.name(), ".",
                                 arithmeticConvName(conv.conversion()));
         auto* result =
             add<ir::ConversionInst>(to<Packed>(Register, value),
                                     typeMap.packed(conv.type().get()),
-                                    mapArithmeticConv(conv.conversion()),
-                                    name);
+                                    mapArithmeticConv(conv.conversion()), name);
         return Value(name, conv.type().get(), { result }, Register, Packed);
     }
     }
@@ -1486,10 +1390,7 @@ Value FuncGenContext::getValueImpl(ast::TrivDefConstructExpr const& expr) {
     auto* irType = typeMap.packed(type);
     std::string name = "tmp";
     if (irType->size() <= PreferredMaxRegisterValueSize) {
-        return Value(name,
-                     type,
-                     { makeZeroConstant(irType) },
-                     Register,
+        return Value(name, type, { makeZeroConstant(irType) }, Register,
                      Packed);
     }
     else {
@@ -1538,15 +1439,11 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
         for (auto* arg: expr.arguments()) {
             auto value = getValue(arg);
             auto members = to<Unpacked>(value.location(), value);
-            auto* dest = add<ir::GetElementPointer>(ctx,
-                                                    irType,
-                                                    mem,
-                                                    nullptr,
+            auto* dest = add<ir::GetElementPointer>(ctx, irType, mem, nullptr,
                                                     IndexArray{ index },
                                                     elemAddrName());
             if (value.isMemory()) {
-                callMemcpy(dest,
-                           members.front(),
+                callMemcpy(dest, members.front(),
                            irType->elementAt(index)->size());
             }
             else {
@@ -1554,9 +1451,7 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
             }
             ++index;
             for (auto* member: members | drop(1)) {
-                auto* dest = add<ir::GetElementPointer>(ctx,
-                                                        irType,
-                                                        mem,
+                auto* dest = add<ir::GetElementPointer>(ctx, irType, mem,
                                                         nullptr,
                                                         IndexArray{ index },
                                                         elemAddrName());
@@ -1595,8 +1490,7 @@ static std::string makeLifetimeComment(sema::Function const* ctor,
             return "Destructor";
         }
     }();
-    return makeLifetimeComment(kind,
-                               entity,
+    return makeLifetimeComment(kind, entity,
                                cast<sema::Type const*>(ctor->parent()));
 }
 
@@ -1626,10 +1520,7 @@ Value FuncGenContext::getValueImpl(
         SC_ASSERT(expr.arguments().size() == 0, "");
         auto* irType = typeMap.packed(expr.type().get());
         auto* null = makeZeroConstant(irType);
-        return Value("unique.ptr",
-                     expr.type().get(),
-                     { null },
-                     Register,
+        return Value("unique.ptr", expr.type().get(), { null }, Register,
                      Packed);
     }
     else {
@@ -1646,10 +1537,7 @@ Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
     for (auto [index, arg]: expr.arguments() | enumerate) {
         size_t irIndex = metadata.members[index].beginIndex;
         auto elemName = utl::strcat(name, ".elem.", irIndex, ".addr");
-        auto* destAddr = add<ir::GetElementPointer>(ctx,
-                                                    irType,
-                                                    mem,
-                                                    nullptr,
+        auto* destAddr = add<ir::GetElementPointer>(ctx, irType, mem, nullptr,
                                                     IndexArray{ irIndex },
                                                     elemName);
         auto* val = getValue<Packed>(Memory, arg);
@@ -1668,29 +1556,22 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
     /// Trivial default construction we can do with a memset, no need to
     /// generate a loop here
     if (isa<ast::TrivDefConstructExpr>(expr.elementConstruction())) {
-        callMemset(arrayBegin,
-                   makeCountToByteSize(count, irElemType->size()),
+        callMemset(arrayBegin, makeCountToByteSize(count, irElemType->size()),
                    0);
     }
     else {
         auto loop = generateForLoop(utl::strcat(name, ".constr"), count);
         withBlockCurrent(loop.body, loop.insertPoint, [&] {
             auto* elemAddr =
-                add<ir::GetElementPointer>(ctx,
-                                           irElemType,
-                                           arrayBegin,
-                                           loop.index,
-                                           IndexArray{},
+                add<ir::GetElementPointer>(ctx, irElemType, arrayBegin,
+                                           loop.index, IndexArray{},
                                            utl::strcat(name, ".elem.addr"));
             auto* elem = getValue<Packed>(Memory, expr.elementConstruction());
             SC_ASSERT(isa<ir::Alloca>(elem), "Must be local");
             elem->replaceAllUsesWith(elemAddr);
         });
     }
-    return Value(name,
-                 expr.type().get(),
-                 { arrayBegin, count },
-                 Memory,
+    return Value(name, expr.type().get(), { arrayBegin, count }, Memory,
                  Unpacked);
 }
 
@@ -1724,8 +1605,7 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
 
 void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
-        generateCleanup(valueMap(cleanup.object),
-                        cleanup.operation,
+        generateCleanup(valueMap(cleanup.object), cleanup.operation,
                         cleanup.object);
     }
 }
@@ -1772,16 +1652,10 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
     withBlockCurrent(loop.body, loop.insertPoint, [&] {
         auto* elemType = type.elementType();
         auto* irElemType = typeMap.packed(elemType);
-        auto* gep = add<ir::GetElementPointer>(ctx,
-                                               irElemType,
-                                               arrayBegin,
-                                               loop.index,
-                                               IndexArray{},
+        auto* gep = add<ir::GetElementPointer>(ctx, irElemType, arrayBegin,
+                                               loop.index, IndexArray{},
                                                "array.elem");
-        generateCleanup(Value("array.elem",
-                              type.elementType(),
-                              { gep },
-                              Memory,
+        generateCleanup(Value("array.elem", type.elementType(), { gep }, Memory,
                               Packed),
                         elemType->lifetimeMetadata().destructor());
     });
@@ -1796,9 +1670,7 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
 
     auto* deleteBlock = newBlock(utl::strcat(name, ".delete"));
     auto* endBlock = newBlock(utl::strcat(name, ".end"));
-    auto* cmp = add<ir::CompareInst>(ctx,
-                                     elems[0],
-                                     ctx.nullpointer(),
+    auto* cmp = add<ir::CompareInst>(ctx, elems[0], ctx.nullpointer(),
                                      ir::CompareMode::Unsigned,
                                      ir::CompareOperation::NotEqual,
                                      utl::strcat(name, ".engaged"));

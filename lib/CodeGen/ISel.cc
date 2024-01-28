@@ -30,9 +30,8 @@ template <>
 struct Matcher<ir::Alloca>: MatcherBase {
     SD_MATCH_CASE(ir::Alloca const& inst, SelectionNode&) {
         auto [addr, offset] = valueMap().getAddress(&inst);
-        SC_ASSERT(addr,
-                  "Must be set because we handle all allocas in parent "
-                  "function lowerToMIR()");
+        SC_ASSERT(addr, "Must be set because we handle all allocas in parent "
+                        "function lowerToMIR()");
         auto* dest = resolve(inst);
         emit(new mir::LEAInst(dest, computeAddress(inst, {}), {}));
         return true;
@@ -47,8 +46,7 @@ struct Matcher<ir::Load>: MatcherBase {
         size_t numBytes = load.type()->size();
         size_t numWords = ::numWords(load);
         for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
-            auto* inst = new mir::LoadInst(dest,
-                                           addrCallback(i),
+            auto* inst = new mir::LoadInst(dest, addrCallback(i),
                                            sliceWidth(numBytes, i, numWords),
                                            load.metadata());
             emit(inst);
@@ -69,8 +67,7 @@ struct Matcher<ir::Load>: MatcherBase {
     // Load
     SD_MATCH_CASE(ir::Load const& load, SelectionNode&) {
         impl(load, [&](size_t i) {
-            return computeAddress(*load.address(),
-                                  i * WordSize,
+            return computeAddress(*load.address(), i * WordSize,
                                   load.metadata());
         });
         return true;
@@ -88,8 +85,7 @@ struct Matcher<ir::Store>: MatcherBase {
         /// detour
         auto* value = resolveToRegister(*store.value(), store.metadata());
         for (size_t i = 0; i < numWords; ++i, value = value->next()) {
-            auto* inst = new mir::StoreInst(addrCallback(i),
-                                            value,
+            auto* inst = new mir::StoreInst(addrCallback(i), value,
                                             sliceWidth(numBytes, i, numWords),
                                             store.metadata());
             emit(inst);
@@ -110,8 +106,7 @@ struct Matcher<ir::Store>: MatcherBase {
     // Store
     SD_MATCH_CASE(ir::Store const& store, SelectionNode&) {
         impl(store, [&](size_t i) {
-            return computeAddress(*store.address(),
-                                  i * WordSize,
+            return computeAddress(*store.address(), i * WordSize,
                                   store.metadata());
         });
         return true;
@@ -136,9 +131,8 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
                     cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
                 APInt value = APInt(constant->value(), fromWidth);
                 value.zext(toWidth);
-                mapToValue(inst,
-                           CTX().constant(value.to<uint64_t>(),
-                                          utl::ceil_divide(toWidth, 8)));
+                mapToValue(inst, CTX().constant(value.to<uint64_t>(),
+                                                utl::ceil_divide(toWidth, 8)));
             }
             else if (isa<mir::UndefValue>(operand)) {
                 mapToValue(inst, CTX().undef());
@@ -152,12 +146,8 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
                     uint64_t mask = ~(~uint64_t(0) << opType->bitwidth());
                     size_t size = inst.type()->size();
                     emit(new mir::ValueArithmeticInst(
-                        resolve(inst),
-                        operand,
-                        CTX().constant(mask, size),
-                        size,
-                        mir::ArithmeticOperation::And,
-                        inst.metadata()));
+                        resolve(inst), operand, CTX().constant(mask, size),
+                        size, mir::ArithmeticOperation::And, inst.metadata()));
                 }
                 /// Everything else is a no-op
                 else {
@@ -185,11 +175,8 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
                     ->bitwidth());
             auto toBits = utl::narrow_cast<u16>(
                 cast<ir::ArithmeticType const*>(inst.type())->bitwidth());
-            emit(new mir::ConversionInst(resolve(inst),
-                                         operand,
-                                         inst.conversion(),
-                                         fromBits,
-                                         toBits,
+            emit(new mir::ConversionInst(resolve(inst), operand,
+                                         inst.conversion(), fromBits, toBits,
                                          inst.metadata()));
             break;
         }
@@ -205,11 +192,8 @@ struct Matcher<ir::CompareInst>: MatcherBase {
     SD_MATCH_CASE(ir::CompareInst const& cmp, SelectionNode&) {
         auto* LHS = resolveToRegister(*cmp.lhs(), cmp.metadata());
         auto* RHS = resolve(*cmp.rhs());
-        emit(new mir::CompareInst(LHS,
-                                  RHS,
-                                  cmp.lhs()->type()->size(),
-                                  cmp.mode(),
-                                  cmp.metadata()));
+        emit(new mir::CompareInst(LHS, RHS, cmp.lhs()->type()->size(),
+                                  cmp.mode(), cmp.metadata()));
         emit(new mir::SetInst(resolve(cmp), cmp.operation(), cmp.metadata()));
         return true;
     }
@@ -219,11 +203,9 @@ template <>
 struct Matcher<ir::UnaryArithmeticInst>: MatcherBase {
     SD_MATCH_CASE(ir::UnaryArithmeticInst const& inst, SelectionNode&) {
         auto* operand = resolveToRegister(*inst.operand(), inst.metadata());
-        emit(new mir::UnaryArithmeticInst(resolve(inst),
-                                          operand,
+        emit(new mir::UnaryArithmeticInst(resolve(inst), operand,
                                           inst.operand()->type()->size(),
-                                          inst.operation(),
-                                          inst.metadata()));
+                                          inst.operation(), inst.metadata()));
         return true;
     }
 };
@@ -236,8 +218,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     }
 
     template <typename InstType>
-    void doEmit(ir::ArithmeticInst const& inst,
-                auto RHS,
+    void doEmit(ir::ArithmeticInst const& inst, auto RHS,
                 mir::ArithmeticOperation op) {
         auto* LHS = resolveToRegister(*inst.lhs(), inst.metadata());
         size_t size = inst.lhs()->type()->size();
@@ -339,9 +320,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         auto* add2LHS = resolveToRegister(*add2->lhs(), add2->metadata());
         auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
         emit(new mir::LEAInst(resolve(*add1),
-                              mir::MemoryAddress(add2LHS,
-                                                 mulLHS,
-                                                 *factor,
+                              mir::MemoryAddress(add2LHS, mulLHS, *factor,
                                                  *term),
                               add1->metadata()));
         return true;
@@ -375,9 +354,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         auto* add1LHS = resolveToRegister(*add1->lhs(), add1->metadata());
         auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
         emit(new mir::LEAInst(resolve(*add1),
-                              mir::MemoryAddress(add1LHS,
-                                                 mulLHS,
-                                                 *factor,
+                              mir::MemoryAddress(add1LHS, mulLHS, *factor,
                                                  *term),
                               add1->metadata()));
         return true;
@@ -411,9 +388,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         auto* add1RHS = resolveToRegister(*add1->rhs(), add1->metadata());
         auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
         emit(new mir::LEAInst(resolve(*add1),
-                              mir::MemoryAddress(add1RHS,
-                                                 mulLHS,
-                                                 *factor,
+                              mir::MemoryAddress(add1RHS, mulLHS, *factor,
                                                  *term),
                               add1->metadata()));
         return true;
@@ -585,11 +560,8 @@ struct Matcher<ir::Branch>: MatcherBase {
         node.merge(*cmpNode);
         auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
         auto* RHS = resolve(*cmp->rhs());
-        emit(new mir::CompareInst(LHS,
-                                  RHS,
-                                  cmp->lhs()->type()->size(),
-                                  cmp->mode(),
-                                  cmp->metadata()));
+        emit(new mir::CompareInst(LHS, RHS, cmp->lhs()->type()->size(),
+                                  cmp->mode(), cmp->metadata()));
         impl(br, cmp->operation());
         return true;
     }
@@ -600,9 +572,7 @@ struct Matcher<ir::Branch>: MatcherBase {
         /// because if the condition is a constant than it is the optimizers
         /// responsibility to omit the branch
         auto* cond = resolveToRegister(*br.condition(), br.metadata());
-        emit(new mir::TestInst(cond,
-                               1,
-                               mir::CompareMode::Unsigned,
+        emit(new mir::TestInst(cond, 1, mir::CompareMode::Unsigned,
                                br.metadata()));
         impl(br, mir::CompareOperation::NotEqual);
         return true;
@@ -637,11 +607,8 @@ struct Matcher<ir::Call>: MatcherBase {
         }
         size_t const numDests = numWords(call);
         auto* dest = resolve(call);
-        emit(new mir::CallInst(dest,
-                               numDests,
-                               resolve(*call.function()),
-                               std::move(args),
-                               call.metadata()));
+        emit(new mir::CallInst(dest, numDests, resolve(*call.function()),
+                               std::move(args), call.metadata()));
         return true;
     }
 };
@@ -657,8 +624,7 @@ struct Matcher<ir::Phi>: MatcherBase {
         size_t const numBytes = phi.type()->size();
         size_t const numWords = ::numWords(phi);
         for (size_t i = 0; i < numWords; ++i) {
-            emit(new mir::PhiInst(dest,
-                                  arguments,
+            emit(new mir::PhiInst(dest, arguments,
                                   sliceWidth(numBytes, i, numWords),
                                   phi.metadata()));
             dest = dest->next();
@@ -677,10 +643,7 @@ struct Matcher<ir::Select>: MatcherBase {
         size_t numWords = utl::ceil_divide(numBytes, 8);
         auto* dest = resolve(select);
         for (size_t i = 0; i < numWords; ++i) {
-            emit(new mir::SelectInst(dest,
-                                     thenVal,
-                                     elseVal,
-                                     cond,
+            emit(new mir::SelectInst(dest, thenVal, elseVal, cond,
                                      sliceWidth(numBytes, i, numWords),
                                      select.metadata()));
             dest = dest->next();
@@ -698,11 +661,8 @@ struct Matcher<ir::Select>: MatcherBase {
         node.merge(*cmpNode);
         auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
         auto* RHS = resolve(*cmp->rhs());
-        emit(new mir::CompareInst(LHS,
-                                  RHS,
-                                  cmp->lhs()->type()->size(),
-                                  cmp->mode(),
-                                  cmp->metadata()));
+        emit(new mir::CompareInst(LHS, RHS, cmp->lhs()->type()->size(),
+                                  cmp->mode(), cmp->metadata()));
         impl(select, cmp->operation());
         return true;
     }
@@ -710,9 +670,7 @@ struct Matcher<ir::Select>: MatcherBase {
     // Select (base case)
     SD_MATCH_CASE(ir::Select const& select, SelectionNode&) {
         auto* cond = resolveToRegister(*select.condition(), select.metadata());
-        emit(new mir::TestInst(cond,
-                               1,
-                               mir::CompareMode::Unsigned,
+        emit(new mir::TestInst(cond, 1, mir::CompareMode::Unsigned,
                                select.metadata()));
         impl(select, mir::CompareOperation::NotEqual);
         return true;
@@ -787,18 +745,12 @@ struct Matcher<ir::ExtractValue>: MatcherBase {
                   "This will need even more work");
         auto* sourceShifted = nextRegister();
         auto* shiftOffset = CTX().constant(8 * innerByteOffset, 1);
-        emit(new mir::ValueArithmeticInst(sourceShifted,
-                                          srcreg,
-                                          shiftOffset,
-                                          8,
+        emit(new mir::ValueArithmeticInst(sourceShifted, srcreg, shiftOffset, 8,
                                           mir::ArithmeticOperation::LShR,
                                           extract.metadata()));
         auto* sourceMask = CTX().constant(makeWordMask(0, innerSize), 8);
         mir::Register* dest = resolve(extract);
-        emit(new mir::ValueArithmeticInst(dest,
-                                          sourceShifted,
-                                          sourceMask,
-                                          8,
+        emit(new mir::ValueArithmeticInst(dest, sourceShifted, sourceMask, 8,
                                           mir::ArithmeticOperation::And,
                                           extract.metadata()));
         return true;
@@ -852,9 +804,7 @@ struct Matcher<ir::InsertValue>: MatcherBase {
             /// If we are on a word boundary things are kind of easy.
             /// We emit copies for all full words of the inner value.
             size_t const fullWordsInner = innerType->size() / 8;
-            dest = genCopy(dest,
-                           insertedMember,
-                           8 * fullWordsInner,
+            dest = genCopy(dest, insertedMember, 8 * fullWordsInner,
                            insert.metadata());
             insertedMember = advance(insertedMember, fullWordsInner);
             source = advance(source, fullWordsInner);
@@ -865,24 +815,19 @@ struct Matcher<ir::InsertValue>: MatcherBase {
                 auto* maskedSource = nextRegister();
                 auto* sourceMask =
                     CTX().constant(~uint64_t{ 0 } << 8 * hungOverBytes, 8);
-                emit(new mir::ValueArithmeticInst(maskedSource,
-                                                  source,
-                                                  sourceMask,
-                                                  8,
+                emit(new mir::ValueArithmeticInst(maskedSource, source,
+                                                  sourceMask, 8,
                                                   mir::ArithmeticOperation::And,
                                                   insert.metadata()));
                 auto* maskedInserted = nextRegister();
                 auto* insertedMask = CTX().constant(~sourceMask->value(), 8);
                 emit(new mir::ValueArithmeticInst(maskedInserted,
-                                                  insertedMember,
-                                                  insertedMask,
+                                                  insertedMember, insertedMask,
                                                   8,
                                                   mir::ArithmeticOperation::And,
                                                   insert.metadata()));
-                emit(new mir::ValueArithmeticInst(dest,
-                                                  maskedSource,
-                                                  maskedInserted,
-                                                  8,
+                emit(new mir::ValueArithmeticInst(dest, maskedSource,
+                                                  maskedInserted, 8,
                                                   mir::ArithmeticOperation::Or,
                                                   insert.metadata()));
                 dest = dest->next();
@@ -901,39 +846,28 @@ struct Matcher<ir::InsertValue>: MatcherBase {
                 8);
             auto* sourceMask = CTX().constant(~insertedMask->value(), 8);
             auto* shiftedInsert = nextRegister();
-            emit(new mir::ValueArithmeticInst(shiftedInsert,
-                                              insertedMember,
-                                              shiftCount,
-                                              8,
+            emit(new mir::ValueArithmeticInst(shiftedInsert, insertedMember,
+                                              shiftCount, 8,
                                               mir::ArithmeticOperation::LShL,
                                               insert.metadata()));
             auto* maskedSource = nextRegister();
-            emit(new mir::ValueArithmeticInst(maskedSource,
-                                              source,
-                                              sourceMask,
-                                              8,
-                                              mir::ArithmeticOperation::And,
+            emit(new mir::ValueArithmeticInst(maskedSource, source, sourceMask,
+                                              8, mir::ArithmeticOperation::And,
                                               insert.metadata()));
             auto* maskedInsert = nextRegister();
-            emit(new mir::ValueArithmeticInst(maskedInsert,
-                                              shiftedInsert,
-                                              insertedMask,
-                                              8,
+            emit(new mir::ValueArithmeticInst(maskedInsert, shiftedInsert,
+                                              insertedMask, 8,
                                               mir::ArithmeticOperation::And,
                                               insert.metadata()));
-            emit(new mir::ValueArithmeticInst(dest,
-                                              maskedSource,
-                                              maskedInsert,
-                                              8,
-                                              mir::ArithmeticOperation::Or,
+            emit(new mir::ValueArithmeticInst(dest, maskedSource, maskedInsert,
+                                              8, mir::ArithmeticOperation::Or,
                                               insert.metadata()));
             dest = dest->next();
             source = source->next();
         }
 
         /// Copy the last full words
-        dest = genCopy(dest,
-                       source,
+        dest = genCopy(dest, source,
                        utl::round_up(outerType->size(), 8) - 8 * innerWordEnd,
                        insert.metadata());
         (void)dest;
@@ -962,15 +896,11 @@ struct ISelBlockCtx {
         int>
         matchers;
 
-    ISelBlockCtx(SelectionDAG& DAG,
-                 mir::Context& ctx,
-                 mir::Module& mod,
-                 mir::Function& mirFn,
-                 ValueMap& map):
+    ISelBlockCtx(SelectionDAG& DAG, mir::Context& ctx, mir::Module& mod,
+                 mir::Function& mirFn, ValueMap& map):
         DAG(DAG),
-        resolver(ctx, mod, mirFn, map, [this](mir::Instruction* inst) {
-        emit(inst);
-    }) {
+        resolver(ctx, mod, mirFn, map,
+                 [this](mir::Instruction* inst) { emit(inst); }) {
 #define SC_INSTRUCTIONNODE_DEF(Inst, ...)                                      \
     std::get<Matcher<ir::Inst>>(matchers).init(ctx, DAG, resolver);
 #include "IR/Lists.def"
@@ -992,11 +922,8 @@ struct ISelBlockCtx {
 
 } // namespace
 
-void cg::isel(SelectionDAG& DAG,
-              mir::Context& ctx,
-              mir::Module& mod,
-              mir::Function& mirFn,
-              ValueMap& map) {
+void cg::isel(SelectionDAG& DAG, mir::Context& ctx, mir::Module& mod,
+              mir::Function& mirFn, ValueMap& map) {
     ISelBlockCtx(DAG, ctx, mod, mirFn, map).run();
 }
 

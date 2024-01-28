@@ -7,8 +7,7 @@ using namespace Asm;
 
 using svm::OpCode;
 
-std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
-                                       ValueType source,
+std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source,
                                        size_t size) {
     if (dest == ValueType::RegisterIndex) {
         switch (source) {
@@ -184,10 +183,8 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
     }
 }
 
-std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp,
-                                        ValueType dest,
-                                        ValueType source,
-                                        size_t size) {
+std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp, ValueType dest,
+                                        ValueType source, size_t size) {
     SC_ASSERT(dest == ValueType::RegisterIndex, "Can only cmov to registers");
     switch (source) {
     case ValueType::RegisterIndex:
@@ -356,8 +353,7 @@ OpCode Asm::mapSet(CompareOperation operation) {
     }); // clang-format on
 }
 
-OpCode Asm::mapArithmetic64(ArithmeticOperation operation,
-                            ValueType dest,
+OpCode Asm::mapArithmetic64(ArithmeticOperation operation, ValueType dest,
                             ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
@@ -438,8 +434,7 @@ OpCode Asm::mapArithmetic64(ArithmeticOperation operation,
     SC_UNREACHABLE();
 }
 
-OpCode Asm::mapArithmetic32(ArithmeticOperation operation,
-                            ValueType dest,
+OpCode Asm::mapArithmetic32(ArithmeticOperation operation, ValueType dest,
                             ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {

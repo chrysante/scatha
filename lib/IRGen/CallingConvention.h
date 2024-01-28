@@ -18,8 +18,7 @@ namespace scatha::irgen {
 /// Description of how a value is passed to and returned from function calls.
 class PassingConvention {
 public:
-    PassingConvention(sema::Type const* type,
-                      ValueLocation loc,
+    PassingConvention(sema::Type const* type, ValueLocation loc,
                       size_t numParams):
         _type(type),
         _loc(loc),

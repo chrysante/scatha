@@ -93,8 +93,7 @@ void SCCCallGraph::computeCallGraph() {
 void SCCCallGraph::computeSCCs() {
     auto vertices = _nodes | ToAddress;
     utl::compute_sccs(
-        vertices.begin(),
-        vertices.end(),
+        vertices.begin(), vertices.end(),
         [](FunctionNode* node) { return node->successors(); },
         [&] { _sccs.push_back(std::make_unique<SCCNode>()); },
         [&](FunctionNode* node) {
@@ -306,8 +305,7 @@ SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
     SC_ASSERT(oldSCCItr != _sccs.end(), "Old SCC not in list?");
     _sccs.erase(oldSCCItr);
     RemoveCallEdgeResult result = { RemoveCallEdgeResult::SplitSCC,
-                                    callerSCC.get(),
-                                    calleeSCC.get() };
+                                    callerSCC.get(), calleeSCC.get() };
     _sccs.push_back(std::move(callerSCC));
     _sccs.push_back(std::move(calleeSCC));
     return result;

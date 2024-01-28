@@ -125,8 +125,7 @@ struct VariableInfo {
 
 } // namespace
 
-void opt::promoteAlloca(Alloca* inst,
-                        Context& ctx,
+void opt::promoteAlloca(Alloca* inst, Context& ctx,
                         DominanceInfo const& domInfo) {
     auto* function = inst->parentFunction();
     VariableInfo info(*inst, ctx, domInfo);
@@ -135,8 +134,7 @@ void opt::promoteAlloca(Alloca* inst,
     info.clean();
 }
 
-bool opt::tryPromoteAlloca(Alloca* inst,
-                           Context& ctx,
+bool opt::tryPromoteAlloca(Alloca* inst, Context& ctx,
                            DominanceInfo const& domInfo) {
     if (isPromotable(inst)) {
         promoteAlloca(inst, ctx, domInfo);
@@ -154,8 +152,7 @@ static Type const* allocatedArrayType(Context& ctx, Alloca const* inst) {
     return ctx.arrayType(type, size);
 }
 
-VariableInfo::VariableInfo(Alloca& allocaInst,
-                           Context& ctx,
+VariableInfo::VariableInfo(Alloca& allocaInst, Context& ctx,
                            DominanceInfo const& domInfo):
     address(&allocaInst),
     type(allocatedArrayType(ctx, &allocaInst)),
@@ -337,19 +334,15 @@ void VariableInfo::genName(Value* value) {
     }
 }
 
-Value* VariableInfo::bitcast(Value* value,
-                             Instruction* insertPoint,
+Value* VariableInfo::bitcast(Value* value, Instruction* insertPoint,
                              Type const* type) {
     SC_EXPECT(value->type()->size() == type->size());
     if (value->type() == type) {
         return value;
     }
     BasicBlockBuilder builder(ctx, insertPoint->parent());
-    return builder.insert<ConversionInst>(insertPoint,
-                                          value,
-                                          type,
-                                          Conversion::Bitcast,
-                                          "prom.bitcast");
+    return builder.insert<ConversionInst>(insertPoint, value, type,
+                                          Conversion::Bitcast, "prom.bitcast");
 }
 
 static uint64_t extendByteToWord(int64_t value) {

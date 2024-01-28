@@ -9,22 +9,15 @@
 
 namespace scatha::test {
 
-void passTest(ir::LocalPass pass,
-              ir::Context& fCtx,
-              ir::Function& F,
+void passTest(ir::LocalPass pass, ir::Context& fCtx, ir::Function& F,
               ir::Function& ref);
 
 void passTest(ir::LocalPass pass, std::string F, std::string ref);
 
-void passTest(ir::GlobalPass pass,
-              ir::LocalPass local,
-              ir::Context& mCtx,
-              ir::Module& M,
-              ir::Module& ref);
+void passTest(ir::GlobalPass pass, ir::LocalPass local, ir::Context& mCtx,
+              ir::Module& M, ir::Module& ref);
 
-void passTest(ir::GlobalPass pass,
-              ir::LocalPass local,
-              std::string F,
+void passTest(ir::GlobalPass pass, ir::LocalPass local, std::string F,
               std::string ref);
 
 } // namespace scatha::test

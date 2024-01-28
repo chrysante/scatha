@@ -33,8 +33,7 @@ struct ParseOptions {
 /// Parses \p text into the IR module \p mod
 /// \Returns a vector of issues encountered. If said vector is empty the
 /// function succeeded
-SCATHA_API std::vector<ParseIssue> parseTo(std::string_view text,
-                                           Context& ctx,
+SCATHA_API std::vector<ParseIssue> parseTo(std::string_view text, Context& ctx,
                                            Module& mod,
                                            ParseOptions const& options = {});
 

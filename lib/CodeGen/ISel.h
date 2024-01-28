@@ -11,11 +11,8 @@ class ValueMap;
 class SelectionDAG;
 
 /// Perform instruction selection on the selection dag \p DAG
-SCATHA_API void isel(SelectionDAG& DAG,
-                     mir::Context& ctx,
-                     mir::Module& mod,
-                     mir::Function& mirFn,
-                     ValueMap& valueMap);
+SCATHA_API void isel(SelectionDAG& DAG, mir::Context& ctx, mir::Module& mod,
+                     mir::Function& mirFn, ValueMap& valueMap);
 
 } // namespace scatha::cg
 

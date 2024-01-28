@@ -23,15 +23,15 @@ public:
     LoopInfo() = default;
 
     /// Construct a loop info object from all its members
-    LoopInfo(BasicBlock* header,
-             utl::hashset<BasicBlock*> innerBlocks,
-             utl::hashset<BasicBlock*> enteringBlocks,
-             utl::hashset<BasicBlock*> latches,
-             utl::hashset<BasicBlock*> exitingBlocks,
-             utl::hashset<BasicBlock*> exitBlocks,
-             utl::hashmap<std::pair<BasicBlock const*, Instruction const*>,
-                          Phi*> loopClosingPhiNodes,
-             std::span<Instruction* const> inductionVars):
+    LoopInfo(
+        BasicBlock* header, utl::hashset<BasicBlock*> innerBlocks,
+        utl::hashset<BasicBlock*> enteringBlocks,
+        utl::hashset<BasicBlock*> latches,
+        utl::hashset<BasicBlock*> exitingBlocks,
+        utl::hashset<BasicBlock*> exitBlocks,
+        utl::hashmap<std::pair<BasicBlock const*, Instruction const*>, Phi*>
+            loopClosingPhiNodes,
+        std::span<Instruction* const> inductionVars):
         _header(header),
         _innerBlocks(std::move(innerBlocks)),
         _enteringBlocks(std::move(enteringBlocks)),

@@ -147,8 +147,7 @@ struct SymbolTable::Impl {
     E* addEntity(Args&&... args);
 
     template <typename T>
-    T* ptrLikeImpl(utl::hashmap<QualType, T*>& map,
-                   QualType pointee,
+    T* ptrLikeImpl(utl::hashmap<QualType, T*>& map, QualType pointee,
                    utl::function_view<void(T*)> continuation = {});
 };
 
@@ -179,10 +178,8 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
 
     /// Declare builtin functions
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
-    declareForeignFunction("__builtin_" #name,                                 \
-                           functionType(__VA_ARGS__),                          \
-                           attrs,                                              \
-                           AccessControl::Public);
+    declareForeignFunction("__builtin_" #name, functionType(__VA_ARGS__),      \
+                           attrs, AccessControl::Public);
     using enum FunctionAttribute;
 #include <svm/Builtin.def>
 
@@ -268,10 +265,8 @@ static std::filesystem::path replaceExt(std::filesystem::path p,
     return p;
 }
 
-static NativeLibrary* importNativeLib(SymbolTable& sym,
-                                      SymbolTable::Impl& impl,
-                                      ast::ASTNode* node,
-                                      std::string libname) {
+static NativeLibrary* importNativeLib(SymbolTable& sym, SymbolTable::Impl& impl,
+                                      ast::ASTNode* node, std::string libname) {
     SC_ASSERT(!impl.nativeLibMap.contains(libname),
               "This library is already imported");
     auto symPath =
@@ -294,11 +289,9 @@ static NativeLibrary* importNativeLib(SymbolTable& sym,
     impl.importedLibs.push_back(lib);
     impl.nativeLibMap.insert({ libname, lib });
     std::fstream symFile(*symPath);
-    SC_RELASSERT(symFile,
-                 utl::strcat("Failed to open file ",
-                             *symPath,
-                             " even though it exists")
-                     .c_str());
+    SC_RELASSERT(symFile, utl::strcat("Failed to open file ", *symPath,
+                                      " even though it exists")
+                              .c_str());
     sym.withScopeCurrent(lib, [&] {
         bool success = deserialize(sym, symFile);
         SC_RELASSERT(success,
@@ -357,11 +350,8 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
     if (!checkRedef(Redef_Other, name, def, accessControl)) {
         return nullptr;
     }
-    auto* type = impl->addEntity<StructType>(name,
-                                             &currentScope(),
-                                             def,
-                                             InvalidSize,
-                                             InvalidSize,
+    auto* type = impl->addEntity<StructType>(name, &currentScope(), def,
+                                             InvalidSize, InvalidSize,
                                              accessControl);
     impl->structTypes.push_back(type);
     addToCurrentScope(type);
@@ -404,12 +394,9 @@ Function* SymbolTable::declareFuncImpl(ast::FunctionDefinition* def,
     if (!checkRedef(Redef_Function, name, def, accessControl)) {
         return nullptr;
     }
-    Function* function = impl->addEntity<Function>(name,
-                                                   nullptr,
-                                                   &currentScope(),
-                                                   FunctionAttribute::None,
-                                                   def,
-                                                   accessControl);
+    Function* function =
+        impl->addEntity<Function>(name, nullptr, &currentScope(),
+                                  FunctionAttribute::None, def, accessControl);
     impl->functions.push_back(function);
     addToCurrentScope(function);
     addGlobalAliasIfInternalAtFilescope(function);
@@ -494,8 +481,7 @@ static utl::small_vector<Function*> findOtherOverloads(Entity* ref) {
 /// If it is not a valid overload an issue is pushed to the issue handler
 ///
 /// \Returns `true` if \p entity is a valid overload
-static bool checkValidOverload(SymbolTable::Impl& impl,
-                               Entity* entity,
+static bool checkValidOverload(SymbolTable::Impl& impl, Entity* entity,
                                std::span<Type const* const> argumentTypes) {
     SC_EXPECT(isa<Function>(stripAlias(entity)));
     auto overloadSet = findOtherOverloads(entity);
@@ -593,9 +579,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
     if (!checkRedef(Redef_Other, name, vardecl, accessControl)) {
         return nullptr;
     }
-    auto* var = impl->addEntity<Variable>(name,
-                                          &currentScope(),
-                                          vardecl,
+    auto* var = impl->addEntity<Variable>(name, &currentScope(), vardecl,
                                           accessControl);
     var->setMutability(mut);
     addToCurrentScope(var);
@@ -604,8 +588,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
 }
 
 Variable* SymbolTable::defineVarImpl(ast::VarDeclBase* vardecl,
-                                     std::string name,
-                                     Type const* type,
+                                     std::string name, Type const* type,
                                      Mutability mut,
                                      AccessControl accessControl) {
     auto* var = declareVarImpl(vardecl, std::move(name), accessControl, mut);
@@ -618,9 +601,7 @@ Variable* SymbolTable::defineVarImpl(ast::VarDeclBase* vardecl,
 
 Variable* SymbolTable::declareVariable(ast::VarDeclBase* vardecl,
                                        AccessControl accessControl) {
-    return declareVarImpl(vardecl,
-                          std::string(vardecl->name()),
-                          accessControl,
+    return declareVarImpl(vardecl, std::string(vardecl->name()), accessControl,
                           vardecl->mutability());
 }
 
@@ -630,36 +611,24 @@ bool SymbolTable::setVariableType(Variable* var, Type const* type) {
 }
 
 Variable* SymbolTable::defineVariable(ast::VarDeclBase* vardecl,
-                                      Type const* type,
-                                      Mutability mut,
+                                      Type const* type, Mutability mut,
                                       AccessControl accessControl) {
-    return defineVarImpl(vardecl,
-                         std::string(vardecl->name()),
-                         type,
-                         mut,
+    return defineVarImpl(vardecl, std::string(vardecl->name()), type, mut,
                          accessControl);
 }
 
-Variable* SymbolTable::defineVariable(std::string name,
-                                      Type const* type,
+Variable* SymbolTable::defineVariable(std::string name, Type const* type,
                                       Mutability mut,
                                       AccessControl accessControl) {
     return defineVarImpl(nullptr, std::move(name), type, mut, accessControl);
 }
 
-Property* SymbolTable::addProperty(PropertyKind kind,
-                                   Type const* type,
-                                   Mutability mut,
-                                   ValueCategory valueCat,
+Property* SymbolTable::addProperty(PropertyKind kind, Type const* type,
+                                   Mutability mut, ValueCategory valueCat,
                                    AccessControl accessControl,
                                    ast::ASTNode* astNode) {
-    auto* prop = impl->addEntity<Property>(kind,
-                                           &currentScope(),
-                                           type,
-                                           mut,
-                                           valueCat,
-                                           accessControl,
-                                           astNode);
+    auto* prop = impl->addEntity<Property>(kind, &currentScope(), type, mut,
+                                           valueCat, accessControl, astNode);
     validateAccessControl(*prop);
     addToCurrentScope(prop);
     addGlobalAliasIfInternalAtFilescope(prop);
@@ -668,36 +637,28 @@ Property* SymbolTable::addProperty(PropertyKind kind,
 
 Temporary* SymbolTable::temporary(ast::ASTNode* astNode, QualType type) {
     auto* temp = impl->addEntity<Temporary>(impl->temporaryID++,
-                                            &currentScope(),
-                                            type,
-                                            astNode);
+                                            &currentScope(), type, astNode);
     return temp;
 }
 
-Alias* SymbolTable::declareAlias(std::string name,
-                                 Entity& aliased,
+Alias* SymbolTable::declareAlias(std::string name, Entity& aliased,
                                  ast::ASTNode* astNode,
                                  AccessControl accessControl) {
     auto existing = currentScope().findEntities(name);
     if (ranges::contains(existing, &aliased, stripAlias)) {
         return nullptr;
     }
-    auto* alias = impl->addEntity<Alias>(std::move(name),
-                                         aliased,
-                                         &currentScope(),
-                                         astNode,
+    auto* alias = impl->addEntity<Alias>(std::move(name), aliased,
+                                         &currentScope(), astNode,
                                          accessControl);
     addToCurrentScope(alias);
     aliased.addAlias(alias);
     return alias;
 }
 
-Alias* SymbolTable::declareAlias(Entity& aliased,
-                                 ast::ASTNode* astNode,
+Alias* SymbolTable::declareAlias(Entity& aliased, ast::ASTNode* astNode,
                                  AccessControl accessControl) {
-    return declareAlias(std::string(aliased.name()),
-                        aliased,
-                        astNode,
+    return declareAlias(std::string(aliased.name()), aliased, astNode,
                         accessControl);
 }
 
@@ -760,36 +721,24 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     withScopeCurrent(arrayType, [&] {
         using enum Mutability;
         using enum ValueCategory;
-        auto* arraySize = addProperty(PropertyKind::ArraySize,
-                                      S64(),
-                                      Const,
-                                      RValue,
-                                      accessCtrl);
+        auto* arraySize = addProperty(PropertyKind::ArraySize, S64(), Const,
+                                      RValue, accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constSize = allocate<IntValue>(APInt(size, 64),
                                                 /* isSigned = */ true);
             arraySize->setConstantValue(std::move(constSize));
         }
-        auto* arrayEmpty = addProperty(PropertyKind::ArrayEmpty,
-                                       Bool(),
-                                       Const,
-                                       RValue,
-                                       accessCtrl);
+        auto* arrayEmpty = addProperty(PropertyKind::ArrayEmpty, Bool(), Const,
+                                       RValue, accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constEmpty = allocate<IntValue>(APInt(size == 0, 1),
                                                  /* isSigned = */ false);
             arrayEmpty->setConstantValue(std::move(constEmpty));
         }
-        addProperty(PropertyKind::ArrayFront,
-                    arrayType->elementType(),
-                    Mutable,
-                    LValue,
-                    accessCtrl);
-        addProperty(PropertyKind::ArrayBack,
-                    arrayType->elementType(),
-                    Mutable,
-                    LValue,
-                    accessCtrl);
+        addProperty(PropertyKind::ArrayFront, arrayType->elementType(), Mutable,
+                    LValue, accessCtrl);
+        addProperty(PropertyKind::ArrayBack, arrayType->elementType(), Mutable,
+                    LValue, accessCtrl);
     });
     if (arrayType->elementType()->hasLifetimeMetadata()) {
         analyzeLifetime(*arrayType, *this);
@@ -840,8 +789,7 @@ T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
 }
 
 RawPtrType const* SymbolTable::pointer(QualType pointee) {
-    return impl->ptrLikeImpl<RawPtrType>(impl->ptrTypes,
-                                         pointee,
+    return impl->ptrLikeImpl<RawPtrType>(impl->ptrTypes, pointee,
                                          [&](RawPtrType* type) {
         analyzeLifetime(*type, *this);
     });
@@ -852,8 +800,7 @@ ReferenceType const* SymbolTable::reference(QualType referred) {
 }
 
 UniquePtrType const* SymbolTable::uniquePointer(QualType pointee) {
-    return impl->ptrLikeImpl<UniquePtrType>(impl->uniquePtrTypes,
-                                            pointee,
+    return impl->ptrLikeImpl<UniquePtrType>(impl->uniquePtrTypes, pointee,
                                             [&](UniquePtrType* type) {
         analyzeLifetime(*type, *this);
     });
@@ -1012,8 +959,7 @@ Alias* SymbolTable::addGlobalAliasIfInternalAtFilescope(Entity* entity) {
         return nullptr;
     }
     return withScopeCurrent(&globalScope(), [&] {
-        return declareAlias(*entity,
-                            entity->astNode(),
+        return declareAlias(*entity, entity->astNode(),
                             entity->accessControl());
     });
 }
@@ -1038,10 +984,8 @@ bool SymbolTable::validateAccessControl(Entity const& entity) {
     return true;
 }
 
-static bool checkRedefImpl(SymbolTable::Impl& impl,
-                           Redef kind,
-                           Scope const* scope,
-                           std::string_view name,
+static bool checkRedefImpl(SymbolTable::Impl& impl, Redef kind,
+                           Scope const* scope, std::string_view name,
                            ast::Declaration const* decl) {
     auto entities = scope->findEntities(name);
     switch (kind) {
@@ -1069,8 +1013,7 @@ static bool checkRedefImpl(SymbolTable::Impl& impl,
 }
 
 /// \Returns `true` if no redefinition occured
-bool SymbolTable::checkRedef(int kind,
-                             std::string_view name,
+bool SymbolTable::checkRedef(int kind, std::string_view name,
                              ast::Declaration const* decl,
                              AccessControl accessControl) {
     if (!checkRedefImpl(*impl, Redef(kind), &currentScope(), name, decl)) {

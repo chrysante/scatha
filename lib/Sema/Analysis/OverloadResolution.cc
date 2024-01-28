@@ -24,8 +24,7 @@ using enum ValueCategory;
 static std::variant<int, ORMatchError, std::monostate> signatureMatch(
     OverloadResolutionResult& result,
     std::span<ast::Expression const* const> args,
-    std::span<Type const* const> paramTypes,
-    ORKind kind) {
+    std::span<Type const* const> paramTypes, ORKind kind) {
     using enum ORMatchError::Reason;
     if (args.size() != paramTypes.size()) {
         return ORMatchError{ .reason = CountMismatch };
@@ -40,8 +39,7 @@ static std::variant<int, ORMatchError, std::monostate> signatureMatch(
         using enum ConversionKind;
         auto convKind =
             kind == ORKind::MemberFunction && index == 0 ? Explicit : Implicit;
-        auto conversion = computeConversion(convKind,
-                                            expr,
+        auto conversion = computeConversion(convKind, expr,
                                             getQualType(paramType),
                                             refToLValue(paramType));
         if (!conversion) {
@@ -65,10 +63,8 @@ static auto makeArgTypes(std::span<ast::Expression const* const> arguments) {
 }
 
 OverloadResolutionResult sema::performOverloadResolution(
-    ast::Expression const* parentExpr,
-    std::span<Function* const> overloadSet,
-    std::span<ast::Expression const* const> arguments,
-    ORKind kind) {
+    ast::Expression const* parentExpr, std::span<Function* const> overloadSet,
+    std::span<ast::Expression const* const> arguments, ORKind kind) {
     SC_EXPECT(!overloadSet.empty());
     utl::small_vector<OverloadResolutionResult, 4> results;
     /// Contains ranks and the index of the matching result structure in
@@ -100,10 +96,8 @@ OverloadResolutionResult sema::performOverloadResolution(
     if (results.empty()) {
         return OverloadResolutionResult{
             .error = std::make_unique<ORError>(
-                ORError::makeNoMatch(parentExpr,
-                                     overloadSet,
-                                     makeArgTypes(arguments),
-                                     matchErrors))
+                ORError::makeNoMatch(parentExpr, overloadSet,
+                                     makeArgTypes(arguments), matchErrors))
         };
     }
     if (results.size() == 1) {
@@ -133,8 +127,7 @@ OverloadResolutionResult sema::performOverloadResolution(
     }) | ranges::to<std::vector>;
     return OverloadResolutionResult{
         .error = std::make_unique<ORError>(
-            ORError::makeAmbiguous(parentExpr,
-                                   overloadSet,
+            ORError::makeAmbiguous(parentExpr, overloadSet,
                                    makeArgTypes(arguments),
                                    std::move(functions)))
     };

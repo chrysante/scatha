@@ -54,8 +54,7 @@ struct InstContext {
 } // namespace
 
 utl::vector<StructType const*> sema::instantiateEntities(
-    AnalysisContext& ctx,
-    StructDependencyGraph& typeDependencies,
+    AnalysisContext& ctx, StructDependencyGraph& typeDependencies,
     std::span<ast::FunctionDefinition*> functions) {
     InstContext instCtx(ctx);
     auto structs = instCtx.instantiateTypes(typeDependencies);
@@ -141,8 +140,7 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
                    ranges::to<utl::small_vector<u16>>;
-    auto const cycle = utl::find_cycle(indices.begin(),
-                                       indices.end(),
+    auto const cycle = utl::find_cycle(indices.begin(), indices.end(),
                                        [&](size_t index) -> auto const& {
         return dependencyGraph[index].dependencies;
     });
@@ -203,10 +201,8 @@ void InstContext::instantiateStructureType(SDGNode& node) {
             continue;
         }
         if (isa<ReferenceType>(varDecl->type())) {
-            ctx.issue<BadVarDecl>(varDecl,
-                                  BadVarDecl::RefInStruct,
-                                  varDecl->type(),
-                                  varDecl->initExpr());
+            ctx.issue<BadVarDecl>(varDecl, BadVarDecl::RefInStruct,
+                                  varDecl->type(), varDecl->initExpr());
             continue;
         }
         auto* varType = varDecl->type();

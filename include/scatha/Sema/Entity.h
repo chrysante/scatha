@@ -154,9 +154,7 @@ public:
     std::span<Alias const* const> aliases() const { return _aliases; }
 
 protected:
-    explicit Entity(EntityType entityType,
-                    std::string name,
-                    Scope* parent,
+    explicit Entity(EntityType entityType, std::string name, Scope* parent,
                     ast::ASTNode* astNode = nullptr);
 
 private:
@@ -225,11 +223,8 @@ public:
     void setConstantValue(UniquePtr<Value> value);
 
 protected:
-    explicit Object(EntityType entityType,
-                    std::string name,
-                    Scope* parentScope,
-                    Type const* type,
-                    Mutability mutability,
+    explicit Object(EntityType entityType, std::string name, Scope* parentScope,
+                    Type const* type, Mutability mutability,
                     ast::ASTNode* astNode);
 
     void setMutability(Mutability mut) { _mut = mut; }
@@ -260,12 +255,9 @@ class SCATHA_API Variable: public VarBase {
 public:
     Variable(Variable const&) = delete;
 
-    explicit Variable(std::string name,
-                      Scope* parentScope,
-                      ast::ASTNode* astNode,
-                      AccessControl accessControl,
-                      Type const* type = nullptr,
-                      Mutability mutability = {});
+    explicit Variable(std::string name, Scope* parentScope,
+                      ast::ASTNode* astNode, AccessControl accessControl,
+                      Type const* type = nullptr, Mutability mutability = {});
 
     /// The AST node that corresponds to this variable
     SC_ASTNODE_DERIVED(declaration, VarDeclBase)
@@ -293,13 +285,9 @@ private:
 /// of arrays
 class SCATHA_API Property: public VarBase {
 public:
-    explicit Property(PropertyKind kind,
-                      Scope* parentScope,
-                      Type const* type,
-                      Mutability mut,
-                      ValueCategory valueCat,
-                      AccessControl accessControl,
-                      ast::ASTNode* astNode);
+    explicit Property(PropertyKind kind, Scope* parentScope, Type const* type,
+                      Mutability mut, ValueCategory valueCat,
+                      AccessControl accessControl, ast::ASTNode* astNode);
 
     /// The kind of property
     PropertyKind kind() const { return _kind; }
@@ -317,9 +305,7 @@ private:
 /// Represents a temporary object
 class SCATHA_API Temporary: public Object {
 public:
-    explicit Temporary(size_t id,
-                       Scope* parentScope,
-                       QualType type,
+    explicit Temporary(size_t id, Scope* parentScope, QualType type,
                        ast::ASTNode* node);
 
     Temporary(Temporary const&) = delete;
@@ -393,11 +379,8 @@ public:
     void addChild(Entity* entity);
 
 protected:
-    explicit Scope(EntityType entityType,
-                   ScopeKind,
-                   std::string name,
-                   Scope* parent,
-                   ast::ASTNode* astNode = nullptr);
+    explicit Scope(EntityType entityType, ScopeKind, std::string name,
+                   Scope* parent, ast::ASTNode* astNode = nullptr);
 
 private:
     friend class SymbolTable;
@@ -451,8 +434,7 @@ private:
 /// Scope of symbols imported from a library
 class SCATHA_API NativeLibrary: public Library {
 public:
-    explicit NativeLibrary(std::string name,
-                           std::filesystem::path codeFile,
+    explicit NativeLibrary(std::string name, std::filesystem::path codeFile,
                            Scope* parent);
 
     /// \Returns the path of the IR file that contains the functions in this
@@ -466,8 +448,7 @@ private:
 /// Represents an imported foreign library. Does not contain any child symbols
 class SCATHA_API ForeignLibrary: public Library {
 public:
-    explicit ForeignLibrary(std::string name,
-                            std::filesystem::path file,
+    explicit ForeignLibrary(std::string name, std::filesystem::path file,
                             Scope* parent);
 
     /// \Returns the path of the shared library file
@@ -482,12 +463,9 @@ private:
 /// Represents a builtin or user defined function
 class SCATHA_API Function: public Scope {
 public:
-    explicit Function(std::string name,
-                      FunctionType const* type,
-                      Scope* parentScope,
-                      FunctionAttribute attrs,
-                      ast::ASTNode* astNode,
-                      AccessControl accessControl);
+    explicit Function(std::string name, FunctionType const* type,
+                      Scope* parentScope, FunctionAttribute attrs,
+                      ast::ASTNode* astNode, AccessControl accessControl);
 
     /// The definition of this function in the AST
     SC_ASTNODE_DERIVED(definition, FunctionDefinition)
@@ -592,11 +570,8 @@ public:
     bool hasTrivialLifetime() const;
 
 protected:
-    explicit Type(EntityType entityType,
-                  ScopeKind scopeKind,
-                  std::string name,
-                  Scope* parent,
-                  ast::ASTNode* astNode,
+    explicit Type(EntityType entityType, ScopeKind scopeKind, std::string name,
+                  Scope* parent, ast::ASTNode* astNode,
                   AccessControl accessControl);
 
 private:
@@ -667,13 +642,9 @@ public:
     }
 
 protected:
-    explicit ObjectType(EntityType entityType,
-                        ScopeKind scopeKind,
-                        std::string name,
-                        Scope* parent,
-                        size_t size,
-                        size_t align,
-                        ast::ASTNode* astNode,
+    explicit ObjectType(EntityType entityType, ScopeKind scopeKind,
+                        std::string name, Scope* parent, size_t size,
+                        size_t align, ast::ASTNode* astNode,
                         AccessControl accessControl);
 
 private:
@@ -690,11 +661,8 @@ private:
 /// Concrete class representing a builtin type
 class SCATHA_API BuiltinType: public ObjectType {
 protected:
-    explicit BuiltinType(EntityType entityType,
-                         std::string name,
-                         Scope* parentScope,
-                         size_t size,
-                         size_t align,
+    explicit BuiltinType(EntityType entityType, std::string name,
+                         Scope* parentScope, size_t size, size_t align,
                          AccessControl accessControl);
 };
 
@@ -726,10 +694,8 @@ public:
     bool isUnsigned() const { return signedness() == Signedness::Unsigned; }
 
 protected:
-    explicit ArithmeticType(EntityType entityType,
-                            std::string name,
-                            size_t bitwidth,
-                            Signedness signedness,
+    explicit ArithmeticType(EntityType entityType, std::string name,
+                            size_t bitwidth, Signedness signedness,
                             Scope* parentScope);
 
 private:
@@ -752,8 +718,7 @@ public:
 /// Concrete class representing an integral type
 class SCATHA_API IntType: public ArithmeticType {
 public:
-    explicit IntType(size_t bitwidth,
-                     Signedness signedness,
+    explicit IntType(size_t bitwidth, Signedness signedness,
                      Scope* parentScope);
 };
 
@@ -779,11 +744,8 @@ protected:
 /// Concrete class representing the type of a structure
 class SCATHA_API StructType: public CompoundType {
 public:
-    explicit StructType(std::string name,
-                        Scope* parentScope,
-                        ast::ASTNode* astNode,
-                        size_t size,
-                        size_t align,
+    explicit StructType(std::string name, Scope* parentScope,
+                        ast::ASTNode* astNode, size_t size, size_t align,
                         AccessControl accessControl);
 
     /// The AST node that defines this type
@@ -872,8 +834,7 @@ private:
 /// Abstract base class of raw pointer and unique pointer
 class SCATHA_API PointerType: public BuiltinType, public PtrRefTypeBase {
 protected:
-    explicit PointerType(EntityType entityType,
-                         QualType base,
+    explicit PointerType(EntityType entityType, QualType base,
                          std::string name);
 };
 
@@ -955,11 +916,8 @@ private:
 /// Represents a different name for another entity
 class SCATHA_API Alias: public Entity {
 public:
-    explicit Alias(std::string name,
-                   Entity& aliased,
-                   Scope* parent,
-                   ast::ASTNode* astNode,
-                   AccessControl accessControl);
+    explicit Alias(std::string name, Entity& aliased, Scope* parent,
+                   ast::ASTNode* astNode, AccessControl accessControl);
 
     /// \Returns the entity that this alias refers to
     Entity* aliased() { return _aliased; }
@@ -980,10 +938,8 @@ private:
 /// messages
 class SCATHA_API PoisonEntity: public Entity {
 public:
-    explicit PoisonEntity(ast::Identifier* ID,
-                          EntityCategory cat,
-                          Scope* parentScope,
-                          AccessControl accessControl);
+    explicit PoisonEntity(ast::Identifier* ID, EntityCategory cat,
+                          Scope* parentScope, AccessControl accessControl);
 
 private:
     friend class Entity;

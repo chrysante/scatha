@@ -100,8 +100,7 @@ std::unique_ptr<AccessTree> AccessTree::clone() {
 
 void AccessTree::print() const { print(std::cout); }
 
-static void printImpl(AccessTree const* node,
-                      std::ostream& str,
+static void printImpl(AccessTree const* node, std::ostream& str,
                       TreeFormatter& formatter) {
     str << formatter.beginLine();
     if (auto index = node->index()) {

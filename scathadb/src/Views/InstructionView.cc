@@ -118,8 +118,7 @@ struct InstView: FileViewBase<InstView> {
                 auto& disasm = model->disassembly();
                 std::string labelText(
                     toString(disasm.instruction(index), &disasm, &model->VM()));
-                return hbox({ lineNumber(line),
-                              breakpointIndicator(line),
+                return hbox({ lineNumber(line), breakpointIndicator(line),
                               text(labelText) | flex }) |
                        lineModifier(line);
             }));

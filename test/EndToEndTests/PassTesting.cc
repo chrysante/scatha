@@ -63,15 +63,13 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
     sema::SymbolTable sym;
     auto analysisResult = sema::analyze(*ast, sym, issues);
     validateEmpty(sourceFiles, issues);
-    return [ast = std::move(ast),
-            sym = std::move(sym),
+    return [ast = std::move(ast), sym = std::move(sym),
             analysisResult = std::move(analysisResult)] {
         ir::Context ctx;
         ir::Module mod;
         irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {});
         ir::forEach(ctx, mod, opt::unifyReturns);
-        return std::tuple{ std::move(ctx),
-                           std::move(mod),
+        return std::tuple{ std::move(ctx), std::move(mod),
                            sym.foreignLibraryPaths() };
     };
 }
@@ -80,15 +78,13 @@ static Generator makeIRGenerator(std::string_view text) {
     return [=] {
         auto result = ir::parse(text).value();
         ir::forEach(result.first, result.second, opt::unifyReturns);
-        return std::tuple{ std::move(result).first,
-                           std::move(result).second,
+        return std::tuple{ std::move(result).first, std::move(result).second,
                            std::vector<std::filesystem::path>{} };
     };
 }
 
 static auto codegenAndAssemble(
-    ir::Module const& mod,
-    std::ostream* str = nullptr,
+    ir::Module const& mod, std::ostream* str = nullptr,
     std::span<std::filesystem::path const> foreignLibs = {}) {
     auto assembly = [&] {
         if (!str) {
@@ -104,8 +100,7 @@ static auto codegenAndAssemble(
     return std::pair{ std::move(prog), std::move(sym) };
 }
 
-static uint64_t run(ir::Module const& mod,
-                    std::ostream* str,
+static uint64_t run(ir::Module const& mod, std::ostream* str,
                     std::span<std::filesystem::path const> foreignLibs) {
     auto [prog, sym] = codegenAndAssemble(mod, str, foreignLibs);
     return runProgram(prog, findMain(sym).value());
@@ -151,8 +146,7 @@ struct Impl {
                 ir::Pipeline pipeline(pass);
                 testPipeline(generator,
                              ir::PassManager::makePipeline("unifyreturns"),
-                             expected,
-                             pipeline);
+                             expected, pipeline);
                 testPipeline(generator, light, expected, pipeline);
                 testPipeline(generator, lightRotate, expected, pipeline);
                 testPipeline(generator, lightInline, expected, pipeline);
@@ -165,8 +159,7 @@ struct Impl {
                 ir::PassManager::makePipeline(getOptions().TestPipeline);
             testPipeline(generator,
                          ir::PassManager::makePipeline("unifyreturns"),
-                         expected,
-                         pipeline);
+                         expected, pipeline);
             testPipeline(generator, light, expected, pipeline);
             testPipeline(generator, lightRotate, expected, pipeline);
             testPipeline(generator, lightInline, expected, pipeline);
@@ -189,8 +182,7 @@ struct Impl {
         }
     }
 
-    void checkReturns(std::string_view msg,
-                      ir::Module const& mod,
+    void checkReturns(std::string_view msg, ir::Module const& mod,
                       std::span<std::filesystem::path const> foreignLibs,
                       uint64_t expected) const {
         INFO(msg);
@@ -212,15 +204,12 @@ struct Impl {
     }
 
     void testPipeline(Generator const& generator,
-                      ir::Pipeline const& prePipeline,
-                      uint64_t expected,
+                      ir::Pipeline const& prePipeline, uint64_t expected,
                       ir::Pipeline const& pipeline) const {
         auto [ctx, mod, libs] = generator();
         prePipeline(ctx, mod);
-        auto message = utl::strcat("Pass test for \"",
-                                   pipeline,
-                                   "\" with pre pipeline \"",
-                                   prePipeline,
+        auto message = utl::strcat("Pass test for \"", pipeline,
+                                   "\" with pre pipeline \"", prePipeline,
                                    "\"");
         pipeline(ctx, mod);
         checkReturns(message, mod, libs, expected);
@@ -240,10 +229,8 @@ struct Impl {
             }
             auto [ctx, mod, libs] = generator();
             prePipeline.execute(ctx, mod);
-            auto message = utl::strcat("Idempotency check for \"",
-                                       pass.name(),
-                                       "\" with pre pipeline \"",
-                                       prePipeline,
+            auto message = utl::strcat("Idempotency check for \"", pass.name(),
+                                       "\" with pre pipeline \"", prePipeline,
                                        "\"");
             ir::forEach(ctx, mod, pass);
             checkReturns(message, mod, libs, expected);

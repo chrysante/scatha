@@ -90,8 +90,7 @@ class GraphNodeBase {
 
     /// Either `GraphNode` or `Derived` is specified.
     using Self = std::conditional_t<std::is_same_v<Derived, void>,
-                                    GraphNode<Payload, Derived, Kind>,
-                                    Derived>;
+                                    GraphNode<Payload, Derived, Kind>, Derived>;
 
 public:
     /// `PayloadHash` and `PayloadEqual` exist to put `GraphNode` in hashsets
@@ -153,8 +152,7 @@ private:
         list.erase(ranges::remove(list, elem), list.end());
     }
 
-    static void replaceEdgeImpl(utl::vector<Self*>& list,
-                                Self const* oldElem,
+    static void replaceEdgeImpl(utl::vector<Self*>& list, Self const* oldElem,
                                 Self* newElem) {
         ranges::replace(list, oldElem, newElem);
     }

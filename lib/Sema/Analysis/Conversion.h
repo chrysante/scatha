@@ -123,8 +123,7 @@ private:
 /// Represents a conversion of a value from one type to another
 class Conversion {
 public:
-    Conversion(QualType fromType,
-               QualType toType,
+    Conversion(QualType fromType, QualType toType,
                std::optional<ValueCatConversion> valueCatConv,
                std::optional<MutConversion> mutConv,
                std::optional<ObjectTypeConversion> objConv):
@@ -180,9 +179,7 @@ enum class ConversionKind {
 /// Computes the conversion of \p expr to type \p toType and value category
 /// \p toValueCat
 SCTEST_API Expected<Conversion, std::unique_ptr<SemaIssue>> computeConversion(
-    ConversionKind kind,
-    ast::Expression const* expr,
-    QualType toType,
+    ConversionKind kind, ast::Expression const* expr, QualType toType,
     ValueCategory toValueCat);
 
 /// Computes the rank of the conversion \p conv
@@ -192,16 +189,12 @@ SCTEST_API int computeRank(Conversion const& conv);
 /// If \p expr is convertible of kind \p kind to type \p to a `Conversion` node
 /// is inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` if conversion succeeded
-SCTEST_API ast::Expression* convert(ConversionKind kind,
-                                    ast::Expression* expr,
-                                    QualType to,
-                                    ValueCategory toValueCat,
-                                    CleanupStack& dtors,
-                                    AnalysisContext& ctx);
+SCTEST_API ast::Expression* convert(ConversionKind kind, ast::Expression* expr,
+                                    QualType to, ValueCategory toValueCat,
+                                    CleanupStack& dtors, AnalysisContext& ctx);
 
 /// Find the common type of \p a and \p b
-SCTEST_API QualType commonType(SymbolTable& symbolTable,
-                               QualType a,
+SCTEST_API QualType commonType(SymbolTable& symbolTable, QualType a,
                                QualType b);
 
 /// Find the common type of \p types
@@ -220,14 +213,12 @@ SCTEST_API QualType
 /// `Explicit` \Returns the computed AST node type or nullopt if construction is
 /// not possible
 SCATHA_API ConvExp<ObjectTypeConversion> computeObjectConstruction(
-    ConversionKind kind,
-    ObjectType const* targetType,
+    ConversionKind kind, ObjectType const* targetType,
     std::span<ThinExpr const> arguments);
 
 /// Allocates an AST construct expr node of type \p nodeType
 SCATHA_API UniquePtr<ast::ConstructBase> allocateObjectConstruction(
-    ObjectTypeConversion conv,
-    SourceRange sourceRng,
+    ObjectTypeConversion conv, SourceRange sourceRng,
     ObjectType const* targetType,
     utl::small_vector<UniquePtr<ast::Expression>> arguments);
 
@@ -241,22 +232,16 @@ SCATHA_API UniquePtr<ast::ConstructBase> allocateObjectConstruction(
 /// \Returns a pointer to the new construct expression if the  construction was
 /// inserted or null pointer otherwise
 SCATHA_API ast::Expression* constructInplace(
-    ConversionKind kind,
-    ast::Expression* replace,
-    ObjectType const* targetType,
-    std::span<ast::Expression* const> arguments,
-    CleanupStack& cleanups,
+    ConversionKind kind, ast::Expression* replace, ObjectType const* targetType,
+    std::span<ast::Expression* const> arguments, CleanupStack& cleanups,
     AnalysisContext& ctx);
 
 /// \Overload for arbitrary insertion
 SCATHA_API ConvExp<ast::Expression*> constructInplace(
-    ConversionKind kind,
-    ast::ASTNode const* parentNode,
+    ConversionKind kind, ast::ASTNode const* parentNode,
     utl::function_view<ast::Expression*(UniquePtr<ast::Expression>)> insert,
-    ObjectType const* targetType,
-    std::span<ast::Expression* const> arguments,
-    CleanupStack& cleanups,
-    AnalysisContext& ctx);
+    ObjectType const* targetType, std::span<ast::Expression* const> arguments,
+    CleanupStack& cleanups, AnalysisContext& ctx);
 
 /// Inserts an AST conversion node into the position of \p expr and makes
 /// \p expr a child of the new node.

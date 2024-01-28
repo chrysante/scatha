@@ -49,8 +49,7 @@ void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
     generateSynthFunctionAs(params.semaFn.smfKind().value(), config, params);
 }
 
-void irgen::generateSynthFunctionAs(sema::SMFKind kind,
-                                    Config config,
+void irgen::generateSynthFunctionAs(sema::SMFKind kind, Config config,
                                     FuncGenParameters params) {
     FuncGenContext synthContext(kind, config, params);
     synthContext.generate();
@@ -88,12 +87,8 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
 }
 
 ir::Value* FuncGenContext::getUniquePtrCountAddr(ir::Value* thisPtr) {
-    return add<ir::GetElementPointer>(ctx,
-                                      arrayPtrType,
-                                      thisPtr,
-                                      nullptr,
-                                      std::array{ size_t{ 1 } },
-                                      "sizeptr");
+    return add<ir::GetElementPointer>(ctx, arrayPtrType, thisPtr, nullptr,
+                                      std::array{ size_t{ 1 } }, "sizeptr");
 }
 
 void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
@@ -240,12 +235,9 @@ utl::small_vector<ir::Value*, 2> FuncGenContext::genArguments(
         SC_ASSERT(isa<ir::PointerType>(param.type()),
                   "First one or two arguments of constructor or destructor "
                   "must be pointers");
-        auto* value = insert<ir::GetElementPointer>(before,
-                                                    inType,
-                                                    &param,
-                                                    index,
-                                                    std::array<size_t, 0>{},
-                                                    "mem.acc");
+        auto* value =
+            insert<ir::GetElementPointer>(before, inType, &param, index,
+                                          std::array<size_t, 0>{}, "mem.acc");
         args.push_back(value);
         if (++loopIndex >= numParams) {
             break;

@@ -63,9 +63,8 @@ GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& TU,
 }
 
 size_t GatherContext::gather(ast::ASTNode& node) {
-    return visit(node, [this](auto& node) SC_NODEBUG {
-        return this->gatherImpl(node);
-    });
+    return visit(node, [this](auto& node)
+                           SC_NODEBUG { return this->gatherImpl(node); });
 }
 
 size_t GatherContext::gatherImpl(ast::TranslationUnit& TU) {
@@ -99,9 +98,8 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         return InvalidIndex;
     }
     auto* function =
-        sym.declareFuncName(&funcDef,
-                            determineAccessControl(sym.currentScope(),
-                                                   funcDef));
+        sym.declareFuncName(&funcDef, determineAccessControl(sym.currentScope(),
+                                                             funcDef));
     if (!function) {
         return InvalidIndex;
     }
@@ -152,16 +150,15 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
 }
 
 size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Type,
-              "We only want to prepass struct definitions. What are we doing "
-              "here?");
-    SC_ASSERT(varDecl.typeExpr(),
-              "In structs variables need explicit type "
-              "specifiers. Make this a program issue.");
+    SC_ASSERT(
+        sym.currentScope().kind() == ScopeKind::Type,
+        "We only want to prepass struct definitions. What are we doing here?");
+    SC_ASSERT(
+        varDecl.typeExpr(),
+        "In structs variables need explicit type specifiers. Make this a program issue.");
     auto* variable =
-        sym.declareVariable(&varDecl,
-                            determineAccessControl(sym.currentScope(),
-                                                   varDecl));
+        sym.declareVariable(&varDecl, determineAccessControl(sym.currentScope(),
+                                                             varDecl));
     if (!variable) {
         return InvalidIndex;
     }

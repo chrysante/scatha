@@ -78,10 +78,8 @@ UniquePtr<Value> sema::evalUnary(ast::UnaryOperator op, Value const* operand) {
     }); // clang-format on
 }
 
-static UniquePtr<Value> doEvalCmp(ast::BinaryOperator op,
-                                  bool isSigned,
-                                  APInt lhs,
-                                  APInt rhs) {
+static UniquePtr<Value> doEvalCmp(ast::BinaryOperator op, bool isSigned,
+                                  APInt lhs, APInt rhs) {
     int const cmpResult = isSigned ? scmp(lhs, rhs) : ucmp(lhs, rhs);
     using enum ast::BinaryOperator;
     switch (op) {
@@ -103,8 +101,7 @@ static UniquePtr<Value> doEvalCmp(ast::BinaryOperator op,
 }
 
 static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
-                                     IntValue const* lhs,
-                                     IntValue const* rhs) {
+                                     IntValue const* lhs, IntValue const* rhs) {
     using enum ast::BinaryOperator;
     switch (op) {
     case Multiplication:
@@ -245,8 +242,7 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
     }
 }
 
-static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
-                                     APFloat lhs,
+static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op, APFloat lhs,
                                      APFloat rhs) {
     using enum ast::BinaryOperator;
     int const cmpResult = cmp(lhs, rhs);
@@ -276,8 +272,7 @@ static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
     }
 }
 
-UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
-                                  Value const* lhs,
+UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op, Value const* lhs,
                                   Value const* rhs) {
     if (!lhs && !rhs) {
         return nullptr;
@@ -288,16 +283,14 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
     ConstantKind kind = lhs ? lhs->kind() : rhs->kind();
     switch (kind) {
     case ConstantKind::IntValue: {
-        return doEvalBinary(op,
-                            cast<IntValue const*>(lhs),
+        return doEvalBinary(op, cast<IntValue const*>(lhs),
                             cast<IntValue const*>(rhs));
     }
     case ConstantKind::FloatValue:
         if (!lhs || !rhs) {
             return nullptr;
         }
-        return doEvalBinary(op,
-                            cast<FloatValue const*>(lhs)->value(),
+        return doEvalBinary(op, cast<FloatValue const*>(lhs)->value(),
                             cast<FloatValue const*>(rhs)->value());
     default:
         SC_UNREACHABLE();

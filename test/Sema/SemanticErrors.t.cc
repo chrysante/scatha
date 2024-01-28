@@ -592,8 +592,7 @@ TEST_CASE("Invalid import statements", "[sema][lib]") {
 
 TEST_CASE("Use symbol of library imported in nested scope",
           "[lib][nativelib]") {
-    test::compileLibrary("libs/testlib",
-                         "libs",
+    test::compileLibrary("libs/testlib", "libs",
                          R"(
 public fn foo() { return 42; }
 )");

@@ -91,18 +91,14 @@ using VoidParent = void;
 
 /// Map enum `NodeType` to actual node types
 #define SC_MIR_CFGNODE_DEF(Node, Parent, Corporeality)                         \
-    SC_DYNCAST_DEFINE(::scatha::mir::Node,                                     \
-                      ::scatha::mir::NodeType::Node,                           \
-                      ::scatha::mir::Parent,                                   \
-                      Corporeality)
+    SC_DYNCAST_DEFINE(::scatha::mir::Node, ::scatha::mir::NodeType::Node,      \
+                      ::scatha::mir::Parent, Corporeality)
 #include <scatha/MIR/Lists.def>
 
 /// Map enum `InstType` to actual instruction types
 #define SC_MIR_INSTCLASS_DEF(Inst, Parent, Corporeality)                       \
-    SC_DYNCAST_DEFINE(::scatha::mir::Inst,                                     \
-                      ::scatha::mir::InstType::Inst,                           \
-                      ::scatha::mir::Parent,                                   \
-                      Corporeality)
+    SC_DYNCAST_DEFINE(::scatha::mir::Inst, ::scatha::mir::InstType::Inst,      \
+                      ::scatha::mir::Parent, Corporeality)
 #include <scatha/MIR/Lists.def>
 
 namespace scatha::mir {
@@ -142,12 +138,9 @@ struct MemAddrConstantData {
 template <typename V>
 class MemoryAddressImpl {
 public:
-    MemoryAddressImpl(V* base,
-                      V* dynOffset,
-                      size_t offsetFactor,
+    MemoryAddressImpl(V* base, V* dynOffset, size_t offsetFactor,
                       size_t offsetTerm):
-        MemoryAddressImpl(base,
-                          dynOffset,
+        MemoryAddressImpl(base, dynOffset,
                           { utl::narrow_cast<uint8_t>(offsetFactor),
                             utl::narrow_cast<uint8_t>(offsetTerm) }) {}
 

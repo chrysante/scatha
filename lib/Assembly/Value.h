@@ -129,10 +129,8 @@ public:
 
 /// Represents a memory address.
 class MemoryAddress: public ValueBase {
-    static u64 compose(u8 baseptrRegIdx,
-                       u8 offsetCountRegIdx,
-                       u8 constantOffsetMultiplier,
-                       u8 constantInnerOffset) {
+    static u64 compose(u8 baseptrRegIdx, u8 offsetCountRegIdx,
+                       u8 constantOffsetMultiplier, u8 constantInnerOffset) {
         return u64(baseptrRegIdx) | u64(offsetCountRegIdx) << 8 |
                u64(constantOffsetMultiplier) << 16 |
                u64(constantInnerOffset) << 24;
@@ -159,10 +157,8 @@ public:
                            RegisterIndex offsetCountRegIdx,
                            std::integral auto constantOffsetMultiplier,
                            std::integral auto constantInnerOffset):
-        MemoryAddress(baseptrRegIdx.value(),
-                      offsetCountRegIdx.value(),
-                      constantOffsetMultiplier,
-                      constantInnerOffset) {}
+        MemoryAddress(baseptrRegIdx.value(), offsetCountRegIdx.value(),
+                      constantOffsetMultiplier, constantInnerOffset) {}
 
     explicit MemoryAddress(std::integral auto baseptrRegIdx,
                            std::integral auto offsetCountRegIdx,
@@ -175,33 +171,25 @@ public:
                           utl::narrow_cast<u8>(constantInnerOffset))) {}
 
     size_t baseptrRegisterIndex() const {
-        auto const [baseptrRegIdx,
-                    offsetCountRegIdx,
-                    constantOffsetMultiplier,
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier,
                     constantInnerOffset] = decompose(value());
         return baseptrRegIdx;
     }
 
     size_t offsetCountRegisterIndex() const {
-        auto const [baseptrRegIdx,
-                    offsetCountRegIdx,
-                    constantOffsetMultiplier,
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier,
                     constantInnerOffset] = decompose(value());
         return offsetCountRegIdx;
     }
 
     size_t constantOffsetMultiplier() const {
-        auto const [baseptrRegIdx,
-                    offsetCountRegIdx,
-                    constantOffsetMultiplier,
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier,
                     constantInnerOffset] = decompose(value());
         return constantOffsetMultiplier;
     }
 
     size_t constantInnerOffset() const {
-        auto const [baseptrRegIdx,
-                    offsetCountRegIdx,
-                    constantOffsetMultiplier,
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier,
                     constantInnerOffset] = decompose(value());
         return constantInnerOffset;
     }

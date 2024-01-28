@@ -65,8 +65,7 @@ public:
     /// Build a structure with repeated `InsertValue` instructions
     /// The elements in \p members must match the struct members exactly
     Value* buildStructure(StructType const* type,
-                          std::span<Value* const> members,
-                          std::string name);
+                          std::span<Value* const> members, std::string name);
 
     /// If \p elems has one value, that value is returned unchanged
     /// If \p elems has more than one values, this function returns
@@ -80,8 +79,7 @@ public:
     /// Otherwise generates a binary left fold over \p op of the arguments \p
     /// values and returns the result \pre \p values must not be empty
     ir::Value* foldValues(ir::ArithmeticOperation op,
-                          std::span<Value* const> values,
-                          std::string name);
+                          std::span<Value* const> values, std::string name);
 
     /// Sets the 'add point' to \p newAddPoint
     /// The add point is the iterator before which the `add()` methods insert
@@ -133,8 +131,7 @@ public:
     ///
     template <std::invocable F>
     decltype(auto) withBlockCurrent(BasicBlock* BB,
-                                    BasicBlock::ConstIterator addPoint,
-                                    F&& f) {
+                                    BasicBlock::ConstIterator addPoint, F&& f) {
         auto* stashed = &currentBlock();
         auto stashedAddPoint = instAddPoint;
         utl::scope_guard guard(
@@ -162,13 +159,11 @@ public:
     ///
     /// Inserts a `%name = alloca, <element-type>, <count-type> %count`
     /// instruction
-    Alloca* makeLocalArray(Type const* elementType,
-                           Value* count,
+    Alloca* makeLocalArray(Type const* elementType, Value* count,
                            std::string name);
 
     /// \overload for static count
-    Alloca* makeLocalArray(Type const* elementType,
-                           size_t count,
+    Alloca* makeLocalArray(Type const* elementType, size_t count,
                            std::string name);
 
     /// Allocate stack space for \p value and emit a store instruction storing

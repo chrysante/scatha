@@ -54,10 +54,8 @@ struct AccumulatedPhiReturn: RetBase {
     Value* otherAccArg;
 };
 
-using ViableReturn = std::variant<DirectReturn,
-                                  AccumulatedReturn,
-                                  DirectPhiReturn,
-                                  AccumulatedPhiReturn>;
+using ViableReturn = std::variant<DirectReturn, AccumulatedReturn,
+                                  DirectPhiReturn, AccumulatedPhiReturn>;
 
 struct TREContext {
     TREContext(Context& irCtx, Function& function):

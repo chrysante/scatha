@@ -12,34 +12,27 @@ namespace scatha::Asm {
 /// These function basically perform overload resolution for instructions, i.e.
 /// they map instructions and their arguments to opcodes
 
-std::pair<svm::OpCode, size_t> mapMove(ValueType dest,
-                                       ValueType source,
+std::pair<svm::OpCode, size_t> mapMove(ValueType dest, ValueType source,
                                        size_t size);
 
-std::pair<svm::OpCode, size_t> mapCMove(CompareOperation cmpOp,
-                                        ValueType dest,
-                                        ValueType source,
-                                        size_t size);
+std::pair<svm::OpCode, size_t> mapCMove(CompareOperation cmpOp, ValueType dest,
+                                        ValueType source, size_t size);
 
 svm::OpCode mapJump(CompareOperation condition);
 
 svm::OpCode mapCall(ValueType destType);
 
-svm::OpCode mapCompare(Type type,
-                       ValueType lhs,
-                       ValueType rhs,
+svm::OpCode mapCompare(Type type, ValueType lhs, ValueType rhs,
                        size_t bitwidth);
 
 svm::OpCode mapTest(Type type, size_t bitwidth);
 
 svm::OpCode mapSet(CompareOperation operation);
 
-svm::OpCode mapArithmetic64(ArithmeticOperation operation,
-                            ValueType dest,
+svm::OpCode mapArithmetic64(ArithmeticOperation operation, ValueType dest,
                             ValueType source);
 
-svm::OpCode mapArithmetic32(ArithmeticOperation operation,
-                            ValueType dest,
+svm::OpCode mapArithmetic32(ArithmeticOperation operation, ValueType dest,
                             ValueType source);
 
 } // namespace scatha::Asm

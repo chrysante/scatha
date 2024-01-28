@@ -44,8 +44,7 @@ static utl::hashset<BasicBlock*> intersect(auto&& range) {
         return {};
     }
     return ranges::accumulate(std::next(ranges::begin(range)),
-                              ranges::end(range),
-                              *range.begin(),
+                              ranges::end(range), *range.begin(),
                               [](auto&& a, auto const& b) {
         return intersect(std::move(a), b);
     });
@@ -123,9 +122,7 @@ std::span<BasicBlock* const> DominanceInfo::domFront(
 }
 
 DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
-    Function& function,
-    std::span<BasicBlock* const> entries,
-    auto predecessors,
+    Function& function, std::span<BasicBlock* const> entries, auto predecessors,
     auto successors) {
     /// https://pages.cs.wisc.edu/~fischer/cs701.f07/lectures/Lecture20.pdf
     auto const nodeSet = [&] {
@@ -142,9 +139,8 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
         }
         return res;
     }();
-    SC_ASSERT(!entries.empty(),
-              "Handle post-dom case without exit notes "
-              "outside of this function");
+    SC_ASSERT(!entries.empty(), "Handle post-dom case without exit notes "
+                                "outside of this function");
     auto worklist = entries | ranges::to<utl::hashset<BasicBlock*>>;
     while (!worklist.empty()) {
         auto* BB = *worklist.begin();
@@ -168,8 +164,7 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
 
 DominanceInfo::DomMap DominanceInfo::computeDominatorSets(Function& function) {
     return computeDomSetsImpl(
-        function,
-        std::array{ &function.entry() },
+        function, std::array{ &function.entry() },
         [](BasicBlock* BB) { return BB->predecessors(); },
         [](BasicBlock* BB) { return BB->successors(); });
 }
@@ -181,9 +176,7 @@ DominanceInfo::DomMap DominanceInfo::computePostDomSets(Function& function) {
         return {};
     }
     return computeDomSetsImpl(
-        function,
-        exits,
-        [](BasicBlock* BB) { return BB->successors(); },
+        function, exits, [](BasicBlock* BB) { return BB->successors(); },
         [](BasicBlock* BB) { return BB->predecessors(); });
 }
 
@@ -248,10 +241,7 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
 
 DomTree DominanceInfo::computeDomTree(Function& function,
                                       DomMap const& domSets) {
-    return computeDomTreeImpl(function,
-                              domSets,
-                              &function.entry(),
-                              {},
+    return computeDomTreeImpl(function, domSets, &function.entry(), {},
                               [](BasicBlock* BB) {
         return BB->predecessors();
     });
@@ -265,10 +255,7 @@ DomTree DominanceInfo::computePostDomTree(Function& function,
         return {};
     }
     auto* exitNode = exits.size() == 1 ? exits.front() : nullptr;
-    return computeDomTreeImpl(function,
-                              postDomSets,
-                              exitNode,
-                              exits,
+    return computeDomTreeImpl(function, postDomSets, exitNode, exits,
                               [](BasicBlock* BB) { return BB->successors(); });
 }
 
@@ -279,9 +266,7 @@ DomFrontMap DominanceInfo::computeDomFrontsImpl(ir::Function& function,
         return {};
     }
     struct DFContext {
-        DFContext(Function& function,
-                  DomTree const& domTree,
-                  DomFrontMap& df,
+        DFContext(Function& function, DomTree const& domTree, DomFrontMap& df,
                   decltype(successors) succ):
             function(function), domTree(domTree), df(df), succ(succ) {}
 

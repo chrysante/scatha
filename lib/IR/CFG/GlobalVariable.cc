@@ -6,13 +6,9 @@
 using namespace scatha;
 using namespace ir;
 
-GlobalVariable::GlobalVariable(Context& ctx,
-                               Mutability mut,
-                               Constant* init,
+GlobalVariable::GlobalVariable(Context& ctx, Mutability mut, Constant* init,
                                std::string name):
-    Global(NodeType::GlobalVariable,
-           ctx.ptrType(),
-           std::move(name),
+    Global(NodeType::GlobalVariable, ctx.ptrType(), std::move(name),
            ValueArray{ init }),
     mut(mut) {}
 

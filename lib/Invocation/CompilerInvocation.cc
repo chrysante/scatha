@@ -116,9 +116,7 @@ int CompilerInvocation::run() {
             return handleError();
         }
         auto analysisResult =
-            sema::analyze(*ast,
-                          semaSym,
-                          issueHandler,
+            sema::analyze(*ast, semaSym, issueHandler,
                           { .librarySearchPaths = libSearchPaths });
         if (!issueHandler.empty()) {
             issueHandler.print(sources, err());
@@ -134,11 +132,7 @@ int CompilerInvocation::run() {
             irgenConfig.nameMangler = sema::NameMangler(
                 { .globalPrefix = outputFile.stem().string() });
         }
-        irgen::generateIR(irContext,
-                          irModule,
-                          *ast,
-                          semaSym,
-                          analysisResult,
+        irgen::generateIR(irContext, irModule, *ast, semaSym, analysisResult,
                           std::move(irgenConfig));
         tryInvoke(callbacks.irgenCallback, irContext, irModule);
         if (!continueCompilation) return 0;
@@ -199,8 +193,7 @@ int CompilerInvocation::run() {
                                           std::string{};
         /// We emit the executable
         if (guardFileEmission("executable")) {
-            writeExecutableFile(outputFile,
-                                program,
+            writeExecutableFile(outputFile, program,
                                 { .executable = targetType ==
                                                 TargetType::Executable });
         }

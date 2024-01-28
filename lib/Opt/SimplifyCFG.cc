@@ -211,8 +211,7 @@ bool SCFGContext::foldIfEmpty(BasicBlock* BB) {
     BasicBlockBuilder builder(ctx, succ);
     for (auto itr = succ->begin(); isa<Phi>(*itr);) {
         auto phi = uniquePtrCast<Phi>(succ->extract(itr++));
-        auto* select = builder.insert<Select>(insertPoint,
-                                              condition,
+        auto* select = builder.insert<Select>(insertPoint, condition,
                                               phi->operandOf(thenTarget),
                                               phi->operandOf(elseTarget),
                                               std::string(phi->name()));

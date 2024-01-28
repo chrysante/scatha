@@ -43,10 +43,8 @@ class Value {
 public:
     /// # Static constructors
 
-    explicit Value(std::string name,
-                   sema::ObjectType const* type,
-                   std::span<ir::Value* const> values,
-                   ValueLocation loc,
+    explicit Value(std::string name, sema::ObjectType const* type,
+                   std::span<ir::Value* const> values, ValueLocation loc,
                    ValueRepresentation repr):
         _name(std::move(name)),
         _type(type),
@@ -54,10 +52,8 @@ public:
         _loc(loc),
         _repr(repr) {}
 
-    explicit Value(std::string name,
-                   sema::ObjectType const* type,
-                   std::initializer_list<ir::Value*> values,
-                   ValueLocation loc,
+    explicit Value(std::string name, sema::ObjectType const* type,
+                   std::initializer_list<ir::Value*> values, ValueLocation loc,
                    ValueRepresentation repr):
         Value(std::move(name), type, std::span(values), loc, repr) {}
 

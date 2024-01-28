@@ -39,23 +39,19 @@ ftxui::Component Spacer();
 ftxui::Component Placeholder(std::string message);
 
 ///
-ftxui::Component SplitLeft(ftxui::Component main,
-                           ftxui::Component back,
+ftxui::Component SplitLeft(ftxui::Component main, ftxui::Component back,
                            ftxui::Ref<int> size = 20);
 
 ///
-ftxui::Component SplitRight(ftxui::Component main,
-                            ftxui::Component back,
+ftxui::Component SplitRight(ftxui::Component main, ftxui::Component back,
                             ftxui::Ref<int> size = 20);
 
 ///
-ftxui::Component SplitTop(ftxui::Component main,
-                          ftxui::Component back,
+ftxui::Component SplitTop(ftxui::Component main, ftxui::Component back,
                           ftxui::Ref<int> size = 10);
 
 ///
-ftxui::Component SplitBottom(ftxui::Component main,
-                             ftxui::Component back,
+ftxui::Component SplitBottom(ftxui::Component main, ftxui::Component back,
                              ftxui::Ref<int> size = 10);
 
 /// Option struct for `Toolbar()`

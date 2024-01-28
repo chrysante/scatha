@@ -26,8 +26,7 @@ struct Command {
     Command(std::string hotkey,
             std::function<std::string(Debugger const&)> buttonLabel,
             std::function<bool(Debugger const&)> isActive,
-            std::function<void(Debugger&)> action,
-            std::string description);
+            std::function<void(Debugger&)> action, std::string description);
 
     ///
     std::string hotkey;

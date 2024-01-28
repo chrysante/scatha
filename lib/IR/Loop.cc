@@ -29,8 +29,7 @@ using namespace ir;
 /// - `x_0` and `x_1` are both defined within the loop
 /// - `x_1` is computed in every loop iteration, i.e. it post dominates the loop
 ///   header
-static bool isInductionVar(Instruction const* inst,
-                           LoopInfo const& loop,
+static bool isInductionVar(Instruction const* inst, LoopInfo const& loop,
                            DominanceInfo const& postDomInfo) {
     auto* indVar = dyncast<ArithmeticInst const*>(inst);
     if (!indVar) {
@@ -153,15 +152,10 @@ void ir::print(LoopInfo const& loop, std::ostream& str) {
          loop.loopClosingPhiMap() | ranges::views::transform([](auto& elem) {
         auto [key, phi] = elem;
         auto [exit, inst] = key;
-        return utl::strcat("{ ",
-                           exit->name(),
-                           ", ",
-                           inst->name(),
-                           " } -> ",
+        return utl::strcat("{ ", exit->name(), ", ", inst->name(), " } -> ",
                            phi->name());
     }));
-    list("Induction variables",
-         loop.inductionVariables() | ToName,
+    list("Induction variables", loop.inductionVariables() | ToName,
          /* last = */ true);
 }
 
@@ -201,8 +195,7 @@ static bool makeLCSSAPass(Context&, Function& F) { return makeLCSSA(F); }
 
 SC_REGISTER_PASS(makeLCSSAPass, "lcssa", PassCategory::Canonicalization);
 
-static BasicBlock* getIdom(BasicBlock* dominator,
-                           BasicBlock* BB,
+static BasicBlock* getIdom(BasicBlock* dominator, BasicBlock* BB,
                            auto condition) {
     auto* F = dominator->parent();
     auto& domTree = F->getOrComputeDomTree();
@@ -235,9 +228,8 @@ struct LCSSAContext {
             }
             return user->parent();
         }();
-        return getIdom(inst->parent(), P, [&](auto* block) {
-            return loop.isExiting(block);
-        });
+        return getIdom(inst->parent(), P,
+                       [&](auto* block) { return loop.isExiting(block); });
     }
 
     BasicBlock* getExitBlock(Instruction* user) const {
@@ -248,9 +240,8 @@ struct LCSSAContext {
             }
             parent = phi->predecessorOf(inst);
         }
-        return getIdom(inst->parent(), parent, [&](auto* block) {
-            return loop.isExit(block);
-        });
+        return getIdom(inst->parent(), parent,
+                       [&](auto* block) { return loop.isExit(block); });
     }
 
     auto getExitPhi(Instruction* user) {
@@ -260,9 +251,8 @@ struct LCSSAContext {
             return itr->second;
         }
         auto* pred = exit->singlePredecessor();
-        SC_ASSERT(pred,
-                  "This may not be true but we just assert it for now "
-                  "until we have a better solution");
+        SC_ASSERT(pred, "This may not be true but we just assert it for now "
+                        "until we have a better solution");
         Phi* phi =
             new Phi({ { pred, inst } }, utl::strcat(inst->name(), ".phi"));
         exit->insert(exit->phiEnd(), phi);
@@ -334,13 +324,11 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
         return Node(bb);
     }) | ranges::to<NodeSet>;
     auto impl = [&domtree,
-                 &result](auto& impl,
-                          Node* root,
+                 &result](auto& impl, Node* root,
                           utl::hashset<BasicBlock*> const& bbs) -> void {
         utl::small_vector<utl::hashset<BasicBlock*>, 4> sccs;
         utl::compute_sccs(
-            bbs.begin(),
-            bbs.end(),
+            bbs.begin(), bbs.end(),
             [&](BasicBlock* bb) {
             return bb->successors() | ranges::views::filter([&](auto* succ) {
                 return bbs.contains(succ);
@@ -391,9 +379,8 @@ struct LNFPrintCtx {
         str << formatter.beginLine();
         auto* BB = node->basicBlock();
         bool isNonTrivialLoop = node->children().size() > 0;
-        tfmt::format(isNonTrivialLoop ? tfmt::Bold : tfmt::None, str, [&] {
-            str << (BB ? BB->name() : "NULL") << std::endl;
-        });
+        tfmt::format(isNonTrivialLoop ? tfmt::Bold : tfmt::None, str,
+                     [&] { str << (BB ? BB->name() : "NULL") << std::endl; });
         for (auto [index, child]: node->children() | ranges::views::enumerate) {
             print(child, index == node->children().size() - 1);
         }

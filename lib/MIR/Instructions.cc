@@ -8,28 +8,17 @@
 using namespace scatha;
 using namespace mir;
 
-CallInst::CallInst(Register* dest,
-                   size_t numDests,
-                   Value* callee,
-                   utl::small_vector<Value*> args,
-                   Metadata metadata):
-    Instruction(InstType::CallInst,
-                dest,
-                numDests,
-                (args.insert(args.begin(), callee), std::move(args)),
-                0,
+CallInst::CallInst(Register* dest, size_t numDests, Value* callee,
+                   utl::small_vector<Value*> args, Metadata metadata):
+    Instruction(InstType::CallInst, dest, numDests,
+                (args.insert(args.begin(), callee), std::move(args)), 0,
                 std::move(metadata)),
     numRetRegs(utl::narrow_cast<uint32_t>(numDests)) {}
 
-ConversionInst::ConversionInst(Register* dest,
-                               Value* operand,
-                               Conversion conv,
-                               size_t fromBits,
-                               size_t toBits,
+ConversionInst::ConversionInst(Register* dest, Value* operand, Conversion conv,
+                               size_t fromBits, size_t toBits,
                                Metadata metadata):
-    UnaryInstruction(InstType::ConversionInst,
-                     dest,
-                     operand,
+    UnaryInstruction(InstType::ConversionInst, dest, operand,
                      /* byteWidth = */ utl::ceil_divide(fromBits, 8),
                      std::move(metadata)),
     conv(conv),

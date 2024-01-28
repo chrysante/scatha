@@ -59,17 +59,14 @@ Value sdb::makeRegisterIndex(size_t index) {
     return { Value::RegisterIndex, index };
 }
 
-Value sdb::makeAddress(uint8_t baseRegIdx,
-                       uint8_t offsetRegIdx,
-                       uint8_t offsetFactor,
-                       uint8_t offsetTerm) {
-    return { Value::Address,
-             std::bit_cast<uint32_t>(Addr{
-                 baseRegIdx,
-                 offsetRegIdx,
-                 offsetFactor,
-                 offsetTerm,
-             }) };
+Value sdb::makeAddress(uint8_t baseRegIdx, uint8_t offsetRegIdx,
+                       uint8_t offsetFactor, uint8_t offsetTerm) {
+    return { Value::Address, std::bit_cast<uint32_t>(Addr{
+                                 baseRegIdx,
+                                 offsetRegIdx,
+                                 offsetFactor,
+                                 offsetTerm,
+                             }) };
 }
 
 Value sdb::makeAddress(uint32_t value) {
@@ -97,10 +94,8 @@ static std::string getLabelName(Disassembly const* disasm, Value offset) {
     return labelName(destInst.labelID);
 }
 
-static void print(std::ostream& str,
-                  Instruction inst,
-                  Disassembly const* disasm,
-                  svm::VirtualMachine const* vm) {
+static void print(std::ostream& str, Instruction inst,
+                  Disassembly const* disasm, svm::VirtualMachine const* vm) {
     str << toString(inst.opcode);
     using enum OpCodeClass;
     switch (classify(inst.opcode)) {
@@ -162,8 +157,7 @@ static void print(std::ostream& str,
     }
 }
 
-std::string sdb::toString(Instruction inst,
-                          Disassembly const* disasm,
+std::string sdb::toString(Instruction inst, Disassembly const* disasm,
                           svm::VirtualMachine const* vm) {
     std::stringstream sstr;
     print(sstr, inst, disasm, vm);

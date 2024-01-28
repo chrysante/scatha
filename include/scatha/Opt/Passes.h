@@ -17,8 +17,7 @@ SCATHA_API bool optimize(ir::Context& ctx, ir::Module& mod, ir::LocalPass = {});
 SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod);
 
 /// \overload
-SCATHA_API bool inlineFunctions(ir::Context& ctx,
-                                ir::Module& mod,
+SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod,
                                 ir::LocalPass localPass);
 
 /// Eliminate all functions that do not get called by any externally visible

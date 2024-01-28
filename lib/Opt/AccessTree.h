@@ -22,10 +22,8 @@ class AccessTree {
     static auto childrenImpl(auto* self) { return self->_children | ToAddress; }
 
 public:
-    explicit AccessTree(ir::Type const* type,
-                        AccessTree* parent = nullptr,
-                        size_t index = 0,
-                        bool isArrayNode = false):
+    explicit AccessTree(ir::Type const* type, AccessTree* parent = nullptr,
+                        size_t index = 0, bool isArrayNode = false):
         _type(type),
         _parent(parent),
         _index(index),
@@ -108,9 +106,9 @@ public:
     bool isArrayNode() const { return _isArrayNode; }
 
     /// Invoke \p callback for every leaf of this tree
-    void leafWalk(
-        utl::function_view<void(AccessTree* node,
-                                std::span<size_t const> indices)> callback) {
+    void leafWalk(utl::function_view<void(AccessTree* node,
+                                          std::span<size_t const> indices)>
+                      callback) {
         utl::small_vector<size_t> indices;
         leafWalkImpl(callback, indices);
     }
@@ -123,9 +121,9 @@ public:
     }
 
     /// Invoke \p callback for every node of this tree in post-order
-    void postOrderWalk(
-        utl::function_view<void(AccessTree* node,
-                                std::span<size_t const> indices)> callback) {
+    void postOrderWalk(utl::function_view<void(AccessTree* node,
+                                               std::span<size_t const> indices)>
+                           callback) {
         utl::small_vector<size_t> indices;
         postOrderWalkImpl(callback, indices);
     }
@@ -140,10 +138,10 @@ public:
     void print(std::ostream& str) const;
 
 private:
-    void leafWalkImpl(
-        utl::function_view<void(AccessTree* node,
-                                std::span<size_t const> indices)> callback,
-        utl::vector<size_t>& indices) {
+    void leafWalkImpl(utl::function_view<void(AccessTree* node,
+                                              std::span<size_t const> indices)>
+                          callback,
+                      utl::vector<size_t>& indices) {
         if (isLeaf()) {
             callback(this, indices);
             return;
@@ -160,7 +158,8 @@ private:
 
     void postOrderWalkImpl(
         utl::function_view<void(AccessTree* node,
-                                std::span<size_t const> indices)> callback,
+                                std::span<size_t const> indices)>
+            callback,
         utl::vector<size_t>& indices) {
         indices.push_back(0);
         for (auto* child: children()) {

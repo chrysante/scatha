@@ -276,8 +276,7 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
         ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
-        sym.declarePoison(def.nameIdentifier(),
-                          EntityCategory::Value,
+        sym.declarePoison(def.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
         return;
     }
@@ -443,13 +442,11 @@ void StmtContext::analyzeNewMoveDelete(ast::FunctionDefinition& def) {
 void StmtContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     Type const* declaredType = semaFn->argumentType(paramDecl.index());
     if (!declaredType) {
-        sym.declarePoison(paramDecl.nameIdentifier(),
-                          EntityCategory::Value,
+        sym.declarePoison(paramDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
         return;
     }
-    auto* param = sym.defineVariable(&paramDecl,
-                                     declaredType,
+    auto* param = sym.defineVariable(&paramDecl, declaredType,
                                      paramDecl.mutability(),
                                      AccessControl::Private);
     if (param) {
@@ -470,12 +467,8 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
             type = sym.reference({ parentType, thisParam.mutability() });
             mut = Mutability::Const;
         }
-        return sym.addProperty(PropertyKind::This,
-                               type,
-                               mut,
-                               LValue,
-                               AccessControl::Private,
-                               &thisParam);
+        return sym.addProperty(PropertyKind::This, type, mut, LValue,
+                               AccessControl::Private, &thisParam);
     }();
     if (param) {
         thisParam.decorateVarDecl(param);
@@ -485,8 +478,7 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
 void StmtContext::analyzeImpl(ast::StructDefinition& def) {
     /// Function defintion is only allowed in the global scope, at namespace
     /// scope and structure scope.
-    sym.declarePoison(def.nameIdentifier(),
-                      EntityCategory::Type,
+    sym.declarePoison(def.nameIdentifier(), EntityCategory::Type,
                       AccessControl::Private);
     ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
 }
@@ -523,8 +515,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
               "We should not have handled local variables in prepass.");
     /// We need at least one of init expression and type specifier
     if (!varDecl.initExpr() && !varDecl.typeExpr()) {
-        sym.declarePoison(varDecl.nameIdentifier(),
-                          EntityCategory::Value,
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::CantInferType);
         return;
@@ -537,33 +528,27 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     auto deducedType = declType ? declType : initType;
     /// We cannot deduce the type of the variable
     if (!deducedType) {
-        sym.declarePoison(varDecl.nameIdentifier(),
-                          EntityCategory::Value,
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
         return;
     }
     /// The type must be complete, that means no `void` and no dynamic arrays
     if (!deducedType->isComplete()) {
-        sym.declarePoison(varDecl.nameIdentifier(),
-                          EntityCategory::Value,
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
-        ctx.issue<BadVarDecl>(&varDecl,
-                              BadVarDecl::IncompleteType,
-                              deducedType,
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::IncompleteType, deducedType,
                               validatedInitExpr);
         return;
     }
     /// Reference variables must be initalized explicitly
     if (isa<ReferenceType>(deducedType) && !validatedInitExpr) {
-        sym.declarePoison(varDecl.nameIdentifier(),
-                          EntityCategory::Value,
+        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ExpectedRefInit);
         return;
     }
     /// If the symbol table complains we also return early
-    auto* variable = sym.defineVariable(&varDecl,
-                                        deducedType,
+    auto* variable = sym.defineVariable(&varDecl, deducedType,
                                         varDecl.mutability(),
                                         AccessControl::Private);
     if (!variable) {
@@ -573,12 +558,9 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// If we have an init expression we convert it to the type of the variable.
     /// If the type is derived from the init expression then this is a no-op.
     if (validatedInitExpr) {
-        validatedInitExpr = convert(Implicit,
-                                    validatedInitExpr,
-                                    variable->getQualType(),
-                                    refToLValue(variable->type()),
-                                    varDecl.cleanupStack(),
-                                    ctx);
+        validatedInitExpr =
+            convert(Implicit, validatedInitExpr, variable->getQualType(),
+                    refToLValue(variable->type()), varDecl.cleanupStack(), ctx);
     }
     /// Otherwise we construct an object of the declared type without arguments
     else {
@@ -587,13 +569,9 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         auto* objType = cast<ObjectType const*>(deducedType);
         validatedInitExpr =
             constructInplace(
-                Implicit,
-                &varDecl,
+                Implicit, &varDecl,
                 [&](auto expr) { return varDecl.setInitExpr(std::move(expr)); },
-                objType,
-                {},
-                varDecl.cleanupStack(),
-                ctx)
+                objType, {}, varDecl.cleanupStack(), ctx)
                 .valueOr(nullptr);
     }
     /// If our variable is of object type, we pop the last destructor _in the
@@ -647,12 +625,8 @@ void StmtContext::analyzeImpl(ast::ReturnStatement& rs) {
         returnType = rs.expression()->type().get();
         deduceReturnTypeTo(&rs, returnType);
     }
-    convert(Implicit,
-            rs.expression(),
-            getQualType(returnType),
-            refToLValue(returnType),
-            rs.cleanupStack(),
-            ctx);
+    convert(Implicit, rs.expression(), getQualType(returnType),
+            refToLValue(returnType), rs.cleanupStack(), ctx);
     if (!returnsRef()) {
         rs.cleanupStack().pop(rs.expression());
     }
@@ -664,12 +638,8 @@ void StmtContext::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeValue(stmt.condition(), stmt.cleanupStack())) {
-        convert(Implicit,
-                stmt.condition(),
-                sym.Bool(),
-                RValue,
-                stmt.cleanupStack(),
-                ctx);
+        convert(Implicit, stmt.condition(), sym.Bool(), RValue,
+                stmt.cleanupStack(), ctx);
     }
     if (auto* cval =
             dyncast<IntValue const*>(stmt.condition()->constantValue()))
@@ -699,12 +669,8 @@ void StmtContext::analyzeImpl(ast::LoopStatement& stmt) {
         analyze(*stmt.varDecl());
     }
     if (analyzeValue(stmt.condition(), stmt.conditionDtorStack())) {
-        convert(Implicit,
-                stmt.condition(),
-                sym.Bool(),
-                RValue,
-                stmt.conditionDtorStack(),
-                ctx);
+        convert(Implicit, stmt.condition(), sym.Bool(), RValue,
+                stmt.conditionDtorStack(), ctx);
     }
     if (stmt.increment()) {
         analyzeValue(stmt.increment(), stmt.incrementDtorStack());

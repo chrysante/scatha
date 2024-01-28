@@ -80,12 +80,8 @@ void irgen::print(ValueMap const& valueMap, std::ostream& str) {
             ir::printDecl(*irVal, str);
         }
         str << " "
-            << tfmt::format(tfmt::BrightGrey,
-                            "[",
-                            value.location(),
-                            ", ",
-                            value.representation(),
-                            "]");
+            << tfmt::format(tfmt::BrightGrey, "[", value.location(), ", ",
+                            value.representation(), "]");
         str << "\n";
     }
     str << "\n";
@@ -95,8 +91,7 @@ void irgen::print(ValueMap const& valueMap) { print(valueMap, std::cout); }
 
 /// # FunctionMap
 
-void FunctionMap::insert(sema::Function const* semaFn,
-                         ir::Callable* irFn,
+void FunctionMap::insert(sema::Function const* semaFn, ir::Callable* irFn,
                          FunctionMetadata metaData) {
     bool success = functions.insert({ semaFn, irFn }).second;
     SC_ASSERT(success, "Redeclaration");
@@ -127,16 +122,14 @@ FunctionMetadata const& FunctionMap::metaData(
 /// # TypeMap
 
 template <typename Map>
-static void insertImpl(Map& map,
-                       typename Map::key_type key,
+static void insertImpl(Map& map, typename Map::key_type key,
                        typename Map::mapped_type value) {
     [[maybe_unused]] bool success =
         map.insert({ key, std::move(value) }).second;
     SC_ASSERT(success, "Failed to insert type");
 }
 
-void TypeMap::insert(sema::StructType const* key,
-                     ir::StructType const* value,
+void TypeMap::insert(sema::StructType const* key, ir::StructType const* value,
                      StructMetadata metaData) {
     insertImpl(packedMap, key, value);
     insertImpl(unpackedMap, key, { value });
@@ -209,15 +202,13 @@ static auto mapChached(auto& cache, sema::Type const* key, auto compute) {
 }
 
 ir::Type const* TypeMap::packed(sema::Type const* type) const {
-    return mapChached(packedMap,
-                      type,
+    return mapChached(packedMap, type,
                       std::bind_front(&TypeMap::compute<Packed>, this));
 }
 
 utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(
     sema::Type const* type) const {
-    return mapChached(unpackedMap,
-                      type,
+    return mapChached(unpackedMap, type,
                       std::bind_front(&TypeMap::compute<Unpacked>, this));
 }
 

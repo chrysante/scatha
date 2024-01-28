@@ -36,8 +36,7 @@ std::span<uint8_t const> svm::seekBinary(std::span<uint8_t const> file) {
 std::vector<uint8_t> svm::readBinaryFromFile(std::string_view path) {
     std::fstream file(std::string(path), std::ios::in);
     if (!file) {
-        throw std::runtime_error(utl::strcat("Failed to open program: \"",
-                                             path,
+        throw std::runtime_error(utl::strcat("Failed to open program: \"", path,
                                              "\". File does not exist."));
     }
     file.seekg(0, std::ios::end);
@@ -87,10 +86,8 @@ std::array<u64, 2> svm::setupArguments(VirtualMachine& vm,
                               arg.size };
     }) | ranges::to<utl::small_vector<StringPointer>>;
     std::memcpy(vm.derefPointer(argStackData, argPointersSize),
-                argPointers.data(),
-                argPointersSize);
+                argPointers.data(), argPointersSize);
     std::memcpy(vm.derefPointer(argStackData + argPointersSize, stringDataSize),
-                arguments.data.data(),
-                stringDataSize);
+                arguments.data.data(), stringDataSize);
     return { std::bit_cast<u64>(argStackData), argPointers.size() };
 }

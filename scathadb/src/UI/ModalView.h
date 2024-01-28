@@ -31,8 +31,7 @@ struct ModalOptions {
 class ModalView {
 public:
     /// Construct a modal view
-    explicit ModalView(std::string title,
-                       ftxui::Component body,
+    explicit ModalView(std::string title, ftxui::Component body,
                        ModalOptions options = {});
 
     /// \Returns The component of this modal

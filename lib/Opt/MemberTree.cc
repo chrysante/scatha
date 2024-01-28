@@ -18,8 +18,7 @@ MemberTree MemberTree::compute(ir::Type const* type) {
     return result;
 }
 
-MemberTree::Node* MemberTree::computeDFS(ir::Type const* type,
-                                         size_t index,
+MemberTree::Node* MemberTree::computeDFS(ir::Type const* type, size_t index,
                                          size_t offset) {
     auto* result =
         allocate<Node>(allocator, index, type, offset, offset + type->size());
@@ -47,8 +46,7 @@ MemberTree::Node* MemberTree::computeDFS(ir::Type const* type,
 
 void opt::print(MemberTree const& tree) { print(tree, std::cout); }
 
-static void printImpl(MemberTree::Node const* node,
-                      std::ostream& str,
+static void printImpl(MemberTree::Node const* node, std::ostream& str,
                       TreeFormatter& formatter) {
     str << formatter.beginLine() << node->index() << ": " << *node->type()
         << " [" << node->begin() << ", " << node->end() << ")\n";

@@ -70,9 +70,7 @@ static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
     do {                                                                       \
         if (SVM_UNLIKELY(!isAligned(ptr, Size))) {                             \
             throwError<MemoryAccessError>(                                     \
-                UTL_CONCAT(MemoryAccessError::Misaligned, Kind),               \
-                ptr,                                                           \
-                Size);                                                         \
+                UTL_CONCAT(MemoryAccessError::Misaligned, Kind), ptr, Size);   \
         }                                                                      \
     } while (0)
 
@@ -109,9 +107,7 @@ static void condMove64RV(u8 const* i, u64* reg, bool cond) {
 }
 
 template <size_t Size>
-static void condMoveRM(VirtualMemory& memory,
-                       u8 const* i,
-                       u64* reg,
+static void condMoveRM(VirtualMemory& memory, u8 const* i, u64* reg,
                        bool cond) {
     size_t const destRegIdx = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
@@ -123,9 +119,7 @@ static void condMoveRM(VirtualMemory& memory,
 }
 
 template <OpCode C>
-static void performCall(VirtualMemory& memory,
-                        u8 const* i,
-                        u8 const* binary,
+static void performCall(VirtualMemory& memory, u8 const* i, u8 const* binary,
                         ExecutionFrame& currentFrame) {
     auto const [dest, regOffset] = [&] {
         if constexpr (C == OpCode::call) {
@@ -155,9 +149,7 @@ static void performCall(VirtualMemory& memory,
 }
 
 template <OpCode C>
-static void jump(u8 const* i,
-                 u8 const* binary,
-                 ExecutionFrame& currentFrame,
+static void jump(u8 const* i, u8 const* binary, ExecutionFrame& currentFrame,
                  bool cond) {
     u32 dest = load<u32>(&i[0]);
     if (cond) {
@@ -225,9 +217,7 @@ static void arithmeticRV(u8 const* i, u64* reg, auto operation) {
 }
 
 template <typename T>
-static void arithmeticRM(VirtualMemory& memory,
-                         u8 const* i,
-                         u64* reg,
+static void arithmeticRM(VirtualMemory& memory, u8 const* i, u64* reg,
                          auto operation) {
     size_t const regIdxA = i[0];
     VirtualPointer ptr = getPointer(reg, i + 1);
@@ -291,8 +281,7 @@ void VMImpl::beginExecution(size_t start, std::span<u64 const> arguments) {
             lastframe.regPtr + VirtualMachine::MaxCallframeRegisterCount,
         .iptr = binary + start,
         .stackPtr = lastframe.stackPtr });
-    std::memcpy(currentFrame.regPtr,
-                arguments.data(),
+    std::memcpy(currentFrame.regPtr, arguments.data(),
                 arguments.size() * sizeof(u64));
 }
 

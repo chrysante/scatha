@@ -28,9 +28,7 @@ struct SourceLocation {
 template <>
 struct std::hash<sdb::SourceLocation> {
     size_t operator()(sdb::SourceLocation SL) const {
-        return utl::hash_combine(SL.fileIndex,
-                                 SL.textIndex,
-                                 SL.line,
+        return utl::hash_combine(SL.fileIndex, SL.textIndex, SL.line,
                                  SL.column);
     }
 };

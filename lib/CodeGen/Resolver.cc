@@ -75,9 +75,9 @@ mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
         size_t align = value->type()->align();
         auto [data, offset] = mod->allocateStaticData(size, align);
         /// Callback is only executed by function pointers
-        auto callback =
-            [&, data = data, offset = offset](ir::Constant const* value,
-                                              void* dest) {
+        auto callback = [&, data = data,
+                         offset = offset](ir::Constant const* value,
+                                          void* dest) {
             auto* function = cast<ir::Function const*>(value);
             mod->addAddressPlaceholder(offset + getOffset(data, dest),
                                        resolve(*function));
@@ -150,9 +150,7 @@ mir::Value* Resolver::impl(ir::Value const&) const {
 }
 
 mir::Register* Resolver::genCopyImpl(
-    mir::Register* dest,
-    mir::Value* source,
-    size_t numBytes,
+    mir::Register* dest, mir::Value* source, size_t numBytes,
     utl::function_view<void(mir::Register*, mir::Value*, size_t)>
         insertCallback) const {
     size_t const numWords = utl::ceil_divide(numBytes, 8);
@@ -194,10 +192,8 @@ mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
     auto* dynOffset = nextRegister();
     emit(
         new mir::CopyInst(dynOffset, ctx->constant(bigOffset, 8), 8, metadata));
-    return mir::MemoryAddress(base,
-                              dynOffset,
-                              /* offsetFactor = */ 1,
-                              smallOffset);
+    return mir::MemoryAddress(base, dynOffset,
+                              /* offsetFactor = */ 1, smallOffset);
 }
 
 mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
@@ -244,9 +240,7 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
         size_t smallOffset = constOffset % ConstantAddressOffsetLimit;
         size_t bigOffset = constOffset - smallOffset;
         dynFactor = nextRegister();
-        emit(new mir::CopyInst(dynFactor,
-                               ctx->constant(bigOffset, 8),
-                               8,
+        emit(new mir::CopyInst(dynFactor, ctx->constant(bigOffset, 8), 8,
                                gep.metadata()));
         return mir::MemoryAddress(basereg, dynFactor, 1, smallOffset);
     }
@@ -254,10 +248,8 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
     SC_ASSERT(constFactor <= ConstantAddressOffsetLimit, "");
     size_t bigOffset = constOffset / constFactor;
     size_t smallOffset = constOffset % constFactor;
-    emit(new mir::ValueArithmeticInst(dynFactorSum,
-                                      dynFactor,
-                                      ctx->constant(bigOffset, 8),
-                                      8,
+    emit(new mir::ValueArithmeticInst(dynFactorSum, dynFactor,
+                                      ctx->constant(bigOffset, 8), 8,
                                       mir::ArithmeticOperation::Add,
                                       gep.metadata()));
     return mir::MemoryAddress(basereg, dynFactorSum, constFactor, smallOffset);

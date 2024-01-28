@@ -23,9 +23,7 @@ using namespace cg;
 using namespace ranges::views;
 
 static size_t numParamRegisters(ir::Function const& F) {
-    return ranges::accumulate(F.parameters(),
-                              size_t(0),
-                              ranges::plus{},
+    return ranges::accumulate(F.parameters(), size_t(0), ranges::plus{},
                               [&](auto& param) { return numWords(param); });
 }
 
@@ -43,10 +41,8 @@ struct LoweringContext {
 
     ValueMap valueMap;
 
-    LoweringContext(ir::Module const& irMod,
-                    mir::Context& ctx,
-                    mir::Module& mirMod,
-                    LoweringOptions options):
+    LoweringContext(ir::Module const& irMod, mir::Context& ctx,
+                    mir::Module& mirMod, LoweringOptions options):
         irMod(irMod), ctx(ctx), mirMod(mirMod), options(options) {}
 
     void run();
@@ -67,8 +63,7 @@ struct LoweringContext {
 
 } // namespace
 
-mir::Module cg::lowerToMIR(mir::Context& ctx,
-                           ir::Module const& irMod,
+mir::Module cg::lowerToMIR(mir::Context& ctx, ir::Module const& irMod,
                            LoweringOptions options) {
     mir::Module mirMod;
     LoweringContext(irMod, ctx, mirMod, options).run();
@@ -93,8 +88,7 @@ void LoweringContext::run() {
 }
 
 mir::Function* LoweringContext::declareFunction(ir::Function const& irFn) {
-    auto* mirFn = new mir::Function(&irFn,
-                                    numParamRegisters(irFn),
+    auto* mirFn = new mir::Function(&irFn, numParamRegisters(irFn),
                                     numReturnRegisters(irFn),
                                     irFn.visibility());
     mirMod.addFunction(mirFn);
@@ -149,9 +143,8 @@ void LoweringContext::generateAllocas(ir::Function const& irFn,
     }
 
     /// Emit one LISP instruction
-    Resolver resolver(ctx, mirMod, mirFn, valueMap, [&](mir::Instruction*) {
-        SC_UNREACHABLE();
-    });
+    Resolver resolver(ctx, mirMod, mirFn, valueMap,
+                      [&](mir::Instruction*) { SC_UNREACHABLE(); });
     mir::Register* baseptr = resolver.nextRegister();
     auto* lispInst = new mir::LISPInst(baseptr, ctx.constant(numBytes, 2), {});
     mirFn.entry()->pushBack(lispInst);

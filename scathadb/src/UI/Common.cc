@@ -51,8 +51,7 @@ Component sdb::SplitLeft(Component main, Component back, ftxui::Ref<int> size) {
         { main, back, Direction::Left, size, [] { return defaultSep(); } });
 }
 
-Component sdb::SplitRight(Component main,
-                          Component back,
+Component sdb::SplitRight(Component main, Component back,
                           ftxui::Ref<int> size) {
     return ResizableSplit(
         { main, back, Direction::Right, size, [] { return defaultSep(); } });
@@ -63,8 +62,7 @@ Component sdb::SplitTop(Component main, Component back, ftxui::Ref<int> size) {
         { main, back, Direction::Up, size, [] { return defaultSep(); } });
 }
 
-Component sdb::SplitBottom(Component main,
-                           Component back,
+Component sdb::SplitBottom(Component main, Component back,
                            ftxui::Ref<int> size) {
     return ResizableSplit(
         { main, back, Direction::Down, size, [] { return defaultSep(); } });
@@ -252,9 +250,8 @@ long ScrollBase::maxScrollPositition() const {
     /// -1 means no overscroll. This way flexible views won't shrink when
     /// scrolling down
     long const overscroll = -1;
-    return std::max(long{ 0 },
-                    static_cast<long>(ChildCount()) - yExtend(_box) +
-                        overscroll);
+    return std::max(long{ 0 }, static_cast<long>(ChildCount()) - yExtend(_box) +
+                                   overscroll);
 }
 
 void ScrollBase::scrollToLine(long line) {

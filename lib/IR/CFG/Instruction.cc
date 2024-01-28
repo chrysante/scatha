@@ -5,9 +5,7 @@
 using namespace scatha;
 using namespace ir;
 
-Instruction::Instruction(NodeType nodeType,
-                         Type const* type,
-                         std::string name,
+Instruction::Instruction(NodeType nodeType, Type const* type, std::string name,
                          std::span<Value* const> operands,
                          std::span<Type const* const> typeOperands):
     User(nodeType, type, std::move(name), operands),

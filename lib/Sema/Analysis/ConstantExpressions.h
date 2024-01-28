@@ -74,16 +74,14 @@ private:
 
 UniquePtr<Value> evalUnary(ast::UnaryOperator op, Value const* operand);
 
-UniquePtr<Value> evalBinary(ast::BinaryOperator op,
-                            Value const* lhs,
+UniquePtr<Value> evalBinary(ast::BinaryOperator op, Value const* lhs,
                             Value const* rhs);
 
 UniquePtr<Value> evalConversion(sema::ObjectTypeConversion conv,
                                 Value const* operand,
                                 ObjectType const* targetType);
 
-UniquePtr<Value> evalConditional(Value const* condition,
-                                 Value const* thenValue,
+UniquePtr<Value> evalConditional(Value const* condition, Value const* thenValue,
                                  Value const* elseValue);
 
 } // namespace scatha::sema

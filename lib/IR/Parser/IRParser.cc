@@ -72,9 +72,7 @@ struct IRParser {
     PUMap localPendingUpdates;
     std::vector<ParseIssue> issues;
 
-    explicit IRParser(Context& ctx,
-                      Module& mod,
-                      std::string_view text,
+    explicit IRParser(Context& ctx, Module& mod, std::string_view text,
                       ParseOptions const& options):
         ctx(ctx),
         mod(mod),
@@ -149,10 +147,7 @@ struct IRParser {
     }
 
     template <typename V = Value, std::derived_from<Value> V2>
-    void addValueLink(V2* user,
-                      Type const* type,
-                      OptValue optVal,
-                      auto fn,
+    void addValueLink(V2* user, Type const* type, OptValue optVal, auto fn,
                       bool allowSelfRef = false) {
         if (!allowSelfRef) {
             checkSelfRef(user, optVal);
@@ -275,9 +270,9 @@ struct IRParser {
         SC_EXPECT(token.kind() == TokenKind::FloatLiteral);
         size_t bitwidth = cast<FloatType const*>(type)->bitwidth();
         SC_EXPECT(bitwidth == 32 || bitwidth == 64);
-        auto value = APFloat::parse(token.id(),
-                                    bitwidth == 32 ? APFloatPrec::Single() :
-                                                     APFloatPrec::Double());
+        auto value = APFloat::parse(token.id(), bitwidth == 32 ?
+                                                    APFloatPrec::Single() :
+                                                    APFloatPrec::Double());
         if (!value) {
             reportSyntaxIssue(token);
         }
@@ -397,10 +392,8 @@ Expected<std::pair<Context, Module>, ParseIssue> ir::parse(
     return result.front();
 }
 
-std::vector<ParseIssue> ir::parseTo(std::string_view text,
-                                    Context& ctx,
-                                    Module& mod,
-                                    ParseOptions const& options) {
+std::vector<ParseIssue> ir::parseTo(std::string_view text, Context& ctx,
+                                    Module& mod, ParseOptions const& options) {
     IRParser parser(ctx, mod, text, options);
     parser.parse();
     if (!parser.issues.empty()) {
@@ -470,9 +463,7 @@ UniquePtr<GlobalVariable> IRParser::parseGlobalVar() {
     auto value = parseValue(type);
     auto global =
         allocate<GlobalVariable>(ctx, mut, nullptr, std::string(name.id()));
-    addValueLink<Constant>(global.get(),
-                           type,
-                           value,
+    addValueLink<Constant>(global.get(), type, value,
                            &GlobalVariable::setInitializer);
     bool success =
         globals.insert({ std::string(name.id()), global.get() }).second;
@@ -532,11 +523,8 @@ UniquePtr<Callable> IRParser::parseCallable() {
         return function;
     }
     auto function =
-        allocate<Function>(ctx,
-                           returnType,
-                           std::move(parameters),
-                           std::string(name.id()),
-                           FunctionAttribute::None,
+        allocate<Function>(ctx, returnType, std::move(parameters),
+                           std::string(name.id()), FunctionAttribute::None,
                            Visibility::External); // FIXME: Parse
                                                   // function visibility
     registerValue(name, function.get());
@@ -559,9 +547,7 @@ UniquePtr<Parameter> IRParser::parseParamDecl(size_t index) {
     auto* type = parseType();
     UniquePtr<Parameter> result;
     if (peekToken().kind() == TokenKind::LocalIdentifier) {
-        result = allocate<Parameter>(type,
-                                     index,
-                                     std::string(eatToken().id()),
+        result = allocate<Parameter>(type, index, std::string(eatToken().id()),
                                      nullptr);
     }
     else {
@@ -574,9 +560,7 @@ UniquePtr<Parameter> IRParser::parseParamDecl(size_t index) {
 UniquePtr<ForeignFunction> IRParser::makeForeignFunction(Type const* returnType,
                                                          List<Parameter> params,
                                                          Token name) {
-    return allocate<ForeignFunction>(ctx,
-                                     returnType,
-                                     std::move(params),
+    return allocate<ForeignFunction>(ctx, returnType, std::move(params),
                                      std::string(name.id()),
                                      FunctionAttribute::None);
 }
@@ -690,9 +674,7 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         auto* targetType = parseType();
         auto result =
             allocate<ConversionInst>(nullptr, targetType, conv, name());
-        addValueLink(result.get(),
-                     valueType,
-                     value,
+        addValueLink(result.get(), valueType, value,
                      &ConversionInst::setOperand);
         return result;
     }
@@ -702,9 +684,7 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         auto targetName = eatToken();
         expect(targetName, TokenKind::LocalIdentifier);
         auto result = allocate<Goto>(ctx, nullptr);
-        addValueLink<BasicBlock>(result.get(),
-                                 nullptr,
-                                 targetName,
+        addValueLink<BasicBlock>(result.get(), nullptr, targetName,
                                  &Goto::setTarget);
         return result;
     }
@@ -722,13 +702,9 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         auto elseName = eatToken();
         auto result = allocate<Branch>(ctx, nullptr, nullptr, nullptr);
         addValueLink(result.get(), ctx.intType(1), cond, &Branch::setCondition);
-        addValueLink<BasicBlock>(result.get(),
-                                 ctx.voidType(),
-                                 thenName,
+        addValueLink<BasicBlock>(result.get(), ctx.voidType(), thenName,
                                  &Branch::setThenTarget);
-        addValueLink<BasicBlock>(result.get(),
-                                 ctx.voidType(),
-                                 elseName,
+        addValueLink<BasicBlock>(result.get(), ctx.voidType(), elseName,
                                  &Branch::setElseTarget);
         return result;
     }
@@ -762,9 +738,7 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         }
         utl::small_vector<Value*> nullArgs(args.size());
         auto result = allocate<Call>(retType, nullptr, nullArgs, nameOrEmpty());
-        addValueLink(result.get(),
-                     nullptr,
-                     funcName,
+        addValueLink(result.get(), nullptr, funcName,
                      [=, this](Call* call, Value* value) {
             auto* func = dyncast<Callable const*>(value);
             if (func && func->returnType() != retType) {
@@ -779,9 +753,7 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         result->setType(retType);
         for (auto [index, arg]: args | ranges::views::enumerate) {
             auto [type, name] = arg;
-            addValueLink(result.get(),
-                         type,
-                         name,
+            addValueLink(result.get(), type, name,
                          [index = index](Call* call, Value* arg) {
                 call->setArgument(index, arg);
             });
@@ -809,17 +781,13 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         registerValue(_nameTok, result.get());
         for (auto [index, arg]: args | ranges::views::enumerate) {
             auto [predName, value] = arg;
-            addValueLink<BasicBlock>(result.get(),
-                                     ctx.voidType(),
-                                     predName,
+            addValueLink<BasicBlock>(result.get(), ctx.voidType(), predName,
                                      [index = index](Phi* phi,
                                                      BasicBlock* pred) {
                 phi->setPredecessor(index, pred);
             });
             addValueLink(
-                result.get(),
-                type,
-                value,
+                result.get(), type, value,
                 [index = index](Phi* phi, Value* value) {
                 phi->setArgument(index, value);
             },
@@ -854,9 +822,8 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         auto* valueType = parseType();
         auto value = parseValue(valueType);
         auto result = allocate<UnaryArithmeticInst>(ctx, nullptr, op, name());
-        addValueLink(result.get(), valueType, value, [&](auto* inst, auto* op) {
-            inst->setOperand(ctx, op);
-        });
+        addValueLink(result.get(), valueType, value,
+                     [&](auto* inst, auto* op) { inst->setOperand(ctx, op); });
         return result;
     }
 
@@ -916,19 +883,11 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         auto* indexType = parseType();
         auto index = parseValue(indexType);
         auto indices = parseConstantIndices();
-        auto result = allocate<GetElementPointer>(ctx,
-                                                  accessedType,
-                                                  nullptr,
-                                                  nullptr,
-                                                  indices,
-                                                  name());
-        addValueLink(result.get(),
-                     ctx.ptrType(),
-                     basePtr,
+        auto result = allocate<GetElementPointer>(ctx, accessedType, nullptr,
+                                                  nullptr, indices, name());
+        addValueLink(result.get(), ctx.ptrType(), basePtr,
                      &GetElementPointer::setBasePtr);
-        addValueLink(result.get(),
-                     indexType,
-                     index,
+        addValueLink(result.get(), indexType, index,
                      &GetElementPointer::setArrayIndex);
         return result;
     }
@@ -945,9 +904,7 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
         }
         auto result = allocate<InsertValue>(nullptr, nullptr, indices, name());
         addValueLink(result.get(), baseType, base, &InsertValue::setBaseValue);
-        addValueLink(result.get(),
-                     insType,
-                     ins,
+        addValueLink(result.get(), insType, ins,
                      &InsertValue::setInsertedValue);
         return result;
     }
@@ -1154,10 +1111,8 @@ OptValue IRParser::parseValue(Type const* type) {
             ctx.recordConstant(utl::small_vector<Constant*>(elems.size()),
                                recordType);
         for (auto [index, elem]: elems | ranges::views::enumerate) {
-            addValueLink<Constant>(aggrValue,
-                                   recordType->elementAt(index),
-                                   elem,
-                                   [index = index](User* u, Constant* c) {
+            addValueLink<Constant>(aggrValue, recordType->elementAt(index),
+                                   elem, [index = index](User* u, Constant* c) {
                 u->setOperand(index, c);
             });
         }
@@ -1242,10 +1197,7 @@ void IRParser::parseMetadataFor(Value& value) {
             });
         };
         if (prov) {
-            addValueLink(&value,
-                         provType,
-                         *prov,
-                         assign,
+            addValueLink(&value, provType, *prov, assign,
                          /* allowSelfRef = */ true);
         }
         else {

@@ -83,8 +83,7 @@ struct FuncDecl {
 };
 
 ///
-using InternalFuncPtr = void (*)(uint64_t* regptr,
-                                 svm::VirtualMachine* vm,
+using InternalFuncPtr = void (*)(uint64_t* regptr, svm::VirtualMachine* vm,
                                  void* userptr);
 
 ///
@@ -110,8 +109,8 @@ struct MakeImplAndUserPtr<std::function<R(Args...)>> {
     template <typename F>
     static std::pair<InternalFuncPtr, void*> Impl(F&& f) {
         using FRaw = std::remove_reference_t<F>;
-        auto impl =
-            [](uint64_t* regptr, svm::VirtualMachine* vm, void* userptr) {
+        auto impl = [](uint64_t* regptr, svm::VirtualMachine* vm,
+                       void* userptr) {
             auto loadArgument = [&, regptr]<typename T>(Type<T>) mutable {
                 alignas(T) std::array<char, sizeof(T)> arg;
                 std::memcpy(arg.data(), regptr, arg.size());

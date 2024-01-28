@@ -7,15 +7,13 @@ using namespace scatha;
 using namespace test;
 
 TEST_CASE("Static library compile and import", "[end-to-end][lib][nativelib]") {
-    compileLibrary("libs/testlib1",
-                   "libs",
+    compileLibrary("libs/testlib1", "libs",
                    R"(
 public fn inc(n: &mut int) {
     n += int(__builtin_sqrt_f64(1.0));
 })");
 
-    compileLibrary("libs/testlib2",
-                   "libs",
+    compileLibrary("libs/testlib2", "libs",
                    R"(
 import testlib1;
 public fn incTwice(n: &mut int) {
@@ -219,8 +217,7 @@ fn main() {
 
 TEST_CASE("FFI used by static library",
           "[end-to-end][lib][nativelib][foreignlib]") {
-    compileLibrary("libs/testlib",
-                   "libs",
+    compileLibrary("libs/testlib", "libs",
                    R"(
 import "ffi-testlib";
 extern "C" fn foo(n: int, m: int) -> int;

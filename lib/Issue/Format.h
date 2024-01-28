@@ -57,15 +57,13 @@ void SCTEST_API highlightSource(SourceStructureMap& source,
 
 /// Legacy interface
 void SCTEST_API highlightSource(SourceStructureMap& source,
-                                SourceRange sourceRange,
-                                IssueSeverity severity,
+                                SourceRange sourceRange, IssueSeverity severity,
                                 std::ostream& ostream);
 
 /// Prints the source highlights \p highlights to \p ostream
 void SCTEST_API highlightSource(SourceStructureMap& source,
                                 std::vector<SourceHighlight> highlights,
-                                IssueSeverity severity,
-                                std::ostream& ostream);
+                                IssueSeverity severity, std::ostream& ostream);
 
 } // namespace scatha
 

@@ -20,8 +20,7 @@ using utl::visit;
 /// Convenience macro for 'match' expressions
 #define SC_MATCH(...)                                                          \
     ::scatha::internal::Matcher(                                               \
-        ::scatha::internal::Tag<utl::dc::DeduceReturnTypeTag>{},               \
-        __VA_ARGS__)                                                           \
+        ::scatha::internal::Tag<utl::dc::DeduceReturnTypeTag>{}, __VA_ARGS__)  \
             ->*utl::overload
 
 #define SC_MATCH_R(R, ...)                                                     \

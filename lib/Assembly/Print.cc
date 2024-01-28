@@ -179,11 +179,8 @@ struct PrintCtx {
     }
 
     void printImpl(ConvertInst const& conv) {
-        str << instName(typeToChar(conv.fromType()),
-                        conv.fromBits(),
-                        "to",
-                        typeToChar(conv.toType()),
-                        conv.toBits())
+        str << instName(typeToChar(conv.fromType()), conv.fromBits(), "to",
+                        typeToChar(conv.toType()), conv.toBits())
             << " " << conv.operand();
     }
 

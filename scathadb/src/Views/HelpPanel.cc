@@ -41,10 +41,8 @@ ModalView sdb::HelpPanel() {
         for (auto& [name, commandInfos]: gCommandsInfo()) {
             std::vector<Element> elems = { text(name) | bold | underlined };
             for (auto& info: commandInfos) {
-                elems.push_back(hbox({ text(" "),
-                                       text(info.hotkey) | bold,
-                                       text(" : "),
-                                       text(info.message) }));
+                elems.push_back(hbox({ text(" "), text(info.hotkey) | bold,
+                                       text(" : "), text(info.message) }));
             }
             panels.push_back(vbox(std::move(elems)));
         }

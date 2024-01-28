@@ -33,7 +33,6 @@ ModalView sdb::QuitConfirm(std::function<void()> doQuit) {
         }
         return false;
     });
-    return ModalView("Confirm quit",
-                     cont,
+    return ModalView("Confirm quit", cont,
                      { .state = state, .closeButton = false });
 }

@@ -51,8 +51,7 @@ struct Context {
 
 } // namespace
 
-std::vector<Token> parser::lex(std::string_view text,
-                               IssueHandler& issues,
+std::vector<Token> parser::lex(std::string_view text, IssueHandler& issues,
                                size_t fileIndex) {
     Context ctx{ text, fileIndex, issues };
     return ctx.run();
@@ -249,8 +248,7 @@ std::optional<Token> Context::getIntegerLiteral() {
         while (offset-- > 0) {
             advance();
         }
-        return Token(id,
-                     TokenKind::IntegerLiteral,
+        return Token(id, TokenKind::IntegerLiteral,
                      { beginLoc, currentLocation });
     }
     if (*next == '.') {
@@ -275,8 +273,7 @@ std::optional<Token> Context::getIntegerLiteralHex() {
         id += current();
     }
     if (next() && !isLetter(*next())) {
-        return Token(id,
-                     TokenKind::IntegerLiteral,
+        return Token(id, TokenKind::IntegerLiteral,
                      { beginLoc, currentLocation });
     }
     issues.push<InvalidNumericLiteral>(SourceRange{ beginLoc, currentLocation },
@@ -303,8 +300,7 @@ std::optional<Token> Context::getFloatingPointLiteral() {
         while (offset-- > 0) {
             advance();
         }
-        return Token(id,
-                     TokenKind::FloatLiteral,
+        return Token(id, TokenKind::FloatLiteral,
                      { beginLoc, currentLocation });
     }
     issues.push<InvalidNumericLiteral>(
@@ -351,8 +347,7 @@ std::optional<Token> Context::getStringLiteral() {
         }
         if (current() == '"') {
             advance();
-            return Token(id,
-                         TokenKind::StringLiteral,
+            return Token(id, TokenKind::StringLiteral,
                          { beginLoc, currentLocation });
         }
         auto c = current();

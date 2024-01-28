@@ -6,8 +6,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::canonicalize,
-                 "canonicalize",
+SC_REGISTER_PASS(opt::canonicalize, "canonicalize",
                  PassCategory::Canonicalization);
 
 SC_REGISTER_PASS(opt::defaultPass, "default", PassCategory::Simplification);

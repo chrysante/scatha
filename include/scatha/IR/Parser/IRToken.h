@@ -109,21 +109,14 @@ inline bool isBuiltinID(TokenKind kind) {
 
 class Token {
 public:
-    explicit Token(std::string_view id,
-                   SourceLocation loc,
-                   TokenKind kind,
+    explicit Token(std::string_view id, SourceLocation loc, TokenKind kind,
                    unsigned width = 0):
         _id(id), _loc(loc), _kind(kind), _width(width) {}
 
-    explicit Token(char const* first,
-                   char const* last,
-                   SourceLocation loc,
-                   TokenKind kind,
-                   unsigned width = 0):
-        Token(std::string_view(first, static_cast<size_t>(last - first)),
-              loc,
-              kind,
-              width) {}
+    explicit Token(char const* first, char const* last, SourceLocation loc,
+                   TokenKind kind, unsigned width = 0):
+        Token(std::string_view(first, static_cast<size_t>(last - first)), loc,
+              kind, width) {}
 
     std::string_view id() const { return _id; }
 

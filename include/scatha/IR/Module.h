@@ -69,8 +69,7 @@ public:
     /// global constant with the same value exists yet. Otherwise returns the
     /// existing constant. This function is used to allocate global constants to
     /// unique them.
-    GlobalVariable* makeGlobalConstant(Context& ctx,
-                                       Constant* value,
+    GlobalVariable* makeGlobalConstant(Context& ctx, Constant* value,
                                        std::string name);
 
     /// Erase the global  \p global from this module.  \p global can also be a

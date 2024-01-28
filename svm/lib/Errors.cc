@@ -17,8 +17,7 @@ std::string FFIError::message() const {
     switch (reason()) {
     case FailedToInit:
         return utl::strcat("Failed to initialize foreign function \"",
-                           functionName(),
-                           "\"");
+                           functionName(), "\"");
     }
     unreachable();
 }
@@ -35,10 +34,7 @@ std::string MemoryAccessError::message() const {
         return utl::strcat("Accessed unallocated memory at address ",
                            pointer());
     case DerefRangeTooBig:
-        return utl::strcat("Dereferenced pointer ",
-                           pointer(),
-                           " at ",
-                           size(),
+        return utl::strcat("Dereferenced pointer ", pointer(), " at ", size(),
                            " bytes outside its valid range");
     case MisalignedLoad:
         return utl::strcat("Misaligned load of address ", pointer());
@@ -49,18 +45,13 @@ std::string MemoryAccessError::message() const {
 }
 
 std::string AllocationError::message() const {
-    return utl::strcat("Invalid heap allocation of ",
-                       size(),
-                       " bytes with alignment ",
-                       align());
+    return utl::strcat("Invalid heap allocation of ", size(),
+                       " bytes with alignment ", align());
 }
 
 std::string DeallocationError::message() const {
-    return utl::strcat("Tried to deallocate ",
-                       size(),
-                       " bytes at address ",
-                       pointer(),
-                       " that have not been allocated before");
+    return utl::strcat("Tried to deallocate ", size(), " bytes at address ",
+                       pointer(), " that have not been allocated before");
 }
 
 std::string NoStartAddress::message() const {

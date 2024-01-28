@@ -11,9 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-void test::passTest(ir::LocalPass pass,
-                    ir::Context& fCtx,
-                    ir::Function& F,
+void test::passTest(ir::LocalPass pass, ir::Context& fCtx, ir::Function& F,
                     ir::Function& ref) {
     bool const modifiedFirstTime = pass(fCtx, F);
     CHECK(modifiedFirstTime);
@@ -22,8 +20,7 @@ void test::passTest(ir::LocalPass pass,
     CHECK(test::funcEqual(F, ref));
 }
 
-void test::passTest(ir::LocalPass pass,
-                    std::string fSource,
+void test::passTest(ir::LocalPass pass, std::string fSource,
                     std::string refSource) {
     auto [fCtx, fMod] = ir::parse(fSource).value();
     auto [refCtx, refMod] = ir::parse(refSource).value();
@@ -32,11 +29,8 @@ void test::passTest(ir::LocalPass pass,
     test::passTest(pass, fCtx, F, ref);
 }
 
-void test::passTest(ir::GlobalPass pass,
-                    ir::LocalPass local,
-                    ir::Context& mCtx,
-                    ir::Module& M,
-                    ir::Module& ref) {
+void test::passTest(ir::GlobalPass pass, ir::LocalPass local, ir::Context& mCtx,
+                    ir::Module& M, ir::Module& ref) {
     bool const modifiedFirstTime = pass(mCtx, M, local);
     CHECK(modifiedFirstTime);
     bool const modifiedSecondTime = pass(mCtx, M, local);
@@ -46,10 +40,8 @@ void test::passTest(ir::GlobalPass pass,
     }
 }
 
-void test::passTest(ir::GlobalPass pass,
-                    ir::LocalPass local,
-                    std::string mSource,
-                    std::string refSource) {
+void test::passTest(ir::GlobalPass pass, ir::LocalPass local,
+                    std::string mSource, std::string refSource) {
     auto [mCtx, M] = ir::parse(mSource).value();
     auto [refCtx, ref] = ir::parse(refSource).value();
     test::passTest(pass, local, mCtx, M, ref);

@@ -8,8 +8,7 @@ using namespace opt;
 using namespace ir;
 
 TEST_CASE("Inliner - Regression - 1", "[opt][inliner]") {
-    test::passTest(&opt::inlineFunctions,
-                   &opt::defaultPass,
+    test::passTest(&opt::inlineFunctions, &opt::defaultPass,
                    R"(
 func void @f() {
   %entry:

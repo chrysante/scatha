@@ -15,13 +15,10 @@ namespace scatha::ir {
 /// variables. Its value is a pointer to the allocated memory.
 class SCATHA_API Alloca: public Instruction {
 public:
-    explicit Alloca(Context& context,
-                    Type const* allocatedType,
+    explicit Alloca(Context& context, Type const* allocatedType,
                     std::string name);
 
-    explicit Alloca(Context& context,
-                    Value* count,
-                    Type const* allocatedType,
+    explicit Alloca(Context& context, Value* count, Type const* allocatedType,
                     std::string name);
 
     /// \returns The number of objects allocated.
@@ -90,13 +87,9 @@ public:
 /// Represents a conversion instruction.
 class ConversionInst: public UnaryInstruction {
 public:
-    explicit ConversionInst(Value* operand,
-                            Type const* targetType,
-                            Conversion conv,
-                            std::string name):
-        UnaryInstruction(NodeType::ConversionInst,
-                         operand,
-                         targetType,
+    explicit ConversionInst(Value* operand, Type const* targetType,
+                            Conversion conv, std::string name):
+        UnaryInstruction(NodeType::ConversionInst, operand, targetType,
                          std::move(name)),
         conv(conv) {}
 
@@ -110,11 +103,8 @@ private:
 /// `*cmp` instruction.
 class SCATHA_API CompareInst: public BinaryInstruction {
 public:
-    explicit CompareInst(Context& context,
-                         Value* lhs,
-                         Value* rhs,
-                         CompareMode mode,
-                         CompareOperation op,
+    explicit CompareInst(Context& context, Value* lhs, Value* rhs,
+                         CompareMode mode, CompareOperation op,
                          std::string name);
 
     /// The compare mode, i.e. signed, unsigned or float
@@ -134,10 +124,8 @@ private:
 /// Represents a unary arithmetic instruction.
 class SCATHA_API UnaryArithmeticInst: public UnaryInstruction {
 public:
-    explicit UnaryArithmeticInst(Context& context,
-                                 Value* operand,
-                                 UnaryArithmeticOperation op,
-                                 std::string name);
+    explicit UnaryArithmeticInst(Context& context, Value* operand,
+                                 UnaryArithmeticOperation op, std::string name);
 
     UnaryArithmeticOperation operation() const { return _op; }
 
@@ -150,9 +138,7 @@ private:
 /// Represents a binary arithmetic instruction.
 class SCATHA_API ArithmeticInst: public BinaryInstruction {
 public:
-    explicit ArithmeticInst(Value* lhs,
-                            Value* rhs,
-                            ArithmeticOperation op,
+    explicit ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op,
                             std::string name);
 
     ArithmeticOperation operation() const { return _op; }
@@ -223,8 +209,7 @@ public:
     void setTarget(size_t index, BasicBlock* BB);
 
 protected:
-    explicit TerminatorInst(NodeType nodeType,
-                            Context& context,
+    explicit TerminatorInst(NodeType nodeType, Context& context,
                             std::initializer_list<Value*> operands,
                             std::initializer_list<BasicBlock*> targets);
 
@@ -252,13 +237,9 @@ public:
 /// Condition is the first operand. Targets are second and third operands.
 class SCATHA_API Branch: public TerminatorInst {
 public:
-    explicit Branch(Context& context,
-                    Value* condition,
-                    BasicBlock* thenTarget,
+    explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget,
                     BasicBlock* elseTarget):
-        TerminatorInst(NodeType::Branch,
-                       context,
-                       { condition },
+        TerminatorInst(NodeType::Branch, context, { condition },
                        { thenTarget, elseTarget }) {}
 
     Value* condition() { return operands()[0]; }
@@ -309,20 +290,16 @@ public:
 class SCATHA_API Call: public Instruction {
 public:
     /// Construct call to function without arguments
-    explicit Call(Type const* returnType,
-                  Value* function,
+    explicit Call(Type const* returnType, Value* function,
                   std::string name = {});
 
     /// Construct call to arbitrary target with return type
-    explicit Call(Type const* returnType,
-                  Value* function,
-                  std::span<Value* const> arguments,
-                  std::string name = {});
+    explicit Call(Type const* returnType, Value* function,
+                  std::span<Value* const> arguments, std::string name = {});
 
     /// Construct statically bound call with return type deduced form the
     /// function
-    explicit Call(Callable* function,
-                  std::span<Value* const> arguments,
+    explicit Call(Callable* function, std::span<Value* const> arguments,
                   std::string name = {});
 
     /// \Returns the called function
@@ -457,15 +434,13 @@ public:
 
     /// \Returns a view of tuples `{ index, predecessor, operand }`
     auto indexedArguments() {
-        return ranges::views::zip(ranges::views::iota(size_t{ 0 }),
-                                  _preds,
+        return ranges::views::zip(ranges::views::iota(size_t{ 0 }), _preds,
                                   operands());
     }
 
     /// \overload
     auto indexedArguments() const {
-        return ranges::views::zip(ranges::views::iota(size_t{ 0 }),
-                                  _preds,
+        return ranges::views::zip(ranges::views::iota(size_t{ 0 }), _preds,
                                   operands());
     }
 
@@ -496,9 +471,7 @@ private:
 /// second value ("else-value") is selected if the condition is false
 class Select: public Instruction {
 public:
-    explicit Select(Value* condition,
-                    Value* thenValue,
-                    Value* elseValue,
+    explicit Select(Value* condition, Value* thenValue, Value* elseValue,
                     std::string name);
 
     /// The condition to select on.
@@ -571,25 +544,17 @@ private:
 class GetElementPointer: public AccessValueInst {
 public:
     /// \overload for `std::initializer_list` member indices
-    explicit GetElementPointer(Context& context,
-                               Type const* inboundsType,
-                               Value* basePointer,
-                               Value* arrayIndex,
+    explicit GetElementPointer(Context& context, Type const* inboundsType,
+                               Value* basePointer, Value* arrayIndex,
                                std::initializer_list<size_t> memberIndices,
                                std::string name):
-        GetElementPointer(context,
-                          inboundsType,
-                          basePointer,
-                          arrayIndex,
-                          std::span<size_t const>(memberIndices),
-                          name) {}
+        GetElementPointer(context, inboundsType, basePointer, arrayIndex,
+                          std::span<size_t const>(memberIndices), name) {}
 
     /// Construct a `getelementptr` instruction. If \p arrayIndex is null a 32
     /// bit int constant with value 0 is used instead
-    explicit GetElementPointer(Context& context,
-                               Type const* inboundsType,
-                               Value* basePointer,
-                               Value* arrayIndex,
+    explicit GetElementPointer(Context& context, Type const* inboundsType,
+                               Value* basePointer, Value* arrayIndex,
                                std::span<size_t const> memberIndices,
                                std::string name);
 
@@ -643,12 +608,10 @@ public:
     explicit ExtractValue(Value* baseValue,
                           std::initializer_list<size_t> indices,
                           std::string name):
-        ExtractValue(baseValue,
-                     std::span<size_t const>(indices),
+        ExtractValue(baseValue, std::span<size_t const>(indices),
                      std::move(name)) {}
 
-    explicit ExtractValue(Value* baseValue,
-                          std::span<size_t const> indices,
+    explicit ExtractValue(Value* baseValue, std::span<size_t const> indices,
                           std::string name);
 
     /// The record being accessed
@@ -664,19 +627,14 @@ public:
 /// `insert_value` instruction. Insert a value into a structure or array.
 class InsertValue: public AccessValueInst {
 public:
-    explicit InsertValue(Value* baseValue,
-                         Value* insertedValue,
+    explicit InsertValue(Value* baseValue, Value* insertedValue,
                          std::initializer_list<size_t> indices,
                          std::string name):
-        InsertValue(baseValue,
-                    insertedValue,
-                    std::span<size_t const>(indices),
+        InsertValue(baseValue, insertedValue, std::span<size_t const>(indices),
                     std::move(name)) {}
 
-    explicit InsertValue(Value* baseValue,
-                         Value* insertedValue,
-                         std::span<size_t const> indices,
-                         std::string name);
+    explicit InsertValue(Value* baseValue, Value* insertedValue,
+                         std::span<size_t const> indices, std::string name);
 
     /// \Returns the record being accessed
     Value* baseValue() { return operandAt(0); }

@@ -95,8 +95,7 @@ static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
     F.argumentTypes = decl.argumentTypes | transform(toLibFFI) |
                       ranges::to<utl::small_vector<ffi_type*>>;
     F.arguments.resize(F.argumentTypes.size());
-    return ffi_prep_cif(&F.callInterface,
-                        FFI_DEFAULT_ABI,
+    return ffi_prep_cif(&F.callInterface, FFI_DEFAULT_ABI,
                         utl::narrow_cast<int>(F.arguments.size()),
                         toLibFFI(decl.returnType),
                         F.argumentTypes.data()) == FFI_OK;
@@ -232,8 +231,7 @@ VirtualPointer VirtualMachine::allocateMemory(size_t size, size_t align) {
     return impl->memory.allocate(size, align);
 }
 
-void VirtualMachine::deallocateMemory(VirtualPointer ptr,
-                                      size_t size,
+void VirtualMachine::deallocateMemory(VirtualPointer ptr, size_t size,
                                       size_t align) {
     impl->memory.deallocate(ptr, size, align);
 }

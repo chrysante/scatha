@@ -25,8 +25,7 @@ public:
 
     /// Associate the IR pointer value \p key with the pair `{ baseAddr, offset
     /// }` This function traps if \p key is already in the map
-    void addAddress(ir::Value const* key,
-                    mir::Value* baseAddr,
+    void addAddress(ir::Value const* key, mir::Value* baseAddr,
                     size_t offset = 0);
 
     /// Get the static data offset of the IR pointer value \p value

@@ -21,8 +21,7 @@ class SCATHA_API Instruction:
     public ListNode<Instruction>,
     public ParentedNode<BasicBlock> {
 public:
-    explicit Instruction(NodeType nodeType,
-                         Type const* type,
+    explicit Instruction(NodeType nodeType, Type const* type,
                          std::string name = {},
                          std::span<Value* const> operands = {},
                          std::span<Type const* const> typeOperands = {});
@@ -70,10 +69,8 @@ protected:
 /// Base class of all unary instructions.
 class SCATHA_API UnaryInstruction: public Instruction {
 protected:
-    explicit UnaryInstruction(NodeType nodeType,
-                              Value* operand,
-                              Type const* type,
-                              std::string name):
+    explicit UnaryInstruction(NodeType nodeType, Value* operand,
+                              Type const* type, std::string name):
         Instruction(nodeType, type, std::move(name), ValueArray{ operand }) {}
 
 public:
@@ -93,11 +90,8 @@ public:
 /// Base class of all binary instructions.
 class SCATHA_API BinaryInstruction: public Instruction {
 protected:
-    explicit BinaryInstruction(NodeType nodeType,
-                               Value* lhs,
-                               Value* rhs,
-                               Type const* type,
-                               std::string name):
+    explicit BinaryInstruction(NodeType nodeType, Value* lhs, Value* rhs,
+                               Type const* type, std::string name):
         Instruction(nodeType, type, std::move(name), ValueArray{ lhs, rhs }) {}
 
 public:

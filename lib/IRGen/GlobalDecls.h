@@ -19,10 +19,8 @@ StructMetadata makeStructMetadata(TypeMap& typeMap,
                                   sema::StructType const* semaType);
 
 /// Translates \p semaType to an IR structure type
-ir::StructType* generateType(sema::StructType const* semaType,
-                             ir::Context& ctx,
-                             ir::Module& mod,
-                             TypeMap& typeMap,
+ir::StructType* generateType(sema::StructType const* semaType, ir::Context& ctx,
+                             ir::Module& mod, TypeMap& typeMap,
                              sema::NameMangler const& nameMangler);
 
 /// Generates the lowering metadata for \p semaFn
@@ -30,10 +28,8 @@ FunctionMetadata makeFunctionMetadata(sema::Function const* semaFn);
 
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code
-ir::Callable* declareFunction(sema::Function const* semaFn,
-                              ir::Context& ctx,
-                              ir::Module& mod,
-                              TypeMap const& typeMap,
+ir::Callable* declareFunction(sema::Function const* semaFn, ir::Context& ctx,
+                              ir::Module& mod, TypeMap const& typeMap,
                               FunctionMap& functionMap,
                               sema::NameMangler const& nameMangler);
 

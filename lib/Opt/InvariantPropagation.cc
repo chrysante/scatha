@@ -69,8 +69,7 @@ struct std::hash<InvariantKey> {
 };
 
 [[maybe_unused]] static bool compareSigned(CompareOperation op,
-                                           APInt const& lhs,
-                                           APInt const& rhs) {
+                                           APInt const& lhs, APInt const& rhs) {
     switch (op) {
     case Less:
         return scmp(lhs, rhs) < 0;
@@ -131,18 +130,14 @@ struct std::hash<InvariantKey> {
     }
 }
 
-[[maybe_unused]] static bool compare(CompareMode mode,
-                                     CompareOperation op,
-                                     Constant const* lhs,
-                                     Constant const* rhs) {
+[[maybe_unused]] static bool compare(CompareMode mode, CompareOperation op,
+                                     Constant const* lhs, Constant const* rhs) {
     switch (mode) {
     case Signed:
-        return compareSigned(op,
-                             cast<IntegralConstant const*>(lhs)->value(),
+        return compareSigned(op, cast<IntegralConstant const*>(lhs)->value(),
                              cast<IntegralConstant const*>(rhs)->value());
     case Unsigned:
-        return compareUnsigned(op,
-                               cast<IntegralConstant const*>(lhs)->value(),
+        return compareUnsigned(op, cast<IntegralConstant const*>(lhs)->value(),
                                cast<IntegralConstant const*>(rhs)->value());
     case Float:
         return compareFloat(op,
@@ -262,9 +257,7 @@ struct IPContext {
 
     void propagate(BasicBlock* BB);
 
-    void addInvariant(BasicBlock const*,
-                      Value* value,
-                      InvariantKey key,
+    void addInvariant(BasicBlock const*, Value* value, InvariantKey key,
                       Value*);
 
     bool evaluate(BasicBlock* BB);
@@ -274,8 +267,7 @@ struct IPContext {
     Value* eval(Instruction*) { return nullptr; }
     Value* eval(CompareInst* cmp);
 
-    void replaceIfDominatedBy(Value* value,
-                              Constant* newValue,
+    void replaceIfDominatedBy(Value* value, Constant* newValue,
                               BasicBlock const* dom) const;
 
     void printInvariants() const;
@@ -318,15 +310,11 @@ void IPContext::propagate(BasicBlock* BB) {
         auto* B = BB->successor(1);
         auto* condition = branch->condition();
         if (A->hasSinglePredecessor()) {
-            addInvariant(A,
-                         condition,
-                         { Unsigned, Equal },
+            addInvariant(A, condition, { Unsigned, Equal },
                          ctx.intConstant(true, 1));
         }
         if (B->hasSinglePredecessor()) {
-            addInvariant(B,
-                         condition,
-                         { Unsigned, Equal },
+            addInvariant(B, condition, { Unsigned, Equal },
                          ctx.intConstant(false, 1));
         }
         if (auto* cmp = dyncast<CompareInst*>(condition)) {
@@ -334,16 +322,12 @@ void IPContext::propagate(BasicBlock* BB) {
             auto* b = cmp->operandAt(1);
             if (A->hasSinglePredecessor()) {
                 addInvariant(A, a, { cmp->mode(), cmp->operation() }, b);
-                addInvariant(A,
-                             b,
-                             { cmp->mode(), inverse(cmp->operation()) },
+                addInvariant(A, b, { cmp->mode(), inverse(cmp->operation()) },
                              a);
             }
             if (B->hasSinglePredecessor()) {
                 addInvariant(B, b, { cmp->mode(), cmp->operation() }, a);
-                addInvariant(B,
-                             a,
-                             { cmp->mode(), inverse(cmp->operation()) },
+                addInvariant(B, a, { cmp->mode(), inverse(cmp->operation()) },
                              b);
             }
         }
@@ -359,10 +343,8 @@ void IPContext::propagate(BasicBlock* BB) {
     });
 }
 
-void IPContext::addInvariant(BasicBlock const* BB,
-                             Value* value,
-                             InvariantKey key,
-                             Value* rhs) {
+void IPContext::addInvariant(BasicBlock const* BB, Value* value,
+                             InvariantKey key, Value* rhs) {
     if (isa<Constant>(value)) {
         return;
     }
@@ -395,8 +377,7 @@ Value* IPContext::evaluate(Instruction* inst) {
 
 Value* IPContext::eval(CompareInst*) { return nullptr; }
 
-void IPContext::replaceIfDominatedBy(Value* value,
-                                     Constant* newValue,
+void IPContext::replaceIfDominatedBy(Value* value, Constant* newValue,
                                      BasicBlock const* dom) const {
     auto users = value->users() | Filter<Instruction> | ToSmallVector<>;
     for (auto* user: users) {

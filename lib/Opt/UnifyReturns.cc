@@ -12,12 +12,10 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::unifyReturns,
-                 "unifyreturns",
+SC_REGISTER_PASS(opt::unifyReturns, "unifyreturns",
                  PassCategory::Canonicalization);
 
-SC_REGISTER_PASS(opt::splitReturns,
-                 "splitreturns",
+SC_REGISTER_PASS(opt::splitReturns, "splitreturns",
                  PassCategory::Canonicalization);
 
 static utl::hashset<BasicBlock*> gatherReturnBlocks(Function& function) {

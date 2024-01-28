@@ -31,9 +31,7 @@ int scatha::graphMain(GraphOptions options) {
         if (!data) {
             return 1;
         }
-        std::tie(ctx, mod) = genIR(*data->ast,
-                                   data->sym,
-                                   data->analysisResult,
+        std::tie(ctx, mod) = genIR(*data->ast, data->sym, data->analysisResult,
                                    { .generateDebugSymbols = false });
         break;
     }

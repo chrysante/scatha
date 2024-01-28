@@ -6,40 +6,28 @@ using namespace scatha;
 using namespace mir;
 
 static StoreInst* doClone(StoreInst& inst) {
-    return new StoreInst(inst.address(),
-                         inst.source(),
-                         inst.bytewidth(),
+    return new StoreInst(inst.address(), inst.source(), inst.bytewidth(),
                          inst.metadata());
 }
 
 static LoadInst* doClone(LoadInst& inst) {
-    return new LoadInst(inst.dest(),
-                        inst.address(),
-                        inst.bytewidth(),
+    return new LoadInst(inst.dest(), inst.address(), inst.bytewidth(),
                         inst.metadata());
 }
 
 static CopyInst* doClone(CopyInst& inst) {
-    return new CopyInst(inst.dest(),
-                        inst.source(),
-                        inst.bytewidth(),
+    return new CopyInst(inst.dest(), inst.source(), inst.bytewidth(),
                         inst.metadata());
 }
 
 static CallInst* doClone(CallInst& inst) {
-    return new CallInst(inst.dest(),
-                        inst.numDests(),
-                        inst.callee(),
-                        inst.arguments() | ToSmallVector<>,
-                        inst.metadata());
+    return new CallInst(inst.dest(), inst.numDests(), inst.callee(),
+                        inst.arguments() | ToSmallVector<>, inst.metadata());
 }
 
 static CondCopyInst* doClone(CondCopyInst& inst) {
-    return new CondCopyInst(inst.dest(),
-                            inst.source(),
-                            inst.bytewidth(),
-                            inst.condition(),
-                            inst.metadata());
+    return new CondCopyInst(inst.dest(), inst.source(), inst.bytewidth(),
+                            inst.condition(), inst.metadata());
 }
 
 static LISPInst* doClone(LISPInst& inst) {
@@ -51,17 +39,12 @@ static LEAInst* doClone(LEAInst& inst) {
 }
 
 static CompareInst* doClone(CompareInst& inst) {
-    return new CompareInst(inst.LHS(),
-                           inst.RHS(),
-                           inst.bytewidth(),
-                           inst.mode(),
-                           inst.metadata());
+    return new CompareInst(inst.LHS(), inst.RHS(), inst.bytewidth(),
+                           inst.mode(), inst.metadata());
 }
 
 static TestInst* doClone(TestInst& inst) {
-    return new TestInst(inst.operand(),
-                        inst.bytewidth(),
-                        inst.mode(),
+    return new TestInst(inst.operand(), inst.bytewidth(), inst.mode(),
                         inst.metadata());
 }
 
@@ -70,38 +53,26 @@ static SetInst* doClone(SetInst& inst) {
 }
 
 static UnaryArithmeticInst* doClone(UnaryArithmeticInst& inst) {
-    return new UnaryArithmeticInst(inst.dest(),
-                                   inst.operand(),
-                                   inst.bytewidth(),
-                                   inst.operation(),
+    return new UnaryArithmeticInst(inst.dest(), inst.operand(),
+                                   inst.bytewidth(), inst.operation(),
                                    inst.metadata());
 }
 
 static ValueArithmeticInst* doClone(ValueArithmeticInst& inst) {
-    return new ValueArithmeticInst(inst.dest(),
-                                   inst.LHS(),
-                                   inst.RHS(),
-                                   inst.bytewidth(),
-                                   inst.operation(),
+    return new ValueArithmeticInst(inst.dest(), inst.LHS(), inst.RHS(),
+                                   inst.bytewidth(), inst.operation(),
                                    inst.metadata());
 }
 
 static LoadArithmeticInst* doClone(LoadArithmeticInst& inst) {
-    return new LoadArithmeticInst(inst.dest(),
-                                  inst.LHS(),
-                                  inst.RHS(),
-                                  inst.bytewidth(),
-                                  inst.operation(),
+    return new LoadArithmeticInst(inst.dest(), inst.LHS(), inst.RHS(),
+                                  inst.bytewidth(), inst.operation(),
                                   inst.metadata());
 }
 
 static ConversionInst* doClone(ConversionInst& inst) {
-    return new ConversionInst(inst.dest(),
-                              inst.operand(),
-                              inst.conversion(),
-                              inst.fromBits(),
-                              inst.toBits(),
-                              inst.metadata());
+    return new ConversionInst(inst.dest(), inst.operand(), inst.conversion(),
+                              inst.fromBits(), inst.toBits(), inst.metadata());
 }
 
 static JumpInst* doClone(JumpInst& inst) {
@@ -117,19 +88,13 @@ static ReturnInst* doClone(ReturnInst& inst) {
 }
 
 static PhiInst* doClone(PhiInst& inst) {
-    return new PhiInst(inst.dest(),
-                       inst.operands() | ToSmallVector<>,
-                       inst.bytewidth(),
-                       inst.metadata());
+    return new PhiInst(inst.dest(), inst.operands() | ToSmallVector<>,
+                       inst.bytewidth(), inst.metadata());
 }
 
 static SelectInst* doClone(SelectInst& inst) {
-    return new SelectInst(inst.dest(),
-                          inst.thenValue(),
-                          inst.elseValue(),
-                          inst.condition(),
-                          inst.bytewidth(),
-                          inst.metadata());
+    return new SelectInst(inst.dest(), inst.thenValue(), inst.elseValue(),
+                          inst.condition(), inst.bytewidth(), inst.metadata());
 }
 
 UniquePtr<Instruction> mir::cloneImpl(Instruction& inst) {

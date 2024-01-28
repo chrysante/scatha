@@ -103,20 +103,14 @@ struct InstCombineCtx {
     Value* visitImpl(InsertValue* inst);
 
     void mergeArithmetic(ArithmeticInst* inst);
-    template <ArithmeticOperation AddOp,
-              ArithmeticOperation SubOp,
+    template <ArithmeticOperation AddOp, ArithmeticOperation SubOp,
               typename ConstantType>
-    void mergeAdditiveImpl(ArithmeticInst* inst,
-                           Constant* rhs,
-                           ArithmeticInst* prevInst,
-                           Constant* prevRHS);
-    template <ArithmeticOperation MulOp,
-              ArithmeticOperation DivOp,
+    void mergeAdditiveImpl(ArithmeticInst* inst, Constant* rhs,
+                           ArithmeticInst* prevInst, Constant* prevRHS);
+    template <ArithmeticOperation MulOp, ArithmeticOperation DivOp,
               typename ConstantType>
-    void mergeMultiplicativeImpl(ArithmeticInst* inst,
-                                 Constant* rhs,
-                                 ArithmeticInst* prevInst,
-                                 Constant* prevRHS);
+    void mergeMultiplicativeImpl(ArithmeticInst* inst, Constant* rhs,
+                                 ArithmeticInst* prevInst, Constant* prevRHS);
 
     bool tryMergeNegate(ArithmeticInst* inst);
 
@@ -274,8 +268,7 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
     case ArithmeticOperation::Sub:
         if (isConstant(lhs, 0)) {
             auto* neg =
-                new UnaryArithmeticInst(irCtx,
-                                        rhs,
+                new UnaryArithmeticInst(irCtx, rhs,
                                         UnaryArithmeticOperation::Negate,
                                         "negate");
             inst->parent()->insert(inst, neg);
@@ -407,34 +400,27 @@ void InstCombineCtx::mergeArithmetic(ArithmeticInst* inst) {
     auto const instOP = inst->operation();
     using enum ArithmeticOperation;
     if (instOP == Add || instOP == Sub) {
-        mergeAdditiveImpl<Add, Sub, IntegralConstant>(inst,
-                                                      rhs,
-                                                      prevInst,
+        mergeAdditiveImpl<Add, Sub, IntegralConstant>(inst, rhs, prevInst,
                                                       prevRHS);
     }
     else if (irCtx.associativeFloatArithmetic() &&
              (instOP == FAdd || instOP == FSub))
     {
-        mergeAdditiveImpl<FAdd, FSub, FloatingPointConstant>(inst,
-                                                             rhs,
-                                                             prevInst,
-                                                             prevRHS);
+        mergeAdditiveImpl<FAdd, FSub, FloatingPointConstant>(inst, rhs,
+                                                             prevInst, prevRHS);
     }
     else if (irCtx.associativeFloatArithmetic() &&
              (instOP == FMul || instOP == FDiv))
     {
-        mergeMultiplicativeImpl<FMul, FDiv, FloatingPointConstant>(inst,
-                                                                   rhs,
+        mergeMultiplicativeImpl<FMul, FDiv, FloatingPointConstant>(inst, rhs,
                                                                    prevInst,
                                                                    prevRHS);
     }
 }
 
-template <ArithmeticOperation AddOp,
-          ArithmeticOperation SubOp,
+template <ArithmeticOperation AddOp, ArithmeticOperation SubOp,
           typename ConstantType>
-void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
-                                       Constant* rhs,
+void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst, Constant* rhs,
                                        ArithmeticInst* prevInst,
                                        Constant* prevRHS) {
     auto a = cast<ConstantType*>(rhs)->value();
@@ -473,8 +459,7 @@ void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
     worklist.push(prevInst);
 }
 
-template <ArithmeticOperation MulOp,
-          ArithmeticOperation DivOp,
+template <ArithmeticOperation MulOp, ArithmeticOperation DivOp,
           typename ConstantType>
 void InstCombineCtx::mergeMultiplicativeImpl(ArithmeticInst* inst,
                                              Constant* rhs,
@@ -658,9 +643,8 @@ Value* InstCombineCtx::visitImpl(Load* load) {
         auto* init = global->initializer();
         utl::small_vector<uint8_t> data(init->type()->size());
         bool haveFuncPtrs = false;
-        init->writeValueTo(data.data(),
-                           [&](Constant const* value,
-                               [[maybe_unused]] void* dest) {
+        init->writeValueTo(data.data(), [&](Constant const* value,
+                                            [[maybe_unused]] void* dest) {
             haveFuncPtrs |= isa<Function>(value);
         });
         /// We cannot evaluate function pointers this way though
@@ -702,9 +686,7 @@ Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
         }
         else if (auto* load = dyncast<Load*>(inst->operand())) {
             BasicBlockBuilder builder(irCtx, load->parent());
-            return builder.insert<Load>(load,
-                                        load->address(),
-                                        inst->type(),
+            return builder.insert<Load>(load, load->address(), inst->type(),
                                         std::string(inst->name()));
         }
         return nullptr;
@@ -764,8 +746,7 @@ Value* InstCombineCtx::visitImpl(Select* inst) {
             SC_ASSERT(elseVal->value().to<bool>(),
                       "Can't be the same, see case above");
             auto* lnt =
-                new UnaryArithmeticInst(irCtx,
-                                        inst->condition(),
+                new UnaryArithmeticInst(irCtx, inst->condition(),
                                         UnaryArithmeticOperation::LogicalNot,
                                         "select.lnt");
             inst->parent()->insert(inst, lnt);
@@ -940,11 +921,8 @@ Value* InstCombineCtx::visitImpl(UnaryArithmeticInst* inst) {
             return compare;
         }
         auto* newCompare =
-            new CompareInst(irCtx,
-                            compare->lhs(),
-                            compare->rhs(),
-                            compare->mode(),
-                            inverse(compare->operation()),
+            new CompareInst(irCtx, compare->lhs(), compare->rhs(),
+                            compare->mode(), inverse(compare->operation()),
                             utl::strcat(compare->name(), ".inv"));
         inst->parent()->insert(inst, newCompare);
         return newCompare;
@@ -971,8 +949,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         utl::small_vector<PhiMapping> newPhiArgs;
         for (auto [pred, arg]: phi->arguments()) {
             auto* newExtract =
-                new ExtractValue(arg,
-                                 extractInst->memberIndices(),
+                new ExtractValue(arg, extractInst->memberIndices(),
                                  std::string(extractInst->name()));
             pred->insert(pred->terminator(), newExtract);
             worklist.push(newExtract);
@@ -1013,8 +990,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         SC_ASSERT(base, "");
         auto newIndices = indices | ranges::views::drop(i) |
                           ranges::to<utl::small_vector<size_t>>;
-        auto* newExtr = new ExtractValue(base,
-                                         newIndices,
+        auto* newExtr = new ExtractValue(base, newIndices,
                                          std::string(extractInst->name()));
         extractInst->parent()->insert(extractInst, newExtr);
         return newExtr;
@@ -1079,8 +1055,7 @@ static Value* mostUsedLeavesBase(AccessTree* node) {
 
 static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
     newLeavesInserts(
-        AccessTree* node,
-        ir::Context& irCtx,
+        AccessTree* node, ir::Context& irCtx,
         utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
     utl::small_vector<UniquePtr<InsertValue>> result;
     auto* maxValue = mostUsedLeavesBase(node);
@@ -1110,8 +1085,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
 
 static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
     newChildrenInserts(
-        AccessTree* node,
-        ir::Context& irCtx,
+        AccessTree* node, ir::Context& irCtx,
         utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
     utl::small_vector<UniquePtr<InsertValue>> result;
     auto* maxValue = mostUsedChildrenBase(node);
@@ -1145,8 +1119,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
 static void mergeInserts(utl::vector<UniquePtr<InsertValue>>& inserts,
                          std::span<UniquePtr<InsertValue>> chosenInserts,
                          std::span<UniquePtr<InsertValue> const> otherInserts) {
-    inserts.insert(inserts.end(),
-                   std::move_iterator(chosenInserts.begin()),
+    inserts.insert(inserts.end(), std::move_iterator(chosenInserts.begin()),
                    std::move_iterator(chosenInserts.end()));
     for (auto& inst: otherInserts | ranges::views::reverse) {
         inst->clearOperands();

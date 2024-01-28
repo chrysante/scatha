@@ -52,24 +52,20 @@ void CCContext::run() {
 }
 
 ///
-static bool mayMoveSource(BasicBlock const& BB,
-                          Register* reg,
+static bool mayMoveSource(BasicBlock const& BB, Register* reg,
                           LiveInterval value) {
     return !isa<CalleeRegister>(reg) && !isLiveIn(BB, value);
 }
 
 ///
-static bool mayMoveDest(BasicBlock const& BB,
-                        Register* reg,
+static bool mayMoveDest(BasicBlock const& BB, Register* reg,
                         LiveInterval value) {
     return !isa<CalleeRegister>(reg) && !isLiveOut(BB, value);
 }
 
 ///
-static void coalesce(BasicBlock& BB,
-                     Register* survive,
-                     LiveInterval surviveValue,
-                     Register* kill,
+static void coalesce(BasicBlock& BB, Register* survive,
+                     LiveInterval surviveValue, Register* kill,
                      LiveInterval killValue) {
     SC_ASSERT(!overlaps(surviveValue, killValue),
               "Can't coalesce overlapping values");

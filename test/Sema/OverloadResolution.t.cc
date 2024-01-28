@@ -16,8 +16,7 @@ using enum ValueCategory;
 namespace {
 
 struct TestOS {
-    static TestOS make(SymbolTable& sym,
-                       std::string name,
+    static TestOS make(SymbolTable& sym, std::string name,
                        std::initializer_list<std::initializer_list<Type const*>>
                            paramTypeLists) {
         TestOS result;
@@ -51,8 +50,7 @@ TEST_CASE("Overload resolution", "[sema]") {
             allocate<ast::UnaryExpression>(allocator,
                                            ast::UnaryOperator::Promotion,
                                            ast::UnaryOperatorNotation::Prefix,
-                                           nullptr,
-                                           SourceRange{});
+                                           nullptr, SourceRange{});
         result->decorateValue(sym.temporary(nullptr, type), valueCat);
         return result;
     };

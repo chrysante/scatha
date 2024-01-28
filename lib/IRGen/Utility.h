@@ -34,16 +34,14 @@ ir::StructType const* makeArrayPtrType(ir::Context& ctx);
 
 /// \Returns \p a if `a == b` or \p fallback otherwise
 inline ValueLocation commonLocation(
-    ValueLocation a,
-    ValueLocation b,
+    ValueLocation a, ValueLocation b,
     ValueLocation fallback = ValueLocation::Register) {
     return a == b ? a : fallback;
 }
 
 /// \Returns \p a if `a == b` or \p fallback otherwise
 inline ValueRepresentation commonRepresentation(
-    ValueRepresentation a,
-    ValueRepresentation b,
+    ValueRepresentation a, ValueRepresentation b,
     ValueRepresentation fallback = ValueRepresentation::Packed) {
     return a == b ? a : fallback;
 }

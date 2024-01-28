@@ -59,9 +59,8 @@ static void run(Asm::AssemblyStream const& assembly) {
     svm::VirtualMachine vm;
     vm.loadBinary(program.data());
     auto mainPos =
-        std::find_if(symbolTable.begin(), symbolTable.end(), [](auto& p) {
-        return p.first.starts_with("main");
-    });
+        std::find_if(symbolTable.begin(), symbolTable.end(),
+                     [](auto& p) { return p.first.starts_with("main"); });
     if (mainPos == symbolTable.end()) {
         std::cout << "No main function defined!\n";
         return;

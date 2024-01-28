@@ -46,8 +46,7 @@ void generateSynthFunction(Config config, FuncGenParameters);
 /// function of kind \p kind
 /// This is used to generate default construction and destruction of member
 /// objects in user defined lifetime functions
-void generateSynthFunctionAs(sema::SMFKind kind,
-                             Config config,
+void generateSynthFunctionAs(sema::SMFKind kind, Config config,
                              FuncGenParameters);
 
 /// Metadata for synthesized loop generation
@@ -141,8 +140,7 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
         ir::Value* ptr, std::string name);
 
     /// Emit a call to `memcpy`
-    ir::Call* callMemcpy(ir::Value* dest,
-                         ir::Value* source,
+    ir::Call* callMemcpy(ir::Value* dest, ir::Value* source,
                          ir::Value* numBytes);
 
     /// \overload for `size_t numBytes`

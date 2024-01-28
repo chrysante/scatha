@@ -88,11 +88,8 @@ static constexpr auto none =
 
 static constexpr auto fmtIndex =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-    return str << tfmt::format(tfmt::BrightGrey,
-                               std::setw(2),
-                               std::right,
-                               args...,
-                               ": ");
+    return str << tfmt::format(tfmt::BrightGrey, std::setw(2), std::right,
+                               args..., ": ");
 });
 
 static auto formatInstName(mir::Instruction const& inst) {
@@ -340,9 +337,7 @@ struct PrintContext {
         printInstBegin(call);
         str << formatInstName(call) << " ";
         printOperands(call);
-        str << tfmt::format(BrightGrey,
-                            " [regoffset=",
-                            call.registerOffset(),
+        str << tfmt::format(BrightGrey, " [regoffset=", call.registerOffset(),
                             "]");
     }
 
@@ -448,8 +443,7 @@ struct PrintContext {
     }
 
     void addLiveState(RegLiveStateList& liveList,
-                      std::span<LiveInterval const> range,
-                      int P) {
+                      std::span<LiveInterval const> range, int P) {
         auto state = getLiveState(range, P);
         liveList.states[P] = state;
         if (state & LS_BeginEnd) {

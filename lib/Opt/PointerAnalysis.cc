@@ -20,8 +20,7 @@ using namespace opt;
 using namespace ir;
 using namespace ranges::views;
 
-SC_REGISTER_PASS(opt::pointerAnalysis,
-                 "pointeranalysis",
+SC_REGISTER_PASS(opt::pointerAnalysis, "pointeranalysis",
                  PassCategory::Experimental);
 
 namespace {

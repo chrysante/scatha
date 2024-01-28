@@ -31,8 +31,7 @@ struct LoopCloneResult {
 
 } // namespace
 
-static LoopCloneResult cloneLoop(Context& ctx,
-                                 BasicBlock const* insertPoint,
+static LoopCloneResult cloneLoop(Context& ctx, BasicBlock const* insertPoint,
                                  LoopInfo const& loop) {
     auto [map, clones] =
         cloneRegion(ctx, insertPoint, loop.innerBlocks() | ToSmallVector<>);
@@ -53,8 +52,7 @@ static LoopCloneResult cloneLoop(Context& ctx,
                            ranges::to<utl::hashset<BasicBlock*>>,
                        loop.exitingBlocks() | Map |
                            ranges::to<utl::hashset<BasicBlock*>>,
-                       loop.exitBlocks(),
-                       std::move(loopClosingPhiMap),
+                       loop.exitBlocks(), std::move(loopClosingPhiMap),
                        loop.inductionVariables() | Map | ToSmallVector<>);
     return { std::move(map), std::move(cloneLoop) };
 }

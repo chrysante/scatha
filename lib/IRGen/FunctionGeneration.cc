@@ -47,11 +47,7 @@ ir::Callable* FuncGenContextBase::getFunction(
     if (semaFunction->isNative() || semaFunction->isGenerated()) {
         declQueue.push_back(semaFunction);
     }
-    return declareFunction(semaFunction,
-                           ctx,
-                           mod,
-                           typeMap,
-                           functionMap,
+    return declareFunction(semaFunction, ctx, mod, typeMap, functionMap,
                            config.nameMangler);
 }
 
@@ -67,22 +63,19 @@ ir::ForeignFunction* FuncGenContextBase::getBuiltin(svm::Builtin builtin) {
     return cast<ir::ForeignFunction*>(irBuiltin);
 }
 
-ir::Call* FuncGenContextBase::callMemcpy(ir::Value* dest,
-                                         ir::Value* source,
+ir::Call* FuncGenContextBase::callMemcpy(ir::Value* dest, ir::Value* source,
                                          ir::Value* numBytes) {
     auto* memcpy = getBuiltin(svm::Builtin::memcpy);
     std::array args = { dest, numBytes, source, numBytes };
     return add<ir::Call>(memcpy, args, std::string{});
 }
 
-ir::Call* FuncGenContextBase::callMemcpy(ir::Value* dest,
-                                         ir::Value* source,
+ir::Call* FuncGenContextBase::callMemcpy(ir::Value* dest, ir::Value* source,
                                          size_t numBytes) {
     return callMemcpy(dest, source, ctx.intConstant(numBytes, 64));
 }
 
-ir::Call* FuncGenContextBase::callMemset(ir::Value* dest,
-                                         ir::Value* numBytes,
+ir::Call* FuncGenContextBase::callMemset(ir::Value* dest, ir::Value* numBytes,
                                          int value) {
     auto* memset = getBuiltin(svm::Builtin::memset);
     ir::Value* irVal = ctx.intConstant(utl::narrow_cast<uint64_t>(value), 64);
@@ -90,8 +83,7 @@ ir::Call* FuncGenContextBase::callMemset(ir::Value* dest,
     return add<ir::Call>(memset, args, std::string{});
 }
 
-ir::Call* FuncGenContextBase::callMemset(ir::Value* dest,
-                                         size_t numBytes,
+ir::Call* FuncGenContextBase::callMemset(ir::Value* dest, size_t numBytes,
                                          int value) {
     return callMemset(dest, ctx.intConstant(numBytes, 64), value);
 }
@@ -112,14 +104,12 @@ ir::Value* FuncGenContextBase::toPackedRegister(Value const& value) {
     if (value.isMemory()) {
         /// `{ Memory, Packed } -> { Register, Packed }`
         if (value.isPacked() || !isDynArrayPointer(value.type())) {
-            return add<ir::Load>(value.get(0),
-                                 typeMap.packed(value.type()),
+            return add<ir::Load>(value.get(0), typeMap.packed(value.type()),
                                  value.name());
         }
         /// `{ Memory, Unpacked } -> { Register, Packed }`
         else {
-            auto* data = add<ir::Load>(value.get(0),
-                                       ctx.ptrType(),
+            auto* data = add<ir::Load>(value.get(0), ctx.ptrType(),
                                        utl::strcat(value.name(), ".data"));
             return packValues(ValueArray{ data, value.get(1) }, value.name());
         }
@@ -236,11 +226,8 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
     auto* arrType = cast<sema::ArrayType const*>(semaType);
     auto* sizeType = symbolTable.Int();
     if (!arrType->isDynamic()) {
-        return Value(name,
-                     sizeType,
-                     { ctx.intConstant(arrType->count(), 64) },
-                     Register,
-                     Unpacked);
+        return Value(name, sizeType, { ctx.intConstant(arrType->count(), 64) },
+                     Register, Unpacked);
     }
     if (value.location() == Memory) {
         if (value.representation() == Unpacked) {
@@ -249,10 +236,8 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
             return Value(name, sizeType, { value.get(1) }, Register, Unpacked);
         }
         else if (isa<sema::PointerType>(semaType)) {
-            auto* addr = add<ir::GetElementPointer>(ctx,
-                                                    arrayPtrType,
-                                                    value.get(0),
-                                                    nullptr,
+            auto* addr = add<ir::GetElementPointer>(ctx, arrayPtrType,
+                                                    value.get(0), nullptr,
                                                     IndexArray{ 1 },
                                                     utl::strcat(name, ".addr"));
             return Value(name, sizeType, { addr }, Memory, Packed);
@@ -278,11 +263,9 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
 
 utl::small_vector<ir::Value*, 2> FuncGenContextBase::
     unpackDynArrayPointerInRegister(ir::Value* pointer, std::string name) {
-    auto* data = add<ir::ExtractValue>(pointer,
-                                       IndexArray{ 0 },
+    auto* data = add<ir::ExtractValue>(pointer, IndexArray{ 0 },
                                        utl::strcat(name, ".data"));
-    auto* count = add<ir::ExtractValue>(pointer,
-                                        IndexArray{ 1 },
+    auto* count = add<ir::ExtractValue>(pointer, IndexArray{ 1 },
                                         utl::strcat(name, ".count"));
     return { data, count };
 }
@@ -290,17 +273,11 @@ utl::small_vector<ir::Value*, 2> FuncGenContextBase::
 utl::small_vector<ir::Value*, 2> FuncGenContextBase::
     unpackDynArrayPointerInMemory(ir::Value* ptr, std::string name) {
     auto* dataAddr =
-        add<ir::GetElementPointer>(ctx,
-                                   arrayPtrType,
-                                   ptr,
-                                   nullptr,
+        add<ir::GetElementPointer>(ctx, arrayPtrType, ptr, nullptr,
                                    IndexArray{ 0 },
                                    utl::strcat(name, ".data.addr"));
     auto* countAddr =
-        add<ir::GetElementPointer>(ctx,
-                                   arrayPtrType,
-                                   ptr,
-                                   nullptr,
+        add<ir::GetElementPointer>(ctx, arrayPtrType, ptr, nullptr,
                                    IndexArray{ 1 },
                                    utl::strcat(name, ".count.addr"));
     auto* count =
@@ -315,10 +292,8 @@ ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,
         auto bytesize = mul(count, APInt(elemSize, count.bitwidth()));
         return ctx.intConstant(bytesize);
     }
-    return add<ir::ArithmeticInst>(count,
-                                   ctx.intConstant(elemSize, 64),
-                                   ir::ArithmeticOperation::Mul,
-                                   "bytesize");
+    return add<ir::ArithmeticInst>(count, ctx.intConstant(elemSize, 64),
+                                   ir::ArithmeticOperation::Mul, "bytesize");
 }
 
 CountedForLoopDesc FuncGenContextBase::generateForLoop(std::string_view name,
@@ -334,14 +309,11 @@ CountedForLoopDesc FuncGenContextBase::generateForLoop(std::string_view name,
         add<ir::Phi>(std::array{ ir::PhiMapping{ pred, ctx.intConstant(0, 64) },
                                  ir::PhiMapping{ body, nullptr } },
                      utl::strcat(name, ".counter"));
-    auto* inc = add<ir::ArithmeticInst>(phi,
-                                        ctx.intConstant(1, 64),
+    auto* inc = add<ir::ArithmeticInst>(phi, ctx.intConstant(1, 64),
                                         ir::ArithmeticOperation::Add,
                                         utl::strcat(name, ".inc"));
     phi->setArgument(1, inc);
-    auto* cond = add<ir::CompareInst>(inc,
-                                      tripCount,
-                                      ir::CompareMode::Unsigned,
+    auto* cond = add<ir::CompareInst>(inc, tripCount, ir::CompareMode::Unsigned,
                                       ir::CompareOperation::Equal,
                                       utl::strcat(name, ".test"));
     add<ir::Branch>(cond, end, body);

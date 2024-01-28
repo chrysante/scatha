@@ -79,9 +79,8 @@ public:
                      LifetimeOperation copyConstructor,
                      LifetimeOperation moveConstructor,
                      LifetimeOperation destructor):
-        ops{
-            defaultConstructor, copyConstructor, moveConstructor, destructor
-        } {}
+        ops{ defaultConstructor, copyConstructor, moveConstructor,
+             destructor } {}
 
     /// \Returns the default constructor
     LifetimeOperation defaultConstructor() const {

@@ -14,13 +14,11 @@ struct EqResult {
 
     EqResult(SuccessT) {}
 
-    EqResult(scatha::ir::Value const* a,
-             scatha::ir::Value const* b,
+    EqResult(scatha::ir::Value const* a, scatha::ir::Value const* b,
              std::string msg):
         a(a), b(b), msg(msg) {}
 
-    EqResult(scatha::ir::Value const* a,
-             scatha::ir::Value const* b,
+    EqResult(scatha::ir::Value const* a, scatha::ir::Value const* b,
              char const* msg):
         EqResult(a, b, std::string(msg)) {}
 

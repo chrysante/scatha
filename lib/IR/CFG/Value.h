@@ -79,8 +79,7 @@ public:
     void allocatePointerInfo(PointerInfoDesc desc);
 
 protected:
-    explicit Value(NodeType nodeType,
-                   Type const* type,
+    explicit Value(NodeType nodeType, Type const* type,
                    std::string name) noexcept;
 
 private:

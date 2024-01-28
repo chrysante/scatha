@@ -35,8 +35,7 @@ StructMetadata irgen::makeStructMetadata(TypeMap& typeMap,
 }
 
 ir::StructType* irgen::generateType(sema::StructType const* semaType,
-                                    ir::Context& ctx,
-                                    ir::Module& mod,
+                                    ir::Context& ctx, ir::Module& mod,
                                     TypeMap& typeMap,
                                     sema::NameMangler const& nameMangler) {
     auto structType = allocate<ir::StructType>(nameMangler(*semaType));
@@ -146,8 +145,7 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
 }
 
 ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
-                                     ir::Context& ctx,
-                                     ir::Module& mod,
+                                     ir::Context& ctx, ir::Module& mod,
                                      TypeMap const& typeMap,
                                      FunctionMap& functionMap,
                                      sema::NameMangler const& nameMangler) {
@@ -158,8 +156,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     case sema::FunctionKind::Native:
         [[fallthrough]];
     case sema::FunctionKind::Generated: {
-        irFn = allocate<ir::Function>(ctx,
-                                      irSignature.returnType,
+        irFn = allocate<ir::Function>(ctx, irSignature.returnType,
                                       makeParameters(irSignature.argumentTypes),
                                       nameMangler(*semaFn),
                                       mapFuncAttrs(semaFn->attributes()),
@@ -168,8 +165,7 @@ ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
     }
     case sema::FunctionKind::Foreign: {
         irFn =
-            allocate<ir::ForeignFunction>(ctx,
-                                          irSignature.returnType,
+            allocate<ir::ForeignFunction>(ctx, irSignature.returnType,
                                           makeParameters(
                                               irSignature.argumentTypes),
                                           std::string(semaFn->name()),

@@ -455,8 +455,7 @@ public:
     /// expression. \param type The type of this expression. Right now in some
     /// cases this differs from the type of the object, but we want to change
     /// that and then remove this parameter
-    void decorateValue(sema::Entity* entity,
-                       sema::ValueCategory valueCategory,
+    void decorateValue(sema::Entity* entity, sema::ValueCategory valueCategory,
                        sema::QualType type = nullptr);
 
     /// Decorate this node if this node refers to a type
@@ -501,8 +500,7 @@ class SCATHA_API Literal: public Expression {
 public:
     using ValueType = std::variant<std::monostate, APInt, APFloat, std::string>;
 
-    explicit Literal(SourceRange sourceRange,
-                     LiteralKind kind,
+    explicit Literal(SourceRange sourceRange, LiteralKind kind,
                      ValueType value = std::monostate{}):
         Expression(NodeType::Literal, sourceRange),
         _kind(kind),
@@ -529,8 +527,7 @@ private:
 /// Concrete node representing a unary prefix expression.
 class SCATHA_API UnaryExpression: public Expression {
 public:
-    explicit UnaryExpression(UnaryOperator op,
-                             UnaryOperatorNotation notation,
+    explicit UnaryExpression(UnaryOperator op, UnaryOperatorNotation notation,
                              UniquePtr<Expression> operand,
                              SourceRange sourceRange):
         Expression(NodeType::UnaryExpression, sourceRange, std::move(operand)),
@@ -558,13 +555,10 @@ private:
 /// Concrete node representing a binary infix expression.
 class SCATHA_API BinaryExpression: public Expression {
 public:
-    explicit BinaryExpression(BinaryOperator op,
-                              UniquePtr<Expression> lhs,
+    explicit BinaryExpression(BinaryOperator op, UniquePtr<Expression> lhs,
                               UniquePtr<Expression> rhs,
                               SourceRange sourceRange):
-        Expression(NodeType::BinaryExpression,
-                   sourceRange,
-                   std::move(lhs),
+        Expression(NodeType::BinaryExpression, sourceRange, std::move(lhs),
                    std::move(rhs)),
         op(op) {}
 
@@ -592,9 +586,7 @@ public:
     explicit MemberAccess(UniquePtr<Expression> object,
                           UniquePtr<Identifier> member,
                           SourceRange sourceRange):
-        Expression(NodeType::MemberAccess,
-                   sourceRange,
-                   std::move(object),
+        Expression(NodeType::MemberAccess, sourceRange, std::move(object),
                    std::move(member)) {}
 
     AST_DERIVED_COMMON(MemberAccess)
@@ -610,8 +602,7 @@ template <NodeType Type>
 class SCATHA_API RefExprBase: public Expression {
 public:
     explicit RefExprBase(UniquePtr<Expression> referred,
-                         sema::Mutability mutability,
-                         SourceRange sourceRange):
+                         sema::Mutability mutability, SourceRange sourceRange):
         Expression(Type, sourceRange, std::move(referred)), mut(mutability) {}
 
     AST_PROPERTY(0, Expression, referred, Referred)
@@ -638,8 +629,7 @@ class SCATHA_API DereferenceExpression:
     public RefExprBase<NodeType::DereferenceExpression> {
 public:
     explicit DereferenceExpression(UniquePtr<Expression> referred,
-                                   sema::Mutability mut,
-                                   bool unique,
+                                   sema::Mutability mut, bool unique,
                                    SourceRange sourceRange):
         RefExprBase(std::move(referred), mut, sourceRange), _unique(unique) {}
 
@@ -660,11 +650,8 @@ public:
                          UniquePtr<Expression> ifExpr,
                          UniquePtr<Expression> elseExpr,
                          SourceRange sourceRange):
-        Expression(NodeType::Conditional,
-                   sourceRange,
-                   std::move(condition),
-                   std::move(ifExpr),
-                   std::move(elseExpr)) {}
+        Expression(NodeType::Conditional, sourceRange, std::move(condition),
+                   std::move(ifExpr), std::move(elseExpr)) {}
 
     AST_DERIVED_COMMON(Conditional)
 
@@ -745,13 +732,10 @@ public:
     }
 
 protected:
-    explicit CallLike(NodeType nodeType,
-                      UniquePtr<Expression> callee,
+    explicit CallLike(NodeType nodeType, UniquePtr<Expression> callee,
                       utl::small_vector<UniquePtr<Expression>> arguments,
                       SourceRange sourceRange):
-        Expression(nodeType,
-                   sourceRange,
-                   std::move(callee),
+        Expression(nodeType, sourceRange, std::move(callee),
                    std::move(arguments)) {}
 };
 
@@ -761,10 +745,8 @@ public:
     explicit FunctionCall(UniquePtr<Expression> callee,
                           utl::small_vector<UniquePtr<Expression>> arguments,
                           SourceRange sourceRange):
-        CallLike(NodeType::FunctionCall,
-                 std::move(callee),
-                 std::move(arguments),
-                 sourceRange) {}
+        CallLike(NodeType::FunctionCall, std::move(callee),
+                 std::move(arguments), sourceRange) {}
 
     AST_DERIVED_COMMON(FunctionCall)
 
@@ -779,10 +761,8 @@ public:
     sema::Function const* function() const { return _function; }
 
     /// Decorate this function call
-    void decorateCall(sema::Object* object,
-                      sema::ValueCategory valueCategory,
-                      sema::QualType type,
-                      sema::Function* calledFunction);
+    void decorateCall(sema::Object* object, sema::ValueCategory valueCategory,
+                      sema::QualType type, sema::Function* calledFunction);
 
 private:
     sema::Function* _function = nullptr;
@@ -794,9 +774,7 @@ public:
     explicit Subscript(UniquePtr<Expression> object,
                        utl::small_vector<UniquePtr<Expression>> arguments,
                        SourceRange sourceRange):
-        CallLike(NodeType::Subscript,
-                 std::move(object),
-                 std::move(arguments),
+        CallLike(NodeType::Subscript, std::move(object), std::move(arguments),
                  sourceRange) {}
 
     AST_DERIVED_COMMON(Subscript)
@@ -809,8 +787,7 @@ public:
                             UniquePtr<Expression> lower,
                             UniquePtr<Expression> upper,
                             SourceRange sourceRange):
-        CallLike(NodeType::SubscriptSlice,
-                 std::move(object),
+        CallLike(NodeType::SubscriptSlice, std::move(object),
                  toSmallVector(std::move(lower), std::move(upper)),
                  sourceRange) {}
 
@@ -830,10 +807,8 @@ public:
         UniquePtr<Expression> object,
         utl::small_vector<UniquePtr<Expression>> arguments,
         SourceRange sourceRange):
-        CallLike(NodeType::GenericExpression,
-                 std::move(object),
-                 std::move(arguments),
-                 sourceRange) {}
+        CallLike(NodeType::GenericExpression, std::move(object),
+                 std::move(arguments), sourceRange) {}
 
     AST_DERIVED_COMMON(GenericExpression)
 };
@@ -942,10 +917,8 @@ public:
 
 protected:
     template <typename... C>
-    explicit Declaration(NodeType type,
-                         SpecifierList specList,
-                         SourceRange sourceRange,
-                         C&&... children):
+    explicit Declaration(NodeType type, SpecifierList specList,
+                         SourceRange sourceRange, C&&... children):
         Statement(type, sourceRange, std::forward<C>(children)...),
         _specs(std::move(specList)) {}
 
@@ -1077,16 +1050,11 @@ public:
 
 protected:
     template <typename... Children>
-    explicit VarDeclBase(NodeType nodeType,
-                         SpecifierList specList,
-                         sema::Mutability mut,
-                         SourceRange sourceRange,
+    explicit VarDeclBase(NodeType nodeType, SpecifierList specList,
+                         sema::Mutability mut, SourceRange sourceRange,
                          UniquePtr<Identifier> name,
                          UniquePtr<Children>... children):
-        Declaration(nodeType,
-                    specList,
-                    sourceRange,
-                    std::move(name),
+        Declaration(nodeType, specList, sourceRange, std::move(name),
                     std::move(children)...),
         _mut(mut) {
         if (nameIdentifier()) {
@@ -1102,19 +1070,14 @@ private:
 /// Concrete node representing a variable declaration.
 class SCATHA_API VariableDeclaration: public VarDeclBase {
 public:
-    explicit VariableDeclaration(SpecifierList specList,
-                                 sema::Mutability mut,
+    explicit VariableDeclaration(SpecifierList specList, sema::Mutability mut,
                                  SourceRange sourceRange,
                                  UniquePtr<Identifier> name,
                                  UniquePtr<Expression> typeExpr,
                                  UniquePtr<Expression> initExpr):
-        VarDeclBase(NodeType::VariableDeclaration,
-                    specList,
-                    mut,
-                    sourceRange,
-                    std::move(name),
-                    std::move(typeExpr),
-                    std::move(initExpr)) {}
+        VarDeclBase(NodeType::VariableDeclaration, specList, mut, sourceRange,
+                    std::move(name), std::move(typeExpr), std::move(initExpr)) {
+    }
 
     AST_DERIVED_COMMON(VariableDeclaration)
 
@@ -1125,15 +1088,11 @@ public:
 /// Concrete node representing a parameter declaration.
 class SCATHA_API ParameterDeclaration: public VarDeclBase {
 public:
-    explicit ParameterDeclaration(size_t index,
-                                  sema::Mutability mut,
+    explicit ParameterDeclaration(size_t index, sema::Mutability mut,
                                   UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
-        ParameterDeclaration(NodeType::ParameterDeclaration,
-                             index,
-                             mut,
-                             SourceRange{},
-                             std::move(name),
+        ParameterDeclaration(NodeType::ParameterDeclaration, index, mut,
+                             SourceRange{}, std::move(name),
                              std::move(typeExpr)) {}
 
     AST_DERIVED_COMMON(ParameterDeclaration)
@@ -1142,18 +1101,12 @@ public:
     size_t index() const { return _index; }
 
 protected:
-    explicit ParameterDeclaration(NodeType nodeType,
-                                  size_t index,
-                                  sema::Mutability mut,
-                                  SourceRange sourceRange,
+    explicit ParameterDeclaration(NodeType nodeType, size_t index,
+                                  sema::Mutability mut, SourceRange sourceRange,
                                   UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
-        VarDeclBase(nodeType,
-                    SpecifierList{},
-                    mut,
-                    sourceRange,
-                    std::move(name),
-                    std::move(typeExpr)),
+        VarDeclBase(nodeType, SpecifierList{}, mut, sourceRange,
+                    std::move(name), std::move(typeExpr)),
         _index(index) {}
 
 private:
@@ -1163,16 +1116,10 @@ private:
 /// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
-    explicit ThisParameter(size_t index,
-                           sema::Mutability mut,
-                           bool isRef,
+    explicit ThisParameter(size_t index, sema::Mutability mut, bool isRef,
                            SourceRange sourceRange):
-        ParameterDeclaration(NodeType::ThisParameter,
-                             index,
-                             mut,
-                             sourceRange,
-                             nullptr,
-                             nullptr),
+        ParameterDeclaration(NodeType::ThisParameter, index, mut, sourceRange,
+                             nullptr, nullptr),
         isRef(isRef) {}
 
     AST_DERIVED_COMMON(ThisParameter)
@@ -1197,8 +1144,7 @@ public:
     explicit CompoundStatement(
         SourceRange sourceRange,
         utl::small_vector<UniquePtr<Statement>> statements):
-        Statement(NodeType::CompoundStatement,
-                  sourceRange,
+        Statement(NodeType::CompoundStatement, sourceRange,
                   std::move(statements)) {}
 
     AST_DERIVED_COMMON(CompoundStatement)
@@ -1235,18 +1181,13 @@ public:
 class SCATHA_API FunctionDefinition: public Declaration {
 public:
     explicit FunctionDefinition(
-        SourceRange sourceRange,
-        SpecifierList specList,
+        SourceRange sourceRange, SpecifierList specList,
         UniquePtr<Identifier> name,
         utl::small_vector<UniquePtr<ParameterDeclaration>> parameters,
         UniquePtr<Expression> returnTypeExpr,
         UniquePtr<CompoundStatement> body):
-        Declaration(NodeType::FunctionDefinition,
-                    specList,
-                    sourceRange,
-                    std::move(name),
-                    std::move(returnTypeExpr),
-                    std::move(body),
+        Declaration(NodeType::FunctionDefinition, specList, sourceRange,
+                    std::move(name), std::move(returnTypeExpr), std::move(body),
                     std::move(parameters)) {}
 
     AST_DERIVED_COMMON(FunctionDefinition)
@@ -1303,15 +1244,11 @@ private:
 /// Concrete node representing the definition of a struct.
 class SCATHA_API StructDefinition: public Declaration {
 public:
-    explicit StructDefinition(SourceRange sourceRange,
-                              SpecifierList specList,
+    explicit StructDefinition(SourceRange sourceRange, SpecifierList specList,
                               UniquePtr<Identifier> name,
                               UniquePtr<CompoundStatement> body):
-        Declaration(NodeType::StructDefinition,
-                    specList,
-                    sourceRange,
-                    std::move(name),
-                    std::move(body)) {}
+        Declaration(NodeType::StructDefinition, specList, sourceRange,
+                    std::move(name), std::move(body)) {}
 
     AST_DERIVED_COMMON(StructDefinition)
 
@@ -1356,8 +1293,7 @@ class SCATHA_API ReturnStatement: public ControlFlowStatement {
 public:
     explicit ReturnStatement(SourceRange sourceRange,
                              UniquePtr<Expression> expression):
-        ControlFlowStatement(NodeType::ReturnStatement,
-                             sourceRange,
+        ControlFlowStatement(NodeType::ReturnStatement, sourceRange,
                              std::move(expression)) {}
 
     AST_DERIVED_COMMON(ReturnStatement)
@@ -1373,10 +1309,8 @@ public:
                          UniquePtr<Expression> condition,
                          UniquePtr<Statement> ifBlock,
                          UniquePtr<Statement> elseBlock):
-        ControlFlowStatement(NodeType::IfStatement,
-                             sourceRange,
-                             std::move(condition),
-                             std::move(ifBlock),
+        ControlFlowStatement(NodeType::IfStatement, sourceRange,
+                             std::move(condition), std::move(ifBlock),
                              std::move(elseBlock)) {}
 
     AST_DERIVED_COMMON(IfStatement)
@@ -1394,18 +1328,14 @@ public:
 /// Represents a `for`, `while` or `do`/`while` loop.
 class SCATHA_API LoopStatement: public ControlFlowStatement {
 public:
-    explicit LoopStatement(SourceRange sourceRange,
-                           LoopKind kind,
+    explicit LoopStatement(SourceRange sourceRange, LoopKind kind,
                            UniquePtr<VariableDeclaration> varDecl,
                            UniquePtr<Expression> condition,
                            UniquePtr<Expression> increment,
                            UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::LoopStatement,
-                             sourceRange,
-                             std::move(varDecl),
-                             std::move(condition),
-                             std::move(increment),
-                             std::move(block)),
+        ControlFlowStatement(NodeType::LoopStatement, sourceRange,
+                             std::move(varDecl), std::move(condition),
+                             std::move(increment), std::move(block)),
         _kind(kind) {}
 
     AST_DERIVED_COMMON(LoopStatement)
@@ -1548,9 +1478,7 @@ public:
     explicit ConstructExpr(utl::small_vector<UniquePtr<Expression>> arguments,
                            sema::ObjectType const* constructedType,
                            SourceRange sourceRange):
-        CallLike(NodeType::ConstructExpr,
-                 nullptr,
-                 std::move(arguments),
+        CallLike(NodeType::ConstructExpr, nullptr, std::move(arguments),
                  sourceRange),
         constrType(constructedType) {}
 
@@ -1586,8 +1514,7 @@ private:
     template <typename R>
     explicit ConstructExpr(R&& rangeArg, auto* arg):
         ConstructExpr(toSmallVector(std::forward<R>(rangeArg)),
-                      arg->type().get(),
-                      arg->sourceRange()) {}
+                      arg->type().get(), arg->sourceRange()) {}
 
     sema::ObjectType const* constrType;
     sema::Function* _function;
@@ -1605,14 +1532,11 @@ public:
     sema::ObjectType const* constructedType() const { return constrType; }
 
 protected:
-    ConstructBase(NodeType nodeType,
-                  UniquePtr<Expression> typeExpr,
+    ConstructBase(NodeType nodeType, UniquePtr<Expression> typeExpr,
                   utl::small_vector<UniquePtr<Expression>> arguments,
                   SourceRange sourceRange,
                   sema::ObjectType const* constructedType):
-        CallLike(nodeType,
-                 std::move(typeExpr),
-                 std::move(arguments),
+        CallLike(nodeType, std::move(typeExpr), std::move(arguments),
                  sourceRange),
         constrType(constructedType) {}
 
@@ -1633,10 +1557,7 @@ public:
     ///
     explicit TrivDefConstructExpr(SourceRange sourceRange,
                                   sema::ObjectType const* constructedType):
-        ConstructBase(NodeType::TrivDefConstructExpr,
-                      nullptr,
-                      {},
-                      sourceRange,
+        ConstructBase(NodeType::TrivDefConstructExpr, nullptr, {}, sourceRange,
                       constructedType) {}
 
     /// All trivial construct expressions inherit this from `ConstructBase`
@@ -1652,10 +1573,8 @@ public:
     explicit TrivCopyConstructExpr(UniquePtr<Expression> argument,
                                    SourceRange sourceRange,
                                    sema::ObjectType const* constructedType):
-        ConstructBase(NodeType::TrivCopyConstructExpr,
-                      nullptr,
-                      toSmallVector(std::move(argument)),
-                      sourceRange,
+        ConstructBase(NodeType::TrivCopyConstructExpr, nullptr,
+                      toSmallVector(std::move(argument)), sourceRange,
                       constructedType) {}
 
     /// The expression denoting the value being copied
@@ -1673,13 +1592,9 @@ class SCATHA_API TrivAggrConstructExpr: public ConstructBase {
 public:
     explicit TrivAggrConstructExpr(
         utl::small_vector<UniquePtr<Expression>> arguments,
-        SourceRange sourceRange,
-        sema::ObjectType const* constructedType):
-        ConstructBase(NodeType::TrivAggrConstructExpr,
-                      nullptr,
-                      std::move(arguments),
-                      sourceRange,
-                      constructedType) {}
+        SourceRange sourceRange, sema::ObjectType const* constructedType):
+        ConstructBase(NodeType::TrivAggrConstructExpr, nullptr,
+                      std::move(arguments), sourceRange, constructedType) {}
 
     /// All trivial construct expressions inherit this from `ConstructBase`
     using ConstructBase::decorateConstruct;
@@ -1693,8 +1608,7 @@ class SCATHA_API NontrivAggrConstructExpr: public ConstructBase {
 public:
     explicit NontrivAggrConstructExpr(
         utl::small_vector<UniquePtr<Expression>> arguments,
-        SourceRange sourceRange,
-        sema::StructType const* constructedType);
+        SourceRange sourceRange, sema::StructType const* constructedType);
 
     /// \Returns the being constructed
     sema::StructType const* constructedType() const;
@@ -1709,8 +1623,7 @@ class SCATHA_API NontrivConstructExpr: public ConstructBase {
 public:
     explicit NontrivConstructExpr(
         utl::small_vector<UniquePtr<Expression>> arguments,
-        SourceRange sourceRange,
-        sema::StructType const* constructedType);
+        SourceRange sourceRange, sema::StructType const* constructedType);
 
     /// \Returns the being constructed
     sema::StructType const* constructedType() const;
@@ -1731,13 +1644,9 @@ class SCATHA_API NontrivInlineConstructExpr: public ConstructBase {
 public:
     explicit NontrivInlineConstructExpr(
         utl::small_vector<UniquePtr<Expression>> arguments,
-        SourceRange sourceRange,
-        sema::ObjectType const* constructedType):
-        ConstructBase(NodeType::NontrivInlineConstructExpr,
-                      nullptr,
-                      std::move(arguments),
-                      sourceRange,
-                      constructedType) {}
+        SourceRange sourceRange, sema::ObjectType const* constructedType):
+        ConstructBase(NodeType::NontrivInlineConstructExpr, nullptr,
+                      std::move(arguments), sourceRange, constructedType) {}
 
     using ConstructBase::decorateConstruct;
 };
@@ -1747,8 +1656,7 @@ class SCATHA_API DynArrayConstructExpr: public ConstructBase {
 public:
     explicit DynArrayConstructExpr(
         utl::small_vector<UniquePtr<Expression>> arguments,
-        SourceRange sourceRange,
-        sema::ArrayType const* constructedType);
+        SourceRange sourceRange, sema::ArrayType const* constructedType);
 
     /// \Returns the being constructed
     sema::ArrayType const* constructedType() const;
@@ -1770,8 +1678,7 @@ public:
                                UniquePtr<Expression> source):
         Expression(NodeType::NonTrivAssignExpr,
                    merge(source->sourceRange(), dest->sourceRange()),
-                   std::move(dest),
-                   std::move(source)) {}
+                   std::move(dest), std::move(source)) {}
 
     AST_DERIVED_COMMON(NonTrivAssignExpr)
 
@@ -1784,8 +1691,7 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Decorate this node
-    void decorateAssign(sema::Entity* entity,
-                        sema::Function const* dtor,
+    void decorateAssign(sema::Entity* entity, sema::Function const* dtor,
                         sema::Function const* ctor) {
         decorateValue(entity, sema::ValueCategory::RValue);
         _dtor = dtor;

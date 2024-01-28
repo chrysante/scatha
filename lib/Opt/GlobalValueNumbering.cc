@@ -26,8 +26,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::globalValueNumbering,
-                 "gvn",
+SC_REGISTER_PASS(opt::globalValueNumbering, "gvn",
                  PassCategory::Simplification);
 
 namespace {
@@ -54,8 +53,7 @@ struct Computation {
 
     /// Implementation of `operator==`. Exposed here for use in 'question
     /// propagation' in loop header nodes
-    static bool equal(Instruction const* A,
-                      std::span<Value const* const> AOps,
+    static bool equal(Instruction const* A, std::span<Value const* const> AOps,
                       Instruction const* B,
                       std::span<Value const* const> BOps) {
         // clang-format off
@@ -277,8 +275,7 @@ public:
     };
 
     /// Insert an entry into the MCT
-    void insert(size_t rank,
-                UniquePtr<Instruction> copy,
+    void insert(size_t rank, UniquePtr<Instruction> copy,
                 Instruction* original) {
         auto itr = compMap.find(copy.get());
         if (itr != compMap.end()) {
@@ -416,17 +413,14 @@ struct GVNContext {
     void processHeader(size_t rank, BasicBlock* BB, LocalComputationTable&);
     /// \Returns `true` if the computation \p inst can be moved out of a loop
     /// header
-    bool isHeaderMovable(Instruction* inst,
-                         BasicBlock* header,
+    bool isHeaderMovable(Instruction* inst, BasicBlock* header,
                          BasicBlock* landingPad);
 
     void processLandingPad(size_t rank, BasicBlock*, LocalComputationTable&);
     void processOther(size_t rank, BasicBlock*, LocalComputationTable&);
     void moveIn(size_t rank, BasicBlock*, LocalComputationTable&);
     void moveInImpl(
-        size_t rank,
-        BasicBlock*,
-        LocalComputationTable&,
+        size_t rank, BasicBlock*, LocalComputationTable&,
         std::span<BasicBlock* const> succs,
         utl::function_view<bool(Instruction const*)> condition = [](auto) {
         return true;
@@ -754,8 +748,7 @@ static auto isMoveable = [](Instruction* inst) {
     return true;
 };
 
-static UniquePtr<Instruction> copyAndPhiRename(Context& ctx,
-                                               Instruction* inst,
+static UniquePtr<Instruction> copyAndPhiRename(Context& ctx, Instruction* inst,
                                                BasicBlock* pred) {
     auto copy = ir::clone(ctx, inst);
     for (auto [index, operand]: inst->operands() | ranges::views::enumerate) {
@@ -769,8 +762,7 @@ static UniquePtr<Instruction> copyAndPhiRename(Context& ctx,
     return copy;
 }
 
-void GVNContext::processHeader(size_t rank,
-                               BasicBlock* header,
+void GVNContext::processHeader(size_t rank, BasicBlock* header,
                                LocalComputationTable& LCT) {
     moveIn(rank, header, LCT);
     /// Identify candidates for movement to our predecessor
@@ -785,8 +777,7 @@ void GVNContext::processHeader(size_t rank,
     }
 }
 
-bool GVNContext::isHeaderMovable(Instruction* inst,
-                                 BasicBlock* header,
+bool GVNContext::isHeaderMovable(Instruction* inst, BasicBlock* header,
                                  [[maybe_unused]] BasicBlock* landingPad) {
     if (isIgnored(inst)) {
         return false;
@@ -888,8 +879,7 @@ bool GVNContext::isHeaderMovable(Instruction* inst,
 #endif
 }
 
-void GVNContext::processLandingPad(size_t rank,
-                                   BasicBlock* BB,
+void GVNContext::processLandingPad(size_t rank, BasicBlock* BB,
                                    LocalComputationTable& LCT) {
     auto* header = BB->singleSuccessor();
     auto& loop = loops[header];
@@ -913,23 +903,19 @@ void GVNContext::processLandingPad(size_t rank,
     moveOut(rank, BB, LCT);
 }
 
-void GVNContext::processOther(size_t rank,
-                              BasicBlock* BB,
+void GVNContext::processOther(size_t rank, BasicBlock* BB,
                               LocalComputationTable& LCT) {
     moveIn(rank, BB, LCT);
     moveOut(rank, BB, LCT);
 }
 
-void GVNContext::moveIn(size_t rank,
-                        BasicBlock* BB,
+void GVNContext::moveIn(size_t rank, BasicBlock* BB,
                         LocalComputationTable& LCT) {
     moveInImpl(rank, BB, LCT, BB->successors() | ToSmallVector<>);
 }
 
 void GVNContext::moveInImpl(
-    size_t rank,
-    BasicBlock* BB,
-    LocalComputationTable& LCT,
+    size_t rank, BasicBlock* BB, LocalComputationTable& LCT,
     std::span<BasicBlock* const> succs,
     utl::function_view<bool(Instruction const*)> condition) {
     auto insertIntoLTCAndBB = [&](Instruction* insertPoint,
@@ -1009,8 +995,7 @@ void GVNContext::moveInImpl(
     }
 }
 
-void GVNContext::moveOut(size_t rank,
-                         BasicBlock* BB,
+void GVNContext::moveOut(size_t rank, BasicBlock* BB,
                          LocalComputationTable& LCT) {
     /// Identify candidates for movement to our predecessors
     auto movable = LCT.instructions(rank) | ranges::views::filter(isMoveable) |

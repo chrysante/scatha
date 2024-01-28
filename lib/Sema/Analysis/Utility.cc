@@ -236,8 +236,8 @@ ast::Expression* sema::insertConstruction(ast::Expression* expr,
     auto* type = expr->type().get();
     auto* constr = [&]() -> ast::Expression* {
         if (type->hasTrivialLifetime()) {
-            return ast::insertNode<
-                ast::TrivCopyConstructExpr>(expr, expr->sourceRange(), type);
+            return ast::insertNode<ast::TrivCopyConstructExpr>(
+                expr, expr->sourceRange(), type);
         }
         if (auto* sType = dyncast<StructType const*>(type)) {
             return ast::insertNode(expr, [&](UniquePtr<ast::Expression> expr) {

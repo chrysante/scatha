@@ -72,8 +72,7 @@ T* allocateArrayUninit(MonotonicBufferAllocator& alloc, size_t count) {
 /// Allocates memory for an array of element type `T` with \p count elements
 /// using the allocator \p alloc and default constructs the elements
 template <typename T, typename Itr>
-std::span<T> allocateArray(MonotonicBufferAllocator& alloc,
-                           Itr begin,
+std::span<T> allocateArray(MonotonicBufferAllocator& alloc, Itr begin,
                            Itr end) {
     size_t const count = std::distance(begin, end);
     T* result = allocateArrayUninit<T>(alloc, count);

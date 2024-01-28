@@ -54,9 +54,7 @@ RecordType const* RecordConstant::type() const {
 RecordConstant::RecordConstant(NodeType nodeType,
                                std::span<ir::Constant* const> elems,
                                RecordType const* type):
-    Constant(nodeType,
-             type,
-             {},
+    Constant(nodeType, type, {},
              elems | ranges::views::transform(cast<Value*>) | ToSmallVector<>) {
     SC_ASSERT(elems.size() == type->numElements(), "Element count mismatch");
     for (auto [index, elem]: elems | ranges::views::enumerate) {

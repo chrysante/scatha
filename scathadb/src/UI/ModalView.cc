@@ -8,9 +8,7 @@ using namespace ftxui;
 namespace {
 
 struct ModalViewBase: ComponentBase {
-    ModalViewBase(std::string title,
-                  Component body,
-                  ModalOptions options,
+    ModalViewBase(std::string title, Component body, ModalOptions options,
                   bool* open):
         open(open) {
         auto titlebar = [&] {

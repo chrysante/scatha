@@ -67,8 +67,7 @@ SCTEST_API UniquePtr<Inst> clone(Context& context, Inst* inst) {
 SCTEST_API UniquePtr<BasicBlock> clone(Context& context, BasicBlock* BB);
 
 /// \overload accepting a clone map
-SCTEST_API UniquePtr<BasicBlock> clone(Context& context,
-                                       BasicBlock* BB,
+SCTEST_API UniquePtr<BasicBlock> clone(Context& context, BasicBlock* BB,
                                        CloneValueMap& map);
 
 /// Result structure for `cloneRegion()`
@@ -82,8 +81,7 @@ struct CloneRegionResult {
 
 /// Clones every block in the list \p region and inserts them in order before \p
 /// insertPoint
-CloneRegionResult cloneRegion(Context& context,
-                              BasicBlock const* insertPoint,
+CloneRegionResult cloneRegion(Context& context, BasicBlock const* insertPoint,
                               std::span<BasicBlock* const> region);
 
 /// \Returns a clone of the function \p function

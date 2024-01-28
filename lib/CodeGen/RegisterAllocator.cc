@@ -35,8 +35,7 @@ void cg::allocateRegisters(Context&, Function& F) {
             }
             auto* tmp = new VirtualRegister();
             F.virtualRegisters().add(tmp);
-            auto* copy = new CopyInst(tmp,
-                                      arithmetic->LHS(),
+            auto* copy = new CopyInst(tmp, arithmetic->LHS(),
                                       arithmetic->bytewidth(),
                                       arithmetic->metadata());
             inst.parent()->insert(&inst, copy);
@@ -109,10 +108,8 @@ void cg::allocateRegisters(Context&, Function& F) {
                 constant && constant->value() == 0 && copy->bytewidth() > 2)
             {
                 auto* selfXor =
-                    new ValueArithmeticInst(copy->dest(),
-                                            copy->dest(),
-                                            copy->dest(),
-                                            copy->bytewidth(),
+                    new ValueArithmeticInst(copy->dest(), copy->dest(),
+                                            copy->dest(), copy->bytewidth(),
                                             ArithmeticOperation::XOr,
                                             copy->metadata());
                 BB.insert(itr, selfXor);

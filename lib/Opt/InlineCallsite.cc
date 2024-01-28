@@ -20,8 +20,7 @@ void opt::inlineCallsite(ir::Context& ctx, Call* call) {
     inlineCallsite(ctx, call, ir::clone(ctx, callee));
 }
 
-void opt::inlineCallsite(ir::Context& ctx,
-                         ir::Call* call,
+void opt::inlineCallsite(ir::Context& ctx, ir::Call* call,
                          UniquePtr<ir::Function> calleeClone) {
     auto* callerBB = call->parent();
     auto* caller = callerBB->parent();
@@ -30,8 +29,7 @@ void opt::inlineCallsite(ir::Context& ctx,
     callerBB->insert(call, newGoto);
     auto* landingpad = new BasicBlock(ctx, "inline.landingpad");
     landingpad->splice(landingpad->begin(),
-                       BasicBlock::Iterator(newGoto->next()),
-                       callerBB->end());
+                       BasicBlock::Iterator(newGoto->next()), callerBB->end());
     for (auto* succ: landingpad->successors()) {
         succ->updatePredecessor(callerBB, landingpad);
     }

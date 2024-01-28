@@ -144,10 +144,8 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
     CHECK(regs[3] == 18);
 }
 
-static void testArithmeticRR(ArithmeticOperation operation,
-                             auto arg1,
-                             auto arg2,
-                             auto reference) {
+static void testArithmeticRR(ArithmeticOperation operation, auto arg1,
+                             auto arg2, auto reference) {
     AssemblyStream a;
     // clang-format off
     a.add(Block(LabelID{ 0 }, "start", {
@@ -160,10 +158,8 @@ static void testArithmeticRR(ArithmeticOperation operation,
     CHECK(load<decltype(reference)>(&regs[0]) == reference);
 }
 
-static void testArithmeticRV(ArithmeticOperation operation,
-                             auto arg1,
-                             auto arg2,
-                             auto reference) {
+static void testArithmeticRV(ArithmeticOperation operation, auto arg1,
+                             auto arg2, auto reference) {
     AssemblyStream a;
     // clang-format off
     a.add(Block(LabelID{ 0 }, "start", {
@@ -175,10 +171,8 @@ static void testArithmeticRV(ArithmeticOperation operation,
     CHECK(load<decltype(reference)>(&regs[0]) == reference);
 }
 
-static void testArithmeticRM(ArithmeticOperation operation,
-                             auto arg1,
-                             auto arg2,
-                             auto reference) {
+static void testArithmeticRM(ArithmeticOperation operation, auto arg1,
+                             auto arg2, auto reference) {
     AssemblyStream a;
     // clang-format off
     a.add(Block(LabelID{ 0 }, "start", {
@@ -193,9 +187,7 @@ static void testArithmeticRM(ArithmeticOperation operation,
     CHECK(load<decltype(reference)>(&regs[0]) == reference);
 }
 
-static void testArithmetic(ArithmeticOperation operation,
-                           auto arg1,
-                           auto arg2,
+static void testArithmetic(ArithmeticOperation operation, auto arg1, auto arg2,
                            auto reference) {
     testArithmeticRR(operation, arg1, arg2, reference);
     testArithmeticRV(operation, arg1, arg2, reference);

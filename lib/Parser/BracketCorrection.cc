@@ -101,8 +101,7 @@ void Context::run() {
         /// We search the open bracket stack for a match.
         auto& stackContainer = bracketStack.container();
         auto const stackReverseItr =
-            std::find_if(stackContainer.rbegin(),
-                         stackContainer.rend(),
+            std::find_if(stackContainer.rbegin(), stackContainer.rend(),
                          [&](Bracket b) { return b.type == bracket.type; });
         if (stackReverseItr == stackContainer.rend()) {
             /// If we can't find the matching open bracket, we just erase this
@@ -143,12 +142,10 @@ std::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
                        ranges::views::transform([&](Bracket bracket) {
         issues.push<ExpectedClosingBracket>(*tokenItr);
         Bracket const newBracket = { bracket.type, Bracket::Side::Close };
-        return Token(toString(newBracket),
-                     toTokenKind(newBracket),
+        return Token(toString(newBracket), toTokenKind(newBracket),
                      tokenItr->sourceRange());
     }) | ranges::views::common;
-    auto const resultItr = tokens.insert(tokenItr,
-                                         ranges::begin(insertRange),
+    auto const resultItr = tokens.insert(tokenItr, ranges::begin(insertRange),
                                          ranges::end(insertRange));
     /// Now erase the bracket stack until \p stackItr
     stackContainer.erase(stackItr, stackContainer.end());

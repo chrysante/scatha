@@ -220,9 +220,7 @@ struct Variable {
         return itr->second;
     }
 
-    Variable(SROAContext& sroa,
-             Context& ctx,
-             Function& function,
+    Variable(SROAContext& sroa, Context& ctx, Function& function,
              Alloca* baseAlloca):
         sroa(sroa),
         ctx(ctx),
@@ -739,20 +737,16 @@ Instruction* Variable::copyInstruction(Instruction* insertBefore,
     return copy;
 }
 
-static utl::small_vector<Slice> slicesInRange(size_t begin,
-                                              size_t end,
+static utl::small_vector<Slice> slicesInRange(size_t begin, size_t end,
                                               std::span<Slice const> slices) {
-    return ranges::make_subrange(ranges::lower_bound(slices,
-                                                     begin,
+    return ranges::make_subrange(ranges::lower_bound(slices, begin,
                                                      ranges::less{},
                                                      &Slice::begin),
-                                 ranges::upper_bound(slices,
-                                                     end,
+                                 ranges::upper_bound(slices, end,
                                                      ranges::less{},
                                                      &Slice::end)) |
            ranges::views::transform([&](Slice slice) {
-        return Slice(slice.begin() - begin,
-                     slice.end() - begin,
+        return Slice(slice.begin() - begin, slice.end() - begin,
                      slice.newAlloca());
     }) | ToSmallVector<>;
 }
@@ -878,15 +872,14 @@ bool Variable::replaceBySlices() {
 }
 
 static void memTreePostorder(
-    MemberTree const& tree,
-    std::span<Slice const> slices,
-    utl::function_view<void(MemberTree::Node const*,
-                            std::span<Slice const>,
-                            std::span<size_t const>)> fn) {
+    MemberTree const& tree, std::span<Slice const> slices,
+    utl::function_view<void(MemberTree::Node const*, std::span<Slice const>,
+                            std::span<size_t const>)>
+        fn) {
     utl::small_vector<size_t> indices;
     auto sliceItr = slices.begin();
-    auto impl =
-        [&](auto& impl, auto& sliceItr, MemberTree::Node const* node) -> bool {
+    auto impl = [&](auto& impl, auto& sliceItr,
+                    MemberTree::Node const* node) -> bool {
         bool calledAnyChildren = false, calledAllChildren = true;
         auto childItr = sliceItr;
         for (auto* child: node->children()) {
@@ -918,8 +911,7 @@ bool Variable::replaceBySlices(Load* load) {
     auto slices = getSubslices(getAccessedSubranges(load).front());
     bool modified = false;
     Value* aggregate = ctx.undef(load->type());
-    memTreePostorder(tree,
-                     slices,
+    memTreePostorder(tree, slices,
                      [&](MemberTree::Node const* node,
                          std::span<Slice const> slices,
                          std::span<size_t const> indices) {
@@ -936,14 +928,11 @@ bool Variable::replaceBySlices(Load* load) {
             }
             else {
                 BasicBlockBuilder builder(ctx, load->parent());
-                auto* newLoad = builder.insert<Load>(load,
-                                                     slice.newAlloca(),
+                auto* newLoad = builder.insert<Load>(load, slice.newAlloca(),
                                                      node->type(),
                                                      std::string(load->name()));
-                aggregate = builder.insert<InsertValue>(load,
-                                                        aggregate,
-                                                        newLoad,
-                                                        indices,
+                aggregate = builder.insert<InsertValue>(load, aggregate,
+                                                        newLoad, indices,
                                                         "sroa.insert");
                 modified = true;
             }
@@ -965,8 +954,7 @@ bool Variable::replaceBySlices(Store* store) {
     auto& tree = sroa.getMemberTree(store->value()->type());
     auto slices = getSubslices(getAccessedSubranges(store).front());
     bool modified = false;
-    memTreePostorder(tree,
-                     slices,
+    memTreePostorder(tree, slices,
                      [&](MemberTree::Node const* node,
                          std::span<Slice const> slices,
                          std::span<size_t const> indices) {
@@ -983,8 +971,7 @@ bool Variable::replaceBySlices(Store* store) {
             }
             else {
                 BasicBlockBuilder builder(ctx, store->parent());
-                auto* extr = builder.insert<ExtractValue>(store,
-                                                          store->value(),
+                auto* extr = builder.insert<ExtractValue>(store, store->value(),
                                                           indices,
                                                           "sroa.extract");
                 builder.insert<Store>(store, slice.newAlloca(), extr);
@@ -1048,10 +1035,7 @@ bool Variable::replaceMemcpyBySlicesDest(Call* call) {
     for (auto slice: slices) {
         auto* gepIndex = ctx.intConstant(slice.begin(), 32);
         auto* sourceSlicePtr =
-            builder.insert<GetElementPointer>(call,
-                                              byteType,
-                                              source,
-                                              gepIndex,
+            builder.insert<GetElementPointer>(call, byteType, source, gepIndex,
                                               std::array<size_t, 0>{},
                                               "sroa.gep");
         auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);
@@ -1077,10 +1061,7 @@ bool Variable::replaceMemcpyBySlicesSource(Call* call) {
     for (auto slice: slices) {
         auto* gepIndex = ctx.intConstant(slice.begin(), 32);
         auto* destSlicePtr =
-            builder.insert<GetElementPointer>(call,
-                                              byteType,
-                                              dest,
-                                              gepIndex,
+            builder.insert<GetElementPointer>(call, byteType, dest, gepIndex,
                                               std::array<size_t, 0>{},
                                               "sroa.gep");
         auto* size = ctx.intConstant(slice.end() - slice.begin(), 64);

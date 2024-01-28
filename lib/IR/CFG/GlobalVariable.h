@@ -12,9 +12,7 @@ public:
     enum Mutability { Mutable, Const };
 
     ///
-    GlobalVariable(Context& ctx,
-                   Mutability mutability,
-                   Constant* initializer,
+    GlobalVariable(Context& ctx, Mutability mutability, Constant* initializer,
                    std::string name);
 
     /// The constant that initializes this value. Can be `undef` for dynamic

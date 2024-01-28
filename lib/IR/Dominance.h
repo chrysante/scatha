@@ -154,19 +154,13 @@ private:
         ir::Function& function,
         /// Shall only have more than one element when used to compute post-dom
         /// sets for function with multiple exits
-        std::span<BasicBlock* const> entries,
-        auto preds,
-        auto succs);
+        std::span<BasicBlock* const> entries, auto preds, auto succs);
     static DomTree computeDomTreeImpl(
-        ir::Function& function,
-        DomMap const& domMap,
-        BasicBlock* entry,
+        ir::Function& function, DomMap const& domMap, BasicBlock* entry,
         /// Only used to compute post-dom tree for function with multiple exits
-        std::span<BasicBlock* const> exits,
-        auto preds);
+        std::span<BasicBlock* const> exits, auto preds);
     static DomFrontMap computeDomFrontsImpl(ir::Function& function,
-                                            DomTree const& domTree,
-                                            auto succs);
+                                            DomTree const& domTree, auto succs);
 
 private:
     DomMap _dominatorMap;

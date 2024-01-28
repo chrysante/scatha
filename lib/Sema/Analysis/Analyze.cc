@@ -10,8 +10,7 @@
 using namespace scatha;
 using namespace sema;
 
-AnalysisResult sema::analyze(ast::ASTNode& TU,
-                             SymbolTable& sym,
+AnalysisResult sema::analyze(ast::ASTNode& TU, SymbolTable& sym,
                              IssueHandler& iss,
                              AnalysisOptions const& options) {
     sym.setIssueHandler(iss);

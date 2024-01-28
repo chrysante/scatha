@@ -68,8 +68,7 @@ protected:
     void hint(IssueMessage msg) { _hint = std::move(msg); }
 
     /// Add a source highlight message
-    void highlight(HighlightKind kind,
-                   SourceRange position,
+    void highlight(HighlightKind kind, SourceRange position,
                    IssueMessage message) {
         highlights.push_back({ kind, position, std::move(message) });
     }

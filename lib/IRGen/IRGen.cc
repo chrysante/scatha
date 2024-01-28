@@ -43,9 +43,7 @@ static T* get(utl::hashmap<std::string, T*> const& map, std::string_view name) {
 /// Performs a DFS over a library scope and adds entries for all structs and
 /// functions to the type map and function map
 static void mapLibSymbols(
-    sema::Scope const& scope,
-    TypeMap& typeMap,
-    FunctionMap& functionMap,
+    sema::Scope const& scope, TypeMap& typeMap, FunctionMap& functionMap,
     sema::NameMangler const& nameMangler,
     utl::hashmap<std::string, ir::StructType*> const& IRStructMap,
     utl::hashmap<std::string, ir::Global*> const& IRObjectMap) {
@@ -69,11 +67,7 @@ static void mapLibSymbols(
         }; // clang-format on
     }
     for (auto* child: scope.children()) {
-        mapLibSymbols(*child,
-                      typeMap,
-                      functionMap,
-                      nameMangler,
-                      IRStructMap,
+        mapLibSymbols(*child, typeMap, functionMap, nameMangler, IRStructMap,
                       IRObjectMap);
     }
 }
@@ -97,10 +91,8 @@ static void checkParserIssues(std::span<ir::ParseIssue const> issues,
     SC_ABORT();
 }
 
-static void importLibrary(ir::Context& ctx,
-                          ir::Module& mod,
-                          sema::NativeLibrary const& lib,
-                          TypeMap& typeMap,
+static void importLibrary(ir::Context& ctx, ir::Module& mod,
+                          sema::NativeLibrary const& lib, TypeMap& typeMap,
                           FunctionMap& functionMap,
                           sema::NameMangler const& nameMangler) {
     std::fstream file(lib.codeFile());
@@ -119,17 +111,11 @@ static void importLibrary(ir::Context& ctx,
         }
         IRObjectMap.insert({ std::string(object.name()), &object });
     };
-    auto parseIssues = ir::parseTo(std::move(sstr).str(),
-                                   ctx,
-                                   mod,
+    auto parseIssues = ir::parseTo(std::move(sstr).str(), ctx, mod,
                                    { .typeParseCallback = typeCallback,
                                      .objectParseCallback = objCallback });
     checkParserIssues(parseIssues, lib.codeFile().string());
-    mapLibSymbols(lib,
-                  typeMap,
-                  functionMap,
-                  nameMangler,
-                  IRStructMap,
+    mapLibSymbols(lib, typeMap, functionMap, nameMangler, IRStructMap,
                   IRObjectMap);
 }
 
@@ -151,9 +137,7 @@ static bool isLibEntity(sema::Entity const* entity) {
     SC_UNREACHABLE();
 }
 
-void irgen::generateIR(ir::Context& ctx,
-                       ir::Module& mod,
-                       ast::ASTNode const&,
+void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
                        sema::SymbolTable const& sym,
                        sema::AnalysisResult const& analysisResult,
                        Config config) {
@@ -181,11 +165,7 @@ void irgen::generateIR(ir::Context& ctx,
                  filter(initialDeclFilter) |
                  ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
-        declareFunction(semaFn,
-                        ctx,
-                        mod,
-                        typeMap,
-                        functionMap,
+        declareFunction(semaFn, ctx, mod, typeMap, functionMap,
                         config.nameMangler);
     }
     while (!queue.empty()) {
@@ -194,15 +174,14 @@ void irgen::generateIR(ir::Context& ctx,
         auto* irFn = functionMap(semaFn);
         auto* native = dyncast<ir::Function*>(irFn);
         if (!native) continue;
-        generateFunction(config,
-                         { .semaFn = *semaFn,
-                           .irFn = *native,
-                           .ctx = ctx,
-                           .mod = mod,
-                           .symbolTable = sym,
-                           .typeMap = typeMap,
-                           .functionMap = functionMap,
-                           .declQueue = queue });
+        generateFunction(config, { .semaFn = *semaFn,
+                                   .irFn = *native,
+                                   .ctx = ctx,
+                                   .mod = mod,
+                                   .symbolTable = sym,
+                                   .typeMap = typeMap,
+                                   .functionMap = functionMap,
+                                   .declQueue = queue });
     }
     ir::assertInvariants(ctx, mod);
     if (config.generateDebugSymbols) {

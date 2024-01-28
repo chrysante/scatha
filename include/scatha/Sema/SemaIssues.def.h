@@ -11,8 +11,7 @@
 
 SC_SEMA_GENERICBADSTMT_DEF(ReservedIdentifier, Error, "Reserved identifier")
 
-SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
-                           Error,
+SC_SEMA_GENERICBADSTMT_DEF(InvalidScope, Error,
                            ::format(statement())
                                << " is invalid in " << ::format(scope()))
 
@@ -98,38 +97,31 @@ SC_SEMA_BADVARDECL_DEF(InvalidTypeForFFI, Error, {
 #define SC_SEMA_BADFUNCDEF_DEF(reason, severity, text)
 #endif
 
-SC_SEMA_BADFUNCDEF_DEF(MainMustReturnTrivial,
-                       Error,
+SC_SEMA_BADFUNCDEF_DEF(MainMustReturnTrivial, Error,
                        "Function 'main' cannot return non-trivial type "
                            << sema::format(definition()->returnType()))
 
-SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments,
-                       Error,
+SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments, Error,
                        sema::format(definition()->function()->type())
                            << " is not a valid signature for 'main'. "
                            << " Valid signatures are () and (&[*str])")
 
-SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody,
-                       Error,
+SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody, Error,
                        "Function '" << definition()->name() << "' has no body")
 
-SC_SEMA_BADFUNCDEF_DEF(UnknownLinkage,
-                       Error,
+SC_SEMA_BADFUNCDEF_DEF(UnknownLinkage, Error,
                        "Unknown linkage: \""
                            << definition()->externalLinkage().value_or("")
                            << "\"")
 
-SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported,
-                       Error,
+SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported, Error,
                        "'extern \"C\"' declaration is not supported")
 
-SC_SEMA_BADFUNCDEF_DEF(NoReturnType,
-                       Error,
+SC_SEMA_BADFUNCDEF_DEF(NoReturnType, Error,
                        "Function declaration '" << definition()->name()
                                                 << "' has no return type'")
 
-SC_SEMA_BADFUNCDEF_DEF(InvalidReturnTypeForFFI,
-                       Error,
+SC_SEMA_BADFUNCDEF_DEF(InvalidReturnTypeForFFI, Error,
                        "Return type "
                            << sema::format(definition()->returnType())
                            << "' is not allowed for foreign functions")
@@ -144,30 +136,24 @@ SC_SEMA_BADFUNCDEF_DEF(InvalidReturnTypeForFFI,
 #define SC_SEMA_BADSMF_DEF(reason, severity, text)
 #endif
 
-SC_SEMA_BADSMF_DEF(HasReturnType,
-                   Error,
+SC_SEMA_BADSMF_DEF(HasReturnType, Error,
                    "Function '" << name() << "' must not have a return type")
-SC_SEMA_BADSMF_DEF(NotInStruct,
-                   Error,
+SC_SEMA_BADSMF_DEF(NotInStruct, Error,
                    "Function '" << name() << "' must be a member function")
-SC_SEMA_BADSMF_DEF(NoParams,
-                   Error,
+SC_SEMA_BADSMF_DEF(NoParams, Error,
                    "Function '" << name()
                                 << "' must have at least one parameter of type "
                                 << "&mut " << parent()->name())
-SC_SEMA_BADSMF_DEF(BadFirstParam,
-                   Error,
+SC_SEMA_BADSMF_DEF(BadFirstParam, Error,
                    "The first parameter to function '"
                        << name() << "' must be of type "
                        << "&mut " << parent()->name())
-SC_SEMA_BADSMF_DEF(MoveSignature,
-                   Error,
+SC_SEMA_BADSMF_DEF(MoveSignature, Error,
                    "The parameters types of function '"
                        << name() << "' must be "
                        << "&mut " << parent()->name() << ", "
                        << "&mut " << parent()->name())
-SC_SEMA_BADSMF_DEF(DeleteSignature,
-                   Error,
+SC_SEMA_BADSMF_DEF(DeleteSignature, Error,
                    "Function '" << name()
                                 << "' must have exactly one parameter")
 
@@ -181,11 +167,9 @@ SC_SEMA_BADSMF_DEF(DeleteSignature,
 #define SC_SEMA_BADRETURN_DEF(reason, severity, text)
 #endif
 
-SC_SEMA_BADRETURN_DEF(NonVoidMustReturnValue,
-                      Error,
+SC_SEMA_BADRETURN_DEF(NonVoidMustReturnValue, Error,
                       "Non-void function must return a value")
-SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue,
-                      Error,
+SC_SEMA_BADRETURN_DEF(VoidMustNotReturnValue, Error,
                       "Void function must not return a value")
 
 #undef SC_SEMA_BADRETURN_DEF
@@ -204,238 +188,156 @@ SC_SEMA_BADEXPR_DEF(Expression, BadExprNone, Error, "No issue")
 /// not worthwhile to make special errors
 SC_SEMA_BADEXPR_DEF(Expression, GenericBadExpr, Error, "Bad expression")
 
-SC_SEMA_BADEXPR_DEF(Literal,
-                    InvalidUseOfThis,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Literal, InvalidUseOfThis, Error,
                     "Invalid use of undeclared 'this' parameter")
 
-SC_SEMA_BADEXPR_DEF(Identifier,
-                    UndeclaredID,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Identifier, UndeclaredID, Error,
                     "Use of undeclared identifier '" << expr->value() << "'")
 
-SC_SEMA_BADEXPR_DEF(Identifier,
-                    AccessedMemberWithoutObject,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Identifier, AccessedMemberWithoutObject, Error,
                     "Cannot access member '" << expr->value()
                                              << "' without an object argument")
 
-SC_SEMA_BADEXPR_DEF(UnaryExpression,
-                    UnaryExprBadType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(UnaryExpression, UnaryExprBadType, Error,
                     "Operand type " << expr->operand()->type()->name()
                                     << " is invalid for unary operator "
                                     << expr->operation())
 
-SC_SEMA_BADEXPR_DEF(UnaryExpression,
-                    UnaryExprValueCat,
-                    Error,
+SC_SEMA_BADEXPR_DEF(UnaryExpression, UnaryExprValueCat, Error,
                     expr->operand()->valueCategory()
                         << " operand is invalid for unary operator "
                         << expr->operation())
 
-SC_SEMA_BADEXPR_DEF(UnaryExpression,
-                    UnaryExprImmutable,
-                    Error,
+SC_SEMA_BADEXPR_DEF(UnaryExpression, UnaryExprImmutable, Error,
                     "Immutable operand is invalid for unary operator "
                         << expr->operation())
 
-SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    BinaryExprNoCommonType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(BinaryExpression, BinaryExprNoCommonType, Error,
                     "Operand types " << expr->lhs()->type()->name() << " and "
                                      << expr->rhs()->type()->name()
                                      << " have no common type")
 
-SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    BinaryExprBadType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(BinaryExpression, BinaryExprBadType, Error,
                     ::format(expr->operation())
                         << " is not supported for operand types "
                         << expr->lhs()->type()->name() << " and "
                         << expr->rhs()->type()->name())
 
-SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    AssignExprValueCatLHS,
-                    Error,
+SC_SEMA_BADEXPR_DEF(BinaryExpression, AssignExprValueCatLHS, Error,
                     expr->lhs()->valueCategory()
                         << " operand is invalid in assignment expression")
 
-SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    AssignExprImmutableLHS,
-                    Error,
+SC_SEMA_BADEXPR_DEF(BinaryExpression, AssignExprImmutableLHS, Error,
                     "Immutable operand is invalid in assignment expression")
 
-SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    AssignExprIncompleteLHS,
-                    Error,
+SC_SEMA_BADEXPR_DEF(BinaryExpression, AssignExprIncompleteLHS, Error,
                     "Incomplete left hand side operand type "
                         << sema::format(expr->lhs()->type())
                         << " is invalid in assignment expression")
 
-SC_SEMA_BADEXPR_DEF(BinaryExpression,
-                    AssignExprIncompleteRHS,
-                    Error,
+SC_SEMA_BADEXPR_DEF(BinaryExpression, AssignExprIncompleteRHS, Error,
                     "Incomplete right hand side operand type "
                         << sema::format(expr->rhs()->type())
                         << " is invalid in assignment expression")
 
-SC_SEMA_BADEXPR_DEF(MemberAccess,
-                    MemAccNonStaticThroughType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(MemberAccess, MemAccNonStaticThroughType, Error,
                     "Cannot access non-static member "
                         << expr->member()->value() << " without an object")
 
-SC_SEMA_BADEXPR_DEF(MemberAccess,
-                    MemAccTypeThroughValue,
-                    Error,
+SC_SEMA_BADEXPR_DEF(MemberAccess, MemAccTypeThroughValue, Error,
                     "Cannot access type " << expr->member()->value()
                                           << " through an object")
 
 SC_SEMA_BADEXPR_DEF(
-    Identifier,
-    AccessDenied,
-    Error,
+    Identifier, AccessDenied, Error,
     expr->value() << " is "
                   << formatWithIndefArticle(expr->entity()->accessControl())
                   << " member")
 
-SC_SEMA_BADEXPR_DEF(Conditional,
-                    ConditionalNoCommonType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Conditional, ConditionalNoCommonType, Error,
                     "Operand types " << expr->thenExpr()->type()->name()
                                      << " and "
                                      << expr->elseExpr()->type()->name()
                                      << " have no common type")
 
-SC_SEMA_BADEXPR_DEF(DereferenceExpression,
-                    DerefNoPtr,
-                    Error,
+SC_SEMA_BADEXPR_DEF(DereferenceExpression, DerefNoPtr, Error,
                     "Cannot dereference non-pointer type "
                         << expr->referred()->type()->name())
 
-SC_SEMA_BADEXPR_DEF(AddressOfExpression,
-                    AddrOfNoLValue,
-                    Error,
+SC_SEMA_BADEXPR_DEF(AddressOfExpression, AddrOfNoLValue, Error,
                     "Cannot take the address of an rvalue of type "
                         << expr->referred()->type()->name())
 
-SC_SEMA_BADEXPR_DEF(AddressOfExpression,
-                    MutAddrOfImmutable,
-                    Error,
+SC_SEMA_BADEXPR_DEF(AddressOfExpression, MutAddrOfImmutable, Error,
                     "Cannot take mutable address of an immutable value of type "
                         << expr->referred()->type()->name())
 
-SC_SEMA_BADEXPR_DEF(CallLike,
-                    SubscriptNoArray,
-                    Error,
+SC_SEMA_BADEXPR_DEF(CallLike, SubscriptNoArray, Error,
                     "Subscript expression on non-array type "
                         << expr->callee()->type()->name())
 
-SC_SEMA_BADEXPR_DEF(Subscript,
-                    SubscriptArgCount,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Subscript, SubscriptArgCount, Error,
                     "Subscript expression requires exactly one argument")
 
-SC_SEMA_BADEXPR_DEF(FunctionCall,
-                    ExplicitSMFCall,
-                    Error,
+SC_SEMA_BADEXPR_DEF(FunctionCall, ExplicitSMFCall, Error,
                     "Cannot explicitly call special member function")
 
-SC_SEMA_BADEXPR_DEF(FunctionCall,
-                    ObjectNotCallable,
-                    Error,
+SC_SEMA_BADEXPR_DEF(FunctionCall, ObjectNotCallable, Error,
                     "Object not callable")
 
-SC_SEMA_BADEXPR_DEF(FunctionCall,
-                    CantDeduceReturnType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(FunctionCall, CantDeduceReturnType, Error,
                     "Cannot deduce return type on recursive function")
 
-SC_SEMA_BADEXPR_DEF(ConstructBase,
-                    CannotConstructType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(ConstructBase, CannotConstructType, Error,
                     "Cannot construct type")
 
-SC_SEMA_BADEXPR_DEF(ConstructBase,
-                    DynArrayConstrBadArgs,
-                    Error,
+SC_SEMA_BADEXPR_DEF(ConstructBase, DynArrayConstrBadArgs, Error,
                     "Cannot construct dynamic array from the given arguments")
 
-SC_SEMA_BADEXPR_DEF(ConstructBase,
-                    DynArrayConstrAutoStorage,
-                    Error,
+SC_SEMA_BADEXPR_DEF(ConstructBase, DynArrayConstrAutoStorage, Error,
                     "Cannot construct dynamic array in automatic storage")
 
-SC_SEMA_BADEXPR_DEF(NonTrivAssignExpr,
-                    CannotAssignUncopyableType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(NonTrivAssignExpr, CannotAssignUncopyableType, Error,
                     "Cannot assign uncopyable type")
 
-SC_SEMA_BADEXPR_DEF(ListExpression,
-                    ListExprNoCommonType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(ListExpression, ListExprNoCommonType, Error,
                     "No common type in array expression")
 
-SC_SEMA_BADEXPR_DEF(ListExpression,
-                    ListExprVoid,
-                    Error,
+SC_SEMA_BADEXPR_DEF(ListExpression, ListExprVoid, Error,
                     "Invalid array of void elements")
 
-SC_SEMA_BADEXPR_DEF(ListExpression,
-                    ListExprTypeExcessElements,
-                    Error,
+SC_SEMA_BADEXPR_DEF(ListExpression, ListExprTypeExcessElements, Error,
                     "Too many arguments in array type expression")
 
-SC_SEMA_BADEXPR_DEF(Expression,
-                    ListExprNoIntSize,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Expression, ListExprNoIntSize, Error,
                     "Array type expression requires integral size")
 
-SC_SEMA_BADEXPR_DEF(Expression,
-                    ListExprNoConstSize,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Expression, ListExprNoConstSize, Error,
                     "Array type expression requires constant size")
 
-SC_SEMA_BADEXPR_DEF(Expression,
-                    ListExprNegativeSize,
-                    Error,
+SC_SEMA_BADEXPR_DEF(Expression, ListExprNegativeSize, Error,
                     "Array type expression requires non-negative size")
 
-SC_SEMA_BADEXPR_DEF(ListExpression,
-                    ListExprBadEntity,
-                    Error,
+SC_SEMA_BADEXPR_DEF(ListExpression, ListExprBadEntity, Error,
                     "Invalid entity for array expression")
 
-SC_SEMA_BADEXPR_DEF(MoveExpr,
-                    MoveExprConst,
-                    Error,
+SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprConst, Error,
                     "Cannot move immutable object")
 
-SC_SEMA_BADEXPR_DEF(MoveExpr,
-                    MoveExprImmovable,
-                    Error,
+SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprImmovable, Error,
                     "Cannot move immovable object")
 
-SC_SEMA_BADEXPR_DEF(MoveExpr,
-                    MoveExprIncompleteType,
-                    Error,
+SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprIncompleteType, Error,
                     "Attempt to move value of incomplete type "
                         << sema::format(expr->type()))
 
-SC_SEMA_BADEXPR_DEF(MoveExpr,
-                    MoveExprRValue,
-                    Warning,
+SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprRValue, Warning,
                     "Moving rvalue object has no effect")
 
-SC_SEMA_BADEXPR_DEF(MoveExpr,
-                    MoveExprCopies,
-                    Warning,
+SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprCopies, Warning,
                     "Moving object without move constructor results in a copy")
 
-SC_SEMA_BADEXPR_DEF(UniqueExpr,
-                    UniqueExprNoRValue,
-                    Error,
+SC_SEMA_BADEXPR_DEF(UniqueExpr, UniqueExprNoRValue, Error,
                     "Unique expression must be an rvalue")
 
 #undef SC_SEMA_BADEXPR_DEF

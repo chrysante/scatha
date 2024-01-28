@@ -35,9 +35,7 @@ std::optional<ScathaData> scatha::parseScatha(
         return std::nullopt;
     }
     result.analysisResult =
-        sema::analyze(*result.ast,
-                      result.sym,
-                      issueHandler,
+        sema::analyze(*result.ast, result.sym, issueHandler,
                       { .librarySearchPaths = libSearchPaths |
                                               ranges::to<std::vector> });
     if (!issueHandler.empty()) {
@@ -76,23 +74,16 @@ std::pair<ir::Context, ir::Module> scatha::parseIR(OptionsBase const& options) {
 }
 
 std::pair<ir::Context, ir::Module> scatha::genIR(
-    ast::ASTNode const& ast,
-    sema::SymbolTable const& symbolTable,
-    sema::AnalysisResult const& analysisResult,
-    irgen::Config config) {
+    ast::ASTNode const& ast, sema::SymbolTable const& symbolTable,
+    sema::AnalysisResult const& analysisResult, irgen::Config config) {
     ir::Context context;
     ir::Module mod;
-    irgen::generateIR(context,
-                      mod,
-                      ast,
-                      symbolTable,
-                      analysisResult,
+    irgen::generateIR(context, mod, ast, symbolTable, analysisResult,
                       std::move(config));
     return { std::move(context), std::move(mod) };
 }
 
-void scatha::optimize(ir::Context& ctx,
-                      ir::Module& mod,
+void scatha::optimize(ir::Context& ctx, ir::Module& mod,
                       OptionsBase const& options) {
     if (options.optLevel > 0) {
         opt::optimize(ctx, mod);

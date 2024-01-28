@@ -16,32 +16,20 @@ public:
     Value const* operand() const { return operandAt(0); }
 
 protected:
-    UnaryInstruction(InstType type,
-                     Register* dest,
-                     Value* operand,
-                     size_t byteWidth,
-                     Metadata metadata):
-        Instruction(type,
-                    dest,
-                    1,
-                    { operand },
-                    byteWidth,
+    UnaryInstruction(InstType type, Register* dest, Value* operand,
+                     size_t byteWidth, Metadata metadata):
+        Instruction(type, dest, 1, { operand }, byteWidth,
                     std::move(metadata)) {}
 };
 
 /// Concrete store instruction
 class StoreInst: public Instruction, public MemoryInst<StoreInst, 0, 1> {
 public:
-    explicit StoreInst(MemoryAddress address,
-                       Value* source,
-                       size_t byteWidth,
+    explicit StoreInst(MemoryAddress address, Value* source, size_t byteWidth,
                        Metadata metadata):
-        Instruction(InstType::StoreInst,
-                    nullptr,
-                    0,
+        Instruction(InstType::StoreInst, nullptr, 0,
                     { address.baseAddress(), address.dynOffset(), source },
-                    byteWidth,
-                    std::move(metadata)),
+                    byteWidth, std::move(metadata)),
         MemoryInst(address.constantData()) {}
 
     /// The address that is stored to
@@ -57,15 +45,10 @@ public:
 /// Concrete load instruction
 class LoadInst: public Instruction, public MemoryInst<StoreInst, 0, 1> {
 public:
-    explicit LoadInst(Register* dest,
-                      MemoryAddress source,
-                      size_t byteWidth,
+    explicit LoadInst(Register* dest, MemoryAddress source, size_t byteWidth,
                       Metadata metadata):
-        Instruction(InstType::LoadInst,
-                    dest,
-                    1,
-                    { source.baseAddress(), source.dynOffset() },
-                    byteWidth,
+        Instruction(InstType::LoadInst, dest, 1,
+                    { source.baseAddress(), source.dynOffset() }, byteWidth,
                     std::move(metadata)),
         MemoryInst(source.constantData()) {}
 
@@ -89,25 +72,17 @@ protected:
 /// Concrete copy instruction
 class CopyInst: public CopyBase {
 public:
-    explicit CopyInst(Register* dest,
-                      Value* source,
-                      size_t byteWidth,
+    explicit CopyInst(Register* dest, Value* source, size_t byteWidth,
                       Metadata metadata):
-        CopyBase(InstType::CopyInst,
-                 dest,
-                 source,
-                 byteWidth,
+        CopyBase(InstType::CopyInst, dest, source, byteWidth,
                  std::move(metadata)) {}
 };
 
 /// Concrete call instruction
 class CallInst: public Instruction {
 public:
-    explicit CallInst(Register* dest,
-                      size_t numDests,
-                      Value* callee,
-                      utl::small_vector<Value*> arguments,
-                      Metadata metadata);
+    explicit CallInst(Register* dest, size_t numDests, Value* callee,
+                      utl::small_vector<Value*> arguments, Metadata metadata);
 
     ///
     size_t registerOffset() const { return regOffset; }
@@ -144,15 +119,9 @@ private:
 /// Concrete cond-copy instruction
 class CondCopyInst: public CopyBase {
 public:
-    CondCopyInst(Register* dest,
-                 Value* source,
-                 size_t byteWidth,
-                 mir::CompareOperation condition,
-                 Metadata metadata):
-        CopyBase(InstType::CondCopyInst,
-                 dest,
-                 source,
-                 byteWidth,
+    CondCopyInst(Register* dest, Value* source, size_t byteWidth,
+                 mir::CompareOperation condition, Metadata metadata):
+        CopyBase(InstType::CondCopyInst, dest, source, byteWidth,
                  std::move(metadata)),
         _cond(condition) {}
 
@@ -167,10 +136,7 @@ private:
 class LISPInst: public UnaryInstruction {
 public:
     explicit LISPInst(Register* dest, Value* allocSize, Metadata metadata):
-        UnaryInstruction(InstType::LISPInst,
-                         dest,
-                         allocSize,
-                         0,
+        UnaryInstruction(InstType::LISPInst, dest, allocSize, 0,
                          std::move(metadata)) {}
 
     /// \Returns `true` if the size of this allocation is known at compile time
@@ -191,11 +157,8 @@ public:
 class LEAInst: public Instruction, public MemoryInst<LEAInst, 0, 1> {
 public:
     explicit LEAInst(Register* dest, MemoryAddress addr, Metadata metadata):
-        Instruction(InstType::LEAInst,
-                    dest,
-                    1,
-                    { addr.baseAddress(), addr.dynOffset() },
-                    0,
+        Instruction(InstType::LEAInst, dest, 1,
+                    { addr.baseAddress(), addr.dynOffset() }, 0,
                     std::move(metadata)),
         MemoryInst(addr.constantData()) {}
 
@@ -206,16 +169,9 @@ public:
 /// Concrete compare instruction
 class CompareInst: public Instruction {
 public:
-    explicit CompareInst(Value* LHS,
-                         Value* RHS,
-                         size_t byteWidth,
-                         CompareMode mode,
-                         Metadata metadata):
-        Instruction(InstType::CompareInst,
-                    nullptr,
-                    0,
-                    { LHS, RHS },
-                    byteWidth,
+    explicit CompareInst(Value* LHS, Value* RHS, size_t byteWidth,
+                         CompareMode mode, Metadata metadata):
+        Instruction(InstType::CompareInst, nullptr, 0, { LHS, RHS }, byteWidth,
                     std::move(metadata)),
         _mode(mode) {}
 
@@ -241,14 +197,9 @@ private:
 /// Concrete test instruction
 class TestInst: public UnaryInstruction {
 public:
-    explicit TestInst(Value* operand,
-                      size_t byteWidth,
-                      CompareMode mode,
+    explicit TestInst(Value* operand, size_t byteWidth, CompareMode mode,
                       Metadata metadata):
-        UnaryInstruction(InstType::TestInst,
-                         nullptr,
-                         operand,
-                         byteWidth,
+        UnaryInstruction(InstType::TestInst, nullptr, operand, byteWidth,
                          std::move(metadata)),
         _mode(mode) {}
 
@@ -262,8 +213,7 @@ private:
 /// Concrete set instruction
 class SetInst: public Instruction {
 public:
-    explicit SetInst(Register* dest,
-                     CompareOperation operation,
+    explicit SetInst(Register* dest, CompareOperation operation,
                      Metadata metadata):
         Instruction(InstType::SetInst, dest, 1, {}, 0, std::move(metadata)),
         op(operation) {}
@@ -278,16 +228,12 @@ private:
 /// Concrete unary arithmetic instruction
 class UnaryArithmeticInst: public UnaryInstruction {
 public:
-    explicit UnaryArithmeticInst(Register* dest,
-                                 Value* operand,
+    explicit UnaryArithmeticInst(Register* dest, Value* operand,
                                  size_t byteWidth,
                                  UnaryArithmeticOperation operation,
                                  Metadata metadata):
-        UnaryInstruction(InstType::UnaryArithmeticInst,
-                         dest,
-                         operand,
-                         byteWidth,
-                         std::move(metadata)),
+        UnaryInstruction(InstType::UnaryArithmeticInst, dest, operand,
+                         byteWidth, std::move(metadata)),
         op(operation) {}
 
     ///
@@ -311,17 +257,10 @@ public:
     Value const* LHS() const { return operandAt(0); }
 
 protected:
-    ArithmeticInst(InstType instType,
-                   Register* dest,
-                   utl::small_vector<Value*> operands,
-                   size_t byteWidth,
-                   ArithmeticOperation operation,
-                   Metadata metadata):
-        Instruction(instType,
-                    dest,
-                    1,
-                    std::move(operands),
-                    byteWidth,
+    ArithmeticInst(InstType instType, Register* dest,
+                   utl::small_vector<Value*> operands, size_t byteWidth,
+                   ArithmeticOperation operation, Metadata metadata):
+        Instruction(instType, dest, 1, std::move(operands), byteWidth,
                     std::move(metadata)),
         op(operation) {}
 
@@ -333,18 +272,12 @@ private:
 /// constants)
 class ValueArithmeticInst: public ArithmeticInst {
 public:
-    explicit ValueArithmeticInst(Register* dest,
-                                 Value* LHS,
-                                 Value* RHS,
+    explicit ValueArithmeticInst(Register* dest, Value* LHS, Value* RHS,
                                  size_t byteWidth,
                                  ArithmeticOperation operation,
                                  Metadata metadata):
-        ArithmeticInst(InstType::ValueArithmeticInst,
-                       dest,
-                       { LHS, RHS },
-                       byteWidth,
-                       operation,
-                       std::move(metadata)) {}
+        ArithmeticInst(InstType::ValueArithmeticInst, dest, { LHS, RHS },
+                       byteWidth, operation, std::move(metadata)) {}
 
     /// RIght hand side operand
     Value* RHS() { return operandAt(1); }
@@ -358,18 +291,12 @@ class LoadArithmeticInst:
     public ArithmeticInst,
     public MemoryInst<LoadArithmeticInst, 1, 2> {
 public:
-    explicit LoadArithmeticInst(Register* dest,
-                                Value* LHS,
-                                MemoryAddress RHS,
-                                size_t byteWidth,
-                                ArithmeticOperation operation,
+    explicit LoadArithmeticInst(Register* dest, Value* LHS, MemoryAddress RHS,
+                                size_t byteWidth, ArithmeticOperation operation,
                                 Metadata metadata):
-        ArithmeticInst(InstType::LoadArithmeticInst,
-                       dest,
-                       { LHS, RHS.baseAddress(), RHS.dynOffset() },
-                       byteWidth,
-                       operation,
-                       std::move(metadata)),
+        ArithmeticInst(InstType::LoadArithmeticInst, dest,
+                       { LHS, RHS.baseAddress(), RHS.dynOffset() }, byteWidth,
+                       operation, std::move(metadata)),
         MemoryInst({ RHS.constantData() }) {}
 
     /// Right hand side memory operand
@@ -382,12 +309,8 @@ public:
 ///
 class ConversionInst: public UnaryInstruction {
 public:
-    explicit ConversionInst(Register* dest,
-                            Value* operand,
-                            Conversion conv,
-                            size_t fromBits,
-                            size_t toBits,
-                            Metadata metadata);
+    explicit ConversionInst(Register* dest, Value* operand, Conversion conv,
+                            size_t fromBits, size_t toBits, Metadata metadata);
 
     ///
     Conversion conversion() const { return conv; }
@@ -407,14 +330,9 @@ private:
 /// Abstract base class of `JumpInst`, `CondJumpInst` and `ReturnInst`
 class TerminatorInst: public Instruction {
 protected:
-    TerminatorInst(InstType instType,
-                   utl::small_vector<Value*> operands,
+    TerminatorInst(InstType instType, utl::small_vector<Value*> operands,
                    Metadata metadata):
-        Instruction(instType,
-                    nullptr,
-                    0,
-                    std::move(operands),
-                    0,
+        Instruction(instType, nullptr, 0, std::move(operands), 0,
                     std::move(metadata)) {}
 };
 
@@ -442,8 +360,7 @@ public:
 ///
 class CondJumpInst: public JumpBase {
 public:
-    explicit CondJumpInst(Value* target,
-                          CompareOperation condition,
+    explicit CondJumpInst(Value* target, CompareOperation condition,
                           Metadata metadata):
         JumpBase(InstType::CondJumpInst, target, std::move(metadata)),
         cond(condition) {}
@@ -460,41 +377,27 @@ private:
 class ReturnInst: public TerminatorInst {
 public:
     explicit ReturnInst(utl::small_vector<Value*> operands, Metadata metadata):
-        TerminatorInst(InstType::ReturnInst,
-                       std::move(operands),
+        TerminatorInst(InstType::ReturnInst, std::move(operands),
                        std::move(metadata)) {}
 };
 
 ///
 class PhiInst: public Instruction {
 public:
-    explicit PhiInst(Register* dest,
-                     utl::small_vector<Value*> operands,
-                     size_t byteWidth,
-                     Metadata metadata):
-        Instruction(InstType::PhiInst,
-                    dest,
-                    1,
-                    std::move(operands),
-                    byteWidth,
+    explicit PhiInst(Register* dest, utl::small_vector<Value*> operands,
+                     size_t byteWidth, Metadata metadata):
+        Instruction(InstType::PhiInst, dest, 1, std::move(operands), byteWidth,
                     std::move(metadata)) {}
 };
 
 ///
 class SelectInst: public Instruction {
 public:
-    explicit SelectInst(Register* dest,
-                        Value* thenVal,
-                        Value* elseVal,
-                        CompareOperation condition,
-                        size_t byteWidth,
+    explicit SelectInst(Register* dest, Value* thenVal, Value* elseVal,
+                        CompareOperation condition, size_t byteWidth,
                         Metadata metadata):
-        Instruction(InstType::SelectInst,
-                    dest,
-                    1,
-                    { thenVal, elseVal },
-                    byteWidth,
-                    std::move(metadata)),
+        Instruction(InstType::SelectInst, dest, 1, { thenVal, elseVal },
+                    byteWidth, std::move(metadata)),
         cond(condition) {}
 
     /// The value selected if the condition is satisfies

@@ -14,8 +14,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::splitCriticalEdges,
-                 "splitcriticaledges",
+SC_REGISTER_PASS(opt::splitCriticalEdges, "splitcriticaledges",
                  PassCategory::Simplification);
 
 bool opt::preceeds(Instruction const* a, Instruction const* b) {
@@ -66,9 +65,7 @@ bool opt::compareEqual(Phi const* lhs, std::span<PhiMapping const> rhs) {
     return cmpEqImpl(lhs, rhs);
 }
 
-BasicBlock* opt::splitEdge(std::string name,
-                           Context& ctx,
-                           BasicBlock* from,
+BasicBlock* opt::splitEdge(std::string name, Context& ctx, BasicBlock* from,
                            BasicBlock* to) {
     auto* tmp = new BasicBlock(ctx, std::move(name));
     auto* function = from->parent();
@@ -111,8 +108,7 @@ bool opt::splitCriticalEdges(Context& ctx, Function& function) {
     return dfs.modified;
 }
 
-BasicBlock* opt::addJoiningPredecessor(Context& ctx,
-                                       BasicBlock* header,
+BasicBlock* opt::addJoiningPredecessor(Context& ctx, BasicBlock* header,
                                        std::span<BasicBlock* const> preds,
                                        std::string name) {
     // clang-format off

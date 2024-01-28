@@ -26,8 +26,7 @@ struct SCATHA_API Config {
 };
 
 /// Lower the front-end representation of the program to IR
-SCATHA_API void generateIR(ir::Context& ctx,
-                           ir::Module& mod,
+SCATHA_API void generateIR(ir::Context& ctx, ir::Module& mod,
                            ast::ASTNode const& ast,
                            sema::SymbolTable const& symbolTable,
                            sema::AnalysisResult const& analysisResult,

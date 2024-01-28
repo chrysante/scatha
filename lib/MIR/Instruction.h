@@ -124,11 +124,8 @@ public:
     void clearDest();
 
 protected:
-    Instruction(InstType instType,
-                Register* dest,
-                size_t numDests,
-                utl::small_vector<Value*> operands,
-                size_t byteWidth,
+    Instruction(InstType instType, Register* dest, size_t numDests,
+                utl::small_vector<Value*> operands, size_t byteWidth,
                 Metadata metadata);
 
 private:
@@ -153,14 +150,12 @@ template <typename Derived, size_t AddrIdx, size_t OffsetIdx>
 class MemoryInst {
 public:
     MemoryAddress address() {
-        return { derived().operandAt(AddrIdx),
-                 derived().operandAt(OffsetIdx),
+        return { derived().operandAt(AddrIdx), derived().operandAt(OffsetIdx),
                  _constData };
     }
 
     ConstMemoryAddress address() const {
-        return { derived().operandAt(AddrIdx),
-                 derived().operandAt(OffsetIdx),
+        return { derived().operandAt(AddrIdx), derived().operandAt(OffsetIdx),
                  _constData };
     }
 

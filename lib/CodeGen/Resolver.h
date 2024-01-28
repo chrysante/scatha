@@ -18,9 +18,7 @@ class Resolver {
 public:
     Resolver() = default;
 
-    explicit Resolver(mir::Context& ctx,
-                      mir::Module& mod,
-                      mir::Function& F,
+    explicit Resolver(mir::Context& ctx, mir::Module& mod, mir::Function& F,
                       ValueMap& valueMap,
                       std::function<void(mir::Instruction*)> instEmitter):
         ctx(&ctx),
@@ -72,22 +70,16 @@ public:
 
     /// \Returns The register after \p dest
     template <typename R, typename Copy = mir::CopyInst>
-    R* genCopy(R* dest,
-               mir::Value* source,
-               size_t numBytes,
+    R* genCopy(R* dest, mir::Value* source, size_t numBytes,
                Metadata metadata) const;
 
     /// Same as `genCopy()` but generates `cmov` instructions
     template <typename R, typename Copy = mir::CondCopyInst>
-    R* genCondCopy(R* dest,
-                   mir::Value* source,
-                   size_t numBytes,
-                   mir::CompareOperation condition,
-                   Metadata metadata) const;
+    R* genCondCopy(R* dest, mir::Value* source, size_t numBytes,
+                   mir::CompareOperation condition, Metadata metadata) const;
 
     /// Computes the MIR representation of memory address represented by \p addr
-    mir::MemoryAddress computeAddress(ir::Value const& addr,
-                                      size_t offset,
+    mir::MemoryAddress computeAddress(ir::Value const& addr, size_t offset,
                                       Metadata metadata) const;
 
     /// \overload for `offset = 0`
@@ -127,9 +119,7 @@ private:
                                                       Metadata metadata) const;
 
     mir::Register* genCopyImpl(
-        mir::Register* dest,
-        mir::Value* source,
-        size_t numBytes,
+        mir::Register* dest, mir::Value* source, size_t numBytes,
         utl::function_view<void(mir::Register*, mir::Value*, size_t)>
             insertCallback) const;
 
@@ -149,14 +139,10 @@ private:
 namespace scatha::cg {
 
 template <typename R, typename Copy>
-R* Resolver::genCopy(R* dest,
-                     mir::Value* source,
-                     size_t numBytes,
+R* Resolver::genCopy(R* dest, mir::Value* source, size_t numBytes,
                      Metadata metadata) const {
     mir::Register* result =
-        genCopyImpl(dest,
-                    source,
-                    numBytes,
+        genCopyImpl(dest, source, numBytes,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, metadata));
     });
@@ -166,15 +152,11 @@ R* Resolver::genCopy(R* dest,
 }
 
 template <typename R, typename Copy>
-R* Resolver::genCondCopy(R* dest,
-                         mir::Value* source,
-                         size_t numBytes,
+R* Resolver::genCondCopy(R* dest, mir::Value* source, size_t numBytes,
                          mir::CompareOperation condition,
                          Metadata metadata) const {
     mir::Register* result =
-        genCopyImpl(dest,
-                    source,
-                    numBytes,
+        genCopyImpl(dest, source, numBytes,
                     [&](auto* dest, auto* source, size_t numBytes) {
         emit(new Copy(dest, source, numBytes, condition, metadata));
     });

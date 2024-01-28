@@ -136,8 +136,7 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
         auto addr = load<VirtualPointer>(regPtr);
         auto size = load<i64>(regPtr + 1);
         auto align = load<i64>(regPtr + 2);
-        vm->impl->memory.deallocate(addr,
-                                    static_cast<size_t>(size),
+        vm->impl->memory.deallocate(addr, static_cast<size_t>(size),
                                     static_cast<size_t>(align));
     });
 

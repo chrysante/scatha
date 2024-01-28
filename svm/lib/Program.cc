@@ -137,8 +137,7 @@ static auto printAs(std::span<u8 const> data, size_t offset) {
 }
 
 static constexpr utl::streammanip reg([](std::ostream& str,
-                                         std::span<u8 const> text,
-                                         size_t i) {
+                                         std::span<u8 const> text, size_t i) {
     str << "%" << +readAs<u8>(text, i);
 });
 

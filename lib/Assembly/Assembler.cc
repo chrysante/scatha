@@ -93,8 +93,7 @@ struct Assembler: AsmWriter {
 
     /// Used when emitting a jump or call instruction. Stores the code position
     /// of the destination and the target ID.
-    void registerJumpSite(size_t offsetValuePos,
-                          LabelID targetID,
+    void registerJumpSite(size_t offsetValuePos, LabelID targetID,
                           size_t width) {
         jumpsites.push_back({
             .codePosition = offsetValuePos,
@@ -149,8 +148,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     };
     result.program.resize(header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
-    std::memcpy(result.program.data() + header.dataOffset,
-                ctx.binary.data(),
+    std::memcpy(result.program.data() + header.dataOffset, ctx.binary.data(),
                 ctx.binary.size());
     return result;
 }
@@ -189,10 +187,9 @@ void Assembler::translate(MoveInst const& mov) {
 }
 
 void Assembler::translate(CMoveInst const& cmov) {
-    auto const [opcode, size] = mapCMove(cmov.condition(),
-                                         cmov.dest().valueType(),
-                                         cmov.source().valueType(),
-                                         cmov.numBytes());
+    auto const [opcode, size] =
+        mapCMove(cmov.condition(), cmov.dest().valueType(),
+                 cmov.source().valueType(), cmov.numBytes());
     put(opcode);
     dispatch(cmov.dest());
     dispatch(promote(cmov.source(), size));
@@ -241,10 +238,9 @@ void Assembler::translate(LEAInst const& lea) {
 }
 
 void Assembler::translate(CompareInst const& cmp) {
-    OpCode const opcode = mapCompare(cmp.type(),
-                                     promote(cmp.lhs().valueType(), 8),
-                                     promote(cmp.rhs().valueType(), 8),
-                                     cmp.width());
+    OpCode const opcode =
+        mapCompare(cmp.type(), promote(cmp.lhs().valueType(), 8),
+                   promote(cmp.rhs().valueType(), 8), cmp.width());
     put(opcode);
     dispatch(promote(cmp.lhs(), 8));
     dispatch(promote(cmp.rhs(), 8));
@@ -297,13 +293,12 @@ void Assembler::translate(UnaryArithmeticInst const& inst) {
 }
 
 void Assembler::translate(ArithmeticInst const& inst) {
-    OpCode const opcode = inst.width() == 4 ?
-                              mapArithmetic32(inst.operation(),
-                                              inst.dest().valueType(),
-                                              inst.source().valueType()) :
-                              mapArithmetic64(inst.operation(),
-                                              inst.dest().valueType(),
-                                              inst.source().valueType());
+    OpCode const opcode =
+        inst.width() == 4 ?
+            mapArithmetic32(inst.operation(), inst.dest().valueType(),
+                            inst.source().valueType()) :
+            mapArithmetic64(inst.operation(), inst.dest().valueType(),
+                            inst.source().valueType());
     put(opcode);
     dispatch(inst.dest());
     dispatch(inst.source());

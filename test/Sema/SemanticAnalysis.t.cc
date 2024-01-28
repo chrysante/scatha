@@ -447,8 +447,7 @@ extern "D" fn foo() -> void;
 }
 
 static void compileTestlib() {
-    test::compileLibrary("libs/testlib",
-                         "libs",
+    test::compileLibrary("libs/testlib", "libs",
                          R"(
 public fn foo() { return 42; }
 public fn bar() { return 42; }
