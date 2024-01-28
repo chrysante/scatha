@@ -17,27 +17,31 @@ TEST_CASE("Unique expr of int", "[irgen]") {
     auto [ctx, mod] = makeIR({ source });
     auto& F = mod.front();
     CHECK(F.parameters().empty());
-    auto view = BBView(F.entry());
 
+    auto entry = BBView(F.entry());
     auto* eight = ctx.intConstant(8, 64);
-    auto& alloc = view.nextAs<Call>();
+    auto& alloc = entry.nextAs<Call>();
     CHECK(alloc.function()->name() == "__builtin_alloc");
     CHECK(alloc.argumentAt(0) == eight);
     CHECK(alloc.argumentAt(1) == eight);
-    auto& data = view.nextAs<ExtractValue>();
+    auto& data = entry.nextAs<ExtractValue>();
     CHECK(data.baseValue() == &alloc);
-    auto& store = view.nextAs<Store>();
+    auto& store = entry.nextAs<Store>();
     CHECK(store.address() == &data);
     CHECK(store.value() == ctx.intConstant(42, 64));
-    auto& load = view.nextAs<Load>();
+    auto& load = entry.nextAs<Load>();
     CHECK(load.address() == &data);
     CHECK(load.type() == ctx.intType(64));
-    auto& dealloc = view.nextAs<Call>();
+
+    auto del = entry.nextBlock();
+    auto& dealloc = del.nextAs<Call>();
     CHECK(dealloc.function()->name() == "__builtin_dealloc");
     CHECK(dealloc.argumentAt(0) == &data);
     CHECK(dealloc.argumentAt(1) == eight);
     CHECK(dealloc.argumentAt(2) == eight);
-    auto& ret = view.nextAs<Return>();
+
+    auto end = del.nextBlock();
+    auto& ret = end.nextAs<Return>();
     CHECK(ret.value() == &load);
 }
 
@@ -48,27 +52,38 @@ TEST_CASE("Unique expr of dynamic int array", "[irgen]") {
     auto [ctx, mod] = makeIR({ source });
     auto& F = mod.front();
     CHECK(F.parameters().empty());
-    auto view = BBView(F.entry());
 
-    auto& alloc = view.nextAs<Call>();
+    auto entry = BBView(F.entry());
+    auto& alloc = entry.nextAs<Call>();
     CHECK(alloc.function()->name() == "__builtin_alloc");
     CHECK(alloc.argumentAt(0) == ctx.intConstant(42 * 8, 64));
-    auto& data = view.nextAs<ExtractValue>();
+    auto& data = entry.nextAs<ExtractValue>();
     CHECK(data.baseValue() == &alloc);
-    auto& memset = view.nextAs<Call>();
+    auto& memset = entry.nextAs<Call>();
     CHECK(memset.function()->name() == "__builtin_memset");
     CHECK(memset.argumentAt(0) == &data);
     CHECK(memset.argumentAt(1) == ctx.intConstant(42 * 8, 64));
-    auto& gep = view.nextAs<GetElementPointer>();
+    auto& gep = entry.nextAs<GetElementPointer>();
     CHECK(gep.basePointer() == &data);
     CHECK(gep.arrayIndex() == ctx.intConstant(0, 64));
-    auto& load = view.nextAs<Load>();
+    auto& load = entry.nextAs<Load>();
     CHECK(load.address() == &gep);
     CHECK(load.type() == ctx.intType(64));
-    auto& dealloc = view.nextAs<Call>();
+    // Null pointer test
+    auto& cmp = entry.nextAs<CompareInst>();
+    CHECK(cmp.lhs() == &data);
+    CHECK(cmp.rhs() == ctx.nullpointer());
+    auto& branch = entry.nextAs<Branch>();
+    CHECK(branch.condition() == &cmp);
+
+    auto del = entry.nextBlock();
+    auto& dealloc = del.nextAs<Call>();
     CHECK(dealloc.function()->name() == "__builtin_dealloc");
     CHECK(dealloc.argumentAt(0) == &data);
-    auto& ret = view.nextAs<Return>();
+    auto& gt = del.nextAs<Goto>();
+
+    auto end = del.nextBlock();
+    auto& ret = end.nextAs<Return>();
     CHECK(ret.value() == &load);
 }
 
@@ -102,9 +117,12 @@ public fn foo() {
     CHECK_NOTHROW(body.nextAs<CompareInst>());
     CHECK_NOTHROW(body.nextAs<Branch>());
 
-    auto end = body.nextBlock();
-    auto& dealloc = end.nextAs<Call>();
+    auto constrEnd = body.nextBlock();
+    auto del = constrEnd.nextBlock();
+    auto& dealloc = del.nextAs<Call>();
     CHECK(dealloc.function()->name() == "__builtin_dealloc");
     CHECK(dealloc.argumentAt(0) == &data);
-    CHECK_NOTHROW(end.nextAs<Return>());
+
+    auto delEnd = del.nextBlock();
+    CHECK_NOTHROW(delEnd.nextAs<Return>());
 }

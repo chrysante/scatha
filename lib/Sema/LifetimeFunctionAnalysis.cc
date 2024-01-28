@@ -214,6 +214,7 @@ LifetimeOperation LifetimeAnalyzer::resolveStructOp(SMFKind kind,
                                                     StructType& type,
                                                     bool generateCond) {
     if (userDef) {
+        userDef->setSMFKind(kind);
         return userDef;
     }
     if (!generateCond) {

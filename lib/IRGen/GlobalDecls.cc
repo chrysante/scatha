@@ -60,6 +60,11 @@ static bool mayPassInRegister(sema::Type const* type) {
     if (isa<sema::VoidType>(type)) {
         return true;
     }
+    /// Unique pointers are nontrivial but are passed in registers. They are
+    /// destroyed inline and require no address stability
+    if (isa<sema::UniquePtrType>(type)) {
+        return true;
+    }
     if (type->size() > PreferredMaxRegisterValueSize) {
         return false;
     }

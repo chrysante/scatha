@@ -83,6 +83,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::TrivCopyConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivAggrConstructExpr&);
     ast::Expression* analyzeImpl(ast::NontrivConstructExpr&);
+    ast::Expression* analyzeImpl(ast::NontrivInlineConstructExpr&);
     ast::Expression* analyzeImpl(ast::NontrivAggrConstructExpr&);
     ast::Expression* analyzeImpl(ast::DynArrayConstructExpr&);
 
@@ -1378,6 +1379,30 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
         return nullptr;
     }
     return &expr;
+}
+
+ast::Expression* ExprContext::analyzeImpl(
+    ast::NontrivInlineConstructExpr& expr) {
+    if (auto* type = dyncast<ArrayType const*>(expr.constructedType())) {
+        SC_UNIMPLEMENTED();
+    }
+    if (auto* type = dyncast<UniquePtrType const*>(expr.constructedType())) {
+        switch (expr.arguments().size()) {
+        case 0: { // Default construction
+            auto* obj = sym.temporary(&expr, type);
+            expr.decorateConstruct(obj);
+            if (!currentCleanupStack().push(obj, ctx)) {
+                return nullptr;
+            }
+            return &expr;
+        }
+        default:
+            SC_UNIMPLEMENTED();
+        }
+    }
+    else {
+        SC_UNIMPLEMENTED();
+    }
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {

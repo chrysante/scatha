@@ -17,6 +17,7 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
+#include "Sema/Format.h"
 #include "Sema/QualType.h"
 #include "Sema/SymbolTable.h"
 
@@ -66,14 +67,22 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Statement specific utilities
     void generateCleanups(sema::CleanupStack const& cleanupStack);
 
-    void generateCleanup(Value const& value, sema::LifetimeOperation destroy);
+    void generateCleanup(Value const& value,
+                         sema::LifetimeOperation destroy,
+                         sema::Object const* obj = nullptr);
 
-    void inlineCleanup(Value const& value);
-    void inlineCleanupImpl(Value const&, sema::Type const&) {
+    void inlineCleanup(Value const& value, sema::Object const* obj);
+    void inlineCleanupImpl(Value const&,
+                           sema::Type const&,
+                           sema::Object const*) {
         SC_UNREACHABLE();
     }
-    void inlineCleanupImpl(Value const& value, sema::ArrayType const&);
-    void inlineCleanupImpl(Value const& value, sema::UniquePtrType const&);
+    void inlineCleanupImpl(Value const&,
+                           sema::ArrayType const&,
+                           sema::Object const*);
+    void inlineCleanupImpl(Value const&,
+                           sema::UniquePtrType const&,
+                           sema::Object const*);
 
     /// Creates array size values and stores them in `objectMap` if declared
     /// type is array
@@ -132,6 +141,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::TrivCopyConstructExpr const&);
     Value getValueImpl(ast::TrivAggrConstructExpr const&);
     Value getValueImpl(ast::NontrivConstructExpr const&);
+    Value getValueImpl(ast::NontrivInlineConstructExpr const&);
     Value getValueImpl(ast::NontrivAggrConstructExpr const&);
     Value getValueImpl(ast::DynArrayConstructExpr const&);
 
@@ -1554,6 +1564,38 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
     }
 }
 
+/// Helper function to generate comments for constructor and destructor calls or inline lifetime blocks.
+/// This makes the resulting IR easier to read
+static std::string makeLifetimeComment(std::string_view kind,
+                                       sema::Entity const* entity,
+                                       sema::Type const* type) {
+    return utl::strcat(kind, " for ", sema::format(entity ? entity : type));
+}
+
+/// \Overload
+static std::string makeLifetimeComment(sema::Function const* ctor,
+                                       sema::Entity const* entity) {
+    using enum sema::SMFKind;
+    auto kind = [&]() -> std::string_view {
+        if (!ctor->smfKind()) {
+            return "Other constructor";
+        }
+        switch (*ctor->smfKind()) {
+        case DefaultConstructor:
+            return "Default constructor";
+        case CopyConstructor:
+            return "Copy constructor";
+        case MoveConstructor:
+            return "Move constructor";
+        case Destructor:
+            return "Destructor";
+        }
+    }();
+    return makeLifetimeComment(kind,
+                               entity,
+                               cast<sema::Type const*>(ctor->parent()));
+}
+
 Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {
     auto* type = expr.constructedType();
     auto* irType = typeMap.packed(type);
@@ -1564,8 +1606,31 @@ Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {
     auto irArguments =
         unpackArguments(CC.arguments() | drop(1), getValues(expr.arguments()));
     irArguments.insert(irArguments.begin(), mem);
-    add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
+    auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
+    call->setComment(makeLifetimeComment(expr.constructor(), expr.object()));
     return Value(name, type, { mem }, Memory, Packed);
+}
+
+Value FuncGenContext::getValueImpl(
+    ast::NontrivInlineConstructExpr const& expr) {
+    if (auto* type = dyncast<sema::ArrayType const*>(expr.constructedType())) {
+        SC_UNIMPLEMENTED();
+    }
+    if (auto* type =
+            dyncast<sema::UniquePtrType const*>(expr.constructedType()))
+    {
+        SC_ASSERT(expr.arguments().size() == 0, "");
+        auto* irType = typeMap.packed(expr.type().get());
+        auto* null = makeZeroConstant(irType);
+        return Value("unique.ptr",
+                     expr.type().get(),
+                     { null },
+                     Register,
+                     Packed);
+    }
+    else {
+        SC_UNREACHABLE();
+    }
 }
 
 Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
@@ -1655,12 +1720,15 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
 
 void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
-        generateCleanup(valueMap(cleanup.object), cleanup.operation);
+        generateCleanup(valueMap(cleanup.object),
+                        cleanup.operation,
+                        cleanup.object);
     }
 }
 
 void FuncGenContext::generateCleanup(Value const& value,
-                                     sema::LifetimeOperation destroy) {
+                                     sema::LifetimeOperation destroy,
+                                     sema::Object const* obj) {
     using enum sema::LifetimeOperation::Kind;
     switch (destroy.kind()) {
     case Trivial:
@@ -1672,23 +1740,27 @@ void FuncGenContext::generateCleanup(Value const& value,
                   "Shall have single pointer argument");
         SC_ASSERT(value.isMemory(), "Must be in memory");
         auto* addr = to<Packed>(Memory, value);
-        add<ir::Call>(function, ValueArray{ addr }, std::string{});
+        auto* call = add<ir::Call>(function, ValueArray{ addr }, std::string{});
+        call->setComment(makeLifetimeComment(destroy.function(), obj));
         break;
     }
     case NontrivialInline:
-        inlineCleanup(value);
+        inlineCleanup(value, obj);
         break;
     case Deleted:
         SC_UNREACHABLE();
     }
 }
 
-void FuncGenContext::inlineCleanup(Value const& value) {
-    visit(*value.type(), [&](auto& type) { inlineCleanupImpl(value, type); });
+void FuncGenContext::inlineCleanup(Value const& value,
+                                   sema::Object const* obj) {
+    visit(*value.type(),
+          [&](auto& type) { inlineCleanupImpl(value, type, obj); });
 }
 
 void FuncGenContext::inlineCleanupImpl(Value const& value,
-                                       sema::ArrayType const& type) {
+                                       sema::ArrayType const& type,
+                                       sema::Object const* obj) {
     auto* arrayBegin = to<Unpacked>(Memory, value).front();
     auto loop =
         generateForLoop("array.destr",
@@ -1712,9 +1784,24 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
 }
 
 void FuncGenContext::inlineCleanupImpl(Value const& value,
-                                       sema::UniquePtrType const& type) {
+                                       sema::UniquePtrType const& type,
+                                       sema::Object const* obj) {
     auto elems = to<Unpacked>(Register, value);
     auto* pointeeType = type.base().get();
+    std::string name = "unique.ptr";
+
+    auto* deleteBlock = newBlock(utl::strcat(name, ".delete"));
+    auto* endBlock = newBlock(utl::strcat(name, ".end"));
+    auto* cmp = add<ir::CompareInst>(ctx,
+                                     elems[0],
+                                     ctx.nullpointer(),
+                                     ir::CompareMode::Unsigned,
+                                     ir::CompareOperation::NotEqual,
+                                     utl::strcat(name, ".engaged"));
+    auto* branch = add<ir::Branch>(ctx, cmp, deleteBlock, endBlock);
+    branch->setComment(makeLifetimeComment("Destruction block", obj, &type));
+
+    add(deleteBlock);
     auto [bytesize, align] = [&]() -> ValueArray<2> {
         if (elems.size() == 1) {
             return { ctx.intConstant(type.size(), 64),
@@ -1730,6 +1817,9 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
                     valueDtor);
     auto* dealloc = getBuiltin(svm::Builtin::dealloc);
     add<ir::Call>(dealloc, ValueArray{ elems.front(), bytesize, align });
+    add<ir::Goto>(ctx, endBlock);
+
+    add(endBlock);
 }
 
 void FuncGenContext::addSourceLoc(ir::Instruction* inst,

@@ -205,6 +205,30 @@ inline constexpr size_t EnumSize = static_cast<size_t>(E::COUNT);
     inline constexpr size_t scatha::EnumSize<Enum> =                           \
         static_cast<size_t>(Enum::Last) + 1;
 
+/// # impl_cast
+
+namespace internal {
+
+template <typename To>
+struct ImplCastFn {
+    template <typename From>
+        requires std::is_pointer_v<To> && std::is_convertible_v<From*, To>
+    constexpr To operator()(From* p) const {
+        return p;
+    }
+
+    template <typename From>
+        requires std::is_reference_v<To> && std::is_convertible_v<From&, To>
+    constexpr To operator()(From& p) const {
+        return p;
+    }
+};
+
+} // namespace internal
+
+template <typename To>
+inline constexpr internal::ImplCastFn<To> impl_cast{};
+
 } // namespace scatha
 
 namespace scatha::internal {

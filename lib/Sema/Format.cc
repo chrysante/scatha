@@ -24,7 +24,12 @@ utl::vstreammanip<> sema::format(Entity const* entity) {
                 if (entity.isAnonymous()) {
                     str << tfmt::format(Italic, "<anonymous>");
                 }
-                str << entity.name();
+                else {
+                    str << entity.name();
+                }
+            },
+            [&](Temporary const& tmp) {
+                str << "tmp[" << tmp.id() << "]";
             },
             [&](BuiltinType const& type) {
                 str << tfmt::format(Magenta | Bold, type.name());

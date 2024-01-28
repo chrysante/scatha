@@ -96,8 +96,6 @@ struct PrintCtx {
 
 } // namespace
 
-static constexpr std::string_view commentToken = "//";
-
 static auto formatKeyword(auto... name) {
     return tfmt::format(Magenta | Bold, name...);
 }
@@ -111,6 +109,18 @@ static auto formatNumLiteral(auto... value) {
 }
 
 static auto tertiary(auto... name) { return tfmt::format(BrightGrey, name...); }
+
+static auto comment(std::invocable<std::ostream&> auto f) {
+    return utl::streammanip([=](std::ostream& str) {
+        tfmt::FormatGuard guard(BrightGrey, str);
+        str << "// ";
+        f(str);
+    });
+}
+
+static auto comment(auto... args) {
+    return comment([=](std::ostream& str) { ((str << args), ...); });
+}
 
 static auto formatInstName(auto... name) { return formatKeyword(name...); }
 
@@ -421,17 +431,13 @@ void PrintCtx::printImpl(BasicBlock const& bb) {
         if (currentColumn >= commentIndent) {
             str << "\n";
         }
-        else {
-            commentIndent -= currentColumn;
-        }
-        for (ssize_t i = 0; i < commentIndent; ++i) {
-            str << ' ';
-        }
         tfmt::FormatGuard grey(BrightGrey, str);
-        str << commentToken << " preds: ";
-        for (bool first = true; auto* pred: bb.predecessors()) {
-            str << (first ? first = false, "" : ", ") << pred->name();
-        }
+        str << " " << comment([&](std::ostream& str) {
+            str << "preds: ";
+            for (bool first = true; auto* pred: bb.predecessors()) {
+                str << (first ? first = false, "" : ", ") << pred->name();
+            }
+        });
     }
     str << "\n";
     indent.increase();
@@ -650,9 +656,15 @@ void PrintCtx::funcDecl(ir::Callable const* func) {
 }
 
 void PrintCtx::instDecl(Instruction const* inst) const {
+    /// Optional comment
+    if (!inst->comment().empty()) {
+        str << comment(inst->comment()) << "\n" << indent;
+    }
+    /// Name of the value
     if (!inst->name().empty()) {
         str << formatName(inst) << equals();
     }
+    /// Name of the instruction
     str << formatInstName(toStrName(inst)) << " ";
 }
 

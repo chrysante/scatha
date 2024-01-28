@@ -2,6 +2,7 @@
 #define SCATHA_IR_CFG_INSTRUCTION_H_
 
 #include <span>
+#include <string>
 
 #include <utl/small_ptr_vector.hpp>
 
@@ -53,9 +54,17 @@ public:
     /// \overload
     Function const* parentFunction() const;
 
+    /// Set the comment associated with this instruction
+    void setComment(std::string comment) { _comment = std::move(comment); }
+
+    /// \Returns the comment associated with this instruction
+    std::string_view comment() const { return _comment; }
+
 protected:
     using User::User;
     utl::small_ptr_vector<Type const*> typeOps;
+    /// TODO: Create a small string class and use that here
+    std::string _comment;
 };
 
 /// Base class of all unary instructions.

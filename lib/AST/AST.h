@@ -1738,6 +1738,8 @@ public:
                       std::move(arguments),
                       sourceRange,
                       constructedType) {}
+
+    using ConstructBase::decorateConstruct;
 };
 
 /// Represents construction of dynamic array
