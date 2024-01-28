@@ -984,32 +984,6 @@ static void convertArgsAndPopCleanups(auto const& arguments,
     }
 }
 
-static utl::small_vector<UniquePtr<ast::Expression>> extract(
-    auto const& expressions) {
-    return expressions | transform(&ast::Expression::extractFromParent) |
-           ToSmallVector<>;
-}
-
-static UniquePtr<ast::Expression> computeAndAllocateObjConstr(
-    SourceRange sourceRng,
-    ObjectType const* type,
-    std::span<ast::Expression* const> args) {
-    auto conv =
-        computeObjectConstruction(Explicit,
-                                  type,
-                                  args |
-                                      ranges::to<utl::small_vector<ThinExpr>>);
-    if (conv.isError()) {
-        // TODO: Push error
-        SC_UNIMPLEMENTED();
-    }
-    SC_ASSERT(!conv.isNoop(), "Should not be possible");
-    return allocateObjectConstruction(conv.value(),
-                                      sourceRng,
-                                      type,
-                                      extract(args));
-}
-
 ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto orKind = ORKind::FreeFunction;
     bool success = analyze(fc.callee());
@@ -1060,11 +1034,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
                            ctx);
         }
         else {
-            auto constr =
-                computeAndAllocateObjConstr(fc.sourceRange(),
-                                            type,
-                                            fc.arguments() | ToSmallVector<>);
-            return analyzeValue(fc.replace(std::move(constr)));
+            return constructInplace(ConversionKind::Explicit,
+                                    &fc,
+                                    type,
+                                    fc.arguments() | ToSmallVector<>,
+                                    currentCleanupStack(),
+                                    ctx);
         }
     }
     /// Make sure we have an overload set as our called object
@@ -1462,11 +1437,18 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
         if (!arg) {
             return nullptr;
         }
-        auto constr = computeAndAllocateObjConstr(expr.sourceRange(),
-                                                  type->elementType(),
-                                                  {});
-        expr.setElementConstruction(std::move(constr));
-        if (!analyzeValue(expr.elementConstruction())) {
+        auto insert = [&](auto constr) {
+            return expr.setElementConstruction(std::move(constr));
+        };
+        auto* constr = constructInplace(ConversionKind::Implicit,
+                                        &expr,
+                                        insert,
+                                        type->elementType(),
+                                        {},
+                                        currentCleanupStack(),
+                                        ctx)
+                           .valueOr(nullptr);
+        if (!constr) {
             return nullptr;
         }
         currentCleanupStack().pop(expr.elementConstruction());

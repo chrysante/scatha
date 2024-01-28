@@ -612,3 +612,13 @@ public fn foo() { return 42; }
     CHECK(iss.findOnLine<BadSymRef>(7));
     CHECK(iss.findOnLine<BadSymRef>(8));
 }
+
+TEST_CASE("Missing special member functions", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/* 2 */ public struct X { fn new(&mut this, rhs: &X) {} }
+/* 3 */ public fn foo() { var x: X; }
+/* 4 */ public fn foo(x: X) {}
+)");
+    CHECK(iss.findOnLine<BadExpr>(3, CannotConstructType));
+    CHECK(iss.findOnLine<BadCleanup>(4));
+}

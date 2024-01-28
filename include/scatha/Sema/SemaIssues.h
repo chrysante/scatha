@@ -304,23 +304,29 @@ public:
     SC_SEMA_ISSUE_REASON()
 
     explicit BadExpr(Scope const* scope,
-                     ast::Expression const* expr,
+                     ast::ASTNode const* expr,
                      Reason reason);
 
-    /// \Returns the erroneous expression
-    ast::Expression const* expr() const { return _expr; }
+    /// \Returns the erroneous AST node
+    /// This is the same as `expr()` except that it is not necessarily an
+    /// expression
+    ast::ASTNode const* astNode() const { return _node; }
 
-    void setExpr(ast::Expression const* expr) { _expr = expr; }
+    /// \Returns the erroneous expression
+    ast::Expression const* expr() const;
+
+    ///
+    void setExpr(ast::ASTNode const* expr);
 
 protected:
     explicit BadExpr(Scope const* scope,
-                     ast::Expression const* expr,
+                     ast::ASTNode const* expr,
                      IssueSeverity severity);
 
 private:
     void format(std::ostream&) const override;
 
-    ast::Expression const* _expr;
+    ast::ASTNode const* _node;
 };
 
 ///
@@ -343,9 +349,7 @@ private:
 ///
 class SCATHA_API BadTypeConv: public BadExpr {
 public:
-    BadTypeConv(Scope const* scope,
-                ast::Expression const* expr,
-                Type const* to):
+    BadTypeConv(Scope const* scope, ast::ASTNode const* expr, Type const* to):
         BadExpr(scope, expr, IssueSeverity::Error), _to(to) {}
 
     Type const* to() const { return _to; }
@@ -360,7 +364,7 @@ private:
 class SCATHA_API BadValueCatConv: public BadExpr {
 public:
     BadValueCatConv(Scope const* scope,
-                    ast::Expression const* expr,
+                    ast::ASTNode const* expr,
                     ValueCategory to):
         BadExpr(scope, expr, IssueSeverity::Error), _to(to) {}
 
@@ -375,7 +379,7 @@ private:
 ///
 class SCATHA_API BadMutConv: public BadExpr {
 public:
-    BadMutConv(Scope const* scope, ast::Expression const* expr, Mutability to):
+    BadMutConv(Scope const* scope, ast::ASTNode const* expr, Mutability to):
         BadExpr(scope, expr, IssueSeverity::Error), _to(to) {}
 
     Mutability to() const { return _to; }

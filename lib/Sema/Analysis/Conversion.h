@@ -5,6 +5,8 @@
 #include <optional>
 #include <string_view>
 
+#include <utl/function_view.hpp>
+
 #include "AST/Fwd.h"
 #include "Common/Expected.h"
 #include "Common/UniquePtr.h"
@@ -16,29 +18,36 @@
 namespace scatha::sema {
 
 namespace internal {
-enum class ConvNoopT : char;
-enum class ConvErrorT : char;
+enum class ConversionState : char { Noop, Error, Success };
 } // namespace internal
 
 /// Tag representing a conversion kind that does nothing
-inline constexpr internal::ConvNoopT ConvNoop{};
+inline constexpr auto ConvNoop = internal::ConversionState::Noop;
 
 /// Tag  representing a conversion error
-inline constexpr internal::ConvErrorT ConvError{};
+inline constexpr auto ConvError = internal::ConversionState::Error;
+
+/// Tag  representing a successful conversion
+inline constexpr auto ConvSuccess = internal::ConversionState::Success;
 
 /// Badly named functor that adds two states to the `Conv` type: one one noop
 /// state and one error state
 template <typename Conv>
 class ConvExp {
 public:
-    /// Construct a noop
-    ConvExp(internal::ConvNoopT): val(ConvNoop) {}
+    struct Noop {};
+    struct Error {};
 
-    /// Construct a conversion error
-    ConvExp(internal::ConvErrorT): val(ConvError) {}
+    /// Construct a noop or a conversion error
+    ConvExp(internal::ConversionState state): val(makeVal(state)) {}
 
     /// Construct from a conversion
     ConvExp(Conv conv): val(conv) {}
+
+    /// \Returns the engaged state
+    internal::ConversionState state() const {
+        return internal::ConversionState(val.index());
+    }
 
     /// \Returns `true` if this object holds a conversion
     bool hasValue() const { return std::holds_alternative<Conv>(val); }
@@ -47,13 +56,32 @@ public:
     explicit operator bool() const { return hasValue(); }
 
     /// \Returns `true` if this object holds a noop-conversion
-    bool isNoop() const {
-        return std::holds_alternative<internal::ConvNoopT>(val);
-    }
+    bool isNoop() const { return std::holds_alternative<Noop>(val); }
 
     /// \Returns `true` if this object holds a conversion error
-    bool isError() const {
-        return std::holds_alternative<internal::ConvErrorT>(val);
+    bool isError() const { return std::holds_alternative<Error>(val); }
+
+    /// \Returns the value of the conversion kind.
+    /// \Pre requires `hasValue()` to be `true`
+    Conv value() const {
+        SC_EXPECT(hasValue());
+        return std::get<Conv>(val);
+    }
+
+    /// # Monadic operations
+
+    /// \Returns the contained value if conversion was sucessful or \p fallback
+    /// otherwise
+    Conv valueOr(Conv fallback) const {
+        return hasValue() ? value() : fallback;
+    }
+
+    /// \Overload for lazily constructed fallback
+    template <std::invocable F>
+    Conv valueOr(F defaultValue) const
+        requires std::same_as<std::invoke_result_t<F>, Conv>
+    {
+        return hasValue() ? value() : std::invoke(defaultValue);
     }
 
     ///
@@ -63,20 +91,33 @@ public:
         // clang-format off
         return std::visit(utl::overload{
             [&](Conv const& conv) -> R { return std::invoke(f, conv); },
-            [&](internal::ConvNoopT) -> R { return ConvNoop; },
-            [&](internal::ConvErrorT) -> R { return ConvError; },
+            [&](Noop) -> R { return ConvNoop; },
+            [&](Error) -> R { return ConvError; },
         }, val); // clang-format on
     }
 
-    /// \Returns the value of the conversion kind.
-    /// \Pre requires `hasValue()` to be `true`
-    Conv value() const {
-        SC_EXPECT(hasValue());
-        return std::get<Conv>(val);
+    ///
+    template <typename F>
+        requires std::invocable<F, Noop> && std::invocable<F, Error> &&
+                 std::invocable<F, Conv>
+    decltype(auto) visit(F&& f) const {
+        return std::visit(std::forward<F>(f), val);
     }
 
 private:
-    std::variant<Conv, internal::ConvNoopT, internal::ConvErrorT> val;
+    static std::variant<Noop, Error, Conv> makeVal(
+        internal::ConversionState state) {
+        switch (state) {
+        case ConvNoop:
+            return Noop{};
+        case ConvError:
+            return Error{};
+        default:
+            SC_UNREACHABLE();
+        }
+    }
+
+    std::variant<Noop, Error, Conv> val;
 };
 
 /// Represents a conversion of a value from one type to another
@@ -189,6 +230,33 @@ SCATHA_API UniquePtr<ast::ConstructBase> allocateObjectConstruction(
     SourceRange sourceRng,
     ObjectType const* targetType,
     utl::small_vector<UniquePtr<ast::Expression>> arguments);
+
+/// Tries to construct an object of type \p targetType in place of the
+/// expression \p replace from the arguments \p arguments
+///
+/// If construction is  possible, the arguments are extracted and added as
+/// children to the new construct expression.
+/// The construct expression will replace the expression \p replace
+///
+/// \Returns a pointer to the new construct expression if the  construction was
+/// inserted or null pointer otherwise
+SCATHA_API ast::Expression* constructInplace(
+    ConversionKind kind,
+    ast::Expression* replace,
+    ObjectType const* targetType,
+    std::span<ast::Expression* const> arguments,
+    CleanupStack& cleanups,
+    AnalysisContext& ctx);
+
+/// \Overload for arbitrary insertion
+SCATHA_API ConvExp<ast::Expression*> constructInplace(
+    ConversionKind kind,
+    ast::ASTNode const* parentNode,
+    utl::function_view<ast::Expression*(UniquePtr<ast::Expression>)> insert,
+    ObjectType const* targetType,
+    std::span<ast::Expression* const> arguments,
+    CleanupStack& cleanups,
+    AnalysisContext& ctx);
 
 /// Inserts an AST conversion node into the position of \p expr and makes
 /// \p expr a child of the new node.

@@ -516,25 +516,30 @@ static IssueSeverity toSeverity(BadExpr::Reason reason) {
     SC_UNREACHABLE();
 }
 
-BadExpr::BadExpr(Scope const* scope,
-                 ast::Expression const* expr,
-                 Reason reason):
+BadExpr::BadExpr(Scope const* scope, ast::ASTNode const* expr, Reason reason):
     SemaIssue(scope, getSourceRange(expr), toSeverity(reason)),
     _reason(reason),
-    _expr(expr) {}
+    _node(expr) {}
 
 BadExpr::BadExpr(Scope const* scope,
-                 ast::Expression const* expr,
+                 ast::ASTNode const* expr,
                  IssueSeverity severity):
     SemaIssue(scope, getSourceRange(expr), severity),
     _reason(BadExprNone),
-    _expr(expr) {}
+    _node(expr) {}
+
+ast::Expression const* BadExpr::expr() const {
+    return dyncast<ast::Expression const*>(astNode());
+}
+
+void BadExpr::setExpr(ast::ASTNode const* expr) { _node = expr; }
 
 void BadExpr::format(std::ostream& str) const {
     switch (reason()) {
 #define SC_SEMA_BADEXPR_DEF(Type, Reason, Severity, Message)                   \
     case Reason: {                                                             \
-        [[maybe_unused]] auto* expr = cast<ast::Type const*>(this->expr());    \
+        [[maybe_unused]] auto* expr =                                          \
+            dyncast<ast::Type const*>(this->astNode());                        \
         str << Message;                                                        \
         break;                                                                 \
     }

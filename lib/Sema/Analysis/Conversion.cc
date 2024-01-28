@@ -18,6 +18,7 @@
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 using enum ValueCategory;
 
 /// Converts the non-erroneous `ConvExp<Conv>` \p c to a `std::optional<Conv>`
@@ -907,6 +908,64 @@ UniquePtr<ast::ConstructBase> sema::allocateObjectConstruction(
     default:
         SC_UNREACHABLE();
     }
+}
+
+ast::Expression* sema::constructInplace(
+    ConversionKind kind,
+    ast::Expression* replace,
+    ObjectType const* targetType,
+    std::span<ast::Expression* const> arguments,
+    CleanupStack& cleanups,
+    AnalysisContext& ctx) {
+    auto insert =
+        [parent = replace->parent(),
+         index = replace->indexInParent()](UniquePtr<ast::Expression> expr) {
+        return parent->setChild(index, std::move(expr));
+    };
+    auto result = constructInplace(kind,
+                                   replace,
+                                   insert,
+                                   targetType,
+                                   arguments,
+                                   cleanups,
+                                   ctx);
+    switch (result.state()) {
+    case ConvNoop:
+        return replace;
+    case ConvError:
+        return nullptr;
+    case ConvSuccess:
+        return result.value();
+    }
+}
+
+ConvExp<ast::Expression*> sema::constructInplace(
+    ConversionKind kind,
+    ast::ASTNode const* parentNode,
+    utl::function_view<ast::Expression*(UniquePtr<ast::Expression>)> insert,
+    ObjectType const* targetType,
+    std::span<ast::Expression* const> arguments,
+    CleanupStack& cleanups,
+    AnalysisContext& ctx) {
+    auto constrKind =
+        computeObjectConstruction(kind,
+                                  targetType,
+                                  arguments |
+                                      ranges::to<utl::small_vector<ThinExpr>>);
+    if (constrKind.isNoop()) {
+        return ConvNoop;
+    }
+    if (constrKind.isError()) {
+        ctx.badExpr(parentNode, BadExpr::CannotConstructType);
+        return ConvError;
+    }
+    auto constr = allocateObjectConstruction(
+        constrKind.value(),
+        parentNode->sourceRange(),
+        targetType,
+        arguments | transform(&ast::Expression::extractFromParent) |
+            ToSmallVector<>);
+    return analyzeValueExpr(insert(std::move(constr)), cleanups, ctx);
 }
 
 ast::Expression* sema::insertConversion(ast::Expression* expr,
