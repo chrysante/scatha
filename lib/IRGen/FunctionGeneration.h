@@ -155,6 +155,13 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     /// Emits a multiply instruction to obtain the byte size of an array
     ir::Value* makeCountToByteSize(ir::Value* count, size_t elemSize);
 
+    /// Emits code that makes a copy of \p value
+    /// The returned value will be in a register iff its size is not greater
+    /// than `PreferredMaxRegisterValueSize`
+    /// \Returns the copied value
+    /// \Warning Must only be called for values with trivial lifetime
+    Value copyValue(Value const& value);
+
     /// Generates a for loop with trip count \p tripCount at the current
     /// position.
     /// \param name is used to generate descriptive names for the basic blocks

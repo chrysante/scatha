@@ -246,19 +246,19 @@ Function* LifetimeAnalyzer::generateSMF(SMFKind kind, StructType& type) {
 
 FunctionType const* LifetimeAnalyzer::makeSMFType(SMFKind kind,
                                                   StructType& type) {
-    auto* self = sym.reference(QualType::Mut(&type));
-    auto* rhs = sym.reference(QualType::Const(&type));
-    auto* ret = sym.Void();
+    auto* mutRef = sym.reference(QualType::Mut(&type));
+    auto* constRef = sym.reference(QualType::Const(&type));
+    auto* Void = sym.Void();
     using enum SMFKind;
     switch (kind) {
     case DefaultConstructor:
-        return sym.functionType({ self }, ret);
+        return sym.functionType({ mutRef }, Void);
     case CopyConstructor:
-        return sym.functionType({ self, rhs }, ret);
+        return sym.functionType({ mutRef, constRef }, Void);
     case MoveConstructor:
-        return sym.functionType({ self, rhs }, ret);
+        return sym.functionType({ mutRef, mutRef }, Void);
     case Destructor:
-        return sym.functionType({ self }, ret);
+        return sym.functionType({ mutRef }, Void);
     }
     SC_UNREACHABLE();
 }

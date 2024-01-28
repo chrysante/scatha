@@ -127,7 +127,10 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
         return *baseOffset + *staticGEPOffset;
     }();
     bool guaranteedNotNull = base->guaranteedNotNull();
-    gep.allocatePointerInfo(
-        { align, validSize, provenance, staticProvOffset, guaranteedNotNull });
+    gep.allocatePointerInfo({ .align = align,
+                              .validSize = validSize,
+                              .provenance = provenance,
+                              .staticProvenanceOffset = staticProvOffset,
+                              .guaranteedNotNull = guaranteedNotNull });
     return true;
 }

@@ -22,6 +22,9 @@ SCATHA_API void print(Entity const* entity);
 SCATHA_API utl::vstreammanip<> format(QualType type);
 
 ///
+SCATHA_API utl::vstreammanip<> format(LifetimeOperation op);
+
+///
 SCATHA_API utl::vstreammanip<> formatType(ast::Expression const* expr);
 
 } // namespace scatha::sema

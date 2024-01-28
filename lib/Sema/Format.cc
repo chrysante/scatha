@@ -6,6 +6,7 @@
 
 #include "AST/AST.h"
 #include "Sema/Entity.h"
+#include "Sema/LifetimeOperation.h"
 
 using namespace tfmt::modifiers;
 
@@ -88,6 +89,27 @@ void sema::print(Entity const* entity, std::ostream& str) {
 void sema::print(Entity const* entity) { print(entity, std::cout); }
 
 utl::vstreammanip<> sema::format(QualType type) { return format(type.get()); }
+
+utl::vstreammanip<> sema::format(LifetimeOperation op) {
+    return [=](std::ostream& str) {
+        using enum LifetimeOperation::Kind;
+        switch (op.kind()) {
+        case Trivial:
+            str << tfmt::format(BrightBlue, "Trivial");
+            break;
+        case Nontrivial:
+            str << tfmt::format(Green, "Nontrivial: ") << format(op.function())
+                << format(op.function()->type());
+            break;
+        case NontrivialInline:
+            str << tfmt::format(Green, "Nontrivial (inline)");
+            break;
+        case Deleted:
+            str << tfmt::format(Red, "Deleted");
+            break;
+        }
+    };
+}
 
 utl::vstreammanip<> sema::formatType(ast::Expression const* expr) {
     return format(expr ? expr->type().get() : nullptr);

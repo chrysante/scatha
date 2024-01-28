@@ -32,6 +32,37 @@ static std::string nameFromSourceLoc(std::string_view name,
     return utl::strcat(name, ".at.", loc.line, ".", loc.column);
 }
 
+/// Helper function to generate comments for constructor and destructor calls or
+/// inline lifetime blocks. This makes the resulting IR easier to read
+static std::string makeLifetimeComment(std::string_view kind,
+                                       sema::Entity const* entity,
+                                       sema::Type const* type) {
+    return utl::strcat(kind, " for ", sema::format(entity ? entity : type));
+}
+
+/// \Overload
+static std::string makeLifetimeComment(sema::Function const* ctor,
+                                       sema::Entity const* entity) {
+    using enum sema::SMFKind;
+    auto kind = [&]() -> std::string_view {
+        if (!ctor->smfKind()) {
+            return "Other constructor";
+        }
+        switch (*ctor->smfKind()) {
+        case DefaultConstructor:
+            return "Default constructor";
+        case CopyConstructor:
+            return "Copy constructor";
+        case MoveConstructor:
+            return "Move constructor";
+        case Destructor:
+            return "Destructor";
+        }
+    }();
+    return makeLifetimeComment(kind, entity,
+                               cast<sema::Type const*>(ctor->parent()));
+}
+
 namespace {
 
 struct LoopDesc {
@@ -124,7 +155,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::ListExpression const&);
     bool genStaticListData(ast::ListExpression const& list, ir::Alloca* dest);
     void genDynamicListData(ast::ListExpression const& list, ir::Alloca* dest);
-    // Value getValueImpl(ast::MoveExpr const&);
+    Value getValueImpl(ast::MoveExpr const&);
     Value getValueImpl(ast::UniqueExpr const&);
 
     Value getValueImpl(ast::ValueCatConvExpr const&);
@@ -1012,34 +1043,36 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     return Value(name, list.type().get(), { array }, Memory, Unpacked);
 }
 
-// Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
-//     auto value = getValue(expr.value());
-//     auto* ctor = expr.function();
-//     if (!ctor) {
-//         valueMap.insertArraySizeOf(expr.object(), expr.value()->object());
-//         return value;
-//     }
-//     auto* type = typeMap(expr.type());
-//     auto* function = getFunction(ctor);
-//     auto* dest =
-//         makeLocalVariable(type, utl::strcat(value.get()->name(), ".moved"));
-//     add<ir::Call>(function,
-//                   ValueArray{ dest, toMemory(value, expr) },
-//                   std::string{});
-//     Value result(dest, type, Memory);
-//     /// TODO: Handle case for dynamic array moved by value
-//     if (isFatPointer(&expr)) {
-//         auto* addr = add<ir::GetElementPointer>(ctx,
-//                                                 arrayPtrType,
-//                                                 dest,
-//                                                 nullptr,
-//                                                 IndexArray{ 1 },
-//                                                 "arraysize");
-//         valueMap.insertArraySize(expr.object(),
-//                                  Value(addr, ctx.intType(64), Memory));
-//     }
-//     return result;
-// }
+Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
+    auto value = getValue(expr.value());
+    auto operation = expr.operation();
+    auto* irType = typeMap.packed(expr.type().get());
+    auto name = utl::strcat("move.", value.name());
+    using enum sema::LifetimeOperation::Kind;
+    switch (operation.kind()) {
+    case Trivial:
+        return copyValue(value);
+
+    case Nontrivial: {
+        auto* mem = makeLocalVariable(irType, name);
+        auto* semaCtor = operation.function();
+        auto* irCtor = getFunction(semaCtor);
+        auto CC = getCC(semaCtor);
+        auto irArguments =
+            unpackArguments(CC.arguments() | drop(1), single(value));
+        irArguments.insert(irArguments.begin(), mem);
+        auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
+        call->setComment(makeLifetimeComment(semaCtor, expr.object()));
+        return Value(name, expr.type().get(), { mem }, Memory, Packed);
+    }
+
+    case NontrivialInline:
+        SC_UNIMPLEMENTED();
+
+    case Deleted:
+        SC_UNREACHABLE();
+    }
+}
 
 Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     auto* currentBBBefore = &currentBlock();
@@ -1106,19 +1139,8 @@ Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
     auto value = getValue(conv.expression());
     using enum sema::ValueCatConversion;
     switch (conv.conversion()) {
-    case LValueToRValue: {
-        auto repr = value.representation();
-        if (value.type()->size() <= PreferredMaxRegisterValueSize) {
-            return Value(value.name(), value.type(), to(Register, repr, value),
-                         Register, repr);
-        }
-        else {
-            auto* irType = typeMap.packed(value.type());
-            auto* mem = makeLocalVariable(irType, value.name());
-            callMemcpy(mem, toPackedMemory(value), irType->size());
-            return Value(value.name(), value.type(), { mem }, Memory, Packed);
-        }
-    }
+    case LValueToRValue:
+        return copyValue(value);
 
     case MaterializeTemporary:
         return Value(value.name(), value.type(),
@@ -1461,37 +1483,6 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
         }
         return Value(name, type, { mem }, Memory, Packed);
     }
-}
-
-/// Helper function to generate comments for constructor and destructor calls or
-/// inline lifetime blocks. This makes the resulting IR easier to read
-static std::string makeLifetimeComment(std::string_view kind,
-                                       sema::Entity const* entity,
-                                       sema::Type const* type) {
-    return utl::strcat(kind, " for ", sema::format(entity ? entity : type));
-}
-
-/// \Overload
-static std::string makeLifetimeComment(sema::Function const* ctor,
-                                       sema::Entity const* entity) {
-    using enum sema::SMFKind;
-    auto kind = [&]() -> std::string_view {
-        if (!ctor->smfKind()) {
-            return "Other constructor";
-        }
-        switch (*ctor->smfKind()) {
-        case DefaultConstructor:
-            return "Default constructor";
-        case CopyConstructor:
-            return "Copy constructor";
-        case MoveConstructor:
-            return "Move constructor";
-        case Destructor:
-            return "Destructor";
-        }
-    }();
-    return makeLifetimeComment(kind, entity,
-                               cast<sema::Type const*>(ctor->parent()));
 }
 
 Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {

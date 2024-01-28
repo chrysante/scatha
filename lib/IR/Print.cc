@@ -388,6 +388,9 @@ void PrintCtx::print(Value const& value) {
         str << " ";
         metadata(*ptrInfo);
     }
+    if (isa<Global>(value)) {
+        str << "\n\n";
+    }
 }
 
 void PrintCtx::printImpl(GlobalVariable const& var) {
@@ -395,7 +398,6 @@ void PrintCtx::printImpl(GlobalVariable const& var) {
     keyword(var.isMutable() ? "global" : "constant");
     str << " ";
     typedName(var.initializer());
-    str << "\n\n";
 }
 
 void PrintCtx::printImpl(Function const& function) {
@@ -406,13 +408,12 @@ void PrintCtx::printImpl(Function const& function) {
         print(bb);
     }
     indent.decrease();
-    str << "}\n\n";
+    str << "}";
 }
 
 void PrintCtx::printImpl(ForeignFunction const& function) {
     str << formatKeyword("ext") << " ";
     funcDecl(&function);
-    str << "\n\n";
 }
 
 static ssize_t length(auto const& fmt) {
@@ -600,7 +601,8 @@ void PrintCtx::metadata(PointerInfo const& info) {
         str << ", offset: " << *offset;
     }
     if (info.guaranteedNotNull()) {
-        str << ", nonnull";
+        str << ", ";
+        keyword("nonnull");
     }
     str << ")";
 }

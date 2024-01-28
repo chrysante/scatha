@@ -18,6 +18,7 @@ class SemanticIssue;
 class SymbolTable;
 class CleanupStack;
 class NameMangler;
+class LifetimeOperation;
 class LifetimeMetadata;
 class QualType;
 class ThinExpr;

@@ -296,6 +296,22 @@ ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,
                                    ir::ArithmeticOperation::Mul, "bytesize");
 }
 
+Value FuncGenContextBase::copyValue(Value const& value) {
+    SC_EXPECT(value.type()->hasTrivialLifetime() ||
+              isa<sema::UniquePtrType>(value.type()));
+    auto repr = value.representation();
+    if (value.type()->size() <= PreferredMaxRegisterValueSize) {
+        return Value(value.name(), value.type(), to(Register, repr, value),
+                     Register, repr);
+    }
+    else {
+        auto* irType = typeMap.packed(value.type());
+        auto* mem = makeLocalVariable(irType, value.name());
+        callMemcpy(mem, toPackedMemory(value), irType->size());
+        return Value(value.name(), value.type(), { mem }, Memory, Packed);
+    }
+}
+
 CountedForLoopDesc FuncGenContextBase::generateForLoop(std::string_view name,
                                                        ir::Value* tripCount) {
     auto* pred = &currentBlock();

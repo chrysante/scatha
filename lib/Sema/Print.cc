@@ -112,34 +112,13 @@ void PrintContext::print(Entity const& entity) {
     }
 }
 
-static constexpr utl::streammanip formatLifetimeOp = [](std::ostream& str,
-                                                        LifetimeOperation op) {
-    using enum LifetimeOperation::Kind;
-    switch (op.kind()) {
-    case Trivial:
-        str << tfmt::format(BrightBlue, "Trivial");
-        break;
-    case Nontrivial:
-        str << tfmt::format(Green, "Nontrivial: ") << format(op.function())
-            << format(op.function()->type());
-        break;
-    case NontrivialInline:
-        str << tfmt::format(Green, "Nontrivial (inline)");
-        break;
-    case Deleted:
-        str << tfmt::format(Red, "Deleted");
-        break;
-    }
-};
-
 void PrintContext::print(LifetimeMetadata const& md) {
     str << formatter.beginLine() << "Lifetime: \n";
     for (auto [index, op]: md.operations() | ranges::views::enumerate) {
         formatter.push(index != md.operations().size() - 1 ? Level::Child :
                                                              Level::LastChild);
         str << formatter.beginLine()
-            << tfmt::format(Italic, SMFKind(index), ": ")
-            << formatLifetimeOp(op) << "\n";
+            << tfmt::format(Italic, SMFKind(index), ": ") << format(op) << "\n";
         formatter.pop();
     }
 }

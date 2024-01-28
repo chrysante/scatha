@@ -21,6 +21,7 @@
 #include "Common/UniquePtr.h"
 #include "Sema/CleanupStack.h"
 #include "Sema/Fwd.h"
+#include "Sema/LifetimeOperation.h"
 #include "Sema/QualType.h"
 
 /// # AST class hierarchy
@@ -449,6 +450,10 @@ public:
         return entityCategory() == sema::EntityCategory::Type;
     }
 
+    /// TODO: Make decorateValue() and decorateType() protected
+    /// Then every concrete AST node has to decide whether to expose these
+    /// functions or to provide their own
+
     /// Decorate this node if this node refers to a value.
     /// \param obejct The object in the symbol table that this expression refers
     /// to. Must not be null. \param valueCategory The value category of this
@@ -691,15 +696,17 @@ public:
     /// The moved value
     AST_PROPERTY(0, Expression, value, Value)
 
-    /// The constructor invoked by this move expression. This will be null for
-    /// trivial lifetime types
-    sema::Function const* function() const { return ctor; }
+    /// The lifetime operation invoked by this move expression
+    sema::LifetimeOperation operation() const { return op; }
 
-    /// Sets the invoked constructor. Used by semanic analysis.
-    void setFunction(sema::Function const* ctor) { this->ctor = ctor; }
+    /// Sets the generated construct operation and decorates this expression
+    void decorateMove(sema::Entity* entity, sema::LifetimeOperation op) {
+        decorateValue(entity, sema::ValueCategory::RValue);
+        this->op = op;
+    }
 
 private:
-    sema::Function const* ctor = nullptr;
+    sema::LifetimeOperation op = nullptr;
 };
 
 /// Unique expression

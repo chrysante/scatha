@@ -807,8 +807,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
-    SC_UNIMPLEMENTED();
-#if 0
     if (!analyzeValue(expr.value())) {
         return nullptr;
     }
@@ -822,24 +820,22 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
     if (expr.value()->isRValue()) {
         ctx.badExpr(&expr, BadExpr::MoveExprRValue);
     }
-    if (!type->hasTrivialLifetime()) {
-        using enum SpecialLifetimeFunctionDepr;
-        auto* moveCtor = type->specialLifetimeFunction(MoveConstructor);
-        auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
-        auto* ctor = moveCtor ? moveCtor : copyCtor;
-        if (!ctor) {
-            ctx.badExpr(&expr, BadExpr::MoveExprImmovable);
-            return nullptr;
-        }
-        if (ctor == copyCtor) {
-            ctx.badExpr(&expr, BadExpr::MoveExprCopies);
-        }
-        expr.setFunction(ctor);
+    auto& lifetime = type->lifetimeMetadata();
+    auto op = lifetime.moveOrCopyConstructor();
+    if (op.isDeleted()) {
+        ctx.badExpr(&expr, BadExpr::MoveExprImmovable);
+        return nullptr;
     }
-    expr.decorateValue(sym.temporary(&expr, expr.value()->type()), RValue);
-    currentCleanupStack().push(expr.object());
+    if (op == lifetime.copyConstructor()) {
+        /// Warning
+        ctx.badExpr(&expr, BadExpr::MoveExprCopies);
+    }
+    auto* tmp = sym.temporary(&expr, expr.value()->type());
+    expr.decorateMove(tmp, op);
+    if (!currentCleanupStack().push(tmp, ctx)) {
+        return nullptr;
+    }
     return &expr;
-#endif
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
