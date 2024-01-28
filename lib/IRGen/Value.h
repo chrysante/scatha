@@ -65,29 +65,25 @@ public:
     std::string const& name() const { return _name; }
 
     /// TODO: Document this
-    SC_NODEBUG std::span<ir::Value* const> get() const { return _vals; }
+    std::span<ir::Value* const> get() const { return _vals; }
 
     /// TODO: Document this
-    SC_NODEBUG ir::Value* get(size_t index) const {
+    ir::Value* get(size_t index) const {
         SC_EXPECT(index < _vals.size());
         return _vals[index];
     }
 
     /// TODO: Document this
-    SC_NODEBUG sema::ObjectType const* type() const { return _type; }
+    sema::ObjectType const* type() const { return _type; }
 
     /// \Returns the location of the value
-    SC_NODEBUG ValueLocation location() const { return _loc; }
+    ValueLocation location() const { return _loc; }
 
     /// \Returns `true` if this value is in a register
-    SC_NODEBUG bool isRegister() const {
-        return location() == ValueLocation::Register;
-    }
+    bool isRegister() const { return location() == ValueLocation::Register; }
 
     /// \Returns `true` if this value is in memory
-    SC_NODEBUG bool isMemory() const {
-        return location() == ValueLocation::Memory;
-    }
+    bool isMemory() const { return location() == ValueLocation::Memory; }
 
     /// \Returns the representation of this value
     ValueRepresentation representation() const { return _repr; }

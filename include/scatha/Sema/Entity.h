@@ -61,11 +61,11 @@
 
 #define SC_ASTNODE_DERIVED(Name, Type)                                         \
     template <typename T = ast::Type>                                          \
-    SC_NODEBUG T const* Name() const {                                         \
+    T const* Name() const {                                                    \
         return cast<T const*>(astNode());                                      \
     }                                                                          \
     template <typename T = ast::Type>                                          \
-    SC_NODEBUG T* Name() {                                                     \
+    T* Name() {                                                                \
         return cast<T*>(astNode());                                            \
     }
 
@@ -77,16 +77,16 @@ namespace scatha::sema {
 class SCATHA_API Entity {
 public:
     /// The name of this entity
-    SC_NODEBUG std::string_view name() const { return _name; }
+    std::string_view name() const { return _name; }
 
     /// Sets the primary name of this entity to \p name
     void setName(std::string name) { _name = std::move(name); }
 
     /// \Returns `true` if this entity is unnamed
-    SC_NODEBUG bool isAnonymous() const { return name().empty(); }
+    bool isAnonymous() const { return name().empty(); }
 
     /// \Returns `true` if this entities is a builtin
-    SC_NODEBUG bool isBuiltin() const { return _isBuiltin; }
+    bool isBuiltin() const { return _isBuiltin; }
 
     ///
     void setBuiltin(bool value = true) { _isBuiltin = value; }
@@ -94,76 +94,64 @@ public:
     /// \Returns the access control of this entity. Only meaningful if this
     /// entity is a function, type, or variable.
     /// \Warning this function will trap if this entity has no access control
-    SC_NODEBUG AccessControl accessControl() const {
+    AccessControl accessControl() const {
         SC_EXPECT(hasAccessControl());
         return accessCtrl;
     }
 
     /// \Returns `true` if it is safe to call `accessControl()`
-    SC_NODEBUG bool hasAccessControl() const {
-        return accessCtrl != InvalidAccessControl;
-    }
+    bool hasAccessControl() const { return accessCtrl != InvalidAccessControl; }
 
     /// \Returns `accessControl() == Private`
-    SC_NODEBUG bool isPrivate() const {
-        return accessControl() == AccessControl::Private;
-    }
+    bool isPrivate() const { return accessControl() == AccessControl::Private; }
 
     /// \Returns `accessControl() == Internal`
-    SC_NODEBUG bool isInternal() const {
+    bool isInternal() const {
         return accessControl() == AccessControl::Internal;
     }
 
     /// \Returns `accessControl() == Public`
-    SC_NODEBUG bool isPublic() const {
-        return accessControl() == AccessControl::Public;
-    }
+    bool isPublic() const { return accessControl() == AccessControl::Public; }
 
     /// Should be used by instantiation and deserialization
     void setAccessControl(AccessControl ctrl) { accessCtrl = ctrl; }
 
     /// \Returns `true` if this entity is accessible by name lookup
-    SC_NODEBUG bool isVisible() const { return _isVisible; }
+    bool isVisible() const { return _isVisible; }
 
     /// Set whether this entity shall be accessible by name lookup
     void setVisible(bool value = true) { _isVisible = value; }
 
     /// The parent scope of this entity. Not all entities have a parent scope so
     /// this may be null.
-    SC_NODEBUG Scope* parent() { return _parent; }
+    Scope* parent() { return _parent; }
 
     /// \overload
-    SC_NODEBUG Scope const* parent() const { return _parent; }
+    Scope const* parent() const { return _parent; }
 
     /// The runtime type of this entity class
-    SC_NODEBUG EntityType entityType() const { return _entityType; }
+    EntityType entityType() const { return _entityType; }
 
     /// Category this entity belongs to
-    SC_NODEBUG EntityCategory category() const;
+    EntityCategory category() const;
 
     /// `true` if this entity represents a value
-    SC_NODEBUG bool isValue() const {
-        return category() == EntityCategory::Value;
-    }
+    bool isValue() const { return category() == EntityCategory::Value; }
 
     /// `true` if this entity represents a type
-    SC_NODEBUG bool isType() const {
-        return category() == EntityCategory::Type;
-    }
+    bool isType() const { return category() == EntityCategory::Type; }
 
     /// \Returns the corresponding AST node
-    SC_NODEBUG ast::ASTNode* astNode() { return _astNode; }
+    ast::ASTNode* astNode() { return _astNode; }
 
     /// \overload
-    SC_NODEBUG ast::ASTNode const* astNode() const { return _astNode; }
+    ast::ASTNode const* astNode() const { return _astNode; }
 
     /// \Returns the list of aliases to this entity
-    SC_NODEBUG std::span<Alias* const> aliases() { return _aliases; }
+    std::span<Alias* const> aliases() { return _aliases; }
 
     /// \overload
-    SC_NODEBUG std::span<Alias const* const> aliases() const {
-        return _aliases;
-    }
+    std::span<Alias const* const> aliases() const { return _aliases; }
 
 protected:
     explicit Entity(EntityType entityType,
@@ -213,27 +201,25 @@ public:
     ~Object();
 
     /// Type of this object.
-    SC_NODEBUG Type const* type() const { return _type; }
+    Type const* type() const { return _type; }
 
     /// Mutability of this object.
-    SC_NODEBUG Mutability mutability() const { return _mut; }
+    Mutability mutability() const { return _mut; }
 
     /// \Returns `true` if this object is mutable
-    SC_NODEBUG bool isMut() const {
-        return mutability() == Mutability::Mutable;
-    }
+    bool isMut() const { return mutability() == Mutability::Mutable; }
 
     /// \Returns `true` if this object is const
-    SC_NODEBUG bool isConst() const { return !isMut(); }
+    bool isConst() const { return !isMut(); }
 
     /// \Returns the QualType that represents the type of this object.
     /// That is, if this object is a reference, it returns the referred to type,
     /// otherwise returns the type including mutability qualifier
-    SC_NODEBUG QualType getQualType() const;
+    QualType getQualType() const;
 
     /// \Returns Constant value if this variable is `const` and has a
     /// const-evaluable initializer `nullptr` otherwise
-    SC_NODEBUG Value const* constantValue() const { return constVal.get(); }
+    Value const* constantValue() const { return constVal.get(); }
 
     /// Set the constant value of this variable
     void setConstantValue(UniquePtr<Value> value);
@@ -263,7 +249,7 @@ class SCATHA_API VarBase: public Object {
 public:
     /// The value category of this variable or property. For variables this is
     /// always lvalue but for properties it varies
-    SC_NODEBUG ValueCategory valueCategory() const;
+    ValueCategory valueCategory() const;
 
 protected:
     using Object::Object;
@@ -286,7 +272,7 @@ public:
 
     /// If this variable is a member of a struct, this is the position of this
     /// variable in the struct.
-    SC_NODEBUG size_t index() const { return _index; }
+    size_t index() const { return _index; }
 
     /// Set the index of this variable.
     void setIndex(size_t index) { _index = index; }
@@ -316,7 +302,7 @@ public:
                       ast::ASTNode* astNode);
 
     /// The kind of property
-    SC_NODEBUG PropertyKind kind() const { return _kind; }
+    PropertyKind kind() const { return _kind; }
 
 private:
     friend class Entity;
@@ -339,7 +325,7 @@ public:
     Temporary(Temporary const&) = delete;
 
     /// The ID of this temporary
-    SC_NODEBUG size_t id() const { return _id; }
+    size_t id() const { return _id; }
 
 private:
     friend class Entity;
@@ -352,7 +338,7 @@ private:
 class SCATHA_API Scope: public Entity {
 public:
     /// The kind of this scope
-    SC_NODEBUG ScopeKind kind() const { return _kind; }
+    ScopeKind kind() const { return _kind; }
 
     /// Find entities by name within this scope
     utl::small_ptr_vector<Entity*> findEntities(
@@ -378,25 +364,25 @@ public:
         std::string_view name) const;
 
     /// \Returns `true` if \p scope is a child scope of this
-    SC_NODEBUG bool isChildScope(Scope const* scope) const {
+    bool isChildScope(Scope const* scope) const {
         return _children.contains(scope);
     }
 
     /// \Returns A View over the children of this scope
-    SC_NODEBUG std::span<Scope* const> children() { return _children.values(); }
+    std::span<Scope* const> children() { return _children.values(); }
 
     /// \overload
-    SC_NODEBUG std::span<Scope const* const> children() const {
+    std::span<Scope const* const> children() const {
         return _children.values();
     }
 
     /// \Returns A View over the entities in this scope
-    SC_NODEBUG auto entities() {
+    auto entities() {
         return _names.values() | ranges::views::values | ranges::views::join;
     }
 
     /// \overload
-    SC_NODEBUG auto entities() const {
+    auto entities() const {
         return _names.values() | ranges::views::values | ranges::views::join |
                ToConstAddress;
     }
@@ -471,9 +457,7 @@ public:
 
     /// \Returns the path of the IR file that contains the functions in this
     /// library
-    SC_NODEBUG std::filesystem::path const& codeFile() const {
-        return _codeFile;
-    }
+    std::filesystem::path const& codeFile() const { return _codeFile; }
 
 private:
     std::filesystem::path _codeFile;
@@ -487,7 +471,7 @@ public:
                             Scope* parent);
 
     /// \Returns the path of the shared library file
-    SC_NODEBUG std::filesystem::path const& file() const { return _file; }
+    std::filesystem::path const& file() const { return _file; }
 
 private:
     std::filesystem::path _file;
@@ -509,37 +493,33 @@ public:
     SC_ASTNODE_DERIVED(definition, FunctionDefinition)
 
     /// \Returns The type of this function.
-    SC_NODEBUG FunctionType const* type() const { return _type; }
+    FunctionType const* type() const { return _type; }
 
     /// Return type
-    SC_NODEBUG Type const* returnType() const;
+    Type const* returnType() const;
 
     /// Argument types
-    SC_NODEBUG std::span<Type const* const> argumentTypes() const;
+    std::span<Type const* const> argumentTypes() const;
 
     /// Argument type at index \p index
-    SC_NODEBUG Type const* argumentType(size_t index) const;
+    Type const* argumentType(size_t index) const;
 
     /// Number of arguments
-    SC_NODEBUG size_t argumentCount() const;
+    size_t argumentCount() const;
 
     /// Kind of this function
-    SC_NODEBUG FunctionKind kind() const { return _kind; }
+    FunctionKind kind() const { return _kind; }
 
     void setKind(FunctionKind kind) { _kind = kind; }
 
     /// \Returns `kind() == FunctionKind::Native`
-    SC_NODEBUG bool isNative() const { return kind() == FunctionKind::Native; }
+    bool isNative() const { return kind() == FunctionKind::Native; }
 
     /// \Returns `kind() == FunctionKind::Generated`
-    SC_NODEBUG bool isGenerated() const {
-        return kind() == FunctionKind::Generated;
-    }
+    bool isGenerated() const { return kind() == FunctionKind::Generated; }
 
     /// \Returns `kind() == FunctionKind::Foreign`
-    SC_NODEBUG bool isForeign() const {
-        return kind() == FunctionKind::Foreign;
-    }
+    bool isForeign() const { return kind() == FunctionKind::Foreign; }
 
     /// Sets the kind of special member function. May only be called if this
     /// function is a special member function
@@ -555,7 +535,7 @@ public:
     /// The address of this function in the compiled binary
     /// Only has a value if this function is declared externally visible and
     /// program has been compiled
-    SC_NODEBUG std::optional<size_t> binaryAddress() const {
+    std::optional<size_t> binaryAddress() const {
         return _hasBinaryAddress ? std::optional(_binaryAddress) : std::nullopt;
     }
 
@@ -565,7 +545,7 @@ public:
     }
 
     /// \returns Bitfield of function attributes
-    SC_NODEBUG FunctionAttribute attributes() const { return attrs; }
+    FunctionAttribute attributes() const { return attrs; }
 
     /// Set attribute \p attr to `true`.
     void setAttribute(FunctionAttribute attr) { attrs |= attr; }
@@ -595,21 +575,21 @@ private:
 class SCATHA_API Type: public Scope {
 public:
     /// Size of this type
-    SC_NODEBUG size_t size() const;
+    size_t size() const;
 
     /// Align of this type
-    SC_NODEBUG size_t align() const;
+    size_t align() const;
 
     /// \Returns `size() != InvalidSize`
     /// Specifically this returns `true` for `void` and dynamic array types
-    SC_NODEBUG bool isComplete() const;
+    bool isComplete() const;
 
     /// Convenience method
     /// \Returns `isComplete() || isa<VoidType>(this)`
     bool isCompleteOrVoid() const;
 
     ///
-    SC_NODEBUG bool hasTrivialLifetime() const;
+    bool hasTrivialLifetime() const;
 
 protected:
     explicit Type(EntityType entityType,
@@ -637,22 +617,22 @@ public:
                  Type const* returnType);
 
     /// Argument types
-    SC_NODEBUG std::span<Type const* const> argumentTypes() const {
+    std::span<Type const* const> argumentTypes() const {
         return _argumentTypes;
     }
 
     /// Argument type at index \p index
-    SC_NODEBUG Type const* argumentType(size_t index) const {
+    Type const* argumentType(size_t index) const {
         return _argumentTypes[index];
     }
 
     /// Number of arguments
-    SC_NODEBUG size_t argumentCount() const { return _argumentTypes.size(); }
+    size_t argumentCount() const { return _argumentTypes.size(); }
 
     /// \Returns the return type.
     /// \Warning During analysis this could be null if the return type is
     /// not yet deduced.
-    SC_NODEBUG Type const* returnType() const { return _returnType; }
+    Type const* returnType() const { return _returnType; }
 
 private:
     utl::small_vector<Type const*> _argumentTypes;
@@ -731,23 +711,19 @@ public:
 class SCATHA_API ArithmeticType: public BuiltinType {
 public:
     /// Number of bits in this type
-    SC_NODEBUG size_t bitwidth() const { return _bitwidth; }
+    size_t bitwidth() const { return _bitwidth; }
 
     /// `Signed` or `Unsigned`
     /// This is only really meaningful for `IntType`, but very convenient to
     /// have it in the arithmetic interface `BoolType` and `ByteType` are always
     /// `Unsigned`, `FloatType` is always `Signed`
-    SC_NODEBUG Signedness signedness() const { return _signed; }
+    Signedness signedness() const { return _signed; }
 
     /// Shorthand for `signedness() == Signed`
-    SC_NODEBUG bool isSigned() const {
-        return signedness() == Signedness::Signed;
-    }
+    bool isSigned() const { return signedness() == Signedness::Signed; }
 
     /// Shorthand for `signedness() == Unsigned`
-    SC_NODEBUG bool isUnsigned() const {
-        return signedness() == Signedness::Unsigned;
-    }
+    bool isUnsigned() const { return signedness() == Signedness::Unsigned; }
 
 protected:
     explicit ArithmeticType(EntityType entityType,
@@ -814,17 +790,15 @@ public:
     SC_ASTNODE_DERIVED(definition, StructDefinition)
 
     /// The member variables of this type in the order of declaration.
-    SC_NODEBUG std::span<Variable* const> memberVariables() {
-        return memberVars;
-    }
+    std::span<Variable* const> memberVariables() { return memberVars; }
 
     /// \overload
-    SC_NODEBUG std::span<Variable const* const> memberVariables() const {
+    std::span<Variable const* const> memberVariables() const {
         return memberVars;
     }
 
     /// \Returns a view over the member types in this struct
-    SC_NODEBUG auto members() const {
+    auto members() const {
         return memberVariables() |
                ranges::views::transform([](auto* var) { return var->type(); });
     }
@@ -859,16 +833,16 @@ public:
     explicit ArrayType(ObjectType* elementType, size_t count);
 
     /// Type of the elements in this array
-    SC_NODEBUG ObjectType* elementType() { return elemType; }
+    ObjectType* elementType() { return elemType; }
 
     /// \overload
-    SC_NODEBUG ObjectType const* elementType() const { return elemType; }
+    ObjectType const* elementType() const { return elemType; }
 
     /// Number of elements in this array
-    SC_NODEBUG size_t count() const { return _count; }
+    size_t count() const { return _count; }
 
     /// Shorthand for `count() == DynamicCount`
-    SC_NODEBUG bool isDynamic() const { return count() == DynamicCount; }
+    bool isDynamic() const { return count() == DynamicCount; }
 
     /// Recomputes size and align based on the element type and count. Used by
     /// `instantiateEntities()` to recompute the size for array types that have
@@ -886,7 +860,7 @@ private:
 class SCATHA_API PtrRefTypeBase {
 public:
     /// The type referred to by the pointer or reference
-    SC_NODEBUG QualType base() const { return _base; }
+    QualType base() const { return _base; }
 
 protected:
     PtrRefTypeBase(QualType type): _base(type) {}
@@ -945,7 +919,7 @@ public:
     OverloadSet(OverloadSet const&) = delete;
 
     /// The location where this overload set ist formed
-    SC_NODEBUG SourceRange sourceRange() const { return loc; }
+    SourceRange sourceRange() const { return loc; }
 
     /// Inherit interface from `utl::vector`
     using small_vector::begin;
@@ -972,7 +946,7 @@ public:
     explicit Generic(std::string name, size_t, Scope* parentScope):
         Entity(EntityType::Generic, std::move(name), parentScope) {}
 
-    SC_NODEBUG size_t numParameters() const { return numParams; }
+    size_t numParameters() const { return numParams; }
 
 private:
     size_t numParams;
@@ -988,10 +962,10 @@ public:
                    AccessControl accessControl);
 
     /// \Returns the entity that this alias refers to
-    SC_NODEBUG Entity* aliased() { return _aliased; }
+    Entity* aliased() { return _aliased; }
 
     /// \overload
-    SC_NODEBUG Entity const* aliased() const { return _aliased; }
+    Entity const* aliased() const { return _aliased; }
 
 private:
     friend class Entity;

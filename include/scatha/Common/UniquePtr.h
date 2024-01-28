@@ -24,14 +24,14 @@ using UniquePtr = std::unique_ptr<T, internal::PrivateDeleter>;
 
 template <typename T, typename... Args>
     requires std::constructible_from<T, Args...>
-SC_NODEBUG UniquePtr<T> allocate(Args&&... args) {
+UniquePtr<T> allocate(Args&&... args) {
     return UniquePtr<T>(new T(std::forward<Args>(args)...));
 }
 
 template <typename Derived, typename Base>
     requires std::derived_from<Derived, Base> ||
              std::convertible_to<Base*, Derived*>
-SC_NODEBUG UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
+UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
     auto* d = cast<Derived*>(p.release());
     return UniquePtr<Derived>(d);
 }
@@ -39,7 +39,7 @@ SC_NODEBUG UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
 /// Utility function to convert `UniquePtr` arguments into a
 /// `small_vector<UniquePtr>`
 template <typename... T>
-SC_NODEBUG utl::small_vector<UniquePtr<std::common_type_t<T...>>> toSmallVector(
+utl::small_vector<UniquePtr<std::common_type_t<T...>>> toSmallVector(
     UniquePtr<T>... ptrs) {
     utl::small_vector<UniquePtr<std::common_type_t<T...>>> result;
     (result.push_back(std::move(ptrs)), ...);

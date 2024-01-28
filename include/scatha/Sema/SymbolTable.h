@@ -219,13 +219,14 @@ public:
     /// Invoke function \p f with scope \p scope pushed
     /// This is essentially the same as `withScopeCurrent()` but it traps if \p
     /// scope is not a direct child of the current scope
-    decltype(auto) withScopePushed(Scope const* cscope,
-                                   std::invocable auto&& f) const {
+    SC_NODEBUG decltype(auto) withScopePushed(Scope const* cscope,
+                                              std::invocable auto&& f) const {
         auto* scope = const_cast<Scope*>(cscope);
         auto* self = const_cast<SymbolTable*>(this);
         utl::scope_guard guard([self] { self->popScope(); });
         self->pushScope(scope);
-        return std::invoke(f);
+        /// We are not using `std::invoke` here because its harder to debug
+        return f();
     }
 
     /// # Accessors

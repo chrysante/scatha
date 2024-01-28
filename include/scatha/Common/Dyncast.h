@@ -41,7 +41,8 @@ struct Matcher {
 };
 
 template <typename R, typename... T, typename... F>
-decltype(auto) operator->*(Matcher<R, T...> m, utl::overload<F...> const& f) {
+SC_NODEBUG decltype(auto) operator->*(Matcher<R, T...> m,
+                                      utl::overload<F...> const& f) {
     // clang-format off
     return std::apply([&](auto&&... t) -> decltype(auto) {
         return visit<R>(t..., f);
@@ -49,7 +50,8 @@ decltype(auto) operator->*(Matcher<R, T...> m, utl::overload<F...> const& f) {
 }
 
 template <typename R, typename... T, typename... F>
-decltype(auto) operator->*(Matcher<R, T...> m, utl::overload<F...>&& f) {
+SC_NODEBUG decltype(auto) operator->*(Matcher<R, T...> m,
+                                      utl::overload<F...>&& f) {
     // clang-format off
     return std::apply([&](auto&&... t) -> decltype(auto) {
         return visit<R>(t..., std::move(f));
@@ -65,12 +67,14 @@ struct Matcher<R, T> {
 };
 
 template <typename R, typename T, typename... F>
-decltype(auto) operator->*(Matcher<R, T> m, utl::overload<F...> const& f) {
+SC_NODEBUG decltype(auto) operator->*(Matcher<R, T> m,
+                                      utl::overload<F...> const& f) {
     return visit<R>(m.t, f);
 }
 
 template <typename R, typename T, typename... F>
-decltype(auto) operator->*(Matcher<R, T> m, utl::overload<F...>&& f) {
+SC_NODEBUG decltype(auto) operator->*(Matcher<R, T> m,
+                                      utl::overload<F...>&& f) {
     return visit<R>(m.t, f);
 }
 
