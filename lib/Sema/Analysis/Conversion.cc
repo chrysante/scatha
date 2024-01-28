@@ -181,9 +181,9 @@ static ObjectTypeConversion fromNullPointerConv(NullPtrType const&,
     return ObjectTypeConversion::NullptrToUniquePtr;
 }
 
-static ConvExp<ObjectTypeConversion> userDefinedConv(ConversionKind kind,
-                                                     ThinExpr from,
-                                                     ThinExpr to) {
+static ConvExp<ObjectTypeConversion> constructingConversion(ConversionKind kind,
+                                                            ThinExpr from,
+                                                            ThinExpr to) {
     if (to.isLValue()) {
         if (from.type().get() == to.type().get()) {
             return ConvNoop;
@@ -195,11 +195,23 @@ static ConvExp<ObjectTypeConversion> userDefinedConv(ConversionKind kind,
     return computeObjectConstruction(kind, to.type().get(), std::array{ from });
 };
 
+///
+static bool wantConstructingConversion(ThinExpr from, ThinExpr to) {
+    if (!isa<CompoundType>(*to.type()) && !to.type()->hasTrivialLifetime()) {
+        return false;
+    }
+    return from.isLValue() && to.isRValue();
+}
+
 static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                                                       ThinExpr from,
                                                       ThinExpr to) {
     using enum ObjectTypeConversion;
     using RetType = ConvExp<ObjectTypeConversion>;
+    ///
+    if (wantConstructingConversion(from, to)) {
+        return constructingConversion(kind, from, to);
+    }
     switch (kind) {
     case ConversionKind::Implicit:
         // clang-format off
@@ -240,7 +252,7 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return fromNullPointerConv(from, to);
             },
             [&](ObjectType const&, ObjectType const&) {
-                return userDefinedConv(ConversionKind::Implicit, from, to);
+                return constructingConversion(ConversionKind::Implicit, from, to);
             }
         }; // clang-format on
     case ConversionKind::Explicit:
@@ -289,7 +301,7 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
                 return fromNullPointerConv(from, to);
             },
             [&](ObjectType const&, ObjectType const&) {
-                return userDefinedConv(ConversionKind::Explicit, from, to);
+                return constructingConversion(ConversionKind::Explicit, from, to);
             }
         }; // clang-format on
     case ConversionKind::Reinterpret:
