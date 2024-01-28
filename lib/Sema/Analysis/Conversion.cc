@@ -196,10 +196,7 @@ static ConvExp<ObjectTypeConversion> constructingConversion(ConversionKind kind,
 
 ///
 static bool wantConstructingConversion(ThinExpr from, ThinExpr to) {
-    if (!isa<CompoundType>(*to.type()) && !to.type()->hasTrivialLifetime()) {
-        return false;
-    }
-    return from.isLValue() && to.isRValue();
+    return !to.type()->hasTrivialLifetime() && from.isLValue() && to.isRValue();
 }
 
 static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
