@@ -350,26 +350,29 @@ TEST_CASE("Invalid use of dynamic array", "[sema][issue]") {
 
 TEST_CASE("Invalid jump", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-fn main() {
-    break;
-    if 1 == 0 {
-        continue;
-    }
-    for i = 0; i < 10; ++i {
-        break;
-        continue;
-    }
-    while true {
-        if 1 == 2 {
-            break;
-        }
-    }
-})");
+/*  2 */ fn main() {
+/*  3 */     break;
+/*  4 */     if 1 == 0 {
+/*  5 */         continue;
+/*  6 */     }
+/*  7 */     for i = 0; i < 10; ++i {
+/*  8 */         break;
+/*  9 */     }
+/* 10 */     for i = 0; i < 10; ++i {
+/* 11 */         continue;
+/* 12 */     }
+/* 13 */     while true {
+/* 14 */         if 1 != 2 {
+/* 15 */             break;
+/* 16 */         }
+/* 17 */     }
+/* 18 */ }
+)");
     CHECK(issues.findOnLine<GenericBadStmt>(3, GenericBadStmt::InvalidScope));
     CHECK(issues.findOnLine<GenericBadStmt>(5, GenericBadStmt::InvalidScope));
     CHECK(issues.noneOnLine(8));
-    CHECK(issues.noneOnLine(9));
-    CHECK(issues.noneOnLine(13));
+    CHECK(issues.noneOnLine(11));
+    CHECK(issues.noneOnLine(15));
 }
 
 TEST_CASE("Invalid this parameter", "[sema][issue]") {

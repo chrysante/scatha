@@ -39,14 +39,6 @@ static std::optional<CleanupOperation> makeCleanup(Object* obj) {
     return CleanupOperation{ obj, type->lifetimeMetadata().destructor() };
 }
 
-/// \overload
-static std::optional<CleanupOperation> makeCleanup(ast::Expression* expr) {
-    if (!expr || !expr->isDecorated()) {
-        return std::nullopt;
-    }
-    return makeCleanup(expr->object());
-}
-
 bool CleanupStack::push(Object* obj, AnalysisContext& ctx) {
     auto cleanup = makeCleanup(obj);
     if (!cleanup || cleanup->operation.isTrivial()) {

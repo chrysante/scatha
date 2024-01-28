@@ -46,12 +46,11 @@ using Generator = utl::unique_function<
 
 static void validateEmpty(std::span<SourceFile const> sources,
                           IssueHandler const& issues) {
-    if (issues.empty()) {
-        return;
+    if (issues.haveErrors()) {
+        std::stringstream sstr;
+        issues.print(sources, sstr);
+        throw std::runtime_error(sstr.str());
     }
-    std::stringstream sstr;
-    issues.print(sources, sstr);
-    throw std::runtime_error(sstr.str());
 }
 
 static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {

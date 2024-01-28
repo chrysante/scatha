@@ -10,10 +10,13 @@
 #endif
 
 SC_SEMA_GENERICBADSTMT_DEF(ReservedIdentifier, Error, "Reserved identifier")
+
 SC_SEMA_GENERICBADSTMT_DEF(InvalidScope,
                            Error,
                            ::format(statement())
                                << " is invalid in " << ::format(scope()))
+
+SC_SEMA_GENERICBADSTMT_DEF(Unreachable, Warning, "Code will never be executed")
 
 #undef SC_SEMA_GENERICBADSTMT_DEF
 

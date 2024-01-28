@@ -200,48 +200,43 @@ struct PrintCtx {
 
     void print(ASTNode const& node) {
         if (!node.isDecorated()) {
-            str << nodeHeader(formatter, node) << '\n';
+            str << nodeHeader(formatter, node);
         }
         else {
             // clang-format off
             SC_MATCH (node) {
                 [&](ASTNode const& node) {
-                    str << nodeHeader(formatter, node) << '\n';
+                    str << nodeHeader(formatter, node);
                 },
                 [&](TranslationUnit const&) {},
                 [&](ast::SourceFile const& file) {
-                    str << nodeHeader(formatter, file, file.name()) << '\n';
+                    str << nodeHeader(formatter, file, file.name());
                 },
                 [&](Literal const& lit) {
-                    str << nodeHeader(formatter, node, formatLit(&lit)) 
-                        << '\n';
+                    str << nodeHeader(formatter, node, formatLit(&lit));
                 },
                 [&](Identifier const& id) {
-                    str << nodeHeader(formatter, node, formatID(id.value()))
-                        << '\n';
+                    str << nodeHeader(formatter, node, formatID(id.value()));
                 },
                 [&](UnaryExpression const& expr) {
-                    str << nodeHeader(formatter, node, expr.operation()) 
-                        << '\n';
+                    str << nodeHeader(formatter, node, expr.operation());
                 },
                 [&](BinaryExpression const& expr) {
-                    str << nodeHeader(formatter, node, expr.operation()) 
-                        << '\n';
+                    str << nodeHeader(formatter, node, expr.operation());
                 },
                 [&](Declaration const& decl) {
-                    str << nodeHeader(formatter, node, formatID(decl.name()))
-                        << '\n';
+                    str << nodeHeader(formatter, node, formatID(decl.name()));
                 },
                 [&](FunctionDefinition const& func) {
                     str << nodeHeader(formatter, node, 
-                                      funcDecl(func.function())) << '\n';
+                                      funcDecl(func.function()));
                 },
                 [&](LoopStatement const& loop) {
-                    str << nodeHeader(formatter, node, loop.kind()) << '\n';
+                    str << nodeHeader(formatter, node, loop.kind());
                 },
                 [&](std::derived_from<ConvExprBase> auto const& expr) {
                     str << nodeHeader(formatter, node,
-                                      expr.conversion()) << "\n";
+                                      expr.conversion());
                 },
                 [&](NontrivConstructExpr const& expr) {
                     str << nodeHeader(formatter, expr) << "\n";
@@ -249,11 +244,17 @@ struct PrintCtx {
                                                              Level::Occupied);
                     str << formatter.beginLine()
                         << tfmt::format(BrightGrey, "Selected constructor: ")
-                        << funcDecl(expr.constructor()) << "\n";
+                        << funcDecl(expr.constructor());
                     formatter.pop();
                 },
             }; // clang-format on
         }
+        if (auto* stmt = dyncast<Statement const*>(&node);
+            stmt && !stmt->reachable())
+        {
+            str << " " << tfmt::format(Red, "Unreachable");
+        }
+        str << "\n";
         if (auto* stmt = dyncast<Statement const*>(&node)) {
             formatter.push(node.children().empty() ? Level::Free :
                                                      Level::Occupied);

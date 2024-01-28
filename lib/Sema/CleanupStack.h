@@ -54,6 +54,9 @@ public:
     /// \overload for expressions. Equivalent to `erase(expr->object())`
     void erase(ast::Expression* expr);
 
+    /// Removes all cleanup operations from this stack
+    void clear() { operations.clear(); }
+
     /// \Returns `true` if the stack is empty
     bool empty() const { return operations.empty(); }
 

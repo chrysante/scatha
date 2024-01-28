@@ -115,6 +115,13 @@ struct StmtContext {
         return isa<ReferenceType>(currentFunction->returnType());
     }
 
+    /// Marks \p stmt and all children unreachable.
+    ///
+    /// Issues a warning if \p issueWarning is `true` and \p stmt is not yet
+    /// marked unreachable
+    void markStatementUnreachable(ast::Statement* stmt,
+                                  bool issueWarning = true);
+
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
@@ -486,36 +493,26 @@ void StmtContext::analyzeImpl(ast::CompoundStatement& block) {
         block.decorateScope(sym.addAnonymousScope());
     }
     sym.withScopePushed(block.scope(), [&] {
+        bool reachedReturn = false;
+        /// If the block is known to be unreachable call to this function up the
+        /// call stack has already issued a warning
+        bool issuedWarning = !block.reachable();
         /// We make a copy why?
-        for (auto* statement: block.statements() | ToSmallVector<>) {
+        for (auto* statement: block.statements()) {
+            if (reachedReturn) {
+                markStatementUnreachable(statement,
+                                         /* issue warning: */ !issuedWarning);
+                issuedWarning = true;
+            }
             analyze(*statement);
+            reachedReturn |= isa<ast::ReturnStatement>(statement);
+        }
+        /// If the block has a return statement that return statement will emit
+        /// all cleanup operations
+        if (reachedReturn) {
+            block.cleanupStack().clear();
         }
     });
-}
-
-static UniquePtr<ast::ConstructBase> allocateDefaultConstruction(
-    SourceRange sourceRange, ObjectType const* type) {
-    auto& md = type->lifetimeMetadata();
-    if (md.defaultConstructor().isTrivial()) {
-        return allocate<ast::TrivDefConstructExpr>(sourceRange, type);
-    }
-    auto defConstr = md.defaultConstructor();
-    SC_ASSERT(!defConstr.isDeleted(), "Should be caught earlier");
-    using enum LifetimeOperation::Kind;
-    using ArgList = utl::small_vector<UniquePtr<ast::Expression>>;
-    switch (defConstr.kind()) {
-    case Nontrivial:
-        return allocate<ast::NontrivConstructExpr>(ArgList{},
-                                                   sourceRange,
-                                                   cast<StructType const*>(
-                                                       type));
-    case NontrivialInline:
-        return allocate<ast::NontrivInlineConstructExpr>(ArgList{},
-                                                         sourceRange,
-                                                         type);
-    default:
-        SC_UNREACHABLE();
-    }
 }
 
 void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
@@ -671,6 +668,17 @@ void StmtContext::analyzeImpl(ast::IfStatement& stmt) {
                 stmt.cleanupStack(),
                 ctx);
     }
+    if (auto* cval =
+            dyncast<IntValue const*>(stmt.condition()->constantValue()))
+    {
+        APInt val = cval->value();
+        if (val.to<bool>()) {
+            markStatementUnreachable(stmt.elseBlock());
+        }
+        else {
+            markStatementUnreachable(stmt.thenBlock());
+        }
+    }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
         analyze(*stmt.elseBlock());
@@ -741,4 +749,44 @@ void StmtContext::setDeducedReturnType() {
                                  BadPassedType::ReturnDeduced);
     }
     sym.setFunctionType(semaFn, semaFn->argumentTypes(), deducedRetTy);
+}
+
+/// Recursively marks \p stmt and all child statements unreachable
+static void markUnreachableRec(ast::Statement* stmt) {
+    stmt->markUnreachable();
+    for (auto* child: stmt->children() | Filter<ast::Statement>) {
+        if (child->reachable()) {
+            markUnreachableRec(child);
+        }
+    }
+}
+
+/// \Returns \p stmt or the first nested child statement that is not a compound
+/// statement
+static ast::Statement* findFirstNonBlock(ast::Statement* stmt) {
+    if (!isa<ast::CompoundStatement>(stmt)) {
+        return stmt;
+    }
+    for (auto* child: stmt->children() | Filter<ast::Statement>) {
+        if (auto* nonBlock = findFirstNonBlock(child)) {
+            return nonBlock;
+        }
+    }
+    return nullptr;
+}
+
+void StmtContext::markStatementUnreachable(ast::Statement* stmt,
+                                           bool issueWarning) {
+    if (!stmt) {
+        return;
+    }
+    /// We only issue a warning if the block is not known yet to be unreachable
+    issueWarning &= stmt->reachable();
+    markUnreachableRec(stmt);
+    if (!issueWarning) {
+        return;
+    }
+    if (auto* nonBlock = findFirstNonBlock(stmt)) {
+        ctx.issue<GenericBadStmt>(nonBlock, GenericBadStmt::Unreachable);
+    }
 }

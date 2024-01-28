@@ -1,5 +1,7 @@
 #include "IR/InvariantSetup.h"
 
+#include <range/v3/algorithm.hpp>
+
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Constants.h"
 #include "IR/CFG/Function.h"
@@ -17,28 +19,30 @@ static void makePred(BasicBlock* A, BasicBlock* B) {
 };
 
 void ir::setupInvariants(Context& ctx, Function& function) {
-    for (auto& bb: function) {
+    for (auto& BB: function) {
         /// Erase everything after the first terminator.
-        for (auto itr = bb.begin(); itr != bb.end(); ++itr) {
-            if (isa<TerminatorInst>(*itr)) {
-                bb.erase(std::next(itr), bb.end());
-                break;
-            }
+        if (auto itr = ranges::find_if(BB, isa<TerminatorInst>);
+            itr != BB.end())
+        {
+            BB.erase(std::next(itr), BB.end());
         }
+
         /// If we don't have a terminator insert a return.
-        if (bb.empty() || !isa<TerminatorInst>(bb.back())) {
-            bb.pushBack(new Return(ctx, ctx.undef(bb.parent()->returnType())));
+        if (BB.empty() || !isa<TerminatorInst>(BB.back())) {
+            BB.pushBack(new Return(ctx, ctx.undef(BB.parent()->returnType())));
             continue;
         }
-        auto* terminator = bb.terminator();
+
+        /// Setup the predecessor relationship
+        auto* terminator = BB.terminator();
         // clang-format off
         SC_MATCH (*terminator) {
             [&](Goto& gt) {
-                makePred(&bb, gt.target());
+                makePred(&BB, gt.target());
             },
             [&](Branch& br) {
-                makePred(&bb, br.thenTarget());
-                makePred(&bb, br.elseTarget());
+                makePred(&BB, br.thenTarget());
+                makePred(&BB, br.elseTarget());
             },
             [&](Return&) {}
         }; // clang-format on

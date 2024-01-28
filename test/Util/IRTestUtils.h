@@ -1,7 +1,8 @@
-#ifndef SCATHA_TEST_BBVIEW_H_
-#define SCATHA_TEST_BBVIEW_H_
+#ifndef SCATHA_TEST_IRTESTUTILS_H_
+#define SCATHA_TEST_IRTESTUTILS_H_
 
 #include <concepts>
+#include <stdexcept>
 
 #include "IR/CFG/BasicBlock.h"
 
@@ -11,7 +12,7 @@ namespace scatha::test {
 ir::Type const* arrayPointerType(ir::Context& ctx);
 
 /// Helper class that can be used to successively check every instruction in a
-/// basic blocl
+/// basic block
 struct BBView {
     ir::BasicBlock::ConstIterator itr;
     ir::BasicBlock const* BB;
@@ -20,6 +21,9 @@ struct BBView {
 
     template <std::derived_from<ir::Instruction> Inst>
     Inst const& nextAs() {
+        if (itr == BB->end()) {
+            throw std::runtime_error("Reached end of basic block");
+        }
         return dyncast<Inst const&>(*itr++);
     }
 
@@ -28,4 +32,4 @@ struct BBView {
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_BBVIEW_H_
+#endif // SCATHA_TEST_IRTESTUTILS_H_

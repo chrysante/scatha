@@ -162,9 +162,13 @@ void irgen::generateAstFunction(Config config, FuncGenParameters params) {
 
 /// MARK: - Statements
 
-void FuncGenContext::generate(ast::Statement const& node) {
-    visit(node,
-          [this](auto const& node) SC_NODEBUG { return generateImpl(node); });
+void FuncGenContext::generate(ast::Statement const& stmt) {
+    /// We don't emit dead code
+    if (!stmt.reachable()) {
+        return;
+    }
+    visit(stmt,
+          [this](auto const& stmt) SC_NODEBUG { return generateImpl(stmt); });
 }
 
 void FuncGenContext::generateImpl(ast::ImportStatement const&) {
@@ -1564,8 +1568,8 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
     }
 }
 
-/// Helper function to generate comments for constructor and destructor calls or inline lifetime blocks.
-/// This makes the resulting IR easier to read
+/// Helper function to generate comments for constructor and destructor calls or
+/// inline lifetime blocks. This makes the resulting IR easier to read
 static std::string makeLifetimeComment(std::string_view kind,
                                        sema::Entity const* entity,
                                        sema::Type const* type) {

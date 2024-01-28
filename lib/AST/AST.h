@@ -201,7 +201,19 @@ public:
     SC_NODEBUG ASTNode* parent() { return _parent; }
 
     /// \overload
+    template <typename N>
+    SC_NODEBUG N* parent() {
+        return cast<N*>(parent());
+    }
+
+    /// \overload
     SC_NODEBUG ASTNode const* parent() const { return _parent; }
+
+    /// \overload
+    template <typename N>
+    SC_NODEBUG N const* parent() const {
+        return cast<N const*>(parent());
+    }
 
     /// Search the ancestors of this node for a node of type \p Node
     /// \Returns that node if found, otherwise returns `nullptr`
@@ -880,7 +892,14 @@ public:
         markDecorated();
     }
 
+    /// \Returns `true` if this statement is reachable
+    bool reachable() const { return _reachable; }
+
+    /// Marks this statement unreachable. Does not update child statements
+    void markUnreachable() { _reachable = false; }
+
 private:
+    bool _reachable = true;
     sema::Entity* _entity = nullptr;
     sema::CleanupStack _cleanupStack;
 };

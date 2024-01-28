@@ -609,3 +609,20 @@ public struct X {
     auto* construct = call->argument<NontrivConstructExpr>(0);
     CHECK(construct->argument<Identifier>(0)->value() == "x");
 }
+
+TEST_CASE("Reachability", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/*  2 */ fn foo() -> int {
+/*  3 */     if true {
+/*  4 */         return 1;
+/*  5 */         foo();
+/*  6 */     }
+/*  7 */     else {
+/*  8 */         return 3;
+/*  9 */         return 5;
+/* 10 */     }
+/* 11 */ })");
+    CHECK(iss.findOnLine<GenericBadStmt>(5, GenericBadStmt::Unreachable));
+    CHECK(iss.findOnLine<GenericBadStmt>(8, GenericBadStmt::Unreachable));
+    CHECK(iss.noneOnLine(9));
+}
