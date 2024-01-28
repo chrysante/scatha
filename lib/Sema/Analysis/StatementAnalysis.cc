@@ -412,11 +412,14 @@ void StmtContext::analyzeMainFunction(ast::FunctionDefinition& def) {
 void StmtContext::analyzeNewMoveDelete(ast::FunctionDefinition& def) {
     SC_EXPECT(semaFn == def.function());
     auto* parent = dyncast<StructType*>(semaFn->parent());
-    if (!parent) {
-        ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, parent);
-    }
     if (def.returnTypeExpr()) {
         ctx.issue<BadSMF>(&def, BadSMF::HasReturnType, parent);
+    }
+    if (!parent) {
+        ctx.issue<BadSMF>(&def, BadSMF::NotInStruct, parent);
+        /// Return here because the following checks require valid parent
+        /// pointer
+        return;
     }
     Type const* mutRef = sym.reference(QualType::Mut(parent));
     if (semaFn->argumentCount() == 0) {

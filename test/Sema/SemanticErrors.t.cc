@@ -389,8 +389,6 @@ struct X {
 }
 
 TEST_CASE("Invalid special member functions", "[sema][issue]") {
-#warning
-    return;
     auto const issues = test::getSemaIssues(R"(
 /*  2 */  fn new() {}
 /*  3 */  struct X {
