@@ -1385,6 +1385,16 @@ ast::Expression* ExprContext::analyzeImpl(
     ast::NontrivInlineConstructExpr& expr) {
     if (auto* type = dyncast<ArrayType const*>(expr.constructedType())) {
         SC_UNIMPLEMENTED();
+        switch (expr.arguments().size()) {
+        case 0: { // Default construction
+            SC_UNIMPLEMENTED();
+        }
+        case 1: { // Copy or move construction
+            SC_UNIMPLEMENTED();
+        }
+        default:
+            SC_UNIMPLEMENTED();
+        }
     }
     if (auto* type = dyncast<UniquePtrType const*>(expr.constructedType())) {
         switch (expr.arguments().size()) {
