@@ -13,14 +13,36 @@
 using namespace scatha;
 using namespace test;
 
+/// \Returns the parent basic block if \p value is an instruction, otherwise
+/// return null
+static ir::BasicBlock const* getValueBB(ir::Value const* value) {
+    if (auto* inst = dyncast<ir::Instruction const*>(value)) {
+        return inst->parent();
+    }
+    return nullptr;
+}
+
+static constexpr utl::streammanip inBBMessage = [](std::ostream& str,
+                                                   ir::BasicBlock const* BB) {
+    if (BB) {
+        str << "in basic block \"" << BB->name() << "\"";
+    }
+};
+
 std::ostream& test::operator<<(std::ostream& str, EqResult const& eqResult) {
     if (eqResult) {
         return str << "Success";
     }
-    str << eqResult.msg;
-    if (eqResult.a && eqResult.b) {
-        str << " with values " << ir::toString(eqResult.a) << " and "
-            << ir::toString(eqResult.b);
+    str << eqResult.msg << "\n";
+    if (eqResult.a) {
+        str << "    Value: ";
+        printDecl(*eqResult.a, str);
+        str << " " << inBBMessage(getValueBB(eqResult.a)) << "\n";
+    }
+    if (eqResult.b) {
+        str << "    Value: ";
+        printDecl(*eqResult.b, str);
+        str << " " << inBBMessage(getValueBB(eqResult.b)) << "\n";
     }
     return str;
 }

@@ -3,6 +3,8 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Equal.h"
+#include "IR/IRParser.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "Util/FrontendWrapper.h"
@@ -80,7 +82,7 @@ TEST_CASE("Unique expr of dynamic int array", "[irgen]") {
     auto& dealloc = del.nextAs<Call>();
     CHECK(dealloc.function()->name() == "__builtin_dealloc");
     CHECK(dealloc.argumentAt(0) == &data);
-    auto& gt = del.nextAs<Goto>();
+    del.nextAs<Goto>();
 
     auto end = del.nextBlock();
     auto& ret = end.nextAs<Return>();
@@ -106,14 +108,16 @@ public fn foo() {
     CHECK(alloc.function()->name() == "__builtin_alloc");
     auto& data = entry.nextAs<ExtractValue>();
     CHECK(data.baseValue() == &alloc);
+    auto& dataEnd = entry.nextAs<GetElementPointer>();
+    CHECK(dataEnd.basePointer() == &data);
+    CHECK(dataEnd.arrayIndex() == ctx.intConstant(10, 64));
     auto& gotoBody = entry.nextAs<Goto>();
 
     auto body = entry.nextBlock();
     CHECK(gotoBody.target() == body.BB);
     CHECK_NOTHROW(body.nextAs<Phi>());
-    CHECK_NOTHROW(body.nextAs<GetElementPointer>());
     CHECK_NOTHROW(body.nextAs<Call>());
-    CHECK_NOTHROW(body.nextAs<ArithmeticInst>());
+    CHECK_NOTHROW(body.nextAs<GetElementPointer>());
     CHECK_NOTHROW(body.nextAs<CompareInst>());
     CHECK_NOTHROW(body.nextAs<Branch>());
 
@@ -125,4 +129,62 @@ public fn foo() {
 
     auto delEnd = del.nextBlock();
     CHECK_NOTHROW(delEnd.nextAs<Return>());
+}
+
+TEST_CASE("Destruction of unique pointer to array function argument",
+          "[irgen]") {
+    auto [ctx, mod] = makeIR({ R"(
+public struct Bar {
+    fn delete(&mut this) {}
+}
+public fn foo(p: *unique [Bar]) {}
+)" });
+    auto [ctx2, ref] = ir::parse(R"(
+struct @Bar {}
+
+ext func void @__builtin_dealloc(ptr %0, i64 %1, i64 %2)
+
+func void @Bar.delete-_R_MBar(ptr %0) {
+  %entry:
+    return
+
+  %entry.0: // preds:
+    return
+}
+
+func void @foo-_U_A_MBar(ptr %0, i64 %1) {
+  %entry:
+    %p.addr = alloca { ptr, i64 }, i32 1
+    %p.elem.0 = insert_value { ptr, i64 } undef, ptr %0, 0
+    %p = insert_value { ptr, i64 } %p.elem.0, i64 %1, 1
+    store ptr %p.addr, { ptr, i64 } %p
+    %p.0 = load { ptr, i64 }, ptr %p.addr
+    %p.data = extract_value { ptr, i64 } %p.0, 0
+    %p.count = extract_value { ptr, i64 } %p.0, 1
+    %unique.ptr.engaged = ucmp neq ptr %p.data, ptr nullptr
+    // Destruction block for p
+    branch i1 %unique.ptr.engaged, label %unique.ptr.delete, label %unique.ptr.end
+
+  %unique.ptr.delete: // preds: entry
+    %pointee.end = getelementptr inbounds @Bar, ptr %p.data, i64 %p.count
+    goto label %pointee.destr.body
+
+  %pointee.destr.body: // preds: unique.ptr.delete, pointee.destr.body
+    %pointee.destr.counter = phi ptr [label %unique.ptr.delete : %p.data], [label %pointee.destr.body : %pointee.ind]
+    // Destructor for Bar
+    call void @Bar.delete-_R_MBar, ptr %pointee.destr.counter
+    %pointee.ind = getelementptr inbounds @Bar, ptr %pointee.destr.counter, i64 1
+    %pointee.destr.test = ucmp eq ptr %pointee.ind, ptr %pointee.end
+    branch i1 %pointee.destr.test, label %pointee.destr.end, label %pointee.destr.body
+
+  %pointee.destr.end: // preds: pointee.destr.body
+    %bytesize = mul i64 %p.count, i64 1
+    call void @__builtin_dealloc, ptr %p.data, i64 %bytesize, i64 1
+    goto label %unique.ptr.end
+
+  %unique.ptr.end: // preds: entry, pointee.destr.end
+    return
+})")
+                           .value();
+    CHECK(test::modEqual(mod, ref));
 }

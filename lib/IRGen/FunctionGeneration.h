@@ -4,6 +4,7 @@
 #include <deque>
 
 #include <svm/Builtin.h>
+#include <utl/function_view.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
@@ -52,7 +53,7 @@ void generateSynthFunctionAs(sema::SMFKind kind, Config config,
 /// Metadata for synthesized loop generation
 struct CountedForLoopDesc {
     ir::BasicBlock* body;
-    ir::Value* index;
+    ir::Value* induction;
     ir::BasicBlock::ConstIterator insertPoint;
 };
 
@@ -171,6 +172,18 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
 
     /// \overload for static trip count
     CountedForLoopDesc generateForLoop(std::string_view name, size_t tripCount);
+
+    /// Generates a for loop over the range `[indBegin, indEnd)`
+    /// The first value of the induction variable is \p indBegin
+    /// The next value of the induction variable is the invocation result of
+    /// \p indNext
+    /// The argument to \p indNext is the induction variables value of
+    /// the current loop iteration.
+    /// The loop runs until the value of the induction variable compares equal
+    /// to \p indEnd
+    CountedForLoopDesc generateForLoopImpl(
+        std::string_view name, ir::Value* indBegin, ir::Value* indEnd,
+        utl::function_view<ir::Value*(ir::Value*)> indNext);
 };
 
 template <ValueRepresentation Repr>

@@ -82,7 +82,7 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
     }();
     auto loop = generateForLoop("arraylifetime", count);
     withBlockCurrent(loop.body, [&] {
-        genMemberConstruction(loop.insertPoint, *elemType, loop.index);
+        genMemberConstruction(loop.insertPoint, *elemType, loop.induction);
     });
 }
 

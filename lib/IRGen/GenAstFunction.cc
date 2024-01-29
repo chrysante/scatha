@@ -65,6 +65,21 @@ static std::string makeLifetimeComment(sema::Function const* ctor,
 
 namespace {
 
+enum class InlineLifetime { Array, UniquePtr };
+
+} // namespace
+
+static InlineLifetime getInlineLifetimeCase(sema::ObjectType const* type) {
+    // clang-format off
+    return SC_MATCH (*type) {
+        [](sema::ArrayType const& ) { return InlineLifetime::Array; },
+        [](sema::UniquePtrType const& ) { return InlineLifetime::UniquePtr; },
+        [](sema::Type const& ) -> InlineLifetime { SC_UNREACHABLE(); },
+    }; // clang-format on
+}
+
+namespace {
+
 struct LoopDesc {
     ir::BasicBlock* header = nullptr;
     ir::BasicBlock* body = nullptr;
@@ -110,11 +125,6 @@ struct FuncGenContext: FuncGenContextBase {
                            sema::Object const*);
     void inlineCleanupImpl(Value const&, sema::UniquePtrType const&,
                            sema::Object const*);
-
-    /// Creates array size values and stores them in `objectMap` if declared
-    /// type is array
-    void generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
-                                  sema::Object const* initObject);
 
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
@@ -1046,16 +1056,20 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
 Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     auto value = getValue(expr.value());
     auto operation = expr.operation();
+    /// No operation means the move expression has no effect
+    if (!operation) {
+        return value;
+    }
     auto* irType = typeMap.packed(expr.type().get());
     auto name = utl::strcat("move.", value.name());
     using enum sema::LifetimeOperation::Kind;
-    switch (operation.kind()) {
+    switch (operation->kind()) {
     case Trivial:
         return copyValue(value);
 
     case Nontrivial: {
         auto* mem = makeLocalVariable(irType, name);
-        auto* semaCtor = operation.function();
+        auto* semaCtor = operation->function();
         auto* irCtor = getFunction(semaCtor);
         auto CC = getCC(semaCtor);
         auto irArguments =
@@ -1067,7 +1081,20 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
     }
 
     case NontrivialInline:
-        SC_UNIMPLEMENTED();
+        switch (getInlineLifetimeCase(expr.type().get())) {
+        case InlineLifetime::Array:
+            SC_UNIMPLEMENTED();
+        case InlineLifetime::UniquePtr: {
+            SC_ASSERT(
+                value.isMemory() && value.isPacked(),
+                "Must be packed memory because we set the old value to null here");
+            auto* newVal = add<ir::Load>(value.get(0), irType, name);
+            add<ir::Store>(ctx, value.get(0), makeZeroConstant(irType));
+            return Value(name, expr.type().get(), { newVal }, Register, Packed);
+        }
+        default:
+            SC_UNREACHABLE();
+        }
 
     case Deleted:
         SC_UNREACHABLE();
@@ -1502,19 +1529,17 @@ Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {
 
 Value FuncGenContext::getValueImpl(
     ast::NontrivInlineConstructExpr const& expr) {
-    if (auto* type = dyncast<sema::ArrayType const*>(expr.constructedType())) {
+    switch (getInlineLifetimeCase(expr.type().get())) {
+    case InlineLifetime::Array:
         SC_UNIMPLEMENTED();
-    }
-    if (auto* type =
-            dyncast<sema::UniquePtrType const*>(expr.constructedType()))
-    {
+    case InlineLifetime::UniquePtr: {
         SC_ASSERT(expr.arguments().size() == 0, "");
         auto* irType = typeMap.packed(expr.type().get());
         auto* null = makeZeroConstant(irType);
         return Value("unique.ptr", expr.type().get(), { null }, Register,
                      Packed);
     }
-    else {
+    default:
         SC_UNREACHABLE();
     }
 }
@@ -1551,15 +1576,21 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
                    0);
     }
     else {
-        auto loop = generateForLoop(utl::strcat(name, ".constr"), count);
+        auto* arrayEnd = add<ir::GetElementPointer>(ctx, irElemType, arrayBegin,
+                                                    count, IndexArray{},
+                                                    utl::strcat(name, ".end"));
+        auto loop = generateForLoopImpl(utl::strcat(name, ".constr"),
+                                        arrayBegin, arrayEnd,
+                                        [&](ir::Value* ind) {
+            return add<ir::GetElementPointer>(ctx, irElemType, ind,
+                                              ctx.intConstant(1, 64),
+                                              IndexArray{},
+                                              utl::strcat(name, ".ind"));
+        });
         withBlockCurrent(loop.body, loop.insertPoint, [&] {
-            auto* elemAddr =
-                add<ir::GetElementPointer>(ctx, irElemType, arrayBegin,
-                                           loop.index, IndexArray{},
-                                           utl::strcat(name, ".elem.addr"));
             auto* elem = getValue<Packed>(Memory, expr.elementConstruction());
             SC_ASSERT(isa<ir::Alloca>(elem), "Must be local");
-            elem->replaceAllUsesWith(elemAddr);
+            elem->replaceAllUsesWith(loop.induction);
         });
     }
     return Value(name, expr.type().get(), { arrayBegin, count }, Memory,
@@ -1636,18 +1667,24 @@ void FuncGenContext::inlineCleanup(Value const& value,
 void FuncGenContext::inlineCleanupImpl(Value const& value,
                                        sema::ArrayType const& type,
                                        sema::Object const* obj) {
+    auto* elemType = type.elementType();
+    auto* irElemType = typeMap.packed(elemType);
+    auto* arraySize = to<Packed>(Register, getArraySize(&type, value));
     auto* arrayBegin = to<Unpacked>(Memory, value).front();
-    auto loop =
-        generateForLoop("array.destr",
-                        to<Packed>(Register, getArraySize(&type, value)));
+    auto* arrayEnd =
+        add<ir::GetElementPointer>(ctx, irElemType, arrayBegin, arraySize,
+                                   IndexArray{},
+                                   utl::strcat(value.name(), ".end"));
+    arrayEnd->setComment(makeLifetimeComment("Destruction block", obj, &type));
+    auto loop = generateForLoopImpl(utl::strcat(value.name(), ".destr"),
+                                    arrayBegin, arrayEnd, [&](ir::Value* ind) {
+        return add<ir::GetElementPointer>(ctx, irElemType, ind,
+                                          ctx.intConstant(1, 64), IndexArray{},
+                                          utl::strcat(value.name(), ".ind"));
+    });
     withBlockCurrent(loop.body, loop.insertPoint, [&] {
-        auto* elemType = type.elementType();
-        auto* irElemType = typeMap.packed(elemType);
-        auto* gep = add<ir::GetElementPointer>(ctx, irElemType, arrayBegin,
-                                               loop.index, IndexArray{},
-                                               "array.elem");
-        generateCleanup(Value("array.elem", type.elementType(), { gep }, Memory,
-                              Packed),
+        generateCleanup(Value("array.elem", type.elementType(),
+                              { loop.induction }, Memory, Packed),
                         elemType->lifetimeMetadata().destructor());
     });
 }
@@ -1669,6 +1706,9 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
     branch->setComment(makeLifetimeComment("Destruction block", obj, &type));
 
     add(deleteBlock);
+    auto valueDtor = pointeeType->lifetimeMetadata().destructor();
+    generateCleanup(Value("pointee", pointeeType, elems, Memory, Unpacked),
+                    valueDtor);
     auto [bytesize, align] = [&]() -> ValueArray<2> {
         if (elems.size() == 1) {
             return { ctx.intConstant(type.size(), 64),
@@ -1679,9 +1719,6 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
         return { makeCountToByteSize(elems[1], elemType->size()),
                  ctx.intConstant(elemType->align(), 64) };
     }();
-    auto valueDtor = pointeeType->lifetimeMetadata().destructor();
-    generateCleanup(Value("pointee", pointeeType, elems, Memory, Unpacked),
-                    valueDtor);
     auto* dealloc = getBuiltin(svm::Builtin::dealloc);
     add<ir::Call>(dealloc, ValueArray{ elems.front(), bytesize, align });
     add<ir::Goto>(ctx, endBlock);

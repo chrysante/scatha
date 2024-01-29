@@ -314,31 +314,41 @@ Value FuncGenContextBase::copyValue(Value const& value) {
 
 CountedForLoopDesc FuncGenContextBase::generateForLoop(std::string_view name,
                                                        ir::Value* tripCount) {
-    auto* pred = &currentBlock();
-    auto* body = newBlock(utl::strcat(name, ".body"));
-    auto* end = newBlock(utl::strcat(name, ".end"));
-
-    add<ir::Goto>(body);
-    add(body);
-
-    auto* phi =
-        add<ir::Phi>(std::array{ ir::PhiMapping{ pred, ctx.intConstant(0, 64) },
-                                 ir::PhiMapping{ body, nullptr } },
-                     utl::strcat(name, ".counter"));
-    auto* inc = add<ir::ArithmeticInst>(phi, ctx.intConstant(1, 64),
-                                        ir::ArithmeticOperation::Add,
-                                        utl::strcat(name, ".inc"));
-    phi->setArgument(1, inc);
-    auto* cond = add<ir::CompareInst>(inc, tripCount, ir::CompareMode::Unsigned,
-                                      ir::CompareOperation::Equal,
-                                      utl::strcat(name, ".test"));
-    add<ir::Branch>(cond, end, body);
-    add(end);
-
-    return CountedForLoopDesc{ body, phi, ir::BasicBlock::ConstIterator(inc) };
+    return generateForLoopImpl(name, ctx.intConstant(0, 64), tripCount,
+                               [&](ir::Value* ind) {
+        return add<ir::ArithmeticInst>(ind, ctx.intConstant(1, 64),
+                                       ir::ArithmeticOperation::Add,
+                                       utl::strcat(name, ".inc"));
+    });
 }
 
 CountedForLoopDesc FuncGenContextBase::generateForLoop(std::string_view name,
                                                        size_t tripCount) {
     return generateForLoop(name, ctx.intConstant(tripCount, 64));
+}
+
+CountedForLoopDesc FuncGenContextBase::generateForLoopImpl(
+    std::string_view name, ir::Value* indBegin, ir::Value* indEnd,
+    utl::function_view<ir::Value*(ir::Value*)> indNext) {
+    auto* pred = &currentBlock();
+    auto* body = newBlock(utl::strcat(name, ".body"));
+    auto* end = newBlock(utl::strcat(name, ".end"));
+    add<ir::Goto>(body);
+    add(body);
+    auto* phi = add<ir::Phi>(std::array{ ir::PhiMapping{ pred, indBegin },
+                                         ir::PhiMapping{ body, nullptr } },
+                             utl::strcat(name, ".counter"));
+    auto* inc = indNext(phi);
+    phi->setArgument(1, inc);
+    auto* cond = add<ir::CompareInst>(inc, indEnd, ir::CompareMode::Unsigned,
+                                      ir::CompareOperation::Equal,
+                                      utl::strcat(name, ".test"));
+    auto* branch = add<ir::Branch>(cond, end, body);
+    add(end);
+    auto* incInst = dyncast<ir::Instruction*>(inc);
+    auto* insertPoint = incInst ? incInst : branch;
+    return CountedForLoopDesc{ .body = body,
+                               .induction = phi,
+                               .insertPoint =
+                                   ir::BasicBlock::ConstIterator(insertPoint) };
 }

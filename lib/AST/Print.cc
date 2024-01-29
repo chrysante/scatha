@@ -237,8 +237,10 @@ struct PrintCtx {
                                       expr.conversion());
                 },
                 [&](MoveExpr const& expr) {
-                    str << nodeHeader(formatter, expr) << ", "
-                        << sema::format(expr.operation());
+                    str << nodeHeader(formatter, expr);
+                    if (auto op = expr.operation()) {
+                        str << ", " << sema::format(*op);
+                    }
                 },
                 [&](NontrivConstructExpr const& expr) {
                     str << nodeHeader(formatter, expr) << "\n";

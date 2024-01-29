@@ -696,17 +696,20 @@ public:
     /// The moved value
     AST_PROPERTY(0, Expression, value, Value)
 
-    /// The lifetime operation invoked by this move expression
-    sema::LifetimeOperation operation() const { return op; }
+    /// \Returns the lifetime operation invoked by this move expression
+    /// If this returns `std::nullopt`, then the move expression has no effect
+    /// (because we are moving an rvalue)
+    std::optional<sema::LifetimeOperation> operation() const { return op; }
 
     /// Sets the generated construct operation and decorates this expression
-    void decorateMove(sema::Entity* entity, sema::LifetimeOperation op) {
+    void decorateMove(sema::Entity* entity,
+                      std::optional<sema::LifetimeOperation> op) {
         decorateValue(entity, sema::ValueCategory::RValue);
         this->op = op;
     }
 
 private:
-    sema::LifetimeOperation op = nullptr;
+    std::optional<sema::LifetimeOperation> op;
 };
 
 /// Unique expression

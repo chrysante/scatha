@@ -810,25 +810,38 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
     if (!analyzeValue(expr.value())) {
         return nullptr;
     }
+    bool success = true;
     auto type = expr.value()->type();
+    auto& lifetime = type->lifetimeMetadata();
+    std::optional op = lifetime.moveOrCopyConstructor();
     if (!type->isComplete()) {
         ctx.badExpr(&expr, BadExpr::MoveExprIncompleteType);
+        success = false;
     }
     if (type.isConst()) {
         ctx.badExpr(&expr, BadExpr::MoveExprConst);
+        success = false;
     }
-    if (expr.value()->isRValue()) {
-        ctx.badExpr(&expr, BadExpr::MoveExprRValue);
-    }
-    auto& lifetime = type->lifetimeMetadata();
-    auto op = lifetime.moveOrCopyConstructor();
-    if (op.isDeleted()) {
+    if (op->isDeleted()) {
         ctx.badExpr(&expr, BadExpr::MoveExprImmovable);
+        success = false;
+    }
+    if (!success) {
         return nullptr;
     }
-    if (op == lifetime.copyConstructor()) {
+    if (*op == lifetime.copyConstructor()) {
         /// Warning
         ctx.badExpr(&expr, BadExpr::MoveExprCopies);
+    }
+    if (expr.value()->isRValue()) {
+        /// Warning
+        ctx.badExpr(&expr, BadExpr::MoveExprRValue);
+        /// Here we don't want to generate code for the move operation
+        op = std::nullopt;
+    }
+    if (!op) {
+        expr.decorateMove(expr.value()->object(), op);
+        return &expr;
     }
     auto* tmp = sym.temporary(&expr, expr.value()->type());
     expr.decorateMove(tmp, op);
