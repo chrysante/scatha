@@ -30,6 +30,8 @@ std::optional<char> scatha::toEscapeSequence(char c) {
         return 0x27;
     case '"':
         return 0x22;
+    case '0':
+        return 0x0;
     default:
         return std::nullopt;
     }
@@ -59,6 +61,8 @@ std::optional<char> scatha::fromEscapeSequence(char seq) {
         return '\'';
     case 0x22:
         return '"';
+    case 0x0:
+        return '0';
     default:
         return std::nullopt;
     }
