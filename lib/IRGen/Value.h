@@ -9,6 +9,7 @@
 #include <range/v3/view.hpp>
 #include <utl/hash.hpp>
 #include <utl/vector.hpp>
+#include <utl/ipp.hpp>
 
 #include "Common/Base.h"
 #include "Common/Ranges.h"
@@ -37,6 +38,25 @@ std::string_view toString(ValueRepresentation);
 
 /// Print to ostream
 std::ostream& operator<<(std::ostream& ostream, ValueRepresentation);
+
+/// Represents one IR value that can either be in a register or in memory
+class AtomicValue {
+  
+    /// \Returns the location of the value
+    ValueLocation location() const { return _loc; }
+
+    /// \Returns `true` if this value is in a register
+    bool isRegister() const { return location() == ValueLocation::Register; }
+
+    /// \Returns `true` if this value is in memory
+    bool isMemory() const { return location() == ValueLocation::Memory; }
+
+    /// \Returns the `ir::Value` pointer
+    ir::Value* get() const { return _value.pointer(); }
+    
+private:
+    utl::ipp<ir::Value*, ValueLocation, 1> _value;
+};
 
 /// Represents an abstract value that is either in a register or in memory
 class Value {

@@ -92,6 +92,10 @@ struct FuncGenContext: FuncGenContextBase {
 
     FuncGenContext(auto&... args): FuncGenContextBase(args...) {}
 
+    void generateSynthFunction();
+
+    void generateSynthFunctionAs(sema::SMFKind kind);
+
     /// # Statements
     SC_NODEBUG void generate(ast::Statement const&);
 
@@ -110,7 +114,24 @@ struct FuncGenContext: FuncGenContextBase {
     void generateImpl(ast::LoopStatement const&);
     void generateImpl(ast::JumpStatement const&);
 
-    /// # Statement specific utilities
+    /// # Lifetime specific utilities
+    void generateDefaultConstruction(
+        sema::ObjectType const* type,
+        std::span<ir::Value* const> destAddresses) {}
+
+    void generateCopyConstruction(sema::ObjectType const* type,
+                                  std::span<ir::Value* const> destAddresses,
+                                  std::span<ir::Value* const> sourceAddresses) {
+    }
+
+    void generateMoveConstruction(sema::ObjectType const* type,
+                                  std::span<ir::Value* const> destAddresses,
+                                  std::span<ir::Value* const> sourceAddresses) {
+    }
+
+    void generateDestruction(sema::ObjectType const* type,
+                             std::span<ir::Value* const> destAddresses) {}
+
     void generateCleanups(sema::CleanupStack const& cleanupStack);
 
     void generateCleanup(Value const& value, sema::LifetimeOperation destroy,
@@ -186,6 +207,12 @@ struct FuncGenContext: FuncGenContextBase {
 
     /// # General utilities
 
+    /// Generates \p numElements number of `GetElementPointer` instructions in
+    /// the index range `[beginIndex, beginIndex + numElements)`
+    utl::small_vector<ir::Value*> unpackStructMembers(
+        ir::Value* address, ir::StructType const* type, size_t beginIndex,
+        size_t numElements);
+
     /// Add source location of \p expr to \p inst
     void addSourceLoc(ir::Instruction* inst, ast::ASTNode const& sourceNode);
 };
@@ -195,6 +222,60 @@ struct FuncGenContext: FuncGenContextBase {
 void irgen::generateAstFunction(Config config, FuncGenParameters params) {
     FuncGenContext funcCtx(config, params);
     funcCtx.generate(*params.semaFn.definition());
+}
+
+void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
+    FuncGenContext funcCtx(config, params);
+    funcCtx.generateSynthFunction();
+}
+
+void FuncGenContext::generateSynthFunction() {
+    auto kind = semaFn.smfKind().value();
+    addNewBlock("entry");
+    generateSynthFunctionAs(kind);
+}
+
+void FuncGenContext::generateSynthFunctionAs(sema::SMFKind kind) {
+    auto* parentType = cast<sema::StructType const*>(semaFn.parent());
+    auto* irParentType =
+        cast<ir::StructType const*>(typeMap.packed(parentType));
+    auto metadata = typeMap.metaData(parentType);
+    auto* destAddr = &irFn.parameters().front();
+    for (auto [memberType, memberMd]:
+         zip(parentType->members(), metadata.members))
+    {
+        size_t numElems = memberMd.fieldTypes.size();
+        auto destAddresses = unpackStructMembers(destAddr, irParentType,
+                                                 memberMd.beginIndex, numElems);
+        auto* memObjType = cast<sema::ObjectType const*>(memberType);
+        using enum sema::SMFKind;
+        switch (kind) {
+        case DefaultConstructor:
+            generateDefaultConstruction(memObjType, destAddresses);
+            break;
+        case CopyConstructor: {
+            auto* sourceAddr = irFn.parameters().front().next();
+            auto sourceAddresses = unpackStructMembers(sourceAddr, irParentType,
+                                                       memberMd.beginIndex,
+                                                       numElems);
+            generateCopyConstruction(memObjType, destAddresses,
+                                     sourceAddresses);
+            break;
+        }
+        case MoveConstructor: {
+            auto* sourceAddr = irFn.parameters().front().next();
+            auto sourceAddresses = unpackStructMembers(sourceAddr, irParentType,
+                                                       memberMd.beginIndex,
+                                                       numElems);
+            generateMoveConstruction(memObjType, destAddresses,
+                                     sourceAddresses);
+            break;
+        }
+        case Destructor:
+            generateDestruction(memObjType, destAddresses);
+            break;
+        }
+    }
 }
 
 /// MARK: - Statements
@@ -236,17 +317,15 @@ static std::optional<sema::SMFKind> epilogueAsSMF(sema::Function const& F) {
 }
 
 void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
+    addNewBlock("entry");
     /// If the function is a user defined special member function (constructor
     /// or destructor) we still generate the code of the non-user defined
     /// equivalent function and then append the user defined code. This way in a
     /// user defined destructor all member destructors get called and in a user
     /// defined constructor all member variables get initialized automatically
     if (auto kind = prologueAsSMF(semaFn)) {
-        generateSynthFunctionAs(*kind, config, *this);
+        generateSynthFunctionAs(*kind);
         makeBlockCurrent(&irFn.back());
-    }
-    else {
-        addNewBlock("entry");
     }
     /// Here we add all parameters to our value map and store possibly mutable
     /// parameters (everything that's not a reference) to the stack
@@ -262,7 +341,7 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     }
     generate(*def.body());
     if (auto kind = epilogueAsSMF(semaFn)) {
-        generateSynthFunctionAs(*kind, config, *this);
+        generateSynthFunctionAs(*kind);
         makeBlockCurrent(&irFn.back());
     }
     insertAllocas();
@@ -1625,6 +1704,153 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
 
 /// MARK: - General utilities
 
+#if 0
+void FuncGenContext::generateDefaultConstruction(
+    sema::ObjectType const* type, std::span<ir::Value* const> addresses) {
+    auto operation =
+        type->lifetimeMetadata().operation(sema::SMFKind::DefaultConstructor);
+    auto irTypes = typeMap.unpacked(type);
+    SC_ASSERT(
+        irTypes.size() == addresses.size(),
+        "The unpack IR types shall directly correspond to the fields we initialize here");
+    using enum sema::LifetimeOperation::Kind;
+    switch (operation.kind()) {
+    case Trivial:
+        for (auto [addr, irType]: zip(addresses, irTypes)) {
+            if (irType->size() <= PreferredMaxRegisterValueSize) {
+                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+            }
+            else {
+                callMemset(addr, irType->size(), 0);
+            }
+        }
+        break;
+    case Nontrivial: {
+        SC_ASSERT(addresses.size() == 1, "");
+        auto* fn = operation.function();
+        add<ir::Call>(getFunction(fn), ValueArray{ addresses.front() });
+        break;
+    }
+    case NontrivialInline:
+        switch (getInlineLifetimeCase(type)) {
+        case InlineLifetime::Array: {
+            SC_UNIMPLEMENTED();
+            break;
+        }
+        case InlineLifetime::UniquePtr:
+            for (auto [addr, irType]: zip(addresses, irTypes)) {
+                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+            }
+            break;
+        }
+        break;
+    case Deleted:
+        SC_UNREACHABLE();
+    }
+}
+
+void FuncGenContext::generateLifetimeOperation(
+    sema::SMFKind smfKind,
+    sema::ObjectType const* type, std::span<ir::Value* const> destAddresses,
+    std::span<ir::Value* const> sourceAddresses) {
+    SC_EXPECT(destAddresses.size() == sourceAddresses.size());
+    auto operation =
+        type->lifetimeMetadata().operation(kind);
+    auto irTypes = typeMap.unpacked(type);
+    SC_ASSERT(
+        irTypes.size() == destAddresses.size(),
+        "The unpack IR types shall directly correspond to the fields we initialize here");
+    using enum sema::LifetimeOperation::Kind;
+    using enum sema::SMFKind;
+    switch (operation.kind()) {
+    case Trivial:
+        switch (smfKind) {
+            case DefaultConstructor:
+            for (auto [addr, irType]: zip(addresses, irTypes)) {
+                if (irType->size() <= PreferredMaxRegisterValueSize) {
+                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+                }
+                else {
+                    callMemset(addr, irType->size(), 0);
+                }
+            }
+            break;
+        case CopyConstructor:
+            [[fallthrough]];
+        case MoveConstructor:
+            for (auto [dest, source, irType]:
+                 zip(destAddresses, sourceAddresses, irTypes))
+            {
+                if (irType->size() <= PreferredMaxRegisterValueSize) {
+                    auto* value = add<ir::Load>(source, irType, "copy");
+                    add<ir::Store>(ctx, dest, value);
+                }
+                else {
+                    callMemcpy(dest, source, irType->size());
+                }
+            }
+            break;
+        case Destructor:
+            break;
+        }
+        break;
+    case Nontrivial: {
+        SC_ASSERT(addresses.size() == 1, "");
+        auto* irOperation = getFunction(operation.function());
+        switch (smfKind) {
+        case DefaultConstructor:
+            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
+            break;
+        case CopyConstructor:
+            [[fallthrough]];
+        case MoveConstructor:
+            add<ir::Call>(irOperation, ValueArray{ destAddresses.front(), sourceAddresses.front() });
+            break;
+        case Destructor:
+            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
+            break;
+        }
+        break;
+    }
+    case NontrivialInline:
+        switch (getInlineLifetimeCase(type)) {
+        case InlineLifetime::Array: {
+            SC_UNIMPLEMENTED();
+            break;
+        }
+        case InlineLifetime::UniquePtr:
+            switch (smfKind) {
+            case DefaultConstructor:
+                for (auto [addr, irType]: zip(addresses, irTypes)) {
+                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+                }
+                break;
+            case CopyConstructor:
+                SC_UNREACHABLE();
+            case MoveConstructor:
+                for (auto [source, dest, irType]:
+                     zip(destAddresses, sourceAddresses, irTypes))
+                {
+                    auto* value = add<ir::Load>(source, irType, "copy");
+                    add<ir::Store>(ctx, dest, value);
+                    add<ir::Store>(ctx, source, makeZeroConstant(irType));
+                }
+                break;
+                
+            case Destructor:
+                inlineCleanupImpl(Value("unique.ptr.member", type, destAddresses, Memory, Unpacked),
+                                  operation)
+                break;
+            }
+            break;
+        }
+        break;
+    case Deleted:
+        SC_UNREACHABLE();
+    }
+}
+#endif
+
 void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
         generateCleanup(valueMap(cleanup.object), cleanup.operation,
@@ -1724,6 +1950,17 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
     add<ir::Goto>(ctx, endBlock);
 
     add(endBlock);
+}
+
+utl::small_vector<ir::Value*> FuncGenContext::unpackStructMembers(
+    ir::Value* address, ir::StructType const* type, size_t beginIndex,
+    size_t numElements) {
+    return iota(beginIndex, numElements) |
+           transform([&](size_t index) -> ir::Value* {
+        return add<ir::GetElementPointer>(type, address, nullptr,
+                                          IndexArray{ index },
+                                          utl::strcat("member.", index));
+    }) | ToSmallVector<>;
 }
 
 void FuncGenContext::addSourceLoc(ir::Instruction* inst,

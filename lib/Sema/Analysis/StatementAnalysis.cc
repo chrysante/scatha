@@ -420,6 +420,11 @@ void StmtContext::analyzeNewMoveDelete(ast::FunctionDefinition& def) {
         /// pointer
         return;
     }
+
+    /// TODO: Get rid of the string comparisons in this function
+    /// This is just unprofessional
+
+    /// Check parameters
     Type const* mutRef = sym.reference(QualType::Mut(parent));
     if (semaFn->argumentCount() == 0) {
         ctx.issue<BadSMF>(&def, BadSMF::NoParams, parent);
@@ -435,6 +440,22 @@ void StmtContext::analyzeNewMoveDelete(ast::FunctionDefinition& def) {
     else if (semaFn->name() == "delete") {
         if (semaFn->argumentCount() != 1) {
             ctx.issue<BadSMF>(&def, BadSMF::DeleteSignature, parent);
+        }
+    }
+
+    /// Check all members have requires lifetime functions
+    for (auto* member: parent->memberVariables()) {
+        auto* type = cast<ObjectType const*>(member->type());
+        auto lifetime = type->lifetimeMetadata();
+        if (semaFn->name() == "delete") {
+            if (lifetime.destructor().isDeleted()) {
+                ctx.issue<BadSMF>(&def, BadSMF::IndestructibleMember, parent);
+            }
+        }
+        else {
+            if (lifetime.defaultConstructor().isDeleted()) {
+                ctx.issue<BadSMF>(&def, BadSMF::UnconstructibleMember, parent);
+            }
         }
     }
 }

@@ -29,7 +29,6 @@ struct FuncGenContext: FuncGenContextBase {
 
     void genImpl(sema::StructType const& type);
     void genImpl(sema::ArrayType const& type);
-    void genImpl(sema::UniquePtrType const& type);
     ir::Value* getUniquePtrCountAddr(ir::Value* thisPtr);
     void genImpl(sema::ObjectType const&) { SC_UNREACHABLE(); }
 
@@ -45,15 +44,15 @@ struct FuncGenContext: FuncGenContextBase {
 
 } // namespace
 
-void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
-    generateSynthFunctionAs(params.semaFn.smfKind().value(), config, params);
-}
+// void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
+//     generateSynthFunctionAs(params.semaFn.smfKind().value(), config, params);
+// }
 
-void irgen::generateSynthFunctionAs(sema::SMFKind kind, Config config,
-                                    FuncGenParameters params) {
-    FuncGenContext synthContext(kind, config, params);
-    synthContext.generate();
-}
+// void irgen::generateSynthFunctionAs(sema::SMFKind kind, Config config,
+//                                     FuncGenParameters params) {
+//     FuncGenContext synthContext(kind, config, params);
+//     synthContext.generate();
+// }
 
 void FuncGenContext::generate() {
     addNewBlock("entry");
@@ -89,84 +88,6 @@ void FuncGenContext::genImpl(sema::ArrayType const& type) {
 ir::Value* FuncGenContext::getUniquePtrCountAddr(ir::Value* thisPtr) {
     return add<ir::GetElementPointer>(ctx, arrayPtrType, thisPtr, nullptr,
                                       std::array{ size_t{ 1 } }, "sizeptr");
-}
-
-void FuncGenContext::genImpl(sema::UniquePtrType const& type) {
-#if 0
-    auto* arrayType = dyncast<sema::ArrayType const*>(type.base().get());
-    bool isDynArray = arrayType ? arrayType->isDynamic() : false;
-    using enum sema::SpecialLifetimeFunctionDepr;
-    switch (kind) {
-    case DefaultConstructor: {
-        auto* self = &irFn.parameters().front();
-        add<ir::Store>(self, ctx.nullpointer());
-        if (isDynArray) {
-            auto* sizeptr = getUniquePtrCountAddr(self);
-            add<ir::Store>(sizeptr, ctx.intConstant(0, 64));
-        }
-        break;
-    }
-    case CopyConstructor:
-        SC_UNREACHABLE();
-    case MoveConstructor: {
-        auto* self = &irFn.parameters().front();
-        auto* rhs = &irFn.parameters().back();
-        size_t numBytes = isDynArray ? 16 : 8;
-        callMemcpy(self, rhs, numBytes);
-        callMemset(rhs, numBytes, 0);
-        break;
-    }
-    case Destructor: {
-        auto* self = &irFn.parameters().front();
-        auto* ptr = add<ir::Load>(self, ctx.ptrType(), "ptr");
-        auto* cond = add<ir::CompareInst>(ptr,
-                                          ctx.nullpointer(),
-                                          ir::CompareMode::Unsigned,
-                                          ir::CompareOperation::Equal,
-                                          "ptr.null");
-        auto* deleteBlock = newBlock("delete");
-        auto* endBlock = newBlock("end");
-        add<ir::Branch>(cond, endBlock, deleteBlock);
-
-        add(deleteBlock);
-        auto* baseType = type.base().get();
-        auto* count = [&]() -> ir::Value* {
-            if (isDynArray) {
-                auto* countptr = getUniquePtrCountAddr(self);
-                return add<ir::Load>(countptr, ctx.intType(64), "array.count");
-            }
-            return nullptr;
-        }();
-        if (auto* dtor = baseType->specialLifetimeFunction(Destructor)) {
-            utl::small_vector<ir::Value*> args = { ptr };
-            if (isDynArray) {
-                args.push_back(count);
-            }
-            add<ir::Call>(getFunction(dtor), args);
-        }
-        auto* dealloc = getBuiltin(svm::Builtin::dealloc);
-        auto* bytesize = [&]() -> ir::Value* {
-            if (isDynArray) {
-                return add<ir::ArithmeticInst>(
-                    count,
-                    ctx.intConstant(arrayType->elementType()->size(), 64),
-                    ir::ArithmeticOperation::Mul,
-                    "array.bytesize");
-            }
-            return ctx.intConstant(type.base()->size(), 64);
-        }();
-        std::array<ir::Value*, 3> args = { ptr,
-                                           bytesize,
-                                           ctx.intConstant(type.base()->align(),
-                                                           64) };
-        add<ir::Call>(dealloc, args);
-        add<ir::Goto>(endBlock);
-
-        add(endBlock);
-        break;
-    }
-    }
-#endif
 }
 
 void FuncGenContext::genMemberConstruction(ir::BasicBlock::ConstIterator before,

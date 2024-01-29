@@ -138,24 +138,37 @@ SC_SEMA_BADFUNCDEF_DEF(InvalidReturnTypeForFFI, Error,
 
 SC_SEMA_BADSMF_DEF(HasReturnType, Error,
                    "Function '" << name() << "' must not have a return type")
+
 SC_SEMA_BADSMF_DEF(NotInStruct, Error,
                    "Function '" << name() << "' must be a member function")
+
 SC_SEMA_BADSMF_DEF(NoParams, Error,
                    "Function '" << name()
                                 << "' must have at least one parameter of type "
                                 << "&mut " << parent()->name())
+
 SC_SEMA_BADSMF_DEF(BadFirstParam, Error,
                    "The first parameter to function '"
                        << name() << "' must be of type "
                        << "&mut " << parent()->name())
+
 SC_SEMA_BADSMF_DEF(MoveSignature, Error,
                    "The parameters types of function '"
                        << name() << "' must be "
                        << "&mut " << parent()->name() << ", "
                        << "&mut " << parent()->name())
+
 SC_SEMA_BADSMF_DEF(DeleteSignature, Error,
                    "Function '" << name()
                                 << "' must have exactly one parameter")
+
+SC_SEMA_BADSMF_DEF(UnconstructibleMember, Error,
+                   "struct '" << parent()->name()
+                              << "' has an unconstructible data member")
+
+SC_SEMA_BADSMF_DEF(IndestructibleMember, Error,
+                   "struct '" << parent()->name()
+                              << "' has an indestructible data member")
 
 #undef SC_SEMA_BADSMF_DEF
 

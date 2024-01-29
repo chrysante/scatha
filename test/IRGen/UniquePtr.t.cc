@@ -147,9 +147,6 @@ ext func void @__builtin_dealloc(ptr %0, i64 %1, i64 %2)
 func void @Bar.delete-_R_MBar(ptr %0) {
   %entry:
     return
-
-  %entry.0: // preds:
-    return
 }
 
 func void @foo-_U_A_MBar(ptr %0, i64 %1) {
