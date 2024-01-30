@@ -8,8 +8,8 @@
 
 #include <range/v3/view.hpp>
 #include <utl/hash.hpp>
-#include <utl/vector.hpp>
 #include <utl/ipp.hpp>
+#include <utl/vector.hpp>
 
 #include "Common/Base.h"
 #include "Common/Ranges.h"
@@ -40,10 +40,20 @@ std::string_view toString(ValueRepresentation);
 std::ostream& operator<<(std::ostream& ostream, ValueRepresentation);
 
 /// Represents one IR value that can either be in a register or in memory
-class AtomicValue {
-  
+class Atom {
+public:
+    static Atom Register(ir::Value* value) {
+        return Atom(value, ValueLocation::Register);
+    }
+
+    static Atom Memory(ir::Value* value) {
+        return Atom(value, ValueLocation::Memory);
+    }
+
+    Atom(ir::Value* value, ValueLocation location): _value(location, value) {}
+
     /// \Returns the location of the value
-    ValueLocation location() const { return _loc; }
+    ValueLocation location() const { return _value.integer(); }
 
     /// \Returns `true` if this value is in a register
     bool isRegister() const { return location() == ValueLocation::Register; }
@@ -53,56 +63,64 @@ class AtomicValue {
 
     /// \Returns the `ir::Value` pointer
     ir::Value* get() const { return _value.pointer(); }
-    
+
+    ///
+    ir::Value* operator->() const { return get(); }
+
+    ///
+    ir::Value& operator*() const { return *get(); }
+
 private:
     utl::ipp<ir::Value*, ValueLocation, 1> _value;
 };
 
-/// Represents an abstract value that is either in a register or in memory
+void print(Atom atom);
+
+void print(Atom atom, std::ostream& ostream);
+
+std::ostream& operator<<(std::ostream& ostream, Atom atom);
+
+/// Represents an abstract value that is composed of multiple atoms
 class Value {
 public:
-    /// # Static constructors
+    using const_iterator = utl::vector<Atom>::const_iterator;
+    using iterator = const_iterator;
+
+    static Value Packed(std::string name, sema::ObjectType const* type,
+                        Atom elem) {
+        return Value(std::move(name), type, { elem },
+                     ValueRepresentation::Packed);
+    }
+
+    static Value Unpacked(std::string name, sema::ObjectType const* type,
+                          std::span<Atom const> elems) {
+        return Value(std::move(name), type, elems,
+                     ValueRepresentation::Unpacked);
+    }
+
+    static Value Unpacked(std::string name, sema::ObjectType const* type,
+                          std::initializer_list<Atom> elems) {
+        return Unpacked(std::move(name), type, std::span<Atom const>(elems));
+    }
 
     explicit Value(std::string name, sema::ObjectType const* type,
-                   std::span<ir::Value* const> values, ValueLocation loc,
-                   ValueRepresentation repr):
+                   std::span<Atom const> elems, ValueRepresentation repr):
         _name(std::move(name)),
-        _type(type),
-        _vals(values | ToSmallVector<2>),
-        _loc(loc),
-        _repr(repr) {}
+        typeAndRepr(repr, type),
+        elems(elems | ToSmallVector<2>) {}
 
     explicit Value(std::string name, sema::ObjectType const* type,
-                   std::initializer_list<ir::Value*> values, ValueLocation loc,
-                   ValueRepresentation repr):
-        Value(std::move(name), type, std::span(values), loc, repr) {}
+                   std::initializer_list<Atom> elems, ValueRepresentation repr):
+        Value(std::move(name), type, std::span(elems), repr) {}
 
     /// \Returns the name of this value
     std::string const& name() const { return _name; }
 
     /// TODO: Document this
-    std::span<ir::Value* const> get() const { return _vals; }
-
-    /// TODO: Document this
-    ir::Value* get(size_t index) const {
-        SC_EXPECT(index < _vals.size());
-        return _vals[index];
-    }
-
-    /// TODO: Document this
-    sema::ObjectType const* type() const { return _type; }
-
-    /// \Returns the location of the value
-    ValueLocation location() const { return _loc; }
-
-    /// \Returns `true` if this value is in a register
-    bool isRegister() const { return location() == ValueLocation::Register; }
-
-    /// \Returns `true` if this value is in memory
-    bool isMemory() const { return location() == ValueLocation::Memory; }
+    sema::ObjectType const* type() const { return typeAndRepr.pointer(); }
 
     /// \Returns the representation of this value
-    ValueRepresentation representation() const { return _repr; }
+    ValueRepresentation representation() const { return typeAndRepr.integer(); }
 
     /// \Returns `true` is this value is in packed representation
     bool isPacked() const {
@@ -114,13 +132,40 @@ public:
         return representation() == ValueRepresentation::Unpacked;
     }
 
+    /// \Returns a view over the atoms of this value.
+    /// This is the same range that this class models with the iterator
+    /// interface
+    std::span<Atom const> elements() const { return elems; }
+
+    /// \Returns the single atom of this value
+    /// \Pre Must consist of single atom
+    Atom single() const {
+        SC_EXPECT(size() == 1);
+        return (*this)[0];
+    }
+
+    /// Range interface @{
+    iterator begin() const { return elems.begin(); }
+    iterator end() const { return elems.end(); }
+    size_t size() const { return elems.size(); }
+    bool empty() const { return elems.empty(); }
+    Atom operator[](size_t index) const {
+        SC_EXPECT(index < elems.size());
+        return elems[index];
+    }
+    /// @}
+
 private:
     std::string _name;
-    sema::ObjectType const* _type;
-    utl::small_vector<ir::Value*, 2> _vals;
-    ValueLocation _loc;
-    ValueRepresentation _repr;
+    utl::ipp<sema::ObjectType const*, ValueRepresentation, 1> typeAndRepr;
+    utl::small_vector<Atom, 2> elems;
 };
+
+void print(Value const& value);
+
+void print(Value const& value, std::ostream& ostream);
+
+std::ostream& operator<<(std::ostream& ostream, Value const& value);
 
 } // namespace scatha::irgen
 

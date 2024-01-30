@@ -2,6 +2,8 @@
 #define SCATHA_IRGEN_FUNCTIONGENERATION_H_
 
 #include <deque>
+#include <string>
+#include <string_view>
 
 #include <svm/Builtin.h>
 #include <utl/function_view.hpp>
@@ -78,67 +80,51 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     ///
     ir::ForeignFunction* getBuiltin(svm::Builtin builtin);
 
-    /// \Returns \p value in a register as a packed value
-    /// This means if the value is
-    /// - a dynamic array pointer, we return a value of type `{ ptr, i64 }`
-    /// (same case as 3)
-    /// - a dynamic array, **we trap**
-    /// - any other object, we return the object in a register
+    /// Converts the value \p value to representation \p repr
+    Value to(ValueRepresentation repr, Value const& value);
+
+    /// Converts the value \p value to packed representation
+    Value pack(Value const& value);
+
+    /// Converts the value \p value to unpacked representation
+    Value unpack(Value const& value);
+
+    /// Converts the atom \p atom to \p location
+    Atom to(ValueLocation location, Atom atom, ir::Type const* type,
+            std::string name);
+
+    /// Stores the atom \p atom to a new local memory allocation if it is not
+    /// already in memory
+    Atom toMemory(Atom atom);
+
+    /// Loads the atom \p atom to a register if it is not already in a register
+    Atom toRegister(Atom atom, ir::Type const* type, std::string name);
+
+    /// Inserts `ExtractValue` instructions for every member in \p atom
+    /// \Pre \p atom must be in register
+    utl::small_vector<Atom, 2> unpackRegister(Atom atom, std::string name);
+
+    /// Inserts `GetElementPointer` instructions for every member in \p atom
+    /// \Pre \p atom must be in memory
+    utl::small_vector<Atom, 2> unpackMemory(Atom atom,
+                                            ir::RecordType const* type,
+                                            std::string name);
+
+    ///
     ir::Value* toPackedRegister(Value const& value);
 
-    /// \Returns \p value in memory as a packed value
-    /// This means if the value is
-    /// - a dynamic array pointer, we return a value of type `ptr` (to `{ ptr,
-    /// i64 }`) (same case as 3)
-    /// - a dynamic array, we return a value of type `{ ptr, i64 }`
-    /// - any other object, we return a value of type `ptr` (to the object)
+    ///
     ir::Value* toPackedMemory(Value const& value);
-
-    /// \Returns \p value in a register as unpacked values
-    /// This means if the value is
-    /// - a dynamic array pointer, we return a value of type `ptr, i64` (same
-    /// case as 3)
-    /// - a dynamic array, **we trap**
-    /// - any other object, we return the object in a register
-    utl::small_vector<ir::Value*, 2> toUnpackedRegister(Value const& value);
-
-    /// \Returns \p value in memory as unpacked values
-    /// This means if the value is
-    /// - a dynamic array pointer, we return a value of type `ptr` (to
-    /// `{ ptr, i64 }`) (same case as 3)
-    /// - a dynamic array, we return values of type `ptr, i64`
-    /// - any other object, we return a value of type `ptr` (to the object)
-    utl::small_vector<ir::Value*, 2> toUnpackedMemory(Value const& value);
-
-    /// Dispatches to the `to{Packed,Unpacked}{Register,Memory}` function
-    /// according to \p Prepr and \p loc
-    template <ValueRepresentation Repr>
-    auto to(ValueLocation loc, Value const& value);
-
-    /// \overload for non-template argument \p repr
-    utl::small_vector<ir::Value*, 2> to(ValueLocation loc,
-                                        ValueRepresentation repr,
-                                        Value const& value);
 
     /// \param semaType The type of the expression that we want to get the array
     /// size of
     /// \Returns the array size of the array or pointer or reference to
-    /// array \p value \Pre \p value must be an array or a pointer or reference
-    /// to an array If \p value is a statically sized array, the static size is
-    /// returned as a constant
-    /// Otherwise ...
+    /// array \p value
+    /// \Pre \p value must be an array or a pointer or reference
+    /// to an array
+    /// If \p value is a statically sized array, the static size is returned as
+    /// a constant
     Value getArraySize(sema::Type const* semaType, Value const& value);
-
-    /// Insert two `ExtractValue` instructions (one for the data pointer and one
-    /// for the size) and returns them
-    utl::small_vector<ir::Value*, 2> unpackDynArrayPointerInRegister(
-        ir::Value* ptr, std::string name);
-
-    /// Insert two `GetElementPointer` instructions (one for the data pointer
-    /// and one for the size), loads the count into a register and returns the
-    /// two values
-    utl::small_vector<ir::Value*, 2> unpackDynArrayPointerInMemory(
-        ir::Value* ptr, std::string name);
 
     /// Emit a call to `memcpy`
     ir::Call* callMemcpy(ir::Value* dest, ir::Value* source,
@@ -185,37 +171,6 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
         std::string_view name, ir::Value* indBegin, ir::Value* indEnd,
         utl::function_view<ir::Value*(ir::Value*)> indNext);
 };
-
-template <ValueRepresentation Repr>
-auto FuncGenContextBase::to(ValueLocation loc, Value const& value) {
-    if constexpr (Repr == ValueRepresentation::Packed) {
-        if (loc == ValueLocation::Register) {
-            return toPackedRegister(value);
-        }
-        else {
-            return toPackedMemory(value);
-        }
-    }
-    else {
-        if (loc == ValueLocation::Register) {
-            return toUnpackedRegister(value);
-        }
-        else {
-            return toUnpackedMemory(value);
-        }
-    }
-}
-
-inline utl::small_vector<ir::Value*, 2> FuncGenContextBase::to(
-    ValueLocation loc, ValueRepresentation repr, Value const& value) {
-    using enum ValueRepresentation;
-    if (repr == Packed) {
-        return { to<Packed>(loc, value) };
-    }
-    else {
-        return to<Unpacked>(loc, value);
-    }
-}
 
 } // namespace scatha::irgen
 

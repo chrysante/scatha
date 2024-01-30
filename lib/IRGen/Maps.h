@@ -85,6 +85,10 @@ public:
     void insert(sema::StructType const* key, ir::StructType const* value,
                 StructMetadata metaData);
 
+    ///
+    utl::small_vector<ir::Type const*, 2> map(ValueRepresentation repr,
+                                              sema::Type const* type) const;
+
     /// Translate \p type to corresponding packed IR type
     ir::Type const* packed(sema::Type const* type) const;
 

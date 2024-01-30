@@ -34,8 +34,6 @@ TEST_CASE("Count of dynamic array pointer in dynamic array", "[irgen]") {
     CHECK(p2_at0_addr.basePointer() == &p2_data);
     auto& p2_at0 = view.nextAs<Load>();
     CHECK(p2_at0.address() == &p2_at0_addr);
-    auto& p2_at0_data = view.nextAs<ExtractValue>();
-    CHECK(p2_at0_data.baseValue() == &p2_at0);
     auto& p2_at0_count = view.nextAs<ExtractValue>();
     CHECK(p2_at0_count.baseValue() == &p2_at0);
     CHECK(view.nextAs<Return>().value() == &p2_at0_count);

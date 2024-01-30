@@ -150,13 +150,6 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
 
-    /// \Returns single value if `Repr == Packed` or vector of values if
-    /// `Repr == Unpacked`
-    template <ValueRepresentation Repr>
-    SC_NODEBUG auto getValue(ValueLocation loc, ast::Expression const* expr) {
-        return to<Repr>(loc, getValue(expr));
-    }
-
     /// \Returns a _lazy_ view of the generated values of the expressions in the
     /// range \p expressions
     auto getValues(auto&& expressions) {
@@ -193,8 +186,6 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::MutConvExpr const&);
     Value getValueImpl(ast::ObjTypeConvExpr const&);
 
-    Value getValueImpl(ast::ConstructExpr const&);
-
     Value getValueImpl(ast::TrivDefConstructExpr const&);
     Value getValueImpl(ast::TrivCopyConstructExpr const&);
     Value getValueImpl(ast::TrivAggrConstructExpr const&);
@@ -212,9 +203,6 @@ struct FuncGenContext: FuncGenContextBase {
     utl::small_vector<ir::Value*> unpackStructMembers(
         ir::Value* address, ir::StructType const* type, size_t beginIndex,
         size_t numElements);
-
-    /// Add source location of \p expr to \p inst
-    void addSourceLoc(ir::Instruction* inst, ast::ASTNode const& sourceNode);
 };
 
 } // namespace
@@ -331,7 +319,7 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     /// parameters (everything that's not a reference) to the stack
     auto CC = getCC(&semaFn);
     auto irParamItr = irFn.parameters().begin();
-    if (CC.returnValue().location() == Memory) {
+    if (CC.returnLocation() == Memory) {
         ++irParamItr;
     }
     for (auto [paramDecl, pc]:
@@ -365,34 +353,37 @@ void FuncGenContext::generateParameter(
                            std::string(paramDecl->name());
     auto* semaParam = paramDecl->object();
     auto* paramType = stripRef(semaParam->type());
-    switch (pc.location()) {
+    switch (pc.location(0)) {
     case Register: {
         /// Reference parameters are special: We don't store them to memory
         /// because they cannot be reassigned
         if (isa<sema::ReferenceType>(semaParam->type())) {
+            auto atoms = params | enumerate | transform([&](auto p) {
+                auto [index, param] = p;
+                return Atom(param, index == 0 ? Memory : Register);
+            }) | ToSmallVector<2>;
             valueMap.insert(semaParam,
-                            Value(name, paramType, params, Memory,
+                            Value(name, paramType, atoms,
                                   params.size() == 1 ? Packed : Unpacked));
         }
         else if (params.size() == 1) {
-            auto* val = params.front();
-            auto* mem = storeToMemory(val, name);
-            valueMap.insert(semaParam, Value(name, paramType, ValueArray{ mem },
-                                             Memory, Unpacked));
+            auto* mem = storeToMemory(params.front(), name);
+            valueMap.insert(semaParam,
+                            Value::Packed(name, paramType, Atom(mem, Memory)));
         }
-        else {
+        else { // This is the dynamic array pointer case
             auto* packedVal = packValues(params, name);
             auto* mem = storeToMemory(packedVal, name);
             valueMap.insert(semaParam,
-                            Value(name, paramType, { mem }, Memory, Packed));
+                            Value::Packed(name, paramType, Atom(mem, Memory)));
         }
         break;
     }
 
     case Memory:
         SC_ASSERT(params.size() == 1, "");
-        valueMap.insert(semaParam,
-                        Value(name, paramType, params, Memory, Unpacked));
+        valueMap.insert(semaParam, Value::Packed(name, paramType,
+                                                 Atom(params.front(), Memory)));
         break;
     }
 }
@@ -406,10 +397,11 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
         valueMap.insert(var, value);
     }
     else {
-        auto* address = getValue<Packed>(Memory, varDecl.initExpr());
+        Atom address = toMemory(pack(getValue(varDecl.initExpr())).single());
         address->setName(utl::strcat(name, ".addr"));
-        valueMap.insert(var, Value(name, varDecl.initExpr()->type().get(),
-                                   { address }, Memory, Packed));
+        valueMap.insert(var,
+                        Value::Packed(name, varDecl.initExpr()->type().get(),
+                                      address));
     }
     generateCleanups(cleanupStack);
 }
@@ -420,52 +412,53 @@ void FuncGenContext::generateImpl(
     generateCleanups(exprStatement.cleanupStack());
 }
 
-void FuncGenContext::generateImpl(ast::ReturnStatement const& retStmt) {
+void FuncGenContext::generateImpl(ast::ReturnStatement const& stmt) {
     /// Simple case of `return;` in a void function
-    if (!retStmt.expression()) {
-        generateCleanups(retStmt.cleanupStack());
+    if (!stmt.expression()) {
+        generateCleanups(stmt.cleanupStack());
         add<ir::Return>(ctx.voidValue());
         return;
     }
 
     /// More complex `return <value>;` case
-    auto retval = getValue(retStmt.expression());
+    auto retval = getValue(stmt.expression());
     auto CC = getCC(&semaFn);
-    switch (CC.returnValue().location()) {
-    case Register: {
+    if (CC.returnLocation() == Register) {
         /// Pointers we keep in registers but references directly refer to the
         /// value in memory
-        auto destLocation = CC.returnValue().locationAtCallsite();
-        auto* value = to<Packed>(destLocation, retval);
-        generateCleanups(retStmt.cleanupStack());
+        auto destLocation = CC.returnLocationAtCallsite();
+        auto* value = to(destLocation, pack(retval).single(),
+                         typeMap.packed(retval.type()), retval.name())
+                          .get();
+        generateCleanups(stmt.cleanupStack());
         add<ir::Return>(value);
         return;
     }
-    case Memory: {
+    else { // Return via memory
         auto* retvalDest = &irFn.parameters().front();
-        if (retval.isMemory()) {
-            auto* retvalAddr = toUnpackedMemory(retval).front();
-            if (auto* allocaInst = dyncast<ir::Alloca*>(retvalAddr)) {
+        retval = pack(retval);
+        auto atom = retval.single();
+        if (atom.isMemory()) {
+            if (auto* allocaInst = dyncast<ir::Alloca*>(atom.get())) {
                 allocaInst->replaceAllUsesWith(retvalDest);
             }
             else {
-                SC_ASSERT(retStmt.expression()->type()->hasTrivialLifetime(),
+                SC_ASSERT(stmt.expression()->type()->hasTrivialLifetime(),
                           "We can only memcpy trivial lifetime types");
-                callMemcpy(retvalDest, retvalAddr, retval.type()->size());
+                callMemcpy(retvalDest, atom.get(), retval.type()->size());
             }
         }
         else {
-            add<ir::Store>(retvalDest, toPackedRegister(retval));
+            add<ir::Store>(retvalDest, atom.get());
         }
-        generateCleanups(retStmt.cleanupStack());
+        generateCleanups(stmt.cleanupStack());
         add<ir::Return>(ctx.voidValue());
         return;
-    }
     }
 }
 
 void FuncGenContext::generateImpl(ast::IfStatement const& stmt) {
-    auto* condition = getValue<Packed>(Register, stmt.condition());
+    auto* condition = toPackedRegister(getValue(stmt.condition()));
     generateCleanups(stmt.cleanupStack());
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
@@ -494,7 +487,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
 
         /// Header
         add(loopHeader);
-        auto* condition = getValue<Packed>(Register, loopStmt.condition());
+        auto* condition = toPackedRegister(getValue(loopStmt.condition()));
         generateCleanups(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push({ .header = loopHeader,
@@ -527,7 +520,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
 
         /// Header
         add(loopHeader);
-        auto* condition = getValue<Packed>(Register, loopStmt.condition());
+        auto* condition = toPackedRegister(getValue(loopStmt.condition()));
         generateCleanups(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push(
@@ -559,7 +552,7 @@ void FuncGenContext::generateImpl(ast::LoopStatement const& loopStmt) {
 
         /// Footer
         add(loopFooter);
-        auto* condition = getValue<Packed>(Register, loopStmt.condition());
+        auto* condition = toPackedRegister(getValue(loopStmt.condition()));
         generateCleanups(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
 
@@ -605,18 +598,20 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        return Value("int.lit", lit.type().get(),
-                     { ctx.intConstant(lit.value<APInt>()) }, Register, Packed);
+        return Value::Packed("int.lit", lit.type().get(),
+                             Atom::Register(
+                                 ctx.intConstant(lit.value<APInt>())));
     case Boolean:
-        return Value("bool.lit", lit.type().get(),
-                     { ctx.intConstant(lit.value<APInt>()) }, Register, Packed);
+        return Value::Packed("bool.lit", lit.type().get(),
+                             Atom::Register(
+                                 ctx.intConstant(lit.value<APInt>())));
     case FloatingPoint:
-        return Value("float.lit", lit.type().get(),
-                     { ctx.floatConstant(lit.value<APFloat>()) }, Register,
-                     Packed);
+        return Value::Packed("float.lit", lit.type().get(),
+                             Atom::Register(
+                                 ctx.floatConstant(lit.value<APFloat>())));
     case Null:
-        return Value("null.lit", lit.type().get(), { ctx.nullpointer() },
-                     Register, Packed);
+        return Value::Packed("null.lit", lit.type().get(),
+                             Atom::Register(ctx.nullpointer()));
     case This:
         return valueMap(lit.object());
 
@@ -625,13 +620,15 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         auto name = nameFromSourceLoc("string", lit.sourceLocation());
         auto* data = ctx.stringLiteral(text);
         auto* global = mod.makeGlobalConstant(ctx, data, name);
-        return Value(name, lit.type().get(),
-                     { global, ctx.intConstant(text.size(), 64) }, Memory,
-                     Unpacked);
+        return Value::Unpacked(name, lit.type().get(),
+                               { Atom::Memory(global),
+                                 Atom::Register(
+                                     ctx.intConstant(text.size(), 64)) });
     }
     case Char:
-        return Value("char.lit", lit.type().get(),
-                     { ctx.intConstant(lit.value<APInt>()) }, Register, Packed);
+        return Value::Packed("char.lit", lit.type().get(),
+                             Atom::Register(
+                                 ctx.intConstant(lit.value<APInt>())));
     }
     SC_UNREACHABLE();
 }
@@ -644,12 +641,12 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         [[fallthrough]];
     case Decrement: {
         Value operand = getValue(expr.operand());
-        SC_ASSERT(operand.isMemory(),
+        SC_ASSERT(operand[0].isMemory(),
                   "Operand must be in memory to be modified");
-        ir::Value* opAddr = to<Packed>(Memory, operand);
+        ir::Value* opAddr = toPackedMemory(operand);
         ir::Type const* operandType =
             typeMap.packed(expr.operand()->type().get());
-        ir::Value* operandValue = to<Packed>(Register, operand);
+        ir::Value* operandValue = toPackedRegister(operand);
         auto* newValue =
             add<ir::ArithmeticInst>(operandValue,
                                     ctx.arithmeticConstant(1, operandType),
@@ -660,8 +657,8 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         case ast::UnaryOperatorNotation::Prefix:
             return operand;
         case ast::UnaryOperatorNotation::Postfix:
-            return Value(operand.name(), expr.type().get(), { operandValue },
-                         Register, Packed);
+            return Value::Packed(operand.name(), expr.type().get(),
+                                 Atom::Register(operandValue));
         }
     }
 
@@ -669,22 +666,23 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         return getValue(expr.operand());
 
     case ast::UnaryOperator::Negation: {
-        auto* operand = getValue<Packed>(Register, expr.operand());
+        auto* operand = toPackedRegister(getValue(expr.operand()));
         auto operation =
             isa<sema::IntType>(expr.operand()->type().get()) ? Sub : FSub;
         auto* newValue =
             add<ir::ArithmeticInst>(ctx.arithmeticConstant(0, operand->type()),
                                     operand, operation, "negated");
-        return Value("negated", expr.type().get(), { newValue }, Register,
-                     Packed);
+        return Value::Packed("negated", expr.type().get(),
+                             Atom::Register(newValue));
     }
 
     default:
-        auto* operand = getValue<Packed>(Register, expr.operand());
+        auto* operand = toPackedRegister(getValue(expr.operand()));
         auto* newValue =
             add<ir::UnaryArithmeticInst>(operand, mapUnaryOp(expr.operation()),
                                          "expr");
-        return Value("expr", expr.type().get(), { newValue }, Register, Packed);
+        return Value::Packed("expr", expr.type().get(),
+                             Atom::Register(newValue));
     }
 }
 
@@ -712,17 +710,18 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case BitwiseXOr:
         [[fallthrough]];
     case BitwiseOr: {
-        auto* lhs = getValue<Packed>(Register, expr.lhs());
-        auto* rhs = getValue<Packed>(Register, expr.rhs());
+        auto* lhs = toPackedRegister(getValue(expr.lhs()));
+        auto* rhs = toPackedRegister(getValue(expr.rhs()));
         auto operation = mapArithmeticOp(type, expr.operation());
         auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, resName);
-        return Value(resName, expr.type().get(), { result }, Register, Packed);
+        return Value::Packed(resName, expr.type().get(),
+                             Atom::Register(result));
     }
 
     case LogicalAnd:
         [[fallthrough]];
     case LogicalOr: {
-        ir::Value* const lhs = getValue<Packed>(Register, expr.lhs());
+        ir::Value* const lhs = toPackedRegister(getValue(expr.lhs()));
         SC_ASSERT(lhs->type() == ctx.boolType(),
                   "Need i1 for logical operation");
         auto* startBlock = &currentBlock();
@@ -736,7 +735,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         }
 
         add(rhsBlock);
-        auto* rhs = getValue<Packed>(Register, expr.rhs());
+        auto* rhs = toPackedRegister(getValue(expr.rhs()));
         SC_ASSERT(rhs->type() == ctx.boolType(),
                   "Need i1 for logical operation");
         add<ir::Goto>(endBlock);
@@ -758,7 +757,8 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
                     "log.or");
             }
         }();
-        return Value("log.or", expr.type().get(), { result }, Register, Packed);
+        return Value::Packed("log.or", expr.type().get(),
+                             Atom::Register(result));
     }
 
     case Less:
@@ -772,19 +772,24 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
     case Equals:
         [[fallthrough]];
     case NotEquals: {
-        auto lhs = getValue<Unpacked>(Register, expr.lhs());
-        auto rhs = getValue<Unpacked>(Register, expr.rhs());
-        auto values = zip(lhs, rhs) | transform([&](auto p) -> ir::Value* {
-            auto [lhs, rhs] = p;
-            return add<ir::CompareInst>(lhs, rhs, mapCompareMode(type),
-                                        mapCompareOp(expr.operation()),
-                                        resName);
+        auto types = typeMap.unpacked(expr.lhs()->type().get());
+        auto lhs = getValue(expr.lhs());
+        auto rhs = getValue(expr.rhs());
+        auto lhsElems = unpack(lhs);
+        auto rhsElems = unpack(rhs);
+        auto values = zip(lhsElems, rhsElems, types) |
+                      transform([&](auto t) -> ir::Value* {
+            auto [lhsElem, rhsElem, irType] = t;
+            return add<ir::CompareInst>(
+                toRegister(lhsElem, irType, lhs.name()).get(),
+                toRegister(rhsElem, irType, rhs.name()).get(),
+                mapCompareMode(type), mapCompareOp(expr.operation()), resName);
         }) | ToSmallVector<>;
         using enum ir::ArithmeticOperation;
         auto* combined =
             foldValues(expr.operation() == Equals ? And : Or, values, resName);
-        return Value(resName, expr.type().get(), { combined }, Register,
-                     Packed);
+        return Value::Packed(resName, expr.type().get(),
+                             Atom::Register(combined));
     }
 
     case Comma:
@@ -792,13 +797,23 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         return getValue(expr.rhs()); /// Evaluate and return RHS
 
     case Assignment: {
-        auto* lhs = getValue<Packed>(Memory, expr.lhs());
-        /// TODO: Don't load to register unconditionally.
-        /// Use `memcpy` for large types
-        auto* rhs = getValue<Packed>(Register, expr.rhs());
-        add<ir::Store>(lhs, rhs);
-        return Value("assignment.result", symbolTable.Void(),
-                     { ctx.voidValue() }, Register, Packed);
+        auto lhs = getValue(expr.lhs());
+        auto repr = lhs.representation();
+        auto rhs = to(repr, getValue(expr.rhs()));
+        auto irTypes = typeMap.map(repr, lhs.type());
+        SC_ASSERT(lhs.size() == rhs.size(), "");
+        SC_ASSERT(irTypes.size() == lhs.size(), "");
+        for (auto [lhsAtom, rhsAtom, irType]: zip(lhs, rhs, irTypes)) {
+            SC_ASSERT(lhsAtom.isMemory(), "");
+            if (rhsAtom.isRegister()) {
+                add<ir::Store>(lhsAtom.get(), rhsAtom.get());
+            }
+            else {
+                callMemcpy(lhsAtom.get(), rhsAtom.get(), irType->size());
+            }
+        }
+        return Value::Packed("assignment.result", symbolTable.Void(),
+                             Atom::Register(ctx.voidValue()));
     }
     case AddAssignment:
         [[fallthrough]];
@@ -820,13 +835,14 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         [[fallthrough]];
     case XOrAssignment: {
         auto lhs = getValue(expr.lhs());
-        SC_ASSERT(lhs.isMemory(), "Must be in memory to assign");
-        auto rhs = getValue<Packed>(Register, expr.rhs());
+        SC_ASSERT(lhs[0].isMemory(), "Must be in memory to assign");
+        auto* rhs = toPackedRegister(getValue(expr.rhs()));
         auto operation = mapArithmeticAssignOp(type, expr.operation());
-        auto* exprRes = add<ir::ArithmeticInst>(to<Packed>(Register, lhs), rhs,
+        auto* exprRes = add<ir::ArithmeticInst>(toPackedRegister(lhs), rhs,
                                                 operation, resName);
-        add<ir::Store>(toUnpackedMemory(lhs).front(), exprRes);
-        return Value("", expr.type().get(), {}, Register, Packed);
+        add<ir::Store>(toMemory(lhs[0]).get(), exprRes);
+        return Value::Packed("assignment.result", symbolTable.Void(),
+                             Atom::Register(ctx.voidValue()));
     }
     }
     SC_UNREACHABLE();
@@ -843,26 +859,27 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
     auto& metaData =
         typeMap.metaData(expr.accessed()->type().get()).members[var.index()];
     std::string name = "mem.acc";
-    auto baseLoc = base.location();
-    auto* baseVal = to<Unpacked>(baseLoc, base).front();
+    auto baseLoc = base[0].location();
+    auto* baseVal = base[0].get();
     auto values = zip(iota(metaData.beginIndex), metaData.fieldTypes) |
-                  transform([&](auto p) -> ir::Value* {
+                  transform([&](auto p) -> Atom {
         auto [index, type] = p;
         switch (baseLoc) {
-        case Register:
-            return add<ir::ExtractValue>(baseVal, IndexArray{ index }, name);
-        case Memory:
+        case Register: {
+            auto* elem =
+                add<ir::ExtractValue>(baseVal, IndexArray{ index }, name);
+            return Atom::Register(elem);
+        }
+        case Memory: {
             ir::Value* value =
                 add<ir::GetElementPointer>(typeMap.packed(base.type()), baseVal,
                                            ctx.intConstant(0, 64),
                                            IndexArray{ index }, name);
-            if (index > metaData.beginIndex) {
-                value = add<ir::Load>(value, type, name);
-            }
-            return value;
+            return Atom::Memory(value);
+        }
         }
     }) | ToSmallVector<2>;
-    return Value(name, expr.type().get(), values, baseLoc, Unpacked);
+    return Value::Unpacked(name, expr.type().get(), values);
 }
 
 Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
@@ -881,14 +898,13 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             if (!arrayType->isDynamic()) {
                 return ctx.boolConstant(arrayType->count());
             }
-            auto* size =
-                to<Packed>(Register, getArraySize(expr.accessed()->type().get(),
-                                                  accessed));
+            auto* size = toPackedRegister(
+                getArraySize(expr.accessed()->type().get(), accessed));
             return add<ir::CompareInst>(size, ctx.intConstant(0, 64),
                                         ir::CompareMode::Signed,
                                         ir::CompareOperation::Equal, "empty");
         }();
-        return Value("empty", expr.type().get(), { empty }, Register, Packed);
+        return Value::Packed("empty", expr.type().get(), Atom::Register(empty));
     }
     case ArrayFront:
         [[fallthrough]];
@@ -899,12 +915,14 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         bool isFront = prop.kind() == ArrayFront;
         auto accessed = getValue(expr.accessed());
         auto name = utl::strcat(accessed.name(), isFront ? ".front" : ".back");
-        switch (accessed.location()) {
+        switch (accessed[0].location()) {
         case Register: {
+            SC_ASSERT(!arrayType->isDynamic(),
+                      "Dynamic array cannot be in memory");
             size_t index = isFront ? 0 : arrayType->count() - 1;
-            auto* elem = add<ir::ExtractValue>(to<Packed>(Register, accessed),
+            auto* elem = add<ir::ExtractValue>(toPackedRegister(accessed),
                                                IndexArray{ index }, name);
-            return Value(name, expr.type().get(), { elem }, Register, Packed);
+            return Value::Packed(name, expr.type().get(), Atom::Register(elem));
         }
         case Memory: {
             auto* index = [&]() -> ir::Value* {
@@ -916,19 +934,17 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                 }
                 auto count =
                     getArraySize(expr.accessed()->type().get(), accessed);
-                return add<ir::ArithmeticInst>(to<Packed>(Register, count),
+                return add<ir::ArithmeticInst>(toPackedRegister(count),
                                                ctx.intConstant(1, 64),
                                                ir::ArithmeticOperation::Sub,
                                                "back.index");
             }();
             auto* irElemType = typeMap.packed(expr.type().get());
-            auto* elem =
-                add<ir::GetElementPointer>(irElemType,
-                                           to<Unpacked>(Memory, accessed)
-                                               .front(),
-                                           index, IndexArray{},
-                                           utl::strcat(name, ".addr"));
-            return Value(name, expr.type().get(), { elem }, Memory, Packed);
+            auto* elem = add<ir::GetElementPointer>(irElemType,
+                                                    unpack(accessed)[0].get(),
+                                                    index, IndexArray{},
+                                                    utl::strcat(name, ".addr"));
+            return Value::Packed(name, expr.type().get(), Atom::Memory(elem));
         }
         }
     }
@@ -940,18 +956,25 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
 Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
     SC_EXPECT(isa<sema::PointerType>(*expr.referred()->type()));
     auto value = getValue(expr.referred());
-    return Value(utl::strcat(value.name(), ".deref"), expr.type().get(),
-                 toUnpackedRegister(value), Memory, Unpacked);
+    auto name = utl::strcat(value.name(), ".deref");
+    auto elems = value.elements() | ToSmallVector<2>;
+    auto irTypes =
+        typeMap.map(value.representation(), expr.referred()->type().get());
+    elems[0] = Atom::Memory(toRegister(elems[0], irTypes[0], name).get());
+    return Value(name, expr.type().get(), elems, value.representation());
 }
 
 Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
-    auto value = getValue(expr.referred());
-    return Value(utl::strcat(value.name(), ".addr"), expr.type().get(),
-                 toUnpackedMemory(value), Register, Unpacked);
+    auto value = unpack(getValue(expr.referred()));
+    SC_ASSERT(value[0].isMemory(), "");
+    auto elems = value.elements() | ToSmallVector<2>;
+    elems[0] = Atom::Register(elems[0].get());
+    return Value::Unpacked(utl::strcat(value.name(), ".addr"),
+                           expr.type().get(), elems);
 }
 
 Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
-    auto* cond = getValue<Packed>(Register, condExpr.condition());
+    auto* cond = toPackedRegister(getValue(condExpr.condition()));
     auto* thenBlock = newBlock("cond.then");
     auto* elseBlock = newBlock("cond.else");
     auto* endBlock = newBlock("cond.end");
@@ -969,52 +992,76 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
     elseBlock = &currentBlock();
 
     /// Make common representation
-    auto loc = commonLocation(thenVal.location(), elseVal.location(), Register);
     auto repr = commonRepresentation(thenVal.representation(),
                                      elseVal.representation(), Unpacked);
+    auto thenComRepr = withBlockCurrent(thenBlock, [&] {
+        auto vals = to(repr, thenVal);
+        return vals;
+    });
+    auto elseComRepr = withBlockCurrent(elseBlock, [&] {
+        auto vals = to(repr, elseVal);
+        return vals;
+    });
+    SC_ASSERT(thenComRepr.size() == elseComRepr.size(), "");
+    auto commonLocations = zip(thenComRepr, elseComRepr) |
+                           transform([](auto p) {
+        auto [a, b] = p;
+        return commonLocation(a.location(), b.location());
+    }) | ToSmallVector<>;
+    auto irTypes = typeMap.map(repr, condExpr.type().get());
+    irTypes.resize(thenComRepr.size()); // Kinda hacky but whatever
     auto thenResolved = withBlockCurrent(thenBlock, [&] {
-        auto vals = to(loc, repr, thenVal);
+        auto vals = zip(commonLocations, thenComRepr, iota(size_t{ 0 })) |
+                    transform([&](auto t) {
+            auto [loc, atom, index] = t;
+            return to(loc, atom, irTypes[index], thenVal.name()).get();
+        }) | ToSmallVector<2>;
         add<ir::Goto>(endBlock);
         return vals;
     });
     auto elseResolved = withBlockCurrent(elseBlock, [&] {
-        auto vals = to(loc, repr, elseVal);
+        auto vals = zip(commonLocations, elseComRepr, iota(size_t{ 0 })) |
+                    transform([&](auto t) {
+            auto [loc, atom, index] = t;
+            return to(loc, atom, irTypes[index], elseVal.name()).get();
+        }) | ToSmallVector<2>;
         add<ir::Goto>(endBlock);
         return vals;
     });
-    SC_ASSERT(thenResolved.size() == elseResolved.size(),
-              "Must be same representation");
     add(endBlock);
     /// If both values are rvalues in local memory they can share the memory
-    if (auto* mem = dyncast<ir::Alloca*>(thenResolved.front());
-        loc == Memory && condExpr.isRValue() && mem)
     {
-        SC_ASSERT(isa<ir::Alloca>(elseResolved.front()), "");
-        SC_ASSERT(elseResolved.size() == 1, "For now");
-        elseResolved.front()->replaceAllUsesWith(thenResolved.front());
-        return Value("cond", condExpr.type().get(), { thenResolved.front() },
-                     loc, repr);
+        auto* mem = dyncast<ir::Alloca*>(thenResolved.front());
+        auto loc = commonLocations.front();
+        if (loc == Memory && condExpr.isRValue() && mem) {
+            SC_ASSERT(isa<ir::Alloca>(elseResolved.front()), "");
+            SC_ASSERT(elseResolved.size() == 1, "For now");
+            elseResolved.front()->replaceAllUsesWith(thenResolved.front());
+            return Value("cond", condExpr.type().get(),
+                         { Atom(thenResolved.front(), loc) }, repr);
+        }
     }
     /// Generate end block.
-    auto phis = zip(thenResolved, elseResolved) |
-                transform([&](auto p) -> ir::Value* {
-        auto& [thenVal, elseVal] = p;
-        return add<ir::Phi>(std::array{ ir::PhiMapping{ thenBlock, thenVal },
-                                        ir::PhiMapping{ elseBlock, elseVal } },
-                            "cond");
+    auto atoms = zip(thenResolved, elseResolved, commonLocations) |
+                 transform([&](auto t) -> Atom {
+        auto& [thenVal, elseVal, loc] = t;
+        auto* phi =
+            add<ir::Phi>(std::array{ ir::PhiMapping{ thenBlock, thenVal },
+                                     ir::PhiMapping{ elseBlock, elseVal } },
+                         "cond");
+        return Atom(phi, loc);
     }) | ToSmallVector<2>;
-    return Value("cond", condExpr.type().get(), phis, loc, repr);
+    return Value("cond", condExpr.type().get(), atoms, repr);
 }
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     ir::Callable* function = getFunction(call.function());
     auto name = "call.result";
     auto CC = getCC(call.function());
-    auto retvalLocation = CC.returnValue().location();
     auto irArguments =
         unpackArguments(CC.arguments(), getValues(call.arguments()));
     /// Allocate return value storage
-    if (retvalLocation == Memory) {
+    if (CC.returnLocation() == Memory) {
         auto* irReturnType = typeMap.packed(call.function()->returnType());
         irArguments.insert(irArguments.begin(),
                            makeLocalVariable(irReturnType,
@@ -1027,47 +1074,57 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
         return name;
     }();
     auto* callInst = add<ir::Call>(function, irArguments, instName);
-    auto* retval = retvalLocation == Memory ? irArguments.front() : callInst;
-    return Value(name, call.type().get(), { retval },
-                 CC.returnValue().locationAtCallsite(), Packed);
+    auto* retval = CC.returnLocation() == Memory ? irArguments.front() :
+                                                   callInst;
+    return Value::Packed(name, call.type().get(),
+                         Atom(retval, CC.returnLocationAtCallsite()));
 }
 
 utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
     auto&& passingConventions, auto&& values) {
     utl::small_vector<ir::Value*> irArguments;
     for (auto [PC, value]: zip(passingConventions, values)) {
-        auto unpacked = to<Unpacked>(PC.locationAtCallsite(), value);
+        auto locations = PC.locationsAtCallsite();
+        auto unpacked = unpack(value);
+        auto irTypes = typeMap.unpacked(value.type());
+        irTypes.resize(unpacked.size());
         SC_ASSERT(PC.numParams() == unpacked.size(), "Argument count mismatch");
-        irArguments.insert(irArguments.end(), unpacked.begin(), unpacked.end());
+        for (auto [index, loc, atom]:
+             zip(iota(size_t{ 0 }), locations, unpacked))
+        {
+            irArguments.push_back(
+                to(loc, atom, irTypes[index], value.name()).get());
+        }
     }
     return irArguments;
 }
 
 Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
-    auto* arrayAddr = getValue<Unpacked>(Memory, expr.callee()).front();
-    auto* index = getValue<Packed>(Register, expr.argument(0));
+    auto array = unpack(getValue(expr.callee()));
+    auto* arrayAddr = toMemory(array[0]).get();
+    auto* index = toPackedRegister(getValue(expr.argument(0)));
     auto* elemType = typeMap.packed(expr.type().get());
     auto* elemAddr = add<ir::GetElementPointer>(elemType, arrayAddr, index,
                                                 IndexArray{}, "elem.addr");
-    return Value("elem", expr.type().get(), ValueArray{ elemAddr }, Memory,
-                 Packed);
+    return Value::Packed("elem", expr.type().get(), Atom::Memory(elemAddr));
 }
 
 Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
     auto* elemType = typeMap.packed(arrayType->elementType());
     auto array = getValue(expr.callee());
-    auto lower = getValue<Packed>(Register, expr.lower());
-    auto upper = getValue<Packed>(Register, expr.upper());
+    auto* arrayAddr = toMemory(array[0]).get();
+    auto* lower = toPackedRegister(getValue(expr.lower()));
+    auto* upper = toPackedRegister(getValue(expr.upper()));
     auto name = utl::strcat(array.name(), ".slice");
-    auto* addr = add<ir::GetElementPointer>(elemType,
-                                            to<Unpacked>(Memory, array).front(),
-                                            lower, IndexArray{},
+    auto* addr = add<ir::GetElementPointer>(elemType, arrayAddr, lower,
+                                            IndexArray{},
                                             utl::strcat(name, ".addr"));
     auto* size = add<ir::ArithmeticInst>(upper, lower,
                                          ir::ArithmeticOperation::Sub,
                                          utl::strcat(name, ".count"));
-    return Value(name, expr.type().get(), { addr, size }, Memory, Unpacked);
+    return Value::Unpacked(name, expr.type().get(),
+                           { Atom::Memory(addr), Atom::Register(size) });
 }
 
 static ir::Constant* evalConstant(ir::Context& ctx,
@@ -1116,8 +1173,9 @@ void FuncGenContext::genDynamicListData(ast::ListExpression const& list,
             add<ir::GetElementPointer>(elemType, dest,
                                        ctx.intConstant(index, 32), IndexArray{},
                                        utl::strcat("listexpr.elem.", index));
-        auto* valAddr = getValue<Packed>(Memory, elem);
-        valAddr->replaceAllUsesWith(elemAddr);
+        auto value = pack(getValue(elem));
+        auto* addr = toMemory(value[0]).get();
+        addr->replaceAllUsesWith(elemAddr);
     }
 }
 
@@ -1129,7 +1187,7 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     if (!genStaticListData(list, array)) {
         genDynamicListData(list, array);
     }
-    return Value(name, list.type().get(), { array }, Memory, Unpacked);
+    return Value::Packed(name, list.type().get(), Atom::Memory(array));
 }
 
 Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
@@ -1156,7 +1214,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
         irArguments.insert(irArguments.begin(), mem);
         auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
         call->setComment(makeLifetimeComment(semaCtor, expr.object()));
-        return Value(name, expr.type().get(), { mem }, Memory, Packed);
+        return Value::Packed(name, expr.type().get(), Atom::Memory(mem));
     }
 
     case NontrivialInline:
@@ -1165,11 +1223,12 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
             SC_UNIMPLEMENTED();
         case InlineLifetime::UniquePtr: {
             SC_ASSERT(
-                value.isMemory() && value.isPacked(),
+                value[0].isMemory() && value.isPacked(),
                 "Must be packed memory because we set the old value to null here");
-            auto* newVal = add<ir::Load>(value.get(0), irType, name);
-            add<ir::Store>(ctx, value.get(0), makeZeroConstant(irType));
-            return Value(name, expr.type().get(), { newVal }, Register, Packed);
+            auto* newVal = add<ir::Load>(value[0].get(), irType, name);
+            add<ir::Store>(ctx, value[0].get(), makeZeroConstant(irType));
+            return Value::Packed(name, expr.type().get(),
+                                 Atom::Register(newVal));
         }
         default:
             SC_UNREACHABLE();
@@ -1183,8 +1242,8 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
 Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     auto* currentBBBefore = &currentBlock();
     auto backItr = std::prev(currentBlock().end());
-    auto value = getValue(expr.value());
-    auto* addr = to<Unpacked>(Memory, value).front();
+    auto value = unpack(getValue(expr.value()));
+    auto* addr = toMemory(value[0]).get();
     SC_ASSERT(
         isa<ir::Alloca>(addr) || isa<ir::NullPointerConstant>(addr),
         "We expect the argument to be constructed in local memory and we will rewrite it to heap allocation");
@@ -1198,7 +1257,7 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     std::string name = "unique";
     ir::Value* arrayCount = [&]() -> ir::Value* {
         if (isa<sema::ArrayType>(baseType)) {
-            return to<Packed>(Register, getArraySize(baseType, value));
+            return toPackedRegister(getArraySize(baseType, value));
         }
         return nullptr;
     }();
@@ -1225,11 +1284,12 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
                                                utl::strcat(name, ".pointer"));
         addr->replaceAllUsesWith(ptr);
         if (arrayCount) {
-            return Value(name, expr.type().get(), { ptr, arrayCount }, Register,
-                         Unpacked);
+            return Value::Unpacked(name, expr.type().get(),
+                                   { Atom::Register(ptr),
+                                     Atom::Register(arrayCount) });
         }
         else {
-            return Value(name, expr.type().get(), { ptr }, Register, Packed);
+            return Value::Packed(name, expr.type().get(), Atom::Register(ptr));
         }
     });
 }
@@ -1249,9 +1309,9 @@ Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
         return copyValue(value);
 
     case MaterializeTemporary:
-        return Value(value.name(), value.type(),
-                     to(Memory, value.representation(), value), Memory,
-                     value.representation());
+        auto elems = value.elements() | ToSmallVector<2>;
+        elems[0] = toMemory(elems[0]);
+        return Value(value.name(), value.type(), elems, value.representation());
     }
 }
 
@@ -1266,9 +1326,15 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     using enum sema::ObjectTypeConversion;
     switch (conv.conversion()) {
     case NullptrToRawPtr:
-        return Value(value.name(), conv.type().get(),
-                     { value.get(0), ctx.intConstant(0, 64) }, Register,
-                     Unpacked);
+        if (isDynArrayPointer(conv.type().get())) {
+            return Value::Unpacked(value.name(), conv.type().get(),
+                                   { Atom::Register(value[0].get()),
+                                     Atom::Register(ctx.intConstant(0, 64)) });
+        }
+        else {
+            return Value::Packed(value.name(), conv.type().get(),
+                                 Atom::Register(value[0].get()));
+        }
     case NullptrToUniquePtr: {
         /// Here we have to consider if we want to keep unique pointers in
         /// memory all the time or if it is okay to have them in registers
@@ -1279,17 +1345,14 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     case ArrayPtr_FixedToDynamic:
         [[fallthrough]];
     case ArrayRef_FixedToDynamic: {
-        /// It would be nicer to have two cases `Array_FixedToDynamic` and
-        /// `ArrayPointer_FixedToDynamic` but refactoring sema conversion is a
-        /// major project that has to be done later
+        value = unpack(value);
         SC_ASSERT(
-            isa<sema::PointerType>(*expr->type()) || value.isMemory(),
+            isa<sema::PointerType>(*expr->type()) || value[0].isMemory(),
             "Dynamic arrays cannot be in registers. For rvalues we should have a MaterializeTemporary conversion before this case");
-        ValueLocation loc = value.location();
-        auto* data = to(loc, Unpacked, value).front();
         size_t count = getStaticArraySize(stripPtr(expr->type().get())).value();
-        return Value(value.name(), conv.type().get(),
-                     { data, ctx.intConstant(count, 64) }, loc, Unpacked);
+        return Value::Unpacked(value.name(), conv.type().get(),
+                               { value[0],
+                                 Atom::Register(ctx.intConstant(count, 64)) });
     }
 #if 0
     case Reinterpret_Array_ToByte:
@@ -1369,162 +1432,27 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         auto name = utl::strcat(value.name(), ".",
                                 arithmeticConvName(conv.conversion()));
         auto* result =
-            add<ir::ConversionInst>(to<Packed>(Register, value),
+            add<ir::ConversionInst>(toPackedRegister(value),
                                     typeMap.packed(conv.type().get()),
                                     mapArithmeticConv(conv.conversion()), name);
-        return Value(name, conv.type().get(), { result }, Register, Packed);
+        return Value::Packed(name, conv.type().get(), Atom::Register(result));
     }
     }
     SC_UNIMPLEMENTED();
 }
-
-// Value FuncGenContext::getValueImpl(ast::UninitTemporary const& temp) {
-//     auto* type = [&]() -> ir::Type const* {
-//         if (isFatPointer(&temp)) {
-//             return arrayPtrType;
-//         }
-//         return typeMap(temp.type());
-//     }();
-//     auto* address = makeLocalVariable(type, "anon");
-//     return Value(address, type, Memory);
-// }
-
-Value FuncGenContext::getValueImpl(ast::ConstructExpr const& expr) {
-    SC_UNREACHABLE(); // This will be removed
-    //    if (auto* type = dynArrayTypeCast(expr.type().get())) {
-    //        SC_UNIMPLEMENTED();
-    //        // return genConstructDynArray(expr, *type);
-    //    }
-    //    /// If we have a constructor we just call that
-    //    if (!expr.isTrivial()) {
-    //        SC_UNIMPLEMENTED();
-    //        //        return genConstructNonTrivial(expr);
-    //    }
-    //    return genConstructTrivial(expr, *expr.type());
-}
-
-// Value FuncGenContext::genConstructDynArray(ast::ConstructExpr const& expr,
-//                                            sema::ArrayType const& type) {
-//     auto* elemType = typeMap(type.elementType());
-//     switch (expr.arguments().size()) {
-//     case 0:
-//         /// No arguments mean we construct an array of size 0
-//         valueMap.insertArraySize(expr.object(),
-//                                  Value(ctx.intConstant(0, 64), Register));
-//         return Value(ctx.nullpointer(), elemType, Memory);
-//
-//     case 1: {
-//         auto* arg = expr.argument(0);
-//         if (isa<sema::IntType>(*arg->type())) {
-//             /// We construct a dynamic array from a count
-//             auto* count = getValue<Register>(arg);
-//             auto* storage = makeLocalArray(elemType, count, "dynarray");
-//             if (expr.function()) {
-//                 add<ir::Call>(getFunction(expr.function()),
-//                               ValueArray{ storage, count },
-//                               std::string{});
-//             }
-//             else {
-//                 auto* numBytes = makeCountToByteSize(count,
-//                 elemType->size()); callMemset(storage, numBytes, 0);
-//             }
-//             valueMap.insertArraySize(expr.object(), Value(count, Register));
-//             return Value(storage, elemType, Memory);
-//         }
-//         else {
-//             /// We construct a dynamic array from another one
-//             SC_ASSERT(cast<sema::ArrayType const*>(arg->type().get())
-//                               ->elementType() == type.elementType(),
-//                       "Copy construction is the only other case");
-//             auto argValue = getValue(arg);
-//             SC_ASSERT(argValue.isMemory(), "Dynamic array must be in
-//             memory"); auto* count =
-//             toRegister(valueMap.arraySize(arg->object()), expr); auto*
-//             storage = makeLocalArray(elemType, count, "dynarray"); if (auto*
-//             ctor = expr.function()) {
-//                 auto* irCtor = getFunction(ctor);
-//                 ValueArray irArguments = {
-//                     storage,
-//                     count,
-//                     argValue.get(),
-//                     count,
-//                 };
-//                 add<ir::Call>(irCtor, irArguments, std::string{});
-//             }
-//             else {
-//                 auto* numBytes = makeCountToByteSize(count,
-//                 elemType->size()); callMemcpy(storage, toMemory(argValue,
-//                 expr), numBytes);
-//             }
-//             valueMap.insertArraySize(expr.object(), Value(count, Register));
-//             return Value(storage, elemType, Memory);
-//         }
-//     }
-//     default:
-//         SC_UNREACHABLE();
-//     }
-// }
-
-// Value FuncGenContext::genConstructNonTrivial(ast::ConstructExpr const& expr)
-// {
-//     SC_EXPECT(!expr.isTrivial());
-//     auto* type = typeMap(expr.constructedType());
-//     auto* function = getFunction(expr.function());
-//     auto CC = getCC(expr.function());
-//     /// We generate all argument expressions before we unpack them because
-//     /// we may need the array size of the second argument when unpacking the
-//     /// first argument
-//     auto argValues = expr.arguments() |
-//                      transform([&](auto* arg) { return getValue(arg); }) |
-//                      ToSmallVector<>;
-//     /// If we invoke a copy constructor of a dynamic array type, we give the
-//     /// first argument which is an uninit temporary the array size of the
-//     /// second argument
-//     if (isCopyCtor(*expr.function())) {
-//         valueMap.insertArraySizeOf(expr.argument(0)->object(),
-//                                    expr.argument(1)->object());
-//     }
-//     auto irArguments = unpackArguments(CC.arguments(),
-//                                        expr.function()->argumentTypes(),
-//                                        expr.arguments() | ToSmallVector<>,
-//                                        argValues);
-//     SC_ASSERT(!irArguments.empty(), "Must have at least the object
-//     argument"); add<ir::Call>(function, irArguments, std::string{});
-//
-//     SC_ASSERT(!getDynArrayType(expr.type().get()), "");
-//
-//     /// For unique pointers we lazily load the array size from memory
-//     if (isFatPointer(&expr)) {
-//         valueMap.insertArraySize(expr.object(), [=, this] {
-//             auto* size = add<ir::GetElementPointer>(ctx,
-//                                                     arrayPtrType,
-//                                                     irArguments.front(),
-//                                                     nullptr,
-//                                                     IndexArray{ 1 },
-//                                                     "arraysize");
-//             return Value(size, ctx.intType(64), Memory);
-//         });
-//     }
-//     return Value(irArguments.front(), type, Memory);
-// }
-
-// static Value rpValue(std::string name, sema::ObjectType const* type,
-// ir::Value* value) {
-//     return Value(std::move(name), type, { value }, Register, Packed);
-// }
 
 Value FuncGenContext::getValueImpl(ast::TrivDefConstructExpr const& expr) {
     auto* type = expr.type().get();
     auto* irType = typeMap.packed(type);
     std::string name = "tmp";
     if (irType->size() <= PreferredMaxRegisterValueSize) {
-        return Value(name, type, { makeZeroConstant(irType) }, Register,
-                     Packed);
+        return Value::Packed(name, type,
+                             Atom::Register(makeZeroConstant(irType)));
     }
     else {
         auto* addr = makeLocalVariable(irType, name);
         callMemset(addr, irType->size(), 0);
-        return Value(name, type, { addr }, Memory, Packed);
+        return Value::Packed(name, type, Atom::Memory(addr));
     }
 }
 
@@ -1533,14 +1461,14 @@ Value FuncGenContext::getValueImpl(ast::TrivCopyConstructExpr const& expr) {
     auto* type = expr.type().get();
     std::string name = "tmp";
     if (type->size() <= PreferredMaxRegisterValueSize) {
-        return Value(name, type, { toPackedRegister(value) }, Register, Packed);
+        return Value::Packed(name, type,
+                             Atom::Register(toPackedRegister(value)));
     }
     else {
         auto* irType = typeMap.packed(type);
         auto* addr = makeLocalVariable(irType, name);
-        auto* call = callMemcpy(addr, toPackedMemory(value), irType->size());
-        addSourceLoc(call, expr);
-        return Value(name, type, { addr }, Memory, Packed);
+        callMemcpy(addr, toPackedMemory(value), irType->size());
+        return Value::Packed(name, type, Atom::Memory(addr));
     }
 }
 
@@ -1550,13 +1478,17 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
     std::string name = "aggregate";
     if (irType->size() <= PreferredMaxRegisterValueSize) {
         utl::small_vector<ir::Value*> values;
-        for (auto* arg: expr.arguments()) {
-            for (auto* value: getValue<Unpacked>(Register, arg)) {
-                values.push_back(value);
+        for (size_t index = 0; auto* arg: expr.arguments()) {
+            auto value = unpack(getValue(arg));
+            auto irTypes = typeMap.unpacked(arg->type().get());
+            for (auto [atom, type]: zip(value, irTypes)) {
+                values.push_back(
+                    toRegister(atom, type, utl::strcat(name, ".elem.", index++))
+                        .get());
             }
         }
         auto* aggregate = buildStructure(irType, values, name);
-        return Value(name, type, { aggregate }, Register, Packed);
+        return Value::Packed(name, type, Atom::Register(aggregate));
     }
     else {
         ir::Value* mem = makeLocalVariable(irType, name);
@@ -1565,29 +1497,23 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
             return utl::strcat(name, ".elem.", index, ".addr");
         };
         for (auto* arg: expr.arguments()) {
-            auto value = getValue(arg);
-            auto members = to<Unpacked>(value.location(), value);
-            auto* dest = add<ir::GetElementPointer>(ctx, irType, mem, nullptr,
-                                                    IndexArray{ index },
-                                                    elemAddrName());
-            if (value.isMemory()) {
-                callMemcpy(dest, members.front(),
-                           irType->elementAt(index)->size());
-            }
-            else {
-                add<ir::Store>(ctx, dest, members.front());
-            }
-            ++index;
-            for (auto* member: members | drop(1)) {
+            auto value = unpack(getValue(arg));
+            for (auto atom: value) {
                 auto* dest = add<ir::GetElementPointer>(ctx, irType, mem,
                                                         nullptr,
                                                         IndexArray{ index },
                                                         elemAddrName());
-                add<ir::Store>(ctx, dest, member);
-                ++index;
+                if (atom.isMemory()) {
+                    callMemcpy(dest, atom.get(),
+                               irType->elementAt(index)->size());
+                }
+                else {
+                    add<ir::Store>(ctx, dest, atom.get());
+                }
             }
+            ++index;
         }
-        return Value(name, type, { mem }, Memory, Packed);
+        return Value::Packed(name, type, Atom::Memory(mem));
     }
 }
 
@@ -1603,7 +1529,7 @@ Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {
     irArguments.insert(irArguments.begin(), mem);
     auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
     call->setComment(makeLifetimeComment(expr.constructor(), expr.object()));
-    return Value(name, type, { mem }, Memory, Packed);
+    return Value::Packed(name, type, Atom::Memory(mem));
 }
 
 Value FuncGenContext::getValueImpl(
@@ -1615,8 +1541,8 @@ Value FuncGenContext::getValueImpl(
         SC_ASSERT(expr.arguments().size() == 0, "");
         auto* irType = typeMap.packed(expr.type().get());
         auto* null = makeZeroConstant(irType);
-        return Value("unique.ptr", expr.type().get(), { null }, Register,
-                     Packed);
+        return Value::Packed("unique.ptr", expr.type().get(),
+                             Atom::Register(null));
     }
     default:
         SC_UNREACHABLE();
@@ -1635,18 +1561,18 @@ Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
         auto* destAddr = add<ir::GetElementPointer>(ctx, irType, mem, nullptr,
                                                     IndexArray{ irIndex },
                                                     elemName);
-        auto* val = getValue<Packed>(Memory, arg);
+        auto* val = toPackedMemory(getValue(arg));
         SC_ASSERT(isa<ir::Alloca>(val), "Must be local memory to replace here");
         val->replaceAllUsesWith(destAddr);
     }
-    return Value(name, type, { mem }, Memory, Packed);
+    return Value::Packed(name, type, Atom::Memory(mem));
 }
 
 Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
     auto* type = expr.constructedType();
     auto* irElemType = typeMap.packed(type->elementType());
     std::string name = "array";
-    auto* count = getValue<Packed>(Register, expr.argument(0));
+    auto* count = toPackedRegister(getValue(expr.argument(0)));
     auto* arrayBegin = makeLocalArray(irElemType, count, name);
     /// Trivial default construction we can do with a memset, no need to
     /// generate a loop here
@@ -1667,13 +1593,13 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
                                               utl::strcat(name, ".ind"));
         });
         withBlockCurrent(loop.body, loop.insertPoint, [&] {
-            auto* elem = getValue<Packed>(Memory, expr.elementConstruction());
+            auto* elem = toPackedMemory(getValue(expr.elementConstruction()));
             SC_ASSERT(isa<ir::Alloca>(elem), "Must be local");
             elem->replaceAllUsesWith(loop.induction);
         });
     }
-    return Value(name, expr.type().get(), { arrayBegin, count }, Memory,
-                 Unpacked);
+    return Value::Unpacked(name, expr.type().get(),
+                           { Atom::Memory(arrayBegin), Atom::Register(count) });
 }
 
 // Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
@@ -1702,154 +1628,157 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
 //     return Value();
 // }
 
-/// MARK: - General utilities
-
-#if 0
-void FuncGenContext::generateDefaultConstruction(
-    sema::ObjectType const* type, std::span<ir::Value* const> addresses) {
-    auto operation =
-        type->lifetimeMetadata().operation(sema::SMFKind::DefaultConstructor);
-    auto irTypes = typeMap.unpacked(type);
-    SC_ASSERT(
-        irTypes.size() == addresses.size(),
-        "The unpack IR types shall directly correspond to the fields we initialize here");
-    using enum sema::LifetimeOperation::Kind;
-    switch (operation.kind()) {
-    case Trivial:
-        for (auto [addr, irType]: zip(addresses, irTypes)) {
-            if (irType->size() <= PreferredMaxRegisterValueSize) {
-                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-            }
-            else {
-                callMemset(addr, irType->size(), 0);
-            }
-        }
-        break;
-    case Nontrivial: {
-        SC_ASSERT(addresses.size() == 1, "");
-        auto* fn = operation.function();
-        add<ir::Call>(getFunction(fn), ValueArray{ addresses.front() });
-        break;
-    }
-    case NontrivialInline:
-        switch (getInlineLifetimeCase(type)) {
-        case InlineLifetime::Array: {
-            SC_UNIMPLEMENTED();
-            break;
-        }
-        case InlineLifetime::UniquePtr:
-            for (auto [addr, irType]: zip(addresses, irTypes)) {
-                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-            }
-            break;
-        }
-        break;
-    case Deleted:
-        SC_UNREACHABLE();
-    }
-}
-
-void FuncGenContext::generateLifetimeOperation(
-    sema::SMFKind smfKind,
-    sema::ObjectType const* type, std::span<ir::Value* const> destAddresses,
-    std::span<ir::Value* const> sourceAddresses) {
-    SC_EXPECT(destAddresses.size() == sourceAddresses.size());
-    auto operation =
-        type->lifetimeMetadata().operation(kind);
-    auto irTypes = typeMap.unpacked(type);
-    SC_ASSERT(
-        irTypes.size() == destAddresses.size(),
-        "The unpack IR types shall directly correspond to the fields we initialize here");
-    using enum sema::LifetimeOperation::Kind;
-    using enum sema::SMFKind;
-    switch (operation.kind()) {
-    case Trivial:
-        switch (smfKind) {
-            case DefaultConstructor:
-            for (auto [addr, irType]: zip(addresses, irTypes)) {
-                if (irType->size() <= PreferredMaxRegisterValueSize) {
-                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-                }
-                else {
-                    callMemset(addr, irType->size(), 0);
-                }
-            }
-            break;
-        case CopyConstructor:
-            [[fallthrough]];
-        case MoveConstructor:
-            for (auto [dest, source, irType]:
-                 zip(destAddresses, sourceAddresses, irTypes))
-            {
-                if (irType->size() <= PreferredMaxRegisterValueSize) {
-                    auto* value = add<ir::Load>(source, irType, "copy");
-                    add<ir::Store>(ctx, dest, value);
-                }
-                else {
-                    callMemcpy(dest, source, irType->size());
-                }
-            }
-            break;
-        case Destructor:
-            break;
-        }
-        break;
-    case Nontrivial: {
-        SC_ASSERT(addresses.size() == 1, "");
-        auto* irOperation = getFunction(operation.function());
-        switch (smfKind) {
-        case DefaultConstructor:
-            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
-            break;
-        case CopyConstructor:
-            [[fallthrough]];
-        case MoveConstructor:
-            add<ir::Call>(irOperation, ValueArray{ destAddresses.front(), sourceAddresses.front() });
-            break;
-        case Destructor:
-            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
-            break;
-        }
-        break;
-    }
-    case NontrivialInline:
-        switch (getInlineLifetimeCase(type)) {
-        case InlineLifetime::Array: {
-            SC_UNIMPLEMENTED();
-            break;
-        }
-        case InlineLifetime::UniquePtr:
-            switch (smfKind) {
-            case DefaultConstructor:
-                for (auto [addr, irType]: zip(addresses, irTypes)) {
-                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-                }
-                break;
-            case CopyConstructor:
-                SC_UNREACHABLE();
-            case MoveConstructor:
-                for (auto [source, dest, irType]:
-                     zip(destAddresses, sourceAddresses, irTypes))
-                {
-                    auto* value = add<ir::Load>(source, irType, "copy");
-                    add<ir::Store>(ctx, dest, value);
-                    add<ir::Store>(ctx, source, makeZeroConstant(irType));
-                }
-                break;
-                
-            case Destructor:
-                inlineCleanupImpl(Value("unique.ptr.member", type, destAddresses, Memory, Unpacked),
-                                  operation)
-                break;
-            }
-            break;
-        }
-        break;
-    case Deleted:
-        SC_UNREACHABLE();
-    }
-}
-#endif
+///// MARK: - General utilities
+//
+// #if 0
+// void FuncGenContext::generateDefaultConstruction(
+//    sema::ObjectType const* type, std::span<ir::Value* const> addresses) {
+//    auto operation =
+//        type->lifetimeMetadata().operation(sema::SMFKind::DefaultConstructor);
+//    auto irTypes = typeMap.unpacked(type);
+//    SC_ASSERT(
+//        irTypes.size() == addresses.size(),
+//        "The unpack IR types shall directly correspond to the fields we
+//        initialize here");
+//    using enum sema::LifetimeOperation::Kind;
+//    switch (operation.kind()) {
+//    case Trivial:
+//        for (auto [addr, irType]: zip(addresses, irTypes)) {
+//            if (irType->size() <= PreferredMaxRegisterValueSize) {
+//                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+//            }
+//            else {
+//                callMemset(addr, irType->size(), 0);
+//            }
+//        }
+//        break;
+//    case Nontrivial: {
+//        SC_ASSERT(addresses.size() == 1, "");
+//        auto* fn = operation.function();
+//        add<ir::Call>(getFunction(fn), ValueArray{ addresses.front() });
+//        break;
+//    }
+//    case NontrivialInline:
+//        switch (getInlineLifetimeCase(type)) {
+//        case InlineLifetime::Array: {
+//            SC_UNIMPLEMENTED();
+//            break;
+//        }
+//        case InlineLifetime::UniquePtr:
+//            for (auto [addr, irType]: zip(addresses, irTypes)) {
+//                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+//            }
+//            break;
+//        }
+//        break;
+//    case Deleted:
+//        SC_UNREACHABLE();
+//    }
+//}
+//
+// void FuncGenContext::generateLifetimeOperation(
+//    sema::SMFKind smfKind,
+//    sema::ObjectType const* type, std::span<ir::Value* const> destAddresses,
+//    std::span<ir::Value* const> sourceAddresses) {
+//    SC_EXPECT(destAddresses.size() == sourceAddresses.size());
+//    auto operation =
+//        type->lifetimeMetadata().operation(kind);
+//    auto irTypes = typeMap.unpacked(type);
+//    SC_ASSERT(
+//        irTypes.size() == destAddresses.size(),
+//        "The unpack IR types shall directly correspond to the fields we
+//        initialize here");
+//    using enum sema::LifetimeOperation::Kind;
+//    using enum sema::SMFKind;
+//    switch (operation.kind()) {
+//    case Trivial:
+//        switch (smfKind) {
+//            case DefaultConstructor:
+//            for (auto [addr, irType]: zip(addresses, irTypes)) {
+//                if (irType->size() <= PreferredMaxRegisterValueSize) {
+//                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+//                }
+//                else {
+//                    callMemset(addr, irType->size(), 0);
+//                }
+//            }
+//            break;
+//        case CopyConstructor:
+//            [[fallthrough]];
+//        case MoveConstructor:
+//            for (auto [dest, source, irType]:
+//                 zip(destAddresses, sourceAddresses, irTypes))
+//            {
+//                if (irType->size() <= PreferredMaxRegisterValueSize) {
+//                    auto* value = add<ir::Load>(source, irType, "copy");
+//                    add<ir::Store>(ctx, dest, value);
+//                }
+//                else {
+//                    callMemcpy(dest, source, irType->size());
+//                }
+//            }
+//            break;
+//        case Destructor:
+//            break;
+//        }
+//        break;
+//    case Nontrivial: {
+//        SC_ASSERT(addresses.size() == 1, "");
+//        auto* irOperation = getFunction(operation.function());
+//        switch (smfKind) {
+//        case DefaultConstructor:
+//            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
+//            break;
+//        case CopyConstructor:
+//            [[fallthrough]];
+//        case MoveConstructor:
+//            add<ir::Call>(irOperation, ValueArray{ destAddresses.front(),
+//            sourceAddresses.front() }); break;
+//        case Destructor:
+//            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
+//            break;
+//        }
+//        break;
+//    }
+//    case NontrivialInline:
+//        switch (getInlineLifetimeCase(type)) {
+//        case InlineLifetime::Array: {
+//            SC_UNIMPLEMENTED();
+//            break;
+//        }
+//        case InlineLifetime::UniquePtr:
+//            switch (smfKind) {
+//            case DefaultConstructor:
+//                for (auto [addr, irType]: zip(addresses, irTypes)) {
+//                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
+//                }
+//                break;
+//            case CopyConstructor:
+//                SC_UNREACHABLE();
+//            case MoveConstructor:
+//                for (auto [source, dest, irType]:
+//                     zip(destAddresses, sourceAddresses, irTypes))
+//                {
+//                    auto* value = add<ir::Load>(source, irType, "copy");
+//                    add<ir::Store>(ctx, dest, value);
+//                    add<ir::Store>(ctx, source, makeZeroConstant(irType));
+//                }
+//                break;
+//
+//            case Destructor:
+//                inlineCleanupImpl(Value("unique.ptr.member", type,
+//                destAddresses, Memory, Unpacked),
+//                                  operation)
+//                break;
+//            }
+//            break;
+//        }
+//        break;
+//    case Deleted:
+//        SC_UNREACHABLE();
+//    }
+//}
+// #endif
 
 void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
@@ -1870,8 +1799,8 @@ void FuncGenContext::generateCleanup(Value const& value,
         SC_ASSERT(ranges::distance(function->parameters()) == 1 &&
                       function->parameters().front().type() == ctx.ptrType(),
                   "Shall have single pointer argument");
-        SC_ASSERT(value.isMemory(), "Must be in memory");
-        auto* addr = to<Packed>(Memory, value);
+        SC_ASSERT(value[0].isMemory(), "Must be in memory");
+        auto* addr = toPackedMemory(value);
         auto* call = add<ir::Call>(function, ValueArray{ addr }, std::string{});
         call->setComment(makeLifetimeComment(destroy.function(), obj));
         break;
@@ -1895,8 +1824,8 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
                                        sema::Object const* obj) {
     auto* elemType = type.elementType();
     auto* irElemType = typeMap.packed(elemType);
-    auto* arraySize = to<Packed>(Register, getArraySize(&type, value));
-    auto* arrayBegin = to<Unpacked>(Memory, value).front();
+    auto* arraySize = toPackedRegister(getArraySize(&type, value));
+    auto* arrayBegin = toMemory(unpack(value)[0]).get();
     auto* arrayEnd =
         add<ir::GetElementPointer>(ctx, irElemType, arrayBegin, arraySize,
                                    IndexArray{},
@@ -1909,22 +1838,23 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
                                           utl::strcat(value.name(), ".ind"));
     });
     withBlockCurrent(loop.body, loop.insertPoint, [&] {
-        generateCleanup(Value("array.elem", type.elementType(),
-                              { loop.induction }, Memory, Packed),
+        generateCleanup(Value::Packed("array.elem", type.elementType(),
+                                      Atom::Memory(loop.induction)),
                         elemType->lifetimeMetadata().destructor());
     });
 }
 
-void FuncGenContext::inlineCleanupImpl(Value const& value,
+void FuncGenContext::inlineCleanupImpl(Value const& inVal,
                                        sema::UniquePtrType const& type,
                                        sema::Object const* obj) {
-    auto elems = to<Unpacked>(Register, value);
+    auto value = unpack(inVal);
     auto* pointeeType = type.base().get();
     std::string name = "unique.ptr";
-
+    auto* data =
+        toRegister(value[0], ctx.ptrType(), utl::strcat(name, ".data")).get();
     auto* deleteBlock = newBlock(utl::strcat(name, ".delete"));
     auto* endBlock = newBlock(utl::strcat(name, ".end"));
-    auto* cmp = add<ir::CompareInst>(ctx, elems[0], ctx.nullpointer(),
+    auto* cmp = add<ir::CompareInst>(ctx, data, ctx.nullpointer(),
                                      ir::CompareMode::Unsigned,
                                      ir::CompareOperation::NotEqual,
                                      utl::strcat(name, ".engaged"));
@@ -1933,20 +1863,23 @@ void FuncGenContext::inlineCleanupImpl(Value const& value,
 
     add(deleteBlock);
     auto valueDtor = pointeeType->lifetimeMetadata().destructor();
-    generateCleanup(Value("pointee", pointeeType, elems, Memory, Unpacked),
+    generateCleanup(Value::Unpacked("pointee", pointeeType, value.elements()),
                     valueDtor);
     auto [bytesize, align] = [&]() -> ValueArray<2> {
-        if (elems.size() == 1) {
+        if (value.size() == 1) {
             return { ctx.intConstant(type.size(), 64),
                      ctx.intConstant(type.align(), 64) };
         }
         auto* elemType =
             cast<sema::ArrayType const*>(pointeeType)->elementType();
-        return { makeCountToByteSize(elems[1], elemType->size()),
+        auto* count =
+            toRegister(value[1], ctx.intType(64), utl::strcat(name, ".count"))
+                .get();
+        return { makeCountToByteSize(count, elemType->size()),
                  ctx.intConstant(elemType->align(), 64) };
     }();
     auto* dealloc = getBuiltin(svm::Builtin::dealloc);
-    add<ir::Call>(dealloc, ValueArray{ elems.front(), bytesize, align });
+    add<ir::Call>(dealloc, ValueArray{ data, bytesize, align });
     add<ir::Goto>(ctx, endBlock);
 
     add(endBlock);
@@ -1961,12 +1894,4 @@ utl::small_vector<ir::Value*> FuncGenContext::unpackStructMembers(
                                           IndexArray{ index },
                                           utl::strcat("member.", index));
     }) | ToSmallVector<>;
-}
-
-void FuncGenContext::addSourceLoc(ir::Instruction* inst,
-                                  ast::ASTNode const& sourceNode) {
-    if (!config.generateDebugSymbols) {
-        return;
-    }
-    inst->setMetadata(sourceNode.sourceRange().begin());
 }

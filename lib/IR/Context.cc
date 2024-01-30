@@ -7,6 +7,7 @@
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG/Constants.h"
 #include "IR/PointerInfo.h"
 #include "IR/Type.h"
@@ -138,6 +139,7 @@ static std::string makeAnonStructName(std::span<Type const* const> members) {
 
 StructType const* Context::anonymousStruct(
     std::span<Type const* const> members) {
+    SC_EXPECT(ranges::all_of(members, [](auto* ty) { return !!ty; }));
     auto itr = impl->_anonymousStructs.find(members);
     if (itr != impl->_anonymousStructs.end()) {
         return itr->second;

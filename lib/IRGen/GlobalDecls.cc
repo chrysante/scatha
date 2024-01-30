@@ -71,28 +71,27 @@ static bool mayPassInRegister(sema::Type const* type) {
     return type->hasTrivialLifetime();
 }
 
-static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
-    if (mayPassInRegister(type)) {
-        return { type, Register, isRetval ? 0u : isFatPointer(type) ? 2u : 1u };
-    }
-    else {
-        return { type, Memory, 1 };
-    }
-}
-
-static PassingConvention computeRetValPC(sema::Type const* type) {
-    return computePCImpl(type, true);
+static ValueLocation computeRetValLocation(sema::Type const* type) {
+    return mayPassInRegister(type) ? Register : Memory;
 }
 
 static PassingConvention computeArgPC(sema::Type const* type) {
-    return computePCImpl(type, false);
+    if (mayPassInRegister(type)) {
+        if (isFatPointer(type)) {
+            return PassingConvention(type, { Register, Register });
+        }
+        return PassingConvention(type, { Register });
+    }
+    else {
+        return PassingConvention(type, { Memory });
+    }
 }
 
 static CallingConvention computeCC(sema::Function const* function) {
-    auto retval = computeRetValPC(function->returnType());
+    auto retvalLoc = computeRetValLocation(function->returnType());
     auto args = function->argumentTypes() |
                 ranges::views::transform(computeArgPC) | ToSmallVector<>;
-    return CallingConvention(retval, args);
+    return CallingConvention(function->returnType(), retvalLoc, args);
 }
 
 FunctionMetadata irgen::makeFunctionMetadata(sema::Function const* semaFn) {
@@ -114,21 +113,18 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
                                       TypeMap const& typeMap) {
     IRSignature sig;
     /// Compute return value
-    switch (CC.returnValue().location()) {
-    case Register: {
+    if (CC.returnLocation() == Register) {
         sig.returnType = typeMap.packed(semaFn.returnType());
-        break;
     }
-    case Memory:
+    else {
         sig.returnType = ctx.voidType();
         sig.argumentTypes.push_back(ctx.ptrType());
-        break;
     }
     /// Compute arguments
     for (auto [argPC, semaType]:
          ranges::views::zip(CC.arguments(), semaFn.argumentTypes()))
     {
-        switch (argPC.location()) {
+        switch (argPC.location(0)) {
         case Register:
             for (auto* irType: typeMap.unpacked(semaType)) {
                 sig.argumentTypes.push_back(irType);

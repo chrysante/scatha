@@ -20,10 +20,16 @@ sema::ObjectType const* getPtrOrRefBase(sema::Type const* type);
 
 /// \Returns `true` if \p type is an array with
 /// dynamic size or a pointer or a reference thereto
-bool isFatPointer(sema::Type const* type);
+[[deprecated]] bool isFatPointer(sema::Type const* type);
 
 /// \overload for expressions
-bool isFatPointer(ast::Expression const* expr);
+[[deprecated]] bool isFatPointer(ast::Expression const* expr);
+
+///
+bool isDynArray(sema::ObjectType const* type);
+
+///
+bool isDynArrayPointer(sema::ObjectType const* type);
 
 /// \Returns the size if \p type is a statically sized array or a pointer or
 /// reference thereto

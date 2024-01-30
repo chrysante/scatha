@@ -99,8 +99,6 @@ TEST_CASE("Return count of dynamic array pointer", "[irgen]") {
     CHECK(view.nextAs<Store>().value() == &packed);
     auto& load = view.nextAs<Load>();
     CHECK(load.address() == &mem);
-    auto& data = view.nextAs<ExtractValue>();
-    CHECK(data.baseValue() == &load);
     auto& size = view.nextAs<ExtractValue>();
     CHECK(size.baseValue() == &load);
     CHECK(view.nextAs<Return>().value() == &size);
@@ -116,8 +114,6 @@ TEST_CASE("Return count of reference to dynamic array pointer", "[irgen]") {
 
     auto& load = view.nextAs<Load>();
     CHECK(load.address() == &F.parameters().front());
-    auto& data = view.nextAs<ExtractValue>();
-    CHECK(data.baseValue() == &load);
     auto& size = view.nextAs<ExtractValue>();
     CHECK(size.baseValue() == &load);
     CHECK(view.nextAs<Return>().value() == &size);

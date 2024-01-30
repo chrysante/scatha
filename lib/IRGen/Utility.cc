@@ -38,6 +38,16 @@ bool irgen::isFatPointer(ast::Expression const* expr) {
     return isFatPointer(expr->type().get());
 }
 
+bool irgen::isDynArray(sema::ObjectType const* type) {
+    auto* arr = dyncast<sema::ArrayType const*>(type);
+    return arr && arr->isDynamic();
+}
+
+bool irgen::isDynArrayPointer(sema::ObjectType const* type) {
+    auto* ptr = dyncast<sema::PointerType const*>(type);
+    return ptr && isDynArray(ptr->base().get());
+}
+
 std::optional<size_t> irgen::getStaticArraySize(sema::Type const* type) {
     auto* AT = ptrOrRefToArrayImpl(type);
     if (!AT && !(AT = dyncast<sema::ArrayType const*>(type))) {

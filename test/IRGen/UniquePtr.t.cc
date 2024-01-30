@@ -155,19 +155,21 @@ func void @foo-_U_A_MBar(ptr %0, i64 %1) {
     %p.elem.0 = insert_value { ptr, i64 } undef, ptr %0, 0
     %p = insert_value { ptr, i64 } %p.elem.0, i64 %1, 1
     store ptr %p.addr, { ptr, i64 } %p
-    %p.0 = load { ptr, i64 }, ptr %p.addr
-    %p.data = extract_value { ptr, i64 } %p.0, 0
-    %p.count = extract_value { ptr, i64 } %p.0, 1
-    %unique.ptr.engaged = ucmp neq ptr %p.data, ptr nullptr
+    %p.elem.0.addr = getelementptr inbounds { ptr, i64 }, ptr %p.addr, i32 0, 0
+    %p.elem.1.addr = getelementptr inbounds { ptr, i64 }, ptr %p.addr, i32 0, 1
+    %unique.ptr.data = load ptr, ptr %p.elem.0.addr
+    %unique.ptr.engaged = ucmp neq ptr %unique.ptr.data, ptr nullptr
     // Destruction block for p
     branch i1 %unique.ptr.engaged, label %unique.ptr.delete, label %unique.ptr.end
 
   %unique.ptr.delete: // preds: entry
-    %pointee.end = getelementptr inbounds @Bar, ptr %p.data, i64 %p.count
+    %pointee.count = load i64, ptr %p.elem.1.addr
+    // Destruction block for [Bar]
+    %pointee.end = getelementptr inbounds @Bar, ptr %p.elem.0.addr, i64 %pointee.count
     goto label %pointee.destr.body
 
   %pointee.destr.body: // preds: unique.ptr.delete, pointee.destr.body
-    %pointee.destr.counter = phi ptr [label %unique.ptr.delete : %p.data], [label %pointee.destr.body : %pointee.ind]
+    %pointee.destr.counter = phi ptr [label %unique.ptr.delete : %p.elem.0.addr], [label %pointee.destr.body : %pointee.ind]
     // Destructor for Bar
     call void @Bar.delete-_R_MBar, ptr %pointee.destr.counter
     %pointee.ind = getelementptr inbounds @Bar, ptr %pointee.destr.counter, i64 1
@@ -175,8 +177,9 @@ func void @foo-_U_A_MBar(ptr %0, i64 %1) {
     branch i1 %pointee.destr.test, label %pointee.destr.end, label %pointee.destr.body
 
   %pointee.destr.end: // preds: pointee.destr.body
-    %bytesize = mul i64 %p.count, i64 1
-    call void @__builtin_dealloc, ptr %p.data, i64 %bytesize, i64 1
+    %unique.ptr.count = load i64, ptr %p.elem.1.addr
+    %bytesize = mul i64 %unique.ptr.count, i64 1
+    call void @__builtin_dealloc, ptr %unique.ptr.data, i64 %bytesize, i64 1
     goto label %unique.ptr.end
 
   %unique.ptr.end: // preds: entry, pointee.destr.end

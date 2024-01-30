@@ -88,133 +88,152 @@ ir::Call* FuncGenContextBase::callMemset(ir::Value* dest, size_t numBytes,
     return callMemset(dest, ctx.intConstant(numBytes, 64), value);
 }
 
-static bool isDynArray(sema::ObjectType const* type) {
-    auto* arr = dyncast<sema::ArrayType const*>(type);
-    return arr && arr->isDynamic();
+Value FuncGenContextBase::to(ValueRepresentation repr, Value const& value) {
+    switch (repr) {
+    case Packed:
+        return pack(value);
+    case Unpacked:
+        return unpack(value);
+    default:
+        SC_UNREACHABLE();
+    }
 }
 
-static bool isDynArrayPointer(sema::ObjectType const* type) {
-    auto* ptr = dyncast<sema::PointerType const*>(type);
-    return ptr && isDynArray(ptr->base().get());
+Value FuncGenContextBase::pack(Value const& value) {
+    if (value.isPacked()) {
+        return value;
+    }
+    auto atom = [&]() -> Atom {
+        if (isDynArray(value.type())) {
+            SC_ASSERT(value[0].isMemory(), "Dyn array must be in memory");
+            SC_ASSERT(value[0]->type() == ctx.ptrType(),
+                      "Reference to dyn array must be arrayPtrType");
+            auto* packed =
+                packValues(ValueArray{ value[0].get(),
+                                       toRegister(value[1], ctx.intType(64),
+                                                  utl::strcat(value.name(),
+                                                              ".count"))
+                                           .get() },
+                           value.name());
+            return Atom(packed, Memory);
+        }
+        else if (isDynArrayPointer(value.type())) {
+            auto types = typeMap.unpacked(value.type());
+            auto elems = zip(value, types) | transform([&](auto p) {
+                auto [atom, type] = p;
+                return toRegister(atom, type, value.name()).get();
+            }) | ToSmallVector<2>;
+            auto* packed = packValues(elems, value.name());
+            return Atom(packed, Register);
+        }
+        else {
+            return { value.single() };
+        }
+    }();
+    return Value::Packed(value.name(), value.type(), atom);
+}
+
+Value FuncGenContextBase::unpack(Value const& value) {
+    if (value.isUnpacked()) {
+        return value;
+    }
+    auto atoms = [&]() -> utl::small_vector<Atom, 2> {
+        if (isDynArray(value.type())) {
+            SC_ASSERT(value.single().isMemory(), "Dyn array must be in memory");
+            SC_ASSERT(value.single()->type() == arrayPtrType,
+                      "Reference to dyn array must be arrayPtrType");
+            auto atoms = unpackRegister(Atom::Register(value.single().get()),
+                                        value.name());
+            atoms[0] = Atom(atoms[0].get(), Memory);
+            return atoms;
+        }
+        else if (isDynArrayPointer(value.type())) {
+            auto atom = value.single();
+            switch (atom.location()) {
+            case Register: {
+                return unpackRegister(atom, value.name());
+            }
+            case Memory: {
+                return unpackMemory(atom, arrayPtrType, value.name());
+            }
+            default:
+                SC_UNREACHABLE();
+            }
+        }
+        else {
+            return { value.single() };
+        }
+    }();
+    return Value::Unpacked(value.name(), value.type(), atoms);
+}
+
+Atom FuncGenContextBase::to(ValueLocation location, Atom atom,
+                            ir::Type const* type, std::string name) {
+    switch (location) {
+    case Register:
+        return toRegister(atom, type, std::move(name));
+    case Memory:
+        return toMemory(atom);
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+Atom FuncGenContextBase::toMemory(Atom atom) {
+    if (atom.isMemory()) {
+        return atom;
+    }
+    return Atom(storeToMemory(atom.get()), Memory);
+}
+
+Atom FuncGenContextBase::toRegister(Atom atom, ir::Type const* type,
+                                    std::string name) {
+    if (atom.isRegister()) {
+        return atom;
+    }
+    auto* load = add<ir::Load>(atom.get(), type, name);
+    return Atom(load, Register);
+}
+
+utl::small_vector<Atom, 2> FuncGenContextBase::unpackRegister(
+    Atom atom, std::string name) {
+    SC_EXPECT(atom.isRegister());
+    auto* type = dyncast<ir::RecordType const*>(atom->type());
+    if (!type) {
+        return { atom };
+    }
+    return iota(size_t{ 0 }, type->numElements()) |
+           transform([&](size_t index) {
+        auto* elem = add<ir::ExtractValue>(atom.get(), IndexArray{ index },
+                                           utl::strcat(name, ".elem.", index));
+        return Atom(elem, Register);
+    }) | ToSmallVector<2>;
+}
+
+utl::small_vector<Atom, 2> FuncGenContextBase::unpackMemory(
+    Atom atom, ir::RecordType const* type, std::string name) {
+    SC_EXPECT(atom.isMemory());
+    //    auto* type = dyncast<ir::RecordType const*>(atom->type());
+    //    if (!type) {
+    //        return { atom };
+    //    }
+    return type->elements() | enumerate | transform([&](auto p) {
+        auto [index, memType] = p;
+        auto* elem = add<ir::GetElementPointer>(type, atom.get(), nullptr,
+                                                IndexArray{ size_t(index) },
+                                                utl::strcat(name, ".elem.",
+                                                            index, ".addr"));
+        return Atom(elem, Memory);
+    }) | ToSmallVector<2>;
 }
 
 ir::Value* FuncGenContextBase::toPackedRegister(Value const& value) {
-    SC_ASSERT(!isDynArray(value.type()),
-              "Cannot have dynamic array in register");
-    if (value.isMemory()) {
-        /// `{ Memory, Packed } -> { Register, Packed }`
-        if (value.isPacked() || !isDynArrayPointer(value.type())) {
-            return add<ir::Load>(value.get(0), typeMap.packed(value.type()),
-                                 value.name());
-        }
-        /// `{ Memory, Unpacked } -> { Register, Packed }`
-        else {
-            auto* data = add<ir::Load>(value.get(0), ctx.ptrType(),
-                                       utl::strcat(value.name(), ".data"));
-            return packValues(ValueArray{ data, value.get(1) }, value.name());
-        }
-    }
-    else {
-        if (value.isPacked()) {
-            /// `{ Register, Packed } -> { Register, Packed }`
-            return value.get(0);
-        }
-        else {
-            /// `{ Register, Unpacked } -> { Register, Packed }`
-            return packValues(value.get(), value.name());
-        }
-    }
+    auto* type = typeMap.packed(value.type());
+    return toRegister(pack(value).single(), type, value.name()).get();
 }
 
 ir::Value* FuncGenContextBase::toPackedMemory(Value const& value) {
-    if (isDynArray(value.type())) {
-        if (value.isMemory()) {
-            SC_ASSERT(value.isUnpacked(), "");
-            return packValues(value.get(), value.name());
-        }
-        else {
-            // Store to local memory here
-            SC_UNIMPLEMENTED();
-        }
-    }
-    else {
-        if (value.isMemory()) {
-            return value.get(0);
-        }
-        else {
-            auto* packed = packValues(value.get(), value.name());
-            return storeToMemory(packed, value.name());
-        }
-    }
-}
-
-utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedRegister(
-    Value const& value) {
-    SC_ASSERT(!isDynArray(value.type()),
-              "Cannot have dynamic array in register");
-    if (value.isMemory()) {
-        /// `{ Memory, {Packed,Unpacked} } -> { Register, Unpacked }`
-        if (isDynArrayPointer(value.type())) {
-            if (value.isPacked()) {
-                auto* ptr =
-                    add<ir::Load>(value.get(0), arrayPtrType, value.name());
-                return unpackDynArrayPointerInRegister(ptr, value.name());
-            }
-            else {
-                auto* ptr =
-                    add<ir::Load>(value.get(0), ctx.ptrType(), value.name());
-                return { ptr, value.get(1) };
-            }
-        }
-        else {
-            auto types = typeMap.unpacked(value.type());
-            SC_ASSERT(types.size() == 1, "");
-            return { add<ir::Load>(value.get(0), types.front(), value.name()) };
-        }
-    }
-    else {
-        if (value.isPacked()) {
-            /// `{ Register, Packed } -> { Register, Unpacked }`
-            if (isDynArrayPointer(value.type())) {
-                return unpackDynArrayPointerInRegister(value.get(0),
-                                                       value.name());
-            }
-            else {
-                return { value.get(0) };
-            }
-        }
-        else {
-            /// `{ Register, Unpacked } -> { Register, Unpacked }`
-            return value.get() | ToSmallVector<2>;
-        }
-    }
-}
-
-utl::small_vector<ir::Value*, 2> FuncGenContextBase::toUnpackedMemory(
-    Value const& value) {
-    if (value.isMemory()) {
-        if (value.isPacked()) {
-            if (isDynArray(value.type())) {
-                /// This means `value.get(0)` is an array pointer in a register
-                SC_EXPECT(value.get(0)->type() == arrayPtrType);
-                return unpackDynArrayPointerInRegister(value.get(0),
-                                                       value.name());
-            }
-            if (isDynArrayPointer(value.type())) {
-                return unpackDynArrayPointerInMemory(value.get(0),
-                                                     value.name());
-            }
-        }
-        return value.get() | ToSmallVector<>;
-    }
-    else {
-        if (value.isPacked() && isDynArrayPointer(value.type())) {
-            return unpackDynArrayPointerInRegister(value.get(0), value.name());
-        }
-        return concat(single(storeToMemory(value.get(0))),
-                      value.get().subspan(1)) |
-               ToSmallVector<2>;
-    }
+    return toMemory(pack(value).single()).get();
 }
 
 Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
@@ -226,63 +245,34 @@ Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
     auto* arrType = cast<sema::ArrayType const*>(semaType);
     auto* sizeType = symbolTable.Int();
     if (!arrType->isDynamic()) {
-        return Value(name, sizeType, { ctx.intConstant(arrType->count(), 64) },
-                     Register, Unpacked);
+        return Value::Packed(name, sizeType,
+                             Atom::Register(
+                                 ctx.intConstant(arrType->count(), 64)));
     }
-    if (value.location() == Memory) {
-        if (value.representation() == Unpacked) {
-            /// This case is weird, but for unpacked memory values the metadata
-            /// values like array size are always in registers
-            return Value(name, sizeType, { value.get(1) }, Register, Unpacked);
-        }
-        else if (isa<sema::PointerType>(semaType)) {
+    if (value.isUnpacked()) {
+        return Value::Packed(name, sizeType, value[1]);
+    }
+    else if (value[0].isMemory()) {
+        if (isa<sema::PointerType>(semaType)) {
             auto* addr = add<ir::GetElementPointer>(ctx, arrayPtrType,
-                                                    value.get(0), nullptr,
+                                                    value[0].get(), nullptr,
                                                     IndexArray{ 1 },
                                                     utl::strcat(name, ".addr"));
-            return Value(name, sizeType, { addr }, Memory, Packed);
+            return Value::Packed(name, sizeType, Atom::Memory(addr));
         }
         else {
             auto* size =
-                add<ir::ExtractValue>(value.get(0), IndexArray{ 1 }, name);
-            return Value(name, sizeType, { size }, Register, Packed);
+                add<ir::ExtractValue>(value[0].get(), IndexArray{ 1 }, name);
+            return Value::Packed(name, sizeType, Atom::Register(size));
         }
     }
+
     else {
-        // Now value.location() == Register
-        if (value.representation() == Unpacked) {
-            return Value(name, sizeType, { value.get(1) }, Register, Unpacked);
-        }
-        else {
-            auto* size =
-                add<ir::ExtractValue>(value.get(0), IndexArray{ 1 }, name);
-            return Value(name, sizeType, { size }, Register, Unpacked);
-        }
+        // Now value[0].isRegister()
+        auto* size =
+            add<ir::ExtractValue>(value[0].get(), IndexArray{ 1 }, name);
+        return Value::Packed(name, sizeType, Atom::Register(size));
     }
-}
-
-utl::small_vector<ir::Value*, 2> FuncGenContextBase::
-    unpackDynArrayPointerInRegister(ir::Value* pointer, std::string name) {
-    auto* data = add<ir::ExtractValue>(pointer, IndexArray{ 0 },
-                                       utl::strcat(name, ".data"));
-    auto* count = add<ir::ExtractValue>(pointer, IndexArray{ 1 },
-                                        utl::strcat(name, ".count"));
-    return { data, count };
-}
-
-utl::small_vector<ir::Value*, 2> FuncGenContextBase::
-    unpackDynArrayPointerInMemory(ir::Value* ptr, std::string name) {
-    auto* dataAddr =
-        add<ir::GetElementPointer>(ctx, arrayPtrType, ptr, nullptr,
-                                   IndexArray{ 0 },
-                                   utl::strcat(name, ".data.addr"));
-    auto* countAddr =
-        add<ir::GetElementPointer>(ctx, arrayPtrType, ptr, nullptr,
-                                   IndexArray{ 1 },
-                                   utl::strcat(name, ".count.addr"));
-    auto* count =
-        add<ir::Load>(countAddr, ctx.intType(64), utl::strcat(name, ".count"));
-    return { dataAddr, count };
 }
 
 ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,
@@ -301,14 +291,19 @@ Value FuncGenContextBase::copyValue(Value const& value) {
               isa<sema::UniquePtrType>(value.type()));
     auto repr = value.representation();
     if (value.type()->size() <= PreferredMaxRegisterValueSize) {
-        return Value(value.name(), value.type(), to(Register, repr, value),
-                     Register, repr);
+        auto types = typeMap.map(repr, value.type());
+        SC_ASSERT(types.size() == value.size(), "");
+        auto elems = zip(value, types) | transform([&](auto p) {
+            auto [atom, type] = p;
+            return toRegister(atom, type, value.name());
+        }) | ToSmallVector<2>;
+        return Value(value.name(), value.type(), elems, repr);
     }
     else {
         auto* irType = typeMap.packed(value.type());
         auto* mem = makeLocalVariable(irType, value.name());
-        callMemcpy(mem, toPackedMemory(value), irType->size());
-        return Value(value.name(), value.type(), { mem }, Memory, Packed);
+        callMemcpy(mem, toMemory(pack(value).single()).get(), irType->size());
+        return Value::Packed(value.name(), value.type(), Atom::Memory(mem));
     }
 }
 

@@ -3,7 +3,6 @@
 #include <iostream>
 #include <string>
 
-#include <termfmt/termfmt.h>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
@@ -71,18 +70,7 @@ static constexpr utl::streammanip printObject = [](std::ostream& str,
 
 void irgen::print(ValueMap const& valueMap, std::ostream& str) {
     for (auto& [object, value]: valueMap) {
-        str << printObject(*object) << " -> ";
-        for (bool first = true; auto* irVal: value.get()) {
-            if (!first) {
-                str << ", ";
-            }
-            first = false;
-            ir::printDecl(*irVal, str);
-        }
-        str << " "
-            << tfmt::format(tfmt::BrightGrey, "[", value.location(), ", ",
-                            value.representation(), "]");
-        str << "\n";
+        str << printObject(*object) << " -> " << value << "\n";
     }
     str << "\n";
 }
@@ -210,6 +198,16 @@ utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(
     sema::Type const* type) const {
     return mapChached(unpackedMap, type,
                       std::bind_front(&TypeMap::compute<Unpacked>, this));
+}
+
+utl::small_vector<ir::Type const*, 2> TypeMap::map(
+    ValueRepresentation repr, sema::Type const* type) const {
+    switch (repr) {
+    case Packed:
+        return { packed(type) };
+    case Unpacked:
+        return unpacked(type);
+    }
 }
 
 StructMetadata const& TypeMap::metaData(sema::Type const* type) const {

@@ -9,23 +9,43 @@
 using namespace scatha;
 using namespace irgen;
 
-ValueLocation PassingConvention::locationAtCallsite() const {
-    if (isa<sema::ReferenceType>(semaType())) {
-        return ValueLocation::Memory;
+utl::small_vector<ValueLocation, 2> PassingConvention::locationsAtCallsite()
+    const {
+    auto locs = locations() | ToSmallVector<2>;
+    SC_EXPECT(!locs.empty());
+    if (isa<sema::ReferenceType>(type())) {
+        locs[0] = ValueLocation::Memory;
     }
-    return location();
+    return locs;
 }
 
 std::ostream& irgen::operator<<(std::ostream& str, PassingConvention PC) {
-    return str << "[" << PC.location() << ", " << PC.numParams() << "]";
+    str << "[";
+    for (bool first = true; auto loc: PC.locations()) {
+        if (!first) {
+            str << ", ";
+        }
+        first = false;
+        str << loc;
+    }
+    return str << "]";
 }
 
 void irgen::print(CallingConvention const& CC) { print(CC, std::cout); }
 
 void irgen::print(CallingConvention const& CC, std::ostream& str) {
-    str << "ReturnValue: " << CC.returnValue() << std::endl;
-    str << "Parameters:  " << CC.argument(0) << std::endl;
+    str << "Return value: " << CC.returnLocation() << "\n";
+    str << "Parameters:  " << CC.argument(0) << "\n";
     for (auto& PC: CC.arguments() | ranges::views::drop(1)) {
-        str << "             " << PC << std::endl;
+        str << "             " << PC << "\n";
+    }
+}
+
+ValueLocation CallingConvention::returnLocationAtCallsite() const {
+    if (isa<sema::ReferenceType>(returnType())) {
+        return ValueLocation::Memory;
+    }
+    else {
+        return returnLocation();
     }
 }
