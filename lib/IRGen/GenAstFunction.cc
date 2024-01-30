@@ -1,5 +1,6 @@
 #include "IRGen/FunctionGeneration.h"
 
+#include <range/v3/algorithm.hpp>
 #include <utl/function_view.hpp>
 #include <utl/strcat.hpp>
 
@@ -114,39 +115,6 @@ struct FuncGenContext: FuncGenContextBase {
     void generateImpl(ast::LoopStatement const&);
     void generateImpl(ast::JumpStatement const&);
 
-    /// # Lifetime specific utilities
-    void generateDefaultConstruction(
-        sema::ObjectType const* type,
-        std::span<ir::Value* const> destAddresses) {}
-
-    void generateCopyConstruction(sema::ObjectType const* type,
-                                  std::span<ir::Value* const> destAddresses,
-                                  std::span<ir::Value* const> sourceAddresses) {
-    }
-
-    void generateMoveConstruction(sema::ObjectType const* type,
-                                  std::span<ir::Value* const> destAddresses,
-                                  std::span<ir::Value* const> sourceAddresses) {
-    }
-
-    void generateDestruction(sema::ObjectType const* type,
-                             std::span<ir::Value* const> destAddresses) {}
-
-    void generateCleanups(sema::CleanupStack const& cleanupStack);
-
-    void generateCleanup(Value const& value, sema::LifetimeOperation destroy,
-                         sema::Object const* obj = nullptr);
-
-    void inlineCleanup(Value const& value, sema::Object const* obj);
-    void inlineCleanupImpl(Value const&, sema::Type const&,
-                           sema::Object const*) {
-        SC_UNREACHABLE();
-    }
-    void inlineCleanupImpl(Value const&, sema::ArrayType const&,
-                           sema::Object const*);
-    void inlineCleanupImpl(Value const&, sema::UniquePtrType const&,
-                           sema::Object const*);
-
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
 
@@ -196,13 +164,36 @@ struct FuncGenContext: FuncGenContextBase {
 
     // Value getValueImpl(ast::NonTrivAssignExpr const&);
 
+    /// # Lifetime specific utilities
+
+    void generateCleanups(sema::CleanupStack const& cleanupStack);
+
+    void generateLifetimeOperation(sema::SMFKind smfKind, Value dest,
+                                   std::optional<Value> source);
+
+    void inlineLifetime(sema::SMFKind kind, Value dest,
+                        std::optional<Value> source);
+    void inlineLifetimeImpl(sema::SMFKind, Value const&, std::optional<Value>,
+                            sema::Type const&);
+    void inlineLifetimeImpl(sema::SMFKind, Value const&, std::optional<Value>,
+                            sema::ArrayType const&);
+    void inlineLifetimeImpl(sema::SMFKind, Value const&, std::optional<Value>,
+                            sema::UniquePtrType const&);
+
     /// # General utilities
 
     /// Generates \p numElements number of `GetElementPointer` instructions in
     /// the index range `[beginIndex, beginIndex + numElements)`
     utl::small_vector<ir::Value*> unpackStructMembers(
-        ir::Value* address, ir::StructType const* type, size_t beginIndex,
-        size_t numElements);
+        ir::Value* address, ir::StructType const* parentType, size_t beginIndex,
+        size_t numElements, std::string_view name);
+
+    ///
+    Value unpackStructMembersToValue(sema::ObjectType const* elemType,
+                                     ir::Value* address,
+                                     ir::StructType const* type,
+                                     size_t beginIndex, size_t numElements,
+                                     std::string_view name);
 };
 
 } // namespace
@@ -227,42 +218,59 @@ void FuncGenContext::generateSynthFunctionAs(sema::SMFKind kind) {
     auto* parentType = cast<sema::StructType const*>(semaFn.parent());
     auto* irParentType =
         cast<ir::StructType const*>(typeMap.packed(parentType));
-    auto metadata = typeMap.metaData(parentType);
-    auto* destAddr = &irFn.parameters().front();
-    for (auto [memberType, memberMd]:
-         zip(parentType->members(), metadata.members))
-    {
-        size_t numElems = memberMd.fieldTypes.size();
-        auto destAddresses = unpackStructMembers(destAddr, irParentType,
-                                                 memberMd.beginIndex, numElems);
-        auto* memObjType = cast<sema::ObjectType const*>(memberType);
+
+    bool allChildrenTrivial =
+        ranges::all_of(parentType->members() |
+                           transform(cast<sema::ObjectType const*>),
+                       [&](auto* type) {
+        return type->lifetimeMetadata().operation(kind).isTrivial();
+    });
+    if (allChildrenTrivial) {
+        auto* dest = &irFn.parameters().front();
         using enum sema::SMFKind;
         switch (kind) {
         case DefaultConstructor:
-            generateDefaultConstruction(memObjType, destAddresses);
-            break;
-        case CopyConstructor: {
-            auto* sourceAddr = irFn.parameters().front().next();
-            auto sourceAddresses = unpackStructMembers(sourceAddr, irParentType,
-                                                       memberMd.beginIndex,
-                                                       numElems);
-            generateCopyConstruction(memObjType, destAddresses,
-                                     sourceAddresses);
-            break;
-        }
-        case MoveConstructor: {
-            auto* sourceAddr = irFn.parameters().front().next();
-            auto sourceAddresses = unpackStructMembers(sourceAddr, irParentType,
-                                                       memberMd.beginIndex,
-                                                       numElems);
-            generateMoveConstruction(memObjType, destAddresses,
-                                     sourceAddresses);
-            break;
-        }
+            callMemset(dest, parentType->size(), 0);
+            return;
+        case CopyConstructor:
+            [[fallthrough]];
+        case MoveConstructor:
+            callMemcpy(dest, dest->next(), parentType->size());
+            return;
         case Destructor:
-            generateDestruction(memObjType, destAddresses);
-            break;
+            return;
         }
+    }
+
+    auto metadata = typeMap.metaData(parentType);
+    auto* destAddr = &irFn.parameters().front();
+    auto members =
+        zip(parentType->memberVariables(), metadata.members) |
+        transform([](auto p) { return std::pair(p.first, p.second); }) |
+        ToSmallVector<>;
+    using enum sema::SMFKind;
+    if (kind == Destructor) {
+        ranges::reverse(members);
+    }
+    for (auto [var, memberMd]: members) {
+        size_t numElems = memberMd.fieldTypes.size();
+        auto* memberType = cast<sema::ObjectType const*>(var->type());
+        auto dest =
+            unpackStructMembersToValue(memberType, destAddr, irParentType,
+                                       memberMd.beginIndex, numElems,
+                                       utl::strcat("dest.", var->name()));
+        auto source = [&]() -> std::optional<Value> {
+            if (kind != CopyConstructor && kind != MoveConstructor) {
+                return std::nullopt;
+            }
+            auto* sourceAddr = irFn.parameters().front().next();
+            return unpackStructMembersToValue(memberType, sourceAddr,
+                                              irParentType, memberMd.beginIndex,
+                                              numElems,
+                                              utl::strcat("source.",
+                                                          var->name()));
+        }();
+        generateLifetimeOperation(kind, dest, source);
     }
 }
 
@@ -1602,296 +1610,274 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
                            { Atom::Memory(arrayBegin), Atom::Register(count) });
 }
 
-// Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
-//     /// If the values are different, we  call the destructor of LHS and the
-//     copy
-//     /// or move constructor of LHS with RHS as argument. If the values are
-//     the
-//     /// same we do nothing
-//     auto* dest = getValue<Memory>(expr.dest());
-//     auto* source = getValue<Memory>(expr.source());
-//     /// We branch here because the values might be the same.
-//     auto* addrEq = add<ir::CompareInst>(dest,
-//                                         source,
-//                                         ir::CompareMode::Unsigned,
-//                                         ir::CompareOperation::NotEqual,
-//                                         "addr.eq");
-//     auto* assignBlock = newBlock("assign");
-//     auto* endBlock = newBlock("assign.end");
-//     add<ir::Branch>(addrEq, assignBlock, endBlock);
-//     add(assignBlock);
-//     generateCleanup(expr.dest()->object(), expr.dtor(), expr);
-//     auto* function = getFunction(expr.ctor());
-//     add<ir::Call>(function, ValueArray{ dest, source }, std::string{});
-//     add<ir::Goto>(endBlock);
-//     add(endBlock);
-//     return Value();
-// }
-
-///// MARK: - General utilities
-//
-// #if 0
-// void FuncGenContext::generateDefaultConstruction(
-//    sema::ObjectType const* type, std::span<ir::Value* const> addresses) {
-//    auto operation =
-//        type->lifetimeMetadata().operation(sema::SMFKind::DefaultConstructor);
-//    auto irTypes = typeMap.unpacked(type);
-//    SC_ASSERT(
-//        irTypes.size() == addresses.size(),
-//        "The unpack IR types shall directly correspond to the fields we
-//        initialize here");
-//    using enum sema::LifetimeOperation::Kind;
-//    switch (operation.kind()) {
-//    case Trivial:
-//        for (auto [addr, irType]: zip(addresses, irTypes)) {
-//            if (irType->size() <= PreferredMaxRegisterValueSize) {
-//                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-//            }
-//            else {
-//                callMemset(addr, irType->size(), 0);
-//            }
-//        }
-//        break;
-//    case Nontrivial: {
-//        SC_ASSERT(addresses.size() == 1, "");
-//        auto* fn = operation.function();
-//        add<ir::Call>(getFunction(fn), ValueArray{ addresses.front() });
-//        break;
-//    }
-//    case NontrivialInline:
-//        switch (getInlineLifetimeCase(type)) {
-//        case InlineLifetime::Array: {
-//            SC_UNIMPLEMENTED();
-//            break;
-//        }
-//        case InlineLifetime::UniquePtr:
-//            for (auto [addr, irType]: zip(addresses, irTypes)) {
-//                add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-//            }
-//            break;
-//        }
-//        break;
-//    case Deleted:
-//        SC_UNREACHABLE();
-//    }
-//}
-//
-// void FuncGenContext::generateLifetimeOperation(
-//    sema::SMFKind smfKind,
-//    sema::ObjectType const* type, std::span<ir::Value* const> destAddresses,
-//    std::span<ir::Value* const> sourceAddresses) {
-//    SC_EXPECT(destAddresses.size() == sourceAddresses.size());
-//    auto operation =
-//        type->lifetimeMetadata().operation(kind);
-//    auto irTypes = typeMap.unpacked(type);
-//    SC_ASSERT(
-//        irTypes.size() == destAddresses.size(),
-//        "The unpack IR types shall directly correspond to the fields we
-//        initialize here");
-//    using enum sema::LifetimeOperation::Kind;
-//    using enum sema::SMFKind;
-//    switch (operation.kind()) {
-//    case Trivial:
-//        switch (smfKind) {
-//            case DefaultConstructor:
-//            for (auto [addr, irType]: zip(addresses, irTypes)) {
-//                if (irType->size() <= PreferredMaxRegisterValueSize) {
-//                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-//                }
-//                else {
-//                    callMemset(addr, irType->size(), 0);
-//                }
-//            }
-//            break;
-//        case CopyConstructor:
-//            [[fallthrough]];
-//        case MoveConstructor:
-//            for (auto [dest, source, irType]:
-//                 zip(destAddresses, sourceAddresses, irTypes))
-//            {
-//                if (irType->size() <= PreferredMaxRegisterValueSize) {
-//                    auto* value = add<ir::Load>(source, irType, "copy");
-//                    add<ir::Store>(ctx, dest, value);
-//                }
-//                else {
-//                    callMemcpy(dest, source, irType->size());
-//                }
-//            }
-//            break;
-//        case Destructor:
-//            break;
-//        }
-//        break;
-//    case Nontrivial: {
-//        SC_ASSERT(addresses.size() == 1, "");
-//        auto* irOperation = getFunction(operation.function());
-//        switch (smfKind) {
-//        case DefaultConstructor:
-//            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
-//            break;
-//        case CopyConstructor:
-//            [[fallthrough]];
-//        case MoveConstructor:
-//            add<ir::Call>(irOperation, ValueArray{ destAddresses.front(),
-//            sourceAddresses.front() }); break;
-//        case Destructor:
-//            add<ir::Call>(irOperation, ValueArray{ addresses.front() });
-//            break;
-//        }
-//        break;
-//    }
-//    case NontrivialInline:
-//        switch (getInlineLifetimeCase(type)) {
-//        case InlineLifetime::Array: {
-//            SC_UNIMPLEMENTED();
-//            break;
-//        }
-//        case InlineLifetime::UniquePtr:
-//            switch (smfKind) {
-//            case DefaultConstructor:
-//                for (auto [addr, irType]: zip(addresses, irTypes)) {
-//                    add<ir::Store>(ctx, addr, makeZeroConstant(irType));
-//                }
-//                break;
-//            case CopyConstructor:
-//                SC_UNREACHABLE();
-//            case MoveConstructor:
-//                for (auto [source, dest, irType]:
-//                     zip(destAddresses, sourceAddresses, irTypes))
-//                {
-//                    auto* value = add<ir::Load>(source, irType, "copy");
-//                    add<ir::Store>(ctx, dest, value);
-//                    add<ir::Store>(ctx, source, makeZeroConstant(irType));
-//                }
-//                break;
-//
-//            case Destructor:
-//                inlineCleanupImpl(Value("unique.ptr.member", type,
-//                destAddresses, Memory, Unpacked),
-//                                  operation)
-//                break;
-//            }
-//            break;
-//        }
-//        break;
-//    case Deleted:
-//        SC_UNREACHABLE();
-//    }
-//}
-// #endif
+#if 0
+Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
+    /// If the values are different, we  call the destructor of LHS and the copy
+    /// or move constructor of LHS with RHS as argument. If the values are the
+    /// same we do nothing
+    auto* dest = getValue<Memory>(expr.dest());
+    auto* source = getValue<Memory>(expr.source());
+    /// We branch here because the values might be the same.
+    auto* addrEq = add<ir::CompareInst>(dest,
+                                        source,
+                                        ir::CompareMode::Unsigned,
+                                        ir::CompareOperation::NotEqual,
+                                        "addr.eq");
+    auto* assignBlock = newBlock("assign");
+    auto* endBlock = newBlock("assign.end");
+    add<ir::Branch>(addrEq, assignBlock, endBlock);
+    add(assignBlock);
+    generateCleanup(expr.dest()->object(), expr.dtor(), expr);
+    auto* function = getFunction(expr.ctor());
+    add<ir::Call>(function, ValueArray{ dest, source }, std::string{});
+    add<ir::Goto>(endBlock);
+    add(endBlock);
+    return Value();
+}
+#endif
 
 void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
-        generateCleanup(valueMap(cleanup.object), cleanup.operation,
-                        cleanup.object);
+        generateLifetimeOperation(sema::SMFKind::Destructor,
+                                  valueMap(cleanup.object), std::nullopt);
     }
 }
 
-void FuncGenContext::generateCleanup(Value const& value,
-                                     sema::LifetimeOperation destroy,
-                                     sema::Object const* obj) {
+void FuncGenContext::generateLifetimeOperation(sema::SMFKind smfKind,
+                                               Value dest,
+                                               std::optional<Value> source) {
+    if (dest.isPacked()) {
+        dest = unpack(dest);
+    }
+    if (source) {
+        if (source->isPacked()) {
+            source = unpack(*source);
+        }
+        SC_EXPECT(dest.size() == source->size());
+        SC_EXPECT(dest.type() == source->type());
+    }
+    auto* type = dest.type();
+    auto operation = type->lifetimeMetadata().operation(smfKind);
+    auto irTypes = typeMap.unpacked(type);
     using enum sema::LifetimeOperation::Kind;
-    switch (destroy.kind()) {
+    using enum sema::SMFKind;
+    switch (operation.kind()) {
     case Trivial:
+        switch (smfKind) {
+        case DefaultConstructor:
+            SC_ASSERT(irTypes.size() == dest.size(), "");
+            for (auto [addr, irType]: zip(dest, irTypes)) {
+                if (irType->size() <= PreferredMaxRegisterValueSize) {
+                    add<ir::Store>(ctx, addr.get(), makeZeroConstant(irType));
+                }
+                else {
+                    callMemset(addr.get(), irType->size(), 0);
+                }
+            }
+            break;
+        case CopyConstructor:
+            [[fallthrough]];
+        case MoveConstructor:
+            SC_EXPECT(source);
+            SC_ASSERT(irTypes.size() == dest.size(), "");
+            for (auto [dest, source, irType]: zip(dest, *source, irTypes)) {
+                if (irType->size() <= PreferredMaxRegisterValueSize) {
+                    auto* value = add<ir::Load>(source.get(), irType, "copy");
+                    add<ir::Store>(ctx, dest.get(), value);
+                }
+                else {
+                    callMemcpy(dest.get(), source.get(), irType->size());
+                }
+            }
+            break;
+        case Destructor:
+            break;
+        }
         break;
     case Nontrivial: {
-        auto* function = getFunction(destroy.function());
-        SC_ASSERT(ranges::distance(function->parameters()) == 1 &&
-                      function->parameters().front().type() == ctx.ptrType(),
-                  "Shall have single pointer argument");
-        SC_ASSERT(value[0].isMemory(), "Must be in memory");
-        auto* addr = toPackedMemory(value);
-        auto* call = add<ir::Call>(function, ValueArray{ addr }, std::string{});
-        call->setComment(makeLifetimeComment(destroy.function(), obj));
+        SC_ASSERT(dest.size() == 1, "");
+        auto* irOperation = getFunction(operation.function());
+        switch (smfKind) {
+        case DefaultConstructor:
+            add<ir::Call>(irOperation, ValueArray{ dest.single().get() });
+            break;
+        case CopyConstructor:
+            [[fallthrough]];
+        case MoveConstructor:
+            SC_EXPECT(source);
+            add<ir::Call>(irOperation, ValueArray{ dest.single().get(),
+                                                   source->single().get() });
+            break;
+        case Destructor:
+            add<ir::Call>(irOperation, ValueArray{ dest.single().get() });
+            break;
+        }
         break;
     }
     case NontrivialInline:
-        inlineCleanup(value, obj);
+        inlineLifetime(smfKind, dest, source);
         break;
     case Deleted:
         SC_UNREACHABLE();
     }
 }
 
-void FuncGenContext::inlineCleanup(Value const& value,
-                                   sema::Object const* obj) {
-    visit(*value.type(),
-          [&](auto& type) { inlineCleanupImpl(value, type, obj); });
+void FuncGenContext::inlineLifetime(sema::SMFKind kind, Value dest,
+                                    std::optional<Value> source) {
+    visit(*dest.type(),
+          [&](auto& type) { inlineLifetimeImpl(kind, dest, source, type); });
 }
 
-void FuncGenContext::inlineCleanupImpl(Value const& value,
-                                       sema::ArrayType const& type,
-                                       sema::Object const* obj) {
+void FuncGenContext::inlineLifetimeImpl(sema::SMFKind, Value const&,
+                                        std::optional<Value>,
+                                        sema::Type const&) {
+    SC_UNREACHABLE();
+}
+
+void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
+                                        std::optional<Value> source,
+                                        sema::ArrayType const& type) {
     auto* elemType = type.elementType();
     auto* irElemType = typeMap.packed(elemType);
-    auto* arraySize = toPackedRegister(getArraySize(&type, value));
-    auto* arrayBegin = toMemory(unpack(value)[0]).get();
-    auto* arrayEnd =
-        add<ir::GetElementPointer>(ctx, irElemType, arrayBegin, arraySize,
+    auto* destSize = toPackedRegister(getArraySize(&type, dest));
+    auto* destBegin = toMemory(unpack(dest)[0]).get();
+    auto* destEnd =
+        add<ir::GetElementPointer>(ctx, irElemType, destBegin, destSize,
                                    IndexArray{},
-                                   utl::strcat(value.name(), ".end"));
-    arrayEnd->setComment(makeLifetimeComment("Destruction block", obj, &type));
-    auto loop = generateForLoopImpl(utl::strcat(value.name(), ".destr"),
-                                    arrayBegin, arrayEnd, [&](ir::Value* ind) {
-        return add<ir::GetElementPointer>(ctx, irElemType, ind,
+                                   utl::strcat(dest.name(), ".end"));
+    destEnd->setComment(
+        makeLifetimeComment("Destruction block", nullptr, &type));
+    auto* pred = &currentBlock();
+    auto loop = generateForLoopImpl(utl::strcat(dest.name(), ".destr"),
+                                    destBegin, destEnd,
+                                    [&](ir::Value* counter) {
+        return add<ir::GetElementPointer>(ctx, irElemType, counter,
                                           ctx.intConstant(1, 64), IndexArray{},
-                                          utl::strcat(value.name(), ".ind"));
+                                          utl::strcat(dest.name(), ".ind"));
     });
+    auto sourceElemValue = [&]() -> std::optional<Value> {
+        using enum sema::SMFKind;
+        if (kind != CopyConstructor && kind != MoveConstructor) {
+            return std::nullopt;
+        }
+        auto* sourceBegin =
+            withBlockCurrent(pred,
+                             ir::BasicBlock::ConstIterator(pred->terminator()),
+                             [&] {
+            return toMemory(unpack(source.value())[0]).get();
+        });
+        auto* phi =
+            new ir::Phi({ { pred, sourceBegin }, { loop.body, nullptr } },
+                        utl::strcat(source->name(), ".counter"));
+        auto* ind = withBlockCurrent(loop.body, loop.insertPoint, [&] {
+            return add<ir::GetElementPointer>(ctx, irElemType, phi,
+                                              ctx.intConstant(1, 64),
+                                              IndexArray{},
+                                              utl::strcat(source->name(),
+                                                          ".ind"));
+        });
+        phi->setArgument(loop.body, ind);
+        loop.body->insertPhi(phi);
+        return Value::Packed("source.elem", type.elementType(),
+                             Atom::Memory(ind));
+    }();
     withBlockCurrent(loop.body, loop.insertPoint, [&] {
-        generateCleanup(Value::Packed("array.elem", type.elementType(),
-                                      Atom::Memory(loop.induction)),
-                        elemType->lifetimeMetadata().destructor());
+        generateLifetimeOperation(kind,
+                                  Value::Packed("dest.elem", type.elementType(),
+                                                Atom::Memory(loop.induction)),
+                                  sourceElemValue);
     });
 }
 
-void FuncGenContext::inlineCleanupImpl(Value const& inVal,
-                                       sema::UniquePtrType const& type,
-                                       sema::Object const* obj) {
-    auto value = unpack(inVal);
+void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
+                                        std::optional<Value> source,
+                                        sema::UniquePtrType const& type) {
     auto* pointeeType = type.base().get();
     std::string name = "unique.ptr";
-    auto* data =
-        toRegister(value[0], ctx.ptrType(), utl::strcat(name, ".data")).get();
-    auto* deleteBlock = newBlock(utl::strcat(name, ".delete"));
-    auto* endBlock = newBlock(utl::strcat(name, ".end"));
-    auto* cmp = add<ir::CompareInst>(ctx, data, ctx.nullpointer(),
-                                     ir::CompareMode::Unsigned,
-                                     ir::CompareOperation::NotEqual,
-                                     utl::strcat(name, ".engaged"));
-    auto* branch = add<ir::Branch>(ctx, cmp, deleteBlock, endBlock);
-    branch->setComment(makeLifetimeComment("Destruction block", obj, &type));
 
-    add(deleteBlock);
-    auto valueDtor = pointeeType->lifetimeMetadata().destructor();
-    generateCleanup(Value::Unpacked("pointee", pointeeType, value.elements()),
-                    valueDtor);
-    auto [bytesize, align] = [&]() -> ValueArray<2> {
-        if (value.size() == 1) {
-            return { ctx.intConstant(type.size(), 64),
-                     ctx.intConstant(type.align(), 64) };
+    using enum sema::SMFKind;
+    switch (kind) {
+    case DefaultConstructor: {
+        auto irTypes = typeMap.map(inDest.representation(), &type);
+        SC_ASSERT(irTypes.size() == inDest.size(), "");
+        for (auto [dest, irType]: zip(inDest, irTypes)) {
+            add<ir::Store>(ctx, dest.get(), makeZeroConstant(irType));
         }
-        auto* elemType =
-            cast<sema::ArrayType const*>(pointeeType)->elementType();
-        auto* count =
-            toRegister(value[1], ctx.intType(64), utl::strcat(name, ".count"))
+        break;
+    }
+    case CopyConstructor:
+        SC_UNREACHABLE();
+    case MoveConstructor: {
+        auto irTypes = typeMap.map(inDest.representation(), &type);
+        SC_ASSERT(inDest.size() == source.value().size(), "");
+        SC_ASSERT(irTypes.size() == inDest.size(), "");
+        for (auto [dest, source, irType]: zip(inDest, *source, irTypes)) {
+            auto* value = add<ir::Load>(source.get(), irType, "copy");
+            add<ir::Store>(ctx, dest.get(), value);
+            add<ir::Store>(ctx, source.get(), makeZeroConstant(irType));
+        }
+        break;
+    }
+    case Destructor: {
+        auto dest = unpack(inDest);
+        auto* data =
+            toRegister(dest[0], ctx.ptrType(), utl::strcat(name, ".data"))
                 .get();
-        return { makeCountToByteSize(count, elemType->size()),
-                 ctx.intConstant(elemType->align(), 64) };
-    }();
-    auto* dealloc = getBuiltin(svm::Builtin::dealloc);
-    add<ir::Call>(dealloc, ValueArray{ data, bytesize, align });
-    add<ir::Goto>(ctx, endBlock);
+        auto* deleteBlock = newBlock(utl::strcat(name, ".delete"));
+        auto* endBlock = newBlock(utl::strcat(name, ".end"));
+        auto* cmp = add<ir::CompareInst>(ctx, data, ctx.nullpointer(),
+                                         ir::CompareMode::Unsigned,
+                                         ir::CompareOperation::NotEqual,
+                                         utl::strcat(name, ".engaged"));
+        auto* branch = add<ir::Branch>(ctx, cmp, deleteBlock, endBlock);
+        branch->setComment(
+            makeLifetimeComment("Destruction block", nullptr, &type));
 
-    add(endBlock);
+        add(deleteBlock);
+        generateLifetimeOperation(sema::SMFKind::Destructor,
+                                  Value::Unpacked("pointee", pointeeType,
+                                                  dest.elements()),
+                                  std::nullopt);
+        auto [bytesize, align] = [&]() -> ValueArray<2> {
+            if (dest.size() == 1) {
+                return { ctx.intConstant(type.size(), 64),
+                         ctx.intConstant(type.align(), 64) };
+            }
+            auto* elemType =
+                cast<sema::ArrayType const*>(pointeeType)->elementType();
+            auto* count = toRegister(dest[1], ctx.intType(64),
+                                     utl::strcat(name, ".count"))
+                              .get();
+            return { makeCountToByteSize(count, elemType->size()),
+                     ctx.intConstant(elemType->align(), 64) };
+        }();
+        auto* dealloc = getBuiltin(svm::Builtin::dealloc);
+        add<ir::Call>(dealloc, ValueArray{ data, bytesize, align });
+        add<ir::Goto>(ctx, endBlock);
+
+        add(endBlock);
+        break;
+    }
+    }
 }
 
 utl::small_vector<ir::Value*> FuncGenContext::unpackStructMembers(
-    ir::Value* address, ir::StructType const* type, size_t beginIndex,
-    size_t numElements) {
-    return iota(beginIndex, numElements) |
+    ir::Value* address, ir::StructType const* parentType, size_t beginIndex,
+    size_t numElements, std::string_view name) {
+    return iota(beginIndex, beginIndex + numElements) |
            transform([&](size_t index) -> ir::Value* {
-        return add<ir::GetElementPointer>(type, address, nullptr,
+        return add<ir::GetElementPointer>(parentType, address, nullptr,
                                           IndexArray{ index },
-                                          utl::strcat("member.", index));
+                                          std::string(name));
     }) | ToSmallVector<>;
+}
+
+Value FuncGenContext::unpackStructMembersToValue(
+    sema::ObjectType const* elemType, ir::Value* address,
+    ir::StructType const* parentType, size_t beginIndex, size_t numElements,
+    std::string_view name) {
+    auto addresses =
+        unpackStructMembers(address, parentType, beginIndex, numElements, name);
+    auto atoms = addresses | transform(Atom::Memory) | ToSmallVector<>;
+    return Value::Unpacked(std::string(name), elemType, atoms);
 }
