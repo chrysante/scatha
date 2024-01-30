@@ -1,5 +1,7 @@
 #include "IR/Context.h"
 
+#include <sstream>
+
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 #include <utl/strcat.hpp>
@@ -120,13 +122,28 @@ FloatType const* Context::floatType(APFloatPrec precision) {
     return floatType(precision.totalBitwidth());
 }
 
+static std::string makeAnonStructName(std::span<Type const* const> members) {
+    std::stringstream sstr;
+    sstr << "{ ";
+    for (bool first = true; auto* type: members) {
+        if (!first) {
+            sstr << ", ";
+        }
+        first = false;
+        sstr << type->name();
+    }
+    sstr << " }";
+    return std::move(sstr).str();
+}
+
 StructType const* Context::anonymousStruct(
     std::span<Type const* const> members) {
     auto itr = impl->_anonymousStructs.find(members);
     if (itr != impl->_anonymousStructs.end()) {
         return itr->second;
     }
-    auto type = allocate<StructType>(std::string{});
+    auto type = allocate<StructType>(makeAnonStructName(members));
+    type->setAnonymous();
     for (auto* member: members) {
         type->pushMember(member);
     }

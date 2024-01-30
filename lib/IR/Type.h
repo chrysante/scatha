@@ -32,6 +32,10 @@ public:
 
     std::string_view name() const { return _name; }
 
+    bool isAnonymous() const { return isAnon; }
+
+    void setAnonymous(bool value = true) { isAnon = value; }
+
     size_t size() const { return _size; }
     size_t align() const { return _align; }
 
@@ -51,6 +55,7 @@ private:
 private:
     std::string _name;
     TypeCategory _category;
+    bool isAnon = false;
     size_t _size, _align;
 };
 

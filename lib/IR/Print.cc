@@ -133,7 +133,7 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
         // clang-format off
         SC_MATCH (*type) {
             [&](StructType const& type) {
-                if (!type.name().empty()) {
+                if (!type.isAnonymous()) {
                     str << tfmt::format(Green, "@", type.name());
                     return;
                 }
@@ -149,6 +149,7 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
                     << formatNumLiteral(type.count()) << tfmt::format(None, "]");
             },
             [&](Type const& type) {
+                SC_ASSERT(!type.isAnonymous(), "Only structs can be anonymous");
                 str << tfmt::format(BrightBlue, type.name());
             }
         }; // clang-format on
