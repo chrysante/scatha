@@ -1541,19 +1541,21 @@ Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {
 
 Value FuncGenContext::getValueImpl(
     ast::NontrivInlineConstructExpr const& expr) {
-    switch (getInlineLifetimeCase(expr.type().get())) {
-    case InlineLifetime::Array:
-        SC_UNIMPLEMENTED();
-    case InlineLifetime::UniquePtr: {
-        SC_ASSERT(expr.arguments().size() == 0, "");
-        auto* irType = typeMap.packed(expr.type().get());
-        auto* null = makeZeroConstant(irType);
-        return Value::Packed("unique.ptr", expr.type().get(),
-                             Atom::Register(null));
-    }
-    default:
-        SC_UNREACHABLE();
-    }
+    auto* irType = typeMap.packed(expr.type().get());
+    auto* mem = makeLocalVariable(irType, "value");
+    auto dest = Value::Packed("value", expr.type().get(), Atom::Memory(mem));
+    auto source = [&]() -> std::optional<Value> {
+        switch (expr.arguments().size()) {
+        case 0:
+            return std::nullopt;
+        case 1:
+            return getValue(expr.argument(0));
+        default:
+            SC_UNREACHABLE();
+        }
+    }();
+    inlineLifetime(expr.operation(), dest, source);
+    return dest;
 }
 
 Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
@@ -1734,6 +1736,21 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind, Value const&,
     SC_UNREACHABLE();
 }
 
+static std::string makeLifetimeLoopName(std::string_view base,
+                                        sema::SMFKind kind) {
+    using enum sema::SMFKind;
+    switch (kind) {
+    case DefaultConstructor:
+        return utl::strcat(base, ".defcon");
+    case CopyConstructor:
+        return utl::strcat(base, ".copy");
+    case MoveConstructor:
+        return utl::strcat(base, ".move");
+    case Destructor:
+        return utl::strcat(base, ".destr");
+    }
+}
+
 void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
                                         std::optional<Value> source,
                                         sema::ArrayType const& type) {
@@ -1748,7 +1765,7 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
     destEnd->setComment(
         makeLifetimeComment("Destruction block", nullptr, &type));
     auto* pred = &currentBlock();
-    auto loop = generateForLoopImpl(utl::strcat(dest.name(), ".destr"),
+    auto loop = generateForLoopImpl(makeLifetimeLoopName(dest.name(), kind),
                                     destBegin, destEnd,
                                     [&](ir::Value* counter) {
         return add<ir::GetElementPointer>(ctx, irElemType, counter,
@@ -1779,7 +1796,7 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
         phi->setArgument(loop.body, ind);
         loop.body->insertPhi(phi);
         return Value::Packed("source.elem", type.elementType(),
-                             Atom::Memory(ind));
+                             Atom::Memory(phi));
     }();
     withBlockCurrent(loop.body, loop.insertPoint, [&] {
         generateLifetimeOperation(kind,

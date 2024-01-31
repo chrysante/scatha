@@ -1321,18 +1321,45 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
 
 ast::Expression* ExprContext::analyzeImpl(
     ast::NontrivInlineConstructExpr& expr) {
+    if (!analyzeValues(expr.arguments())) {
+        return nullptr;
+    }
     if (auto* type = dyncast<ArrayType const*>(expr.constructedType())) {
-        SC_UNIMPLEMENTED();
-        switch (expr.arguments().size()) {
-        case 0: { // Default construction
-            SC_UNIMPLEMENTED();
+        auto operation = [&]() -> std::optional<SMFKind> {
+            auto& elemLifetime = type->elementType()->lifetimeMetadata();
+            switch (expr.arguments().size()) {
+            case 0: { // Default construction
+                if (elemLifetime.defaultConstructor().isDeleted()) {
+                    ctx.badExpr(&expr, CannotConstructType);
+                    return std::nullopt;
+                }
+                return SMFKind::DefaultConstructor;
+            }
+            case 1: { // Copy or move construction
+                auto op = elemLifetime.moveOrCopyConstructor();
+                if (op == elemLifetime.moveConstructor()) {
+                    return SMFKind::MoveConstructor;
+                }
+                if (op == elemLifetime.copyConstructor()) {
+                    return SMFKind::CopyConstructor;
+                }
+                ctx.badExpr(&expr, CannotConstructType);
+                return std::nullopt;
+            }
+            default:
+                ctx.badExpr(&expr, CannotConstructType);
+                return std::nullopt;
+            }
+        }();
+        if (!operation) {
+            return nullptr;
         }
-        case 1: { // Copy or move construction
-            SC_UNIMPLEMENTED();
+        auto* obj = sym.temporary(&expr, type);
+        expr.decorateConstruct(obj, *operation);
+        if (!currentCleanupStack().push(obj, ctx)) {
+            return nullptr;
         }
-        default:
-            SC_UNIMPLEMENTED();
-        }
+        return &expr;
     }
     if (auto* type = dyncast<UniquePtrType const*>(expr.constructedType())) {
         switch (expr.arguments().size()) {

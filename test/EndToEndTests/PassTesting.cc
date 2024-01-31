@@ -322,14 +322,14 @@ void test::checkIRReturns(uint64_t expected, std::string source) {
     CHECK(result == expected);
 }
 
-void test::checkPrints(std::string_view printed, std::string source) {
+void test::checkPrints(std::string_view expected, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRun(source);
-    CHECK(rerouter.str() == printed);
+    CHECK(rerouter.str() == expected);
 }
 
-void test::runIRPrintsTest(std::string_view printed, std::string source) {
+void test::runIRPrintsTest(std::string_view expected, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRunIR(source);
-    CHECK(rerouter.str() == printed);
+    CHECK(rerouter.str() == expected);
 }

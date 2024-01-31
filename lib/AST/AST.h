@@ -1659,6 +1659,18 @@ public:
                       std::move(arguments), sourceRange, constructedType) {}
 
     using ConstructBase::decorateConstruct;
+
+    ///
+    sema::SMFKind operation() const { return op; }
+
+    ///
+    void decorateConstruct(sema::Entity* entity, sema::SMFKind operation) {
+        ConstructBase::decorateConstruct(entity);
+        op = operation;
+    }
+
+private:
+    sema::SMFKind op{};
 };
 
 /// Represents construction of dynamic array

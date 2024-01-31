@@ -6,8 +6,6 @@
 
 using namespace scatha;
 
-#if 0 // FIXME: Disabled for now
-
 /// Since we don't have libraries or multi file compilation we just paste the
 /// code here
 std::string const CommonDefs = R"(
@@ -48,69 +46,93 @@ fn print(n: int) {
 })";
 
 TEST_CASE("Constructors", "[end-to-end][constructors]") {
-    SECTION("Variables declarations") {
+    SECTION("Implicit default construct") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
                 var x: X;
             })");
+    }
+    SECTION("Explicit default construct") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
                 var x = X();
             })");
+    }
+    SECTION("Implicit void return") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
                 var x = X();
                 return; // We had an issue where explicit returns would
                         // prevent destructors being called
             })");
+    }
+    SECTION("Implicit copy construction") {
         test::checkPrints("+2+3-3-2", CommonDefs + R"(
             fn main() {
                 var x = X(2);
                 var y = x;
             })");
+    }
+    SECTION("Nontrivial temporary") {
         test::checkPrints("+0+0-0+2-2-0", CommonDefs + R"(
             fn main() {
                 var x = X(X().value);
                 var y = X(2);
             })");
+    }
+    SECTION("Nontrivial for loop increment") {
         test::checkPrints("+1-1+1-1+1-1", CommonDefs + R"(
             fn main() {
                 for i = 1; i <= 3; i += X(1).value {}
             })");
+    }
+    SECTION("Nontrivial for loop test") {
         test::checkPrints("+3-3+3-3+3-3+3-3", CommonDefs + R"(
             fn main() {
                 for i = 1; i <= X(3).value; ++i {}
             })");
+    }
+    SECTION("Nontrivial for loop init") {
         test::checkPrints("+1-4", CommonDefs + R"(
             fn main() {
                 for x = X(1); x.value <= 3; ++x.value {}
             })");
+    }
+    SECTION("Nontrivial pass by value") {
         test::checkPrints("+0+1-1-0", CommonDefs + R"(
             fn takeCopy(value: X) {}
             fn main() {
                 var x = X();
                 takeCopy(x);
             })");
+    }
+    SECTION("Nontrivial return by value") {
         test::checkPrints("+0+1-1-0", CommonDefs + R"(
             fn makeCopy(value: &X) -> X { return value; }
             fn main() {
                 var x = X();
                 makeCopy(x);
             })");
+    }
+    SECTION("Nontrivial pass by reference") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn takeRef(value: &X) {}
             fn main() {
                 var x = X();
                 takeRef(x);
             })");
-        /// The caller is responsible for destroying by-value arguments, so the
-        /// argument is destroyed after the return value
-        test::checkPrints("+0+1+2-2-1-0", CommonDefs + R"(
+    }
+    SECTION("....") {
+        /// The callee is responsible for destroying by-value arguments, so the
+        /// argument is destroyed before the return value
+        test::checkPrints("+0+1+2-1-2-0", CommonDefs + R"(
             fn passCopy(value: X) -> X { return value; }
             fn main() {
                 var x = X();
                 passCopy(x);
             })");
+    }
+    SECTION("Nontrivial pass copy through function") {
         /// We store the return value in a variable so it is destroyed at scope
         /// exit
         test::checkPrints("+0+1+2-1-2-0", CommonDefs + R"(
@@ -119,28 +141,37 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
                 var x = X();
                 let y = passCopy(x);
             })");
-        test::checkPrints("+0+1+2-2-1-0", CommonDefs + R"(
+    }
+    SECTION("Nontrivial elided copy construction") {
+        test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
                 X(X(X()));
             })");
-
+    }
+    SECTION("Nontrivial reassign") {
         /// Assignments
         test::checkPrints("+0+0-0+1-0-1", CommonDefs + R"(
             fn main() {
                 var x = X();
                 x = X();
             })");
+    }
+    SECTION("Nontrivial assign") {
         test::checkPrints("+0+1-0+2-1-2", CommonDefs + R"(
             fn main() {
                 var x = X(0);
                 var y = X(1);
                 x = y;
             })");
+    }
+    SECTION("Nontrivial assign 2") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
                 var x = X();
                 x = x;
             })");
+    }
+    SECTION("Nontrivial assign through reference") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn assign(lhs: &mut X, rhs: &X) {
                 lhs = rhs;
@@ -149,6 +180,8 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
                 var x = X();
                 assign(x, x);
             })");
+    }
+    SECTION("Nontrivial self assign through reference") {
         test::checkPrints("+0+0-0+1-0-1", CommonDefs + R"(
             fn assign(lhs: &mut X, rhs: &X) {
                 lhs = rhs;
@@ -157,6 +190,8 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
                 var x = X();
                 assign(x, X());
             })");
+    }
+    SECTION("...") {
         test::runReturnsTest(8, R"(
         struct X {
             fn new(&mut this) { this.value = 8; }
@@ -172,6 +207,8 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
         })");
     }
 }
+
+#if 0
 
 TEST_CASE("Pseudo constructors", "[end-to-end][constructors]") {
     test::runReturnsTest(5, R"(
@@ -255,7 +292,6 @@ fn main() {
 /// a "POD-type", for example `struct X { var mem: NonTrivial; };` or
 /// `[NonTrivial, 2]`
 TEST_CASE("Copy array to function", "[end-to-end][constructors]") {
-    return;
     test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
 fn f(data: [X, 2]) {}
 fn main() {
