@@ -162,7 +162,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::NontrivAggrConstructExpr const&);
     Value getValueImpl(ast::DynArrayConstructExpr const&);
 
-    // Value getValueImpl(ast::NonTrivAssignExpr const&);
+    Value getValueImpl(ast::NontrivAssignExpr const&);
 
     /// # Lifetime specific utilities
 
@@ -820,8 +820,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
                 callMemcpy(lhsAtom.get(), rhsAtom.get(), irType->size());
             }
         }
-        return Value::Packed("assignment.result", symbolTable.Void(),
-                             Atom::Register(ctx.voidValue()));
+        return makeVoidValue("assignment.result");
     }
     case AddAssignment:
         [[fallthrough]];
@@ -849,8 +848,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         auto* exprRes = add<ir::ArithmeticInst>(toPackedRegister(lhs), rhs,
                                                 operation, resName);
         add<ir::Store>(toMemory(lhs[0]).get(), exprRes);
-        return Value::Packed("assignment.result", symbolTable.Void(),
-                             Atom::Register(ctx.voidValue()));
+        return makeVoidValue("assignment.result");
     }
     }
     SC_UNREACHABLE();
@@ -1236,7 +1234,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
             auto* newVal = add<ir::Load>(value[0].get(), irType, name);
             add<ir::Store>(ctx, value[0].get(), makeZeroConstant(irType));
             return Value::Packed(name, expr.type().get(),
-                                 Atom::Register(newVal));
+                                 toMemory(Atom::Register(newVal)));
         }
         default:
             SC_UNREACHABLE();
@@ -1297,7 +1295,8 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
                                      Atom::Register(arrayCount) });
         }
         else {
-            return Value::Packed(name, expr.type().get(), Atom::Register(ptr));
+            return Value::Packed(name, expr.type().get(),
+                                 toMemory(Atom::Register(ptr)));
         }
     });
 }
@@ -1610,31 +1609,33 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
                            { Atom::Memory(arrayBegin), Atom::Register(count) });
 }
 
-#if 0
-Value FuncGenContext::getValueImpl(ast::NonTrivAssignExpr const& expr) {
+Value FuncGenContext::getValueImpl(ast::NontrivAssignExpr const& expr) {
     /// If the values are different, we  call the destructor of LHS and the copy
     /// or move constructor of LHS with RHS as argument. If the values are the
     /// same we do nothing
-    auto* dest = getValue<Memory>(expr.dest());
-    auto* source = getValue<Memory>(expr.source());
-    /// We branch here because the values might be the same.
-    auto* addrEq = add<ir::CompareInst>(dest,
-                                        source,
-                                        ir::CompareMode::Unsigned,
-                                        ir::CompareOperation::NotEqual,
-                                        "addr.eq");
+    auto dest = getValue(expr.dest());
+    SC_ASSERT(dest[0].isMemory(), "Must be in memory to be assigned");
+    auto source = to(dest.representation(), getValue(expr.source()));
     auto* assignBlock = newBlock("assign");
     auto* endBlock = newBlock("assign.end");
-    add<ir::Branch>(addrEq, assignBlock, endBlock);
+    if (expr.mustCheckForSelfAssignment()) {
+        SC_ASSERT(source[0].isMemory(), "LValue must be in memory");
+        auto* addrNeq = add<ir::CompareInst>(dest[0].get(), source[0].get(),
+                                             ir::CompareMode::Unsigned,
+                                             ir::CompareOperation::NotEqual,
+                                             "assign.addr.neq");
+        add<ir::Branch>(addrNeq, assignBlock, endBlock);
+    }
+    else {
+        add<ir::Goto>(assignBlock);
+    }
     add(assignBlock);
-    generateCleanup(expr.dest()->object(), expr.dtor(), expr);
-    auto* function = getFunction(expr.ctor());
-    add<ir::Call>(function, ValueArray{ dest, source }, std::string{});
+    generateLifetimeOperation(sema::SMFKind::Destructor, dest, std::nullopt);
+    generateLifetimeOperation(expr.copyOperation(), dest, source);
     add<ir::Goto>(endBlock);
     add(endBlock);
-    return Value();
+    return makeVoidValue("assignment.result");
 }
-#endif
 
 void FuncGenContext::generateCleanups(sema::CleanupStack const& cleanupStack) {
     for (auto cleanup: cleanupStack) {
@@ -1654,7 +1655,6 @@ void FuncGenContext::generateLifetimeOperation(sema::SMFKind smfKind,
             source = unpack(*source);
         }
         SC_EXPECT(dest.size() == source->size());
-        SC_EXPECT(dest.type() == source->type());
     }
     auto* type = dest.type();
     auto operation = type->lifetimeMetadata().operation(smfKind);
@@ -1812,9 +1812,12 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
         SC_ASSERT(inDest.size() == source.value().size(), "");
         SC_ASSERT(irTypes.size() == inDest.size(), "");
         for (auto [dest, source, irType]: zip(inDest, *source, irTypes)) {
-            auto* value = add<ir::Load>(source.get(), irType, "copy");
-            add<ir::Store>(ctx, dest.get(), value);
+            auto* sourceVal = toRegister(source, irType, "copy").get();
+            SC_ASSERT(
+                source.isMemory(),
+                "We must set this to zero otherwise it may be deleted again");
             add<ir::Store>(ctx, source.get(), makeZeroConstant(irType));
+            add<ir::Store>(ctx, dest.get(), sourceVal);
         }
         break;
     }

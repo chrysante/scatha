@@ -310,8 +310,11 @@ SC_SEMA_BADEXPR_DEF(ConstructBase, DynArrayConstrBadArgs, Error,
 SC_SEMA_BADEXPR_DEF(ConstructBase, DynArrayConstrAutoStorage, Error,
                     "Cannot construct dynamic array in automatic storage")
 
-SC_SEMA_BADEXPR_DEF(NonTrivAssignExpr, CannotAssignUncopyableType, Error,
+SC_SEMA_BADEXPR_DEF(NontrivAssignExpr, CannotAssignUncopyableType, Error,
                     "Cannot assign uncopyable type")
+
+SC_SEMA_BADEXPR_DEF(NontrivAssignExpr, CannotAssignIndestructibleType, Error,
+                    "Cannot assign indestructible type")
 
 SC_SEMA_BADEXPR_DEF(ListExpression, ListExprNoCommonType, Error,
                     "No common type in array expression")

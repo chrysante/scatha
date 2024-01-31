@@ -170,6 +170,9 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     CountedForLoopDesc generateForLoopImpl(
         std::string_view name, ir::Value* indBegin, ir::Value* indEnd,
         utl::function_view<ir::Value*(ir::Value*)> indNext);
+
+    ///
+    Value makeVoidValue(std::string name) const;
 };
 
 } // namespace scatha::irgen

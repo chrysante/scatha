@@ -75,7 +75,7 @@ struct ExprContext {
     ArrayType const* analyzeSubscriptCommon(ast::CallLike&);
     ast::Expression* analyzeImpl(ast::GenericExpression&);
     ast::Expression* analyzeImpl(ast::ListExpression&);
-    ast::Expression* analyzeImpl(ast::NonTrivAssignExpr&);
+    ast::Expression* analyzeImpl(ast::NontrivAssignExpr&);
     ast::Expression* analyzeImpl(ast::ValueCatConvExpr&);
     ast::Expression* analyzeImpl(ast::MutConvExpr&);
     ast::Expression* analyzeImpl(ast::ObjTypeConvExpr&);
@@ -446,7 +446,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
             success = false;
         }
         if (!lhsType->hasTrivialLifetime()) {
-            auto assign = allocate<ast::NonTrivAssignExpr>(expr.extractLHS(),
+            auto assign = allocate<ast::NontrivAssignExpr>(expr.extractLHS(),
                                                            expr.extractRHS());
             analyze(assign.get());
             return expr.parent()->replaceChild(&expr, std::move(assign));
@@ -1128,9 +1128,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     SC_UNREACHABLE();
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
-    SC_UNIMPLEMENTED();
-#if 0
+ast::Expression* ExprContext::analyzeImpl(ast::NontrivAssignExpr& expr) {
     bool argsAnalyzed = true;
     argsAnalyzed &= !!analyzeValue(expr.dest());
     argsAnalyzed &= !!analyzeValue(expr.source());
@@ -1138,38 +1136,39 @@ ast::Expression* ExprContext::analyzeImpl(ast::NonTrivAssignExpr& expr) {
         return nullptr;
     }
     if (expr.dest()->type().get() != expr.source()->type().get()) {
-        auto* conv = convert(Implicit,
-                             expr.source(),
-                             expr.dest()->type(),
-                             RValue,
-                             currentCleanupStack(),
-                             ctx);
-        if (!conv) {
+        if (!convert(Implicit, expr.source(), expr.dest()->type(), RValue,
+                     currentCleanupStack(), ctx))
             return nullptr;
-        }
     }
-    using enum SpecialLifetimeFunctionDepr;
-    auto* type = expr.dest()->type().get();
-    auto* copyCtor = type->specialLifetimeFunction(CopyConstructor);
-    auto* moveCtor = type->specialLifetimeFunction(MoveConstructor);
-    auto* dtor = type->specialLifetimeFunction(Destructor);
+    auto& md = expr.dest()->type()->lifetimeMetadata();
+    auto copy = md.copyConstructor();
+    auto move = md.moveConstructor();
+    auto destroy = md.destructor();
+    if (destroy.isDeleted()) {
+        ctx.issue<BadExpr>(&expr, CannotAssignIndestructibleType);
+        return nullptr;
+    }
     if (expr.source()->isLValue()) {
-        if (!copyCtor) {
+        if (copy.isDeleted()) {
             ctx.issue<BadExpr>(&expr, CannotAssignUncopyableType);
             return nullptr;
         }
-        expr.decorateAssign(sym.temporary(sym.Void()), dtor, copyCtor);
+        expr.decorateAssign(sym.temporary(&expr, sym.Void()),
+                            SMFKind::CopyConstructor,
+                            /* checkSelfAssign = */ true);
     }
     else {
-        auto* ctor = moveCtor ? moveCtor : copyCtor;
-        if (!ctor) {
+        auto resolvedOp = !move.isDeleted() ? move : copy;
+        if (resolvedOp.isDeleted()) {
             ctx.issue<BadExpr>(&expr, CannotAssignUncopyableType);
             return nullptr;
         }
-        expr.decorateAssign(sym.temporary(sym.Void()), dtor, ctor);
+        auto ctor = resolvedOp == move ? SMFKind::MoveConstructor :
+                                         SMFKind::CopyConstructor;
+        expr.decorateAssign(sym.temporary(&expr, sym.Void()), ctor,
+                            /* checkSelfAssign = */ false);
     }
     return &expr;
-#endif
 }
 
 /// \Returns the target value category given the value category conversion \p

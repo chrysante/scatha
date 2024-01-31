@@ -183,7 +183,7 @@ Atom FuncGenContextBase::toMemory(Atom atom) {
     if (atom.isMemory()) {
         return atom;
     }
-    return Atom(storeToMemory(atom.get()), Memory);
+    return Atom::Memory(storeToMemory(atom.get()));
 }
 
 Atom FuncGenContextBase::toRegister(Atom atom, ir::Type const* type,
@@ -192,7 +192,7 @@ Atom FuncGenContextBase::toRegister(Atom atom, ir::Type const* type,
         return atom;
     }
     auto* load = add<ir::Load>(atom.get(), type, name);
-    return Atom(load, Register);
+    return Atom::Register(load);
 }
 
 utl::small_vector<Atom, 2> FuncGenContextBase::unpackRegister(
@@ -346,4 +346,9 @@ CountedForLoopDesc FuncGenContextBase::generateForLoopImpl(
                                .induction = phi,
                                .insertPoint =
                                    ir::BasicBlock::ConstIterator(insertPoint) };
+}
+
+Value FuncGenContextBase::makeVoidValue(std::string name) const {
+    return Value::Packed(std::move(name), symbolTable.Void(),
+                         Atom::Register(ctx.voidValue()));
 }

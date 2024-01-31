@@ -107,7 +107,9 @@ BasicBlock* FunctionBuilder::newBlock(std::string name) {
 }
 
 BasicBlock* FunctionBuilder::add(BasicBlock* BB) {
-    function.pushBack(BB);
+    auto insertPoint = currentBB ? Function::Iterator(currentBB->next()) :
+                                   function.end();
+    function.insert(insertPoint, BB);
     currentBB = BB;
     instAddPoint = BB->end();
     return BB;

@@ -55,7 +55,7 @@
 ///    │  ├─ FunctionCall
 ///    │  ├─ Subscript
 ///    │  └─ ConstructExpr
-///    ├─ NonTrivAssignExpr
+///    ├─ NontrivAssignExpr
 ///    ├─ AddressOfExpression
 ///    ├─ DereferenceExpression
 ///    ├─ Conversion
@@ -1682,15 +1682,15 @@ public:
 /// Concrete node representing an assignment of a non-trivial value
 /// We need this node to tell the IR generator to invoke the destructor of the
 /// value before calling the copy constructor again
-class SCATHA_API NonTrivAssignExpr: public Expression {
+class SCATHA_API NontrivAssignExpr: public Expression {
 public:
-    explicit NonTrivAssignExpr(UniquePtr<Expression> dest,
+    explicit NontrivAssignExpr(UniquePtr<Expression> dest,
                                UniquePtr<Expression> source):
-        Expression(NodeType::NonTrivAssignExpr,
+        Expression(NodeType::NontrivAssignExpr,
                    merge(source->sourceRange(), dest->sourceRange()),
                    std::move(dest), std::move(source)) {}
 
-    AST_DERIVED_COMMON(NonTrivAssignExpr)
+    AST_DERIVED_COMMON(NontrivAssignExpr)
 
     /// The object that is assigned to
     AST_PROPERTY(0, Expression, dest, Dest)
@@ -1700,23 +1700,23 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
+    /// The copy operation to be performed on assignment
+    sema::SMFKind copyOperation() const { return copyOp; }
+
+    /// Note to the IR generator
+    bool mustCheckForSelfAssignment() const { return mustCheckSelfAssign; }
+
     /// Decorate this node
-    void decorateAssign(sema::Entity* entity, sema::Function const* dtor,
-                        sema::Function const* ctor) {
+    void decorateAssign(sema::Entity* entity, sema::SMFKind copyOp,
+                        bool mustCheckSelfAssign) {
         decorateValue(entity, sema::ValueCategory::RValue);
-        _dtor = dtor;
-        _ctor = ctor;
+        this->copyOp = copyOp;
+        this->mustCheckSelfAssign = mustCheckSelfAssign;
     }
 
-    /// The destructor to be called
-    sema::Function const* dtor() const { return _dtor; }
-
-    /// The constructor to be called.
-    sema::Function const* ctor() const { return _ctor; }
-
 private:
-    sema::Function const* _dtor = nullptr;
-    sema::Function const* _ctor = nullptr;
+    sema::SMFKind copyOp;
+    bool mustCheckSelfAssign = false;
 };
 
 } // namespace scatha::ast
