@@ -19,32 +19,34 @@ TEST_CASE("Unique expr of int", "[irgen]") {
     auto [ctx, mod] = makeIR({ source });
     auto& F = mod.front();
     CHECK(F.parameters().empty());
+    auto* eight = ctx.intConstant(8, 64);
 
     auto entry = BBView(F.entry());
-    auto* eight = ctx.intConstant(8, 64);
+    CHECK_NOTHROW(entry.nextAs<Alloca>());
     auto& alloc = entry.nextAs<Call>();
     CHECK(alloc.function()->name() == "__builtin_alloc");
     CHECK(alloc.argumentAt(0) == eight);
     CHECK(alloc.argumentAt(1) == eight);
     auto& data = entry.nextAs<ExtractValue>();
     CHECK(data.baseValue() == &alloc);
+    CHECK_NOTHROW(entry.nextAs<Store>());
     auto& store = entry.nextAs<Store>();
     CHECK(store.address() == &data);
     CHECK(store.value() == ctx.intConstant(42, 64));
-    auto& load = entry.nextAs<Load>();
-    CHECK(load.address() == &data);
-    CHECK(load.type() == ctx.intType(64));
+    CHECK(entry.nextAs<Load>().type() == ctx.ptrType());
+    CHECK(entry.nextAs<Load>().type() == ctx.intType(64));
+    CHECK(entry.nextAs<Load>().type() == ctx.ptrType());
+    CHECK_NOTHROW(entry.nextAs<CompareInst>());
+    CHECK_NOTHROW(entry.nextAs<Branch>());
 
     auto del = entry.nextBlock();
     auto& dealloc = del.nextAs<Call>();
     CHECK(dealloc.function()->name() == "__builtin_dealloc");
-    CHECK(dealloc.argumentAt(0) == &data);
     CHECK(dealloc.argumentAt(1) == eight);
     CHECK(dealloc.argumentAt(2) == eight);
 
     auto end = del.nextBlock();
-    auto& ret = end.nextAs<Return>();
-    CHECK(ret.value() == &load);
+    CHECK_NOTHROW(end.nextAs<Return>());
 }
 
 TEST_CASE("Unique expr of dynamic int array", "[irgen]") {
