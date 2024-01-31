@@ -56,6 +56,7 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
         }
         lastReads.clear();
     };
+    auto* termNode = DAG.get(BB.terminator());
     SelectionNode* lastCritical = nullptr;
     for (auto& inst: BB) {
         auto* instNode = DAG.get(&inst);
@@ -106,17 +107,19 @@ SelectionDAG SelectionDAG::Build(ir::BasicBlock const& BB) {
             if (inst.parent() != operand->parent()) {
                 continue;
             }
-            /// We don't add value dependencies of phi instructions to avoid
-            /// cycles
-            if (isa<ir::Phi>(inst)) {
-                continue;
-            }
             auto* opNode = DAG.get(operand);
-            instNode->addValueDependency(opNode);
+            /// We don't add value dependencies to phi instructions to avoid
+            /// cycles. Instead we add the dependency to the terminator of the
+            /// block
+            if (isa<ir::Phi>(inst)) {
+                termNode->addValueDependency(opNode);
+            }
+            else {
+                instNode->addValueDependency(opNode);
+            }
         }
     }
     /// Add execution dependencies from the terminator to all output nodes
-    auto* termNode = DAG.get(BB.terminator());
     for (auto* outputNode: DAG.outputs) {
         termNode->addExecutionDependency(outputNode);
     }

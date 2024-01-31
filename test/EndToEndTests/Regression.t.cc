@@ -363,3 +363,20 @@ fn main() {
     return q.count;
 })");
 }
+
+TEST_CASE("Loop increment only used by phi instruction", "[regression]") {
+    test::checkIRReturns(10, R"(
+func i64 @main() {
+  %entry:
+    goto label %body
+
+  %body: // preds: entry, body
+    %counter = phi i64 [label %entry : 0], [label %body : %ind]
+    %ind = add i64 %counter, i64 1
+    %cond = scmp neq i64 %counter, i64 10
+    branch i1 %cond, label %body, label %end
+
+  %end: // preds: body
+    return i64 %counter
+})");
+}
