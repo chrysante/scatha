@@ -133,3 +133,27 @@ func i64 @f(i64 %0) {
     return i64 %n.0
 })");
 }
+
+TEST_CASE("Unreachable load", "[opt][mem-to-reg]") {
+    test::passTest(&opt::memToReg,
+                   R"(
+func i64 @foo() {
+  %entry:
+    %0 = alloca i64, i32 1
+    return i64 0
+
+  %block:
+    %1 = load i64, ptr %0
+    return i64 %1
+}
+)",
+                   R"(
+func i64 @foo() {
+  %entry:
+    return i64 0
+
+  %block:
+    return i64 undef
+}
+)");
+}

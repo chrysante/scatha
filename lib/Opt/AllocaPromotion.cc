@@ -481,12 +481,24 @@ void VariableInfo::rename(BasicBlock* BB) {
 }
 
 void VariableInfo::clean() {
+    /// Remove all loads from the alloca.
+    /// If some a load is unreachable it may not have been replaced. So in the
+    /// case that a load is still used we replace it with undef
     for (auto* use: uses) {
+        if (auto* load = dyncast<Load*>(use)) {
+            load->replaceAllUsesWith(ctx.undef(load->type()));
+        }
+        else {
+            SC_ASSERT(use->users().empty(),
+                      "Other instructions must not be used anymore");
+        }
         use->parent()->erase(use);
     }
+    /// Remove all stores to the alloce
     for (auto* def: defs) {
         def->parent()->erase(def);
     }
+    /// Remove any unused phi nodes
     for (auto [BB, phi]: BBToPhiMap) {
         if (phi->users().empty()) {
             phi->parent()->erase(phi);
