@@ -213,10 +213,6 @@ utl::small_vector<Atom, 2> FuncGenContextBase::unpackRegister(
 utl::small_vector<Atom, 2> FuncGenContextBase::unpackMemory(
     Atom atom, ir::RecordType const* type, std::string name) {
     SC_EXPECT(atom.isMemory());
-    //    auto* type = dyncast<ir::RecordType const*>(atom->type());
-    //    if (!type) {
-    //        return { atom };
-    //    }
     return type->elements() | enumerate | transform([&](auto p) {
         auto [index, memType] = p;
         auto* elem = add<ir::GetElementPointer>(type, atom.get(), nullptr,
