@@ -208,8 +208,6 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
     }
 }
 
-#if 0
-
 TEST_CASE("Pseudo constructors", "[end-to-end][constructors]") {
     test::runReturnsTest(5, R"(
 struct X {
@@ -285,12 +283,6 @@ fn main() {
 })");
 }
 
-/// FIXME: This fails
-/// This fails because there is still a major problem regarding lifetimes:
-/// __ Non-trivial lifetime does not imply that we don't have compiler generated
-/// constructors __ A type can very well not have trivial lifetime, but still be
-/// a "POD-type", for example `struct X { var mem: NonTrivial; };` or
-/// `[NonTrivial, 2]`
 TEST_CASE("Copy array to function", "[end-to-end][constructors]") {
     test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
 fn f(data: [X, 2]) {}
@@ -319,6 +311,8 @@ fn main() {
     var data = [Y(1), Y(2)];
 })");
 }
+
+#if 0 // Failes because reinterpret
 
 TEST_CASE("First move constructor", "[end-to-end][constructors]") {
     test::runReturnsTest(10, R"(
@@ -356,6 +350,10 @@ fn main() {
     return *q.get();
 })");
 }
+
+#endif
+
+#if 0
 
 TEST_CASE("Unique ptr to non-trivial type", "[end-to-end][constructors]") {
     SECTION("Construct and destroy") {
