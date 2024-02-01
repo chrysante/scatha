@@ -64,10 +64,11 @@ struct X {
 
 TEST_CASE("Bad type conversion", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-fn f() { let x: float = 1; }
-fn f(x: int) { let y: float = 1.; }
-fn f(x: float) -> int { return "a string"; }
+/* 2 */ fn f() { let x: float = 1; }
+/* 3 */ fn f(x: int) { let y: float = 1.; }
+/* 4 */ fn f(x: float) -> int { return "a string"; }
 )");
+    CHECK(issues.noneOnLine(2));
     CHECK(issues.noneOnLine(3));
     auto const line4 = issues.findOnLine<BadTypeConv>(4);
     REQUIRE(line4);

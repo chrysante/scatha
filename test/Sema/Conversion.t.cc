@@ -33,31 +33,31 @@ TEST_CASE("Implicit conversion rank", "[sema][conv]") {
     }
     INFO("From: " << fromCat);
     INFO("To:   " << toCat);
-    SECTION("1") {
+    SECTION("u16 -> u16") {
         expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit, &expr,
                                       sym.U16(), toCat);
         CHECK(computeRank(conv.value()) == 0);
     }
-    SECTION("2") {
+    SECTION("s64 -> s64") {
         expr.decorateValue(sym.temporary(nullptr, sym.S64()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit, &expr,
                                       sym.S64(), toCat);
         CHECK(computeRank(conv.value()) == 0);
     }
-    SECTION("3") {
+    SECTION("u16 -> s32") {
         expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit, &expr,
                                       sym.S32(), toCat);
         CHECK(computeRank(conv.value()) == 1);
     }
-    SECTION("4") {
+    SECTION("u16 -> u32") {
         expr.decorateValue(sym.temporary(nullptr, sym.U16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit, &expr,
                                       sym.U32(), toCat);
         CHECK(computeRank(conv.value()) == 1);
     }
-    SECTION("5") {
+    SECTION("s16 -> u32") {
         expr.decorateValue(sym.temporary(nullptr, sym.S16()), fromCat);
         auto conv = computeConversion(ConversionKind::Implicit, &expr,
                                       sym.U32(), toCat);

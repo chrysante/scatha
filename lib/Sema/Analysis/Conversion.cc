@@ -4,6 +4,8 @@
 #include <ostream>
 #include <variant>
 
+#include <range/v3/algorithm.hpp>
+#include <range/v3/numeric.hpp>
 #include <range/v3/view.hpp>
 
 #include "AST/AST.h"
@@ -34,91 +36,93 @@ static std::optional<Conv> toOpt(ConvExp<Conv> c) {
     return c.value();
 }
 
-/// \Pre expects \p from and \p to to not be the same
-static ConvExp<ObjectTypeConversion> implicitIntConversion(IntType const& from,
-                                                           IntType const& to) {
-    if (&from == &to) {
-        return ConvNoop;
-    }
+using ConvChain = utl::small_vector<ObjectTypeConversion, 8>;
+
+static std::optional<ConvChain> implExplIntConversion(ConversionKind kind,
+                                                      IntType const& from,
+                                                      IntType const& to) {
+    SC_EXPECT(kind != ConversionKind::Reinterpret);
     using enum ObjectTypeConversion;
-    if (from.isSigned()) {
-        if (to.isSigned()) {
-            /// ** `Signed -> Signed` **
-            if (from.bitwidth() <= to.bitwidth()) {
-                return SS_Widen;
-            }
-            return ConvError;
+    ConvChain result;
+    // clang-format off
+    static constexpr ConvExp<ObjectTypeConversion> SignConvMat[2][2] = {
+        //             Unsigned          Signed
+        /* Unsigned */ { ConvNoop,         UnsignedToSigned },
+        /*   Signed */ { SignedToUnsigned, ConvNoop }
+    }; // clang-format on
+    auto signConv = SignConvMat[from.isSigned()][to.isSigned()];
+    if (kind == ConversionKind::Implicit) {
+        if (signConv == SignedToUnsigned) {
+            return std::nullopt;
         }
-        /// ** `Signed -> Unsigned` **
-        return ConvError;
-    }
-    if (to.isSigned()) {
-        /// ** `Unsigned -> Signed` **
-        if (from.bitwidth() < to.bitwidth()) {
-            return US_Widen;
+        if (signConv == UnsignedToSigned && from.bitwidth() >= to.bitwidth()) {
+            return std::nullopt;
         }
-        return ConvError;
     }
-    /// ** `Unsigned -> Unsigned` **
-    if (from.bitwidth() <= to.bitwidth()) {
-        return UU_Widen;
+    if (signConv.hasValue()) {
+        result.push_back(signConv.value());
     }
-    return ConvError;
+    if (from.bitwidth() == to.bitwidth()) {
+        return result;
+    }
+    else if (from.bitwidth() > to.bitwidth()) {
+        if (kind == ConversionKind::Implicit) {
+            return std::nullopt;
+        }
+        switch (to.bitwidth()) {
+        case 8:
+            result.push_back(IntTruncTo8);
+            break;
+        case 16:
+            result.push_back(IntTruncTo16);
+            break;
+        case 32:
+            result.push_back(IntTruncTo32);
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
+        return result;
+    }
+    else {
+        switch (to.bitwidth()) {
+        case 16:
+            result.push_back(to.isSigned() ? SignedWidenTo16 :
+                                             UnsignedWidenTo16);
+            break;
+        case 32:
+            result.push_back(to.isSigned() ? SignedWidenTo32 :
+                                             UnsignedWidenTo32);
+            break;
+        case 64:
+            result.push_back(to.isSigned() ? SignedWidenTo64 :
+                                             UnsignedWidenTo64);
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
+        return result;
+    }
+    return result;
 }
 
-/// \Pre expects \p from and \p to to not be the same
-static ConvExp<ObjectTypeConversion> explicitIntConversion(IntType const& from,
-                                                           IntType const& to) {
-    if (&from == &to) {
-        return ConvNoop;
-    }
-    using enum ObjectTypeConversion;
-    if (from.isSigned()) {
-        if (to.isSigned()) {
-            /// ** `Signed -> Signed` **
-            if (from.bitwidth() <= to.bitwidth()) {
-                return SS_Widen;
-            }
-            return SS_Trunc;
-        }
-        /// ** `Signed -> Unsigned` **
-        if (from.bitwidth() <= to.bitwidth()) {
-            return SU_Widen;
-        }
-        return SU_Trunc;
-    }
-    if (to.isSigned()) {
-        /// ** `Unsigned -> Signed` **
-        if (from.bitwidth() < to.bitwidth()) {
-            return US_Widen;
-        }
-        return US_Trunc;
-    }
-    /// ** `Unsigned -> Unsigned` **
-    if (from.bitwidth() < to.bitwidth()) {
-        return SU_Widen;
-    }
-    return SU_Trunc;
-}
-
-static ConvExp<ObjectTypeConversion> implAndExplArrayToArrayConv(
+static std::optional<ConvChain> implAndExplArrayToArrayConv(
     ArrayType const& from, ArrayType const& to) {
     using enum ObjectTypeConversion;
     if (&from == &to) {
-        return ConvNoop;
+        return ConvChain{};
     }
     if (from.elementType() == to.elementType() && !from.isDynamic() &&
         to.isDynamic())
     {
-        return ArrayRef_FixedToDynamic;
+        return ConvChain{ ArrayRef_FixedToDynamic };
     }
-    return ConvError;
+    return std::nullopt;
 };
 
 /// Forward declaration here because `pointerConv` uses this recursively
-static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
-                                                      ThinExpr from,
-                                                      ThinExpr to);
+static std::optional<ConvChain> determineObjConv(ConversionKind kind,
+                                                 ThinExpr from, ThinExpr to);
 
 /// Maps reference conversions to pointer conversions
 static ObjectTypeConversion convRefToPtr(ObjectTypeConversion conv) {
@@ -141,57 +145,76 @@ static ObjectTypeConversion convRefToPtr(ObjectTypeConversion conv) {
     }
 }
 
-static ConvExp<ObjectTypeConversion> pointerConv(ConversionKind kind,
-                                                 PointerType const& from,
-                                                 PointerType const& to) {
-    using R = ConvExp<ObjectTypeConversion>;
+static std::optional<ConvChain> pointerConv(ConversionKind kind,
+                                            PointerType const& from,
+                                            PointerType const& to) {
     using enum ObjectTypeConversion;
-    if (&from == &to) {
-        return ConvNoop;
-    }
     if (from.base().isConst() && to.base().isMut()) {
-        return ConvError;
+        return std::nullopt;
     }
-    if (from.base().get() == to.base().get()) {
-        // clang-format off
-        return SC_MATCH_R (R, from, to) {
-            [](PointerType const&, PointerType const&) { return ConvNoop; },
-            [](UniquePtrType const&, RawPtrType const&) {
-                return UniqueToRawPtr;
-            },
-            [](RawPtrType const&, UniquePtrType const&) { return ConvError; }
-        }; // clang-format on
+    ConvChain result;
+    // clang-format off
+    auto outer = SC_MATCH_R (ConvExp<ObjectTypeConversion>, from, to) {
+        [](PointerType const&, PointerType const&) { return ConvNoop; },
+        [](UniquePtrType const&, RawPtrType const&) {
+            return UniqueToRawPtr;
+        },
+        [](RawPtrType const&, UniquePtrType const&) { return ConvError; }
+    }; // clang-format on
+    if (outer.isError()) {
+        return std::nullopt;
+    }
+    if (outer.hasValue()) {
+        result.push_back(outer.value());
     }
     if (isa<ArrayType>(*from.base()) || isa<ArrayType>(*to.base())) {
-        auto conv = determineObjConv(kind, { from.base(), LValue },
-                                     { to.base(), LValue });
-        return conv.transform(convRefToPtr);
+        auto inner = determineObjConv(kind, { from.base(), LValue },
+                                      { to.base(), LValue });
+        if (!inner) {
+            return std::nullopt;
+        }
+        if (inner.has_value()) {
+            auto conv = inner.value();
+            auto asPtrConv = conv | transform(convRefToPtr);
+            result.insert(result.end(), asPtrConv.begin(), asPtrConv.end());
+        }
     }
-    return ConvError;
+    if (result.empty()) {
+        return ConvChain{};
+    }
+    return result;
 }
 
-static ObjectTypeConversion fromNullPointerConv(NullPtrType const&,
-                                                RawPtrType const&) {
-    return ObjectTypeConversion::NullptrToRawPtr;
+static ConvChain fromNullPointerConv(NullPtrType const&, RawPtrType const&) {
+    return { ObjectTypeConversion::NullptrToRawPtr };
 }
 
-static ObjectTypeConversion fromNullPointerConv(NullPtrType const&,
-                                                UniquePtrType const&) {
-    return ObjectTypeConversion::NullptrToUniquePtr;
+static ConvChain fromNullPointerConv(NullPtrType const&, UniquePtrType const&) {
+    return { ObjectTypeConversion::NullptrToUniquePtr };
 }
 
-static ConvExp<ObjectTypeConversion> constructingConversion(ConversionKind kind,
-                                                            ThinExpr from,
-                                                            ThinExpr to) {
+static std::optional<ConvChain> constructingConversion(ConversionKind kind,
+                                                       ThinExpr from,
+                                                       ThinExpr to) {
     if (to.isLValue()) {
         if (from.type().get() == to.type().get()) {
-            return ConvNoop;
+            return ConvChain{};
         }
         else {
-            return ConvError;
+            return std::nullopt;
         }
     }
-    return computeObjectConstruction(kind, to.type().get(), std::array{ from });
+    return computeObjectConstruction(kind, to.type().get(), std::array{ from })
+        .visit(utl::overload{
+            [](ObjectTypeConversion conv) {
+        return std::optional(ConvChain{ conv });
+    },
+            [](ConvExp<ObjectTypeConversion>::Noop) {
+        return std::optional(ConvChain{});
+    },
+            [](ConvExp<ObjectTypeConversion>::Error)
+                -> std::optional<ConvChain> { return {}; },
+        });
 };
 
 ///
@@ -199,11 +222,10 @@ static bool wantConstructingConversion(ThinExpr from, ThinExpr to) {
     return !to.type()->hasTrivialLifetime() && from.isLValue() && to.isRValue();
 }
 
-static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
-                                                      ThinExpr from,
-                                                      ThinExpr to) {
+static std::optional<ConvChain> determineObjConv(ConversionKind kind,
+                                                 ThinExpr from, ThinExpr to) {
     using enum ObjectTypeConversion;
-    using RetType = ConvExp<ObjectTypeConversion>;
+    using RetType = std::optional<ConvChain>;
     ///
     if (wantConstructingConversion(from, to)) {
         return constructingConversion(kind, from, to);
@@ -213,28 +235,32 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
         // clang-format off
         return SC_MATCH_R (RetType, *from.type(), *to.type()) {
             [&](IntType const&, ByteType const&) {
-                return ConvError;
+                return std::nullopt;
             },
             [&](ByteType const&, IntType const&) {
-                return ConvError;
+                return std::nullopt;
             },
             [&](IntType const& from, IntType const& to) {
-                return implicitIntConversion(from, to);
+                return implExplIntConversion(ConversionKind::Implicit, from, to);
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
-                if (&from == &to) {
-                    return ConvNoop;
+                if (from.bitwidth() == to.bitwidth()) {
+                    return ConvChain{};
                 }
-                if (from.bitwidth() <= to.bitwidth()) {
-                    return Float_Widen;
+                else if (from.bitwidth() < to.bitwidth()) {
+                    SC_ASSERT(from.bitwidth() == 32, "");
+                    SC_ASSERT(to.bitwidth() == 64, "");
+                    return ConvChain{ FloatWidenTo64 };
                 }
-                return ConvError;
+                else {
+                    return std::nullopt;
+                }
             },
             [&](IntType const&, FloatType const&) {
-                return ConvError;
+                return std::nullopt;
             },
             [&](FloatType const&, IntType const&) {
-                return ConvError;
+                return std::nullopt;
             },
             [&](ArrayType const& from, ArrayType const& to) {
                 return implAndExplArrayToArrayConv(from, to);
@@ -254,36 +280,90 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
     case ConversionKind::Explicit:
         // clang-format off
         return SC_MATCH_R (RetType, *from.type(), *to.type()) {
-            [&](IntType const& from, ByteType const& to) {
+            [&](IntType const& from, ByteType const&) {
+                ConvChain result;
                 if (from.isSigned()) {
-                    return from.size() == to.size() ? SU_Widen : SU_Trunc;
+                    result.push_back(SignedToUnsigned);
                 }
-                return from.size() == to.size() ? UU_Widen : UU_Trunc;
+                if (from.bitwidth() > 8) {
+                    result.push_back(IntTruncTo8);
+                }
+                result.push_back(IntToByte);
+                return result;
             },
-            [&]([[maybe_unused]] ByteType const& from,
-                [[maybe_unused]] IntType const& to) {
-                if (to.isSigned()) {
-                    return US_Widen;
+            [&](ByteType const&, IntType const& to) {
+                auto byteConv = to.isSigned() ? ByteToSigned : ByteToUnsigned;
+                switch (to.bitwidth()) {
+                case 8:
+                    return ConvChain{ byteConv };
+                case 16:
+                    return ConvChain{ 
+                        byteConv,
+                        to.isSigned() ? SignedWidenTo16 : UnsignedWidenTo16
+                    };
+                case 32:
+                    return ConvChain{ 
+                        byteConv,
+                        to.isSigned() ? SignedWidenTo32 : UnsignedWidenTo32
+                    };
+                case 64:
+                    return ConvChain{ 
+                        byteConv,
+                        to.isSigned() ? SignedWidenTo64 : UnsignedWidenTo64
+                    };
+                default:
+                    SC_UNREACHABLE();
                 }
-                return UU_Widen;
             },
             [&](IntType const& from, IntType const& to) {
-                return explicitIntConversion(from, to);
+                return implExplIntConversion(ConversionKind::Explicit, from, to);
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
-                if (&from == &to) {
-                    return ConvNoop;
+                if (from.bitwidth() == to.bitwidth()) {
+                    return ConvChain{};
                 }
-                if (from.bitwidth() <= to.bitwidth()) {
-                    return Float_Widen;
+                else if (from.bitwidth() < to.bitwidth()) {
+                    return ConvChain{ FloatWidenTo64 };
                 }
-                return Float_Trunc;
+                else {
+                    return ConvChain{ FloatTruncTo32 };
+                }
             },
-            [&](IntType const& from, FloatType const&) {
-                return from.isSigned() ? SignedToFloat : UnsignedToFloat;
+            [&](IntType const& from, FloatType const& to) {
+                switch (to.bitwidth()) {
+                case 32:
+                    return ConvChain{
+                        from.isSigned() ? SignedToFloat32 : UnsignedToFloat32
+                    };
+                case 64:
+                    return ConvChain{
+                        from.isSigned() ? SignedToFloat64 : UnsignedToFloat64
+                    };
+                default:
+                    SC_UNREACHABLE();
+                }
             },
             [&](FloatType const&, IntType const& to) {
-                return to.isSigned() ? FloatToSigned : FloatToUnsigned;
+                switch (to.bitwidth()) {
+                case 8:
+                    return ConvChain{ 
+                        to.isSigned() ? FloatToSigned8 : FloatToUnsigned8
+                    };
+                case 16:
+                    return ConvChain{ 
+                        to.isSigned() ? FloatToSigned16 : FloatToUnsigned16
+                    };
+                case 32:
+                    return ConvChain{ 
+                        to.isSigned() ? FloatToSigned32 : FloatToUnsigned32
+                    };
+                case 64:
+                    return ConvChain{ 
+                        to.isSigned() ? FloatToSigned64 : FloatToUnsigned64
+                    };
+                default:
+                    SC_UNREACHABLE();
+                }
             },
             [&](ArrayType const& from, ArrayType const& to) {
                 return implAndExplArrayToArrayConv(from, to);
@@ -305,90 +385,90 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
         return SC_MATCH_R (RetType, *from.type(), *to.type()) {
             [&](IntType const& from, ByteType const& to) -> RetType {
                 if (from.size() != to.size()) {
-                    return Reinterpret_ValueRef;
+                    return ConvChain{ Reinterpret_ValueRef };
                 }
-                return ConvNoop;
+                return ConvChain{};
             },
             [&](ByteType const& from, IntType const& to) -> RetType {
                 if (from.size() != to.size()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
-                return Reinterpret_ValueRef;
+                return ConvChain{ Reinterpret_ValueRef };
             },
             [&](IntType const& from, IntType const& to) -> RetType {
                 if (&from == &to) {
-                    return ConvNoop;
+                    return ConvChain{};
                 }
                 if (from.bitwidth() != to.bitwidth()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
-                return Reinterpret_ValueRef;
+                return ConvChain{ Reinterpret_ValueRef };
             },
             [&](FloatType const& from, FloatType const& to) -> RetType {
                 if (&from == &to) {
-                    return ConvNoop;
+                    return ConvChain{};
                 }
                 if (from.bitwidth() != to.bitwidth()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
-                return ConvNoop;
+                return ConvChain{};
             },
             [&](IntType const& from, FloatType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
-                return Reinterpret_ValueRef;
+                return ConvChain{ Reinterpret_ValueRef };
             },
             [&](FloatType const& from, IntType const& to) -> RetType {
                 if (from.bitwidth() != to.bitwidth()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
-                return Reinterpret_ValueRef;
+                return ConvChain{ Reinterpret_ValueRef };
             },
             [&](ArrayType const& from, ObjectType const& to) -> RetType {
                 auto* fromElem = from.elementType();
                 if (!isa<ByteType>(fromElem)) {
-                    return ConvError;
+                    return std::nullopt;
                 }
                 if (!from.isDynamic() && from.count() != to.size()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
-                return Reinterpret_ValueRef_FromByteArray;
+                return ConvChain{ Reinterpret_ValueRef_FromByteArray };
             },
             [&](ObjectType const& from, ArrayType const& to) -> RetType {
                 auto* toElem = to.elementType();
                 if (!isa<ByteType>(toElem)) {
-                    return ConvError;
+                    return std::nullopt;
                 }
                 if (!to.isDynamic() && to.count() != from.size()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
-                return Reinterpret_ValueRef_ToByteArray;
+                return ConvChain{ Reinterpret_ValueRef_ToByteArray };
             },
             [&](ArrayType const& from, ArrayType const& to) -> RetType {
                 if (&from == &to) {
-                    return ConvNoop;
+                    return ConvChain{};
                 }
                 if (!to.isDynamic() && from.isDynamic()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
                 if (!to.isDynamic() && from.size() != to.size()) {
-                    return ConvError;
+                    return std::nullopt;
                 }
                 return SC_MATCH_R (RetType,
                                    *from.elementType(),
                                    *to.elementType()) {
                     [](ByteType const&, ByteType const&) {
-                        return ConvNoop;
+                        return ConvChain{};
                     },
                     [](ByteType const&, ObjectType const&) {
-                        return Reinterpret_ArrayRef_FromByte;
+                        return ConvChain{ Reinterpret_ArrayRef_FromByte };
                     },
                     [](ObjectType const&, ByteType const&) {
-                        return Reinterpret_ArrayRef_ToByte;
+                        return ConvChain{ Reinterpret_ArrayRef_ToByte };
                     },
                     [](ObjectType const&, ObjectType const&) {
-                        return ConvError;
+                        return std::nullopt;
                     }
                 };
             },
@@ -403,9 +483,9 @@ static ConvExp<ObjectTypeConversion> determineObjConv(ConversionKind kind,
             [&]([[maybe_unused]] ObjectType const& from,
                 [[maybe_unused]] ObjectType const& to) -> RetType {
                 if (&from == &to) {
-                    return ConvNoop;
+                    return ConvChain{};
                 }
-                return ConvError;
+                return std::nullopt;
             }
         }; // clang-format on
     }
@@ -489,21 +569,38 @@ static int getRank(std::optional<ObjectTypeConversion> conv) {
 
 int sema::computeRank(Conversion const& conv) {
     return getRank(conv.valueCatConversion()) + getRank(conv.mutConversion()) +
-           getRank(conv.objectConversion());
+           ranges::accumulate(conv.objectConversions(), 0, ranges::max,
+                              [](auto conv) { return getRank(conv); });
 }
 
-static bool fits(APInt const& value, size_t numDestBits, bool destIsSigned) {
-    if (value.bitwidth() <= numDestBits) {
-        return true;
-    }
-    auto ref = zext(value, numDestBits);
-    if (destIsSigned) {
-        ref.sext(value.bitwidth());
+/// Computes the greatest integer representable in a floating point value with
+/// \p bitwidth bits of precision
+static APInt computeIntegralFloatLimit(size_t fromBitwidth, size_t toBitwidth) {
+    auto prec = toBitwidth == 32 ? APFloatPrec::Single() :
+                                   APFloatPrec::Double();
+    return lshl(APInt(1, fromBitwidth),
+                utl::narrow_cast<int>(prec.mantissaWidth + 1));
+}
+
+static UniquePtr<Value> intTruncLossless(IntValue const* operand,
+                                         size_t toBitwidth) {
+    auto value = operand->value();
+    if (operand->isSigned()) {
+        if (scmp(value, sext(APInt::SMax(toBitwidth), value.bitwidth())) <= 0 &&
+            scmp(value, sext(APInt::SMin(toBitwidth), value.bitwidth())) >= 0)
+        {
+            return allocate<IntValue>(zext(value, toBitwidth), true);
+        }
+        return nullptr;
     }
     else {
-        ref.zext(value.bitwidth());
+        if (ucmp(value, zext(APInt::UMax(toBitwidth), value.bitwidth())) <= 0 &&
+            ucmp(value, zext(APInt::UMin(toBitwidth), value.bitwidth())) >= 0)
+        {
+            return allocate<IntValue>(zext(value, toBitwidth), true);
+        }
+        return nullptr;
     }
-    return value == ref;
 }
 
 static bool fits(APFloat const& value, size_t bitwidth) {
@@ -516,108 +613,113 @@ static bool fits(APFloat const& value, size_t bitwidth) {
     return true;
 }
 
-/// Computes the greatest integer representable in a floating point value with
-/// \p bitwidth bits of precision
-static APInt computeIntegralFloatLimit(size_t fromBitwidth, size_t toBitwidth) {
-    auto prec = toBitwidth == 32 ? APFloatPrec::Single() :
-                                   APFloatPrec::Double();
-    return lshl(APInt(1, fromBitwidth),
-                utl::narrow_cast<int>(prec.mantissaWidth + 1));
+static UniquePtr<Value> floatTrunc(FloatValue const* operand,
+                                   size_t targetBitwidth) {
+    SC_EXPECT(targetBitwidth == 32);
+    if (fits(operand->value(), targetBitwidth)) {
+        return allocate<FloatValue>(
+            APFloat(operand->value().to<float>(), APFloatPrec::Single()));
+    }
+    return nullptr;
 }
 
-static bool isLossless(std::optional<ObjectTypeConversion> conv,
-                       Value const* value, ObjectType const* from,
-                       ObjectType const* to) {
-    /// TODO: Introduce `SignedToUnsigned` and vv. conversion
-    /// Unfortunately `ConvNoop` also represents signed -> unsigned and vv.
-    /// conversion (because they are noops in hardware)
-    if (!conv) {
-        auto* iFrom = dyncast<IntType const*>(from);
-        auto* iTo = dyncast<IntType const*>(to);
-        if (iFrom && iTo) {
-            /// If we are changing signedness, make sure the value does not
-            /// change This is equivalent to the high bit being == 0
-            if (iFrom->signedness() != iTo->signedness()) {
-                return cast<IntValue const*>(value)->value().highbit() == 0;
-            }
-            return true;
-        }
-        /// Float to float conversions come later
-        return false;
+static UniquePtr<Value> signedWiden(IntValue const* val, size_t toBitwith) {
+    return allocate<IntValue>(sext(val->value(), toBitwith), val->isSigned());
+}
+
+static UniquePtr<Value> unsignedWiden(IntValue const* val, size_t toBitwith) {
+    return allocate<IntValue>(zext(val->value(), toBitwith), val->isSigned());
+}
+
+static UniquePtr<Value> signedToFloat(IntValue const* val, size_t toBitwidth) {
+    APInt limit = computeIntegralFloatLimit(val->bitwidth(), toBitwidth);
+    if (scmp(val->value(), limit) <= 0 &&
+        scmp(val->value(), negate(limit)) >= 0)
+    {
+        return allocate<FloatValue>(
+            signedValuecast<APFloat>(val->value(), toBitwidth));
     }
+    return nullptr;
+}
+
+static UniquePtr<Value> unsignedToFloat(IntValue const* val,
+                                        size_t toBitwidth) {
+    APInt limit = computeIntegralFloatLimit(val->bitwidth(), toBitwidth);
+    if (ucmp(val->value(), limit) <= 0) {
+        return allocate<FloatValue>(
+            valuecast<APFloat>(val->value(), toBitwidth));
+    }
+    return nullptr;
+}
+
+static UniquePtr<Value> convertLossless(ObjectTypeConversion conv,
+                                        Value const* value) {
+    auto* intVal = dyncast<IntValue const*>(value);
+    auto* floatVal = dyncast<FloatValue const*>(value);
     using enum ObjectTypeConversion;
-    switch (*conv) {
-    case SS_Trunc:
+    switch (conv) {
+    case IntTruncTo8:
+        return intTruncLossless(intVal, 8);
+    case IntTruncTo16:
+        return intTruncLossless(intVal, 16);
+    case IntTruncTo32:
+        return intTruncLossless(intVal, 32);
+    case SignedWidenTo16:
+        return signedWiden(intVal, 16);
+    case SignedWidenTo32:
+        return signedWiden(intVal, 32);
+    case SignedWidenTo64:
+        return signedWiden(intVal, 64);
+    case UnsignedWidenTo16:
+        return unsignedWiden(intVal, 16);
+    case UnsignedWidenTo32:
+        return unsignedWiden(intVal, 32);
+    case UnsignedWidenTo64:
+        return unsignedWiden(intVal, 64);
+    case FloatTruncTo32:
+        return floatTrunc(floatVal, 32);
+    case FloatWidenTo64:
+        return allocate<FloatValue>(
+            precisionCast(floatVal->value(), APFloatPrec::Double()));
+    case SignedToUnsigned:
         [[fallthrough]];
-    case SU_Trunc:
-        [[fallthrough]];
-    case US_Trunc:
-        [[fallthrough]];
-    case UU_Trunc:
-        return fits(cast<IntValue const*>(value)->value(),
-                    cast<ArithmeticType const*>(to)->bitwidth(),
-                    cast<ArithmeticType const*>(to)->isSigned());
-    case SS_Widen:
-        return true;
-    case SU_Widen:
-        [[fallthrough]];
-    case US_Widen: {
-        auto intVal = cast<IntValue const*>(value)->value();
-        return !intVal.negative();
-    }
-    case UU_Widen:
-        return true;
-
-    case Float_Trunc:
-        return fits(cast<FloatValue const*>(value)->value(),
-                    cast<FloatType const*>(to)->bitwidth());
-
-    case Float_Widen:
-        return true;
-
-    case SignedToFloat: {
-        auto* fromInt = cast<IntType const*>(from);
-        auto* toFloat = cast<FloatType const*>(to);
-        auto val = cast<IntValue const*>(value);
-        APInt limit =
-            computeIntegralFloatLimit(fromInt->bitwidth(), toFloat->bitwidth());
-        if (scmp(val->value(), limit) <= 0) {
-            return true;
+    case UnsignedToSigned:
+        if (intVal->value().highbit()) {
+            return nullptr;
         }
-        if (scmp(val->value(), negate(limit)) >= 0) {
-            return true;
-        }
-        return false;
-    }
-    case UnsignedToFloat: {
-        auto* fromInt = cast<IntType const*>(from);
-        auto* toFloat = cast<FloatType const*>(to);
-        auto val = cast<IntValue const*>(value);
-        APInt limit =
-            computeIntegralFloatLimit(fromInt->bitwidth(), toFloat->bitwidth());
-        if (ucmp(val->value(), limit) <= 0) {
-            return true;
-        }
-        return false;
-    }
-    case FloatToSigned:
-        [[fallthrough]];
-    case FloatToUnsigned:
-        return false;
+        return allocate<IntValue>(intVal->value(), !intVal->isSigned());
+    case SignedToFloat32:
+        return signedToFloat(intVal, 32);
+    case SignedToFloat64:
+        return signedToFloat(intVal, 64);
+    case UnsignedToFloat32:
+        return unsignedToFloat(intVal, 32);
+    case UnsignedToFloat64:
+        return unsignedToFloat(intVal, 64);
+    case IntToByte:
+        return intTruncLossless(intVal, 8);
     default:
-        return false;
+        return nullptr;
     }
 }
 
-static ConvExp<ObjectTypeConversion> tryImplicitConstConv(Value const* value,
-                                                          ThinExpr from,
-                                                          ThinExpr to) {
+static bool isLossless(ConvChain const& chain, Value const* value) {
+    auto converted = value->clone();
+    for (auto conv: chain) {
+        if (!(converted = convertLossless(conv, converted.get()))) {
+            break;
+        }
+    }
+    return !!converted;
+}
+
+static std::optional<ConvChain> tryImplicitConstConv(Value const* value,
+                                                     ThinExpr from,
+                                                     ThinExpr to) {
     /// We try an explicit conversion
     auto result = determineObjConv(ConversionKind::Explicit, from, to);
-    if (result.isError() ||
-        !isLossless(toOpt(result), value, from.type().get(), to.type().get()))
-    {
-        return ConvError;
+    if (!result || !isLossless(result.value(), value)) {
+        return std::nullopt;
     }
     return result;
 }
@@ -640,17 +742,22 @@ Expected<Conversion, std::unique_ptr<SemaIssue>> sema::computeConversion(
     auto objConv = determineObjConv(kind, expr, { to, toValueCat });
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
-    if (kind == ConversionKind::Implicit && objConv.isError() &&
-        expr->constantValue())
-    {
+    if (!objConv && kind == ConversionKind::Implicit && expr->constantValue()) {
         objConv = tryImplicitConstConv(expr->constantValue(), expr,
                                        { to, toValueCat });
     }
-    if (objConv.isError()) {
+    if (!objConv) {
         return std::make_unique<BadTypeConv>(nullptr, expr, to.get());
     }
+    /// We don't need (and don't want) lvalue to rvalue conversion if we
+    /// construct an object
+    if (valueCatConv == ValueCatConversion::LValueToRValue &&
+        ranges::any_of(objConv.value(), sema::isConstruction))
+    {
+        valueCatConv = ConvNoop;
+    }
     return Conversion(expr->type(), to, toOpt(valueCatConv), toOpt(mutConv),
-                      toOpt(objConv));
+                      objConv.value());
 }
 
 ast::Expression* sema::convert(ConversionKind kind, ast::Expression* expr,
@@ -943,33 +1050,27 @@ ConvExp<ast::Expression*> sema::constructInplace(
 ast::Expression* sema::insertConversion(ast::Expression* expr, Conversion conv,
                                         CleanupStack& dtors,
                                         AnalysisContext& ctx) {
-    auto mutConv = conv.mutConversion();
-    auto vcConv = conv.valueCatConversion();
-    auto objConv = conv.objectConversion();
-    if (mutConv) {
+    if (auto mutConv = conv.mutConversion()) {
         expr = ast::insertNode<ast::MutConvExpr>(expr, *mutConv);
     }
-    if (vcConv) {
-        if (*vcConv != ValueCatConversion::LValueToRValue || !objConv ||
-            !isConstruction(*objConv))
-        {
-            expr = ast::insertNode<ast::ValueCatConvExpr>(expr, *vcConv);
-        }
+    if (auto valueCatConv = conv.valueCatConversion()) {
+        expr = ast::insertNode<ast::ValueCatConvExpr>(expr, *valueCatConv);
     }
-    if (objConv) {
-        if (isConstruction(*objConv)) {
-            expr = ast::insertNode(expr, [&](UniquePtr<ast::Expression> expr) {
-                return allocateObjectConstruction(*objConv, expr->sourceRange(),
+    for (auto objConv: conv.objectConversions()) {
+        expr = ast::insertNode(expr,
+                               [&](UniquePtr<ast::Expression> expr)
+                                   -> UniquePtr<ast::Expression> {
+            if (isConstruction(objConv)) {
+                return allocateObjectConstruction(objConv, expr->sourceRange(),
                                                   conv.targetType().get(),
                                                   toSmallVector(
                                                       std::move(expr)));
-            });
-        }
-        else {
-            expr =
-                ast::insertNode<ast::ObjTypeConvExpr>(expr, *objConv,
+            }
+            else {
+                return allocate<ast::ObjTypeConvExpr>(std::move(expr), objConv,
                                                       conv.targetType().get());
-        }
+            }
+        });
     }
     return analyzeValueExpr(expr, dtors, ctx);
 }

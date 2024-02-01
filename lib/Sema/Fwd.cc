@@ -203,3 +203,14 @@ bool sema::isConstruction(ObjectTypeConversion conv) {
     return (int)conv >= (int)TrivDefConstruct &&
            (int)conv <= (int)DynArrayConstruct;
 }
+
+bool sema::isArithmeticConversion(ObjectTypeConversion conv) {
+    switch (conv) {
+#define SC_ARITHMETIC_CONV_DEF(CONV, ...)                                      \
+    case ObjectTypeConversion::CONV:                                           \
+        return true;
+#include "Sema/Conversion.def"
+    default:
+        return false;
+    }
+}

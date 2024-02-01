@@ -1282,7 +1282,7 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
         ir::Value* ptr = add<ir::ExtractValue>(arrayPtr, IndexArray{ 0 },
                                                utl::strcat(name, ".pointer"));
         addr->replaceAllUsesWith(ptr);
-        if (arrayCount) {
+        if (isDynArrayPointer(expr.type().get())) {
             return Value::Unpacked(name, expr.type().get(),
                                    { Atom::Register(ptr),
                                      Atom::Register(arrayCount) });
@@ -1323,6 +1323,21 @@ Value FuncGenContext::getValueImpl(ast::MutConvExpr const& conv) {
 Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     auto* expr = conv.expression();
     auto value = getValue(expr);
+
+    if (sema::isArithmeticConversion(conv.conversion())) {
+        auto irConv = mapArithmeticConv(conv.conversion());
+        if (!irConv) {
+            return value;
+        }
+        auto name = utl::strcat(value.name(), ".",
+                                arithmeticConvName(conv.conversion()));
+        auto* result =
+            add<ir::ConversionInst>(toPackedRegister(value),
+                                    typeMap.packed(conv.type().get()), *irConv,
+                                    name);
+        return Value::Packed(name, conv.type().get(), Atom::Register(result));
+    }
+
     using enum sema::ObjectTypeConversion;
     switch (conv.conversion()) {
     case NullptrToRawPtr:
@@ -1405,41 +1420,8 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         //        return Value(result, Register);
     }
 #endif
-    case SS_Trunc:
-        [[fallthrough]];
-    case SU_Trunc:
-        [[fallthrough]];
-    case US_Trunc:
-        [[fallthrough]];
-    case UU_Trunc:
-        [[fallthrough]];
-    case SS_Widen:
-        [[fallthrough]];
-    case SU_Widen:
-        [[fallthrough]];
-    case US_Widen:
-        [[fallthrough]];
-    case UU_Widen:
-        [[fallthrough]];
-    case Float_Trunc:
-        [[fallthrough]];
-    case Float_Widen:
-        [[fallthrough]];
-    case SignedToFloat:
-        [[fallthrough]];
-    case UnsignedToFloat:
-        [[fallthrough]];
-    case FloatToSigned:
-        [[fallthrough]];
-    case FloatToUnsigned: {
-        auto name = utl::strcat(value.name(), ".",
-                                arithmeticConvName(conv.conversion()));
-        auto* result =
-            add<ir::ConversionInst>(toPackedRegister(value),
-                                    typeMap.packed(conv.type().get()),
-                                    mapArithmeticConv(conv.conversion()), name);
-        return Value::Packed(name, conv.type().get(), Atom::Register(result));
-    }
+    default:
+        SC_UNREACHABLE();
     }
     SC_UNIMPLEMENTED();
 }

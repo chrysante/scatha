@@ -297,92 +297,134 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op, Value const* lhs,
     }
 }
 
-static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
-                                         IntValue const* operand,
-                                         ObjectType const* targetType) {
-    auto* to = dyncast<ArithmeticType const*>(targetType);
-    if (!to) {
-        return nullptr;
+static UniquePtr<Value> convTrunc(IntValue const* operand,
+                                  size_t targetBitwidth) {
+    return allocate<IntValue>(zext(operand->value(), targetBitwidth),
+                              operand->isSigned());
+}
+
+static UniquePtr<Value> convWiden(IntValue const* operand,
+                                  size_t targetBitwidth) {
+    bool isSigned = operand->isSigned();
+    APInt value = [&] {
+        if (isSigned) {
+            return sext(operand->value(), targetBitwidth);
+        }
+        else {
+            return zext(operand->value(), targetBitwidth);
+        }
+    }();
+    return allocate<IntValue>(value, isSigned);
+}
+
+static UniquePtr<Value> toFloat(IntValue const* operand,
+                                size_t targetBitwidth) {
+    if (operand->isSigned()) {
+        return allocate<FloatValue>(
+            signedValuecast<APFloat>(operand->value(), targetBitwidth));
     }
-    APInt value = operand->value();
+    else {
+        return allocate<FloatValue>(
+            valuecast<APFloat>(operand->value(), targetBitwidth));
+    }
+}
+
+static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
+                                         IntValue const* operand) {
     using enum ObjectTypeConversion;
     switch (conv) {
-    case Reinterpret_ValuePtr:
-        [[fallthrough]];
-    case Reinterpret_ValueRef:
-        return nullptr;
-
-    case SS_Trunc:
-        [[fallthrough]];
-    case SU_Trunc:
-        [[fallthrough]];
-    case US_Trunc:
-        [[fallthrough]];
-    case UU_Trunc:
-        return allocate<IntValue>(zext(value, to->bitwidth()), to->isSigned());
-
-    case SS_Widen:
-        [[fallthrough]];
-    case SU_Widen:
-        return allocate<IntValue>(sext(value, to->bitwidth()), to->isSigned());
-    case US_Widen:
-        [[fallthrough]];
-    case UU_Widen:
-        return allocate<IntValue>(zext(value, to->bitwidth()), to->isSigned());
-
-    case SignedToFloat:
-        return allocate<FloatValue>(
-            signedValuecast<APFloat>(value, to->bitwidth()));
-
-    case UnsignedToFloat:
-        return allocate<FloatValue>(valuecast<APFloat>(value, to->bitwidth()));
-
+    case IntTruncTo8:
+        return convTrunc(operand, 8);
+    case IntTruncTo16:
+        return convTrunc(operand, 16);
+    case IntTruncTo32:
+        return convTrunc(operand, 32);
+    case SignedWidenTo16:
+        return convWiden(operand, 16);
+    case SignedWidenTo32:
+        return convWiden(operand, 32);
+    case SignedWidenTo64:
+        return convWiden(operand, 64);
+    case UnsignedWidenTo16:
+        return convWiden(operand, 16);
+    case UnsignedWidenTo32:
+        return convWiden(operand, 32);
+    case UnsignedWidenTo64:
+        return convWiden(operand, 64);
+    case SignedToUnsigned:
+        return allocate<IntValue>(operand->value(), false);
+    case UnsignedToSigned:
+        return allocate<IntValue>(operand->value(), true);
+    case SignedToFloat32:
+        return toFloat(operand, 32);
+    case SignedToFloat64:
+        return toFloat(operand, 64);
+    case UnsignedToFloat32:
+        return toFloat(operand, 32);
+    case UnsignedToFloat64:
+        return toFloat(operand, 64);
+    case IntToByte:
+        SC_ASSERT(operand->bitwidth() == 8, "");
+        return operand->clone();
+    case ByteToSigned:
+        return allocate<IntValue>(operand->value(), true);
+    case ByteToUnsigned:
+        return allocate<IntValue>(operand->value(), false);
     default:
         return nullptr;
     }
 }
 
+static UniquePtr<Value> toSigned(FloatValue const* operand, size_t bitwidth) {
+    return allocate<IntValue>(signedValuecast<APInt>(operand->value(),
+                                                     bitwidth),
+                              true);
+}
+
+static UniquePtr<Value> toUnsigned(FloatValue const* operand, size_t bitwidth) {
+    return allocate<IntValue>(valuecast<APInt>(operand->value(), bitwidth),
+                              true);
+}
+
 static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
-                                         FloatValue const* operand,
-                                         ObjectType const* targetType) {
-    auto* to = cast<ArithmeticType const*>(targetType);
+                                         FloatValue const* operand) {
     APFloat value = operand->value();
     using enum ObjectTypeConversion;
     switch (conv) {
-    case Float_Trunc:
-        SC_ASSERT(isa<FloatType>(to), "");
-        SC_ASSERT(to->bitwidth() == 32, "");
+    case FloatTruncTo32:
         return allocate<FloatValue>(
             APFloat(value.to<float>(), APFloatPrec::Single()));
-
-    case Float_Widen:
-        SC_ASSERT(isa<FloatType>(to), "");
-        SC_ASSERT(to->bitwidth() == 64, "");
+    case FloatWidenTo64:
         return allocate<FloatValue>(
             APFloat(value.to<double>(), APFloatPrec::Single()));
-
-    case FloatToSigned:
-        return allocate<IntValue>(signedValuecast<APInt>(value, to->bitwidth()),
-                                  to->isSigned());
-
-    case FloatToUnsigned:
-        return allocate<IntValue>(valuecast<APInt>(value, to->bitwidth()),
-                                  to->isSigned());
-
+    case FloatToSigned8:
+        return toSigned(operand, 8);
+    case FloatToSigned16:
+        return toSigned(operand, 16);
+    case FloatToSigned32:
+        return toSigned(operand, 32);
+    case FloatToSigned64:
+        return toSigned(operand, 64);
+    case FloatToUnsigned8:
+        return toUnsigned(operand, 8);
+    case FloatToUnsigned16:
+        return toUnsigned(operand, 16);
+    case FloatToUnsigned32:
+        return toUnsigned(operand, 32);
+    case FloatToUnsigned64:
+        return toUnsigned(operand, 64);
     default:
         return nullptr;
     }
 }
 
 UniquePtr<Value> sema::evalConversion(ObjectTypeConversion conv,
-                                      Value const* operand,
-                                      ObjectType const* targetType) {
+                                      Value const* operand) {
     if (!operand) {
         return nullptr;
     }
-    return visit(*operand, [&](auto& op) {
-        return doEvalConversion(conv, &op, targetType);
-    });
+    return visit(*operand,
+                 [&](auto& op) { return doEvalConversion(conv, &op); });
 }
 
 UniquePtr<Value> sema::evalConditional(Value const* condition,

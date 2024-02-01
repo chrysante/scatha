@@ -3,9 +3,11 @@
 
 #include <iosfwd>
 #include <optional>
+#include <span>
 #include <string_view>
 
 #include <utl/function_view.hpp>
+#include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
 #include "Common/Expected.h"
@@ -39,31 +41,35 @@ public:
     struct Error {};
 
     /// Construct a noop or a conversion error
-    ConvExp(internal::ConversionState state): val(makeVal(state)) {}
+    constexpr ConvExp(internal::ConversionState state): val(makeVal(state)) {}
 
     /// Construct from a conversion
-    ConvExp(Conv conv): val(conv) {}
+    constexpr ConvExp(Conv conv): val(conv) {}
 
     /// \Returns the engaged state
-    internal::ConversionState state() const {
+    constexpr internal::ConversionState state() const {
         return internal::ConversionState(val.index());
     }
 
     /// \Returns `true` if this object holds a conversion
-    bool hasValue() const { return std::holds_alternative<Conv>(val); }
+    constexpr bool hasValue() const {
+        return std::holds_alternative<Conv>(val);
+    }
 
     /// \Returns `hasValue()`
-    explicit operator bool() const { return hasValue(); }
+    constexpr explicit operator bool() const { return hasValue(); }
 
     /// \Returns `true` if this object holds a noop-conversion
-    bool isNoop() const { return std::holds_alternative<Noop>(val); }
+    constexpr bool isNoop() const { return std::holds_alternative<Noop>(val); }
 
     /// \Returns `true` if this object holds a conversion error
-    bool isError() const { return std::holds_alternative<Error>(val); }
+    constexpr bool isError() const {
+        return std::holds_alternative<Error>(val);
+    }
 
     /// \Returns the value of the conversion kind.
     /// \Pre requires `hasValue()` to be `true`
-    Conv value() const {
+    constexpr Conv value() const {
         SC_EXPECT(hasValue());
         return std::get<Conv>(val);
     }
@@ -72,13 +78,13 @@ public:
 
     /// \Returns the contained value if conversion was sucessful or \p fallback
     /// otherwise
-    Conv valueOr(Conv fallback) const {
+    constexpr Conv valueOr(Conv fallback) const {
         return hasValue() ? value() : fallback;
     }
 
     /// \Overload for lazily constructed fallback
     template <std::invocable F>
-    Conv valueOr(F defaultValue) const
+    constexpr Conv valueOr(F defaultValue) const
         requires std::same_as<std::invoke_result_t<F>, Conv>
     {
         return hasValue() ? value() : std::invoke(defaultValue);
@@ -86,7 +92,7 @@ public:
 
     ///
     template <std::invocable<Conv> F>
-    ConvExp<std::invoke_result_t<F, Conv>> transform(F&& f) const {
+    constexpr ConvExp<std::invoke_result_t<F, Conv>> transform(F&& f) const {
         using R = ConvExp<std::invoke_result_t<F, Conv>>;
         // clang-format off
         return std::visit(utl::overload{
@@ -100,12 +106,20 @@ public:
     template <typename F>
         requires std::invocable<F, Noop> && std::invocable<F, Error> &&
                  std::invocable<F, Conv>
-    decltype(auto) visit(F&& f) const {
+    constexpr decltype(auto) visit(F&& f) const {
         return std::visit(std::forward<F>(f), val);
     }
 
+    ///
+    bool operator==(Conv const& rhs) const {
+        return hasValue() && value() == rhs;
+    }
+
+    ///
+    bool operator==(ConvExp const& rhs) const { return val == rhs.val; }
+
 private:
-    static std::variant<Noop, Error, Conv> makeVal(
+    constexpr static std::variant<Noop, Error, Conv> makeVal(
         internal::ConversionState state) {
         switch (state) {
         case ConvNoop:
@@ -126,12 +140,12 @@ public:
     Conversion(QualType fromType, QualType toType,
                std::optional<ValueCatConversion> valueCatConv,
                std::optional<MutConversion> mutConv,
-               std::optional<ObjectTypeConversion> objConv):
+               std::span<ObjectTypeConversion const> objConvs):
         from(fromType),
         to(toType),
         valueCatConv(valueCatConv),
         mutConv(mutConv),
-        objConv(objConv) {}
+        objConvs(objConvs | ToSmallVector<8>) {}
 
     /// The type of the value before the conversion
     QualType originType() const { return from; }
@@ -149,13 +163,14 @@ public:
     std::optional<MutConversion> mutConversion() const { return mutConv; }
 
     /// The object conversion kind
-    std::optional<ObjectTypeConversion> objectConversion() const {
-        return objConv;
+    std::span<ObjectTypeConversion const> objectConversions() const {
+        return objConvs;
     }
 
     /// \Returns `true` if all conversions are `std::nullopt`
     bool isNoop() const {
-        return !valueCatConversion() && !mutConversion() && !objectConversion();
+        return !valueCatConversion() && !mutConversion() &&
+               objectConversions().empty();
     }
 
 private:
@@ -165,7 +180,7 @@ private:
     /// waste space by directly storing optionals
     std::optional<ValueCatConversion> valueCatConv;
     std::optional<MutConversion> mutConv;
-    std::optional<ObjectTypeConversion> objConv;
+    utl::small_vector<ObjectTypeConversion, 8> objConvs;
 };
 
 /// Different kinds of conversion, used to select appropriate conversion

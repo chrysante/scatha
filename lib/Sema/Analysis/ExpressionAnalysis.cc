@@ -1236,16 +1236,32 @@ ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
         return nullptr;
     }
     auto* object = sym.temporary(&conv, conv.targetType());
-    /// TODO: See if we can get rid of this if check
-    if (conv.conversion() == ObjectTypeConversion::NullptrToUniquePtr) {
+    using enum ObjectTypeConversion;
+    switch (conv.conversion()) {
+    case ArrayPtr_FixedToDynamic:
+    case Reinterpret_ValuePtr:
+    case Reinterpret_ValuePtr_ToByteArray:
+    case Reinterpret_ValuePtr_FromByteArray:
+    case Reinterpret_ArrayPtr_ToByte:
+    case Reinterpret_ArrayPtr_FromByte:
+        ///
+        currentCleanupStack().pop(conv.expression());
         if (!currentCleanupStack().push(object, ctx)) {
             return nullptr;
         }
+        break;
+    case NullptrToUniquePtr:
+        /// Creates a new non-trivial object
+        if (!currentCleanupStack().push(object, ctx)) {
+            return nullptr;
+        }
+        break;
+    default:
+        break;
     }
     conv.decorateValue(object, expr->valueCategory());
-    conv.setConstantValue(evalConversion(conv.conversion(),
-                                         expr->constantValue(),
-                                         conv.targetType()));
+    conv.setConstantValue(
+        evalConversion(conv.conversion(), expr->constantValue()));
     return &conv;
 }
 

@@ -231,6 +231,9 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// construct expr nodes
 SCATHA_API bool isConstruction(ObjectTypeConversion conv);
 
+/// \Returns `true` if \p conv is a conversion between arithmetic types
+SCATHA_API bool isArithmeticConversion(ObjectTypeConversion conv);
+
 } // namespace scatha::sema
 
 /// Map constant kinds to enum values

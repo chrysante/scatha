@@ -44,8 +44,13 @@ public:
     /// The value of this constant expression
     APInt const& value() const { return val; }
 
+    ///
+    size_t bitwidth() const { return val.bitwidth(); }
+
+    ///
     bool isSigned() const { return _signed; }
 
+    ///
     bool isBool() const { return value().bitwidth() == 1 && !isSigned(); }
 
 private:
@@ -78,8 +83,7 @@ UniquePtr<Value> evalBinary(ast::BinaryOperator op, Value const* lhs,
                             Value const* rhs);
 
 UniquePtr<Value> evalConversion(sema::ObjectTypeConversion conv,
-                                Value const* operand,
-                                ObjectType const* targetType);
+                                Value const* operand);
 
 UniquePtr<Value> evalConditional(Value const* condition, Value const* thenValue,
                                  Value const* elseValue);

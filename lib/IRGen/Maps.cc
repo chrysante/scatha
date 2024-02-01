@@ -461,74 +461,72 @@ std::string irgen::binaryOpResultName(ast::BinaryOperator op) {
     SC_UNREACHABLE();
 }
 
-ir::Conversion irgen::mapArithmeticConv(sema::ObjectTypeConversion conv) {
+std::optional<ir::Conversion> irgen::mapArithmeticConv(
+    sema::ObjectTypeConversion conv) {
+    SC_EXPECT(isArithmeticConversion(conv));
     using enum sema::ObjectTypeConversion;
     switch (conv) {
-    case SS_Trunc:
+    case IntTruncTo8:
         return ir::Conversion::Trunc;
-    case SU_Trunc:
+    case IntTruncTo16:
         return ir::Conversion::Trunc;
-    case US_Trunc:
+    case IntTruncTo32:
         return ir::Conversion::Trunc;
-    case UU_Trunc:
-        return ir::Conversion::Trunc;
-    case SS_Widen:
+    case SignedWidenTo16:
+        return ir::Conversion::Zext;
+    case SignedWidenTo32:
+        return ir::Conversion::Zext;
+    case SignedWidenTo64:
+        return ir::Conversion::Zext;
+    case UnsignedWidenTo16:
         return ir::Conversion::Sext;
-    case SU_Widen:
-        return ir::Conversion::Zext;
-    case US_Widen:
-        return ir::Conversion::Zext;
-    case UU_Widen:
-        return ir::Conversion::Zext;
-    case Float_Trunc:
+    case UnsignedWidenTo32:
+        return ir::Conversion::Sext;
+    case UnsignedWidenTo64:
+        return ir::Conversion::Sext;
+    case FloatTruncTo32:
         return ir::Conversion::Ftrunc;
-    case Float_Widen:
+    case FloatWidenTo64:
         return ir::Conversion::Fext;
-    case SignedToFloat:
+    case SignedToUnsigned:
+        return std::nullopt;
+    case UnsignedToSigned:
+        return std::nullopt;
+    case SignedToFloat32:
         return ir::Conversion::StoF;
-    case UnsignedToFloat:
+    case SignedToFloat64:
+        return ir::Conversion::StoF;
+    case UnsignedToFloat32:
         return ir::Conversion::UtoF;
-    case FloatToSigned:
+    case UnsignedToFloat64:
+        return ir::Conversion::UtoF;
+    case FloatToSigned8:
         return ir::Conversion::FtoS;
-    case FloatToUnsigned:
+    case FloatToSigned16:
+        return ir::Conversion::FtoS;
+    case FloatToSigned32:
+        return ir::Conversion::FtoS;
+    case FloatToSigned64:
+        return ir::Conversion::FtoS;
+    case FloatToUnsigned8:
         return ir::Conversion::FtoU;
+    case FloatToUnsigned16:
+        return ir::Conversion::FtoU;
+    case FloatToUnsigned32:
+        return ir::Conversion::FtoU;
+    case FloatToUnsigned64:
+        return ir::Conversion::FtoU;
+    case IntToByte:
+        return std::nullopt;
+    case ByteToSigned:
+        return std::nullopt;
+    case ByteToUnsigned:
+        return std::nullopt;
     default:
         SC_UNREACHABLE();
     }
 }
 
 std::string irgen::arithmeticConvName(sema::ObjectTypeConversion conv) {
-    using enum sema::ObjectTypeConversion;
-    switch (conv) {
-    case SS_Trunc:
-        return "trunc";
-    case SU_Trunc:
-        return "trunc";
-    case US_Trunc:
-        return "trunc";
-    case UU_Trunc:
-        return "trunc";
-    case SS_Widen:
-        return "sext";
-    case SU_Widen:
-        return "zext";
-    case US_Widen:
-        return "zext";
-    case UU_Widen:
-        return "zext";
-    case Float_Trunc:
-        return "ftrunc";
-    case Float_Widen:
-        return "fext";
-    case SignedToFloat:
-        return "stof";
-    case UnsignedToFloat:
-        return "utof";
-    case FloatToSigned:
-        return "ftos";
-    case FloatToUnsigned:
-        return "ftou";
-    default:
-        SC_UNREACHABLE();
-    }
+    return "conv";
 }

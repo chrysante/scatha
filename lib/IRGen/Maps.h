@@ -134,7 +134,8 @@ ir::Visibility mapVisibility(sema::Function const* function);
 std::string binaryOpResultName(ast::BinaryOperator op);
 
 ///
-ir::Conversion mapArithmeticConv(sema::ObjectTypeConversion conv);
+std::optional<ir::Conversion> mapArithmeticConv(
+    sema::ObjectTypeConversion conv);
 
 ///
 std::string arithmeticConvName(sema::ObjectTypeConversion conv);
