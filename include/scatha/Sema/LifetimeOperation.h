@@ -30,18 +30,25 @@ public:
         Deleted,
     };
 
+    /// For deserialization
+    LifetimeOperation() = default;
+
     /// Construct a non trivial lifetime operation from a function
     /// `kind()` will be set to `Nontrivial` if \p function is nonnull or
     /// `Deleted` otherwise
     LifetimeOperation(Function* function):
-        _kind(function ? Nontrivial : Deleted), fn(function) {}
+        LifetimeOperation(function ? Nontrivial : Deleted, function) {}
 
     /// Implicitly construct a lifetime operation from its kind.
     /// \Pre \p kind must not be `Nontrivial`. Use other constructor to
     /// construct nontrivlal lifetime operation
-    LifetimeOperation(Kind kind): _kind(kind), fn(nullptr) {
+    LifetimeOperation(Kind kind): LifetimeOperation(kind, nullptr) {
         SC_EXPECT(kind != Nontrivial);
     }
+
+    /// For deserialization
+    LifetimeOperation(Kind kind, Function* function):
+        _kind(kind), fn(function) {}
 
     /// \Returns the kind of this lifetime operation
     Kind kind() const { return _kind; }
@@ -59,7 +66,7 @@ public:
     bool operator==(LifetimeOperation const&) const = default;
 
 private:
-    Kind _kind;
+    Kind _kind{};
     Function* fn = nullptr;
 };
 

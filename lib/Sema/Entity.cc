@@ -283,7 +283,12 @@ FunctionType::FunctionType(utl::small_vector<Type const*> argumentTypes,
     _returnType(returnType) {}
 
 void ObjectType::setLifetimeMetadata(LifetimeMetadata md) {
-    lifetimeMD = std::make_unique<LifetimeMetadata>(md);
+    if (!lifetimeMD) {
+        lifetimeMD = std::make_unique<LifetimeMetadata>(md);
+    }
+    else {
+        *lifetimeMD = md;
+    }
 }
 
 ObjectType::~ObjectType() = default;

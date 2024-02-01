@@ -88,14 +88,6 @@ auto operator|(R&& r, ToSmallVectorFn<Size>) {
     }
 }
 
-template <typename E>
-    requires std::is_enum_v<E>
-inline auto EnumRange() {
-    return ranges::views::iota(size_t{ 0 }, EnumSize<E>) |
-           ranges::views::transform(
-               [](size_t value) { return static_cast<E>(value); });
-}
-
 } // namespace scatha
 
 #endif // SCATHA_COMMON_RANGES_H_

@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "Sema/Entity.h"
+#include "Sema/LifetimeMetadata.h"
 #include "Sema/Serialize.h"
 #include "Sema/SimpleAnalzyer.h"
 
@@ -57,6 +58,11 @@ public struct X {
     var quux: int;
 }
 public struct Empty {}
+public struct Lifetime {
+    fn new(&mut this) {}
+    fn move(&mut this, rhs: &mut Lifetime) {}
+    fn delete(&mut this) {}
+}
 )");
     REQUIRE(iss.empty());
     std::stringstream sstr;
@@ -106,6 +112,26 @@ public struct Empty {}
         CHECK(bazType->count() == 2);
     });
     CHECK(cast<Type const*>(find("Empty"))->size() == 1);
+    find("Lifetime", [&](Scope const* LScope) {
+        auto& L = dyncast<StructType const&>(*LScope);
+        auto& md = L.lifetimeMetadata();
+        using enum LifetimeOperation::Kind;
+
+        auto defCtor = md.defaultConstructor();
+        CHECK(defCtor.kind() == Nontrivial);
+        CHECK(defCtor.function() == find("new"));
+
+        auto copyCtor = md.copyConstructor();
+        CHECK(copyCtor.isDeleted());
+
+        auto moveCtor = md.moveConstructor();
+        CHECK(moveCtor.kind() == Nontrivial);
+        CHECK(moveCtor.function() == find("move"));
+
+        auto dtor = md.destructor();
+        CHECK(dtor.kind() == Nontrivial);
+        CHECK(dtor.function() == find("delete"));
+    });
 }
 
 TEST_CASE("Symbol table empty deserialization", "[sema]") {
@@ -117,7 +143,7 @@ TEST_CASE("Symbol table empty deserialization", "[sema]") {
 
 TEST_CASE("Symbol table erroneous deserialization", "[sema]") {
     std::stringstream sstr;
-    sstr << "random nonesense";
+    sstr << "random nonsense";
     SymbolTable sym;
     CHECK(!deserialize(sym, sstr));
 }

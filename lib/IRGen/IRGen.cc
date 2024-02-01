@@ -7,6 +7,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <utl/graph.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 
@@ -137,13 +138,26 @@ static bool isLibEntity(sema::Entity const* entity) {
     SC_UNREACHABLE();
 }
 
+static utl::small_vector<sema::NativeLibrary const*> topsortLibraries(
+    std::span<sema::NativeLibrary const* const> libs) {
+    auto result = libs | ToSmallVector<>;
+    utl::topsort(result.begin(), result.end(), [](auto* lib) {
+        return lib->dependencies() | Filter<sema::NativeLibrary>;
+    });
+    return result;
+}
+
 void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
                        sema::SymbolTable const& sym,
                        sema::AnalysisResult const& analysisResult,
                        Config config) {
     TypeMap typeMap(ctx);
     FunctionMap functionMap;
-    for (auto* lib: sym.importedLibs() | Filter<sema::NativeLibrary>) {
+    /// We import libraries in topsort order because there may be dependencies
+    /// between the libraries
+    auto libs = topsortLibraries(sym.importedLibs() |
+                                 Filter<sema::NativeLibrary> | ToSmallVector<>);
+    for (auto* lib: libs) {
         importLibrary(ctx, mod, *lib, typeMap, functionMap, config.nameMangler);
     }
     for (auto* semaType: analysisResult.structDependencyOrder) {

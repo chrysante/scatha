@@ -7,6 +7,7 @@
 #include <utl/utility.hpp>
 
 #include "Common/Base.h"
+#include "Common/Utility.h"
 
 namespace scatha::Asm {
 

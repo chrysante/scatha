@@ -12,6 +12,8 @@
 #include <range/v3/view.hpp>
 #include <utl/function_view.hpp>
 
+#include "Common/Utility.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/LifetimeMetadata.h"
 #include "Sema/SymbolTable.h"
@@ -152,8 +154,14 @@ static void serializeTypenameImpl(Type const& type, std::ostream& str) {
             rec(rec, type.parent());
             str << type.name();
         },
-        [&](FunctionType const&) {
-            SC_UNIMPLEMENTED();
+        [&](FunctionType const& type) {
+            str << "(";
+            for (bool first = true; auto* arg: type.argumentTypes()) {
+                if (!first) str << ", ";
+                first = false;
+                str << serializeTypename(arg);
+            }
+            str << ") -> " << serializeTypename(type.returnType());
         },
         [&](ArrayType const& arr) {
             str << "[";
@@ -188,7 +196,10 @@ struct TypenameToken {
         Unique,
         Dot,
         Comma,
+        Arrow,
         ID,
+        OpenParan,
+        CloseParan,
         OpenBracket,
         CloseBracket,
         END
@@ -207,7 +218,7 @@ struct TypenameLexer {
 
     TypenameLexer(std::string_view text): text(text) {}
 
-    bool isPunctuation(char c) { return ranges::contains("&*.,[]", c); }
+    bool isPunctuation(char c) { return ranges::contains("&*.,->()[]", c); }
 
     Token peek() {
         if (!lookahead) {
@@ -228,21 +239,19 @@ struct TypenameLexer {
         if (text.empty()) {
             return Token{ Token::END, {} };
         }
-#define PUNCTUATION_CASE(CHAR, TYPE)                                           \
-    case CHAR: {                                                               \
-        Token tok{ Token::TYPE, text.substr(0, 1) };                           \
-        inc();                                                                 \
-        return tok;                                                            \
-    }                                                                          \
-        (void)0
-        switch (text.front()) {
-            PUNCTUATION_CASE('&', Ref);
-            PUNCTUATION_CASE('*', Ptr);
-            PUNCTUATION_CASE('.', Dot);
-            PUNCTUATION_CASE(',', Comma);
-            PUNCTUATION_CASE('[', OpenBracket);
-            PUNCTUATION_CASE(']', CloseBracket);
-        default: {
+#define PUNCTUATION_CASE(SPELLING, TYPE)                                       \
+    else if (auto tok = getPunctuation(Token::TYPE, SPELLING)) { return *tok; }
+        if (false) (void)0;
+        PUNCTUATION_CASE("&", Ref)
+        PUNCTUATION_CASE("*", Ptr)
+        PUNCTUATION_CASE(".", Dot)
+        PUNCTUATION_CASE(",", Comma)
+        PUNCTUATION_CASE("->", Arrow)
+        PUNCTUATION_CASE("(", OpenParan)
+        PUNCTUATION_CASE(")", CloseParan)
+        PUNCTUATION_CASE("[", OpenBracket)
+        PUNCTUATION_CASE("]", CloseBracket)
+        else {
             size_t index = 0;
             while (index < text.size() && !std::isspace(text[index]) &&
                    !isPunctuation(text[index]))
@@ -259,8 +268,18 @@ struct TypenameLexer {
             }
             return Token{ Token::ID, res };
         }
-        }
 #undef PUNCTUATION_CASE
+    }
+
+private:
+    std::optional<Token> getPunctuation(Token::Type type,
+                                        std::string_view spelling) {
+        if (!text.starts_with(spelling)) {
+            return std::nullopt;
+        }
+        Token tok{ type, text.substr(0, spelling.size()) };
+        inc(spelling.size());
+        return tok;
     }
 
     void inc(size_t count = 1) {
@@ -284,10 +303,12 @@ struct TypenameParser {
             return parseRef();
         case Token::Ptr:
             return parsePtr();
-        case Token::ID:
-            return parseID();
+        case Token::OpenParan:
+            return parseFunction();
         case Token::OpenBracket:
             return parseArray();
+        case Token::ID:
+            return parseID();
         default:
             return nullptr;
         }
@@ -300,24 +321,33 @@ struct TypenameParser {
             mut = Mutability::Mutable;
         }
         auto* baseType = dyncast<ObjectType const*>(parse());
-        if (!baseType) {
-            return nullptr;
-        }
+        if (!baseType) return nullptr;
         return QualType(baseType, mut);
     }
 
     ReferenceType const* parseRef() {
         lex.get();
-        return sym.reference(parseQualType());
+        auto base = parseQualType();
+        if (!base) return nullptr;
+        return sym.reference(base);
     }
 
     PointerType const* parsePtr() {
+        enum Kind { Raw, Unique };
         lex.get();
+        Kind kind = Raw;
         if (lex.peek().type == Token::Unique) {
             lex.get();
-            return sym.uniquePointer(parseQualType());
+            kind = Unique;
         }
-        return sym.pointer(parseQualType());
+        auto base = parseQualType();
+        if (!base) return nullptr;
+        switch (kind) {
+        case Raw:
+            return sym.pointer(base);
+        case Unique:
+            return sym.uniquePointer(base);
+        }
     }
 
     ///
@@ -340,27 +370,6 @@ struct TypenameParser {
         return entities.front();
     }
 
-    ObjectType const* parseID() {
-        auto tok = lex.get();
-        Entity* entity = findEntity(tok.text);
-        while (true) {
-            if (!entity) {
-                return nullptr;
-            }
-            auto next = lex.peek();
-            if (next.type != Token::Dot) {
-                return dyncast<ObjectType const*>(entity);
-            }
-            lex.get();
-            auto* scope = dyncast<Scope*>(entity);
-            if (!scope) {
-                return nullptr;
-            }
-            auto tok = lex.get();
-            entity = findEntity(*scope, tok.text);
-        }
-    }
-
     ArrayType const* parseArray() {
         lex.get();
         auto* elemType = dyncast<ObjectType const*>(parse());
@@ -379,6 +388,46 @@ struct TypenameParser {
             return nullptr;
         }
         return nullptr;
+    }
+
+    FunctionType const* parseFunction() {
+        lex.get();
+        utl::small_vector<Type const*> args;
+        bool first = true;
+        while (true) {
+            if (lex.peek().type == Token::CloseParan) {
+                lex.get();
+                break;
+            }
+            if (!first && lex.get().type != Token::Comma) {
+                return nullptr;
+            }
+            first = false;
+            auto* arg = parse();
+            if (!arg) return nullptr;
+            args.push_back(arg);
+        }
+        if (lex.get().type != Token::Arrow) return nullptr;
+        auto* ret = parse();
+        if (!ret) return nullptr;
+        return sym.functionType(args, ret);
+    }
+
+    ObjectType const* parseID() {
+        auto tok = lex.get();
+        Entity* entity = findEntity(tok.text);
+        while (true) {
+            if (!entity) return nullptr;
+            auto next = lex.peek();
+            if (next.type != Token::Dot) {
+                return dyncast<ObjectType const*>(entity);
+            }
+            lex.get();
+            auto* scope = dyncast<Scope*>(entity);
+            if (!scope) return nullptr;
+            auto tok = lex.get();
+            entity = findEntity(*scope, tok.text);
+        }
     }
 };
 
@@ -406,6 +455,7 @@ struct Field {
     static constexpr std::string_view ReturnType = "return_type";
     static constexpr std::string_view ArgumentTypes = "argument_types";
     static constexpr std::string_view SMFKind = "smf_kind";
+    static constexpr std::string_view Lifetime = "lifetime";
     static constexpr std::string_view LifetimeOpKind = "lifetime_op_kind";
     static constexpr std::string_view FunctionKind = "function_kind";
     static constexpr std::string_view Size = "size";
@@ -420,7 +470,7 @@ struct Field {
     static constexpr std::string_view AccessControl = "access_control";
 };
 
-#if 0 // Typesafe fields, not implemented yet
+#if 0 // Typesafe fields, not yet implemented
 
 enum class Field {
 #define SC_SEMA_FIELD_DEF(Type, Name, Spelling) Name,
@@ -503,6 +553,7 @@ struct Serializer {
         json j = serializeCommon(type);
         j[Field::Size] = type.size();
         j[Field::Align] = type.align();
+        j[Field::Lifetime] = serializeLifetime(type.lifetimeMetadata());
         for (auto* entity: type.entities()) {
             if (!entity->isPublic()) {
                 continue;
@@ -535,6 +586,24 @@ struct Serializer {
         j[Field::EntityType] = entity.entityType();
         j[Field::Name] = std::string(entity.name());
         j[Field::AccessControl] = entity.accessControl();
+        return j;
+    }
+
+    json serializeLifetime(LifetimeMetadata const& md) {
+        json j;
+        for (auto op: EnumRange<SMFKind>()) {
+            j[toString(op)] = serializeLifetimeOp(md.operation(op));
+        }
+        return j;
+    }
+
+    json serializeLifetimeOp(LifetimeOperation const& op) {
+        json j;
+        j[Field::LifetimeOpKind] = op.kind();
+        if (auto* F = op.function()) {
+            j[Field::Name] = F->name();
+            j[Field::Type] = serializeTypename(F->type());
+        }
         return j;
     }
 
@@ -624,16 +693,6 @@ private:
     utl::hashmap<json const*, StructType*> map;
 };
 
-/// \Returns the parent struct type of \p function or throws if the parent is
-/// not a struct
-static StructType* getStruct(Function* function) {
-    auto* type = dyncast<StructType*>(function->parent());
-    if (!type) {
-        throw std::runtime_error("Expected parent struct type");
-    }
-    return type;
-}
-
 struct Deserializer: TypeMapBase {
     /// The symbol table do deserialize into. All deserialized entities be
     /// written into the current scope and according child scopes
@@ -643,18 +702,24 @@ struct Deserializer: TypeMapBase {
 
     /// Performs the deserialization
     void run(json const& j) {
+        utl::hashset<Library*> dependencies;
         if (auto* deps = tryGet(j, Field::ForeignDependencies)) {
             for (auto& lib: *deps) {
-                sym.importForeignLib(lib.get<std::string>());
+                auto* dependency = sym.importForeignLib(lib.get<std::string>());
+                dependencies.insert(dependency);
             }
         }
         if (auto* deps = tryGet(j, Field::NativeDependencies)) {
             for (auto& lib: *deps) {
-                sym.importNativeLib(lib.get<std::string>());
+                auto* dependency = sym.importNativeLib(lib.get<std::string>());
+                dependencies.insert(dependency);
             }
         }
-        preparseTypes(j.at(Field::Entities));
-        parseEntities(j.at(Field::Entities));
+        if (auto* lib = dyncast<Library*>(&sym.currentScope())) {
+            lib->setDependencies(dependencies.values());
+        }
+        preparseTypes(get(j, Field::Entities));
+        parseEntities(get(j, Field::Entities));
     }
 
     /// Performs a DFS over the JSON array and declares all encountered struct
@@ -675,6 +740,8 @@ struct Deserializer: TypeMapBase {
         insertType(obj, type);
         type->setSize(get<size_t>(obj, Field::Size));
         type->setAlign(get<size_t>(obj, Field::Align));
+        type->setLifetimeMetadata(
+            parseLifetime(nullptr, get(obj, Field::Lifetime)));
         if (auto children = tryGet(obj, Field::Children)) {
             sym.withScopeCurrent(type, [&] { preparseTypes(*children); });
         }
@@ -689,6 +756,9 @@ struct Deserializer: TypeMapBase {
         if (auto children = tryGet(obj, Field::Children)) {
             sym.withScopeCurrent(type, [&] { parseEntities(*children); });
         }
+        type->setLifetimeMetadata(
+            parseLifetime(type, get(obj, Field::Lifetime)));
+        type->setConstructors(type->findFunctions("new"));
     }
 
     ///
@@ -736,6 +806,44 @@ struct Deserializer: TypeMapBase {
         parseArray(j, [this]<typename T>(Tag<T> tag, json const& child) {
             parseImpl(tag, child);
         });
+    }
+
+    /// This function will be called twice for each type. Once in preparse phase
+    /// with \p parent = null, once in actual parse phase with value \p parent
+    /// argument.
+    /// We need to parse the lifetime twice because in after preparse phase
+    /// dependent types like array types require the lifetime to exist. However
+    /// in preparse the functions don't exist yet. So after actually parsing a
+    /// type we parse the lifetime again, this time including the non-trivial
+    /// lifetime functions
+    LifetimeMetadata parseLifetime(ObjectType* parent, json const& obj) {
+        std::array<LifetimeOperation, 4> ops;
+        for (auto op: EnumRange<SMFKind>()) {
+            auto const& j = get(obj, toString(op));
+            auto kind = get<LifetimeOperation::Kind>(j, Field::LifetimeOpKind);
+            auto* function = [&]() -> Function* {
+                if (!parent) {
+                    return nullptr;
+                }
+                auto name = tryGet<std::string>(j, Field::Name);
+                if (!name) {
+                    return nullptr;
+                }
+                auto* type =
+                    parseTypename(sym, get<std::string>(j, Field::Type));
+                auto& fnType = dyncast<FunctionType const&>(*type);
+                auto const functions = parent->findFunctions(*name);
+                auto* function = findBySignature(std::span(functions),
+                                                 fnType.argumentTypes());
+                if (!function) {
+                    throw std::runtime_error(
+                        "Failed to parse lifetime function");
+                }
+                return function;
+            }();
+            ops[(size_t)op] = LifetimeOperation(kind, function);
+        }
+        return LifetimeMetadata(ops);
     }
 
     /// # Helper functions

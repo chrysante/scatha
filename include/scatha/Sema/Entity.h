@@ -422,6 +422,18 @@ public:
 
 /// Abstract base class of `NativeLibrary` and `ForeignLibrary`
 class SCATHA_API Library: public Scope {
+public:
+    /// \Returns a view over the libraries that this library depends on
+    std::span<Library* const> dependencies() { return deps; }
+
+    /// \overload
+    std::span<Library const* const> dependencies() const { return deps; }
+
+    ///
+    void setDependencies(std::span<Library* const> libs) {
+        deps = libs | ToSmallVector<2>;
+    }
+
 protected:
     explicit Library(EntityType entityType, std::string name, Scope* parent);
 
@@ -429,6 +441,8 @@ private:
     friend class Entity;
 
     EntityCategory categoryImpl() const { return EntityCategory::Namespace; }
+
+    utl::small_vector<Library*, 2> deps;
 };
 
 /// Scope of symbols imported from a library

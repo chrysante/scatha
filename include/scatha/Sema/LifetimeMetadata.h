@@ -21,8 +21,10 @@ public:
                      LifetimeOperation copyConstructor,
                      LifetimeOperation moveConstructor,
                      LifetimeOperation destructor):
-        ops{ defaultConstructor, copyConstructor, moveConstructor,
-             destructor } {}
+        LifetimeMetadata(std::array{ defaultConstructor, copyConstructor,
+                                     moveConstructor, destructor }) {}
+
+    explicit LifetimeMetadata(std::array<LifetimeOperation, 4> ops): ops(ops) {}
 
     /// \Returns the default constructor
     LifetimeOperation defaultConstructor() const {

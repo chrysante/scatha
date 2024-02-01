@@ -1,10 +1,8 @@
 #ifndef SCATHA_COMMON_BASE_H_
 #define SCATHA_COMMON_BASE_H_
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <exception>
 #include <type_traits>
 
@@ -177,53 +175,6 @@ static_assert(sizeof(f64) == 8);
 
 using std::size_t;
 using ssize_t = std::ptrdiff_t;
-
-/// Reinterpret the bytes of \p t as a `std::array` of bytes.
-template <typename T>
-    requires std::is_standard_layout_v<T>
-std::array<u8, sizeof(T)> decompose(T const& t) {
-    std::array<u8, sizeof(T)> result;
-    std::memcpy(result.data(), &t, sizeof t);
-    return result;
-}
-
-/// Convenient accessor for `static_cast<size_t>(Enum::COUNT)`
-template <typename E>
-    requires std::is_enum_v<E>
-inline constexpr size_t EnumSize = static_cast<size_t>(E::COUNT);
-
-#define SC_ENUM_SIZE_DEF(Enum, Size)                                           \
-    template <>                                                                \
-    inline constexpr size_t scatha::EnumSize<Enum> = Size;
-
-#define SC_ENUM_SIZE_LAST_DEF(Enum, Last)                                      \
-    template <>                                                                \
-    inline constexpr size_t scatha::EnumSize<Enum> =                           \
-        static_cast<size_t>(Enum::Last) + 1;
-
-/// # impl_cast
-
-namespace internal {
-
-template <typename To>
-struct ImplCastFn {
-    template <typename From>
-        requires std::is_pointer_v<To> && std::is_convertible_v<From*, To>
-    constexpr To operator()(From* p) const {
-        return p;
-    }
-
-    template <typename From>
-        requires std::is_reference_v<To> && std::is_convertible_v<From&, To>
-    constexpr To operator()(From& p) const {
-        return p;
-    }
-};
-
-} // namespace internal
-
-template <typename To>
-inline constexpr internal::ImplCastFn<To> impl_cast{};
 
 } // namespace scatha
 

@@ -154,6 +154,7 @@ enum class Signedness { Signed, Unsigned };
 enum class SMFKind : uint8_t {
 #define SC_SEMA_SMF_DEF(Name, Spelling) Name,
 #include <scatha/Sema/Lists.def>
+    LAST = Destructor
 };
 
 /// \Returns the name of \p kind
