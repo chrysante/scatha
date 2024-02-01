@@ -125,7 +125,7 @@ static ObjectTypeConversion convRefToPtr(ObjectTypeConversion conv) {
     using enum ObjectTypeConversion;
     switch (conv) {
     case ArrayRef_FixedToDynamic:
-        return ArrayRef_FixedToDynamic;
+        return ArrayPtr_FixedToDynamic;
     case Reinterpret_ValuePtr:
         return Reinterpret_ValueRef;
     case Reinterpret_ValueRef_ToByteArray:

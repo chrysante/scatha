@@ -30,7 +30,6 @@ void ir::setupInvariants(Context& ctx, Function& function) {
         /// If we don't have a terminator insert a return.
         if (BB.empty() || !isa<TerminatorInst>(BB.back())) {
             BB.pushBack(new Return(ctx, ctx.undef(BB.parent()->returnType())));
-            continue;
         }
 
         /// Setup the predecessor relationship

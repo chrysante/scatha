@@ -1082,8 +1082,11 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     auto* callInst = add<ir::Call>(function, irArguments, instName);
     auto* retval = CC.returnLocation() == Memory ? irArguments.front() :
                                                    callInst;
-    return Value::Packed(name, call.type().get(),
-                         Atom(retval, CC.returnLocationAtCallsite()));
+    auto atom = Atom(retval, CC.returnLocationAtCallsite());
+    if (isa<sema::UniquePtrType>(CC.returnType())) {
+        atom = toMemory(atom);
+    }
+    return Value::Packed(name, call.type().get(), atom);
 }
 
 utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
@@ -1223,22 +1226,12 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
         return Value::Packed(name, expr.type().get(), Atom::Memory(mem));
     }
 
-    case NontrivialInline:
-        switch (getInlineLifetimeCase(expr.type().get())) {
-        case InlineLifetime::Array:
-            SC_UNIMPLEMENTED();
-        case InlineLifetime::UniquePtr: {
-            SC_ASSERT(
-                value[0].isMemory() && value.isPacked(),
-                "Must be packed memory because we set the old value to null here");
-            auto* newVal = add<ir::Load>(value[0].get(), irType, name);
-            add<ir::Store>(ctx, value[0].get(), makeZeroConstant(irType));
-            return Value::Packed(name, expr.type().get(),
-                                 toMemory(Atom::Register(newVal)));
-        }
-        default:
-            SC_UNREACHABLE();
-        }
+    case NontrivialInline: {
+        auto* mem = makeLocalVariable(irType, name);
+        auto dest = Value::Packed(name, expr.type().get(), Atom::Memory(mem));
+        inlineLifetime(expr.constructorKind(), dest, value);
+        return dest;
+    }
 
     case Deleted:
         SC_UNREACHABLE();
@@ -1343,9 +1336,12 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                                  Atom::Register(value[0].get()));
         }
     case NullptrToUniquePtr: {
-        /// Here we have to consider if we want to keep unique pointers in
-        /// memory all the time or if it is okay to have them in registers
-        SC_UNIMPLEMENTED();
+        auto* irType = typeMap.packed(conv.type().get());
+        auto* mem = makeLocalVariable(irType, "nullptr");
+        auto result =
+            Value::Packed("nullptr", conv.type().get(), Atom::Memory(mem));
+        inlineLifetime(sema::SMFKind::DefaultConstructor, result, std::nullopt);
+        return result;
     }
     case UniqueToRawPtr:
         return value;
@@ -1593,18 +1589,19 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
         auto* arrayEnd = add<ir::GetElementPointer>(ctx, irElemType, arrayBegin,
                                                     count, IndexArray{},
                                                     utl::strcat(name, ".end"));
-        auto loop = generateForLoopImpl(utl::strcat(name, ".constr"),
-                                        arrayBegin, arrayEnd,
-                                        [&](ir::Value* ind) {
-            return add<ir::GetElementPointer>(ctx, irElemType, ind,
-                                              ctx.intConstant(1, 64),
-                                              IndexArray{},
-                                              utl::strcat(name, ".ind"));
-        });
-        withBlockCurrent(loop.body, loop.insertPoint, [&] {
+        auto increment = [&](std::span<ir::Value* const> counters)
+            -> utl::small_vector<ir::Value*> {
+            return { add<ir::GetElementPointer>(ctx, irElemType, counters[0],
+                                                ctx.intConstant(1, 64),
+                                                IndexArray{},
+                                                utl::strcat(name, ".inc")) };
+        };
+        generateForLoop(utl::strcat(name, ".constr"), ValueArray{ arrayBegin },
+                        arrayEnd, increment,
+                        [&](std::span<ir::Value* const> counters) {
             auto* elem = toPackedMemory(getValue(expr.elementConstruction()));
             SC_ASSERT(isa<ir::Alloca>(elem), "Must be local");
-            elem->replaceAllUsesWith(loop.induction);
+            elem->replaceAllUsesWith(counters[0]);
         });
     }
     return Value::Unpacked(name, expr.type().get(),
@@ -1764,45 +1761,41 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
                                    utl::strcat(dest.name(), ".end"));
     destEnd->setComment(
         makeLifetimeComment("Destruction block", nullptr, &type));
-    auto* pred = &currentBlock();
-    auto loop = generateForLoopImpl(makeLifetimeLoopName(dest.name(), kind),
-                                    destBegin, destEnd,
-                                    [&](ir::Value* counter) {
-        return add<ir::GetElementPointer>(ctx, irElemType, counter,
-                                          ctx.intConstant(1, 64), IndexArray{},
-                                          utl::strcat(dest.name(), ".ind"));
-    });
-    auto sourceElemValue = [&]() -> std::optional<Value> {
-        using enum sema::SMFKind;
-        if (kind != CopyConstructor && kind != MoveConstructor) {
-            return std::nullopt;
+    using enum sema::SMFKind;
+    int numArgs = kind == CopyConstructor || kind == MoveConstructor ? 2 : 1;
+    utl::small_vector<ir::Value*> countersBegin = { destBegin };
+    if (numArgs == 2) {
+        countersBegin.push_back(toMemory(unpack(source.value())[0]).get());
+    }
+    auto increment = [&](std::span<ir::Value* const> counters) {
+        utl::small_vector<ir::Value*> inc = {
+            add<ir::GetElementPointer>(irElemType, counters[0],
+                                       ctx.intConstant(1, 64), IndexArray{},
+                                       utl::strcat(dest.name(), ".ind"))
+        };
+        if (numArgs == 2) {
+            inc.push_back(add<ir::GetElementPointer>(irElemType, counters[1],
+                                                     ctx.intConstant(1, 64),
+                                                     IndexArray{},
+                                                     utl::strcat(source->name(),
+                                                                 ".ind")));
         }
-        auto* sourceBegin =
-            withBlockCurrent(pred,
-                             ir::BasicBlock::ConstIterator(pred->terminator()),
-                             [&] {
-            return toMemory(unpack(source.value())[0]).get();
-        });
-        auto* phi =
-            new ir::Phi({ { pred, sourceBegin }, { loop.body, nullptr } },
-                        utl::strcat(source->name(), ".counter"));
-        auto* ind = withBlockCurrent(loop.body, loop.insertPoint, [&] {
-            return add<ir::GetElementPointer>(ctx, irElemType, phi,
-                                              ctx.intConstant(1, 64),
-                                              IndexArray{},
-                                              utl::strcat(source->name(),
-                                                          ".ind"));
-        });
-        phi->setArgument(loop.body, ind);
-        loop.body->insertPhi(phi);
-        return Value::Packed("source.elem", type.elementType(),
-                             Atom::Memory(phi));
-    }();
-    withBlockCurrent(loop.body, loop.insertPoint, [&] {
+        return inc;
+    };
+    generateForLoop(makeLifetimeLoopName(dest.name(), kind), countersBegin,
+                    destEnd, increment,
+                    [&](std::span<ir::Value* const> counters) {
+        auto source = [&]() -> std::optional<Value> {
+            if (numArgs == 1) {
+                return std::nullopt;
+            }
+            return Value::Packed("source.elem", type.elementType(),
+                                 Atom::Memory(counters[1]));
+        }();
         generateLifetimeOperation(kind,
                                   Value::Packed("dest.elem", type.elementType(),
-                                                Atom::Memory(loop.induction)),
-                                  sourceElemValue);
+                                                Atom::Memory(counters[0])),
+                                  source);
     });
 }
 
@@ -1854,9 +1847,12 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
             makeLifetimeComment("Destruction block", nullptr, &type));
 
         add(deleteBlock);
-        generateLifetimeOperation(sema::SMFKind::Destructor,
-                                  Value::Unpacked("pointee", pointeeType,
-                                                  dest.elements()),
+        auto pointeeAtoms =
+            concat(single(Atom::Memory(data)), dest.elements() | drop(1)) |
+            ToSmallVector<2>;
+        auto pointee = Value("pointee", pointeeType, pointeeAtoms,
+                             pointeeAtoms.size() == 1 ? Packed : Unpacked);
+        generateLifetimeOperation(sema::SMFKind::Destructor, pointee,
                                   std::nullopt);
         auto [bytesize, align] = [&]() -> ValueArray<2> {
             if (dest.size() == 1) {

@@ -814,6 +814,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
     auto type = expr.value()->type();
     auto& lifetime = type->lifetimeMetadata();
     std::optional op = lifetime.moveOrCopyConstructor();
+    using enum SMFKind;
+    auto ctorKind = *op == lifetime.copyConstructor() ? CopyConstructor :
+                                                        MoveConstructor;
     if (!type->isComplete()) {
         ctx.badExpr(&expr, BadExpr::MoveExprIncompleteType);
         success = false;
@@ -840,11 +843,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
         op = std::nullopt;
     }
     if (!op) {
-        expr.decorateMove(expr.value()->object(), op);
+        expr.decorateMove(expr.value()->object(), op, ctorKind);
         return &expr;
     }
     auto* tmp = sym.temporary(&expr, expr.value()->type());
-    expr.decorateMove(tmp, op);
+    expr.decorateMove(tmp, op, ctorKind);
     if (!currentCleanupStack().push(tmp, ctx)) {
         return nullptr;
     }
@@ -1421,6 +1424,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
     }
     if (!isa<ast::UniqueExpr>(expr.parent())) {
         ctx.issue<BadExpr>(&expr, DynArrayConstrAutoStorage);
+        return nullptr;
     }
     switch (expr.arguments().size()) {
     case 1: {

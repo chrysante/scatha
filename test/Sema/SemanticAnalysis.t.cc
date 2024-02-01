@@ -625,3 +625,15 @@ TEST_CASE("Reachability", "[sema]") {
     CHECK(iss.findOnLine<GenericBadStmt>(8, GenericBadStmt::Unreachable));
     CHECK(iss.noneOnLine(9));
 }
+
+/// Regression. Used to crash
+TEST_CASE(
+    "Convert unique array pointer from static to dynamic and store to variable",
+    "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+fn foo() {
+    let p: *unique [int] = unique [1, 2, 3];
+}
+)");
+    CHECK(iss.empty());
+}

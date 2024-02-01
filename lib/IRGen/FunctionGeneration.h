@@ -149,27 +149,20 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     /// \Warning Must only be called for values with trivial lifetime
     Value copyValue(Value const& value);
 
-    /// Generates a for loop with trip count \p tripCount at the current
-    /// position.
-    /// \param name is used to generate descriptive names for the basic blocks
-    /// \Returns the loop metadata
-    CountedForLoopDesc generateForLoop(std::string_view name,
-                                       ir::Value* tripCount);
-
-    /// \overload for static trip count
-    CountedForLoopDesc generateForLoop(std::string_view name, size_t tripCount);
-
-    /// Generates a for loop over the range `[indBegin, indEnd)`
-    /// The first value of the induction variable is \p indBegin
-    /// The next value of the induction variable is the invocation result of
-    /// \p indNext
-    /// The argument to \p indNext is the induction variables value of
-    /// the current loop iteration.
-    /// The loop runs until the value of the induction variable compares equal
-    /// to \p indEnd
-    CountedForLoopDesc generateForLoopImpl(
-        std::string_view name, ir::Value* indBegin, ir::Value* indEnd,
-        utl::function_view<ir::Value*(ir::Value*)> indNext);
+    /// Generates a for loop over the range `[countersBegin[0], counterEnd)`
+    /// The first values of the induction variables are the values in \p
+    /// countersBegin The next values are the values if the invocation result of
+    /// \p inc The argument to \p inc is a view over the values of the induction
+    /// variables of the current loop iteration.
+    /// The loop runs until the value of the first induction variable compares
+    /// equal to \p counterEnd
+    void generateForLoop(
+        std::string_view name, std::span<ir::Value* const> countersBegin,
+        ir::Value* counterEnd,
+        utl::function_view<
+            utl::small_vector<ir::Value*>(std::span<ir::Value* const> counters)>
+            inc,
+        utl::function_view<void(std::span<ir::Value* const> counters)> body);
 
     ///
     Value makeVoidValue(std::string name) const;

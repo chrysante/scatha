@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators_all.hpp>
 
+#include <range/v3/algorithm.hpp>
+
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Equal.h"
@@ -135,58 +137,50 @@ public fn foo() {
 
 TEST_CASE("Destruction of unique pointer to array function argument",
           "[irgen]") {
+    using namespace ir;
     auto [ctx, mod] = makeIR({ R"(
 public struct Bar {
     fn delete(&mut this) {}
 }
 public fn foo(p: *unique [Bar]) {}
 )" });
-    auto [ctx2, ref] = ir::parse(R"(
-struct @Bar {}
+    auto& foo = mod.back();
+    auto& bar_delete = mod.front();
 
-ext func void @__builtin_dealloc(ptr %0, i64 %1, i64 %2)
+    auto entry = BBView(foo.entry());
+    CHECK(entry.terminatorIs<Branch>());
 
-func void @Bar.delete-_R_MBar(ptr %0) {
-  %entry:
-    return
+    auto deleteBlock = entry.nextBlock();
+    CHECK(deleteBlock.terminatorIs<Goto>());
+
+    auto arrayLoopBody = deleteBlock.nextBlock();
+    CHECK(ranges::count_if(*arrayLoopBody.BB | Filter<Call>,
+                           [&](Call const& call) {
+        return call.function() == &bar_delete;
+    }) == 1);
+    CHECK(arrayLoopBody.terminatorIs<Branch>());
+
+    auto arrayLoopEnd = arrayLoopBody.nextBlock();
+    CHECK(arrayLoopEnd.terminatorIs<Goto>());
+
+    auto deleteEnd = arrayLoopEnd.nextBlock();
+    CHECK(deleteEnd.terminatorIs<Return>());
 }
 
-func void @foo-_U_A_MBar(ptr %0, i64 %1) {
-  %entry:
-    %p.addr = alloca { ptr, i64 }, i32 1
-    %p.elem.0 = insert_value { ptr, i64 } undef, ptr %0, 0
-    %p = insert_value { ptr, i64 } %p.elem.0, i64 %1, 1
-    store ptr %p.addr, { ptr, i64 } %p
-    %p.elem.0.addr = getelementptr inbounds { ptr, i64 }, ptr %p.addr, i32 0, 0
-    %p.elem.1.addr = getelementptr inbounds { ptr, i64 }, ptr %p.addr, i32 0, 1
-    %unique.ptr.data = load ptr, ptr %p.elem.0.addr
-    %unique.ptr.engaged = ucmp neq ptr %unique.ptr.data, ptr nullptr
-    // Destruction block for p
-    branch i1 %unique.ptr.engaged, label %unique.ptr.delete, label %unique.ptr.end
+TEST_CASE("Return unique pointer", "[irgen]") {
+    using namespace ir;
+    std::string source = R"(
+fn bar() -> *unique int { return unique int(0); }
+public fn foo() -> *unique int { return bar(); }
+)";
+    auto [ctx, mod] = makeIR({ source });
+    auto& F = mod.front();
+    CHECK(F.parameters().empty());
+    auto entry = BBView(F.entry());
 
-  %unique.ptr.delete: // preds: entry
-    %pointee.count = load i64, ptr %p.elem.1.addr
-    // Destruction block for [Bar]
-    %pointee.end = getelementptr inbounds @Bar, ptr %p.elem.0.addr, i64 %pointee.count
-    goto label %pointee.destr.body
-
-  %pointee.destr.body: // preds: unique.ptr.delete, pointee.destr.body
-    %pointee.destr.counter = phi ptr [label %unique.ptr.delete : %p.elem.0.addr], [label %pointee.destr.body : %pointee.ind]
-    // Destructor for Bar
-    call void @Bar.delete-_R_MBar, ptr %pointee.destr.counter
-    %pointee.ind = getelementptr inbounds @Bar, ptr %pointee.destr.counter, i64 1
-    %pointee.destr.test = ucmp eq ptr %pointee.ind, ptr %pointee.end
-    branch i1 %pointee.destr.test, label %pointee.destr.end, label %pointee.destr.body
-
-  %pointee.destr.end: // preds: pointee.destr.body
-    %unique.ptr.count = load i64, ptr %p.elem.1.addr
-    %bytesize = mul i64 %unique.ptr.count, i64 1
-    call void @__builtin_dealloc, ptr %unique.ptr.data, i64 %bytesize, i64 1
-    goto label %unique.ptr.end
-
-  %unique.ptr.end: // preds: entry, pointee.destr.end
-    return
-})")
-                           .value();
-    CHECK(test::modEqual(mod, ref));
+    CHECK(entry.nextIs<Alloca>());
+    CHECK(entry.nextIs<Call>());
+    CHECK(entry.nextIs<Store>());
+    CHECK(entry.nextIs<Load>());
+    CHECK(entry.nextIs<Return>());
 }
