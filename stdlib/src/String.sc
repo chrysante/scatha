@@ -6,7 +6,8 @@ public struct String {
     fn new(&mut this) {}
 
     fn new(&mut this, text: &str) { 
-        this.buf = unique str(text); 
+        this.buf = unique str(text.count); 
+        __builtin_memcpy(this.buf, &text);
         this.sz = text.count;
     }
 
@@ -70,25 +71,25 @@ public struct String {
     /// \overload 
     fn data(&mut this) -> *mut str { return &mut this.buf[0 : this.sz]; }
 
-    /// Private
+    /// internals
 
     /// Grows the maintained buffer by a factor of two
-    private fn grow(&mut this) {
+    internal fn grow(&mut this) {
         this.growLeast(2 * this.buf.count);
     }
 
     /// Grows the maintained buffer to at least \p leastSize 
-    private fn growLeast(&mut this, leastSize: mut int) {
+    internal fn growLeast(&mut this, leastSize: mut int) {
         leastSize = max(leastSize, 2 * this.buf.count);
         var tmp = unique str(leastSize);
         __builtin_memcpy(&mut tmp[0 : this.buf.count], this.buf);
         this.buf = move tmp;
     }
 
-    private fn max(n: int, m: int) -> int {
+    internal fn max(n: int, m: int) -> int {
         return n < m ? m : n;
     }
 
-    private var buf: *unique mut str;
-    private var sz: int;
+    internal var buf: *unique mut str;
+    internal var sz: int;
 }
