@@ -35,8 +35,8 @@ StructMetadata irgen::makeStructMetadata(TypeMap& typeMap,
 }
 
 ir::StructType* irgen::generateType(sema::StructType const* semaType,
-                                    ir::Context& ctx, ir::Module& mod,
-                                    TypeMap& typeMap,
+                                    [[maybe_unused]] ir::Context& ctx,
+                                    ir::Module& mod, TypeMap& typeMap,
                                     sema::NameMangler const& nameMangler) {
     auto structType = allocate<ir::StructType>(nameMangler(*semaType));
     for (auto* member: semaType->memberVariables()) {

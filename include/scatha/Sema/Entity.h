@@ -499,7 +499,7 @@ public:
     /// Number of arguments
     size_t argumentCount() const;
 
-    /// Kind of this function
+    /// Kind of this function, i.e. `Native`, `Generated` or `Foreign`
     FunctionKind kind() const { return _kind; }
 
     void setKind(FunctionKind kind) { _kind = kind; }
