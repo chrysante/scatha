@@ -375,3 +375,16 @@ func i64 @main() {
     return i64 %counter
 })");
 }
+
+TEST_CASE("Unique pointer deallocation size", "[end-to-end][regression]") {
+    /// This used to crash because all sizes passed to `__builtin_dealloc` were
+    /// 8 or 16 (size of the pointer)
+    test::checkReturns(0, R"(
+struct Node {
+    var data: [int, 3];
+}
+fn main() {
+    let root = unique Node();
+    return root.data[0];
+})");
+}

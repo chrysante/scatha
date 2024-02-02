@@ -1848,8 +1848,8 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
                                   std::nullopt);
         auto [bytesize, align] = [&]() -> ValueArray<2> {
             if (dest.size() == 1) {
-                return { ctx.intConstant(type.size(), 64),
-                         ctx.intConstant(type.align(), 64) };
+                return { ctx.intConstant(pointeeType->size(), 64),
+                         ctx.intConstant(pointeeType->align(), 64) };
             }
             auto* elemType =
                 cast<sema::ArrayType const*>(pointeeType)->elementType();
