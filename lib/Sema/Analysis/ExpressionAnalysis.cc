@@ -389,6 +389,13 @@ static void setConstantValue(ast::BinaryExpression& expr) {
                                      expr.rhs()->constantValue()));
 }
 
+static QualType uniqueToRawPtr(QualType type, SymbolTable& sym) {
+    if (auto* uniquePtr = dyncast<UniquePtrType const*>(type.get())) {
+        return QualType(sym.pointer(uniquePtr->base()), type.mutability());
+    }
+    return type;
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
     bool argsAnalyzed = true;
     argsAnalyzed &= !!analyzeValue(expr.lhs());
@@ -466,10 +473,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
 
     /// Convert the operands to common type
     bool cnv = true;
-    cnv &= !!convert(Implicit, expr.lhs(), commonType, RValue,
-                     currentCleanupStack(), ctx);
-    cnv &= !!convert(Implicit, expr.rhs(), commonType, RValue,
-                     currentCleanupStack(), ctx);
+    cnv &= !!convert(Implicit, expr.lhs(), uniqueToRawPtr(commonType, sym),
+                     RValue, currentCleanupStack(), ctx);
+    cnv &= !!convert(Implicit, expr.rhs(), uniqueToRawPtr(commonType, sym),
+                     RValue, currentCleanupStack(), ctx);
     SC_ASSERT(cnv, "Conversion must succeed because we have a common type");
     expr.decorateValue(sym.temporary(&expr, resultType), RValue);
     setConstantValue(expr);
@@ -1548,27 +1555,29 @@ ast::Expression* ExprContext::analyzeImpl(ast::DynArrayConstructExpr& expr) {
     switch (expr.arguments().size()) {
     case 1: {
         auto* arg = expr.argument(0);
-        arg = convert(Implicit, arg, sym.Int(), RValue, currentCleanupStack(),
-                      ctx);
-        if (!arg) {
-            return nullptr;
+        if (auto intConv = computeConversion(Implicit, arg, sym.Int(), RValue))
+        {
+            arg = insertConversion(arg, intConv.value(), currentCleanupStack(),
+                                   ctx);
+            auto insert = [&](auto constr) {
+                return expr.setElementConstruction(std::move(constr));
+            };
+            auto* constr = constructInplace(ConversionKind::Implicit, &expr,
+                                            insert, type->elementType(), {},
+                                            currentCleanupStack(), ctx)
+                               .valueOr(nullptr);
+            if (!constr) {
+                return nullptr;
+            }
+            currentCleanupStack().pop(expr.elementConstruction());
+            expr.decorateConstruct(sym.temporary(&expr, type));
+            if (!currentCleanupStack().push(expr.object(), ctx)) {
+                return nullptr;
+            }
+            return &expr;
         }
-        auto insert = [&](auto constr) {
-            return expr.setElementConstruction(std::move(constr));
-        };
-        auto* constr = constructInplace(ConversionKind::Implicit, &expr, insert,
-                                        type->elementType(), {},
-                                        currentCleanupStack(), ctx)
-                           .valueOr(nullptr);
-        if (!constr) {
-            return nullptr;
-        }
-        currentCleanupStack().pop(expr.elementConstruction());
-        expr.decorateConstruct(sym.temporary(&expr, type));
-        if (!currentCleanupStack().push(expr.object(), ctx)) {
-            return nullptr;
-        }
-        return &expr;
+        ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);
+        return nullptr;
     }
     default:
         ctx.issue<BadExpr>(&expr, DynArrayConstrBadArgs);

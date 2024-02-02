@@ -45,7 +45,7 @@ fn print(n: int) {
     __builtin_puti64(n);
 })";
 
-TEST_CASE("Constructors", "[end-to-end][constructors]") {
+TEST_CASE("Constructors", "[end-to-end][lifetime]") {
     SECTION("Implicit default construct") {
         test::checkPrints("+0-0", CommonDefs + R"(
             fn main() {
@@ -208,7 +208,7 @@ TEST_CASE("Constructors", "[end-to-end][constructors]") {
     }
 }
 
-TEST_CASE("Pseudo constructors", "[end-to-end][constructors]") {
+TEST_CASE("Pseudo constructors", "[end-to-end][lifetime]") {
     test::runReturnsTest(5, R"(
 struct X {
     var i: int;
@@ -225,7 +225,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Pseudo constructors zero init", "[end-to-end][constructors]") {
+TEST_CASE("Pseudo constructors zero init", "[end-to-end][lifetime]") {
     test::runReturnsTest(true, R"(
 struct X {
     var f: double;
@@ -238,7 +238,7 @@ fn main() -> bool {
 })");
 }
 
-TEST_CASE("Generated constructors", "[end-to-end][constructors]") {
+TEST_CASE("Generated constructors", "[end-to-end][lifetime]") {
     auto text = CommonDefs + R"(
 struct Z {
     fn new(&mut this) { this.n = 3; }
@@ -260,7 +260,7 @@ fn main() {
 }
 
 TEST_CASE("Don't pop destructors in reference variables",
-          "[end-to-end][constructors]") {
+          "[end-to-end][lifetime]") {
     test::checkPrints("+4+7-7-4", CommonDefs + R"(
 fn main() {
     var x = X(4);
@@ -268,14 +268,14 @@ fn main() {
 })");
 }
 
-TEST_CASE("Array default constructor", "[end-to-end][constructors]") {
+TEST_CASE("Array default constructor", "[end-to-end][lifetime]") {
     test::checkPrints("+0+0+0-0-0-0", CommonDefs + R"(
 fn main() {
     var a: [X, 3];
 })");
 }
 
-TEST_CASE("Array copy constructor", "[end-to-end][constructors]") {
+TEST_CASE("Array copy constructor", "[end-to-end][lifetime]") {
     test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
 fn main() {
     var a: [X, 2];
@@ -283,7 +283,7 @@ fn main() {
 })");
 }
 
-TEST_CASE("Copy array to function", "[end-to-end][constructors]") {
+TEST_CASE("Copy array to function", "[end-to-end][lifetime]") {
     test::checkPrints("+0+0+1+1-1-1-0-0", CommonDefs + R"(
 fn f(data: [X, 2]) {}
 fn main() {
@@ -292,14 +292,14 @@ fn main() {
 })");
 }
 
-TEST_CASE("List expression of non-trivial type", "[end-to-end][constructors]") {
+TEST_CASE("List expression of non-trivial type", "[end-to-end][lifetime]") {
     test::checkPrints("+1+2-1-2", CommonDefs + R"(
 fn main() {
     var data = [X(1), X(2)];
 })");
 }
 
-TEST_CASE("List expression of trivial type", "[end-to-end][constructors]") {
+TEST_CASE("List expression of trivial type", "[end-to-end][lifetime]") {
     test::checkPrints("+1+2", R"(
 struct Y {
     fn new(&mut this, n: int) {
@@ -314,7 +314,7 @@ fn main() {
 
 #if 0 // Failes because reinterpret
 
-TEST_CASE("First move constructor", "[end-to-end][constructors]") {
+TEST_CASE("First move constructor", "[end-to-end][lifetime]") {
     test::runReturnsTest(10, R"(
 struct UniquePtr {
     fn new(&mut this) { this.ptr = null; }
@@ -353,7 +353,7 @@ fn main() {
 
 #endif
 
-TEST_CASE("Unique ptr to non-trivial type", "[end-to-end][constructors]") {
+TEST_CASE("Unique ptr to non-trivial type", "[end-to-end][lifetime]") {
     SECTION("Default construct and destroy") {
         test::checkPrints("+0-0", CommonDefs + R"(
 fn main() {
@@ -442,9 +442,7 @@ fn main() {
     }
 }
 
-#if 0
-
-TEST_CASE("Unique ptr dyn array/default construct", "[end-to-end]") {
+TEST_CASE("Unique ptr dyn array/default construct", "[end-to-end][lifetime]") {
     test::runReturnsTest(0, R"(
 public fn main() -> int {
     var ptr: *unique [int];
@@ -452,10 +450,12 @@ public fn main() -> int {
 })");
 }
 
-TEST_CASE("Unique expr copy dyn array", "[end-to-end]") {
+TEST_CASE("Unique expr copy dyn array", "[end-to-end][lifetime]") {
     test::checkReturns(true, R"(
 public fn main() {
-    let ptr = unique str("123");
+    let text: &str = "123";
+    let ptr = unique str(text.count);
+    __builtin_memcpy(ptr, &text);
     return ptr.count == 3 &&
            ptr[0] == '1' &&
            ptr[1] == '2' &&
@@ -463,22 +463,7 @@ public fn main() {
 })");
 }
 
-TEST_CASE("Unique expr copy dyn array nontrivial", "[end-to-end]") {
-    test::checkReturns(6, R"(
-fn main() {
-    let xs = [X(1), X(2), X(3)];
-    var ptr = unique [X](xs);
-    return ptr[0].value + ptr[1].value + ptr[2].value;
-}
-struct X {
-    fn new(&mut this, n: int) { this.value = n; }
-    fn new(&mut this, rhs: &X) { this.value = rhs.value; }
-    fn delete(&mut this) {}
-    var value: int;
-})");
-}
-
-TEST_CASE("Unique expr convert array static to dyn", "[end-to-end]") {
+TEST_CASE("Unique expr convert array static to dyn", "[end-to-end][lifetime]") {
     test::runReturnsTest(6, R"(
 fn main() {
     var arr: *unique mut [int] = unique [1, 2, 3];
@@ -494,7 +479,7 @@ fn main() {
 })");
 }
 
-TEST_CASE("Move dynamic array unique pointer", "[end-to-end]") {
+TEST_CASE("Move dynamic array unique pointer", "[end-to-end][lifetime]") {
     test::runReturnsTest(6, R"(
 fn makeArray() -> *unique [int] {
     return unique [1, 2, 3];
@@ -514,7 +499,9 @@ fn main() {
     return ints2.count == 3 && ints == null;
 })");
 }
-TEST_CASE("Construct dynamic array in unique expression", "[end-to-end]") {
+
+TEST_CASE("Construct dynamic array in unique expression",
+          "[end-to-end][lifetime]") {
     test::runReturnsTest(0, R"(
 fn main() {
     var c = 2;
@@ -533,14 +520,9 @@ struct X {
     fn new(&mut this) { this.value = 1; }
     var value: int;
 })");
-#if 0 // Not yet working. To make this work we have to make the runtime
-      // allocator allow zero sized allocations
     test::checkReturns(0, R"(
 fn main() {
-    let p = unique [int]();
+    let p = unique [int](0);
     return p.count;
 })");
-#endif
 }
-
-#endif

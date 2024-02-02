@@ -218,8 +218,14 @@ static std::optional<ConvChain> constructingConversion(ConversionKind kind,
 };
 
 ///
-static bool wantConstructingConversion(ThinExpr from, ThinExpr to) {
-    return !to.type()->hasTrivialLifetime() && from.isLValue() && to.isRValue();
+static bool alwaysWantConstructingConversion(ThinExpr from, ThinExpr to) {
+    if (isDynArray(*to.type()) && to.isRValue()) {
+        return true;
+    }
+    if (to.type()->hasTrivialLifetime()) {
+        return false;
+    }
+    return from.isLValue() && to.isRValue();
 }
 
 static std::optional<ConvChain> determineObjConv(ConversionKind kind,
@@ -227,7 +233,7 @@ static std::optional<ConvChain> determineObjConv(ConversionKind kind,
     using enum ObjectTypeConversion;
     using RetType = std::optional<ConvChain>;
     ///
-    if (wantConstructingConversion(from, to)) {
+    if (alwaysWantConstructingConversion(from, to)) {
         return constructingConversion(kind, from, to);
     }
     switch (kind) {
