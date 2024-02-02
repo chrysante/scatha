@@ -553,6 +553,14 @@ TEST_CASE("Access control errors", "[sema]") {
     CHECK(iss.noneOnLine(12));
 }
 
+TEST_CASE("Access control denied", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/*  2 */ fn foo(x: X) -> int { return x.get(); }
+struct X { private fn get(&this) -> int { return 42; } }
+)");
+    CHECK(iss.findOnLine<BadExpr>(2, BadExpr::AccessDenied));
+}
+
 TEST_CASE("Using private variables in member functions", "[sema]") {
     auto iss = test::getSemaIssues(R"(
 /*  2 */ struct X {

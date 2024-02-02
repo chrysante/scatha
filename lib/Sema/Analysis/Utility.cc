@@ -229,26 +229,3 @@ bool sema::isAggregate(Type const* t) {
 bool sema::isNewMoveDelete(sema::Function const& F) {
     return ranges::contains(std::array{ "new", "move", "delete" }, F.name());
 }
-
-ast::Expression* sema::insertConstruction(ast::Expression* expr,
-                                          CleanupStack& dtors,
-                                          AnalysisContext& ctx) {
-    auto* type = expr->type().get();
-    auto* constr = [&]() -> ast::Expression* {
-        if (type->hasTrivialLifetime()) {
-            return ast::insertNode<ast::TrivCopyConstructExpr>(
-                expr, expr->sourceRange(), type);
-        }
-        if (auto* sType = dyncast<StructType const*>(type)) {
-            return ast::insertNode(expr, [&](UniquePtr<ast::Expression> expr) {
-                auto args = toSmallVector(std::move(expr));
-                return allocate<ast::NontrivConstructExpr>(std::move(args),
-                                                           args.front()
-                                                               ->sourceRange(),
-                                                           sType);
-            });
-        }
-        SC_UNIMPLEMENTED();
-    }();
-    return analyzeValueExpr(constr, dtors, ctx);
-}

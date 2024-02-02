@@ -510,7 +510,7 @@ static Entity* toSingleEntity(ast::Identifier const& idExpr,
         return stripAlias(entities.front());
     }
     if (!ranges::all_of(entities, isa<Function>, stripAlias)) {
-        // TODO: Push error
+        // TODO: Find out how to trigger this
         SC_UNIMPLEMENTED();
     }
     auto functions = entities | transform(stripAlias) |
@@ -1395,11 +1395,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivAggrConstructExpr& expr) {
     if (!analyzeValues(expr.arguments())) {
         return nullptr;
     }
-    auto* structType = dyncast<StructType const*>(expr.constructedType());
-    if (!structType) {
-        /// TODO: Push error
-        SC_UNIMPLEMENTED();
-    }
+    /// Can `cast` because only structs are aggregates
+    auto* structType = cast<StructType const*>(expr.constructedType());
     if (expr.arguments().size() != structType->members().size()) {
         ctx.badExpr(&expr, CannotConstructType);
         return nullptr;
@@ -1424,8 +1421,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivConstructExpr& expr) {
         return nullptr;
     }
     if (type->constructors().empty()) {
-        // TODO: Push error
-        SC_UNIMPLEMENTED();
+        ctx.badExpr(&expr, CannotConstructType);
+        return nullptr;
     }
     /// Only used for overload resolution. Will be deallocated when this
     /// function returns
@@ -1503,11 +1500,13 @@ ast::Expression* ExprContext::analyzeImpl(
             return &expr;
         }
         default:
-            SC_UNIMPLEMENTED();
+            ctx.badExpr(&expr, CannotConstructType);
+            return nullptr;
         }
     }
     else {
-        SC_UNIMPLEMENTED();
+        ctx.badExpr(&expr, CannotConstructType);
+        return nullptr;
     }
 }
 

@@ -623,3 +623,14 @@ TEST_CASE("Missing special member functions", "[sema]") {
     CHECK(iss.findOnLine<BadExpr>(3, CannotConstructType));
     CHECK(iss.findOnLine<BadCleanup>(4));
 }
+
+TEST_CASE("Other object construction errors", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/* 2 */ fn foo() { return int(1, 2, 3); }
+/* 3 */ fn bar() { return Inconstructible(1, 2, 3); }
+/* 4 */
+struct Inconstructible { fn delete(&mut this) {} }
+)");
+    CHECK(iss.findOnLine<BadExpr>(2, CannotConstructType));
+    CHECK(iss.findOnLine<BadExpr>(3, CannotConstructType));
+}

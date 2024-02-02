@@ -61,10 +61,6 @@ SCATHA_API bool isAggregate(Type const* type);
 /// \Returns `true` if \p F is a constructor or destructor
 bool isNewMoveDelete(sema::Function const& F);
 
-/// Inserts a `{Triv,Nontriv}CopyConstructExpr` above \p expr
-ast::Expression* insertConstruction(ast::Expression* expr, CleanupStack& dtors,
-                                    AnalysisContext& ctx);
-
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_UTILITY_H_
