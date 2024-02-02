@@ -555,6 +555,7 @@ TEST_CASE("Main parameter validation", "[sema]") {
 TEST_CASE("Main access control", "[sema]") {
     CHECK(test::getSemaIssues("private fn main() {}")
               .findOnLine<BadFuncDef>(1, BadFuncDef::MainNotPublic));
+    CHECK(test::getSemaIssues("public fn main() {}").empty());
 }
 
 TEST_CASE("FFI validation", "[sema]") {

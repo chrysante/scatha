@@ -389,7 +389,9 @@ static bool argumentsAreValidForMain(std::span<Type const* const> types,
 /// Here we perform all checks and transforms on `main` that make it special
 void StmtContext::analyzeMainFunction(ast::FunctionDefinition& def) {
     SC_EXPECT(semaFn == def.function());
-    if (auto specifiedAccessControl = semaFn->definition()->accessControl()) {
+    if (auto specified = semaFn->definition()->accessControl();
+        specified && *specified != AccessControl::Public)
+    {
         ctx.issue<BadFuncDef>(&def, BadFuncDef::MainNotPublic);
     }
     /// main is always public
