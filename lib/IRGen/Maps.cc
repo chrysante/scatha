@@ -156,7 +156,7 @@ auto TypeMap::compute(sema::Type const* type) const {
             requires std::derived_from<T, sema::PointerType> ||
                      std::derived_from<T, sema::ReferenceType>
         {
-            if (isFatPointer(&type)) {
+            if (isDynArrayPointer(&type) || isDynArrayReference(&type)) {
                 if (Repr == ValueRepresentation::Packed) {
                     res = { makeArrayPtrType(*ctx) };
                 }

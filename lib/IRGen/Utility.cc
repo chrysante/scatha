@@ -38,14 +38,19 @@ bool irgen::isFatPointer(ast::Expression const* expr) {
     return isFatPointer(expr->type().get());
 }
 
-bool irgen::isDynArray(sema::ObjectType const* type) {
+bool irgen::isDynArray(sema::Type const* type) {
     auto* arr = dyncast<sema::ArrayType const*>(type);
     return arr && arr->isDynamic();
 }
 
-bool irgen::isDynArrayPointer(sema::ObjectType const* type) {
+bool irgen::isDynArrayPointer(sema::Type const* type) {
     auto* ptr = dyncast<sema::PointerType const*>(type);
     return ptr && isDynArray(ptr->base().get());
+}
+
+bool irgen::isDynArrayReference(sema::Type const* type) {
+    auto* ref = dyncast<sema::ReferenceType const*>(type);
+    return ref && isDynArray(ref->base().get());
 }
 
 sema::ObjectType const* irgen::stripPtr(sema::ObjectType const* type) {

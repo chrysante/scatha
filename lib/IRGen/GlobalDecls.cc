@@ -67,7 +67,6 @@ static bool mayPassInRegister(sema::Type const* type) {
     if (type->size() > PreferredMaxRegisterValueSize) {
         return false;
     }
-    /// For now! This is not necessarily correct for unique pointers
     return type->hasTrivialLifetime();
 }
 
@@ -77,7 +76,7 @@ static ValueLocation computeRetValLocation(sema::Type const* type) {
 
 static PassingConvention computeArgPC(sema::Type const* type) {
     if (mayPassInRegister(type)) {
-        if (isFatPointer(type)) {
+        if (isDynArrayPointer(type) || isDynArrayReference(type)) {
             return PassingConvention(type, { Register, Register });
         }
         return PassingConvention(type, { Register });

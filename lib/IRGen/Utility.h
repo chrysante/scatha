@@ -26,10 +26,13 @@ sema::ObjectType const* getPtrOrRefBase(sema::Type const* type);
 [[deprecated]] bool isFatPointer(ast::Expression const* expr);
 
 ///
-bool isDynArray(sema::ObjectType const* type);
+bool isDynArray(sema::Type const* type);
 
 ///
-bool isDynArrayPointer(sema::ObjectType const* type);
+bool isDynArrayPointer(sema::Type const* type);
+
+///
+bool isDynArrayReference(sema::Type const* type);
 
 ///
 sema::ObjectType const* stripPtr(sema::ObjectType const* type);

@@ -68,21 +68,6 @@ static std::string makeLifetimeComment(sema::Function const* ctor,
 
 namespace {
 
-enum class InlineLifetime { Array, UniquePtr };
-
-} // namespace
-
-static InlineLifetime getInlineLifetimeCase(sema::ObjectType const* type) {
-    // clang-format off
-    return SC_MATCH (*type) {
-        [](sema::ArrayType const& ) { return InlineLifetime::Array; },
-        [](sema::UniquePtrType const& ) { return InlineLifetime::UniquePtr; },
-        [](sema::Type const& ) -> InlineLifetime { SC_UNREACHABLE(); },
-    }; // clang-format on
-}
-
-namespace {
-
 struct LoopDesc {
     ir::BasicBlock* header = nullptr;
     ir::BasicBlock* body = nullptr;
