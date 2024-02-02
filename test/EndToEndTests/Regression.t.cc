@@ -388,3 +388,9 @@ fn main() {
     return root.data[0];
 })");
 }
+
+TEST_CASE("Array slice", "[end-to-end][regression]") {
+    CHECK(test::compiles(R"(
+public fn foo(p: *[int]) -> *[int] { return &p[1 : 2]; }
+)"));
+}

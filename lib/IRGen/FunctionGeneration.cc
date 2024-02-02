@@ -1121,7 +1121,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
 Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(expr.callee()->type().get());
     auto* elemType = typeMap.packed(arrayType->elementType());
-    auto array = getValue(expr.callee());
+    auto array = unpack(getValue(expr.callee()));
     auto* arrayAddr = toMemory(array[0]).get();
     auto* lower = toPackedRegister(getValue(expr.lower()));
     auto* upper = toPackedRegister(getValue(expr.upper()));
