@@ -394,3 +394,16 @@ TEST_CASE("Array slice", "[end-to-end][regression]") {
 public fn foo(p: *[int]) -> *[int] { return &p[1 : 2]; }
 )"));
 }
+
+TEST_CASE("Pointer dereference", "[end-to-end][regression]") {
+    CHECK(test::compiles(R"(
+fn bar(data: &[bool]) {}
+public struct Sieve {
+    fn foo(&this) {
+        bar(*this.flags);
+    }
+
+    var flags: *[bool];
+}
+)"));
+}

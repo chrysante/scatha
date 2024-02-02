@@ -151,6 +151,9 @@ auto TypeMap::compute(sema::Type const* type) const {
         [&](sema::ArrayType const& type) {
             res = { ctx->arrayType(packed(type.elementType()),
                                    type.count()) };
+            if (Repr == Unpacked && type.isDynamic()) {
+                res.push_back(ctx->intType(64));
+            }
         },
         [&]<typename T>(T const& type)
             requires std::derived_from<T, sema::PointerType> ||

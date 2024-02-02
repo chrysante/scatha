@@ -1015,7 +1015,7 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
         return commonLocation(a.location(), b.location());
     }) | ToSmallVector<>;
     auto irTypes = typeMap.map(repr, condExpr.type().get());
-    irTypes.resize(thenComRepr.size()); // Kinda hacky but whatever
+    SC_ASSERT(irTypes.size() == thenComRepr.size(), "");
     auto thenResolved = withBlockCurrent(thenBlock, [&] {
         auto vals = zip(commonLocations, thenComRepr, iota(size_t{ 0 })) |
                     transform([&](auto t) {
@@ -1096,7 +1096,7 @@ utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
         auto locations = PC.locationsAtCallsite();
         auto unpacked = unpack(value);
         auto irTypes = typeMap.unpacked(value.type());
-        irTypes.resize(unpacked.size());
+        SC_ASSERT(irTypes.size() == unpacked.size(), "");
         SC_ASSERT(PC.numParams() == unpacked.size(), "Argument count mismatch");
         for (auto [index, loc, atom]:
              zip(iota(size_t{ 0 }), locations, unpacked))
