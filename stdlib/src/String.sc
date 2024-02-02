@@ -2,7 +2,7 @@
 /// Mutable, owning string class
 public struct String {
     /// Lifetime functions
-    
+
     fn new(&mut this) {}
 
     fn new(&mut this, text: &str) { 
@@ -23,16 +23,18 @@ public struct String {
         rhs.sz = 0;
     }
 
-    /// TODO: Remove this
-    /// For now we need to explicitly declare the destructor, this should not be necessary though
     fn delete(&mut this) {} 
-    
-    /// Modifiers
-    
+
+    /// # Modifiers
+
+    /// ## Clear
+
     /// Sets this string to the empty string
     fn clear(&mut this) {
         this.sz = 0;
     }
+
+    /// ## Append
 
     /// Appends a single character to the back 
     fn append(&mut this, char: byte) {
@@ -57,7 +59,7 @@ public struct String {
         this.append(*text.data());
     }
 
-    /// Queries
+    /// # Queries
 
     /// \Returns the number of characters 
     fn count(&this) { return this.sz; }
@@ -71,7 +73,7 @@ public struct String {
     /// \overload 
     fn data(&mut this) -> *mut str { return &mut this.buf[0 : this.sz]; }
 
-    /// internals
+    /// # Internals
 
     /// Grows the maintained buffer by a factor of two
     internal fn grow(&mut this) {
