@@ -74,6 +74,7 @@ public:
 
     /// Allocates a block of memory of size \p size and alignment \p align
     /// \p align must be a power of two
+    /// \p size must be evenly divisible of \p align
     VirtualPointer allocate(size_t size, size_t align);
 
     /// Deallocates the block at address \p ptr

@@ -43,6 +43,9 @@ size_t PoolAllocator::allocate(Slot& slot) {
 }
 
 bool PoolAllocator::deallocate(Slot& slot, size_t offset) {
+    if (blockSize() == 0) {
+        return true;
+    }
     if (offset % blockSize() != 0) {
         return false;
     }
@@ -81,6 +84,9 @@ static constexpr size_t toPoolIndex(size_t size, size_t) {
 ///
 static constexpr size_t LastPoolIndex = toPoolIndex(MaxPoolSize, 1);
 
+static VirtualPointer const ZeroSizedAllocationResult = { .offset = 0,
+                                                          .slotIndex = 1 };
+
 VirtualPointer VirtualMemory::MakeStaticDataPointer(size_t offset) {
     return { .offset = offset, .slotIndex = StaticDataIndex };
 }
@@ -98,6 +104,9 @@ VirtualMemory::VirtualMemory(size_t staticDataSize) {
 }
 
 VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
+    if (size == 0) {
+        return ZeroSizedAllocationResult;
+    }
     if (size >= uint64_t(1) << 48) {
         throwError<AllocationError>(AllocationError::InvalidSize, size, align);
     }
@@ -127,7 +136,15 @@ VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
 }
 
 void VirtualMemory::deallocate(VirtualPointer ptr, size_t size, size_t align) {
-    assert(std::popcount(align) == 1 && "Not a power of two");
+    if (size == 0) {
+        if (ptr != ZeroSizedAllocationResult) {
+            reportDeallocationError(ptr, size, align);
+        }
+        return;
+    }
+    if (std::popcount(align) != 1) {
+        reportDeallocationError(ptr, size, align);
+    }
     if (size <= MaxPoolSize) {
         auto [slotIndex, pool] = getPool(size, align);
         if (slotIndex != ptr.slotIndex) {

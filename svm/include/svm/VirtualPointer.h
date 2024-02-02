@@ -12,6 +12,9 @@ namespace svm {
 
 /// A virtual memory pointer
 struct VirtualPointer {
+    /// Null pointer constant
+    static VirtualPointer const Null;
+
     /// Increments the pointer by \p offset bytes.
     /// \Returns a reference to `*this`
     VirtualPointer& operator+=(std::integral auto offset) {
@@ -26,12 +29,16 @@ struct VirtualPointer {
         return *this;
     }
 
+    bool operator==(VirtualPointer const&) const = default;
+
     /// The offset into the memory slot this pointer points to
     uint64_t offset : 48;
 
     /// The index of the memory slot this pointer points to
     uint64_t slotIndex : 16;
 };
+
+inline VirtualPointer const VirtualPointer::Null{};
 
 /// Print \p ptr to \p ostream
 std::ostream& operator<<(std::ostream& ostream, VirtualPointer ptr);

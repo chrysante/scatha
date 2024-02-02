@@ -5,8 +5,16 @@
 #include <random>
 
 #include <svm/VirtualMemory.h>
+#include <utl/utility.hpp>
 
 using namespace svm;
+
+TEST_CASE("Static data") {
+    VirtualMemory mem(128);
+    auto staticDataBegin = VirtualMemory::MakeStaticDataPointer(0);
+    CHECK_NOTHROW(mem.dereference(staticDataBegin, 128));
+    CHECK_THROWS(mem.dereference(staticDataBegin, 129));
+}
 
 TEST_CASE("Virtual memory") {
     auto [size, align] = GENERATE(std::pair<size_t, size_t>{ 4, 4 },
@@ -17,21 +25,19 @@ TEST_CASE("Virtual memory") {
                                   std::pair<size_t, size_t>{ 30, 8 },
                                   std::pair<size_t, size_t>{ 32, 8 },
                                   std::pair<size_t, size_t>{ 2000, 8 });
+    size_t roundedSize = utl::round_up(size, align);
     VirtualMemory mem(128);
-    auto staticDataBegin = VirtualMemory::MakeStaticDataPointer(0);
-    CHECK_NOTHROW(mem.dereference(staticDataBegin, 128));
-    CHECK_THROWS(mem.dereference(staticDataBegin, 129));
-
     SECTION("Single allocation") {
-        auto ptr = mem.allocate(size, align);
+        auto ptr = mem.allocate(roundedSize, align);
         mem.derefAs<int>(ptr, size) = 1;
         CHECK(mem.derefAs<int>(ptr, size) == 1);
-        mem.deallocate(ptr, size, align);
+        mem.deallocate(ptr, roundedSize, align);
     }
     SECTION("Consecutive allocations") {
         std::vector<VirtualPointer> ptrs;
+        
         for (int i = 0; i < 100; ++i) {
-            ptrs.push_back(mem.allocate(size, align));
+            ptrs.push_back(mem.allocate(roundedSize, align));
             mem.derefAs<int>(ptrs.back(), size) = i;
         }
         int sum = 0;
@@ -39,7 +45,7 @@ TEST_CASE("Virtual memory") {
             sum += mem.derefAs<int>(ptr, size);
         }
         for (auto ptr: ptrs) {
-            mem.deallocate(ptr, size, align);
+            mem.deallocate(ptr, roundedSize, align);
         }
         int n = static_cast<int>(ptrs.size()) - 1;
         CHECK(sum == n * (n + 1) / 2);
@@ -97,14 +103,14 @@ TEST_CASE("Virtual memory fuzz invalid accesses") {
     });
     VirtualMemory mem;
     for (auto [size, align]: sizes) {
-        (void)mem.allocate(size, align);
+        (void)mem.allocate(utl::round_up(size, align), align);
     }
     std::uniform_int_distribution<size_t> range(0, 1000);
     for (size_t i = 0; i < 1'000; ++i) {
         try {
             mem.dereference(std::bit_cast<VirtualPointer>(rng()), range(rng));
         }
-        catch (MemoryAccessError const& e) {
+        catch (RuntimeException const& e) {
             (void)e;
         }
     }
@@ -114,5 +120,14 @@ TEST_CASE("Virtual memory deallocate invalid pointer") {
     VirtualMemory mem(128);
     auto ptr = mem.allocate(32, 8);
     /// Deallocate the 32 byte block as 8 bytes
-    CHECK_THROWS_AS(mem.deallocate(ptr, 8, 8), DeallocationError);
+    CHECK_THROWS_AS(mem.deallocate(ptr, 8, 8), RuntimeException);
+}
+
+TEST_CASE("Zero size allocation") {
+    VirtualMemory mem(128);
+    mem.allocate(8, 8);
+    auto ptr = mem.allocate(0, 8);
+    CHECK_NOTHROW([&] {
+        mem.deallocate(ptr, 0, 8);
+    }());
 }
