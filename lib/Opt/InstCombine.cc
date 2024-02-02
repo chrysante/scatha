@@ -92,6 +92,7 @@ struct InstCombineCtx {
     Value* visitInstruction(Instruction* inst);
 
     Value* visitImpl(Instruction*) { return nullptr; }
+    Value* visitImpl(GetElementPointer* inst);
     Value* visitImpl(ArithmeticInst* inst);
     Value* visitImpl(Load* inst);
     Value* visitImpl(ConversionInst* inst);
@@ -214,6 +215,15 @@ bool InstCombineCtx::run() {
 
 Value* InstCombineCtx::visitInstruction(Instruction* inst) {
     return visit(*inst, [this](auto& inst) { return visitImpl(&inst); });
+}
+
+Value* InstCombineCtx::visitImpl(GetElementPointer*) {
+#if 0
+    if (auto offset = inst->constantByteOffset(); offset && *offset == 0) {
+        return inst->basePointer();
+    }
+#endif
+    return nullptr;
 }
 
 static bool isConstant(Value const* value, int constant) {
@@ -635,7 +645,23 @@ Value* InstCombineCtx::visitImpl(Load* load) {
     /// If the geps don't do any type punning we can direct extract the accessed
     /// constant
     if (auto* elem = extractElement(global->initializer(), geps)) {
-        return elem;
+        if (elem->type() == load->type()) {
+            return elem;
+        }
+        if (elem->type()->size() == load->type()->size()) {
+            auto* conv = new ConversionInst(elem, load->type(),
+                                            Conversion::Bitcast,
+                                            std::string(load->name()));
+            load->parent()->insert(load, conv);
+            return conv;
+        }
+        // FIXME: These cases are unimplemented
+        if (elem->type()->size() > load->type()->size()) {
+            return nullptr;
+        }
+        else {
+            return nullptr;
+        }
     }
     /// Otherwise we write the constant data to a buffer and construct a new
     /// constant from that

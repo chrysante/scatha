@@ -11,7 +11,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-TEST_CASE("InstCombine - Arithmetic - 1", "[opt][inst-combine]") {
+TEST_CASE("Arithmetic - 1", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 func i32 @main(i32 %0) {
@@ -31,7 +31,7 @@ func i32 @main(i32 %0) {
 })");
 }
 
-TEST_CASE("InstCombine - Arithmetic - 2", "[opt][inst-combine]") {
+TEST_CASE("Arithmetic - 2", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 func i32 @main(i32 %0) {
@@ -50,7 +50,7 @@ func i32 @main(i32 %0) {
 })");
 }
 
-TEST_CASE("InstCombine - Arithmetic - 3", "[opt][inst-combine]") {
+TEST_CASE("Arithmetic - 3", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 func i32 @main(i32 %0) {
@@ -66,7 +66,7 @@ func i32 @main(i32 %0) {
 })");
 }
 
-TEST_CASE("InstCombine - Arithmetic - 4", "[opt][inst-combine]") {
+TEST_CASE("Arithmetic - 4", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 func i64 @main(i64 %0, i64 %1) {
@@ -83,7 +83,7 @@ func i64 @main(i64 %0, i64 %1) {
 })");
 }
 
-TEST_CASE("InstCombine - Arithmetic - 5", "[opt][inst-combine]") {
+TEST_CASE("Arithmetic - 5", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 func i64 @main(i64 %0, i64 %1) {
@@ -100,7 +100,7 @@ func i64 @main(i64 %0, i64 %1) {
 })");
 }
 
-TEST_CASE("InstCombine - Arithmetic - 6", "[opt][inst-combine]") {
+TEST_CASE("Arithmetic - 6", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 func i64 @main(i64 %0, i64 %1) {
@@ -117,7 +117,7 @@ func i64 @main(i64 %0, i64 %1) {
 })");
 }
 
-TEST_CASE("InstCombine - Arithmetic - 7", "[opt][inst-combine]") {
+TEST_CASE("Arithmetic - 7", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 func i64 @main(i64 %0, i64 %1) {
@@ -135,7 +135,7 @@ func i64 @main(i64 %0, i64 %1) {
 })");
 }
 
-TEST_CASE("InstCombine - InsertValue - 1", "[opt][inst-combine]") {
+TEST_CASE("InsertValue - 1", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 struct @Y { i64, f64, i32 }
@@ -166,7 +166,7 @@ func @X @main(@X %xbase, @Y %ybase) {
 })");
 }
 
-TEST_CASE("InstCombine - InsertValue - 2", "[opt][inst-combine]") {
+TEST_CASE("InsertValue - 2", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 struct @Y {
@@ -209,7 +209,7 @@ func @X @main(@X %0, @X %1, @X %2) {
 })");
 }
 
-TEST_CASE("InstCombine - InsertValue - 3", "[opt][inst-combine]") {
+TEST_CASE("InsertValue - 3", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 struct @Y {
@@ -245,7 +245,7 @@ func @X @main(@X %0) {
 })");
 }
 
-TEST_CASE("InstCombine - ExtractValue from phi", "[opt][inst-combine]") {
+TEST_CASE("ExtractValue from phi", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 struct @X { i32, i32 }
@@ -368,7 +368,7 @@ func i32 @f2() {
 })");
 }
 
-TEST_CASE("InstCombine pointer comparison", "[opt][inst-combine]") {
+TEST_CASE("Pointer comparison", "[opt][inst-combine]") {
     auto [ctx, mod] = ir::parse(R"(
 func i1 @test() {
 %entry:
@@ -383,4 +383,36 @@ func i1 @test() {
     auto& entry = F.front();
     auto* retval = cast<Return const*>(entry.terminator())->value();
     CHECK(retval == ctx.intConstant(false, 1));
+}
+
+TEST_CASE("Constant load promotion", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+@b = constant [i64, 1] [i64 1]
+@a = constant [i32, 2] [i32 1, i32 2]
+func i64 @f() {
+  %entry:
+    %0 = load i64, ptr @a
+    return i64 %0
+}
+func i64 @g() {
+  %entry:
+    %0 = load i64, ptr @b
+    return i64 %0
+}
+)",
+                   R"(
+@b = constant [i64, 1] [i64 1]
+@a = constant [i32, 2] [i32 1, i32 2]
+func i64 @f() {
+  %entry:
+    %0 = bitcast [i32, 2] [i32 1, i32 2] to i64
+    return i64 %0
+}
+func i64 @g() {
+  %entry:
+    %0 = bitcast [i64, 1] [i64 1] to i64
+    return i64 %0
+}
+)");
 }
