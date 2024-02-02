@@ -407,3 +407,13 @@ public struct Sieve {
 }
 )"));
 }
+
+TEST_CASE("Move from unique pointer data member", "[end-to-end][regression]") {
+    CHECK(test::compiles(R"(
+public struct Foo {
+    fn bar(rhs: &mut Foo) {
+        let p = move rhs.buf;
+    }
+    var buf: *unique mut str;
+})"));
+}

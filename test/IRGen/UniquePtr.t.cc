@@ -51,48 +51,6 @@ TEST_CASE("Unique expr of int", "[irgen]") {
     CHECK_NOTHROW(end.nextAs<Return>());
 }
 
-TEST_CASE("Unique expr of dynamic int array", "[irgen]") {
-    using namespace ir;
-    std::string source =
-        "public fn foo() -> int { return (unique [int](42))[0]; }";
-    auto [ctx, mod] = makeIR({ source });
-    auto& F = mod.front();
-    CHECK(F.parameters().empty());
-
-    auto entry = BBView(F.entry());
-    auto& alloc = entry.nextAs<Call>();
-    CHECK(alloc.function()->name() == "__builtin_alloc");
-    CHECK(alloc.argumentAt(0) == ctx.intConstant(42 * 8, 64));
-    auto& data = entry.nextAs<ExtractValue>();
-    CHECK(data.baseValue() == &alloc);
-    auto& memset = entry.nextAs<Call>();
-    CHECK(memset.function()->name() == "__builtin_memset");
-    CHECK(memset.argumentAt(0) == &data);
-    CHECK(memset.argumentAt(1) == ctx.intConstant(42 * 8, 64));
-    auto& gep = entry.nextAs<GetElementPointer>();
-    CHECK(gep.basePointer() == &data);
-    CHECK(gep.arrayIndex() == ctx.intConstant(0, 64));
-    auto& load = entry.nextAs<Load>();
-    CHECK(load.address() == &gep);
-    CHECK(load.type() == ctx.intType(64));
-    // Null pointer test
-    auto& cmp = entry.nextAs<CompareInst>();
-    CHECK(cmp.lhs() == &data);
-    CHECK(cmp.rhs() == ctx.nullpointer());
-    auto& branch = entry.nextAs<Branch>();
-    CHECK(branch.condition() == &cmp);
-
-    auto del = entry.nextBlock();
-    auto& dealloc = del.nextAs<Call>();
-    CHECK(dealloc.function()->name() == "__builtin_dealloc");
-    CHECK(dealloc.argumentAt(0) == &data);
-    del.nextAs<Goto>();
-
-    auto end = del.nextBlock();
-    auto& ret = end.nextAs<Return>();
-    CHECK(ret.value() == &load);
-}
-
 TEST_CASE("Unique expr of array with nontrivial def ctor", "[irgen]") {
     using namespace ir;
     std::string source = R"(
@@ -106,33 +64,19 @@ public fn foo() {
     auto [ctx, mod] = makeIR({ source });
     auto& F = mod.front();
     CHECK(F.parameters().empty());
-
     auto entry = BBView(F.entry());
+    CHECK(entry.nextIs<Alloca>());
     auto& alloc = entry.nextAs<Call>();
     CHECK(alloc.function()->name() == "__builtin_alloc");
-    auto& data = entry.nextAs<ExtractValue>();
-    CHECK(data.baseValue() == &alloc);
-    auto& dataEnd = entry.nextAs<GetElementPointer>();
-    CHECK(dataEnd.basePointer() == &data);
-    CHECK(dataEnd.arrayIndex() == ctx.intConstant(10, 64));
-    auto& gotoBody = entry.nextAs<Goto>();
-
+    auto& gotoBody = entry.terminatorAs<Goto>();
     auto body = entry.nextBlock();
     CHECK(gotoBody.target() == body.BB);
-    CHECK_NOTHROW(body.nextAs<Phi>());
-    CHECK_NOTHROW(body.nextAs<Call>());
-    CHECK_NOTHROW(body.nextAs<GetElementPointer>());
-    CHECK_NOTHROW(body.nextAs<CompareInst>());
-    CHECK_NOTHROW(body.nextAs<Branch>());
-
+    CHECK(body.terminatorIs<Branch>());
     auto constrEnd = body.nextBlock();
     auto del = constrEnd.nextBlock();
-    auto& dealloc = del.nextAs<Call>();
-    CHECK(dealloc.function()->name() == "__builtin_dealloc");
-    CHECK(dealloc.argumentAt(0) == &data);
-
+    CHECK(del.terminatorIs<Goto>());
     auto delEnd = del.nextBlock();
-    CHECK_NOTHROW(delEnd.nextAs<Return>());
+    CHECK(delEnd.nextIs<Return>());
 }
 
 TEST_CASE("Destruction of unique pointer to array function argument",

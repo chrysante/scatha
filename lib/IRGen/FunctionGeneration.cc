@@ -160,11 +160,11 @@ struct FuncGenContext: FuncGenContextBase {
 
     void inlineLifetime(sema::SMFKind kind, Value dest,
                         std::optional<Value> source);
-    void inlineLifetimeImpl(sema::SMFKind, Value const&, std::optional<Value>,
+    void inlineLifetimeImpl(sema::SMFKind, Value, std::optional<Value>,
                             sema::Type const&);
-    void inlineLifetimeImpl(sema::SMFKind, Value const&, std::optional<Value>,
+    void inlineLifetimeImpl(sema::SMFKind, Value, std::optional<Value>,
                             sema::ArrayType const&);
-    void inlineLifetimeImpl(sema::SMFKind, Value const&, std::optional<Value>,
+    void inlineLifetimeImpl(sema::SMFKind, Value, std::optional<Value>,
                             sema::UniquePtrType const&);
 
     /// # General utilities
@@ -1283,9 +1283,9 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
                                                utl::strcat(name, ".pointer"));
         addr->replaceAllUsesWith(ptr);
         if (isDynArrayPointer(expr.type().get())) {
-            return Value::Unpacked(name, expr.type().get(),
-                                   { Atom::Register(ptr),
-                                     Atom::Register(arrayCount) });
+            auto* arrayPtr = packValues(ValueArray{ ptr, arrayCount }, name);
+            return Value::Packed(name, expr.type().get(),
+                                 toMemory(Atom::Register(arrayPtr)));
         }
         else {
             return Value::Packed(name, expr.type().get(),
@@ -1715,11 +1715,12 @@ void FuncGenContext::generateLifetimeOperation(sema::SMFKind smfKind,
 
 void FuncGenContext::inlineLifetime(sema::SMFKind kind, Value dest,
                                     std::optional<Value> source) {
-    visit(*dest.type(),
-          [&](auto& type) { inlineLifetimeImpl(kind, dest, source, type); });
+    visit(*dest.type(), [&](auto& type) {
+        inlineLifetimeImpl(kind, std::move(dest), std::move(source), type);
+    });
 }
 
-void FuncGenContext::inlineLifetimeImpl(sema::SMFKind, Value const&,
+void FuncGenContext::inlineLifetimeImpl(sema::SMFKind, Value,
                                         std::optional<Value>,
                                         sema::Type const&) {
     SC_UNREACHABLE();
@@ -1740,7 +1741,7 @@ static std::string makeLifetimeLoopName(std::string_view base,
     }
 }
 
-void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
+void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
                                         std::optional<Value> source,
                                         sema::ArrayType const& type) {
     auto* elemType = type.elementType();
@@ -1791,7 +1792,7 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
     });
 }
 
-void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
+void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
                                         std::optional<Value> source,
                                         sema::UniquePtrType const& type) {
     auto* pointeeType = type.base().get();
@@ -1800,9 +1801,9 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
     using enum sema::SMFKind;
     switch (kind) {
     case DefaultConstructor: {
-        auto irTypes = typeMap.map(inDest.representation(), &type);
-        SC_ASSERT(irTypes.size() == inDest.size(), "");
-        for (auto [dest, irType]: zip(inDest, irTypes)) {
+        auto irTypes = typeMap.map(dest.representation(), &type);
+        SC_ASSERT(irTypes.size() == dest.size(), "");
+        for (auto [dest, irType]: zip(dest, irTypes)) {
             add<ir::Store>(ctx, dest.get(), makeZeroConstant(irType));
         }
         break;
@@ -1810,10 +1811,15 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
     case CopyConstructor:
         SC_UNREACHABLE();
     case MoveConstructor: {
-        auto irTypes = typeMap.map(inDest.representation(), &type);
-        SC_ASSERT(inDest.size() == source.value().size(), "");
-        SC_ASSERT(irTypes.size() == inDest.size(), "");
-        for (auto [dest, source, irType]: zip(inDest, *source, irTypes)) {
+        SC_EXPECT(source.has_value());
+        if (source->representation() != dest.representation()) {
+            dest = unpack(dest);
+            source = unpack(*source);
+        }
+        SC_ASSERT(dest.size() == source.value().size(), "");
+        auto irTypes = typeMap.map(dest.representation(), &type);
+        SC_ASSERT(irTypes.size() == dest.size(), "");
+        for (auto [dest, source, irType]: zip(dest, *source, irTypes)) {
             auto* sourceVal = toRegister(source, irType, "copy").get();
             SC_ASSERT(
                 source.isMemory(),
@@ -1824,7 +1830,7 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& inDest,
         break;
     }
     case Destructor: {
-        auto dest = unpack(inDest);
+        dest = unpack(dest);
         auto* data =
             toRegister(dest[0], ctx.ptrType(), utl::strcat(name, ".data"))
                 .get();
