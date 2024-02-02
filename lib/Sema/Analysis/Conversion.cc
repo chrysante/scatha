@@ -1056,19 +1056,23 @@ ast::Expression* sema::insertConversion(ast::Expression* expr, Conversion conv,
     if (auto valueCatConv = conv.valueCatConversion()) {
         expr = ast::insertNode<ast::ValueCatConvExpr>(expr, *valueCatConv);
     }
-    for (auto objConv: conv.objectConversions()) {
+    for (auto [index, objConv]: conv.objectConversions() | enumerate) {
         expr = ast::insertNode(expr,
                                [&](UniquePtr<ast::Expression> expr)
                                    -> UniquePtr<ast::Expression> {
             if (isConstruction(objConv)) {
+                SC_ASSERT(conv.objectConversions().size() == 1, "");
                 return allocateObjectConstruction(objConv, expr->sourceRange(),
                                                   conv.targetType().get(),
                                                   toSmallVector(
                                                       std::move(expr)));
             }
             else {
+                auto* type = index == conv.objectConversions().size() - 1 ?
+                                 conv.targetType().get() :
+                                 nullptr;
                 return allocate<ast::ObjTypeConvExpr>(std::move(expr), objConv,
-                                                      conv.targetType().get());
+                                                      type);
             }
         });
     }

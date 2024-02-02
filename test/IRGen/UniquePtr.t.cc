@@ -184,3 +184,22 @@ public fn foo() -> *unique int { return bar(); }
     CHECK(entry.nextIs<Load>());
     CHECK(entry.nextIs<Return>());
 }
+
+TEST_CASE("Implicit two step conversion", "[irgen]") {
+    using namespace ir;
+    std::string source = R"(
+public fn foo(p: &*unique [int, 2]) { bar(p); }
+fn bar(p: *[int]) {}
+)";
+    auto [ctx, mod] = makeIR({ source });
+    auto& F = mod.front();
+    auto entry = BBView(F.entry());
+
+    auto& load = entry.nextAs<Load>();
+    CHECK(load.address() == &F.parameters().front());
+    auto& call = entry.nextAs<Call>();
+    CHECK(call.function() == &mod.back());
+    CHECK(call.argumentAt(0) == &load);
+    CHECK(call.argumentAt(1) == ctx.intConstant(2, 64));
+    CHECK(entry.nextIs<Return>());
+}

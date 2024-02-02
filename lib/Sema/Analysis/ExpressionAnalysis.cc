@@ -1230,12 +1230,124 @@ ast::Expression* ExprContext::analyzeImpl(ast::MutConvExpr& mutConv) {
     return &mutConv;
 }
 
+static QualType ptrBase(ObjectType const* from) {
+    return cast<PointerType const*>(from)->base();
+}
+
+///
+static ArrayType const* arrayFixedToDyn(ObjectType const* array,
+                                        SymbolTable& sym) {
+    auto* A = cast<ArrayType const*>(array);
+    return sym.arrayType(A->elementType());
+}
+
+/// \Returns the kind of pointer type of \p ptrOrRef (i.e. raw or unique
+/// pointer) but pointing to \p pointee
+static PointerType const* repoint(PointerType const* ptr, QualType pointee,
+                                  SymbolTable& sym) {
+    // clang-format off
+    return SC_MATCH_R (PointerType const*, *ptr) {
+        [&](RawPtrType const&) {
+            return sym.pointer(pointee);
+        },
+        [&](UniquePtrType const&) {
+            return sym.uniquePointer(pointee);
+        },
+        [&](Type const&) { SC_UNREACHABLE(); }
+    }; // clang-format on
+}
+
+ObjectType const* computeConvertedObjType(ObjectTypeConversion conv,
+                                          ObjectType const* from,
+                                          SymbolTable& sym) {
+    using enum ObjectTypeConversion;
+    switch (conv) {
+    case UniqueToRawPtr: {
+        return sym.pointer(ptrBase(from));
+    }
+    case ArrayPtr_FixedToDynamic: {
+        auto base = ptrBase(from);
+        return repoint(cast<PointerType const*>(from),
+                       QualType(arrayFixedToDyn(base.get(), sym),
+                                base.mutability()),
+                       sym);
+    }
+    case ArrayRef_FixedToDynamic:
+        return arrayFixedToDyn(from, sym);
+    case IntTruncTo8:
+        return sym.intType(8, cast<IntType const*>(from)->signedness());
+    case IntTruncTo16:
+        return sym.intType(16, cast<IntType const*>(from)->signedness());
+    case IntTruncTo32:
+        return sym.intType(32, cast<IntType const*>(from)->signedness());
+    case SignedWidenTo16:
+        return sym.S16();
+    case SignedWidenTo32:
+        return sym.S32();
+    case SignedWidenTo64:
+        return sym.S64();
+    case UnsignedWidenTo16:
+        return sym.U16();
+    case UnsignedWidenTo32:
+        return sym.U32();
+    case UnsignedWidenTo64:
+        return sym.U64();
+    case FloatTruncTo32:
+        return sym.Float();
+    case FloatWidenTo64:
+        return sym.Double();
+    case SignedToUnsigned:
+        return sym.intType(cast<IntType const*>(from)->bitwidth(),
+                           Signedness::Unsigned);
+    case UnsignedToSigned:
+        return sym.intType(cast<IntType const*>(from)->bitwidth(),
+                           Signedness::Signed);
+    case SignedToFloat32:
+        return sym.Float();
+    case SignedToFloat64:
+        return sym.Double();
+    case UnsignedToFloat32:
+        return sym.Float();
+    case UnsignedToFloat64:
+        return sym.Double();
+    case FloatToSigned8:
+        return sym.S8();
+    case FloatToSigned16:
+        return sym.S16();
+    case FloatToSigned32:
+        return sym.S32();
+    case FloatToSigned64:
+        return sym.S64();
+    case FloatToUnsigned8:
+        return sym.U8();
+    case FloatToUnsigned16:
+        return sym.U16();
+    case FloatToUnsigned32:
+        return sym.U32();
+    case FloatToUnsigned64:
+        return sym.U64();
+    case IntToByte:
+        return sym.Byte();
+    case ByteToSigned:
+        return sym.S8();
+    case ByteToUnsigned:
+        return sym.U8();
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
     auto* expr = conv.expression();
     if (!analyzeValue(expr)) {
         return nullptr;
     }
-    auto* object = sym.temporary(&conv, conv.targetType());
+    auto* type = conv.targetType() ?
+                     conv.targetType() :
+                     computeConvertedObjType(conv.conversion(),
+                                             conv.expression()->type().get(),
+                                             sym);
+    auto* object = sym.temporary(&conv, type);
     using enum ObjectTypeConversion;
     switch (conv.conversion()) {
     case ArrayPtr_FixedToDynamic:
@@ -1244,7 +1356,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
     case Reinterpret_ValuePtr_FromByteArray:
     case Reinterpret_ArrayPtr_ToByte:
     case Reinterpret_ArrayPtr_FromByte:
-        ///
+        /// May convert non-trivial objects
         currentCleanupStack().pop(conv.expression());
         if (!currentCleanupStack().push(object, ctx)) {
             return nullptr;
