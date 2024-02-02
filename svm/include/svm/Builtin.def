@@ -50,6 +50,10 @@ SVM_BUILTIN_DEF(memcpy,  None,  {
     pointer(QualType::Mut(arrayType(Byte()))),
     pointer(QualType::Const(arrayType(Byte())))
 }, Void())
+SVM_BUILTIN_DEF(memmove,  None,  {
+    pointer(QualType::Mut(arrayType(Byte()))),
+    pointer(QualType::Const(arrayType(Byte())))
+}, Void())
 SVM_BUILTIN_DEF(memset,  None,  {
     pointer(QualType::Mut(arrayType(Byte()))),
     S64()

@@ -118,6 +118,12 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
         auto source = load<VirtualPointer>(regPtr + 2);
         std::memcpy(deref(vm, dest, size), deref(vm, source, size), size);
     });
+    set(Builtin::memmove, [](u64* regPtr, VirtualMachine* vm) {
+        auto dest = load<VirtualPointer>(regPtr);
+        auto size = load<size_t>(regPtr + 1);
+        auto source = load<VirtualPointer>(regPtr + 2);
+        std::memmove(deref(vm, dest, size), deref(vm, source, size), size);
+    });
     set(Builtin::memset, [](u64* regPtr, VirtualMachine* vm) {
         auto dest = load<VirtualPointer>(regPtr);
         auto size = load<size_t>(regPtr + 1);
