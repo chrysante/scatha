@@ -470,6 +470,9 @@ UniquePtr<GlobalVariable> IRParser::parseGlobalVar() {
     if (!success) {
         reportSemaIssueNoFail(name, SemanticIssue::Redeclaration);
     }
+    if (peekToken().kind() == TokenKind::MetadataIdentifier) {
+        parseMetadataFor(*global);
+    }
     return global;
 }
 
@@ -579,13 +582,13 @@ UniquePtr<BasicBlock> IRParser::parseBasicBlock() {
         if (!instruction) {
             break;
         }
-        if (peekToken().kind() == TokenKind::MetadataIdentifier) {
-            parseMetadataFor(*instruction);
-        }
         /// Phi instructions register themselves because they may be self
         /// referential
         if (!isa<Phi>(instruction.get())) {
             registerValue(optInstName, instruction.get());
+        }
+        if (peekToken().kind() == TokenKind::MetadataIdentifier) {
+            parseMetadataFor(*instruction);
         }
         result->pushBack(std::move(instruction));
     }

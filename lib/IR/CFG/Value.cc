@@ -79,7 +79,6 @@ void ir::privateDestroy(Value* value) {
 }
 
 void Value::allocatePointerInfo(PointerInfo info) {
-    SC_EXPECT(!ptrInfo);
     SC_EXPECT(isa<PointerType>(type()));
     ptrInfo = std::make_unique<PointerInfo>(info);
 }
