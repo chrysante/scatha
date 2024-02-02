@@ -474,7 +474,10 @@ OverloadSet::OverloadSet(SourceRange loc,
                          utl::small_vector<Function*> functions):
     Entity(EntityType::OverloadSet, std::string{}, nullptr),
     small_vector(std::move(functions)),
-    loc(loc) {}
+    loc(loc) {
+    setAccessControl(ranges::accumulate(*this, AccessControl::Public,
+                                        ranges::max, &Entity::accessControl));
+}
 
 Alias::Alias(std::string name, Entity& aliased, Scope* parent,
              ast::ASTNode* astNode, AccessControl accessControl):

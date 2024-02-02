@@ -579,16 +579,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
 }
 
 bool ExprContext::validateAccessPermission(Entity const& entity) const {
-    /// TODO: Remove this check
-    /// All named entities should have access control. Right now at this stage
-    /// functions may not have access control, because return type deduction was
-    /// not performed yet. We will remove return type deduction for global
-    /// functions at some point, until then we leave this check here.
-    if (!entity.hasAccessControl()) {
-        return true;
-    }
     /// If the entity is not private we return true because internal symbols are
-    /// not exported to other modules, so they cannot even be found by name
+    /// not exported to other liberaries, so they cannot even be found by name
     /// lookup. We could assert this assumption though
     if (!entity.isPrivate()) {
         return true;
