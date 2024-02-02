@@ -92,8 +92,6 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
-#if 0 // FIXME: Disabled for now
-
 TEST_CASE("Use special member functions from library",
           "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", R"(
@@ -108,8 +106,6 @@ fn main() -> int {
 })");
     CHECK(ret == 42);
 }
-
-#endif
 
 TEST_CASE("Use overload set by name", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", R"(

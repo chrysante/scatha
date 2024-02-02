@@ -31,9 +31,11 @@ bool isDynArray(sema::ObjectType const* type);
 ///
 bool isDynArrayPointer(sema::ObjectType const* type);
 
-/// \Returns the size if \p type is a statically sized array or a pointer or
-/// reference thereto
-std::optional<size_t> getStaticArraySize(sema::Type const* type);
+///
+sema::ObjectType const* stripPtr(sema::ObjectType const* type);
+
+/// \Returns the size if \p type is a statically sized array or pointer thereto
+std::optional<size_t> getStaticArraySize(sema::ObjectType const* type);
 
 /// Creates an anonymous struct type with members `ptr` and `i64`
 ir::StructType const* makeArrayPtrType(ir::Context& ctx);

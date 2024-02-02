@@ -112,5 +112,5 @@ utl::vstreammanip<> sema::format(LifetimeOperation op) {
 }
 
 utl::vstreammanip<> sema::formatType(ast::Expression const* expr) {
-    return format(expr ? expr->type().get() : nullptr);
+    return format(expr && expr->isDecorated() ? expr->type().get() : nullptr);
 }

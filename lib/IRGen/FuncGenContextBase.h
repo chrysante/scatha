@@ -86,7 +86,7 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     /// to an array
     /// If \p value is a statically sized array, the static size is returned as
     /// a constant
-    Value getArraySize(sema::Type const* semaType, Value const& value);
+    Value getArraySize(Value const& value);
 
     /// Emit a call to `memcpy`
     ir::Call* callMemcpy(ir::Value* dest, ir::Value* source,
@@ -103,6 +103,9 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
 
     /// Emits a multiply instruction to obtain the byte size of an array
     ir::Value* makeCountToByteSize(ir::Value* count, size_t elemSize);
+
+    /// Emits an `sdiv` instruction to obtain the element count of an array
+    ir::Value* makeByteSizeToCount(ir::Value* bytesize, size_t elemSize);
 
     /// Emits code that makes a copy of \p value
     /// The returned value will be in a register iff its size is not greater

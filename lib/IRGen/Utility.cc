@@ -48,12 +48,16 @@ bool irgen::isDynArrayPointer(sema::ObjectType const* type) {
     return ptr && isDynArray(ptr->base().get());
 }
 
-std::optional<size_t> irgen::getStaticArraySize(sema::Type const* type) {
-    auto* AT = ptrOrRefToArrayImpl(type);
-    if (!AT && !(AT = dyncast<sema::ArrayType const*>(type))) {
-        return std::nullopt;
+sema::ObjectType const* irgen::stripPtr(sema::ObjectType const* type) {
+    if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
+        return ptrType->base().get();
     }
-    if (AT->isDynamic()) {
+    return type;
+}
+
+std::optional<size_t> irgen::getStaticArraySize(sema::ObjectType const* type) {
+    auto* AT = dyncast<sema::ArrayType const*>(stripPtr(type));
+    if (!AT || AT->isDynamic()) {
         return std::nullopt;
     }
     return AT->count();

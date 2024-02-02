@@ -1264,6 +1264,16 @@ ObjectType const* computeConvertedObjType(ObjectTypeConversion conv,
     case UniqueToRawPtr: {
         return sym.pointer(ptrBase(from));
     }
+    case Reinterpret_ValuePtr_ToByteArray: {
+        auto base = ptrBase(from);
+        return repoint(cast<PointerType const*>(from),
+                       QualType(sym.arrayType(sym.Byte(), base->size()),
+                                base.mutability()),
+                       sym);
+    }
+    case Reinterpret_ValueRef_ToByteArray: {
+        return sym.arrayType(sym.Byte(), from->size());
+    }
     case ArrayPtr_FixedToDynamic: {
         auto base = ptrBase(from);
         return repoint(cast<PointerType const*>(from),
@@ -1353,8 +1363,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
     case Reinterpret_ValuePtr:
     case Reinterpret_ValuePtr_ToByteArray:
     case Reinterpret_ValuePtr_FromByteArray:
-    case Reinterpret_ArrayPtr_ToByte:
-    case Reinterpret_ArrayPtr_FromByte:
+    case Reinterpret_DynArrayPtr_ToByte:
+    case Reinterpret_DynArrayPtr_FromByte:
         /// May convert non-trivial objects
         currentCleanupStack().pop(conv.expression());
         if (!currentCleanupStack().push(object, ctx)) {

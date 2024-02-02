@@ -136,10 +136,10 @@ static ObjectTypeConversion convRefToPtr(ObjectTypeConversion conv) {
         return Reinterpret_ValuePtr_ToByteArray;
     case Reinterpret_ValueRef_FromByteArray:
         return Reinterpret_ValuePtr_FromByteArray;
-    case Reinterpret_ArrayRef_ToByte:
-        return Reinterpret_ArrayPtr_ToByte;
-    case Reinterpret_ArrayRef_FromByte:
-        return Reinterpret_ArrayPtr_FromByte;
+    case Reinterpret_DynArrayRef_ToByte:
+        return Reinterpret_DynArrayPtr_ToByte;
+    case Reinterpret_DynArrayRef_FromByte:
+        return Reinterpret_DynArrayPtr_FromByte;
     default:
         SC_UNREACHABLE();
     }
@@ -218,7 +218,12 @@ static std::optional<ConvChain> constructingConversion(ConversionKind kind,
 };
 
 ///
-static bool alwaysWantConstructingConversion(ThinExpr from, ThinExpr to) {
+static bool alwaysWantConstructingConversion(ConversionKind kind, ThinExpr from,
+                                             ThinExpr to) {
+    /// Reinterpret casts are never object constructing
+    if (kind == ConversionKind::Reinterpret) {
+        return false;
+    }
     if (isDynArray(*to.type()) && to.isRValue()) {
         return true;
     }
@@ -233,7 +238,7 @@ static std::optional<ConvChain> determineObjConv(ConversionKind kind,
     using enum ObjectTypeConversion;
     using RetType = std::optional<ConvChain>;
     ///
-    if (alwaysWantConstructingConversion(from, to)) {
+    if (alwaysWantConstructingConversion(kind, from, to)) {
         return constructingConversion(kind, from, to);
     }
     switch (kind) {
@@ -387,6 +392,15 @@ static std::optional<ConvChain> determineObjConv(ConversionKind kind,
             }
         }; // clang-format on
     case ConversionKind::Reinterpret:
+        if (!to.type()->hasTrivialLifetime()) {
+            return std::nullopt;
+        }
+        if (to.isRValue() && !isa<PointerType>(*to.type())) {
+            if (from.type()->size() != to.type()->size()) {
+                return std::nullopt;
+            }
+            return ConvChain{ Reinterpret_Value };
+        }
         // clang-format off
         return SC_MATCH_R (RetType, *from.type(), *to.type()) {
             [&](IntType const& from, ByteType const& to) -> RetType {
@@ -446,34 +460,51 @@ static std::optional<ConvChain> determineObjConv(ConversionKind kind,
                 if (!isa<ByteType>(toElem)) {
                     return std::nullopt;
                 }
-                if (!to.isDynamic() && to.count() != from.size()) {
-                    return std::nullopt;
+                if (to.isStatic()) {
+                    if (to.count() != from.size()) {
+                        return std::nullopt;
+                    }
+                    return ConvChain{ Reinterpret_ValueRef_ToByteArray };
                 }
-                return ConvChain{ Reinterpret_ValueRef_ToByteArray };
+                return ConvChain{
+                    Reinterpret_ValueRef_ToByteArray, ArrayRef_FixedToDynamic
+                };
             },
             [&](ArrayType const& from, ArrayType const& to) -> RetType {
                 if (&from == &to) {
                     return ConvChain{};
                 }
-                if (!to.isDynamic() && from.isDynamic()) {
-                    return std::nullopt;
+                if (to.isStatic()) {
+                    if (from.isDynamic()) {
+                        return std::nullopt;
+                    }
+                    if (from.size() != to.size()) {
+                        return std::nullopt;
+                    }
                 }
-                if (!to.isDynamic() && from.size() != to.size()) {
-                    return std::nullopt;
+                ConvChain result;
+                if (from.isStatic() && to.isDynamic()) {
+                    result.push_back(ArrayRef_FixedToDynamic);
                 }
                 return SC_MATCH_R (RetType,
                                    *from.elementType(),
                                    *to.elementType()) {
-                    [](ByteType const&, ByteType const&) {
-                        return ConvChain{};
+                    [&](ByteType const&, ByteType const&) {
+                        return result;
                     },
-                    [](ByteType const&, ObjectType const&) {
-                        return ConvChain{ Reinterpret_ArrayRef_FromByte };
+                    [&](ByteType const&, ObjectType const&) {
+                        result.push_back(
+                            to.isStatic() ? Reinterpret_ValueRef :
+                                            Reinterpret_DynArrayRef_FromByte);
+                        return result;
                     },
-                    [](ObjectType const&, ByteType const&) {
-                        return ConvChain{ Reinterpret_ArrayRef_ToByte };
+                    [&](ObjectType const&, ByteType const&) {
+                        result.push_back(
+                            to.isStatic() ? Reinterpret_ValueRef :
+                                            Reinterpret_DynArrayRef_ToByte);
+                        return result;
                     },
-                    [](ObjectType const&, ObjectType const&) {
+                    [&](ObjectType const&, ObjectType const&) {
                         return std::nullopt;
                     }
                 };

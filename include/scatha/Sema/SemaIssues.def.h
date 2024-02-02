@@ -252,7 +252,7 @@ SC_SEMA_BADEXPR_DEF(BinaryExpression, AssignExprIncompleteLHS, Error,
 
 SC_SEMA_BADEXPR_DEF(BinaryExpression, AssignExprIncompleteRHS, Error,
                     "Incomplete right hand side operand type "
-                        << sema::format(expr->rhs()->type())
+                        << sema::formatType(expr->rhs())
                         << " is invalid in assignment expression")
 
 SC_SEMA_BADEXPR_DEF(MemberAccess, MemAccNonStaticThroughType, Error,
@@ -347,7 +347,7 @@ SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprImmovable, Error,
 
 SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprIncompleteType, Error,
                     "Attempt to move value of incomplete type "
-                        << sema::format(expr->type()))
+                        << sema::formatType(expr))
 
 SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprRValue, Warning,
                     "Moving rvalue object has no effect")

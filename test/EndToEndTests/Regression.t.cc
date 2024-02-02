@@ -205,8 +205,6 @@ func i64 @main() {
 }
 
 TEST_CASE("Struct member of array type") {
-    // FIXME: This fails badly
-    return;
     test::runReturnsTest(4, R"(
 struct X {
     var data: [s32, 3];
@@ -214,20 +212,17 @@ struct X {
 fn main() -> int {
     var x: X;
     x.data[0] = 1;
-    return x.data[0] + data.count;
+    return x.data[0] + x.data.count;
 })");
 }
 
 TEST_CASE("Invalid array size calculation when reinterpreting array pointers "
           "and references") {
-    /// FIXME: Reinterpret not working
-#if 0
     test::runReturnsTest(12, R"(
 fn main() -> int {
     let data = [s32(1), s32(2), s32(3)];
     return reinterpret<&[byte]>(data).count;
 })");
-#endif
 }
 
 TEST_CASE("Return non-trivial type by reference") {

@@ -911,8 +911,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
     using enum sema::PropertyKind;
     switch (prop.kind()) {
     case ArraySize: {
-        return getArraySize(expr.accessed()->type().get(),
-                            getValue(expr.accessed()));
+        return getArraySize(getValue(expr.accessed()));
     }
     case ArrayEmpty: {
         auto* arrayType =
@@ -922,8 +921,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             if (!arrayType->isDynamic()) {
                 return ctx.boolConstant(arrayType->count());
             }
-            auto* size = toPackedRegister(
-                getArraySize(expr.accessed()->type().get(), accessed));
+            auto* size = toPackedRegister(getArraySize(accessed));
             return add<ir::CompareInst>(size, ctx.intConstant(0, 64),
                                         ir::CompareMode::Signed,
                                         ir::CompareOperation::Equal, "empty");
@@ -956,8 +954,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                 if (!arrayType->isDynamic()) {
                     return ctx.intConstant(arrayType->count() - 1, 64);
                 }
-                auto count =
-                    getArraySize(expr.accessed()->type().get(), accessed);
+                auto count = getArraySize(accessed);
                 return add<ir::ArithmeticInst>(toPackedRegister(count),
                                                ctx.intConstant(1, 64),
                                                ir::ArithmeticOperation::Sub,
@@ -1274,7 +1271,7 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
     std::string name = "unique";
     ir::Value* arrayCount = [&]() -> ir::Value* {
         if (isa<sema::ArrayType>(baseType)) {
-            return toPackedRegister(getArraySize(baseType, value));
+            return toPackedRegister(getArraySize(value));
         }
         return nullptr;
     }();
@@ -1310,13 +1307,6 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
                                  toMemory(Atom::Register(ptr)));
         }
     });
-}
-
-static sema::ObjectType const* stripPtr(sema::ObjectType const* type) {
-    if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
-        return ptrType->base().get();
-    }
-    return type;
 }
 
 Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
@@ -1378,70 +1368,87 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     }
     case UniqueToRawPtr:
         return value;
-    case ArrayPtr_FixedToDynamic:
+    case ArrayPtr_FixedToDynamic: {
+        value = unpack(value);
+        SC_ASSERT(isa<sema::PointerType>(*expr->type()), "");
+        size_t count = getStaticArraySize(expr->type().get()).value();
+        return Value::Unpacked(value.name(), conv.type().get(),
+                               { value[0],
+                                 Atom::Register(ctx.intConstant(count, 64)) });
+    }
+    case Reinterpret_ValueRef:
         [[fallthrough]];
+    case Reinterpret_ValuePtr:
+        return Value::Packed(utl::strcat(value.name(), ".reinterpret"),
+                             conv.type().get(), pack(value).single());
+    case Reinterpret_ValueRef_ToByteArray:
+        [[fallthrough]];
+    case Reinterpret_ValuePtr_ToByteArray: {
+        auto* valueType = stripPtr(expr->type().get());
+        return Value::Unpacked(utl::strcat(value.name(), ".reinterpret"),
+                               conv.type().get(),
+                               { value.single(),
+                                 Atom::Register(
+                                     ctx.intConstant(valueType->size(), 64)) });
+    }
+    case Reinterpret_ValueRef_FromByteArray:
+        [[fallthrough]];
+    case Reinterpret_ValuePtr_FromByteArray: {
+        // TODO: Emit assert that size matches
+        return Value::Packed(utl::strcat(value.name(), ".reinterpret"),
+                             conv.type().get(), unpack(value)[0]);
+    }
+    case Reinterpret_DynArrayRef_ToByte:
+        [[fallthrough]];
+    case Reinterpret_DynArrayPtr_ToByte: {
+        auto* arrayType =
+            cast<sema::ArrayType const*>(stripPtr(expr->type().get()));
+        auto* size = makeCountToByteSize(toPackedRegister(getArraySize(value)),
+                                         arrayType->elementType()->size());
+        return Value::Unpacked(utl::strcat(value.name(), ".reinterpret"),
+                               conv.type().get(),
+                               { unpack(value)[0], Atom::Register(size) });
+    }
+    case Reinterpret_DynArrayRef_FromByte:
+        [[fallthrough]];
+    case Reinterpret_DynArrayPtr_FromByte: {
+        auto* arrayType =
+            cast<sema::ArrayType const*>(stripPtr(conv.type().get()));
+        auto* count = makeByteSizeToCount(toPackedRegister(getArraySize(value)),
+                                          arrayType->elementType()->size());
+        return Value::Unpacked(utl::strcat(value.name(), ".reinterpret"),
+                               conv.type().get(),
+                               { unpack(value)[0], Atom::Register(count) });
+    }
     case ArrayRef_FixedToDynamic: {
         value = unpack(value);
-        SC_ASSERT(
-            isa<sema::PointerType>(*expr->type()) || value[0].isMemory(),
-            "Dynamic arrays cannot be in registers. For rvalues we should have a MaterializeTemporary conversion before this case");
         size_t count = getStaticArraySize(stripPtr(expr->type().get())).value();
         return Value::Unpacked(value.name(), conv.type().get(),
                                { value[0],
                                  Atom::Register(ctx.intConstant(count, 64)) });
     }
-#if 0
-    case Reinterpret_Array_ToByte:
-        [[fallthrough]];
-    case Reinterpret_Array_FromByte:
-        SC_UNIMPLEMENTED();
-    case Reinterpret_Value_ToByteArray: {
-        SC_UNIMPLEMENTED();
-        //        auto data = value;
-        //        auto* fromType = stripPtr(expr->type().get());
-        //        auto* toType =
-        //            cast<sema::ArrayType const*>(stripPtr(conv.type().get()));
-        //        if (toType->isDynamic()) {
-        //            valueMap.insertArraySize(conv.object(), fromType->size());
-        //        }
-        //        return data;
-    }
-    case Reinterpret_Value_FromByteArray: {
-        SC_UNIMPLEMENTED();
-        //        Value data = value;
-        //        auto* fromType =
-        //            cast<sema::ArrayType
-        //            const*>(stripPtr(expr->type().get()));
-        //        auto* toType = stripPtr(conv.type().get());
-        //        if (!fromType->isDynamic()) {
-        //            SC_ASSERT(fromType->size() == toType->size(), "Size
-        //            mismatch");
-        //        }
-        //        else {
-        //            // TODO: Insert runtime check that size is equal
-        //        }
-        //        if (data.type() == arrayPtrType) {
-        //            if (data.isMemory()) {
-        //                return Value(data.get(), ctx.ptrType(), Memory);
-        //            }
-        //            return Value(toThinPointer(data.get()), Register);
-        //        }
-        //        return data;
-    }
     case Reinterpret_Value: {
-        SC_UNIMPLEMENTED();
-        //        auto* result =
-        //        add<ir::ConversionInst>(toRegister(value, conv),
-        //                                               typeMap(conv.type()),
-        //                                               ir::Conversion::Bitcast,
-        //                                               "reinterpret");
-        //        return Value(result, Register);
+        SC_ASSERT(value.type()->hasTrivialLifetime(), "");
+        auto name = utl::strcat(value.name(), ".reinterpret");
+        if (value.type()->size() <= PreferredMaxRegisterValueSize) {
+            auto* opType = typeMap.packed(expr->type().get());
+            auto* operand = toRegister(value.single(), opType, name).get();
+            auto* converted =
+                add<ir::ConversionInst>(operand,
+                                        typeMap.packed(conv.type().get()),
+                                        ir::Conversion::Bitcast, name);
+            return Value::Packed(name, conv.type().get(),
+                                 Atom::Register(converted));
+        }
+        else {
+            SC_ASSERT(value.single().isMemory(), "");
+            return Value::Packed(name, conv.type().get(),
+                                 Atom::Memory(value.single().get()));
+        }
     }
-#endif
     default:
         SC_UNREACHABLE();
     }
-    SC_UNIMPLEMENTED();
 }
 
 Value FuncGenContext::getValueImpl(ast::TrivDefConstructExpr const& expr) {
@@ -1753,7 +1760,7 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value const& dest,
                                         sema::ArrayType const& type) {
     auto* elemType = type.elementType();
     auto* irElemType = typeMap.packed(elemType);
-    auto* destSize = toPackedRegister(getArraySize(&type, dest));
+    auto* destSize = toPackedRegister(getArraySize(dest));
     auto* destBegin = toMemory(unpack(dest)[0]).get();
     auto* destEnd =
         add<ir::GetElementPointer>(ctx, irElemType, destBegin, destSize,

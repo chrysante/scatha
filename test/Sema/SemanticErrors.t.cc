@@ -75,6 +75,27 @@ TEST_CASE("Bad type conversion", "[sema][issue]") {
     CHECK(line4->to() == issues.sym.S64());
 }
 
+TEST_CASE("Bad reinterpreting conversions", "[sema][issue]") {
+    auto const iss = test::getSemaIssues(R"(
+/* 2 */ fn f(n: int) { reinterpret<Nontriv>(n); }
+/* 3 */ fn g(n: int) { reinterpret<Triv>(n); }
+/* 4 */ fn h(n: int) { reinterpret<TrivSmall>(n); }
+public struct Nontriv {
+    fn delete(&mut this) {}
+    var n: int;
+}
+public struct Triv {
+    var n: int;
+}
+public struct TrivSmall {
+    var n: u8;
+}
+)");
+    CHECK(iss.findOnLine<BadExpr>(2));
+    CHECK(iss.noneOnLine(3));
+    CHECK(iss.findOnLine<BadExpr>(4));
+}
+
 TEST_CASE("Bad operands for unary expression", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main(i: int) -> bool {
@@ -324,8 +345,6 @@ fn main() {
 }
 
 TEST_CASE("Invalid use of dynamic array", "[sema][issue]") {
-    /// FIXME: Not passing
-    return;
     auto const issues = test::getSemaIssues(R"(
 /*  2 */ fn main() {
 /*  3 */     var arr1: *unique mut [int] = unique [1, 2, 3];
@@ -426,8 +445,6 @@ TEST_CASE("Bad literals", "[sema][issue]") {
 }
 
 TEST_CASE("Explicit calls to SMFs", "[sema][issue]") {
-    /// FIXME: Not passing
-    return;
     auto const issues = test::getSemaIssues(R"(
 fn main() {
 /*  3 */ var x = X();
@@ -466,16 +483,14 @@ TEST_CASE("Illegal value passing", "[sema][issue]") {
 }
 
 TEST_CASE("OR Error", "[sema][issue]") {
-    /// FIXME: Not passing
-    return;
     auto const issues = test::getSemaIssues(R"(
 struct X {
     fn new(&mut this, n: int) {}
 }
 fn main() {
-/* 6 */ let x: X;
+/* 6 */ let x = X();
 })");
-    CHECK(issues.findOnLine<ORError>(6));
+    CHECK(issues.findOnLine<BadExpr>(6));
 }
 
 TEST_CASE("Compare pointers of different types", "[sema][issue]") {
@@ -489,8 +504,6 @@ fn main() {
 }
 
 TEST_CASE("Main must return trivial", "[sema][issue]") {
-    /// FIXME: Not passing
-    return;
     auto const issues = test::getSemaIssues(R"(
 struct X {
     fn new(&mut this) {}

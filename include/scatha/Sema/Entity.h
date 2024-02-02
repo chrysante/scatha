@@ -820,6 +820,9 @@ public:
     /// Shorthand for `count() == DynamicCount`
     bool isDynamic() const { return count() == DynamicCount; }
 
+    /// Shorthand for `!isDynamic()`
+    bool isStatic() const { return !isDynamic(); }
+
     /// Recomputes size and align based on the element type and count. Used by
     /// `instantiateEntities()` to recompute the size for array types that have
     /// been instantiated before their element type is instantiated. This okay

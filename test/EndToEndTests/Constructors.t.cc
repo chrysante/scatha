@@ -312,8 +312,6 @@ fn main() {
 })");
 }
 
-#if 0 // Failes because reinterpret
-
 TEST_CASE("First move constructor", "[end-to-end][lifetime]") {
     test::runReturnsTest(10, R"(
 struct UniquePtr {
@@ -350,8 +348,6 @@ fn main() {
     return *q.get();
 })");
 }
-
-#endif
 
 TEST_CASE("Unique ptr to non-trivial type", "[end-to-end][lifetime]") {
     SECTION("Default construct and destroy") {

@@ -527,6 +527,6 @@ std::optional<ir::Conversion> irgen::mapArithmeticConv(
     }
 }
 
-std::string irgen::arithmeticConvName(sema::ObjectTypeConversion conv) {
+std::string irgen::arithmeticConvName(sema::ObjectTypeConversion) {
     return "conv";
 }

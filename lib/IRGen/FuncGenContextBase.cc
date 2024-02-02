@@ -220,9 +220,9 @@ ir::Value* FuncGenContextBase::toPackedMemory(Value const& value) {
     return toMemory(pack(value).single()).get();
 }
 
-Value FuncGenContextBase::getArraySize(sema::Type const* semaType,
-                                       Value const& value) {
+Value FuncGenContextBase::getArraySize(Value const& value) {
     auto name = utl::strcat(value.name(), ".count");
+    auto* semaType = value.type();
     if (auto* base = getPtrOrRefBase(semaType)) {
         semaType = base;
     }
@@ -268,6 +268,19 @@ ir::Value* FuncGenContextBase::makeCountToByteSize(ir::Value* count,
     }
     return add<ir::ArithmeticInst>(count, ctx.intConstant(elemSize, 64),
                                    ir::ArithmeticOperation::Mul, "bytesize");
+}
+
+ir::Value* FuncGenContextBase::makeByteSizeToCount(ir::Value* bytesize,
+                                                   size_t elemSize) {
+    if (auto* constant = dyncast<ir::IntegralConstant*>(bytesize)) {
+        auto value = constant->value();
+        SC_ASSERT(srem(value, APInt(elemSize, value.bitwidth())) == 0,
+                  "Invalid size");
+        auto count = sdiv(value, APInt(elemSize, value.bitwidth()));
+        return ctx.intConstant(count);
+    }
+    return add<ir::ArithmeticInst>(bytesize, ctx.intConstant(elemSize, 64),
+                                   ir::ArithmeticOperation::SDiv, "count");
 }
 
 Value FuncGenContextBase::copyValue(Value const& value) {
