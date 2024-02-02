@@ -101,6 +101,8 @@ SC_SEMA_BADFUNCDEF_DEF(MainMustReturnTrivial, Error,
                        "Function 'main' cannot return non-trivial type "
                            << sema::format(definition()->returnType()))
 
+SC_SEMA_BADFUNCDEF_DEF(MainNotPublic, Error, "Function 'main' must be public")
+
 SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments, Error,
                        sema::format(definition()->function()->type())
                            << " is not a valid signature for 'main'. "

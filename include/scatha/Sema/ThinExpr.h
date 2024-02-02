@@ -1,9 +1,9 @@
 #ifndef SCATHA_SEMA_THINEXPR_H_
 #define SCATHA_SEMA_THINEXPR_H_
 
-#include "AST/Fwd.h"
-#include "Sema/Fwd.h"
-#include "Sema/QualType.h"
+#include <scatha/AST/Fwd.h>
+#include <scatha/Sema/Fwd.h>
+#include <scatha/Sema/QualType.h>
 
 namespace scatha::sema {
 

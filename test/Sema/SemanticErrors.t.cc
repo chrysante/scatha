@@ -552,6 +552,11 @@ TEST_CASE("Main parameter validation", "[sema]") {
               .findOnLine<BadFuncDef>(1, MainInvalidArguments));
 }
 
+TEST_CASE("Main access control", "[sema]") {
+    CHECK(test::getSemaIssues("private fn main() {}")
+              .findOnLine<BadFuncDef>(1, BadFuncDef::MainNotPublic));
+}
+
 TEST_CASE("FFI validation", "[sema]") {
     auto iss = test::getSemaIssues(R"(
 /*  2 */ extern "B" fn f() -> void;

@@ -11,6 +11,7 @@
 #include <scatha/Issue/Issue.h>
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
+#include <scatha/Sema/ThinExpr.h>
 
 /// # Hierarchy of semantic issue classes
 /// This closely reflects the hierarchy of AST nodes
@@ -413,17 +414,17 @@ public:
     /// Static constructors @{
     static ORError makeNoMatch(
         ast::Expression const* expr, std::span<Function const* const> os,
-        std::vector<std::pair<QualType, ValueCategory>> argTypes,
+        std::vector<ThinExpr> arguments,
         std::unordered_map<Function const*, ORMatchError> matchErrors) {
-        return ORError(expr, std::move(os), std::move(argTypes),
+        return ORError(expr, std::move(os), std::move(arguments),
                        /* matches = */ {}, std::move(matchErrors));
     }
 
-    static ORError makeAmbiguous(
-        ast::Expression const* expr, std::span<Function const* const> os,
-        std::vector<std::pair<QualType, ValueCategory>> argTypes,
-        std::vector<Function const*> matches) {
-        return ORError(expr, std::move(os), std::move(argTypes),
+    static ORError makeAmbiguous(ast::Expression const* expr,
+                                 std::span<Function const* const> os,
+                                 std::vector<ThinExpr> arguments,
+                                 std::vector<Function const*> matches) {
+        return ORError(expr, std::move(os), std::move(arguments),
                        std::move(matches), {});
     }
     /// @}
@@ -433,15 +434,14 @@ public:
 private:
     explicit ORError(
         ast::Expression const* expr, std::span<Function const* const> os,
-        std::vector<std::pair<QualType, ValueCategory>> argTypes,
-        std::vector<Function const*> matches,
+        std::vector<ThinExpr> arguments, std::vector<Function const*> matches,
         std::unordered_map<Function const*, ORMatchError> matchErrors);
 
     /// List of all functions in the overload set
     std::vector<Function const*> overloadSet;
 
-    /// List of types of the call argument types
-    std::vector<std::pair<QualType, ValueCategory>> argTypes;
+    /// List of types of the call arguments
+    std::vector<ThinExpr> arguments;
 
     /// Possible call targets. Only non-empty if `reason() == Ambiguous`
     std::vector<Function const*> matches;

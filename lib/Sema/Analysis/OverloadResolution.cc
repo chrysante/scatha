@@ -10,6 +10,7 @@
 #include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/ThinExpr.h"
 
 using namespace scatha;
 using namespace sema;
@@ -53,13 +54,10 @@ static std::variant<int, ORMatchError, std::monostate> signatureMatch(
     return maxRank;
 }
 
-/// Converts a list of expressions to pairs of qual-type and value category
-/// TODO: We should make std::pair<QualType, ValueCategory> a vocabulary type
-/// because this comes up several times
-static auto makeArgTypes(std::span<ast::Expression const* const> arguments) {
-    return arguments | ranges::views::transform([](auto* expr) {
-        return std::pair{ expr->type(), expr->valueCategory() };
-    }) | ranges::to<std::vector>;
+/// Converts a list of expressions to `ThinExpr`s
+static std::vector<ThinExpr> makeArgTypes(
+    std::span<ast::Expression const* const> arguments) {
+    return arguments | ranges::to<std::vector<ThinExpr>>;
 }
 
 OverloadResolutionResult sema::performOverloadResolution(

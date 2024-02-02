@@ -586,12 +586,12 @@ BadCleanup::BadCleanup(ast::ASTNode const* node, Object const* object):
 
 ORError::ORError(ast::Expression const* expr,
                  std::span<Function const* const> os,
-                 std::vector<std::pair<QualType, ValueCategory>> argTypes,
+                 std::vector<ThinExpr> arguments,
                  std::vector<Function const*> matches,
                  std::unordered_map<Function const*, ORMatchError> matchErrors):
     SemaIssue(nullptr, getSourceRange(expr), IssueSeverity::Error),
     overloadSet(os | ranges::to<std::vector>),
-    argTypes(argTypes),
+    arguments(arguments),
     matches(matches),
     matchErrors(matchErrors) {
     SC_ASSERT(!overloadSet.empty(), "Cannot make call to empty overload set");
@@ -618,16 +618,17 @@ ORError::ORError(ast::Expression const* expr,
                     str << "Expected " << function->argumentCount()
                         << singularPlural(function->argumentCount(),
                                           " argument"sv, " arguments"sv)
-                        << " but have " << argTypes.size();
+                        << " but have " << arguments.size();
                     break;
                 case NoArgumentConversion:
-                    auto [argType, argValCat] = argTypes[err.argIndex];
+                    ThinExpr arg = arguments[err.argIndex];
                     auto* paramType = function->argumentType(err.argIndex);
                     str << "No conversion for " << formatOrdinal(err.argIndex)
                         << " argument from "
-                        << (argType.isConst() ? "constant " : "mutable ")
-                        << argValCat << " of type " << sema::format(argType)
-                        << " to " << sema::format(paramType);
+                        << (arg.type().isConst() ? "constant " : "mutable ")
+                        << arg.valueCategory() << " of type "
+                        << sema::format(arg.type()) << " to "
+                        << sema::format(paramType);
                     break;
                 }
             });

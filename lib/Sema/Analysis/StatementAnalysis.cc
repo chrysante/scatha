@@ -390,9 +390,7 @@ static bool argumentsAreValidForMain(std::span<Type const* const> types,
 void StmtContext::analyzeMainFunction(ast::FunctionDefinition& def) {
     SC_EXPECT(semaFn == def.function());
     if (auto specifiedAccessControl = semaFn->definition()->accessControl()) {
-        // TODO: Push an error here
-        SC_ASSERT(*specifiedAccessControl == AccessControl::Public,
-                  "Main function cannot be declared less than public");
+        ctx.issue<BadFuncDef>(&def, BadFuncDef::MainNotPublic);
     }
     /// main is always public
     semaFn->setAccessControl(AccessControl::Public);

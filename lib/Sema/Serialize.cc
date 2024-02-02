@@ -350,24 +350,23 @@ struct TypenameParser {
         }
     }
 
-    ///
-    Entity* findEntity(Scope& scope, std::string_view name) {
-        auto entities = scope.findEntities(name, /* findHidden = */ true);
+    static Entity* selectEntity(std::span<Entity* const> entities) {
         if (entities.empty()) {
             return nullptr;
         }
-        /// TODO: Find a better way to select single entity
+        SC_ASSERT(entities.size() == 1, "Types cannot be overloaded");
         return entities.front();
     }
 
     ///
+    Entity* findEntity(Scope& scope, std::string_view name) {
+        return selectEntity(scope.findEntities(name, /* findHidden = */ true));
+    }
+
+    ///
     Entity* findEntity(std::string_view name) {
-        auto entities = sym.unqualifiedLookup(name, /* findHidden = */ true);
-        if (entities.empty()) {
-            return nullptr;
-        }
-        /// TODO: Find a better way to select single entity
-        return entities.front();
+        return selectEntity(
+            sym.unqualifiedLookup(name, /* findHidden = */ true));
     }
 
     ArrayType const* parseArray() {
@@ -785,7 +784,7 @@ struct Deserializer: TypeMapBase {
                                        mut, get(obj, Field::AccessControl));
         if (auto index = tryGet<size_t>(obj, Field::Index)) {
             auto* type = dyncast<StructType*>(&sym.currentScope());
-            // TODO: CHECK type is not null
+            SC_ASSERT(type, "");
             type->setMemberVariable(*index, var);
         }
     }
