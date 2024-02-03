@@ -46,12 +46,19 @@ fn stringAppendString() {
     check("Append string", strcmp("Hello World", *s.data()));
 }
 
+fn stringInsertStringRef() {
+    var s = std.String("Hellorld!");
+    s.insert(5, " Wo");
+    check("Insert string", strcmp("Hello World!", *s.data()));
+}
+
 fn main() {
     stringCopyCtor();
     stringMoveCtor();
     stringAppendChar();
     stringAppendStringRef();
     stringAppendString();    
+    stringInsertStringRef();
     __builtin_putstr("PASSED: String tests\n");
     return 0;
 }

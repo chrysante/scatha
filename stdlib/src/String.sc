@@ -59,6 +59,18 @@ public struct String {
         this.append(*text.data());
     }
 
+    /// # Insert
+
+    fn insert(&mut this, atIndex: int, text: &str) {
+        let newSize = this.sz + text.count;
+        this.growLeast(newSize);
+        this.sz = newSize;
+        __builtin_memmove(&mut this.buf[atIndex + text.count : newSize],
+                          &this.buf[atIndex : this.sz]);
+        __builtin_memcpy(&mut this.buf[atIndex : atIndex + text.count],     
+                         &text);
+    }
+
     /// # Queries
 
     /// \Returns the number of characters 
@@ -83,6 +95,9 @@ public struct String {
     /// Grows the maintained buffer to at least \p leastSize 
     internal fn growLeast(&mut this, leastSize: mut int) {
         leastSize = max(leastSize, 2 * this.buf.count);
+        if leastSize <= this.buf.count {
+            return;
+        }
         var tmp = unique str(leastSize);
         __builtin_memcpy(&mut tmp[0 : this.buf.count], this.buf);
         this.buf = move tmp;
@@ -94,4 +109,19 @@ public struct String {
 
     internal var buf: *unique mut str;
     internal var sz: int;
+}
+
+private fn printVar(name: &str, value: int) {
+    __builtin_putstr(name);
+    __builtin_putstr(": ");
+    __builtin_puti64(value);
+    __builtin_putstr("\n");
+}
+
+/// Debug helper
+private fn printVar(name: &str, value: &str) {
+    __builtin_putstr(name);
+    __builtin_putstr(": ");
+    __builtin_putstr(value);
+    __builtin_putstr("\n");
 }
