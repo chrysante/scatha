@@ -983,6 +983,7 @@ void GVNContext::moveInImpl(
                 }
                 auto& MCT_B = MCTs[{ BB, otherSucc }];
                 auto* otherEntry = MCT_B.computationEqualTo(copy);
+                otherEntry->copy()->replaceAllUsesWith(copy);
                 for (auto* original: otherEntry->originals()) {
                     redundant.insert(original);
                     original->replaceAllUsesWith(copy);
