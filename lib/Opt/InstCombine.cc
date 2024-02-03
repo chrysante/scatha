@@ -450,7 +450,7 @@ void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst, Constant* rhs,
     }
     else if (inst->operation() == SubOp) {
         if (prevInst->operation() == AddOp) {
-            newRHS = irCtx.arithmeticConstant(sub(b, a));
+            newRHS = irCtx.arithmeticConstant(sub(a, b));
         }
         else if (prevInst->operation() == SubOp) {
             newRHS = irCtx.arithmeticConstant(add(a, b));

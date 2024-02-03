@@ -417,3 +417,13 @@ public struct Foo {
     var buf: *unique mut str;
 })"));
 }
+
+TEST_CASE("InstCombine artithmetic folding", "[end-to-end][regression]") {
+    test::runIRReturnsTest(3, R"(
+func i64 @main() {
+  %entry:
+    %a = add i64 5, i64 3
+    %b = sub i64 %a, i64 5
+    return i64 %b
+})");
+}
