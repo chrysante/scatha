@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 
+#include <utl/utility.hpp>
+
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
 

@@ -1,3 +1,5 @@
+#include <bit>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "EndToEndTests/PassTesting.h"
@@ -27,7 +29,7 @@ func i64 @main() {
 }
 
 TEST_CASE("Float conversion", "[end-to-end]") {
-    test::runIRReturnsTest(utl::bit_cast<u64>(static_cast<double>(3.0f / 2.0f)),
+    test::runIRReturnsTest(std::bit_cast<u64>(static_cast<double>(3.0f / 2.0f)),
                            R"(
 func f64 @main() {
   %entry:
@@ -38,7 +40,7 @@ func f64 @main() {
 }
 
 TEST_CASE("Bitcast", "[end-to-end]") {
-    test::runIRReturnsTest(utl::bit_cast<u64>(11.0 + 0.1), R"(
+    test::runIRReturnsTest(std::bit_cast<u64>(11.0 + 0.1), R"(
 func i64 @main() {
   %entry:
     %a = fadd f64 11.0, f64 0.1
@@ -101,7 +103,7 @@ fn main() {
 }
 
 TEST_CASE("String conversions to double", "[end-to-end]") {
-    test::runReturnsTest(utl::bit_cast<u64>(123.0), R"(
+    test::runReturnsTest(std::bit_cast<u64>(123.0), R"(
 fn main() {
     var value: double;
     if __builtin_strtof64(value, "123") {
@@ -109,7 +111,7 @@ fn main() {
     }
     return 0.0;
 })");
-    test::runReturnsTest(utl::bit_cast<u64>(0.0), R"(
+    test::runReturnsTest(std::bit_cast<u64>(0.0), R"(
 fn main() {
     var value: double;
     if __builtin_strtof64(value, "0.0") {
@@ -117,7 +119,7 @@ fn main() {
     }
     return -1.0;
 })");
-    test::runReturnsTest(utl::bit_cast<u64>(-1.0), R"(
+    test::runReturnsTest(std::bit_cast<u64>(-1.0), R"(
 fn main() {
     var value: double;
     if __builtin_strtof64(value, "-1") {
@@ -125,7 +127,7 @@ fn main() {
     }
     return 0.0;
 })");
-    test::runReturnsTest(utl::bit_cast<u64>(0.0), R"(
+    test::runReturnsTest(std::bit_cast<u64>(0.0), R"(
 fn main() {
     var value: double;
     if __builtin_strtof64(value, "abc") {

@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include <utl/function_view.hpp>
+#include <utl/overload.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"

@@ -50,7 +50,7 @@ public:
         return Atom(value, ValueLocation::Memory);
     }
 
-    Atom(ir::Value* value, ValueLocation location): _value(location, value) {}
+    Atom(ir::Value* value, ValueLocation location): _value(value, location) {}
 
     /// \Returns the location of the value
     ValueLocation location() const { return _value.integer(); }
@@ -106,7 +106,7 @@ public:
     explicit Value(std::string name, sema::ObjectType const* type,
                    std::span<Atom const> elems, ValueRepresentation repr):
         _name(std::move(name)),
-        typeAndRepr(repr, type),
+        typeAndRepr(type, repr),
         elems(elems | ToSmallVector<2>) {}
 
     explicit Value(std::string name, sema::ObjectType const* type,

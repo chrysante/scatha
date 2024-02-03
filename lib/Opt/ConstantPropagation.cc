@@ -653,7 +653,6 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
                 return APInt(scmp(lhs, rhs) == 0, 1);
             case CompareOperation::NotEqual:
                 return APInt(scmp(lhs, rhs) != 0, 1);
-            case CompareOperation::_count: SC_UNREACHABLE();
             }
         },
         [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
@@ -664,7 +663,6 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
             case CompareOperation::GreaterEq: return APInt(lhs >= rhs, 1);
             case CompareOperation::Equal:     return APInt(lhs == rhs, 1);
             case CompareOperation::NotEqual:  return APInt(lhs != rhs, 1);
-            case CompareOperation::_count: SC_UNREACHABLE();
             }
         },
         [](auto const&, auto const&) -> FormalValue { return Inevaluable{}; },

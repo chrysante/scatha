@@ -797,8 +797,6 @@ static CompareOperation operationForReversedOperands(CompareOperation op) {
         return Equal;
     case NotEqual:
         return NotEqual;
-    case _count:
-        SC_UNREACHABLE();
     }
 }
 

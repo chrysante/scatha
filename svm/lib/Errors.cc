@@ -1,7 +1,7 @@
 #include "svm/Errors.h"
 
+#include <utl/overload.hpp>
 #include <utl/strcat.hpp>
-#include <utl/utility.hpp>
 
 using namespace svm;
 

@@ -403,16 +403,20 @@ static Asm::ArithmeticOperation mapArithmetic(mir::ArithmeticOperation op) {
 }
 
 static Asm::CompareOperation mapCompareOperation(mir::CompareOperation op) {
-    // clang-format off
-     return UTL_MAP_ENUM(op, Asm::CompareOperation, {
-         { mir::CompareOperation::Less,      Asm::CompareOperation::Less }, {
-         mir::CompareOperation::LessEq,    Asm::CompareOperation::LessEq    },
-         { mir::CompareOperation::Greater,   Asm::CompareOperation::Greater },
-         { mir::CompareOperation::GreaterEq, Asm::CompareOperation::GreaterEq
-         }, { mir::CompareOperation::Equal,     Asm::CompareOperation::Eq },
-         { mir::CompareOperation::NotEqual,  Asm::CompareOperation::NotEq },
-     });
-    // clang-format on
+    switch (op) {
+    case mir::CompareOperation::Less:
+        return Asm::CompareOperation::Less;
+    case mir::CompareOperation::LessEq:
+        return Asm::CompareOperation::LessEq   ;
+    case mir::CompareOperation::Greater:
+        return Asm::CompareOperation::Greater;
+    case mir::CompareOperation::GreaterEq:
+        return Asm::CompareOperation::GreaterEq;
+    case mir::CompareOperation::Equal:
+        return Asm::CompareOperation::Eq;
+    case mir::CompareOperation::NotEqual:
+        return Asm::CompareOperation::NotEq;
+    }
 }
 
 static Asm::Type mapCompareMode(ir::CompareMode mode) {

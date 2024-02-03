@@ -59,8 +59,6 @@ std::string_view ir::toString(CompareOperation op) {
     case CompareOperation::Op: return #name;
 #include "IR/Lists.def"
         // clang-format on
-    case CompareOperation::_count:
-        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -70,15 +68,20 @@ std::ostream& ir::operator<<(std::ostream& ostream, CompareOperation op) {
 }
 
 CompareOperation ir::inverse(CompareOperation compareOp) {
-    // clang-format off
-    return UTL_MAP_ENUM(compareOp, CompareOperation, {
-        { CompareOperation::Less,      CompareOperation::GreaterEq },
-        { CompareOperation::LessEq,    CompareOperation::Greater   },
-        { CompareOperation::Greater,   CompareOperation::LessEq    },
-        { CompareOperation::GreaterEq, CompareOperation::Less      },
-        { CompareOperation::Equal,     CompareOperation::NotEqual  },
-        { CompareOperation::NotEqual,  CompareOperation::Equal     },
-    }); // clang-format on
+    switch (compareOp) {
+    case CompareOperation::Less:
+        return CompareOperation::GreaterEq;
+    case CompareOperation::LessEq:
+        return CompareOperation::Greater;
+    case CompareOperation::Greater:
+        return CompareOperation::LessEq;
+    case CompareOperation::GreaterEq:
+        return CompareOperation::Less;
+    case CompareOperation::Equal:
+        return CompareOperation::NotEqual;
+    case CompareOperation::NotEqual:
+        return CompareOperation::Equal;
+    }
 }
 
 std::string_view ir::toString(UnaryArithmeticOperation op) {

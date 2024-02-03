@@ -2,7 +2,7 @@
 #define SCATHA_COMMON_DYNCAST_H_
 
 #include <utl/dyncast.hpp>
-#include <utl/utility.hpp>
+#include <utl/overload.hpp>
 
 #define SC_DYNCAST_DEFINE(Type, ID, Parent, Corporeality)                      \
     UTL_DYNCAST_DEFINE(Type, ID, Parent, Corporeality)

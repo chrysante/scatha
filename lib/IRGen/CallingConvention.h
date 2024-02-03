@@ -77,7 +77,7 @@ public:
     explicit CallingConvention(sema::Type const* returnType,
                                ValueLocation retLocation,
                                std::span<PassingConvention const> args):
-        ret(retLocation, returnType), args(args | ToSmallVector<>) {}
+        ret(returnType, retLocation), args(args | ToSmallVector<>) {}
 
     ///
     sema::Type const* returnType() const { return ret.pointer(); }

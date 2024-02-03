@@ -109,7 +109,6 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def>
-    _count
 };
 
 /// Convert \p compareOp to string

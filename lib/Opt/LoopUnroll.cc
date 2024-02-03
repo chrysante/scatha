@@ -256,8 +256,6 @@ std::optional<utl::small_vector<APInt>> UnrollContext::unrolledInductionValues()
             return res == 0;
         case NotEqual:
             return res != 0;
-        case _count:
-            SC_UNREACHABLE();
         }
     };
     /// Here we perform formal loop evaluation to determine the value of the

@@ -1,3 +1,4 @@
+#include <bit>
 #include <cmath>
 
 #include <catch2/catch_test_macros.hpp>
@@ -7,20 +8,20 @@
 using namespace scatha;
 
 TEST_CASE("Common math functions", "[end-to-end]") {
-    test::runReturnsTest(utl::bit_cast<uint64_t>(std::sqrt(5178)), R"(
+    test::runReturnsTest(std::bit_cast<uint64_t>(std::sqrt(5178)), R"(
 fn main() -> double {
     let arg = 5178.0;
     return __builtin_sqrt_f64(arg);
 })");
-    test::runReturnsTest(utl::bit_cast<uint64_t>(std::pow(5.2, 3.4)), R"(
+    test::runReturnsTest(std::bit_cast<uint64_t>(std::pow(5.2, 3.4)), R"(
 fn main() -> double {
     return __builtin_pow_f64(5.2, 3.4);
 })");
-    test::runReturnsTest(utl::bit_cast<uint64_t>(std::pow(4.8, 10)), R"(
+    test::runReturnsTest(std::bit_cast<uint64_t>(std::pow(4.8, 10)), R"(
 fn main() -> double {
     return __builtin_exp10_f64(4.8);
 })");
-    test::runReturnsTest(utl::bit_cast<uint64_t>(std::sin(1234)), R"(
+    test::runReturnsTest(std::bit_cast<uint64_t>(std::sin(1234)), R"(
 fn main() -> double {
     return __builtin_sin_f64(1234.0);
 })");

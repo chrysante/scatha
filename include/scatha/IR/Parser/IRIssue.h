@@ -43,7 +43,6 @@ public:
         UnexpectedID,
         ExpectedType,
         ExpectedConstantValue,
-        _count
     };
 
     explicit SemanticIssue(Token token, Reason reason):

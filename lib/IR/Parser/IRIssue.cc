@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <utl/utility.hpp>
+#include <utl/overload.hpp>
 
 using namespace scatha;
 using namespace ir;
@@ -26,21 +26,28 @@ void ir::print(ParseIssue const& issue, std::ostream& str) {
             str << "Syntax issue: " << sl << "\n";
         },
         [&](SemanticIssue const& issue) {
-            auto reasonStr = UTL_SERIALIZE_ENUM(issue.reason(), {
-                { SemanticIssue::TypeMismatch,              "Type mismatch" },
-                { SemanticIssue::InvalidType,               "Invalid type" },
-                { SemanticIssue::InvalidFFIType,            
-                    "Invalid type for foreign function interface" },
-                { SemanticIssue::InvalidEntity,             "Invalid entity" },
-                { SemanticIssue::UseOfUndeclaredIdentifier, 
-                    "Use of undeclared identifier" },
-                { SemanticIssue::Redeclaration,             "Redeclaration" },
-                { SemanticIssue::UnexpectedID,              "Unexpected ID" },
-                { SemanticIssue::ExpectedType,              "Expected type" },
-                { SemanticIssue::ExpectedConstantValue,     
-                    "Expected value constant" },
-                
-            });
+            auto reasonStr = [&] {
+                switch(issue.reason()) {
+                case SemanticIssue::TypeMismatch:
+                    return "Type mismatch";
+                case SemanticIssue::InvalidType:
+                    return "Invalid type";
+                case SemanticIssue::InvalidFFIType:
+                    return "Invalid type for foreign function interface";
+                case SemanticIssue::InvalidEntity:
+                    return "Invalid entity";
+                case SemanticIssue::UseOfUndeclaredIdentifier:
+                    return "Use of undeclared identifier";
+                case SemanticIssue::Redeclaration:
+                    return "Redeclaration";
+                case SemanticIssue::UnexpectedID:
+                    return "Unexpected ID";
+                case SemanticIssue::ExpectedType:
+                    return "Expected type";
+                case SemanticIssue::ExpectedConstantValue:
+                    return "Expected value constant";
+               }
+            }();
             auto sl = issue.sourceLocation();
             str << "Semantic issue: " << sl << ": " << reasonStr << "\n";
         },
