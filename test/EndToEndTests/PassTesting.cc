@@ -20,6 +20,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/Logger.h"
+#include "Common/FFI.h"
 #include "IR/Context.h"
 #include "IR/ForEach.h"
 #include "IR/Fwd.h"
@@ -42,7 +43,7 @@ using namespace scatha;
 using namespace test;
 
 using Generator = utl::unique_function<
-    std::tuple<ir::Context, ir::Module, std::vector<std::filesystem::path>>()>;
+    std::tuple<ir::Context, ir::Module, std::vector<ForeignLibraryDecl>>()>;
 
 static void validateEmpty(std::span<SourceFile const> sources,
                           IssueHandler const& issues) {
@@ -70,7 +71,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
         irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {});
         ir::forEach(ctx, mod, opt::unifyReturns);
         return std::tuple{ std::move(ctx), std::move(mod),
-                           sym.foreignLibraryPaths() };
+                           sym.foreignLibraries() };
     };
 }
 
@@ -79,13 +80,13 @@ static Generator makeIRGenerator(std::string_view text) {
         auto result = ir::parse(text).value();
         ir::forEach(result.first, result.second, opt::unifyReturns);
         return std::tuple{ std::move(result).first, std::move(result).second,
-                           std::vector<std::filesystem::path>{} };
+                           std::vector<ForeignLibraryDecl>{} };
     };
 }
 
 static auto codegenAndAssemble(
     ir::Module const& mod, std::ostream* str = nullptr,
-    std::span<std::filesystem::path const> foreignLibs = {}) {
+    std::span<ForeignLibraryDecl const> foreignLibs = {}) {
     auto assembly = [&] {
         if (!str) {
             return cg::codegen(mod);
@@ -101,7 +102,7 @@ static auto codegenAndAssemble(
 }
 
 static uint64_t run(ir::Module const& mod, std::ostream* str,
-                    std::span<std::filesystem::path const> foreignLibs) {
+                    std::span<ForeignLibraryDecl const> foreignLibs) {
     auto [prog, sym] = codegenAndAssemble(mod, str, foreignLibs);
     return runProgram(prog, findMain(sym).value());
 }
@@ -183,7 +184,7 @@ struct Impl {
     }
 
     void checkReturns(std::string_view msg, ir::Module const& mod,
-                      std::span<std::filesystem::path const> foreignLibs,
+                      std::span<ForeignLibraryDecl const> foreignLibs,
                       uint64_t expected) const {
         INFO(msg);
         size_t result = 0;

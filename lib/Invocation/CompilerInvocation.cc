@@ -182,7 +182,7 @@ int CompilerInvocation::run() {
         if (!continueCompilation) return 0;
         auto& [program, symbolTable, unresolved] = asmRes;
         auto linkRes =
-            Asm::link(program, semaSym.foreignLibraryPaths(), unresolved);
+            Asm::link(program, semaSym.foreignLibraries(), unresolved);
         if (!linkRes) {
             printLinkerError(linkRes.error(), err());
             return handleError();

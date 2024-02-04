@@ -407,7 +407,7 @@ static Asm::CompareOperation mapCompareOperation(mir::CompareOperation op) {
     case mir::CompareOperation::Less:
         return Asm::CompareOperation::Less;
     case mir::CompareOperation::LessEq:
-        return Asm::CompareOperation::LessEq   ;
+        return Asm::CompareOperation::LessEq;
     case mir::CompareOperation::Greater:
         return Asm::CompareOperation::Greater;
     case mir::CompareOperation::GreaterEq:

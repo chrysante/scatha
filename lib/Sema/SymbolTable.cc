@@ -222,11 +222,14 @@ static std::optional<std::filesystem::path> findLibrary(
     return std::nullopt;
 }
 
-static std::string toForeignLibName(std::string_view name) {
+static std::string toForeignLibName(std::string_view fullname) {
     /// TODO: Make portable
     /// This is the MacOS convention, need to add linux and windows conventions
     /// for portability
-    return utl::strcat("lib", name, ".dylib");
+    std::filesystem::path path(fullname);
+    auto name = path.filename().string();
+    path.replace_filename(utl::strcat("lib", name, ".dylib"));
+    return path.string();
 }
 
 static ForeignLibrary* importForeignLib(SymbolTable& sym,
@@ -914,15 +917,11 @@ std::span<Library const* const> SymbolTable::importedLibs() const {
     return impl->importedLibs;
 }
 
-std::vector<std::filesystem::path> SymbolTable::foreignLibraryPaths() const {
+std::vector<ForeignLibraryDecl> SymbolTable::foreignLibraries() const {
     return importedLibs() | Filter<ForeignLibrary> |
-           transform(&ForeignLibrary::file) | ranges::to<std::vector>;
-}
-
-std::vector<std::string> SymbolTable::foreignLibraryNames() const {
-    return importedLibs() | Filter<ForeignLibrary> |
-           transform([](auto* lib) { return std::string(lib->name()); }) |
-           ranges::to<std::vector>;
+           transform([](ForeignLibrary const* lib) {
+        return ForeignLibraryDecl(std::string(lib->name()), lib->file());
+    }) | ranges::to<std::vector>;
 }
 
 std::vector<Entity const*> SymbolTable::entities() const {

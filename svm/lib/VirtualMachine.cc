@@ -43,16 +43,27 @@ VirtualMachine& VirtualMachine::operator=(VirtualMachine&& rhs) noexcept {
 
 VirtualMachine::~VirtualMachine() = default;
 
-static std::string toLibName(std::string_view name) {
+/// This function is a copy of the same function in "SymbolTable.cc"
+static std::string toForeignLibName(std::string_view fullname) {
     /// TODO: Make portable
     /// This is the MacOS convention, need to add linux and windows conventions
     /// for portability
-    return utl::strcat("lib", name, ".dylib");
+    std::filesystem::path path(fullname);
+    auto name = path.filename().string();
+    path.replace_filename(utl::strcat("lib", name, ".dylib"));
+    return path.string();
 }
 
 static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
                                         std::string_view name) {
-    return utl::dynamic_library(libdir / toLibName(name));
+    auto libname = toForeignLibName(name);
+    try {
+        return utl::dynamic_library(libdir / libname);
+    }
+    catch (std::exception const&) {
+        /// Nothing, try again unscoped
+    }
+    return utl::dynamic_library(libname);
 }
 
 ffi_type svm::ArrayPtrType = [] {

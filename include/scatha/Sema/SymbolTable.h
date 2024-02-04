@@ -13,6 +13,7 @@
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
+#include <scatha/Common/FFI.h>
 #include <scatha/Common/SourceLocation.h>
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
@@ -268,11 +269,8 @@ public:
     /// \overload
     std::span<Library const* const> importedLibs() const;
 
-    /// \Returns a list of resolved foreign library paths
-    std::vector<std::filesystem::path> foreignLibraryPaths() const;
-
-    /// \Returns a list of the names of imported foreign libraries
-    std::vector<std::string> foreignLibraryNames() const;
+    /// \Returns a list of resolved foreign libraries
+    std::vector<ForeignLibraryDecl> foreignLibraries() const;
 
     /// All entities
     std::vector<Entity const*> entities() const;

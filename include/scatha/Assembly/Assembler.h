@@ -45,7 +45,7 @@ struct SCATHA_API LinkerError {
 /// Resolves unresolved symbols from other libraries
 [[nodiscard]] SCATHA_API Expected<void, LinkerError> link(
     std::vector<uint8_t>& program,
-    std::span<std::filesystem::path const> foreignLibraries,
+    std::span<ForeignLibraryDecl const> foreignLibraries,
     std::span<std::pair<size_t, ForeignFunctionInterface> const>
         unresolvedSymbols);
 

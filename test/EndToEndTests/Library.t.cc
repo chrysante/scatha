@@ -211,6 +211,15 @@ fn main() {
     }
 }
 
+TEST_CASE("FFI library nested name", "[end-to-end][lib][foreignlib]") {
+    CHECK(42 == test::compileAndRun(R"(
+import "userlibs/ffi-testlib-nested";
+extern "C" fn foo(n: int, m: int) -> int;
+fn main() {
+return foo(22, 20);
+})"));
+}
+
 TEST_CASE("FFI used by static library",
           "[end-to-end][lib][nativelib][foreignlib]") {
     compileLibrary("libs/testlib", "libs",

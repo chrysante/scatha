@@ -37,7 +37,7 @@ struct FFIDecl {
 
 /// List of foreign functions in one library
 struct FFIList {
-    FFIList(std::string libName = ""): libName(std::move(libName)) {}
+    FFIList(ForeignLibraryDecl const& lib): libName(lib.name()) {}
 
     std::string libName;
     std::vector<FFIDecl> functions;
@@ -45,7 +45,7 @@ struct FFIList {
 
 struct Linker: AsmWriter {
     /// List of supplied library file paths
-    std::span<std::filesystem::path const> foreignLibs;
+    std::span<ForeignLibraryDecl const> foreignLibs;
 
     /// Assembler output
     std::span<std::pair<size_t, ForeignFunctionInterface> const>
@@ -55,7 +55,7 @@ struct Linker: AsmWriter {
     std::vector<std::string> missingSymbols;
 
     Linker(std::vector<uint8_t>& binary,
-           std::span<std::filesystem::path const> foreignLibs,
+           std::span<ForeignLibraryDecl const> foreignLibs,
            std::span<std::pair<size_t, ForeignFunctionInterface> const>
                unresolvedSymbols):
         AsmWriter(binary),
@@ -110,7 +110,7 @@ struct AddressFactory {
 
 Expected<void, LinkerError> Asm::link(
     std::vector<uint8_t>& binary,
-    std::span<std::filesystem::path const> foreignLibs,
+    std::span<ForeignLibraryDecl const> foreignLibs,
     std::span<std::pair<size_t, ForeignFunctionInterface> const>
         unresolvedSymbols) {
     SC_ASSERT(binary.size() >= sizeof(svm::ProgramHeader),
@@ -133,16 +133,6 @@ Expected<void, LinkerError> Linker::run() {
     return {};
 }
 
-static std::string libpathToName(std::filesystem::path const& path) {
-    auto file = path.filename();
-    file.replace_extension();
-    auto name = file.string();
-    /// Erase prefixed "lib"
-    SC_ASSERT(name.starts_with("lib"), "");
-    name.erase(name.begin(), name.begin() + 3);
-    return name;
-}
-
 std::vector<FFIList> Linker::search() {
     utl::small_vector<FFIDecl> foreignFunctions;
     auto makeAddress = AddressFactory{};
@@ -160,10 +150,12 @@ std::vector<FFIList> Linker::search() {
     }
 
     /// Find names in foreign libraries
-    auto ffiLists = foreignLibs | transform(libpathToName) |
-                    ranges::to<std::vector<FFIList>>;
-    for (auto [libIndex, path]: foreignLibs | enumerate) {
-        utl::dynamic_library lib(path, utl::dynamic_load_mode::lazy);
+    auto ffiLists = foreignLibs | ranges::to<std::vector<FFIList>>;
+    for (auto [libIndex, libDecl]: foreignLibs | enumerate) {
+        SC_ASSERT(libDecl.resolvedPath(),
+                  "Tried to link symbol in unresolved library");
+        utl::dynamic_library lib(libDecl.resolvedPath().value(),
+                                 utl::dynamic_load_mode::lazy);
         for (auto itr = foreignFunctions.begin();
              itr != foreignFunctions.end();)
         {

@@ -4,6 +4,7 @@
 /// This file provides common types and functions to work with foreign function
 /// interfaces used across the compiler
 
+#include <filesystem>
 #include <span>
 #include <string>
 
@@ -48,6 +49,25 @@ public:
 private:
     std::string _name;
     std::basic_string<FFIType> sig;
+};
+
+/// Common representation of a foreign library, Used to communicate between sema
+/// and the linker.
+class SCATHA_API ForeignLibraryDecl {
+public:
+    explicit ForeignLibraryDecl(
+        std::string name, std::optional<std::filesystem::path> resolvedPath):
+        _name(std::move(name)), _path(resolvedPath) {}
+
+    /// The (potentially nested) name
+    std::string const& name() const { return _name; }
+
+    /// The location of the library resolved by semantic analysis
+    std::optional<std::filesystem::path> resolvedPath() const { return _path; }
+
+private:
+    std::string _name;
+    std::optional<std::filesystem::path> _path;
 };
 
 } // namespace scatha
