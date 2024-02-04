@@ -123,7 +123,7 @@ static void loadForeignFunctions(VirtualMachine* vm,
         }
         vm->impl->dylibs.push_back(std::move(lib));
     }
-    assert(ranges::is_sorted(fnDecls, ranges::less{}, &FFIDecl::index));
+    ranges::sort(fnDecls, ranges::less{}, &FFIDecl::index);
     vm->impl->foreignFunctionTable.resize(fnDecls.size());
     for (auto [decl, F]: zip(fnDecls, vm->impl->foreignFunctionTable)) {
         if (!initForeignFunction(decl, F)) {
