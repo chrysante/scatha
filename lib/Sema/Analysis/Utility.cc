@@ -73,7 +73,7 @@ void CleanupStack::pop(Object* obj) {
 }
 
 void CleanupStack::pop(ast::Expression* expr) {
-    if (!expr->isDecorated()) {
+    if (!expr || !expr->isDecorated()) {
         return;
     }
     if (expr->isValue()) {

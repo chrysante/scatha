@@ -445,7 +445,10 @@ void StmtContext::analyzeNewMoveDelete(ast::FunctionDefinition& def) {
 
     /// Check all members have requires lifetime functions
     for (auto* member: parent->memberVariables()) {
-        auto* type = cast<ObjectType const*>(member->type());
+        auto* type = dyncast<ObjectType const*>(member->type());
+        if (!type) {
+            continue;
+        }
         auto lifetime = type->lifetimeMetadata();
         if (semaFn->name() == "delete") {
             if (lifetime.destructor().isDeleted()) {
