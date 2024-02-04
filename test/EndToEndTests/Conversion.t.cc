@@ -59,6 +59,13 @@ fn main() -> byte {
 })"));
 }
 
+TEST_CASE("Int to float conversion", "[end-to-end]") {
+    test::checkReturns(std::bit_cast<uint64_t>(-1.0), R"(
+fn main() {
+    return double(-1);
+})");
+}
+
 TEST_CASE("String conversions to int", "[end-to-end]") {
     test::runReturnsTest(123, R"(
 fn main() {

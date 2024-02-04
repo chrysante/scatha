@@ -317,7 +317,7 @@ void CGContext::genInstImpl(mir::ConversionInst const& inst) {
         addMetadata(inst);
         break;
     case mir::Conversion::StoF:
-        currentBlock->insertBack(ConvertInst(operand, Asm::Type::Unsigned,
+        currentBlock->insertBack(ConvertInst(operand, Asm::Type::Signed,
                                              inst.fromBits(), Asm::Type::Float,
                                              inst.toBits()));
         addMetadata(inst);
