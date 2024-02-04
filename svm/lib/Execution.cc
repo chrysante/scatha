@@ -254,8 +254,8 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
         if (F.argumentTypes[i] == &ffi_type_pointer ||
             F.argumentTypes[i] == &ArrayPtrType)
         {
-            *argPtr = std::bit_cast<u64>(memory.dereferenceNoSize(
-                std::bit_cast<VirtualPointer>(*argPtr)));
+            *argPtr = std::bit_cast<u64>(
+                memory.nativeToHost(std::bit_cast<VirtualPointer>(*argPtr)));
         }
         F.arguments[i] = argPtr++;
     }

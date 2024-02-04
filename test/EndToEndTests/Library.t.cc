@@ -216,7 +216,27 @@ TEST_CASE("FFI library nested name", "[end-to-end][lib][foreignlib]") {
 import "userlibs/ffi-testlib-nested";
 extern "C" fn foo(n: int, m: int) -> int;
 fn main() {
-return foo(22, 20);
+    return foo(22, 20);
+})"));
+}
+
+TEST_CASE("FFI pass null pointer", "[end-to-end][lib][foreignlib]") {
+    CHECK(1 == test::compileAndRun(R"(
+import "ffi-testlib";
+extern "C" fn isNull(p: *int) -> bool;
+fn main() -> int {
+    let i: *int;
+    return isNull(i) ? 1 : 0;
+})"));
+}
+
+TEST_CASE("FFI pass nonnull pointer", "[end-to-end][lib][foreignlib]") {
+    CHECK(0 == test::compileAndRun(R"(
+import "ffi-testlib";
+extern "C" fn isNull(p: *int) -> bool;
+fn main() -> int {
+    let i: int;
+    return isNull(&i) ? 1 : 0;
 })"));
 }
 

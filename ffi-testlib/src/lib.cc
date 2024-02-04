@@ -21,6 +21,10 @@ extern "C" void quux() {
     std::cout << "quux\n";
 }
 
+extern "C" bool isNull(void* p) {
+    return p == nullptr;
+}
+
 namespace {
 
 struct MyStruct {

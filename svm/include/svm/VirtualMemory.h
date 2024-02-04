@@ -89,10 +89,12 @@ public:
 
     /// Converts the virtual pointer \p ptr to an actual pointer. \p size is the
     /// amount of bytes at which \p ptr will be dereferencable
+    /// \Note Null pointers are not valid values for \p ptr
     void* dereference(VirtualPointer ptr, size_t size);
 
-    ///
-    void* dereferenceNoSize(VirtualPointer ptr);
+    /// Converts the native pointer \p ptr to its host representation.
+    /// \p ptr may be null
+    void* nativeToHost(VirtualPointer ptr);
 
     /// Converts the pointer \p ptr to a reference to type `T`
     template <typename T>
@@ -140,8 +142,11 @@ inline void* svm::VirtualMemory::dereference(VirtualPointer ptr, size_t size) {
     return slot.data() + ptr.offset;
 }
 
-inline void* svm::VirtualMemory::dereferenceNoSize(VirtualPointer ptr) {
+inline void* svm::VirtualMemory::nativeToHost(VirtualPointer ptr) {
     using enum MemoryAccessError::Reason;
+    if (ptr == VirtualPointer::Null) {
+        return nullptr;
+    }
     if (ptr.slotIndex == 0 || ptr.slotIndex >= slots.size()) {
         reportAccessError(MemoryNotAllocated, ptr, ~size_t(0));
     }
