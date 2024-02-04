@@ -8,6 +8,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <utl/dynamic_library.hpp>
 #include <utl/function_view.hpp>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
@@ -208,18 +209,46 @@ FileScope* SymbolTable::declareFileScope(std::string filename) {
     return file;
 }
 
-static std::optional<std::filesystem::path> findLibrary(
-    std::span<std::filesystem::path const> searchPaths, std::string name) {
-    if (std::filesystem::exists(name)) {
+static std::optional<std::filesystem::path> findLibraryImpl(
+    std::span<std::filesystem::path const> searchPaths, std::string name,
+    utl::function_view<bool(std::filesystem::path const&)> exists) {
+    if (exists(name)) {
         return std::filesystem::path(name);
     }
     for (auto& path: searchPaths) {
         auto fullPath = path / name;
-        if (std::filesystem::exists(fullPath)) {
+        if (exists(fullPath)) {
             return fullPath;
         }
     }
     return std::nullopt;
+}
+
+static std::optional<std::filesystem::path> findNativeLibrary(
+    std::span<std::filesystem::path const> searchPaths, std::string name) {
+    return findLibraryImpl(searchPaths, std::move(name),
+                           [](std::filesystem::path const& path) {
+        return std::filesystem::exists(path);
+    });
+}
+
+static bool foreignLibPathExists(std::filesystem::path const& path) {
+#if !defined(__APPLE__)
+    return std::filesystem::exists(path);
+#else
+    try {
+        [[maybe_unused]] auto lib = utl::dynamic_library(path);
+        return true;
+    }
+    catch (std::exception const&) {
+        return false;
+    }
+#endif
+}
+
+static std::optional<std::filesystem::path> findForeignLibrary(
+    std::span<std::filesystem::path const> searchPaths, std::string name) {
+    return findLibraryImpl(searchPaths, std::move(name), foreignLibPathExists);
 }
 
 static std::string toForeignLibName(std::string_view fullname) {
@@ -238,7 +267,8 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
                                         std::string libname) {
     SC_ASSERT(!impl.foreignLibMap.contains(libname),
               "This library is already imported");
-    auto path = findLibrary(impl.libSearchPaths, toForeignLibName(libname));
+    auto path =
+        findForeignLibrary(impl.libSearchPaths, toForeignLibName(libname));
     if (!path) {
         if (astNode) {
             impl.issue<BadImport>(astNode, BadImport::LibraryNotFound);
@@ -273,7 +303,7 @@ static NativeLibrary* importNativeLib(SymbolTable& sym, SymbolTable::Impl& impl,
     SC_ASSERT(!impl.nativeLibMap.contains(libname),
               "This library is already imported");
     auto symPath =
-        findLibrary(impl.libSearchPaths, utl::strcat(libname, ".scsym"));
+        findNativeLibrary(impl.libSearchPaths, utl::strcat(libname, ".scsym"));
     if (!symPath) {
         impl.issue<BadImport>(node, BadImport::LibraryNotFound);
         return nullptr;
