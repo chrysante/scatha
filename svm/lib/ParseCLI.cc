@@ -28,11 +28,11 @@ static int firstArgIndex(int argc, char* argv[]) {
 
 Options svm::parseCLI(int argc, char* argv[]) {
     int const optionsArgC = firstArgIndex(argc, argv);
-    Options result;
+    Options result{};
     CLI::App app{ "Scatha Virtual Machine" };
-    std::filesystem::path filepath, objpath;
-    CLI::Option const* time =
-        app.add_flag("-t,--time", "Measure execution time");
+    std::filesystem::path filepath;
+    app.add_flag("-t,--time", result.time, "Measure execution time");
+    app.add_flag("--print", result.print, "Print the binary");
     app.add_option("--binary", result.filepath, "Executable file")
         ->check(CLI::ExistingFile);
     try {
@@ -42,7 +42,6 @@ Options svm::parseCLI(int argc, char* argv[]) {
         int const exitCode = app.exit(e);
         std::exit(exitCode);
     }
-    result.time = !!*time;
     for (int i = optionsArgC; i < argc; ++i) {
         result.arguments.push_back(argv[i]);
     }
