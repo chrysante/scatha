@@ -831,6 +831,10 @@ public:
     void recomputeSize();
 
 private:
+    friend class Type;
+
+    size_t alignImpl() const { return elemType->align(); }
+
     ObjectType* elemType;
     size_t _count;
 };
