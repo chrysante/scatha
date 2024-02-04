@@ -31,7 +31,17 @@ filter "system:linux or macosx"
         "-Wall",
         "-Wextra",
         "-pedantic",
-        "-Wimplicit-fallthrough"
+    }
+filter { "system:macosx", "configurations:Debug" }
+    buildoptions {
+        "-Wimplicit-fallthrough",
+        "-fprofile-instr-generate",
+        "-fcoverage-mapping"
+    }
+    linkoptions {
+        "-Wall",
+        "-fprofile-arcs",
+        "-ftest-coverage"
     }
 filter "system:macosx"
     xcodebuildsettings { 
