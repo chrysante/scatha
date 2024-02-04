@@ -97,12 +97,16 @@ void PrintContext::print(Entity const& entity) {
     });
     str << "\n";
     auto children = getChildren(entity);
-    if (auto* type = dyncast<ObjectType const*>(&entity);
-        type && type->hasLifetimeMetadata())
-    {
-        formatter.push(children.empty() ? Level::LastChild : Level::Child);
-        print(type->lifetimeMetadata());
-        formatter.pop();
+    if (auto* type = dyncast<ObjectType const*>(&entity)) {
+        str << formatter.beginLine() << tfmt::format(Italic, "Size: ")
+            << type->size() << "\n";
+        str << formatter.beginLine() << tfmt::format(Italic, "Align: ")
+            << type->align() << "\n";
+        if (type->hasLifetimeMetadata()) {
+            formatter.push(children.empty() ? Level::LastChild : Level::Child);
+            print(type->lifetimeMetadata());
+            formatter.pop();
+        }
     }
     for (auto [index, child]: children | ranges::views::enumerate) {
         formatter.push(index != children.size() - 1 ? Level::Child :
