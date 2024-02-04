@@ -26,6 +26,9 @@ SVM_BUILTIN_DEF(tan_f64,   Const, { F64() }, F64())
 SVM_BUILTIN_DEF(asin_f64,  Const, { F64() }, F64())
 SVM_BUILTIN_DEF(acos_f64,  Const, { F64() }, F64())
 SVM_BUILTIN_DEF(atan_f64,  Const, { F64() }, F64())
+SVM_BUILTIN_DEF(fract_f64, Const, { F64() }, F64())
+SVM_BUILTIN_DEF(floor_f64, Const, { F64() }, F64())
+SVM_BUILTIN_DEF(ceil_f64,  Const, { F64() }, F64())
 
 SVM_BUILTIN_DEF(abs_f32,   Const, { F32() }, F32())
 SVM_BUILTIN_DEF(exp_f32,   Const, { F32() }, F32())
@@ -44,6 +47,9 @@ SVM_BUILTIN_DEF(tan_f32,   Const, { F32() }, F32())
 SVM_BUILTIN_DEF(asin_f32,  Const, { F32() }, F32())
 SVM_BUILTIN_DEF(acos_f32,  Const, { F32() }, F32())
 SVM_BUILTIN_DEF(atan_f32,  Const, { F32() }, F32())
+SVM_BUILTIN_DEF(fract_f32, Const, { F32() }, F32())
+SVM_BUILTIN_DEF(floor_f32, Const, { F32() }, F32())
+SVM_BUILTIN_DEF(ceil_f32,  Const, { F32() }, F32())
 
 /// ## Memory Management
 SVM_BUILTIN_DEF(memcpy,  None,  {

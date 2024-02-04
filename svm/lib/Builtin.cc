@@ -59,6 +59,12 @@ static std::span<T> loadArray(u64* regPtr) {
     return std::span<T>(data, size);
 }
 
+template <typename T>
+static T fract(T arg) {
+    T i;
+    return std::copysign(std::modf(arg, &i), 1.0);
+}
+
 std::vector<BuiltinFunction> svm::makeBuiltinTable() {
     std::vector<BuiltinFunction> result(static_cast<size_t>(Builtin::_count));
     [[maybe_unused]] size_t currentIndex = 0;
@@ -72,44 +78,54 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
     };
     /// ## Common math functions
 
-#define MATH_STD_IMPL(name) [](auto... args) { return std::name(args...); }
-    set(Builtin::abs_f64, math<double, 1>(MATH_STD_IMPL(abs)));
-    set(Builtin::exp_f64, math<double, 1>(MATH_STD_IMPL(exp)));
-    set(Builtin::exp2_f64, math<double, 1>(MATH_STD_IMPL(exp2)));
+#define MATH_IMPL(name)                                                        \
+    [](auto... args) {                                                         \
+        using namespace std; /* sic! */                                        \
+        return name(args...);                                                  \
+    }
+    set(Builtin::abs_f64, math<double, 1>(MATH_IMPL(abs)));
+    set(Builtin::exp_f64, math<double, 1>(MATH_IMPL(exp)));
+    set(Builtin::exp2_f64, math<double, 1>(MATH_IMPL(exp2)));
     set(Builtin::exp10_f64,
         math<double, 1>([](double arg) { return std::pow(arg, 10.0); }));
-    set(Builtin::log_f64, math<double, 1>(MATH_STD_IMPL(log)));
-    set(Builtin::log2_f64, math<double, 1>(MATH_STD_IMPL(log2)));
-    set(Builtin::log10_f64, math<double, 1>(MATH_STD_IMPL(log10)));
-    set(Builtin::pow_f64, math<double, 2>(MATH_STD_IMPL(pow)));
-    set(Builtin::sqrt_f64, math<double, 1>(MATH_STD_IMPL(sqrt)));
-    set(Builtin::cbrt_f64, math<double, 1>(MATH_STD_IMPL(cbrt)));
-    set(Builtin::hypot_f64, math<double, 2>(MATH_STD_IMPL(hypot)));
-    set(Builtin::sin_f64, math<double, 1>(MATH_STD_IMPL(sin)));
-    set(Builtin::cos_f64, math<double, 1>(MATH_STD_IMPL(cos)));
-    set(Builtin::tan_f64, math<double, 1>(MATH_STD_IMPL(tan)));
-    set(Builtin::asin_f64, math<double, 1>(MATH_STD_IMPL(asin)));
-    set(Builtin::acos_f64, math<double, 1>(MATH_STD_IMPL(acos)));
-    set(Builtin::atan_f64, math<double, 1>(MATH_STD_IMPL(atan)));
+    set(Builtin::log_f64, math<double, 1>(MATH_IMPL(log)));
+    set(Builtin::log2_f64, math<double, 1>(MATH_IMPL(log2)));
+    set(Builtin::log10_f64, math<double, 1>(MATH_IMPL(log10)));
+    set(Builtin::pow_f64, math<double, 2>(MATH_IMPL(pow)));
+    set(Builtin::sqrt_f64, math<double, 1>(MATH_IMPL(sqrt)));
+    set(Builtin::cbrt_f64, math<double, 1>(MATH_IMPL(cbrt)));
+    set(Builtin::hypot_f64, math<double, 2>(MATH_IMPL(hypot)));
+    set(Builtin::sin_f64, math<double, 1>(MATH_IMPL(sin)));
+    set(Builtin::cos_f64, math<double, 1>(MATH_IMPL(cos)));
+    set(Builtin::tan_f64, math<double, 1>(MATH_IMPL(tan)));
+    set(Builtin::asin_f64, math<double, 1>(MATH_IMPL(asin)));
+    set(Builtin::acos_f64, math<double, 1>(MATH_IMPL(acos)));
+    set(Builtin::atan_f64, math<double, 1>(MATH_IMPL(atan)));
+    set(Builtin::fract_f64, math<double, 1>(MATH_IMPL(fract)));
+    set(Builtin::floor_f64, math<double, 1>(MATH_IMPL(floor)));
+    set(Builtin::ceil_f64, math<double, 1>(MATH_IMPL(ceil)));
 
-    set(Builtin::abs_f32, math<float, 1>(MATH_STD_IMPL(abs)));
-    set(Builtin::exp_f32, math<float, 1>(MATH_STD_IMPL(exp)));
-    set(Builtin::exp2_f32, math<float, 1>(MATH_STD_IMPL(exp2)));
+    set(Builtin::abs_f32, math<float, 1>(MATH_IMPL(abs)));
+    set(Builtin::exp_f32, math<float, 1>(MATH_IMPL(exp)));
+    set(Builtin::exp2_f32, math<float, 1>(MATH_IMPL(exp2)));
     set(Builtin::exp10_f32,
         math<float, 1>([](float arg) { return std::pow(arg, 10.0f); }));
-    set(Builtin::log_f32, math<float, 1>(MATH_STD_IMPL(log)));
-    set(Builtin::log2_f32, math<float, 1>(MATH_STD_IMPL(log2)));
-    set(Builtin::log10_f32, math<float, 1>(MATH_STD_IMPL(log10)));
-    set(Builtin::pow_f32, math<float, 2>(MATH_STD_IMPL(pow)));
-    set(Builtin::sqrt_f32, math<float, 1>(MATH_STD_IMPL(sqrt)));
-    set(Builtin::cbrt_f32, math<float, 1>(MATH_STD_IMPL(cbrt)));
-    set(Builtin::hypot_f32, math<float, 2>(MATH_STD_IMPL(hypot)));
-    set(Builtin::sin_f32, math<float, 1>(MATH_STD_IMPL(sin)));
-    set(Builtin::cos_f32, math<float, 1>(MATH_STD_IMPL(cos)));
-    set(Builtin::tan_f32, math<float, 1>(MATH_STD_IMPL(tan)));
-    set(Builtin::asin_f32, math<float, 1>(MATH_STD_IMPL(asin)));
-    set(Builtin::acos_f32, math<float, 1>(MATH_STD_IMPL(acos)));
-    set(Builtin::atan_f32, math<float, 1>(MATH_STD_IMPL(atan)));
+    set(Builtin::log_f32, math<float, 1>(MATH_IMPL(log)));
+    set(Builtin::log2_f32, math<float, 1>(MATH_IMPL(log2)));
+    set(Builtin::log10_f32, math<float, 1>(MATH_IMPL(log10)));
+    set(Builtin::pow_f32, math<float, 2>(MATH_IMPL(pow)));
+    set(Builtin::sqrt_f32, math<float, 1>(MATH_IMPL(sqrt)));
+    set(Builtin::cbrt_f32, math<float, 1>(MATH_IMPL(cbrt)));
+    set(Builtin::hypot_f32, math<float, 2>(MATH_IMPL(hypot)));
+    set(Builtin::sin_f32, math<float, 1>(MATH_IMPL(sin)));
+    set(Builtin::cos_f32, math<float, 1>(MATH_IMPL(cos)));
+    set(Builtin::tan_f32, math<float, 1>(MATH_IMPL(tan)));
+    set(Builtin::asin_f32, math<float, 1>(MATH_IMPL(asin)));
+    set(Builtin::acos_f32, math<float, 1>(MATH_IMPL(acos)));
+    set(Builtin::atan_f32, math<float, 1>(MATH_IMPL(atan)));
+    set(Builtin::fract_f32, math<float, 1>(MATH_IMPL(fract)));
+    set(Builtin::floor_f32, math<float, 1>(MATH_IMPL(floor)));
+    set(Builtin::ceil_f32, math<float, 1>(MATH_IMPL(ceil)));
 
     /// ## Memory
     set(Builtin::memcpy, [](u64* regPtr, VirtualMachine* vm) {
