@@ -58,7 +58,7 @@ struct AssertContext {
             std::cout << ":\n\n";
             ir::print(*currentFunction);
         }
-        SC_DEBUGBREAK();
+        scatha::internal::handleAssertFailure();
     }
 
     ir::Context& ctx;

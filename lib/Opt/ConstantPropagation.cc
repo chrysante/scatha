@@ -123,8 +123,8 @@ struct SCCPContext {
 
     bool controlledByConstant(TerminatorInst const& terminator);
 
-    FormalValue evaluateConversion(Conversion conv, Type const* targetType,
-                                   FormalValue operand);
+    FormalValue evaluateConversion(Conversion conv, Type const* sourceType,
+                                   Type const* targetType, FormalValue operand);
 
     FormalValue evaluateArithmetic(ArithmeticOperation operation,
                                    FormalValue const& lhs,
@@ -294,6 +294,7 @@ void SCCPContext::visitExpression(Instruction& inst) {
     FormalValue const value = SC_MATCH (inst) {
         [&](ConversionInst& inst) {
             return evaluateConversion(inst.conversion(),
+                                      inst.operand()->type(),
                                       inst.type(),
                                       formalValue(inst.operand()));
         },
@@ -426,6 +427,7 @@ template <typename T>
 concept FormalConstant = std::same_as<T, APInt> || std::same_as<T, APFloat>;
 
 FormalValue SCCPContext::evaluateConversion(Conversion conv,
+                                            Type const* sourceType,
                                             Type const* targetType,
                                             FormalValue operand) {
     auto* arithTargetType = dyncast<ArithmeticType const*>(targetType);
@@ -477,12 +479,20 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
         return signedValuecast<APInt>(std::get<APFloat>(operand), targetWidth);
 
     case Conversion::Bitcast: {
-        if (std::holds_alternative<APInt>(operand)) {
+        if (targetType == sourceType) {
+            return operand;
+        }
+        if (std::holds_alternative<APInt>(operand) &&
+            isa<FloatType>(targetType))
+        {
             return bitcast<APFloat>(std::get<APInt>(operand));
         }
-        else {
+        if (std::holds_alternative<APFloat>(operand) &&
+            isa<IntegralType>(targetType))
+        {
             return bitcast<APInt>(std::get<APFloat>(operand));
         }
+        return Inevaluable{};
     }
     case Conversion::_count:
         SC_UNREACHABLE();

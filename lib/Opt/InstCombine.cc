@@ -207,7 +207,9 @@ bool InstCombineCtx::run() {
         worklist.pushUsers(inst);
         worklist.pushValue(replacement);
         replaceInst(inst, replacement);
-        markForDeletion(inst);
+        if (inst != replacement) {
+            markForDeletion(inst);
+        }
     }
     clean();
     return modifiedAny;

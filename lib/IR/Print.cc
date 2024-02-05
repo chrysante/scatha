@@ -510,7 +510,7 @@ void PrintCtx::printImpl(Branch const& br) {
 }
 
 void PrintCtx::printImpl(Return const& ret) {
-    if (isa<VoidType>(ret.value()->type())) {
+    if (ret.value() && isa<VoidType>(ret.value()->type())) {
         return;
     }
     typedName(ret.value());

@@ -416,3 +416,28 @@ func i64 @g() {
 }
 )");
 }
+
+TEST_CASE("Bitcast folding", "[opt][inst-combine]") {
+    auto* prog = R"(
+    func i64 @main() {
+        %entry:
+          %a = bitcast i64 0 to f64
+          %b = bitcast f64 %a to i64
+          return i64 %b
+    })";
+    auto [ctx, mod] = ir::parse(prog).value();
+    CHECK_NOTHROW(opt::instCombine(ctx, mod.front()));
+
+    /// TODO: Make this test pass
+    /// This was intended as a regression test because instcombine used to crash
+    /// on this, but it still does not perform the desired transform because it
+    /// doesn't perform trivial constant folding
+#if 0
+    test::passTest(&opt::instCombine, prog,
+                     R"(
+func i64 @main() {
+  %entry:
+    return i64 0
+})");
+#endif
+}
