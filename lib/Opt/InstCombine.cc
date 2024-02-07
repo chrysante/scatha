@@ -788,13 +788,13 @@ static CompareOperation operationForReversedOperands(CompareOperation op) {
     using enum CompareOperation;
     switch (op) {
     case Less:
-        return GreaterEq;
-    case LessEq:
         return Greater;
+    case LessEq:
+        return GreaterEq;
     case Greater:
-        return LessEq;
-    case GreaterEq:
         return Less;
+    case GreaterEq:
+        return LessEq;
     case Equal:
         return Equal;
     case NotEqual:

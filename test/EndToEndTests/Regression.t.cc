@@ -427,3 +427,19 @@ func i64 @main() {
     return i64 %b
 })");
 }
+
+TEST_CASE("InstCombine invalid compare operand swapping",
+          "[end-to-end][regression]") {
+    test::runReturnsTest(0, R"(
+fn main() {
+    var s = Set();
+    for i = 0; i < s.sz; ++i {
+        return 1;
+    }
+    return 0;
+}
+struct Set {
+    var sz: int;
+}
+)");
+}
