@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string_view>
 
-#include <CLI/CLI11.hpp>
+#include <CLI/CLI.hpp>
 
 using namespace svm;
 

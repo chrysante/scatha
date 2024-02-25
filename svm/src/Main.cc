@@ -7,8 +7,6 @@
 #include <string>
 #include <string_view>
 
-#include <range/v3/algorithm.hpp>
-#include <range/v3/view.hpp>
 #include <svm/ParseCLI.h>
 #include <svm/Program.h>
 #include <svm/Util.h>
