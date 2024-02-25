@@ -374,7 +374,8 @@ void LRContext::addSingleValuePhis(BasicBlock* header, BasicBlock* succ) {
 void LRContext::augmentSingleValuePhis(BasicBlock* footer, BasicBlock* succ) {
     /// This way of augmenting the phi nodes works because we have exactly one
     /// phi node in `succ` for every non-terminator instruction in `footer`
-    for (auto&& [phi, inst]: ranges::views::zip(succ->phiNodes(), *footer)) {
-        phi.addArgument(footer, &inst);
+    auto footerItr = footer->begin();
+    for (auto& phi: succ->phiNodes()) {
+        phi.addArgument(footer, footerItr++.to_address());
     }
 }

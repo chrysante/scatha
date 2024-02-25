@@ -301,12 +301,10 @@ void UnrollContext::unroll(std::span<APInt const> inductionValues) const {
             cloneLatch->terminator()->updateTarget(currentHeader, nextHeader);
             currentHeader->removePredecessor(cloneLatch);
             nextHeader->addPredecessor(cloneLatch);
-            for (auto [phi, origPhi]:
-                 ranges::views::zip(nextHeader->phiNodes(),
-                                    loop.header()->phiNodes()))
-            {
+            auto loopHeaderPhiItr = loop.header()->begin();
+            for (auto& phi: nextHeader->phiNodes()) {
                 phi.addArgument(cloneLatch,
-                                iteration.map(origPhi.operandOf(origLatch)));
+                                iteration.map(cast<Phi&>(*loopHeaderPhiItr++).operandOf(origLatch)));
             }
         }
         for (auto* entering: loop.enteringBlocks()) {

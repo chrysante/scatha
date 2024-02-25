@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "Common/APFloat.h"
-#include "IssueHelper.h"
+#include "Util/IssueHelper.h"
 #include "Parser/Lexer.h"
 #include "Parser/LexicalIssue.h"
 
