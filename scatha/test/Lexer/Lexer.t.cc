@@ -3,9 +3,9 @@
 #include <iostream>
 
 #include "Common/APFloat.h"
-#include "Util/IssueHelper.h"
 #include "Parser/Lexer.h"
 #include "Parser/LexicalIssue.h"
+#include "Util/IssueHelper.h"
 
 using namespace scatha;
 using namespace parser;
