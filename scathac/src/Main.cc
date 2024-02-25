@@ -1,6 +1,6 @@
 #include <unordered_map>
 
-#include <CLI/CLI11.hpp>
+#include <CLI/CLI.hpp>
 
 #include "Compiler.h"
 #include "Graph.h"
