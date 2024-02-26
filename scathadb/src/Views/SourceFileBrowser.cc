@@ -26,7 +26,7 @@ struct FileBrowser: ScrollBase {
             return;
         }
         for (auto [index, file]: debug->files() | ranges::views::enumerate) {
-            Add(Button(file.path().filename().string(), [=, index = index] {
+            Add(Button(file.path().filename().string(), [this, index = index] {
                 uiHandle->openSourceFile(index);
             }));
         }

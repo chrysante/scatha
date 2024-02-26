@@ -1,9 +1,9 @@
-build/
-debug/
+/build/
+/debug/
 
 /graphviz/*
-!graphviz/
-!graphviz/**.sh
+!/graphviz
+!/graphviz/**.sh
 
 .vs/
 .vscode/
@@ -11,12 +11,12 @@ debug/
 .DS_Store
 **/.DS_Store
 
-examples/
-!examples/**.sc
-!examples/**.scir
-!examples/**.cpp
-volatile/
-stdlib/build/
+/examples
+!/examples/**.sc
+!/examples/**.scir
+!/examples/**.cpp
+/volatile/
+/stdlib/build
 
 Makefile
 **/Makefile
@@ -29,10 +29,6 @@ Makefile
 **.vcxproj.user
 **.vcxproj.filters
 **.sln
-
-cmake-build-debug
-CMakeLists.txt
-**.cmake
 
 .cproject
 .project

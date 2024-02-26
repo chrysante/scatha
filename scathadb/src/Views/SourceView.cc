@@ -107,7 +107,7 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
         }
         auto& file = debug.files()[*fileIndex];
         for (auto [index, line]: file.lines() | ranges::views::enumerate) {
-            Add(Renderer([=, index = index, line = std::string(line)] {
+            Add(Renderer([this, index = index, line = std::string(line)] {
                 auto lineInfo = getLineInfo(utl::narrow_cast<ssize_t>(index));
                 return hbox({ lineNumber(lineInfo),
                               breakpointIndicator(lineInfo),

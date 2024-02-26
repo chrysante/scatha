@@ -238,11 +238,11 @@ struct OpenFilePanelBase: ComponentBase {
             }
             return elem;
         };
-        opt.on_change = [=] {
+        opt.on_change = [this] {
             autoComplete.invalidate();
             hideMessage();
         };
-        opt.on_enter = [=] {
+        opt.on_enter = [=, this] {
             size_t newlinePos = utl::narrow_cast<size_t>(cursor) - 1;
             assert(content[newlinePos] == '\n');
             content.erase(newlinePos, 1);

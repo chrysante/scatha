@@ -120,7 +120,7 @@ struct TabViewBase: ComponentBase {
             int index = utl::narrow_cast<int>(p.first);
             auto name = p.second;
             ButtonOption opt;
-            opt.transform = [=](EntryState const&) {
+            opt.transform = [=, this](EntryState const&) {
                 auto elem = text(name) | bold;
                 if (index == selector) {
                     elem |= color(Color::BlueLight);
@@ -130,7 +130,7 @@ struct TabViewBase: ComponentBase {
                 }
                 return elem;
             };
-            opt.on_click = [=] { selector = index; };
+            opt.on_click = [=, this] { selector = index; };
             return Button(opt);
         };
         auto tabs = names | ranges::views::enumerate |

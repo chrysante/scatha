@@ -16,7 +16,6 @@
 #include <scatha/Opt/Passes.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
-#include <svm/VirtualMachine.h>
 #include <termfmt/termfmt.h>
 #include <utl/strcat.hpp>
 
