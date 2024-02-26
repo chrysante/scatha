@@ -1,6 +1,6 @@
 # libsvm
 
-add_library(libsvm)
+add_library(libsvm SHARED)
 set_target_properties(libsvm PROPERTIES LINKER_LANGUAGE CXX)
 SCSetCompilerOptions(libsvm)
 
