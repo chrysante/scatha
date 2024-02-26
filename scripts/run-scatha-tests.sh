@@ -32,6 +32,6 @@ N=12
 open_sem $N
 for (( i=0; i<SHARD_COUNT; i++ ))
 do
-    run_with_lock "$PROJ_DIR/build/bin/debug/scatha-test" "--shard-count $SHARD_COUNT" "--shard-index $i" --idempotency=yes --passes=yes
+    run_with_lock "$PROJ_DIR/build/scatha/Debug/scatha-test" "--shard-count $SHARD_COUNT" "--shard-index $i" --idempotency=yes --passes=yes
 done
 
