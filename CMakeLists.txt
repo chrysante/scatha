@@ -42,6 +42,7 @@ if(PROJECT_IS_TOP_LEVEL)
       scathac
       scathadb
       svm
+      libsvm
     DESTINATION
       bin
   )

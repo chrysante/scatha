@@ -67,6 +67,7 @@ source_group(lib REGULAR_EXPRESSION "lib/*")
 # svm
 
 add_executable(svm)
+set_target_properties(svm PROPERTIES INSTALL_RPATH "@loader_path")
 SCSetCompilerOptions(svm)
 
 target_link_libraries(svm
