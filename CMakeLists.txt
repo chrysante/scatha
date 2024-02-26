@@ -46,4 +46,3 @@ if(PROJECT_IS_TOP_LEVEL)
       bin
   )
 endif()
-
