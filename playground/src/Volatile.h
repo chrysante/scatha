@@ -1,11 +1,9 @@
 #ifndef PLAYGROUND_VOLATILE_H_
 #define PLAYGROUND_VOLATILE_H_
 
-#include <filesystem>
-
 namespace playground {
 
-void volatilePlayground(std::filesystem::path path);
+void volatilePlayground();
 
 } // namespace playground
 

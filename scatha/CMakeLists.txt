@@ -33,6 +33,10 @@ target_sources(scatha
 )
 source_group(TREE ${PROJECT_SOURCE_DIR}/scatha FILES ${scatha_headers} ${scatha_sources})
 
+if(NOT PROJECT_IS_TOP_LEVEL)
+  return()
+endif()
+
 # scatha-test
 add_executable(scatha-test)
 set_target_properties(scatha-test PROPERTIES LINKER_LANGUAGE CXX)

@@ -34,12 +34,16 @@ add_subdirectory(scathac)
 add_subdirectory(svm)
 add_subdirectory(scathadb)
 
-install(
-  TARGETS
-    scatha
-    scathac
-    scathadb
-    svm
-  DESTINATION
-    bin
-)
+if(PROJECT_IS_TOP_LEVEL)
+  add_subdirectory(playground)
+  install(
+    TARGETS
+      scatha
+      scathac
+      scathadb
+      svm
+    DESTINATION
+      bin
+  )
+endif()
+

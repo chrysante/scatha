@@ -8,7 +8,6 @@
 #include <range/v3/view.hpp>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
-#include <termfmt/termfmt.h>
 #include <utl/strcat.hpp>
 
 #include "AST/Print.h"
@@ -81,8 +80,7 @@ static void run(Asm::AssemblyStream const& assembly) {
 }
 
 static void run(ir::Module const& mod) {
-    auto assembly =
-        cg::codegen(mod); // , *std::make_unique<cg::DebugLogger>());
+    auto assembly = cg::codegen(mod);
     header("Assembly");
     Asm::print(assembly);
     header("Execution");
@@ -167,8 +165,7 @@ static void printSize(std::string_view name, size_t size) {
 #include "IR/Lists.def"
 }
 
-void playground::volatilePlayground(
-    [[maybe_unused]] std::filesystem::path path) {
+void playground::volatilePlayground() {
     printIRValueSizes();
     PRINT_SIZE(std::unordered_map<int, int>);
     PRINT_SIZE(utl::hashmap<int, int>);
