@@ -485,3 +485,7 @@ set(scatha_test_sources
     test/Util/LibUtil.h
     test/Util/Set.h
 )
+
+set(scatha_benchmark_sources
+  benchmark/Benchmark.cc
+)

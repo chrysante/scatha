@@ -1,5 +1,6 @@
 include(SourceFiles.cmake)
 
+# scatha
 add_library(scatha SHARED)
 set_target_properties(scatha PROPERTIES LINKER_LANGUAGE CXX)
 SCSetCompilerOptions(scatha)
@@ -32,7 +33,7 @@ target_sources(scatha
 )
 source_group(TREE ${PROJECT_SOURCE_DIR}/scatha FILES ${scatha_headers} ${scatha_sources})
 
-# Tests
+# scatha-test
 add_executable(scatha-test)
 set_target_properties(scatha-test PROPERTIES LINKER_LANGUAGE CXX)
 SCSetCompilerOptions(scatha-test)
@@ -73,3 +74,27 @@ add_custom_command(TARGET ffi-testlib POST_BUILD
     $<TARGET_FILE:ffi-testlib>
     $<TARGET_FILE_DIR:ffi-testlib>/nested/$<TARGET_FILE_NAME:ffi-testlib>
 )
+
+# scatha-benchmark
+add_executable(scatha-benchmark)
+set_target_properties(scatha-benchmark PROPERTIES LINKER_LANGUAGE CXX)
+SCSetCompilerOptions(scatha-benchmark)
+
+target_include_directories(scatha-benchmark
+    PRIVATE
+      include
+      benchmark
+)
+
+target_link_libraries(scatha-benchmark
+  PRIVATE
+    scatha
+    libsvm
+    Catch2::Catch2WithMain
+)
+
+target_sources(scatha-benchmark
+  PRIVATE
+    ${scatha_benchmark_sources}
+)
+source_group(TREE ${PROJECT_SOURCE_DIR}/scatha/benchmark FILES ${scatha_benchmark_sources})
