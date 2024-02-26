@@ -33,7 +33,6 @@ add_subdirectory(scatha)
 add_subdirectory(scathac)
 add_subdirectory(svm)
 add_subdirectory(scathadb)
-add_subdirectory(ffi-testlib)
 
 install(
   TARGETS

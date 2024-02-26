@@ -19,5 +19,10 @@ function(SCSetCompilerOptions target)
     # We enable this later, this triggers too often
     #target_compile_options(${target} PRIVATE "-Wshadow")
     target_compile_options(${target} PRIVATE "-Wunused")
+
+    target_compile_options(${target} PRIVATE "$<$<CONFIG:Debug>:-fsanitize=address>")
+    target_link_options(${target} PRIVATE "$<$<CONFIG:Debug>:-fsanitize=address>")
+    target_compile_options(${target} PRIVATE "$<$<CONFIG:Debug>:-fsanitize=undefined>")
+    target_link_options(${target} PRIVATE "$<$<CONFIG:Debug>:-fsanitize=undefined>")
   endif()
 endfunction()
