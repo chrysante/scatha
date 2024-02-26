@@ -1,5 +1,6 @@
 #include "Common/FileHandling.h"
 
+#include <cstring>
 #include <fstream>
 #include <stdexcept>
 
@@ -18,7 +19,8 @@ std::fstream scatha::createOutputFile(std::filesystem::path const& path,
     flags |= std::ios::out;
     std::fstream file(path, flags);
     if (!file) {
-        throw std::runtime_error(utl::strcat("Failed to create ", path));
+        throw std::runtime_error(
+            utl::strcat("Failed to create ", path, ": ", std::strerror(errno)));
     }
     return file;
 }
