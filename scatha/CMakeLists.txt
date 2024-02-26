@@ -30,7 +30,7 @@ target_sources(scatha
     ${scatha_headers}
     ${scatha_sources}
 )
-source_group(TREE scatha FILES ${scatha_headers} ${scatha_sources})
+source_group(TREE ${PROJECT_SOURCE_DIR}/scatha FILES ${scatha_headers} ${scatha_sources})
 
 # Tests
 add_executable(scatha-test)
@@ -62,7 +62,7 @@ target_sources(scatha-test
   PRIVATE
     ${scatha_test_sources}
 )
-source_group(TREE scatha/test FILES ${scatha_test_sources})
+source_group(TREE ${PROJECT_SOURCE_DIR}/scatha/test FILES ${scatha_test_sources})
 
 # Library used to test foreign function import
 add_library(ffi-testlib SHARED test/ffi-testlib/lib.cc)
