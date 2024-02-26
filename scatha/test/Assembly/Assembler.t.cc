@@ -25,7 +25,7 @@ static T load(void const* ptr) {
 
 static auto assembleAndExecute(AssemblyStream const& str) {
     auto [prog, sym, unresolved] = assemble(str);
-    if (!link(prog, {}, unresolved)) {
+    if (!link(LinkerOptions{}, prog, {}, unresolved)) {
         throw std::runtime_error("Linker error");
     }
     svm::VirtualMachine vm(1024, 1024);
@@ -37,7 +37,7 @@ static auto assembleAndExecute(AssemblyStream const& str) {
 
 [[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
     auto [prog, sym, unresolved] = assemble(str);
-    if (!link(prog, {}, unresolved)) {
+    if (!link(LinkerOptions{}, prog, {}, unresolved)) {
         throw std::runtime_error("Linker error");
     }
     svm::print(prog.data());

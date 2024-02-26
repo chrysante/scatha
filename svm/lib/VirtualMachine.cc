@@ -56,6 +56,10 @@ static std::string toForeignLibName(std::string_view fullname) {
 
 static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
                                         std::string_view name) {
+    /// Empty name means search host
+    if (name.empty()) {
+        return utl::dynamic_library::global(utl::dynamic_load_mode::lazy);
+    }
     auto libname = toForeignLibName(name);
     try {
         return utl::dynamic_library(libdir / libname);

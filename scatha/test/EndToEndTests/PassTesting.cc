@@ -95,7 +95,7 @@ static auto codegenAndAssemble(
         return cg::codegen(mod, logger);
     }();
     auto [prog, sym, unresolved] = Asm::assemble(assembly);
-    if (!Asm::link(prog, foreignLibs, unresolved)) {
+    if (!Asm::link(Asm::LinkerOptions{}, prog, foreignLibs, unresolved)) {
         throw std::runtime_error("Linker error");
     }
     return std::pair{ std::move(prog), std::move(sym) };

@@ -7,6 +7,7 @@ set(scatha_headers
   include/scatha/Assembly/Assembler.h
   include/scatha/Assembly/AssemblyStream.h
   include/scatha/Assembly/Fwd.h
+  include/scatha/Assembly/Options.h
 
   include/scatha/CodeGen/CodeGen.h
   include/scatha/CodeGen/Logger.h

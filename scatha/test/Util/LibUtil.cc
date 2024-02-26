@@ -33,23 +33,19 @@ void test::compileLibrary(std::filesystem::path name,
 }
 
 uint64_t test::compileAndRunDependentProgram(
-    std::filesystem::path libSearchPath, std::string source) {
+    std::filesystem::path libSearchPath, std::string source,
+    Asm::LinkerOptions linkOptions) {
     std::stringstream sstr;
     CompilerInvocation inv = makeCompiler(TargetType::Executable, "test", sstr);
     inv.setErrorStream(sstr);
     inv.setInputs({ SourceFile::make(std::move(source)) });
     inv.setLibSearchPaths({ libSearchPath });
+    inv.setLinkerOptions(linkOptions);
     size_t startpos = 0;
-    std::vector<uint8_t> program;
     auto asmCallback = [&](Asm::AssemblerResult const& res) {
         startpos = findMain(res.symbolTable).value();
     };
-    auto linkerCallback = [&](std::span<uint8_t const> data) {
-        program.assign(data.begin(), data.end());
-        inv.stop();
-    };
-    inv.setCallbacks(
-        { .asmCallback = asmCallback, .linkerCallback = linkerCallback });
+    inv.setCallbacks({ .asmCallback = asmCallback });
     auto target = inv.run();
     assert(target);
     return runProgram(target->binary(), startpos);

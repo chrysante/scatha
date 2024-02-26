@@ -1,6 +1,8 @@
 #ifndef SCATHA_TEST_LIBUTIL_H_
 #define SCATHA_TEST_LIBUTIL_H_
 
+#include <scatha/Assembly/Options.h>
+
 #include <filesystem>
 #include <string>
 
@@ -13,7 +15,8 @@ void compileLibrary(std::filesystem::path name,
 /// Compiles and runs the program \p source that depends on libraries in \p
 /// libSearchPath
 uint64_t compileAndRunDependentProgram(std::filesystem::path libSearchPath,
-                                       std::string source);
+                                       std::string source,
+                                       Asm::LinkerOptions linkOptions = {});
 
 } // namespace scatha::test
 

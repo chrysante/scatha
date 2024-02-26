@@ -12,6 +12,7 @@
 
 #include <scatha/AST/Fwd.h>
 #include <scatha/Assembly/Fwd.h>
+#include <scatha/Assembly/Options.h>
 #include <scatha/CodeGen/Logger.h>
 #include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Fwd.h>
@@ -77,6 +78,11 @@ public:
         optPipeline = std::move(pipeline);
     }
 
+    /// Sets the linker options passed to the `link` command
+    void setLinkerOptions(Asm::LinkerOptions options) {
+        linkerOptions = options;
+    }
+
     /// Sets the codegen logger to \p logger
     /// Defaults to an instance of `cg::NullLogger`
     void setCodegenLogger(cg::Logger& logger) { codegenLogger = &logger; }
@@ -114,6 +120,7 @@ private:
     CompilerCallbacks callbacks;
     std::function<void()> errorHandler;
     std::string optPipeline = {};
+    Asm::LinkerOptions linkerOptions;
     std::ostream* errStream;
     cg::Logger* codegenLogger = nullptr;
     int optLevel = 0;

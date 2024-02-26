@@ -178,8 +178,8 @@ std::optional<Target> CompilerInvocation::run() {
         tryInvoke(callbacks.asmCallback, asmRes);
         if (!continueCompilation) return std::nullopt;
         auto& [program, symbolTable, unresolved] = asmRes;
-        auto linkRes =
-            Asm::link(program, semaSym.foreignLibraries(), unresolved);
+        auto linkRes = Asm::link(linkerOptions, program,
+                                 semaSym.foreignLibraries(), unresolved);
         if (!linkRes) {
             printLinkerError(linkRes.error(), err());
             handleError();

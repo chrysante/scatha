@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <scatha/Assembly/Options.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/FFI.h>
@@ -44,7 +45,7 @@ struct SCATHA_API LinkerError {
 
 /// Resolves unresolved symbols from other libraries
 [[nodiscard]] SCATHA_API Expected<void, LinkerError> link(
-    std::vector<uint8_t>& program,
+    LinkerOptions options, std::vector<uint8_t>& program,
     std::span<ForeignLibraryDecl const> foreignLibraries,
     std::span<std::pair<size_t, ForeignFunctionInterface> const>
         unresolvedSymbols);

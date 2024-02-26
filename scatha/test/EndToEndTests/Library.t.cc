@@ -257,3 +257,25 @@ fn main() -> int {
 })");
     CHECK(ret == 42);
 }
+
+TEST_CASE("FFI from host", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+extern "C" fn host_function(n: int) -> int;
+fn main() -> int {
+    return host_function(21);
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 42);
+}
+
+/// Defines the function used by `"FFI from host"` test case
+#if defined(__GNUC__)
+__attribute__((visibility("default")))
+#else
+#error
+#endif
+extern "C" int64_t
+    host_function(int64_t n) {
+    return 2 * n;
+}

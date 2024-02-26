@@ -37,13 +37,16 @@ struct FFIDecl {
 
 /// List of foreign functions in one library
 struct FFIList {
-    FFIList(ForeignLibraryDecl const& lib): libName(lib.name()) {}
+    explicit FFIList(std::string name): libName(std::move(name)) {}
 
     std::string libName;
     std::vector<FFIDecl> functions;
 };
 
 struct Linker: AsmWriter {
+    /// User provided options
+    LinkerOptions const& options;
+
     /// List of supplied library file paths
     std::span<ForeignLibraryDecl const> foreignLibs;
 
@@ -54,15 +57,22 @@ struct Linker: AsmWriter {
     /// To be filled by this pass
     std::vector<std::string> missingSymbols;
 
-    Linker(std::vector<uint8_t>& binary,
+    Linker(LinkerOptions const& options, std::vector<uint8_t>& binary,
            std::span<ForeignLibraryDecl const> foreignLibs,
            std::span<std::pair<size_t, ForeignFunctionInterface> const>
                unresolvedSymbols):
         AsmWriter(binary),
+        options(options),
         foreignLibs(foreignLibs),
         unresolvedSymbols(unresolvedSymbols) {}
 
     Expected<void, LinkerError> run();
+
+    /// Searches the shared object \p lib for functions in \p foreignFunctions
+    /// Resolved functions are erased from \p foreignFunctions and added to
+    /// \p ffiList
+    void resolveInObject(utl::dynamic_library const& lib, FFIList& ffiList,
+                         utl::vector<FFIDecl>& foreignFunctions);
 
     std::vector<FFIList> search();
 
@@ -109,13 +119,13 @@ struct AddressFactory {
 } // namespace
 
 Expected<void, LinkerError> Asm::link(
-    std::vector<uint8_t>& binary,
+    LinkerOptions options, std::vector<uint8_t>& binary,
     std::span<ForeignLibraryDecl const> foreignLibs,
     std::span<std::pair<size_t, ForeignFunctionInterface> const>
         unresolvedSymbols) {
     SC_ASSERT(binary.size() >= sizeof(svm::ProgramHeader),
               "Binary must at least contain a header");
-    Linker linker(binary, foreignLibs, unresolvedSymbols);
+    Linker linker(options, binary, foreignLibs, unresolvedSymbols);
     auto result = linker.run();
     /// Update binary size because we placed the dynamic link section in the
     /// back
@@ -133,6 +143,21 @@ Expected<void, LinkerError> Linker::run() {
     return {};
 }
 
+void Linker::resolveInObject(utl::dynamic_library const& lib, FFIList& ffiList,
+                             utl::vector<FFIDecl>& foreignFunctions) {
+    for (auto itr = foreignFunctions.begin(); itr != foreignFunctions.end();) {
+        auto& function = *itr;
+        std::string_view err;
+        if (lib.resolve(function.interface.name(), &err)) {
+            ffiList.functions.push_back(function);
+            itr = foreignFunctions.erase(itr);
+        }
+        else {
+            ++itr;
+        }
+    }
+}
+
 std::vector<FFIList> Linker::search() {
     utl::small_vector<FFIDecl> foreignFunctions;
     auto makeAddress = AddressFactory{};
@@ -148,27 +173,22 @@ std::vector<FFIList> Linker::search() {
             foreignFunctions.push_back({ interface, addr });
         }
     }
-
     /// Find names in foreign libraries
-    auto ffiLists = foreignLibs | ranges::to<std::vector<FFIList>>;
+    auto ffiLists = foreignLibs |
+                    transform([](auto& lib) { return FFIList(lib.name()); }) |
+                    ranges::to<std::vector>;
     for (auto [libIndex, libDecl]: foreignLibs | enumerate) {
         SC_ASSERT(libDecl.resolvedPath(),
                   "Tried to link symbol in unresolved library");
         utl::dynamic_library lib(libDecl.resolvedPath().value(),
                                  utl::dynamic_load_mode::lazy);
-        for (auto itr = foreignFunctions.begin();
-             itr != foreignFunctions.end();)
-        {
-            auto& function = *itr;
-            std::string_view err;
-            if (lib.resolve(function.interface.name(), &err)) {
-                ffiLists[libIndex].functions.push_back(function);
-                itr = foreignFunctions.erase(itr);
-            }
-            else {
-                ++itr;
-            }
-        }
+        resolveInObject(lib, ffiLists[libIndex], foreignFunctions);
+    }
+    if (!foreignFunctions.empty() && options.searchHost) {
+        ffiLists.push_back(FFIList("")); /// Empty name means search host
+        resolveInObject(utl::dynamic_library::global(
+                            utl::dynamic_load_mode::lazy),
+                        ffiLists.back(), foreignFunctions);
     }
     missingSymbols = foreignFunctions | transform(&FFIDecl::interface) |
                      transform(&ForeignFunctionInterface::name) |
