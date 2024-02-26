@@ -1,17 +1,21 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJ_DIR="$SCRIPT_DIR/.."
- 
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/scatha/lib"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/scatha/include"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/scatha/test"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/scatha/fuzz-test"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/scathac/src"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/playground"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/svm/src"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/svm/lib"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/svm/include"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/scathadb/src"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/runtime/include"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/runtime/src"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/runtime/test"
-"$PROJ_DIR/scripts/format.sh" "$PROJ_DIR/runtime"
+
+format_dir() {
+    $PROJ_DIR/scripts/_impl/format.sh $PROJ_DIR/$1
+}
+
+format_dir scatha/lib
+format_dir scatha/include
+format_dir scatha/test
+format_dir scatha/fuzz-test
+format_dir scathac/src
+format_dir playground
+format_dir svm/src
+format_dir svm/lib
+format_dir svm/include
+format_dir scathadb/src
+format_dir runtime/include
+format_dir runtime/src
+format_dir runtime/test
+format_dir runtime

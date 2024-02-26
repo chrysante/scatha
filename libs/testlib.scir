@@ -1,0 +1,14 @@
+func i64 @testlib.foo-s64(i64 %0) {
+  %entry:
+    %n.addr = alloca i64, i32 1
+    store ptr %n.addr, i64 %0
+    return i64 1
+}
+
+func i64 @testlib.foo-f64(f64 %0) {
+  %entry:
+    %n.addr = alloca f64, i32 1
+    store ptr %n.addr, f64 %0
+    return i64 2
+}
+
