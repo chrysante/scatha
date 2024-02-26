@@ -5,6 +5,7 @@
 #include <span>
 
 #include <scatha/AST/Fwd.h>
+#include <scatha/Assembly/Fwd.h>
 #include <scatha/Common/SourceFile.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
@@ -15,13 +16,6 @@
 #include <utl/streammanip.hpp>
 
 #include "Options.h"
-
-namespace scatha::Asm {
-
-class AssemblyStream;
-class LinkerError;
-
-} // namespace scatha::Asm
 
 namespace scatha {
 

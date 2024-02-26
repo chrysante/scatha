@@ -2,6 +2,7 @@
 #define SCATHA_SEMA_SEMAISSUES_H_
 
 #include <iosfwd>
+#include <memory>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -408,35 +409,40 @@ public:
 
 /// Overload resolution error
 class SCATHA_API ORError: public SemaIssue {
+    struct PrivateTag {};
+
 public:
     enum Reason { NoMatch, Ambiguous };
 
     /// Static constructors @{
-    static ORError makeNoMatch(
+    static std::unique_ptr<ORError> makeNoMatch(
         ast::Expression const* expr, std::span<Function const* const> os,
         std::vector<ThinExpr> arguments,
         std::unordered_map<Function const*, ORMatchError> matchErrors) {
-        return ORError(expr, std::move(os), std::move(arguments),
-                       /* matches = */ {}, std::move(matchErrors));
+        return std::make_unique<ORError>(
+            PrivateTag{}, expr, std::move(os), std::move(arguments),
+            /* matches = */ std::vector<Function const*>{},
+            std::move(matchErrors));
     }
 
-    static ORError makeAmbiguous(ast::Expression const* expr,
-                                 std::span<Function const* const> os,
-                                 std::vector<ThinExpr> arguments,
-                                 std::vector<Function const*> matches) {
-        return ORError(expr, std::move(os), std::move(arguments),
-                       std::move(matches), {});
+    static std::unique_ptr<ORError> makeAmbiguous(
+        ast::Expression const* expr, std::span<Function const* const> os,
+        std::vector<ThinExpr> arguments, std::vector<Function const*> matches) {
+        return std::make_unique<ORError>(PrivateTag{}, expr, std::move(os),
+                                         std::move(arguments),
+                                         std::move(matches));
     }
     /// @}
 
     Reason reason() const { return matches.empty() ? NoMatch : Ambiguous; }
 
-private:
     explicit ORError(
-        ast::Expression const* expr, std::span<Function const* const> os,
-        std::vector<ThinExpr> arguments, std::vector<Function const*> matches,
-        std::unordered_map<Function const*, ORMatchError> matchErrors);
+        PrivateTag, ast::Expression const* expr,
+        std::span<Function const* const> os, std::vector<ThinExpr> arguments,
+        std::vector<Function const*> matches = {},
+        std::unordered_map<Function const*, ORMatchError> matchErrors = {});
 
+private:
     /// List of all functions in the overload set
     std::vector<Function const*> overloadSet;
 

@@ -584,7 +584,7 @@ BadCleanup::BadCleanup(ast::ASTNode const* node, Object const* object):
     });
 }
 
-ORError::ORError(ast::Expression const* expr,
+ORError::ORError(PrivateTag, ast::Expression const* expr,
                  std::span<Function const* const> os,
                  std::vector<ThinExpr> arguments,
                  std::vector<Function const*> matches,

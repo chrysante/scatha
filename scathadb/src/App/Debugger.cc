@@ -138,7 +138,7 @@ Debugger::Debugger(Model* _model):
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
-    addModal("quit-confirm", QuitConfirm([=] { quit(); }));
+    addModal("quit-confirm", QuitConfirm([this] { quit(); }));
     auto sidebar =
         TabView({ { " Files ", SourceFileBrowser(model(), uiHandle) },
                   { " VM State ", VMStateView(model()) } });
@@ -165,8 +165,9 @@ Debugger::Debugger(Model* _model):
         ToolbarButton(this, StopCmd),
         ToolbarButton(this, CycleMainViewCmd),
         sdb::Spacer(),
-        Renderer(
-            [=] { return text(model()->currentFilepath().string()) | flex; }),
+        Renderer([this] {
+        return text(model()->currentFilepath().string()) | flex;
+    }),
         sdb::Spacer(),
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),

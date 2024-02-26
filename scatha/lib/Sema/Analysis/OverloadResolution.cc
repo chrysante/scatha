@@ -93,9 +93,8 @@ OverloadResolutionResult sema::performOverloadResolution(
     }
     if (results.empty()) {
         return OverloadResolutionResult{
-            .error = std::make_unique<ORError>(
-                ORError::makeNoMatch(parentExpr, overloadSet,
-                                     makeArgTypes(arguments), matchErrors))
+            .error = ORError::makeNoMatch(parentExpr, overloadSet,
+                                          makeArgTypes(arguments), matchErrors)
         };
     }
     if (results.size() == 1) {
@@ -124,9 +123,8 @@ OverloadResolutionResult sema::performOverloadResolution(
         return r.function;
     }) | ranges::to<std::vector>;
     return OverloadResolutionResult{
-        .error = std::make_unique<ORError>(
-            ORError::makeAmbiguous(parentExpr, overloadSet,
-                                   makeArgTypes(arguments),
-                                   std::move(functions)))
+        .error = ORError::makeAmbiguous(parentExpr, overloadSet,
+                                        makeArgTypes(arguments),
+                                        std::move(functions))
     };
 }

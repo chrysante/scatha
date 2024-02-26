@@ -102,7 +102,7 @@ struct InstView: FileViewBase<InstView> {
             if (inst.labelID != 0) {
                 long lineNum = static_cast<long>(ChildCount());
                 std::string name = utl::strcat(labelName(inst.labelID), ":");
-                Add(Renderer([=] {
+                Add(Renderer([=, this] {
                     auto line = getLineInfo(lineNum);
                     return hbox(
                                { lineNumber(line), text(name) | bold | flex }) |
@@ -113,7 +113,7 @@ struct InstView: FileViewBase<InstView> {
             long lineNum = static_cast<long>(ChildCount());
             indexToLineMap.push_back(lineNum);
             lineToIndexMap[lineNum] = index;
-            Add(Renderer([=, index = index] {
+            Add(Renderer([=, this, index = index] {
                 auto line = getLineInfo(lineNum);
                 auto& disasm = model->disassembly();
                 std::string labelText(

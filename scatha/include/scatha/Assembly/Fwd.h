@@ -5,6 +5,7 @@ namespace scatha::Asm {
 
 class AssemblyStream;
 struct AssemblerResult;
+struct LinkerError;
 
 } // namespace scatha::Asm
 
