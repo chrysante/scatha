@@ -1,5 +1,9 @@
 
 function(SCSetCompilerOptions target)
+  if(NOT PROJECT_IS_TOP_LEVEL)
+    return()
+  endif()
+
   if (WIN32)
     if (MSVC)
       target_compile_options(${target} PRIVATE "/W3")
