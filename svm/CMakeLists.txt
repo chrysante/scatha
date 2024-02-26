@@ -2,6 +2,7 @@
 
 add_library(libsvm)
 set_target_properties(libsvm PROPERTIES LINKER_LANGUAGE CXX)
+SCSetCompilerOptions(libsvm)
 
 target_link_libraries(libsvm
   PUBLIC
@@ -66,6 +67,7 @@ source_group(lib REGULAR_EXPRESSION "lib/*")
 # svm
 
 add_executable(svm)
+SCSetCompilerOptions(svm)
 
 target_link_libraries(svm
   PRIVATE

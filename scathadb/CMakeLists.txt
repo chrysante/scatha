@@ -1,5 +1,6 @@
 add_executable(scathadb)
 set_target_properties(scathadb PROPERTIES LINKER_LANGUAGE CXX)
+SCSetCompilerOptions(scathadb)
 
 target_link_libraries(scathadb
   PRIVATE

@@ -1,5 +1,6 @@
 add_library(scatha SHARED)
 set_target_properties(scatha PROPERTIES LINKER_LANGUAGE CXX)
+SCSetCompilerOptions(scatha)
 
 target_include_directories(scatha
     PUBLIC
@@ -435,6 +436,7 @@ source_group(lib/Sema       REGULAR_EXPRESSION "lib/Sema/*")
 # Tests
 add_executable(scatha-test)
 set_target_properties(scatha-test PROPERTIES LINKER_LANGUAGE CXX)
+SCSetCompilerOptions(scatha-test)
 
 target_include_directories(scatha-test
     PRIVATE

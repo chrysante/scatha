@@ -1,7 +1,7 @@
 add_executable(scathac)
 set_target_properties(scathac PROPERTIES LINKER_LANGUAGE CXX)
-
 set_target_properties(scathac PROPERTIES INSTALL_RPATH "@loader_path")
+SCSetCompilerOptions(scathac)
 
 target_link_libraries(scathac
   PRIVATE
