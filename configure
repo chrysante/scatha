@@ -1,3 +1,15 @@
 PROJ_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-cmake -S $PROJ_DIR -B build -G Xcode -DCPM_SOURCE_CACHE=build/srccache
+source $PROJ_DIR/scripts/platform.sh
+
+if [ "$OS" = "linux" ]; then
+    GENERATOR=""
+elif [ "$OS" = "windows" ]; then
+    GENERATOR=""
+elif [ "$OS" = "mac" ]; then
+    GENERATOR=-GXcode
+else
+    error "Unknown OS \"$OS\""
+fi
+
+cmake -S $PROJ_DIR -B build $GENERATOR -DCPM_SOURCE_CACHE=build/srccache
