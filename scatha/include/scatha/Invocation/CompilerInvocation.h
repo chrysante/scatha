@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <functional>
 #include <iosfwd>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -14,16 +15,10 @@
 #include <scatha/CodeGen/Logger.h>
 #include <scatha/Common/SourceFile.h>
 #include <scatha/IR/Fwd.h>
+#include <scatha/Invocation/Target.h>
 #include <scatha/Sema/Fwd.h>
 
 namespace scatha {
-
-/// Different types of targets the compiler can generate
-/// - `Executable` Generates a binary program and makes the output file
-/// executable on the system
-/// - `BinaryOnly` Generates a binary program that can not be executed directly
-/// - `StaticLibrary` Generates a static library
-enum class TargetType { Executable, BinaryOnly, StaticLibrary };
 
 /// Different compiler frontends
 enum class FrontendType { Scatha, IR };
@@ -54,8 +49,9 @@ struct CompilerCallbacks {
 /// Represents one invocation of the compiler
 class SCATHA_API CompilerInvocation {
 public:
-    ///
-    CompilerInvocation();
+    /// \param targetType The type of the target that is to be compiled
+    /// \param name The name of the target
+    CompilerInvocation(TargetType targetType, std::string name);
 
     /// Set the source texts to be compiled to \p sources
     void setInputs(std::vector<SourceFile> sources);
@@ -66,19 +62,9 @@ public:
     /// Set the compiler stage callbacks to \p callbacks
     void setCallbacks(CompilerCallbacks callbacks);
 
-    /// Sets the target type to \p type
-    /// Defaults to `TargetType::Executable`
-    void setTargetType(TargetType type) { targetType = type; }
-
     /// Sets the frontend to \p frontend
     /// Defaults to `FrontendType::Scatha`
     void setFrontend(FrontendType frontend) { this->frontend = frontend; }
-
-    /// Sets the output file to \p file
-    /// Defaults to "out"
-    void setOutputFile(std::filesystem::path file) {
-        outputFile = std::move(file);
-    }
 
     /// Sets the optimization level to \p level
     /// Defaults to 0
@@ -112,25 +98,25 @@ public:
     void stop() { continueCompilation = false; }
 
     /// Invoke the compiler with the given options
-    int run();
+    /// \Returns the compiled target if no errors occurred and compilation was
+    /// not stopped
+    std::optional<Target> run();
 
 private:
     std::ostream& err() { return *errStream; }
 
-    bool guardFileEmission(std::string_view kind);
+    void handleError();
 
-    int handleError();
-
+    TargetType targetType;
+    std::string name;
     std::vector<SourceFile> sources;
     std::vector<std::filesystem::path> libSearchPaths;
     CompilerCallbacks callbacks;
     std::function<void()> errorHandler;
-    std::filesystem::path outputFile = "out";
     std::string optPipeline = {};
     std::ostream* errStream;
     cg::Logger* codegenLogger = nullptr;
     int optLevel = 0;
-    TargetType targetType = TargetType::Executable;
     FrontendType frontend = FrontendType::Scatha;
     bool genDebugInfo = false;
     bool continueCompilation = true;

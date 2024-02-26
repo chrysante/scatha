@@ -19,6 +19,7 @@
 #include <scatha/MIR/Module.h>
 #include <scatha/MIR/Print.h>
 #include <scatha/Sema/Print.h>
+#include <termfmt/termfmt.h>
 
 #include "Util.h"
 
@@ -36,8 +37,14 @@ static void iselViz(ir::Module const& irMod) {
         << std::endl;
 }
 
+[[maybe_unused]] static utl::vstreammanip<> const Warning =
+    [](std::ostream& str) {
+    str << tfmt::format(tfmt::Yellow | tfmt::Bold, "Warning: ");
+};
+
 int scatha::inspectMain(InspectOptions options) {
-    CompilerInvocation invocation;
+    CompilerInvocation invocation(options.targetType,
+                                  options.outputFile.stem().string());
     invocation.setInputs(loadSourceFiles(options.files));
     invocation.setLibSearchPaths(options.libSearchPaths);
     // clang-format off
@@ -79,14 +86,22 @@ int scatha::inspectMain(InspectOptions options) {
             }
         },
     }); // clang-format on
-    invocation.setTargetType(options.targetType);
     invocation.setFrontend(deduceFrontend(options.files));
-    invocation.setOutputFile(options.outputFile);
     invocation.setOptLevel(options.optLevel);
     invocation.setOptPipeline(options.pipeline);
     cg::DebugLogger codegenLogger;
     if (options.codegen) {
         invocation.setCodegenLogger(codegenLogger);
     }
-    return invocation.run();
+    auto target = invocation.run();
+    if (!target) {
+        return 1;
+    }
+    if (options.outputFile.empty()) {
+        std::cout << Warning
+                  << "Not writing target to disk: No output specified\n";
+        return 0;
+    }
+    target->writeToDisk(options.outputFile.parent_path());
+    return 0;
 }

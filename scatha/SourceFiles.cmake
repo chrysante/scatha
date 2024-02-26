@@ -51,6 +51,7 @@ set(scatha_headers
 
   include/scatha/Invocation/CompilerInvocation.h
   include/scatha/Invocation/ExecutableWriter.h
+  include/scatha/Invocation/Target.h
 
   include/scatha/Issue/Issue.h
   include/scatha/Issue/IssueHandler.h
@@ -256,6 +257,7 @@ set(scatha_sources
 
     lib/Invocation/CompilerInvocation.cc
     lib/Invocation/ExecutableWriter.cc
+    lib/Invocation/Target.cc
 
     lib/Issue/Format.cc
     lib/Issue/Format.h

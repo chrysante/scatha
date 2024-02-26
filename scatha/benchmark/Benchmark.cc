@@ -6,18 +6,15 @@
 using namespace scatha;
 
 static svm::VirtualMachine makeLoadedVM(std::string source) {
-    CompilerInvocation inv;
+    CompilerInvocation inv(TargetType::Executable, "bench");
     inv.setInputs({ SourceFile::make(std::move(source)) });
-    std::vector<uint8_t> program;
-    svm::VirtualMachine vm;
-    inv.setCallbacks({
-        .linkerCallback = [&](std::span<uint8_t const> prog) {
-            vm.loadBinary(prog.data());
-            inv.stop();
-        }
-    });
     inv.setOptLevel(1);
-    inv.run();
+    auto target = inv.run();
+    if (!target) {
+        throw std::runtime_error("Compilation failed");
+    }
+    svm::VirtualMachine vm;
+    vm.loadBinary(target->binary().data());
     return vm;
 }
 

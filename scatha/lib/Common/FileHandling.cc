@@ -1,7 +1,6 @@
 #include "Common/FileHandling.h"
 
 #include <cstring>
-#include <fstream>
 #include <stdexcept>
 
 #include <utl/strcat.hpp>

@@ -9,8 +9,9 @@
 using namespace scatha;
 using namespace test;
 
-static CompilerInvocation makeCompiler(std::stringstream& sstr) {
-    CompilerInvocation inv;
+static CompilerInvocation makeCompiler(TargetType targetType, std::string name,
+                                       std::stringstream& sstr) {
+    CompilerInvocation inv(targetType, name);
     inv.setErrorStream(sstr);
     inv.setErrorHandler(
         [&] { throw std::runtime_error(std::move(sstr).str()); });
@@ -21,18 +22,20 @@ void test::compileLibrary(std::filesystem::path name,
                           std::filesystem::path libSearchPath,
                           std::string source) {
     std::stringstream sstr;
-    CompilerInvocation inv = makeCompiler(sstr);
+    CompilerInvocation inv =
+        makeCompiler(TargetType::StaticLibrary, name.stem().string(), sstr);
     inv.setInputs({ SourceFile::make(std::move(source)) });
     inv.setLibSearchPaths({ libSearchPath });
-    inv.setOutputFile(name);
-    inv.setTargetType(TargetType::StaticLibrary);
-    inv.run();
+    auto target = inv.run();
+    if (target) {
+        target->writeToDisk(name.parent_path());
+    }
 }
 
 uint64_t test::compileAndRunDependentProgram(
     std::filesystem::path libSearchPath, std::string source) {
     std::stringstream sstr;
-    CompilerInvocation inv = makeCompiler(sstr);
+    CompilerInvocation inv = makeCompiler(TargetType::Executable, "test", sstr);
     inv.setErrorStream(sstr);
     inv.setInputs({ SourceFile::make(std::move(source)) });
     inv.setLibSearchPaths({ libSearchPath });
@@ -47,6 +50,7 @@ uint64_t test::compileAndRunDependentProgram(
     };
     inv.setCallbacks(
         { .asmCallback = asmCallback, .linkerCallback = linkerCallback });
-    inv.run();
-    return runProgram(program, startpos);
+    auto target = inv.run();
+    assert(target);
+    return runProgram(target->binary(), startpos);
 }

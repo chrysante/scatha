@@ -2,7 +2,7 @@
 #define SCATHA_COMMON_FILEHANDLING_H_
 
 #include <filesystem>
-#include <ios>
+#include <fstream>
 
 namespace scatha {
 

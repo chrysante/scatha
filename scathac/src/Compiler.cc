@@ -43,7 +43,11 @@ struct Timer {
 } // namespace
 
 int scatha::compilerMain(CompilerOptions options) {
-    CompilerInvocation invocation;
+    if (options.outputFile.empty()) {
+        options.outputFile = "out";
+    }
+    CompilerInvocation invocation(options.targetType,
+                                  options.outputFile.stem().string());
     invocation.setInputs(options.files | transform(&SourceFile::load) |
                          ranges::to<std::vector>);
     invocation.setLibSearchPaths(options.libSearchPaths);
@@ -65,15 +69,15 @@ int scatha::compilerMain(CompilerOptions options) {
         .asmCallback = makePrintCallback("Assembler"),
         .linkerCallback = makePrintCallback("Linker"),
     });
-    invocation.setTargetType(options.targetType);
     invocation.setFrontend(deduceFrontend(options.files));
-    if (options.outputFile.empty()) {
-        options.outputFile = "out";
-    }
-    invocation.setOutputFile(options.outputFile);
     invocation.setOptLevel(options.optLevel);
     invocation.setOptPipeline(options.pipeline);
     invocation.generateDebugInfo(options.debug);
     timer.reset();
-    return invocation.run();
+    auto target = invocation.run();
+    if (!target) {
+        return 1;
+    }
+    target->writeToDisk(options.outputFile.parent_path());
+    return 0;
 }
