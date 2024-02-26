@@ -28,10 +28,20 @@ CPMAddPackage("gh:ArthurSonzogni/FTXUI#ce5ac6b12fccd4a451fceaf65ca95951ed4cf468"
 CPMAddPackage("gh:chrysante/APMath#5770e9708d701c5a00483b68b1de8144b243ade0")
 CPMAddPackage("gh:chrysante/graphgen#edc70a91294475fd11312eb35f7de1d2a55e2c47")
 CPMAddPackage("gh:chrysante/termfmt#273498d74a90e9e9cbec41f24dc8b45e8827180b")
-CPMAddPackage("gh:chrysante/utility#28790d36f115d427a6061c965548ec3f85459123")
+CPMAddPackage("gh:chrysante/utility#bd4bb0b0a0fa76f19febe9d8585e6a46e60051fc")
 
 add_subdirectory(scatha)
 add_subdirectory(scathac)
 add_subdirectory(svm)
 add_subdirectory(scathadb)
 add_subdirectory(ffi-testlib)
+
+install(
+  TARGETS
+    scatha
+    scathac
+    scathadb
+    svm
+  DESTINATION
+    bin
+)
