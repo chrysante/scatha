@@ -5,7 +5,7 @@
 
 #include <utl/hashtable.hpp>
 
-#include <scatha/Common/APInt.h>
+#include <scatha/Common/APMathFwd.h>
 #include <scatha/MIR/Fwd.h>
 
 namespace scatha::mir {

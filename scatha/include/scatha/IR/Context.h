@@ -5,8 +5,7 @@
 #include <span>
 #include <string>
 
-#include <scatha/Common/APFloat.h>
-#include <scatha/Common/APInt.h>
+#include <scatha/Common/APMathFwd.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
 

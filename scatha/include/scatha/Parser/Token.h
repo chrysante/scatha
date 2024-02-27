@@ -6,8 +6,7 @@
 #include <iosfwd>
 #include <string>
 
-#include <scatha/Common/APFloat.h>
-#include <scatha/Common/APInt.h>
+#include <scatha/Common/APMathFwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/SourceLocation.h>
 

@@ -15,8 +15,7 @@ set(scatha_headers
   include/scatha/CodeGen/SelectionDAG.h
   include/scatha/CodeGen/SelectionNode.h
 
-  include/scatha/Common/APFloat.h
-  include/scatha/Common/APInt.h
+  include/scatha/Common/APMathFwd.h
   include/scatha/Common/Allocator.h
   include/scatha/Common/Base.h
   include/scatha/Common/DebugInfo.h
@@ -150,6 +149,8 @@ set(scatha_sources
     lib/CodeGen/ValueMap.cc
     lib/CodeGen/ValueMap.h
 
+    lib/Common/APFloat.h
+    lib/Common/APInt.h
     lib/Common/Allocator.cc
     lib/Common/Base.cc
     lib/Common/Builtin.cc

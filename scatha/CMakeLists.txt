@@ -18,9 +18,9 @@ target_include_directories(scatha
 target_link_libraries(scatha
   PUBLIC
     range-v3
-    APMath
     utility
   PRIVATE
+    APMath
     nlohmann_json
     graphgen
     termfmt

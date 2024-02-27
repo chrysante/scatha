@@ -2,12 +2,13 @@
 
 #include <utl/functional.hpp>
 
+#include "Common/APInt.h"
 #include "MIR/CFG.h"
 
 using namespace scatha;
 using namespace mir;
 
-Context::Context(): _undef(new UndefValue()) {
+Context::Context(): _undef(std::make_unique<UndefValue>()) {
     _undef->set_next(undef());
     _undef->set_prev(undef());
 }

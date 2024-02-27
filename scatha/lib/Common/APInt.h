@@ -4,10 +4,6 @@
 #include <APMath/APInt.h>
 #include <APMath/Conversion.h>
 
-namespace scatha {
-
-using APMath::APInt;
-
-} // namespace scatha
+#include "Common/APMathFwd.h"
 
 #endif // SCATHA_COMMON_APINT_H_
