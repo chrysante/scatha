@@ -14,10 +14,13 @@ Value::Value(NodeType nodeType, Type const* type, std::string name) noexcept:
 Value::~Value() { removeAllUses(); }
 
 void Value::removeAllUses() {
-    for (auto [user, count]: _users) {
+    /// We make a copy of the user list because `updateOperand()` modifies the
+    /// list
+    for (auto* user: users() | ToSmallVector<>) {
         user->updateOperand(this, nullptr);
     }
-    _users.clear();
+    SC_ASSERT(_users.empty(),
+              "The calls to updateOperand() should have cleared this");
 }
 
 void Value::replaceAllUsesWith(Value* newValue) {
