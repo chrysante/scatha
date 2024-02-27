@@ -144,7 +144,9 @@ template <typename F>
 static utl::small_vector<F*> findFunctionsImpl(auto& scope,
                                                std::string_view name) {
     auto entities = scope.findEntities(name);
-    return entities | transform(cast<F*>) | ToSmallVector<>;
+    return entities | transform([](auto* entity) {
+        return cast<F*>(stripAlias(entity));
+    }) | ToSmallVector<>;
 }
 
 utl::small_vector<Function*> Scope::findFunctions(std::string_view name) {

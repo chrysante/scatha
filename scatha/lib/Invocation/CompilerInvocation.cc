@@ -79,6 +79,34 @@ static void printLinkerError(Asm::LinkerError const& error, std::ostream& str) {
     }
 }
 
+static void populateScopeWithBinaryInfo(sema::Scope& scope,
+                                        Asm::AssemblerResult const& asmRes) {
+    auto& asmSym = asmRes.symbolTable;
+    for (auto* function: scope.entities() | Filter<sema::Function>) {
+        if (!function->isPublic()) {
+            continue;
+        }
+        auto mangler = sema::NameMangler();
+        auto name = mangler(*function);
+        auto itr = asmSym.find(name);
+        if (itr != asmSym.end()) {
+            function->setBinaryAddress(itr->second);
+        }
+    }
+    for (auto* child: scope.children()) {
+        if (!isa<sema::Function>(child)) {
+            populateScopeWithBinaryInfo(*child, asmRes);
+        }
+    }
+}
+
+/// Recursively iterates all public scopes and sets the binary address of public
+/// functions
+static void populateSymbolTableWithBinaryInfo(
+    sema::SymbolTable& sym, Asm::AssemblerResult const& asmRes) {
+    populateScopeWithBinaryInfo(sym.globalScope(), asmRes);
+}
+
 std::optional<Target> CompilerInvocation::run() {
     using enum TargetType;
     /// Mode validation
@@ -189,7 +217,10 @@ std::optional<Target> CompilerInvocation::run() {
         if (!continueCompilation) return std::nullopt;
         std::string dsym = genDebugInfo ? Asm::generateDebugSymbols(asmStream) :
                                           std::string{};
-        return Target(targetType, name, std::move(program), std::move(dsym));
+        populateSymbolTableWithBinaryInfo(semaSym, asmRes);
+        return Target(targetType, name,
+                      std::make_unique<sema::SymbolTable>(std::move(semaSym)),
+                      std::move(program), std::move(dsym));
     }
     case TargetType::StaticLibrary: {
         std::stringstream symstr;
@@ -197,8 +228,10 @@ std::optional<Target> CompilerInvocation::run() {
         opt::globalDCE(irContext, irModule);
         std::stringstream objstr;
         ir::print(irModule, objstr);
-        return Target(TargetType::StaticLibrary, name, std::move(symstr).str(),
-                      std::move(objstr).str());
+        return Target(TargetType::StaticLibrary, name,
+                      std::make_unique<sema::SymbolTable>(std::move(semaSym)),
+                      Target::StaticLib{ std::move(symstr).str(),
+                                         std::move(objstr).str() });
     }
     default:
         SC_UNREACHABLE();

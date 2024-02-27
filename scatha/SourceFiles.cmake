@@ -410,6 +410,8 @@ set(scatha_test_sources
     test/EndToEndTests/StaticData.t.cc
     test/EndToEndTests/Structures.t.cc
 
+    test/Invocation/CompilerInvocation.t.cc
+
     test/IR/Clone.t.cc
     test/IR/DataFlow.t.cc
     test/IR/Dominance.t.cc
