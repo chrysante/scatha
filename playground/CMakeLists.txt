@@ -12,6 +12,7 @@ target_include_directories(playground
 target_link_libraries(playground
   PRIVATE
     scatha
+    APMath
     utility
     range-v3
 )

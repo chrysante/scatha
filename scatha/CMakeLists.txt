@@ -53,11 +53,10 @@ target_link_libraries(scatha-test
   PRIVATE
     scatha
     libsvm
-
+    APMath
     range-v3
     utility
     termfmt
-
     Catch2::Catch2
 )
 

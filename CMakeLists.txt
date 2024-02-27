@@ -1,14 +1,4 @@
 cmake_minimum_required(VERSION 3.23)
-set(CMAKE_CXX_STANDARD 20)
-
-option(SCATHA_BUILD_EXECUTABLES "Enable to build the compiler, interpreter and debugger executables. Disable to only use as a library" ON)
-option(SCATHA_ENABLE_INSTALL "Generate the install target" ON)
-option(SCATHA_BUILD_EXAMPLES "Enable to build examples" PROJECT_IS_TOP_LEVEL)
-option(SCATHA_BUILD_TESTS "Enable to build tests" PROJECT_IS_TOP_LEVEL)
-option(SCATHA_DEV_MODE "Enable sanitizers and more compiler warnings" PROJECT_IS_TOP_LEVEL)
-
-include(cmake/CPM.cmake)
-include(cmake/CompilerOptions.cmake)
 
 project(
   scatha
@@ -16,8 +6,16 @@ project(
   DESCRIPTION "Compiler library"
 )
 
+include(cmake/BuildOptions.cmake)
+include(cmake/CPM.cmake)
+include(cmake/CompilerOptions.cmake)
+
+set(CMAKE_CXX_STANDARD 20)
+
 # To make range-v3 happy
-set(CMAKE_BUILD_TYPE Release)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 
 # Dependencies
 include(cmake/libffi.cmake)

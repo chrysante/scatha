@@ -1,0 +1,27 @@
+
+if(PROJECT_IS_TOP_LEVEL)
+  set(extensive_build TRUE)
+else()
+  set(extensive_build FALSE)
+endif()
+
+option(SCATHA_VERBOSE "Enable configuration logging" ON)
+option(SCATHA_BUILD_EXECUTABLES "Enable to build the compiler, interpreter and debugger executables. Disable to only use as a library" ON)
+option(SCATHA_ENABLE_INSTALL "Generate the install target" ON)
+option(SCATHA_BUILD_EXAMPLES "Enable to build examples" ${extensive_build})
+option(SCATHA_BUILD_TESTS "Enable to build tests" ${extensive_build})
+option(SCATHA_DEV_MODE "Enable sanitizers and more compiler warnings" ${extensive_build})
+
+function(logConfigureOption option message)
+  if(${option})
+    message("-- scatha: ${message}")
+  endif()
+endfunction()
+
+if(SCATHA_VERBOSE)
+  logConfigureOption(SCATHA_BUILD_EXECUTABLES "Building executables")
+  logConfigureOption(SCATHA_ENABLE_INSTALL "Generating install target")
+  logConfigureOption(SCATHA_BUILD_EXAMPLES "Building examples")
+  logConfigureOption(SCATHA_BUILD_TESTS "Building tests")
+  logConfigureOption(SCATHA_DEV_MODE "Dev mode enabled")
+endif()
