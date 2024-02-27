@@ -1,3 +1,7 @@
+if(NOT SCATHA_BUILD_EXECUTABLES)
+  return()
+endif()
+
 add_executable(scathadb)
 set_target_properties(scathadb PROPERTIES LINKER_LANGUAGE CXX)
 SCSetCompilerOptions(scathadb)

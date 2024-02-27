@@ -1,6 +1,6 @@
 
 function(SCSetCompilerOptions target)
-  if(NOT PROJECT_IS_TOP_LEVEL)
+  if(NOT SCATHA_DEV_MODE)
     return()
   endif()
 

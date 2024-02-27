@@ -33,7 +33,7 @@ target_sources(scatha
 )
 source_group(TREE ${PROJECT_SOURCE_DIR}/scatha FILES ${scatha_headers} ${scatha_sources})
 
-if(NOT PROJECT_IS_TOP_LEVEL)
+if(NOT SCATHA_BUILD_TESTS)
   return()
 endif()
 

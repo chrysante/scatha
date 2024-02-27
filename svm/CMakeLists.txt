@@ -66,6 +66,10 @@ source_group(lib REGULAR_EXPRESSION "lib/*")
 
 # svm
 
+if(NOT SCATHA_BUILD_EXECUTABLES)
+  return()
+endif()
+
 add_executable(svm)
 set_target_properties(svm PROPERTIES INSTALL_RPATH "@loader_path")
 SCSetCompilerOptions(svm)
