@@ -25,7 +25,7 @@ void Value::replaceAllUsesWith(Value* newValue) {
         return;
     }
     /// We store the user list in a temporary vector because in the loop body
-    /// the user is erased from the user list and  iterators would be
+    /// the user is erased from the user list and iterators would be
     /// invalidated.
     for (auto* user: users() | ToSmallVector<>) {
         user->updateOperand(this, newValue);
