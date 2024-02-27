@@ -7,7 +7,6 @@
 #include <string>
 #include <string_view>
 
-#include <svm/ParseCLI.h>
 #include <svm/Program.h>
 #include <svm/Util.h>
 #include <svm/VirtualMachine.h>
@@ -15,6 +14,8 @@
 #include <utl/format_time.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
+
+#include "ParseCLI.h"
 
 using namespace svm;
 

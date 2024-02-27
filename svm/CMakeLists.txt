@@ -10,7 +10,6 @@ target_link_libraries(libsvm
   PRIVATE
     range-v3
     libffi::libffi
-    CLI11::CLI11
 )
 
 target_include_directories(libsvm
@@ -32,7 +31,6 @@ target_sources(libsvm
     include/svm/Fwd.h
     include/svm/OpCode.def
     include/svm/OpCode.h
-    include/svm/ParseCLI.h
     include/svm/Program.h
     include/svm/Util.h
     include/svm/VMData.h
@@ -53,7 +51,6 @@ target_sources(libsvm
     lib/ExternalFunction.h
     lib/Memory.h
     lib/OpCode.cc
-    lib/ParseCLI.cc
     lib/Program.cc
     lib/Util.cc
     lib/VMImpl.h
@@ -64,7 +61,7 @@ target_sources(libsvm
 
 source_group(lib REGULAR_EXPRESSION "lib/*")
 
-# svm
+# sim
 
 if(NOT SCATHA_BUILD_EXECUTABLES)
   return()
@@ -77,11 +74,19 @@ SCSetCompilerOptions(svm)
 target_link_libraries(svm
   PRIVATE
     libsvm
+    CLI11::CLI11
+)
+
+target_include_directories(svm
+  PRIVATE
+    src
 )
 
 target_sources(svm
   PRIVATE
     src/Main.cc
+    src/ParseCLI.h
+    src/ParseCLI.cc
 )
 
 source_group(src REGULAR_EXPRESSION "src/*")
