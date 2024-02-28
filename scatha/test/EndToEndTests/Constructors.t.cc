@@ -522,3 +522,10 @@ fn main() {
     return p.count;
 })");
 }
+
+TEST_CASE("Dereference unique expression", "[end-to-end][lifetime]") {
+    test::runReturnsTest(1, R"(
+fn main() {
+    return *unique int(1);
+})");
+}
