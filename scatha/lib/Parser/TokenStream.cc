@@ -51,7 +51,7 @@ void print(TokenStream const& tokens) { print(tokens, std::cout); }
 
 void print(TokenStream const& tokStr, std::ostream& str) {
     for (auto& tok: tokStr.tokens) {
-        str << tok.kind() << " (" << tok.id() << ")\n";
+        str << toString(tok.kind()) << " (" << tok.id() << ")\n";
     }
 }
 

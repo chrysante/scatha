@@ -11,17 +11,13 @@
 using namespace scatha;
 using namespace parser;
 
-std::ostream& parser::operator<<(std::ostream& str, TokenKind kind) {
-    return str << std::array{
-#define TOKEN_CASE(Kind) std::string_view(#Kind),
-
-#define SC_KEYWORD_TOKEN_DEF(Token, _)     TOKEN_CASE(Token)
-#define SC_OPERATOR_TOKEN_DEF(Token, _)    TOKEN_CASE(Token)
-#define SC_PUNCTUATION_TOKEN_DEF(Token, _) TOKEN_CASE(Token)
-#define SC_OTHER_TOKEN_DEF(Token, _)       TOKEN_CASE(Token)
+SCATHA_API std::string parser::toString(TokenKind kind) {
+    return std::array{
+#define SC_KEYWORD_TOKEN_DEF(Token, _)     #Token
+#define SC_OPERATOR_TOKEN_DEF(Token, _)    #Token
+#define SC_PUNCTUATION_TOKEN_DEF(Token, _) #Token
+#define SC_OTHER_TOKEN_DEF(Token, _)       #Token
 #include <scatha/Parser/Token.def>
-
-#undef TOKEN_CASE
     }[static_cast<size_t>(kind)];
 }
 

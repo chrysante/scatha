@@ -3,7 +3,6 @@
 #ifndef SCATHA_AST_TOKEN_H_
 #define SCATHA_AST_TOKEN_H_
 
-#include <iosfwd>
 #include <string>
 
 #include <scatha/Common/APMathFwd.h>
@@ -21,8 +20,8 @@ enum class TokenKind {
     _count
 };
 
-/// Write token kind \p kind to \p ostream
-SCATHA_API std::ostream& operator<<(std::ostream& ostream, TokenKind tokenKind);
+/// \Returns the case name of \p tokenKind as a string
+SCATHA_API std::string toString(TokenKind tokenKind);
 
 inline bool isDeclarator(TokenKind kind) {
     return static_cast<int>(kind) >= static_cast<int>(TokenKind::Module) &&
