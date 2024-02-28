@@ -634,16 +634,9 @@ class SCATHA_API DereferenceExpression:
     public RefExprBase<NodeType::DereferenceExpression> {
 public:
     explicit DereferenceExpression(UniquePtr<Expression> referred,
-                                   sema::Mutability mut, bool unique,
+                                   sema::Mutability mut,
                                    SourceRange sourceRange):
-        RefExprBase(std::move(referred), mut, sourceRange), _unique(unique) {}
-
-    /// \Returns `true` if this dereference expression has a `unique` token
-    /// attached to it
-    bool unique() const { return _unique; }
-
-private:
-    bool _unique;
+        RefExprBase(std::move(referred), mut, sourceRange) {}
 };
 
 /// MARK: Ternary Expressions
@@ -721,13 +714,21 @@ private:
 /// Unique expression
 class SCATHA_API UniqueExpr: public Expression {
 public:
-    explicit UniqueExpr(UniquePtr<Expression> value, SourceRange sourceRange):
-        Expression(NodeType::UniqueExpr, sourceRange, std::move(value)) {}
+    explicit UniqueExpr(UniquePtr<Expression> value,
+                        sema::Mutability mutability, SourceRange sourceRange):
+        Expression(NodeType::UniqueExpr, sourceRange, std::move(value)),
+        mut(mutability) {}
 
     AST_DERIVED_COMMON(UniqueExpr)
 
-    /// The moved value
+    /// The constructed expression
     AST_PROPERTY(0, Expression, value, Value)
+
+    /// \Returns the mutability qualifier
+    sema::Mutability mutability() const { return mut; }
+
+private:
+    sema::Mutability mut;
 };
 
 /// MARK: More Complex Expressions

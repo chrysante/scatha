@@ -680,6 +680,11 @@ static QualType getPtrBase(ObjectType const* type) {
     return nullptr;
 }
 
+/// \Returns `Const` if both arguments are `Const`
+static Mutability join(Mutability a, Mutability b) {
+    return a == Mutability::Mutable ? a : b;
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     if (!analyze(expr.referred())) {
         return nullptr;
@@ -692,22 +697,19 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
             ctx.badExpr(&expr, DerefNoPtr);
             return nullptr;
         }
-        if (expr.unique()) {
-            ctx.badExpr(&expr, GenericBadExpr);
-            return nullptr;
-        }
         expr.decorateValue(sym.temporary(&expr, baseType), LValue);
         return &expr;
     }
     case EntityCategory::Type: {
         auto* type = cast<ObjectType*>(pointer->entity());
-        auto pointee = QualType(type, expr.mutability());
-        if (expr.unique()) {
-            auto* ptrType = sym.uniquePointer(pointee);
+        auto mut = expr.mutability();
+        if (auto* unique = dyncast<ast::UniqueExpr const*>(expr.referred())) {
+            mut = ::join(mut, unique->mutability());
+            auto* ptrType = sym.uniquePointer(QualType(type, mut));
             expr.decorateType(const_cast<UniquePtrType*>(ptrType));
         }
         else {
-            auto* ptrType = sym.pointer(pointee);
+            auto* ptrType = sym.pointer(QualType(type, mut));
             expr.decorateType(const_cast<RawPtrType*>(ptrType));
         }
         return &expr;
@@ -854,22 +856,37 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
-    if (!analyzeValue(expr.value())) {
+    if (!analyze(expr.value())) {
         return nullptr;
     }
-    if (!expr.value()->isRValue()) {
-        ctx.badExpr(&expr, UniqueExprNoRValue);
-        return nullptr;
+    switch (expr.value()->entityCategory()) {
+    case EntityCategory::Value: {
+        if (!expr.value()->isRValue()) {
+            ctx.badExpr(&expr, UniqueExprNoRValue);
+            return nullptr;
+        }
+        /// We pop the top level dtor because unique ptr extends the lifetime of
+        /// the object
+        currentCleanupStack().pop(expr.value());
+        auto* type = sym.uniquePointer(expr.value()->type());
+        expr.decorateValue(sym.temporary(&expr, type), RValue);
+        if (!currentCleanupStack().push(expr.object(), ctx)) {
+            return nullptr;
+        }
+        return &expr;
     }
-    /// We pop the top level dtor because unique ptr extends the lifetime of the
-    /// object
-    currentCleanupStack().pop(expr.value());
-    auto* type = sym.uniquePointer(expr.value()->type());
-    expr.decorateValue(sym.temporary(&expr, type), RValue);
-    if (!currentCleanupStack().push(expr.object(), ctx)) {
-        return nullptr;
+    case EntityCategory::Type: {
+        if (!isa<ast::DereferenceExpression>(expr.parent())) {
+            // TODO: Push error
+            SC_UNIMPLEMENTED();
+            return nullptr;
+        }
+        expr.decorateType(cast<Type*>(expr.value()->entity()));
+        return &expr;
     }
-    return &expr;
+    default:
+        SC_UNREACHABLE();
+    }
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
@@ -1609,7 +1626,6 @@ void ExprContext::dereferencePointer(ast::Expression* expr) {
     size_t index = expr->indexInParent();
     auto deref = allocate<ast::DereferenceExpression>(expr->extractFromParent(),
                                                       Mutability::Const,
-                                                      /* unique = */ false,
                                                       expr->sourceRange());
     bool result = analyzeValue(deref.get());
     SC_ASSERT(result, "How can a pointer dereference fail?");

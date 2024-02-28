@@ -1067,12 +1067,7 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
         return parseArith(ast::UnaryOperator::Decrement);
     case Multiplies: {
         tokens.eat();
-        bool unique = false;
-        if (tokens.peek().kind() == Unique) {
-            unique = true;
-            tokens.eat();
-        }
-        return parseRef.operator()<ast::DereferenceExpression>(unique);
+        return parseRef.operator()<ast::DereferenceExpression>();
     }
     case BitAnd:
         tokens.eat();
@@ -1088,12 +1083,14 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     }
     case Unique: {
         tokens.eat();
+        auto mutQual = eatMut();
         auto value = parsePrefix();
         if (!value) {
             issues.push<ExpectedExpression>(tokens.peek());
             return nullptr;
         }
-        return allocate<ast::UniqueExpr>(std::move(value), token.sourceRange());
+        return allocate<ast::UniqueExpr>(std::move(value), mutQual,
+                                         token.sourceRange());
     }
     default:
         return nullptr;
