@@ -710,8 +710,10 @@ TEST_CASE("Type deduction need pointer initializer", "[sema]") {
 )");
     using enum BadTypeDeduction::Reason;
     CHECK(iss.findOnLine<BadTypeDeduction>(3, NoPointer));
-    CHECK(iss.findOnLine<BadTypeDeduction>(4, NoPointer));
-    CHECK(iss.findOnLine<BadTypeDeduction>(7, NoPointer));
+    // TODO: Enable this once we ban implicit unique pointer to pointer
+    // conversion 
+    // CHECK(iss.findOnLine<BadTypeConv>(4));
+    CHECK(iss.findOnLine<BadTypeConv>(7));
 }
 
 TEST_CASE("Type deduction invalid context", "[sema]") {

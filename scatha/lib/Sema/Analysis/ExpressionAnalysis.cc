@@ -56,7 +56,7 @@ struct ExprContext {
     bool analyzeValues(auto&& exprs);
 
     ///
-    Entity const* analyzeType(ast::Expression* expr);
+    ast::Expression* analyzeType(ast::Expression* expr);
 
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
@@ -128,9 +128,67 @@ ast::Expression* sema::analyzeValueExpr(ast::Expression* expr,
     return ExprContext(ctx, &cleanupStack).analyzeValue(expr);
 }
 
-Entity const* sema::analyzeTypeExpr(ast::Expression* expr,
-                                    AnalysisContext& ctx) {
+ast::Expression* sema::analyzeTypeExpr(ast::Expression* expr,
+                                       AnalysisContext& ctx) {
     return ExprContext(ctx, nullptr).analyzeType(expr);
+}
+
+static QualType deducePointerBase(ast::Expression const* typeExpr,
+                                  TypeDeductionQualifier const* qual,
+                                  ast::Expression const* valueExpr,
+                                  QualType initType, AnalysisContext& ctx) {
+    SC_EXPECT(initType);
+    auto* pointerType = dyncast<PointerType const*>(initType.get());
+    if (!pointerType) {
+        ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
+                                    BadTypeDeduction::NoPointer);
+        return nullptr;
+    }
+    auto base = pointerType->base();
+    if (qual->isMutable() && base.isConst()) {
+        ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
+                                    BadTypeDeduction::Mutability);
+        return nullptr;
+    }
+    return base.to(qual->mutability());
+}
+
+Type const* sema::deduceType(ast::Expression* typeExpr,
+                             ast::Expression* valueExpr, AnalysisContext& ctx) {
+    SC_EXPECT(!typeExpr || typeExpr->isDecorated());
+    SC_EXPECT(!valueExpr || valueExpr->isDecorated());
+    auto& sym = ctx.symbolTable();
+    auto* declEntity = typeExpr ? typeExpr->entity() : nullptr;
+    auto initType = valueExpr ? valueExpr->type() : nullptr;
+    if (auto* declType = dyncast<Type const*>(declEntity)) {
+        return declType;
+    }
+    if (auto* qual = dyncast<TypeDeductionQualifier const*>(declEntity)) {
+        if (!initType) {
+            ctx.issue<BadTypeDeduction>(typeExpr, nullptr,
+                                        BadTypeDeduction::MissingInitializer);
+            return nullptr;
+        }
+        switch (qual->refKind()) {
+        case ReferenceKind::Reference:
+            if (qual->isMutable() && initType.isConst()) {
+                ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
+                                            BadTypeDeduction::Mutability);
+                return nullptr;
+            }
+            return sym.reference(initType.to(qual->mutability()));
+        case ReferenceKind::Pointer: {
+            auto base =
+                deducePointerBase(typeExpr, qual, valueExpr, initType, ctx);
+            return base ? sym.pointer(base) : nullptr;
+        }
+        case ReferenceKind::UniquePointer:
+            auto base =
+                deducePointerBase(typeExpr, qual, valueExpr, initType, ctx);
+            return base ? sym.uniquePointer(base) : nullptr;
+        }
+    }
+    return initType.get();
 }
 
 ast::Expression* ExprContext::analyze(ast::Expression* expr) {
@@ -163,7 +221,7 @@ bool ExprContext::analyzeValues(auto&& exprs) {
     return success;
 }
 
-Entity const* ExprContext::analyzeType(ast::Expression* expr) {
+ast::Expression* ExprContext::analyzeType(ast::Expression* expr) {
     /// Annoying hack. Can't use `currentCleanupStack()` here because that
     /// returns by reference and `_cleanupStack` may be null here
     auto* stashed = _cleanupStack;
@@ -178,7 +236,7 @@ Entity const* ExprContext::analyzeType(ast::Expression* expr) {
     if (!expectType(expr)) {
         return nullptr;
     }
-    return expr->entity();
+    return expr;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
@@ -612,17 +670,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::CastExpr& expr) {
     if (!success) {
         return nullptr;
     }
-    auto* target = expr.target()->entity();
-    if (auto* targetType = dyncast<Type const*>(target)) {
-        auto* conv = convert(ConversionKind::Explicit, expr.value(),
-                             getQualType(targetType, Mutability::Mutable),
-                             refToLValue(targetType), currentCleanupStack(),
-                             ctx);
-        return expr.replace(conv->extractFromParent());
+    auto* target = deduceType(expr.target(), expr.value(), ctx);
+    auto* conv = convert(ConversionKind::Explicit, expr.value(),
+                         getQualType(target, Mutability::Mutable),
+                         refToLValue(target), currentCleanupStack(), ctx);
+    if (!conv) {
+        return nullptr;
     }
-    else {
-        SC_UNIMPLEMENTED();
-    }
+    return expr.replace(conv->extractFromParent());
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {

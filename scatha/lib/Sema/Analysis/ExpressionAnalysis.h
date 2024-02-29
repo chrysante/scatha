@@ -23,9 +23,19 @@ ast::Expression* analyzeValueExpr(ast::Expression* expression,
                                   AnalysisContext& context);
 
 /// Analyses the expression \p expr and returns the type or deduction qualifier
-/// it refers to. If \p expr does not refer to a type or deduction qualifier,
-/// this function will push an error to the issue handler
-Entity const* analyzeTypeExpr(ast::Expression* expr, AnalysisContext& context);
+/// it refers to.
+/// If \p expr does not refer to a type or deduction qualifier, this function
+/// will push an error to the issue handler
+ast::Expression* analyzeTypeExpr(ast::Expression* expr,
+                                 AnalysisContext& context);
+
+/// Deduces the target type of the value expression \p valueExpr based on the
+/// type expression or deduction qualifier expression \p typeExpr
+/// Returns null and submits errors if type deduction is not possible.
+/// \Note Even if this function succeeds it is not guaranteed that a conversion
+/// from \p valueExpr to the target type is possible.
+Type const* deduceType(ast::Expression* typeExpr, ast::Expression* valueExpr,
+                       AnalysisContext& context);
 
 } // namespace scatha::sema
 

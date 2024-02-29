@@ -127,7 +127,8 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
         auto* entity = sym.withScopeCurrent(node.entity->parent(), [&] {
-            return analyzeTypeExpr(var.typeExpr(), ctx);
+            auto* expr = analyzeTypeExpr(var.typeExpr(), ctx);
+            return expr ? expr->entity() : nullptr;
         });
         if (isa<TypeDeductionQualifier>(entity)) {
             ctx.issue<BadTypeDeduction>(var.typeExpr(), nullptr,
@@ -274,17 +275,16 @@ FunctionType const* InstContext::analyzeSignature(
     }) | ToSmallVector<>;
     /// If the return type is not specified it will be deduced during function
     /// analysis
-    auto* expr = decl.returnTypeExpr();
-    auto* retEntity = expr ? analyzeTypeExpr(expr, ctx) : nullptr;
-    if (!retEntity) {
+    auto* retExpr = analyzeTypeExpr(decl.returnTypeExpr(), ctx);
+    if (!retExpr) {
         return sym.functionType(argumentTypes, nullptr);
     }
-    if (isa<TypeDeductionQualifier>(retEntity)) {
-        ctx.issue<BadTypeDeduction>(expr, nullptr,
+    if (isa<TypeDeductionQualifier>(retExpr->entity())) {
+        ctx.issue<BadTypeDeduction>(retExpr, nullptr,
                                     BadTypeDeduction::InvalidContext);
         return sym.functionType(argumentTypes, nullptr);
     }
-    auto* retType = cast<Type const*>(retEntity);
+    auto* retType = cast<Type const*>(retExpr->entity());
     if (!retType->isCompleteOrVoid()) {
         ctx.issue<BadPassedType>(decl.returnTypeExpr(), BadPassedType::Return);
     }
@@ -295,19 +295,18 @@ Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {
     if (auto* thisParam = dyncast<ast::ThisParameter*>(&param)) {
         return analyzeThisParam(*thisParam);
     }
-    auto* expr = param.typeExpr();
-    auto* entity = analyzeTypeExpr(expr, ctx);
-    if (!entity) {
+    auto* typeExpr = analyzeTypeExpr(param.typeExpr(), ctx);
+    if (!typeExpr) {
         return nullptr;
     }
-    if (isa<TypeDeductionQualifier>(entity)) {
-        ctx.issue<BadTypeDeduction>(expr, nullptr,
+    if (isa<TypeDeductionQualifier>(typeExpr->entity())) {
+        ctx.issue<BadTypeDeduction>(typeExpr, nullptr,
                                     BadTypeDeduction::InvalidContext);
         return nullptr;
     }
-    auto* type = cast<Type const*>(entity);
+    auto* type = cast<Type const*>(typeExpr->entity());
     if (!type->isComplete()) {
-        ctx.issue<BadPassedType>(param.typeExpr(), BadPassedType::Argument);
+        ctx.issue<BadPassedType>(typeExpr, BadPassedType::Argument);
     }
     return type;
 }

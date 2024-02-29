@@ -93,18 +93,9 @@ struct StmtContext {
         return sema::analyzeValueExpr(expr, cleanupStack, ctx);
     }
 
-    Entity const* analyzeType(ast::Expression* expr) {
+    ast::Expression* analyzeType(ast::Expression* expr) {
         return sema::analyzeTypeExpr(expr, ctx);
     }
-
-    /// Type deduction functions
-    Type const* deduceType(ast::Expression* typeExpr,
-                           ast::Expression* valueExpr);
-    template <typename PtrType>
-    PtrType const* deducePointer(ast::Expression const* typeExpr,
-                                 TypeDeductionQualifier const* qual,
-                                 ast::Expression const* valueExpr,
-                                 QualType initType);
 
     /// Used by return statement case to add a type to return type deduction
     void deduceReturnTypeTo(ast::ReturnStatement const* stmt,
@@ -555,7 +546,8 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     auto* validatedInitExpr =
         analyzeValue(varDecl.initExpr(), varDecl.cleanupStack());
-    auto* deducedType = deduceType(varDecl.typeExpr(), validatedInitExpr);
+    auto* deducedType = deduceType(analyzeTypeExpr(varDecl.typeExpr(), ctx),
+                                   validatedInitExpr, ctx);
     if (!deducedType) {
         sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
@@ -721,68 +713,6 @@ void StmtContext::analyzeImpl(ast::JumpStatement& stmt) {
         parent = parent->parent();
     }
     gatherParentCleanups(stmt);
-}
-
-Type const* StmtContext::deduceType(ast::Expression* typeExpr,
-                                    ast::Expression* valueExpr) {
-    auto* declEntity = analyzeType(typeExpr);
-    auto initType = valueExpr ? valueExpr->type() : nullptr;
-    if (auto* declType = dyncast<Type const*>(declEntity)) {
-        return declType;
-    }
-    if (auto* qual = dyncast<TypeDeductionQualifier const*>(declEntity)) {
-        if (!initType) {
-            ctx.issue<BadTypeDeduction>(typeExpr, nullptr,
-                                        BadTypeDeduction::MissingInitializer);
-            return nullptr;
-        }
-        switch (qual->refKind()) {
-        case ReferenceKind::Reference:
-            if (qual->isMutable() && initType.isConst()) {
-                ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
-                                            BadTypeDeduction::Mutability);
-                return nullptr;
-            }
-            return sym.reference(initType.to(qual->mutability()));
-        case ReferenceKind::Pointer: {
-            return deducePointer<RawPtrType>(typeExpr, qual, valueExpr,
-                                             initType);
-        }
-        case ReferenceKind::UniquePointer:
-            return deducePointer<UniquePtrType>(typeExpr, qual, valueExpr,
-                                                initType);
-        }
-    }
-    return initType.get();
-}
-
-template <typename PtrType>
-PtrType const* StmtContext::deducePointer(ast::Expression const* typeExpr,
-                                          TypeDeductionQualifier const* qual,
-                                          ast::Expression const* valueExpr,
-                                          QualType initType) {
-    SC_EXPECT(initType);
-    auto* pointerType = dyncast<PtrType const*>(initType.get());
-    if (!pointerType) {
-        ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
-                                    BadTypeDeduction::NoPointer);
-        return nullptr;
-    }
-    auto base = pointerType->base();
-    if (qual->isMutable() && base.isConst()) {
-        ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
-                                    BadTypeDeduction::Mutability);
-        return nullptr;
-    }
-    if constexpr (std::is_same_v<PtrType, RawPtrType>) {
-        return sym.pointer(base.to(qual->mutability()));
-    }
-    else if constexpr (std::is_same_v<PtrType, UniquePtrType>) {
-        return sym.uniquePointer(base.to(qual->mutability()));
-    }
-    else {
-        static_assert(std::is_same_v<PtrType, void>, "");
-    }
 }
 
 void StmtContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,
