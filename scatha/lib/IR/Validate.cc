@@ -217,6 +217,8 @@ void AssertContext::assertSpecialInvariants(Phi const& phi) {
               "same order as the predecessors of the basic block.");
     }
     for (auto [pred, value]: phi.arguments()) {
+        CHECK(value->type() == phi.type(),
+              "Phi operands must have the same type as the phi itself");
         if (auto* inst = dyncast<Instruction const*>(value)) {
             auto& domSetOfPred = domMap.find(pred)->second;
             CHECK(domSetOfPred.contains(inst->parent()),

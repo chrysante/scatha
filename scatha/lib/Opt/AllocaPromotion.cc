@@ -432,6 +432,18 @@ bool VariableInfo::renameUse(Instruction* inst) {
     SC_UNREACHABLE();
 }
 
+/// Sets the type of the phi node \p phi to \p type and also all `undef`
+/// arguments
+static void setPhiType(Context& ctx, Phi* phi, Type const* type) {
+    auto* repl = ctx.undef(type);
+    phi->setType(type);
+    for (auto [index, op]: phi->operands() | ranges::views::enumerate) {
+        if (auto* undef = dyncast<UndefValue*>(op)) {
+            phi->setOperand(index, repl);
+        }
+    }
+}
+
 void VariableInfo::rename(BasicBlock* BB) {
     if (renamedBlocks.contains(BB)) {
         return;
@@ -453,7 +465,7 @@ void VariableInfo::rename(BasicBlock* BB) {
             /// This is a preliminary hack to make sure the phi instructions
             /// have the correct type. This does not work if we use memory for
             /// type punning.
-            phi->setType(argument->type());
+            setPhiType(ctx, phi, argument->type());
         }
     }
     for (auto* succ: BB->successors()) {
