@@ -24,6 +24,13 @@ static SourceRange getSourceRange(ast::ASTNode const* node) {
     return {};
 }
 
+static SourceRange getSourceRange(
+    std::convertible_to<ast::ASTNode const*> auto... node)
+    requires(sizeof...(node) > 1)
+{
+    return merge(getSourceRange(node)...);
+}
+
 /// Used by `SC_SEMA_GENERICBADSTMT_DEF`
 static std::string_view format(ast::Statement const* stmt) {
     using namespace ast;
@@ -460,9 +467,87 @@ StructDefCycle::StructDefCycle(Scope const* _scope,
     }
 }
 
+static std::string typeDeductMutabilityHeader(ReferenceKind kind) {
+    auto [a, b] = [&]() -> std::pair<char const*, char const*> {
+        switch (kind) {
+        case ReferenceKind::Reference:
+            return { "immutable value", "mutable reference" };
+        case ReferenceKind::Pointer:
+            return { "pointer to immutable value", "pointer to mutable value" };
+        case ReferenceKind::UniquePointer:
+            return { "unique pointer to immutable value",
+                     "unique pointer to mutable value" };
+        }
+    }();
+    return utl::strcat("Cannot deduce ", a, " as ", b);
+}
+
+static std::string typeDeductNoPointerHeader(TypeDeductionQualifier const* qual,
+                                             QualType type) {
+    // clang-format off
+    auto* value = SC_MATCH(*type) {
+        [](ObjectType const&) { return "non-pointer value"; },
+        [](RawPtrType const&) { return "pointer"; },
+        [](UniquePtrType const&) { return "unique pointer"; },
+    }; // clang-format on
+    auto* as = [&] {
+        switch (qual->refKind()) {
+        case ReferenceKind::Reference:
+            return "reference";
+        case ReferenceKind::Pointer:
+            return "pointer";
+        case ReferenceKind::UniquePointer:
+            return "unique pointer";
+        }
+    }();
+
+    return utl::strcat("Cannot deduce ", value, " as ", as);
+}
+
+BadTypeDeduction::BadTypeDeduction(ast::Expression const* typeExpr,
+                                   ast::Expression const* valueExpr,
+                                   Reason reason):
+    SemaIssue(nullptr, getSourceRange(typeExpr, valueExpr),
+              IssueSeverity::Error),
+    _reason(reason),
+    _typeExpr(typeExpr) {
+    switch (reason) {
+    case Mutability: {
+        auto* qual = cast<TypeDeductionQualifier const*>(typeExpr->entity());
+        header(typeDeductMutabilityHeader(qual->refKind()));
+        primary(getSourceRange(valueExpr), [=](std::ostream& str) {
+            str << "Value of type " << sema::format(valueExpr->type());
+        });
+        secondary(getSourceRange(typeExpr),
+                  [=](std::ostream& str) { str << "Deduction qualifier"; });
+        break;
+    }
+    case MissingInitializer:
+        header("Initializer required for type deduction");
+        primary(getSourceRange(typeExpr), [=](std::ostream& str) {
+            str << "Type deduction requested here";
+        });
+        break;
+    case NoPointer: {
+        auto* qual = cast<TypeDeductionQualifier const*>(typeExpr->entity());
+        header(typeDeductNoPointerHeader(qual, valueExpr->type()));
+        primary(getSourceRange(valueExpr), [=](std::ostream& str) {
+            str << "Value of type " << sema::format(valueExpr->type());
+        });
+        break;
+    }
+    case InvalidContext: {
+        primary(getSourceRange(typeExpr), [=](std::ostream& str) {
+            str << "Type deduction is not allowed here";
+        });
+    }
+    }
+}
+
 BadPassedType::BadPassedType(Scope const* scope, ast::Expression const* expr,
                              Reason reason):
-    SemaIssue(scope, getSourceRange(expr), IssueSeverity::Error), r(reason) {
+    SemaIssue(scope, getSourceRange(expr), IssueSeverity::Error),
+    _reason(reason) {
     switch (reason) {
     case Argument:
         header("Cannot pass parameter of incomplete type");

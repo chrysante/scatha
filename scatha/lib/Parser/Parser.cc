@@ -232,7 +232,7 @@ struct Context {
     UniquePtr<ast::Literal> parseLiteral();
 
     // Helpers
-    sema::Mutability eatMut();
+    sema::Mutability eatMut(SourceRange& sr);
     ast::SpecifierList parseSpecList();
 
     void pushExpectedExpression(Token const&);
@@ -498,26 +498,29 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
 
 UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
     size_t index) {
-    auto thisMutQual = eatMut();
+    SourceRange thisSourceRange;
+    auto thisMutQual = eatMut(thisSourceRange);
     Token const idToken = tokens.peek();
     if (idToken.kind() == This) {
         tokens.eat();
         return allocate<ast::ThisParameter>(index, thisMutQual,
                                             /* isRef = */ false,
-                                            idToken.sourceRange());
+                                            merge(thisSourceRange,
+                                                  idToken.sourceRange()));
     }
     if (idToken.kind() == BitAnd) {
         tokens.eat();
         using enum sema::Mutability;
-        auto const refMutQual = eatMut();
+        auto const refMutQual = eatMut(thisSourceRange);
         if (tokens.peek().kind() != This) {
             return nullptr;
         }
         auto const thisToken = tokens.eat();
-        auto sourceRange =
-            merge(idToken.sourceRange(), thisToken.sourceRange());
+        thisSourceRange = merge(thisSourceRange, idToken.sourceRange(),
+                                thisToken.sourceRange());
         return allocate<ast::ThisParameter>(index, refMutQual,
-                                            /* isRef = */ true, sourceRange);
+                                            /* isRef = */ true,
+                                            thisSourceRange);
     }
     auto identifier = parseID();
     if (!identifier) {
@@ -555,7 +558,8 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
     else {
         tokens.eat();
     }
-    auto mutQual = eatMut();
+    SourceRange typeSourceRange;
+    auto mutQual = eatMut(typeSourceRange);
     auto typeExpr = parseTypeExpression();
     if (!typeExpr) {
         pushExpectedExpression(tokens.peek());
@@ -1042,9 +1046,9 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
             token.sourceRange());
     };
     auto parseRef = [&]<typename Expr>(auto... args) {
-        auto mutQual = eatMut();
-        return allocate<Expr>(parsePrefix(), mutQual, args...,
-                              token.sourceRange());
+        auto sr = token.sourceRange();
+        auto mutQual = eatMut(sr);
+        return allocate<Expr>(parsePrefix(), mutQual, args..., sr);
     };
     switch (token.kind()) {
     case Plus:
@@ -1083,9 +1087,9 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     }
     case Unique: {
         tokens.eat();
-        auto mutQual = eatMut();
-        return allocate<ast::UniqueExpr>(parsePrefix(), mutQual,
-                                         token.sourceRange());
+        auto sr = token.sourceRange();
+        auto mutQual = eatMut(sr);
+        return allocate<ast::UniqueExpr>(parsePrefix(), mutQual, sr);
     }
     default:
         return nullptr;
@@ -1392,8 +1396,9 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
     }
 }
 
-sema::Mutability Context::eatMut() {
+sema::Mutability Context::eatMut(SourceRange& sr) {
     if (tokens.peek().kind() == Mutable) {
+        sr = merge(sr, tokens.peek().sourceRange());
         tokens.eat();
         return sema::Mutability::Mutable;
     }

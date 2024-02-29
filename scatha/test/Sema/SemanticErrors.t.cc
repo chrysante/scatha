@@ -653,3 +653,75 @@ struct Inconstructible { fn delete(&mut this) {} }
     CHECK(iss.findOnLine<BadExpr>(2, CannotConstructType));
     CHECK(iss.findOnLine<BadExpr>(3, CannotConstructType));
 }
+
+TEST_CASE("Pointer and reference to non-object type", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+fn foo() -> *&int {}
+fn bar() -> & &int {}
+)");
+    CHECK(iss.findOnLine<BadExpr>(2, PointerNoObjType));
+    CHECK(iss.findOnLine<BadExpr>(3, ReferenceNoObjType));
+}
+
+TEST_CASE("Type deduction mutability errors", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/*  2 */ fn a(i: int) {
+/*  3 */     let m: &mut = i; // Cannot bind mutable reference to const object
+/*  4 */ }
+/*  5 */ fn b(i: *int) {
+/*  6 */     let m: *mut = i; // Cannot convert const pointer to mutable
+/*  7 */ }
+/*  8 */ fn c() {
+/*  9 */     let m: *unique mut = make_unique(); // Cannot convert const pointer to mutable
+/* 10 */ }
+/* 11 */ fn make_unique() -> *unique int { return unique int(); }
+)");
+    CHECK(iss.findOnLine<BadTypeDeduction>(3, BadTypeDeduction::Mutability));
+    CHECK(iss.findOnLine<BadTypeDeduction>(6, BadTypeDeduction::Mutability));
+    CHECK(iss.findOnLine<BadTypeDeduction>(9, BadTypeDeduction::Mutability));
+}
+
+TEST_CASE("Type deduction missing initializer", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/* 2 */ fn a() {
+/* 3 */     let i: &;
+/* 4 */     let j: *;
+/* 5 */     let k: *mut;
+/* 6 */     let l: *unique;
+/* 7 */ }
+)");
+    using enum BadTypeDeduction::Reason;
+    CHECK(iss.findOnLine<BadTypeDeduction>(3, MissingInitializer));
+    CHECK(iss.findOnLine<BadTypeDeduction>(4, MissingInitializer));
+    CHECK(iss.findOnLine<BadTypeDeduction>(5, MissingInitializer));
+    CHECK(iss.findOnLine<BadTypeDeduction>(6, MissingInitializer));
+}
+
+TEST_CASE("Type deduction need pointer initializer", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+/* 2 */ fn b(i: int) {
+/* 3 */     let p: * = i;
+/* 4 */     let q: * = make_unique();
+/* 5 */ }
+/* 6 */ fn c(p: *int) {
+/* 7 */     let q: *unique = p;
+/* 8 */ }
+/* 9 */ fn make_unique() -> *unique int { return unique int(); }
+)");
+    using enum BadTypeDeduction::Reason;
+    CHECK(iss.findOnLine<BadTypeDeduction>(3, NoPointer));
+    CHECK(iss.findOnLine<BadTypeDeduction>(4, NoPointer));
+    CHECK(iss.findOnLine<BadTypeDeduction>(7, NoPointer));
+}
+
+TEST_CASE("Type deduction invalid context", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+struct X { var p: *; }
+fn test(p: *) {}
+fn test() -> * {}
+)");
+    using enum BadTypeDeduction::Reason;
+    CHECK(iss.findOnLine<BadTypeDeduction>(2, InvalidContext));
+    CHECK(iss.findOnLine<BadTypeDeduction>(3, InvalidContext));
+    CHECK(iss.findOnLine<BadTypeDeduction>(4, InvalidContext));
+}

@@ -718,8 +718,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
         }
         auto* type = dyncast<ObjectType*>(pointer->entity());
         if (!type) {
-            // TODO: PushError
-            SC_UNIMPLEMENTED();
+            ctx.badExpr(&expr, PointerNoObjType);
             return nullptr;
         }
         if (auto* unique = dyncast<ast::UniqueExpr const*>(expr.referred())) {
@@ -776,8 +775,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
         }
         auto* type = dyncast<ObjectType*>(referred->entity());
         if (!type) {
-            // TODO: PushError
-            SC_UNIMPLEMENTED();
+            ctx.badExpr(&expr, ReferenceNoObjType);
             return nullptr;
         }
         auto* refType = sym.reference(QualType(type, mut));
@@ -913,8 +911,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
     }
     case EntityCategory::Type: {
         if (!isa<ast::DereferenceExpression>(expr.parent())) {
-            // TODO: Push error
-            SC_UNIMPLEMENTED();
+            ctx.badExpr(&expr, GenericBadExpr);
             return nullptr;
         }
         if (!expr.value()) {

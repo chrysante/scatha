@@ -358,4 +358,12 @@ SC_SEMA_BADEXPR_DEF(MoveExpr, MoveExprCopies, Warning,
 SC_SEMA_BADEXPR_DEF(UniqueExpr, UniqueExprNoRValue, Error,
                     "Unique expression must be an rvalue")
 
+SC_SEMA_BADEXPR_DEF(DereferenceExpression, PointerNoObjType, Error,
+                    "Cannot form pointer to non-object type " << sema::format(
+                        dyncast<Type const*>(expr->referred()->entity())))
+
+SC_SEMA_BADEXPR_DEF(AddressOfExpression, ReferenceNoObjType, Error,
+                    "Cannot form reference to non-object type " << sema::format(
+                        dyncast<Type const*>(expr->referred()->entity())))
+
 #undef SC_SEMA_BADEXPR_DEF

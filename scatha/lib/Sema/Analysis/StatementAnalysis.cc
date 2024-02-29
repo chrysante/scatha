@@ -98,9 +98,12 @@ struct StmtContext {
     }
 
     /// Type deduction functions
-    Type const* deduceType(Entity const* declEntity, QualType initType);
+    Type const* deduceType(ast::Expression* typeExpr,
+                           ast::Expression* valueExpr);
     template <typename PtrType>
-    PtrType const* deducePointer(TypeDeductionQualifier const* qual,
+    PtrType const* deducePointer(ast::Expression const* typeExpr,
+                                 TypeDeductionQualifier const* qual,
+                                 ast::Expression const* valueExpr,
                                  QualType initType);
 
     /// Used by return statement case to add a type to return type deduction
@@ -552,10 +555,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     auto* validatedInitExpr =
         analyzeValue(varDecl.initExpr(), varDecl.cleanupStack());
-    auto* declEntity = analyzeType(varDecl.typeExpr());
-    auto initType = validatedInitExpr ? validatedInitExpr->type() : nullptr;
-    auto* deducedType = deduceType(declEntity, initType);
-    /// We cannot deduce the type of the variable
+    auto* deducedType = deduceType(varDecl.typeExpr(), validatedInitExpr);
     if (!deducedType) {
         sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
@@ -723,48 +723,55 @@ void StmtContext::analyzeImpl(ast::JumpStatement& stmt) {
     gatherParentCleanups(stmt);
 }
 
-Type const* StmtContext::deduceType(Entity const* declEntity,
-                                    QualType initType) {
+Type const* StmtContext::deduceType(ast::Expression* typeExpr,
+                                    ast::Expression* valueExpr) {
+    auto* declEntity = analyzeType(typeExpr);
+    auto initType = valueExpr ? valueExpr->type() : nullptr;
     if (auto* declType = dyncast<Type const*>(declEntity)) {
         return declType;
     }
     if (auto* qual = dyncast<TypeDeductionQualifier const*>(declEntity)) {
         if (!initType) {
-            // TODO: Push error
-            SC_UNIMPLEMENTED();
+            ctx.issue<BadTypeDeduction>(typeExpr, nullptr,
+                                        BadTypeDeduction::MissingInitializer);
             return nullptr;
         }
         switch (qual->refKind()) {
         case ReferenceKind::Reference:
             if (qual->isMutable() && initType.isConst()) {
-                // TODO: Push error
-                SC_UNIMPLEMENTED();
+                ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
+                                            BadTypeDeduction::Mutability);
                 return nullptr;
             }
             return sym.reference(initType.to(qual->mutability()));
         case ReferenceKind::Pointer: {
-            return deducePointer<RawPtrType>(qual, initType);
+            return deducePointer<RawPtrType>(typeExpr, qual, valueExpr,
+                                             initType);
         }
         case ReferenceKind::UniquePointer:
-            return deducePointer<UniquePtrType>(qual, initType);
+            return deducePointer<UniquePtrType>(typeExpr, qual, valueExpr,
+                                                initType);
         }
     }
     return initType.get();
 }
 
 template <typename PtrType>
-PtrType const* StmtContext::deducePointer(TypeDeductionQualifier const* qual,
+PtrType const* StmtContext::deducePointer(ast::Expression const* typeExpr,
+                                          TypeDeductionQualifier const* qual,
+                                          ast::Expression const* valueExpr,
                                           QualType initType) {
+    SC_EXPECT(initType);
     auto* pointerType = dyncast<PtrType const*>(initType.get());
     if (!pointerType) {
-        // TODO: Push error
-        SC_UNIMPLEMENTED();
+        ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
+                                    BadTypeDeduction::NoPointer);
         return nullptr;
     }
     auto base = pointerType->base();
     if (qual->isMutable() && base.isConst()) {
-        // TODO: Push error
-        SC_UNIMPLEMENTED();
+        ctx.issue<BadTypeDeduction>(typeExpr, valueExpr,
+                                    BadTypeDeduction::Mutability);
         return nullptr;
     }
     if constexpr (std::is_same_v<PtrType, RawPtrType>) {

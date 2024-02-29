@@ -129,11 +129,12 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
         auto* entity = sym.withScopeCurrent(node.entity->parent(), [&] {
             return analyzeTypeExpr(var.typeExpr(), ctx);
         });
-        auto* type = dyncast<Type const*>(entity);
-        if (entity && !type) {
-            // TODO: Push error
-            SC_UNIMPLEMENTED();
+        if (isa<TypeDeductionQualifier>(entity)) {
+            ctx.issue<BadTypeDeduction>(var.typeExpr(), nullptr,
+                                        BadTypeDeduction::InvalidContext);
+            continue;
         }
+        auto* type = cast<Type const*>(entity);
         if (type && isUserDefined(type) && !isLibEntity(type)) {
             /// Because type instantiations depend on the element type, but
             /// array types are not in the dependency graph, we strip array
@@ -232,7 +233,7 @@ static Type const* getType(ast::Expression const* expr) {
     if (!expr || !expr->isDecorated() || !expr->isType()) {
         return nullptr;
     }
-    return cast<Type const*>(expr->entity());
+    return dyncast<Type const*>(expr->entity());
 }
 
 void InstContext::instantiateVariable(SDGNode& node) {
@@ -275,16 +276,15 @@ FunctionType const* InstContext::analyzeSignature(
     /// analysis
     auto* expr = decl.returnTypeExpr();
     auto* retEntity = expr ? analyzeTypeExpr(expr, ctx) : nullptr;
-    auto* retType = dyncast<Type const*>(retEntity);
-    if (retEntity && !retType) {
-        /// TODO: Push error
-        /// Because we want to get rid of return type deduction, we disallow
-        /// qualified return type deduction
-        SC_UNIMPLEMENTED();
-    }
-    if (!retType) {
+    if (!retEntity) {
         return sym.functionType(argumentTypes, nullptr);
     }
+    if (isa<TypeDeductionQualifier>(retEntity)) {
+        ctx.issue<BadTypeDeduction>(expr, nullptr,
+                                    BadTypeDeduction::InvalidContext);
+        return sym.functionType(argumentTypes, nullptr);
+    }
+    auto* retType = cast<Type const*>(retEntity);
     if (!retType->isCompleteOrVoid()) {
         ctx.issue<BadPassedType>(decl.returnTypeExpr(), BadPassedType::Return);
     }
@@ -295,16 +295,17 @@ Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {
     if (auto* thisParam = dyncast<ast::ThisParameter*>(&param)) {
         return analyzeThisParam(*thisParam);
     }
-    auto* entity = analyzeTypeExpr(param.typeExpr(), ctx);
-    auto* type = dyncast<Type const*>(entity);
-    if (entity && !type) {
-        /// TODO: Push error
-        /// Type deduction qualifiers are not allowed as function parameters
-        SC_UNIMPLEMENTED();
-    }
-    if (!type) {
+    auto* expr = param.typeExpr();
+    auto* entity = analyzeTypeExpr(expr, ctx);
+    if (!entity) {
         return nullptr;
     }
+    if (isa<TypeDeductionQualifier>(entity)) {
+        ctx.issue<BadTypeDeduction>(expr, nullptr,
+                                    BadTypeDeduction::InvalidContext);
+        return nullptr;
+    }
+    auto* type = cast<Type const*>(entity);
     if (!type->isComplete()) {
         ctx.issue<BadPassedType>(param.typeExpr(), BadPassedType::Argument);
     }

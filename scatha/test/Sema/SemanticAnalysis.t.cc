@@ -646,8 +646,6 @@ fn foo() {
     CHECK(iss.empty());
 }
 
-/// Deduction qualifiers
-
 TEST_CASE("Deduction qualifiers", "[sema]") {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn a(i: mut int) {

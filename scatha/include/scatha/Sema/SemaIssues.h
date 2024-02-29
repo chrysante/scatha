@@ -34,6 +34,7 @@
 /// │  ├─ BadTypeConv
 /// │  ├─ BadValueCatConv
 /// │  └─ BadMutConv
+/// ├─ BadTypeDeduction
 /// ├─ BadPassedType
 /// ├─ BadCleanup
 /// └─ ORError
@@ -386,18 +387,29 @@ struct ORMatchError {
     size_t argIndex = ~size_t{ 0 };
 };
 
+/// Error class for erroneous type deduction
+class SCATHA_API BadTypeDeduction: public SemaIssue {
+public:
+    enum Reason { Mutability, MissingInitializer, NoPointer, InvalidContext };
+    SC_SEMA_ISSUE_REASON()
+
+    explicit BadTypeDeduction(ast::Expression const* typeExpr,
+                              ast::Expression const* valueExpr, Reason reason);
+
+    ast::Expression const* typeExpr() const { return _typeExpr; }
+
+private:
+    ast::Expression const* _typeExpr;
+};
+
 /// Error class for using invalid types as function paramaters or return types
 class SCATHA_API BadPassedType: public SemaIssue {
 public:
     enum Reason { Argument, Return, ReturnDeduced };
+    SC_SEMA_ISSUE_REASON()
 
     explicit BadPassedType(Scope const* scope, ast::Expression const* expr,
                            Reason reason);
-
-    Reason reason() const { return r; }
-
-private:
-    Reason r;
 };
 
 /// Error class issued when a cleanup of a type with deleted destructor is
