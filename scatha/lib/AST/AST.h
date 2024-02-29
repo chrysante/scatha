@@ -587,7 +587,7 @@ private:
     BinaryOperator op;
 };
 
-/// Concrete node representing a `as`-cast expression.
+/// Concrete node representing an `as`-cast expression.
 class SCATHA_API CastExpr: public Expression {
 public:
     explicit CastExpr(UniquePtr<Expression> value,
