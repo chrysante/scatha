@@ -671,6 +671,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::CastExpr& expr) {
         return nullptr;
     }
     auto* target = deduceType(expr.target(), expr.value(), ctx);
+    if (!target) {
+        return nullptr;
+    }
     auto* conv = convert(ConversionKind::Explicit, expr.value(),
                          getQualType(target, Mutability::Mutable),
                          refToLValue(target), currentCleanupStack(), ctx);

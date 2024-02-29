@@ -725,3 +725,11 @@ fn test() -> * {}
     CHECK(iss.findOnLine<BadTypeDeduction>(3, InvalidContext));
     CHECK(iss.findOnLine<BadTypeDeduction>(4, InvalidContext));
 }
+
+TEST_CASE("Cast expr bad need pointer", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+fn test() { 0 as *; }
+)");
+    using enum BadTypeDeduction::Reason;
+    CHECK(iss.findOnLine<BadTypeDeduction>(2, NoPointer));
+}
