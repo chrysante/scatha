@@ -587,6 +587,24 @@ private:
     BinaryOperator op;
 };
 
+/// Concrete node representing a `as`-cast expression.
+class SCATHA_API CastExpr: public Expression {
+public:
+    explicit CastExpr(UniquePtr<Expression> value,
+                      UniquePtr<Expression> targetType,
+                      SourceRange sourceRange):
+        Expression(NodeType::CastExpr, sourceRange, std::move(value),
+                   std::move(targetType)) {}
+
+    AST_DERIVED_COMMON(CastExpr)
+
+    /// The value before the cast
+    AST_PROPERTY(0, Expression, value, Value)
+
+    /// The target type of the cast
+    AST_PROPERTY(1, Expression, target, Target)
+};
+
 /// Concrete node representing a member access expression.
 class SCATHA_API MemberAccess: public Expression {
 public:

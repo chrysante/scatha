@@ -63,6 +63,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
     bool validateAccessPermission(Entity const& entity) const;
+    ast::Expression* analyzeImpl(ast::CastExpr&);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
@@ -602,6 +603,26 @@ bool ExprContext::validateAccessPermission(Entity const& entity) const {
         scope = scope->parent();
     }
     return false;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::CastExpr& expr) {
+    bool success = true;
+    success &= !!analyzeValue(expr.value());
+    success &= !!analyzeType(expr.target());
+    if (!success) {
+        return nullptr;
+    }
+    auto* target = expr.target()->entity();
+    if (auto* targetType = dyncast<Type const*>(target)) {
+        auto* conv = convert(ConversionKind::Explicit, expr.value(),
+                             getQualType(targetType, Mutability::Mutable),
+                             refToLValue(targetType), currentCleanupStack(),
+                             ctx);
+        return expr.replace(conv->extractFromParent());
+    }
+    else {
+        SC_UNIMPLEMENTED();
+    }
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
