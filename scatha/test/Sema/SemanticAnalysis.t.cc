@@ -645,3 +645,46 @@ fn foo() {
 )");
     CHECK(iss.empty());
 }
+
+/// Deduction qualifiers
+
+TEST_CASE("Deduction qualifiers", "[sema]") {
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+fn a(i: mut int) {
+    let c: & = i;
+    let m: &mut = i;
+}
+fn b(i: *mut int) {
+    let c: * = i;
+    let m: *mut = i;
+}
+fn c() {
+    let c: *unique = make_unique();
+    let m: *unique mut = make_unique();
+}
+fn make_unique() -> *unique mut int { return unique int(); }
+)");
+    REQUIRE(iss.empty());
+    auto* file = (sym.globalScope().children() | Filter<FileScope>).front();
+    sym.pushScope(file);
+    test::Finder find{ sym };
+    using enum Mutability;
+    find("a", [&](Scope const*) {
+        auto* c = dyncast<Variable const*>(find("c"));
+        CHECK(c->type() == sym.reference(sym.Int(), Const));
+        auto* m = dyncast<Variable const*>(find("m"));
+        CHECK(m->type() == sym.reference(sym.Int(), Mutable));
+    });
+    find("b", [&](Scope const*) {
+        auto* c = dyncast<Variable const*>(find("c"));
+        CHECK(c->type() == sym.pointer(sym.Int(), Const));
+        auto* m = dyncast<Variable const*>(find("m"));
+        CHECK(m->type() == sym.pointer(sym.Int(), Mutable));
+    });
+    find("c", [&](Scope const*) {
+        auto* c = dyncast<Variable const*>(find("c"));
+        CHECK(c->type() == sym.uniquePointer(sym.Int(), Const));
+        auto* m = dyncast<Variable const*>(find("m"));
+        CHECK(m->type() == sym.uniquePointer(sym.Int(), Mutable));
+    });
+}

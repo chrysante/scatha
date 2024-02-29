@@ -1084,12 +1084,7 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     case Unique: {
         tokens.eat();
         auto mutQual = eatMut();
-        auto value = parsePrefix();
-        if (!value) {
-            issues.push<ExpectedExpression>(tokens.peek());
-            return nullptr;
-        }
-        return allocate<ast::UniqueExpr>(std::move(value), mutQual,
+        return allocate<ast::UniqueExpr>(parsePrefix(), mutQual,
                                          token.sourceRange());
     }
     default:

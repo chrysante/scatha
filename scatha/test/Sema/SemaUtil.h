@@ -2,6 +2,7 @@
 #define TEST_SEMAUTIL_H_
 
 #include <stdexcept>
+#include <string>
 #include <string_view>
 
 #include <catch2/catch_test_macros.hpp>
@@ -37,6 +38,38 @@ static T* lookup(sema::SymbolTable& sym, std::string_view name) {
     REQUIRE(entities.size() == 1);
     return entityAs<T>(sema::stripAlias(entities.front()));
 }
+
+///
+struct Finder {
+    sema::SymbolTable const& sym;
+
+    sema::Entity const* findImpl(std::string_view name) const {
+        auto entities = sym.currentScope().findEntities(name);
+        if (!entities.empty()) {
+            return sema::stripAlias(entities.front());
+        }
+        return nullptr;
+    }
+
+    sema::Scope const* operator()(std::string_view name, auto fn) const {
+        auto* entity = findImpl(name);
+        if (!entity) {
+            throw std::runtime_error("Failed to find \"" + std::string(name) +
+                                     "\"");
+        }
+        auto* scope = dyncast<sema::Scope const*>(entity);
+        if (!scope) {
+            throw std::runtime_error("\"" + std::string(name) +
+                                     "\" is not a scope");
+        }
+        sym.withScopePushed(scope, [&] { fn(scope); });
+        return scope;
+    }
+
+    sema::Entity const* operator()(std::string_view name) const {
+        return findImpl(name);
+    }
+};
 
 } // namespace scatha::test
 

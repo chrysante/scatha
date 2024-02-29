@@ -56,7 +56,7 @@ struct ExprContext {
     bool analyzeValues(auto&& exprs);
 
     ///
-    Type const* analyzeType(ast::Expression* expr);
+    Entity const* analyzeType(ast::Expression* expr);
 
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
@@ -127,7 +127,8 @@ ast::Expression* sema::analyzeValueExpr(ast::Expression* expr,
     return ExprContext(ctx, &cleanupStack).analyzeValue(expr);
 }
 
-Type const* sema::analyzeTypeExpr(ast::Expression* expr, AnalysisContext& ctx) {
+Entity const* sema::analyzeTypeExpr(ast::Expression* expr,
+                                    AnalysisContext& ctx) {
     return ExprContext(ctx, nullptr).analyzeType(expr);
 }
 
@@ -161,7 +162,7 @@ bool ExprContext::analyzeValues(auto&& exprs) {
     return success;
 }
 
-Type const* ExprContext::analyzeType(ast::Expression* expr) {
+Entity const* ExprContext::analyzeType(ast::Expression* expr) {
     /// Annoying hack. Can't use `currentCleanupStack()` here because that
     /// returns by reference and `_cleanupStack` may be null here
     auto* stashed = _cleanupStack;
@@ -176,7 +177,7 @@ Type const* ExprContext::analyzeType(ast::Expression* expr) {
     if (!expectType(expr)) {
         return nullptr;
     }
-    return cast<Type const*>(expr->entity());
+    return expr->entity();
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
@@ -686,12 +687,14 @@ static Mutability join(Mutability a, Mutability b) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
-    if (!analyze(expr.referred())) {
+    if (expr.referred() && !analyze(expr.referred())) {
         return nullptr;
     }
     auto* pointer = expr.referred();
-    switch (pointer->entityCategory()) {
+    auto cat = pointer ? pointer->entityCategory() : EntityCategory::Type;
+    switch (cat) {
     case EntityCategory::Value: {
+        SC_ASSERT(pointer, "");
         auto baseType = getPtrBase(pointer->type().get());
         if (!baseType) {
             ctx.badExpr(&expr, DerefNoPtr);
@@ -701,8 +704,24 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
         return &expr;
     }
     case EntityCategory::Type: {
-        auto* type = cast<ObjectType*>(pointer->entity());
         auto mut = expr.mutability();
+        if (!pointer) {
+            auto* qual =
+                sym.typeDeductionQualifier(ReferenceKind::Pointer, mut);
+            expr.decorateType(qual);
+            return &expr;
+        }
+        /// `*unique` deduction qualifier
+        if (isa<TypeDeductionQualifier>(pointer->entity())) {
+            expr.decorateType(pointer->entity());
+            return &expr;
+        }
+        auto* type = dyncast<ObjectType*>(pointer->entity());
+        if (!type) {
+            // TODO: PushError
+            SC_UNIMPLEMENTED();
+            return nullptr;
+        }
         if (auto* unique = dyncast<ast::UniqueExpr const*>(expr.referred())) {
             mut = ::join(mut, unique->mutability());
             auto* ptrType = sym.uniquePointer(QualType(type, mut));
@@ -726,12 +745,14 @@ static bool isConvertible(Mutability from, Mutability to) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
-    if (!analyze(expr.referred())) {
+    if (expr.referred() && !analyze(expr.referred())) {
         return nullptr;
     }
     auto* referred = expr.referred();
-    switch (referred->entityCategory()) {
+    auto cat = referred ? referred->entityCategory() : EntityCategory::Type;
+    switch (cat) {
     case EntityCategory::Value: {
+        SC_ASSERT(referred, "");
         if (!referred->isLValue()) {
             ctx.badExpr(&expr, AddrOfNoLValue);
             return nullptr;
@@ -746,8 +767,20 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
         return &expr;
     }
     case EntityCategory::Type: {
-        auto* type = cast<ObjectType*>(referred->entity());
-        auto* refType = sym.reference(QualType(type, expr.mutability()));
+        auto mut = expr.mutability();
+        if (!referred) {
+            auto* qual =
+                sym.typeDeductionQualifier(ReferenceKind::Reference, mut);
+            expr.decorateType(qual);
+            return &expr;
+        }
+        auto* type = dyncast<ObjectType*>(referred->entity());
+        if (!type) {
+            // TODO: PushError
+            SC_UNIMPLEMENTED();
+            return nullptr;
+        }
+        auto* refType = sym.reference(QualType(type, mut));
         expr.decorateType(const_cast<ReferenceType*>(refType));
         return &expr;
     }
@@ -856,11 +889,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::MoveExpr& expr) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
-    if (!analyze(expr.value())) {
+    if (expr.value() && !analyze(expr.value())) {
         return nullptr;
     }
-    switch (expr.value()->entityCategory()) {
+    auto cat = expr.value() ? expr.value()->entityCategory() :
+                              EntityCategory::Type;
+    switch (cat) {
     case EntityCategory::Value: {
+        SC_ASSERT(expr.value(), "");
         if (!expr.value()->isRValue()) {
             ctx.badExpr(&expr, UniqueExprNoRValue);
             return nullptr;
@@ -881,7 +917,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
             SC_UNIMPLEMENTED();
             return nullptr;
         }
-        expr.decorateType(cast<Type*>(expr.value()->entity()));
+        if (!expr.value()) {
+            expr.decorateType(
+                sym.typeDeductionQualifier(ReferenceKind::UniquePointer,
+                                           expr.mutability()));
+        }
+        else {
+            expr.decorateType(cast<Type*>(expr.value()->entity()));
+        }
         return &expr;
     }
     default:

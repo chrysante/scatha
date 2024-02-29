@@ -96,6 +96,9 @@ SCATHA_API std::string_view toString(Mutability);
 SCATHA_API std::ostream& operator<<(std::ostream&, Mutability);
 
 ///
+enum class ReferenceKind { Reference, Pointer, UniquePointer };
+
+///
 enum class ScopeKind {
     Invalid,
     Global,

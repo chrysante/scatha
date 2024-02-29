@@ -126,9 +126,14 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
     });
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
-        auto* type = sym.withScopeCurrent(node.entity->parent(), [&] {
+        auto* entity = sym.withScopeCurrent(node.entity->parent(), [&] {
             return analyzeTypeExpr(var.typeExpr(), ctx);
         });
+        auto* type = dyncast<Type const*>(entity);
+        if (entity && !type) {
+            // TODO: Push error
+            SC_UNIMPLEMENTED();
+        }
         if (type && isUserDefined(type) && !isLibEntity(type)) {
             /// Because type instantiations depend on the element type, but
             /// array types are not in the dependency graph, we strip array
@@ -269,7 +274,14 @@ FunctionType const* InstContext::analyzeSignature(
     /// If the return type is not specified it will be deduced during function
     /// analysis
     auto* expr = decl.returnTypeExpr();
-    auto* retType = expr ? analyzeTypeExpr(expr, ctx) : nullptr;
+    auto* retEntity = expr ? analyzeTypeExpr(expr, ctx) : nullptr;
+    auto* retType = dyncast<Type const*>(retEntity);
+    if (retEntity && !retType) {
+        /// TODO: Push error
+        /// Because we want to get rid of return type deduction, we disallow
+        /// qualified return type deduction
+        SC_UNIMPLEMENTED();
+    }
     if (!retType) {
         return sym.functionType(argumentTypes, nullptr);
     }
@@ -283,7 +295,13 @@ Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {
     if (auto* thisParam = dyncast<ast::ThisParameter*>(&param)) {
         return analyzeThisParam(*thisParam);
     }
-    auto* type = analyzeTypeExpr(param.typeExpr(), ctx);
+    auto* entity = analyzeTypeExpr(param.typeExpr(), ctx);
+    auto* type = dyncast<Type const*>(entity);
+    if (entity && !type) {
+        /// TODO: Push error
+        /// Type deduction qualifiers are not allowed as function parameters
+        SC_UNIMPLEMENTED();
+    }
     if (!type) {
         return nullptr;
     }

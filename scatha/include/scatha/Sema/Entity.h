@@ -56,6 +56,7 @@
 /// │        └─ CompoundType
 /// │           ├─ StructType
 /// │           └─ ArrayType
+/// ├─ TypeDeductionQualifier
 /// └─ PoisonEntity
 /// ```
 
@@ -951,6 +952,38 @@ private:
     EntityCategory categoryImpl() const { return aliased()->category(); }
 
     Entity* _aliased;
+};
+
+///
+class SCATHA_API TypeDeductionQualifier: public Entity {
+public:
+    explicit TypeDeductionQualifier(ReferenceKind refKind,
+                                    Mutability mutability):
+        Entity(EntityType::TypeDeductionQualifier,
+               /* name= */ {},
+               /* parent = */ nullptr,
+               /* astNode = */ nullptr),
+        _refKind(refKind),
+        _mut(mutability) {}
+
+    ///
+    ReferenceKind refKind() const { return _refKind; }
+
+    ///
+    Mutability mutability() const { return _mut; }
+
+    /// \Returns `mutability() == Mutability::Mutable`
+    bool isMutable() const { return mutability() == Mutability::Mutable; }
+
+    /// \Returns `mutability() == Mutability::Const`
+    bool isConst() const { return mutability() == Mutability::Const; }
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Type; }
+
+    ReferenceKind _refKind;
+    Mutability _mut;
 };
 
 /// # Poison

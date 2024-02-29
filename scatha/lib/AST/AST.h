@@ -464,7 +464,9 @@ public:
                        sema::QualType type = nullptr);
 
     /// Decorate this node if this node refers to a type
-    void decorateType(sema::Type* type);
+    /// We take the type as `Entity*` because we also allow
+    /// `TypeDeductionQualifier` arguments
+    void decorateType(sema::Entity* type);
 
     /// Decorate this node if this node refers to a namespace
     void decorateNamespace(sema::Entity* entity);

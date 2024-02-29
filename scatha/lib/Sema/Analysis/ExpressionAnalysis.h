@@ -22,10 +22,10 @@ ast::Expression* analyzeValueExpr(ast::Expression* expression,
                                   CleanupStack& cleanupStack,
                                   AnalysisContext& context);
 
-/// Analyses the expression \p expr and returns the type it refers to. If \p
-/// expr does not refer to a type, this function will push an error to the issue
-/// handler
-Type const* analyzeTypeExpr(ast::Expression* expr, AnalysisContext& context);
+/// Analyses the expression \p expr and returns the type or deduction qualifier
+/// it refers to. If \p expr does not refer to a type or deduction qualifier,
+/// this function will push an error to the issue handler
+Entity const* analyzeTypeExpr(ast::Expression* expr, AnalysisContext& context);
 
 } // namespace scatha::sema
 

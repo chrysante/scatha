@@ -93,9 +93,15 @@ struct StmtContext {
         return sema::analyzeValueExpr(expr, cleanupStack, ctx);
     }
 
-    Type const* analyzeType(ast::Expression* expr) {
+    Entity const* analyzeType(ast::Expression* expr) {
         return sema::analyzeTypeExpr(expr, ctx);
     }
+
+    /// Type deduction functions
+    Type const* deduceType(Entity const* declEntity, QualType initType);
+    template <typename PtrType>
+    PtrType const* deducePointer(TypeDeductionQualifier const* qual,
+                                 QualType initType);
 
     /// Used by return statement case to add a type to return type deduction
     void deduceReturnTypeTo(ast::ReturnStatement const* stmt,
@@ -546,10 +552,9 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     }
     auto* validatedInitExpr =
         analyzeValue(varDecl.initExpr(), varDecl.cleanupStack());
-    auto declType = analyzeType(varDecl.typeExpr());
-    auto initType = validatedInitExpr ? validatedInitExpr->type().get() :
-                                        nullptr;
-    auto deducedType = declType ? declType : initType;
+    auto* declEntity = analyzeType(varDecl.typeExpr());
+    auto initType = validatedInitExpr ? validatedInitExpr->type() : nullptr;
+    auto* deducedType = deduceType(declEntity, initType);
     /// We cannot deduce the type of the variable
     if (!deducedType) {
         sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
@@ -716,6 +721,61 @@ void StmtContext::analyzeImpl(ast::JumpStatement& stmt) {
         parent = parent->parent();
     }
     gatherParentCleanups(stmt);
+}
+
+Type const* StmtContext::deduceType(Entity const* declEntity,
+                                    QualType initType) {
+    if (auto* declType = dyncast<Type const*>(declEntity)) {
+        return declType;
+    }
+    if (auto* qual = dyncast<TypeDeductionQualifier const*>(declEntity)) {
+        if (!initType) {
+            // TODO: Push error
+            SC_UNIMPLEMENTED();
+            return nullptr;
+        }
+        switch (qual->refKind()) {
+        case ReferenceKind::Reference:
+            if (qual->isMutable() && initType.isConst()) {
+                // TODO: Push error
+                SC_UNIMPLEMENTED();
+                return nullptr;
+            }
+            return sym.reference(initType.to(qual->mutability()));
+        case ReferenceKind::Pointer: {
+            return deducePointer<RawPtrType>(qual, initType);
+        }
+        case ReferenceKind::UniquePointer:
+            return deducePointer<UniquePtrType>(qual, initType);
+        }
+    }
+    return initType.get();
+}
+
+template <typename PtrType>
+PtrType const* StmtContext::deducePointer(TypeDeductionQualifier const* qual,
+                                          QualType initType) {
+    auto* pointerType = dyncast<PtrType const*>(initType.get());
+    if (!pointerType) {
+        // TODO: Push error
+        SC_UNIMPLEMENTED();
+        return nullptr;
+    }
+    auto base = pointerType->base();
+    if (qual->isMutable() && base.isConst()) {
+        // TODO: Push error
+        SC_UNIMPLEMENTED();
+        return nullptr;
+    }
+    if constexpr (std::is_same_v<PtrType, RawPtrType>) {
+        return sym.pointer(base.to(qual->mutability()));
+    }
+    else if constexpr (std::is_same_v<PtrType, UniquePtrType>) {
+        return sym.uniquePointer(base.to(qual->mutability()));
+    }
+    else {
+        static_assert(std::is_same_v<PtrType, void>, "");
+    }
 }
 
 void StmtContext::deduceReturnTypeTo(ast::ReturnStatement const* stmt,

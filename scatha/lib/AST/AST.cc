@@ -75,7 +75,7 @@ void Expression::decorateValue(sema::Entity* entity,
     markDecorated();
 }
 
-void Expression::decorateType(sema::Type* type) {
+void Expression::decorateType(sema::Entity* type) {
     _entity = type;
     markDecorated();
 }

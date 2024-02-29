@@ -246,11 +246,26 @@ public:
     /// \Returns the `RawPtrType` to the pointee type \p pointee
     RawPtrType const* pointer(QualType pointee);
 
+    /// \Returns `pointer(QualType(type, mutability))`
+    RawPtrType const* pointer(ObjectType const* type, Mutability mutability);
+
     /// \Returns the `ReferenceType` to the referred type \p referred
     ReferenceType const* reference(QualType referred);
 
+    /// \Returns `reference(QualType(type, mutability))`
+    ReferenceType const* reference(ObjectType const* type,
+                                   Mutability mutability);
+
     /// \Returns the `UniquePtrType` to the pointee type \p pointee
     UniquePtrType const* uniquePointer(QualType pointee);
+
+    /// \Returns `uniquePointer(QualType(type, mutability))`
+    UniquePtrType const* uniquePointer(ObjectType const* type,
+                                       Mutability mutability);
+
+    /// Factory for type deduction qualifier entities
+    TypeDeductionQualifier* typeDeductionQualifier(ReferenceKind refKind,
+                                                   Mutability mutability);
 
     /// ## Queries
 

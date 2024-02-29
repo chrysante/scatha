@@ -87,6 +87,10 @@ struct SymbolTable::Impl {
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
         arrayTypes;
 
+    /// Map of instantiated `TypeDeductionQualifier`'s
+    utl::hashmap<std::pair<ReferenceKind, Mutability>, TypeDeductionQualifier*>
+        typeDeductionQualifiers;
+
     /// List of all functions
     utl::small_vector<Function*> functions;
 
@@ -828,8 +832,17 @@ RawPtrType const* SymbolTable::pointer(QualType pointee) {
     });
 }
 
+RawPtrType const* SymbolTable::pointer(ObjectType const* type, Mutability mut) {
+    return pointer(QualType(type, mut));
+}
+
 ReferenceType const* SymbolTable::reference(QualType referred) {
     return impl->ptrLikeImpl(impl->refTypes, referred);
+}
+
+ReferenceType const* SymbolTable::reference(ObjectType const* type,
+                                            Mutability mut) {
+    return reference(QualType(type, mut));
 }
 
 UniquePtrType const* SymbolTable::uniquePointer(QualType pointee) {
@@ -837,6 +850,23 @@ UniquePtrType const* SymbolTable::uniquePointer(QualType pointee) {
                                             [&](UniquePtrType* type) {
         analyzeLifetime(*type, *this);
     });
+}
+
+UniquePtrType const* SymbolTable::uniquePointer(ObjectType const* type,
+                                                Mutability mut) {
+    return uniquePointer(QualType(type, mut));
+}
+
+TypeDeductionQualifier* SymbolTable::typeDeductionQualifier(
+    ReferenceKind refKind, Mutability mut) {
+    auto& map = impl->typeDeductionQualifiers;
+    auto itr = map.find({ refKind, mut });
+    if (itr != map.end()) {
+        return itr->second;
+    }
+    auto* qual = impl->addEntity<TypeDeductionQualifier>(refKind, mut);
+    map.insert({ { refKind, mut }, qual });
+    return qual;
 }
 
 void SymbolTable::pushScope(Scope* scope) {

@@ -4,47 +4,13 @@
 
 #include "Sema/Entity.h"
 #include "Sema/LifetimeMetadata.h"
+#include "Sema/SemaUtil.h"
 #include "Sema/Serialize.h"
 #include "Sema/SimpleAnalzyer.h"
 
 using namespace scatha;
 using namespace sema;
 using namespace test;
-
-namespace {
-
-struct Finder {
-    SymbolTable const& sym;
-
-    Entity const* findImpl(std::string_view name) const {
-        auto entities = sym.currentScope().findEntities(name);
-        if (!entities.empty()) {
-            return entities.front();
-        }
-        return nullptr;
-    }
-
-    Scope const* operator()(std::string_view name, auto fn) const {
-        auto* entity = findImpl(name);
-        if (!entity) {
-            throw std::runtime_error("Failed to find \"" + std::string(name) +
-                                     "\"");
-        }
-        auto* scope = dyncast<Scope const*>(entity);
-        if (!scope) {
-            throw std::runtime_error("\"" + std::string(name) +
-                                     "\" is not a scope");
-        }
-        sym.withScopePushed(scope, [&] { fn(scope); });
-        return scope;
-    }
-
-    Entity const* operator()(std::string_view name) const {
-        return findImpl(name);
-    }
-};
-
-} // namespace
 
 TEST_CASE("Symbol table serialize/deserialize", "[sema]") {
     auto [ast, sym, iss] = produceDecoratedASTAndSymTable(R"(
