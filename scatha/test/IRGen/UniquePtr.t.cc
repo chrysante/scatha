@@ -129,10 +129,10 @@ public fn foo() -> *unique int { return bar(); }
     CHECK(entry.nextIs<Return>());
 }
 
-TEST_CASE("Implicit two step conversion", "[irgen]") {
+TEST_CASE("Two step conversion", "[irgen]") {
     using namespace ir;
     std::string source = R"(
-public fn foo(p: &*unique [int, 2]) { bar(p); }
+public fn foo(p: &*unique [int, 2]) { bar(p as *); }
 fn bar(p: *[int]) {}
 )";
     auto [ctx, mod] = makeIR({ source });

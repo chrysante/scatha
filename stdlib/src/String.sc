@@ -7,13 +7,13 @@ public struct String {
 
     fn new(&mut this, text: &str) { 
         this.buf = unique str(text.count); 
-        __builtin_memcpy(this.buf, &text);
+        __builtin_memcpy(this.buf as *mut, &text);
         this.sz = text.count;
     }
 
     fn new(&mut this, rhs: &String) {
         this.buf = unique str(rhs.sz);
-        __builtin_memcpy(this.buf, &rhs.buf[0 : rhs.sz]);
+        __builtin_memcpy(this.buf as *mut, &rhs.buf[0 : rhs.sz]);
         this.sz = rhs.sz;
     }
 
@@ -99,7 +99,7 @@ public struct String {
             return;
         }
         var tmp = unique str(leastSize);
-        __builtin_memcpy(&mut tmp[0 : this.buf.count], this.buf);
+        __builtin_memcpy(&mut tmp[0 : this.buf.count], this.buf as *);
         this.buf = move tmp;
     }
 

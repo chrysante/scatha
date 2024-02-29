@@ -533,9 +533,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::BinaryExpression& expr) {
 
     /// Convert the operands to common type
     bool cnv = true;
-    cnv &= !!convert(Implicit, expr.lhs(), uniqueToRawPtr(commonType, sym),
+    cnv &= !!convert(Explicit, expr.lhs(), uniqueToRawPtr(commonType, sym),
                      RValue, currentCleanupStack(), ctx);
-    cnv &= !!convert(Implicit, expr.rhs(), uniqueToRawPtr(commonType, sym),
+    cnv &= !!convert(Explicit, expr.rhs(), uniqueToRawPtr(commonType, sym),
                      RValue, currentCleanupStack(), ctx);
     SC_ASSERT(cnv, "Conversion must succeed because we have a common type");
     expr.decorateValue(sym.temporary(&expr, resultType), RValue);

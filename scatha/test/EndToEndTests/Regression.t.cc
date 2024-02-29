@@ -354,8 +354,7 @@ TEST_CASE("Unique to raw ptr array size", "[regression]") {
     test::checkReturns(3, R"(
 fn main() {
     let p = unique [int](3);
-    let q: *[int] = p;
-    return q.count;
+    return (p as *).count;
 })");
 }
 

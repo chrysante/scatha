@@ -45,14 +45,14 @@ struct Node {
 fn insert(root: mut *unique mut Node,
           newNode: mut *unique mut Node) {
     var y: *mut Node = null;
-    var x: *mut Node = root;
+    var x: *mut Node = root as *mut;
     while x != null {
         y = x;
         if newNode.value < x.value {
-            x = x.left;
+            x = x.left as *mut;
         }
         else {
-            x = x.right;
+            x = x.right as *mut;
         }
      }
      if y == null {
@@ -77,9 +77,9 @@ fn extractResultImpl(node: *Node, data: &mut [int], index: &mut int) -> void {
     if node == null {
         return;
     }
-    extractResultImpl(node.left, data, index);
+    extractResultImpl(node.left as *, data, index);
     data[index++] = node.value;
-    extractResultImpl(node.right, data, index);
+    extractResultImpl(node.right as *, data, index);
 }
 
 fn isSorted(data: &[int]) {
@@ -109,7 +109,7 @@ fn main() {
         root = insert(move root, unique Node(data[i]));
     }
     var result: [int, data.count];
-    extractResult(root, result);
+    extractResult(root as *, result);
     return isSorted(result);
 }
 )");

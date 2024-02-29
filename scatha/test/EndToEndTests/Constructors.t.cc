@@ -451,7 +451,7 @@ TEST_CASE("Unique expr copy dyn array", "[end-to-end][lifetime]") {
 public fn main() {
     let text: &str = "123";
     let ptr = unique str(text.count);
-    __builtin_memcpy(ptr, &text);
+    __builtin_memcpy(ptr as *mut, &text);
     return ptr.count == 3 &&
            ptr[0] == '1' &&
            ptr[1] == '2' &&

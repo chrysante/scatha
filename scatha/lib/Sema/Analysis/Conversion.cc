@@ -155,11 +155,12 @@ static std::optional<ConvChain> pointerConv(ConversionKind kind,
     ConvChain result;
     // clang-format off
     auto outer = SC_MATCH_R (ConvExp<ObjectTypeConversion>, from, to) {
-        [](PointerType const&, PointerType const&) { return ConvNoop; },
-        [](UniquePtrType const&, RawPtrType const&) {
-            return UniqueToRawPtr;
+        [&](PointerType const&, PointerType const&) { return ConvNoop; },
+        [&](UniquePtrType const&, RawPtrType const&) {
+            using enum ConversionKind;
+            return kind == Explicit ? ConvExp{ UniqueToRawPtr } : ConvError;
         },
-        [](RawPtrType const&, UniquePtrType const&) { return ConvError; }
+        [&](RawPtrType const&, UniquePtrType const&) { return ConvError; }
     }; // clang-format on
     if (outer.isError()) {
         return std::nullopt;
