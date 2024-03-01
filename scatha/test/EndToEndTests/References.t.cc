@@ -450,3 +450,15 @@ fn main() {
     return (cond ? a : b).count;
 })");
 }
+
+TEST_CASE("Temporary as const reference", "[end-to-end][references]") {
+    test::checkReturns(1, R"(
+struct X {
+    fn f(&this) { return 1; }
+    fn f(&mut this) { return 0; }
+}
+fn main() {
+    return (X() as &).f();
+}
+)");
+}

@@ -59,10 +59,7 @@ utl::vstreammanip<> sema::format(Entity const* entity) {
                 if (isa<UniquePtrType>(type)) {
                     str << tfmt::format(None, "unique ");
                 }
-                if (type.base().isMut()) {
-                    str << tfmt::format(BrightBlue, "mut ");
-                }
-                str << format(type.base().get());
+                str << format(type.base());
             },
             [&](ReferenceType const& type) {
                 str << tfmt::format(None, "&");
@@ -88,7 +85,14 @@ void sema::print(Entity const* entity, std::ostream& str) {
 
 void sema::print(Entity const* entity) { print(entity, std::cout); }
 
-utl::vstreammanip<> sema::format(QualType type) { return format(type.get()); }
+utl::vstreammanip<> sema::format(QualType type) {
+    return [=](std::ostream& str) {
+        if (type.isMut()) {
+            str << tfmt::format(BrightBlue, "mut ");
+        }
+        str << format(type.get());
+    };
+}
 
 utl::vstreammanip<> sema::format(LifetimeOperation op) {
     return [=](std::ostream& str) {

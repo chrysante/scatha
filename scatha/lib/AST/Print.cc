@@ -25,7 +25,7 @@ using namespace ranges::views;
 
 void ast::print(ASTNode const& root) { print(root, std::cout); }
 
-static utl::vstreammanip<> formatType(sema::Type const* type) {
+static utl::vstreammanip<> formatType(auto type) {
     return [=](std::ostream& str) {
         str << tfmt::format(BrightGrey, "Type: ") << sema::format(type);
     };
@@ -115,7 +115,7 @@ static constexpr utl::streammanip nodeHeader([](std::ostream& str,
         if (auto* tmp = dyncast<sema::Temporary const*>(expr->entity())) {
             str << formatObject(tmp) << ", ";
         }
-        str << formatType(expr->type().get()) << " "
+        str << formatType(expr->type()) << " "
             << tfmt::format(BrightGrey, expr->valueCategory());
     }
     else if (auto* decl = dyncast<VarDeclBase const*>(&node)) {

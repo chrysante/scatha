@@ -1339,9 +1339,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::ValueCatConvExpr& vcConv) {
         return nullptr;
     }
     auto valueCat = targetValueCat(vcConv.conversion());
-    vcConv.decorateValue(convertedObject(expr, expr->entity(),
-                                         vcConv.conversion(), sym),
-                         valueCat);
+    /// This function is very hacky. To avoid allocations we don't create new
+    /// "objects" (entities) for MutConv and ValueCatConv expressions and thus
+    /// can't propagate mutability easily. This is why we have the explicit type
+    /// argument to `decorateValue`
+    auto* obj = convertedObject(expr, expr->entity(), vcConv.conversion(), sym);
+    auto mutCorrectedType = obj->getQualType().to(expr->type().mutability());
+    vcConv.decorateValue(obj, valueCat, mutCorrectedType);
     vcConv.setConstantValue(clone(expr->constantValue()));
     return &vcConv;
 }
