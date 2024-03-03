@@ -16,7 +16,7 @@ namespace scatha::sema {
 /// `Y` has a member of type `X`, then `X` comes before `Y`
 SCATHA_API utl::vector<StructType const*> instantiateEntities(
     AnalysisContext& context, StructDependencyGraph& structDependencies,
-    std::span<ast::FunctionDefinition*> functions);
+    std::span<ast::Declaration*> globals);
 
 } // namespace scatha::sema
 

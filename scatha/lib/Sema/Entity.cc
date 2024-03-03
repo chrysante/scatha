@@ -89,6 +89,10 @@ Variable::Variable(std::string name, Scope* parentScope, ast::ASTNode* astNode,
     setAccessControl(accessControl);
 }
 
+bool Variable::isStatic() const {
+    return isa<FileScope>(parent()) || isa<GlobalScope>(parent());
+}
+
 Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,
                    Mutability mut, ValueCategory valueCat,
                    AccessControl accessControl, ast::ASTNode* astNode):

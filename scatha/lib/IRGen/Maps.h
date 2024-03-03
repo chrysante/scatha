@@ -55,25 +55,31 @@ void print(ValueMap const& valueMap, std::ostream& ostream);
 /// Prints the value map \p valueMap to `std::cout`
 void print(ValueMap const& valueMap);
 
-/// Maps sema functions to IR functions
-class FunctionMap {
+/// Maps global sema objects to IR objects
+class GlobalMap {
 public:
     /// Associate \p semaFn with \p irFn and \p metaData
-    void insert(sema::Function const* semaFn, ir::Callable* irFn,
-                FunctionMetadata metaData);
+    void insert(sema::Function const* semaFn, FunctionMetadata metaData);
 
-    /// Retrieve IR function associated with \p function
-    ir::Callable* operator()(sema::Function const* function) const;
+    /// Associate \p semaVar with \p metaData
+    void insert(sema::Variable const* semaVar, GlobalVarMetadata metadata);
 
-    /// Try to retrieve IR function associated with \p function
-    ir::Callable* tryGet(sema::Function const* function) const;
+    /// Retrieve IR function metadata associated with \p function
+    FunctionMetadata operator()(sema::Function const* function) const;
 
-    /// \Returns the meta data associated with \p type
-    FunctionMetadata const& metaData(sema::Function const* function) const;
+    /// Try to retrieve IR function metadata associated with \p function
+    std::optional<FunctionMetadata> tryGet(
+        sema::Function const* function) const;
+
+    /// Retrieve global variable metadata associated with \p var
+    GlobalVarMetadata operator()(sema::Variable const* var) const;
+
+    /// Try to retrieve global variable metadata associated with \p var
+    std::optional<GlobalVarMetadata> tryGet(sema::Variable const* var) const;
 
 private:
-    utl::hashmap<sema::Function const*, ir::Callable*> functions;
-    utl::hashmap<sema::Function const*, FunctionMetadata> functionMetaData;
+    utl::hashmap<sema::Function const*, FunctionMetadata> functions;
+    utl::hashmap<sema::Variable const*, GlobalVarMetadata> vars;
 };
 
 /// Maps sema types to IR types

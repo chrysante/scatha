@@ -17,10 +17,10 @@ AnalysisResult sema::analyze(ast::ASTNode& TU, SymbolTable& sym,
     sym.setLibrarySearchPaths(options.librarySearchPaths);
     AnalysisContext ctx(sym, iss);
     auto names = gatherNames(TU, ctx);
-    auto structs = instantiateEntities(ctx, names.structs, names.functions);
-    for (auto* def: names.functions) {
-        sym.withScopeCurrent(def->function()->parent(),
-                             [&] { analyzeStatement(ctx, def); });
+    auto structs = instantiateEntities(ctx, names.structs, names.globals);
+    for (auto* decl: names.globals) {
+        sym.withScopeCurrent(decl->entity()->parent(),
+                             [&] { analyzeStatement(ctx, decl); });
     }
-    return AnalysisResult{ std::move(structs), std::move(names.functions) };
+    return AnalysisResult{ std::move(structs), std::move(names.globals) };
 }

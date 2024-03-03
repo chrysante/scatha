@@ -534,9 +534,22 @@ void StmtContext::analyzeImpl(ast::CompoundStatement& block) {
     });
 }
 
+static Variable* getVariableObject(ast::VariableDeclaration& varDecl,
+                                   Type const* deducedType, SymbolTable& sym) {
+    if (varDecl.isDecorated()) {
+        auto* var = varDecl.variable();
+        SC_ASSERT(var->isStatic(),
+                  "Only globals should already be decorated here");
+        return var;
+    }
+    return sym.defineVariable(&varDecl, deducedType, varDecl.mutability(),
+                              AccessControl::Private);
+}
+
 void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(!varDecl.isDecorated(),
-              "We should not have handled local variables in prepass.");
+    if (varDecl.isDecorated() && isa<PoisonEntity>(varDecl.entity())) {
+        return;
+    }
     /// We need at least one of init expression and type specifier
     if (!varDecl.initExpr() && !varDecl.typeExpr()) {
         sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
@@ -569,9 +582,7 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         return;
     }
     /// If the symbol table complains we also return early
-    auto* variable = sym.defineVariable(&varDecl, deducedType,
-                                        varDecl.mutability(),
-                                        AccessControl::Private);
+    auto* variable = getVariableObject(varDecl, deducedType, sym);
     if (!variable) {
         return;
     }
@@ -601,9 +612,10 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
     /// stack of the parent statement.
     if (!isa<ReferenceType>(varDecl.type()) && validatedInitExpr) {
         varDecl.cleanupStack().pop(validatedInitExpr);
-        auto& parentCleanups =
-            cast<ast::Statement*>(varDecl.parent())->cleanupStack();
-        (void)parentCleanups.push(variable, ctx);
+        // TODO: We don't generate cleanups for global variables
+        if (auto* parentStmt = dyncast<ast::Statement*>(varDecl.parent())) {
+            (void)parentStmt->cleanupStack().push(variable, ctx);
+        }
     }
     /// Propagate constant value
     if (variable->isConst() && validatedInitExpr) {

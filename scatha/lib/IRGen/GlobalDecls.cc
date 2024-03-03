@@ -86,15 +86,12 @@ static PassingConvention computeArgPC(sema::Type const* type) {
     }
 }
 
-static CallingConvention computeCC(sema::Function const* function) {
-    auto retvalLoc = computeRetValLocation(function->returnType());
-    auto args = function->argumentTypes() |
+CallingConvention irgen::computeCallingConvention(
+    sema::Function const& function) {
+    auto retvalLoc = computeRetValLocation(function.returnType());
+    auto args = function.argumentTypes() |
                 ranges::views::transform(computeArgPC) | ToSmallVector<>;
-    return CallingConvention(function->returnType(), retvalLoc, args);
-}
-
-FunctionMetadata irgen::makeFunctionMetadata(sema::Function const* semaFn) {
-    return { .CC = computeCC(semaFn) };
+    return CallingConvention(function.returnType(), retvalLoc, args);
 }
 
 namespace {
@@ -139,36 +136,36 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
     return sig;
 }
 
-ir::Callable* irgen::declareFunction(sema::Function const* semaFn,
-                                     ir::Context& ctx, ir::Module& mod,
-                                     TypeMap const& typeMap,
-                                     FunctionMap& functionMap,
-                                     sema::NameMangler const& nameMangler) {
-    FunctionMetadata metaData = makeFunctionMetadata(semaFn);
-    auto irSignature = computeIRSignature(*semaFn, ctx, metaData.CC, typeMap);
-    UniquePtr<ir::Callable> irFn;
-    switch (semaFn->kind()) {
+static UniquePtr<ir::Callable> allocateFunction(
+    ir::Context& ctx, sema::Function const& semaFn, IRSignature const& irSig,
+    sema::NameMangler const& nameMangler) {
+    switch (semaFn.kind()) {
     case sema::FunctionKind::Native:
         [[fallthrough]];
-    case sema::FunctionKind::Generated: {
-        irFn = allocate<ir::Function>(ctx, irSignature.returnType,
-                                      makeParameters(irSignature.argumentTypes),
-                                      nameMangler(*semaFn),
-                                      mapFuncAttrs(semaFn->attributes()),
-                                      mapVisibility(semaFn));
-        break;
+    case sema::FunctionKind::Generated:
+        return allocate<ir::Function>(ctx, irSig.returnType,
+                                      makeParameters(irSig.argumentTypes),
+                                      nameMangler(semaFn),
+                                      mapFuncAttrs(semaFn.attributes()),
+                                      mapVisibility(&semaFn));
+    case sema::FunctionKind::Foreign:
+        return allocate<ir::ForeignFunction>(ctx, irSig.returnType,
+                                             makeParameters(
+                                                 irSig.argumentTypes),
+                                             std::string(semaFn.name()),
+                                             mapFuncAttrs(semaFn.attributes()));
     }
-    case sema::FunctionKind::Foreign: {
-        irFn =
-            allocate<ir::ForeignFunction>(ctx, irSignature.returnType,
-                                          makeParameters(
-                                              irSignature.argumentTypes),
-                                          std::string(semaFn->name()),
-                                          mapFuncAttrs(semaFn->attributes()));
-        break;
-    }
-    }
-    functionMap.insert(semaFn, irFn.get(), std::move(metaData));
+}
+
+ir::Callable* irgen::declareFunction(sema::Function const& semaFn,
+                                     ir::Context& ctx, ir::Module& mod,
+                                     TypeMap const& typeMap,
+                                     GlobalMap& globalMap,
+                                     sema::NameMangler const& nameMangler) {
+    auto CC = computeCallingConvention(semaFn);
+    auto irSignature = computeIRSignature(semaFn, ctx, CC, typeMap);
+    auto irFn = allocateFunction(ctx, semaFn, irSignature, nameMangler);
+    globalMap.insert(&semaFn, FunctionMetadata{ irFn.get(), std::move(CC) });
     auto* result = irFn.get();
     mod.addGlobal(std::move(irFn));
     return result;

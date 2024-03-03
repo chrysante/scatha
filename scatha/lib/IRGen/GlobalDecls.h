@@ -11,7 +11,7 @@
 
 namespace scatha::irgen {
 
-class FunctionMap;
+class GlobalMap;
 class TypeMap;
 
 /// Generates the lowering metadata for \p semaType
@@ -23,14 +23,14 @@ ir::StructType* generateType(sema::StructType const* semaType, ir::Context& ctx,
                              ir::Module& mod, TypeMap& typeMap,
                              sema::NameMangler const& nameMangler);
 
-/// Generates the lowering metadata for \p semaFn
-FunctionMetadata makeFunctionMetadata(sema::Function const* semaFn);
+///
+CallingConvention computeCallingConvention(sema::Function const& function);
 
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code
-ir::Callable* declareFunction(sema::Function const* semaFn, ir::Context& ctx,
+ir::Callable* declareFunction(sema::Function const& semaFn, ir::Context& ctx,
                               ir::Module& mod, TypeMap const& typeMap,
-                              FunctionMap& functionMap,
+                              GlobalMap& globalMap,
                               sema::NameMangler const& nameMangler);
 
 } // namespace scatha::irgen

@@ -32,13 +32,13 @@ struct InstContext {
     utl::vector<StructType const*> instantiateTypes(
         StructDependencyGraph& typeDependencies);
 
-    void instantiateFunctions(std::span<ast::FunctionDefinition*> functions);
-
     void instantiateStructureType(SDGNode&);
 
-    void instantiateVariable(SDGNode&);
+    void instantiateNonStaticDataMember(SDGNode&);
 
     void instantiateFunction(ast::FunctionDefinition& def);
+
+    void instantiateGlobalVariable(ast::VariableDeclaration& decl);
 
     FunctionType const* analyzeSignature(ast::FunctionDefinition& def) const;
 
@@ -55,11 +55,22 @@ struct InstContext {
 
 utl::vector<StructType const*> sema::instantiateEntities(
     AnalysisContext& ctx, StructDependencyGraph& typeDependencies,
-    std::span<ast::FunctionDefinition*> functions) {
+    std::span<ast::Declaration*> globals) {
     InstContext instCtx(ctx);
     auto structs = instCtx.instantiateTypes(typeDependencies);
-    for (auto* def: functions) {
-        instCtx.instantiateFunction(*def);
+    for (auto* decl: globals) {
+        // clang-format off
+        SC_MATCH(*decl) {
+            [&](ast::FunctionDefinition& funcDef) {
+                instCtx.instantiateFunction(funcDef);
+            },
+            [&](ast::VariableDeclaration& varDecl) {
+                instCtx.instantiateGlobalVariable(varDecl);
+            },
+            [&](ast::Declaration&) {
+                SC_UNREACHABLE();
+            }
+        }; // clang-format on
     }
     /// `structs` is topologically sorted, so each invocation of
     /// `declareSpecialLifetimeFunctions()` can assume that the types of all
@@ -174,7 +185,7 @@ utl::vector<StructType const*> InstContext::instantiateTypes(
         auto& node = dependencyGraph[index];
         // clang-format off
         visit(*node.entity, utl::overload{
-            [&](Variable const&) { instantiateVariable(node); },
+            [&](Variable const&) { instantiateNonStaticDataMember(node); },
             [&](StructType const& type) {
                 instantiateStructureType(node);
                 sortedStructTypes.push_back(&type);
@@ -237,7 +248,7 @@ static Type const* getType(ast::Expression const* expr) {
     return dyncast<Type const*>(expr->entity());
 }
 
-void InstContext::instantiateVariable(SDGNode& node) {
+void InstContext::instantiateNonStaticDataMember(SDGNode& node) {
     ast::VariableDeclaration& varDecl =
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
@@ -267,24 +278,33 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     }
 }
 
+/// Analyzes the type expression \p typeExpr and ensures it is not a type
+/// deduction qualifier
+static Type const* analyzeGlobalTypeExpr(ast::Expression* typeExpr,
+                                         AnalysisContext& ctx) {
+    if (!(typeExpr = analyzeTypeExpr(typeExpr, ctx))) {
+        return nullptr;
+    }
+    if (isa<TypeDeductionQualifier>(typeExpr->entity())) {
+        ctx.issue<BadTypeDeduction>(typeExpr, nullptr,
+                                    BadTypeDeduction::InvalidContext);
+        return nullptr;
+    }
+    return cast<Type const*>(typeExpr->entity());
+}
+
 FunctionType const* InstContext::analyzeSignature(
     ast::FunctionDefinition& decl) const {
     auto argumentTypes = decl.parameters() |
                          ranges::views::transform([&](auto* param) {
         return analyzeParam(*param);
     }) | ToSmallVector<>;
+    auto* retType = analyzeGlobalTypeExpr(decl.returnTypeExpr(), ctx);
     /// If the return type is not specified it will be deduced during function
     /// analysis
-    auto* retExpr = analyzeTypeExpr(decl.returnTypeExpr(), ctx);
-    if (!retExpr) {
+    if (!retType) {
         return sym.functionType(argumentTypes, nullptr);
     }
-    if (isa<TypeDeductionQualifier>(retExpr->entity())) {
-        ctx.issue<BadTypeDeduction>(retExpr, nullptr,
-                                    BadTypeDeduction::InvalidContext);
-        return sym.functionType(argumentTypes, nullptr);
-    }
-    auto* retType = cast<Type const*>(retExpr->entity());
     if (!retType->isCompleteOrVoid()) {
         ctx.issue<BadPassedType>(decl.returnTypeExpr(), BadPassedType::Return);
     }
@@ -295,18 +315,12 @@ Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {
     if (auto* thisParam = dyncast<ast::ThisParameter*>(&param)) {
         return analyzeThisParam(*thisParam);
     }
-    auto* typeExpr = analyzeTypeExpr(param.typeExpr(), ctx);
-    if (!typeExpr) {
+    auto* type = analyzeGlobalTypeExpr(param.typeExpr(), ctx);
+    if (!type) {
         return nullptr;
     }
-    if (isa<TypeDeductionQualifier>(typeExpr->entity())) {
-        ctx.issue<BadTypeDeduction>(typeExpr, nullptr,
-                                    BadTypeDeduction::InvalidContext);
-        return nullptr;
-    }
-    auto* type = cast<Type const*>(typeExpr->entity());
     if (!type->isComplete()) {
-        ctx.issue<BadPassedType>(typeExpr, BadPassedType::Argument);
+        ctx.issue<BadPassedType>(param.typeExpr(), BadPassedType::Argument);
     }
     return type;
 }
@@ -326,4 +340,12 @@ Type const* InstContext::analyzeThisParam(ast::ThisParameter& param) const {
         return sym.reference(QualType(structType, param.mutability()));
     }
     return structType;
+}
+
+void InstContext::instantiateGlobalVariable(ast::VariableDeclaration& decl) {
+    auto* var = cast<Variable*>(decl.object());
+    sym.withScopeCurrent(var->parent(), [&] {
+        auto* type = analyzeGlobalTypeExpr(decl.typeExpr(), ctx);
+        sym.setVariableType(var, type);
+    });
 }

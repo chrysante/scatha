@@ -37,7 +37,7 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     ir::Callable* getFunction(sema::Function const* semaFn);
 
     /// Get the calling convention of \p function
-    CallingConvention const& getCC(sema::Function const* function);
+    CallingConvention getCC(sema::Function const* function);
 
     ///
     ir::ForeignFunction* getBuiltin(svm::Builtin builtin);

@@ -44,7 +44,7 @@ static T* get(utl::hashmap<std::string, T*> const& map, std::string_view name) {
 /// Performs a DFS over a library scope and adds entries for all structs and
 /// functions to the type map and function map
 static void mapLibSymbols(
-    sema::Scope const& scope, TypeMap& typeMap, FunctionMap& functionMap,
+    sema::Scope const& scope, TypeMap& typeMap, GlobalMap& globalMap,
     sema::NameMangler const& nameMangler,
     utl::hashmap<std::string, ir::StructType*> const& IRStructMap,
     utl::hashmap<std::string, ir::Global*> const& IRObjectMap) {
@@ -60,15 +60,15 @@ static void mapLibSymbols(
             },
             [&](sema::Function const& semaFn) {
                 std::string name = nameMangler(*entity);
-                functionMap.insert(&semaFn,
-                                   cast<ir::Function*>(get(IRObjectMap, name)),
-                                   makeFunctionMetadata(&semaFn));
+                auto* irFn = cast<ir::Function*>(get(IRObjectMap, name));
+                globalMap.insert(&semaFn,
+                                 { irFn, computeCallingConvention(semaFn) });
             },
             [&]([[maybe_unused]] sema::Entity const& entity) {}
         }; // clang-format on
     }
     for (auto* child: scope.children()) {
-        mapLibSymbols(*child, typeMap, functionMap, nameMangler, IRStructMap,
+        mapLibSymbols(*child, typeMap, globalMap, nameMangler, IRStructMap,
                       IRObjectMap);
     }
 }
@@ -94,7 +94,7 @@ static void checkParserIssues(std::span<ir::ParseIssue const> issues,
 
 static void importLibrary(ir::Context& ctx, ir::Module& mod,
                           sema::NativeLibrary const& lib, TypeMap& typeMap,
-                          FunctionMap& functionMap,
+                          GlobalMap& globalMap,
                           sema::NameMangler const& nameMangler) {
     std::fstream file(lib.codeFile());
     SC_RELASSERT(file,
@@ -116,7 +116,7 @@ static void importLibrary(ir::Context& ctx, ir::Module& mod,
                                    { .typeParseCallback = typeCallback,
                                      .objectParseCallback = objCallback });
     checkParserIssues(parseIssues, lib.codeFile().string());
-    mapLibSymbols(lib, typeMap, functionMap, nameMangler, IRStructMap,
+    mapLibSymbols(lib, typeMap, globalMap, nameMangler, IRStructMap,
                   IRObjectMap);
 }
 
@@ -152,13 +152,13 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
                        sema::AnalysisResult const& analysisResult,
                        Config config) {
     TypeMap typeMap(ctx);
-    FunctionMap functionMap;
+    GlobalMap globalMap;
     /// We import libraries in topsort order because there may be dependencies
     /// between the libraries
     auto libs = topsortLibraries(sym.importedLibs() |
                                  Filter<sema::NativeLibrary> | ToSmallVector<>);
     for (auto* lib: libs) {
-        importLibrary(ctx, mod, *lib, typeMap, functionMap, config.nameMangler);
+        importLibrary(ctx, mod, *lib, typeMap, globalMap, config.nameMangler);
     }
     for (auto* semaType: analysisResult.structDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap, config.nameMangler);
@@ -173,19 +173,19 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
         }
     }
     auto userDefinedFunctions =
-        analysisResult.functions |
+        analysisResult.globals | Filter<ast::FunctionDefinition> |
         transform([](auto* def) { return def->function(); });
     auto queue = concat(userDefinedFunctions, generatedFunctions) |
                  filter(initialDeclFilter) |
                  ranges::to<std::deque<sema::Function const*>>;
     for (auto* semaFn: queue) {
-        declareFunction(semaFn, ctx, mod, typeMap, functionMap,
+        declareFunction(*semaFn, ctx, mod, typeMap, globalMap,
                         config.nameMangler);
     }
     while (!queue.empty()) {
         auto* semaFn = queue.front();
         queue.pop_front();
-        auto* irFn = functionMap(semaFn);
+        auto* irFn = globalMap(semaFn).function;
         auto* native = dyncast<ir::Function*>(irFn);
         if (!native) continue;
         generateFunction(config, { .semaFn = *semaFn,
@@ -194,7 +194,7 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
                                    .mod = mod,
                                    .symbolTable = sym,
                                    .typeMap = typeMap,
-                                   .functionMap = functionMap,
+                                   .globalMap = globalMap,
                                    .declQueue = queue });
     }
     ir::assertInvariants(ctx, mod);

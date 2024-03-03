@@ -9,8 +9,11 @@ namespace scatha::sema {
 
 /// Result structure of function `sema::analyze()`
 struct AnalysisResult {
+    /// Topologically sorted list of all struct types
     utl::vector<StructType const*> structDependencyOrder;
-    utl::vector<ast::FunctionDefinition*> functions;
+
+    /// List of all global declarations in the module
+    utl::vector<ast::Declaration*> globals;
 };
 
 } // namespace scatha::sema

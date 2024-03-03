@@ -130,9 +130,6 @@ sema::ArrayType const* DynArrayConstructExpr::constructedType() const {
 }
 
 void VarDeclBase::decorateVarDecl(sema::Entity* entity) {
-    if (auto* object = dyncast<sema::Object*>(entity)) {
-        _type = object->type();
-    }
     Declaration::decorateDecl(entity);
 }
 
@@ -142,6 +139,11 @@ sema::Variable const* VarDeclBase::variable() const {
 
 sema::Object const* VarDeclBase::object() const {
     return cast<sema::Object const*>(entity());
+}
+
+sema::Type const* VarDeclBase::type() const {
+    auto* obj = object();
+    return obj ? obj->type() : nullptr;
 }
 
 sema::Function const* FunctionDefinition::function() const {

@@ -28,7 +28,7 @@ struct GatherContext {
         sym(ctx.symbolTable()),
         iss(ctx.issueHandler()),
         dependencyGraph(result.structs),
-        functions(result.functions) {}
+        globals(result.globals) {}
 
     /// Dispatches to the appropriate one of the `gatherImpl()` overloads below
     /// based on the runtime type of \p node
@@ -50,7 +50,7 @@ struct GatherContext {
     SymbolTable& sym;
     IssueHandler& iss;
     StructDependencyGraph& dependencyGraph;
-    utl::vector<ast::FunctionDefinition*>& functions;
+    utl::vector<ast::Declaration*>& globals;
 };
 
 } // namespace
@@ -111,7 +111,7 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         ctx.issue<BadFuncDef>(&funcDef, BadFuncDef::FunctionMustHaveBody);
     }
     /// Now add this function definition to the dependency graph
-    functions.push_back(&funcDef);
+    globals.push_back(&funcDef);
     return InvalidIndex;
 }
 
@@ -150,19 +150,28 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
 }
 
 size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(
-        sym.currentScope().kind() == ScopeKind::Type,
-        "We only want to prepass struct definitions. What are we doing here?");
-    SC_ASSERT(
-        varDecl.typeExpr(),
-        "In structs variables need explicit type specifiers. Make this a program issue.");
+    SC_ASSERT(isa<StructType>(sym.currentScope()) ||
+                  isa<FileScope>(sym.currentScope()),
+              "Local variables will be analyzed later");
+    if (!varDecl.typeExpr()) {
+        // TODO: Push error
+        SC_UNIMPLEMENTED();
+        return InvalidIndex;
+    }
     auto* variable =
         sym.declareVariable(&varDecl, determineAccessControl(sym.currentScope(),
                                                              varDecl));
     if (!variable) {
         return InvalidIndex;
     }
-    return dependencyGraph.add({ .entity = variable, .astNode = &varDecl });
+    if (variable->isStatic()) {
+        varDecl.decorateVarDecl(variable);
+        globals.push_back(&varDecl);
+        return InvalidIndex;
+    }
+    else {
+        return dependencyGraph.add({ .entity = variable, .astNode = &varDecl });
+    }
 }
 
 size_t GatherContext::gatherImpl(ast::Statement& stmt) {

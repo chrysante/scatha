@@ -11,7 +11,7 @@
 namespace scatha::irgen {
 
 class TypeMap;
-class FunctionMap;
+class GlobalMap;
 
 ///
 struct FuncGenParameters {
@@ -21,7 +21,7 @@ struct FuncGenParameters {
     ir::Module& mod;
     sema::SymbolTable const& symbolTable;
     TypeMap const& typeMap;
-    FunctionMap& functionMap;
+    GlobalMap& globalMap;
     std::deque<sema::Function const*>& declQueue;
 };
 

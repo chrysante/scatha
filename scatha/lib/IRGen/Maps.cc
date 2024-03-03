@@ -77,34 +77,50 @@ void irgen::print(ValueMap const& valueMap, std::ostream& str) {
 
 void irgen::print(ValueMap const& valueMap) { print(valueMap, std::cout); }
 
-/// # FunctionMap
+/// # GlobalMap
 
-void FunctionMap::insert(sema::Function const* semaFn, ir::Callable* irFn,
-                         FunctionMetadata metaData) {
-    bool success = functions.insert({ semaFn, irFn }).second;
+void GlobalMap::insert(sema::Function const* semaFn,
+                       FunctionMetadata metadata) {
+    [[maybe_unused]] bool success =
+        functions.insert({ semaFn, std::move(metadata) }).second;
     SC_ASSERT(success, "Redeclaration");
-    functionMetaData.insert({ semaFn, std::move(metaData) });
 }
 
-ir::Callable* FunctionMap::operator()(sema::Function const* function) const {
-    auto* result = tryGet(function);
+void GlobalMap::insert(sema::Variable const* semaVar,
+                       GlobalVarMetadata metadata) {
+    [[maybe_unused]] bool success =
+        vars.insert({ semaVar, std::move(metadata) }).second;
+    SC_ASSERT(success, "Redeclaration");
+}
+
+FunctionMetadata GlobalMap::operator()(sema::Function const* F) const {
+    auto result = tryGet(F);
     SC_ASSERT(result, "Not found");
-    return result;
+    return *result;
 }
 
-ir::Callable* FunctionMap::tryGet(sema::Function const* function) const {
-    auto itr = functions.find(function);
+std::optional<FunctionMetadata> GlobalMap::tryGet(
+    sema::Function const* F) const {
+    auto itr = functions.find(F);
     if (itr != functions.end()) {
         return itr->second;
     }
-    return nullptr;
+    return std::nullopt;
 }
 
-FunctionMetadata const& FunctionMap::metaData(
-    sema::Function const* function) const {
-    auto itr = functionMetaData.find(function);
-    SC_ASSERT(itr != functionMetaData.end(), "Not found");
-    return itr->second;
+GlobalVarMetadata GlobalMap::operator()(sema::Variable const* V) const {
+    auto result = tryGet(V);
+    SC_ASSERT(result, "Not found");
+    return *result;
+}
+
+std::optional<GlobalVarMetadata> GlobalMap::tryGet(
+    sema::Variable const* V) const {
+    auto itr = vars.find(V);
+    if (itr != vars.end()) {
+        return itr->second;
+    }
+    return std::nullopt;
 }
 
 /// # TypeMap

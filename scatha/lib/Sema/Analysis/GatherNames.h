@@ -19,7 +19,7 @@ class SymbolTable;
 /// - `functionDefinitions` All function definitions in the program
 struct GatherNamesResult {
     StructDependencyGraph structs;
-    utl::vector<ast::FunctionDefinition*> functions;
+    utl::vector<ast::Declaration*> globals;
 };
 
 /// In gatherNames phase we declare (but not instantiate) all global names in

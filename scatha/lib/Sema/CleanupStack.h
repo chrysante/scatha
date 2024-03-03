@@ -29,8 +29,9 @@ public:
 
     /// Push cleanup operation for the object \p obj onto the stack if the
     /// derived cleanup operation is nontrivial. The operation is derived from
-    /// the type of \p obj \Param ctx is used to push an issue if the object
-    /// type has deleted destructor
+    /// the type of \p obj
+    /// \Param ctx is used to push an issue if the object type has deleted
+    /// destructor
     /// \Returns `true` if no error occured
     [[nodiscard]] bool push(Object* obj, AnalysisContext& ctx);
 

@@ -114,6 +114,7 @@ struct FuncGenContext: FuncGenContextBase {
 
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
+    ir::Function* getGlobalVarGetter(sema::Variable const* semaVar);
     Value getValueImpl(ast::Literal const&);
     Value getValueImpl(ast::UnaryExpression const&);
     Value getValueImpl(ast::BinaryExpression const&);
@@ -601,8 +602,82 @@ Value FuncGenContext::getValue(ast::Expression const* expr) {
     return result;
 }
 
+static bool isStaticVar(sema::Object const* obj) {
+    if (auto* var = dyncast<sema::Variable const*>(obj)) {
+        return var->isStatic();
+    }
+    return false;
+}
+
 Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
-    return valueMap(id.object());
+    if (isStaticVar(id.object())) {
+        auto* var = cast<sema::Variable const*>(id.object());
+        auto* getter = getGlobalVarGetter(var);
+        auto* call = add<ir::Call>(getter, ValueArray{},
+                                   utl::strcat(id.value(), ".addr"));
+        return Value::Packed(std::string(id.value()), id.type().get(),
+                             Atom::Memory(call));
+    }
+    else {
+        return valueMap(id.object());
+    }
+}
+
+/// \Returns the sema constant \p value as an IR constant
+static ir::Constant* toIR(ir::Context& ctx, sema::Value const& value) {
+    // clang-format off
+    return SC_MATCH_R(ir::Constant*, value) {
+        [&](sema::IntValue const& value) {
+            return ctx.intConstant(value.value());
+        },
+        [&](sema::FloatValue const& value) {
+            return ctx.floatConstant(value.value());
+        }
+    }; // clang-format on
+}
+
+/// \Returns the sema mutability \p mut as `ir::GlobalVariable::Mutability`
+static ir::GlobalVariable::Mutability toIR(sema::Mutability mut) {
+    switch (mut) {
+    case sema::Mutability::Mutable:
+        return ir::GlobalVariable::Mutable;
+    case sema::Mutability::Const:
+        return ir::GlobalVariable::Const;
+    }
+}
+
+static GlobalVarMetadata makeGlobalVariable(ir::Context& ctx, ir::Module& mod,
+                                            sema::Variable const* semaVar) {
+    auto* decl = cast<ast::VariableDeclaration const*>(semaVar->declaration());
+    auto* initExpr = decl->initExpr();
+    if (auto* semaConstant = initExpr->constantValue()) {
+        auto* irConstant = toIR(ctx, *semaConstant);
+        auto* irVar = mod.addGlobal(
+            allocate<ir::GlobalVariable>(ctx, toIR(semaVar->mutability()),
+                                         irConstant,
+                                         std::string(semaVar->name())));
+        auto* getter = mod.addGlobal(
+            allocate<ir::Function>(ctx, ctx.ptrType(), List<ir::Parameter>{},
+                                   utl::strcat(semaVar->name(), ".getter"),
+                                   ir::FunctionAttribute{}));
+        ir::FunctionBuilder builder(ctx, getter);
+        builder.addNewBlock("entry");
+        builder.add<ir::Return>(irVar);
+        return GlobalVarMetadata{ .var = irVar,
+                                  .varInit = nullptr,
+                                  .getter = getter };
+    }
+    SC_UNIMPLEMENTED();
+}
+
+ir::Function* FuncGenContext::getGlobalVarGetter(
+    sema::Variable const* semaVar) {
+    if (auto md = globalMap.tryGet(semaVar)) {
+        return md->getter;
+    }
+    auto md = makeGlobalVariable(ctx, mod, semaVar);
+    globalMap.insert(semaVar, md);
+    return md.getter;
 }
 
 Value FuncGenContext::getValueImpl(ast::Literal const& lit) {

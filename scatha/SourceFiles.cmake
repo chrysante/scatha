@@ -394,6 +394,7 @@ set(scatha_test_sources
     test/EndToEndTests/Conditions.t.cc
     test/EndToEndTests/Constructors.t.cc
     test/EndToEndTests/Conversion.t.cc
+    test/EndToEndTests/GlobalVariables.t.cc
     test/EndToEndTests/Inlining.t.cc
     test/EndToEndTests/Library.t.cc
     test/EndToEndTests/LocalScopes.t.cc

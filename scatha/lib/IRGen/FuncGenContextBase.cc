@@ -29,19 +29,18 @@ FuncGenContextBase::FuncGenContextBase(Config config, FuncGenParameters params):
 
 ir::Callable* FuncGenContextBase::getFunction(
     sema::Function const* semaFunction) {
-    if (auto* irFunction = functionMap.tryGet(semaFunction)) {
-        return irFunction;
+    if (auto md = globalMap.tryGet(semaFunction)) {
+        return md->function;
     }
     if (semaFunction->isNative() || semaFunction->isGenerated()) {
         declQueue.push_back(semaFunction);
     }
-    return declareFunction(semaFunction, ctx, mod, typeMap, functionMap,
+    return declareFunction(*semaFunction, ctx, mod, typeMap, globalMap,
                            config.nameMangler);
 }
 
-CallingConvention const& FuncGenContextBase::getCC(
-    sema::Function const* function) {
-    return functionMap.metaData(function).CC;
+CallingConvention FuncGenContextBase::getCC(sema::Function const* function) {
+    return globalMap(function).CC;
 }
 
 ir::ForeignFunction* FuncGenContextBase::getBuiltin(svm::Builtin builtin) {

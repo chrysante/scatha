@@ -1050,7 +1050,7 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Declared variable. In most cases this is the object but in some cases
-    /// the object is not a variable
+    /// the object is not a variable, in which case this function fails
     sema::Variable* variable() {
         return const_cast<sema::Variable*>(std::as_const(*this).variable());
     }
@@ -1067,10 +1067,7 @@ public:
     sema::Object const* object() const;
 
     /// Type of the declaration
-    sema::Type const* type() const {
-        expectDecorated();
-        return _type;
-    }
+    sema::Type const* type() const;
 
     /// The mutability qualifier of this declaration.
     /// This is set by the parser
@@ -1100,7 +1097,6 @@ protected:
     }
 
 private:
-    sema::Type const* _type = nullptr;
     sema::Mutability _mut;
 };
 

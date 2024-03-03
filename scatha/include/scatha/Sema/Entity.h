@@ -273,6 +273,10 @@ public:
     /// For the symbol table
     using Object::setMutability;
 
+    /// \Returns `true` if this variable is a global or static struct data
+    /// member
+    bool isStatic() const;
+
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }

@@ -23,10 +23,25 @@ struct StructMetadata {
     utl::small_vector<MemberMetadata> members;
 };
 
-/// Metadata for translation of a function from Scatha to IR
+/// Metadata for translating a function from Scatha to IR
 struct FunctionMetadata {
-    ///
+    /// The IR function
+    ir::Callable* function;
+
+    /// The corresponding calling convention
     CallingConvention CC;
+};
+
+/// Metadata for translating a global variable from Scatha to IR
+struct GlobalVarMetadata {
+    /// The IR global variable object
+    ir::GlobalVariable* var;
+
+    /// The global flag that tells if the variable is initialized
+    ir::GlobalVariable* varInit;
+
+    /// The function that retrieves the pointer to the variable
+    ir::Function* getter;
 };
 
 } // namespace scatha::irgen
