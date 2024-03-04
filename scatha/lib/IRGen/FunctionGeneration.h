@@ -15,7 +15,7 @@ class GlobalMap;
 
 ///
 struct FuncGenParameters {
-    sema::Function const& semaFn;
+    sema::Function const* semaFn;
     ir::Function& irFn;
     ir::Context& ctx;
     ir::Module& mod;

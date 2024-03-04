@@ -78,7 +78,7 @@ struct LoopDesc {
 struct FuncGenContext: FuncGenContextBase {
     utl::stack<LoopDesc, 4> loopStack;
 
-    FuncGenContext(auto&... args): FuncGenContextBase(args...) {}
+    FuncGenContext(auto const&... args): FuncGenContextBase(args...) {}
 
     void generateSynthFunction();
 
@@ -114,7 +114,6 @@ struct FuncGenContext: FuncGenContextBase {
 
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
-    ir::Function* getGlobalVarGetter(sema::Variable const* semaVar);
     Value getValueImpl(ast::Literal const&);
     Value getValueImpl(ast::UnaryExpression const&);
     Value getValueImpl(ast::BinaryExpression const&);
@@ -168,7 +167,19 @@ struct FuncGenContext: FuncGenContextBase {
     void inlineLifetimeImpl(sema::SMFKind, Value, std::optional<Value>,
                             sema::UniquePtrType const&);
 
+    /// # Global variables
+
+    ir::Constant* getConstantInitializer(ast::Expression const& initExpr);
+
+    GlobalVarMetadata makeGlobalVariable(
+        ast::VariableDeclaration const& varDecl);
+
+    ir::Function* getGlobalVarGetter(sema::Variable const* semaVar);
+
     /// # General utilities
+
+    ///
+    void assignValue(Value dest, Value source);
 
     /// Generates \p numElements number of `GetElementPointer` instructions in
     /// the index range `[beginIndex, beginIndex + numElements)`
@@ -188,7 +199,7 @@ struct FuncGenContext: FuncGenContextBase {
 
 void irgen::generateFunction(Config config, FuncGenParameters params) {
     using enum sema::FunctionKind;
-    switch (params.semaFn.kind()) {
+    switch (params.semaFn->kind()) {
     case Native:
         generateNativeFunction(config, params);
         break;
@@ -202,7 +213,7 @@ void irgen::generateFunction(Config config, FuncGenParameters params) {
 
 void irgen::generateNativeFunction(Config config, FuncGenParameters params) {
     FuncGenContext funcCtx(config, params);
-    funcCtx.generate(*params.semaFn.definition());
+    funcCtx.generate(*params.semaFn->definition());
     ir::setupInvariants(params.ctx, params.irFn);
 }
 
@@ -213,13 +224,13 @@ void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
 }
 
 void FuncGenContext::generateSynthFunction() {
-    auto kind = semaFn.smfKind().value();
+    auto kind = semaFn->smfKind().value();
     addNewBlock("entry");
     generateSynthFunctionAs(kind);
 }
 
 void FuncGenContext::generateSynthFunctionAs(sema::SMFKind kind) {
-    auto* parentType = cast<sema::StructType const*>(semaFn.parent());
+    auto* parentType = cast<sema::StructType const*>(semaFn->parent());
     auto* irParentType =
         cast<ir::StructType const*>(typeMap.packed(parentType));
 
@@ -323,13 +334,13 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     /// equivalent function and then append the user defined code. This way in a
     /// user defined destructor all member destructors get called and in a user
     /// defined constructor all member variables get initialized automatically
-    if (auto kind = prologueAsSMF(semaFn)) {
+    if (auto kind = prologueAsSMF(*semaFn)) {
         generateSynthFunctionAs(*kind);
         makeBlockCurrent(&irFn.back());
     }
     /// Here we add all parameters to our value map and store possibly mutable
     /// parameters (everything that's not a reference) to the stack
-    auto CC = getCC(&semaFn);
+    auto CC = getCC(semaFn);
     auto irParamItr = irFn.parameters().begin();
     if (CC.returnLocation() == Memory) {
         ++irParamItr;
@@ -340,7 +351,7 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
         generateParameter(paramDecl, pc, irParamItr);
     }
     generate(*def.body());
-    if (auto kind = epilogueAsSMF(semaFn)) {
+    if (auto kind = epilogueAsSMF(*semaFn)) {
         generateSynthFunctionAs(*kind);
         makeBlockCurrent(&irFn.back());
     }
@@ -434,7 +445,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& stmt) {
 
     /// More complex `return <value>;` case
     auto retval = getValue(stmt.expression());
-    auto CC = getCC(&semaFn);
+    auto CC = getCC(semaFn);
     if (CC.returnLocation() == Register) {
         /// Pointers we keep in registers but references directly refer to the
         /// value in memory
@@ -621,63 +632,6 @@ Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
     else {
         return valueMap(id.object());
     }
-}
-
-/// \Returns the sema constant \p value as an IR constant
-static ir::Constant* toIR(ir::Context& ctx, sema::Value const& value) {
-    // clang-format off
-    return SC_MATCH_R(ir::Constant*, value) {
-        [&](sema::IntValue const& value) {
-            return ctx.intConstant(value.value());
-        },
-        [&](sema::FloatValue const& value) {
-            return ctx.floatConstant(value.value());
-        }
-    }; // clang-format on
-}
-
-/// \Returns the sema mutability \p mut as `ir::GlobalVariable::Mutability`
-static ir::GlobalVariable::Mutability toIR(sema::Mutability mut) {
-    switch (mut) {
-    case sema::Mutability::Mutable:
-        return ir::GlobalVariable::Mutable;
-    case sema::Mutability::Const:
-        return ir::GlobalVariable::Const;
-    }
-}
-
-static GlobalVarMetadata makeGlobalVariable(ir::Context& ctx, ir::Module& mod,
-                                            sema::Variable const* semaVar) {
-    auto* decl = cast<ast::VariableDeclaration const*>(semaVar->declaration());
-    auto* initExpr = decl->initExpr();
-    if (auto* semaConstant = initExpr->constantValue()) {
-        auto* irConstant = toIR(ctx, *semaConstant);
-        auto* irVar = mod.addGlobal(
-            allocate<ir::GlobalVariable>(ctx, toIR(semaVar->mutability()),
-                                         irConstant,
-                                         std::string(semaVar->name())));
-        auto* getter = mod.addGlobal(
-            allocate<ir::Function>(ctx, ctx.ptrType(), List<ir::Parameter>{},
-                                   utl::strcat(semaVar->name(), ".getter"),
-                                   ir::FunctionAttribute{}));
-        ir::FunctionBuilder builder(ctx, getter);
-        builder.addNewBlock("entry");
-        builder.add<ir::Return>(irVar);
-        return GlobalVarMetadata{ .var = irVar,
-                                  .varInit = nullptr,
-                                  .getter = getter };
-    }
-    SC_UNIMPLEMENTED();
-}
-
-ir::Function* FuncGenContext::getGlobalVarGetter(
-    sema::Variable const* semaVar) {
-    if (auto md = globalMap.tryGet(semaVar)) {
-        return md->getter;
-    }
-    auto md = makeGlobalVariable(ctx, mod, semaVar);
-    globalMap.insert(semaVar, md);
-    return md.getter;
 }
 
 Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
@@ -886,18 +840,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         auto lhs = getValue(expr.lhs());
         auto repr = lhs.representation();
         auto rhs = to(repr, getValue(expr.rhs()));
-        auto irTypes = typeMap.map(repr, lhs.type());
-        SC_ASSERT(lhs.size() == rhs.size(), "");
-        SC_ASSERT(irTypes.size() == lhs.size(), "");
-        for (auto [lhsAtom, rhsAtom, irType]: zip(lhs, rhs, irTypes)) {
-            SC_ASSERT(lhsAtom.isMemory(), "");
-            if (rhsAtom.isRegister()) {
-                add<ir::Store>(lhsAtom.get(), rhsAtom.get());
-            }
-            else {
-                callMemcpy(lhsAtom.get(), rhsAtom.get(), irType->size());
-            }
-        }
+        assignValue(lhs, rhs);
         return makeVoidValue("assignment.result");
     }
     case AddAssignment:
@@ -1947,6 +1890,124 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
         add(endBlock);
         break;
     }
+    }
+}
+
+/// \Returns the sema constant \p value as an IR constant
+static ir::Constant* toIR(ir::Context& ctx, sema::Value const& value) {
+    // clang-format off
+    return SC_MATCH_R(ir::Constant*, value) {
+        [&](sema::IntValue const& value) {
+            return ctx.intConstant(value.value());
+        },
+        [&](sema::FloatValue const& value) {
+            return ctx.floatConstant(value.value());
+        }
+    }; // clang-format on
+}
+
+/// \Returns the sema mutability \p mut as `ir::GlobalVariable::Mutability`
+static ir::GlobalVariable::Mutability toIR(sema::Mutability mut) {
+    switch (mut) {
+    case sema::Mutability::Mutable:
+        return ir::GlobalVariable::Mutable;
+    case sema::Mutability::Const:
+        return ir::GlobalVariable::Const;
+    }
+}
+
+ir::Constant* FuncGenContext::getConstantInitializer(
+    ast::Expression const& initExpr) {
+    if (auto* semaConstant = initExpr.constantValue()) {
+        return toIR(ctx, *semaConstant);
+    }
+    else {
+        return ctx.nullConstant(typeMap.packed(initExpr.type().get()));
+    }
+}
+
+GlobalVarMetadata FuncGenContext::makeGlobalVariable(
+    ast::VariableDeclaration const& varDecl) {
+    auto* semaVar = varDecl.variable();
+    auto* initExpr = varDecl.initExpr();
+    auto* initializer = getConstantInitializer(*initExpr);
+    bool isConstInit = !!initExpr->constantValue();
+    auto* irVar = mod.addGlobal(
+        allocate<ir::GlobalVariable>(ctx, toIR(semaVar->mutability()),
+                                     initializer,
+                                     std::string(semaVar->name())));
+    auto* initGuard = [&]() -> ir::GlobalVariable* {
+        if (isConstInit) return nullptr;
+        return mod.addGlobal(
+            allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Mutable,
+                                         ctx.boolConstant(false),
+                                         utl::strcat(semaVar->name(),
+                                                     ".init")));
+    }();
+    auto* getter = mod.addGlobal(
+        allocate<ir::Function>(ctx, ctx.ptrType(), List<ir::Parameter>{},
+                               utl::strcat(semaVar->name(), ".getter"),
+                               ir::FunctionAttribute{}));
+    FuncGenContext builder(config, FuncGenParameters{
+                                       .semaFn = nullptr,
+                                       .irFn = *getter,
+                                       .ctx = ctx,
+                                       .mod = mod,
+                                       .symbolTable = symbolTable,
+                                       .typeMap = typeMap,
+                                       .globalMap = globalMap,
+                                       .declQueue = declQueue,
+                                   });
+    builder.addNewBlock("entry");
+    if (!isConstInit) {
+        auto* isInit = builder.add<ir::Load>(initGuard, ctx.boolType(),
+                                             std::string(initGuard->name()));
+        auto* initBlock = builder.newBlock("init");
+        auto* endBlock = builder.newBlock("end");
+        builder.add<ir::Branch>(isInit, endBlock, initBlock);
+        builder.add(initBlock);
+        auto initVal = builder.getValue(initExpr);
+        builder.assignValue(Value::Packed("dest",
+                                          cast<sema::ObjectType const*>(
+                                              varDecl.type()),
+                                          Atom::Memory(irVar)),
+                            initVal);
+        builder.add<ir::Store>(initGuard, ctx.boolConstant(true));
+        builder.add<ir::Goto>(endBlock);
+        builder.add(endBlock);
+    }
+    builder.add<ir::Return>(irVar);
+    builder.insertAllocas();
+    ir::setupInvariants(ctx, *getter);
+    return GlobalVarMetadata{ .var = irVar,
+                              .varInit = initGuard,
+                              .getter = getter };
+}
+
+ir::Function* FuncGenContext::getGlobalVarGetter(
+    sema::Variable const* semaVar) {
+    if (auto md = globalMap.tryGet(semaVar)) {
+        return md->getter;
+    }
+    auto md = makeGlobalVariable(
+        cast<ast::VariableDeclaration const&>(*semaVar->declaration()));
+    globalMap.insert(semaVar, md);
+    return md.getter;
+}
+
+void FuncGenContext::assignValue(Value dest, Value source) {
+    SC_EXPECT(dest.size() == source.size());
+    auto repr = dest.representation();
+    auto irTypes = typeMap.map(repr, dest.type());
+    SC_EXPECT(irTypes.size() == dest.size());
+    for (auto [destAtom, sourceAtom, irType]: zip(dest, source, irTypes)) {
+        SC_EXPECT(destAtom.isMemory());
+        if (sourceAtom.isRegister()) {
+            add<ir::Store>(destAtom.get(), sourceAtom.get());
+        }
+        else {
+            callMemcpy(destAtom.get(), sourceAtom.get(), irType->size());
+        }
     }
 }
 

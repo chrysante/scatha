@@ -188,7 +188,7 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
         auto* irFn = globalMap(semaFn).function;
         auto* native = dyncast<ir::Function*>(irFn);
         if (!native) continue;
-        generateFunction(config, { .semaFn = *semaFn,
+        generateFunction(config, { .semaFn = semaFn,
                                    .irFn = *native,
                                    .ctx = ctx,
                                    .mod = mod,
