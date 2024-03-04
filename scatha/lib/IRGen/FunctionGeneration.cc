@@ -171,10 +171,9 @@ struct FuncGenContext: FuncGenContextBase {
 
     ir::Constant* getConstantInitializer(ast::Expression const& initExpr);
 
-    GlobalVarMetadata makeGlobalVariable(
-        ast::VariableDeclaration const& varDecl);
+    GlobalVarMetadata makeGlobalVariable(sema::Variable const& semaVar);
 
-    ir::Function* getGlobalVarGetter(sema::Variable const* semaVar);
+    ir::Function* getGlobalVarGetter(sema::Variable const& semaVar);
 
     /// # General utilities
 
@@ -623,7 +622,7 @@ static bool isStaticVar(sema::Object const* obj) {
 Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
     if (isStaticVar(id.object())) {
         auto* var = cast<sema::Variable const*>(id.object());
-        auto* getter = getGlobalVarGetter(var);
+        auto* getter = getGlobalVarGetter(*var);
         auto* call = add<ir::Call>(getter, ValueArray{},
                                    utl::strcat(id.value(), ".addr"));
         return Value::Packed(std::string(id.value()), id.type().get(),
@@ -1927,27 +1926,34 @@ ir::Constant* FuncGenContext::getConstantInitializer(
 }
 
 GlobalVarMetadata FuncGenContext::makeGlobalVariable(
-    ast::VariableDeclaration const& varDecl) {
-    auto* semaVar = varDecl.variable();
+    sema::Variable const& semaVar) {
+    auto& varDecl =
+        cast<ast::VariableDeclaration const&>(*semaVar.declaration());
     auto* initExpr = varDecl.initExpr();
     auto* initializer = getConstantInitializer(*initExpr);
     bool isConstInit = !!initExpr->constantValue();
+    auto mut = isConstInit ? toIR(semaVar.mutability()) :
+                             ir::GlobalVariable::Mutable;
     auto* irVar = mod.addGlobal(
-        allocate<ir::GlobalVariable>(ctx, toIR(semaVar->mutability()),
-                                     initializer,
-                                     std::string(semaVar->name())));
+        allocate<ir::GlobalVariable>(ctx, mut, initializer,
+                                     std::string(semaVar.name())));
     auto* initGuard = [&]() -> ir::GlobalVariable* {
         if (isConstInit) return nullptr;
         return mod.addGlobal(
             allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Mutable,
                                          ctx.boolConstant(false),
-                                         utl::strcat(semaVar->name(),
-                                                     ".init")));
+                                         utl::strcat(semaVar.name(), ".init")));
     }();
     auto* getter = mod.addGlobal(
         allocate<ir::Function>(ctx, ctx.ptrType(), List<ir::Parameter>{},
-                               utl::strcat(semaVar->name(), ".getter"),
+                               utl::strcat(semaVar.name(), ".getter"),
                                ir::FunctionAttribute{}));
+    GlobalVarMetadata metadata{ .var = irVar,
+                                .varInit = initGuard,
+                                .getter = getter };
+    /// We insert the metadata into the map before generating the initializer to
+    /// avoid infinite recursion with cyclic references between global variables
+    globalMap.insert(&semaVar, metadata);
     FuncGenContext builder(config, FuncGenParameters{
                                        .semaFn = nullptr,
                                        .irFn = *getter,
@@ -1966,33 +1972,28 @@ GlobalVarMetadata FuncGenContext::makeGlobalVariable(
         auto* endBlock = builder.newBlock("end");
         builder.add<ir::Branch>(isInit, endBlock, initBlock);
         builder.add(initBlock);
+        builder.add<ir::Store>(initGuard, ctx.boolConstant(true));
         auto initVal = builder.getValue(initExpr);
         builder.assignValue(Value::Packed("dest",
                                           cast<sema::ObjectType const*>(
                                               varDecl.type()),
                                           Atom::Memory(irVar)),
                             initVal);
-        builder.add<ir::Store>(initGuard, ctx.boolConstant(true));
         builder.add<ir::Goto>(endBlock);
         builder.add(endBlock);
     }
     builder.add<ir::Return>(irVar);
     builder.insertAllocas();
     ir::setupInvariants(ctx, *getter);
-    return GlobalVarMetadata{ .var = irVar,
-                              .varInit = initGuard,
-                              .getter = getter };
+    return metadata;
 }
 
 ir::Function* FuncGenContext::getGlobalVarGetter(
-    sema::Variable const* semaVar) {
-    if (auto md = globalMap.tryGet(semaVar)) {
+    sema::Variable const& semaVar) {
+    if (auto md = globalMap.tryGet(&semaVar)) {
         return md->getter;
     }
-    auto md = makeGlobalVariable(
-        cast<ast::VariableDeclaration const&>(*semaVar->declaration()));
-    globalMap.insert(semaVar, md);
-    return md.getter;
+    return makeGlobalVariable(semaVar).getter;
 }
 
 void FuncGenContext::assignValue(Value dest, Value source) {

@@ -7,21 +7,26 @@ using namespace scatha;
 TEST_CASE("Simple constant global", "[end-to-end][globals]") {
     test::runReturnsTest(1, R"(
 let i: int = 1;
-fn main() -> int {
-    return i;
-})");
+fn main() -> int { return i; }
+)");
 }
 
 TEST_CASE("Simple mutable global", "[end-to-end][globals]") {
     test::runReturnsTest(1, R"(
 var i: int = 0;
-fn main() -> int {
-    ++i;
-    return i;
-})");
+fn main() -> int { ++i; return i; }
+)");
 }
 
 TEST_CASE("Complex constant global", "[end-to-end][globals]") {
+    test::runReturnsTest(1, R"(
+var i: int = 0;
+let j: int = i + 1;
+fn main() { return j; }
+)");
+}
+
+TEST_CASE("Complex mutable global", "[end-to-end][globals]") {
     test::checkPrints("ABC", R"(
 var i: int = hello();
 fn hello() -> int {
