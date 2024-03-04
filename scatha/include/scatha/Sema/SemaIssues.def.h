@@ -36,6 +36,7 @@ SC_SEMA_BADVARDECL_DEF(IncompleteType, Error, {
         str << sema::format(type()) << " is incomplete";
     });
 })
+
 SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error, {
     header("Reference declaration requires initializer");
     primary(declaration()->sourceRange(), [=, this](std::ostream& str) {
@@ -43,6 +44,7 @@ SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error, {
             << "' declared here without initializer";
     });
 })
+
 SC_SEMA_BADVARDECL_DEF(CantInferType, Error, {
     header("Cannot infer type");
     primary(declaration()->sourceRange(), [=, this](std::ostream& str) {
@@ -50,6 +52,7 @@ SC_SEMA_BADVARDECL_DEF(CantInferType, Error, {
             << "' declared without type and initializer";
     });
 })
+
 SC_SEMA_BADVARDECL_DEF(RefInStruct, Error, {
     header("Cannot declare variable of reference type in struct");
     auto* var = cast<ast::VariableDeclaration const*>(declaration());
@@ -58,6 +61,7 @@ SC_SEMA_BADVARDECL_DEF(RefInStruct, Error, {
             << sema::format(var->type()) << " declared here";
     });
 })
+
 SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error, {
     header("'this' parameter can only be declared in member functions");
     primary(declaration()->sourceRange(), [=, this](std::ostream& str) {
@@ -66,6 +70,7 @@ SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error, {
             << "' declared here";
     });
 })
+
 SC_SEMA_BADVARDECL_DEF(ThisPosition, Error, {
     header("'this' parameter can only be declared as the first parameter");
     auto* param = cast<ast::ParameterDeclaration const*>(declaration());
@@ -76,6 +81,7 @@ SC_SEMA_BADVARDECL_DEF(ThisPosition, Error, {
             << " parameter here";
     });
 })
+
 SC_SEMA_BADVARDECL_DEF(InvalidTypeForFFI, Error, {
     header("Invalid type for foreign function interface");
     auto* param = cast<ast::ParameterDeclaration const*>(declaration());
@@ -85,6 +91,13 @@ SC_SEMA_BADVARDECL_DEF(InvalidTypeForFFI, Error, {
             << " in function '" << function->name()
             << " declared here is not allowed";
     });
+})
+
+SC_SEMA_BADVARDECL_DEF(GlobalNeedsTypeSpecifier, Error, {
+    header("Global variable requires explicit type specifier");
+    auto* varDecl = cast<ast::VariableDeclaration const*>(declaration());
+    primary(varDecl->sourceRange(),
+            [=](std::ostream& str) { str << "Type specifier missing here"; });
 })
 
 #undef SC_SEMA_BADVARDECL_DEF

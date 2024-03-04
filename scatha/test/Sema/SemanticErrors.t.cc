@@ -733,3 +733,10 @@ fn test() { 0 as *; }
     using enum BadTypeDeduction::Reason;
     CHECK(iss.findOnLine<BadTypeDeduction>(2, NoPointer));
 }
+
+TEST_CASE("Global variable without explicit type specifier", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+let i = 0;
+)");
+    CHECK(iss.findOnLine<BadVarDecl>(2, BadVarDecl::GlobalNeedsTypeSpecifier));
+}

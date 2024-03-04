@@ -154,8 +154,7 @@ size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
                   isa<FileScope>(sym.currentScope()),
               "Local variables will be analyzed later");
     if (!varDecl.typeExpr()) {
-        // TODO: Push error
-        SC_UNIMPLEMENTED();
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::GlobalNeedsTypeSpecifier);
         return InvalidIndex;
     }
     auto* variable =
