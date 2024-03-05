@@ -258,6 +258,12 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
+#if defined(__GNUC__)
+#define SC_TEST_EXPORT __attribute__((visibility("default")))
+#else
+#error
+#endif
+
 TEST_CASE("FFI from host", "[end-to-end][lib][foreignlib]") {
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -270,12 +276,77 @@ fn main() -> int {
 }
 
 /// Defines the function used by `"FFI from host"` test case
-#if defined(__GNUC__)
-__attribute__((visibility("default")))
-#else
-#error
-#endif
-extern "C" int64_t
-    host_function(int64_t n) {
-    return 2 * n;
+SC_TEST_EXPORT extern "C" int64_t host_function(int64_t n) { return 2 * n; }
+
+TEST_CASE("FFI struct passing", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+struct Params {
+    var i: int;
+}
+extern "C" fn host_function_struct(p: Params) -> Params;
+fn main() -> int {
+    let p = host_function_struct(Params(1));
+    return p.i;
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 2);
+}
+
+struct simple_struct {
+    int64_t i;
+};
+
+SC_TEST_EXPORT extern "C" simple_struct host_function_struct(simple_struct p) {
+    p.i *= 2;
+    return p;
+}
+
+TEST_CASE("FFI complex struct passing", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+struct InnerStruct {
+    var s: s16;
+    var f: float;
+}
+struct ComplexStruct {
+    var i: int;
+    var f: float;
+    var c: s8;
+    var d: double;
+    var in: InnerStruct;
+}
+extern "C" fn host_function_complex_struct(p: ComplexStruct) -> ComplexStruct;
+fn main() -> bool {
+    let p = host_function_complex_struct(ComplexStruct(1, 1.5, 2, 2.5,
+                                               InnerStruct(3, 3.5)));
+    return p.i == 2 && p.f == 3.0 && p.c == 4 && p.d == 5.0 && p.in.s == 6 &&
+           p.in.f == 7.0;
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 1);
+}
+
+struct inner_struct {
+    short s;
+    float f;
+};
+
+struct complex_struct {
+    int64_t i;
+    float f;
+    char c;
+    double d;
+    inner_struct in;
+};
+
+SC_TEST_EXPORT extern "C" complex_struct host_function_complex_struct(
+    complex_struct p) {
+    p.i *= 2;
+    p.f *= 2;
+    p.c *= 2;
+    p.d *= 2;
+    p.in.s *= 2;
+    p.in.f *= 2;
+    return p;
 }

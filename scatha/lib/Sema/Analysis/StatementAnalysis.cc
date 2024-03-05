@@ -334,6 +334,7 @@ static bool isValidTypeForFFIArg(Type const* type) {
         [](BoolType const&) { return true; },
         [](FloatType const&) { return true; },
         [](RawPtrType const&) { return true; },
+        [](StructType const& type) { return type.hasTrivialLifetime(); },
         [](Type const&) { return false; }
     }; // clang-format on
 }

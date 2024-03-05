@@ -143,22 +143,22 @@ static bool isBitInt(Type const* type, size_t bitwidth) {
            isBitInt(type.elementAt(1), 64);
 }
 
-static FFIType toFFIType(Type const* type) {
+static FFIType const* toFFIType(Type const* type) {
     // clang-format off
-    return SC_MATCH_R (FFIType, *type) {
-        [](VoidType const&) { return FFIType::Void; },
+    return SC_MATCH_R (FFIType const*, *type) {
+        [](VoidType const&) { return FFIType::Void(); },
         [](IntegralType const& type) {
             switch (type.bitwidth()) {
             case 1:
-                return FFIType::Int8;
+                return FFIType::Int8();
             case 8:
-                return FFIType::Int8;
+                return FFIType::Int8();
             case 16:
-                return FFIType::Int16;
+                return FFIType::Int16();
             case 32:
-                return FFIType::Int32;
+                return FFIType::Int32();
             case 64:
-                return FFIType::Int64;
+                return FFIType::Int64();
                 
             default:
                 SC_UNREACHABLE("Invalid FFI type");
@@ -167,19 +167,18 @@ static FFIType toFFIType(Type const* type) {
         [](FloatType const& type) {
             switch (type.bitwidth()) {
             case 32:
-                return FFIType::Float;
+                return FFIType::Float();
             case 64:
-                return FFIType::Double;
+                return FFIType::Double();
                 
             default:
                 SC_UNREACHABLE("Invalid FFI type");
             }
         },
-        [](PointerType const&) { return FFIType::Pointer; },
+        [](PointerType const&) { return FFIType::Pointer(); },
         [](StructType const& type) {
-            /// Only array pointers supported for now
-            SC_EXPECT(isArrayPointer(type));
-            return FFIType::ArrayPointer;
+            return FFIType::Struct(type.elements() | transform(toFFIType) |
+                                   ToSmallVector<>);
         },
         [](Type const&) { SC_UNREACHABLE("Invalid FFI type"); }
     }; // clang-format on

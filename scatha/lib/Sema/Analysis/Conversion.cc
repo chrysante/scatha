@@ -890,6 +890,9 @@ QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
             return sym.intType(std::max(a.bitwidth(), b.bitwidth()),
                                a.signedness());
         },
+        [&](FloatType const& a, FloatType const& b) {
+            return a.bitwidth() > b.bitwidth() ? &a : &b;
+        },
         [&](ArrayType const& a, ArrayType const& b) -> ArrayType const* {
             if (a.elementType() != b.elementType()) {
                 return nullptr;

@@ -78,6 +78,8 @@ struct Linker: AsmWriter {
 
     void link(std::span<FFIList const> ffiLists);
 
+    void putFFIType(FFIType const* type);
+
     ///
     void replaceSection(size_t pos, size_t size, std::span<u8 const> data) {
         if (size <= data.size()) {
@@ -208,11 +210,24 @@ void Linker::link(std::span<FFIList const> ffiLists) {
         for (auto& [interface, address]: ffiList.functions) {
             putNullTerm(interface.name());
             put<u8>(interface.argumentTypes().size());
-            for (auto type: interface.argumentTypes()) {
-                put<u8>((uint64_t)type);
+            for (auto* type: interface.argumentTypes()) {
+                putFFIType(type);
             }
-            put<u8>((uint64_t)interface.returnType());
+            putFFIType(interface.returnType());
             put<u32>(address.index);
         }
+    }
+}
+
+void Linker::putFFIType(FFIType const* type) {
+    put<u8>(static_cast<uint64_t>(type->kind()));
+    if (type->isTrivial()) {
+        return;
+    }
+    auto* s = dynamic_cast<FFIStructType const*>(type);
+    SC_ASSERT(s, "");
+    put<u16>(utl::narrow_cast<uint16_t>(s->elements().size()));
+    for (auto* elem: s->elements()) {
+        putFFIType(elem);
     }
 }

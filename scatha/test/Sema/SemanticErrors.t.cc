@@ -585,8 +585,8 @@ struct X {}
 )");
     CHECK(iss.findOnLine<BadFuncDef>(2, BadFuncDef::UnknownLinkage));
     CHECK(iss.findOnLine<BadFuncDef>(3, BadFuncDef::NoReturnType));
-    CHECK(iss.findOnLine<BadVarDecl>(4, BadVarDecl::InvalidTypeForFFI));
-    CHECK(iss.findOnLine<BadFuncDef>(5, BadFuncDef::InvalidReturnTypeForFFI));
+    CHECK(iss.noneOnLine(4));
+    CHECK(iss.noneOnLine(5));
     CHECK(iss.noneOnLine(6));
     CHECK(iss.noneOnLine(7));
     CHECK(iss.noneOnLine(8));
