@@ -39,3 +39,18 @@ fn main() {
     __builtin_putstr("C");
 })");
 }
+
+TEST_CASE("Global array and pointer", "[end-to-end][globals]") {
+    test::checkReturns(6, R"(
+var a: [int, 3];
+let x: int = initA();
+let p: *[int] = &a;
+fn initA() -> int {
+    a = [1, 2, 3];
+    return 0;
+}
+fn main() -> int {
+    x;
+    return p[0] + p[1] + p[2];
+})");
+}

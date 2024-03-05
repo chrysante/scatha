@@ -173,6 +173,9 @@ struct FuncGenContext: FuncGenContextBase {
 
     GlobalVarMetadata makeGlobalVariable(sema::Variable const& semaVar);
 
+    void generateGlobalVarGetter(GlobalVarMetadata md,
+                                 ast::VariableDeclaration const& varDecl);
+
     ir::Function* getGlobalVarGetter(sema::Variable const& semaVar);
 
     /// # General utilities
@@ -1964,28 +1967,35 @@ GlobalVarMetadata FuncGenContext::makeGlobalVariable(
                                        .globalMap = globalMap,
                                        .declQueue = declQueue,
                                    });
-    builder.addNewBlock("entry");
-    if (!isConstInit) {
-        auto* isInit = builder.add<ir::Load>(initGuard, ctx.boolType(),
-                                             std::string(initGuard->name()));
-        auto* initBlock = builder.newBlock("init");
-        auto* endBlock = builder.newBlock("end");
-        builder.add<ir::Branch>(isInit, endBlock, initBlock);
-        builder.add(initBlock);
-        builder.add<ir::Store>(initGuard, ctx.boolConstant(true));
-        auto initVal = builder.getValue(initExpr);
-        builder.assignValue(Value::Packed("dest",
-                                          cast<sema::ObjectType const*>(
-                                              varDecl.type()),
-                                          Atom::Memory(irVar)),
-                            initVal);
-        builder.add<ir::Goto>(endBlock);
-        builder.add(endBlock);
-    }
-    builder.add<ir::Return>(irVar);
-    builder.insertAllocas();
-    ir::setupInvariants(ctx, *getter);
+    builder.generateGlobalVarGetter(metadata, varDecl);
     return metadata;
+}
+
+void FuncGenContext::generateGlobalVarGetter(
+    GlobalVarMetadata md, ast::VariableDeclaration const& varDecl) {
+    auto& semaVar = *varDecl.variable();
+    auto* initExpr = varDecl.initExpr();
+    bool isConstInit = !!initExpr->constantValue();
+    addNewBlock("entry");
+    if (!isConstInit) {
+        auto* isInit = add<ir::Load>(md.varInit, ctx.boolType(),
+                                     std::string(md.varInit->name()));
+        auto* initBlock = newBlock("init");
+        auto* endBlock = newBlock("end");
+        add<ir::Branch>(isInit, endBlock, initBlock);
+        add(initBlock);
+        add<ir::Store>(md.varInit, ctx.boolConstant(true));
+        auto initVal = getValue(initExpr);
+        assignValue(Value::Packed(std::string(semaVar.name()),
+                                  cast<sema::ObjectType const*>(varDecl.type()),
+                                  Atom::Memory(md.var)),
+                    pack(initVal));
+        add<ir::Goto>(endBlock);
+        add(endBlock);
+    }
+    add<ir::Return>(md.var);
+    insertAllocas();
+    ir::setupInvariants(ctx, *md.getter);
 }
 
 ir::Function* FuncGenContext::getGlobalVarGetter(

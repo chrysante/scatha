@@ -347,5 +347,9 @@ void InstContext::instantiateGlobalVariable(ast::VariableDeclaration& decl) {
     sym.withScopeCurrent(var->parent(), [&] {
         auto* type = analyzeGlobalTypeExpr(decl.typeExpr(), ctx);
         sym.setVariableType(var, type);
+        if (isa<ReferenceType>(type)) {
+            ctx.issue<BadVarDecl>(&decl,
+                                  BadVarDecl::GlobalReferencesNotYetSupported);
+        }
     });
 }

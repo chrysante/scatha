@@ -100,6 +100,14 @@ SC_SEMA_BADVARDECL_DEF(GlobalNeedsTypeSpecifier, Error, {
             [=](std::ostream& str) { str << "Type specifier missing here"; });
 })
 
+SC_SEMA_BADVARDECL_DEF(GlobalReferencesNotYetSupported, Error, {
+    header("Global references are not yet supported");
+    auto* varDecl = cast<ast::VariableDeclaration const*>(declaration());
+    primary(varDecl->sourceRange(), [=](std::ostream& str) {
+        str << "Variable of reference type declared here";
+    });
+})
+
 #undef SC_SEMA_BADVARDECL_DEF
 
 // ===--------------------------------------------------------------------=== //
