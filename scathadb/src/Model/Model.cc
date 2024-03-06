@@ -127,6 +127,7 @@ void Model::loadProgram(std::filesystem::path filepath) {
             utl::strcat("Failed to load ", progName, ". Binary is empty.\n");
         throw std::runtime_error(msg);
     }
+    vm.setLibdir(filepath.parent_path());
     vm.loadBinary(binary.data());
     _currentFilepath = filepath;
     disasm = disassemble(binary);
