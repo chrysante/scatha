@@ -1525,8 +1525,8 @@ Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
                 else {
                     add<ir::Store>(ctx, dest, atom.get());
                 }
+                ++index;
             }
-            ++index;
         }
         return Value::Packed(name, type, Atom::Memory(mem));
     }

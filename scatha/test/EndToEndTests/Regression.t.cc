@@ -442,3 +442,17 @@ struct Set {
 }
 )");
 }
+
+TEST_CASE("Array pointer in struct", "[end-to-end][regression]") {
+    test::checkPrints("Hello World", R"(
+struct X {
+    var i: int;
+    var string: *str;
+}
+fn f(p: X) {
+    __builtin_putstr(*p.string);
+}
+fn main() {
+    f(X(0, &"Hello World"));
+})");
+}
