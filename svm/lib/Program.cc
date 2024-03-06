@@ -10,6 +10,7 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
+#include "Common.h"
 #include "Memory.h"
 #include "OpCode.h"
 
@@ -43,7 +44,7 @@ FFIType const* FFIType::Trivial(Kind kind) {
     case Kind::Pointer:
         return Pointer();
     default:
-        assert(false);
+        unreachable();
     }
 }
 
