@@ -447,7 +447,7 @@ set(scatha_test_sources
     test/Lexer/LexerUtil.t.cc
 
     test/Main/Options.h
-    test/Main/main.cc
+    test/Main/Main.cc
 
     test/Opt/Common.t.cc
     test/Opt/ConstantPropagation.t.cc
