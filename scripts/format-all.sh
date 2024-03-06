@@ -14,6 +14,7 @@ format_dir playground
 format_dir svm/src
 format_dir svm/lib
 format_dir svm/include
+format_dir svm/test
 format_dir scathadb/src
 format_dir runtime/include
 format_dir runtime/src

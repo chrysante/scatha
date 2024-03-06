@@ -61,11 +61,9 @@ target_sources(libsvm
 
 source_group(lib REGULAR_EXPRESSION "lib/*")
 
-# sim
+# svm
 
-if(NOT SCATHA_BUILD_EXECUTABLES)
-  return()
-endif()
+if(SCATHA_BUILD_EXECUTABLES)
 
 add_executable(svm)
 set_target_properties(svm PROPERTIES INSTALL_RPATH "@loader_path")
@@ -90,3 +88,32 @@ target_sources(svm
 )
 
 source_group(src REGULAR_EXPRESSION "src/*")
+
+endif() # SCATHA_BUILD_EXECUTABLES
+
+# svm-test
+
+if(SCATHA_BUILD_TESTS)
+
+add_executable(svm-test)
+SCSetCompilerOptions(svm-test)
+
+target_link_libraries(svm-test
+  PRIVATE
+    libsvm
+    Catch2::Catch2WithMain
+)
+
+target_include_directories(svm-test
+  PRIVATE
+    lib
+)
+
+target_sources(svm-test
+  PRIVATE
+    test/VirtualMemory.t.cc
+)
+
+source_group(svm-test REGULAR_EXPRESSION "test/*")
+
+endif() # SCATHA_BUILD_TESTS
