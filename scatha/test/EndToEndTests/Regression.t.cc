@@ -456,3 +456,16 @@ fn main() {
     f(X(0, &"Hello World"));
 })");
 }
+
+TEST_CASE("Global variable as phi argument", "[end-to-end][regression]") {
+    test::checkIRReturns(1, R"(
+@i = constant i64 1
+func i64 @main() {
+  %entry:
+    goto label %end
+  %end:
+    %0 = phi ptr [label %entry : @i]
+    %1 = load i64, ptr %0
+    return i64 %1
+})");
+}
