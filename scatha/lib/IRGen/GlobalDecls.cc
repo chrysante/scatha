@@ -3,6 +3,7 @@
 #include <range/v3/view.hpp>
 #include <utl/utility.hpp>
 
+#include "IR/Attributes.h"
 #include "IR/CFG/Function.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -17,6 +18,7 @@
 
 using namespace scatha;
 using namespace irgen;
+using namespace ranges::views;
 using enum ValueLocation;
 using enum ValueRepresentation;
 using sema::QualType;
@@ -136,22 +138,33 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
     return sig;
 }
 
+static List<ir::Parameter> makeParameters(CallingConvention const& CC,
+                                          IRSignature const& irSig) {
+    auto params = makeParameters(irSig.argumentTypes);
+    for (auto [param, PC]: zip(params, CC.arguments())) {
+        if (PC.numParams() == 1 && PC.location(0) == ValueLocation::Memory) {
+            param.addAttribute<ir::ByValAttribute>(PC.type()->size(),
+                                                   PC.type()->align());
+        }
+    }
+    return params;
+}
+
 static UniquePtr<ir::Callable> allocateFunction(
-    ir::Context& ctx, sema::Function const& semaFn, IRSignature const& irSig,
-    sema::NameMangler const& nameMangler) {
+    ir::Context& ctx, sema::Function const& semaFn, CallingConvention const& CC,
+    IRSignature const& irSig, sema::NameMangler const& nameMangler) {
+    auto params = makeParameters(CC, irSig);
     switch (semaFn.kind()) {
     case sema::FunctionKind::Native:
         [[fallthrough]];
     case sema::FunctionKind::Generated:
-        return allocate<ir::Function>(ctx, irSig.returnType,
-                                      makeParameters(irSig.argumentTypes),
+        return allocate<ir::Function>(ctx, irSig.returnType, std::move(params),
                                       nameMangler(semaFn),
                                       mapFuncAttrs(semaFn.attributes()),
                                       mapVisibility(&semaFn));
     case sema::FunctionKind::Foreign:
         return allocate<ir::ForeignFunction>(ctx, irSig.returnType,
-                                             makeParameters(
-                                                 irSig.argumentTypes),
+                                             std::move(params),
                                              std::string(semaFn.name()),
                                              mapFuncAttrs(semaFn.attributes()));
     }
@@ -164,7 +177,7 @@ ir::Callable* irgen::declareFunction(sema::Function const& semaFn,
                                      sema::NameMangler const& nameMangler) {
     auto CC = computeCallingConvention(semaFn);
     auto irSignature = computeIRSignature(semaFn, ctx, CC, typeMap);
-    auto irFn = allocateFunction(ctx, semaFn, irSignature, nameMangler);
+    auto irFn = allocateFunction(ctx, semaFn, CC, irSignature, nameMangler);
     globalMap.insert(&semaFn, FunctionMetadata{ irFn.get(), std::move(CC) });
     auto* result = irFn.get();
     mod.addGlobal(std::move(irFn));
