@@ -173,6 +173,8 @@ set(scatha_sources
     lib/Debug/DebugGraphviz.cc
     lib/Debug/DebugGraphviz.h
 
+    lib/IR/Attributes.h
+    lib/IR/Attributes.cc
     lib/IR/BinSerialize.cc
     lib/IR/BinSerialize.h
     lib/IR/Builder.cc

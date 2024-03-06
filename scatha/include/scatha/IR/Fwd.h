@@ -78,6 +78,24 @@ SCATHA_API std::string_view toString(NodeType nodeType);
 /// Insert \p nodeType into \p ostream.
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
+/// Forward declaration of attributes
+#define SC_ATTRIBUTE_DEF(Attrib, ...) class Attrib;
+#include <scatha/IR/Lists.def>
+
+/// List of all attribute types
+enum class AttributeType {
+#define SC_ATTRIBUTE_DEF(Attrib, ...) Attrib,
+#include <scatha/IR/Lists.def>
+    LAST = ByValAttribute
+};
+
+/// Convert \p nodeType to string
+SCATHA_API std::string toString(AttributeType attrib);
+
+/// Insert \p nodeType into \p ostream.
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    AttributeType attrib);
+
 /// List of conversion operations
 enum class Conversion {
 #define SC_CONVERSION_DEF(Op, _) Op,
@@ -204,6 +222,12 @@ using VoidParent = void;
                       ::scatha::ir::Parent, Corporeality)
 #include <scatha/IR/Lists.def>
 
+/// Map enum `AttributeType` to actual attribute types
+#define SC_ATTRIBUTE_DEF(Type, Parent, Corporeality)                           \
+    SC_DYNCAST_DEFINE(::scatha::ir::Type, ::scatha::ir::AttributeType::Type,   \
+                      ::scatha::ir::Parent, Corporeality)
+#include <scatha/IR/Lists.def>
+
 /// Map enum `TypeCategory` to actual type category classes
 #define SC_TYPE_CATEGORY_DEF(TypeCat, Parent, Corporeality)                    \
     SC_DYNCAST_DEFINE(::scatha::ir::TypeCat,                                   \
@@ -257,6 +281,12 @@ SCATHA_API void privateDelete(ir::Value* value);
 
 /// Insulated call to destructor on the most derived base of \p value
 SCATHA_API void privateDestroy(ir::Value* value);
+
+/// Insulated call to `delete` on the most derived base of \p attrib
+SCATHA_API void privateDelete(ir::Attribute* attrib);
+
+/// Insulated call to destructor on the most derived base of \p attrib
+SCATHA_API void privateDestroy(ir::Attribute* attrib);
 
 /// Insulated call to `delete` on the most derived base of \p type
 SCATHA_API void privateDelete(ir::Type* type);

@@ -19,6 +19,20 @@ std::ostream& ir::operator<<(std::ostream& ostream, NodeType nodeType) {
     return ostream << toString(nodeType);
 }
 
+std::string ir::toString(AttributeType attrib) {
+    switch (attrib) {
+        // clang-format off
+#define SC_ATTRIBUTE_DEF(Attrib, ...) case AttributeType::Attrib: return #Attrib;
+#include "IR/Lists.def"
+        // clang-format on
+    }
+    SC_UNREACHABLE();
+}
+
+std::ostream& ir::operator<<(std::ostream& ostream, AttributeType attrib) {
+    return ostream << toString(attrib);
+}
+
 std::string_view ir::toString(Conversion conv) {
     switch (conv) {
         // clang-format off

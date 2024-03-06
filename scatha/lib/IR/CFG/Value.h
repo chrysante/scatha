@@ -11,6 +11,7 @@
 #include "Common/Base.h"
 #include "Common/Metadata.h"
 #include "Common/Ranges.h"
+#include "Common/UniquePtr.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {
@@ -78,6 +79,38 @@ public:
     /// \overload
     void allocatePointerInfo(PointerInfoDesc desc);
 
+    /// \Returns a view over the attributes of this value (`[Attribute const*]`)
+    auto attributes() const {
+        return _attribs.values() | ranges::views::values | ToConstAddress;
+    }
+
+    /// Constructs the attribute type \p Attrib from \p args... and adds it to
+    /// this value
+    template <std::derived_from<Attribute> Attrib, typename... Args>
+        requires std::constructible_from<Attrib, Args...>
+    Attribute const* addAttribute(Args&&... args) {
+        auto attrib = allocate<Attrib>(std::forward<Args>(args)...);
+        auto [itr, success] =
+            _attribs.emplace(attrib->type(), std::move(attrib));
+        SC_ASSERT(success, "Attribute already present");
+        return itr->second.get();
+    }
+
+    /// Removes the attribute of type \p attribType
+    void removeAttribute(AttributeType attribType) {
+        _attribs.erase(attribType);
+    }
+
+    ///
+    template <std::derived_from<Attribute> Attrib>
+    Attrib const* get() const {
+        auto itr = _attribs.find(utl::dc::TypeToID<Attrib>);
+        if (itr != _attribs.end()) {
+            return cast<Attrib const*>(itr->second.get());
+        }
+        return nullptr;
+    }
+
 protected:
     explicit Value(NodeType nodeType, Type const* type,
                    std::string name) noexcept;
@@ -111,10 +144,11 @@ private:
     Type const* _type;
     std::string _name;
     utl::hashmap<User*, uint16_t> _users;
+    utl::hashmap<AttributeType, UniquePtr<Attribute>> _attribs;
     std::unique_ptr<PointerInfo> ptrInfo;
 };
 
-/// For `dyncast` compatibilty of the CFG
+/// For `dyncast` compatibilty
 inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
     return value.nodeType();
 }

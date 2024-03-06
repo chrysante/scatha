@@ -1,3 +1,19 @@
-#include "/Attributes.h"
+#include "IR/Attributes.h"
 
-using namespace scatha::ir;
+#include <utl/utility.hpp>
+
+using namespace scatha;
+using namespace ir;
+
+void ir::privateDelete(ir::Attribute* attrib) {
+    visit(*attrib, [](auto& derived) { delete &derived; });
+}
+
+void ir::privateDestroy(ir::Attribute* attrib) {
+    visit(*attrib, [](auto& derived) { std::destroy_at(&derived); });
+}
+
+ByValAttribute::ByValAttribute(size_t size, size_t align):
+    Attribute(AttributeType::ByValAttribute),
+    _size(utl::narrow_cast<uint16_t>(size)),
+    _align(utl::narrow_cast<uint16_t>(align)) {}

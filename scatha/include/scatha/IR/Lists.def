@@ -64,6 +64,20 @@ SC_INSTRUCTIONNODE_DEF(InsertValue,         Instruction,       Concrete) // Upda
 #undef SC_VALUENODE_DEF
 
 // ===----------------------------------------------------------------------===
+// === List of all attributes  ---------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_ATTRIBUTE_DEF
+#   define SC_ATTRIBUTE_DEF(...)
+#endif
+
+SC_ATTRIBUTE_DEF(Attribute,      VoidParent,     Abstract)
+SC_ATTRIBUTE_DEF(ByValAttribute, Attribute,      Concrete) // Update LAST if this changes!
+
+#undef SC_ATTRIBUTE_DEF
+
+
+// ===----------------------------------------------------------------------===
 // === List of conversions -------------------------------------------------===
 // ===----------------------------------------------------------------------===
 
