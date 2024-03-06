@@ -14,28 +14,54 @@ namespace svm {
 /// A slot in the `VirtualMemory` class
 struct Slot {
 public:
-    /// Construct an emply slot
-    Slot() = default;
-
-    /// Construct a slot with an initial size \p initSize
-    Slot(size_t initSize): buffer(initSize) {}
-
-    /// The raw pointer to the beginning of the buffer
-    char* data() { return buffer.data(); }
-
-    /// The size of the buffer
-    size_t size() const { return buffer.size(); }
-
-    /// Set the size of the buffer to \p size
-    void resize(size_t size) { buffer.resize(size); }
-
-    /// Grow the buffer by a geometric factor
-    void grow(size_t minSize) {
-        buffer.resize(std::max(minSize, buffer.size() * 2));
+    ///
+    Slot(Slot&& rhs): buf(rhs.buf), sz(rhs.sz), owning(rhs.owning) {
+        rhs.owning = false;
     }
 
+    ///
+    ~Slot() { clear(); }
+
+    ///
+    Slot& operator=(Slot&& rhs) {
+        clear();
+        buf = rhs.buf;
+        sz = rhs.sz;
+        owning = rhs.owning;
+        rhs.owning = false;
+        return *this;
+    }
+
+    /// Construct an owning slot with an initial size \p initSize
+    static Slot Owning(size_t initSize);
+
+    /// Construct a view slot with over \p buffer with size \p size
+    static Slot View(void* buffer, size_t size);
+
+    /// The raw pointer to the beginning of the buffer
+    char* data() { return buf; }
+
+    /// The size of the buffer
+    size_t size() const { return sz; }
+
+    /// Set the size of the buffer to \p size
+    /// \pre Must be owning
+    void resize(size_t size);
+
+    /// Grow the buffer by a geometric factor
+    /// \pre Must be owning
+    void grow(size_t minSize);
+
+    ///
+    void clear();
+
 private:
-    std::vector<char> buffer;
+    Slot(char* buf, size_t size, bool owning):
+        buf(buf), sz(size), owning(owning) {}
+
+    char* buf = nullptr;
+    size_t sz   : 63 = 0;
+    bool owning : 1 = false;
 };
 
 /// An allocator for small block sizes used internally by `VirtualMemory`
@@ -99,6 +125,12 @@ public:
     /// Converts the pointer \p ptr to a reference to type `T`
     template <typename T>
     T& derefAs(VirtualPointer ptr, size_t size);
+
+    ///
+    VirtualPointer map(void* p, size_t size);
+
+    ///
+    void unmap(size_t slotIndex);
 
 private:
     /// \Returns pair of slot index and pool reference responsible for
