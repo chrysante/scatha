@@ -90,9 +90,7 @@ mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
         valueMap().addStaticAddress(&var, address);
         return address;
     }();
-    auto* dest = nextRegister();
-    emit(new mir::CopyInst(dest, ctx->constant(address, 8), 8, {}));
-    return dest;
+    return ctx->constant(address, 8);
 }
 
 mir::Value* Resolver::impl(ir::IntegralConstant const& constant) const {
