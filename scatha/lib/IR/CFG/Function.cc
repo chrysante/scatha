@@ -144,27 +144,6 @@ static bool isBitInt(Type const* type, size_t bitwidth) {
            isBitInt(type.elementAt(1), 64);
 }
 
-FFIType const* opaqueAlignBuildingBlock(size_t align) {
-    switch (align) {
-    case 1:
-        return FFIType::Int8();
-    case 2:
-        return FFIType::Int16();
-    case 4:
-        return FFIType::Int32();
-    case 8:
-        return FFIType::Int64();
-    default:
-        SC_UNREACHABLE();
-    }
-}
-
-FFIType const* opaqueFFIStruct(size_t size, size_t align) {
-    auto* elem = opaqueAlignBuildingBlock(align);
-    size_t count = size / align;
-    return FFIType::Struct(utl::small_vector<FFIType const*>(count, elem));
-}
-
 static FFIType const* toFFIType(Type const* type) {
     // clang-format off
     return SC_MATCH_R (FFIType const*, *type) {
@@ -208,7 +187,7 @@ static FFIType const* toFFIType(Type const* type) {
 
 FFIType const* toFFIType(Parameter const* param) {
     if (auto* attrib = param->get<ByValAttribute>()) {
-        return opaqueFFIStruct(attrib->size(), attrib->align());
+        return toFFIType(attrib->type());
     }
     return toFFIType(param->type());
 }
@@ -223,7 +202,7 @@ static FFIType const* deduceRetTypeAndAdjustParams(
         return toFFIType(irRetType);
     }
     params = params.subspan(1);
-    return opaqueFFIStruct(attrib->size(), attrib->align());
+    return toFFIType(attrib->type());
 }
 
 static ForeignFunctionInterface makeFFI(

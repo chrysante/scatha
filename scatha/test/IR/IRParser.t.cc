@@ -113,8 +113,10 @@ func void @f() {
 
 TEST_CASE("Parse parameters with valret and byval atribute", "[ir][parser]") {
     auto const text = R"(
-func void @f(ptr valret(size: 24, align: 4) %0,
-             ptr byval(align: 8, size: 32) %1) {
+struct @ret.type { i32, i32, i32, i32, i32, i32 }
+struct @arg.type { i64, i64, i64, i64 }
+func void @f(ptr valret(@ret.type) %0,
+             ptr byval(@arg.type) %1) {
 %entry:
     return
 })";
@@ -124,14 +126,12 @@ func void @f(ptr valret(size: 24, align: 4) %0,
         auto* ret = &f.parameters().front();
         auto* attrib = ret->get<ir::ValRetAttribute>();
         REQUIRE(attrib);
-        CHECK(attrib->size() == 24);
-        CHECK(attrib->align() == 4);
+        CHECK(attrib->type()->name() == "ret.type");
     }
     {
         auto* arg = &f.parameters().back();
         auto* attrib = arg->get<ir::ByValAttribute>();
         REQUIRE(attrib);
-        CHECK(attrib->size() == 32);
-        CHECK(attrib->align() == 8);
+        CHECK(attrib->type()->name() == "arg.type");
     }
 }

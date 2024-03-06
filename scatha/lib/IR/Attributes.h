@@ -27,39 +27,32 @@ inline AttributeType dyncast_get_type(
 /// Private base class of `ByValAttribute` and `ValRetAttribute`
 class ByValAttribImpl {
 public:
-    /// \Returns the size of the passed value
-    size_t size() const { return _size; }
-
-    /// \Returns the align of the passed value
-    size_t align() const { return _align; }
+    /// \Returns the type of the passed value
+    Type const* type() const { return _type; }
 
 protected:
-    explicit ByValAttribImpl(size_t size, size_t align);
+    explicit ByValAttribImpl(Type const* type): _type(type) {}
 
 private:
-    uint16_t _size, _align;
+    Type const* _type;
 };
 
 /// Function argument passed by value but in memory
 class SCATHA_API ByValAttribute: public Attribute, private ByValAttribImpl {
 public:
-    explicit ByValAttribute(size_t size, size_t align):
-        Attribute(AttributeType::ByValAttribute),
-        ByValAttribImpl(size, align) {}
+    explicit ByValAttribute(Type const* type):
+        Attribute(AttributeType::ByValAttribute), ByValAttribImpl(type) {}
 
-    using ByValAttribImpl::align;
-    using ByValAttribImpl::size;
+    using ByValAttribImpl::type;
 };
 
 /// Function return value passed in memory
 class SCATHA_API ValRetAttribute: public Attribute, private ByValAttribImpl {
 public:
-    explicit ValRetAttribute(size_t size, size_t align):
-        Attribute(AttributeType::ValRetAttribute),
-        ByValAttribImpl(size, align) {}
+    explicit ValRetAttribute(Type const* type):
+        Attribute(AttributeType::ValRetAttribute), ByValAttribImpl(type) {}
 
-    using ByValAttribImpl::align;
-    using ByValAttribImpl::size;
+    using ByValAttribImpl::type;
 };
 
 } // namespace scatha::ir

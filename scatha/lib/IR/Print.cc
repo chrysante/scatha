@@ -280,7 +280,7 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
 
 static constexpr utl::streammanip formatSizeAlignAttrib([](std::ostream& str,
                                                            auto const& attrib) {
-    str << "(size: " << attrib.size() << ", align: " << attrib.align() << ")";
+    str << "(" << formatType(attrib.type()) << ")";
 });
 
 static constexpr utl::streammanip formatAttrib([](std::ostream& str,

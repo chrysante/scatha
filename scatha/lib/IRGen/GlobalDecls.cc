@@ -139,19 +139,18 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
 }
 
 static List<ir::Parameter> makeParameters(CallingConvention const& CC,
-                                          IRSignature const& irSig) {
+                                          IRSignature const& irSig,
+                                          TypeMap const& typemap) {
     auto params = makeParameters(irSig.argumentTypes);
     bool isValRet = CC.returnLocation() == ValueLocation::Memory;
     if (isValRet) {
-        params.front()
-            .addAttribute<ir::ValRetAttribute>(CC.returnType()->size(),
-                                               CC.returnType()->align());
+        params.front().addAttribute<ir::ValRetAttribute>(
+            typemap.packed(CC.returnType()));
     }
     for (auto [param, PC]: zip(params | drop(isValRet ? 1 : 0), CC.arguments()))
     {
         if (PC.numParams() == 1 && PC.location(0) == ValueLocation::Memory) {
-            param.addAttribute<ir::ByValAttribute>(PC.type()->size(),
-                                                   PC.type()->align());
+            param.addAttribute<ir::ByValAttribute>(typemap.packed(PC.type()));
         }
     }
     return params;
@@ -159,8 +158,9 @@ static List<ir::Parameter> makeParameters(CallingConvention const& CC,
 
 static UniquePtr<ir::Callable> allocateFunction(
     ir::Context& ctx, sema::Function const& semaFn, CallingConvention const& CC,
-    IRSignature const& irSig, sema::NameMangler const& nameMangler) {
-    auto params = makeParameters(CC, irSig);
+    IRSignature const& irSig, TypeMap const& typemap,
+    sema::NameMangler const& nameMangler) {
+    auto params = makeParameters(CC, irSig, typemap);
     switch (semaFn.kind()) {
     case sema::FunctionKind::Native:
         [[fallthrough]];
@@ -179,12 +179,13 @@ static UniquePtr<ir::Callable> allocateFunction(
 
 ir::Callable* irgen::declareFunction(sema::Function const& semaFn,
                                      ir::Context& ctx, ir::Module& mod,
-                                     TypeMap const& typeMap,
+                                     TypeMap const& typemap,
                                      GlobalMap& globalMap,
                                      sema::NameMangler const& nameMangler) {
     auto CC = computeCallingConvention(semaFn);
-    auto irSignature = computeIRSignature(semaFn, ctx, CC, typeMap);
-    auto irFn = allocateFunction(ctx, semaFn, CC, irSignature, nameMangler);
+    auto irSignature = computeIRSignature(semaFn, ctx, CC, typemap);
+    auto irFn =
+        allocateFunction(ctx, semaFn, CC, irSignature, typemap, nameMangler);
     globalMap.insert(&semaFn, FunctionMetadata{ irFn.get(), std::move(CC) });
     auto* result = irFn.get();
     mod.addGlobal(std::move(irFn));

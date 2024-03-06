@@ -589,36 +589,16 @@ UniquePtr<Attribute> IRParser::parseAttribute() {
     switch (peekToken().kind()) {
     case TokenKind::ByVal:
     case TokenKind::ValRet: {
-        auto type = toAttribType(peekToken().kind());
+        auto attribType = toAttribType(peekToken().kind());
         eatToken();
         expect(eatToken(), TokenKind::OpenParan);
-        size_t size = 0, align = 0;
-        bool first = true;
-        while (true) {
-            auto tok = eatToken();
-            if (tok.kind() == TokenKind::CloseParan) {
-                break;
-            }
-            if (!first) {
-                expect(tok, TokenKind::Comma);
-                tok = eatToken();
-            }
-            first = false;
-            expect(tok, TokenKind::OtherID);
-            if (tok.id() == "size") {
-                expect(eatToken(), TokenKind::Colon);
-                size = getIntLiteral(eatToken());
-            }
-            else if (tok.id() == "align") {
-                expect(eatToken(), TokenKind::Colon);
-                align = getIntLiteral(eatToken());
-            }
-        }
-        switch (type) {
+        auto* type = parseType();
+        expect(eatToken(), TokenKind::CloseParan);
+        switch (attribType) {
         case AttributeType::ByValAttribute:
-            return allocate<ByValAttribute>(size, align);
+            return allocate<ByValAttribute>(type);
         case AttributeType::ValRetAttribute:
-            return allocate<ValRetAttribute>(size, align);
+            return allocate<ValRetAttribute>(type);
         default:
             SC_UNREACHABLE();
         }
