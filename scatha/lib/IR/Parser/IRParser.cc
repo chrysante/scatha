@@ -11,6 +11,7 @@
 #include "Common/APInt.h"
 #include "Common/EscapeSequence.h"
 #include "Common/Ranges.h"
+#include "IR/Attributes.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/InvariantSetup.h"
@@ -86,6 +87,7 @@ struct IRParser {
     UniquePtr<GlobalVariable> parseGlobalVar();
     UniquePtr<Callable> parseCallable();
     UniquePtr<Parameter> parseParamDecl(size_t index);
+    UniquePtr<Attribute> parseAttribute();
     UniquePtr<ForeignFunction> makeForeignFunction(Type const* returnType,
                                                    List<Parameter> params,
                                                    Token name);
@@ -548,6 +550,15 @@ UniquePtr<Callable> IRParser::parseCallable() {
 
 UniquePtr<Parameter> IRParser::parseParamDecl(size_t index) {
     auto* type = parseType();
+    utl::small_vector<UniquePtr<Attribute>> attribs;
+    while (true) {
+        if (auto attrib = parseAttribute()) {
+            attribs.push_back(std::move(attrib));
+        }
+        else {
+            break;
+        }
+    }
     UniquePtr<Parameter> result;
     if (peekToken().kind() == TokenKind::LocalIdentifier) {
         result = allocate<Parameter>(type, index, std::string(eatToken().id()),
@@ -556,8 +567,45 @@ UniquePtr<Parameter> IRParser::parseParamDecl(size_t index) {
     else {
         result = allocate<Parameter>(type, index, nullptr);
     }
+    for (auto& attrib: attribs) {
+        result->addAttribute(std::move(attrib));
+    }
     locals[std::string(result->name())] = result.get();
     return result;
+}
+
+UniquePtr<Attribute> IRParser::parseAttribute() {
+    switch (peekToken().kind()) {
+    case TokenKind::ByVal: {
+        eatToken();
+        expect(eatToken(), TokenKind::OpenParan);
+        size_t size = 0, align = 0;
+        bool first = true;
+        while (true) {
+            auto tok = eatToken();
+            if (tok.kind() == TokenKind::CloseParan) {
+                break;
+            }
+            if (!first) {
+                expect(tok, TokenKind::Comma);
+                tok = eatToken();
+            }
+            first = false;
+            expect(tok, TokenKind::OtherID);
+            if (tok.id() == "size") {
+                expect(eatToken(), TokenKind::Colon);
+                size = getIntLiteral(eatToken());
+            }
+            else if (tok.id() == "align") {
+                expect(eatToken(), TokenKind::Colon);
+                align = getIntLiteral(eatToken());
+            }
+        }
+        return allocate<ByValAttribute>(size, align);
+    }
+    default:
+        return nullptr;
+    }
 }
 
 UniquePtr<ForeignFunction> IRParser::makeForeignFunction(Type const* returnType,

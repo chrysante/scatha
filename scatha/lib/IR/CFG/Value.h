@@ -89,26 +89,22 @@ public:
     template <std::derived_from<Attribute> Attrib, typename... Args>
         requires std::constructible_from<Attrib, Args...>
     Attribute const* addAttribute(Args&&... args) {
-        auto attrib = allocate<Attrib>(std::forward<Args>(args)...);
-        auto [itr, success] =
-            _attribs.emplace(attrib->type(), std::move(attrib));
-        SC_ASSERT(success, "Attribute already present");
-        return itr->second.get();
+        return addAttribute(allocate<Attrib>(std::forward<Args>(args)...));
     }
 
+    /// \overload
+    Attribute const* addAttribute(UniquePtr<Attribute> attrib);
+
     /// Removes the attribute of type \p attribType
-    void removeAttribute(AttributeType attribType) {
-        _attribs.erase(attribType);
-    }
+    void removeAttribute(AttributeType attribType);
+
+    ///
+    Attribute const* get(AttributeType attrib) const;
 
     ///
     template <std::derived_from<Attribute> Attrib>
     Attrib const* get() const {
-        auto itr = _attribs.find(utl::dc::TypeToID<Attrib>);
-        if (itr != _attribs.end()) {
-            return cast<Attrib const*>(itr->second.get());
-        }
-        return nullptr;
+        return cast<Attrib const*>(get(utl::dc::TypeToID<Attrib>));
     }
 
 protected:

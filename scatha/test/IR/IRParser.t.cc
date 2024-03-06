@@ -3,6 +3,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 
+#include "IR/Attributes.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/IRParser.h"
@@ -108,4 +109,19 @@ func void @f() {
         CHECK(ptr->staticProvencanceOffset().value() == 0);
         CHECK(ptr->guaranteedNotNull());
     }
+}
+
+TEST_CASE("Parse parameter with byval atribute", "[ir][parser]") {
+    auto const text = R"(
+func void @f(ptr byval(align: 8, size: 32) %0) {
+%entry:
+    return
+})";
+    auto [ctx, mod] = ir::parse(text).value();
+    auto& f = mod.front();
+    auto* arg = &f.parameters().front();
+    auto* attrib = arg->get<ir::ByValAttribute>();
+    REQUIRE(attrib);
+    CHECK(attrib->size() == 32);
+    CHECK(attrib->align() == 8);
 }

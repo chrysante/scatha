@@ -1,6 +1,7 @@
 #include "IR/CFG/Value.h"
 
 #include "Common/Ranges.h"
+#include "IR/Attributes.h"
 #include "IR/CFG.h"
 #include "IR/PointerInfo.h"
 #include "IR/Type.h"
@@ -88,4 +89,22 @@ void Value::allocatePointerInfo(PointerInfo info) {
 
 void Value::allocatePointerInfo(PointerInfoDesc desc) {
     allocatePointerInfo(PointerInfo(desc));
+}
+
+Attribute const* Value::addAttribute(UniquePtr<Attribute> attrib) {
+    auto [itr, success] = _attribs.emplace(attrib->type(), std::move(attrib));
+    SC_ASSERT(success, "Attribute already present");
+    return itr->second.get();
+}
+
+void Value::removeAttribute(AttributeType attribType) {
+    _attribs.erase(attribType);
+}
+
+Attribute const* Value::get(AttributeType attrib) const {
+    auto itr = _attribs.find(attrib);
+    if (itr != _attribs.end()) {
+        return itr->second.get();
+    }
+    return nullptr;
 }

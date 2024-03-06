@@ -14,6 +14,7 @@
 #include "Common/EscapeSequence.h"
 #include "Common/Logging.h"
 #include "Common/PrintUtil.h"
+#include "IR/Attributes.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/PassRegistry.h"
@@ -275,6 +276,17 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
 static constexpr utl::streammanip formatName([](std::ostream& str,
                                                 Value const* value) {
     formatValueImpl(str, value);
+});
+
+static constexpr utl::streammanip formatAttrib([](std::ostream& str,
+                                                  Attribute const& attrib) {
+    // clang-format off
+    SC_MATCH (attrib) {
+        [&](ByValAttribute const& attrib) {
+            str << formatKeyword("byval") << "(size: " << attrib.size() 
+                << ", align: " << attrib.align() << ")";
+        }
+    }; // clang-format off
 });
 
 static auto equals() {
@@ -652,7 +664,11 @@ void PrintCtx::funcDecl(ir::Callable const* func) {
         << formatName(func) << "(";
     for (bool first = true; auto& param: func->parameters()) {
         str << (first ? (void)(first = false), "" : ", ")
-            << formatType(param.type()) << " " << formatName(&param);
+            << formatType(param.type()) << " ";
+        for (auto* attrib: param.attributes()) {
+            str << formatAttrib(*attrib) << " ";
+        }
+        str << formatName(&param);
     }
     str << ")";
 }

@@ -105,6 +105,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "leq", TokenKind::LessEq },
         { "grt", TokenKind::Greater },
         { "geq", TokenKind::GreaterEq },
+        { "byval", TokenKind::ByVal },
     };
     auto itr = ranges::find_if(values, [&](auto& p) { return p.first == id; });
     if (itr == ranges::end(values)) {
