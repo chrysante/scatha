@@ -4,6 +4,7 @@ endif()
 
 add_executable(scathadb)
 set_target_properties(scathadb PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(scathadb PROPERTIES INSTALL_RPATH "@loader_path")
 SCSetCompilerOptions(scathadb)
 
 target_link_libraries(scathadb
