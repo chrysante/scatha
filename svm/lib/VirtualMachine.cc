@@ -276,6 +276,18 @@ void VirtualMachine::deallocateMemory(VirtualPointer ptr, size_t size,
     impl->memory.deallocate(ptr, size, align);
 }
 
+VirtualPointer VirtualMachine::mapMemory(void* p, size_t size) {
+    return impl->memory.map(p, size);
+}
+
+void VirtualMachine::unmapMemory(size_t slotIndex) {
+    return impl->memory.unmap(slotIndex);
+}
+
+void VirtualMachine::unmapMemory(VirtualPointer p) {
+    return impl->memory.unmap(p.slotIndex);
+}
+
 ptrdiff_t VirtualMachine::validPtrRange(VirtualPointer ptr) const {
     return impl->memory.validRange(ptr);
 }

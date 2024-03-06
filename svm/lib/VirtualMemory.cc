@@ -1,5 +1,6 @@
 #include "svm/VirtualMemory.h"
 
+#include <cstdlib>
 #include <cstring>
 
 using namespace svm;
@@ -22,6 +23,34 @@ static T read(void const* memory) {
 template <typename T>
 static void write(void* memory, std::type_identity_t<T> t) {
     std::memcpy(memory, &t, sizeof(T));
+}
+
+Slot Slot::Owning(size_t initSize) {
+    return Slot((char*)std::malloc(initSize), initSize, true);
+}
+
+Slot Slot::View(void* buffer, size_t size) {
+    return Slot((char*)buffer, size, false);
+}
+
+void Slot::resize(size_t size) {
+    assert(owning);
+    auto* newbuf = (char*)std::malloc(size);
+    std::memcpy(newbuf, buf, sz);
+    std::free(buf);
+    buf = newbuf;
+    sz = size;
+}
+
+void Slot::grow(size_t minSize) { resize(std::max(minSize, size() * 2)); }
+
+void Slot::clear() {
+    if (owning) {
+        std::free(buf);
+    }
+    buf = nullptr;
+    sz = 0;
+    owning = false;
 }
 
 PoolAllocator::PoolAllocator(size_t blockSize): blkSize(blockSize) {
@@ -93,12 +122,12 @@ VirtualPointer VirtualMemory::MakeStaticDataPointer(size_t offset) {
 
 VirtualMemory::VirtualMemory(size_t staticDataSize) {
     /// Index 0 is unsued
-    slots.emplace_back();
+    slots.push_back(Slot::Owning(0));
     /// Static data
-    slots.emplace_back(staticDataSize);
+    slots.push_back(Slot::Owning(staticDataSize));
     /// Pools
     for (size_t i = BlockSizeDiff; i <= MaxPoolSize; i += BlockSizeDiff) {
-        slots.emplace_back();
+        slots.push_back(Slot::Owning(0));
         pools.push_back(PoolAllocator(i));
     }
 }
@@ -129,7 +158,7 @@ VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
     }
     else {
         size_t slotIndex = slots.size();
-        slots.emplace_back(size);
+        slots.push_back(Slot::Owning(size));
         assert(slotIndex < (1 << 16) && "Maximum slot number exceeded");
         return { .offset = 0, .slotIndex = slotIndex };
     }
@@ -180,4 +209,26 @@ void VirtualMemory::reportAccessError(MemoryAccessError::Reason reason,
 void VirtualMemory::reportDeallocationError(VirtualPointer ptr, size_t size,
                                             size_t align) {
     throwError<DeallocationError>(ptr, size, align);
+}
+
+VirtualPointer VirtualMemory::map(void* p, size_t size) {
+    size_t slotIndex = [this](auto makeSlot) {
+        if (!freeSlots.empty()) {
+            size_t slotIndex = freeSlots.back();
+            freeSlots.pop_back();
+            slots[slotIndex] = makeSlot();
+            return slotIndex;
+        }
+        else {
+            size_t slotIndex = slots.size();
+            slots.push_back(makeSlot());
+            return slotIndex;
+        }
+    }([&] { return Slot::View(p, size); });
+    return VirtualPointer{ .offset = 0, .slotIndex = slotIndex };
+}
+
+void VirtualMemory::unmap(size_t slotIndex) {
+    slots[slotIndex] = Slot::Owning(0);
+    freeSlots.push_back(slotIndex);
 }

@@ -106,6 +106,18 @@ public:
     /// Deallocates memory allocated with `allocateMemory()`
     void deallocateMemory(VirtualPointer ptr, size_t size, size_t align);
 
+    /// Maps the memory region `[p, p + size)` to virtual memory
+    /// \Returns a pointer to the mapped virtual memory region
+    VirtualPointer mapMemory(void* p, size_t size);
+
+    /// Unmaps a virtual memory region previously mapped by a call to
+    /// `mapMemory()`
+    void unmapMemory(size_t slotIndex);
+
+    /// \overload
+    /// Calls `unmapMemory(p.slotIndex)`
+    void unmapMemory(VirtualPointer p);
+
     /// \Returns the number of bytes at which the pointer \p ptr is
     /// dereferencable. If the pointer is not valid a negative number is
     /// returned
