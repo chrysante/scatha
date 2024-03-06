@@ -141,7 +141,14 @@ static IRSignature computeIRSignature(sema::Function const& semaFn,
 static List<ir::Parameter> makeParameters(CallingConvention const& CC,
                                           IRSignature const& irSig) {
     auto params = makeParameters(irSig.argumentTypes);
-    for (auto [param, PC]: zip(params, CC.arguments())) {
+    bool isValRet = CC.returnLocation() == ValueLocation::Memory;
+    if (isValRet) {
+        params.front()
+            .addAttribute<ir::ValRetAttribute>(CC.returnType()->size(),
+                                               CC.returnType()->align());
+    }
+    for (auto [param, PC]: zip(params | drop(isValRet ? 1 : 0), CC.arguments()))
+    {
         if (PC.numParams() == 1 && PC.location(0) == ValueLocation::Memory) {
             param.addAttribute<ir::ByValAttribute>(PC.type()->size(),
                                                    PC.type()->align());

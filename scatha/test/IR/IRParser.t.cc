@@ -111,17 +111,27 @@ func void @f() {
     }
 }
 
-TEST_CASE("Parse parameter with byval atribute", "[ir][parser]") {
+TEST_CASE("Parse parameters with valret and byval atribute", "[ir][parser]") {
     auto const text = R"(
-func void @f(ptr byval(align: 8, size: 32) %0) {
+func void @f(ptr valret(size: 24, align: 4) %0,
+             ptr byval(align: 8, size: 32) %1) {
 %entry:
     return
 })";
     auto [ctx, mod] = ir::parse(text).value();
     auto& f = mod.front();
-    auto* arg = &f.parameters().front();
-    auto* attrib = arg->get<ir::ByValAttribute>();
-    REQUIRE(attrib);
-    CHECK(attrib->size() == 32);
-    CHECK(attrib->align() == 8);
+    {
+        auto* ret = &f.parameters().front();
+        auto* attrib = ret->get<ir::ValRetAttribute>();
+        REQUIRE(attrib);
+        CHECK(attrib->size() == 24);
+        CHECK(attrib->align() == 4);
+    }
+    {
+        auto* arg = &f.parameters().back();
+        auto* attrib = arg->get<ir::ByValAttribute>();
+        REQUIRE(attrib);
+        CHECK(attrib->size() == 32);
+        CHECK(attrib->align() == 8);
+    }
 }

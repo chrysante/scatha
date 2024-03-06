@@ -278,13 +278,20 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
     formatValueImpl(str, value);
 });
 
+static constexpr utl::streammanip formatSizeAlignAttrib([](std::ostream& str,
+                                                           auto const& attrib) {
+    str << "(size: " << attrib.size() << ", align: " << attrib.align() << ")";
+});
+
 static constexpr utl::streammanip formatAttrib([](std::ostream& str,
                                                   Attribute const& attrib) {
     // clang-format off
     SC_MATCH (attrib) {
         [&](ByValAttribute const& attrib) {
-            str << formatKeyword("byval") << "(size: " << attrib.size() 
-                << ", align: " << attrib.align() << ")";
+            str << formatKeyword("byval") << formatSizeAlignAttrib(attrib);
+        },
+        [&](ValRetAttribute const& attrib) {
+            str << formatKeyword("valret") << formatSizeAlignAttrib(attrib);
         }
     }; // clang-format off
 });

@@ -4,6 +4,7 @@
 
 #include <range/v3/view.hpp>
 
+#include "IR/Attributes.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
@@ -143,6 +144,27 @@ static bool isBitInt(Type const* type, size_t bitwidth) {
            isBitInt(type.elementAt(1), 64);
 }
 
+FFIType const* opaqueAlignBuildingBlock(size_t align) {
+    switch (align) {
+    case 1:
+        return FFIType::Int8();
+    case 2:
+        return FFIType::Int16();
+    case 4:
+        return FFIType::Int32();
+    case 8:
+        return FFIType::Int64();
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+FFIType const* opaqueFFIStruct(size_t size, size_t align) {
+    auto* elem = opaqueAlignBuildingBlock(align);
+    size_t count = size / align;
+    return FFIType::Struct(utl::small_vector<FFIType const*>(count, elem));
+}
+
 static FFIType const* toFFIType(Type const* type) {
     // clang-format off
     return SC_MATCH_R (FFIType const*, *type) {
@@ -184,12 +206,36 @@ static FFIType const* toFFIType(Type const* type) {
     }; // clang-format on
 }
 
-static ForeignFunctionInterface makeFFI(std::string name, Type const* retType,
-                                        std::span<Type const* const> argTypes) {
+FFIType const* toFFIType(Parameter const* param) {
+    if (auto* attrib = param->get<ByValAttribute>()) {
+        return opaqueFFIStruct(attrib->size(), attrib->align());
+    }
+    return toFFIType(param->type());
+}
+
+static FFIType const* deduceRetTypeAndAdjustParams(
+    Type const* irRetType, std::span<Parameter const* const>& params) {
+    if (params.empty()) {
+        return toFFIType(irRetType);
+    }
+    auto* attrib = params.front()->get<ValRetAttribute>();
+    if (!attrib) {
+        return toFFIType(irRetType);
+    }
+    params = params.subspan(1);
+    return opaqueFFIStruct(attrib->size(), attrib->align());
+}
+
+static ForeignFunctionInterface makeFFI(
+    std::string name, Type const* retType,
+    std::span<Parameter const* const> params) {
+    FFIType const* ffiReturnType =
+        deduceRetTypeAndAdjustParams(retType, params);
     return ForeignFunctionInterface(std::move(name),
-                                    argTypes | transform(toFFIType) |
-                                        ToSmallVector<>,
-                                    toFFIType(retType));
+                                    params | transform([](auto* param) {
+        return toFFIType(param);
+    }) | ToSmallVector<>,
+                                    ffiReturnType);
 }
 
 ForeignFunction::ForeignFunction(Context& ctx, Type const* returnType,
@@ -198,8 +244,7 @@ ForeignFunction::ForeignFunction(Context& ctx, Type const* returnType,
     Callable(NodeType::ForeignFunction, ctx, returnType, std::move(parameters),
              name, attr, Visibility::Internal),
     ffi(makeFFI(name, returnType,
-                this->parameters() | transform(&Parameter::type) |
-                    ToSmallVector<>)) {}
+                this->parameters() | TakeAddress | ToSmallVector<>)) {}
 
 void ForeignFunction::writeValueToImpl(
     void*, utl::function_view<void(Constant const*, void*)>) const {

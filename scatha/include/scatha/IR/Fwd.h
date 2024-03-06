@@ -86,7 +86,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 enum class AttributeType {
 #define SC_ATTRIBUTE_DEF(Attrib, ...) Attrib,
 #include <scatha/IR/Lists.def>
-    LAST = ByValAttribute
+    LAST = ValRetAttribute
 };
 
 /// Convert \p nodeType to string

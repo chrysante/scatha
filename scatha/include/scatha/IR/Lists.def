@@ -71,8 +71,9 @@ SC_INSTRUCTIONNODE_DEF(InsertValue,         Instruction,       Concrete) // Upda
 #   define SC_ATTRIBUTE_DEF(...)
 #endif
 
-SC_ATTRIBUTE_DEF(Attribute,      VoidParent,     Abstract)
-SC_ATTRIBUTE_DEF(ByValAttribute, Attribute,      Concrete) // Update LAST if this changes!
+SC_ATTRIBUTE_DEF(Attribute,       VoidParent,     Abstract)
+SC_ATTRIBUTE_DEF(ByValAttribute,  Attribute,      Concrete)
+SC_ATTRIBUTE_DEF(ValRetAttribute, Attribute,      Concrete) // Update LAST if this changes!
 
 #undef SC_ATTRIBUTE_DEF
 

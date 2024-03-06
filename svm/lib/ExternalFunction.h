@@ -34,6 +34,7 @@ struct ForeignFunction {
     std::string name;
     FuncPtr funcPtr = nullptr;
     ffi_cif callInterface;
+    ffi_type* returnType;
     utl::small_vector<ffi_type*> argumentTypes;
     utl::small_vector<void*> arguments;
 };

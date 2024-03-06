@@ -248,18 +248,65 @@ static bool lessEq(CompareFlags f) { return f.less || f.equal; }
 static bool greater(CompareFlags f) { return !f.less && !f.equal; }
 static bool greaterEq(CompareFlags f) { return !f.less; }
 
+static size_t alignTo(size_t offset, size_t align) {
+    if (offset % align == 0) {
+        return offset;
+    }
+    return offset + align - offset % align;
+}
+
+/// Recursively visits structures and dereferences all pointer members
+static void* dereferenceFFIPtrArg(u8* argPtr, ffi_type const* type,
+                                  VirtualMemory& memory) {
+    auto deref = [&memory](u8* arg) {
+        auto* arg64 = reinterpret_cast<u64*>(arg);
+        *arg64 = std::bit_cast<u64>(
+            memory.nativeToHost(std::bit_cast<VirtualPointer>(*arg64)));
+    };
+    if (type->type == FFI_TYPE_POINTER) {
+        deref(argPtr);
+        return argPtr;
+    }
+    if (type->type == FFI_TYPE_STRUCT) {
+        if (type->size > 16) {
+            deref(argPtr);
+            argPtr = *(u8**)argPtr;
+        }
+        size_t offset = 0;
+        auto** elemPtr = type->elements;
+        while (*elemPtr) {
+            auto* elem = *elemPtr;
+            dereferenceFFIPtrArg(argPtr + offset, elem, memory);
+            offset = alignTo(offset, elem->alignment) + elem->size;
+            ++elemPtr;
+        }
+        return argPtr;
+    }
+    return argPtr;
+}
+
+static size_t argSizeInWords(ffi_type const* type) {
+    if (type->type == FFI_TYPE_STRUCT && type->size > 16) {
+        return 1;
+    }
+    return utl::ceil_divide(type->size, 8);
+}
+
 static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
     u64* argPtr = regPtr;
-    for (size_t i = 0; i < F.arguments.size(); ++i) {
-        if (F.argumentTypes[i] == &ffi_type_pointer ||
-            F.argumentTypes[i] == &ArrayPtrType)
-        {
-            *argPtr = std::bit_cast<u64>(
-                memory.nativeToHost(std::bit_cast<VirtualPointer>(*argPtr)));
-        }
-        F.arguments[i] = argPtr++;
+    u64* retPtr = regPtr;
+    if (F.returnType->type == FFI_TYPE_STRUCT && F.returnType->size > 16) {
+        ++argPtr;
+        auto vretPtr = std::bit_cast<VirtualPointer>(*retPtr);
+        retPtr = (u64*)memory.dereference(vretPtr, F.returnType->size);
     }
-    ffi_call(&F.callInterface, F.funcPtr, regPtr, F.arguments.data());
+    for (size_t i = 0; i < F.arguments.size(); ++i) {
+        auto* argType = F.argumentTypes[i];
+        F.arguments[i] = dereferenceFFIPtrArg(reinterpret_cast<u8*>(argPtr),
+                                              argType, memory);
+        argPtr += argSizeInWords(argType);
+    }
+    ffi_call(&F.callInterface, F.funcPtr, retPtr, F.arguments.data());
 }
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {

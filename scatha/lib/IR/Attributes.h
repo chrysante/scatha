@@ -24,19 +24,42 @@ inline AttributeType dyncast_get_type(
     return attrib.type();
 }
 
-/// Function arguments passed by value but in memory
-class SCATHA_API ByValAttribute: public Attribute {
+/// Private base class of `ByValAttribute` and `ValRetAttribute`
+class ByValAttribImpl {
 public:
-    explicit ByValAttribute(size_t size, size_t align);
-
-    /// \Returns the size of the argument value
+    /// \Returns the size of the passed value
     size_t size() const { return _size; }
 
-    /// \Returns the align of the argument value
+    /// \Returns the align of the passed value
     size_t align() const { return _align; }
+
+protected:
+    explicit ByValAttribImpl(size_t size, size_t align);
 
 private:
     uint16_t _size, _align;
+};
+
+/// Function argument passed by value but in memory
+class SCATHA_API ByValAttribute: public Attribute, private ByValAttribImpl {
+public:
+    explicit ByValAttribute(size_t size, size_t align):
+        Attribute(AttributeType::ByValAttribute),
+        ByValAttribImpl(size, align) {}
+
+    using ByValAttribImpl::align;
+    using ByValAttribImpl::size;
+};
+
+/// Function return value passed in memory
+class SCATHA_API ValRetAttribute: public Attribute, private ByValAttribImpl {
+public:
+    explicit ValRetAttribute(size_t size, size_t align):
+        Attribute(AttributeType::ValRetAttribute),
+        ByValAttribImpl(size, align) {}
+
+    using ByValAttribImpl::align;
+    using ByValAttribImpl::size;
 };
 
 } // namespace scatha::ir

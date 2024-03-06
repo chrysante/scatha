@@ -40,40 +40,107 @@ struct ProgramHeader {
 };
 
 /// The FFI decl format is as follows:
-/// - `u32` ; Number of foreign libraries
-/// - `[lib-decl]` ; List of library declarations where `lib-decl` is:
-///   - `[char]\0` Null-terminated string denoting library name
-///   - `u32` ; Number of foreign function declarations
-///   - `[ffi-decl]` ; List of function declarations where `ffi-decl` is:
-///     - `[char]\0` ; Null-terminated string denoting the name
-///     - `u8` ; Number of arguments
-///     - `[u8]` ; List of argument types
-///     - `u8` ; Return type
-///     - `u32` ; Index
+/// ```
+///  library-list -> u32        // Number of foreign libraries
+///                  [lib-decl] // List of library declarations
+///  lib-decl     -> [char]\0   // Null-terminated string denoting library name
+///                  u32        // Number of foreign function declarations
+///                  [ffi-decl] // List of function declarations
+///  ffi-decl     -> [char]\0   // Null-terminated string denoting function name
+///                  u8         // Number of arguments
+///                  [ffi-type] // List of argument types
+///                  ffi-type   // Return type
+///                  u32        // Index
+///  ffi-type     -> u8         // Trivial type ID
+///                | u8         // Struct type ID
+///                  u16        // Number of elements
+///                  [ffi-type] // Element types
+/// ```
 
-/// This declaration is identical to the one in `<scatha/Common/FFI.h>`
-/// This should never change but if it does both must be updated
-enum class FFIType : uint8_t {
-    Void,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    Float,
-    Double,
-    Pointer,
-    ArrayPointer
+class FFIType {
+public:
+    /// This declaration is identical to the one in `<scatha/Common/FFI.h>`
+    /// This should never change but if it does both must be updated
+    enum class Kind : uint8_t {
+        Void,
+        Int8,
+        Int16,
+        Int32,
+        Int64,
+        Float,
+        Double,
+        Pointer,
+        Struct
+    };
+
+    static FFIType const* Void();
+    static FFIType const* Int8();
+    static FFIType const* Int16();
+    static FFIType const* Int32();
+    static FFIType const* Int64();
+    static FFIType const* Float();
+    static FFIType const* Double();
+    static FFIType const* Pointer();
+    static FFIType const* Trivial(Kind kind);
+    static FFIType const* Struct(std::span<FFIType const* const> elementTypes);
+
+    ///
+    Kind kind() const { return _kind; }
+
+    /// \Returns `true` if `kind()` is any of the non-struct types
+    static bool isTrivial(Kind kind) {
+        return (int)kind >= (int)Kind::Void && (int)kind <= (int)Kind::Pointer;
+    }
+
+    ///  \overload
+    bool isTrivial() const { return isTrivial(kind()); }
+
+protected:
+    explicit FFIType(Kind kind): _kind(kind) {}
+
+private:
+    static FFIType _sVoid;
+    static FFIType _sInt8;
+    static FFIType _sInt16;
+    static FFIType _sInt32;
+    static FFIType _sInt64;
+    static FFIType _sFloat;
+    static FFIType _sDouble;
+    static FFIType _sPointer;
+
+    Kind _kind;
 };
+
+class FFITrivialType: public FFIType {
+public:
+    explicit FFITrivialType(Kind kind): FFIType(kind) {}
+};
+
+class FFIStructType: public FFIType {
+public:
+    explicit FFIStructType(std::vector<FFIType const*> types):
+        FFIType(Kind::Struct), elems(std::move(types)) {}
+
+    std::span<FFIType const* const> elements() const { return elems; }
+
+private:
+    std::vector<FFIType const*> elems;
+};
+
+inline FFIType const* FFIType::Void() { return &_sVoid; }
+inline FFIType const* FFIType::Int8() { return &_sInt8; }
+inline FFIType const* FFIType::Int16() { return &_sInt16; }
+inline FFIType const* FFIType::Int32() { return &_sInt32; }
+inline FFIType const* FFIType::Int64() { return &_sInt64; }
+inline FFIType const* FFIType::Float() { return &_sFloat; }
+inline FFIType const* FFIType::Double() { return &_sDouble; }
+inline FFIType const* FFIType::Pointer() { return &_sPointer; }
 
 /// Foreign function metadata
 struct FFIDecl {
-    /// We use `std::string` instead of `std::vector` because it provides small
-    /// buffer optimization
-    using ArgTypeVector = std::basic_string<FFIType>;
-
     std::string name;
-    ArgTypeVector argumentTypes;
-    FFIType returnType;
+    std::vector<FFIType const*> argumentTypes;
+    FFIType const* returnType;
     size_t index;
     void* ptr;
 };

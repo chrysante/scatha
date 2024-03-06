@@ -6,6 +6,7 @@
 #include <span>
 #include <stdexcept>
 
+#include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
@@ -13,6 +14,66 @@
 #include "OpCode.h"
 
 using namespace svm;
+
+FFIType FFIType::_sVoid = FFITrivialType(Kind::Void);
+FFIType FFIType::_sInt8 = FFITrivialType(Kind::Int8);
+FFIType FFIType::_sInt16 = FFITrivialType(Kind::Int16);
+FFIType FFIType::_sInt32 = FFITrivialType(Kind::Int32);
+FFIType FFIType::_sInt64 = FFITrivialType(Kind::Int64);
+FFIType FFIType::_sFloat = FFITrivialType(Kind::Float);
+FFIType FFIType::_sDouble = FFITrivialType(Kind::Double);
+FFIType FFIType::_sPointer = FFITrivialType(Kind::Pointer);
+
+FFIType const* FFIType::Trivial(Kind kind) {
+    switch (kind) {
+    case Kind::Void:
+        return Void();
+    case Kind::Int8:
+        return Int8();
+    case Kind::Int16:
+        return Int16();
+    case Kind::Int32:
+        return Int32();
+    case Kind::Int64:
+        return Int64();
+    case Kind::Float:
+        return Float();
+    case Kind::Double:
+        return Double();
+    case Kind::Pointer:
+        return Pointer();
+    default:
+        assert(false);
+    }
+}
+
+namespace {
+
+struct StructKey {
+    std::vector<FFIType const*> elems;
+
+    bool operator==(StructKey const&) const = default;
+};
+
+} // namespace
+
+template <>
+struct std::hash<StructKey> {
+    size_t operator()(StructKey const& key) const {
+        return utl::hash_combine_range(key.elems.begin(), key.elems.end());
+    }
+};
+
+FFIType const* FFIType::Struct(std::span<FFIType const* const> types) {
+    static utl::hashmap<StructKey, std::unique_ptr<FFIType>> map;
+    StructKey key;
+    key.elems.assign(types.begin(), types.end());
+    auto& p = map[key];
+    if (!p) {
+        p = std::make_unique<FFIStructType>(std::move(key.elems));
+    }
+    return p.get();
+}
 
 template <typename T>
 static T readAs(std::span<u8 const> data, size_t offset) {
@@ -69,16 +130,29 @@ struct LibDeclParser {
     FFIDecl parseFFIDecl() {
         auto name = parseString();
         size_t numArgs = read<u8>();
-        FFIDecl::ArgTypeVector argTypes;
+        std::vector<FFIType const*> argTypes;
         for (size_t i = 0; i < numArgs; ++i) {
-            argTypes.push_back(read<FFIType>());
+            argTypes.push_back(parseType());
         }
-        auto retType = read<FFIType>();
+        auto retType = parseType();
         auto index = read<u32>();
         return FFIDecl{ .name = name,
                         .argumentTypes = argTypes,
                         .returnType = retType,
                         .index = index };
+    }
+
+    FFIType const* parseType() {
+        auto kind = FFIType::Kind{ read<u8>() };
+        if (FFIType::isTrivial(kind)) {
+            return FFIType::Trivial(kind);
+        }
+        size_t numElems = read<u16>();
+        std::vector<FFIType const*> elems(numElems);
+        for (auto& elem: elems) {
+            elem = parseType();
+        }
+        return FFIType::Struct(std::move(elems));
     }
 };
 

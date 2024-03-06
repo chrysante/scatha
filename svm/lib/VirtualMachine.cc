@@ -7,6 +7,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/dynamic_library.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
@@ -70,6 +71,8 @@ static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
     return utl::dynamic_library(libname);
 }
 
+static ffi_type* toLibFFI(FFIType const* type);
+
 ffi_type svm::ArrayPtrType = [] {
     ffi_type result;
     result.size = 0;
@@ -80,9 +83,31 @@ ffi_type svm::ArrayPtrType = [] {
     return result;
 }();
 
-static ffi_type* toLibFFI(FFIType type) {
-    using enum FFIType;
-    switch (type) {
+static ffi_type* mapFFIStructType(FFIStructType const* type) {
+    struct LibFFITypeWrapper {
+        std::vector<ffi_type*> elems;
+        ffi_type type;
+    };
+    static utl::node_hashmap<FFIStructType const*, LibFFITypeWrapper> map;
+    if (auto itr = map.find(type); itr != map.end()) {
+        return &itr->second.type;
+    }
+    LibFFITypeWrapper wrapper = { .elems = concat(type->elements() |
+                                                      transform(toLibFFI),
+                                                  single(nullptr)) |
+                                           ranges::to<std::vector> };
+    wrapper.type.size = 0;
+    wrapper.type.alignment = 0;
+    wrapper.type.type = FFI_TYPE_STRUCT;
+    wrapper.type.elements = wrapper.elems.data();
+    auto [itr, success] = map.insert({ type, std::move(wrapper) });
+    assert(success);
+    return &itr->second.type;
+}
+
+static ffi_type* toLibFFI(FFIType const* type) {
+    using enum FFIType::Kind;
+    switch (type->kind()) {
     case Void:
         return &ffi_type_void;
     case Int8:
@@ -99,20 +124,20 @@ static ffi_type* toLibFFI(FFIType type) {
         return &ffi_type_double;
     case Pointer:
         return &ffi_type_pointer;
-    case ArrayPointer:
-        return &ArrayPtrType;
+    case Struct:
+        return mapFFIStructType(static_cast<FFIStructType const*>(type));
     }
 }
 
 static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
     F.name = decl.name;
     F.funcPtr = (void (*)())decl.ptr;
+    F.returnType = toLibFFI(decl.returnType);
     F.argumentTypes = decl.argumentTypes | transform(toLibFFI) |
                       ranges::to<utl::small_vector<ffi_type*>>;
     F.arguments.resize(F.argumentTypes.size());
     return ffi_prep_cif(&F.callInterface, FFI_DEFAULT_ABI,
-                        utl::narrow_cast<int>(F.arguments.size()),
-                        toLibFFI(decl.returnType),
+                        utl::narrow_cast<int>(F.arguments.size()), F.returnType,
                         F.argumentTypes.data()) == FFI_OK;
 }
 

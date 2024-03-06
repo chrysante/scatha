@@ -574,9 +574,22 @@ UniquePtr<Parameter> IRParser::parseParamDecl(size_t index) {
     return result;
 }
 
+static AttributeType toAttribType(TokenKind kind) {
+    switch (kind) {
+    case TokenKind::ByVal:
+        return AttributeType::ByValAttribute;
+    case TokenKind::ValRet:
+        return AttributeType::ValRetAttribute;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 UniquePtr<Attribute> IRParser::parseAttribute() {
     switch (peekToken().kind()) {
-    case TokenKind::ByVal: {
+    case TokenKind::ByVal:
+    case TokenKind::ValRet: {
+        auto type = toAttribType(peekToken().kind());
         eatToken();
         expect(eatToken(), TokenKind::OpenParan);
         size_t size = 0, align = 0;
@@ -601,7 +614,14 @@ UniquePtr<Attribute> IRParser::parseAttribute() {
                 align = getIntLiteral(eatToken());
             }
         }
-        return allocate<ByValAttribute>(size, align);
+        switch (type) {
+        case AttributeType::ByValAttribute:
+            return allocate<ByValAttribute>(size, align);
+        case AttributeType::ValRetAttribute:
+            return allocate<ValRetAttribute>(size, align);
+        default:
+            SC_UNREACHABLE();
+        }
     }
     default:
         return nullptr;

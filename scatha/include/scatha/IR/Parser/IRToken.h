@@ -94,6 +94,7 @@ enum class TokenKind {
     GreaterEq,
 
     ByVal,
+    ValRet,
 
     OtherID, // All IDs that are not keywords and are not prefixed with @, % or
              // #

@@ -302,7 +302,54 @@ SC_TEST_EXPORT extern "C" simple_struct host_function_struct(simple_struct p) {
     return p;
 }
 
-TEST_CASE("FFI complex struct passing", "[end-to-end][lib][foreignlib]") {
+TEST_CASE("FFI big struct argument", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+struct Params {
+    var i: int;
+    var j: int;
+    var k: int;
+}
+extern "C" fn host_function_big_struct_arg(p: Params) -> int;
+fn main() -> int {
+    return host_function_big_struct_arg(Params(1, 2, 3));
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 6);
+}
+
+struct big_struct {
+    int64_t i;
+    int64_t j;
+    int64_t k;
+};
+
+SC_TEST_EXPORT extern "C" int64_t host_function_big_struct_arg(big_struct p) {
+    return p.i + p.j + p.k;
+}
+
+TEST_CASE("FFI big struct return value", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+struct Retval {
+    var i: int;
+    var j: int;
+    var k: int;
+}
+extern "C" fn host_function_big_struct_return() -> Retval;
+fn main() -> int {
+    let p = host_function_big_struct_return();
+    return p.i + p.j + p.k;
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 6);
+}
+
+SC_TEST_EXPORT extern "C" big_struct host_function_big_struct_return() {
+    return { 1, 2, 3 };
+}
+
+TEST_CASE("FFI nested struct passing", "[end-to-end][lib][foreignlib]") {
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 struct InnerStruct {
@@ -320,6 +367,7 @@ extern "C" fn host_function_complex_struct(p: ComplexStruct) -> ComplexStruct;
 fn main() -> bool {
     let p = host_function_complex_struct(ComplexStruct(1, 1.5, 2, 2.5,
                                                InnerStruct(3, 3.5)));
+    
     return p.i == 2 && p.f == 3.0 && p.c == 4 && p.d == 5.0 && p.in.s == 6 &&
            p.in.f == 7.0;
 })",
@@ -349,4 +397,30 @@ SC_TEST_EXPORT extern "C" complex_struct host_function_complex_struct(
     p.in.s *= 2;
     p.in.f *= 2;
     return p;
+}
+
+TEST_CASE("FFI pointer in big struct", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+struct X {
+    var i: int;
+    var string: *str;
+}
+extern "C" fn host_function_pointer_in_struct(p: X) -> bool;
+fn main() -> bool {
+    return host_function_pointer_in_struct(X(0, &"Hello World"));
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 1);
+}
+
+struct big_struct_with_pointer {
+    int64_t i;
+    char const* string;
+    size_t string_size;
+};
+
+SC_TEST_EXPORT extern "C" bool host_function_pointer_in_struct(
+    big_struct_with_pointer s) {
+    return std::string_view(s.string, s.string_size) == "Hello World";
 }
