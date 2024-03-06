@@ -3,6 +3,7 @@
 add_library(libsvm SHARED)
 set_target_properties(libsvm PROPERTIES LINKER_LANGUAGE CXX)
 SCSetCompilerOptions(libsvm)
+set_target_properties(libsvm PROPERTIES OUTPUT_NAME "svm")
 
 target_link_libraries(libsvm
   PUBLIC
