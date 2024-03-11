@@ -31,6 +31,7 @@ public struct Lifetime {
 }
 )");
     REQUIRE(iss.empty());
+    sym.prepareExport();
     std::stringstream sstr;
     serializeLibrary(sym, sstr);
     SymbolTable sym2;

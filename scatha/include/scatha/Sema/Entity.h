@@ -40,7 +40,7 @@
 /// │  ├─ Function
 /// │  └─ Type
 /// │     ├─ ReferenceType
-/// │     ├─ FunctionType [Does not exist yet]
+/// │     ├─ FunctionType
 /// │     └─ ObjectType
 /// │        ├─ BuiltinType
 /// │        │  ├─ VoidType
@@ -383,6 +383,10 @@ public:
     /// access to it in free functions in the implementation of symbol table
     void addChild(Entity* entity);
 
+    /// Removed \p entity from this scope. This does not deallocate the entity
+    /// because scopes don't own their children.
+    void removeChild(Entity* entity);
+
 protected:
     explicit Scope(EntityType entityType, ScopeKind, std::string name,
                    Scope* parent, ast::ASTNode* astNode = nullptr);
@@ -391,16 +395,11 @@ private:
     friend class SymbolTable;
     friend class Entity;
 
-    /// Callback for `Entity::addAlternateName()` to register the new name in
-    /// our symbol table Does nothing if \p child is not a child of this scope
-    void addAlternateChildName(Entity* child, std::string name);
-
     template <typename E, typename S>
     static utl::small_ptr_vector<E*> findEntitiesImpl(S* self,
                                                       std::string_view name,
                                                       bool findHidden);
 
-private:
     utl::hashset<Scope*> _children;
     utl::hashmap<std::string, utl::small_ptr_vector<Entity*>> _names;
     utl::hashmap<PropertyKind, Property*> _properties;

@@ -57,7 +57,8 @@ int scatha::inspectMain(InspectOptions options) {
             }
             if (options.sym) {
                 header("Symbol Table");
-                sema::print(sym);
+                sema::print(sym, std::cout, 
+                            { .printBuiltins = options.printBuiltins });
             }
             if (options.onlyFrontend) {
                 invocation.stop();
@@ -96,6 +97,11 @@ int scatha::inspectMain(InspectOptions options) {
     auto target = invocation.run();
     if (!target) {
         return 1;
+    }
+    if (options.expsym) {
+        header("Exported Symbol Table");
+        sema::print(target->symbolTable(), std::cout,
+                    { .printBuiltins = options.printBuiltins });
     }
     if (options.outputFile.empty()) {
         std::cout << Warning

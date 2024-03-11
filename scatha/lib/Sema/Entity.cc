@@ -186,13 +186,21 @@ void Scope::addChild(Entity* entity) {
     }
 }
 
-void Scope::addAlternateChildName(Entity* child, std::string name) {
-    if (child->isAnonymous() || !_children.contains(child)) {
-        return;
+void Scope::removeChild(Entity* entity) {
+    /// This function is basically the reverse of `addChild()`
+    if (auto* scope = dyncast<Scope const*>(entity)) {
+        _children.erase(scope);
     }
-    auto& list = _names[name];
-    SC_ASSERT(list.empty(), "Failed to add new name");
-    list.push_back(child);
+    if (auto* prop = dyncast<Property const*>(entity)) {
+        _properties.erase(prop->kind());
+    }
+    if (!entity->isAnonymous()) {
+        auto& entities = _names[entity->name()];
+        auto itr = ranges::find(entities, entity);
+        SC_ASSERT(itr != entities.end(), "entity is not a child");
+        entities.erase(itr);
+    }
+    entity->setParent(nullptr);
 }
 
 AnonymousScope::AnonymousScope(ScopeKind scopeKind, Scope* parent):

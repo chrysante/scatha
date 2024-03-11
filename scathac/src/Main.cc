@@ -40,6 +40,8 @@ int main(int argc, char* argv[]) {
     commonOptions(inspect, inspectOptions);
     inspect->add_flag("--ast", inspectOptions.ast, "Print AST");
     inspect->add_flag("--sym", inspectOptions.sym, "Print symbol table");
+    inspect->add_flag("--expsym", inspectOptions.expsym, "Print exported symbol table");
+    inspect->add_flag("--print-builtins", inspectOptions.printBuiltins, "Print builtin entities when printing symbol table");
     inspect->add_option("--pipeline", inspectOptions.pipeline, "Optimization pipeline to be run on the IR");
     inspect->add_flag("--emit-ir", inspectOptions.emitIR, "Write generated IR to file");
     inspect->add_flag("--isel", inspectOptions.isel, "Run the experimental ISel pipeline");

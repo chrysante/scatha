@@ -144,10 +144,8 @@ static void serializeTypenameImpl(Type const& type, std::ostream& str) {
     SC_MATCH (type) {
         [&](ObjectType const& type) {
             auto rec = [&](auto& rec, auto* scope) {
-                SC_EXPECT(scope);
-                if (isa<FileScope>(scope) || isa<GlobalScope>(scope)) {
+                if (!scope || isa<FileScope>(scope) ||  isa<GlobalScope>(scope))
                     return;
-                }
                 rec(rec, scope->parent());
                 str << scope->name() << ".";
             };
@@ -505,26 +503,20 @@ struct Serializer {
                      [&](auto const& entity) { return serializeImpl(entity); });
     }
 
+    void visitChildren(json& j, Scope const& scope) {
+        for (auto* entity: scope.entities()) {
+            auto e = serialize(*entity);
+            if (!e.is_null()) {
+                j.push_back(e);
+            }
+        }
+    }
+
     json serializeImpl(GlobalScope const& global) {
         json j;
-        auto& entities = j[Field::Entities];
-        for (auto* child: global.children()) {
-            if (auto* lib = dyncast<ForeignLibrary const*>(child)) {
-                foreignDependencies.insert(lib);
-            }
-            if (auto* file = dyncast<FileScope const*>(child)) {
-                for (auto* entity: file->entities()) {
-                    if (!entity->isPublic()) {
-                        continue;
-                    }
-                    if (!isa<Function>(entity) && !isa<StructType>(entity) &&
-                        !isa<Variable>(entity))
-                    {
-                        continue;
-                    }
-                    entities.push_back(serialize(*entity));
-                }
-            }
+        visitChildren(j[Field::Entities], global);
+        for (auto* lib: global.children() | Filter<ForeignLibrary>) {
+            foreignDependencies.insert(lib);
         }
         for (auto* lib: nativeDependencies) {
             j[Field::NativeDependencies].push_back(lib->name());
@@ -536,6 +528,9 @@ struct Serializer {
     }
 
     json serializeImpl(Function const& function) {
+        if (function.isBuiltin()) {
+            return json{};
+        }
         json j = serializeCommon(function);
         j[Field::ReturnType] = serializeTypename(function.returnType());
         j[Field::ArgumentTypes] = function.argumentTypes() |
@@ -553,17 +548,7 @@ struct Serializer {
         j[Field::Size] = type.size();
         j[Field::Align] = type.align();
         j[Field::Lifetime] = serializeLifetime(type.lifetimeMetadata());
-        for (auto* entity: type.entities()) {
-            if (!entity->isPublic()) {
-                continue;
-            }
-            if (!isa<Function>(entity) && !isa<StructType>(entity) &&
-                !isa<Variable>(entity))
-            {
-                continue;
-            }
-            j[Field::Children].push_back(serialize(*entity));
-        }
+        visitChildren(j[Field::Children], type);
         return j;
     }
 
@@ -578,7 +563,10 @@ struct Serializer {
         return j;
     }
 
-    json serializeImpl(Entity const&) { SC_UNREACHABLE(); }
+    json serializeImpl(Entity const&) {
+        /// Everything else is ignored
+        return json{};
+    }
 
     json serializeCommon(Entity const& entity) {
         json j;

@@ -998,6 +998,49 @@ void SymbolTable::analyzeMissingLifetimes() {
     }
 }
 
+static bool wantExport(Entity const& entity) {
+    // clang-format off
+    return SC_MATCH (entity) {
+        [](Function const& F) { return F.isPublic() && !F.isBuiltin(); },
+        [](StructType const& S) { return S.isPublic(); },
+        [](Variable const& V) { return V.isPublic(); },
+        [](ForeignLibrary const&) { return true; },
+        [](Entity const&) { return false; }
+    }; // clang-format on
+}
+
+static void prepareExportAlias(Alias& alias) {
+    auto& aliased = *alias.aliased();
+    auto* otherParent = aliased.parent();
+    if (!wantExport(aliased) || otherParent == alias.parent() ||
+        aliased.name() != alias.name())
+    {
+        return;
+    }
+    otherParent->removeChild(&aliased);
+    alias.parent()->addChild(&aliased);
+}
+
+static void prepareExportRec(Scope& scope) {
+    for (auto* entity: scope.entities() | ToSmallVector<>) {
+        if (!wantExport(*entity) && !isa<BuiltinType>(entity)) {
+            scope.removeChild(entity);
+        }
+        if (auto* scope = dyncast<Scope*>(entity)) {
+            prepareExportRec(*scope);
+        }
+    }
+}
+
+void SymbolTable::prepareExport() {
+    for (auto* alias:
+         globalScope().entities() | Filter<Alias> | ToSmallVector<>)
+    {
+        prepareExportAlias(*alias);
+    }
+    prepareExportRec(globalScope());
+}
+
 template <typename E, typename... Args>
     requires std::constructible_from<E, Args...>
 E* SymbolTable::Impl::addEntity(Args&&... args) {

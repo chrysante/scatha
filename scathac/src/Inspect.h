@@ -11,6 +11,8 @@ namespace scatha {
 struct InspectOptions: OptionsBase {
     bool ast;
     bool sym;
+    bool printBuiltins;
+    bool expsym;
     bool emitIR;
     bool codegen;
     bool isel; // Experimental

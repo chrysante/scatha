@@ -351,6 +351,15 @@ public:
     /// had lifetime metadata, and analyzes the lifetime
     void analyzeMissingLifetimes();
 
+    /// Rewrites the symbol table for easier consumption by users. Users can be
+    /// targets that depend on this symbol table as a library or host
+    /// applications that want to introspect the module.
+    ///
+    /// Specifically this function declares all public entities that are aliased
+    /// in the global scope under the same name to the global scope and
+    /// undeclares all non-public entities
+    void prepareExport();
+
 private:
     NativeLibrary* getOrImportNativeLib(std::string_view name,
                                         ast::ASTNode* astNode);

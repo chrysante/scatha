@@ -25,8 +25,9 @@ void sema::print(SymbolTable const& symbolTable) {
 namespace {
 
 struct PrintContext {
-    PrintContext(std::ostream& str, SymbolTable const& sym):
-        str(str), sym(sym) {}
+    PrintContext(std::ostream& str, SymbolTable const& sym,
+                 PrintOptions const& options):
+        str(str), sym(sym), options(options) {}
 
     void print(Entity const& entity);
 
@@ -66,13 +67,14 @@ struct PrintContext {
     std::ostream& str;
     SymbolTable const& sym;
     TreeFormatter formatter;
-    bool printBuiltins = false;
+    PrintOptions const& options;
 };
 
 } // namespace
 
-void sema::print(SymbolTable const& symbolTable, std::ostream& ostream) {
-    PrintContext ctx(ostream, symbolTable);
+void sema::print(SymbolTable const& symbolTable, std::ostream& ostream,
+                 PrintOptions const& options) {
+    PrintContext ctx(ostream, symbolTable, options);
     ctx.print(symbolTable.globalScope());
 }
 
@@ -98,15 +100,15 @@ void PrintContext::print(Entity const& entity) {
     str << "\n";
     auto children = getChildren(entity);
     if (auto* type = dyncast<ObjectType const*>(&entity)) {
+        formatter.push(children.empty() ? Level::LastChild : Level::Child);
         str << formatter.beginLine() << tfmt::format(Italic, "Size: ")
             << type->size() << "\n";
         str << formatter.beginLine() << tfmt::format(Italic, "Align: ")
             << type->align() << "\n";
         if (type->hasLifetimeMetadata()) {
-            formatter.push(children.empty() ? Level::LastChild : Level::Child);
             print(type->lifetimeMetadata());
-            formatter.pop();
         }
+        formatter.pop();
     }
     for (auto [index, child]: children | ranges::views::enumerate) {
         formatter.push(index != children.size() - 1 ? Level::Child :
@@ -154,18 +156,24 @@ static bool isBuiltinExt(Entity const& entity) {
 
 utl::hashset<Entity const*> PrintContext::getChildren(
     Entity const& entity) const {
-    using SetType = utl::hashset<Entity const*>;
+    utl::hashset<Entity const*> children;
     auto* scope = dyncast<Scope const*>(&entity);
     if (!scope) {
-        return SetType{};
+        return children;
     }
-    auto children = scope->entities() | filter([](auto* entity) {
-        return !isBuiltinExt(*entity);
-    }) | ranges::to<SetType>;
+    for (auto* entity: scope->entities()) {
+        if (!options.printBuiltins && isBuiltinExt(*entity)) {
+            continue;
+        }
+        children.insert(entity);
+    }
     for (auto* entity: scope->children()) {
+        if (isa<Function>(scope)) {
+            continue;
+        }
         /// We don't want to print local entities like function variables or
         /// temporaries, so we skip functions here
-        if (isa<Function>(entity) || isBuiltinExt(*entity)) {
+        if (!options.printBuiltins && isBuiltinExt(*entity)) {
             continue;
         }
         children.insert(entity);
