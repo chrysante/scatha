@@ -34,6 +34,16 @@ public:
     Target& operator=(Target&&) noexcept;
     ~Target();
 
+    /// Deserializes a target previously created by `writeToDisk()`
+    ///
+    /// Only `BinaryOnly` targets can be meaningfully deserialized using this
+    /// method.
+    /// Only files with extension `TargetNames::BinaryExt` are considered.
+    ///
+    /// \Returns the deserialized target if no errors occurred
+    static std::optional<Target> ReadFromDisk(
+        std::filesystem::path const& path);
+
     /// \Returns the type of this target
     TargetType type() const { return _type; }
 

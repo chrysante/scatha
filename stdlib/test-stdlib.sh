@@ -2,7 +2,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJ_DIR="$SCRIPT_DIR/.."
 
-rm -r $PROJ_DIR/stdlib/build
+rm -r $PROJ_DIR/stdlib/build 2> /dev/null
 
 cd $PROJ_DIR/stdlib
 ./compile-stdlib.sh

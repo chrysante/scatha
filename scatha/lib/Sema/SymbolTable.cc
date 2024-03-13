@@ -18,8 +18,10 @@
 
 #include "AST/AST.h"
 #include "Common/Builtin.h"
+#include "Common/FileHandling.h"
 #include "Common/Ranges.h"
 #include "Common/UniquePtr.h"
+#include "Invocation/TargetNames.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
@@ -296,43 +298,32 @@ static ForeignLibrary* importForeignLib(SymbolTable& sym,
     return lib;
 }
 
-static std::filesystem::path replaceExt(std::filesystem::path p,
-                                        std::filesystem::path ext) {
-    p.replace_extension(ext);
-    return p;
-}
-
 static NativeLibrary* importNativeLib(SymbolTable& sym, SymbolTable::Impl& impl,
                                       ast::ASTNode* node, std::string libname) {
     SC_ASSERT(!impl.nativeLibMap.contains(libname),
               "This library is already imported");
-    auto symPath =
-        findNativeLibrary(impl.libSearchPaths, utl::strcat(libname, ".scsym"));
-    if (!symPath) {
-        impl.issue<BadImport>(node, BadImport::LibraryNotFound);
-        return nullptr;
-    }
-    std::filesystem::path irPath = replaceExt(*symPath, "scir");
-    if (!std::filesystem::exists(irPath)) {
+    auto libpath =
+        findNativeLibrary(impl.libSearchPaths,
+                          utl::strcat(libname, ".", TargetNames::LibraryExt));
+    if (!libpath) {
         impl.issue<BadImport>(node, BadImport::LibraryNotFound);
         return nullptr;
     }
     auto* lib =
-        impl.addEntity<NativeLibrary>(libname, irPath, &sym.globalScope());
+        impl.addEntity<NativeLibrary>(libname, *libpath, &sym.globalScope());
     sym.globalScope().addChild(lib);
     /// We hide all libraries in the global scope. Scopes that want to use the
     /// library have to create an alias to it.
     lib->setVisible(false);
     impl.importedLibs.push_back(lib);
     impl.nativeLibMap.insert({ libname, lib });
-    std::fstream symFile(*symPath);
-    SC_RELASSERT(symFile, utl::strcat("Failed to open file ", *symPath,
-                                      " even though it exists")
-                              .c_str());
+    auto archive = Archive::Open(*libpath);
+    SC_RELASSERT(archive, "Failed to open archive even though file exists");
+    auto libsymtext = archive->openTextFile(TargetNames::SymbolTableName);
+    SC_RELASSERT(libsymtext, "Failed to open library symbol table");
     sym.withScopeCurrent(lib, [&] {
-        bool success = deserialize(sym, symFile);
-        SC_RELASSERT(success,
-                     utl::strcat("Failed to deserialize ", *symPath).c_str());
+        bool success = deserialize(sym, *libsymtext);
+        SC_RELASSERT(success, "Failed to deserialize libary symbol table");
     });
     return lib;
 }

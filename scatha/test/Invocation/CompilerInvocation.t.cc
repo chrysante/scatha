@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <svm/VirtualMachine.h>
 
@@ -9,7 +10,7 @@
 using namespace scatha;
 
 TEST_CASE("Target symbol table", "[invocation][end-to-end]") {
-    CompilerInvocation inv(TargetType::Executable, "test");
+    CompilerInvocation inv(TargetType::BinaryOnly, "test");
     inv.setInputs({ SourceFile::make(R"(
 public fn foo() -> int { return 42; }
 public fn bar(n: int) -> int { return 2 * n; }
@@ -19,6 +20,11 @@ public struct Baz {
 )") });
     auto target = inv.run();
     REQUIRE(target);
+    if (GENERATE(true, false)) {
+        target->writeToDisk("test-targets/");
+        target = Target::ReadFromDisk("test-targets/test.scbin");
+        REQUIRE(target);
+    }
     svm::VirtualMachine vm;
     vm.loadBinary(target->binary().data());
     auto& sym = target->symbolTable();

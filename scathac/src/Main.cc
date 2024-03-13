@@ -15,6 +15,7 @@ static void commonOptions(CLI::App* app, OptionsBase& opt) {
     app->add_option("-L, --libsearchpaths", opt.libSearchPaths);
     static std::unordered_map<std::string, TargetType> const targetTypeMap = {
         { "exec", TargetType::Executable },
+        { "binary", TargetType::BinaryOnly },
         { "staticlib", TargetType::StaticLibrary },
     };
     app->add_option("-T,--target-type", opt.targetType, "Target type")
@@ -32,8 +33,6 @@ int main(int argc, char* argv[]) {
     compiler.add_flag_callback("-o,--optimize", [&]{ compilerOptions.optLevel = 1; }, "Optimize the program");
     compiler.add_flag("-d,--debug", compilerOptions.debug, "Generate debug symbols");
     compiler.add_flag("-t,--time", compilerOptions.time, "Measure compilation time");
-    compiler.add_flag("-b, --binary-only", compilerOptions.binaryOnly,
-                  "Emit .sbin file. Otherwise the compiler emits an executable that can be run directly using a shell script hack");
     
     CLI::App* inspect = compiler.add_subcommand("inspect", "Tool to visualize the state of the compilation pipeline");
     InspectOptions inspectOptions{};

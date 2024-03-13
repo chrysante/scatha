@@ -33,7 +33,7 @@ public struct Lifetime {
     REQUIRE(iss.empty());
     sym.prepareExport();
     std::stringstream sstr;
-    serializeLibrary(sym, sstr);
+    serialize(sym, sstr);
     SymbolTable sym2;
     REQUIRE(deserialize(sym2, sstr));
     Finder find{ sym2 };

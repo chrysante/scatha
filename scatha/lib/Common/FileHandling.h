@@ -23,14 +23,19 @@ public:
     ///
     enum class Mode { Read, Write, Closed };
 
+    Archive(Archive&&) noexcept;
+    Archive& operator=(Archive&&) noexcept;
+    ~Archive();
+
     /// # Static constructors
 
     /// Opens "tar" archive at \p path for reading
     /// \Throws `std::runtime_error` if the file \p name does not exist
-    static Archive Open(std::filesystem::path path);
+    static std::optional<Archive> Open(std::filesystem::path path);
 
-    /// Create a "tar" archive at \p path for writing
-    static Archive Create(std::filesystem::path path);
+    /// Create a "tar" archive at \p path for writing. Missing parent
+    /// directories are created if necessary
+    static std::optional<Archive> Create(std::filesystem::path path);
 
     /// # Queries
 
@@ -45,29 +50,26 @@ public:
     /// Closes the archive
     void close();
 
-    ///
-    ~Archive() { close(); }
-
     /// # Reading
 
     /// \Returns the contents of the file \p name as a string
     /// \Pre `mode()` must be `Read`
-    std::optional<std::string> openTextFile(std::string const& name);
+    std::optional<std::string> openTextFile(std::string_view name);
 
     /// \Returns the contents of the file \p name as binary data
     /// \Pre `mode()` must be `Read`
     std::optional<std::vector<unsigned char>> openBinaryFile(
-        std::string const& name);
+        std::string_view name);
 
     /// # Writing
 
     ///
     /// \Pre `mode()` must be `Write`
-    void addTextFile(std::string const& name, std::string_view contents);
+    void addTextFile(std::string_view name, std::string_view contents);
 
     ///
     /// \Pre `mode()` must be `Write`
-    void addBinaryFile(std::string const& name,
+    void addBinaryFile(std::string_view name,
                        std::span<unsigned char const> contents);
 
     struct Impl {
@@ -78,9 +80,9 @@ private:
     explicit Archive(Mode mode, std::vector<std::string> files, Impl impl);
 
     template <typename T>
-    std::optional<T> readImpl(std::string const& name);
+    std::optional<T> readImpl(std::string_view name);
 
-    void writeImpl(std::string const& name, void const* data, size_t size);
+    void writeImpl(std::string_view name, void const* data, size_t size);
 
     Mode _mode;
     std::vector<std::string> _files;

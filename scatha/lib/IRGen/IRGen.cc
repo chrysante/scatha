@@ -13,6 +13,7 @@
 
 #include "AST/AST.h"
 #include "Common/DebugInfo.h"
+#include "Common/FileHandling.h"
 #include "IR/CFG/Function.h"
 #include "IR/Context.h"
 #include "IR/IRParser.h"
@@ -23,6 +24,7 @@
 #include "IRGen/GlobalDecls.h"
 #include "IRGen/Maps.h"
 #include "IRGen/Metadata.h"
+#include "Invocation/TargetNames.h"
 #include "Sema/AnalysisResult.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -96,11 +98,10 @@ static void importLibrary(ir::Context& ctx, ir::Module& mod,
                           sema::NativeLibrary const& lib, TypeMap& typeMap,
                           GlobalMap& globalMap,
                           sema::NameMangler const& nameMangler) {
-    std::fstream file(lib.codeFile());
-    SC_RELASSERT(file,
-                 utl::strcat("Failed to open file ", lib.codeFile()).c_str());
-    std::stringstream sstr;
-    sstr << file.rdbuf();
+    auto archive = Archive::Open(lib.path());
+    SC_RELASSERT(archive, "Failed to open library file");
+    auto code = archive->openTextFile(TargetNames::ObjectCodeName);
+    SC_RELASSERT(code, "Failed to open object code file");
     utl::hashmap<std::string, ir::StructType*> IRStructMap;
     utl::hashmap<std::string, ir::Global*> IRObjectMap;
     auto typeCallback = [&](ir::StructType& type) {
@@ -112,10 +113,10 @@ static void importLibrary(ir::Context& ctx, ir::Module& mod,
         }
         IRObjectMap.insert({ std::string(object.name()), &object });
     };
-    auto parseIssues = ir::parseTo(std::move(sstr).str(), ctx, mod,
+    auto parseIssues = ir::parseTo(*code, ctx, mod,
                                    { .typeParseCallback = typeCallback,
                                      .objectParseCallback = objCallback });
-    checkParserIssues(parseIssues, lib.codeFile().string());
+    checkParserIssues(parseIssues, lib.path().string());
     mapLibSymbols(lib, typeMap, globalMap, nameMangler, IRStructMap,
                   IRObjectMap);
 }

@@ -452,15 +452,14 @@ private:
 /// Scope of symbols imported from a library
 class SCATHA_API NativeLibrary: public Library {
 public:
-    explicit NativeLibrary(std::string name, std::filesystem::path codeFile,
+    explicit NativeLibrary(std::string name, std::filesystem::path path,
                            Scope* parent);
 
-    /// \Returns the path of the IR file that contains the functions in this
-    /// library
-    std::filesystem::path const& codeFile() const { return _codeFile; }
+    /// \Returns the resolved location of the library
+    std::filesystem::path const& path() const { return _path; }
 
 private:
-    std::filesystem::path _codeFile;
+    std::filesystem::path _path;
 };
 
 /// Represents an imported foreign library. Does not contain any child symbols

@@ -225,7 +225,7 @@ std::optional<Target> CompilerInvocation::run() {
     }
     case TargetType::StaticLibrary: {
         std::stringstream symstr;
-        sema::serializeLibrary(semaSym, symstr);
+        sema::serialize(semaSym, symstr);
         opt::globalDCE(irContext, irModule);
         std::stringstream objstr;
         ir::print(irModule, objstr);

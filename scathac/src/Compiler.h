@@ -12,9 +12,6 @@ struct CompilerOptions: OptionsBase {
     /// Set if time taken by compilation shall be printed
     bool time;
 
-    /// Only emit the binary without making it executable
-    bool binaryOnly;
-
     /// Set if debug symbols shall be generated
     bool debug;
 };

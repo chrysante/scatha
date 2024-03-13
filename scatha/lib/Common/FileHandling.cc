@@ -15,11 +15,7 @@ using namespace scatha;
 std::fstream scatha::createOutputFile(std::filesystem::path const& path,
                                       std::ios::openmode flags) {
 
-    if (auto parent = path.parent_path();
-        !parent.empty() && !std::filesystem::exists(parent))
-    {
-        std::filesystem::create_directories(parent);
-    }
+    std::filesystem::create_directories(path.parent_path());
     flags |= std::ios::out;
     std::fstream file(path, flags);
     if (!file) {
@@ -40,9 +36,32 @@ static mtar_t& asMTar(Archive::Impl& impl) {
     return reinterpret_cast<mtar_t&>(impl.data);
 }
 
-Archive Archive::Open(std::filesystem::path path) {
+Archive::Archive(Mode mode, std::vector<std::string> files, Impl impl):
+    _mode(mode), _files(std::move(files)), impl(impl) {}
+
+Archive::Archive(Archive&& rhs) noexcept:
+    _mode(rhs._mode), _files(std::move(rhs._files)), impl(rhs.impl) {
+    rhs._mode = Mode::Closed;
+    std::memset(&rhs.impl, 0, sizeof rhs.impl);
+}
+
+Archive& Archive::operator=(Archive&& rhs) noexcept {
+    close();
+    _mode = rhs._mode;
+    _files = std::move(rhs._files);
+    impl = rhs.impl;
+    rhs._mode = Mode::Closed;
+    std::memset(&rhs.impl, 0, sizeof rhs.impl);
+    return *this;
+}
+
+Archive::~Archive() { close(); }
+
+std::optional<Archive> Archive::Open(std::filesystem::path path) {
     mtar_t tar;
-    mtar_open(&tar, path.c_str(), "r");
+    if (mtar_open(&tar, path.c_str(), "r") != MTAR_ESUCCESS) {
+        return std::nullopt;
+    }
     mtar_header_t header;
     std::vector<std::string> files;
     while ((mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD) {
@@ -52,33 +71,45 @@ Archive Archive::Open(std::filesystem::path path) {
     return Archive(Mode::Read, std::move(files), toImpl(tar));
 }
 
-Archive Archive::Create(std::filesystem::path path) {
+std::optional<Archive> Archive::Create(std::filesystem::path path) {
+    std::filesystem::create_directories(path.parent_path());
     mtar_t tar;
-    mtar_open(&tar, path.c_str(), "w");
+    if (mtar_open(&tar, path.c_str(), "w") != MTAR_ESUCCESS) {
+        return std::nullopt;
+    }
     return Archive(Mode::Write, {}, toImpl(tar));
 }
 
 void Archive::close() {
+    if (mode() == Mode::Closed) {
+        return;
+    }
     auto& tar = asMTar(impl);
     mtar_finalize(&tar);
     mtar_close(&tar);
+    _mode = Mode::Closed;
+    _files.clear();
+    std::memset(&impl, 0, sizeof impl);
 }
 
-std::optional<std::string> Archive::openTextFile(std::string const& name) {
+std::optional<std::string> Archive::openTextFile(std::string_view name) {
     return readImpl<std::string>(name);
 }
 
 std::optional<std::vector<unsigned char>> Archive::openBinaryFile(
-    std::string const& name) {
+    std::string_view name) {
     return readImpl<std::vector<unsigned char>>(name);
 }
 
 template <typename T>
-std::optional<T> Archive::readImpl(std::string const& name) {
+std::optional<T> Archive::readImpl(std::string_view name) {
     SC_EXPECT(mode() == Mode::Read);
     auto& tar = asMTar(impl);
     mtar_header_t header;
-    if (mtar_find(&tar, name.c_str(), &header) != MTAR_ESUCCESS) {
+    /// The copy here is hopefully temporary. We can get rid of it by using
+    /// another tar library or improving microtar
+    std::string zname(name);
+    if (mtar_find(&tar, zname.c_str(), &header) != MTAR_ESUCCESS) {
         return std::nullopt;
     }
     T result(header.size, 0);
@@ -88,23 +119,21 @@ std::optional<T> Archive::readImpl(std::string const& name) {
 
 /// # Writing
 
-void Archive::addTextFile(std::string const& name, std::string_view contents) {
+void Archive::addTextFile(std::string_view name, std::string_view contents) {
     writeImpl(name, contents.data(), contents.size());
 }
 
-void Archive::addBinaryFile(std::string const& name,
+void Archive::addBinaryFile(std::string_view name,
                             std::span<unsigned char const> contents) {
     writeImpl(name, contents.data(), contents.size());
 }
 
-void Archive::writeImpl(std::string const& name, void const* data,
-                        size_t size) {
+void Archive::writeImpl(std::string_view name, void const* data, size_t size) {
     SC_EXPECT(mode() == Mode::Write);
     auto& tar = asMTar(impl);
-    mtar_write_file_header(&tar, name.c_str(),
+    /// See comment in `readImpl()`
+    std::string zname(name);
+    mtar_write_file_header(&tar, zname.c_str(),
                            utl::narrow_cast<unsigned>(size));
     mtar_write_data(&tar, data, utl::narrow_cast<unsigned>(size));
 }
-
-Archive::Archive(Mode mode, std::vector<std::string> files, Impl impl):
-    _mode(mode), _files(std::move(files)), impl(impl) {}

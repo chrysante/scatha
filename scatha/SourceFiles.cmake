@@ -262,6 +262,7 @@ set(scatha_sources
     lib/Invocation/CompilerInvocation.cc
     lib/Invocation/ExecutableWriter.cc
     lib/Invocation/Target.cc
+    lib/Invocation/TargetNames.h
 
     lib/Issue/Format.cc
     lib/Issue/Format.h

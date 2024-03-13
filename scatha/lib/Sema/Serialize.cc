@@ -455,6 +455,7 @@ struct Field {
     static constexpr std::string_view Lifetime = "lifetime";
     static constexpr std::string_view LifetimeOpKind = "lifetime_op_kind";
     static constexpr std::string_view FunctionKind = "function_kind";
+    static constexpr std::string_view BinaryAddress = "binary_address";
     static constexpr std::string_view Size = "size";
     static constexpr std::string_view Align = "align";
     static constexpr std::string_view Type = "type";
@@ -539,6 +540,9 @@ struct Serializer {
             j[Field::SMFKind] = *kind;
         }
         j[Field::FunctionKind] = function.kind();
+        if (auto address = function.binaryAddress()) {
+            j[Field::BinaryAddress] = *address;
+        }
         gatherLibraryDependencies(*function.type());
         return j;
     }
@@ -643,7 +647,7 @@ struct Serializer {
 
 } // namespace
 
-void sema::serializeLibrary(SymbolTable const& sym, std::ostream& ostream) {
+void sema::serialize(SymbolTable const& sym, std::ostream& ostream) {
     auto j = Serializer{}.serialize(sym.globalScope());
     ostream << std::setw(2) << j << std::endl;
 }
@@ -761,6 +765,9 @@ struct Deserializer: TypeMapBase {
                                 sym.functionType(argTypes, retType),
                                 get(obj, Field::AccessControl));
         function->setKind(get<FunctionKind>(obj, Field::FunctionKind));
+        if (auto address = tryGet(obj, Field::BinaryAddress)) {
+            function->setBinaryAddress(*address);
+        }
     }
 
     ///
@@ -895,9 +902,9 @@ struct Deserializer: TypeMapBase {
 
 } // namespace
 
-bool sema::deserialize(SymbolTable& sym, std::istream& istream) {
+static bool deserializeImpl(SymbolTable& sym, auto makeJSON) {
     try {
-        json j = json::parse(istream);
+        json j = makeJSON();
         Deserializer ctx(sym);
         ctx.run(j);
         return true;
@@ -905,4 +912,12 @@ bool sema::deserialize(SymbolTable& sym, std::istream& istream) {
     catch (std::exception const&) {
         return false;
     }
+}
+
+bool sema::deserialize(SymbolTable& sym, std::istream& istream) {
+    return deserializeImpl(sym, [&] { return json::parse(istream); });
+}
+
+bool sema::deserialize(SymbolTable& sym, std::string_view text) {
+    return deserializeImpl(sym, [&] { return json::parse(text); });
 }
