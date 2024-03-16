@@ -1,5 +1,6 @@
 #include "svm/VirtualMemory.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -36,7 +37,7 @@ Slot Slot::View(void* buffer, size_t size) {
 void Slot::resize(size_t size) {
     assert(owning);
     auto* newbuf = (char*)std::malloc(size);
-    std::memcpy(newbuf, buf, sz);
+    std::memcpy(newbuf, buf, std::min(sz, size));
     std::free(buf);
     buf = newbuf;
     sz = size;
