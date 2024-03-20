@@ -519,11 +519,21 @@ fn main() {
 
 TEST_CASE("Access data member without object", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
-struct S {
-    fn f() { i = 0; }
-    var i: int;
-})");
-    CHECK(issues.findOnLine<BadExpr>(3, AccessedMemberWithoutObject));
+/*  2 */ struct S {
+/*  3 */     fn f() {
+/*  4 */         i;
+/*  5 */         // This case used to fly under the radar because we only tested
+/*  6 */         // if the parent expression was a member access but not if the
+/*  7 */         // ID was the member expression
+/*  8 */         t.j;
+/*  9 */     }
+/* 10 */     var i: int;
+/* 11 */     var t: T;
+/* 12 */ }
+/* 13 */ struct T { var j: int; }
+)");
+    CHECK(issues.findOnLine<BadExpr>(4, AccessedMemberWithoutObject));
+    CHECK(issues.findOnLine<BadExpr>(8, AccessedMemberWithoutObject));
 }
 
 TEST_CASE("Redefine entity in different module", "[sema]") {
