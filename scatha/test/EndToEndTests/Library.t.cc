@@ -424,3 +424,39 @@ SC_TEST_EXPORT extern "C" bool host_function_pointer_in_struct(
     big_struct_with_pointer s) {
     return std::string_view(s.string, s.string_size) == "Hello World";
 }
+
+TEST_CASE("Nested big struct", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+struct BigInner {
+    var x: double;
+    var y: double;
+    var z: double;
+}
+struct BigOuter {
+    var i: BigInner;
+}
+extern "C" fn host_function_nested_big_struct(o: BigOuter) -> bool;
+
+fn main() -> bool {
+    return host_function_nested_big_struct(BigOuter(BigInner(0.0, 1.5, 100.0)));
+}
+)",
+                                                 { .searchHost = true });
+    CHECK(ret == 1);
+}
+
+namespace {
+
+struct BigInner {
+    double x, y, z;
+};
+struct BigOuter {
+    BigInner i;
+};
+
+} // namespace
+
+SC_TEST_EXPORT extern "C" bool host_function_nested_big_struct(BigOuter o) {
+    return o.i.x == 0.0 && o.i.y == 1.5 && o.i.z == 100.0;
+}
