@@ -70,7 +70,10 @@ public struct Lifetime {
         });
         REQUIRE(X->memberVariables().size() == 2);
         CHECK(X->memberVariables().front()->name() == "baz");
-        CHECK(X->memberVariables().back()->name() == "quux");
+        auto* quuz = X->memberVariables().back();
+        REQUIRE(quuz);
+        CHECK(quuz->name() == "quux");
+        CHECK(quuz->index() == 1);
         auto* baz = dyncast<Variable const*>(find("baz"));
         REQUIRE(baz);
         auto* bazType = dyncast<ArrayType const*>(baz->type());

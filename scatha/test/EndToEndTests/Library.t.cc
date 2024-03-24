@@ -352,6 +352,39 @@ SC_TEST_EXPORT extern "C" big_struct host_function_big_struct_return() {
     return { 1, 2, 3 };
 }
 
+TEST_CASE("Return struct defined in static library",
+          "[end-to-end][lib][foreignlib]") {
+    compileLibrary("libs/testlib", "libs", R"(
+public struct Foo { 
+    var x: int;
+    var y: int;
+})");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+import testlib;
+extern "C" fn return_struct_defined_in_library() -> testlib.Foo;
+fn main() -> int {
+    // This is a regression test. Returning y made the test fail because the
+    // variable index was not correctly deserialized from the library.
+    return return_struct_defined_in_library().y;
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 42);
+}
+
+namespace {
+
+struct library_defined_struct {
+    int64_t x;
+    int64_t y;
+};
+
+} // namespace
+
+SC_TEST_EXPORT extern "C" library_defined_struct
+    return_struct_defined_in_library() {
+    return { .x = 7, .y = 42 };
+}
+
 TEST_CASE("FFI nested struct passing", "[end-to-end][lib][foreignlib]") {
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
