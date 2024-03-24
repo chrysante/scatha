@@ -33,3 +33,8 @@ extern "C" int MyStruct_value(MyStruct* ptr) { return ptr->value; }
 extern "C" void printString(std::string_view text) {
     std::cout << text << " : Size = " << text.size();
 }
+
+extern "C" MyStruct MyStruct_passByValue(MyStruct s) {
+    s.value++;
+    return s;
+}

@@ -245,17 +245,20 @@ TEST_CASE("FFI used by static library",
     compileLibrary("libs/testlib", "libs",
                    R"(
 import "ffi-testlib";
-extern "C" fn foo(n: int, m: int) -> int;
-public fn fooWrapper(n: int, m: int) {
-     return foo(n, m);
+public struct MyStruct { var value: s32; }
+extern "C" fn MyStruct_passByValue(s: MyStruct) -> MyStruct;
+public fn foo(s: &mut MyStruct) {
+    s = MyStruct_passByValue(s);
 })");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 import testlib;
 fn main() -> int {
-    return testlib.fooWrapper(20, 22);
+    var s = testlib.MyStruct();
+    testlib.foo(s);
+    return s.value;
 })");
-    CHECK(ret == 42);
+    CHECK(ret == 1);
 }
 
 #if defined(__GNUC__)
