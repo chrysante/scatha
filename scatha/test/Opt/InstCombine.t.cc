@@ -441,3 +441,76 @@ func i64 @main() {
 })");
 #endif
 }
+
+TEST_CASE("insert/extract with constants", "[opt][inst-combine]") {
+    auto* prog = R"(
+struct @q { i64, i64 }
+struct @p { @q }
+func @q @foo() {
+  %entry:
+    %0 = insert_value  @p undef, i64 0, 0, 0
+    %1 = insert_value  @p %0,    i64 1, 0, 1
+    %2 = extract_value @p %1, 0
+    return @q %2
+})";
+    auto [ctx, mod] = ir::parse(prog).value();
+    CHECK_NOTHROW(opt::instCombine(ctx, mod.front()));
+    test::passTest(&opt::instCombine, prog,
+                   R"(
+struct @q { i64, i64 }
+struct @p { @q }
+func @q @update() {
+  %entry:
+    return @q { i64 0, i64 1 }
+})");
+}
+
+TEST_CASE("insert/extract with mixed constants and runtime values",
+          "[opt][inst-combine]") {
+    auto* prog = R"(
+struct @q { i64, i64 }
+struct @p { @q }
+func @q @foo(i64 %arg) {
+  %entry:
+    %0 = insert_value  @p undef, i64 0, 0, 0
+    %1 = insert_value  @p %0,    i64 %arg, 0, 1
+    %2 = extract_value @p %1, 0
+    return @q %2
+})";
+    auto [ctx, mod] = ir::parse(prog).value();
+    CHECK_NOTHROW(opt::instCombine(ctx, mod.front()));
+    test::passTest(&opt::instCombine, prog,
+                   R"(
+struct @q { i64, i64 }
+struct @p { @q }
+func @q @update(i64 %arg) {
+  %entry:
+    %0 = insert_value @q { i64 0, i64 undef }, i64 %arg, 1
+    return @q %0
+})");
+}
+
+TEST_CASE("insert/extract with all runtime values", "[opt][inst-combine]") {
+    auto* prog = R"(
+struct @q { i64, i64 }
+struct @p { @q }
+func @q @foo(i64 %a, i64 %b) {
+  %entry:
+    %0 = insert_value  @p undef, i64 %a, 0, 0
+    %1 = insert_value  @p %0,    i64 %b, 0, 1
+    %2 = extract_value @p %1, 0
+    return @q %2
+})";
+    auto [ctx, mod] = ir::parse(prog).value();
+    CHECK_NOTHROW(opt::instCombine(ctx, mod.front()));
+    test::passTest(&opt::instCombine, prog,
+                   R"(
+struct @q { i64, i64 }
+struct @p { @q }
+func @q @update(i64 %a, i64 %b) {
+  %entry:
+    %0 = insert_value @q undef, i64 %a, 0
+    %1 = insert_value @q %0,    i64 %b, 1
+    return @q %1
+})");
+}

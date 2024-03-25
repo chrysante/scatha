@@ -23,6 +23,7 @@
 using namespace scatha;
 using namespace ir;
 using namespace opt;
+using namespace ranges::views;
 
 SC_REGISTER_PASS(opt::instCombine, "instcombine", PassCategory::Simplification);
 
@@ -961,6 +962,37 @@ Value* InstCombineCtx::visitImpl(UnaryArithmeticInst* inst) {
     };
 }
 
+static Value* stitchExtractedValue(Context& irCtx, ExtractValue* extractInst,
+                                   AccessTree const* accessTree) {
+    auto* type = cast<RecordType const*>(accessTree->type());
+    Value* base = [&]() -> Constant* {
+        if (!accessTree->hasConstantChildren()) {
+            return irCtx.undef(type);
+        }
+        auto elems = accessTree->children() |
+                     transform([&](AccessTree const* node) -> Constant* {
+            if (auto* constant = dyncast<Constant*>(node->value())) {
+                return constant;
+            }
+            return irCtx.undef(node->type());
+        }) | ToSmallVector<>;
+        return irCtx.recordConstant(elems, type);
+    }();
+    for (auto* node: accessTree->children()) {
+        auto* value = node->value();
+        if (isa<Constant>(value)) {
+            continue;
+        }
+        size_t index = node->index().value();
+        auto* insert =
+            new InsertValue(base, value, std::array{ index },
+                            utl::strcat(extractInst->name(), ".", index));
+        extractInst->parent()->insert(extractInst, insert);
+        base = insert;
+    }
+    return base;
+}
+
 Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     /// Extracting from `undef` results in `undef`
     if (isa<UndefValue>(extractInst->baseValue())) {
@@ -1021,19 +1053,21 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         extractInst->parent()->insert(extractInst, newExtr);
         return newExtr;
     }
-    if (!accessTree->hasChildren()) {
-        if (auto* base = accessTree->value()) {
-            return base;
-        }
+    if (accessTree->hasChildren()) {
+        /// We have to stitch the value together from the child nodes
+        return stitchExtractedValue(irCtx, extractInst, accessTree);
+    }
+    else if (auto* base = accessTree->value()) {
+        /// We can directly access the value
+        return base;
+    }
+    else {
         SC_ASSERT(insertBase, "");
         auto* newExtr = new ExtractValue(insertBase,
                                          extractInst->memberIndices(),
                                          std::string(extractInst->name()));
         extractInst->parent()->insert(extractInst, newExtr);
         return newExtr;
-    }
-    else {
-        SC_UNIMPLEMENTED();
     }
     return nullptr;
 }

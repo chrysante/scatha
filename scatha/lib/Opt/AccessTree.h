@@ -55,6 +55,9 @@ public:
     /// If any children have been allocated.
     bool hasChildren() const { return !isLeaf(); }
 
+    /// \Returns `true` if any child nodes have constant values
+    bool hasConstantChildren() const;
+
     /// Whether this node is a leaf
     bool isLeaf() const { return _children.empty(); }
 
