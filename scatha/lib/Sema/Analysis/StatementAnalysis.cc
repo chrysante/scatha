@@ -357,6 +357,11 @@ bool StmtContext::validateForeignFunction(ast::FunctionDefinition& def) {
         success = false;
     }
     for (auto* param: def.parameters()) {
+        SC_ASSERT(param, "Must be set by instantiation");
+        if (!param->isDecorated() || !param->type()) {
+            success = false;
+            continue;
+        }
         if (!isValidTypeForFFIArg(param->type())) {
             ctx.issue<BadVarDecl>(param, BadVarDecl::InvalidTypeForFFI);
             success = false;

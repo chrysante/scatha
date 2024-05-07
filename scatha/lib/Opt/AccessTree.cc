@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include <range/v3/algorithm.hpp>
+
 #include "Common/Ranges.h"
 #include "Common/TreeFormatter.h"
 #include "IR/CFG/Value.h"
@@ -9,6 +11,12 @@
 
 using namespace scatha;
 using namespace opt;
+
+bool AccessTree::hasConstantChildren() const {
+    return ranges::any_of(children(), [](AccessTree const* child) {
+        return isa<ir::Constant>(child->value());
+    });
+}
 
 AccessTree* AccessTree::sibling(ssize_t offset) {
     if (!parent()) {

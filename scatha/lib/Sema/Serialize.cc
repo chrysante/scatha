@@ -780,6 +780,7 @@ struct Deserializer: TypeMapBase {
         if (auto index = tryGet<size_t>(obj, Field::Index)) {
             auto* type = dyncast<StructType*>(&sym.currentScope());
             SC_ASSERT(type, "");
+            var->setIndex(*index);
             type->setMemberVariable(*index, var);
         }
     }

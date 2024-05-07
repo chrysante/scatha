@@ -586,6 +586,20 @@ static Entity* toSingleEntity(ast::Identifier const& idExpr,
                                             std::move(functions));
 }
 
+/// \Returns `true` if \p var is a struct member and not declared `static`
+static bool isNonStaticDataMember(sema::VarBase const& var) {
+    // FIXME: This only tests if var is a struct data member, not if it is
+    // non-static becase we don't have static in the language yet
+    return isa<Type>(var.parent());
+}
+
+/// \Returns `true` if \p expr if the right hand side operand of a member access
+/// expression.
+static bool isMemberAccessRHS(ast::Expression const& expr) {
+    auto* parent = dyncast<ast::MemberAccess const*>(expr.parent());
+    return parent && parent->member() == &expr;
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
     auto entities = [&] {
         if (auto* scope = findMALookupScope(idExpr)) {
@@ -603,9 +617,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
     // clang-format off
     return SC_MATCH (*entity) {
         [&](VarBase& var) -> ast::Expression* {
-            if (isa<Type>(var.parent()) &&
-                !isa<ast::MemberAccess>(idExpr.parent()))
-            {
+            if (isNonStaticDataMember(var) && !isMemberAccessRHS(idExpr)) {
                 ctx.badExpr(&idExpr, AccessedMemberWithoutObject);
                 return nullptr;
             }

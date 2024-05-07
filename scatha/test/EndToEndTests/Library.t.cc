@@ -245,17 +245,20 @@ TEST_CASE("FFI used by static library",
     compileLibrary("libs/testlib", "libs",
                    R"(
 import "ffi-testlib";
-extern "C" fn foo(n: int, m: int) -> int;
-public fn fooWrapper(n: int, m: int) {
-     return foo(n, m);
+public struct MyStruct { var value: s32; }
+extern "C" fn MyStruct_passByValue(s: MyStruct) -> MyStruct;
+public fn foo(s: &mut MyStruct) {
+    s = MyStruct_passByValue(s);
 })");
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
 import testlib;
 fn main() -> int {
-    return testlib.fooWrapper(20, 22);
+    var s = testlib.MyStruct();
+    testlib.foo(s);
+    return s.value;
 })");
-    CHECK(ret == 42);
+    CHECK(ret == 1);
 }
 
 #if defined(__GNUC__)
@@ -349,6 +352,39 @@ SC_TEST_EXPORT extern "C" big_struct host_function_big_struct_return() {
     return { 1, 2, 3 };
 }
 
+TEST_CASE("Return struct defined in static library",
+          "[end-to-end][lib][foreignlib]") {
+    compileLibrary("libs/testlib", "libs", R"(
+public struct Foo { 
+    var x: int;
+    var y: int;
+})");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+import testlib;
+extern "C" fn return_struct_defined_in_library() -> testlib.Foo;
+fn main() -> int {
+    // This is a regression test. Returning y made the test fail because the
+    // variable index was not correctly deserialized from the library.
+    return return_struct_defined_in_library().y;
+})",
+                                                 { .searchHost = true });
+    CHECK(ret == 42);
+}
+
+namespace {
+
+struct library_defined_struct {
+    int64_t x;
+    int64_t y;
+};
+
+} // namespace
+
+SC_TEST_EXPORT extern "C" library_defined_struct
+    return_struct_defined_in_library() {
+    return { .x = 7, .y = 42 };
+}
+
 TEST_CASE("FFI nested struct passing", "[end-to-end][lib][foreignlib]") {
     uint64_t ret = compileAndRunDependentProgram("libs",
                                                  R"(
@@ -423,4 +459,40 @@ struct big_struct_with_pointer {
 SC_TEST_EXPORT extern "C" bool host_function_pointer_in_struct(
     big_struct_with_pointer s) {
     return std::string_view(s.string, s.string_size) == "Hello World";
+}
+
+TEST_CASE("Nested big struct", "[end-to-end][lib][foreignlib]") {
+    uint64_t ret = compileAndRunDependentProgram("libs",
+                                                 R"(
+struct BigInner {
+    var x: double;
+    var y: double;
+    var z: double;
+}
+struct BigOuter {
+    var i: BigInner;
+}
+extern "C" fn host_function_nested_big_struct(o: BigOuter) -> bool;
+
+fn main() -> bool {
+    return host_function_nested_big_struct(BigOuter(BigInner(0.0, 1.5, 100.0)));
+}
+)",
+                                                 { .searchHost = true });
+    CHECK(ret == 1);
+}
+
+namespace {
+
+struct BigInner {
+    double x, y, z;
+};
+struct BigOuter {
+    BigInner i;
+};
+
+} // namespace
+
+SC_TEST_EXPORT extern "C" bool host_function_nested_big_struct(BigOuter o) {
+    return o.i.x == 0.0 && o.i.y == 1.5 && o.i.z == 100.0;
 }

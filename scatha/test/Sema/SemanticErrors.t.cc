@@ -11,7 +11,7 @@ using namespace sema;
 using enum BadExpr::Reason;
 
 TEST_CASE("Use of undeclared identifier", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /* 2 */ fn f() -> int { return x; }
 /* 3 */ fn f(param: UnknownID) {}
 /* 4 */ fn g() { let v: UnknownType; }
@@ -29,8 +29,27 @@ TEST_CASE("Use of undeclared identifier", "[sema][issue]") {
     CHECK(issues.findOnLine<BadExpr>(8, UndeclaredID));
 }
 
+TEST_CASE("Undeclared ID in FFI", "[sema][issue]") {
+    auto issues = test::getSemaIssues(R"(
+extern "C" fn f(x: X) -> void;
+extern "C" fn g() -> X;
+)");
+    CHECK(issues.findOnLine<BadExpr>(2, UndeclaredID));
+    CHECK(issues.findOnLine<BadExpr>(3, UndeclaredID));
+}
+
+TEST_CASE("FFI redefinition", "[sema][issues]") {
+#if 0 // TODO: Implement this behaviour
+    auto issues = test::getSemaIssues(R"(
+extern "C" fn f() -> void;
+extern "C" fn f(x: int) -> void;
+)");
+    CHECK(issues.findOnLine<Redefinition>(3));
+#endif
+}
+
 TEST_CASE("Bad symbol reference", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main() -> int {
 	let i = int;
 	let j: 0
@@ -49,7 +68,7 @@ fn f(i: 0) {}
 }
 
 TEST_CASE("Invalid redefinition of builtin types", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X {
 	fn int() {}
 	struct float {}
@@ -63,7 +82,7 @@ struct X {
 }
 
 TEST_CASE("Bad type conversion", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /* 2 */ fn f() { let x: float = 1; }
 /* 3 */ fn f(x: int) { let y: float = 1.; }
 /* 4 */ fn f(x: float) -> int { return "a string"; }
@@ -97,7 +116,7 @@ public struct TrivSmall {
 }
 
 TEST_CASE("Bad operands for unary expression", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main(i: int) -> bool {
 /* 3 */	!i;
 /* 4 */	~i;
@@ -111,7 +130,7 @@ fn main(i: int) -> bool {
 }
 
 TEST_CASE("Bad operands for binary expression", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main(i: int, f: double) -> bool {
 /* 3 */ i == 1.0;
 /* 4 */ i + '1';
@@ -127,7 +146,7 @@ fn main(i: int, f: double) -> bool {
 }
 
 TEST_CASE("Bad function call expression", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn f() { X.callee(); }
 fn g() { X.callee(0); }
 struct X {
@@ -140,7 +159,7 @@ struct X {
 }
 
 TEST_CASE("Bad member access expression", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main() {
 /* 3 */ X.data;
 /* 4 */
@@ -154,7 +173,7 @@ struct X { let data: float; }
 }
 
 TEST_CASE("Invalid function redefinition", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn f() {}
 fn f() -> int {}
 fn g() {}
@@ -169,7 +188,7 @@ fn g() {}
 }
 
 TEST_CASE("Invalid variable redefinition", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn f(x: int) {
 	{ let x: float; }
 	let x: float;
@@ -184,7 +203,7 @@ fn f(x: int, x: int) {}
 }
 
 TEST_CASE("Invalid redefinition category", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct f{}
 fn f(){}
 fn g(){}
@@ -199,7 +218,7 @@ struct g{}
 }
 
 TEST_CASE("Invalid variable declaration", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /* 2 */ fn f() {
 /* 3 */    let v;
 /* 4 */    let x = 0;
@@ -265,7 +284,7 @@ TEST_CASE("Invalid statement at struct scope", "[sema][issue]") {
 }
 
 TEST_CASE("Cyclic dependency in struct definition", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X { var y: Y; }
 struct Y { var x: X; }
 )");
@@ -273,7 +292,7 @@ struct Y { var x: X; }
 }
 
 TEST_CASE("No cyclic dependency issues with pointers", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X { var y: *Y; }
 struct Y { var x: *X; }
 )");
@@ -282,7 +301,7 @@ struct Y { var x: *X; }
 
 TEST_CASE("Cyclic dependency in struct definition (larger cycle)",
           "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X { var y: Y; }
 struct Y { var z: Z; }
 struct Z { var w: W; }
@@ -293,7 +312,7 @@ struct W { var x: X; }
 
 TEST_CASE("Cyclic dependency in struct definition with arrays",
           "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X { var y: [Y, 2]; }
 struct Y { var x: [X, 1]; }
 )");
@@ -301,7 +320,7 @@ struct Y { var x: [X, 1]; }
 }
 
 TEST_CASE("Non void function must return a value", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn f() -> int { return; }
 )");
     auto issue = issues.findOnLine<BadReturnStmt>(2);
@@ -310,7 +329,7 @@ fn f() -> int { return; }
 }
 
 TEST_CASE("Void function must not return a value", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn f() -> void { return 0; }
 )");
     auto issue = issues.findOnLine<BadReturnStmt>(2);
@@ -319,7 +338,7 @@ fn f() -> void { return 0; }
 }
 
 TEST_CASE("Expect reference initializer", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main() { var r: &mut int = 1; }
 )");
     auto issue = issues.findOnLine<BadValueCatConv>(2);
@@ -327,7 +346,7 @@ fn main() { var r: &mut int = 1; }
 }
 
 TEST_CASE("Invalid lists", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main() {
 /* 3 */ let a = [u32(1), 0.0];
 /* 4 */ let b = [u32(1), int];
@@ -345,7 +364,7 @@ fn main() {
 }
 
 TEST_CASE("Invalid use of dynamic array", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /*  2 */ fn main() {
 /*  3 */     var arr1: *unique mut [int] = unique [1, 2, 3];
 /*  4 */     var arr2: *unique mut [int] = unique [1, 2, 3];
@@ -369,7 +388,7 @@ TEST_CASE("Invalid use of dynamic array", "[sema][issue]") {
 }
 
 TEST_CASE("Invalid jump", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /*  2 */ fn main() {
 /*  3 */     break;
 /*  4 */     if 1 == 0 {
@@ -396,7 +415,7 @@ TEST_CASE("Invalid jump", "[sema][issue]") {
 }
 
 TEST_CASE("Invalid this parameter", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn f(this) {}
 fn f(n: int, this) {}
 struct X {
@@ -409,7 +428,7 @@ struct X {
 }
 
 TEST_CASE("Invalid special member functions", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /*  2 */  fn new() {}
 /*  3 */  struct X {
 /*  4 */      fn new() {}
@@ -436,7 +455,7 @@ TEST_CASE("Invalid special member functions", "[sema][issue]") {
 }
 
 TEST_CASE("Bad literals", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /*  2 */ fn f() { this; }
 /*  3 */ struct X { fn f() { this; } }
 )");
@@ -445,7 +464,7 @@ TEST_CASE("Bad literals", "[sema][issue]") {
 }
 
 TEST_CASE("Explicit calls to SMFs", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main() {
 /*  3 */ var x = X();
 /*  4 */ x.new();
@@ -462,7 +481,7 @@ struct X {
 }
 
 TEST_CASE("Illegal value passing", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 /*  2 */ fn foo(n: void) {}
 /*  3 */ fn bar(n: [int]) { bar(); }
 /*  4 */ fn baz() -> [int] {}
@@ -483,7 +502,7 @@ TEST_CASE("Illegal value passing", "[sema][issue]") {
 }
 
 TEST_CASE("OR Error", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X {
     fn new(&mut this, n: int) {}
 }
@@ -494,7 +513,7 @@ fn main() {
 }
 
 TEST_CASE("Compare pointers of different types", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 fn main() {
     var a = 0;
     var b = 0.0;
@@ -504,7 +523,7 @@ fn main() {
 }
 
 TEST_CASE("Main must return trivial", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
+    auto issues = test::getSemaIssues(R"(
 struct X {
     fn new(&mut this) {}
     fn new(&mut this, rhs: &X) {}
@@ -518,12 +537,22 @@ fn main() {
 }
 
 TEST_CASE("Access data member without object", "[sema][issue]") {
-    auto const issues = test::getSemaIssues(R"(
-struct S {
-    fn f() { i = 0; }
-    var i: int;
-})");
-    CHECK(issues.findOnLine<BadExpr>(3, AccessedMemberWithoutObject));
+    auto issues = test::getSemaIssues(R"(
+/*  2 */ struct S {
+/*  3 */     fn f() {
+/*  4 */         i;
+/*  5 */         // This case used to fly under the radar because we only tested
+/*  6 */         // if the parent expression was a member access but not if the
+/*  7 */         // ID was the member expression
+/*  8 */         t.j;
+/*  9 */     }
+/* 10 */     var i: int;
+/* 11 */     var t: T;
+/* 12 */ }
+/* 13 */ struct T { var j: int; }
+)");
+    CHECK(issues.findOnLine<BadExpr>(4, AccessedMemberWithoutObject));
+    CHECK(issues.findOnLine<BadExpr>(8, AccessedMemberWithoutObject));
 }
 
 TEST_CASE("Redefine entity in different module", "[sema]") {

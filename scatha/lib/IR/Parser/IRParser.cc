@@ -1256,19 +1256,6 @@ void IRParser::parseMetadataFor(Value& value) {
     }
 }
 
-static bool isBitInt(Type const* type, size_t bitwidth) {
-    auto* intType = dyncast<IntegralType const*>(type);
-    if (!intType) {
-        return false;
-    }
-    return intType->bitwidth() == bitwidth;
-}
-
-static bool isArrayPointer(StructType const& type) {
-    return type.numElements() == 2 && isa<PointerType>(type.elementAt(0)) &&
-           isBitInt(type.elementAt(1), 64);
-}
-
 bool IRParser::validateFFIType(Token const& token, Type const* type) {
     // clang-format off
     bool valid = SC_MATCH (*type){
@@ -1281,10 +1268,7 @@ bool IRParser::validateFFIType(Token const& token, Type const* type) {
             return type.bitwidth() == 32 || type.bitwidth() == 64;
         },
         [](PointerType const&) { return true; },
-        [](StructType const& type) {
-            /// Only array pointers are supported for now
-            return isArrayPointer(type);
-        },
+        [](StructType const&) { return true; },
         [](Type const&) {
             return false;
         }

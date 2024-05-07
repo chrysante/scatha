@@ -255,9 +255,17 @@ static size_t alignTo(size_t offset, size_t align) {
     return offset + align - offset % align;
 }
 
+namespace {
+
+enum class FIIStructVisitLevel { TopLevel, Nested };
+
+} // namespace
+
 /// Recursively visits structures and dereferences all pointer members
+template <FIIStructVisitLevel Level>
 static void* dereferenceFFIPtrArg(u8* argPtr, ffi_type const* type,
                                   VirtualMemory& memory) {
+    using enum FIIStructVisitLevel;
     auto deref = [&memory](u8* arg) {
         auto* arg64 = reinterpret_cast<u64*>(arg);
         *arg64 = std::bit_cast<u64>(
@@ -268,7 +276,7 @@ static void* dereferenceFFIPtrArg(u8* argPtr, ffi_type const* type,
         return argPtr;
     }
     if (type->type == FFI_TYPE_STRUCT) {
-        if (type->size > 16) {
+        if (Level == TopLevel && type->size > 16) {
             deref(argPtr);
             argPtr = *(u8**)argPtr;
         }
@@ -276,7 +284,7 @@ static void* dereferenceFFIPtrArg(u8* argPtr, ffi_type const* type,
         auto** elemPtr = type->elements;
         while (*elemPtr) {
             auto* elem = *elemPtr;
-            dereferenceFFIPtrArg(argPtr + offset, elem, memory);
+            dereferenceFFIPtrArg<Nested>(argPtr + offset, elem, memory);
             offset = alignTo(offset, elem->alignment) + elem->size;
             ++elemPtr;
         }
@@ -293,6 +301,7 @@ static size_t argSizeInWords(ffi_type const* type) {
 }
 
 static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
+    using enum FIIStructVisitLevel;
     u64* argPtr = regPtr;
     u64* retPtr = regPtr;
     if (F.returnType->type == FFI_TYPE_STRUCT && F.returnType->size > 16) {
@@ -302,8 +311,9 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
     }
     for (size_t i = 0; i < F.arguments.size(); ++i) {
         auto* argType = F.argumentTypes[i];
-        F.arguments[i] = dereferenceFFIPtrArg(reinterpret_cast<u8*>(argPtr),
-                                              argType, memory);
+        F.arguments[i] =
+            dereferenceFFIPtrArg<TopLevel>(reinterpret_cast<u8*>(argPtr),
+                                           argType, memory);
         argPtr += argSizeInWords(argType);
     }
     ffi_call(&F.callInterface, F.funcPtr, retPtr, F.arguments.data());
