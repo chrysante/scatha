@@ -132,7 +132,7 @@ std::optional<Target> CompilerInvocation::run() {
         IssueHandler issueHandler;
         auto ast = parser::parse(sources, issueHandler);
         if (!issueHandler.empty()) {
-            issueHandler.print(sources);
+            issueHandler.print(sources, err());
         }
         if (!ast) {
             handleError();
