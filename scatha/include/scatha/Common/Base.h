@@ -3,7 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <exception>
+#include <stdexcept>
 #include <type_traits>
 
 #ifndef SC_DEBUG
@@ -176,6 +176,12 @@ static_assert(sizeof(f64) == 8);
 using std::size_t;
 using ssize_t = std::ptrdiff_t;
 
+/// Exception class to be thrown if the installed assertion handler is `Throw`
+class SCATHA_API AssertionFailure: public std::runtime_error {
+public:
+    using runtime_error::runtime_error;
+};
+
 } // namespace scatha
 
 namespace scatha::internal {
@@ -193,11 +199,6 @@ void SCATHA_API assertionFailure(char const* file, int line,
 
 /// Calls `std::abort()`
 [[noreturn]] void SCATHA_API doAbort();
-
-/// Exception class to be thrown if the installed assertion handler is `Throw`
-struct SCATHA_API AssertionFailure: std::exception {
-    char const* what() const noexcept override { return "Failed assertion"; }
-};
 
 /// Different ways to handle assertion failures
 enum class AssertFailureHandler { Break, Abort, Throw };
@@ -223,7 +224,8 @@ inline void handleAssertFailure() {
     case Abort:
         doAbort();
     case Throw:
-        throw AssertionFailure();
+        /// Throw should be handled earlier
+        doAbort();
     }
 }
 

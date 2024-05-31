@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 #include <string_view>
 
 #include <termfmt/termfmt.h>
@@ -23,22 +24,40 @@ static constexpr utl::streammanip formatLocation([](std::ostream& str,
     str << "    In file:     " << tfmt::format(tfmt::Italic, "\"", file, "\"");
 });
 
+static void reportAssertion(auto fn) {
+    auto handler = internal::getAssertFailureHandler();
+    if (handler == internal::AssertFailureHandler::Throw) {
+        std::stringstream sstr;
+        fn(sstr);
+        throw AssertionFailure(std::move(sstr).str());
+    }
+    else {
+        fn(std::cerr);
+    }
+}
+
 void internal::unimplemented(char const* file, int line, char const* function) {
-    std::cerr << Fatal("Hit unimplemented code path.") << "\n"
-              << formatLocation(file, line, function) << "\n";
+    reportAssertion([&](std::ostream& str) {
+        str << Fatal("Hit unimplemented code path.") << "\n"
+            << formatLocation(file, line, function) << "\n";
+    });
 }
 
 void internal::unreachable(char const* file, int line, char const* function) {
-    std::cerr << Fatal("Hit unreachable code path.") << "\n"
-              << formatLocation(file, line, function) << "\n";
+    reportAssertion([&](std::ostream& str) {
+        str << Fatal("Hit unreachable code path.") << "\n"
+            << formatLocation(file, line, function) << "\n";
+    });
 }
 
 void internal::assertionFailure(char const* file, int line,
                                 char const* function, char const* expr,
                                 char const* msg) {
-    std::cerr << Fatal("Assertion failed:") << " " << expr << "\n"
-              << "    With message: " << tfmt::format(tfmt::Italic, msg) << "\n"
-              << formatLocation(file, line, function) << "\n";
+    reportAssertion([&](std::ostream& str) {
+        str << Fatal("Assertion failed:") << " " << expr << "\n"
+            << "    With message: " << tfmt::format(tfmt::Italic, msg) << "\n"
+            << formatLocation(file, line, function) << "\n";
+    });
 }
 
 void internal::relfail() { std::abort(); }
