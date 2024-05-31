@@ -68,12 +68,6 @@ public:
     /// Set attribute `attr` to `false`.
     void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
-    /// \Returns The visibility of this callable.
-    Visibility visibility() const { return vis; }
-
-    /// Sets the visibility of this function to \p vis
-    void setVisibility(Visibility vis) { this->vis = vis; }
-
 protected:
     explicit Callable(NodeType nodeType, Context& ctx, Type const* returnType,
                       List<Parameter> parameters, std::string name,
@@ -83,7 +77,6 @@ private:
     List<Parameter> params;
     Type const* _returnType;
     FunctionAttribute attrs;
-    Visibility vis;
 };
 
 /// Represents a function. A function is a prototype with a list of basic

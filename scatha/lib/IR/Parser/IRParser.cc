@@ -129,14 +129,16 @@ struct IRParser {
         }
     }
 
-    void checkSelfRef(auto* user, OptValue optVal) {
+    void checkSelfRef(Value const* user, OptValue optVal) {
         if (optVal.value()) {
             return;
         }
         auto token = optVal.token();
-        if (token.kind() != TokenKind::LocalIdentifier &&
-            token.kind() != TokenKind::GlobalIdentifier)
-        {
+        using enum TokenKind;
+        if (isa<ir::Global>(user) && token.kind() == LocalIdentifier) {
+            return;
+        }
+        if (isa<Instruction>(user) && token.kind() == GlobalIdentifier) {
             return;
         }
         if (user->name() != token.id()) {

@@ -8,9 +8,9 @@ using namespace scatha;
 using namespace ir;
 
 GlobalVariable::GlobalVariable(Context& ctx, Mutability mut, Constant* init,
-                               std::string name):
+                               std::string name, Visibility vis):
     Global(NodeType::GlobalVariable, ctx.ptrType(), std::move(name),
-           ValueArray{ init }),
+           ValueArray{ init }, vis),
     mut(mut) {
     setInitializer(init);
 }
