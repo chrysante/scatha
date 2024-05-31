@@ -419,12 +419,10 @@ struct GVNContext {
     void processLandingPad(size_t rank, BasicBlock*, LocalComputationTable&);
     void processOther(size_t rank, BasicBlock*, LocalComputationTable&);
     void moveIn(size_t rank, BasicBlock*, LocalComputationTable&);
-    void moveInImpl(
-        size_t rank, BasicBlock*, LocalComputationTable&,
-        std::span<BasicBlock* const> succs,
-        utl::function_view<bool(Instruction const*)> condition = [](auto) {
-        return true;
-    });
+    void moveInImpl(size_t rank, BasicBlock*, LocalComputationTable&,
+                    std::span<BasicBlock* const> succs,
+                    utl::function_view<bool(Instruction const*)> condition =
+                        [](auto) { return true; });
     void moveOut(size_t rank, BasicBlock*, LocalComputationTable&);
 
     Instruction* insertPointForRank(BasicBlock* BB, size_t rank) {

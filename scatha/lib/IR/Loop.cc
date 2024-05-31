@@ -327,15 +327,13 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                  &result](auto& impl, Node* root,
                           utl::hashset<BasicBlock*> const& bbs) -> void {
         utl::small_vector<utl::hashset<BasicBlock*>, 4> sccs;
-        utl::compute_sccs(
-            bbs.begin(), bbs.end(),
-            [&](BasicBlock* bb) {
+        utl::compute_sccs(bbs.begin(), bbs.end(), [&](BasicBlock* bb) {
             return bb->successors() | ranges::views::filter([&](auto* succ) {
                 return bbs.contains(succ);
             });
-        },
-            [&] { sccs.emplace_back(); },
-            [&](BasicBlock* bb) { sccs.back().insert(bb); });
+        }, [&] { sccs.emplace_back(); }, [&](BasicBlock* bb) {
+            sccs.back().insert(bb);
+        });
         for (auto& scc: sccs) {
             auto* header = *scc.begin();
             while (true) {

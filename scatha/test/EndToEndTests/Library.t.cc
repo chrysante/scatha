@@ -107,6 +107,22 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
+TEST_CASE("Use global variables from library", "[end-to-end][lib][nativelib]") {
+    return;
+    compileLibrary("libs/testlib", "libs", R"(
+public let X: int = 7;
+public var Y: int = 0;
+)");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+import testlib;
+use testlib.X;
+fn main() -> int {
+    testlib.Y += 42;
+    return X + testlib.Y;
+})");
+    CHECK(ret == 49);
+}
+
 TEST_CASE("Use overload set by name", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", R"(
 public fn foo(n: int) { return 1; }

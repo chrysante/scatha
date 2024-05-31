@@ -211,8 +211,7 @@ __attribute__((always_inline, nodebug))
 #elif defined(_MSC_VER)
 __forceinline
 #endif
-inline void
-    handleAssertFailure() {
+inline void handleAssertFailure() {
     using enum AssertFailureHandler;
     switch (getAssertFailureHandler()) {
     case Break:

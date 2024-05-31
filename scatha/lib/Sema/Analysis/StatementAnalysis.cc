@@ -605,12 +605,11 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         /// Cannot be a reference type because reference type variables require
         /// init expressions
         auto* objType = cast<ObjectType const*>(deducedType);
-        validatedInitExpr =
-            constructInplace(
-                Implicit, &varDecl,
-                [&](auto expr) { return varDecl.setInitExpr(std::move(expr)); },
-                objType, {}, varDecl.cleanupStack(), ctx)
-                .valueOr(nullptr);
+        validatedInitExpr = constructInplace(Implicit, &varDecl,
+                                             [&](auto expr) {
+            return varDecl.setInitExpr(std::move(expr));
+        }, objType, {}, varDecl.cleanupStack(), ctx)
+                                .valueOr(nullptr);
     }
     /// If our variable is of object type, we pop the last destructor _in the
     /// stack of this declaration_ because it corresponds to the object whose

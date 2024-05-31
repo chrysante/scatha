@@ -163,10 +163,9 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
 }
 
 DominanceInfo::DomMap DominanceInfo::computeDominatorSets(Function& function) {
-    return computeDomSetsImpl(
-        function, std::array{ &function.entry() },
-        [](BasicBlock* BB) { return BB->predecessors(); },
-        [](BasicBlock* BB) { return BB->successors(); });
+    return computeDomSetsImpl(function, std::array{ &function.entry() },
+                              [](BasicBlock* BB) { return BB->predecessors(); },
+                              [](BasicBlock* BB) { return BB->successors(); });
 }
 
 DominanceInfo::DomMap DominanceInfo::computePostDomSets(Function& function) {
@@ -175,9 +174,9 @@ DominanceInfo::DomMap DominanceInfo::computePostDomSets(Function& function) {
     if (exits.empty()) {
         return {};
     }
-    return computeDomSetsImpl(
-        function, exits, [](BasicBlock* BB) { return BB->successors(); },
-        [](BasicBlock* BB) { return BB->predecessors(); });
+    return computeDomSetsImpl(function, exits, [](BasicBlock* BB) {
+        return BB->successors();
+    }, [](BasicBlock* BB) { return BB->predecessors(); });
 }
 
 DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,

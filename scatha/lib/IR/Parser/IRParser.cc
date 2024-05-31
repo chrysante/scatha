@@ -837,12 +837,11 @@ UniquePtr<Instruction> IRParser::parseInstruction() {
                                                      BasicBlock* pred) {
                 phi->setPredecessor(index, pred);
             });
-            addValueLink(
-                result.get(), type, value,
-                [index = index](Phi* phi, Value* value) {
+            addValueLink(result.get(), type, value,
+                         [index = index](Phi* phi, Value* value) {
                 phi->setArgument(index, value);
             },
-                /* allowSelfRef = */ true);
+                         /* allowSelfRef = */ true);
         }
         return result;
     }
