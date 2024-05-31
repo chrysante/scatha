@@ -18,10 +18,10 @@ namespace scatha::test {
 
 struct IssueHelper {
     template <typename T>
-    T const* findOnLine(
-        ssize_t line, utl::function_view<bool(T const*)> filter = [](auto*) {
-        return true;
-    }) const {
+    T const* findOnLine(ssize_t line,
+                        utl::function_view<bool(T const*)> filter = [](auto*) {
+                            return true;
+                        }) const {
         for (auto* issueBase: iss) {
             auto* issue = dynamic_cast<T const*>(issueBase);
             if (!issue || !filter(issue)) {

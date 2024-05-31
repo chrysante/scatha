@@ -512,17 +512,15 @@ struct PrintContext {
 } // namespace
 
 void mir::print(Callable const& F, std::ostream& str) {
-    // clang-format on
     SC_MATCH (F) {
         [&](Function const& F) {
             PrintContext ctx(&F, str);
             ctx.print();
-        },
-            [&](ForeignFunction const& F) {
+        }, [&](ForeignFunction const& F) {
             printFuncHeader(&F, str);
             str << "\n\n";
-        },
-    }; // clang-format off
+        }
+    };
 }
 
 void mir::print(mir::Instruction const& inst) { mir::print(inst, std::cout); }

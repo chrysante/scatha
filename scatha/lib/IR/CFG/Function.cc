@@ -34,11 +34,10 @@ List<Parameter> ir::makeParameters(std::span<Type const* const> types) {
 Callable::Callable(NodeType nodeType, Context& ctx, Type const* returnType,
                    List<Parameter> parameters, std::string name,
                    FunctionAttribute attr, Visibility vis):
-    Global(nodeType, ctx.ptrType(), std::move(name)),
+    Global(nodeType, ctx.ptrType(), std::move(name), /* operands: */ {}, vis),
     params(std::move(parameters)),
     _returnType(returnType),
-    attrs(attr),
-    vis(vis) {
+    attrs(attr) {
     for (auto [index, param]: params | ranges::views::enumerate) {
         param.setIndex(index);
         param.set_parent(this);

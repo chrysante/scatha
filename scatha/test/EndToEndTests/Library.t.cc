@@ -107,6 +107,29 @@ fn main() -> int {
     CHECK(ret == 42);
 }
 
+TEST_CASE("Use global variables from library", "[end-to-end][lib][nativelib]") {
+    compileLibrary("libs/testlib", "libs", R"(
+public let X: int = 7;
+public var Y: int = 0;
+public struct ComplexType {
+    internal fn new(&mut this, value: int) { this.value = value; }
+    fn get(&this) -> int { return this.value; }
+    private var value: int;
+}
+fn computeValue() -> ComplexType { return ComplexType(7 * 42); }
+public var ComplexValue: ComplexType = computeValue();
+)");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+import testlib;
+use testlib.X;
+use testlib.ComplexValue;
+fn main() -> int {
+    testlib.Y += 42;
+    return X + testlib.Y + ComplexValue.get();
+})");
+    CHECK(ret == 7 + 42 + 7 * 42);
+}
+
 TEST_CASE("Use overload set by name", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", R"(
 public fn foo(n: int) { return 1; }

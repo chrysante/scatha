@@ -400,12 +400,12 @@ ir::FunctionAttribute irgen::mapFuncAttrs(sema::FunctionAttribute attr) {
     }
 }
 
-ir::Visibility irgen::mapVisibility(sema::Function const* function) {
-    /// Only generate public functions can be `external`
-    if (!function->isPublic()) {
+ir::Visibility irgen::mapVisibility(sema::Entity const* entity) {
+    /// Only public entities can be `external`
+    if (!entity->isPublic()) {
         return ir::Visibility::Internal;
     }
-    auto* parent = function->parent();
+    auto* parent = entity->parent();
     /// Derived functions for array types or unique ptr types are not `external`
     if (isa<sema::Type>(parent) && !isa<sema::StructType>(parent)) {
         return ir::Visibility::Internal;

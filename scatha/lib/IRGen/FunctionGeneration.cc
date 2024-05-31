@@ -66,6 +66,29 @@ static std::string makeLifetimeComment(sema::Function const* ctor,
                                cast<sema::Type const*>(ctor->parent()));
 }
 
+/// \Returns the sema constant \p value as an IR constant
+static ir::Constant* toIR(ir::Context& ctx, sema::Value const& value) {
+    // clang-format off
+    return SC_MATCH_R(ir::Constant*, value) {
+        [&](sema::IntValue const& value) {
+            return ctx.intConstant(value.value());
+        },
+        [&](sema::FloatValue const& value) {
+            return ctx.floatConstant(value.value());
+        }
+    }; // clang-format on
+}
+
+/// \Returns the sema mutability \p mut as `ir::GlobalVariable::Mutability`
+static ir::GlobalVariable::Mutability toIR(sema::Mutability mut) {
+    switch (mut) {
+    case sema::Mutability::Mutable:
+        return ir::GlobalVariable::Mutable;
+    case sema::Mutability::Const:
+        return ir::GlobalVariable::Const;
+    }
+}
+
 namespace {
 
 struct LoopDesc {
@@ -169,8 +192,6 @@ struct FuncGenContext: FuncGenContextBase {
 
     /// # Global variables
 
-    ir::Constant* getConstantInitializer(ast::Expression const& initExpr);
-
     GlobalVarMetadata makeGlobalVariable(sema::Variable const& semaVar);
 
     void generateGlobalVarGetter(GlobalVarMetadata md,
@@ -223,6 +244,68 @@ void irgen::generateSynthFunction(Config config, FuncGenParameters params) {
     FuncGenContext funcCtx(config, params);
     funcCtx.generateSynthFunction();
     ir::setupInvariants(params.ctx, params.irFn);
+}
+
+static ir::Constant* getConstantInitializer(ast::Expression const& initExpr,
+                                            ir::Context& ctx,
+                                            TypeMap const& typeMap) {
+    if (auto* semaConstant = initExpr.constantValue()) {
+        return toIR(ctx, *semaConstant);
+    }
+    else {
+        return ctx.nullConstant(typeMap.packed(initExpr.type().get()));
+    }
+}
+
+GlobalVarMetadata irgen::generateGlobalVariable(
+    Config config, sema::Variable const& semaVar, ir::Context& ctx,
+    ir::Module& mod, sema::SymbolTable const& symbolTable,
+    TypeMap const& typeMap, GlobalMap& globalMap,
+    std::deque<sema::Function const*>& declQueue) {
+    SC_ASSERT(semaVar.declaration(),
+              "Cannot call this function on a variable from a library");
+    auto& varDecl =
+        cast<ast::VariableDeclaration const&>(*semaVar.declaration());
+    auto* initExpr = varDecl.initExpr();
+    auto* initializer = getConstantInitializer(*initExpr, ctx, typeMap);
+    bool isConstInit = !!initExpr->constantValue();
+    auto mut = isConstInit ? toIR(semaVar.mutability()) :
+                             ir::GlobalVariable::Mutable;
+    auto visibility = mapVisibility(&semaVar);
+    auto varName = config.nameMangler(semaVar);
+    auto* irVar =
+        mod.addGlobal(allocate<ir::GlobalVariable>(ctx, mut, initializer,
+                                                   varName, visibility));
+    auto* initGuard = [&]() -> ir::GlobalVariable* {
+        if (isConstInit) return nullptr;
+        return mod.addGlobal(
+            allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Mutable,
+                                         ctx.boolConstant(false),
+                                         utl::strcat(varName, ".init"),
+                                         visibility));
+    }();
+    auto* getter = mod.addGlobal(
+        allocate<ir::Function>(ctx, ctx.ptrType(), List<ir::Parameter>{},
+                               utl::strcat(varName, ".getter"),
+                               ir::FunctionAttribute{}, visibility));
+    GlobalVarMetadata metadata{ .var = irVar,
+                                .varInit = initGuard,
+                                .getter = getter };
+    /// We insert the metadata into the map before generating the initializer to
+    /// avoid infinite recursion with cyclic references between global variables
+    globalMap.insert(&semaVar, metadata);
+    FuncGenContext builder(config, FuncGenParameters{
+                                       .semaFn = nullptr,
+                                       .irFn = *getter,
+                                       .ctx = ctx,
+                                       .mod = mod,
+                                       .symbolTable = symbolTable,
+                                       .typeMap = typeMap,
+                                       .globalMap = globalMap,
+                                       .declQueue = declQueue,
+                                   });
+    builder.generateGlobalVarGetter(metadata, varDecl);
+    return metadata;
 }
 
 void FuncGenContext::generateSynthFunction() {
@@ -884,6 +967,9 @@ Value FuncGenContext::getValueImpl(ast::MemberAccess const& expr) {
 
 Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                       sema::Variable const& var) {
+    if (isa<sema::Library>(var.parent())) {
+        return getValue(expr.member());
+    }
     Value base = getValue(expr.accessed());
     auto& metaData =
         typeMap.metaData(expr.accessed()->type().get()).members[var.index()];
@@ -1895,80 +1981,10 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
     }
 }
 
-/// \Returns the sema constant \p value as an IR constant
-static ir::Constant* toIR(ir::Context& ctx, sema::Value const& value) {
-    // clang-format off
-    return SC_MATCH_R(ir::Constant*, value) {
-        [&](sema::IntValue const& value) {
-            return ctx.intConstant(value.value());
-        },
-        [&](sema::FloatValue const& value) {
-            return ctx.floatConstant(value.value());
-        }
-    }; // clang-format on
-}
-
-/// \Returns the sema mutability \p mut as `ir::GlobalVariable::Mutability`
-static ir::GlobalVariable::Mutability toIR(sema::Mutability mut) {
-    switch (mut) {
-    case sema::Mutability::Mutable:
-        return ir::GlobalVariable::Mutable;
-    case sema::Mutability::Const:
-        return ir::GlobalVariable::Const;
-    }
-}
-
-ir::Constant* FuncGenContext::getConstantInitializer(
-    ast::Expression const& initExpr) {
-    if (auto* semaConstant = initExpr.constantValue()) {
-        return toIR(ctx, *semaConstant);
-    }
-    else {
-        return ctx.nullConstant(typeMap.packed(initExpr.type().get()));
-    }
-}
-
 GlobalVarMetadata FuncGenContext::makeGlobalVariable(
     sema::Variable const& semaVar) {
-    auto& varDecl =
-        cast<ast::VariableDeclaration const&>(*semaVar.declaration());
-    auto* initExpr = varDecl.initExpr();
-    auto* initializer = getConstantInitializer(*initExpr);
-    bool isConstInit = !!initExpr->constantValue();
-    auto mut = isConstInit ? toIR(semaVar.mutability()) :
-                             ir::GlobalVariable::Mutable;
-    auto* irVar = mod.addGlobal(
-        allocate<ir::GlobalVariable>(ctx, mut, initializer,
-                                     std::string(semaVar.name())));
-    auto* initGuard = [&]() -> ir::GlobalVariable* {
-        if (isConstInit) return nullptr;
-        return mod.addGlobal(
-            allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Mutable,
-                                         ctx.boolConstant(false),
-                                         utl::strcat(semaVar.name(), ".init")));
-    }();
-    auto* getter = mod.addGlobal(
-        allocate<ir::Function>(ctx, ctx.ptrType(), List<ir::Parameter>{},
-                               utl::strcat(semaVar.name(), ".getter"),
-                               ir::FunctionAttribute{}));
-    GlobalVarMetadata metadata{ .var = irVar,
-                                .varInit = initGuard,
-                                .getter = getter };
-    /// We insert the metadata into the map before generating the initializer to
-    /// avoid infinite recursion with cyclic references between global variables
-    globalMap.insert(&semaVar, metadata);
-    FuncGenContext builder(config, FuncGenParameters{
-                                       .semaFn = nullptr,
-                                       .irFn = *getter,
-                                       .ctx = ctx,
-                                       .mod = mod,
-                                       .symbolTable = symbolTable,
-                                       .typeMap = typeMap,
-                                       .globalMap = globalMap,
-                                       .declQueue = declQueue,
-                                   });
-    builder.generateGlobalVarGetter(metadata, varDecl);
-    return metadata;
+    return generateGlobalVariable(config, semaVar, ctx, mod, symbolTable,
+                                  typeMap, globalMap, declQueue);
 }
 
 void FuncGenContext::generateGlobalVarGetter(

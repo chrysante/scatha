@@ -79,6 +79,8 @@ struct Impl {
 
     std::string computeImpl(Entity const&) { SC_UNREACHABLE(); }
 
+    std::string computeImpl(VarBase const& var) { return computeBase(var); }
+
     std::string computeImpl(ObjectType const& type) {
         return computeBase(type);
     }

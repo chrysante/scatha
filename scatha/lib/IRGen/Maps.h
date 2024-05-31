@@ -134,7 +134,7 @@ ir::CompareMode mapCompareMode(sema::ObjectType const* type);
 
 ir::FunctionAttribute mapFuncAttrs(sema::FunctionAttribute attr);
 
-ir::Visibility mapVisibility(sema::Function const* function);
+ir::Visibility mapVisibility(sema::Entity const* entity);
 
 /// \Returns an appropriate name for the result of the binary operation \p op
 std::string binaryOpResultName(ast::BinaryOperator op);

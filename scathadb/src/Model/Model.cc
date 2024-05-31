@@ -106,12 +106,11 @@ struct Model::ExecThread {
 };
 
 Model::Model(UIHandle* uiHandle):
-    uiHandle(uiHandle),
-    execThread(std::make_unique<ExecThread>([this] { return starting(); },
-                                            [this] { return running(); },
-                                            [this] { return paused(); },
-                                            [this] { return stopping(); },
-                                            [this] { return exiting(); })) {
+    uiHandle(uiHandle), execThread(std::make_unique<ExecThread>([this] {
+        return starting();
+    }, [this] { return running(); }, [this] { return paused(); }, [this] {
+        return stopping();
+    }, [this] { return exiting(); })) {
     vm.setIOStreams(nullptr, &_stdout);
 }
 

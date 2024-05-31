@@ -13,7 +13,7 @@ public:
 
     ///
     GlobalVariable(Context& ctx, Mutability mutability, Constant* initializer,
-                   std::string name);
+                   std::string name, Visibility vis = Visibility::Internal);
 
     /// The constant that initializes this value. Can be `undef` for dynamic
     /// initialization

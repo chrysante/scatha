@@ -92,11 +92,10 @@ void SCCCallGraph::computeCallGraph() {
 
 void SCCCallGraph::computeSCCs() {
     auto vertices = _nodes | ToAddress;
-    utl::compute_sccs(
-        vertices.begin(), vertices.end(),
-        [](FunctionNode* node) { return node->successors(); },
-        [&] { _sccs.push_back(std::make_unique<SCCNode>()); },
-        [&](FunctionNode* node) {
+    utl::compute_sccs(vertices.begin(), vertices.end(),
+                      [](FunctionNode* node) { return node->successors(); },
+                      [&] { _sccs.push_back(std::make_unique<SCCNode>()); },
+                      [&](FunctionNode* node) {
         auto& scc = *_sccs.back();
         scc.addNode(node);
     });

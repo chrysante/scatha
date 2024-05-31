@@ -12,6 +12,7 @@ namespace scatha::irgen {
 
 class TypeMap;
 class GlobalMap;
+struct GlobalVarMetadata;
 
 ///
 struct FuncGenParameters {
@@ -44,6 +45,13 @@ void generateSynthFunction(Config config, FuncGenParameters);
 /// objects in user defined lifetime functions
 void generateSynthFunctionAs(sema::SMFKind kind, Config config,
                              FuncGenParameters);
+
+/// Generates IR for the variable \p semaVar
+GlobalVarMetadata generateGlobalVariable(
+    Config config, sema::Variable const& semaVar, ir::Context& ctx,
+    ir::Module& mod, sema::SymbolTable const& symbolTable,
+    TypeMap const& typeMap, GlobalMap& globalMap,
+    std::deque<sema::Function const*>& declQueue);
 
 } // namespace scatha::irgen
 

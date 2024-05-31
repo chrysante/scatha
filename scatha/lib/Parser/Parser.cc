@@ -396,8 +396,7 @@ bool Context::recover(std::pair<Cond, F>... retry) {
                 return true;
             }
             return false;
-        }(retry.first, retry.second) ||
-         ...);
+        }(retry.first, retry.second) || ...);
         if (success) {
             return true;
         }
@@ -410,9 +409,9 @@ bool Context::recover(std::pair<Cond, F>... retry) {
 
 template <std::predicate... F>
 bool Context::recover(std::pair<TokenKind, F>... retry) {
-    return recover(std::pair{
-        [&](Token const& token) { return token.kind() == retry.first; },
-        retry.second }...);
+    return recover(std::pair{ [&](Token const& token) {
+        return token.kind() == retry.first;
+    }, retry.second }...);
 }
 
 UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
@@ -425,9 +424,9 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
     auto identifier = parseExtID();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(tokens.peek());
-        bool const recovered = recover(
-            std::pair{ [&](Token const&) { return true; },
-                       [&] { return bool(identifier = parseExtID()); } });
+        bool const recovered = recover(std::pair{ [&](Token const&) {
+            return true;
+        }, [&] { return bool(identifier = parseExtID()); } });
         if (!recovered) {
             return nullptr;
         }
