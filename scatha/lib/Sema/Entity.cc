@@ -90,7 +90,8 @@ Variable::Variable(std::string name, Scope* parentScope, ast::ASTNode* astNode,
 }
 
 bool Variable::isStatic() const {
-    return isa<FileScope>(parent()) || isa<GlobalScope>(parent());
+    return isa<FileScope>(parent()) || isa<GlobalScope>(parent()) ||
+           isa<Library>(parent());
 }
 
 Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,

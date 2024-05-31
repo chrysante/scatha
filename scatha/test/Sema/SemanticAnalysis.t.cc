@@ -451,6 +451,7 @@ static void compileTestlib() {
                          R"(
 public fn foo() { return 42; }
 public fn bar() { return 42; }
+public var baz: int = 42;
 )");
 }
 
@@ -486,12 +487,14 @@ fn test2() {
     CHECK(iss.empty());
 }
 
-TEST_CASE("Use nested library name", "[lib][nativelib]") {
+TEST_CASE("Use nested library names", "[lib][nativelib]") {
     compileTestlib();
     auto iss = test::getSemaIssues(R"(
 fn test() {
     use testlib.foo;
     foo();
+    use testlib.baz;
+    baz = 12;
 })",
                                    { .librarySearchPaths = { "libs" } });
     CHECK(iss.empty());

@@ -708,7 +708,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     }
     /// Double dispatch table on the entity categories of the accessed object
     /// and the member
-    switch (ma.accessed()->entityCategory()) {
+    auto entityCat = ma.accessed()->entityCategory();
+    switch (entityCat) {
     case EntityCategory::Value: {
         // clang-format off
         return SC_MATCH (*ma.member()->entity()) {
@@ -744,6 +745,16 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
             [&](Object&) {
                 ctx.badExpr(&ma, MemAccNonStaticThroughType);
                 return nullptr;
+            },
+            [&](Variable& var) -> ast::Expression* {
+                if (entityCat == EntityCategory::Type) {
+                    /// We report an issue unconditionally here because we don't
+                    /// have non-static variables yet
+                    ctx.badExpr(&ma, MemAccNonStaticThroughType);
+                    return nullptr;
+                }
+                ma.decorateValue(&var, LValue);
+                return &ma;
             },
             [&](OverloadSet& os) {
                 ma.decorateValue(&os, LValue);
