@@ -1,6 +1,7 @@
 #include "Sema/Analysis/Instantiation.h"
 
 #include <array>
+#include <vector>
 
 #include <range/v3/view.hpp>
 #include <utl/graph.hpp>
@@ -29,7 +30,7 @@ struct InstContext {
     InstContext(sema::AnalysisContext& ctx):
         ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
 
-    utl::vector<StructType const*> instantiateTypes(
+    std::vector<StructType const*> instantiateTypes(
         StructDependencyGraph& typeDependencies);
 
     void instantiateStructureType(SDGNode&);
@@ -53,7 +54,7 @@ struct InstContext {
 
 } // namespace
 
-utl::vector<StructType const*> sema::instantiateEntities(
+std::vector<StructType const*> sema::instantiateEntities(
     AnalysisContext& ctx, StructDependencyGraph& typeDependencies,
     std::span<ast::Declaration*> globals) {
     InstContext instCtx(ctx);
@@ -127,7 +128,7 @@ static Type const* stripArray(Type const* type) {
     return type;
 }
 
-utl::vector<StructType const*> InstContext::instantiateTypes(
+std::vector<StructType const*> InstContext::instantiateTypes(
     StructDependencyGraph& dependencyGraph) {
     /// After gather name phase we have the names of all types in the symbol
     /// table and we gather the dependencies of variable declarations in

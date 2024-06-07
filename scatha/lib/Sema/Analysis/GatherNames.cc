@@ -50,7 +50,7 @@ struct GatherContext {
     SymbolTable& sym;
     IssueHandler& iss;
     StructDependencyGraph& dependencyGraph;
-    utl::vector<ast::Declaration*>& globals;
+    std::vector<ast::Declaration*>& globals;
 };
 
 } // namespace

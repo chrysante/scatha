@@ -39,6 +39,10 @@ struct VectorEqual {
     bool operator()(utl::vector<T> const& a, std::span<T const> b) const {
         return ranges::equal(a, b);
     }
+
+    bool operator()(std::span<T const> a, utl::vector<T> const& b) const {
+        return (*this)(b, a);
+    }
 };
 
 } // namespace scatha::ir

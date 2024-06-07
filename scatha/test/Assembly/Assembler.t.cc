@@ -31,8 +31,8 @@ static auto assembleAndExecute(AssemblyStream const& str) {
     svm::VirtualMachine vm(1024, 1024);
     vm.loadBinary(prog.data());
     vm.execute(0, {});
-    return std::pair{ utl::vector<u64>(vm.registerData()),
-                      utl::vector<u8>(vm.stackData()) };
+    return std::pair{ vm.registerData() | ranges::to<std::vector>,
+                      vm.stackData() | ranges::to<std::vector> };
 }
 
 [[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {

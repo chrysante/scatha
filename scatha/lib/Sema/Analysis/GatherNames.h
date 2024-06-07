@@ -1,7 +1,7 @@
 #ifndef SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 #define SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 
-#include <utl/vector.hpp>
+#include <vector>
 
 #include "AST/Fwd.h"
 #include "Common/Base.h"
@@ -19,7 +19,7 @@ class SymbolTable;
 /// - `functionDefinitions` All function definitions in the program
 struct GatherNamesResult {
     StructDependencyGraph structs;
-    utl::vector<ast::Declaration*> globals;
+    std::vector<ast::Declaration*> globals;
 };
 
 /// In gatherNames phase we declare (but not instantiate) all global names in

@@ -9,7 +9,7 @@
 using namespace scatha;
 using namespace parser;
 
-static std::tuple<utl::vector<Token>, test::IssueHelper> correctBrackets(
+static std::tuple<std::vector<Token>, test::IssueHelper> correctBrackets(
     std::string_view text) {
     IssueHandler iss;
     auto tokens = parser::lex(text, iss);

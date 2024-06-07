@@ -34,7 +34,9 @@ struct RecordConstantMap {
     ConstType* get(IRType const* type, std::span<Constant* const> elems) {
         auto itr = map.find(elems);
         if (itr == map.end()) {
-            itr = map.insert({ elems, allocate<ConstType>(elems, type) }).first;
+            itr = map.insert({ elems | ToSmallVector<>,
+                               allocate<ConstType>(elems, type) })
+                      .first;
         }
         return cast<ConstType*>(itr->second.get());
     }

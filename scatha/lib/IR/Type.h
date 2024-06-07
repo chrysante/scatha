@@ -238,7 +238,7 @@ public:
                           std::span<Type const* const> parameterTypes):
         Type(makeName(returnType, parameterTypes), TypeCategory::FunctionType,
              0, 0),
-        _parameterTypes(parameterTypes) {}
+        _parameterTypes(parameterTypes | ToSmallVector<>) {}
 
     Type const* returnType() const { return _returnType; }
 
