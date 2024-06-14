@@ -149,7 +149,7 @@ void Linker::resolveInObject(utl::dynamic_library const& lib, FFIList& ffiList,
                              utl::vector<FFIDecl>& foreignFunctions) {
     for (auto itr = foreignFunctions.begin(); itr != foreignFunctions.end();) {
         auto& function = *itr;
-        std::string_view err;
+        std::string err;
         if (lib.resolve(function.interface.name(), &err)) {
             ffiList.functions.push_back(function);
             itr = foreignFunctions.erase(itr);
