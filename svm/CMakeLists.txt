@@ -1,6 +1,6 @@
 # libsvm
 
-add_library(libsvm SHARED)
+add_library(libsvm STATIC)
 set_target_properties(libsvm PROPERTIES LINKER_LANGUAGE CXX)
 SCSetCompilerOptions(libsvm)
 set_target_properties(libsvm PROPERTIES OUTPUT_NAME "svm")
@@ -10,7 +10,7 @@ target_link_libraries(libsvm
     utility
   PRIVATE
     range-v3
-    libffi::libffi
+    ffi
 )
 
 target_include_directories(libsvm
@@ -24,13 +24,13 @@ target_include_directories(libsvm
 
 target_sources(libsvm
   PRIVATE
-    include/svm/Builtin.def
+    include/svm/Builtin.def.h
     include/svm/Builtin.h
     include/svm/Common.h
-    include/svm/Errors.def
+    include/svm/Errors.def.h
     include/svm/Errors.h
     include/svm/Fwd.h
-    include/svm/OpCode.def
+    include/svm/OpCode.def.h
     include/svm/OpCode.h
     include/svm/Program.h
     include/svm/Util.h

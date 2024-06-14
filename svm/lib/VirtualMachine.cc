@@ -13,6 +13,7 @@
 
 #include "BuiltinInternal.h"
 #include "Errors.h"
+#include "Common.h"
 #include "Memory.h"
 #include "Program.h"
 #include "VMImpl.h"
@@ -26,7 +27,7 @@ VirtualMachine::VirtualMachine():
 VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
     impl = std::make_unique<VMImpl>();
     impl->parent = this;
-    impl->registers.resize(numRegisters, utl::no_init);
+    impl->registers.resize(numRegisters);
     impl->stackSize = stackSize;
     impl->builtinFunctionTable = makeBuiltinTable();
 }
@@ -63,7 +64,11 @@ static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
     }
     auto libname = toForeignLibName(name);
     try {
+        #ifdef _MSC_VER
+        return utl::dynamic_library((libdir / libname).string());
+        #else
         return utl::dynamic_library(libdir / libname);
+        #endif
     }
     catch (std::exception const&) {
         /// Nothing, try again unscoped
@@ -92,10 +97,12 @@ static ffi_type* mapFFIStructType(FFIStructType const* type) {
     if (auto itr = map.find(type); itr != map.end()) {
         return &itr->second.type;
     }
-    LibFFITypeWrapper wrapper = { .elems = concat(type->elements() |
-                                                      transform(toLibFFI),
-                                                  single(nullptr)) |
-                                           ranges::to<std::vector> };
+    std::vector<ffi_type*> elements;
+    elements.reserve(type->elements().size() + 1);
+    std::for_each(type->elements().begin(), type->elements().end(),
+                  [&](auto* elem) { elements.push_back(toLibFFI(elem)); });
+    elements.push_back(nullptr);
+    LibFFITypeWrapper wrapper = { .elems = std::move(elements) };
     wrapper.type.size = 0;
     wrapper.type.alignment = 0;
     wrapper.type.type = FFI_TYPE_STRUCT;
@@ -127,18 +134,24 @@ static ffi_type* toLibFFI(FFIType const* type) {
     case Struct:
         return mapFFIStructType(static_cast<FFIStructType const*>(type));
     }
+    return nullptr;
 }
 
 static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
+    #ifndef _MSC_VER
     F.name = decl.name;
     F.funcPtr = (void (*)())decl.ptr;
     F.returnType = toLibFFI(decl.returnType);
-    F.argumentTypes = decl.argumentTypes | transform(toLibFFI) |
-                      ranges::to<utl::small_vector<ffi_type*>>;
+    F.argumentTypes.clear();
+    std::for_each(decl.argumentTypes.begin(), decl.argumentTypes.end(), 
+        [&](auto* type) { F.argumentTypes.push_back(toLibFFI(type)); });
     F.arguments.resize(F.argumentTypes.size());
     return ffi_prep_cif(&F.callInterface, FFI_DEFAULT_ABI,
                         utl::narrow_cast<int>(F.arguments.size()), F.returnType,
                         F.argumentTypes.data()) == FFI_OK;
+    #else
+    exit(1);
+    #endif
 }
 
 static void loadForeignFunctions(VirtualMachine* vm,
@@ -159,7 +172,11 @@ static void loadForeignFunctions(VirtualMachine* vm,
     vm->impl->foreignFunctionTable.resize(fnDecls.size());
     for (auto [decl, F]: zip(fnDecls, vm->impl->foreignFunctionTable)) {
         if (!initForeignFunction(decl, F)) {
+            #ifndef _MSC_VER
             throwError<FFIError>(FFIError::FailedToInit, decl.name);
+            #else
+            exit(1);
+            #endif
         }
     }
 }

@@ -8,7 +8,7 @@ using namespace svm;
 std::string_view svm::toString(OpCode c) {
     return std::array{
 #define SVM_INSTRUCTION_DEF(inst, class) std::string_view(#inst),
-#include <svm/OpCode.def>
+#include <svm/OpCode.def.h>
     }[static_cast<size_t>(c)];
 }
 

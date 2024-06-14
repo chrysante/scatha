@@ -47,7 +47,7 @@ namespace svm {
 /// the next instruction.
 enum class OpCode : u8 {
 #define SVM_INSTRUCTION_DEF(inst, class) inst,
-#include <svm/OpCode.def>
+#include <svm/OpCode.def.h>
     _count
 };
 
@@ -64,7 +64,7 @@ enum class OpCodeClass { RR, RV64, RV32, RV8, RM, MR, R, Jump, Other, _count };
 inline constexpr OpCodeClass classify(OpCode code) {
     return std::array{
 #define SVM_INSTRUCTION_DEF(inst, class) OpCodeClass::class,
-#include <svm/OpCode.def>
+#include <svm/OpCode.def.h>
     }[static_cast<size_t>(code)];
 };
 

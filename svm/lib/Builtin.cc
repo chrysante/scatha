@@ -62,7 +62,7 @@ static std::span<T> loadArray(u64* regPtr) {
 template <typename T>
 static T fract(T arg) {
     T i;
-    return std::copysign(std::modf(arg, &i), 1.0);
+    return std::copysign(std::modf(arg, &i), T(1.0));
 }
 
 std::vector<BuiltinFunction> svm::makeBuiltinTable() {

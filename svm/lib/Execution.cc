@@ -230,7 +230,7 @@ static void arithmeticRM(VirtualMemory& memory, u8 const* i, u64* reg,
 static void sext1(u8 const* i, u64* reg) {
     size_t const regIdx = i[0];
     auto const a = load<int>(&reg[regIdx]);
-    storeReg(&reg[regIdx], a & 1 ? static_cast<u64>(-1ull) : 0);
+    storeReg(&reg[regIdx], a & 1 ? static_cast<u64>(~0ull) : 0);
 }
 
 template <typename From, typename To>
@@ -301,6 +301,7 @@ static size_t argSizeInWords(ffi_type const* type) {
 }
 
 static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
+    #ifndef _MSC_VER
     using enum FIIStructVisitLevel;
     u64* argPtr = regPtr;
     u64* retPtr = regPtr;
@@ -317,6 +318,9 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
         argPtr += argSizeInWords(argType);
     }
     ffi_call(&F.callInterface, F.funcPtr, retPtr, F.arguments.data());
+    #else
+    exit(1);
+    #endif
 }
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {

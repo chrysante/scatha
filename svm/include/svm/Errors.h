@@ -196,7 +196,7 @@ public:
 class ErrorVariant:
     public std::variant<std::monostate
 #define SVM_ERROR_DEF(Name) , Name
-#include <svm/Errors.def>
+#include <svm/Errors.def.h>
                         > {
 public:
     using variant::variant;

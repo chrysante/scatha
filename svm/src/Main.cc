@@ -22,7 +22,7 @@ using namespace svm;
 int main(int argc, char* argv[]) {
     try {
         Options options = parseCLI(argc, argv);
-        std::string progName = options.filepath.stem();
+        std::string progName = options.filepath.stem().string();
         VirtualMachine vm;
         std::vector<uint8_t> binary =
             readBinaryFromFile(options.filepath.string());

@@ -15,7 +15,7 @@ namespace svm {
 struct Slot {
 public:
     ///
-    Slot(Slot&& rhs): buf(rhs.buf), sz(rhs.sz), owning(rhs.owning) {
+    Slot(Slot&& rhs) noexcept: buf(rhs.buf), sz(rhs.sz), owning(rhs.owning) {
         rhs.owning = false;
     }
 
@@ -23,7 +23,7 @@ public:
     ~Slot() { clear(); }
 
     ///
-    Slot& operator=(Slot&& rhs) {
+    Slot& operator=(Slot&& rhs) noexcept {
         clear();
         buf = rhs.buf;
         sz = rhs.sz;
@@ -98,6 +98,11 @@ public:
     /// staticSlotSize
     explicit VirtualMemory(size_t staticSlotSize = 0);
 
+    VirtualMemory(VirtualMemory&&) = default;
+    VirtualMemory(VirtualMemory const&) = delete;
+    VirtualMemory& operator=(VirtualMemory&&) = default;
+    VirtualMemory& operator=(VirtualMemory const&) = delete;
+
     /// Allocates a block of memory of size \p size and alignment \p align
     /// \p align must be a power of two
     /// \p size must be evenly divisible of \p align
@@ -138,11 +143,11 @@ private:
     std::pair<size_t, PoolAllocator&> getPool(size_t size, size_t align);
 
     /// \Throws a `MemoryAccessError` unconditionally
-    [[noreturn, gnu::noinline]] static void reportAccessError(
+    [[noreturn]] static void reportAccessError(
         MemoryAccessError::Reason reason, VirtualPointer ptr, size_t size);
 
     /// \Throws a `DeallocationError` unconditionally
-    [[noreturn, gnu::noinline]] static void reportDeallocationError(
+    [[noreturn]] static void reportDeallocationError(
         VirtualPointer ptr, size_t size, size_t align);
 
     std::vector<Slot> slots;

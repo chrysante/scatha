@@ -39,8 +39,8 @@ static_assert(sizeof(f64) == 8);
 #elif defined(_MSC_VER)
 #define SVM_NOINLINE      __declspec(noinline)
 #define SVM_ALWAYS_INLINE __forceinline
-#define SVM_LIKELY(x)
-#define SVM_UNLIKELY(x)
+#define SVM_LIKELY(x) x
+#define SVM_UNLIKELY(x) x
 #else
 #define SVM_NOINLINE
 #define SVM_ALWAYS_INLINE

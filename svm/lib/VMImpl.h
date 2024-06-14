@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <optional>
 #include <span>
+#include <vector>
 
 #include <utl/dynamic_library.hpp>
 #include <utl/stack.hpp>
@@ -34,10 +35,10 @@ struct VMImpl {
     size_t stackSize = 0;
 
     /// Memory for registers
-    utl::vector<u64> registers;
+    std::vector<u64> registers;
 
     /// Begin of the binary section
-    u8 const* binary;
+    u8 const* binary = nullptr;
 
     /// Size of the binary section
     size_t binarySize = 0;
