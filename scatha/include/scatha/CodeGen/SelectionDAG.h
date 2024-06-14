@@ -21,6 +21,10 @@ class SCATHA_API SelectionDAG {
 public:
     SelectionDAG() = default;
 
+    /// To make MSVC happy
+    SelectionDAG(SelectionDAG&&) = default;
+    SelectionDAG& operator=(SelectionDAG&&) = default;
+
     /// Builds a selection DAG for the basic block \p BB
     static SelectionDAG Build(ir::BasicBlock const& BB);
 

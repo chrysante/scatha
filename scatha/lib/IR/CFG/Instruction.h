@@ -60,7 +60,6 @@ public:
     std::string_view comment() const { return _comment; }
 
 protected:
-    using User::User;
     utl::small_ptr_vector<Type const*> typeOps;
     /// TODO: Create a small string class and use that here
     std::string _comment;

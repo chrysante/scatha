@@ -5,6 +5,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <variant>
 
 #include <utl/function_view.hpp>
 #include <utl/overload.hpp>

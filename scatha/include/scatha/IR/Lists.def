@@ -5,7 +5,7 @@
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_VALUENODE_DEF
-#   define SC_VALUENODE_DEF(...)
+#   define SC_VALUENODE_DEF(Name, Parent, Corporeality)
 #endif
 
 SC_VALUENODE_DEF(Value,      VoidParent, Abstract)
@@ -39,7 +39,8 @@ SC_VALUENODE_DEF(AccessValueInst,   Instruction, Abstract)
 
 /// Instructions
 #ifndef SC_INSTRUCTIONNODE_DEF
-#   define SC_INSTRUCTIONNODE_DEF(...) SC_VALUENODE_DEF(__VA_ARGS__)
+#   define SC_INSTRUCTIONNODE_DEF(Name, Parent, Corporeality)                  \
+        SC_VALUENODE_DEF(Name, Parent, Corporeality)
 #endif
 
 SC_INSTRUCTIONNODE_DEF(Alloca,              Instruction,       Concrete)

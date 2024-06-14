@@ -10,7 +10,7 @@ namespace scatha::ir {
 /// Represents a global value
 class SCATHA_API Global:
     public Constant,
-    public ListNode<Function>,
+    public ListNode<Global>,
     public ParentedNode<Module> {
 public:
     /// \Returns The visibility of this global in the binary symbol table

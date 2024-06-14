@@ -174,10 +174,9 @@ protected:
     }
 
 public:
-    ASTNode() = default;
-
     /// AST nodes are not value types
     ASTNode(ASTNode const&) = delete;
+    ASTNode& operator=(ASTNode const&) = delete;
 
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }

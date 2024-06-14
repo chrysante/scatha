@@ -38,9 +38,9 @@ public:
         auto itr = map.find(index);
         if (itr == map.end()) {
             auto& file = files[index];
-            itr =
-                map.insert({ index, SourceStructure(file.path(), file.text()) })
-                    .first;
+            itr = map.insert({ index, SourceStructure(file.path().string(),
+                                                      file.text()) })
+                      .first;
         }
         return itr->second;
     }

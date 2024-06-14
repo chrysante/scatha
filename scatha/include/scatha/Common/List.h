@@ -77,6 +77,12 @@ public:
     using Iterator = typename List<ValueType>::iterator;
     using ConstIterator = typename List<ValueType>::const_iterator;
 
+    CFGList() = default;
+    CFGList(CFGList const&) = delete;
+    CFGList(CFGList&&) = default;
+    CFGList& operator=(CFGList&&) = default;
+    CFGList& operator=(CFGList const&) = delete;
+
     /// Callee takes ownership.
     void pushFront(ValueType* value) { insert(values.begin(), value); }
 

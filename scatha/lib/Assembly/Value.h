@@ -2,8 +2,8 @@
 #define SCATHA_ASSEMBLY_VALUES_H_
 
 #include <variant>
+#include <bit>
 
-#include <utl/bit.hpp>
 #include <utl/utility.hpp>
 
 #include "Assembly/Common.h"
@@ -24,13 +24,13 @@ public:
 protected:
     template <typename T>
     explicit ValueBase(utl::tag<T>, auto value):
-        _value(utl::bit_cast<u64>(widenFundType(utl::narrow_cast<T>(value)))) {}
+        _value(std::bit_cast<u64>(widenFundType(utl::narrow_cast<T>(value)))) {}
 
     explicit ValueBase(utl::tag<f32>, f32 value):
-        _value(utl::bit_cast<u32>(value)) {}
+        _value(std::bit_cast<u32>(value)) {}
 
     explicit ValueBase(utl::tag<f64>, f64 value):
-        _value(utl::bit_cast<u64>(value)) {}
+        _value(std::bit_cast<u64>(value)) {}
 
     static i64 widenFundType(std::signed_integral auto i) { return i; }
     static u64 widenFundType(std::unsigned_integral auto i) { return i; }
@@ -90,13 +90,23 @@ public:
     };
 
     static u64 compose(LabelID ID, Kind kind) {
+        #ifndef _MSC_VER
         Structure value{ ID, kind };
-        return utl::bit_cast<u64>(value);
+        return std::bit_cast<u64>(value);
+        #else
+        return (u64)ID & ~(u64(1) << 63) | ((u64)kind & 1u) << 63; 
+        #endif
     }
 
     static std::pair<LabelID, Kind> decompose(u64 value) {
-        auto s = utl::bit_cast<Structure>(value);
+        #ifndef _MSC_VER
+        auto s = std::bit_cast<Structure>(value);
         return { LabelID{ s.labelID }, Kind{ s.kind } };
+        #else
+        u64 ID = value & ~(u64(1) << 63);
+        u64 kind = (value >> 63) & 1u;
+        return { (LabelID)ID, (Kind)kind };
+        #endif
     }
 
     explicit LabelPosition(LabelID labelID, Kind kind = Static):

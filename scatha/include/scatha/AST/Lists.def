@@ -5,7 +5,7 @@
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_ASTNODE_DEF
-#   define SC_ASTNODE_DEF(...)
+#   define SC_ASTNODE_DEF(Name, Parent, Corporeality)
 #endif
 
 SC_ASTNODE_DEF(ASTNode,                    VoidParent,           Abstract)
@@ -52,7 +52,8 @@ SC_ASTNODE_DEF(ConstructBase,              CallLike,             Abstract)
 /// `sema::ObjectTypeConversion`
 
 #ifndef SC_ASTNODE_CONSTR_DEF
-#define SC_ASTNODE_CONSTR_DEF(Name, ...) SC_ASTNODE_DEF(Name##Expr, __VA_ARGS__)
+#define SC_ASTNODE_CONSTR_DEF(Name, Parent, Corporeality)                      \
+    SC_ASTNODE_DEF(Name##Expr, Parent, Corporeality)
 #endif
 
 SC_ASTNODE_CONSTR_DEF(TrivDefConstruct,       ConstructBase,        Concrete)

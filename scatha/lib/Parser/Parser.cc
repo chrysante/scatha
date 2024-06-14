@@ -288,7 +288,7 @@ UniquePtr<ast::ASTNode> parser::parse(std::span<SourceFile const> sourceFiles,
         }
         bracketCorrection(tokens, issueHandler);
         Context ctx{ .tokens = TokenStream(std::move(tokens)),
-                     .filename = file.path(),
+                     .filename = file.path().string(),
                      .issues = issueHandler };
         parsedFiles.push_back(ctx.run());
     }
@@ -297,7 +297,7 @@ UniquePtr<ast::ASTNode> parser::parse(std::span<SourceFile const> sourceFiles,
 
 UniquePtr<ast::ASTNode> parser::parse(std::string_view source,
                                       IssueHandler& issueHandler) {
-    utl::small_vector<SourceFile> files = { SourceFile::make(
+    utl::small_vector<SourceFile, 1> files = { SourceFile::make(
         std::string(source)) };
     return parse(files, issueHandler);
 }

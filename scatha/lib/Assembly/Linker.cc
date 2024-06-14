@@ -176,13 +176,21 @@ std::vector<FFIList> Linker::search() {
         }
     }
     /// Find names in foreign libraries
+    #ifndef _MSC_VER
     auto ffiLists = foreignLibs |
                     transform([](auto& lib) { return FFIList(lib.name()); }) |
                     ranges::to<std::vector>;
+    #else
+    std::vector<FFIList> ffiLists;
+    ffiLists.reserve(foreignLibs.size());
+    std::transform(foreignLibs.begin(), foreignLibs.end(),
+                   std::back_inserter(ffiLists),
+                   [](auto& lib) { return FFIList(lib.name()); });
+    #endif
     for (auto [libIndex, libDecl]: foreignLibs | enumerate) {
         SC_ASSERT(libDecl.resolvedPath(),
                   "Tried to link symbol in unresolved library");
-        utl::dynamic_library lib(libDecl.resolvedPath().value(),
+        utl::dynamic_library lib(libDecl.resolvedPath().value().string(),
                                  utl::dynamic_load_mode::lazy);
         resolveInObject(lib, ffiLists[libIndex], foreignFunctions);
     }

@@ -188,7 +188,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     declareForeignFunction("__builtin_" #name, functionType(__VA_ARGS__),      \
                            attrs, AccessControl::Public);
     using enum FunctionAttribute;
-#include <svm/Builtin.def>
+#include <svm/Builtin.def.h>
 
     /// Declare builtin generics
     auto* reinterpret =

@@ -20,7 +20,7 @@ namespace scatha::ast {
 enum class NodeType : uint8_t {
 #define SC_ASTNODE_DEF(ASTNode, ...) ASTNode,
 #include <scatha/AST/Lists.def>
-    LAST = ObjTypeConvExpr
+    LAST = NodeType::ObjTypeConvExpr
 };
 
 ///
@@ -36,8 +36,8 @@ using VoidParent = void;
 
 /// Map types to enum values.
 #define SC_ASTNODE_DEF(Type, Parent, Corporeality)                             \
-    SC_DYNCAST_DEFINE(::scatha::ast::Type, ::scatha::ast::NodeType::Type,      \
-                      ::scatha::ast::Parent, Corporeality)
+    SC_DYNCAST_DEFINE(scatha::ast::Type, scatha::ast::NodeType::Type,          \
+                      scatha::ast::Parent, Corporeality)
 #include <scatha/AST/Lists.def>
 
 namespace scatha::ast {

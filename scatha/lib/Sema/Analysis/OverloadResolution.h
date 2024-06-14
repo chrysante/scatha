@@ -22,7 +22,7 @@ struct OverloadResolutionResult {
     /// The conversions required for each argument type to call selected
     /// function.
     /// Only non-empty if overload resolution succeeded
-    utl::small_vector<Conversion> conversions = {};
+    utl::small_vector<Conversion, 1> conversions = {};
 
     /// The error if overload resolution failed
     std::unique_ptr<ORError> error = nullptr;

@@ -29,11 +29,15 @@ using namespace ir;
 SC_REGISTER_PASS(opt::globalValueNumbering, "gvn",
                  PassCategory::Simplification);
 
-namespace {
-
 /// Really annoying but we put this here for now to query the context in
 /// `Computation` class
-thread_local ir::Context* gContext = nullptr;
+static thread_local ir::Context* gContext = nullptr;
+
+static decltype(auto) visit2(auto& a, auto& b, auto&& fn) { 
+    return visit(a, [&]<typename T>(T& a) { return fn(a, cast<T&>(b)); });
+}
+
+namespace {
 
 /// Structure used to identify identical computations
 struct Computation {
@@ -57,7 +61,7 @@ struct Computation {
                       Instruction const* B,
                       std::span<Value const* const> BOps) {
         // clang-format off
-        return SC_MATCH (*A, *B) {
+        return visit2(*A, *B, utl::overload{
             [&](ArithmeticInst const& A, ArithmeticInst const& B) {
                 if (A.operation() != B.operation()) {
                     return false;
@@ -113,7 +117,7 @@ struct Computation {
             [&](Instruction const&, Instruction const&) -> bool {
                 return false;
             }
-        }; // clang-format on
+        }); // clang-format on
     }
 
     static size_t hash(Instruction const* inst,
@@ -243,15 +247,20 @@ private:
 /// the predecessor. Each entry in the MCT holds a computation and a pointer to
 /// the corresponding computation in the LCT of the successor block.
 class MovableComputationTable {
-    auto allEntries() {
-        return _entries | ranges::views::values | ranges::views::join;
-    }
+    //auto allEntries() {
+    //    return _entries | ranges::views::values | ranges::views::join;
+    //}
 
 public:
     class Entry: public utl::ilist_node<Entry> {
     public:
         Entry(UniquePtr<Instruction> copy, Instruction* original):
             _copy(std::move(copy)), _originals({ original }) {}
+
+        Entry(Entry&&) = default;
+        Entry& operator=(Entry&&) = default;
+        Entry(Entry const&) { SC_UNREACHABLE(); }
+        Entry& operator=(Entry const&) { SC_UNREACHABLE(); } 
 
         /// Local copy of the instruction in the MCT
         Instruction* copy() const { return _copy.get(); }
@@ -342,10 +351,10 @@ public:
     /// Iterator to the first computation of the table.
     /// \Note: `[begin(), end())` spans all computations in the table regardless
     /// of rank.
-    auto begin() { return allEntries().begin(); }
+    //auto begin() { return allEntries().begin(); }
 
     /// Iterator past the end.
-    auto end() { return allEntries().end(); }
+    //auto end() { return allEntries().end(); }
 
 private:
     utl::node_hashmap<size_t, utl::ilist<Entry>> _entries;

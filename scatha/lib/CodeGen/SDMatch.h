@@ -54,7 +54,7 @@ protected:
 private:
     friend void internal::addMatchCase(MatcherBase&, internal::CaseImpl);
 
-    utl::small_vector<internal::CaseImpl> matchCases;
+    utl::small_vector<internal::CaseImpl, 32> matchCases;
     mir::Context* _ctx = nullptr;
     SelectionDAG* _dag = nullptr;
 };

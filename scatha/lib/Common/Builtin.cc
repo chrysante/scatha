@@ -9,7 +9,7 @@ static utl::hashmap<std::string_view, size_t> makeBuiltinIndexMap() {
     return {
 #define SVM_BUILTIN_DEF(name, ...)                                             \
     std::pair{ std::string_view("__builtin_" #name), index++ },
-#include <svm/Builtin.def>
+#include <svm/Builtin.def.h>
     };
 }
 

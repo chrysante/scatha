@@ -26,7 +26,9 @@ class SCATHA_API SelectionNode: public SDValueNodeBase, public SDExecNodeBase {
 public:
     SelectionNode(ir::Instruction const* value);
 
+    /// To make MSVC happy
     SelectionNode(SelectionNode const&) = delete;
+    SelectionNode& operator=(SelectionNode const&) = delete;
 
     ~SelectionNode();
 

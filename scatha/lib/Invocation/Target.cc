@@ -47,7 +47,7 @@ std::optional<Target> Target::ReadFromDisk(std::filesystem::path const& path) {
         return std::nullopt;
     }
     auto debugInfo = archive->openTextFile(TargetNames::DebugInfoName);
-    return Target(TargetType::BinaryOnly, path.stem(),
+    return Target(TargetType::BinaryOnly, path.stem().string(),
                   std::make_unique<sema::SymbolTable>(std::move(sym)), *code,
                   debugInfo.value_or(std::string{}));
 }

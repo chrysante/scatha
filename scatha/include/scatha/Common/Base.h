@@ -26,7 +26,7 @@
 #elif defined(SC_APIIMPORT)
 #define SCATHA_API __declspec(dllimport)
 #define SCTEST_API __declspec(dllimport)
-#elif
+#else
 #error Need either SC_APIEXPORT or SC_APIIMPORT defined
 #endif // APIIMPORT / APIEXPORT
 
@@ -177,7 +177,7 @@ using std::size_t;
 using ssize_t = std::ptrdiff_t;
 
 /// Exception class to be thrown if the installed assertion handler is `Throw`
-class SCATHA_API AssertionFailure: public std::runtime_error {
+class AssertionFailure: public std::runtime_error {
 public:
     using runtime_error::runtime_error;
 };
@@ -209,10 +209,11 @@ SCATHA_API AssertFailureHandler getAssertFailureHandler();
 [[noreturn]]
 #if defined(__GNUC__)
 __attribute__((always_inline, nodebug))
+inline
 #elif defined(_MSC_VER)
 __forceinline
 #endif
-inline void handleAssertFailure() {
+void handleAssertFailure() {
     using enum AssertFailureHandler;
     switch (getAssertFailureHandler()) {
     case Break:
