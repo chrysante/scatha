@@ -48,7 +48,7 @@ ValueType Asm::promote(ValueType type, size_t size) {
 std::string_view Asm::toCMoveInstName(CompareOperation condition) {
     return std::array{
 #define SC_ASM_COMPARE_DEF(_0, name) std::string_view("cmov" name),
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     }[static_cast<size_t>(condition)];
 }
 
@@ -58,21 +58,21 @@ std::string_view Asm::toJumpInstName(CompareOperation condition) {
     CompareOperation::JUMP == CompareOperation::None ?                         \
         std::string_view("jmp" name) :                                         \
         std::string_view("j" name),
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     }[static_cast<size_t>(condition)];
 }
 
 std::string_view Asm::toSetInstName(CompareOperation condition) {
     return std::array{
 #define SC_ASM_COMPARE_DEF(_0, name) std::string_view("set" name),
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     }[static_cast<size_t>(condition)];
 }
 
 std::string_view Asm::toString(UnaryArithmeticOperation operation) {
     return std::array{
 #define SC_ASM_UNARY_ARITHMETIC_DEF(_, str) std::string_view(str),
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     }[static_cast<size_t>(operation)];
 }
 
@@ -84,7 +84,7 @@ std::ostream& Asm::operator<<(std::ostream& ostream,
 std::string_view Asm::toString(ArithmeticOperation operation) {
     return std::array{
 #define SC_ASM_ARITHMETIC_DEF(_, str) std::string_view(str),
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     }[static_cast<size_t>(operation)];
 }
 

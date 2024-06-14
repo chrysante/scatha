@@ -37,7 +37,7 @@ using namespace ranges::views;
 static bool isKeyword(std::string_view id) {
     static constexpr std::array keywords{
 #define SC_KEYWORD_TOKEN_DEF(Token, str) std::string_view(str),
-#include "Parser/Token.def"
+#include "Parser/Token.def.h"
     };
     return std::find(keywords.begin(), keywords.end(), id) != keywords.end();
 }

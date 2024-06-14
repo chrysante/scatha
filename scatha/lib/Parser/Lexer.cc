@@ -205,7 +205,7 @@ static TokenKind toOperator(std::string_view str) {
     if ((false)) (void)0; /// To make following chained `if/else` cases work
 #define SC_OPERATOR_TOKEN_DEF(Token, op)                                       \
     else if (str == op) { return TokenKind::Token; }
-#include "Parser/Token.def"
+#include "Parser/Token.def.h"
     SC_UNREACHABLE();
 }
 
@@ -452,7 +452,7 @@ static TokenKind idToTokenKind(std::string_view id) {
     if (false) (void)0;
 #define SC_KEYWORD_TOKEN_DEF(Token, str)                                       \
     else if (id == str) { return TokenKind::Token; }
-#include "Parser/Token.def"
+#include "Parser/Token.def.h"
     return TokenKind::Identifier;
 }
 

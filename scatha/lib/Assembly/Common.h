@@ -30,28 +30,28 @@ enum class Type : u8 { Signed, Unsigned, Float, _count };
 /// Forward declare all instructions.
 
 #define SC_ASM_INSTRUCTION_DEF(inst) class inst;
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
 
 class Instruction;
 
 /// Enum naming all concrete types in the `Instruction` variant.
 enum class InstructionType {
 #define SC_ASM_INSTRUCTION_DEF(inst) inst,
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     _count
 };
 
 /// Forward declare all values.
 
 #define SC_ASM_VALUE_DEF(value) class value;
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
 
 class Value;
 
 /// Enum naming all concrete types in the `Value` variant.
 enum class ValueType {
 #define SC_ASM_VALUE_DEF(value) value,
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     _count
 };
 
@@ -63,7 +63,7 @@ ValueType promote(ValueType type, size_t size);
 
 enum class CompareOperation {
 #define SC_ASM_COMPARE_DEF(jmpcnd, ...) jmpcnd,
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     _count
 };
 
@@ -73,7 +73,7 @@ std::string_view toSetInstName(CompareOperation condition);
 
 enum class UnaryArithmeticOperation {
 #define SC_ASM_UNARY_ARITHMETIC_DEF(op, ...) op,
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     _count
 };
 
@@ -84,7 +84,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 
 enum class ArithmeticOperation {
 #define SC_ASM_ARITHMETIC_DEF(op, ...) op,
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     _count
 };
 

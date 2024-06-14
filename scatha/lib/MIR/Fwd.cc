@@ -11,7 +11,7 @@ std::string_view mir::toString(NodeType nodeType) {
 #define SC_MIR_CFGNODE_DEF(Node, ...)                                          \
     case NodeType::Node:                                                       \
         return #Node;
-#include "MIR/Lists.def"
+#include "MIR/Lists.def.h"
     }
 }
 
@@ -32,7 +32,7 @@ std::string_view mir::toString(InstType instType) {
 #define SC_MIR_INSTCLASS_DEF(Inst, ...)                                        \
     case InstType::Inst:                                                       \
         return #Inst;
-#include "MIR/Lists.def"
+#include "MIR/Lists.def.h"
     }
 }
 

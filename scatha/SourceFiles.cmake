@@ -1,7 +1,7 @@
 
 set(scatha_headers
   include/scatha/AST/Fwd.h
-  include/scatha/AST/Lists.def
+  include/scatha/AST/Lists.def.h
   include/scatha/AST/Print.h
 
   include/scatha/Assembly/Assembler.h
@@ -36,7 +36,7 @@ set(scatha_headers
   include/scatha/IR/Fwd.h
   include/scatha/IR/Graphviz.h
   include/scatha/IR/IRParser.h
-  include/scatha/IR/Lists.def
+  include/scatha/IR/Lists.def.h
   include/scatha/IR/Module.h
   include/scatha/IR/Parser/IRIssue.h
   include/scatha/IR/Parser/IRSourceLocation.h
@@ -61,7 +61,7 @@ set(scatha_headers
 
   include/scatha/MIR/Context.h
   include/scatha/MIR/Fwd.h
-  include/scatha/MIR/Lists.def
+  include/scatha/MIR/Lists.def.h
   include/scatha/MIR/Module.h
   include/scatha/MIR/Print.h
 
@@ -71,17 +71,17 @@ set(scatha_headers
   include/scatha/Parser/LexicalIssue.h
   include/scatha/Parser/Parser.h
   include/scatha/Parser/SyntaxIssue.h
-  include/scatha/Parser/Token.def
+  include/scatha/Parser/Token.def.h
   include/scatha/Parser/Token.h
 
   include/scatha/Sema/AnalysisResult.h
   include/scatha/Sema/Analyze.h
-  include/scatha/Sema/Conversion.def
+  include/scatha/Sema/Conversion.def.h
   include/scatha/Sema/Entity.h
   include/scatha/Sema/Fwd.h
   include/scatha/Sema/LifetimeMetadata.h
   include/scatha/Sema/LifetimeOperation.h
-  include/scatha/Sema/Lists.def
+  include/scatha/Sema/Lists.def.h
   include/scatha/Sema/NameMangling.h
   include/scatha/Sema/Print.h
   include/scatha/Sema/QualType.h
@@ -110,7 +110,7 @@ set(scatha_sources
     lib/Assembly/Instruction.cc
     lib/Assembly/Instruction.h
     lib/Assembly/Linker.cc
-    lib/Assembly/Lists.def
+    lib/Assembly/Lists.def.h
     lib/Assembly/Map.cc
     lib/Assembly/Map.h
     lib/Assembly/Print.cc
@@ -377,7 +377,7 @@ set(scatha_sources
     lib/Sema/QualType.cc
     lib/Sema/SemaIssues.cc
     lib/Sema/Serialize.cc
-    lib/Sema/SerializeFields.def
+    lib/Sema/SerializeFields.def.h
     lib/Sema/SymbolTable.cc
     lib/Sema/ThinExpr.cc
 )

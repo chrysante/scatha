@@ -74,18 +74,18 @@ void deserializeEnum(json const& j, Enum& e) {
 SERIALIZE_ENUM_BEGIN(EntityType)
 #define SC_SEMA_ENTITY_DEF(Type, ...)                                          \
     SERIALIZE_ENUM_ELEM(EntityType::Type, #Type)
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
 SERIALIZE_ENUM_END()
 
 SERIALIZE_ENUM_BEGIN(AccessControl)
 #define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling)                             \
     SERIALIZE_ENUM_ELEM(AccessControl::Kind, Spelling)
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
 SERIALIZE_ENUM_END()
 
 SERIALIZE_ENUM_BEGIN(SMFKind)
 #define SC_SEMA_SMF_DEF(Kind, _) SERIALIZE_ENUM_ELEM(SMFKind::Kind, #Kind)
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
 SERIALIZE_ENUM_END()
 
 SERIALIZE_ENUM_BEGIN(LifetimeOperation::Kind)
@@ -472,13 +472,13 @@ struct Field {
 
 enum class Field {
 #define SC_SEMA_FIELD_DEF(Type, Name, Spelling) Name,
-#include "Sema/SerializeFields.def"
+#include "Sema/SerializeFields.def.h"
 };
 
 std::string_view toString(Field field) {
     static constexpr std::array spellings{
 #define SC_SEMA_FIELD_DEF(Type, Name, Spelling) std::string_view(Spelling),
-#include "Sema/SerializeFields.def"
+#include "Sema/SerializeFields.def.h"
     };
     return spellings[(size_t)field];
 }
@@ -491,7 +491,7 @@ struct FieldToType;
     struct FieldToType<Field::Name> {                                          \
         using type = Type;                                                     \
     };
-#include "Sema/SerializeFields.def"
+#include "Sema/SerializeFields.def.h"
 
 #endif
 
@@ -852,7 +852,7 @@ struct Deserializer: TypeMapBase {
     case EntityType::Type:                                                     \
         callback(Tag<Type>{}, obj);                                            \
         return true;
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
         }
         SC_UNREACHABLE();
     }

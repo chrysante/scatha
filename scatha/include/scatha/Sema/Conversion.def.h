@@ -36,7 +36,7 @@ SC_MUTCONV_DEF(MutToConst,   1)
 /// # Constructing conversions
 /// These cases directly reflect the AST construct expressions
 #define SC_ASTNODE_CONSTR_DEF(Name, ...) SC_OBJTYPECONV_DEF(Name, 2)
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
 
 SC_OBJTYPECONV_DEF(NullptrToRawPtr,                    0)
 SC_OBJTYPECONV_DEF(NullptrToUniquePtr,                 0)

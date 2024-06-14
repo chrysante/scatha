@@ -251,7 +251,7 @@ struct IRParser {
 #define SC_CONVERSION_DEF(Op, Keyword)                                         \
     case TokenKind::Op:                                                        \
         return Conversion::Op;
-#include "IR/Lists.def"
+#include "IR/Lists.def.h"
         default:
             reportSyntaxIssue(token);
         }

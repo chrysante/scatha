@@ -11,7 +11,7 @@ using namespace ast;
 std::string_view ast::toString(NodeType t) {
     return std::array{
 #define SC_ASTNODE_DEF(Type, ...) std::string_view(#Type),
-#include "AST/Lists.def"
+#include "AST/Lists.def.h"
     }[static_cast<size_t>(t)];
 }
 
@@ -22,7 +22,7 @@ std::ostream& ast::operator<<(std::ostream& str, NodeType t) {
 std::string_view ast::toString(LiteralKind kind) {
     return std::array{
 #define SC_LITERAL_KIND_DEF(kind, str) std::string_view(str),
-#include "AST/Lists.def"
+#include "AST/Lists.def.h"
     }[static_cast<size_t>(kind)];
 }
 
@@ -33,7 +33,7 @@ std::ostream& ast::operator<<(std::ostream& str, LiteralKind kind) {
 std::string_view ast::toString(UnaryOperator op) {
     return std::array{
 #define SC_UNARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),
-#include "AST/Lists.def"
+#include "AST/Lists.def.h"
     }[static_cast<size_t>(op)];
 }
 
@@ -44,7 +44,7 @@ std::ostream& ast::operator<<(std::ostream& str, UnaryOperator op) {
 std::string_view ast::toString(UnaryOperatorNotation notation) {
     return std::array{
 #define SC_UNARY_OPERATOR_NOTATION_DEF(name, str) std::string_view(str),
-#include "AST/Lists.def"
+#include "AST/Lists.def.h"
     }[static_cast<size_t>(notation)];
 }
 
@@ -56,7 +56,7 @@ std::ostream& ast::operator<<(std::ostream& str,
 std::string_view ast::toString(BinaryOperator op) {
     return std::array{
 #define SC_BINARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),
-#include "AST/Lists.def"
+#include "AST/Lists.def.h"
     }[static_cast<size_t>(op)];
 }
 

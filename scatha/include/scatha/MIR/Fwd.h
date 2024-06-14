@@ -42,12 +42,12 @@ class Instruction;
 
 /// Forward declarations of all CFG node types in the MIR module.
 #define SC_MIR_CFGNODE_DEF(Type, ...) class Type;
-#include <scatha/MIR/Lists.def>
+#include <scatha/MIR/Lists.def.h>
 
 /// Enum listing all CFG node types in the MIR module.
 enum class NodeType {
 #define SC_MIR_CFGNODE_DEF(Type, ...) Type,
-#include <scatha/MIR/Lists.def>
+#include <scatha/MIR/Lists.def.h>
     LAST = ForeignFunction
 };
 
@@ -65,12 +65,12 @@ SCTEST_API void privateDestroy(mir::Value* value);
 
 /// Forward declarations of all instructions in the MIR module.
 #define SC_MIR_INSTCLASS_DEF(Type, ...) class Type;
-#include <scatha/MIR/Lists.def>
+#include <scatha/MIR/Lists.def.h>
 
 /// Enum listing all instruction types in the MIR module.
 enum class InstType : uint16_t {
 #define SC_MIR_INSTCLASS_DEF(Type, ...) Type,
-#include <scatha/MIR/Lists.def>
+#include <scatha/MIR/Lists.def.h>
     LAST = SelectInst
 };
 
@@ -95,13 +95,13 @@ using VoidParent = void;
 #define SC_MIR_CFGNODE_DEF(Node, Parent, Corporeality)                         \
     SC_DYNCAST_DEFINE(::scatha::mir::Node, ::scatha::mir::NodeType::Node,      \
                       ::scatha::mir::Parent, Corporeality)
-#include <scatha/MIR/Lists.def>
+#include <scatha/MIR/Lists.def.h>
 
 /// Map enum `InstType` to actual instruction types
 #define SC_MIR_INSTCLASS_DEF(Inst, Parent, Corporeality)                       \
     SC_DYNCAST_DEFINE(::scatha::mir::Inst, ::scatha::mir::InstType::Inst,      \
                       ::scatha::mir::Parent, Corporeality)
-#include <scatha/MIR/Lists.def>
+#include <scatha/MIR/Lists.def.h>
 
 namespace scatha::mir {
 

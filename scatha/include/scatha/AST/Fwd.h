@@ -14,12 +14,12 @@ namespace scatha::ast {
 ///
 
 #define SC_ASTNODE_DEF(ASTNode, ...) class ASTNode;
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
 
 /// List of all  AST node types.
 enum class NodeType : uint8_t {
 #define SC_ASTNODE_DEF(ASTNode, ...) ASTNode,
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
     LAST = NodeType::ObjTypeConvExpr
 };
 
@@ -38,14 +38,14 @@ using VoidParent = void;
 #define SC_ASTNODE_DEF(Type, Parent, Corporeality)                             \
     SC_DYNCAST_DEFINE(scatha::ast::Type, scatha::ast::NodeType::Type,          \
                       scatha::ast::Parent, Corporeality)
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
 
 namespace scatha::ast {
 
 /// List of all kinds of literals
 enum class LiteralKind {
 #define SC_LITERAL_KIND_DEF(kind, _) kind,
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
 };
 
 SCATHA_API std::string_view toString(LiteralKind);
@@ -55,7 +55,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, LiteralKind);
 /// List of all unary operators
 enum class UnaryOperator {
 #define SC_UNARY_OPERATOR_DEF(name, _) name,
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
 };
 
 SCATHA_API std::string_view toString(UnaryOperator);
@@ -65,7 +65,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, UnaryOperator);
 /// List of unary operator notation
 enum class UnaryOperatorNotation {
 #define SC_UNARY_OPERATOR_NOTATION_DEF(name, _) name,
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
 };
 
 SCATHA_API std::string_view toString(UnaryOperatorNotation);
@@ -75,7 +75,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, UnaryOperatorNotation);
 /// List of all binary operators
 enum class BinaryOperator {
 #define SC_BINARY_OPERATOR_DEF(name, _) name,
-#include <scatha/AST/Lists.def>
+#include <scatha/AST/Lists.def.h>
 };
 
 SCATHA_API std::string_view toString(BinaryOperator);

@@ -63,12 +63,12 @@ class Module;
 
 /// Forward declaration of CFG nodes
 #define SC_VALUENODE_DEF(Node, ...) class Node;
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 
 /// List of all CFG node type
 enum class NodeType {
 #define SC_VALUENODE_DEF(Node, ...) Node,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     LAST = InsertValue
 };
 
@@ -80,12 +80,12 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 /// Forward declaration of attributes
 #define SC_ATTRIBUTE_DEF(Attrib, ...) class Attrib;
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 
 /// List of all attribute types
 enum class AttributeType {
 #define SC_ATTRIBUTE_DEF(Attrib, ...) Attrib,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     LAST = ValRetAttribute
 };
 
@@ -99,7 +99,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// List of conversion operations
 enum class Conversion {
 #define SC_CONVERSION_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     _count
 };
 
@@ -112,7 +112,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, Conversion conv);
 /// List of compare modes (signed, unsigned, float)
 enum class CompareMode {
 #define SC_COMPARE_MODE_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     _count
 };
 
@@ -126,7 +126,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// List of all compare operations
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 };
 
 /// Convert \p compareOp to string
@@ -149,7 +149,7 @@ CompareOperation inverse(CompareOperation compareOp);
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     _count
 };
 
@@ -164,7 +164,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// List of all binary arithmetic operations in the IR module
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     _count
 };
 
@@ -184,19 +184,19 @@ SCATHA_API bool isCommutative(ArithmeticOperation op);
 /// ## Forward declarations of type categories
 
 #define SC_TYPE_CATEGORY_DEF(TypeCat, ...) class TypeCat;
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 
 /// List of all type categories
 enum class TypeCategory {
 #define SC_TYPE_CATEGORY_DEF(TypeCat, ...) TypeCat,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     LAST = FunctionType
 };
 
 /// List of all visibility kinds
 enum class Visibility {
 #define SC_VISKIND_DEF(vis) vis,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
     _count
 };
 
@@ -220,20 +220,20 @@ using VoidParent = void;
 #define SC_VALUENODE_DEF(Node, Parent, Corporeality)                           \
     SC_DYNCAST_DEFINE(::scatha::ir::Node, ::scatha::ir::NodeType::Node,        \
                       ::scatha::ir::Parent, Corporeality)
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 
 /// Map enum `AttributeType` to actual attribute types
 #define SC_ATTRIBUTE_DEF(Type, Parent, Corporeality)                           \
     SC_DYNCAST_DEFINE(::scatha::ir::Type, ::scatha::ir::AttributeType::Type,   \
                       ::scatha::ir::Parent, Corporeality)
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 
 /// Map enum `TypeCategory` to actual type category classes
 #define SC_TYPE_CATEGORY_DEF(TypeCat, Parent, Corporeality)                    \
     SC_DYNCAST_DEFINE(::scatha::ir::TypeCat,                                   \
                       ::scatha::ir::TypeCategory::TypeCat,                     \
                       ::scatha::ir::Parent, Corporeality)
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 
 namespace scatha::ir::internal {
 

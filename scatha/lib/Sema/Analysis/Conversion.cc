@@ -581,7 +581,7 @@ static int getRank(std::optional<ValueCatConversion> conv) {
     }
     return std::array{
 #define SC_VALUECATCONV_DEF(Name, Rank) Rank,
-#include "Sema/Conversion.def"
+#include "Sema/Conversion.def.h"
     }[(size_t)conv.value()];
 }
 
@@ -591,7 +591,7 @@ static int getRank(std::optional<MutConversion> conv) {
     }
     return std::array{
 #define SC_MUTCONV_DEF(Name, Rank) Rank,
-#include "Sema/Conversion.def"
+#include "Sema/Conversion.def.h"
     }[(size_t)conv.value()];
 }
 
@@ -601,7 +601,7 @@ static int getRank(std::optional<ObjectTypeConversion> conv) {
     }
     return std::array{
 #define SC_OBJTYPECONV_DEF(Name, Rank) Rank,
-#include "Sema/Conversion.def"
+#include "Sema/Conversion.def.h"
     }[(size_t)conv.value()];
 }
 

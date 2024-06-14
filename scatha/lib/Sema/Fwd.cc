@@ -13,7 +13,7 @@ using namespace sema;
 std::string_view sema::toString(EntityType t) {
     return std::array{
 #define SC_SEMA_ENTITY_DEF(Type, ...) std::string_view(#Type),
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
     }[static_cast<size_t>(t)];
 }
 
@@ -75,7 +75,7 @@ std::ostream& sema::operator<<(std::ostream& str, Mutability mut) {
 std::string_view sema::toString(AccessControl a) {
     return std::array{
 #define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling) std::string_view(Spelling),
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
     }[static_cast<size_t>(a)];
 }
 
@@ -110,7 +110,7 @@ std::string_view sema::toString(PropertyKind kind) {
 #define SC_SEMA_PROPERTY_KIND(K, SourceName)                                   \
     case K:                                                                    \
         return SourceName;
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
     }
     SC_UNREACHABLE();
 }
@@ -138,7 +138,7 @@ std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
 std::string sema::toString(SMFKind kind) {
     return std::string(std::array{
 #define SC_SEMA_SMF_DEF(Name, Spelling) std::string_view(#Name),
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
     }[(size_t)kind]);
 }
 
@@ -149,14 +149,14 @@ std::ostream& sema::operator<<(std::ostream& ostream, SMFKind kind) {
 std::string sema::toSpelling(SMFKind kind) {
     return std::array{
 #define SC_SEMA_SMF_DEF(Name, Spelling) Spelling,
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
     }[(size_t)kind];
 }
 
 std::string_view sema::toString(ConstantKind k) {
     return std::array{
 #define SC_SEMA_CONSTKIND_DEF(Kind, ...) std::string_view(#Kind),
-#include "Sema/Lists.def"
+#include "Sema/Lists.def.h"
     }[static_cast<size_t>(k)];
 }
 
@@ -167,7 +167,7 @@ std::ostream& sema::operator<<(std::ostream& str, ConstantKind k) {
 std::string_view sema::toString(ValueCatConversion conv) {
     return std::array{
 #define SC_VALUECATCONV_DEF(Name, ...) std::string_view(#Name),
-#include "Sema/Conversion.def"
+#include "Sema/Conversion.def.h"
     }[static_cast<size_t>(conv)];
 }
 
@@ -178,7 +178,7 @@ std::ostream& sema::operator<<(std::ostream& ostream, ValueCatConversion conv) {
 std::string_view sema::toString(MutConversion conv) {
     return std::array{
 #define SC_MUTCONV_DEF(Name, ...) std::string_view(#Name),
-#include "Sema/Conversion.def"
+#include "Sema/Conversion.def.h"
     }[static_cast<size_t>(conv)];
 }
 
@@ -189,7 +189,7 @@ std::ostream& sema::operator<<(std::ostream& ostream, MutConversion conv) {
 std::string_view sema::toString(ObjectTypeConversion conv) {
     return std::array{
 #define SC_OBJTYPECONV_DEF(Name, ...) std::string_view(#Name),
-#include "Sema/Conversion.def"
+#include "Sema/Conversion.def.h"
     }[static_cast<size_t>(conv)];
 }
 
@@ -209,7 +209,7 @@ bool sema::isArithmeticConversion(ObjectTypeConversion conv) {
 #define SC_ARITHMETIC_CONV_DEF(CONV, ...)                                      \
     case ObjectTypeConversion::CONV:                                           \
         return true;
-#include "Sema/Conversion.def"
+#include "Sema/Conversion.def.h"
     default:
         return false;
     }

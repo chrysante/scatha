@@ -338,7 +338,7 @@ namespace internal {
 using InstructionVariantBase = std::variant<
 #define SC_ASM_INSTRUCTION_DEF(inst) inst
 #define SC_ASM_INSTRUCTION_SEPARATOR ,
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     >;
 
 } // namespace internal

@@ -46,7 +46,7 @@ enum class TokenKind {
     Store,
 
 #define SC_CONVERSION_DEF(Op, Keyword) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/Lists.def.h>
 
     Goto,
     Branch,

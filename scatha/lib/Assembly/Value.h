@@ -214,7 +214,7 @@ namespace internal {
 using ValueVariantBase = std::variant<
 #define SC_ASM_VALUE_DEF(value) value
 #define SC_ASM_VALUE_SEPARATOR  ,
-#include "Assembly/Lists.def"
+#include "Assembly/Lists.def.h"
     >;
 
 } // namespace internal

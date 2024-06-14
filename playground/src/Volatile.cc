@@ -162,7 +162,7 @@ static void printSize(std::string_view name, size_t size) {
 [[maybe_unused]] static void printIRValueSizes() {
     using namespace ir;
 #define SC_VALUENODE_DEF(Name, Parent, _) PRINT_SIZE(Name);
-#include "IR/Lists.def"
+#include "IR/Lists.def.h"
 }
 
 void playground::volatilePlayground() {

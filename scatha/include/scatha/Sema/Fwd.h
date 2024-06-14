@@ -38,12 +38,12 @@ struct AnalysisOptions {
 ///
 
 #define SC_SEMA_ENTITY_DEF(Type, ...) class Type;
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
 
 /// List of all entity types
 enum class EntityType {
 #define SC_SEMA_ENTITY_DEF(Type, ...) Type,
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
     LAST = PoisonEntity
 };
 
@@ -62,7 +62,7 @@ using VoidParent = void;
 #define SC_SEMA_ENTITY_DEF(Type, Parent, Corporeality)                         \
     SC_DYNCAST_DEFINE(::scatha::sema::Type, ::scatha::sema::EntityType::Type,  \
                       ::scatha::sema::Parent, Corporeality)
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
 
 namespace scatha::sema {
 
@@ -114,7 +114,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ScopeKind);
 /// Different kinds of property objects
 enum class PropertyKind {
 #define SC_SEMA_PROPERTY_KIND(Kind, _) Kind,
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
 };
 
 SCATHA_API std::string_view toString(PropertyKind);
@@ -131,7 +131,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
 ///
 enum class AccessControl : uint8_t {
 #define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling) Kind,
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
 };
 
 ///
@@ -158,7 +158,7 @@ enum class Signedness { Signed, Unsigned };
 /// Different kinds of special member functions
 enum class SMFKind : uint8_t {
 #define SC_SEMA_SMF_DEF(Name, Spelling) Name,
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
     LAST = Destructor
 };
 
@@ -187,12 +187,12 @@ UTL_BITFIELD_OPERATORS(FunctionAttribute);
 ///
 
 #define SC_SEMA_CONSTKIND_DEF(Type, ...) class Type;
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
 
 /// List of all constant value kinds
 enum class ConstantKind {
 #define SC_SEMA_CONSTKIND_DEF(Type, ...) Type,
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
     LAST = FloatValue
 };
 
@@ -203,7 +203,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ConstantKind);
 /// Conversion between reference qualifications
 enum class ValueCatConversion : uint8_t {
 #define SC_VALUECATCONV_DEF(Name, ...) Name,
-#include <scatha/Sema/Conversion.def>
+#include <scatha/Sema/Conversion.def.h>
 };
 
 SCATHA_API std::string_view toString(ValueCatConversion conv);
@@ -214,7 +214,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// Conversion between mutability qualifications
 enum class MutConversion : uint8_t {
 #define SC_MUTCONV_DEF(Name, ...) Name,
-#include <scatha/Sema/Conversion.def>
+#include <scatha/Sema/Conversion.def.h>
 };
 
 SCATHA_API std::string_view toString(MutConversion conv);
@@ -224,7 +224,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, MutConversion conv);
 /// Conversion between different object types
 enum class ObjectTypeConversion : uint8_t {
 #define SC_OBJTYPECONV_DEF(Name, ...) Name,
-#include <scatha/Sema/Conversion.def>
+#include <scatha/Sema/Conversion.def.h>
 };
 
 SCATHA_API std::string_view toString(ObjectTypeConversion conv);
@@ -246,7 +246,7 @@ SCATHA_API bool isArithmeticConversion(ObjectTypeConversion conv);
     SC_DYNCAST_DEFINE(::scatha::sema::Type,                                    \
                       ::scatha::sema::ConstantKind::Type,                      \
                       ::scatha::sema::Parent, Corporeality)
-#include <scatha/Sema/Lists.def>
+#include <scatha/Sema/Lists.def.h>
 
 namespace scatha::sema {
 
