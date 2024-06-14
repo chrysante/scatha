@@ -57,6 +57,8 @@ struct ProgramHeader {
 ///                  [ffi-type] // Element types
 /// ```
 
+class FFITrivialType;
+
 class FFIType {
 public:
     /// This declaration is identical to the one in `<scatha/Common/FFI.h>`
@@ -99,14 +101,14 @@ protected:
     explicit FFIType(Kind kind): _kind(kind) {}
 
 private:
-    static FFIType _sVoid;
-    static FFIType _sInt8;
-    static FFIType _sInt16;
-    static FFIType _sInt32;
-    static FFIType _sInt64;
-    static FFIType _sFloat;
-    static FFIType _sDouble;
-    static FFIType _sPointer;
+    static FFITrivialType _sVoid;
+    static FFITrivialType _sInt8;
+    static FFITrivialType _sInt16;
+    static FFITrivialType _sInt32;
+    static FFITrivialType _sInt64;
+    static FFITrivialType _sFloat;
+    static FFITrivialType _sDouble;
+    static FFITrivialType _sPointer;
 
     Kind _kind;
 };

@@ -59,7 +59,7 @@ SCTEST_API UniquePtr<Instruction> clone(Context& context, Instruction* inst);
 /// \Returns a clone of the instruction \p inst downcast to the type of the
 /// argument
 template <std::derived_from<Instruction> Inst>
-SCTEST_API UniquePtr<Inst> clone(Context& context, Inst* inst) {
+UniquePtr<Inst> clone(Context& context, Inst* inst) {
     return uniquePtrCast<Inst>(clone(context, static_cast<Instruction*>(inst)));
 }
 

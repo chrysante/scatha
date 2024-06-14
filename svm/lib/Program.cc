@@ -16,14 +16,14 @@
 
 using namespace svm;
 
-FFIType FFIType::_sVoid = FFITrivialType(Kind::Void);
-FFIType FFIType::_sInt8 = FFITrivialType(Kind::Int8);
-FFIType FFIType::_sInt16 = FFITrivialType(Kind::Int16);
-FFIType FFIType::_sInt32 = FFITrivialType(Kind::Int32);
-FFIType FFIType::_sInt64 = FFITrivialType(Kind::Int64);
-FFIType FFIType::_sFloat = FFITrivialType(Kind::Float);
-FFIType FFIType::_sDouble = FFITrivialType(Kind::Double);
-FFIType FFIType::_sPointer = FFITrivialType(Kind::Pointer);
+FFITrivialType FFIType::_sVoid = FFITrivialType(Kind::Void);
+FFITrivialType FFIType::_sInt8 = FFITrivialType(Kind::Int8);
+FFITrivialType FFIType::_sInt16 = FFITrivialType(Kind::Int16);
+FFITrivialType FFIType::_sInt32 = FFITrivialType(Kind::Int32);
+FFITrivialType FFIType::_sInt64 = FFITrivialType(Kind::Int64);
+FFITrivialType FFIType::_sFloat = FFITrivialType(Kind::Float);
+FFITrivialType FFIType::_sDouble = FFITrivialType(Kind::Double);
+FFITrivialType FFIType::_sPointer = FFITrivialType(Kind::Pointer);
 
 FFIType const* FFIType::Trivial(Kind kind) {
     switch (kind) {

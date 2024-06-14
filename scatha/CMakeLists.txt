@@ -4,6 +4,9 @@ include(SourceFiles.cmake)
 add_library(scatha SHARED)
 set_target_properties(scatha PROPERTIES LINKER_LANGUAGE CXX)
 SCSetCompilerOptions(scatha)
+target_compile_definitions(scatha
+  PRIVATE SC_APIEXPORT
+  INTERFACE SC_APIIMPORT)
 
 target_include_directories(scatha
     PUBLIC

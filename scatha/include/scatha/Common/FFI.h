@@ -15,7 +15,7 @@
 class FFITrivialType;
 
 /// Base class of FFI types
-class FFIType {
+class SCTEST_API FFIType {
 public:
     /// This list is identical to the one in `<svm/Program.h>`
     /// This should never change but if it does both must be updated

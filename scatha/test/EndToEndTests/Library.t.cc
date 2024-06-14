@@ -286,8 +286,10 @@ fn main() -> int {
 
 #if defined(__GNUC__)
 #define SC_TEST_EXPORT __attribute__((visibility("default")))
+#elif defined(_MSC_VER)
+#define SC_TEST_EXPORT __declspec(dllexport)
 #else
-#error
+#error Unsupported compiler
 #endif
 
 TEST_CASE("FFI from host", "[end-to-end][lib][foreignlib]") {
