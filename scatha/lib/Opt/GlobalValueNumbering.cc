@@ -33,6 +33,8 @@ SC_REGISTER_PASS(opt::globalValueNumbering, "gvn",
 /// `Computation` class
 static thread_local ir::Context* gContext = nullptr;
 
+/// Visits the first argument and casts the second argument to the type of the
+/// first
 static decltype(auto) visit2(auto& a, auto& b, auto&& fn) { 
     return visit(a, [&]<typename T>(T& a) { return fn(a, cast<T&>(b)); });
 }
