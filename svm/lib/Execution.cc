@@ -301,7 +301,7 @@ static size_t argSizeInWords(ffi_type const* type) {
 }
 
 static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
-    #ifndef _MSC_VER
+#ifndef _MSC_VER
     using enum FIIStructVisitLevel;
     u64* argPtr = regPtr;
     u64* retPtr = regPtr;
@@ -318,9 +318,9 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
         argPtr += argSizeInWords(argType);
     }
     ffi_call(&F.callInterface, F.funcPtr, retPtr, F.arguments.data());
-    #else
-    exit(1);
-    #endif
+#else
+    throwError<FFIError>(FFIError::FailedToInit, F.name);
+#endif
 }
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {

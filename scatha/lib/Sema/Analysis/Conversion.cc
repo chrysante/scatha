@@ -1103,7 +1103,8 @@ ast::Expression* sema::insertConversion(ast::Expression* expr, Conversion conv,
                                    -> UniquePtr<ast::Expression> {
             if (isConstruction(objConv)) {
                 SC_ASSERT(conv.objectConversions().size() == 1, "");
-                return allocateObjectConstruction(objConv, expr->sourceRange(),
+                auto sourceRange = expr->sourceRange();
+                return allocateObjectConstruction(objConv, sourceRange,
                                                   conv.targetType().get(),
                                                   toSmallVector(
                                                       std::move(expr)));

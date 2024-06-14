@@ -239,16 +239,16 @@ static std::optional<std::filesystem::path> findNativeLibrary(
 }
 
 static bool foreignLibPathExists(std::filesystem::path const& path) {
-#if !defined(__APPLE__)
-    return std::filesystem::exists(path);
-#else
+#if defined(__APPLE__) || defined(_WIN32)
     try {
-        [[maybe_unused]] auto lib = utl::dynamic_library(path);
+        [[maybe_unused]] auto lib = utl::dynamic_library(path.string());
         return true;
     }
     catch (std::exception const&) {
         return false;
     }
+#else
+    return std::filesystem::exists(path);
 #endif
 }
 
@@ -261,9 +261,17 @@ static std::string toForeignLibName(std::string_view fullname) {
     /// TODO: Make portable
     /// This is the MacOS convention, need to add linux and windows conventions
     /// for portability
+#if defined(__APPLE__)
     std::filesystem::path path(fullname);
     auto name = path.filename().string();
     path.replace_filename(utl::strcat("lib", name, ".dylib"));
+#elif defined(_WIN32)
+    std::filesystem::path path(fullname);
+    auto name = path.filename().string();
+    path.replace_filename(utl::strcat(name, ".dll"));
+#else
+#error Unknown OS
+#endif
     return path.string();
 }
 

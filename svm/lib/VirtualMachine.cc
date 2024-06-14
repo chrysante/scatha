@@ -50,9 +50,17 @@ static std::string toForeignLibName(std::string_view fullname) {
     /// TODO: Make portable
     /// This is the MacOS convention, need to add linux and windows conventions
     /// for portability
+#if defined(__APPLE__)
     std::filesystem::path path(fullname);
     auto name = path.filename().string();
     path.replace_filename(utl::strcat("lib", name, ".dylib"));
+#elif defined(_WIN32)
+    std::filesystem::path path(fullname);
+    auto name = path.filename().string();
+    path.replace_filename(utl::strcat(name, ".dll"));
+#else
+#error Unknown OS
+#endif
     return path.string();
 }
 
@@ -138,7 +146,7 @@ static ffi_type* toLibFFI(FFIType const* type) {
 }
 
 static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
-    #ifndef _MSC_VER
+#ifndef _MSC_VER
     F.name = decl.name;
     F.funcPtr = (void (*)())decl.ptr;
     F.returnType = toLibFFI(decl.returnType);
@@ -149,9 +157,9 @@ static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
     return ffi_prep_cif(&F.callInterface, FFI_DEFAULT_ABI,
                         utl::narrow_cast<int>(F.arguments.size()), F.returnType,
                         F.argumentTypes.data()) == FFI_OK;
-    #else
-    exit(1);
-    #endif
+#else
+    throwError<FFIError>(FFIError::FailedToInit, F.name);
+#endif
 }
 
 static void loadForeignFunctions(VirtualMachine* vm,
@@ -172,11 +180,7 @@ static void loadForeignFunctions(VirtualMachine* vm,
     vm->impl->foreignFunctionTable.resize(fnDecls.size());
     for (auto [decl, F]: zip(fnDecls, vm->impl->foreignFunctionTable)) {
         if (!initForeignFunction(decl, F)) {
-            #ifndef _MSC_VER
             throwError<FFIError>(FFIError::FailedToInit, decl.name);
-            #else
-            exit(1);
-            #endif
         }
     }
 }

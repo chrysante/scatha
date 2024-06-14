@@ -95,7 +95,9 @@ void Archive::close() {
         return;
     }
     auto& tar = asMTar(impl);
-    mtar_finalize(&tar);
+    if (mode() == Mode::Write) {
+        mtar_finalize(&tar);
+    }
     mtar_close(&tar);
     _mode = Mode::Closed;
     _files.clear();
