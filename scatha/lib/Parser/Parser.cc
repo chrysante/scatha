@@ -1205,6 +1205,7 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
         utl::small_vector<UniquePtr<ast::Expression>> elems;
         Token next = tokens.peek();
         while (next.kind() != CloseBracket) {
+            ssize_t tokenIndex = tokens.index();
             if (!first) {
                 expectDelimiter(Comma);
             }
@@ -1212,6 +1213,9 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
             auto expr = parseConditional();
             if (!expr) {
                 pushExpectedExpression(next);
+                if (tokenIndex == tokens.index()) {
+                    tokens.eat();
+                }
             }
             elems.push_back(std::move(expr));
             next = tokens.peek();
