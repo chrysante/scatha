@@ -92,22 +92,24 @@ struct SuggestionResult {
     std::optional<ssize_t> current = std::nullopt;
 };
 
+enum class NextResult {
+    DisplaySuggestions, Cycle, Error
+};
+
 class AutoCompleter {
 public:
-    bool next(std::string& input, int& cursor, SuggestionResult& suggestion,
-              int offset) {
-        if (!valid) {
-            buildStructure(input);
+    NextResult next(std::string& input, int& cursor, 
+                    SuggestionResult& suggestion, int offset) {
+        if (!valid && !buildStructure(input)) {
+            return NextResult::Error;
         }
         if (matches.empty()) {
-            beep();
-            return false;
+            return NextResult::Error;
         }
         /// Having hit before means we already inserted the single completion
         if (matches.size() == 1 && hitBefore) {
-            beep();
             invalidate();
-            return false;
+            return NextResult::Error;
         }
         /// On the first hit we display suggestions if there is more than one
         /// option
@@ -115,7 +117,7 @@ public:
             hitBefore = true;
             fillCommon(input, cursor);
             suggestion = { baseName, matches };
-            return true;
+            return NextResult::DisplaySuggestions;
         }
         /// Then we cycle through the suggestions
         matchIndex += offset;
@@ -125,7 +127,7 @@ public:
         input = completed;
         cursor = static_cast<int>(input.size());
         hitBefore = true;
-        return false;
+        return NextResult::Cycle;
     }
 
     void fillCommon(std::string& input, int& cursor) {
@@ -154,8 +156,7 @@ public:
     }
 
 private:
-    void buildStructure(std::string input) {
-        valid = true;
+    bool buildStructure(std::string input) {
         base = input;
         matches.clear();
         auto [relParent, absParent, name] = [&] {
@@ -171,7 +172,12 @@ private:
         }();
         baseName = name;
         parent = relParent;
-        for (auto& entry: std::filesystem::directory_iterator(absParent)) {
+        std::error_code errc;
+        std::filesystem::directory_iterator itr(absParent, errc);
+        if (errc != std::error_code{}) {
+            return false;
+        }
+        for (auto& entry: itr) {
             if (isHidden(entry.path())) {
                 continue;
             }
@@ -186,6 +192,8 @@ private:
         }
         matchIndex = ssize_t(matches.size()) - 1;
         ranges::sort(matches);
+        valid = true;
+        return true;
     }
 
     std::string base;
@@ -267,11 +275,15 @@ struct OpenFilePanelBase: ComponentBase {
         auto input = Input(opt);
         input |= CatchEvent([this](Event event) {
             if (event == Event::Tab || event == Event::ArrowDown) {
-                cycle();
+                if (!cycle(1)) {
+                    beep();
+                }
                 return true;
             }
             if (event == Event::TabReverse || event == Event::ArrowUp) {
-                cycleBack();
+                if (!cycle(-1)) {
+                    beep();
+                }
                 return true;
             }
             if (event == Event::ArrowLeft || event == Event::ArrowRight) {
@@ -285,15 +297,16 @@ struct OpenFilePanelBase: ComponentBase {
         Add(input);
     }
 
-    void cycle() {
-        if (autoComplete.next(content, cursor, suggestion, 1)) {
+    bool cycle(int offset) {
+        using enum NextResult;
+        switch (autoComplete.next(content, cursor, suggestion, offset)) {
+        case DisplaySuggestions:
             displaySuggestions();
-        }
-    }
-
-    void cycleBack() {
-        if (autoComplete.next(content, cursor, suggestion, -1)) {
-            displaySuggestions();
+            return true;
+        case Cycle:
+            return true;
+        case Error:
+            return false;
         }
     }
 
