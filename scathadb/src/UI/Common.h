@@ -5,6 +5,7 @@
 #include <string>
 
 #include <ftxui/component/component.hpp>
+#include <ftxui/component/event.hpp>
 
 namespace sdb {
 
