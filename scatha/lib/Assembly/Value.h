@@ -1,8 +1,8 @@
 #ifndef SCATHA_ASSEMBLY_VALUES_H_
 #define SCATHA_ASSEMBLY_VALUES_H_
 
-#include <variant>
 #include <bit>
+#include <variant>
 
 #include <utl/utility.hpp>
 
@@ -90,23 +90,23 @@ public:
     };
 
     static u64 compose(LabelID ID, Kind kind) {
-        #ifndef _MSC_VER
+#ifndef _MSC_VER
         Structure value{ ID, kind };
         return std::bit_cast<u64>(value);
-        #else
-        return (u64)ID & ~(u64(1) << 63) | ((u64)kind & 1u) << 63; 
-        #endif
+#else
+        return (u64)ID & ~(u64(1) << 63) | ((u64)kind & 1u) << 63;
+#endif
     }
 
     static std::pair<LabelID, Kind> decompose(u64 value) {
-        #ifndef _MSC_VER
+#ifndef _MSC_VER
         auto s = std::bit_cast<Structure>(value);
-        return { LabelID{ s.labelID }, Kind{ s.kind } };
-        #else
+        return { LabelID{ s.labelID }, Kind { s.kind } };
+#else
         u64 ID = value & ~(u64(1) << 63);
         u64 kind = (value >> 63) & 1u;
         return { (LabelID)ID, (Kind)kind };
-        #endif
+#endif
     }
 
     explicit LabelPosition(LabelID labelID, Kind kind = Static):

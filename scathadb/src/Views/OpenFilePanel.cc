@@ -92,13 +92,11 @@ struct SuggestionResult {
     std::optional<ssize_t> current = std::nullopt;
 };
 
-enum class NextResult {
-    DisplaySuggestions, Cycle, Error
-};
+enum class NextResult { DisplaySuggestions, Cycle, Error };
 
 class AutoCompleter {
 public:
-    NextResult next(std::string& input, int& cursor, 
+    NextResult next(std::string& input, int& cursor,
                     SuggestionResult& suggestion, int offset) {
         if (!valid && !buildStructure(input)) {
             return NextResult::Error;

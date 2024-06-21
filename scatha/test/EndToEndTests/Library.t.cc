@@ -304,10 +304,8 @@ fn main() -> int {
 }
 
 extern "C" {
-
 /// Defines the function used by `"FFI from host"` test case
 SC_TEST_EXPORT int64_t host_function(int64_t n) { return 2 * n; }
-
 }
 
 TEST_CASE("FFI struct passing", "[end-to-end][lib][foreignlib]") {
@@ -330,12 +328,10 @@ struct simple_struct {
 };
 
 extern "C" {
-
 SC_TEST_EXPORT simple_struct host_function_struct(simple_struct p) {
     p.i *= 2;
     return p;
 }
-
 }
 
 TEST_CASE("FFI big struct argument", "[end-to-end][lib][foreignlib]") {
@@ -361,11 +357,9 @@ struct big_struct {
 };
 
 extern "C" {
-
 SC_TEST_EXPORT int64_t host_function_big_struct_arg(big_struct p) {
     return p.i + p.j + p.k;
 }
-
 }
 
 TEST_CASE("FFI big struct return value", "[end-to-end][lib][foreignlib]") {
@@ -386,11 +380,9 @@ fn main() -> int {
 }
 
 extern "C" {
-
 SC_TEST_EXPORT big_struct host_function_big_struct_return() {
     return { 1, 2, 3 };
 }
-
 }
 
 TEST_CASE("Return struct defined in static library",
@@ -422,11 +414,9 @@ struct library_defined_struct {
 } // namespace
 
 extern "C" {
-
 SC_TEST_EXPORT library_defined_struct return_struct_defined_in_library() {
     return { .x = 7, .y = 42 };
 }
-
 }
 
 TEST_CASE("FFI nested struct passing", "[end-to-end][lib][foreignlib]") {
@@ -469,7 +459,6 @@ struct complex_struct {
 };
 
 extern "C" {
-
 SC_TEST_EXPORT complex_struct host_function_complex_struct(complex_struct p) {
     p.i *= 2;
     p.f *= 2;
@@ -479,7 +468,6 @@ SC_TEST_EXPORT complex_struct host_function_complex_struct(complex_struct p) {
     p.in.f *= 2;
     return p;
 }
-
 }
 
 TEST_CASE("FFI pointer in big struct", "[end-to-end][lib][foreignlib]") {
@@ -504,11 +492,9 @@ struct big_struct_with_pointer {
 };
 
 extern "C" {
-
 SC_TEST_EXPORT bool host_function_pointer_in_struct(big_struct_with_pointer s) {
     return std::string_view(s.string, s.string_size) == "Hello World";
 }
-
 }
 
 TEST_CASE("Nested big struct", "[end-to-end][lib][foreignlib]") {
@@ -544,9 +530,7 @@ struct BigOuter {
 } // namespace
 
 extern "C" {
-
 SC_TEST_EXPORT bool host_function_nested_big_struct(BigOuter o) {
     return o.i.x == 0.0 && o.i.y == 1.5 && o.i.z == 100.0;
 }
-
 }

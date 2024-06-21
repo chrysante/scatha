@@ -35,10 +35,10 @@ static thread_local ir::Context* gContext = nullptr;
 
 /// Visits the first argument and casts the second argument to the type of the
 /// first
-static decltype(auto) visit2(auto& a, auto& b, auto&& fn) { 
+static decltype(auto) visit2(auto& a, auto& b, auto&& fn) {
     return visit(a, [&]<typename T>(T& Ta) {
         if (auto* Tb = dyncast<T*>(&b)) {
-            return fn(Ta, *Tb); 
+            return fn(Ta, *Tb);
         }
         return fn(a, b);
     });
@@ -254,9 +254,9 @@ private:
 /// the predecessor. Each entry in the MCT holds a computation and a pointer to
 /// the corresponding computation in the LCT of the successor block.
 class MovableComputationTable {
-    //auto allEntries() {
-    //    return _entries | ranges::views::values | ranges::views::join;
-    //}
+    // auto allEntries() {
+    //     return _entries | ranges::views::values | ranges::views::join;
+    // }
 
 public:
     class Entry: public utl::ilist_node<Entry> {
@@ -267,7 +267,7 @@ public:
         Entry(Entry&&) = default;
         Entry& operator=(Entry&&) = default;
         Entry(Entry const&) { SC_UNREACHABLE(); }
-        Entry& operator=(Entry const&) { SC_UNREACHABLE(); } 
+        Entry& operator=(Entry const&) { SC_UNREACHABLE(); }
 
         /// Local copy of the instruction in the MCT
         Instruction* copy() const { return _copy.get(); }
@@ -358,10 +358,10 @@ public:
     /// Iterator to the first computation of the table.
     /// \Note: `[begin(), end())` spans all computations in the table regardless
     /// of rank.
-    //auto begin() { return allEntries().begin(); }
+    // auto begin() { return allEntries().begin(); }
 
     /// Iterator past the end.
-    //auto end() { return allEntries().end(); }
+    // auto end() { return allEntries().end(); }
 
 private:
     utl::node_hashmap<size_t, utl::ilist<Entry>> _entries;

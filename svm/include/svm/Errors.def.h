@@ -1,11 +1,11 @@
-// No include guard
+// clang-format off
 
 // ===--------------------------------------------------------------------=== //
 // === List of all entity types ------------------------------------------=== //
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SVM_ERROR_DEF
-#   define SVM_ERROR_DEF(...)
+#define SVM_ERROR_DEF(...)
 #endif
 
 SVM_ERROR_DEF(InvalidOpcodeError)

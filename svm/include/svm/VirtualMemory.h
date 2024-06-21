@@ -143,12 +143,12 @@ private:
     std::pair<size_t, PoolAllocator&> getPool(size_t size, size_t align);
 
     /// \Throws a `MemoryAccessError` unconditionally
-    [[noreturn]] static void reportAccessError(
-        MemoryAccessError::Reason reason, VirtualPointer ptr, size_t size);
+    [[noreturn]] static void reportAccessError(MemoryAccessError::Reason reason,
+                                               VirtualPointer ptr, size_t size);
 
     /// \Throws a `DeallocationError` unconditionally
-    [[noreturn]] static void reportDeallocationError(
-        VirtualPointer ptr, size_t size, size_t align);
+    [[noreturn]] static void reportDeallocationError(VirtualPointer ptr,
+                                                     size_t size, size_t align);
 
     std::vector<Slot> slots;
     std::vector<PoolAllocator> pools;

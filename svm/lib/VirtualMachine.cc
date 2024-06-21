@@ -12,8 +12,8 @@
 #include <utl/utility.hpp>
 
 #include "BuiltinInternal.h"
-#include "Errors.h"
 #include "Common.h"
+#include "Errors.h"
 #include "Memory.h"
 #include "Program.h"
 #include "VMImpl.h"
@@ -72,11 +72,7 @@ static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
     }
     auto libname = toForeignLibName(name);
     try {
-        #ifdef _MSC_VER
         return utl::dynamic_library((libdir / libname).string());
-        #else
-        return utl::dynamic_library(libdir / libname);
-        #endif
     }
     catch (std::exception const&) {
         /// Nothing, try again unscoped
@@ -151,8 +147,10 @@ static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
     F.funcPtr = (void (*)())decl.ptr;
     F.returnType = toLibFFI(decl.returnType);
     F.argumentTypes.clear();
-    std::for_each(decl.argumentTypes.begin(), decl.argumentTypes.end(), 
-        [&](auto* type) { F.argumentTypes.push_back(toLibFFI(type)); });
+    std::for_each(decl.argumentTypes.begin(), decl.argumentTypes.end(),
+                  [&](auto* type) {
+        F.argumentTypes.push_back(toLibFFI(type));
+    });
     F.arguments.resize(F.argumentTypes.size());
     return ffi_prep_cif(&F.callInterface, FFI_DEFAULT_ABI,
                         utl::narrow_cast<int>(F.arguments.size()), F.returnType,

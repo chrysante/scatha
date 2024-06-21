@@ -61,11 +61,11 @@ Archive::~Archive() { close(); }
 
 std::optional<Archive> Archive::Open(std::filesystem::path path) {
     mtar_t tar;
-    #ifndef _MSC_VER
+#ifndef _MSC_VER
     auto code = mtar_open(&tar, path.c_str(), "r");
-    #else
-    auto code = mtar_open(&tar, path.string().c_str(), "r");   
-    #endif
+#else
+    auto code = mtar_open(&tar, path.string().c_str(), "r");
+#endif
     if (code != MTAR_ESUCCESS) {
         return std::nullopt;
     }
@@ -81,11 +81,11 @@ std::optional<Archive> Archive::Open(std::filesystem::path path) {
 std::optional<Archive> Archive::Create(std::filesystem::path path) {
     std::filesystem::create_directories(path.parent_path());
     mtar_t tar;
-    #ifndef _MSC_VER
+#ifndef _MSC_VER
     auto code = mtar_open(&tar, path.c_str(), "w");
-    #else 
+#else
     auto code = mtar_open(&tar, path.string().c_str(), "w");
-    #endif
+#endif
     if (code != MTAR_ESUCCESS) {
         return std::nullopt;
     }

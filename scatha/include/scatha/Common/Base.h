@@ -208,12 +208,11 @@ SCATHA_API AssertFailureHandler getAssertFailureHandler();
 
 [[noreturn]]
 #if defined(__GNUC__)
-__attribute__((always_inline, nodebug))
-inline
+__attribute__((always_inline, nodebug)) inline
 #elif defined(_MSC_VER)
 __forceinline
 #endif
-void handleAssertFailure() {
+    void handleAssertFailure() {
     using enum AssertFailureHandler;
     switch (getAssertFailureHandler()) {
     case Break:
