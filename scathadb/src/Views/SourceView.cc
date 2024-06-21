@@ -48,6 +48,7 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
     }
 
     Element Render() override {
+        return placeholder("Unimplemented");
         if (!fileIndex) {
             return placeholder("No File Open");
         }
