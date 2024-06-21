@@ -14,8 +14,10 @@ using namespace scatha;
 
 std::fstream scatha::createOutputFile(std::filesystem::path const& path,
                                       std::ios::openmode flags) {
-
-    std::filesystem::create_directories(path.parent_path());
+    auto dir = path.parent_path();
+    if (!dir.empty()) {
+        std::filesystem::create_directories(dir);
+    }
     flags |= std::ios::out;
     std::fstream file(path, flags);
     if (!file) {
