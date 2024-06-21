@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include(FetchContent)
+
 cmake_policy(SET CMP0135 NEW)
 FetchContent_Declare(libffi
   URL      https://github.com/libffi/libffi/releases/download/v3.3-rc2/libffi-3.3-rc2.tar.gz
