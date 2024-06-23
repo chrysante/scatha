@@ -57,7 +57,7 @@ fn fib(n: int) -> int {
 fn print(n: int) {
     __builtin_puti64(n);
 }
-fn print(msg: &str) {
+fn print(msg: *str) {
     __builtin_putstr(msg);
 })"));
 }
@@ -296,13 +296,13 @@ fn main() {
 })");
 }
 
-TEST_CASE("Fat pointer in construct expr", "[regression]") {
+TEST_CASE("Wide pointer in construct expr", "[regression]") {
     test::runReturnsTest(5, R"(
     struct S {
         var text: *str;
     }
     fn main() {
-        let s = S(&"12345");
+        let s = S("12345");
         return s.text.count;
     })");
 }
@@ -450,10 +450,10 @@ struct X {
     var string: *str;
 }
 fn f(p: X) {
-    __builtin_putstr(*p.string);
+    __builtin_putstr(p.string);
 }
 fn main() {
-    f(X(0, &"Hello World"));
+    f(X(0, "Hello World"));
 })");
 }
 

@@ -76,31 +76,31 @@ SVM_BUILTIN_DEF(putchar,   None,  { Byte() }, Void())
 SVM_BUILTIN_DEF(puti64,    None,  { S64() }, Void())
 SVM_BUILTIN_DEF(putf64,    None,  { F64() }, Void())
 SVM_BUILTIN_DEF(putstr,    None,
-                { reference(QualType::Const(arrayType(Byte()))) }, Void())
+                { strPointer() }, Void())
 SVM_BUILTIN_DEF(putptr,    None,  { pointer(Byte()) }, Void())
 
 /// ## Console Input
 /// Allocates memory using `__builtin_alloc()` and thus requires the caller to
 /// free the memory using `__builtin_dealloc()`
-/// Signature: `() -> *mut [byte]`
+/// Signature: `() -> *mut str`
 SVM_BUILTIN_DEF(readline,   None, {},
-                pointer(QualType::Mut(arrayType(Byte()))))
+                strPointer(Mutability::Mutable))
 
 /// ## String conversion
 
 /// Returns true on successful conversion
-/// Signature: `(result: &mut int, text: &[byte], base: int) -> bool`
+/// Signature: `(result: &mut int, text: *str, base: int) -> bool`
 SVM_BUILTIN_DEF(strtos64,    None, {
     reference(QualType::Mut(S64())),
-    reference(QualType::Const(arrayType(Byte()))),
+    strPointer(),
     S64()
 }, Bool())
 
 /// Returns true on successful conversion
-/// Signature: `(result: &mut double, text: &[byte]) -> bool`
+/// Signature: `(result: &mut double, text: *str) -> bool`
 SVM_BUILTIN_DEF(strtof64,    None, {
     reference(QualType::Mut(F64())),
-    reference(QualType::Const(arrayType(Byte())))
+    strPointer()
 }, Bool())
 
 /// ## Debug trap

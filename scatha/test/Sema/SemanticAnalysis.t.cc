@@ -47,7 +47,7 @@ TEST_CASE("Decoration of the AST", "[sema]") {
 fn mul(a: int, b: int, c: double, d: byte) -> int {
 	let result = a;
 	{ // declaration of variable of the same name in a nested scope
-		var result: &str = "some string";
+		var result = "some string";
 	}
 	// declaration of float variable
 	let y = 39;
@@ -70,8 +70,9 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
     auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
     auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpr());
-    CHECK(nestedvarDeclInit->type() == QualType::Const(sym.Str()));
-    CHECK(nestedvarDeclInit->valueCategory() == LValue);
+    CHECK(nestedvarDeclInit->type().get() ==
+          sym.pointer(sym.Str(), Mutability::Const));
+    CHECK(nestedvarDeclInit->valueCategory() == RValue);
     auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
     CHECK(xDecl->type() == sym.S64());
     auto* intLit = cast<ast::Literal*>(xDecl->initExpr());

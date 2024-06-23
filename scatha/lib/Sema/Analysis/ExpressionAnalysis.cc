@@ -293,10 +293,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         if (isFStringLit(lit.kind())) {
             // TODO: Check that parent expression is an fstring expression
         }
-        /// We deliberately derive string literals as `&str` and not as
-        /// `&[byte, N]`
-        auto type = QualType::Const(sym.Str());
-        lit.decorateValue(sym.temporary(&lit, type), LValue);
+        /// We deliberately derive string literals as `*str` aka `*[byte]` and
+        /// not as
+        /// `*[byte, N]`
+        auto type = sym.pointer(QualType::Const(sym.Str()));
+        lit.decorateValue(sym.temporary(&lit, type), RValue);
         return &lit;
     }
 

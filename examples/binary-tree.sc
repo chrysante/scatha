@@ -25,7 +25,7 @@ struct Node {
 fn main(args: &[*str]) {
     var level = 3;
     if args.count == 1 {
-        if !__builtin_strtos64(level, *args[0], 10) {
+        if !__builtin_strtos64(level, args[0], 10) {
             __builtin_putstr("Failed to parse argument\n");
             return;
         }

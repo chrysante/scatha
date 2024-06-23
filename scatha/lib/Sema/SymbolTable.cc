@@ -835,6 +835,10 @@ RawPtrType const* SymbolTable::pointer(ObjectType const* type, Mutability mut) {
     return pointer(QualType(type, mut));
 }
 
+PointerType const* SymbolTable::strPointer(Mutability mut) {
+    return pointer(Str(), mut);
+}
+
 ReferenceType const* SymbolTable::reference(QualType referred) {
     return impl->ptrLikeImpl(impl->refTypes, referred);
 }

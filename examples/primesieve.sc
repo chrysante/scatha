@@ -11,7 +11,7 @@ fn print(n: int) {
 	__builtin_puti64(n);
 }
 
-fn print(text: &str) {
+fn print(text: *str) {
 	__builtin_putstr(text);
 }
 
@@ -102,9 +102,9 @@ fn main(args: &[*str]) {
 		return 1;
 	}
 	var N: int;
-	if (!__builtin_strtos64(N, *args.front, 10)) {
+	if (!__builtin_strtos64(N, args.front, 10)) {
 		print("Cannot convert \"");
-		print(*args.front);
+		print(args.front);
 		print("\" to a number\n");
 		return 1;	
 	}

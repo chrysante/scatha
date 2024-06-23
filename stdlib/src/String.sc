@@ -5,9 +5,9 @@ public struct String {
 
     fn new(&mut this) {}
 
-    fn new(&mut this, text: &str) { 
+    fn new(&mut this, text: *str) { 
         this.buf = unique str(text.count); 
-        __builtin_memcpy(this.buf as *mut, &text);
+        __builtin_memcpy(this.buf as *mut, text);
         this.sz = text.count;
     }
 
@@ -45,7 +45,7 @@ public struct String {
     }
 
     /// Appends the string \p text to the back of this string
-    fn append(&mut this, text: &str) {
+    fn append(&mut this, text: *str) {
         if this.buf.count <= this.sz + text.count {
             this.growLeast(this.sz + text.count);
         }
@@ -56,19 +56,19 @@ public struct String {
 
     /// \overload
     fn append(&mut this, text: &String) {
-        this.append(*text.data());
+        this.append(text.data());
     }
 
     /// # Insert
 
-    fn insert(&mut this, atIndex: int, text: &str) {
+    fn insert(&mut this, atIndex: int, text: *str) {
         let newSize = this.sz + text.count;
         this.growLeast(newSize);
         this.sz = newSize;
         __builtin_memmove(&mut this.buf[atIndex + text.count : newSize],
                           &this.buf[atIndex : this.sz]);
         __builtin_memcpy(&mut this.buf[atIndex : atIndex + text.count],     
-                         &text);
+                         text);
     }
 
     /// # Queries
@@ -111,7 +111,7 @@ public struct String {
     internal var sz: int;
 }
 
-private fn printVar(name: &str, value: int) {
+private fn printVar(name: *str, value: int) {
     __builtin_putstr(name);
     __builtin_putstr(": ");
     __builtin_puti64(value);
@@ -119,7 +119,7 @@ private fn printVar(name: &str, value: int) {
 }
 
 /// Debug helper
-private fn printVar(name: &str, value: &str) {
+private fn printVar(name: *str, value: *str) {
     __builtin_putstr(name);
     __builtin_putstr(": ");
     __builtin_putstr(value);

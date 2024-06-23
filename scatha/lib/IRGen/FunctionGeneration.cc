@@ -752,7 +752,7 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         auto* data = ctx.stringLiteral(text);
         auto* global = mod.makeGlobalConstant(ctx, data, name);
         return Value::Unpacked(name, lit.type().get(),
-                               { Atom::Memory(global),
+                               { Atom::Register(global),
                                  Atom::Register(
                                      ctx.intConstant(text.size(), 64)) });
     }

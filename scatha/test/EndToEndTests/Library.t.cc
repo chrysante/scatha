@@ -151,7 +151,7 @@ public fn foo(n: double) { return 2; }
 )");
     uint64_t ret = compileAndRunDependentProgram("libs", R"(
 use testlib.foo;
-fn foo(text: &str) { return 3; }
+fn foo(text: *str) { return 3; }
 fn main() -> int {
     return foo(1) + foo(1.0) + foo("");
 })");
@@ -229,7 +229,7 @@ fn main() {
 import "ffi-testlib";
 extern "C" fn printString(text: *str) -> void;
 fn main() {
-    printString(&"Hello World");
+    printString("Hello World");
 })");
     }
 }
@@ -479,7 +479,7 @@ struct X {
 }
 extern "C" fn host_function_pointer_in_struct(p: X) -> bool;
 fn main() -> bool {
-    return host_function_pointer_in_struct(X(0, &"Hello World"));
+    return host_function_pointer_in_struct(X(0, "Hello World"));
 })",
                                                  { .searchHost = true });
     CHECK(ret == 1);

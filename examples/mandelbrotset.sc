@@ -7,7 +7,7 @@ fn reportUsageError() {
     __builtin_trap(); // For now because we don't have terminate() yet
 }
 
-fn parseInt(text: &str) {
+fn parseInt(text: *str) {
     var result = 0;
     if !__builtin_strtos64(result, text, 10) {
         reportUsageError();
@@ -25,14 +25,14 @@ struct Options {
             return Options(160, 60, 200);
         }
         if args.count == 2 {
-            return Options(parseInt(*args[0]), 
-                           parseInt(*args[1]), 
+            return Options(parseInt(args[0]), 
+                           parseInt(args[1]), 
                            200);
         }
         if args.count == 3 {
-            return Options(parseInt(*args[0]), 
-                           parseInt(*args[1]),
-                           parseInt(*args[2])); 
+            return Options(parseInt(args[0]), 
+                           parseInt(args[1]),
+                           parseInt(args[2])); 
         }
         reportUsageError();
     }
@@ -120,7 +120,7 @@ fn print(z: double) {
     __builtin_putstr("\n");
 }
 
-fn print(t: &str) {
+fn print(t: *str) {
     __builtin_putstr(t);
 }
 

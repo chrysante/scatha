@@ -249,6 +249,9 @@ public:
     /// \Returns `pointer(QualType(type, mutability))`
     RawPtrType const* pointer(ObjectType const* type, Mutability mutability);
 
+    ///
+    PointerType const* strPointer(Mutability mut = Mutability::Const);
+
     /// \Returns the `ReferenceType` to the referred type \p referred
     ReferenceType const* reference(QualType referred);
 

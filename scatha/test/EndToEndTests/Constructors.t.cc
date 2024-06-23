@@ -37,7 +37,7 @@ struct X {
     var value: int;
 }
 
-fn print(text: &str) {
+fn print(text: *str) {
     __builtin_putstr(text);
 }
 
@@ -449,9 +449,9 @@ public fn main() -> int {
 TEST_CASE("Unique expr copy dyn array", "[end-to-end][lifetime]") {
     test::checkReturns(true, R"(
 public fn main() {
-    let text: &str = "123";
+    let text = "123";
     let ptr = unique str(text.count);
-    __builtin_memcpy(ptr as *mut, &text);
+    __builtin_memcpy(ptr as *mut, text);
     return ptr.count == 3 &&
            ptr[0] == '1' &&
            ptr[1] == '2' &&

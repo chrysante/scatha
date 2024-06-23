@@ -223,7 +223,7 @@ fn main() -> int {
 
 TEST_CASE("First string", "[end-to-end][arrays]") {
     test::checkPrints("Hello World!\n", R"(
-fn print(text: &str) {
+fn print(text: *str) {
     __builtin_putstr(text);
     __builtin_putchar('\n');
 }
@@ -388,8 +388,8 @@ fn f(args: &[*str]) {
     return args.front.count + args.back.count;
 }
 fn main() {
-    let p = &"foo";
-    let q = &"quux";
+    let p = "foo";
+    let q = "quux";
     return f([p, q]);
 })");
 }

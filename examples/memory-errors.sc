@@ -1,5 +1,5 @@
 
-fn print(text: &str) {
+fn print(text: *str) {
     __builtin_putstr(text);
 }
 
@@ -9,7 +9,7 @@ fn main(args: &[*str]) {
         return 1;  
     }
     var caseID: int;
-    if !__builtin_strtos64(caseID, *args.front, /* base = */ 10) {
+    if !__builtin_strtos64(caseID, args.front, /* base = */ 10) {
         print("Expecting an integer as first argument\n");
         return 2;
     }
