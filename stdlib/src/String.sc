@@ -11,6 +11,11 @@ public struct String {
         this.sz = text.count;
     }
 
+    fn new(&mut this, text: mut *unique mut str) { 
+        this.buf = move text;
+        this.sz = this.buf.count;
+    }
+
     fn new(&mut this, rhs: &String) {
         this.buf = unique str(rhs.sz);
         __builtin_memcpy(this.buf as *mut, &rhs.buf[0 : rhs.sz]);
