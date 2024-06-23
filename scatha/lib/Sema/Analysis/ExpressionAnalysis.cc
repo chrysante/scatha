@@ -239,6 +239,12 @@ ast::Expression* ExprContext::analyzeType(ast::Expression* expr) {
     return expr;
 }
 
+static bool isFStringLit(ast::LiteralKind kind) {
+    using enum ast::LiteralKind;
+    return kind == FStringBegin || kind == FStringContinue ||
+           kind == FStringEnd;
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
@@ -277,7 +283,16 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         lit.decorateValue(thisEntity, LValue, thisEntity->getQualType());
         return &lit;
     }
-    case String: {
+    case String:
+        [[fallthrough]];
+    case FStringBegin:
+        [[fallthrough]];
+    case FStringContinue:
+        [[fallthrough]];
+    case FStringEnd: {
+        if (isFStringLit(lit.kind())) {
+            // TODO: Check that parent expression is an fstring expression
+        }
         /// We deliberately derive string literals as `&str` and not as
         /// `&[byte, N]`
         auto type = QualType::Const(sym.Str());

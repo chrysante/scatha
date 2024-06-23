@@ -740,7 +740,13 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     case This:
         return valueMap(lit.object());
 
-    case String: {
+    case String:
+        [[fallthrough]];
+    case FStringBegin:
+        [[fallthrough]];
+    case FStringContinue:
+        [[fallthrough]];
+    case FStringEnd: {
         auto const& text = lit.value<std::string>();
         auto name = nameFromSourceLoc("string", lit.sourceLocation());
         auto* data = ctx.stringLiteral(text);

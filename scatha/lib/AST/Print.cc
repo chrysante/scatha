@@ -138,6 +138,11 @@ static constexpr utl::streammanip funcDecl([](std::ostream& str,
 
 static constexpr utl::streammanip formatLit([](std::ostream& str,
                                                ast::Literal const* lit) {
+    auto printString = [&](std::string_view begin, std::string_view end) {
+        str << begin;
+        printWithEscapeSeqs(str, lit->value<std::string>());
+        str << end;
+    };
     switch (lit->kind()) {
     case LiteralKind::Integer: {
         auto* type = cast<sema::IntType const*>(lit->type().get());
@@ -170,20 +175,19 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
         str << "this";
         break;
     case LiteralKind::String:
-        str << '"';
-        printWithEscapeSeqs(str, lit->value<std::string>());
-        str << '"';
+        printString("\"", "\"");
+        break;
+    case LiteralKind::FStringBegin:
+        printString("\"", "\\(");
+        break;
+    case LiteralKind::FStringContinue:
+        printString(")", "\\(");
+        break;
+    case LiteralKind::FStringEnd:
+        printString(")", "\"");
         break;
     case LiteralKind::Char:
-        str << '\'';
-        char charVal = lit->value<APInt>().to<char>();
-        if (auto raw = fromEscapeSequence(charVal)) {
-            str << '\\' << *raw;
-        }
-        else {
-            str << charVal;
-        }
-        str << '\'';
+        printString("\'", "\'");
         break;
     }
 });

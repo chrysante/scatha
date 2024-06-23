@@ -85,13 +85,16 @@ SC_ASTNODE_DEF(ObjTypeConvExpr,            ConvExprBase,         Concrete) // Up
 #   define SC_LITERAL_KIND_DEF(Kind, Str)
 #endif
 
-SC_LITERAL_KIND_DEF(Integer,        "integer")
-SC_LITERAL_KIND_DEF(Boolean,        "boolean")
-SC_LITERAL_KIND_DEF(FloatingPoint,  "floating point")
-SC_LITERAL_KIND_DEF(Null,           "null")
-SC_LITERAL_KIND_DEF(This,           "this")
-SC_LITERAL_KIND_DEF(String,         "string")
-SC_LITERAL_KIND_DEF(Char,           "char")
+SC_LITERAL_KIND_DEF(Integer,         "integer")
+SC_LITERAL_KIND_DEF(Boolean,         "boolean")
+SC_LITERAL_KIND_DEF(FloatingPoint,   "floating point")
+SC_LITERAL_KIND_DEF(Null,            "null")
+SC_LITERAL_KIND_DEF(This,            "this")
+SC_LITERAL_KIND_DEF(String,          "string")
+SC_LITERAL_KIND_DEF(FStringBegin,    "fstring begin")
+SC_LITERAL_KIND_DEF(FStringContinue, "fstring continue")
+SC_LITERAL_KIND_DEF(FStringEnd,      "fstring end")
+SC_LITERAL_KIND_DEF(Char,            "char")
 
 #undef SC_LITERAL_KIND_DEF
 
