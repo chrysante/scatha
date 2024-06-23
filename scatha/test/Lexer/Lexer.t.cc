@@ -225,7 +225,6 @@ another ignored multi line comment
 }
 
 TEST_CASE("Lexer literals", "[lex]") {
-    return;
     TestCase test;
     test.text = R"(
 0.0
@@ -318,6 +317,32 @@ TEST_CASE("String literals", "[lex]") {
         auto* issue =
             dynamic_cast<UnterminatedStringLiteral const*>(&iss.front());
         CHECK(issue);
+    }
+    SECTION("FString") {
+        TestCase test;
+        test.text = R"TEXT(
+"abc\(xyz)cba"
+"abc\(xyz)cba\(xyz)"
+"\((xy()z))"
+)TEXT";
+        test.reference = { { TokenKind::FStringLiteralBegin, "abc" },
+                           { TokenKind::Identifier, "xyz" },
+                           { TokenKind::FStringLiteralEnd, "cba" },
+                           { TokenKind::FStringLiteralBegin, "abc" },
+                           { TokenKind::Identifier, "xyz" },
+                           { TokenKind::FStringLiteralContinue, "cba" },
+                           { TokenKind::Identifier, "xyz" },
+                           { TokenKind::FStringLiteralEnd, "" },
+                           { TokenKind::FStringLiteralBegin, "" },
+                           { TokenKind::OpenParan, "(" },
+                           { TokenKind::Identifier, "xy" },
+                           { TokenKind::OpenParan, "(" },
+                           { TokenKind::CloseParan, ")" },
+                           { TokenKind::Identifier, "z" },
+                           { TokenKind::CloseParan, ")" },
+                           { TokenKind::FStringLiteralEnd, "" },
+                           { TokenKind::EndOfFile, "" } };
+        test.run();
     }
 }
 

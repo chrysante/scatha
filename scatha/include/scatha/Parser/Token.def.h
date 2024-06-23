@@ -146,11 +146,14 @@ SC_PUNCTUATION_TOKEN_DEF(Colon,        ":")
 #   define SC_OTHER_TOKEN_DEF(Token, str)
 #endif
 
-SC_OTHER_TOKEN_DEF(Identifier,     "")
-SC_OTHER_TOKEN_DEF(IntegerLiteral, "")
-SC_OTHER_TOKEN_DEF(FloatLiteral,   "")
-SC_OTHER_TOKEN_DEF(StringLiteral,  "")
-SC_OTHER_TOKEN_DEF(CharLiteral,    "")
-SC_OTHER_TOKEN_DEF(EndOfFile,      "")
+SC_OTHER_TOKEN_DEF(Identifier,             "")
+SC_OTHER_TOKEN_DEF(IntegerLiteral,         "")
+SC_OTHER_TOKEN_DEF(FloatLiteral,           "")
+SC_OTHER_TOKEN_DEF(StringLiteral,          "")
+SC_OTHER_TOKEN_DEF(FStringLiteralBegin,    "")
+SC_OTHER_TOKEN_DEF(FStringLiteralContinue, "")
+SC_OTHER_TOKEN_DEF(FStringLiteralEnd,      "")
+SC_OTHER_TOKEN_DEF(CharLiteral,            "")
+SC_OTHER_TOKEN_DEF(EndOfFile,              "")
 
 #undef SC_OTHER_TOKEN_DEF

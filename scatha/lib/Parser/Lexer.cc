@@ -4,7 +4,9 @@
 
 #include <ctre.hpp>
 #include <range/v3/algorithm.hpp>
+#include <utl/function_view.hpp>
 #include <utl/hashtable.hpp>
+#include <utl/stack.hpp>
 
 #include "Common/EscapeSequence.h"
 #include "Common/Expected.h"
@@ -18,6 +20,14 @@ using namespace lex;
 
 namespace {
 
+template <ctll::fixed_string P>
+struct StringLiteralDelim {
+    static constexpr ctll::fixed_string Pattern = P;
+
+    TokenKind tokenKind;
+    utl::function_view<void()> callback = {};
+};
+
 struct Context {
     std::vector<Token> run();
 
@@ -30,9 +40,8 @@ struct Context {
     std::optional<Token> getOperator();
     std::optional<Token> getFloatingPointLiteral();
     std::optional<Token> getIntegerLiteral();
-    template <ctll::fixed_string BeginDelim, ctll::fixed_string EndDelim,
-              typename Error>
-    std::optional<Token> getStringLiteralImpl(TokenKind kind);
+    template <typename Error, typename Begin, typename... End>
+    std::optional<Token> getStringLiteralImpl(Begin begin, End... end);
     char getCurrentEscapeSequence();
     std::optional<Token> getStringLiteral();
     std::optional<Token> getCharLiteral();
@@ -51,6 +60,7 @@ struct Context {
     size_t fileIndex;
     IssueHandler& issues;
     SourceLocation currentLocation{ 0, fileIndex, 1, 1 };
+    utl::stack<int> parenNestingDepthStack = {};
 };
 
 } // namespace
@@ -135,33 +145,6 @@ bool Context::ignoreMultiLineComment() {
     return advance(m.size());
 }
 
-static TokenKind toPunctuation(std::string_view ID) {
-    SC_EXPECT(ID.size() == 1);
-    using enum TokenKind;
-    switch (ID.front()) {
-    case '(':
-        return OpenParan;
-    case ')':
-        return CloseParan;
-    case '{':
-        return OpenBrace;
-    case '}':
-        return CloseBrace;
-    case '[':
-        return OpenBracket;
-    case ']':
-        return CloseBracket;
-    case ',':
-        return Comma;
-    case ';':
-        return Semicolon;
-    case ':':
-        return Colon;
-    default:
-        SC_UNREACHABLE();
-    }
-}
-
 std::optional<Token> Context::getPunctuation() {
     auto m = ctre::starts_with<"\\[|\\]|\\(|\\)|\\{|\\}|,|:|;">(text);
     if (!m) {
@@ -171,7 +154,38 @@ std::optional<Token> Context::getPunctuation() {
     SC_ASSERT(ID.size() == 1, "");
     auto beginLoc = currentLocation;
     advance();
-    return Token(ID, toPunctuation(ID), { beginLoc, currentLocation });
+    TokenKind kind = [&] {
+        using enum TokenKind;
+        switch (ID.front()) {
+        case '(':
+            if (!parenNestingDepthStack.empty()) {
+                ++parenNestingDepthStack.top();
+            }
+            return OpenParan;
+        case ')':
+            if (!parenNestingDepthStack.empty()) {
+                --parenNestingDepthStack.top();
+            }
+            return CloseParan;
+        case '{':
+            return OpenBrace;
+        case '}':
+            return CloseBrace;
+        case '[':
+            return OpenBracket;
+        case ']':
+            return CloseBracket;
+        case ',':
+            return Comma;
+        case ';':
+            return Semicolon;
+        case ':':
+            return Colon;
+        default:
+            SC_UNREACHABLE();
+        }
+    }();
+    return Token(ID, kind, { beginLoc, currentLocation });
 }
 
 static TokenKind toOperator(std::string_view str) {
@@ -258,11 +272,13 @@ static constexpr auto operator+(ctll::fixed_string<N> a,
                                      buffer.data());
 }
 
-template <ctll::fixed_string BeginDelim, ctll::fixed_string EndDelim,
-          typename Error>
-std::optional<Token> Context::getStringLiteralImpl(TokenKind kind) {
-    if (auto m = ctre::starts_with<BeginDelim>(text)) {
+template <typename Error, typename Begin, typename... End>
+std::optional<Token> Context::getStringLiteralImpl(Begin begin, End... end) {
+    if (auto m = ctre::starts_with<Begin::Pattern>(text)) {
         advance(m.size());
+        if (begin.callback) {
+            begin.callback();
+        }
     }
     else {
         return std::nullopt;
@@ -282,9 +298,21 @@ std::optional<Token> Context::getStringLiteralImpl(TokenKind kind) {
         pushError();
     }
     do {
-        if (auto m = ctre::starts_with<EndDelim>(text)) {
+        std::optional<Token> tok;
+        ([&] {
+            auto m = ctre::starts_with<End::Pattern>(text);
+            if (!m) {
+                return false;
+            }
             advance(m.size());
-            return Token(id, kind, { beginLoc, currentLocation });
+            tok = Token(id, end.tokenKind, { beginLoc, currentLocation });
+            if (end.callback) {
+                end.callback();
+            }
+            return true;
+        }() || ...);
+        if (tok) {
+            return tok;
         }
         if (current() == '\\') {
             if (!advanceChecked()) {
@@ -300,13 +328,26 @@ std::optional<Token> Context::getStringLiteralImpl(TokenKind kind) {
 }
 
 std::optional<Token> Context::getStringLiteral() {
-    return getStringLiteralImpl<"\"", "\"", UnterminatedStringLiteral>(
-        TokenKind::StringLiteral);
+    auto beginExpression = [this] { parenNestingDepthStack.push(0); };
+    auto endExpression = [this] { parenNestingDepthStack.pop(); };
+    if (!parenNestingDepthStack.empty() && parenNestingDepthStack.top() == 0) {
+        return getStringLiteralImpl<UnterminatedStringLiteral>(
+            StringLiteralDelim<"\\)">{ {}, endExpression },
+            StringLiteralDelim<"\"">{ TokenKind::FStringLiteralEnd },
+            StringLiteralDelim<"\\\\\\(">{ TokenKind::FStringLiteralContinue,
+                                           beginExpression });
+    }
+    return getStringLiteralImpl<UnterminatedStringLiteral>(
+        StringLiteralDelim<"\"">{},
+        StringLiteralDelim<"\"">{ TokenKind::StringLiteral },
+        StringLiteralDelim<"\\\\\\(">{ TokenKind::FStringLiteralBegin,
+                                       beginExpression });
 }
 
 std::optional<Token> Context::getCharLiteral() {
-    auto token = getStringLiteralImpl<"\'", "\'", UnterminatedCharLiteral>(
-        TokenKind::CharLiteral);
+    auto token = getStringLiteralImpl<UnterminatedCharLiteral>(
+        StringLiteralDelim<"\'">{},
+        StringLiteralDelim<"\'">{ TokenKind::CharLiteral });
     if (!token) {
         return std::nullopt;
     }
