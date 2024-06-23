@@ -24,6 +24,7 @@ target_link_libraries(scatha
     utility
   PRIVATE
     nlohmann_json
+    ctre
     microtar
     APMath
     graphgen
