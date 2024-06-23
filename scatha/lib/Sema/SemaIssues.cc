@@ -724,8 +724,19 @@ ORError::ORError(PrivateTag, ast::Expression const* expr,
             str << "Ambiguous function call to " << name;
         });
         for (auto* function: matches) {
-            secondary(getSourceRange(function->definition()),
-                      [=](std::ostream& str) { str << "Candidate function"; });
+            if (auto* def = function->definition()) {
+                secondary(function->definition()->sourceRange(),
+                          [=](std::ostream& str) {
+                    str << "Candidate function";
+                });
+            }
+            else {
+                secondary({}, [=](std::ostream& str) {
+                    str << "Candidate function: ";
+                    tfmt::FormatGuard guard(Reset, str);
+                    str << sema::format(function) << std::endl;
+                });
+            }
         }
         break;
     }

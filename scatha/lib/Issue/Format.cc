@@ -128,15 +128,17 @@ void SrcHighlightCtx::run() {
         if (line >= utl::narrow_cast<int>(source.size())) {
             continue;
         }
-        if (!H.position.valid()) {
-            continue;
+        if (H.position.valid()) {
+            /// Begin padding lines
+            printLines(line - PaddingLines, PaddingLines, source);
+            ///
+            printHighlightLine(H, source);
+            /// End padding lines
+            printLines(line + 1, PaddingLines, source);
         }
-        /// Begin padding lines
-        printLines(line - PaddingLines, PaddingLines, source);
-        ///
-        printHighlightLine(H, source);
-        /// End padding lines
-        printLines(line + 1, PaddingLines, source);
+        else {
+            printMessage(4, H);
+        }
     }
 }
 

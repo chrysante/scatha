@@ -13,69 +13,84 @@ using namespace tfmt::modifiers;
 using namespace scatha;
 using namespace sema;
 
+static void formatImpl(Entity const& entity, std::ostream& str) {
+    if (entity.isAnonymous()) {
+        str << tfmt::format(Italic, "<anonymous>");
+    }
+    else {
+        str << entity.name();
+    }
+}
+
+static void formatImpl(Temporary const& tmp, std::ostream& str) {
+    str << "tmp[" << tmp.id() << "]";
+}
+
+static void formatImpl(BuiltinType const& type, std::ostream& str) {
+    str << tfmt::format(Magenta | Bold, type.name());
+}
+
+static void formatImpl(StructType const& type, std::ostream& str) {
+    str << tfmt::format(Green, type.name());
+}
+
+static void formatImpl(FunctionType const& type, std::ostream& str) {
+    str << tfmt::format(None, "(");
+    for (bool first = true; auto* arg: type.argumentTypes()) {
+        if (!first) str << tfmt::format(None, ", ");
+        first = false;
+        str << format(arg);
+    }
+    str << tfmt::format(None, ") -> ") << format(type.returnType());
+}
+
+static void formatImpl(ArrayType const& type, std::ostream& str) {
+    str << tfmt::format(None, "[") << format(type.elementType());
+    if (!type.isDynamic()) {
+        str << tfmt::format(None, ", ", type.count());
+    }
+    str << tfmt::format(None, "]");
+}
+
+static void formatImpl(PointerType const& type, std::ostream& str) {
+    str << tfmt::format(None, "*");
+    if (isa<UniquePtrType>(type)) {
+        str << tfmt::format(BrightBlue, "unique ");
+    }
+    str << format(type.base());
+}
+
+static void formatImpl(ReferenceType const& type, std::ostream& str) {
+    str << tfmt::format(None, "&");
+    if (type.base().isMut()) {
+        str << tfmt::format(BrightBlue, "mut ");
+    }
+    str << format(type.base().get());
+}
+
+static void formatImpl(Function const& function, std::ostream& str) {
+    str << tfmt::format(Magenta | Bold, "fn") << " ";
+    if (auto* lib = dyncast<Library const*>(function.parent())) {
+        str << lib->name() << ".";
+    }
+    str << function.name() << "(";
+    for (bool first = true; auto* argType: function.argumentTypes()) {
+        if (!first) {
+            str << ", ";
+        }
+        first = false;
+        str << format(argType);
+    }
+    str << ") -> " << format(function.returnType());
+}
+
 utl::vstreammanip<> sema::format(Entity const* entity) {
     return [=](std::ostream& str) {
         if (!entity) {
             str << tfmt::format(BrightRed, "NULL");
             return;
         }
-        // clang-format off
-        SC_MATCH(*entity) {
-            [&](Entity const& entity) {
-                if (entity.isAnonymous()) {
-                    str << tfmt::format(Italic, "<anonymous>");
-                }
-                else {
-                    str << entity.name();
-                }
-            },
-            [&](Temporary const& tmp) {
-                str << "tmp[" << tmp.id() << "]";
-            },
-            [&](BuiltinType const& type) {
-                str << tfmt::format(Magenta | Bold, type.name());
-            },
-            [&](StructType const& type) {
-                str << tfmt::format(Green, type.name());
-            },
-            [&](FunctionType const& type) {
-                str << tfmt::format(None, "(");
-                for (bool first = true; auto* arg: type.argumentTypes()) {
-                    if (!first) str << tfmt::format(None, ", ");
-                    first = false;
-                    str << format(arg);
-                }
-                str << tfmt::format(None, ") -> ") << format(type.returnType());
-            },
-            [&](ArrayType const& type) {
-                str << tfmt::format(None, "[") << format(type.elementType());
-                if (!type.isDynamic()) {
-                    str << tfmt::format(None, ", ", type.count());
-                }
-                str << tfmt::format(None, "]");
-            },
-            [&](PointerType const& type) {
-                str << tfmt::format(None, "*");
-                if (isa<UniquePtrType>(type)) {
-                    str << tfmt::format(None, "unique ");
-                }
-                str << format(type.base());
-            },
-            [&](ReferenceType const& type) {
-                str << tfmt::format(None, "&");
-                if (type.base().isMut()) {
-                    str << tfmt::format(BrightBlue, "mut ");
-                }
-                str << format(type.base().get());
-            },
-            [&](UniquePtrType const& type) {
-                str << tfmt::format(None, "*unique ");
-                if (type.base().isMut()) {
-                    str << tfmt::format(BrightBlue, "mut ");
-                }
-                str << format(type.base().get());
-            },
-        }; // clang-format on
+        visit(*entity, [&](auto const& entity) { formatImpl(entity, str); });
     };
 }
 
