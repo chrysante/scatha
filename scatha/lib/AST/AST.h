@@ -528,6 +528,17 @@ private:
     ValueType _value;
 };
 
+class SCATHA_API FStringExpr: public Expression {
+public:
+    explicit FStringExpr(SourceRange sourceRange,
+                         utl::small_vector<UniquePtr<Expression>> operands):
+        Expression(NodeType::FStringExpr, sourceRange, std::move(operands)) {}
+
+    AST_DERIVED_COMMON(FStringExpr)
+
+    AST_RANGE_PROPERTY(0, Expression, operand, Operand)
+};
+
 /// MARK: Unary Expressions
 
 /// Concrete node representing a unary prefix expression.

@@ -59,6 +59,7 @@ struct ExprContext {
     ast::Expression* analyzeType(ast::Expression* expr);
 
     ast::Expression* analyzeImpl(ast::Literal&);
+    ast::Expression* analyzeImpl(ast::FStringExpr&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
@@ -239,12 +240,6 @@ ast::Expression* ExprContext::analyzeType(ast::Expression* expr) {
     return expr;
 }
 
-static bool isFStringLit(ast::LiteralKind kind) {
-    using enum ast::LiteralKind;
-    return kind == FStringBegin || kind == FStringContinue ||
-           kind == FStringEnd;
-}
-
 ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
@@ -290,9 +285,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
     case FStringContinue:
         [[fallthrough]];
     case FStringEnd: {
-        if (isFStringLit(lit.kind())) {
-            // TODO: Check that parent expression is an fstring expression
-        }
         /// We deliberately derive string literals as `*str` aka `*[byte]` and
         /// not as
         /// `*[byte, N]`
@@ -309,6 +301,15 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
     }
 
     SC_UNREACHABLE();
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::FStringExpr& expr) {
+    if (!analyzeValues(expr.operands())) {
+        return nullptr;
+    }
+    auto* type = sym.uniquePointer(sym.Str(), Mutability::Mutable);
+    expr.decorateValue(sym.temporary(&expr, type), RValue);
+    return &expr;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {

@@ -28,7 +28,7 @@
 ///                                   | <expression-statement>
 ///                                   | ";"
 /// <import-statement>              ::= ("import" | "use") <postfix-expression>
-/// <expression-statement>          ::= <commma-expression> ";"
+/// <expression-statement>          ::= <comma-expression> ";"
 /// <compound-statement>            ::= "{" {<statement>}* "}"
 /// <control-flow-statement>        ::= <return statement>
 ///                                   | <if-statement>
@@ -101,6 +101,9 @@
 ///                                   | <postfix-expression> "." <identifier>
 /// <generic-expression>            ::= <primary-expression>
 ///                                   | <generic-id> "<" {<additive-expression>}* ">"
+/// <fstring>                       ::= <primary-expression>
+///                                   | <fstring-lit-begin> <assignment-expression> [<fstring-continue>] <fstring-lit-end>
+/// <fstring-continue>              ::= <fstring-lit-continue> <assignment-expression> [<fstring-continue>]
 /// <primary-expression>            ::= <identifier>
 ///                                   | <integer-literal>
 ///                                   | <boolean-literal>
@@ -229,6 +232,7 @@ struct Context {
     UniquePtr<ast::Expression> parsePrefix();
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parseGeneric();
+    UniquePtr<ast::Expression> parseFString();
     UniquePtr<ast::Expression> parsePrimary();
     UniquePtr<ast::Identifier> parseID();
     UniquePtr<ast::Identifier> parseExtID();
@@ -1166,7 +1170,7 @@ static bool isGenericID(ast::Expression const* expr) {
 }
 
 UniquePtr<ast::Expression> Context::parseGeneric() {
-    auto expr = parsePrimary();
+    auto expr = parseFString();
     if (!expr) {
         return nullptr;
     }
@@ -1178,6 +1182,49 @@ UniquePtr<ast::Expression> Context::parseGeneric() {
         });
     }
     return expr;
+}
+
+static UniquePtr<ast::Literal> allocateStringLit(Token const& token,
+                                                 ast::LiteralKind kind) {
+    return allocate<ast::Literal>(token.sourceRange(), kind, token.id());
+}
+
+UniquePtr<ast::Expression> Context::parseFString() {
+    auto const& begin = tokens.peek();
+    if (begin.kind() != FStringLiteralBegin) {
+        return parsePrimary();
+    }
+    tokens.eat();
+    auto SR = begin.sourceRange();
+    utl::small_vector<UniquePtr<ast::Expression>> operands;
+    operands.push_back(
+        allocateStringLit(begin, ast::LiteralKind::FStringBegin));
+    for (int i = 0;; ++i) {
+        if (i % 2 == 0) {
+            auto expr = parseAssignment();
+            if (!expr) {
+                pushExpectedExpression(tokens.peek());
+            }
+            else {
+                operands.push_back(std::move(expr));
+            }
+        }
+        else {
+            auto const& tok = tokens.peek();
+            tokens.eat();
+            if (tok.kind() == FStringLiteralContinue) {
+                operands.push_back(
+                    allocateStringLit(tok, ast::LiteralKind::FStringContinue));
+                continue;
+            }
+            if (tok.kind() == FStringLiteralEnd) {
+                operands.push_back(
+                    allocateStringLit(tok, ast::LiteralKind::FStringEnd));
+                break;
+            }
+        }
+    }
+    return allocate<ast::FStringExpr>(SR, std::move(operands));
 }
 
 UniquePtr<ast::Expression> Context::parsePrimary() {
@@ -1276,8 +1323,7 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
                                       ast::LiteralKind::This, APInt());
     case StringLiteral:
         tokens.eat();
-        return allocate<ast::Literal>(token.sourceRange(),
-                                      ast::LiteralKind::String, token.id());
+        return allocateStringLit(token, ast::LiteralKind::String);
     case CharLiteral:
         tokens.eat();
         SC_ASSERT(token.id().size() == 1, "Invalid char literal");

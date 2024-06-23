@@ -209,3 +209,75 @@ fn test() {
     REQUIRE(functionCall);
     CHECK(cast<Identifier const*>(functionCall->callee())->value() == "print");
 }
+
+TEST_CASE("Parse fstrings", "[parse]") {
+    std::string const text = R"TEXT(
+    fn main() {
+    "a \( xyz )";
+    "a \( (9 + (7)) ) \(3)";
+    "\("\("")\("")")";
+})TEXT";
+    auto [ast, iss] = test::parse(text);
+    REQUIRE(iss.empty());
+    auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+    REQUIRE(file->statements().size() == 1);
+    auto* function = file->statement<FunctionDefinition>(0);
+    auto* body = function->body();
+    REQUIRE((body && body->statements().size() == 3));
+    using enum ast::LiteralKind;
+    {
+        auto* expr =
+            body->statement<ExpressionStatement>(0)->expression<FStringExpr>();
+        REQUIRE(expr->operands().size() == 3);
+        auto* begin = expr->operand<Literal>(0);
+        CHECK(begin->kind() == FStringBegin);
+        CHECK(begin->value<std::string>() == "a ");
+        auto* ID = expr->operand<Identifier>(1);
+        CHECK(ID->value() == "xyz");
+        auto* end = expr->operand<Literal>(2);
+        CHECK(end->kind() == FStringEnd);
+        CHECK(end->value<std::string>() == "");
+    }
+    {
+        auto* expr =
+            body->statement<ExpressionStatement>(1)->expression<FStringExpr>();
+        REQUIRE(expr->operands().size() == 5);
+        auto* begin = expr->operand<Literal>(0);
+        CHECK(begin->kind() == FStringBegin);
+        CHECK(begin->value<std::string>() == "a ");
+        CHECK(expr->operand<BinaryExpression>(1));
+        auto* cont = expr->operand<Literal>(2);
+        CHECK(cont->kind() == FStringContinue);
+        CHECK(cont->value<std::string>() == " ");
+        CHECK(expr->operand<Literal>(3));
+        auto* end = expr->operand<Literal>(4);
+        CHECK(end->kind() == FStringEnd);
+        CHECK(end->value<std::string>() == "");
+    }
+    {
+        auto* expr =
+            body->statement<ExpressionStatement>(2)->expression<FStringExpr>();
+        REQUIRE(expr->operands().size() == 3);
+        auto* begin = expr->operand<Literal>(0);
+        CHECK(begin->kind() == FStringBegin);
+        CHECK(begin->value<std::string>() == "");
+        {
+            auto* nested = expr->operand<FStringExpr>(1);
+            REQUIRE(nested->operands().size() == 5);
+            auto* begin = nested->operand<Literal>(0);
+            CHECK(begin->kind() == FStringBegin);
+            CHECK(begin->value<std::string>() == "");
+            CHECK(nested->operand<Literal>(1));
+            auto* cont = nested->operand<Literal>(2);
+            CHECK(cont->kind() == FStringContinue);
+            CHECK(cont->value<std::string>() == "");
+            CHECK(nested->operand<Literal>(3));
+            auto* end = nested->operand<Literal>(4);
+            CHECK(end->kind() == FStringEnd);
+            CHECK(end->value<std::string>() == "");
+        }
+        auto* end = expr->operand<Literal>(2);
+        CHECK(end->kind() == FStringEnd);
+        CHECK(end->value<std::string>() == "");
+    }
+}
