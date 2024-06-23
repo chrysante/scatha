@@ -95,28 +95,28 @@ std::optional<Token> Context::getToken() {
         return getToken();
     }
     if (auto floatingPointLiteral = getFloatingPointLiteral()) {
-        return *floatingPointLiteral;
+        return floatingPointLiteral;
     }
     if (auto integerLiteral = getIntegerLiteral()) {
-        return *integerLiteral;
+        return integerLiteral;
     }
     if (auto stringLiteral = getStringLiteral()) {
-        return *stringLiteral;
+        return stringLiteral;
     }
     if (auto charLiteral = getCharLiteral()) {
-        return *charLiteral;
+        return charLiteral;
     }
     if (auto booleanLiteral = getBooleanLiteral()) {
-        return *booleanLiteral;
+        return booleanLiteral;
     }
     if (auto identifier = getIdentifier()) {
-        return *identifier;
+        return identifier;
     }
     if (auto punctuation = getPunctuation()) {
-        return *punctuation;
+        return punctuation;
     }
     if (auto op = getOperator()) {
-        return *op;
+        return op;
     }
     return std::nullopt;
 }
@@ -274,16 +274,15 @@ static constexpr auto operator+(ctll::fixed_string<N> a,
 
 template <typename Error, typename Begin, typename... End>
 std::optional<Token> Context::getStringLiteralImpl(Begin begin, End... end) {
-    if (auto m = ctre::starts_with<Begin::Pattern>(text)) {
-        advance(m.size());
-        if (begin.callback) {
-            begin.callback();
-        }
-    }
-    else {
+    auto m = ctre::starts_with<Begin::Pattern>(text);
+    if (!m) {
         return std::nullopt;
     }
     auto [id, beginLoc] = beginToken();
+    advance(m.size());
+    if (begin.callback) {
+        begin.callback();
+    }
     auto pushError = [&] {
         issues.push<Error>(SourceRange{ beginLoc, currentLocation });
     };
@@ -331,17 +330,20 @@ std::optional<Token> Context::getStringLiteral() {
     auto beginExpression = [this] { parenNestingDepthStack.push(0); };
     auto endExpression = [this] { parenNestingDepthStack.pop(); };
     if (!parenNestingDepthStack.empty() && parenNestingDepthStack.top() == 0) {
-        return getStringLiteralImpl<UnterminatedStringLiteral>(
+        auto token = getStringLiteralImpl<UnterminatedStringLiteral>(
             StringLiteralDelim<"\\)">{ {}, endExpression },
-            StringLiteralDelim<"\"">{ TokenKind::FStringLiteralEnd },
-            StringLiteralDelim<"\\\\\\(">{ TokenKind::FStringLiteralContinue,
-                                           beginExpression });
+            StringLiteralDelim<R"(\\\()">{ TokenKind::FStringLiteralContinue,
+                                           beginExpression },
+            StringLiteralDelim<"\"">{ TokenKind::FStringLiteralEnd });
+        if (token) {
+            return token;
+        }
     }
     return getStringLiteralImpl<UnterminatedStringLiteral>(
         StringLiteralDelim<"\"">{},
-        StringLiteralDelim<"\"">{ TokenKind::StringLiteral },
-        StringLiteralDelim<"\\\\\\(">{ TokenKind::FStringLiteralBegin,
-                                       beginExpression });
+        StringLiteralDelim<R"(\\\()">{ TokenKind::FStringLiteralBegin,
+                                       beginExpression },
+        StringLiteralDelim<"\"">{ TokenKind::StringLiteral });
 }
 
 std::optional<Token> Context::getCharLiteral() {
