@@ -24,6 +24,14 @@ inline void runReturnsTest(u64 value, std::string text) {
 /// \p text is interpreted as IR
 void runIRReturnsTest(u64 value, std::string_view text);
 
+///
+void runPrintsTest(std::string_view expected,
+                   std::vector<std::string> sourceTexts);
+
+/// Compiles and runs the given source code as IR and checks that the program
+/// prints the string \p printed
+void runIRPrintsTest(std::string_view printed, std::string source);
+
 /// \Returns `true` if \p text compiles successfully
 [[nodiscard]] bool compiles(std::string text);
 
@@ -59,10 +67,6 @@ void checkIRReturns(uint64_t expected, std::string source);
 /// Compiles and runs the given source code and checks that the program prints
 /// the string \p printed
 void checkPrints(std::string_view printed, std::string source);
-
-/// Compiles and runs the given source code as IR and checks that the program
-/// prints the string \p printed
-void runIRPrintsTest(std::string_view printed, std::string source);
 
 } // namespace scatha::test
 

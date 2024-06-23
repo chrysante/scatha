@@ -12,6 +12,8 @@ public:
     CoutRerouter();
     ~CoutRerouter();
 
+    void reset();
+
     std::string str() const;
 
 private:

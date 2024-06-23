@@ -172,6 +172,13 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
         *vm->impl->ostream << std::string_view(deref<char>(vm, data, size),
                                                size);
     });
+    set(Builtin::putln, [](u64* regPtr, VirtualMachine* vm) {
+        auto data = load<VirtualPointer>(regPtr);
+        size_t size = load<size_t>(regPtr + 1);
+        *vm->impl->ostream << std::string_view(deref<char>(vm, data, size),
+                                               size)
+                           << "\n";
+    });
     set(Builtin::putptr, printVal<void*>());
 
     /// ## Console input
@@ -218,6 +225,80 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
         else {
             store(regPtr, u64{ 0 });
         }
+    });
+
+    /// # FString runtime support
+    static constexpr auto fstringRealloc = [](VirtualMachine* vm,
+                                              VirtualPointer& buffer, u64& size,
+                                              u64 offset, u64 newSize) {
+        VirtualPointer newBuffer = vm->allocateMemory(newSize, 1);
+        auto* native = vm->derefPointer(newBuffer, newSize);
+        std::memcpy(native, vm->derefPointer(buffer, offset), offset);
+        buffer = newBuffer;
+        size = newSize;
+        return native;
+    };
+    static constexpr auto fstringWriteImpl = [](u64* regPtr, VirtualMachine* vm,
+                                                std::string_view arg) {
+        VirtualPointer buffer = load<VirtualPointer>(regPtr);
+        u64 size = load<u64>(regPtr + 1);
+        VirtualPointer offsetPtr = load<VirtualPointer>(regPtr + 2);
+        u64* offset = &vm->derefPointer<u64>(offsetPtr);
+        void* nativeBuffer;
+        if (*offset + arg.size() <= size) {
+            nativeBuffer = vm->derefPointer(buffer, size);
+        }
+        else {
+            u64 newSize = std::max(size * 2, *offset + arg.size());
+            nativeBuffer = fstringRealloc(vm, buffer, size, *offset, newSize);
+        }
+        std::memcpy((char*)nativeBuffer + *offset, arg.data(), arg.size());
+        *offset += arg.size();
+        store(regPtr, buffer);
+        store(regPtr + 1, size);
+    };
+    set(Builtin::fstring_writestr, [](u64* regPtr, VirtualMachine* vm) {
+        VirtualPointer argData = load<VirtualPointer>(regPtr + 3);
+        u64 argSize = load<u64>(regPtr + 4);
+        fstringWriteImpl(regPtr, vm,
+                         { (char*)vm->derefPointer(argData, argSize),
+                           argSize });
+    });
+    set(Builtin::fstring_writes64, [](u64* regPtr, VirtualMachine* vm) {
+        i64 arg = load<i64>(regPtr + 3);
+        char fmtBuffer[256];
+        auto result =
+            std::to_chars(fmtBuffer, fmtBuffer + sizeof fmtBuffer, arg);
+        if (result.ec != std::error_code()) {
+            // TODO: Throw error here
+            assert(false);
+        }
+        fstringWriteImpl(regPtr, vm, { fmtBuffer, result.ptr });
+    });
+    set(Builtin::fstring_writef64, [](u64* regPtr, VirtualMachine* vm) {
+        f64 arg = load<f64>(regPtr + 3);
+        char fmtBuffer[256];
+        auto result =
+            std::to_chars(fmtBuffer, fmtBuffer + sizeof fmtBuffer, arg);
+        if (result.ec != std::error_code()) {
+            // TODO: Throw error here
+            assert(false);
+        }
+        fstringWriteImpl(regPtr, vm, { fmtBuffer, result.ptr });
+    });
+    set(Builtin::fstring_trim, [](u64* regPtr, VirtualMachine* vm) {
+        VirtualPointer buffer = load<VirtualPointer>(regPtr);
+        u64 size = load<u64>(regPtr + 1);
+        u64 offset = load<u64>(regPtr + 2);
+        if (size < offset) {
+            // TODO: Throw error here
+            assert(false);
+        }
+        if (size > offset) {
+            fstringRealloc(vm, buffer, size, offset, offset);
+        }
+        store(regPtr, buffer);
+        store(regPtr + 1, size);
     });
 
     /// ##

@@ -308,7 +308,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::FStringExpr& expr) {
         return nullptr;
     }
     auto* type = sym.uniquePointer(sym.Str(), Mutability::Mutable);
-    expr.decorateValue(sym.temporary(&expr, type), RValue);
+    auto* tmp = sym.temporary(&expr, type);
+    expr.decorateValue(tmp, RValue);
+    if (!currentCleanupStack().push(tmp, ctx)) {
+        return nullptr;
+    }
     return &expr;
 }
 
@@ -606,7 +610,7 @@ static Entity* toSingleEntity(ast::Identifier const& idExpr,
 /// \Returns `true` if \p var is a struct member and not declared `static`
 static bool isNonStaticDataMember(sema::VarBase const& var) {
     // FIXME: This only tests if var is a struct data member, not if it is
-    // non-static becase we don't have static in the language yet
+    // non-static because we don't have static in the language yet
     return isa<Type>(var.parent());
 }
 

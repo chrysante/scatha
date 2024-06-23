@@ -77,6 +77,8 @@ SVM_BUILTIN_DEF(puti64,    None,  { S64() }, Void())
 SVM_BUILTIN_DEF(putf64,    None,  { F64() }, Void())
 SVM_BUILTIN_DEF(putstr,    None,
                 { strPointer() }, Void())
+SVM_BUILTIN_DEF(putln,    None,
+                { strPointer() }, Void())
 SVM_BUILTIN_DEF(putptr,    None,  { pointer(Byte()) }, Void())
 
 /// ## Console Input
@@ -102,6 +104,38 @@ SVM_BUILTIN_DEF(strtof64,    None, {
     reference(QualType::Mut(F64())),
     strPointer()
 }, Bool())
+
+/// # FString runtime support
+
+/// Expects a dynamically allocated buffer as the first parameter. Writes the `text` parameters into the buffer at specified offset.
+/// Reallocates the buffer if it's too small to write `text`.
+/// \Returns the potentially reallocated buffer
+/// Signature: `(buffer: *mut str, offset: int, text: *str) -> *mut str*`
+SVM_BUILTIN_DEF(fstring_writestr, None, {
+    pointer(Str(), Mutability::Mutable),
+    reference(S64(), Mutability::Mutable),
+    strPointer()
+}, pointer(Str(), Mutability::Mutable))
+
+///
+SVM_BUILTIN_DEF(fstring_writes64, None, {
+    pointer(Str(), Mutability::Mutable),
+    reference(S64(), Mutability::Mutable),
+    S64()
+}, pointer(Str(), Mutability::Mutable))
+
+///
+SVM_BUILTIN_DEF(fstring_writef64, None, {
+    pointer(Str(), Mutability::Mutable),
+    reference(S64(), Mutability::Mutable),
+    F64()
+}, pointer(Str(), Mutability::Mutable))
+
+///
+SVM_BUILTIN_DEF(fstring_trim, None, {
+    pointer(Str(), Mutability::Mutable),
+    S64()
+}, pointer(Str(), Mutability::Mutable))
 
 /// ## Debug trap
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())

@@ -519,7 +519,7 @@ public:
     ValueType const& value() const { return _value; };
 
     template <typename T>
-    auto value() const {
+    auto const& value() const {
         return std::get<T>(_value);
     }
 

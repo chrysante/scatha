@@ -126,17 +126,23 @@ struct Impl {
     }
 
     void runTest(Generator const& generator, uint64_t expected) const {
+        runTest(generator, [] {},
+                [&](u64 retval) { CHECK(retval == expected); });
+    }
+
+    void runTest(Generator const& generator, utl::function_view<void()> begin,
+                 utl::function_view<void(u64)> end) const {
         /// No optimization
         {
             auto [ctx, mod, libs] = generator();
-            checkReturns("Unoptimized", mod, libs, expected);
+            runChecked("Unoptimized", mod, libs, begin, end);
         }
 
         /// Default optimizations
         {
             auto [ctx, mod, libs] = generator();
             opt::optimize(ctx, mod);
-            checkReturns("Default pipeline", mod, libs, expected);
+            runChecked("Default pipeline", mod, libs, begin, end);
         }
 
         if (getOptions().TestPasses) {
@@ -147,10 +153,10 @@ struct Impl {
                 ir::Pipeline pipeline(pass);
                 testPipeline(generator,
                              ir::PassManager::makePipeline("unifyreturns"),
-                             expected, pipeline);
-                testPipeline(generator, light, expected, pipeline);
-                testPipeline(generator, lightRotate, expected, pipeline);
-                testPipeline(generator, lightInline, expected, pipeline);
+                             pipeline, begin, end);
+                testPipeline(generator, light, pipeline, begin, end);
+                testPipeline(generator, lightRotate, pipeline, begin, end);
+                testPipeline(generator, lightInline, pipeline, begin, end);
             }
             auto passes = ir::PassManager::localPasses();
         }
@@ -160,33 +166,35 @@ struct Impl {
                 ir::PassManager::makePipeline(getOptions().TestPipeline);
             testPipeline(generator,
                          ir::PassManager::makePipeline("unifyreturns"),
-                         expected, pipeline);
-            testPipeline(generator, light, expected, pipeline);
-            testPipeline(generator, lightRotate, expected, pipeline);
-            testPipeline(generator, lightInline, expected, pipeline);
+                         pipeline, begin, end);
+            testPipeline(generator, light, pipeline, begin, end);
+            testPipeline(generator, lightRotate, pipeline, begin, end);
+            testPipeline(generator, lightInline, pipeline, begin, end);
         }
 
         if (getOptions().TestIdempotency) {
             /// Idempotency of passes without prior optimizations
             testIdempotency(generator,
                             ir::PassManager::makePipeline("unifyreturns"),
-                            expected);
+                            begin, end);
 
             /// Idempotency of passes after light optimizations
-            testIdempotency(generator, light, expected);
+            testIdempotency(generator, light, begin, end);
             /// Idempotency of passes after light optimizations and loop
             /// rotation
-            testIdempotency(generator, lightRotate, expected);
+            testIdempotency(generator, lightRotate, begin, end);
 
             /// Idempotency of passes after light inlining optimizations
-            testIdempotency(generator, lightInline, expected);
+            testIdempotency(generator, lightInline, begin, end);
         }
     }
 
-    void checkReturns(std::string_view msg, ir::Module const& mod,
-                      std::span<ForeignLibraryDecl const> foreignLibs,
-                      uint64_t expected) const {
+    void runChecked(std::string_view msg, ir::Module const& mod,
+                    std::span<ForeignLibraryDecl const> foreignLibs,
+                    utl::function_view<void()> begin,
+                    utl::function_view<void(u64)> end) const {
         INFO(msg);
+        begin();
         size_t result = 0;
         std::string code;
         if (!getOptions().PrintCodegen) {
@@ -201,24 +209,27 @@ struct Impl {
             code = std::move(sstr).str();
         }
         INFO(code);
-        CHECK(result == expected);
+        end(result);
     }
 
     void testPipeline(Generator const& generator,
-                      ir::Pipeline const& prePipeline, uint64_t expected,
-                      ir::Pipeline const& pipeline) const {
+                      ir::Pipeline const& prePipeline,
+                      ir::Pipeline const& pipeline,
+                      utl::function_view<void()> begin,
+                      utl::function_view<void(u64)> end) const {
         auto [ctx, mod, libs] = generator();
         prePipeline(ctx, mod);
         auto message = utl::strcat("Pass test for \"", pipeline,
                                    "\" with pre pipeline \"", prePipeline,
                                    "\"");
         pipeline(ctx, mod);
-        checkReturns(message, mod, libs, expected);
+        runChecked(message, mod, libs, begin, end);
     }
 
     void testIdempotency(Generator const& generator,
                          ir::Pipeline const& prePipeline,
-                         uint64_t expected) const {
+                         utl::function_view<void()> begin,
+                         utl::function_view<void(u64)> end) const {
         for (auto pass:
              ir::PassManager::localPasses(ir::PassCategory::Simplification))
         {
@@ -234,11 +245,11 @@ struct Impl {
                                        "\" with pre pipeline \"", prePipeline,
                                        "\"");
             ir::forEach(ctx, mod, pass);
-            checkReturns(message, mod, libs, expected);
+            runChecked(message, mod, libs, begin, end);
             bool second = ir::forEach(ctx, mod, pass);
             INFO(message);
             CHECK(!second);
-            checkReturns(message, mod, libs, expected);
+            runChecked(message, mod, libs, begin, end);
         }
     }
 };
@@ -255,6 +266,22 @@ void test::runReturnsTest(uint64_t expectedResult,
 void test::runIRReturnsTest(uint64_t expectedResult, std::string_view source) {
     test::CoutRerouter rerouter;
     Impl::get().runTest(makeIRGenerator(source), expectedResult);
+}
+
+void test::runPrintsTest(std::string_view expected,
+                         std::vector<std::string> sourceTexts) {
+    test::CoutRerouter rerouter;
+    auto begin = [&] { rerouter.reset(); };
+    auto end = [&](u64) { CHECK(rerouter.str() == expected); };
+    Impl::get().runTest(makeScathaGenerator(std::move(sourceTexts)), begin,
+                        end);
+}
+
+void test::runIRPrintsTest(std::string_view expected, std::string source) {
+    test::CoutRerouter rerouter;
+    auto begin = [&] { rerouter.reset(); };
+    auto end = [&](u64) { CHECK(rerouter.str() == expected); };
+    Impl::get().runTest(makeIRGenerator(source), begin, end);
 }
 
 bool test::compiles(std::string text) {
@@ -326,11 +353,5 @@ void test::checkIRReturns(uint64_t expected, std::string source) {
 void test::checkPrints(std::string_view expected, std::string source) {
     test::CoutRerouter rerouter;
     compileAndRun(source);
-    CHECK(rerouter.str() == expected);
-}
-
-void test::runIRPrintsTest(std::string_view expected, std::string source) {
-    test::CoutRerouter rerouter;
-    compileAndRunIR(source);
     CHECK(rerouter.str() == expected);
 }

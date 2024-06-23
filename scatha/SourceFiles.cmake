@@ -412,6 +412,7 @@ set(scatha_test_sources
     test/EndToEndTests/Regression.t.cc
     test/EndToEndTests/SimpleRecursion.t.cc
     test/EndToEndTests/StaticData.t.cc
+    test/EndToEndTests/Strings.t.cc
     test/EndToEndTests/Structures.t.cc
 
     test/Invocation/CompilerInvocation.t.cc

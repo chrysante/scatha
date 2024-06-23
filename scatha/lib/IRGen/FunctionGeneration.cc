@@ -1,6 +1,7 @@
 #include "IRGen/FunctionGeneration.h"
 
 #include <range/v3/algorithm.hpp>
+#include <range/v3/numeric.hpp>
 #include <utl/function_view.hpp>
 #include <utl/strcat.hpp>
 
@@ -138,6 +139,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
     Value getValueImpl(ast::Identifier const&);
     Value getValueImpl(ast::Literal const&);
+    Value getValueImpl(ast::FStringExpr const&);
     Value getValueImpl(ast::UnaryExpression const&);
     Value getValueImpl(ast::BinaryExpression const&);
     Value getValueImpl(ast::MemberAccess const&);
@@ -762,6 +764,90 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
                                  ctx.intConstant(lit.value<APInt>())));
     }
     SC_UNREACHABLE();
+}
+
+Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
+    size_t initBufferSize =
+        ranges::accumulate(expr.operands() | Filter<ast::Literal>, size_t{},
+                           ranges::plus{},
+                           [](ast::Literal const* lit) -> size_t {
+        auto& var = lit->value();
+        if (std::holds_alternative<std::string>(var)) {
+            return std::get<std::string>(var).size();
+        }
+        return 0;
+    });
+    auto getDataAndSize = [&](ir::Value* buffer) {
+        ir::Value* data =
+            add<ir::ExtractValue>(buffer, std::array<size_t, 1>{ 0 },
+                                  utl::strcat(buffer->name(), ".data"));
+        ir::Value* size =
+            add<ir::ExtractValue>(buffer, std::array<size_t, 1>{ 1 },
+                                  utl::strcat(buffer->name(), ".size"));
+        return std::pair{ data, size };
+    };
+    auto alloc = getBuiltin(svm::Builtin::alloc);
+    ValueArray args = { ctx.intConstant(initBufferSize, 64),
+                        ctx.intConstant(1, 64) };
+    ir::Value* buffer = add<ir::Call>(alloc, args, "fstring.buffer");
+    auto [bufferData, bufferSize] = getDataAndSize(buffer);
+    ir::Value* offset =
+        makeLocalVariable(ctx.intType(64), "fstring.buffer.offset");
+    add<ir::Store>(offset, ctx.intConstant(0, 64));
+    for (auto* operand: expr.operands()) {
+        auto value = getValue(operand);
+        auto* type = operand->type().get();
+        if (isa<sema::PointerType>(type) &&
+            cast<sema::PointerType const*>(type)->base() ==
+                sema::QualType::Const(symbolTable.Str()))
+        {
+            auto values = unpack(value);
+            auto* fmt = getBuiltin(svm::Builtin::fstring_writestr);
+            buffer = add<ir::Call>(
+                fmt,
+                ValueArray{
+                    bufferData, bufferSize, offset,
+                    toRegister(values[0], ctx.ptrType(), "data").get(),
+                    toRegister(values[1], ctx.intType(64), "size").get() },
+                "fstring.fmt");
+            std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
+        }
+        else if (operand->type().get() == symbolTable.S64()) {
+            auto* fmt = getBuiltin(svm::Builtin::fstring_writes64);
+            buffer =
+                add<ir::Call>(fmt,
+                              ValueArray{ bufferData, bufferSize, offset,
+                                          toRegister(value.single(),
+                                                     ctx.intType(64), "operand")
+                                              .get() },
+                              "fstring.fmt");
+            std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
+        }
+        else if (operand->type().get() == symbolTable.F64()) {
+            auto* fmt = getBuiltin(svm::Builtin::fstring_writef64);
+            buffer = add<ir::Call>(fmt,
+                                   ValueArray{ bufferData, bufferSize, offset,
+                                               toRegister(value.single(),
+                                                          ctx.floatType(64),
+                                                          "operand")
+                                                   .get() },
+                                   "fstring.fmt");
+            std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
+        }
+        else {
+            SC_UNIMPLEMENTED();
+        }
+    }
+    /// Trim buffer
+    buffer = add<ir::Call>(getBuiltin(svm::Builtin::fstring_trim),
+                           ValueArray{ bufferData, bufferSize,
+                                       add<ir::Load>(offset, ctx.intType(64),
+                                                     "fstring.offset") },
+                           "fstring.fmt");
+    std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
+    return Value::Unpacked("fstring", expr.type().get(),
+                           { Atom::Register(bufferData),
+                             Atom::Register(bufferSize) });
 }
 
 Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
