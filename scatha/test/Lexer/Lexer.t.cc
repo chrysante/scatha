@@ -11,14 +11,23 @@
 using namespace scatha;
 using namespace parser;
 
+namespace scatha::parser {
+
+static std::ostream& operator<<(std::ostream& str, TokenKind kind) {
+    return str << toString(kind);
+}
+
+} // namespace scatha::parser
+
 namespace {
+
 struct ReferenceToken {
     TokenKind kind;
     std::string id;
 };
 
 std::ostream& operator<<(std::ostream& str, ReferenceToken const& t) {
-    return str << "{ .type = " << /*t.type << */ ", .id = " << t.id << " }";
+    return str << "{ .type = " << t.kind << ", .id = " << t.id << " }";
 }
 
 struct TestCase {
@@ -32,7 +41,8 @@ struct TestCase {
         for (std::size_t i = 0; i < std::min(tokens.size(), reference.size());
              ++i)
         {
-            INFO("LHS: " << reference[i] << "\nRHS: " << tokens[i].id());
+            INFO("i: " << i << "\nLHS: " << reference[i]
+                       << "\nRHS: " << tokens[i].id());
             CHECK(reference[i].kind == tokens[i].kind());
             CHECK(reference[i].id == tokens[i].id());
         }
@@ -175,6 +185,9 @@ an ignored multi line comment
 	std.print(--_text);
 	++1.0;
 }
+/*
+another ignored multi line comment
+*/
 )";
     test.reference = { { TokenKind::Import, "import" },
                        { TokenKind::Identifier, "std" },
@@ -269,16 +282,12 @@ true
     test.run();
 }
 
-TEST_CASE("Lexer negative", "[lex][issue]") {
+TEST_CASE("Bad string literal", "[lex][issue]") {
     auto issues = test::getLexicalIssues(R"(
-123someID
-123.23someID
 "begin string
 and end on next, line"
 )");
-    issues.findOnLine<InvalidNumericLiteral>(2);
-    issues.findOnLine<InvalidNumericLiteral>(3);
-    issues.findOnLine<UnterminatedStringLiteral>(4);
+    CHECK(issues.findOnLine<UnterminatedStringLiteral>(2));
 }
 
 template <typename T>
@@ -334,7 +343,7 @@ TEST_CASE("Escape sequences", "[lex]") {
         auto const text = R"("Hello,\m world!")";
         auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
-        CHECK(!iss.empty());
+        REQUIRE(!iss.empty());
         CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
         auto str = tokens.front();
         CHECK(str.id() == "Hello,m world!");
@@ -343,7 +352,7 @@ TEST_CASE("Escape sequences", "[lex]") {
         auto const text = R"("\zHello world!")";
         auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
-        CHECK(!iss.empty());
+        REQUIRE(!iss.empty());
         CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
         auto str = tokens.front();
         CHECK(str.id() == "zHello world!");
@@ -352,7 +361,7 @@ TEST_CASE("Escape sequences", "[lex]") {
         auto const text = R"("Hello world!\m")";
         auto tokens = parser::lex(text, iss);
         REQUIRE(tokens.size() == 2);
-        CHECK(!iss.empty());
+        REQUIRE(!iss.empty());
         CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
         auto str = tokens.front();
         CHECK(str.id() == "Hello world!m");
@@ -416,5 +425,22 @@ TEST_CASE("Char literals", "[lex]") {
         auto* issue =
             dynamic_cast<UnterminatedStringLiteral const*>(&iss.front());
         CHECK(issue);
+    }
+}
+
+TEST_CASE("Float literals", "[lex]") {
+    IssueHandler iss;
+    auto tokens = parser::lex(".1 1.", iss);
+    REQUIRE(iss.empty());
+    REQUIRE(tokens.size() >= 2);
+    {
+        auto tok = tokens[0];
+        CHECK(tok.kind() == TokenKind::FloatLiteral);
+        CHECK(tok.toFloat() == APFloat(0.1, APFloatPrec::Double()));
+    }
+    {
+        auto tok = tokens[1];
+        CHECK(tok.kind() == TokenKind::FloatLiteral);
+        CHECK(tok.toFloat() == APFloat(1.0, APFloatPrec::Double()));
     }
 }

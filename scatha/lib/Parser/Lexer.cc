@@ -2,6 +2,10 @@
 
 #include <optional>
 
+#include <ctre.hpp>
+#include <range/v3/algorithm.hpp>
+#include <utl/hashtable.hpp>
+
 #include "Common/EscapeSequence.h"
 #include "Common/Expected.h"
 #include "Common/SourceLocation.h"
@@ -24,9 +28,12 @@ struct Context {
     bool ignoreMultiLineComment();
     std::optional<Token> getPunctuation();
     std::optional<Token> getOperator();
-    std::optional<Token> getIntegerLiteral();
-    std::optional<Token> getIntegerLiteralHex();
     std::optional<Token> getFloatingPointLiteral();
+    std::optional<Token> getIntegerLiteral();
+    template <ctll::fixed_string BeginDelim, ctll::fixed_string EndDelim,
+              typename Error>
+    std::optional<Token> getStringLiteralImpl(TokenKind kind);
+    char getCurrentEscapeSequence();
     std::optional<Token> getStringLiteral();
     std::optional<Token> getCharLiteral();
     std::optional<Token> getBooleanLiteral();
@@ -35,13 +42,10 @@ struct Context {
     bool advance();
     bool advance(size_t count);
 
-    void advanceToNextWhitespace();
-
-    ssize_t textSize() const { return utl::narrow_cast<ssize_t>(text.size()); }
-
     std::pair<std::string, SourceLocation> beginToken() const;
+    Token extractToken(size_t count, TokenKind kind);
+    Token extractToken(size_t count, auto tokenKindFactory);
     char current() const;
-    std::optional<char> next(ssize_t offset = 1) const;
 
     std::string_view text;
     size_t fileIndex;
@@ -59,23 +63,19 @@ std::vector<Token> parser::lex(std::string_view text, IssueHandler& issues,
 
 std::vector<Token> Context::run() {
     std::vector<Token> result;
-    while (currentLocation.index < textSize()) {
-        auto token = getToken();
-        if (!token) {
-            advanceToNextWhitespace();
-        }
-        else {
+    while (!text.empty()) {
+        if (auto token = getToken()) {
             result.push_back(std::move(*token));
         }
     }
-    SC_ASSERT(currentLocation.index == textSize(), "How is this possible?");
+    SC_ASSERT(text.empty(), "The entire string shall be tokenized");
     result.push_back(
         Token({}, TokenKind::EndOfFile, { currentLocation, currentLocation }));
     return result;
 }
 
 std::optional<Token> Context::getToken() {
-    if (currentLocation.index >= textSize()) {
+    if (text.empty()) {
         return std::nullopt;
     }
     if (ignoreSpaces() || ignoreLineComment() || ignoreMultiLineComment()) {
@@ -84,20 +84,11 @@ std::optional<Token> Context::getToken() {
         }
         return getToken();
     }
-    if (auto punctuation = getPunctuation()) {
-        return *punctuation;
-    }
-    if (auto op = getOperator()) {
-        return *op;
+    if (auto floatingPointLiteral = getFloatingPointLiteral()) {
+        return *floatingPointLiteral;
     }
     if (auto integerLiteral = getIntegerLiteral()) {
         return *integerLiteral;
-    }
-    if (auto integerLiteralHex = getIntegerLiteralHex()) {
-        return *integerLiteralHex;
-    }
-    if (auto floatingPointLiteral = getFloatingPointLiteral()) {
-        return *floatingPointLiteral;
     }
     if (auto stringLiteral = getStringLiteral()) {
         return *stringLiteral;
@@ -111,94 +102,76 @@ std::optional<Token> Context::getToken() {
     if (auto identifier = getIdentifier()) {
         return *identifier;
     }
+    if (auto punctuation = getPunctuation()) {
+        return *punctuation;
+    }
+    if (auto op = getOperator()) {
+        return *op;
+    }
     return std::nullopt;
 }
 
 bool Context::ignoreSpaces() {
-    if (!isSpace(current())) {
+    auto m = ctre::starts_with<"\\s+">(text);
+    if (!m) {
         return false;
     }
-    while (isSpace(current())) {
-        if (!advance()) {
-            break;
-        }
-    }
-    return true;
+    return advance(m.size());
 }
 
 bool Context::ignoreLineComment() {
-    if (current() != '/') {
+    auto m = ctre::starts_with<"\\/\\/.*?\\n">(text);
+    if (!m) {
         return false;
     }
-    if (auto const next = this->next(); !next || *next != '/') {
-        return false;
-    }
-    advance();
-    while (true) {
-        if (current() == '\n' || !advance()) {
-            return true;
-        }
-    }
+    return advance(m.size());
 }
 
 bool Context::ignoreMultiLineComment() {
-    if (current() != '/') {
+    auto m = ctre::starts_with<"\\/\\*(.|\\n)*?\\*\\/">(text);
+    if (!m) {
         return false;
     }
-    if (auto const next = this->next(); !next || *next != '*') {
-        return false;
-    }
-    SourceLocation const beginLoc = currentLocation;
-    advance();
-    /// Now we are at the next character after `/*`
-    char last = current();
-    while (true) {
-        if (!advance()) {
-            issues.push<UnterminatedMultiLineComment>(
-                SourceRange{ beginLoc, currentLocation });
-            return true;
-        }
-        if (last == '*' && current() == '/') {
-            advance();
-            return true;
-        }
-        last = current();
+    return advance(m.size());
+}
+
+static TokenKind toPunctuation(std::string_view ID) {
+    SC_EXPECT(ID.size() == 1);
+    using enum TokenKind;
+    switch (ID.front()) {
+    case '(':
+        return OpenParan;
+    case ')':
+        return CloseParan;
+    case '{':
+        return OpenBrace;
+    case '}':
+        return CloseBrace;
+    case '[':
+        return OpenBracket;
+    case ']':
+        return CloseBracket;
+    case ',':
+        return Comma;
+    case ';':
+        return Semicolon;
+    case ':':
+        return Colon;
+    default:
+        SC_UNREACHABLE();
     }
 }
 
 std::optional<Token> Context::getPunctuation() {
-    if (!isPunctuation(current())) {
+    auto m = ctre::starts_with<"\\[|\\]|\\(|\\)|\\{|\\}|,|:|;">(text);
+    if (!m) {
         return std::nullopt;
     }
-    auto [id, beginLoc] = beginToken();
-    id += current();
-    auto punctuation = [&] {
-        using enum TokenKind;
-        switch (current()) {
-        case '(':
-            return OpenParan;
-        case ')':
-            return CloseParan;
-        case '{':
-            return OpenBrace;
-        case '}':
-            return CloseBrace;
-        case '[':
-            return OpenBracket;
-        case ']':
-            return CloseBracket;
-        case ',':
-            return Comma;
-        case ';':
-            return Semicolon;
-        case ':':
-            return Colon;
-        default:
-            SC_UNREACHABLE();
-        }
-    }();
+    std::string ID = m.to_string();
+    SC_ASSERT(ID.size() == 1, "");
+    auto beginLoc = currentLocation;
     advance();
-    return Token(id, punctuation, { beginLoc, currentLocation });
+    return Token(ID, toPunctuation(ID), { beginLoc, currentLocation });
 }
 
 static TokenKind toOperator(std::string_view str) {
@@ -211,10 +184,10 @@ static TokenKind toOperator(std::string_view str) {
 
 std::optional<Token> Context::getOperator() {
     auto [id, beginLoc] = beginToken();
-    id += current();
-    if (!isOperator(id)) {
+    if (!isOperatorLetter(current())) {
         return std::nullopt;
     }
+    id += current();
     while (true) {
         if (!advance()) {
             break;
@@ -228,299 +201,189 @@ std::optional<Token> Context::getOperator() {
     return Token(id, toOperator(id), { beginLoc, currentLocation });
 }
 
-std::optional<Token> Context::getIntegerLiteral() {
-    if (!isDigitDec(current())) {
-        return std::nullopt;
-    }
-    if (current() == '0' && next() && *next() == 'x') {
-        return std::nullopt; // We are a hex literal, not our job
-    }
-    auto [id, beginLoc] = beginToken();
-    id += current();
-    ssize_t offset = 1;
-    std::optional next = this->next(offset);
-    while (next && isDigitDec(*next)) {
-        id += *next;
-        ++offset;
-        next = this->next(offset);
-    }
-    if (!next || isDelimiter(*next)) {
-        while (offset-- > 0) {
-            advance();
-        }
-        return Token(id, TokenKind::IntegerLiteral,
-                     { beginLoc, currentLocation });
-    }
-    if (*next == '.') {
-        // We are a float literal
-        return std::nullopt;
-    }
-    issues.push<InvalidNumericLiteral>(SourceRange{ beginLoc, currentLocation },
-                                       InvalidNumericLiteral::Kind::Integer);
-    return std::nullopt;
-}
-
-std::optional<Token> Context::getIntegerLiteralHex() {
-    if (current() != '0' || !next() || *next() != 'x') {
-        return std::nullopt;
-    }
-    auto [id, beginLoc] = beginToken();
-    id += current();
-    advance();
-    id += current();
-    // Now result.id == "0x"
-    while (advance() && isDigitHex(current())) {
-        id += current();
-    }
-    if (next() && !isLetter(*next())) {
-        return Token(id, TokenKind::IntegerLiteral,
-                     { beginLoc, currentLocation });
-    }
-    issues.push<InvalidNumericLiteral>(SourceRange{ beginLoc, currentLocation },
-                                       InvalidNumericLiteral::Kind::Integer);
-    return std::nullopt;
-}
-
 std::optional<Token> Context::getFloatingPointLiteral() {
-    if (!isFloatDigitDec(current())) {
+    auto m = ctre::starts_with<"([\\d\\.]+)([A-Za-z_][A-Za-z0-9_]*)?">(text);
+    if (!m || m.get<1>().size() == 1) {
+        return std::nullopt;
+    }
+    size_t numDots = ranges::count(m.view(), '.');
+    switch (numDots) {
+    case 0:
+        return std::nullopt;
+    case 1:
+        return extractToken(m.size(), TokenKind::FloatLiteral);
+    default:
+        auto beginLoc = currentLocation;
+        advance(m.size());
+        issues.push<InvalidNumericLiteral>(
+            SourceRange{ beginLoc, currentLocation },
+            InvalidNumericLiteral::Kind::FloatingPoint);
+        return std::nullopt;
+    }
+}
+
+std::optional<Token> Context::getIntegerLiteral() {
+    if (auto m =
+            ctre::starts_with<"0x[\\da-fA-F]+([A-Za-z_][A-Za-z0-9_]*)?">(text))
+    {
+        return extractToken(m.size(), TokenKind::IntegerLiteral);
+    }
+    if (auto m = ctre::starts_with<"\\d+([A-Za-z_][A-Za-z0-9_]*)?">(text)) {
+        return extractToken(m.size(), TokenKind::IntegerLiteral);
+    }
+    return std::nullopt;
+}
+
+char Context::getCurrentEscapeSequence() {
+    if (auto seq = toEscapeSequence(current())) {
+        return *seq;
+    }
+    else {
+        auto begin = currentLocation;
+        auto end = currentLocation;
+        --begin.index, --begin.column, ++end.index, ++end.column;
+        issues.push<InvalidEscapeSequence>(current(),
+                                           SourceRange{ begin, end });
+        return current();
+    }
+}
+
+template <size_t N, size_t M>
+static constexpr auto operator+(ctll::fixed_string<N> a,
+                                ctll::fixed_string<M> b) {
+    std::array<char32_t, N + M> buffer{};
+    ranges::copy(a, buffer.data());
+    ranges::copy(b, buffer.data() + N);
+    return ctll::fixed_string<N + M>(ctll::construct_from_pointer,
+                                     buffer.data());
+}
+
+template <ctll::fixed_string BeginDelim, ctll::fixed_string EndDelim,
+          typename Error>
+std::optional<Token> Context::getStringLiteralImpl(TokenKind kind) {
+    if (auto m = ctre::starts_with<BeginDelim>(text)) {
+        advance(m.size());
+    }
+    else {
         return std::nullopt;
     }
     auto [id, beginLoc] = beginToken();
-    id += current();
-    ssize_t offset = 1;
-    std::optional next = this->next(offset);
-    while (next && isFloatDigitDec(*next)) {
-        id += *next;
-        next = this->next(++offset);
-    }
-    if (id == ".") { // This is not a floating point literal
-        return std::nullopt;
-    }
-    if (!next || isDelimiter(*next)) {
-        while (offset-- > 0) {
-            advance();
+    auto pushError = [&] {
+        issues.push<Error>(SourceRange{ beginLoc, currentLocation });
+    };
+    auto advanceChecked = [&] {
+        if (!text.empty() && advance() && current() != '\n') {
+            return true;
         }
-        return Token(id, TokenKind::FloatLiteral,
-                     { beginLoc, currentLocation });
+        pushError();
+        return false;
+    };
+    if (text.empty()) {
+        pushError();
     }
-    issues.push<InvalidNumericLiteral>(
-        SourceRange{ beginLoc, currentLocation },
-        InvalidNumericLiteral::Kind::FloatingPoint);
+    do {
+        if (auto m = ctre::starts_with<EndDelim>(text)) {
+            advance(m.size());
+            return Token(id, kind, { beginLoc, currentLocation });
+        }
+        if (current() == '\\') {
+            if (!advanceChecked()) {
+                break;
+            }
+            id += getCurrentEscapeSequence();
+        }
+        else {
+            id += current();
+        }
+    } while (advanceChecked());
     return std::nullopt;
 }
 
 std::optional<Token> Context::getStringLiteral() {
-    if (current() != '"') {
-        return std::nullopt;
-    }
-    auto [id, beginLoc] = beginToken();
-    if (!advance()) {
-        issues.push<UnterminatedStringLiteral>(
-            SourceRange{ beginLoc, currentLocation });
-        return std::nullopt;
-    }
-    bool haveEscape = false;
-    auto advanceChecked = [&] {
-        if (!advance() || current() == '\n') {
-            issues.push<UnterminatedStringLiteral>(
-                SourceRange{ beginLoc, currentLocation });
-            return false;
-        }
-        return true;
-    };
-    while (true) {
-        if (haveEscape) {
-            haveEscape = false;
-            if (auto seq = toEscapeSequence(current())) {
-                id += *seq;
-                if (!advanceChecked()) {
-                    return std::nullopt;
-                }
-            }
-            else {
-                auto begin = currentLocation;
-                auto end = currentLocation;
-                --begin.index, --begin.column, ++end.index, ++end.column;
-                issues.push<InvalidEscapeSequence>(current(),
-                                                   SourceRange{ begin, end });
-            }
-        }
-        if (current() == '"') {
-            advance();
-            return Token(id, TokenKind::StringLiteral,
-                         { beginLoc, currentLocation });
-        }
-        auto c = current();
-        if (c == '\\') {
-            haveEscape = true;
-        }
-        else {
-            id += c;
-        }
-        if (!advanceChecked()) {
-            return std::nullopt;
-        }
-    }
+    return getStringLiteralImpl<"\"", "\"", UnterminatedStringLiteral>(
+        TokenKind::StringLiteral);
 }
 
 std::optional<Token> Context::getCharLiteral() {
-    if (current() != '\'') {
+    auto token = getStringLiteralImpl<"\'", "\'", UnterminatedCharLiteral>(
+        TokenKind::CharLiteral);
+    if (!token) {
         return std::nullopt;
     }
-    auto [id, beginLoc] = beginToken();
-    auto advance = [&, beginLoc = beginLoc] {
-        if (this->advance()) {
-            return true;
-        }
-        issues.push<UnterminatedCharLiteral>(
-            SourceRange{ beginLoc, currentLocation });
-        return false;
-    };
-    if (!advance()) {
-        return std::nullopt;
+    if (token->id().size() != 1) {
+        issues.push<InvalidCharLiteral>(token->sourceRange());
     }
-    if (current() == '\\') {
-        if (!advance()) {
-            return std::nullopt;
-        }
-        if (auto seq = toEscapeSequence(current())) {
-            id += *seq;
-        }
-        else {
-            auto begin = currentLocation;
-            auto end = currentLocation;
-            --begin.index, --begin.column, ++end.index, ++end.column;
-            issues.push<InvalidEscapeSequence>(current(),
-                                               SourceRange{ begin, end });
-            id += current();
-        }
-    }
-    else {
-        id += current();
-    }
-    if (!advance()) {
-        return std::nullopt;
-    }
-    if (current() == '\'') {
-        this->advance();
-        return Token(id, TokenKind::CharLiteral, { beginLoc, currentLocation });
-    }
-    while (true) {
-        if (current() == '\'') {
-            this->advance();
-            issues.push<InvalidCharLiteral>(
-                SourceRange{ beginLoc, currentLocation });
-            return std::nullopt;
-        }
-        if (current() == '\n' || !this->advance()) {
-            issues.push<UnterminatedCharLiteral>(
-                SourceRange{ beginLoc, currentLocation });
-            return std::nullopt;
-        }
-    }
+    return token;
 }
 
 std::optional<Token> Context::getBooleanLiteral() {
-    if (currentLocation.index + 3 < textSize() &&
-        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) ==
-            "true")
-    {
-        if (auto const n = next(4); n && isLetterEx(*n)) {
-            return std::nullopt;
-        }
-        auto [id, beginLoc] = beginToken();
-        id = "true";
-        advance(4);
-        return Token(id, TokenKind::True, { beginLoc, currentLocation });
+    if (auto m = ctre::starts_with<"true">(text)) {
+        return extractToken(m.size(), TokenKind::True);
     }
-    if (currentLocation.index + 4 < textSize() &&
-        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 5) ==
-            "false")
-    {
-        if (auto const n = next(5); n && isLetterEx(*n)) {
-            return std::nullopt;
-        }
-        auto [id, beginLoc] = beginToken();
-        id = "false";
-        advance(5);
-        return Token(id, TokenKind::False, { beginLoc, currentLocation });
+    if (auto m = ctre::starts_with<"false">(text)) {
+        return extractToken(m.size(), TokenKind::False);
     }
     return std::nullopt;
 }
 
-static TokenKind idToTokenKind(std::string_view id) {
-    if (false) (void)0;
-#define SC_KEYWORD_TOKEN_DEF(Token, str)                                       \
-    else if (id == str) { return TokenKind::Token; }
+static TokenKind idToTokenKind(std::string_view ID) {
+    static utl::hashmap<std::string_view, TokenKind> const map = {
+#define SC_KEYWORD_TOKEN_DEF(Token, Spelling) { Spelling, TokenKind::Token },
 #include "Parser/Token.def.h"
-    return TokenKind::Identifier;
+    };
+    auto itr = map.find(ID);
+    return itr != map.end() ? itr->second : TokenKind::Identifier;
 }
 
 std::optional<Token> Context::getIdentifier() {
-    if (!isLetter(current())) {
-        return std::nullopt;
+    if (auto m = ctre::starts_with<"[a-zA-Z_][a-zA-Z0-9_]*">(text)) {
+        return extractToken(m.size(), [](std::string_view ID) {
+            return idToTokenKind(ID);
+        });
     }
-    auto [id, beginLoc] = beginToken();
-    id += current();
-    while (advance() && isLetterEx(current())) {
-        id += current();
-    }
-    return Token(id, idToTokenKind(id), { beginLoc, currentLocation });
+    return std::nullopt;
 }
 
 bool Context::advance() {
-    SC_EXPECT(currentLocation.index < (ssize_t)text.size());
-    if (text[utl::narrow_cast<size_t>(currentLocation.index)] == '\n') {
+    SC_EXPECT(text.size() > 0);
+    if (text.front() == '\n') {
         currentLocation.column = 0;
         ++currentLocation.line;
     }
     ++currentLocation.index;
     ++currentLocation.column;
-    if (currentLocation.index == textSize()) {
-        return false;
-    }
-    return true;
+    text = text.substr(1);
+    return !text.empty();
 }
 
 bool Context::advance(size_t count) {
-    while (count-- > 0) {
+    for (size_t i = 0; i < count; ++i) {
         if (!advance()) {
             return false;
         }
     }
     return true;
-}
-
-void Context::advanceToNextWhitespace() {
-    SC_EXPECT(currentLocation.index <= textSize());
-    if (currentLocation.index == textSize()) {
-        return;
-    }
-    while (true) {
-        if (!advance()) {
-            return;
-        }
-        if (isSpace(current())) {
-            return;
-        }
-    }
 }
 
 std::pair<std::string, SourceLocation> Context::beginToken() const {
     return { std::string{}, currentLocation };
 }
 
-char Context::current() const {
-    auto index = utl::narrow_cast<size_t>(currentLocation.index);
-    if (index >= text.size()) {
-        return '\0';
-    }
-    return text[index];
+Token Context::extractToken(size_t count, TokenKind kind) {
+    return extractToken(count, [&](auto&&) { return kind; });
 }
 
-std::optional<char> Context::next(ssize_t offset) const {
-    if (currentLocation.index + offset >= textSize()) {
-        return std::nullopt;
+Token Context::extractToken(size_t count, auto tokenKindFactory) {
+    auto beginLoc = currentLocation;
+    std::string_view ID = text.substr(0, count);
+    advance(count);
+    return Token(std::string(ID), tokenKindFactory(ID),
+                 { beginLoc, currentLocation });
+}
+
+char Context::current() const {
+    if (text.empty()) {
+        return '\0';
     }
-    return text[utl::narrow_cast<size_t>(currentLocation.index + offset)];
+    return text.front();
 }

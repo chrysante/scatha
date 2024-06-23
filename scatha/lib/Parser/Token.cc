@@ -13,10 +13,10 @@ using namespace parser;
 
 SCATHA_API std::string parser::toString(TokenKind kind) {
     return std::array{
-#define SC_KEYWORD_TOKEN_DEF(Token, _)     #Token
-#define SC_OPERATOR_TOKEN_DEF(Token, _)    #Token
-#define SC_PUNCTUATION_TOKEN_DEF(Token, _) #Token
-#define SC_OTHER_TOKEN_DEF(Token, _)       #Token
+#define SC_KEYWORD_TOKEN_DEF(Token, _)     #Token,
+#define SC_OPERATOR_TOKEN_DEF(Token, _)    #Token,
+#define SC_PUNCTUATION_TOKEN_DEF(Token, _) #Token,
+#define SC_OTHER_TOKEN_DEF(Token, _)       #Token,
 #include <scatha/Parser/Token.def.h>
     }[static_cast<size_t>(kind)];
 }
