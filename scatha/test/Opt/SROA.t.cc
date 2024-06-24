@@ -556,30 +556,63 @@ func i64 @main() {
 })");
 }
 
-TEST_CASE("SROA load struct as int", "[opt][sroa]") {
+TEST_CASE("SROA load struct as double", "[opt][sroa]") {
     test::passTest(opt::sroa,
                    R"(
-struct @X { i32, i32 }
+struct @X { i32, i16, i16 }
 func f64 @f() {
   %entry:
     %addr = alloca @X, i32 1
     %0 = getelementptr inbounds @X, ptr %addr, i64 0, 0
     %1 = getelementptr inbounds @X, ptr %addr, i64 0, 1
-    store ptr %0, i32 1
-    store ptr %1, i32 2
+    %2 = getelementptr inbounds @X, ptr %addr, i64 0, 2
+    store ptr %0, i32 3
+    store ptr %1, i16 1
+    store ptr %2, i16 2
     %r = load f64, ptr %addr
     return f64 %r
 })",
                    R"(
-struct @X { i32, i32 }
+struct @X { i32, i16, i16 }
 func f64 @f() {
   %entry:
-    %sroa.zext = zext i32 1 to i64
+    %sroa.zext = zext i32 3 to i64
     %sroa.or = or i64 0, i64 %sroa.zext
-    %sroa.zext.0 = zext i32 2 to i64
+    %sroa.zext.0 = zext i16 1 to i64
     %sroa.shift = lshl i64 %sroa.zext.0, i32 32
     %sroa.or.0 = or i64 %sroa.or, i64 %sroa.shift
-    %sroa.bitcast = bitcast i64 %sroa.or.0 to f64
+    %sroa.zext.1 = zext i16 2 to i64
+    %sroa.shift.0 = lshl i64 %sroa.zext.1, i32 48
+    %sroa.or.1 = or i64 %sroa.or.0, i64 %sroa.shift.0
+    %sroa.bitcast = bitcast i64 %sroa.or.1 to f64
     return f64 %sroa.bitcast
+})");
+}
+
+TEST_CASE("SROA store double to struct", "[opt][sroa]") {
+    test::passTest(opt::sroa,
+                   R"(
+struct @X { i32, i32 }
+func i32 @f() {
+  %entry:
+    %addr = alloca @X, i32 1
+    %0 = getelementptr inbounds @X, ptr %addr, i64 0, 0
+    %1 = getelementptr inbounds @X, ptr %addr, i64 0, 1
+    %r = store ptr %addr, f64 1.234
+    %r0 = load i32, ptr %0
+    %r1 = load i32, ptr %1
+    %r = and i32 %r0, i32 %r1
+    return i32 %r
+})",
+                   R"(
+struct @X { i32, i32 }
+func i32 @f() {
+  %entry:
+    %sroa.bitcast = bitcast f64 1.234000 to i64
+    %sroa.trunc = trunc i64 %sroa.bitcast to i32
+    %sroa.shift = lshr i64 %sroa.bitcast, i32 32
+    %sroa.trunc.0 = trunc i64 %sroa.shift to i32
+    %r = and i32 %sroa.trunc, i32 %sroa.trunc.0
+    return i32 %r
 })");
 }

@@ -943,7 +943,7 @@ bool Variable::replaceBySlices(Load* load) {
             Value* value = ctx.intConstant(0, node->type()->size() * 8);
             auto* intType = value->type();
             BasicBlockBuilder builder(ctx, load->parent());
-            builder.setAddPoint(BasicBlock::Iterator(load));
+            builder.setAddPoint(load);
             for (auto slice: slices) {
                 Value* sliceValue =
                     builder.add<Load>(slice.newAlloca(),
@@ -955,8 +955,8 @@ bool Variable::replaceBySlices(Load* load) {
                 SC_ASSERT(slice.begin() >= node->begin(), "");
                 auto localSliceBegin = slice.begin() - node->begin();
                 if (localSliceBegin > 0) {
-                    sliceValue = builder.insert<ArithmeticInst>(
-                        load, sliceValue, ctx.intConstant(slice.size() * 8, 32),
+                    sliceValue = builder.add<ArithmeticInst>(
+                        sliceValue, ctx.intConstant(localSliceBegin * 8, 32),
                         ArithmeticOperation::LShL, "sroa.shift");
                 }
                 value = builder.add<ArithmeticInst>(value, sliceValue,
@@ -1016,9 +1016,35 @@ bool Variable::replaceBySlices(Store* store) {
             }
             break;
         }
-        default:
-            SC_UNIMPLEMENTED();
+        default: {
+            BasicBlockBuilder builder(ctx, store->parent());
+            builder.setAddPoint(store);
+            Value* value = store->value();
+            auto* intType = ctx.intType(value->type()->size() * 8);
+            if (value->type() != intType) {
+                value = builder.add<ConversionInst>(value, intType,
+                                                    Conversion::Bitcast,
+                                                    "sroa.bitcast");
+            }
+            for (auto slice: slices) {
+                SC_ASSERT(slice.begin() >= node->begin(), "");
+                auto localSliceBegin = slice.begin() - node->begin();
+                Value* sliceValue = value;
+                if (localSliceBegin > 0) {
+                    sliceValue = builder.add<ArithmeticInst>(
+                        sliceValue, ctx.intConstant(localSliceBegin * 8, 32),
+                        ArithmeticOperation::LShR, "sroa.shift");
+                }
+                sliceValue =
+                    builder.add<ConversionInst>(sliceValue,
+                                                ctx.intType(slice.size() * 8),
+                                                Conversion::Trunc,
+                                                "sroa.trunc");
+                builder.add<Store>(slice.newAlloca(), sliceValue);
+                modified = true;
+            }
             break;
+        }
         }
     });
     if (modified) {

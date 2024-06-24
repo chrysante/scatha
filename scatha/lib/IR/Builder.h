@@ -88,6 +88,11 @@ public:
         instAddPoint = newAddPoint;
     }
 
+    /// \overload
+    void setAddPoint(ir::Instruction const* before) {
+        setAddPoint(BasicBlock::ConstIterator(before));
+    }
+
     /// \Returns the constant of type \p type with value all bits set to zero
     ir::Constant* makeZeroConstant(ir::Type const* type);
 
