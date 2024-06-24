@@ -205,17 +205,20 @@ static std::optional<ConvChain> constructingConversion(ConversionKind kind,
             return std::nullopt;
         }
     }
-    return computeObjectConstruction(kind, to.type().get(), std::array{ from })
-        .visit(utl::overload{
-            [](ObjectTypeConversion conv) {
-        return std::optional(ConvChain{ conv });
-    },
-            [](ConvExp<ObjectTypeConversion>::Noop) {
-        return std::optional(ConvChain{});
-    },
-            [](ConvExp<ObjectTypeConversion>::Error)
-                -> std::optional<ConvChain> { return {}; },
-        });
+    auto constr =
+        computeObjectConstruction(kind, to.type().get(), std::array{ from });
+    // clang-format off
+    return constr.visit(utl::overload{
+        [](ObjectTypeConversion conv) {
+            return std::optional(ConvChain{ conv });
+        },
+        [](ConvExp<ObjectTypeConversion>::Noop) {
+            return std::optional(ConvChain{});
+        },
+        [](ConvExp<ObjectTypeConversion>::Error){
+            return std::optional<ConvChain>{};
+        }
+    }); // clang-format on
 };
 
 ///
@@ -965,11 +968,9 @@ ConvExp<ObjectTypeConversion> sema::computeObjectConstruction(
     }
     /// Copy construction
     if (arguments.size() == 1 && arguments.front().type().get() == targetType) {
-
         if (arguments.front().isRValue()) {
             return ConvNoop;
         }
-
         using enum LifetimeOperation::Kind;
         switch (md.copyConstructor().kind()) {
         case Deleted:
