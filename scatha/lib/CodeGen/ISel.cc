@@ -124,11 +124,8 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
         case ir::Conversion::Bitcast: {
             auto* operand = resolve(*inst.operand());
             if (auto* constant = dyncast<mir::Constant*>(operand)) {
-                size_t fromWidth =
-                    cast<ir::ArithmeticType const*>(inst.operand()->type())
-                        ->bitwidth();
-                size_t toWidth =
-                    cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
+                size_t fromWidth = inst.operand()->type()->size() * 8;
+                size_t toWidth = inst.type()->size() * 8;
                 APInt value = APInt(constant->value(), fromWidth);
                 value.zext(toWidth);
                 mapToValue(inst, CTX().constant(value.to<uint64_t>(),
