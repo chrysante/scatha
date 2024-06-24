@@ -131,6 +131,11 @@ public:
         _liveRange = std::move(liveRange);
     }
 
+    void addDef(Instruction* inst);
+    void removeDef(Instruction* inst);
+    void addUser(Instruction* inst);
+    void removeUser(Instruction* inst);
+
 protected:
     explicit Register(NodeType nodeType):
         ListNodeOverride<Register, Value>(nodeType) {}
@@ -139,13 +144,9 @@ private:
     friend class Instruction;
     friend class SSARegister;
 
-    void addDef(Instruction* inst);
     void addDefImpl(Instruction* inst);
-    void removeDef(Instruction* inst);
     void removeDefImpl(Instruction* inst);
-    void addUser(Instruction* inst);
     void addUserImpl(Instruction* inst);
-    void removeUser(Instruction* inst);
     void removeUserImpl(Instruction* inst);
 
     size_t idx  : 63;

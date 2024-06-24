@@ -409,7 +409,8 @@ struct PrintContext {
                 continue;
             }
             auto& liveRegs = BBLiveRegs[&BB];
-            LiveInterval BBInterval = { BB.index(), BB.back().index() + 1 };
+            LiveInterval BBInterval = { BB.index(), BB.back().index() + 1,
+                                        nullptr };
             for (auto& reg: F->allRegisters()) {
                 auto liveRange = reg.liveRange();
                 auto overlap = rangeOverlap(liveRange, BBInterval);

@@ -49,20 +49,20 @@ static LiveInterval computeLiveInterval(Function& F, BasicBlock& BB,
         if (ranges::contains(inst->destRegisters(), reg) &&
             !isa<CondCopyInst>(inst))
         {
-            return { begin, end };
+            return { begin, end, reg };
         }
         /// Calls clobber all callee registers
         if (isa<CallInst>(inst) && isa<CalleeRegister>(reg)) {
-            return { begin, end };
+            return { begin, end, reg };
         }
     }
     /// If the register is live-out the live range extends to the end of the
     /// block
     if (BB.liveOut().contains(reg)) {
-        return { begin, BB.back().index() + 1 };
+        return { begin, BB.back().index() + 1, reg };
     }
     /// If the register is not live-out the live range extends to the last use
-    return { begin, end };
+    return { begin, end, reg };
 }
 
 void cg::computeLiveRange(Function& F, Register& reg) {

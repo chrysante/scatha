@@ -7,6 +7,7 @@
 #include <span>
 
 #include "Common/Base.h"
+#include "MIR/Fwd.h"
 
 namespace scatha::mir {
 
@@ -17,6 +18,9 @@ struct SCATHA_API LiveInterval {
 
     /// The open (excluded) end of the interval
     int end;
+
+    /// The register which this interval describes
+    Register* reg = nullptr;
 
     friend bool operator==(LiveInterval const&, LiveInterval const&) = default;
 
@@ -50,8 +54,15 @@ SCATHA_API inline bool overlaps(LiveInterval I, LiveInterval J) {
 }
 
 /// \Returns the interval `[min(I.begin, J.begin), max(I.end, J.end))`
+SCATHA_API inline LiveInterval merge(Register* reg, LiveInterval I,
+                                     LiveInterval J) {
+    return { std::min(I.begin, J.begin), std::max(I.end, J.end), reg };
+}
+
+/// \overload
 SCATHA_API inline LiveInterval merge(LiveInterval I, LiveInterval J) {
-    return { std::min(I.begin, J.begin), std::max(I.end, J.end) };
+    SC_ASSERT(I.reg == J.reg, "Intervals must describe the same register");
+    return merge(I.reg, I, J);
 }
 
 /// \Returns the subspan of the range \p range that overlaps with the interval

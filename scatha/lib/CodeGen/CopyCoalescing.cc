@@ -35,6 +35,9 @@ struct CCContext {
         }
     }
 
+    bool evictDefWithExistingValue(Instruction& inst, LiveInterval sourceValue,
+                                   LiveInterval destValue);
+
     utl::hashset<CopyInst*> evictedCopies;
 };
 
@@ -81,7 +84,8 @@ static void coalesce(BasicBlock& BB, Register* survive,
         }
     }
     kill->removeLiveInterval(killValue);
-    survive->replaceLiveInterval(surviveValue, merge(killValue, surviveValue));
+    survive->replaceLiveInterval(surviveValue, merge(surviveValue.reg,
+                                                     killValue, surviveValue));
 }
 
 void CCContext::visitInst(Instruction& inst) {
@@ -135,4 +139,67 @@ void CCContext::visitInst(Instruction& inst) {
         evictIfCopy(inst);
         return;
     }
+    if (evictDefWithExistingValue(inst, *sourceValue, *destValue)) {
+        return;
+    }
+}
+
+static Instruction* getDefInst(Function& F, LiveInterval value) {
+    auto FLin = F.linearInstructions();
+    auto itr = ranges::lower_bound(FLin, value.begin, ranges::less{},
+                                   &Instruction::index);
+    if (itr == FLin.end() || (*itr)->index() != value.begin) {
+        return nullptr;
+    }
+    return *itr;
+}
+
+bool CCContext::evictDefWithExistingValue(Instruction& inst,
+                                          LiveInterval sourceValue,
+                                          LiveInterval destValue) {
+    if (!isa<CopyInst>(inst)) {
+        return false;
+    }
+    auto* dest = inst.dest();
+    auto defs = dest->defs() | ToSmallVector<>;
+    ranges::sort(defs, ranges::less{}, &Instruction::index);
+    auto instItr = ranges::lower_bound(defs, inst.index(), ranges::less{},
+                                       &Instruction::index);
+    SC_ASSERT(instItr != defs.end() && *instItr == &inst,
+              "This must be our instruction");
+    if (instItr == defs.begin()) {
+        return false;
+    }
+    /// The instruction that defines `dest` before we do
+    auto* prevDef = *std::prev(instItr);
+    /// The value in currently `dest`
+    auto existingValue = dest->liveIntervalAt(prevDef->index());
+    if (!existingValue) {
+        return false;
+    }
+    auto* sourceCopy = dyncast<CopyInst*>(getDefInst(F, sourceValue));
+    /// We traverse the chain of copy instructions and check if we copy the
+    /// value into `dest` that already resides in `dest`
+    while (sourceCopy) {
+        if (sourceCopy->operandAt(0) == dest &&
+            existingValue->begin <= sourceCopy->index() &&
+            existingValue->end >= sourceCopy->index())
+        {
+            dest->removeLiveInterval(destValue);
+            dest->replaceLiveInterval(*existingValue,
+                                      merge(*existingValue, destValue));
+            evictedCopies.insert(cast<CopyInst*>(&inst));
+            return true;
+        }
+        auto* sourceReg = dyncast<Register*>(sourceCopy->source());
+        if (!sourceReg) {
+            return false;
+        }
+        auto copySource = sourceReg->liveIntervalAt(sourceCopy->index() - 1);
+        if (!copySource) {
+            return false;
+        }
+        sourceCopy = dyncast<CopyInst*>(getDefInst(F, *copySource));
+    }
+    return false;
 }

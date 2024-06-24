@@ -158,6 +158,7 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
     for (auto [dest, calleeReg]: destAndCalleeRegs) {
         auto* copy = new CopyInst(dest, &calleeReg, 8, call.metadata());
         BB.insert(std::next(callItr), copy);
+        calleeReg.addDef(&call);
     }
     /// We don't define registers anymore, see comment above.
     call.clearDest();
