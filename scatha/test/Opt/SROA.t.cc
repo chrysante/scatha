@@ -530,3 +530,28 @@ func void @test(i64 %0) {
     bool modified = sroa(ctx, F);
     CHECK(!modified);
 }
+
+TEST_CASE("SROA memcpy within alloca region", "[opt][sroa]") {
+    test::passTest(opt::sroa,
+                   R"(
+struct @X { i64, i64 }
+ext func void @__builtin_memcpy(ptr %0, i64 %1, ptr %2, i64 %3)
+func i64 @main() {
+  %entry:
+    %addr = alloca @X, i32 1
+    %0 = getelementptr inbounds @X, ptr %addr, i64 0, 0
+    %1 = getelementptr inbounds @X, ptr %addr, i64 0, 1
+    store ptr %0, i64 1
+    store ptr %1, i64 2
+    call void @__builtin_memcpy, ptr %0, i64 8, ptr %1, i64 8
+    %r = load i64, ptr %0
+    return i64 %r
+})",
+                   R"(
+struct @X { i64, i64 }
+ext func void @__builtin_memcpy(ptr %0, i64 %1, ptr %2, i64 %3)
+func i64 @main() {
+  %entry:
+    return i64 2
+})");
+}

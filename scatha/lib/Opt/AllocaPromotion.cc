@@ -384,6 +384,7 @@ bool VariableInfo::renameDef(Instruction* inst) {
     if (isMemcpy(call)) {
         BasicBlockBuilder builder(ctx, inst->parent());
         auto* source = memcpySource(call);
+        auto* type = getLoadedType(address);
         auto* value = builder.insert<Load>(call, source, type, "prom.memcpy");
         genName(value);
         return true;

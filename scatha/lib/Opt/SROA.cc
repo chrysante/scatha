@@ -33,6 +33,7 @@
 using namespace scatha;
 using namespace ir;
 using namespace opt;
+using namespace ranges::views;
 
 SC_REGISTER_PASS(opt::sroa, "sroa", PassCategory::Simplification);
 
@@ -1016,14 +1017,37 @@ bool Variable::replaceMemcpyBySlices(Call* call) {
     }
 }
 
-bool Variable::replaceMemcpyBySlicesWithin(Call*) {
-    /// This is the hard case where we copy within our alloca region
-    SC_UNIMPLEMENTED();
+bool Variable::replaceMemcpyBySlicesWithin(Call* call) {
+    BasicBlockBuilder builder(ctx, call->parent());
+    auto subranges = getAccessedSubranges(call);
+    SC_ASSERT(subranges.size() == 2, "");
+    auto destRange = subranges[0];
+    auto sourceRange = subranges[1];
+    auto destSlices = getSubslices(destRange);
+    auto sourceSlices = getSubslices(sourceRange);
+    SC_ASSERT(!destSlices.empty(), "");
+    SC_ASSERT(destSlices.size() == sourceSlices.size(), "");
+    if (destSlices.size() == 1) {
+        setMemcpyDest(call, destSlices.front().newAlloca());
+        setMemcpySource(call, sourceSlices.front().newAlloca());
+        return false;
+    }
+    for (auto [destSlice, sourceSlice]: zip(destSlices, sourceSlices)) {
+        SC_ASSERT(destSlice.size() == sourceSlice.size(), "");
+        auto* size = ctx.intConstant(destSlice.size(), 64);
+        Value* args[] = { destSlice.newAlloca(), size, sourceSlice.newAlloca(),
+                          size };
+        SC_ASSERT(memcpy, "Must be set to generate call to memcpy");
+        builder.insert<Call>(call, memcpy, std::span(args));
+    }
+    call->parent()->erase(call);
+    return true;
 }
 
 bool Variable::replaceMemcpyBySlicesDest(Call* call) {
     BasicBlockBuilder builder(ctx, call->parent());
     auto subranges = getAccessedSubranges(call);
+    SC_ASSERT(subranges.size() == 1, "");
     auto* byteType = ctx.intType(8);
     auto* source = memcpySource(call);
     auto slices = getSubslices(subranges.front());
@@ -1050,6 +1074,7 @@ bool Variable::replaceMemcpyBySlicesDest(Call* call) {
 bool Variable::replaceMemcpyBySlicesSource(Call* call) {
     BasicBlockBuilder builder(ctx, call->parent());
     auto subranges = getAccessedSubranges(call);
+    SC_ASSERT(subranges.size() == 1, "");
     auto* byteType = ctx.intType(8);
     auto* dest = memcpyDest(call);
     auto slices = getSubslices(subranges.front());
