@@ -387,4 +387,8 @@ SC_SEMA_BADEXPR_DEF(AddressOfExpression, ReferenceNoObjType, Error,
                     "Cannot form reference to non-object type " << sema::format(
                         dyncast<Type const*>(expr->referred()->entity())))
 
+SC_SEMA_BADEXPR_DEF(Expression, NotFormattable, Error,
+                    "Cannot format object of type "
+                        << sema::format(expr->type()))
+
 #undef SC_SEMA_BADEXPR_DEF

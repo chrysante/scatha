@@ -315,18 +315,20 @@ ast::Expression* ExprContext::analyzeImpl(ast::FStringExpr& expr) {
         // clang-format off
         return SC_MATCH (*expr->type()) {
             [&](PointerType const& ptr) {
-                if (auto* array = dyncast<ArrayType const*>(ptr.base().get()))
+                if (auto* array = dyncast<ArrayType const*>(ptr.base().get());
+                    array && isa<ByteType>(array->elementType()))
                 {
-                    if (isa<ByteType>(array->elementType())) {
-                        convert(ConversionKind::Explicit, expr,
-                                sym.strPointer(), RValue, currentCleanupStack(),
-                                ctx);
-                        return sym.builtinFunction(
-                            (size_t)svm::Builtin::fstring_writestr);
-                    }
-                    SC_UNIMPLEMENTED();
+                    convert(ConversionKind::Explicit, expr, sym.strPointer(),
+                            RValue, currentCleanupStack(), ctx);
+                    return sym.builtinFunction(
+                        (size_t)svm::Builtin::fstring_writestr);
                 }
-                SC_UNIMPLEMENTED();
+                auto* target = sym.pointer(sym.arrayType(sym.Byte()),
+                                           Mutability::Const);
+                convert(ConversionKind::Reinterpret, expr, target, RValue,
+                        currentCleanupStack(), ctx);
+                return sym.builtinFunction(
+                    (size_t)svm::Builtin::fstring_writeptr);
             },
             [&](IntType const& type) {
                 if (type.isSigned()) {
@@ -356,7 +358,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::FStringExpr& expr) {
                 return sym.builtinFunction(
                     (size_t)svm::Builtin::fstring_writebool);
             },
-            [](Type const&) -> Function const* { SC_UNIMPLEMENTED(); }
+            [&](Type const&) -> Function const* {
+                ctx.issue<BadExpr>(expr, NotFormattable);
+                return nullptr;
+            }
         }; // clang-format on
     });
     expr.decorateValue(tmp, RValue, std::move(formatFunctions));

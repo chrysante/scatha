@@ -155,6 +155,13 @@ SVM_BUILTIN_DEF(fstring_writebool, None, {
     Bool()
 }, pointer(Str(), Mutability::Mutable))
 
+/// Signature: `(buffer: *mut str, offset: int, arg: *byte) -> *mut str*`
+SVM_BUILTIN_DEF(fstring_writeptr, None, {
+    pointer(Str(), Mutability::Mutable),
+    reference(S64(), Mutability::Mutable),
+    pointer(arrayType(Byte()), Mutability::Const)
+}, pointer(Str(), Mutability::Mutable))
+
 /// Signature: `(buffer: *mut str, targetSize: int) -> *mut str*`
 /// Reallocates the buffer if its size differs from `targetSize`
 SVM_BUILTIN_DEF(fstring_trim, None, {

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <charconv>
 #include <cmath>
+#include <format>
 #include <iostream>
 #include <random>
 #include <string>
@@ -293,6 +294,10 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
     set(Builtin::fstring_writebool, [](u64* regPtr, VirtualMachine* vm) {
         bool arg = load<bool>(regPtr + 3);
         fstringWriteImpl(regPtr, vm, arg ? "true" : "false");
+    });
+    set(Builtin::fstring_writeptr, [](u64* regPtr, VirtualMachine* vm) {
+        void* arg = load<void*>(regPtr + 3);
+        fstringWriteImpl(regPtr, vm, std::format("{}", arg));
     });
     set(Builtin::fstring_trim, [](u64* regPtr, VirtualMachine* vm) {
         VirtualPointer buffer = load<VirtualPointer>(regPtr);

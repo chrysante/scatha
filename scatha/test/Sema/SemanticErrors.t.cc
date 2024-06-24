@@ -769,3 +769,15 @@ let i = 0;
 )");
     CHECK(iss.findOnLine<BadVarDecl>(2, BadVarDecl::GlobalNeedsTypeSpecifier));
 }
+
+TEST_CASE("Bad fstrings", "[sema]") {
+    auto iss = test::getSemaIssues(R"TEXT(
+struct X {}
+fn retVoid() {}
+fn test() {
+    "\(X())";
+    "\(retVoid())";
+})TEXT");
+    CHECK(iss.findOnLine<BadExpr>(5, NotFormattable));
+    CHECK(iss.findOnLine<BadExpr>(6, NotFormattable));
+}

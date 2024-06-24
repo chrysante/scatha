@@ -158,7 +158,7 @@ static std::optional<ConvChain> pointerConv(ConversionKind kind,
         [&](PointerType const&, PointerType const&) { return ConvNoop; },
         [&](UniquePtrType const&, RawPtrType const&) {
             using enum ConversionKind;
-            return kind == Explicit ? ConvExp{ UniqueToRawPtr } : ConvError;
+            return kind != Implicit ? ConvExp{ UniqueToRawPtr } : ConvError;
         },
         [&](RawPtrType const&, UniquePtrType const&) { return ConvError; }
     }; // clang-format on

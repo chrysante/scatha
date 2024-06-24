@@ -49,6 +49,15 @@ fn main() {
     __builtin_putln("\("Hello World")" as *);
 })TEXT" });
     }
+    SECTION("Format pointer") {
+        CHECK(test::compiles(R"TEXT(
+fn main() {
+    let n = 42;
+    "\(&n)";
+    let p = unique [int](10);
+    "\(p)";
+})TEXT"));
+    }
     SECTION("Nesting fstrings") {
         test::runPrintsTest("Hello World\n", { R"TEXT(
 fn main() {
