@@ -60,6 +60,11 @@ public struct String {
     }
 
     /// \overload
+    fn append(&mut this, text: *unique str) {
+        this.append(text as *);
+    }
+
+    /// \overload
     fn append(&mut this, text: &String) {
         this.append(text.data());
     }
