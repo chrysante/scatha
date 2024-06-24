@@ -86,5 +86,6 @@ void cg::computeLiveRange(Function& F, Register& reg) {
             computeLiveInterval(F, *def->parent(), &reg, def->index()));
     }
     ranges::sort(liveRange);
+    liveRange.erase(ranges::unique(liveRange), liveRange.end());
     reg.setLiveRange(std::move(liveRange));
 }

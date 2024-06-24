@@ -60,11 +60,14 @@ std::optional<LiveInterval> Register::liveIntervalAt(int programPoint) {
 }
 
 void Register::addLiveInterval(LiveInterval I) {
+    SC_EXPECT(I.reg == this);
     auto itr = ranges::lower_bound(_liveRange, I);
+    SC_ASSERT(itr == _liveRange.end() || *itr != I, "I already exists");
     _liveRange.insert(itr, I);
 }
 
 void Register::removeLiveInterval(LiveInterval I) {
+    SC_EXPECT(I.reg == this);
     auto itr = ranges::lower_bound(_liveRange, I);
     SC_EXPECT(itr != _liveRange.end());
     SC_EXPECT(*itr == I);
@@ -72,10 +75,22 @@ void Register::removeLiveInterval(LiveInterval I) {
 }
 
 void Register::replaceLiveInterval(LiveInterval orig, LiveInterval repl) {
+    SC_EXPECT(orig.reg == this);
+    SC_EXPECT(repl.reg == this);
     auto itr = ranges::lower_bound(_liveRange, orig);
     SC_EXPECT(itr != _liveRange.end());
     SC_EXPECT(*itr == orig);
     *itr = repl;
+}
+
+void Register::setLiveRange(std::vector<LiveInterval> liveRange) {
+    SC_ASSERT(ranges::is_sorted(liveRange),
+              "live range must be sorted in ascending order");
+    SC_ASSERT(ranges::all_of(liveRange, [&](auto& r) { return r.reg == this; }),
+              "All live ranges must be in this register");
+    SC_ASSERT(ranges::adjacent_find(liveRange) == liveRange.end(),
+              "live range must be unique");
+    _liveRange = std::move(liveRange);
 }
 
 void Register::addDefImpl(Instruction* inst) { _defs.insert(inst); }

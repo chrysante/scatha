@@ -469,3 +469,12 @@ func i64 @main() {
     return i64 %1
 })");
 }
+
+TEST_CASE("Codegen error", "[end-to-end][regression]") {
+    test::runPrintsTest("X() = X(0)", { R"TEXT(
+struct X { var value: int; }
+fn to_string(x: &X) { return "X(\(x.value))"; }
+fn main() {
+    __builtin_putstr("X() = \(X())" as *);
+})TEXT" });
+}

@@ -148,6 +148,7 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
         auto* copy = new CopyInst(destReg, arg, 8, call.metadata());
         BB.insert(&call, copy);
         newArguments.push_back(destReg);
+        destReg->addUser(&call);
     }
     /// Call instructions define registers as long as we work with SSA
     /// registers. From here on we explicitly copy the arguments out of the
@@ -158,7 +159,6 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
     for (auto [dest, calleeReg]: destAndCalleeRegs) {
         auto* copy = new CopyInst(dest, &calleeReg, 8, call.metadata());
         BB.insert(std::next(callItr), copy);
-        calleeReg.addDef(&call);
     }
     /// We don't define registers anymore, see comment above.
     call.clearDest();
@@ -272,6 +272,17 @@ static BasicBlock::Iterator destroy(Function&, BasicBlock&, Instruction&,
     return std::next(itr);
 }
 
+/// We mark every call instruction as a definition of every callee register,
+/// because calls clobber all callee registers. We need to do this here because
+/// we allocate callee registers lazily above
+static void clobberCalleeRegisters(Function& F) {
+    for (auto& reg: F.calleeRegisters()) {
+        for (auto& inst: F.instructions() | Filter<CallInst>) {
+            reg.addDef(&inst);
+        }
+    }
+}
+
 void cg::destroySSA(mir::Context&, Function& F) {
     mapSSAToVirtualRegisters(F);
     for (auto& BB: F) {
@@ -280,6 +291,7 @@ void cg::destroySSA(mir::Context&, Function& F) {
                         [&](auto& inst) { return destroy(F, BB, inst, itr); });
         }
     }
+    clobberCalleeRegisters(F);
     F.setRegisterPhase(RegisterPhase::Virtual);
     F.linearize();
     for (auto& reg: F.virtAndCalleeRegs()) {

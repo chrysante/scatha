@@ -127,9 +127,7 @@ public:
     void replaceLiveInterval(LiveInterval orig, LiveInterval repl);
 
     /// Sets the live range of this register
-    void setLiveRange(std::vector<LiveInterval> liveRange) {
-        _liveRange = std::move(liveRange);
-    }
+    void setLiveRange(std::vector<LiveInterval> liveRange);
 
     void addDef(Instruction* inst);
     void removeDef(Instruction* inst);
