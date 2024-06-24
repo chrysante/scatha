@@ -47,10 +47,8 @@
 ///
 /// <comma-expression>              ::= <assignment-expression>
 ///                                   | <comma-expression> "," <assignment-expression>
-/// <assignment-expression>         ::= <cast-expression>
-///                                   | <cast-expression> "=, *=, ..." <assignment-expression>
-/// <cast-expression>               ::= <conditional-expression>
-///                                   | <cast-expression> "as" <type-expression>
+/// <assignment-expression>         ::= <conditional-expression>
+///                                   | <conditional-expression> "=, *=, ..." <assignment-expression>
 /// <conditional-expression>        ::= <logical-or-expression>
 ///                                   | <logical-or-expression> "?" <comma-expression> ":" <conditional-expression>
 /// <logical-or-expression>         ::= <logical-and-expression>
@@ -77,10 +75,12 @@
 /// <additive-expression>           ::= <multiplicative-expression>
 ///                                   | <additive-expression> "+" <multiplicative-expression>
 ///                                   | <additive-expression> "-" <multiplicative-expression>
-/// <multiplicative-expression>     ::= <prefix-expression>
+/// <multiplicative-expression>     ::= <cast-expression>
 ///                                   | <multiplicative-expression> "*" <prefix-expression>
 ///                                   | <multiplicative-expression> "/" <prefix-expression>
 ///                                   | <multiplicative-expression> "%" <prefix-expression>
+/// <cast-expression>               ::= <prefix-expression>
+///                                   | <cast-expression> "as" <type-expression>
 /// <prefix-expression>              ::= <postfix-expression>
 ///                                   | "+" <prefix-expression>
 ///                                   | "-" <prefix-expression>
@@ -218,7 +218,6 @@ struct Context {
     UniquePtr<ast::Expression> parseTypeExpression();
     UniquePtr<ast::Expression> parseComma();
     UniquePtr<ast::Expression> parseAssignment();
-    UniquePtr<ast::Expression> parseCast();
     UniquePtr<ast::Expression> parseConditional();
     UniquePtr<ast::Expression> parseLogicalOr();
     UniquePtr<ast::Expression> parseLogicalAnd();
@@ -230,6 +229,7 @@ struct Context {
     UniquePtr<ast::Expression> parseShift();
     UniquePtr<ast::Expression> parseAdditive();
     UniquePtr<ast::Expression> parseMultiplicative();
+    UniquePtr<ast::Expression> parseCast();
     UniquePtr<ast::Expression> parsePrefix();
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parseGeneric();
@@ -945,29 +945,7 @@ UniquePtr<ast::Expression> Context::parseAssignment() {
                                   MulAssignment, DivAssignment, RemAssignment,
                                   LSAssignment, RSAssignment, AndAssignment,
                                   OrAssignment, XOrAssignment>(
-        [this] { return parseCast(); });
-}
-
-UniquePtr<ast::Expression> Context::parseCast() {
-    Token const& lhsToken = tokens.peek();
-    UniquePtr<ast::Expression> left = parseConditional();
-    while (true) {
-        Token const token = tokens.peek();
-        if (token.kind() != As) {
-            return left;
-        }
-        tokens.eat();
-        if (!left) {
-            pushExpectedExpression(lhsToken);
-        }
-        Token const& rhsToken = tokens.peek();
-        UniquePtr<ast::Expression> right = parseTypeExpression();
-        if (!right) {
-            pushExpectedExpression(rhsToken);
-        }
-        left = allocate<ast::CastExpr>(std::move(left), std::move(right),
-                                       token.sourceRange());
-    }
+        [this] { return parseConditional(); });
 }
 
 UniquePtr<ast::Expression> Context::parseConditional() {
@@ -1056,7 +1034,29 @@ UniquePtr<ast::Expression> Context::parseMultiplicative() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Multiplication,
                                   ast::BinaryOperator::Division,
                                   ast::BinaryOperator::Remainder>(
-        [this] { return parsePrefix(); });
+        [this] { return parseCast(); });
+}
+
+UniquePtr<ast::Expression> Context::parseCast() {
+    Token const& lhsToken = tokens.peek();
+    UniquePtr<ast::Expression> left = parsePrefix();
+    while (true) {
+        Token const token = tokens.peek();
+        if (token.kind() != As) {
+            return left;
+        }
+        tokens.eat();
+        if (!left) {
+            pushExpectedExpression(lhsToken);
+        }
+        Token const& rhsToken = tokens.peek();
+        UniquePtr<ast::Expression> right = parseTypeExpression();
+        if (!right) {
+            pushExpectedExpression(rhsToken);
+        }
+        left = allocate<ast::CastExpr>(std::move(left), std::move(right),
+                                       token.sourceRange());
+    }
 }
 
 UniquePtr<ast::Expression> Context::parsePrefix() {
