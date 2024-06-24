@@ -49,6 +49,13 @@ fn main() {
     __builtin_putln("\("Hello World")" as *);
 })TEXT" });
     }
+    SECTION("Format byte array") {
+        test::runPrintsTest("Hello\n", { R"TEXT(
+fn main() {
+    var data = ['H', 'e', 'l', 'l', 'o'];
+    __builtin_putln("\(&data)" as *);
+})TEXT" });
+    }
     SECTION("Format pointer") {
         CHECK(test::compiles(R"TEXT(
 fn main() {

@@ -60,6 +60,18 @@ struct ExprContext {
 
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::FStringExpr&);
+    Function const* analyzeFStringOperand(ast::Expression* expr);
+    Function const* analyzeFStringOperandImpl(ObjectType const&,
+                                              ast::Expression*);
+    Function const* analyzeFStringOperandImpl(PointerType const&,
+                                              ast::Expression*);
+    Function const* analyzeFStringOperandImpl(IntType const&, ast::Expression*);
+    Function const* analyzeFStringOperandImpl(FloatType const&,
+                                              ast::Expression*);
+    Function const* analyzeFStringOperandImpl(ByteType const&,
+                                              ast::Expression*);
+    Function const* analyzeFStringOperandImpl(BoolType const&,
+                                              ast::Expression*);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
     ast::Expression* analyzeImpl(ast::Identifier&);
@@ -307,68 +319,95 @@ ast::Expression* ExprContext::analyzeImpl(ast::FStringExpr& expr) {
     if (!analyzeValues(expr.operands())) {
         return nullptr;
     }
-    auto* type = sym.uniquePointer(sym.Str(), Mutability::Mutable);
-    auto* tmp = sym.temporary(&expr, type);
     utl::small_vector<Function const*> formatFunctions;
     ranges::transform(expr.operands(), std::back_inserter(formatFunctions),
                       [&](ast::Expression* expr) {
-        // clang-format off
-        return SC_MATCH (*expr->type()) {
-            [&](PointerType const& ptr) {
-                if (auto* array = dyncast<ArrayType const*>(ptr.base().get());
-                    array && isa<ByteType>(array->elementType()))
-                {
-                    convert(ConversionKind::Explicit, expr, sym.strPointer(),
-                            RValue, currentCleanupStack(), ctx);
-                    return sym.builtinFunction(
-                        (size_t)svm::Builtin::fstring_writestr);
-                }
-                auto* target = sym.pointer(sym.arrayType(sym.Byte()),
-                                           Mutability::Const);
-                convert(ConversionKind::Reinterpret, expr, target, RValue,
-                        currentCleanupStack(), ctx);
-                return sym.builtinFunction(
-                    (size_t)svm::Builtin::fstring_writeptr);
-            },
-            [&](IntType const& type) {
-                if (type.isSigned()) {
-                    convert(ConversionKind::Implicit, expr, sym.S64(), RValue,
-                            currentCleanupStack(), ctx);
-                    return sym.builtinFunction(
-                        (size_t)svm::Builtin::fstring_writes64);
-                }
-                else {
-                    convert(ConversionKind::Implicit, expr, sym.U64(), RValue,
-                            currentCleanupStack(), ctx);
-                    return sym.builtinFunction(
-                        (size_t)svm::Builtin::fstring_writeu64);
-                }
-            },
-            [&](FloatType const&) {
-                convert(ConversionKind::Implicit, expr, sym.F64(), RValue,
-                        currentCleanupStack(), ctx);
-                return sym.builtinFunction(
-                    (size_t)svm::Builtin::fstring_writef64);
-            },
-            [&](ByteType const&) {
-                return sym.builtinFunction(
-                    (size_t)svm::Builtin::fstring_writechar);
-            },
-            [&](BoolType const&) {
-                return sym.builtinFunction(
-                    (size_t)svm::Builtin::fstring_writebool);
-            },
-            [&](Type const&) -> Function const* {
-                ctx.issue<BadExpr>(expr, NotFormattable);
-                return nullptr;
-            }
-        }; // clang-format on
+        return analyzeFStringOperand(expr);
     });
-    expr.decorateValue(tmp, RValue, std::move(formatFunctions));
-    if (!currentCleanupStack().push(tmp, ctx)) {
+    auto* type = sym.uniquePointer(sym.Str(), Mutability::Mutable);
+    auto* obj = sym.temporary(&expr, type);
+    expr.decorateValue(obj, RValue, std::move(formatFunctions));
+    if (!currentCleanupStack().push(obj, ctx)) {
         return nullptr;
     }
     return &expr;
+}
+
+Function const* ExprContext::analyzeFStringOperand(ast::Expression* expr) {
+    return visit(*expr->type(), [&](auto& type) {
+        return analyzeFStringOperandImpl(type, expr);
+    });
+}
+
+Function const* ExprContext::analyzeFStringOperandImpl(ObjectType const&,
+                                                       ast::Expression* expr) {
+    ctx.issue<BadExpr>(expr, NotFormattable);
+    return nullptr;
+}
+
+static ast::Literal* asStringLiteral(ast::Expression* expr) {
+    auto* lit = dyncast<ast::Literal*>(expr);
+    if (!lit) {
+        return nullptr;
+    }
+    using enum ast::LiteralKind;
+    if (lit->kind() == String || lit->kind() == FStringBegin ||
+        lit->kind() == FStringContinue || lit->kind() == FStringEnd)
+    {
+        return lit;
+    }
+    return nullptr;
+}
+
+Function const* ExprContext::analyzeFStringOperandImpl(PointerType const& type,
+                                                       ast::Expression* expr) {
+    if (auto* lit = asStringLiteral(expr);
+        lit && lit->value<std::string>().size() == 0)
+    {
+        return nullptr;
+    }
+    if (auto* array = dyncast<ArrayType const*>(type.base().get());
+        array && isa<ByteType>(array->elementType()))
+    {
+        convert(ConversionKind::Explicit, expr, sym.strPointer(), RValue,
+                currentCleanupStack(), ctx);
+        return sym.builtinFunction((size_t)svm::Builtin::fstring_writestr);
+    }
+    auto* target = sym.pointer(sym.arrayType(sym.Byte()), Mutability::Const);
+    convert(ConversionKind::Reinterpret, expr, target, RValue,
+            currentCleanupStack(), ctx);
+    return sym.builtinFunction((size_t)svm::Builtin::fstring_writeptr);
+}
+
+Function const* ExprContext::analyzeFStringOperandImpl(IntType const& type,
+                                                       ast::Expression* expr) {
+    if (type.isSigned()) {
+        convert(ConversionKind::Implicit, expr, sym.S64(), RValue,
+                currentCleanupStack(), ctx);
+        return sym.builtinFunction((size_t)svm::Builtin::fstring_writes64);
+    }
+    else {
+        convert(ConversionKind::Implicit, expr, sym.U64(), RValue,
+                currentCleanupStack(), ctx);
+        return sym.builtinFunction((size_t)svm::Builtin::fstring_writeu64);
+    }
+}
+
+Function const* ExprContext::analyzeFStringOperandImpl(FloatType const&,
+                                                       ast::Expression* expr) {
+    convert(ConversionKind::Implicit, expr, sym.F64(), RValue,
+            currentCleanupStack(), ctx);
+    return sym.builtinFunction((size_t)svm::Builtin::fstring_writef64);
+}
+
+Function const* ExprContext::analyzeFStringOperandImpl(ByteType const&,
+                                                       ast::Expression*) {
+    return sym.builtinFunction((size_t)svm::Builtin::fstring_writechar);
+}
+
+Function const* ExprContext::analyzeFStringOperandImpl(BoolType const&,
+                                                       ast::Expression*) {
+    return sym.builtinFunction((size_t)svm::Builtin::fstring_writebool);
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {

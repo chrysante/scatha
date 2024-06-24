@@ -780,28 +780,46 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
         }
         return 0;
     });
-    auto alloc = getBuiltin(svm::Builtin::alloc);
-    auto* bufferSize = ctx.intConstant(initBufferSize, 64);
-    ValueArray args = { bufferSize, ctx.intConstant(1, 64) };
-    ir::Value* bufferPtr = add<ir::Call>(alloc, args, "fstring.buffer");
     auto& sym = const_cast<sema::SymbolTable&>(symbolTable);
-    auto buffer = Value::Packed("fstring.buffer", sym.strPointer(),
-                                { Atom::Register(bufferPtr) });
+    bool needsTrimming = false;
+    auto buffer = [&] {
+        auto* bufferSize = ctx.intConstant(initBufferSize, 64);
+        if (initBufferSize == 0) {
+            return Value::Unpacked("fstring.buffer", sym.strPointer(),
+                                   { Atom::Register(ctx.nullpointer()),
+                                     Atom::Register(bufferSize) });
+        }
+        needsTrimming = true;
+        auto alloc = getBuiltin(svm::Builtin::alloc);
+        ValueArray args = { bufferSize, ctx.intConstant(1, 64) };
+        ir::Value* bufferPtr = add<ir::Call>(alloc, args, "fstring.buffer");
+        return Value::Packed("fstring.buffer", sym.strPointer(),
+                             { Atom::Register(bufferPtr) });
+    }();
     ir::Value* offsetPtr =
         makeLocalVariable(ctx.intType(64), "fstring.buffer.offset");
     add<ir::Store>(offsetPtr, ctx.intConstant(0, 64));
     auto offset = Value::Unpacked(std::string(offsetPtr->name()), sym.S64(),
                                   { Atom::Memory(offsetPtr) });
+    int numFormatCalls = 0;
     for (auto [operand, fmtFunction]:
          zip(expr.operands(), expr.formatFunctions()))
     {
+        if (!fmtFunction) {
+            continue;
+        }
         buffer = callFunction(fmtFunction, buffer.type(),
                               { { buffer, offset, getValue(operand) } },
                               buffer.name());
+        ++numFormatCalls;
     }
-    buffer =
-        callFunction(sym.builtinFunction((size_t)svm::Builtin::fstring_trim),
-                     buffer.type(), { { buffer, offset } }, "fstring.trim");
+    needsTrimming |= numFormatCalls > 1;
+    if (needsTrimming) {
+        buffer = callFunction(sym.builtinFunction(
+                                  (size_t)svm::Builtin::fstring_trim),
+                              buffer.type(), { { buffer, offset } },
+                              "fstring.trim");
+    }
     return Value("fstring", expr.type().get(), buffer.elements(),
                  buffer.representation());
 }

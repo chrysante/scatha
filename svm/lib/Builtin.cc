@@ -234,8 +234,10 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
                                               u64 offset, u64 newSize) {
         VirtualPointer newBuffer = vm->allocateMemory(newSize, 1);
         auto* native = vm->derefPointer(newBuffer, newSize);
-        std::memcpy(native, vm->derefPointer(buffer, offset), offset);
-        vm->deallocateMemory(buffer, size, 1);
+        if (buffer != VirtualPointer::Null) {
+            std::memcpy(native, vm->derefPointer(buffer, offset), offset);
+            vm->deallocateMemory(buffer, size, 1);
+        }
         buffer = newBuffer;
         size = newSize;
         return native;
