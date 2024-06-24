@@ -33,6 +33,8 @@ struct ExprContext {
     sema::AnalysisContext& ctx;
     SymbolTable& sym;
 
+    utl::stack<Type const*> fstringFormatTypeStack = {};
+
     ///
     CleanupStack& currentCleanupStack() {
         SC_EXPECT(_cleanupStack);
@@ -62,6 +64,8 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::FStringExpr&);
     Function const* analyzeFStringOperand(ast::Expression* expr);
     Function const* analyzeFStringOperandImpl(ObjectType const&,
+                                              ast::Expression*);
+    Function const* analyzeFStringOperandImpl(StructType const&,
                                               ast::Expression*);
     Function const* analyzeFStringOperandImpl(PointerType const&,
                                               ast::Expression*);
@@ -334,15 +338,39 @@ ast::Expression* ExprContext::analyzeImpl(ast::FStringExpr& expr) {
 }
 
 Function const* ExprContext::analyzeFStringOperand(ast::Expression* expr) {
-    return visit(*expr->type(), [&](auto& type) {
+    fstringFormatTypeStack.push(expr->type().get());
+    auto* F = visit(*expr->type(), [&](auto& type) {
         return analyzeFStringOperandImpl(type, expr);
     });
+    fstringFormatTypeStack.pop();
+    return F;
 }
 
 Function const* ExprContext::analyzeFStringOperandImpl(ObjectType const&,
                                                        ast::Expression* expr) {
     ctx.issue<BadExpr>(expr, NotFormattable);
     return nullptr;
+}
+
+Function const* ExprContext::analyzeFStringOperandImpl(StructType const&,
+                                                       ast::Expression* expr) {
+    size_t index = expr->indexInParent();
+    auto* parent = expr->parent();
+    auto funcID = allocate<ast::Identifier>(expr->sourceRange(), "to_string");
+    auto callExpr =
+        allocate<ast::FunctionCall>(std::move(funcID),
+                                    toSmallVector(expr->extractFromParent()),
+                                    expr->sourceRange());
+    expr = callExpr.get();
+    parent->setChild(index, std::move(callExpr));
+    if (!(expr = analyzeValue(expr))) {
+        return nullptr;
+    }
+    if (ranges::contains(fstringFormatTypeStack, expr->type().get())) {
+        ctx.issue<BadExpr>(expr, NotFormattable);
+        return nullptr;
+    }
+    return analyzeFStringOperand(expr);
 }
 
 static ast::Literal* asStringLiteral(ast::Expression* expr) {

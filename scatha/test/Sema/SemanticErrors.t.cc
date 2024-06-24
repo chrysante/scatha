@@ -778,6 +778,6 @@ fn test() {
     "\(X())";
     "\(retVoid())";
 })TEXT");
-    CHECK(iss.findOnLine<BadExpr>(5, NotFormattable));
+    CHECK(iss.findOnLine<BadExpr>(5));
     CHECK(iss.findOnLine<BadExpr>(6, NotFormattable));
 }
