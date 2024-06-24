@@ -309,7 +309,57 @@ ast::Expression* ExprContext::analyzeImpl(ast::FStringExpr& expr) {
     }
     auto* type = sym.uniquePointer(sym.Str(), Mutability::Mutable);
     auto* tmp = sym.temporary(&expr, type);
-    expr.decorateValue(tmp, RValue);
+    utl::small_vector<Function const*> formatFunctions;
+    ranges::transform(expr.operands(), std::back_inserter(formatFunctions),
+                      [&](ast::Expression* expr) {
+        // clang-format off
+        return SC_MATCH (*expr->type()) {
+            [&](PointerType const& ptr) {
+                if (auto* array = dyncast<ArrayType const*>(ptr.base().get()))
+                {
+                    if (isa<ByteType>(array->elementType())) {
+                        convert(ConversionKind::Explicit, expr,
+                                sym.strPointer(), RValue, currentCleanupStack(),
+                                ctx);
+                        return sym.builtinFunction(
+                            (size_t)svm::Builtin::fstring_writestr);
+                    }
+                    SC_UNIMPLEMENTED();
+                }
+                SC_UNIMPLEMENTED();
+            },
+            [&](IntType const& type) {
+                if (type.isSigned()) {
+                    convert(ConversionKind::Implicit, expr, sym.S64(), RValue,
+                            currentCleanupStack(), ctx);
+                    return sym.builtinFunction(
+                        (size_t)svm::Builtin::fstring_writes64);
+                }
+                else {
+                    convert(ConversionKind::Implicit, expr, sym.U64(), RValue,
+                            currentCleanupStack(), ctx);
+                    return sym.builtinFunction(
+                        (size_t)svm::Builtin::fstring_writeu64);
+                }
+            },
+            [&](FloatType const&) {
+                convert(ConversionKind::Implicit, expr, sym.F64(), RValue,
+                        currentCleanupStack(), ctx);
+                return sym.builtinFunction(
+                    (size_t)svm::Builtin::fstring_writef64);
+            },
+            [&](ByteType const&) {
+                return sym.builtinFunction(
+                    (size_t)svm::Builtin::fstring_writechar);
+            },
+            [&](BoolType const&) {
+                return sym.builtinFunction(
+                    (size_t)svm::Builtin::fstring_writebool);
+            },
+            [](Type const&) -> Function const* { SC_UNIMPLEMENTED(); }
+        }; // clang-format on
+    });
+    expr.decorateValue(tmp, RValue, std::move(formatFunctions));
     if (!currentCleanupStack().push(tmp, ctx)) {
         return nullptr;
     }

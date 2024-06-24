@@ -537,6 +537,19 @@ public:
     AST_DERIVED_COMMON(FStringExpr)
 
     AST_RANGE_PROPERTY(0, Expression, operand, Operand)
+
+    /// \Returns the formatting functions determined by semantic analysis
+    std::span<sema::Function const* const> formatFunctions() const {
+        return formatFns;
+    }
+
+    ///
+    void decorateValue(
+        sema::Object* obj, sema::ValueCategory valueCat,
+        utl::small_vector<sema::Function const*> formatFunctions);
+
+private:
+    utl::small_vector<sema::Function const*> formatFns;
 };
 
 /// MARK: Unary Expressions

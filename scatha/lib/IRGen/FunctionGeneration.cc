@@ -152,6 +152,9 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::AddressOfExpression const&);
     Value getValueImpl(ast::Conditional const&);
     Value getValueImpl(ast::FunctionCall const&);
+    Value callFunction(sema::Function const* semaFn,
+                       sema::ObjectType const* exprType,
+                       std::span<Value const> args, std::string name);
     utl::small_vector<ir::Value*> unpackArguments(auto&& passingConventions,
                                                   auto&& values);
     Value getValueImpl(ast::Subscript const&);
@@ -777,77 +780,30 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
         }
         return 0;
     });
-    auto getDataAndSize = [&](ir::Value* buffer) {
-        ir::Value* data =
-            add<ir::ExtractValue>(buffer, std::array<size_t, 1>{ 0 },
-                                  utl::strcat(buffer->name(), ".data"));
-        ir::Value* size =
-            add<ir::ExtractValue>(buffer, std::array<size_t, 1>{ 1 },
-                                  utl::strcat(buffer->name(), ".size"));
-        return std::pair{ data, size };
-    };
     auto alloc = getBuiltin(svm::Builtin::alloc);
-    ValueArray args = { ctx.intConstant(initBufferSize, 64),
-                        ctx.intConstant(1, 64) };
-    ir::Value* buffer = add<ir::Call>(alloc, args, "fstring.buffer");
-    auto [bufferData, bufferSize] = getDataAndSize(buffer);
-    ir::Value* offset =
+    auto* bufferSize = ctx.intConstant(initBufferSize, 64);
+    ValueArray args = { bufferSize, ctx.intConstant(1, 64) };
+    ir::Value* bufferPtr = add<ir::Call>(alloc, args, "fstring.buffer");
+    auto& sym = const_cast<sema::SymbolTable&>(symbolTable);
+    auto buffer = Value::Packed("fstring.buffer", sym.strPointer(),
+                                { Atom::Register(bufferPtr) });
+    ir::Value* offsetPtr =
         makeLocalVariable(ctx.intType(64), "fstring.buffer.offset");
-    add<ir::Store>(offset, ctx.intConstant(0, 64));
-    for (auto* operand: expr.operands()) {
-        auto value = getValue(operand);
-        auto* type = operand->type().get();
-        if (isa<sema::PointerType>(type) &&
-            cast<sema::PointerType const*>(type)->base() ==
-                sema::QualType::Const(symbolTable.Str()))
-        {
-            auto values = unpack(value);
-            auto* fmt = getBuiltin(svm::Builtin::fstring_writestr);
-            buffer = add<ir::Call>(
-                fmt,
-                ValueArray{
-                    bufferData, bufferSize, offset,
-                    toRegister(values[0], ctx.ptrType(), "data").get(),
-                    toRegister(values[1], ctx.intType(64), "size").get() },
-                "fstring.fmt");
-            std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
-        }
-        else if (operand->type().get() == symbolTable.S64()) {
-            auto* fmt = getBuiltin(svm::Builtin::fstring_writes64);
-            buffer =
-                add<ir::Call>(fmt,
-                              ValueArray{ bufferData, bufferSize, offset,
-                                          toRegister(value.single(),
-                                                     ctx.intType(64), "operand")
-                                              .get() },
-                              "fstring.fmt");
-            std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
-        }
-        else if (operand->type().get() == symbolTable.F64()) {
-            auto* fmt = getBuiltin(svm::Builtin::fstring_writef64);
-            buffer = add<ir::Call>(fmt,
-                                   ValueArray{ bufferData, bufferSize, offset,
-                                               toRegister(value.single(),
-                                                          ctx.floatType(64),
-                                                          "operand")
-                                                   .get() },
-                                   "fstring.fmt");
-            std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
-        }
-        else {
-            SC_UNIMPLEMENTED();
-        }
+    add<ir::Store>(offsetPtr, ctx.intConstant(0, 64));
+    auto offset = Value::Unpacked(std::string(offsetPtr->name()), sym.S64(),
+                                  { Atom::Memory(offsetPtr) });
+    for (auto [operand, fmtFunction]:
+         zip(expr.operands(), expr.formatFunctions()))
+    {
+        buffer = callFunction(fmtFunction, buffer.type(),
+                              { { buffer, offset, getValue(operand) } },
+                              buffer.name());
     }
-    /// Trim buffer
-    buffer = add<ir::Call>(getBuiltin(svm::Builtin::fstring_trim),
-                           ValueArray{ bufferData, bufferSize,
-                                       add<ir::Load>(offset, ctx.intType(64),
-                                                     "fstring.offset") },
-                           "fstring.fmt");
-    std::tie(bufferData, bufferSize) = getDataAndSize(buffer);
-    return Value::Unpacked("fstring", expr.type().get(),
-                           { Atom::Register(bufferData),
-                             Atom::Register(bufferSize) });
+    buffer =
+        callFunction(sym.builtinFunction((size_t)svm::Builtin::fstring_trim),
+                     buffer.type(), { { buffer, offset } }, "fstring.trim");
+    return Value("fstring", expr.type().get(), buffer.elements(),
+                 buffer.representation());
 }
 
 Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
@@ -1259,14 +1215,21 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
-    ir::Callable* function = getFunction(call.function());
-    auto name = "call.result";
-    auto CC = getCC(call.function());
-    auto irArguments =
-        unpackArguments(CC.arguments(), getValues(call.arguments()));
+    return callFunction(call.function(), call.type().get(),
+                        getValues(call.arguments()) | ToSmallVector<>,
+                        "call.result");
+}
+
+Value FuncGenContext::callFunction(sema::Function const* semaFn,
+                                   sema::ObjectType const* exprType,
+                                   std::span<Value const> args,
+                                   std::string name) {
+    ir::Callable* function = getFunction(semaFn);
+    auto CC = getCC(semaFn);
+    auto irArguments = unpackArguments(CC.arguments(), args);
     /// Allocate return value storage
     if (CC.returnLocation() == Memory) {
-        auto* irReturnType = typeMap.packed(call.function()->returnType());
+        auto* irReturnType = typeMap.packed(semaFn->returnType());
         irArguments.insert(irArguments.begin(),
                            makeLocalVariable(irReturnType,
                                              utl::strcat(name, ".addr")));
@@ -1284,7 +1247,7 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
     if (isa<sema::UniquePtrType>(CC.returnType())) {
         atom = toMemory(atom);
     }
-    return Value::Packed(name, call.type().get(), atom);
+    return Value::Packed(name, exprType, atom);
 }
 
 utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(

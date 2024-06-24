@@ -234,6 +234,7 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
         VirtualPointer newBuffer = vm->allocateMemory(newSize, 1);
         auto* native = vm->derefPointer(newBuffer, newSize);
         std::memcpy(native, vm->derefPointer(buffer, offset), offset);
+        vm->deallocateMemory(buffer, size, 1);
         buffer = newBuffer;
         size = newSize;
         return native;
@@ -264,8 +265,9 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
                          { (char*)vm->derefPointer(argData, argSize),
                            argSize });
     });
-    set(Builtin::fstring_writes64, [](u64* regPtr, VirtualMachine* vm) {
-        i64 arg = load<i64>(regPtr + 3);
+    static constexpr auto fstringScalar = []<typename T>(u64* regPtr,
+                                                         VirtualMachine* vm) {
+        T arg = load<T>(regPtr + 3);
         char fmtBuffer[256];
         auto result =
             std::to_chars(fmtBuffer, fmtBuffer + sizeof fmtBuffer, arg);
@@ -274,17 +276,23 @@ std::vector<BuiltinFunction> svm::makeBuiltinTable() {
             assert(false);
         }
         fstringWriteImpl(regPtr, vm, { fmtBuffer, result.ptr });
+    };
+    set(Builtin::fstring_writes64, [](u64* regPtr, VirtualMachine* vm) {
+        fstringScalar.operator()<i64>(regPtr, vm);
+    });
+    set(Builtin::fstring_writeu64, [](u64* regPtr, VirtualMachine* vm) {
+        fstringScalar.operator()<u64>(regPtr, vm);
     });
     set(Builtin::fstring_writef64, [](u64* regPtr, VirtualMachine* vm) {
-        f64 arg = load<f64>(regPtr + 3);
-        char fmtBuffer[256];
-        auto result =
-            std::to_chars(fmtBuffer, fmtBuffer + sizeof fmtBuffer, arg);
-        if (result.ec != std::error_code()) {
-            // TODO: Throw error here
-            assert(false);
-        }
-        fstringWriteImpl(regPtr, vm, { fmtBuffer, result.ptr });
+        fstringScalar.operator()<f64>(regPtr, vm);
+    });
+    set(Builtin::fstring_writechar, [](u64* regPtr, VirtualMachine* vm) {
+        char arg = load<char>(regPtr + 3);
+        fstringWriteImpl(regPtr, vm, { &arg, 1 });
+    });
+    set(Builtin::fstring_writebool, [](u64* regPtr, VirtualMachine* vm) {
+        bool arg = load<bool>(regPtr + 3);
+        fstringWriteImpl(regPtr, vm, arg ? "true" : "false");
     });
     set(Builtin::fstring_trim, [](u64* regPtr, VirtualMachine* vm) {
         VirtualPointer buffer = load<VirtualPointer>(regPtr);

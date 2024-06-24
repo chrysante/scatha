@@ -85,6 +85,15 @@ void Expression::decorateNamespace(sema::Entity* entity) {
     markDecorated();
 }
 
+void FStringExpr::decorateValue(
+    sema::Object* obj, sema::ValueCategory valueCat,
+    utl::small_vector<sema::Function const*> formatFunctions) {
+    Expression::decorateValue(obj, valueCat);
+    SC_ASSERT(formatFunctions.size() == operands().size(),
+              "Must have a formatting function for every operand");
+    formatFns = std::move(formatFunctions);
+}
+
 void FunctionCall::decorateCall(sema::Object* object,
                                 sema::ValueCategory valueCategory,
                                 sema::QualType type,
