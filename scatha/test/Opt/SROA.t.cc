@@ -555,3 +555,31 @@ func i64 @main() {
     return i64 2
 })");
 }
+
+TEST_CASE("SROA load struct as int", "[opt][sroa]") {
+    test::passTest(opt::sroa,
+                   R"(
+struct @X { i32, i32 }
+func f64 @f() {
+  %entry:
+    %addr = alloca @X, i32 1
+    %0 = getelementptr inbounds @X, ptr %addr, i64 0, 0
+    %1 = getelementptr inbounds @X, ptr %addr, i64 0, 1
+    store ptr %0, i32 1
+    store ptr %1, i32 2
+    %r = load f64, ptr %addr
+    return f64 %r
+})",
+                   R"(
+struct @X { i32, i32 }
+func f64 @f() {
+  %entry:
+    %sroa.zext = zext i32 1 to i64
+    %sroa.or = or i64 0, i64 %sroa.zext
+    %sroa.zext.0 = zext i32 2 to i64
+    %sroa.shift = lshl i64 %sroa.zext.0, i32 32
+    %sroa.or.0 = or i64 %sroa.or, i64 %sroa.shift
+    %sroa.bitcast = bitcast i64 %sroa.or.0 to f64
+    return f64 %sroa.bitcast
+})");
+}

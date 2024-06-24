@@ -939,9 +939,45 @@ bool Variable::replaceBySlices(Load* load) {
             }
             break;
         }
-        default:
-            SC_UNIMPLEMENTED();
+        default: {
+            Value* value = ctx.intConstant(0, node->type()->size() * 8);
+            auto* intType = value->type();
+            BasicBlockBuilder builder(ctx, load->parent());
+            builder.setAddPoint(BasicBlock::Iterator(load));
+            for (auto slice: slices) {
+                Value* sliceValue =
+                    builder.add<Load>(slice.newAlloca(),
+                                      ctx.intType(slice.size() * 8),
+                                      std::string(load->name()));
+                sliceValue = builder.add<ConversionInst>(sliceValue, intType,
+                                                         Conversion::Zext,
+                                                         "sroa.zext");
+                SC_ASSERT(slice.begin() >= node->begin(), "");
+                auto localSliceBegin = slice.begin() - node->begin();
+                if (localSliceBegin > 0) {
+                    sliceValue = builder.insert<ArithmeticInst>(
+                        load, sliceValue, ctx.intConstant(slice.size() * 8, 32),
+                        ArithmeticOperation::LShL, "sroa.shift");
+                }
+                value = builder.add<ArithmeticInst>(value, sliceValue,
+                                                    ArithmeticOperation::Or,
+                                                    "sroa.or");
+            }
+            if (node->type() != intType) {
+                value = builder.add<ConversionInst>(value, node->type(),
+                                                    Conversion::Bitcast,
+                                                    "sroa.bitcast");
+            }
+            if (indices.empty()) {
+                aggregate = value;
+            }
+            else {
+                aggregate = builder.add<InsertValue>(aggregate, value, indices,
+                                                     "sroa.insert");
+            }
+            modified = true;
             break;
+        }
         }
     });
     if (modified) {
