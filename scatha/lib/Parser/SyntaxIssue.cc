@@ -35,4 +35,8 @@ void UnexpectedClosingBracket::format(std::ostream& str) const {
     str << "Unexpected closing bracket";
 }
 
+void ExpectedFStringEnd::format(std::ostream& str) const {
+    str << "Unexpected closing fstring expression";
+}
+
 void UnqualifiedID::format(std::ostream& str) const { str << "Unqualified ID"; }

@@ -530,9 +530,12 @@ private:
 
 class SCATHA_API FStringExpr: public Expression {
 public:
-    explicit FStringExpr(SourceRange sourceRange,
-                         utl::small_vector<UniquePtr<Expression>> operands):
-        Expression(NodeType::FStringExpr, sourceRange, std::move(operands)) {}
+    explicit FStringExpr(utl::small_vector<UniquePtr<Expression>> operands):
+        Expression(NodeType::FStringExpr,
+                   merge(operands | ranges::views::transform([](auto& e) {
+                             return e->sourceRange();
+                         })),
+                   std::move(operands)) {}
 
     AST_DERIVED_COMMON(FStringExpr)
 

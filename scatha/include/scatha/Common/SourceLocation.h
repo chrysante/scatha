@@ -4,6 +4,8 @@
 #include <compare>
 #include <iosfwd>
 
+#include <range/v3/numeric.hpp>
+
 #include <scatha/Common/Base.h>
 
 namespace scatha {
@@ -74,6 +76,17 @@ template <std::same_as<SourceRange>... Args>
 SourceRange merge(SourceRange lhs, Args... args) {
     ((lhs = merge(lhs, args)), ...);
     return lhs;
+}
+
+template <ranges::range R>
+SourceRange merge(R&& r) {
+    if (ranges::size(r) == 0) {
+        return {};
+    }
+    return ranges::accumulate(r, *ranges::begin(r),
+                              [](auto const& a, auto const& b) {
+        return merge(a, b);
+    });
 }
 
 } // namespace scatha

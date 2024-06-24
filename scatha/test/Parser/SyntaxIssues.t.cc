@@ -178,7 +178,7 @@ TEST_CASE("ExpectedExpression - Parameter type", "[parse][issue]") {
     expectFooParse(*iss.ast);
 }
 
-TEST_CASE("Missing parameter name") {
+TEST_CASE("Missing parameter name", "[parse][issue]") {
     auto iss = test::getSyntaxIssues("fn foo(:x) {}");
     auto issue = iss.findOnLine<ExpectedIdentifier>(1);
     REQUIRE(issue);
@@ -186,10 +186,20 @@ TEST_CASE("Missing parameter name") {
     CHECK(issue->sourceLocation().column == 8);
 }
 
-TEST_CASE("Missing struct name") {
+TEST_CASE("Missing struct name", "[parse][issue]") {
     auto iss = test::getSyntaxIssues("struct {}");
     auto issue = iss.findOnLine<ExpectedIdentifier>(1);
     REQUIRE(issue);
     CHECK(issue->sourceLocation().line == 1);
     CHECK(issue->sourceLocation().column == 8);
+}
+
+TEST_CASE("Unclosed fstring", "[parse][issue]") {
+    auto iss = test::getSyntaxIssues(R"(
+fn test() {
+    "\(42;
+})");
+    auto issue = iss.findOnLine<ExpectedFStringEnd>(3);
+    REQUIRE(issue);
+    CHECK(issue->sourceLocation().column == 10);
 }

@@ -175,6 +175,7 @@
 
 using namespace scatha;
 using namespace parser;
+using namespace ranges::views;
 using enum TokenKind;
 
 namespace {
@@ -1195,7 +1196,6 @@ UniquePtr<ast::Expression> Context::parseFString() {
         return parsePrimary();
     }
     tokens.eat();
-    auto SR = begin.sourceRange();
     utl::small_vector<UniquePtr<ast::Expression>> operands;
     operands.push_back(
         allocateStringLit(begin, ast::LiteralKind::FStringBegin));
@@ -1208,23 +1208,25 @@ UniquePtr<ast::Expression> Context::parseFString() {
             else {
                 operands.push_back(std::move(expr));
             }
+            continue;
         }
-        else {
-            auto const& tok = tokens.peek();
+        auto const& tok = tokens.peek();
+        if (tok.kind() == FStringLiteralContinue) {
             tokens.eat();
-            if (tok.kind() == FStringLiteralContinue) {
-                operands.push_back(
-                    allocateStringLit(tok, ast::LiteralKind::FStringContinue));
-                continue;
-            }
-            if (tok.kind() == FStringLiteralEnd) {
-                operands.push_back(
-                    allocateStringLit(tok, ast::LiteralKind::FStringEnd));
-                break;
-            }
+            operands.push_back(
+                allocateStringLit(tok, ast::LiteralKind::FStringContinue));
+            continue;
         }
+        if (tok.kind() == FStringLiteralEnd) {
+            tokens.eat();
+            operands.push_back(
+                allocateStringLit(tok, ast::LiteralKind::FStringEnd));
+            break;
+        }
+        issues.push<ExpectedFStringEnd>(tokens.peek());
+        break;
     }
-    return allocate<ast::FStringExpr>(SR, std::move(operands));
+    return allocate<ast::FStringExpr>(std::move(operands));
 }
 
 UniquePtr<ast::Expression> Context::parsePrimary() {

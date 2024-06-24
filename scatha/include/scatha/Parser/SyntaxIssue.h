@@ -88,6 +88,15 @@ private:
     void format(std::ostream&) const override;
 };
 
+class SCATHA_API ExpectedFStringEnd: public SyntaxIssue {
+public:
+    explicit ExpectedFStringEnd(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    void format(std::ostream&) const override;
+};
+
 class SCATHA_API UnqualifiedID: public SyntaxIssue {
 public:
     explicit UnqualifiedID(Token token, TokenKind expected):
