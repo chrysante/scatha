@@ -228,12 +228,22 @@ Type const* InstContext::instantiateRecordMember(
     if (!varDecl.type()) {
         return nullptr;
     }
-    if (isa<ReferenceType>(varDecl.type())) {
-        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::RefInStruct, varDecl.type(),
+    auto* varType = varDecl.type();
+    if (isa<ReferenceType>(varType)) {
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::RefInStruct, varType,
                               varDecl.initExpr());
         return nullptr;
     }
-    auto* varType = varDecl.type();
+    if (isa<ProtocolType>(varType)) {
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ProtocolType, varType,
+                              varDecl.initExpr());
+        return nullptr;
+    }
+    if (!varType->isComplete()) {
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::IncompleteType, varType,
+                              varDecl.initExpr());
+        return nullptr;
+    }
     if (auto* array = dyncast<ArrayType const*>(varType)) {
         const_cast<ArrayType*>(array)->recomputeSize();
     }

@@ -37,6 +37,15 @@ SC_SEMA_BADVARDECL_DEF(IncompleteType, Error, {
     });
 })
 
+SC_SEMA_BADVARDECL_DEF(ProtocolType, Error, {
+    header("Cannot declare variable of protocol type");
+    auto* var = cast<ast::VariableDeclaration const*>(declaration());
+    primary(var->typeExpr()->sourceRange(), [=, this](std::ostream& str) {
+        str << "Variable " << var->name() << " of type " << sema::format(type())
+            << " declared here";
+    });
+})
+
 SC_SEMA_BADVARDECL_DEF(ExpectedRefInit, Error, {
     header("Reference declaration requires initializer");
     primary(declaration()->sourceRange(), [=, this](std::ostream& str) {

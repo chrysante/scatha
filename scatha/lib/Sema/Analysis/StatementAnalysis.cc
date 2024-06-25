@@ -566,23 +566,30 @@ void StmtContext::analyzeImpl(ast::VariableDeclaration& varDecl) {
         analyzeValue(varDecl.initExpr(), varDecl.cleanupStack());
     auto* deducedType = deduceType(analyzeTypeExpr(varDecl.typeExpr(), ctx),
                                    validatedInitExpr, ctx);
-    if (!deducedType) {
+    auto declarePoison = [&] {
         sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
                           AccessControl::Private);
+    };
+    if (!deducedType) {
+        declarePoison();
+        return;
+    }
+    if (isa<ProtocolType>(deducedType)) {
+        declarePoison();
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ProtocolType, deducedType,
+                              validatedInitExpr);
         return;
     }
     /// The type must be complete, that means no `void` and no dynamic arrays
     if (!deducedType->isComplete()) {
-        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
-                          AccessControl::Private);
+        declarePoison();
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::IncompleteType, deducedType,
                               validatedInitExpr);
         return;
     }
     /// Reference variables must be initalized explicitly
     if (isa<ReferenceType>(deducedType) && !validatedInitExpr) {
-        sym.declarePoison(varDecl.nameIdentifier(), EntityCategory::Value,
-                          AccessControl::Private);
+        declarePoison();
         ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::ExpectedRefInit);
         return;
     }

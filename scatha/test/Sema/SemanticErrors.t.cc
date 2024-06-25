@@ -219,24 +219,34 @@ struct g{}
 
 TEST_CASE("Invalid variable declaration", "[sema][issue]") {
     auto issues = test::getSemaIssues(R"(
-/* 2 */ fn f() {
-/* 3 */    let v;
-/* 4 */    let x = 0;
-/* 5 */    let y: x;
-/* 6 */    let z = int;
-/* 7 */ }
+/*  2 */ protocol P;
+/*  3 */ fn f() {
+/*  4 */     let v;
+/*  5 */     let x = 0;
+/*  6 */     let y: x;
+/*  7 */     let z = int;
+/*  8 */     let p: P;
+/*  9 */ }
+/* 10 */ struct S {
+/* 11 */     var v: void;
+/* 12 */     var p: P;
+/* 13 */     var r: &int;
+/* 14 */ }
 )");
-    // let v;
-    CHECK(issues.findOnLine<BadVarDecl>(3, BadVarDecl::CantInferType));
-    CHECK(issues.noneOnLine(4));
-    auto const line5 = issues.findOnLine<BadSymRef>(5);
-    REQUIRE(line5);
-    CHECK(line5->have() == EntityCategory::Value);
-    CHECK(line5->expected() == EntityCategory::Type);
-    auto const line6 = issues.findOnLine<BadSymRef>(6);
+    CHECK(issues.findOnLine<BadVarDecl>(4, BadVarDecl::CantInferType));
+    CHECK(issues.noneOnLine(5));
+    auto* line6 = issues.findOnLine<BadSymRef>(6);
     REQUIRE(line6);
-    CHECK(line6->have() == EntityCategory::Type);
-    CHECK(line6->expected() == EntityCategory::Value);
+    CHECK(line6->have() == EntityCategory::Value);
+    CHECK(line6->expected() == EntityCategory::Type);
+    auto* line7 = issues.findOnLine<BadSymRef>(7);
+    REQUIRE(line7);
+    CHECK(line7->have() == EntityCategory::Type);
+    CHECK(line7->expected() == EntityCategory::Value);
+    CHECK(issues.findOnLine<BadVarDecl>(8, BadVarDecl::ProtocolType));
+    CHECK(issues.findOnLine<BadVarDecl>(11, BadVarDecl::IncompleteType));
+    CHECK(issues.findOnLine<BadVarDecl>(12, BadVarDecl::ProtocolType));
+    CHECK(issues.findOnLine<BadVarDecl>(13, BadVarDecl::RefInStruct));
 }
 
 TEST_CASE("Invalid declaration", "[sema][issue]") {
