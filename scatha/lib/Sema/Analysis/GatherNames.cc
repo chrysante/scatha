@@ -14,7 +14,8 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
-using namespace scatha::sema;
+using namespace sema;
+using namespace ranges::views;
 
 static constexpr size_t InvalidIndex = ~size_t{};
 
@@ -30,15 +31,13 @@ struct GatherContext {
         dependencyGraph(result.structs),
         globals(result.globals) {}
 
-    /// Dispatches to the appropriate one of the `gatherImpl()` overloads below
-    /// based on the runtime type of \p node
-    SC_NODEBUG size_t gather(ast::ASTNode& node);
-
+    size_t gather(ast::ASTNode& node);
     size_t gatherImpl(ast::TranslationUnit&);
     size_t gatherImpl(ast::SourceFile&);
     size_t gatherImpl(ast::ImportStatement&);
     size_t gatherImpl(ast::FunctionDefinition&);
-    size_t gatherImpl(ast::StructDefinition&);
+    size_t gatherImpl(ast::RecordDefinition&);
+    size_t gatherImpl(ast::BaseClassDeclaration&);
     size_t gatherImpl(ast::VariableDeclaration&);
     size_t gatherImpl(ast::Statement& stmt);
     size_t gatherImpl(ast::ASTNode&) {
@@ -63,8 +62,7 @@ GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& TU,
 }
 
 size_t GatherContext::gather(ast::ASTNode& node) {
-    return visit(node, [this](auto& node)
-                           SC_NODEBUG { return this->gatherImpl(node); });
+    return visit(node, [this](auto& node) { return this->gatherImpl(node); });
 }
 
 size_t GatherContext::gatherImpl(ast::TranslationUnit& TU) {
@@ -115,7 +113,7 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     return InvalidIndex;
 }
 
-size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
+size_t GatherContext::gatherImpl(ast::RecordDefinition& def) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
                                                    sk != ScopeKind::Type)
@@ -125,10 +123,8 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
         ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);
         return InvalidIndex;
     }
-    auto* type =
-        sym.declareStructureType(&def,
-                                 determineAccessControl(sym.currentScope(),
-                                                        def));
+    auto accessControl = determineAccessControl(sym.currentScope(), def);
+    auto* type = sym.declareRecordType(&def, accessControl);
     if (!type) {
         return InvalidIndex;
     }
@@ -138,8 +134,10 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
         dependencyGraph.add({ .entity = type, .astNode = &def });
     /// After we declared this type we gather all its members
     sym.withScopePushed(type, [&] {
-        for (auto* statement: def.body()->statements()) {
-            size_t const dependency = gather(*statement);
+        for (auto* statement:
+             concat(def.baseClasses(), def.body()->statements()))
+        {
+            size_t dependency = gather(*statement);
             if (dependency != InvalidIndex) {
                 dependencyGraph[index].dependencies.push_back(
                     utl::narrow_cast<u16>(dependency));
@@ -149,8 +147,23 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& def) {
     return index;
 }
 
+size_t GatherContext::gatherImpl(ast::BaseClassDeclaration& baseDecl) {
+    SC_ASSERT(isa<RecordType>(sym.currentScope()), "");
+    if (!baseDecl.typeExpr()) {
+        return InvalidIndex;
+    }
+    auto* object =
+        sym.declareBaseClass(&baseDecl,
+                             determineAccessControl(sym.currentScope(),
+                                                    baseDecl));
+    if (!object) {
+        return InvalidIndex;
+    }
+    return dependencyGraph.add({ .entity = object, .astNode = &baseDecl });
+}
+
 size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(isa<StructType>(sym.currentScope()) ||
+    SC_ASSERT(isa<RecordType>(sym.currentScope()) ||
                   isa<FileScope>(sym.currentScope()),
               "Local variables will be analyzed later");
     if (!varDecl.typeExpr()) {

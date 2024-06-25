@@ -287,6 +287,35 @@ private:
     size_t _index = 0;
 };
 
+/// Represents a base class object
+class SCATHA_API BaseClassObject: public Object {
+public:
+    BaseClassObject(BaseClassObject const&) = delete;
+
+    explicit BaseClassObject(Scope* parentScope, ast::ASTNode* astNode,
+                             AccessControl accessControl,
+                             RecordType const* type = nullptr);
+
+    /// The AST node that corresponds to this variable
+    SC_ASTNODE_DERIVED(declaration, BaseClassDeclaration)
+
+    /// Position of this base class
+    size_t index() const { return _index; }
+
+    ///
+    void setIndex(size_t index) { _index = index; }
+
+    /// For the symbol table
+    using Object::setMutability;
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Value; }
+    ValueCategory valueCatImpl() const { return ValueCategory::LValue; }
+
+    size_t _index = 0;
+};
+
 /// Represents a computed property such as `.count`, `.front` and `.back` member
 /// of arrays
 class SCATHA_API Property: public VarBase {
@@ -775,12 +804,30 @@ public:
         this->ctors = ctors | ToSmallVector<>;
     }
 
+    /// The base classes of this type in the order of declaration.
+    std::span<BaseClassObject* const> baseObjects() { return bases; }
+
+    /// \overload
+    std::span<BaseClassObject const* const> baseObjects() const {
+        return bases;
+    }
+
+    /// \Returns a view over the member types in this struct
+    auto baseTypes() const {
+        return baseObjects() | ranges::views::transform(&Object::type);
+    }
+
+    /// Adds a variable to the end of the list of member variables of this
+    /// structure
+    void pushBaseObject(BaseClassObject* obj) { bases.push_back(obj); }
+
 protected:
     explicit RecordType(EntityType entityType, std::string name,
                         Scope* parentScope, ast::ASTNode* astNode, size_t size,
                         size_t align, AccessControl accessControl);
 
 private:
+    utl::small_vector<BaseClassObject*> bases;
     utl::small_vector<Function*> ctors;
 };
 

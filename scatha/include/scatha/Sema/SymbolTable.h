@@ -58,20 +58,20 @@ public:
     /// paths for a shared library
     ForeignLibrary* importForeignLib(std::string_view name);
 
-    /// Declares a struct to the current scope without specifying size and
-    /// alignment.
+    /// Declares a struct or protocol to the current scope without specifying
+    /// size and alignment.
     ///
     /// For successful return the name must not have been declared
     /// before in the current scope.
     ///
-    /// \returns a the declared type if no error occurs
+    /// \returns the declared type if no error occurs
     /// Otherwise emits an error to the issue handler
-    StructType* declareStructureType(ast::StructDefinition* def,
-                                     AccessControl accessControl);
+    RecordType* declareRecordType(ast::RecordDefinition* def,
+                                  AccessControl accessControl);
 
     /// \overload for use without AST
-    StructType* declareStructureType(std::string name,
-                                     AccessControl accessControl);
+    RecordType* declareRecordType(std::string name, ast::NodeType nodeType,
+                                  AccessControl accessControl);
 
     /// Declares a function name without signature to the current scope.
     ///
@@ -147,6 +147,17 @@ public:
     Variable* defineVariable(std::string name, Type const* type,
                              Mutability mutability,
                              AccessControl accessControl);
+
+    ///
+    BaseClassObject* declareBaseClass(ast::BaseClassDeclaration* baseDecl,
+                                      AccessControl accessControl);
+
+    ///
+    bool setBaseClassType(BaseClassObject* obj, Type const* type);
+
+    ///
+    BaseClassObject* defineBaseClass(Type const* type,
+                                     AccessControl accessControl);
 
     /// ...
     /// \param astNode is defaulted to null because in most cases properties
@@ -369,7 +380,8 @@ private:
     ForeignLibrary* getOrImportForeignLib(std::string_view name,
                                           ast::ASTNode* astNode);
 
-    StructType* declareStructImpl(ast::StructDefinition* def, std::string name,
+    RecordType* declareRecordImpl(ast::NodeType nodeType,
+                                  ast::RecordDefinition* def, std::string name,
                                   AccessControl accCtrl);
     Function* declareFuncImpl(ast::FunctionDefinition* def, std::string name,
                               AccessControl accCtrl);
@@ -378,6 +390,11 @@ private:
     Variable* defineVarImpl(ast::VarDeclBase* vardecl, std::string name,
                             Type const* type, Mutability mut,
                             AccessControl accCtrl);
+    BaseClassObject* declareBaseImpl(ast::BaseClassDeclaration* decl,
+                                     AccessControl accessControl);
+    BaseClassObject* defineBaseImpl(ast::BaseClassDeclaration* decl,
+                                    Type const* type,
+                                    AccessControl accessControl);
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);

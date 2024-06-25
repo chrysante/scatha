@@ -39,13 +39,17 @@ static utl::vstreammanip<> formatID(auto... args) {
 static utl::vstreammanip<> formatObject(sema::Object const* obj) {
     return [=](std::ostream& str) {
         str << tfmt::format(BrightGrey, obj->entityType()) << " ";
+        // clang-format off
         SC_MATCH (*obj) {
             [&](sema::Variable const& var) { str << formatID(var.name()); },
-                [&](sema::Property const& prop) { str << prop.kind(); },
-                [&](sema::Temporary const& tmp) {
+            [&](sema::BaseClassObject const& base) {
+                str << formatID(base.name());
+            },
+            [&](sema::Property const& prop) { str << prop.kind(); },
+            [&](sema::Temporary const& tmp) {
                 str << "[" << tmp.id() << "]";
             },
-        };
+        }; // clang-format on
     };
 }
 

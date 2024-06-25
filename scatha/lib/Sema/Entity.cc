@@ -94,6 +94,14 @@ bool Variable::isStatic() const {
            isa<Library>(parent());
 }
 
+BaseClassObject::BaseClassObject(Scope* parentScope, ast::ASTNode* astNode,
+                                 AccessControl accessControl,
+                                 RecordType const* type):
+    Object(EntityType::BaseClassObject, {}, parentScope, type,
+           Mutability::Mutable, astNode) {
+    setAccessControl(accessControl);
+}
+
 Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,
                    Mutability mut, ValueCategory valueCat,
                    AccessControl accessControl, ast::ASTNode* astNode):

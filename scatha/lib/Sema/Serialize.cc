@@ -725,9 +725,10 @@ struct Deserializer: TypeMapBase {
     }
 
     void preparseImpl(Tag<StructType>, json const& obj) {
-        auto* type =
-            sym.declareStructureType(get<std::string>(obj, Field::Name),
-                                     get(obj, Field::AccessControl));
+        auto* record = sym.declareRecordType(get<std::string>(obj, Field::Name),
+                                             ast::NodeType::StructDefinition,
+                                             get(obj, Field::AccessControl));
+        auto* type = cast<StructType*>(record);
         insertType(obj, type);
         type->setSize(get<size_t>(obj, Field::Size));
         type->setAlign(get<size_t>(obj, Field::Align));

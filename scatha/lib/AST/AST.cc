@@ -163,6 +163,15 @@ sema::StructType const* StructDefinition::structType() const {
     return cast<sema::StructType const*>(entity());
 }
 
+sema::BaseClassObject const* BaseClassDeclaration::object() const {
+    return cast<sema::BaseClassObject const*>(entity());
+}
+
+sema::Type const* BaseClassDeclaration::type() const {
+    auto* obj = object();
+    return obj ? obj->type() : nullptr;
+}
+
 sema::Library const* ImportStatement::library() const {
     return cast<sema::Library const*>(entity());
 }

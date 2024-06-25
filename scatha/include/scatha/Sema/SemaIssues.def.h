@@ -111,6 +111,26 @@ SC_SEMA_BADVARDECL_DEF(GlobalReferencesNotYetSupported, Error, {
 #undef SC_SEMA_BADVARDECL_DEF
 
 // ===--------------------------------------------------------------------=== //
+// === List of all reasons for a bad base class declaration --------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_BADBASEDECL_DEF
+#define SC_SEMA_BADBASEDECL_DEF(Reason, Severity, Message)
+#endif
+
+SC_SEMA_BADBASEDECL_DEF(InvalidType, Error, {
+    header("Base class is not a struct or protocol");
+    auto* decl = declaration();
+    auto range = decl->typeExpr() ? decl->typeExpr()->sourceRange() :
+                                    decl->sourceRange();
+    primary(range, [=, this](std::ostream& str) {
+        str << sema::format(type()) << " is invalid";
+    });
+})
+
+#undef SC_SEMA_BADBASEDECL_DEF
+
+// ===--------------------------------------------------------------------=== //
 // === List of all reasons for a bad function definition -----------------=== //
 // ===--------------------------------------------------------------------=== //
 

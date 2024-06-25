@@ -153,6 +153,27 @@ private:
 };
 
 /// Bad declaration of variable or function parameter
+class SCATHA_API BadBaseDecl: public BadDecl {
+public:
+    enum Reason {
+#define SC_SEMA_BADBASEDECL_DEF(reason, _0, _1) reason,
+#include <scatha/Sema/SemaIssues.def.h>
+    };
+    SC_SEMA_ISSUE_REASON()
+
+    BadBaseDecl(Scope const* scope, ast::BaseClassDeclaration const* decl,
+                Reason reason, Type const* type = nullptr);
+
+    SC_SEMA_DERIVED_STMT(BaseClassDeclaration, declaration)
+
+    ///
+    Type const* type() const { return _type; }
+
+private:
+    Type const* _type;
+};
+
+/// Bad declaration of variable or function parameter
 class SCATHA_API BadVarDecl: public BadDecl {
 public:
     enum Reason {

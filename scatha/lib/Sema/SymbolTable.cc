@@ -99,6 +99,9 @@ struct SymbolTable::Impl {
     /// List of all structs
     utl::small_vector<StructType*> structTypes;
 
+    /// List of all protocols
+    utl::small_vector<ProtocolType*> protocolTypes;
+
     /// List of all imported libraries
     utl::small_vector<Library*> importedLibs;
 
@@ -376,7 +379,8 @@ ForeignLibrary* SymbolTable::getOrImportForeignLib(std::string_view libname,
     return ::importForeignLib(*this, *impl, astNode, std::string(libname));
 }
 
-StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
+RecordType* SymbolTable::declareRecordImpl(ast::NodeType nodeType,
+                                           ast::RecordDefinition* def,
                                            std::string name,
                                            AccessControl accessControl) {
     if (isKeyword(name)) {
@@ -386,24 +390,46 @@ StructType* SymbolTable::declareStructImpl(ast::StructDefinition* def,
     if (!checkRedef(Redef_Other, name, def, accessControl)) {
         return nullptr;
     }
-    auto* type = impl->addEntity<StructType>(name, &currentScope(), def,
-                                             InvalidSize, InvalidSize,
-                                             accessControl);
-    impl->structTypes.push_back(type);
+    RecordType* type = nullptr;
+    switch (nodeType) {
+    case ast::NodeType::StructDefinition: {
+        auto* structType =
+            impl->addEntity<StructType>(name, &currentScope(),
+                                        cast<ast::StructDefinition*>(def),
+                                        InvalidSize, InvalidSize,
+                                        accessControl);
+        impl->structTypes.push_back(structType);
+        type = structType;
+        break;
+    }
+    case ast::NodeType::ProtocolDefinition: {
+        auto* protocolType =
+            impl->addEntity<ProtocolType>(name, &currentScope(),
+                                          cast<ast::ProtocolDefinition*>(def),
+                                          accessControl);
+        impl->protocolTypes.push_back(protocolType);
+        type = protocolType;
+        break;
+    }
+    default:
+        SC_UNREACHABLE();
+    }
     addToCurrentScope(type);
     validateAccessControl(*type);
     addGlobalAliasIfInternalAtFilescope(type);
     return type;
 }
 
-StructType* SymbolTable::declareStructureType(ast::StructDefinition* def,
-                                              AccessControl accessControl) {
-    return declareStructImpl(def, std::string(def->name()), accessControl);
+RecordType* SymbolTable::declareRecordType(ast::RecordDefinition* def,
+                                           AccessControl accessControl) {
+    return declareRecordImpl(def->nodeType(), def, std::string(def->name()),
+                             accessControl);
 }
 
-StructType* SymbolTable::declareStructureType(std::string name,
-                                              AccessControl accessControl) {
-    return declareStructImpl(nullptr, std::move(name), accessControl);
+RecordType* SymbolTable::declareRecordType(std::string name,
+                                           ast::NodeType nodeType,
+                                           AccessControl accessControl) {
+    return declareRecordImpl(nodeType, nullptr, std::move(name), accessControl);
 }
 
 template <typename T, typename... Args>
@@ -657,6 +683,40 @@ Variable* SymbolTable::defineVariable(std::string name, Type const* type,
                                       Mutability mut,
                                       AccessControl accessControl) {
     return defineVarImpl(nullptr, std::move(name), type, mut, accessControl);
+}
+
+BaseClassObject* SymbolTable::declareBaseImpl(ast::BaseClassDeclaration* decl,
+                                              AccessControl accessControl) {
+    auto* obj =
+        impl->addEntity<BaseClassObject>(&currentScope(), decl, accessControl);
+    addToCurrentScope(obj);
+    return obj;
+}
+
+BaseClassObject* SymbolTable::defineBaseImpl(ast::BaseClassDeclaration* decl,
+                                             Type const* type,
+                                             AccessControl accessControl) {
+    auto* obj = declareBaseImpl(decl, accessControl);
+    if (!obj) {
+        return nullptr;
+    }
+    setBaseClassType(obj, type);
+    return obj;
+}
+
+BaseClassObject* SymbolTable::declareBaseClass(
+    ast::BaseClassDeclaration* baseDecl, AccessControl accessControl) {
+    return declareBaseImpl(baseDecl, accessControl);
+}
+
+bool SymbolTable::setBaseClassType(BaseClassObject* obj, Type const* type) {
+    obj->_type = type;
+    return validateAccessControl(*obj);
+}
+
+BaseClassObject* SymbolTable::defineBaseClass(Type const* type,
+                                              AccessControl accessControl) {
+    return defineBaseImpl(nullptr, type, accessControl);
 }
 
 Property* SymbolTable::addProperty(PropertyKind kind, Type const* type,

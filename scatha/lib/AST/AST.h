@@ -103,13 +103,16 @@
     }
 
 #define AST_RANGE_PROPERTY(BeginIndex, Type, Name, CapName)                    \
+    AST_RANGE_PROPERTY_EX(BeginIndex, Type, Name, CapName, s)
+
+#define AST_RANGE_PROPERTY_EX(BeginIndex, Type, Name, CapName, PluralSuffix)   \
     template <std::derived_from<Type> TYPE = Type>                             \
-    auto Name##s() {                                                           \
+    auto Name##PluralSuffix() {                                                \
         return this->ASTNode::dropChildren<TYPE>(BeginIndex);                  \
     }                                                                          \
                                                                                \
     template <std::derived_from<Type> TYPE = Type>                             \
-    auto Name##s() const {                                                     \
+    auto Name##PluralSuffix() const {                                          \
         return this->ASTNode::dropChildren<TYPE const>(BeginIndex);            \
     }                                                                          \
                                                                                \
@@ -1300,6 +1303,34 @@ private:
     sema::Type const* _returnType = nullptr;
 };
 
+/// Concrete node representing a variable declaration.
+class SCATHA_API BaseClassDeclaration: public Declaration {
+public:
+    explicit BaseClassDeclaration(SpecifierList specList,
+                                  SourceRange sourceRange,
+                                  UniquePtr<Expression> typeExpr):
+        Declaration(NodeType::BaseClassDeclaration, specList, sourceRange,
+                    std::move(typeExpr)) {}
+
+    AST_DERIVED_COMMON(BaseClassDeclaration)
+
+    /// Expression denoting the base class type
+    AST_PROPERTY(0, Expression, typeExpr, TypeExpr)
+
+    /// Declared variable. In most cases this is the object but in some cases
+    /// the object is not a variable, in which case this function fails
+    sema::BaseClassObject* object() {
+        return const_cast<sema::BaseClassObject*>(
+            std::as_const(*this).object());
+    }
+
+    /// \overload
+    sema::BaseClassObject const* object() const;
+
+    /// Type of the declaration
+    sema::Type const* type() const;
+};
+
 /// Abstract node representing the definition of a struct or a protocol.
 class SCATHA_API RecordDefinition: public Declaration {
 public:
@@ -1308,23 +1339,28 @@ public:
     /// Body of the struct.
     AST_PROPERTY(1, CompoundStatement, body, Body)
 
+    /// List of base class declarations
+    AST_RANGE_PROPERTY_EX(2, BaseClassDeclaration, baseClass, BaseClass, es)
+
 protected:
-    explicit RecordDefinition(NodeType nodeType, SourceRange sourceRange,
-                              SpecifierList specList,
-                              UniquePtr<Identifier> name,
-                              UniquePtr<CompoundStatement> body):
+    explicit RecordDefinition(
+        NodeType nodeType, SourceRange sourceRange, SpecifierList specList,
+        UniquePtr<Identifier> name, UniquePtr<CompoundStatement> body,
+        utl::small_vector<UniquePtr<BaseClassDeclaration>> baseDecls):
         Declaration(nodeType, specList, sourceRange, std::move(name),
-                    std::move(body)) {}
+                    std::move(body), std::move(baseDecls)) {}
 };
 
 /// Concrete node representing the definition of a struct.
 class SCATHA_API StructDefinition: public RecordDefinition {
 public:
-    explicit StructDefinition(SourceRange sourceRange, SpecifierList specList,
-                              UniquePtr<Identifier> name,
-                              UniquePtr<CompoundStatement> body):
+    explicit StructDefinition(
+        SourceRange sourceRange, SpecifierList specList,
+        UniquePtr<Identifier> name, UniquePtr<CompoundStatement> body,
+        utl::small_vector<UniquePtr<BaseClassDeclaration>> baseDecls):
         RecordDefinition(NodeType::StructDefinition, sourceRange, specList,
-                         std::move(name), std::move(body)) {}
+                         std::move(name), std::move(body),
+                         std::move(baseDecls)) {}
 
     AST_DERIVED_COMMON(StructDefinition)
 
@@ -1342,11 +1378,13 @@ public:
 /// Concrete node representing the definition of a struct.
 class SCATHA_API ProtocolDefinition: public RecordDefinition {
 public:
-    explicit ProtocolDefinition(SourceRange sourceRange, SpecifierList specList,
-                                UniquePtr<Identifier> name,
-                                UniquePtr<CompoundStatement> body):
+    explicit ProtocolDefinition(
+        SourceRange sourceRange, SpecifierList specList,
+        UniquePtr<Identifier> name, UniquePtr<CompoundStatement> body,
+        utl::small_vector<UniquePtr<BaseClassDeclaration>> baseDecls):
         RecordDefinition(NodeType::ProtocolDefinition, sourceRange, specList,
-                         std::move(name), std::move(body)) {}
+                         std::move(name), std::move(body),
+                         std::move(baseDecls)) {}
 
     AST_DERIVED_COMMON(ProtocolDefinition)
 
@@ -1354,9 +1392,10 @@ public:
 
     /// The protocol being defined
     sema::ProtocolType* protocolType() {
-        return const_cast<sema::ProtocolType*>(std::as_const(*this).protocolType());
+        return const_cast<sema::ProtocolType*>(
+            std::as_const(*this).protocolType());
     }
-    
+
     /// \overload
     sema::ProtocolType const* protocolType() const;
 };

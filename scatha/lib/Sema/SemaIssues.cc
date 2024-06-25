@@ -284,6 +284,31 @@ BadVarDecl::BadVarDecl(Scope const* _scope, ast::VarDeclBase const* _vardecl,
     }
 }
 
+static IssueSeverity toSeverity(BadBaseDecl::Reason reason) {
+    switch (reason) {
+#define SC_SEMA_BADBASEDECL_DEF(reason, severity, _)                           \
+    case BadBaseDecl::reason:                                                  \
+        return IssueSeverity::severity;
+#include "Sema/SemaIssues.def.h"
+    }
+    SC_UNREACHABLE();
+}
+
+BadBaseDecl::BadBaseDecl(Scope const* _scope,
+                         ast::BaseClassDeclaration const* _decl, Reason _reason,
+                         Type const* _type):
+    BadDecl(_scope, _decl, toSeverity(_reason)),
+    _reason(_reason),
+    _type(_type) {
+    switch (reason()) {
+#define SC_SEMA_BADBASEDECL_DEF(REASON, SEVERITY, MESSAGE)                     \
+    case REASON:                                                               \
+        MESSAGE;                                                               \
+        break;
+#include "Sema/SemaIssues.def.h"
+    }
+}
+
 static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
     switch (reason) {
 #define SC_SEMA_BADFUNCDEF_DEF(reason, severity, _)                            \

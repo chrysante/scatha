@@ -23,7 +23,9 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
                                     sym.functionType({ sym.S64() }, sym.S64()),
                                     AccessControl::Public);
     REQUIRE(fnI);
-    auto* xType = sym.declareStructureType("X", AccessControl::Public);
+    auto* record = sym.declareRecordType("X", ast::NodeType::StructDefinition,
+                                         AccessControl::Public);
+    auto* xType = cast<StructType*>(record);
     REQUIRE(xType);
     auto* memberI = sym.withScopePushed(xType, [&] {
         return sym.defineVariable("i", sym.S64(), Mutable,

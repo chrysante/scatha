@@ -12,9 +12,11 @@ using namespace scatha;
 using namespace sema;
 
 size_t StructDependencyGraph::add(Node node) {
-    SC_ASSERT(isa<StructType>(node.entity) || isa<Variable>(node.entity),
-              "Only structs and their data members shall be in this graph");
-    size_t const index = _nodes.size();
+    SC_ASSERT(
+        isa<RecordType>(node.entity) || isa<BaseClassObject>(node.entity) ||
+            isa<Variable>(node.entity),
+        "Only records and their base classes and  data members shall be in this graph");
+    size_t index = _nodes.size();
     _indices.insert({ node.entity, index });
     _nodes.push_back(std::move(node));
     return index;

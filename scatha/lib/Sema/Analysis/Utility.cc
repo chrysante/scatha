@@ -108,7 +108,7 @@ void sema::print(CleanupStack const& stack, std::ostream& str) {
             [&](Temporary const& tmp) {
                 str << "tmp[" << tmp.id() << "]";
             },
-            [&](Property const&) { SC_UNREACHABLE(); },
+            [&](Object const&) { SC_UNREACHABLE(); },
         }; // clang-format on
         str << std::endl;
     }
@@ -170,7 +170,7 @@ CompoundType const* sema::nonTrivialLifetimeType(ObjectType const* type) {
 AccessControl sema::determineAccessControlByContext(Scope const& scope) {
     // clang-format off
     return SC_MATCH (scope) {
-        [](StructType const& type) {
+        [](RecordType const& type) {
             return type.accessControl();
         },
         [](FileScope const&) {

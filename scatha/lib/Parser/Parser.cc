@@ -18,8 +18,10 @@
 ///                                   | "this"
 ///                                   | "& this"
 ///                                   | "& mut this"
-/// <struct-definition>             ::= "struct" <identifier> <compound-statement>
-/// <protocol-definition>           ::= "protocol" <identifier> <compound-statement>
+/// <struct-definition>             ::= "struct" <record-definition>
+/// <protocol-definition>           ::= "protocol" <record-definition>
+/// <record-definition>             ::= <identifier> [":" <base-class-decl> {"," <base-class-decl>}*] (";"|<compound-statement>)
+/// <base-class-decl>               ::= [<access-spec>] <type-expression>
 /// <variable-declaration>          ::= ("var"|"let") <short-var-declaration>
 /// <short-var-declaration>         ::= <identifier> [":" <type-expression>]
 ///                                                  ["=" <assignment-expression>] ";"
@@ -198,6 +200,7 @@ struct Context {
         size_t index);
     UniquePtr<ast::RecordDefinition> parseRecordDefinition(
         ast::SpecifierList specList);
+    UniquePtr<ast::BaseClassDeclaration> parseBaseClass();
     UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(
         ast::SpecifierList specList);
     UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
@@ -604,23 +607,57 @@ UniquePtr<ast::RecordDefinition> Context::parseRecordDefinition(
             return nullptr;
         }
     }
-    auto body = parseCompoundStatement();
-    if (!body) {
-        SC_UNIMPLEMENTED(); // Handle issue
+    utl::small_vector<UniquePtr<ast::BaseClassDeclaration>> baseClasses;
+    if (tokens.peek().kind() == Colon) {
+        tokens.eat();
+        while (true) {
+            auto base = parseBaseClass();
+            baseClasses.push_back(std::move(base));
+            Token const& next = tokens.peek();
+            if (next.kind() == Comma) {
+                tokens.eat();
+                continue;
+            }
+            if (next.kind() != OpenBrace && next.kind() != Semicolon) {
+                issues.push<UnqualifiedID>(next, OpenBrace);
+            }
+            break;
+        }
     }
+    auto body = [&]() -> UniquePtr<ast::CompoundStatement> {
+        if (tokens.peek().kind() == Semicolon) {
+            tokens.eat();
+            return nullptr;
+        }
+        auto body = parseCompoundStatement();
+        if (!body) {
+            SC_UNIMPLEMENTED(); // Handle issue
+        }
+        return body;
+    }();
     switch (declarator.kind()) {
     case Struct:
         return allocate<ast::StructDefinition>(declarator.sourceRange(),
                                                specList, std::move(identifier),
-                                               std::move(body));
+                                               std::move(body),
+                                               std::move(baseClasses));
     case Protocol:
         return allocate<ast::ProtocolDefinition>(declarator.sourceRange(),
                                                  specList,
                                                  std::move(identifier),
-                                                 std::move(body));
+                                                 std::move(body),
+                                                 std::move(baseClasses));
     default:
         SC_UNREACHABLE();
     }
+}
+
+UniquePtr<ast::BaseClassDeclaration> Context::parseBaseClass() {
+    auto const& tok = tokens.peek();
+    auto specList = parseSpecList();
+    auto type = parseTypeExpression();
+    auto SR = merge(tok.sourceRange(), type->sourceRange());
+    return allocate<ast::BaseClassDeclaration>(specList, SR, std::move(type));
 }
 
 UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration(

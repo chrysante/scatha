@@ -23,6 +23,7 @@
 
 using namespace scatha;
 using namespace sema;
+using namespace ranges::views;
 
 namespace {
 
@@ -34,6 +35,14 @@ struct InstContext {
         StructDependencyGraph& typeDependencies);
 
     void instantiateStructureType(SDGNode&);
+    Type const* instantiateStructMember(StructType& structType,
+                                        ast::VariableDeclaration& varDecl,
+                                        size_t declIndex);
+    Type const* instantiateStructMember(StructType& structType,
+                                        ast::BaseClassDeclaration& decl,
+                                        size_t declIndex);
+    Type const* instantiateStructMember(StructType& structType,
+                                        ast::Declaration&, size_t);
 
     void instantiateNonStaticDataMember(SDGNode&);
 
@@ -182,19 +191,61 @@ std::vector<StructType const*> InstContext::instantiateTypes(
     });
     std::vector<StructType const*> sortedStructTypes;
     /// Instantiate all types and member variables.
-    for (size_t const index: dependencyTraversalOrder) {
+    for (size_t index: dependencyTraversalOrder) {
         auto& node = dependencyGraph[index];
         // clang-format off
-        visit(*node.entity, utl::overload{
+        SC_MATCH (*node.entity) {
             [&](Variable const&) { instantiateNonStaticDataMember(node); },
             [&](StructType const& type) {
                 instantiateStructureType(node);
                 sortedStructTypes.push_back(&type);
             },
             [&](Entity const&) { SC_UNREACHABLE(); }
-        }); // clang-format on
+        }; // clang-format on
     }
     return sortedStructTypes;
+}
+
+Type const* InstContext::instantiateStructMember(
+    StructType& structType, ast::VariableDeclaration& varDecl,
+    size_t declIndex) {
+    auto& var = *varDecl.variable();
+    structType.pushMemberVariable(&var);
+    if (!varDecl.type()) {
+        return nullptr;
+    }
+    if (isa<ReferenceType>(varDecl.type())) {
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::RefInStruct, varDecl.type(),
+                              varDecl.initExpr());
+        return nullptr;
+    }
+    auto* varType = varDecl.type();
+    if (auto* array = dyncast<ArrayType const*>(varType)) {
+        const_cast<ArrayType*>(array)->recomputeSize();
+    }
+    var.setIndex(declIndex);
+    return varType;
+}
+
+Type const* InstContext::instantiateStructMember(
+    StructType& structType, ast::BaseClassDeclaration& decl, size_t declIndex) {
+    auto& obj = *decl.object();
+    structType.pushBaseObject(&obj);
+    if (!decl.type()) {
+        return nullptr;
+    }
+    if (!isa<RecordType>(decl.type())) {
+        ctx.issue<BadBaseDecl>(&decl, BadBaseDecl::InvalidType, decl.type());
+        return nullptr;
+    }
+    auto* baseType = decl.type();
+    obj.setIndex(declIndex);
+    return baseType;
+}
+
+Type const* InstContext::instantiateStructMember(StructType&, ast::Declaration&,
+                                                 size_t) {
+    SC_UNREACHABLE();
 }
 
 void InstContext::instantiateStructureType(SDGNode& node) {
@@ -205,35 +256,26 @@ void InstContext::instantiateStructureType(SDGNode& node) {
     size_t objectSize = 0;
     size_t objectAlign = 0;
     auto& structType = cast<StructType&>(*structDef.entity());
-    /// Here we collect all the variables and special member function of the
-    /// struct
-    for (auto [varIndex, varDecl]: structDef.body()->statements() |
-                                       Filter<ast::VariableDeclaration> |
-                                       ranges::views::enumerate)
-    {
-        if (!varDecl->isDecorated()) {
+    auto decls =
+        concat(structDef.baseClasses() | transform(cast<ast::Declaration*>),
+               structDef.body()->statements() |
+                   Filter<ast::VariableDeclaration>);
+    /// Here we collect all the base classes and members of the record
+    for (auto [declIndex, decl]: decls | ranges::views::enumerate) {
+        if (!decl->isDecorated()) {
             continue;
         }
-        auto& var = *varDecl->variable();
-        structType.pushMemberVariable(&var);
-        if (!varDecl->type()) {
+        auto* type = visit(*decl, [&, declIndex = declIndex](auto& decl) {
+            return instantiateStructMember(structType, decl, declIndex);
+        });
+        if (!type) {
             continue;
         }
-        if (isa<ReferenceType>(varDecl->type())) {
-            ctx.issue<BadVarDecl>(varDecl, BadVarDecl::RefInStruct,
-                                  varDecl->type(), varDecl->initExpr());
-            continue;
-        }
-        auto* varType = varDecl->type();
-        if (auto* array = dyncast<ArrayType const*>(varType)) {
-            const_cast<ArrayType*>(array)->recomputeSize();
-        }
-        objectAlign = std::max(objectAlign, varType->align());
-        SC_ASSERT(varType->size() % varType->align() == 0,
+        objectAlign = std::max(objectAlign, type->align());
+        SC_ASSERT(type->size() % type->align() == 0,
                   "size must be a multiple of align");
-        objectSize = utl::round_up_pow_two(objectSize, varType->align());
-        var.setIndex(varIndex);
-        objectSize += varType->size();
+        objectSize = utl::round_up_pow_two(objectSize, type->align());
+        objectSize += type->size();
     }
     if (objectAlign > 0) {
         objectSize = utl::round_up(objectSize, objectAlign);

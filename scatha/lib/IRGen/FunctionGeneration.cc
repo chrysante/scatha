@@ -145,7 +145,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::MemberAccess const&);
     Value genMemberAccess(ast::MemberAccess const&, sema::Variable const&);
     Value genMemberAccess(ast::MemberAccess const&, sema::Property const&);
-    Value genMemberAccess(ast::MemberAccess const&, sema::Temporary const&) {
+    Value genMemberAccess(ast::MemberAccess const&, sema::Object const&) {
         SC_UNREACHABLE();
     }
     Value getValueImpl(ast::DereferenceExpression const&);
