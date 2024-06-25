@@ -105,7 +105,9 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     if (funcDef.body()) {
         funcDef.body()->decorateScope(function);
     }
-    else if (funcDef.externalLinkage() != "C") {
+    else if (funcDef.externalLinkage() != "C" &&
+             !funcDef.findAncestor<ast::ProtocolDefinition>())
+    {
         ctx.issue<BadFuncDef>(&funcDef, BadFuncDef::FunctionMustHaveBody);
     }
     /// Now add this function definition to the dependency graph
@@ -130,8 +132,7 @@ size_t GatherContext::gatherImpl(ast::RecordDefinition& def) {
     }
     def.decorateDecl(type);
     def.body()->decorateScope(type);
-    size_t const index =
-        dependencyGraph.add({ .entity = type, .astNode = &def });
+    size_t index = dependencyGraph.add({ .entity = type, .astNode = &def });
     /// After we declared this type we gather all its members
     sym.withScopePushed(type, [&] {
         for (auto* statement:

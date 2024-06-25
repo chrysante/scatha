@@ -781,3 +781,21 @@ fn test() {
     CHECK(iss.findOnLine<BadExpr>(5));
     CHECK(iss.findOnLine<BadExpr>(6, NotFormattable));
 }
+
+TEST_CASE("Variable in protocol", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+protocol P {
+    var i: int;
+})");
+    CHECK(iss.findOnLine<BadVarDecl>(3, BadVarDecl::InProtocol));
+}
+
+TEST_CASE("Invalid base classes", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+struct S {}
+protocol P: S {}
+struct T: int {}
+)");
+    CHECK(iss.findOnLine<BadBaseDecl>(3, BadBaseDecl::NotAProtocol));
+    CHECK(iss.findOnLine<BadBaseDecl>(4, BadBaseDecl::InvalidType));
+}

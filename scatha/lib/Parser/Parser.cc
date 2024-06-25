@@ -626,8 +626,10 @@ UniquePtr<ast::RecordDefinition> Context::parseRecordDefinition(
     }
     auto body = [&]() -> UniquePtr<ast::CompoundStatement> {
         if (tokens.peek().kind() == Semicolon) {
+            auto SR = tokens.peek().sourceRange();
             tokens.eat();
-            return nullptr;
+            return allocate<ast::CompoundStatement>(
+                SR, utl::small_vector<UniquePtr<ast::Statement>>{});
         }
         auto body = parseCompoundStatement();
         if (!body) {

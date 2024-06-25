@@ -31,20 +31,22 @@ struct InstContext {
     InstContext(sema::AnalysisContext& ctx):
         ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
 
-    std::vector<StructType const*> instantiateTypes(
+    std::vector<RecordType const*> instantiateTypes(
         StructDependencyGraph& typeDependencies);
 
-    void instantiateStructureType(SDGNode&);
-    Type const* instantiateStructMember(StructType& structType,
+    void instantiateRecordType(SDGNode&);
+    Type const* instantiateRecordMember(RecordType& parentType,
                                         ast::VariableDeclaration& varDecl,
                                         size_t declIndex);
-    Type const* instantiateStructMember(StructType& structType,
+    Type const* instantiateRecordMember(RecordType& parentType,
                                         ast::BaseClassDeclaration& decl,
                                         size_t declIndex);
-    Type const* instantiateStructMember(StructType& structType,
+    Type const* instantiateRecordMember(RecordType& parentType,
                                         ast::Declaration&, size_t);
 
     void instantiateNonStaticDataMember(SDGNode&);
+
+    void instantiateBaseClass(SDGNode&);
 
     void instantiateFunction(ast::FunctionDefinition& def);
 
@@ -63,11 +65,11 @@ struct InstContext {
 
 } // namespace
 
-std::vector<StructType const*> sema::instantiateEntities(
+std::vector<RecordType const*> sema::instantiateEntities(
     AnalysisContext& ctx, StructDependencyGraph& typeDependencies,
     std::span<ast::Declaration*> globals) {
     InstContext instCtx(ctx);
-    auto structs = instCtx.instantiateTypes(typeDependencies);
+    auto records = instCtx.instantiateTypes(typeDependencies);
     for (auto* decl: globals) {
         // clang-format off
         SC_MATCH(*decl) {
@@ -85,7 +87,7 @@ std::vector<StructType const*> sema::instantiateEntities(
     /// `structs` is topologically sorted, so each invocation of
     /// `declareSpecialLifetimeFunctions()` can assume that the types of all
     /// data members already have been analyzed for lifetime triviality
-    for (auto* type: structs) {
+    for (auto* type: records | Filter<StructType>) {
         /// Const cast is fine because we just have the pointers as const to
         /// return them soon, they all have mutable origin.
         auto* mutType = const_cast<StructType*>(type);
@@ -99,7 +101,7 @@ std::vector<StructType const*> sema::instantiateEntities(
         analyzeLifetime(*mutType, ctx.symbolTable());
     }
     ctx.symbolTable().analyzeMissingLifetimes();
-    return structs;
+    return records;
 }
 
 static bool isUserDefined(Type const* type) {
@@ -137,22 +139,27 @@ static Type const* stripArray(Type const* type) {
     return type;
 }
 
-std::vector<StructType const*> InstContext::instantiateTypes(
+std::vector<RecordType const*> InstContext::instantiateTypes(
     StructDependencyGraph& dependencyGraph) {
     /// After gather name phase we have the names of all types in the symbol
     /// table and we gather the dependencies of variable declarations in
     /// structs. This must be done before sorting the dependency graph.
     auto dataMembers = dependencyGraph | ranges::views::filter([](auto& node) {
-        return isa<Variable>(node.entity);
+        return isa<BaseClassObject>(node.entity) || isa<Variable>(node.entity);
     });
     for (auto& node: dataMembers) {
-        auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
+        // clang-format off
+        auto* typeExpr = SC_MATCH (*node.astNode) {
+            [](ast::VariableDeclaration& decl) { return decl.typeExpr(); },
+            [](ast::BaseClassDeclaration& decl) { return decl.typeExpr(); },
+            [](ast::ASTNode const&) -> ast::Expression* { SC_UNREACHABLE(); }
+        }; // clang-format on
         auto* entity = sym.withScopeCurrent(node.entity->parent(), [&] {
-            auto* expr = analyzeTypeExpr(var.typeExpr(), ctx);
+            auto* expr = analyzeTypeExpr(typeExpr, ctx);
             return expr ? expr->entity() : nullptr;
         });
         if (isa<TypeDeductionQualifier>(entity)) {
-            ctx.issue<BadTypeDeduction>(var.typeExpr(), nullptr,
+            ctx.issue<BadTypeDeduction>(typeExpr, nullptr,
                                         BadTypeDeduction::InvalidContext);
             continue;
         }
@@ -189,28 +196,35 @@ std::vector<StructType const*> InstContext::instantiateTypes(
                  [&](size_t index) -> auto const& {
         return dependencyGraph[index].dependencies;
     });
-    std::vector<StructType const*> sortedStructTypes;
+    std::vector<RecordType const*> sortedRecords;
     /// Instantiate all types and member variables.
     for (size_t index: dependencyTraversalOrder) {
         auto& node = dependencyGraph[index];
         // clang-format off
         SC_MATCH (*node.entity) {
             [&](Variable const&) { instantiateNonStaticDataMember(node); },
-            [&](StructType const& type) {
-                instantiateStructureType(node);
-                sortedStructTypes.push_back(&type);
+            [&](BaseClassObject const&) { instantiateBaseClass(node); },
+            [&](RecordType const& type) {
+                instantiateRecordType(node);
+                sortedRecords.push_back(&type);
             },
             [&](Entity const&) { SC_UNREACHABLE(); }
         }; // clang-format on
     }
-    return sortedStructTypes;
+    return sortedRecords;
 }
 
-Type const* InstContext::instantiateStructMember(
-    StructType& structType, ast::VariableDeclaration& varDecl,
+Type const* InstContext::instantiateRecordMember(
+    RecordType& parentType, ast::VariableDeclaration& varDecl,
     size_t declIndex) {
+    auto* structType = dyncast<StructType*>(&parentType);
+    if (!structType) {
+        SC_ASSERT(isa<ProtocolType>(parentType), "");
+        ctx.issue<BadVarDecl>(&varDecl, BadVarDecl::InProtocol);
+        return nullptr;
+    }
     auto& var = *varDecl.variable();
-    structType.pushMemberVariable(&var);
+    structType->pushMemberVariable(&var);
     if (!varDecl.type()) {
         return nullptr;
     }
@@ -227,38 +241,41 @@ Type const* InstContext::instantiateStructMember(
     return varType;
 }
 
-Type const* InstContext::instantiateStructMember(
-    StructType& structType, ast::BaseClassDeclaration& decl, size_t declIndex) {
+Type const* InstContext::instantiateRecordMember(
+    RecordType& parentType, ast::BaseClassDeclaration& decl, size_t declIndex) {
     auto& obj = *decl.object();
-    structType.pushBaseObject(&obj);
+    parentType.pushBaseObject(&obj);
     if (!decl.type()) {
         return nullptr;
     }
-    if (!isa<RecordType>(decl.type())) {
+    auto* baseType = decl.type();
+    if (isa<ProtocolType>(parentType) && !isa<ProtocolType>(baseType)) {
+        ctx.issue<BadBaseDecl>(&decl, BadBaseDecl::NotAProtocol, decl.type());
+        return nullptr;
+    }
+    if (isa<StructType>(parentType) && !isa<RecordType>(baseType)) {
         ctx.issue<BadBaseDecl>(&decl, BadBaseDecl::InvalidType, decl.type());
         return nullptr;
     }
-    auto* baseType = decl.type();
     obj.setIndex(declIndex);
     return baseType;
 }
 
-Type const* InstContext::instantiateStructMember(StructType&, ast::Declaration&,
+Type const* InstContext::instantiateRecordMember(RecordType&, ast::Declaration&,
                                                  size_t) {
     SC_UNREACHABLE();
 }
 
-void InstContext::instantiateStructureType(SDGNode& node) {
-    ast::StructDefinition& structDef =
-        cast<ast::StructDefinition&>(*node.astNode);
+void InstContext::instantiateRecordType(SDGNode& node) {
+    auto& recordDef = cast<ast::RecordDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize = 0;
     size_t objectAlign = 0;
-    auto& structType = cast<StructType&>(*structDef.entity());
+    auto& recordType = cast<RecordType&>(*recordDef.entity());
     auto decls =
-        concat(structDef.baseClasses() | transform(cast<ast::Declaration*>),
-               structDef.body()->statements() |
+        concat(recordDef.baseClasses() | transform(cast<ast::Declaration*>),
+               recordDef.body()->statements() |
                    Filter<ast::VariableDeclaration>);
     /// Here we collect all the base classes and members of the record
     for (auto [declIndex, decl]: decls | ranges::views::enumerate) {
@@ -266,9 +283,9 @@ void InstContext::instantiateStructureType(SDGNode& node) {
             continue;
         }
         auto* type = visit(*decl, [&, declIndex = declIndex](auto& decl) {
-            return instantiateStructMember(structType, decl, declIndex);
+            return instantiateRecordMember(recordType, decl, declIndex);
         });
-        if (!type) {
+        if (!type || !type->isComplete()) {
             continue;
         }
         objectAlign = std::max(objectAlign, type->align());
@@ -280,8 +297,14 @@ void InstContext::instantiateStructureType(SDGNode& node) {
     if (objectAlign > 0) {
         objectSize = utl::round_up(objectSize, objectAlign);
     }
-    structType.setSize(std::max(objectSize, size_t{ 1 }));
-    structType.setAlign(std::max(objectAlign, size_t{ 1 }));
+    if (auto* structType = dyncast<StructType*>(&recordType)) {
+        structType->setSize(std::max(objectSize, size_t{ 1 }));
+        structType->setAlign(std::max(objectAlign, size_t{ 1 }));
+    }
+    else {
+        SC_ASSERT(objectSize == 0, "");
+        SC_ASSERT(objectAlign == 0, "");
+    }
 }
 
 static Type const* getType(ast::Expression const* expr) {
@@ -301,6 +324,18 @@ void InstContext::instantiateNonStaticDataMember(SDGNode& node) {
     auto* var = cast<Variable*>(node.entity);
     sym.setVariableType(var, type);
     varDecl.decorateVarDecl(var);
+}
+
+void InstContext::instantiateBaseClass(SDGNode& node) {
+    ast::BaseClassDeclaration& decl =
+        cast<ast::BaseClassDeclaration&>(*node.astNode);
+    sym.makeScopeCurrent(node.entity->parent());
+    utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
+    auto* type = getType(decl.typeExpr());
+    /// Here we set the type of the variable in the symbol table.
+    auto* obj = cast<BaseClassObject*>(node.entity);
+    sym.setBaseClassType(obj, type);
+    decl.decorateDecl(obj);
 }
 
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
@@ -369,8 +404,8 @@ Type const* InstContext::analyzeParam(ast::ParameterDeclaration& param) const {
 }
 
 Type const* InstContext::analyzeThisParam(ast::ThisParameter& param) const {
-    auto* structure = param.findAncestor<ast::StructDefinition>();
-    if (!structure) {
+    auto* record = param.findAncestor<ast::RecordDefinition>();
+    if (!record) {
         ctx.issue<BadVarDecl>(&param, BadVarDecl::ThisInFreeFunction);
         return nullptr;
     }
@@ -378,11 +413,11 @@ Type const* InstContext::analyzeThisParam(ast::ThisParameter& param) const {
         ctx.issue<BadVarDecl>(&param, BadVarDecl::ThisPosition);
         return nullptr;
     }
-    auto* structType = cast<StructType const*>(structure->entity());
+    auto* recordType = cast<RecordType const*>(record->entity());
     if (param.isReference()) {
-        return sym.reference(QualType(structType, param.mutability()));
+        return sym.reference(QualType(recordType, param.mutability()));
     }
-    return structType;
+    return recordType;
 }
 
 void InstContext::instantiateGlobalVariable(ast::VariableDeclaration& decl) {

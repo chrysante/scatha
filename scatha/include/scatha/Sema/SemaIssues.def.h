@@ -62,6 +62,15 @@ SC_SEMA_BADVARDECL_DEF(RefInStruct, Error, {
     });
 })
 
+SC_SEMA_BADVARDECL_DEF(InProtocol, Error, {
+    header("Cannot declare non-static variable in protocol");
+    auto* var = cast<ast::VariableDeclaration const*>(declaration());
+    primary(var->typeExpr()->sourceRange(), [=](std::ostream& str) {
+        str << "Variable " << var->name() << " of type "
+            << sema::format(var->type()) << " declared here";
+    });
+})
+
 SC_SEMA_BADVARDECL_DEF(ThisInFreeFunction, Error, {
     header("'this' parameter can only be declared in member functions");
     primary(declaration()->sourceRange(), [=, this](std::ostream& str) {
@@ -125,6 +134,16 @@ SC_SEMA_BADBASEDECL_DEF(InvalidType, Error, {
                                     decl->sourceRange();
     primary(range, [=, this](std::ostream& str) {
         str << sema::format(type()) << " is invalid";
+    });
+})
+
+SC_SEMA_BADBASEDECL_DEF(NotAProtocol, Error, {
+    header("Protocols can only conform to other protocols");
+    auto* decl = declaration();
+    auto range = decl->typeExpr() ? decl->typeExpr()->sourceRange() :
+                                    decl->sourceRange();
+    primary(range, [=, this](std::ostream& str) {
+        str << sema::format(type()) << " is not a protocol";
     });
 })
 

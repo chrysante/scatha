@@ -10,7 +10,7 @@ namespace scatha::sema {
 /// Result structure of function `sema::analyze()`
 struct AnalysisResult {
     /// Topologically sorted list of all struct types
-    std::vector<StructType const*> structDependencyOrder;
+    std::vector<RecordType const*> recordDependencyOrder;
 
     /// List of all global declarations in the module
     std::vector<ast::Declaration*> globals;

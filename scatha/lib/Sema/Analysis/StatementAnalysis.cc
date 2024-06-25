@@ -307,7 +307,6 @@ void StmtContext::analyzeImpl(ast::FunctionDefinition& def) {
         return;
     }
     if (!def.body()) {
-        ctx.issue<BadFuncDef>(&def, BadFuncDef::FunctionMustHaveBody);
         return;
     }
     def.body()->decorateScope(semaFn);
