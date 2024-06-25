@@ -88,7 +88,7 @@ public:
     explicit TypeMap(ir::Context& ctx): ctx(&ctx) {}
 
     /// Inserts as packed representation
-    void insert(sema::StructType const* key, ir::StructType const* value,
+    void insert(sema::RecordType const* key, ir::StructType const* value,
                 StructMetadata metaData);
 
     ///

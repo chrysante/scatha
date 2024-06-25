@@ -19,7 +19,7 @@ StructMetadata makeStructMetadata(TypeMap& typeMap,
                                   sema::StructType const* semaType);
 
 /// Translates \p semaType to an IR structure type
-ir::StructType* generateType(sema::StructType const* semaType, ir::Context& ctx,
+ir::StructType* generateType(sema::RecordType const* semaType, ir::Context& ctx,
                              ir::Module& mod, TypeMap& typeMap,
                              sema::NameMangler const& nameMangler);
 

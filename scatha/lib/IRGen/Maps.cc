@@ -133,11 +133,13 @@ static void insertImpl(Map& map, typename Map::key_type key,
     SC_ASSERT(success, "Failed to insert type");
 }
 
-void TypeMap::insert(sema::StructType const* key, ir::StructType const* value,
+void TypeMap::insert(sema::RecordType const* key, ir::StructType const* value,
                      StructMetadata metaData) {
     insertImpl(packedMap, key, value);
     insertImpl(unpackedMap, key, { value });
-    meta.insert({ key, std::move(metaData) });
+    if (auto* S = dyncast<sema::StructType const*>(key)) {
+        meta.insert({ S, std::move(metaData) });
+    }
 }
 
 template <ValueRepresentation Repr>

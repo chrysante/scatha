@@ -36,18 +36,25 @@ StructMetadata irgen::makeStructMetadata(TypeMap& typeMap,
     return metadata;
 }
 
-ir::StructType* irgen::generateType(sema::StructType const* semaType,
+ir::StructType* irgen::generateType(sema::RecordType const* semaType,
                                     [[maybe_unused]] ir::Context& ctx,
                                     ir::Module& mod, TypeMap& typeMap,
                                     sema::NameMangler const& nameMangler) {
     auto structType = allocate<ir::StructType>(nameMangler(*semaType));
-    for (auto* member: semaType->memberVariables()) {
-        for (auto* irElemType: typeMap.unpacked(member->type())) {
-            structType->pushMember(irElemType);
+    StructMetadata MD;
+    if (auto* semaStruct = dyncast<sema::StructType const*>(semaType)) {
+        auto objects = concat(semaStruct->baseObjects() |
+                                  transform(cast<sema::Object const*>),
+                              semaStruct->memberVariables());
+        for (auto* obj: objects) {
+            for (auto* irElemType: typeMap.unpacked(obj->type())) {
+                structType->pushMember(irElemType);
+            }
         }
+        MD = makeStructMetadata(typeMap, semaStruct);
     }
     auto* result = structType.get();
-    typeMap.insert(semaType, result, makeStructMetadata(typeMap, semaType));
+    typeMap.insert(semaType, result, std::move(MD));
     mod.addStructure(std::move(structType));
     return result;
 }

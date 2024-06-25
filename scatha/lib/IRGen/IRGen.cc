@@ -192,9 +192,7 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
     for (auto* lib: libs) {
         importLibrary(ctx, mod, *lib, typeMap, globalMap, config.nameMangler);
     }
-    for (auto* semaType:
-         analysisResult.recordDependencyOrder | Filter<sema::StructType>)
-    {
+    for (auto* semaType: analysisResult.recordDependencyOrder) {
         generateType(semaType, ctx, mod, typeMap, config.nameMangler);
     }
     /// We generate code for all compiler generated functions of public types
