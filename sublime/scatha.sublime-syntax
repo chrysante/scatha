@@ -19,9 +19,13 @@ contexts:
       push: line_comment
 
     # C-style block comment
-    - match: '\/\*(\*(?!\/)|[^*])*\*\/'
+    - match: '\/\*'
       scope: punctuation.definition.comment.example-c
-      push: line_comment
+      push:
+        # This is an anonymous context push for brevity.
+        - meta_scope: comment.line.double-slash.example-c
+        - match: ($|\n)?\*\/
+          pop: true
 
   # Keywords are if, else for and while.
     # Note that blackslashes don't need to be escaped within single quoted
@@ -36,7 +40,7 @@ contexts:
 
       scope: punctuation.definition.keyword
 
-    - match: \b(fn|var|let|struct|public|internal|private|mut|new|delete|move|unique|import|use|extern|reinterpret|as)\b
+    - match: \b(fn|var|let|struct|protocol|public|internal|private|mut|new|delete|move|unique|import|use|extern|reinterpret|as)\b
       scope: punctuation.definition.keyword
 
     - match: \b(void|bool|byte|int|float|double|str|true|false|this|null)\b
