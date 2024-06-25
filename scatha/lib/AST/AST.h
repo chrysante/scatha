@@ -1300,19 +1300,33 @@ private:
     sema::Type const* _returnType = nullptr;
 };
 
+/// Abstract node representing the definition of a struct or a protocol.
+class SCATHA_API RecordDefinition: public Declaration {
+public:
+    AST_DERIVED_COMMON(RecordDefinition)
+
+    /// Body of the struct.
+    AST_PROPERTY(1, CompoundStatement, body, Body)
+
+protected:
+    explicit RecordDefinition(NodeType nodeType, SourceRange sourceRange,
+                              SpecifierList specList,
+                              UniquePtr<Identifier> name,
+                              UniquePtr<CompoundStatement> body):
+        Declaration(nodeType, specList, sourceRange, std::move(name),
+                    std::move(body)) {}
+};
+
 /// Concrete node representing the definition of a struct.
-class SCATHA_API StructDefinition: public Declaration {
+class SCATHA_API StructDefinition: public RecordDefinition {
 public:
     explicit StructDefinition(SourceRange sourceRange, SpecifierList specList,
                               UniquePtr<Identifier> name,
                               UniquePtr<CompoundStatement> body):
-        Declaration(NodeType::StructDefinition, specList, sourceRange,
-                    std::move(name), std::move(body)) {}
+        RecordDefinition(NodeType::StructDefinition, sourceRange, specList,
+                         std::move(name), std::move(body)) {}
 
     AST_DERIVED_COMMON(StructDefinition)
-
-    /// Body of the struct.
-    AST_PROPERTY(1, CompoundStatement, body, Body)
 
     /// **Decoration provided by semantic analysis**
 
@@ -1323,6 +1337,28 @@ public:
 
     /// \overload
     sema::StructType const* structType() const;
+};
+
+/// Concrete node representing the definition of a struct.
+class SCATHA_API ProtocolDefinition: public RecordDefinition {
+public:
+    explicit ProtocolDefinition(SourceRange sourceRange, SpecifierList specList,
+                                UniquePtr<Identifier> name,
+                                UniquePtr<CompoundStatement> body):
+        RecordDefinition(NodeType::ProtocolDefinition, sourceRange, specList,
+                         std::move(name), std::move(body)) {}
+
+    AST_DERIVED_COMMON(ProtocolDefinition)
+
+    /// **Decoration provided by semantic analysis**
+
+    /// The protocol being defined
+    sema::ProtocolType* protocolType() {
+        return const_cast<sema::ProtocolType*>(std::as_const(*this).protocolType());
+    }
+    
+    /// \overload
+    sema::ProtocolType const* protocolType() const;
 };
 
 /// Concrete node representing a statement that consists of a single expression.

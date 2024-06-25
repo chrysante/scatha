@@ -155,13 +155,10 @@ auto TypeMap::compute(sema::Type const* type) const {
             res = { ctx->floatType(floatType.bitwidth()) };
         },
         [&](sema::NullPtrType const&) { res = { ctx->ptrType() }; },
-        [&](sema::StructType const&) {
-            SC_UNREACHABLE("Undeclared structure type");
+        [&](sema::RecordType const&) {
+            SC_UNREACHABLE("Undeclared record type");
         },
         [&](sema::FunctionType const&) {
-            /// This is unreachable because function types don't translate
-            /// easily to IR. IR functions have type `ptr` and store return
-            /// and argument types separately
             SC_UNREACHABLE();
         },
         [&](sema::ArrayType const& type) {

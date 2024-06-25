@@ -609,7 +609,7 @@ struct Serializer {
         gatherLibraryDependencies(*type.returnType());
     }
 
-    void gatherLibDepsImpl(StructType const& type) {
+    void gatherLibDepsImpl(RecordType const& type) {
         if (auto* lib = parentLibrary(type)) {
             nativeDependencies.insert(lib);
         }

@@ -8,6 +8,7 @@
 /// <global-statement>              ::= <import-statement> | <declaration>
 /// <declaration>                   ::= [<access-spec>] <function-definition>
 ///                                   | [<access-spec>] <struct-definition>
+///                                   | [<access-spec>] <protocol-definition>
 ///                                   | [<access-spec>] <variable-declaration>
 /// <function-definition>           ::= "fn" <identifier>
 ///                                          "(" {<parameter-declaration>}* ")"
@@ -18,6 +19,7 @@
 ///                                   | "& this"
 ///                                   | "& mut this"
 /// <struct-definition>             ::= "struct" <identifier> <compound-statement>
+/// <protocol-definition>           ::= "protocol" <identifier> <compound-statement>
 /// <variable-declaration>          ::= ("var"|"let") <short-var-declaration>
 /// <short-var-declaration>         ::= <identifier> [":" <type-expression>]
 ///                                                  ["=" <assignment-expression>] ";"
@@ -194,7 +196,7 @@ struct Context {
         ast::SpecifierList specList);
     UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration(
         size_t index);
-    UniquePtr<ast::StructDefinition> parseStructDefinition(
+    UniquePtr<ast::RecordDefinition> parseRecordDefinition(
         ast::SpecifierList specList);
     UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(
         ast::SpecifierList specList);
@@ -378,8 +380,8 @@ UniquePtr<ast::Declaration> Context::parseDeclaration() {
     if (auto funcDef = parseFunctionDefinition(specList)) {
         return funcDef;
     }
-    if (auto structDef = parseStructDefinition(specList)) {
-        return structDef;
+    if (auto recordDef = parseRecordDefinition(specList)) {
+        return recordDef;
     }
     if (auto varDef = parseVariableDeclaration(specList)) {
         return varDef;
@@ -587,31 +589,38 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
                                                std::move(typeExpr));
 }
 
-UniquePtr<ast::StructDefinition> Context::parseStructDefinition(
+UniquePtr<ast::RecordDefinition> Context::parseRecordDefinition(
     ast::SpecifierList specList) {
-    Token const declarator = tokens.peek();
-    if (declarator.kind() != Struct) {
+    Token const& declarator = tokens.peek();
+    if (declarator.kind() != Struct && declarator.kind() != Protocol) {
         return nullptr;
     }
     tokens.eat();
     auto identifier = parseID();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(tokens.peek());
-        bool const recovered =
-            recover(std::pair(OpenBrace, [] { return true; }));
+        bool recovered = recover(std::pair(OpenBrace, [] { return true; }));
         if (!recovered) {
             return nullptr;
         }
     }
     auto body = parseCompoundStatement();
     if (!body) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
         SC_UNIMPLEMENTED(); // Handle issue
     }
-    return allocate<ast::StructDefinition>(declarator.sourceRange(), specList,
-                                           std::move(identifier),
-                                           std::move(body));
+    switch (declarator.kind()) {
+    case Struct:
+        return allocate<ast::StructDefinition>(declarator.sourceRange(),
+                                               specList, std::move(identifier),
+                                               std::move(body));
+    case Protocol:
+        return allocate<ast::ProtocolDefinition>(declarator.sourceRange(),
+                                                 specList,
+                                                 std::move(identifier),
+                                                 std::move(body));
+    default:
+        SC_UNREACHABLE();
+    }
 }
 
 UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration(

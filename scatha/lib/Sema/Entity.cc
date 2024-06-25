@@ -372,11 +372,11 @@ NullPtrType::NullPtrType(Scope* parent):
     BuiltinType(EntityType::NullPtrType, "__nullptr_t", parent, 1, 1,
                 AccessControl::Public) {}
 
-StructType::StructType(std::string name, Scope* parentScope,
-                       ast::ASTNode* astNode, size_t size, size_t align,
-                       AccessControl accessControl):
-    CompoundType(EntityType::StructType, ScopeKind::Type, std::move(name),
-                 parentScope, size, align, astNode, accessControl) {}
+RecordType::RecordType(EntityType entityType, std::string name,
+                       Scope* parentScope, ast::ASTNode* astNode, size_t size,
+                       size_t align, AccessControl accessControl):
+    CompoundType(entityType, ScopeKind::Type, std::move(name), parentScope,
+                 size, align, astNode, accessControl) {}
 
 void StructType::setMemberVariable(size_t index, Variable* var) {
     if (index >= memberVars.size()) {

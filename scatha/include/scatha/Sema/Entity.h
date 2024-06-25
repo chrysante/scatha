@@ -55,6 +55,7 @@
 /// │        │     └─ UniquePtrType
 /// │        └─ CompoundType
 /// │           ├─ StructType
+/// │           ├─ ProtocolType
 /// │           └─ ArrayType
 /// ├─ TypeDeductionQualifier
 /// └─ PoisonEntity
@@ -752,18 +753,45 @@ public:
     explicit NullPtrType(Scope* parent);
 };
 
-/// Abstract base class of `StructType` and `ArrayType`
+/// Abstract base class of `RecordType` and `ArrayType`
 class SCATHA_API CompoundType: public ObjectType {
 protected:
     using ObjectType::ObjectType;
 };
 
+/// Abstract base class of `StructType` and `Protocol`
+class SCATHA_API RecordType: public CompoundType {
+public:
+    /// The AST node that defines this type
+    SC_ASTNODE_DERIVED(definition, RecordDefinition)
+
+    /// \Returns a view over all user defined and compiler generated
+    /// constructors. This field will be set after `analyzeLifetime()` has been
+    /// called on this type
+    std::span<Function* const> constructors() const { return ctors; }
+
+    /// Shall only called be called by `analyzeLifetime()`
+    void setConstructors(std::span<Function* const> ctors) {
+        this->ctors = ctors | ToSmallVector<>;
+    }
+
+protected:
+    explicit RecordType(EntityType entityType, std::string name,
+                        Scope* parentScope, ast::ASTNode* astNode, size_t size,
+                        size_t align, AccessControl accessControl);
+
+private:
+    utl::small_vector<Function*> ctors;
+};
+
 /// Concrete class representing the type of a structure
-class SCATHA_API StructType: public CompoundType {
+class SCATHA_API StructType: public RecordType {
 public:
     explicit StructType(std::string name, Scope* parentScope,
                         ast::ASTNode* astNode, size_t size, size_t align,
-                        AccessControl accessControl);
+                        AccessControl accessControl):
+        RecordType(EntityType::StructType, std::move(name), parentScope,
+                   astNode, size, align, accessControl) {}
 
     /// The AST node that defines this type
     SC_ASTNODE_DERIVED(definition, StructDefinition)
@@ -789,19 +817,20 @@ public:
     /// Sets the member variable of this structure at index \p index
     void setMemberVariable(size_t index, Variable* var);
 
-    /// \Returns a view over all user defined and compiler generated
-    /// constructors. This field will be set after `analyzeLifetime()` has been
-    /// called on this type
-    std::span<Function* const> constructors() const { return ctors; }
-
-    /// Shall only called by called by `analyzeLifetime()`
-    void setConstructors(std::span<Function* const> ctors) {
-        this->ctors = ctors | ToSmallVector<>;
-    }
-
 private:
     utl::small_vector<Variable*> memberVars;
-    utl::small_vector<Function*> ctors;
+};
+
+/// Concrete class representing the type of a protocol
+class SCATHA_API ProtocolType: public RecordType {
+public:
+    explicit ProtocolType(std::string name, Scope* parentScope,
+                          ast::ASTNode* astNode, AccessControl accessControl):
+        RecordType(EntityType::ProtocolType, std::move(name), parentScope,
+                   astNode, InvalidSize, InvalidSize, accessControl) {}
+
+    /// The AST node that defines this type
+    SC_ASTNODE_DERIVED(definition, ProtocolDefinition)
 };
 
 /// Concrete class representing the type of an array

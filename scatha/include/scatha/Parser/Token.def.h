@@ -34,6 +34,7 @@ SC_KEYWORD_TOKEN_DEF(Export,      "export")
 /// ## Declarators
 SC_KEYWORD_TOKEN_DEF(Module,      "module")
 SC_KEYWORD_TOKEN_DEF(Struct,      "struct")
+SC_KEYWORD_TOKEN_DEF(Protocol,    "protocol")
 SC_KEYWORD_TOKEN_DEF(Function,    "fn")
 SC_KEYWORD_TOKEN_DEF(Var,         "var")
 SC_KEYWORD_TOKEN_DEF(Let,         "let")
