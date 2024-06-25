@@ -356,6 +356,8 @@ set(scatha_sources
     lib/Sema/Analysis/GatherNames.h
     lib/Sema/Analysis/Instantiation.cc
     lib/Sema/Analysis/Instantiation.h
+    lib/Sema/Analysis/ProtocolConformance.cc
+    lib/Sema/Analysis/ProtocolConformance.h
     lib/Sema/Analysis/OverloadResolution.cc
     lib/Sema/Analysis/OverloadResolution.h
     lib/Sema/Analysis/StatementAnalysis.cc

@@ -197,7 +197,9 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
     }
     /// We generate code for all compiler generated functions of public types
     utl::small_vector<sema::Function const*> generatedFunctions;
-    for (auto* type: sym.structTypes() | filter(&sema::StructType::isPublic)) {
+    for (auto* type: sym.recordTypes() | Filter<sema::StructType> |
+                         filter(&sema::StructType::isPublic))
+    {
         for (auto* F: type->entities() | Filter<sema::Function>) {
             if (F->isGenerated() && !isLibEntity(F)) {
                 generatedFunctions.push_back(F);

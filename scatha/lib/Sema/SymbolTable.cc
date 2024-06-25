@@ -96,11 +96,8 @@ struct SymbolTable::Impl {
     /// List of all functions
     utl::small_vector<Function*> functions;
 
-    /// List of all structs
-    utl::small_vector<StructType*> structTypes;
-
-    /// List of all protocols
-    utl::small_vector<ProtocolType*> protocolTypes;
+    /// List of all records
+    utl::small_vector<RecordType*> recordTypes;
 
     /// List of all imported libraries
     utl::small_vector<Library*> importedLibs;
@@ -393,27 +390,23 @@ RecordType* SymbolTable::declareRecordImpl(ast::NodeType nodeType,
     RecordType* type = nullptr;
     switch (nodeType) {
     case ast::NodeType::StructDefinition: {
-        auto* structType =
-            impl->addEntity<StructType>(name, &currentScope(),
-                                        cast<ast::StructDefinition*>(def),
-                                        InvalidSize, InvalidSize,
-                                        accessControl);
-        impl->structTypes.push_back(structType);
-        type = structType;
+        type = impl->addEntity<StructType>(name, &currentScope(),
+                                           cast<ast::StructDefinition*>(def),
+                                           InvalidSize, InvalidSize,
+                                           accessControl);
         break;
     }
     case ast::NodeType::ProtocolDefinition: {
-        auto* protocolType =
+        type =
             impl->addEntity<ProtocolType>(name, &currentScope(),
                                           cast<ast::ProtocolDefinition*>(def),
                                           accessControl);
-        impl->protocolTypes.push_back(protocolType);
-        type = protocolType;
         break;
     }
     default:
         SC_UNREACHABLE();
     }
+    impl->recordTypes.push_back(type);
     addToCurrentScope(type);
     validateAccessControl(*type);
     addGlobalAliasIfInternalAtFilescope(type);
@@ -1028,8 +1021,8 @@ std::span<Function const* const> SymbolTable::functions() const {
     return impl->functions;
 }
 
-std::span<StructType const* const> SymbolTable::structTypes() const {
-    return impl->structTypes;
+std::span<RecordType const* const> SymbolTable::recordTypes() const {
+    return impl->recordTypes;
 }
 
 std::span<Library* const> SymbolTable::importedLibs() {

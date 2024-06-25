@@ -72,7 +72,7 @@ struct StmtContext {
     void analyzeNewMoveDelete(ast::FunctionDefinition& def);
     void analyzeImpl(ast::ParameterDeclaration&);
     void analyzeImpl(ast::ThisParameter&);
-    void analyzeImpl(ast::StructDefinition&);
+    void analyzeImpl(ast::RecordDefinition&);
     void analyzeImpl(ast::CompoundStatement&);
     void analyzeImpl(ast::VariableDeclaration&);
     void analyzeImpl(ast::ExpressionStatement&);
@@ -504,9 +504,9 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
     }
 }
 
-void StmtContext::analyzeImpl(ast::StructDefinition& def) {
-    /// Function defintion is only allowed in the global scope, at namespace
-    /// scope and structure scope.
+void StmtContext::analyzeImpl(ast::RecordDefinition& def) {
+    /// Record defintion is only allowed in the global scope, at namespace
+    /// scope and record scope.
     sym.declarePoison(def.nameIdentifier(), EntityCategory::Type,
                       AccessControl::Private);
     ctx.issue<GenericBadStmt>(&def, GenericBadStmt::InvalidScope);

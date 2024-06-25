@@ -289,8 +289,8 @@ public:
     /// \overload
     std::span<Function const* const> functions() const;
 
-    /// \Returns a view over all struct types
-    std::span<StructType const* const> structTypes() const;
+    /// \Returns a view over all record types
+    std::span<RecordType const* const> recordTypes() const;
 
     /// View over all imported libraries
     std::span<Library* const> importedLibs();

@@ -4,6 +4,7 @@
 #include "Sema/Analysis/AnalysisContext.h"
 #include "Sema/Analysis/GatherNames.h"
 #include "Sema/Analysis/Instantiation.h"
+#include "Sema/Analysis/ProtocolConformance.h"
 #include "Sema/Analysis/StatementAnalysis.h"
 #include "Sema/Entity.h"
 
@@ -21,6 +22,9 @@ AnalysisResult sema::analyze(ast::ASTNode& TU, SymbolTable& sym,
     for (auto* decl: names.globals) {
         sym.withScopeCurrent(decl->entity()->parent(),
                              [&] { analyzeStatement(ctx, decl); });
+    }
+    for (auto* recordType: sym.recordTypes()) {
+        analyzeProtocolConformance(ctx, const_cast<RecordType&>(*recordType));
     }
     return AnalysisResult{ std::move(structs), std::move(names.globals) };
 }
