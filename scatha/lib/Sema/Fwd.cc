@@ -72,6 +72,21 @@ std::ostream& sema::operator<<(std::ostream& str, Mutability mut) {
     return str << toString(mut);
 }
 
+std::string_view sema::toString(PointerBindMode mode) {
+    using enum PointerBindMode;
+    switch (mode) {
+    case Static:
+        return "static";
+    case Dynamic:
+        return "dynamic";
+    }
+    SC_UNREACHABLE();
+}
+
+std::ostream& sema::operator<<(std::ostream& str, PointerBindMode mode) {
+    return str << toString(mode);
+}
+
 std::string_view sema::toString(AccessControl a) {
     return std::array{
 #define SC_SEMA_ACCESS_CONTROL_DEF(Kind, Spelling) std::string_view(Spelling),

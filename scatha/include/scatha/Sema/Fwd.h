@@ -95,6 +95,14 @@ SCATHA_API std::string_view toString(Mutability);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, Mutability);
 
+/// Binding modes for pointers and references
+/// Dynamic pointers are wide pointers that carry a second pointer to a vtable
+enum class PointerBindMode { Static, Dynamic };
+
+SCATHA_API std::string_view toString(PointerBindMode);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, PointerBindMode);
+
 ///
 enum class ReferenceKind { Reference, Pointer, UniquePointer };
 

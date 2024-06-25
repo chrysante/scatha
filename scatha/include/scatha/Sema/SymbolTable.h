@@ -255,27 +255,34 @@ public:
     IntType const* intType(size_t width, Signedness signedness);
 
     /// \Returns the `RawPtrType` to the pointee type \p pointee
-    RawPtrType const* pointer(QualType pointee);
+    RawPtrType const* pointer(
+        QualType pointee, PointerBindMode bindMode = PointerBindMode::Static);
 
     /// \Returns `pointer(QualType(type, mutability))`
-    RawPtrType const* pointer(ObjectType const* type, Mutability mutability);
+    RawPtrType const* pointer(
+        ObjectType const* type, Mutability mutability,
+        PointerBindMode bindMode = PointerBindMode::Static);
 
     ///
     PointerType const* strPointer(Mutability mut = Mutability::Const);
 
     /// \Returns the `ReferenceType` to the referred type \p referred
-    ReferenceType const* reference(QualType referred);
+    ReferenceType const* reference(
+        QualType referred, PointerBindMode bindMode = PointerBindMode::Static);
 
     /// \Returns `reference(QualType(type, mutability))`
-    ReferenceType const* reference(ObjectType const* type,
-                                   Mutability mutability);
+    ReferenceType const* reference(
+        ObjectType const* type, Mutability mutability,
+        PointerBindMode bindMode = PointerBindMode::Static);
 
     /// \Returns the `UniquePtrType` to the pointee type \p pointee
-    UniquePtrType const* uniquePointer(QualType pointee);
+    UniquePtrType const* uniquePointer(
+        QualType pointee, PointerBindMode bindMode = PointerBindMode::Static);
 
     /// \Returns `uniquePointer(QualType(type, mutability))`
-    UniquePtrType const* uniquePointer(ObjectType const* type,
-                                       Mutability mutability);
+    UniquePtrType const* uniquePointer(
+        ObjectType const* type, Mutability mutability,
+        PointerBindMode bindMode = PointerBindMode::Static);
 
     /// Factory for type deduction qualifier entities
     TypeDeductionQualifier* typeDeductionQualifier(ReferenceKind refKind,

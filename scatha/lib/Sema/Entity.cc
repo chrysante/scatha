@@ -439,29 +439,36 @@ static size_t ptrSize(QualType base) { return isa<ArrayType>(*base) ? 16 : 8; }
 
 static size_t ptrAlign() { return 8; }
 
-static std::string makeIndirectName(std::string_view indirection,
-                                    QualType base) {
-    return utl::strcat(indirection, base.qualName());
+static std::string makeIndirectName(std::string_view indirection, QualType base,
+                                    PointerBindMode bindMode) {
+    std::stringstream sstr;
+    sstr << indirection;
+    if (bindMode == PointerBindMode::Dynamic) {
+        sstr << "dyn ";
+    }
+    sstr << base.qualName();
+    return std::move(sstr).str();
 }
 
 PointerType::PointerType(EntityType entityType, QualType base,
-                         std::string name):
+                         PointerBindMode bindMode, std::string name):
     BuiltinType(entityType, std::move(name), getParent(base.get()),
                 ptrSize(base), ptrAlign(), base->accessControl()),
-    PtrRefTypeBase(base) {}
+    PtrRefTypeBase(base, bindMode) {}
 
-RawPtrType::RawPtrType(QualType base):
-    PointerType(EntityType::RawPtrType, base, makeIndirectName("*", base)) {}
+RawPtrType::RawPtrType(QualType base, PointerBindMode bindMode):
+    PointerType(EntityType::RawPtrType, base, bindMode,
+                makeIndirectName("*", base, bindMode)) {}
 
-UniquePtrType::UniquePtrType(QualType base):
-    PointerType(EntityType::UniquePtrType, base,
-                makeIndirectName("*unique ", base)) {}
+UniquePtrType::UniquePtrType(QualType base, PointerBindMode bindMode):
+    PointerType(EntityType::UniquePtrType, base, bindMode,
+                makeIndirectName("*unique ", base, bindMode)) {}
 
-ReferenceType::ReferenceType(QualType base):
+ReferenceType::ReferenceType(QualType base, PointerBindMode bindMode):
     Type(EntityType::ReferenceType, ScopeKind::Invalid,
-         makeIndirectName("&", base), getParent(base.get()), nullptr,
+         makeIndirectName("&", base, bindMode), getParent(base.get()), nullptr,
          base->accessControl()),
-    PtrRefTypeBase(base) {}
+    PtrRefTypeBase(base, bindMode) {}
 
 Function::Function(std::string name, FunctionType const* type,
                    Scope* parentScope, FunctionAttribute attrs,
