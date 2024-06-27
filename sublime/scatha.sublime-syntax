@@ -40,7 +40,7 @@ contexts:
 
       scope: punctuation.definition.keyword
 
-    - match: \b(fn|var|let|struct|protocol|public|internal|private|mut|new|delete|move|unique|import|use|extern|reinterpret|as)\b
+    - match: \b(fn|var|let|struct|protocol|public|internal|private|mut|dyn|new|delete|move|unique|import|use|extern|reinterpret|as)\b
       scope: punctuation.definition.keyword
 
     - match: \b(void|bool|byte|int|float|double|str|true|false|this|null)\b
