@@ -713,8 +713,13 @@ ORError::ORError(PrivateTag, ast::Expression const* expr,
             str << "No matching function to call for " << name;
         });
         for (auto* function: overloadSet) {
-            secondary(getSourceRange(function->definition()),
-                      [=](std::ostream& str) {
+            auto SR = getSourceRange(function->definition());
+            secondary(SR, [=](std::ostream& str) {
+                if (!SR.valid()) {
+                    str << "Candidate function: ";
+                    tfmt::FormatGuard guard(Reset, str);
+                    str << sema::format(function) << "\n";
+                }
                 auto itr = matchErrors.find(function);
                 if (itr == matchErrors.end()) {
                     str << "Cannot call this";
@@ -749,19 +754,15 @@ ORError::ORError(PrivateTag, ast::Expression const* expr,
             str << "Ambiguous function call to " << name;
         });
         for (auto* function: matches) {
-            if (auto* def = function->definition()) {
-                secondary(function->definition()->sourceRange(),
-                          [=](std::ostream& str) {
-                    str << "Candidate function";
-                });
-            }
-            else {
-                secondary({}, [=](std::ostream& str) {
-                    str << "Candidate function: ";
+            auto SR = getSourceRange(function->definition());
+            secondary(SR, [=](std::ostream& str) {
+                str << "Candidate function";
+                if (!SR.valid()) {
+                    str << ": ";
                     tfmt::FormatGuard guard(Reset, str);
-                    str << sema::format(function) << std::endl;
-                });
-            }
+                    str << sema::format(function);
+                }
+            });
         }
         break;
     }

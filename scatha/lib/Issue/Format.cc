@@ -138,6 +138,7 @@ void SrcHighlightCtx::run() {
         }
         else {
             printMessage(4, H);
+            str << "\n";
         }
     }
 }
