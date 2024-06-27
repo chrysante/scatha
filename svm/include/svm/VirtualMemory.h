@@ -113,6 +113,7 @@ public:
 
     ///
     void resizeStaticSlot(size_t size);
+
     /// \Returns the number of bytes at which the pointer \p ptr is
     /// dereferencable. If the pointer is not valid a negative number is
     /// returned
