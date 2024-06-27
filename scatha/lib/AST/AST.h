@@ -655,9 +655,13 @@ public:
 template <NodeType Type>
 class SCATHA_API RefExprBase: public Expression {
 public:
-    explicit RefExprBase(UniquePtr<Expression> referred,
-                         sema::Mutability mutability, SourceRange sourceRange):
-        Expression(Type, sourceRange, std::move(referred)), mut(mutability) {}
+    explicit RefExprBase(
+        UniquePtr<Expression> referred, SourceRange sourceRange,
+        sema::Mutability mut = sema::Mutability::Const,
+        sema::PointerBindMode bindMode = sema::PointerBindMode::Static):
+        Expression(Type, sourceRange, std::move(referred)),
+        mut(mut),
+        _bindMode(bindMode) {}
 
     AST_PROPERTY(0, Expression, referred, Referred)
 
@@ -667,8 +671,15 @@ public:
     /// \Returns `true` if reference to `mut`
     bool isMut() const { return mut == sema::Mutability::Mutable; }
 
+    /// \Returns the binding mode qualifier
+    sema::PointerBindMode bindMode() const { return _bindMode; }
+
+    /// \Returns `true` if this is a dynamic reference
+    bool isDyn() const { return _bindMode == sema::PointerBindMode::Dynamic; }
+
 private:
     sema::Mutability mut;
+    sema::PointerBindMode _bindMode;
 };
 
 /// Concrete node representing a reference expression.
@@ -682,10 +693,7 @@ public:
 class SCATHA_API DereferenceExpression:
     public RefExprBase<NodeType::DereferenceExpression> {
 public:
-    explicit DereferenceExpression(UniquePtr<Expression> referred,
-                                   sema::Mutability mut,
-                                   SourceRange sourceRange):
-        RefExprBase(std::move(referred), mut, sourceRange) {}
+    using RefExprBase::RefExprBase;
 };
 
 /// MARK: Ternary Expressions
@@ -1178,18 +1186,23 @@ private:
 /// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
-    explicit ThisParameter(size_t index, sema::Mutability mut, bool isRef,
+    explicit ThisParameter(size_t index, sema::Mutability mut,
+                           sema::PointerBindMode bindMode, bool isRef,
                            SourceRange sourceRange):
         ParameterDeclaration(NodeType::ThisParameter, index, mut, sourceRange,
                              nullptr, nullptr),
+        _bindMode(bindMode),
         isRef(isRef) {}
 
     AST_DERIVED_COMMON(ThisParameter)
+
+    sema::PointerBindMode bindMode() const { return _bindMode; }
 
     /// The optional reference qualifier attached to the `this` parameter
     bool isReference() const { return isRef; }
 
 private:
+    sema::PointerBindMode _bindMode;
     bool isRef;
 };
 

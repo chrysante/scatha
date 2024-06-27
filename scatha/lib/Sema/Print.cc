@@ -78,6 +78,16 @@ void sema::print(SymbolTable const& symbolTable, std::ostream& ostream,
     ctx.print(symbolTable.globalScope());
 }
 
+static utl::streammanip constexpr formatSize([](std::ostream& str,
+                                                size_t size) {
+    if (size == InvalidSize) {
+        str << "Invalid";
+    }
+    else {
+        str << size;
+    }
+});
+
 void PrintContext::print(Entity const& entity) {
     str << formatter.beginLine();
     if (!entity.isVisible()) {
@@ -102,9 +112,9 @@ void PrintContext::print(Entity const& entity) {
     if (auto* type = dyncast<ObjectType const*>(&entity)) {
         formatter.push(children.empty() ? Level::LastChild : Level::Child);
         str << formatter.beginLine() << tfmt::format(Italic, "Size: ")
-            << type->size() << "\n";
+            << formatSize(type->size()) << "\n";
         str << formatter.beginLine() << tfmt::format(Italic, "Align: ")
-            << type->align() << "\n";
+            << formatSize(type->align()) << "\n";
         if (type->hasLifetimeMetadata()) {
             print(type->lifetimeMetadata());
         }

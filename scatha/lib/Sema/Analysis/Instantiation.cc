@@ -425,7 +425,11 @@ Type const* InstContext::analyzeThisParam(ast::ThisParameter& param) const {
     }
     auto* recordType = cast<RecordType const*>(record->entity());
     if (param.isReference()) {
-        return sym.reference(QualType(recordType, param.mutability()));
+        auto bindMode = isa<ProtocolType>(recordType) ?
+                            PointerBindMode::Dynamic :
+                            param.bindMode();
+        return sym.reference(QualType(recordType, param.mutability()),
+                             bindMode);
     }
     return recordType;
 }

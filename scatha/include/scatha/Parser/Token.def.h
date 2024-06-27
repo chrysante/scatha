@@ -41,6 +41,7 @@ SC_KEYWORD_TOKEN_DEF(Let,         "let")
 
 /// ## Qualifiers
 SC_KEYWORD_TOKEN_DEF(Mutable,     "mut")
+SC_KEYWORD_TOKEN_DEF(Dynamic,     "dyn")
 
 /// ## Control flow
 SC_KEYWORD_TOKEN_DEF(Return,      "return")

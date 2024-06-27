@@ -84,6 +84,12 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
+    template <ast::NodeType NodeType>
+    ast::Expression* analyzePointerTypeCommon(ast::RefExprBase<NodeType>& expr,
+                                              ast::Expression* pointer,
+                                              ReferenceKind refKind,
+                                              BadExpr::Reason noObjErr,
+                                              BadExpr::Reason dynErr);
     ast::Expression* analyzeImpl(ast::Conditional&);
     ast::Expression* analyzeImpl(ast::MoveExpr&);
     ast::Expression* analyzeImpl(ast::UniqueExpr&);
@@ -931,6 +937,51 @@ static Mutability join(Mutability a, Mutability b) {
     return a == Mutability::Mutable ? a : b;
 }
 
+template <ast::NodeType NodeType>
+ast::Expression* ExprContext::analyzePointerTypeCommon(
+    ast::RefExprBase<NodeType>& expr, ast::Expression* pointer,
+    ReferenceKind refKind, BadExpr::Reason noObjErr, BadExpr::Reason dynErr) {
+    auto mut = expr.mutability();
+    auto bindMode = expr.bindMode();
+    if (!pointer) {
+        auto* qual = sym.typeDeductionQualifier(refKind, mut, bindMode);
+        expr.decorateType(qual);
+        return &expr;
+    }
+    /// `*unique` deduction qualifier
+    if (isa<TypeDeductionQualifier>(pointer->entity())) {
+        expr.decorateType(pointer->entity());
+        return &expr;
+    }
+    auto* type = dyncast<ObjectType*>(pointer->entity());
+    if (!type) {
+        ctx.badExpr(&expr, noObjErr);
+        return nullptr;
+    }
+    if (bindMode == PointerBindMode::Dynamic && !isa<RecordType>(type)) {
+        ctx.badExpr(&expr, dynErr);
+        return nullptr;
+    }
+    if constexpr (NodeType == ast::NodeType::DereferenceExpression) {
+        if (auto* unique = dyncast<ast::UniqueExpr const*>(expr.referred());
+            NodeType == ast::NodeType::DereferenceExpression && unique)
+        {
+            mut = ::join(mut, unique->mutability());
+            auto* ptrType = sym.uniquePointer(QualType(type, mut), bindMode);
+            expr.decorateType(const_cast<UniquePtrType*>(ptrType));
+            return &expr;
+        }
+        auto* ptrType = sym.pointer(QualType(type, mut), bindMode);
+        expr.decorateType(const_cast<RawPtrType*>(ptrType));
+        return &expr;
+    }
+    else {
+        auto* refType = sym.reference(QualType(type, mut), bindMode);
+        expr.decorateType(const_cast<ReferenceType*>(refType));
+        return &expr;
+    }
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     if (expr.referred() && !analyze(expr.referred())) {
         return nullptr;
@@ -949,33 +1000,9 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
         return &expr;
     }
     case EntityCategory::Type: {
-        auto mut = expr.mutability();
-        if (!pointer) {
-            auto* qual =
-                sym.typeDeductionQualifier(ReferenceKind::Pointer, mut);
-            expr.decorateType(qual);
-            return &expr;
-        }
-        /// `*unique` deduction qualifier
-        if (isa<TypeDeductionQualifier>(pointer->entity())) {
-            expr.decorateType(pointer->entity());
-            return &expr;
-        }
-        auto* type = dyncast<ObjectType*>(pointer->entity());
-        if (!type) {
-            ctx.badExpr(&expr, PointerNoObjType);
-            return nullptr;
-        }
-        if (auto* unique = dyncast<ast::UniqueExpr const*>(expr.referred())) {
-            mut = ::join(mut, unique->mutability());
-            auto* ptrType = sym.uniquePointer(QualType(type, mut));
-            expr.decorateType(const_cast<UniquePtrType*>(ptrType));
-        }
-        else {
-            auto* ptrType = sym.pointer(QualType(type, mut));
-            expr.decorateType(const_cast<RawPtrType*>(ptrType));
-        }
-        return &expr;
+        return analyzePointerTypeCommon(expr, pointer, ReferenceKind::Pointer,
+                                        BadExpr::PointerNoObjType,
+                                        BadExpr::DynPointerNoRecord);
     }
     default:
         ctx.issue<BadSymRef>(&expr, EntityCategory::Value);
@@ -1011,21 +1038,10 @@ ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
         return &expr;
     }
     case EntityCategory::Type: {
-        auto mut = expr.mutability();
-        if (!referred) {
-            auto* qual =
-                sym.typeDeductionQualifier(ReferenceKind::Reference, mut);
-            expr.decorateType(qual);
-            return &expr;
-        }
-        auto* type = dyncast<ObjectType*>(referred->entity());
-        if (!type) {
-            ctx.badExpr(&expr, ReferenceNoObjType);
-            return nullptr;
-        }
-        auto* refType = sym.reference(QualType(type, mut));
-        expr.decorateType(const_cast<ReferenceType*>(refType));
-        return &expr;
+        return analyzePointerTypeCommon(expr, referred,
+                                        ReferenceKind::Reference,
+                                        BadExpr::ReferenceNoObjType,
+                                        BadExpr::DynReferenceNoRecord);
     }
     default:
         /// Make an error class `InvalidReferenceExpression` and push that here
@@ -1160,9 +1176,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpr& expr) {
             return nullptr;
         }
         if (!expr.value()) {
-            expr.decorateType(
+            auto* deducQual =
                 sym.typeDeductionQualifier(ReferenceKind::UniquePointer,
-                                           expr.mutability()));
+                                           expr.mutability(),
+                                           PointerBindMode::Static);
+            expr.decorateType(deducQual);
         }
         else {
             expr.decorateType(cast<Type*>(expr.value()->entity()));
@@ -1914,7 +1932,6 @@ void ExprContext::dereferencePointer(ast::Expression* expr) {
     SC_EXPECT(parent);
     size_t index = expr->indexInParent();
     auto deref = allocate<ast::DereferenceExpression>(expr->extractFromParent(),
-                                                      Mutability::Const,
                                                       expr->sourceRange());
     bool result = analyzeValue(deref.get());
     SC_ASSERT(result, "How can a pointer dereference fail?");

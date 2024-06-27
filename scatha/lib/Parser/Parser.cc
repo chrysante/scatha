@@ -20,7 +20,9 @@
 ///                                   | "& mut this"
 /// <struct-definition>             ::= "struct" <record-definition>
 /// <protocol-definition>           ::= "protocol" <record-definition>
-/// <record-definition>             ::= <identifier> [":" <base-class-decl> {"," <base-class-decl>}*] (";"|<compound-statement>)
+/// <record-definition>             ::= <identifier> [":" <base-class-decl> 
+///                                                   ("," <base-class-decl>)*]
+///                                                  (";" | <compound-statement>)
 /// <base-class-decl>               ::= [<access-spec>] <type-expression>
 /// <variable-declaration>          ::= ("var"|"let") <short-var-declaration>
 /// <short-var-declaration>         ::= <identifier> [":" <type-expression>]
@@ -92,8 +94,8 @@
 ///                                   | "!" <prefix-expression>
 ///                                   | "++" <prefix-expression>
 ///                                   | "--" <prefix-expression>
-///                                   | "*" ["mut"] <prefix-expression>
-///                                   | "&" ["mut"] <prefix-expression>
+///                                   | "*" <qualifier>* <prefix-expression>
+///                                   | "&" <qualifier>* <prefix-expression>
 ///                                   | "move" <prefix-expression>
 ///                                   | "unique" <prefix-expression>
 /// <postfix-expression>            ::= <generic-expression>
@@ -117,6 +119,7 @@
 ///                                   | "(" <comma-expression> ")"
 ///                                   | "[" {<conditional-expression>}* "]"
 /// <access-spec>                   ::= "public" | "private"
+/// <qualifier>                     ::= "mut" | "dyn"
 /// ```
 ///
 /// ## Operator precedence
@@ -184,6 +187,14 @@ using enum TokenKind;
 
 namespace {
 
+using Qualifier =
+    std::variant<std::monostate, sema::Mutability, sema::PointerBindMode>;
+
+struct QualifierSet {
+    sema::Mutability mut;
+    sema::PointerBindMode bindMode;
+};
+
 struct Context {
     TokenStream tokens;
     std::string filename;
@@ -245,7 +256,9 @@ struct Context {
     UniquePtr<ast::Literal> parseLiteral();
 
     // Helpers
-    sema::Mutability eatMut(SourceRange& sr);
+    sema::Mutability parseMut(SourceRange& sr);
+    Qualifier parseQualifier(SourceRange& sr);
+    QualifierSet parseQualifierSet(SourceRange sr);
     ast::SpecifierList parseSpecList();
 
     void pushExpectedExpression(Token const&);
@@ -511,11 +524,12 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition(
 UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
     size_t index) {
     SourceRange thisSourceRange;
-    auto thisMutQual = eatMut(thisSourceRange);
-    Token const idToken = tokens.peek();
+    auto thisQualSet = parseQualifierSet(thisSourceRange);
+    Token idToken = tokens.peek();
     if (idToken.kind() == This) {
         tokens.eat();
-        return allocate<ast::ThisParameter>(index, thisMutQual,
+        return allocate<ast::ThisParameter>(index, thisQualSet.mut,
+                                            thisQualSet.bindMode,
                                             /* isRef = */ false,
                                             merge(thisSourceRange,
                                                   idToken.sourceRange()));
@@ -523,14 +537,15 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
     if (idToken.kind() == BitAnd) {
         tokens.eat();
         using enum sema::Mutability;
-        auto const refMutQual = eatMut(thisSourceRange);
+        auto thisQualSet = parseQualifierSet(thisSourceRange);
         if (tokens.peek().kind() != This) {
             return nullptr;
         }
-        auto const thisToken = tokens.eat();
+        auto thisToken = tokens.eat();
         thisSourceRange = merge(thisSourceRange, idToken.sourceRange(),
                                 thisToken.sourceRange());
-        return allocate<ast::ThisParameter>(index, refMutQual,
+        return allocate<ast::ThisParameter>(index, thisQualSet.mut,
+                                            thisQualSet.bindMode,
                                             /* isRef = */ true,
                                             thisSourceRange);
     }
@@ -571,7 +586,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration(
         tokens.eat();
     }
     SourceRange typeSourceRange;
-    auto mutQual = eatMut(typeSourceRange);
+    auto mutQual = parseMut(typeSourceRange);
     auto typeExpr = parseTypeExpression();
     if (!typeExpr) {
         pushExpectedExpression(tokens.peek());
@@ -1111,7 +1126,7 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     if (auto deref = parsePostfix()) {
         return deref;
     }
-    Token const token = tokens.peek();
+    Token const& token = tokens.peek();
     auto parseArith = [&](ast::UnaryOperator operatorType) {
         Token const unaryToken = tokens.peek();
         auto unary = parsePrefix();
@@ -1122,10 +1137,10 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
             operatorType, ast::UnaryOperatorNotation::Prefix, std::move(unary),
             token.sourceRange());
     };
-    auto parseRef = [&]<typename Expr>(auto... args) {
+    auto parseRef = [&]<typename Expr>() {
         auto sr = token.sourceRange();
-        auto mutQual = eatMut(sr);
-        return allocate<Expr>(parsePrefix(), mutQual, args..., sr);
+        auto qualSet = parseQualifierSet(sr);
+        return allocate<Expr>(parsePrefix(), sr, qualSet.mut, qualSet.bindMode);
     };
     switch (token.kind()) {
     case Plus:
@@ -1165,7 +1180,7 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     case Unique: {
         tokens.eat();
         auto sr = token.sourceRange();
-        auto mutQual = eatMut(sr);
+        auto mutQual = parseMut(sr);
         return allocate<ast::UniqueExpr>(parsePrefix(), mutQual, sr);
     }
     default:
@@ -1520,13 +1535,44 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
     }
 }
 
-sema::Mutability Context::eatMut(SourceRange& sr) {
+sema::Mutability Context::parseMut(SourceRange& sr) {
     if (tokens.peek().kind() == Mutable) {
         sr = merge(sr, tokens.peek().sourceRange());
         tokens.eat();
         return sema::Mutability::Mutable;
     }
     return sema::Mutability::Const;
+}
+
+Qualifier Context::parseQualifier(SourceRange& sr) {
+    switch (tokens.peek().kind()) {
+    case Mutable:
+        sr = merge(sr, tokens.peek().sourceRange());
+        tokens.eat();
+        return sema::Mutability::Mutable;
+    case Dynamic:
+        sr = merge(sr, tokens.peek().sourceRange());
+        tokens.eat();
+        return sema::PointerBindMode::Dynamic;
+    default:
+        return std::monostate();
+    }
+    return sema::Mutability::Const;
+}
+
+QualifierSet Context::parseQualifierSet(SourceRange sr) {
+    QualifierSet set{
+        .mut = sema::Mutability::Const,
+        .bindMode = sema::PointerBindMode::Static,
+    };
+    // clang-format off
+    while (std::visit(utl::overload{
+        [&](sema::Mutability m) { set.mut = m; return true; },
+        [&](sema::PointerBindMode mode) { set.bindMode = mode; return true; },
+        [](auto) { return false; }
+    }, parseQualifier(sr))) { sr = tokens.peek().sourceRange(); }
+    // clang-format on
+    return set;
 }
 
 ast::SpecifierList Context::parseSpecList() {

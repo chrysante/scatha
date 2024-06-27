@@ -286,7 +286,8 @@ public:
 
     /// Factory for type deduction qualifier entities
     TypeDeductionQualifier* typeDeductionQualifier(ReferenceKind refKind,
-                                                   Mutability mutability);
+                                                   Mutability mutability,
+                                                   PointerBindMode bindMode);
 
     /// ## Queries
 

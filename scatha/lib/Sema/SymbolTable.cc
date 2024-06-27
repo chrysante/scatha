@@ -90,8 +90,8 @@ struct SymbolTable::Impl {
         arrayTypes;
 
     /// Map of instantiated `TypeDeductionQualifier`'s
-    utl::hashmap<std::pair<ReferenceKind, Mutability>, TypeDeductionQualifier*>
-        typeDeductionQualifiers;
+    using TypeDeducKey = std::tuple<ReferenceKind, Mutability, PointerBindMode>;
+    utl::hashmap<TypeDeducKey, TypeDeductionQualifier*> typeDeductionQualifiers;
 
     /// List of all functions
     utl::small_vector<Function*> functions;
@@ -921,14 +921,15 @@ UniquePtrType const* SymbolTable::uniquePointer(ObjectType const* type,
 }
 
 TypeDeductionQualifier* SymbolTable::typeDeductionQualifier(
-    ReferenceKind refKind, Mutability mut) {
+    ReferenceKind refKind, Mutability mut, PointerBindMode bindMode) {
     auto& map = impl->typeDeductionQualifiers;
-    auto itr = map.find({ refKind, mut });
+    auto itr = map.find({ refKind, mut, bindMode });
     if (itr != map.end()) {
         return itr->second;
     }
-    auto* qual = impl->addEntity<TypeDeductionQualifier>(refKind, mut);
-    map.insert({ { refKind, mut }, qual });
+    auto* qual =
+        impl->addEntity<TypeDeductionQualifier>(refKind, mut, bindMode);
+    map.insert({ { refKind, mut, bindMode }, qual });
     return qual;
 }
 

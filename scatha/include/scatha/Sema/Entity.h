@@ -1047,19 +1047,24 @@ private:
 class SCATHA_API TypeDeductionQualifier: public Entity {
 public:
     explicit TypeDeductionQualifier(ReferenceKind refKind,
-                                    Mutability mutability):
+                                    Mutability mutability,
+                                    PointerBindMode bindMode):
         Entity(EntityType::TypeDeductionQualifier,
                /* name= */ {},
                /* parent = */ nullptr,
                /* astNode = */ nullptr),
         _refKind(refKind),
-        _mut(mutability) {}
+        _mut(mutability),
+        _bindMode(bindMode) {}
 
     ///
     ReferenceKind refKind() const { return _refKind; }
 
     ///
     Mutability mutability() const { return _mut; }
+
+    ///
+    PointerBindMode bindMode() const { return _bindMode; }
 
     /// \Returns `mutability() == Mutability::Mutable`
     bool isMutable() const { return mutability() == Mutability::Mutable; }
@@ -1073,6 +1078,7 @@ private:
 
     ReferenceKind _refKind;
     Mutability _mut;
+    PointerBindMode _bindMode;
 };
 
 /// # Poison

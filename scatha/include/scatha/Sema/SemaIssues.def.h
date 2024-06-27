@@ -431,8 +431,16 @@ SC_SEMA_BADEXPR_DEF(DereferenceExpression, PointerNoObjType, Error,
                     "Cannot form pointer to non-object type " << sema::format(
                         dyncast<Type const*>(expr->referred()->entity())))
 
+SC_SEMA_BADEXPR_DEF(DereferenceExpression, DynPointerNoRecord, Error,
+                    "Cannot form dynamic pointer to type " << sema::format(
+                        dyncast<Type const*>(expr->referred()->entity())))
+
 SC_SEMA_BADEXPR_DEF(AddressOfExpression, ReferenceNoObjType, Error,
                     "Cannot form reference to non-object type " << sema::format(
+                        dyncast<Type const*>(expr->referred()->entity())))
+
+SC_SEMA_BADEXPR_DEF(AddressOfExpression, DynReferenceNoRecord, Error,
+                    "Cannot form dynamic reference to type " << sema::format(
                         dyncast<Type const*>(expr->referred()->entity())))
 
 SC_SEMA_BADEXPR_DEF(Expression, NotFormattable, Error,
