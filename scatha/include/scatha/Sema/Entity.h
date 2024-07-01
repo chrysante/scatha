@@ -791,6 +791,8 @@ protected:
 /// Abstract base class of `StructType` and `Protocol`
 class SCATHA_API RecordType: public CompoundType {
 public:
+    ~RecordType();
+
     /// The AST node that defines this type
     SC_ASTNODE_DERIVED(definition, RecordDefinition)
 
@@ -821,6 +823,15 @@ public:
     /// structure
     void pushBaseObject(BaseClassObject* obj) { bases.push_back(obj); }
 
+    ///
+    void setVTable(std::unique_ptr<VTable> vtable);
+
+    /// \Returns this types vtable
+    VTable* vtable() { return _vtable.get(); }
+
+    /// \overload
+    VTable const* vtable() const { return _vtable.get(); }
+
 protected:
     explicit RecordType(EntityType entityType, std::string name,
                         Scope* parentScope, ast::ASTNode* astNode, size_t size,
@@ -829,6 +840,7 @@ protected:
 private:
     utl::small_vector<BaseClassObject*> bases;
     utl::small_vector<Function*> ctors;
+    std::unique_ptr<VTable> _vtable;
 };
 
 /// Concrete class representing the type of a structure

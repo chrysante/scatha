@@ -23,7 +23,7 @@ AnalysisResult sema::analyze(ast::ASTNode& TU, SymbolTable& sym,
         sym.withScopeCurrent(decl->entity()->parent(),
                              [&] { analyzeStatement(ctx, decl); });
     }
-    for (auto* recordType: sym.recordTypes()) {
+    for (auto* recordType: structs) {
         analyzeProtocolConformance(ctx, const_cast<RecordType&>(*recordType));
     }
     return AnalysisResult{ std::move(structs), std::move(names.globals) };

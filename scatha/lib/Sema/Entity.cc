@@ -17,6 +17,7 @@
 #include "Sema/Analysis/Utility.h"
 #include "Sema/LifetimeMetadata.h"
 #include "Sema/NameMangling.h"
+#include "Sema/VTable.h"
 
 using namespace scatha;
 using namespace sema;
@@ -385,6 +386,12 @@ RecordType::RecordType(EntityType entityType, std::string name,
                        size_t align, AccessControl accessControl):
     CompoundType(entityType, ScopeKind::Type, std::move(name), parentScope,
                  size, align, astNode, accessControl) {}
+
+RecordType::~RecordType() = default;
+
+void RecordType::setVTable(std::unique_ptr<VTable> vtable) {
+    _vtable = std::move(vtable);
+}
 
 void StructType::setMemberVariable(size_t index, Variable* var) {
     if (index >= memberVars.size()) {

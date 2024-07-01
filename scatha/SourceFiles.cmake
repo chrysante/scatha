@@ -90,6 +90,7 @@ set(scatha_headers
   include/scatha/Sema/Serialize.h
   include/scatha/Sema/SymbolTable.h
   include/scatha/Sema/ThinExpr.h
+  include/scatha/Sema/VTable.h
 )
 
 set(scatha_sources
@@ -382,6 +383,7 @@ set(scatha_sources
     lib/Sema/SerializeFields.def.h
     lib/Sema/SymbolTable.cc
     lib/Sema/ThinExpr.cc
+    lib/Sema/VTable.cc
 )
 
 set(scatha_test_sources

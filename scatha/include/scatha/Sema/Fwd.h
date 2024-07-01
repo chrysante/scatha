@@ -24,6 +24,7 @@ class LifetimeOperation;
 class LifetimeMetadata;
 class QualType;
 class ThinExpr;
+class VTable;
 
 size_t constexpr InvalidSize = ~size_t(0);
 
