@@ -54,9 +54,6 @@ static void formatImpl(ArrayType const& type, std::ostream& str) {
 
 static void formatImpl(PointerType const& type, std::ostream& str) {
     str << tfmt::format(None, "*");
-    if (type.isDynamic()) {
-        str << tfmt::format(BrightBlue, "dyn ");
-    }
     if (isa<UniquePtrType>(type)) {
         str << tfmt::format(BrightBlue, "unique ");
     }
@@ -65,13 +62,7 @@ static void formatImpl(PointerType const& type, std::ostream& str) {
 
 static void formatImpl(ReferenceType const& type, std::ostream& str) {
     str << tfmt::format(None, "&");
-    if (type.isDynamic()) {
-        str << tfmt::format(BrightBlue, "dyn ");
-    }
-    if (type.base().isMut()) {
-        str << tfmt::format(BrightBlue, "mut ");
-    }
-    str << format(type.base().get());
+    str << format(type.base());
 }
 
 static void formatImpl(Function const& function, std::ostream& str) {

@@ -967,16 +967,16 @@ ast::Expression* ExprContext::analyzePointerTypeCommon(
             NodeType == ast::NodeType::DereferenceExpression && unique)
         {
             mut = ::join(mut, unique->mutability());
-            auto* ptrType = sym.uniquePointer(QualType(type, mut), bindMode);
+            auto* ptrType = sym.uniquePointer(QualType(type, mut, bindMode));
             expr.decorateType(const_cast<UniquePtrType*>(ptrType));
             return &expr;
         }
-        auto* ptrType = sym.pointer(QualType(type, mut), bindMode);
+        auto* ptrType = sym.pointer(QualType(type, mut, bindMode));
         expr.decorateType(const_cast<RawPtrType*>(ptrType));
         return &expr;
     }
     else {
-        auto* refType = sym.reference(QualType(type, mut), bindMode);
+        auto* refType = sym.reference(QualType(type, mut, bindMode));
         expr.decorateType(const_cast<ReferenceType*>(refType));
         return &expr;
     }

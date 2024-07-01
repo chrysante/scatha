@@ -428,8 +428,8 @@ Type const* InstContext::analyzeThisParam(ast::ThisParameter& param) const {
         auto bindMode = isa<ProtocolType>(recordType) ?
                             PointerBindMode::Dynamic :
                             param.bindMode();
-        return sym.reference(QualType(recordType, param.mutability()),
-                             bindMode);
+        return sym.reference(
+            QualType(recordType, param.mutability(), bindMode));
     }
     return recordType;
 }

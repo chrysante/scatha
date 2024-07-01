@@ -255,8 +255,7 @@ public:
     IntType const* intType(size_t width, Signedness signedness);
 
     /// \Returns the `RawPtrType` to the pointee type \p pointee
-    RawPtrType const* pointer(
-        QualType pointee, PointerBindMode bindMode = PointerBindMode::Static);
+    RawPtrType const* pointer(QualType pointee);
 
     /// \Returns `pointer(QualType(type, mutability))`
     RawPtrType const* pointer(
@@ -267,8 +266,7 @@ public:
     PointerType const* strPointer(Mutability mut = Mutability::Const);
 
     /// \Returns the `ReferenceType` to the referred type \p referred
-    ReferenceType const* reference(
-        QualType referred, PointerBindMode bindMode = PointerBindMode::Static);
+    ReferenceType const* reference(QualType referred);
 
     /// \Returns `reference(QualType(type, mutability))`
     ReferenceType const* reference(
@@ -276,8 +274,7 @@ public:
         PointerBindMode bindMode = PointerBindMode::Static);
 
     /// \Returns the `UniquePtrType` to the pointee type \p pointee
-    UniquePtrType const* uniquePointer(
-        QualType pointee, PointerBindMode bindMode = PointerBindMode::Static);
+    UniquePtrType const* uniquePointer(QualType pointee);
 
     /// \Returns `uniquePointer(QualType(type, mutability))`
     UniquePtrType const* uniquePointer(

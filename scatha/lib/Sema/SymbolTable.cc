@@ -155,7 +155,6 @@ struct SymbolTable::Impl {
 
     template <typename T>
     T* ptrLikeImpl(utl::hashmap<QualType, T*>& map, QualType pointee,
-                   PointerBindMode bindMode,
                    utl::function_view<void(T*)> continuation = {});
 };
 
@@ -859,13 +858,13 @@ IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
 
 template <typename T>
 T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
-                                  QualType pointee, PointerBindMode bindMode,
+                                  QualType pointee,
                                   utl::function_view<void(T*)> continuation) {
     auto itr = map.find(pointee);
     if (itr != map.end()) {
         return itr->second;
     }
-    auto* ptrType = addEntity<T>(pointee, bindMode);
+    auto* ptrType = addEntity<T>(pointee);
     map.insert({ pointee, ptrType });
     if (auto* type = const_cast<ObjectType*>(pointee.get());
         type && type->parent())
@@ -878,9 +877,8 @@ T* SymbolTable::Impl::ptrLikeImpl(utl::hashmap<QualType, T*>& map,
     return ptrType;
 }
 
-RawPtrType const* SymbolTable::pointer(QualType pointee,
-                                       PointerBindMode bindMode) {
-    return impl->ptrLikeImpl<RawPtrType>(impl->ptrTypes, pointee, bindMode,
+RawPtrType const* SymbolTable::pointer(QualType pointee) {
+    return impl->ptrLikeImpl<RawPtrType>(impl->ptrTypes, pointee,
                                          [&](RawPtrType* type) {
         analyzeLifetime(*type, *this);
     });
@@ -888,28 +886,26 @@ RawPtrType const* SymbolTable::pointer(QualType pointee,
 
 RawPtrType const* SymbolTable::pointer(ObjectType const* type, Mutability mut,
                                        PointerBindMode bindMode) {
-    return pointer(QualType(type, mut), bindMode);
+    return pointer(QualType(type, mut, bindMode));
 }
 
 PointerType const* SymbolTable::strPointer(Mutability mut) {
     return pointer(Str(), mut);
 }
 
-ReferenceType const* SymbolTable::reference(QualType referred,
-                                            PointerBindMode bindMode) {
-    return impl->ptrLikeImpl(impl->refTypes, referred, bindMode);
+ReferenceType const* SymbolTable::reference(QualType referred) {
+    return impl->ptrLikeImpl(impl->refTypes, referred);
 }
 
 ReferenceType const* SymbolTable::reference(ObjectType const* type,
                                             Mutability mut,
                                             PointerBindMode bindMode) {
-    return reference(QualType(type, mut), bindMode);
+    return reference(QualType(type, mut, bindMode));
 }
 
-UniquePtrType const* SymbolTable::uniquePointer(QualType pointee,
-                                                PointerBindMode bindMode) {
+UniquePtrType const* SymbolTable::uniquePointer(QualType pointee) {
     return impl->ptrLikeImpl<UniquePtrType>(impl->uniquePtrTypes, pointee,
-                                            bindMode, [&](UniquePtrType* type) {
+                                            [&](UniquePtrType* type) {
         analyzeLifetime(*type, *this);
     });
 }
@@ -917,7 +913,7 @@ UniquePtrType const* SymbolTable::uniquePointer(QualType pointee,
 UniquePtrType const* SymbolTable::uniquePointer(ObjectType const* type,
                                                 Mutability mut,
                                                 PointerBindMode bindMode) {
-    return uniquePointer(QualType(type, mut), bindMode);
+    return uniquePointer(QualType(type, mut, bindMode));
 }
 
 TypeDeductionQualifier* SymbolTable::typeDeductionQualifier(

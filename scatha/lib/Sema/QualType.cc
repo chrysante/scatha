@@ -1,5 +1,7 @@
 #include "Sema/QualType.h"
 
+#include <sstream>
+
 #include <utl/strcat.hpp>
 
 #include "Sema/Entity.h"
@@ -11,8 +13,13 @@ std::string QualType::qualName() const {
     if (!get()) {
         return "NULL";
     }
-    if (isMut()) {
-        return utl::strcat("mut ", get()->name());
+    std::stringstream sstr;
+    if (isDyn()) {
+        sstr << "dyn ";
     }
-    return std::string(get()->name());
+    if (isMut()) {
+        sstr << "mut ";
+    }
+    sstr << get()->name();
+    return std::move(sstr).str();
 }

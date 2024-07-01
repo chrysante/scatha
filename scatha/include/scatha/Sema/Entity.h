@@ -936,47 +936,36 @@ public:
     /// The type referred to by the pointer or reference
     QualType base() const { return _base; }
 
-    /// \Returns the method binding mode of this pointer or reference.
-    PointerBindMode bindMode() const { return _bindMode; }
-
-    /// \Returns `bindMode() == PointerBindMode::Static`
-    bool isStatic() const { return bindMode() == PointerBindMode::Static; }
-
-    /// \Returns `bindMode() == PointerBindMode::Dynamic`
-    bool isDynamic() const { return bindMode() == PointerBindMode::Dynamic; }
-
 protected:
-    PtrRefTypeBase(QualType type, PointerBindMode bindMode):
-        _base(type), _bindMode(bindMode) {}
+    PtrRefTypeBase(QualType type): _base(type) {}
 
 private:
     QualType _base;
-    PointerBindMode _bindMode;
 };
 
 /// Abstract base class of raw pointer and unique pointer
 class SCATHA_API PointerType: public BuiltinType, public PtrRefTypeBase {
 protected:
     explicit PointerType(EntityType entityType, QualType base,
-                         PointerBindMode bindMode, std::string name);
+                         std::string name);
 };
 
 /// Represents a raw pointer type
 class SCATHA_API RawPtrType: public PointerType {
 public:
-    explicit RawPtrType(QualType base, PointerBindMode bindMode);
+    explicit RawPtrType(QualType base);
 };
 
 /// Represents a unique pointer type
 class SCATHA_API UniquePtrType: public PointerType {
 public:
-    explicit UniquePtrType(QualType base, PointerBindMode bindMode);
+    explicit UniquePtrType(QualType base);
 };
 
 /// Represents a reference type
 class SCATHA_API ReferenceType: public Type, public PtrRefTypeBase {
 public:
-    explicit ReferenceType(QualType base, PointerBindMode bindMode);
+    explicit ReferenceType(QualType base);
 
 private:
     friend class Type;

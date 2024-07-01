@@ -26,18 +26,13 @@ public:
     }
 
     /// Construct an empty `QualType`
-    QualType(): _type(nullptr), _mut{} {}
-
-    /// Construct an empty `QualType`
-    QualType(std::nullptr_t): QualType() {}
-
-    /// Construct a `QualType` with base type \p type
-    /// Mutability defaults to mutable
-    QualType(ObjectType const* type): QualType(type, Mutability::Mutable) {}
+    QualType(std::nullptr_t = nullptr): _type(nullptr), _mut{}, _bindMode{} {}
 
     /// Construct a `QualType` with base type \p type and mutability qualifier
     /// \p mut
-    QualType(ObjectType const* type, Mutability mut): _type(type), _mut(mut) {}
+    QualType(ObjectType const* type, Mutability mut = Mutability::Mutable,
+             PointerBindMode bindMode = PointerBindMode::Static):
+        _type(type), _mut(mut), _bindMode(bindMode) {}
 
     /// \Returns the unqualified type
     ObjectType const* get() const { return _type; }
@@ -60,8 +55,24 @@ public:
     /// \Returns the mutability qualifier
     Mutability mutability() const { return _mut; }
 
+    /// \Returns `true` if `mutability() == Mutable`
+    bool isDyn() const { return bindMode() == PointerBindMode::Dynamic; }
+
+    /// \Returns `true` if `mutability() == Const`
+    bool isStatic() const { return bindMode() == PointerBindMode::Static; }
+
+    /// \Returns the binding qualifier
+    PointerBindMode bindMode() const { return _bindMode; }
+
     ///
-    QualType to(Mutability mut) const { return QualType(get(), mut); }
+    QualType to(Mutability mut) const {
+        return QualType(get(), mut, bindMode());
+    }
+
+    ///
+    QualType to(PointerBindMode bindMode) const {
+        return QualType(get(), mutability(), bindMode);
+    }
 
     ///
     QualType toMut() const { return to(Mutability::Mutable); }
@@ -84,11 +95,14 @@ public:
     bool operator==(ObjectType const*) const = delete;
 
     ///
-    size_t hashValue() const { return utl::hash_combine(_type, _mut); }
+    size_t hashValue() const {
+        return utl::hash_combine(_type, _mut, _bindMode);
+    }
 
 private:
     ObjectType const* _type;
     Mutability _mut;
+    PointerBindMode _bindMode;
 };
 
 } // namespace scatha::sema
