@@ -1,5 +1,5 @@
-//! Compile with: scatha-c mandelbrotset.sc
-//! Run with:     svm mandelbrotset.sbin
+//! Compile with: scathac -O mandelbrotset mandelbrotset.sc
+//! Run with:     ./mandelbrotset
 
 fn reportUsageError() {
     print("Usage: <width> <height>\n");
