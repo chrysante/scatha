@@ -9,12 +9,12 @@ version:
   - 0
 scope: source.example-c
 variables:
-  ident: '[A-Za-z_0-9]*'
+  ident: '[A-Za-z0-9\._-]+'
 
 contexts:
   main:
     # Comments begin with a '#' and finish at the end of the line
-    - match: '#'
+    - match: '//'
       scope: punctuation.definition.comment.example-c
       push: line_comment
 
@@ -31,10 +31,10 @@ contexts:
     - match: \b(alloca|store|load|zext|sext|trunc|fext|ftrunc|utof|stof|ftou|ftos|bitcast|to|bnt|lnt|neg|cmp|ls|leq|grt|geq|eq|neq|add|sub|mul|sdiv|udiv|srem|urem|fadd|fsub|fmul|fdiv|lshl|lshr|ashl|ashr|and|or|xor|goto|branch|return|call|phi|getelementptr|extract_value|insert_value|select)\b
       scope: keyword.control
 
-    - match: \b(func|ext|label)\b
+    - match: \b(func|struct|constant|global|ext|label|inbounds)\b
       scope: punctuation.definition.keyword
     
-    - match: \b(void|f32|f64)\b  
+    - match: \b(void|f32|f64|ptr)\b
       scope: punctuation.definition.keyword
 
     - match: \b(i[1-9][0-9]*)\b
@@ -46,11 +46,10 @@ contexts:
       scope: punctuation.definition.string.begin.example-c
       push: double_quoted_string
     
-    - match: '\b[A-Za-z]+\b'
-      scope: variable.other
-
-    - match: '\b@{{ident}}\b'
-      scope: entity.name.function
+    - match: '@{{ident}}'
+      scope: entity.name
+    - match: '%{{ident}}'
+      scope: entity.name
 
 
     # Numbers
