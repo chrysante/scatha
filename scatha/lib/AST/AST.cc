@@ -97,9 +97,11 @@ void FStringExpr::decorateValue(
 void FunctionCall::decorateCall(sema::Object* object,
                                 sema::ValueCategory valueCategory,
                                 sema::QualType type,
-                                sema::Function* calledFunction) {
+                                sema::Function* calledFunction,
+                                sema::PointerBindMode callBinding) {
     decorateValue(object, valueCategory, type);
     _function = calledFunction;
+    _callBinding = callBinding;
 }
 
 NontrivConstructExpr::NontrivConstructExpr(

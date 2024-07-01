@@ -834,12 +834,17 @@ public:
     /// \overload
     sema::Function const* function() const { return _function; }
 
+    ///
+    sema::PointerBindMode callBinding() const { return _callBinding; }
+
     /// Decorate this function call
     void decorateCall(sema::Object* object, sema::ValueCategory valueCategory,
-                      sema::QualType type, sema::Function* calledFunction);
+                      sema::QualType type, sema::Function* calledFunction,
+                      sema::PointerBindMode callBinding);
 
 private:
     sema::Function* _function = nullptr;
+    sema::PointerBindMode _callBinding{};
 };
 
 /// Concrete node representing a subscript expression.

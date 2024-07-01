@@ -1274,6 +1274,28 @@ static void convertArgsAndPopCleanups(auto const& arguments,
     }
 }
 
+static bool isDynamicType(Type const& type) {
+    // clang-format off
+    return SC_MATCH(type) {
+        [](PtrRefTypeBase const& type) { return type.base().isDyn(); },
+        [](auto&) { return false; }
+    }; // clang-format on
+}
+
+static PointerBindMode determineCallBinding(ast::FunctionCall const& fc,
+                                            Function const& F,
+                                            bool isMemberCall) {
+    using enum PointerBindMode;
+    if (!isMemberCall || !isDynamicType(*F.argumentType(0))) {
+        return Static;
+    }
+    auto argType = fc.argument(0)->type();
+    if (auto* ptr = dyncast<PointerType const*>(argType.get())) {
+        return ptr->base().bindMode();
+    }
+    return argType.bindMode();
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto orKind = ORKind::FreeFunction;
     bool success = analyze(fc.callee());
@@ -1338,6 +1360,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         return nullptr;
     }
     auto* function = result.function;
+    auto binding =
+        determineCallBinding(fc, *function, orKind == ORKind::MemberFunction);
     /// Cannot explicitly call special member functions
     if (isNewMoveDelete(*function)) {
         ctx.badExpr(&fc, ExplicitSMFCall);
@@ -1351,7 +1375,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     }
     QualType type = getQualType(returnType);
     auto valueCat = isa<ReferenceType>(*returnType) ? LValue : RValue;
-    fc.decorateCall(sym.temporary(&fc, type), valueCat, type, function);
+    fc.decorateCall(sym.temporary(&fc, type), valueCat, type, function,
+                    binding);
     convertArgsAndPopCleanups(fc.arguments(), result.conversions,
                               currentCleanupStack(), ctx);
     if (valueCat == RValue && !currentCleanupStack().push(fc.object(), ctx)) {

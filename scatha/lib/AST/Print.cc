@@ -230,6 +230,9 @@ struct PrintCtx {
                 [&](BinaryExpression const& expr) {
                     str << nodeHeader(formatter, node, expr.operation());
                 },
+                [&](FunctionCall const& expr) {
+                    str << nodeHeader(formatter, expr, expr.callBinding());
+                },
                 [&](Declaration const& decl) {
                     str << nodeHeader(formatter, node, formatID(decl.name()));
                 },
