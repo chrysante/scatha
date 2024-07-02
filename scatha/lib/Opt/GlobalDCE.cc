@@ -47,10 +47,26 @@ bool opt::globalDCE(Context& ctx, Module& mod) {
 }
 
 bool GDCEContext::run() {
+    /// Erase all unused globals
+    utl::small_vector<Global*> unused;
+    for (auto& global: mod.globals()) {
+        if (global.unused()) {
+            unused.push_back(&global);
+        }
+    }
+    for (auto* global: unused) {
+        mod.erase(global);
+    }
     /// Determine all live functions
     for (auto& F: mod) {
         if (F.visibility() == Visibility::External) {
             visit(&callgraph[&F]);
+        }
+        bool isReferenced = ranges::any_of(F.users(), [](auto* user) {
+            return !isa<Call>(user);
+        });
+        if (isReferenced) {
+            live.insert(&F);
         }
     }
     /// Erase all dead functions
@@ -63,16 +79,6 @@ bool GDCEContext::run() {
         }
         itr = mod.erase(itr);
         modified = true;
-    }
-    /// Erase all unused globals
-    utl::small_vector<Global*> unused;
-    for (auto& global: mod.globals()) {
-        if (global.unused()) {
-            unused.push_back(&global);
-        }
-    }
-    for (auto* global: unused) {
-        mod.erase(global);
     }
     return modified;
 }
