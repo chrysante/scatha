@@ -1,8 +1,12 @@
 #include "Opt/SCCCallGraph.h"
 
+#include <iostream>
+
+#include <graphgen/graphgen.h>
 #include <utl/graph.hpp>
 
 #include "Common/Ranges.h"
+#include "Debug/DebugGraphviz.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 
@@ -352,4 +356,43 @@ void SCCCallGraph::updateFunctionPointer(FunctionNode* node,
     SC_ASSERT(itr != _funcMap.end(), "Not found");
     _funcMap.erase(itr);
     _funcMap[newFunction] = node;
+}
+
+void opt::generateGraphviz(SCCCallGraph const& graph, std::ostream& ostream) {
+    using namespace graphgen;
+    auto* G = Graph::make(ID(0));
+    utl::hashset<std::pair<ID, ID>> edges;
+    for (auto& scc: graph.sccs()) {
+        auto* sccGraph = Graph::make(ID(&scc));
+        G->add(sccGraph);
+        for (auto& node: scc.nodes()) {
+            auto* vertex = Vertex::make(ID(&node))->label(
+                std::string(node.function().name()));
+            sccGraph->add(vertex);
+            for (auto* callee: node.callees()) {
+                Edge edge{ ID(&node), ID(callee) };
+                if (edges.insert({ edge.from, edge.to }).second) {
+                    sccGraph->add(edge);
+                }
+            }
+        }
+    }
+    Graph H;
+    H.label("Callgraph");
+    H.kind(graphgen::GraphKind::Directed);
+    H.add(G);
+    H.font("SF Mono");
+    generate(H, ostream);
+}
+
+void opt::generateGraphvizTmp(SCCCallGraph const& graph) {
+    try {
+        auto [path, file] = debug::newDebugFile("Callgraph");
+        generateGraphviz(graph, file);
+        file.close();
+        debug::createGraphAndOpen(path);
+    }
+    catch (std::exception const& e) {
+        std::cout << e.what() << std::endl;
+    }
 }

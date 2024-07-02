@@ -65,6 +65,7 @@ set(scatha_headers
   include/scatha/MIR/Module.h
   include/scatha/MIR/Print.h
 
+  include/scatha/Opt/SCCCallGraph.h
   include/scatha/Opt/Passes.h
 
   include/scatha/Parser/Lexer.h
@@ -323,7 +324,6 @@ set(scatha_sources
     lib/Opt/PointerAnalysis.cc
     lib/Opt/Rematerialize.cc
     lib/Opt/SCCCallGraph.cc
-    lib/Opt/SCCCallGraph.h
     lib/Opt/SROA.cc
     lib/Opt/SimplifyCFG.cc
     lib/Opt/TailRecElim.cc

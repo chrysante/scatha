@@ -8,6 +8,7 @@
 #include <scatha/IR/Module.h>
 #include <scatha/IR/PassManager.h>
 #include <scatha/IRGen/IRGen.h>
+#include <scatha/Opt/SCCCallGraph.h>
 #include <utl/strcat.hpp>
 
 #include "Util.h"
@@ -62,7 +63,12 @@ int scatha::graphMain(GraphOptions options) {
         generate(path);
     }
     if (options.calls) {
-        std::cout << "Drawing call graph is not implemented" << std::endl;
+        auto path = options.dest / "callgraph.gv";
+        auto file = openFile(path);
+        auto callgraph = opt::SCCCallGraph::compute(mod);
+        opt::generateGraphviz(callgraph, file);
+        file.close();
+        generate(path);
     }
     if (options.interference) {
         std::cout << "Drawing interference graph is not implemented"

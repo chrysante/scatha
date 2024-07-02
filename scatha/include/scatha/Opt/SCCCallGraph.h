@@ -7,10 +7,10 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
-#include "Common/Base.h"
-#include "Common/Graph.h"
-#include "Common/Ranges.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/Common/Graph.h>
+#include <scatha/Common/Ranges.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::opt {
 
@@ -25,7 +25,7 @@ namespace scatha::opt {
 /// algorithm.
 ///
 /// \Warning Direct self recursion is ignored.
-class SCTEST_API SCCCallGraph {
+class SCATHA_API SCCCallGraph {
 public:
     class SCCNode;
 
@@ -126,7 +126,6 @@ public:
         std::array<SCCNode*, 2> newSCCs = {};
     };
 
-public:
     explicit SCCCallGraph(ir::Module& mod): mod(&mod) {}
     SCCCallGraph(SCCCallGraph const&) = delete;
     SCCCallGraph(SCCCallGraph&&) = default;
@@ -189,7 +188,6 @@ private:
         return const_cast<FunctionNode&>((*this)[function]);
     }
 
-private:
     /// The module whose call graph is represented
     ir::Module* mod = nullptr;
 
@@ -202,6 +200,14 @@ private:
     /// List of SCCs
     utl::vector<std::unique_ptr<SCCNode>> _sccs;
 };
+
+/// Writes graphviz code representing \p graph to \p ostream
+SCATHA_API void generateGraphviz(SCCCallGraph const& graph,
+                                 std::ostream& ostream);
+
+/// Debug utility to generate graphviz representation of the graph to a
+/// temporary file
+SCATHA_API void generateGraphvizTmp(SCCCallGraph const& graph);
 
 } // namespace scatha::opt
 
