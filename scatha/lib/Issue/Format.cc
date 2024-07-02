@@ -16,11 +16,11 @@
 
 using namespace scatha;
 using namespace tfmt::modifiers;
+using namespace ranges::views;
 
 static std::vector<std::string_view> splitText(std::string_view text,
                                                char delim) {
-    return ranges::views::split(text, delim) |
-           ranges::views::transform([](auto&& r) {
+    return split(text, delim) | transform([](auto&& r) {
         return std::string_view(&*r.begin(),
                                 utl::narrow_cast<size_t>(ranges::distance(r)));
     }) | ranges::to<std::vector>;
@@ -52,16 +52,29 @@ static constexpr utl::streammanip lineNumber = [](std::ostream& str,
     }
 };
 
+static constexpr utl::streammanip formatSrc = [](std::ostream& str,
+                                                 std::string_view source) {
+    for (char c: source) {
+        if (c == '\t') {
+            str << "    ";
+        }
+        else {
+            str.put(c);
+        }
+    }
+};
+
 static constexpr utl::streammanip highlightLineRange =
     [](std::ostream& str, std::string_view text, size_t begin, size_t end) {
-    str << tfmt::format(BrightGrey, text.substr(0, begin));
-    str << tfmt::format(None, text.substr(begin, end - begin));
-    str << tfmt::format(BrightGrey, text.substr(end, text.size() - end));
+    str << tfmt::format(BrightGrey, formatSrc(text.substr(0, begin)));
+    str << tfmt::format(None, formatSrc(text.substr(begin, end - begin)));
+    str << tfmt::format(BrightGrey,
+                        formatSrc(text.substr(end, text.size() - end)));
 };
 
 static constexpr utl::streammanip squiggle =
     [](std::ostream& str, tfmt::Modifier mod, size_t numChars) {
-    tfmt::format(mod, [&] {
+    tfmt::formatScope(mod, [&] {
         for (size_t i = 0; i < std::max(size_t{ 1 }, numChars); ++i) {
 #if SC_UNICODE_TERMINAL
             str << "˜";
@@ -96,6 +109,11 @@ struct SrcHighlightCtx {
     void printMessage(size_t currentColumn, SourceHighlight const& highlight);
 
     void printLines(int index, int count, SourceStructure const& source);
+
+    size_t endColumn(SourceRange range, std::string_view line,
+                     bool ignoreTabs) const;
+
+    SourceLocation ignoreTabs(SourceLocation sl) const;
 };
 
 } // namespace
@@ -160,18 +178,18 @@ void SrcHighlightCtx::printHighlightLine(SourceHighlight const& highlight,
                                          SourceStructure const& source) {
     auto range = highlight.position;
     SC_EXPECT(range.valid());
-    auto const sl = range.begin();
-    int const line = sl.line - 1;
-    int const column = sl.column - 1;
-    size_t const ucolumn = utl::narrow_cast<size_t>(column);
+    auto sl = range.begin();
+    int line = sl.line - 1;
+    int column = sl.column - 1;
+    size_t ucolumn = utl::narrow_cast<size_t>(column);
     auto lineText = source[line];
-    size_t const endcol = range.begin().line == range.end().line ?
-                              utl::narrow_cast<size_t>(range.end().column - 1) :
-                              lineText.size();
+    size_t endcol = endColumn(range, lineText, /* ignoreTabs: */ false);
     str << lineNumber(sl.line)
         << highlightLineRange(source[line], ucolumn, endcol) << "\n";
-    str << lineNumber(-1) << blank(column)
-        << squiggle(toMod(severity, highlight.kind), endcol - ucolumn);
+    int colNoTabs = ignoreTabs(sl).column - 1;
+    str << lineNumber(-1) << blank(colNoTabs)
+        << squiggle(toMod(severity, highlight.kind),
+                    endColumn(range, lineText, true) - (size_t)colNoTabs);
     printMessage(endcol + LineNumChars, highlight);
     str << "\n";
 }
@@ -220,7 +238,25 @@ void SrcHighlightCtx::printLines(int userIdx, int count,
     int index = std::clamp(userIdx, 0, int(source.size()));
     int end = std::clamp(userIdx + count, 0, int(source.size()));
     for (; index < end; ++index) {
-        str << lineNumber(index + 1) << tfmt::format(BrightGrey, source[index])
-            << "\n";
+        str << lineNumber(index + 1)
+            << tfmt::format(BrightGrey, formatSrc(source[index])) << "\n";
     }
+}
+
+size_t SrcHighlightCtx::endColumn(SourceRange range, std::string_view line,
+                                  bool ignoreTabs) const {
+    auto begin = range.begin();
+    auto end = range.end();
+    return begin.line == end.line ?
+               utl::narrow_cast<size_t>(
+                   (ignoreTabs ? this->ignoreTabs(end) : end).column - 1) :
+               line.size();
+}
+
+SourceLocation SrcHighlightCtx::ignoreTabs(SourceLocation sl) const {
+    auto line = sourceMap(sl.fileIndex)[sl.line - 1];
+    int numTabs = (int)ranges::distance(
+        line.substr(0, sl.column) | filter([](char c) { return c == '\t'; }));
+    sl.column += numTabs * 3;
+    return sl;
 }
