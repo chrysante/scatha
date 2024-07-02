@@ -445,13 +445,6 @@ void FuncGenContext::generateImpl(ast::FunctionDefinition const& def) {
     insertAllocas();
 }
 
-static sema::ObjectType const* stripRef(sema::Type const* type) {
-    if (auto* ref = dyncast<sema::ReferenceType const*>(type)) {
-        return ref->base().get();
-    }
-    return cast<sema::ObjectType const*>(type);
-}
-
 void FuncGenContext::generateParameter(
     ast::ParameterDeclaration const* paramDecl, PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) {
