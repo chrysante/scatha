@@ -377,8 +377,9 @@ struct LNFPrintCtx {
         str << formatter.beginLine();
         auto* BB = node->basicBlock();
         bool isNonTrivialLoop = node->children().size() > 0;
-        tfmt::format(isNonTrivialLoop ? tfmt::Bold : tfmt::None, str,
-                     [&] { str << (BB ? BB->name() : "NULL") << std::endl; });
+        tfmt::formatScope(isNonTrivialLoop ? tfmt::Bold : tfmt::None, str, [&] {
+            str << (BB ? BB->name() : "NULL") << std::endl;
+        });
         for (auto [index, child]: node->children() | ranges::views::enumerate) {
             print(child, index == node->children().size() - 1);
         }

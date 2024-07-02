@@ -44,7 +44,7 @@ void TreeFormatter::pop() { levels.pop_back(); }
 
 utl::vstreammanip<> TreeFormatter::beginLine() {
     return [this](std::ostream& str) {
-        tfmt::format(tfmt::BrightGrey, str, [&] {
+        tfmt::formatScope(tfmt::BrightGrey, str, [&] {
             for (auto l: levels) {
                 str << toString(l);
             }

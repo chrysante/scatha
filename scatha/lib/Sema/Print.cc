@@ -97,7 +97,7 @@ void PrintContext::print(Entity const& entity) {
         str << tfmt::format(BrightGrey, "[hidden]") << " ";
     }
     str << name(entity) << " ";
-    tfmt::format(BrightGrey, str, [&] {
+    tfmt::formatScope(BrightGrey, str, [&] {
         str << "[";
         if (entity.hasAccessControl()) {
             str << entity.accessControl() << " ";

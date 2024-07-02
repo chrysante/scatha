@@ -206,7 +206,7 @@ static std::optional<std::string> asStringLiteral(RecordConstant const* value) {
 
 static constexpr utl::streammanip formatStringLit = [](std::ostream& str,
                                                        std::string_view text) {
-    tfmt::format(Red, [&] {
+    tfmt::formatScope(Red, [&] {
         str << '\"';
         printWithEscapeSeqs(str, text);
         str << '\"';
