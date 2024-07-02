@@ -492,11 +492,14 @@ void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
     auto* param = [&] {
         Type const* type = parentType;
         auto mut = thisParam.mutability();
+        auto bindMode = thisParam.bindMode();
         if (thisParam.isReference()) {
-            type = sym.reference({ parentType, thisParam.mutability() });
+            type = sym.reference(
+                { parentType, thisParam.mutability(), thisParam.bindMode() });
             mut = Mutability::Const;
+            bindMode = PointerBindMode::Static;
         }
-        return sym.addProperty(PropertyKind::This, type, mut, LValue,
+        return sym.addProperty(PropertyKind::This, type, mut, bindMode, LValue,
                                AccessControl::Private, &thisParam);
     }();
     if (param) {

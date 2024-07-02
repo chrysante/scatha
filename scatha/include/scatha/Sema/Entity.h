@@ -328,8 +328,9 @@ private:
 class SCATHA_API Property: public VarBase {
 public:
     explicit Property(PropertyKind kind, Scope* parentScope, Type const* type,
-                      Mutability mut, ValueCategory valueCat,
-                      AccessControl accessControl, ast::ASTNode* astNode);
+                      Mutability mut, PointerBindMode bindMode,
+                      ValueCategory valueCat, AccessControl accessControl,
+                      ast::ASTNode* astNode);
 
     /// The kind of property
     PropertyKind kind() const { return _kind; }

@@ -110,10 +110,11 @@ RecordType const* BaseClassObject::type() const {
 }
 
 Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,
-                   Mutability mut, ValueCategory valueCat,
-                   AccessControl accessControl, ast::ASTNode* astNode):
+                   Mutability mut, PointerBindMode bindMode,
+                   ValueCategory valueCat, AccessControl accessControl,
+                   ast::ASTNode* astNode):
     VarBase(EntityType::Property, std::string(toString(kind)), parentScope,
-            type, mut, PointerBindMode::Static, astNode),
+            type, mut, bindMode, astNode),
     _kind(kind),
     _valueCat(valueCat) {
     setAccessControl(accessControl);

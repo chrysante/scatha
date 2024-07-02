@@ -713,11 +713,13 @@ BaseClassObject* SymbolTable::defineBaseClass(Type const* type,
 }
 
 Property* SymbolTable::addProperty(PropertyKind kind, Type const* type,
-                                   Mutability mut, ValueCategory valueCat,
+                                   Mutability mut, PointerBindMode bindMode,
+                                   ValueCategory valueCat,
                                    AccessControl accessControl,
                                    ast::ASTNode* astNode) {
     auto* prop = impl->addEntity<Property>(kind, &currentScope(), type, mut,
-                                           valueCat, accessControl, astNode);
+                                           bindMode, valueCat, accessControl,
+                                           astNode);
     validateAccessControl(*prop);
     addToCurrentScope(prop);
     addGlobalAliasIfInternalAtFilescope(prop);
@@ -808,26 +810,27 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     impl->arrayTypes.insert({ key, arrayType });
     auto accessCtrl = arrayType->accessControl();
     withScopeCurrent(arrayType, [&] {
-        using enum Mutability;
         using enum ValueCategory;
+        using enum Mutability;
+        using enum PointerBindMode;
         auto* arraySize = addProperty(PropertyKind::ArraySize, S64(), Const,
-                                      RValue, accessCtrl);
+                                      Static, RValue, accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constSize = allocate<IntValue>(APInt(size, 64),
                                                 /* isSigned = */ true);
             arraySize->setConstantValue(std::move(constSize));
         }
         auto* arrayEmpty = addProperty(PropertyKind::ArrayEmpty, Bool(), Const,
-                                       RValue, accessCtrl);
+                                       Static, RValue, accessCtrl);
         if (size != ArrayType::DynamicCount) {
             auto constEmpty = allocate<IntValue>(APInt(size == 0, 1),
                                                  /* isSigned = */ false);
             arrayEmpty->setConstantValue(std::move(constEmpty));
         }
         addProperty(PropertyKind::ArrayFront, arrayType->elementType(), Mutable,
-                    LValue, accessCtrl);
+                    Static, LValue, accessCtrl);
         addProperty(PropertyKind::ArrayBack, arrayType->elementType(), Mutable,
-                    LValue, accessCtrl);
+                    Static, LValue, accessCtrl);
     });
     if (arrayType->elementType()->hasLifetimeMetadata()) {
         analyzeLifetime(*arrayType, *this);

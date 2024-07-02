@@ -163,7 +163,8 @@ public:
     /// \param astNode is defaulted to null because in most cases properties
     /// don't have source locations
     Property* addProperty(PropertyKind kind, Type const* type, Mutability mut,
-                          ValueCategory valueCat, AccessControl accessControl,
+                          PointerBindMode bindMode, ValueCategory valueCat,
+                          AccessControl accessControl,
                           ast::ASTNode* astNode = nullptr);
 
     /// Creates a new unique temporary object of type \p type
