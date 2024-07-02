@@ -155,8 +155,8 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::Conditional const&);
     Value getValueImpl(ast::FunctionCall const&);
     Value callFunction(sema::Function const* semaFn, ir::Value* function,
-                       sema::ObjectType const* exprType,
-                       std::span<Value const> args, std::string name);
+                       sema::QualType exprType, std::span<Value const> args,
+                       std::string name);
     utl::small_vector<ir::Value*> unpackArguments(auto&& passingConventions,
                                                   auto&& values);
     Value getValueImpl(ast::Subscript const&);
@@ -462,7 +462,7 @@ void FuncGenContext::generateParameter(
                            "this" :
                            std::string(paramDecl->name());
     auto* semaParam = paramDecl->object();
-    auto* paramType = stripRef(semaParam->type());
+    auto paramType = semaParam->getQualType();
     switch (pc.location(0)) {
     case Register: {
         /// Reference parameters are special: We don't store them to memory
@@ -509,9 +509,8 @@ void FuncGenContext::generateImpl(ast::VariableDeclaration const& varDecl) {
     else {
         Atom address = toMemory(pack(getValue(varDecl.initExpr())).single());
         address->setName(utl::strcat(name, ".addr"));
-        valueMap.insert(var,
-                        Value::Packed(name, varDecl.initExpr()->type().get(),
-                                      address));
+        valueMap.insert(var, Value::Packed(name, varDecl.initExpr()->type(),
+                                           address));
     }
     generateCleanups(cleanupStack);
 }
@@ -713,7 +712,7 @@ Value FuncGenContext::getValueImpl(ast::Identifier const& id) {
         auto* getter = getGlobalVarGetter(*var);
         auto* call = add<ir::Call>(getter, ValueArray{},
                                    utl::strcat(id.value(), ".addr"));
-        return Value::Packed(std::string(id.value()), id.type().get(),
+        return Value::Packed(std::string(id.value()), id.type(),
                              Atom::Memory(call));
     }
     else {
@@ -725,19 +724,19 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        return Value::Packed("int.lit", lit.type().get(),
+        return Value::Packed("int.lit", lit.type(),
                              Atom::Register(
                                  ctx.intConstant(lit.value<APInt>())));
     case Boolean:
-        return Value::Packed("bool.lit", lit.type().get(),
+        return Value::Packed("bool.lit", lit.type(),
                              Atom::Register(
                                  ctx.intConstant(lit.value<APInt>())));
     case FloatingPoint:
-        return Value::Packed("float.lit", lit.type().get(),
+        return Value::Packed("float.lit", lit.type(),
                              Atom::Register(
                                  ctx.floatConstant(lit.value<APFloat>())));
     case Null:
-        return Value::Packed("null.lit", lit.type().get(),
+        return Value::Packed("null.lit", lit.type(),
                              Atom::Register(ctx.nullpointer()));
     case This:
         return valueMap(lit.object());
@@ -753,13 +752,13 @@ Value FuncGenContext::getValueImpl(ast::Literal const& lit) {
         auto name = nameFromSourceLoc("string", lit.sourceLocation());
         auto* data = ctx.stringLiteral(text);
         auto* global = mod.makeGlobalConstant(ctx, data, name);
-        return Value::Unpacked(name, lit.type().get(),
+        return Value::Unpacked(name, lit.type(),
                                { Atom::Register(global),
                                  Atom::Register(
                                      ctx.intConstant(text.size(), 64)) });
     }
     case Char:
-        return Value::Packed("char.lit", lit.type().get(),
+        return Value::Packed("char.lit", lit.type(),
                              Atom::Register(
                                  ctx.intConstant(lit.value<APInt>())));
     }
@@ -782,7 +781,8 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
     auto buffer = [&] {
         auto* bufferSize = ctx.intConstant(initBufferSize, 64);
         if (initBufferSize == 0) {
-            return Value::Unpacked("fstring.buffer", sym.strPointer(),
+            return Value::Unpacked("fstring.buffer",
+                                   sema::QualType(sym.strPointer()),
                                    { Atom::Register(ctx.nullpointer()),
                                      Atom::Register(bufferSize) });
         }
@@ -790,13 +790,14 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
         auto alloc = getBuiltin(svm::Builtin::alloc);
         ValueArray args = { bufferSize, ctx.intConstant(1, 64) };
         ir::Value* bufferPtr = add<ir::Call>(alloc, args, "fstring.buffer");
-        return Value::Packed("fstring.buffer", sym.strPointer(),
+        return Value::Packed("fstring.buffer", sema::QualType(sym.strPointer()),
                              { Atom::Register(bufferPtr) });
     }();
     ir::Value* offsetPtr =
         makeLocalVariable(ctx.intType(64), "fstring.buffer.offset");
     add<ir::Store>(offsetPtr, ctx.intConstant(0, 64));
-    auto offset = Value::Unpacked(std::string(offsetPtr->name()), sym.S64(),
+    auto offset = Value::Unpacked(std::string(offsetPtr->name()),
+                                  sema::QualType(sym.S64()),
                                   { Atom::Memory(offsetPtr) });
     int numFormatCalls = 0;
     for (auto [operand, fmtFunction]:
@@ -806,7 +807,7 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
             continue;
         }
         buffer = callFunction(fmtFunction, getFunction(fmtFunction),
-                              buffer.type().get(),
+                              buffer.type(),
                               { { buffer, offset, getValue(operand) } },
                               buffer.name());
         ++numFormatCalls;
@@ -814,10 +815,10 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
     needsTrimming |= numFormatCalls > 1;
     if (needsTrimming) {
         auto* trimFn = sym.builtinFunction((size_t)svm::Builtin::fstring_trim);
-        buffer = callFunction(trimFn, getFunction(trimFn), buffer.type().get(),
+        buffer = callFunction(trimFn, getFunction(trimFn), buffer.type(),
                               { { buffer, offset } }, "fstring.trim");
     }
-    return Value("fstring", expr.type().get(), buffer.elements(),
+    return Value("fstring", expr.type(), buffer.elements(),
                  buffer.representation());
 }
 
@@ -845,7 +846,7 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         case ast::UnaryOperatorNotation::Prefix:
             return operand;
         case ast::UnaryOperatorNotation::Postfix:
-            return Value::Packed(operand.name(), expr.type().get(),
+            return Value::Packed(operand.name(), expr.type(),
                                  Atom::Register(operandValue));
         }
     }
@@ -860,8 +861,7 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         auto* newValue =
             add<ir::ArithmeticInst>(ctx.arithmeticConstant(0, operand->type()),
                                     operand, operation, "negated");
-        return Value::Packed("negated", expr.type().get(),
-                             Atom::Register(newValue));
+        return Value::Packed("negated", expr.type(), Atom::Register(newValue));
     }
 
     default:
@@ -869,8 +869,7 @@ Value FuncGenContext::getValueImpl(ast::UnaryExpression const& expr) {
         auto* newValue =
             add<ir::UnaryArithmeticInst>(operand, mapUnaryOp(expr.operation()),
                                          "expr");
-        return Value::Packed("expr", expr.type().get(),
-                             Atom::Register(newValue));
+        return Value::Packed("expr", expr.type(), Atom::Register(newValue));
     }
 }
 
@@ -902,8 +901,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         auto* rhs = toPackedRegister(getValue(expr.rhs()));
         auto operation = mapArithmeticOp(type, expr.operation());
         auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, resName);
-        return Value::Packed(resName, expr.type().get(),
-                             Atom::Register(result));
+        return Value::Packed(resName, expr.type(), Atom::Register(result));
     }
 
     case LogicalAnd:
@@ -945,8 +943,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
                     "log.or");
             }
         }();
-        return Value::Packed("log.or", expr.type().get(),
-                             Atom::Register(result));
+        return Value::Packed("log.or", expr.type(), Atom::Register(result));
     }
 
     case Less:
@@ -976,8 +973,7 @@ Value FuncGenContext::getValueImpl(ast::BinaryExpression const& expr) {
         using enum ir::ArithmeticOperation;
         auto* combined =
             foldValues(expr.operation() == Equals ? And : Or, values, resName);
-        return Value::Packed(resName, expr.type().get(),
-                             Atom::Register(combined));
+        return Value::Packed(resName, expr.type(), Atom::Register(combined));
     }
 
     case Comma:
@@ -1057,7 +1053,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         }
         }
     }) | ToSmallVector<2>;
-    return Value::Unpacked(name, expr.type().get(), values);
+    return Value::Unpacked(name, expr.type(), values);
 }
 
 Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
@@ -1080,7 +1076,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                         ir::CompareMode::Signed,
                                         ir::CompareOperation::Equal, "empty");
         }();
-        return Value::Packed("empty", expr.type().get(), Atom::Register(empty));
+        return Value::Packed("empty", expr.type(), Atom::Register(empty));
     }
     case ArrayFront:
         [[fallthrough]];
@@ -1098,7 +1094,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
             size_t index = isFront ? 0 : arrayType->count() - 1;
             auto* elem = add<ir::ExtractValue>(toPackedRegister(accessed),
                                                IndexArray{ index }, name);
-            return Value::Packed(name, expr.type().get(), Atom::Register(elem));
+            return Value::Packed(name, expr.type(), Atom::Register(elem));
         }
         case Memory: {
             auto* index = [&]() -> ir::Value* {
@@ -1119,7 +1115,7 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
                                                     unpack(accessed)[0].get(),
                                                     index, IndexArray{},
                                                     utl::strcat(name, ".addr"));
-            return Value::Packed(name, expr.type().get(), Atom::Memory(elem));
+            return Value::Packed(name, expr.type(), Atom::Memory(elem));
         }
         }
     }
@@ -1136,7 +1132,7 @@ Value FuncGenContext::getValueImpl(ast::DereferenceExpression const& expr) {
     auto irTypes =
         typeMap.map(value.representation(), expr.referred()->type().get());
     elems[0] = Atom::Memory(toRegister(elems[0], irTypes[0], name).get());
-    return Value(name, expr.type().get(), elems, value.representation());
+    return Value(name, expr.type(), elems, value.representation());
 }
 
 Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
@@ -1144,8 +1140,8 @@ Value FuncGenContext::getValueImpl(ast::AddressOfExpression const& expr) {
     SC_ASSERT(value[0].isMemory(), "");
     auto elems = value.elements() | ToSmallVector<2>;
     elems[0] = Atom::Register(elems[0].get());
-    return Value::Unpacked(utl::strcat(value.name(), ".addr"),
-                           expr.type().get(), elems);
+    return Value::Unpacked(utl::strcat(value.name(), ".addr"), expr.type(),
+                           elems);
 }
 
 Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
@@ -1212,7 +1208,7 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
             SC_ASSERT(isa<ir::Alloca>(elseResolved.front()), "");
             SC_ASSERT(elseResolved.size() == 1, "For now");
             elseResolved.front()->replaceAllUsesWith(thenResolved.front());
-            return Value("cond", condExpr.type().get(),
+            return Value("cond", condExpr.type(),
                          { Atom(thenResolved.front(), loc) }, repr);
         }
     }
@@ -1226,7 +1222,7 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
                          "cond");
         return Atom(phi, loc);
     }) | ToSmallVector<2>;
-    return Value("cond", condExpr.type().get(), atoms, repr);
+    return Value("cond", condExpr.type(), atoms, repr);
 }
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
@@ -1254,13 +1250,12 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             return add<ir::Load>(funcAddr, ctx.ptrType(), "vtable.function");
         }
     }();
-    return callFunction(call.function(), function, call.type().get(), arguments,
+    return callFunction(call.function(), function, call.type(), arguments,
                         "call.result");
 }
 
 Value FuncGenContext::callFunction(sema::Function const* semaFn,
-                                   ir::Value* irFn,
-                                   sema::ObjectType const* exprType,
+                                   ir::Value* irFn, sema::QualType exprType,
                                    std::span<Value const> args,
                                    std::string name) {
     auto CC = getCC(semaFn);
@@ -1309,7 +1304,7 @@ Value FuncGenContext::getValueImpl(ast::Subscript const& expr) {
     auto* elemType = typeMap.packed(expr.type().get());
     auto* elemAddr = add<ir::GetElementPointer>(elemType, arrayAddr, index,
                                                 IndexArray{}, "elem.addr");
-    return Value::Packed("elem", expr.type().get(), Atom::Memory(elemAddr));
+    return Value::Packed("elem", expr.type(), Atom::Memory(elemAddr));
 }
 
 Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
@@ -1326,7 +1321,7 @@ Value FuncGenContext::getValueImpl(ast::SubscriptSlice const& expr) {
     auto* size = add<ir::ArithmeticInst>(upper, lower,
                                          ir::ArithmeticOperation::Sub,
                                          utl::strcat(name, ".count"));
-    return Value::Unpacked(name, expr.type().get(),
+    return Value::Unpacked(name, expr.type(),
                            { Atom::Memory(addr), Atom::Register(size) });
 }
 
@@ -1390,7 +1385,7 @@ Value FuncGenContext::getValueImpl(ast::ListExpression const& list) {
     if (!genStaticListData(list, array)) {
         genDynamicListData(list, array);
     }
-    return Value::Packed(name, list.type().get(), Atom::Memory(array));
+    return Value::Packed(name, list.type(), Atom::Memory(array));
 }
 
 Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
@@ -1417,12 +1412,12 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
         irArguments.insert(irArguments.begin(), mem);
         auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
         call->setComment(makeLifetimeComment(semaCtor, expr.object()));
-        return Value::Packed(name, expr.type().get(), Atom::Memory(mem));
+        return Value::Packed(name, expr.type(), Atom::Memory(mem));
     }
 
     case NontrivialInline: {
         auto* mem = makeLocalVariable(irType, name);
-        auto dest = Value::Packed(name, expr.type().get(), Atom::Memory(mem));
+        auto dest = Value::Packed(name, expr.type(), Atom::Memory(mem));
         inlineLifetime(expr.constructorKind(), dest, value);
         return dest;
     }
@@ -1478,11 +1473,11 @@ Value FuncGenContext::getValueImpl(ast::UniqueExpr const& expr) {
         addr->replaceAllUsesWith(ptr);
         if (isDynArrayPointer(expr.type().get())) {
             auto* arrayPtr = packValues(ValueArray{ ptr, arrayCount }, name);
-            return Value::Packed(name, expr.type().get(),
+            return Value::Packed(name, expr.type(),
                                  toMemory(Atom::Register(arrayPtr)));
         }
         else {
-            return Value::Packed(name, expr.type().get(),
+            return Value::Packed(name, expr.type(),
                                  toMemory(Atom::Register(ptr)));
         }
     });
@@ -1518,8 +1513,9 @@ Value FuncGenContext::getValueImpl(ast::QualConvExpr const& conv) {
     }
     case DynToStatic:
         value = unpack(value);
+        SC_ASSERT(value.size() == 2, "");
         return Value::Unpacked(utl::strcat(value.name(), ".static"),
-                               conv.type(), { value.single() });
+                               conv.type(), { value[0] });
     }
 }
 
@@ -1538,26 +1534,25 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
             add<ir::ConversionInst>(toPackedRegister(value),
                                     typeMap.packed(conv.type().get()), *irConv,
                                     name);
-        return Value::Packed(name, conv.type().get(), Atom::Register(result));
+        return Value::Packed(name, conv.type(), Atom::Register(result));
     }
 
     using enum sema::ObjectTypeConversion;
     switch (conv.conversion()) {
     case NullptrToRawPtr:
         if (isDynArrayPointer(conv.type().get())) {
-            return Value::Unpacked(value.name(), conv.type().get(),
+            return Value::Unpacked(value.name(), conv.type(),
                                    { Atom::Register(value[0].get()),
                                      Atom::Register(ctx.intConstant(0, 64)) });
         }
         else {
-            return Value::Packed(value.name(), conv.type().get(),
+            return Value::Packed(value.name(), conv.type(),
                                  Atom::Register(value[0].get()));
         }
     case NullptrToUniquePtr: {
         auto* irType = typeMap.packed(conv.type().get());
         auto* mem = makeLocalVariable(irType, "nullptr");
-        auto result =
-            Value::Packed("nullptr", conv.type().get(), Atom::Memory(mem));
+        auto result = Value::Packed("nullptr", conv.type(), Atom::Memory(mem));
         inlineLifetime(sema::SMFKind::DefaultConstructor, result, std::nullopt);
         return result;
     }
@@ -1567,7 +1562,7 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         value = unpack(value);
         SC_ASSERT(isa<sema::PointerType>(*expr->type()), "");
         size_t count = getStaticArraySize(expr->type().get()).value();
-        return Value::Unpacked(value.name(), conv.type().get(),
+        return Value::Unpacked(value.name(), conv.type(),
                                { value[0],
                                  Atom::Register(ctx.intConstant(count, 64)) });
     }
@@ -1575,13 +1570,13 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         [[fallthrough]];
     case Reinterpret_ValuePtr:
         return Value::Packed(utl::strcat(value.name(), ".reinterpret"),
-                             conv.type().get(), pack(value).single());
+                             conv.type(), pack(value).single());
     case Reinterpret_ValueRef_ToByteArray:
         [[fallthrough]];
     case Reinterpret_ValuePtr_ToByteArray: {
         auto* valueType = stripPtr(expr->type().get());
         return Value::Unpacked(utl::strcat(value.name(), ".reinterpret"),
-                               conv.type().get(),
+                               conv.type(),
                                { value.single(),
                                  Atom::Register(
                                      ctx.intConstant(valueType->size(), 64)) });
@@ -1591,7 +1586,7 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     case Reinterpret_ValuePtr_FromByteArray: {
         // TODO: Emit assert that size matches
         return Value::Packed(utl::strcat(value.name(), ".reinterpret"),
-                             conv.type().get(), unpack(value)[0]);
+                             conv.type(), unpack(value)[0]);
     }
     case Reinterpret_DynArrayRef_ToByte:
         [[fallthrough]];
@@ -1601,7 +1596,7 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         auto* size = makeCountToByteSize(toPackedRegister(getArraySize(value)),
                                          arrayType->elementType()->size());
         return Value::Unpacked(utl::strcat(value.name(), ".reinterpret"),
-                               conv.type().get(),
+                               conv.type(),
                                { unpack(value)[0], Atom::Register(size) });
     }
     case Reinterpret_DynArrayRef_FromByte:
@@ -1612,13 +1607,13 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         auto* count = makeByteSizeToCount(toPackedRegister(getArraySize(value)),
                                           arrayType->elementType()->size());
         return Value::Unpacked(utl::strcat(value.name(), ".reinterpret"),
-                               conv.type().get(),
+                               conv.type(),
                                { unpack(value)[0], Atom::Register(count) });
     }
     case ArrayRef_FixedToDynamic: {
         value = unpack(value);
         size_t count = getStaticArraySize(stripPtr(expr->type().get())).value();
-        return Value::Unpacked(value.name(), conv.type().get(),
+        return Value::Unpacked(value.name(), conv.type(),
                                { value[0],
                                  Atom::Register(ctx.intConstant(count, 64)) });
     }
@@ -1632,17 +1627,17 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                 add<ir::ConversionInst>(operand,
                                         typeMap.packed(conv.type().get()),
                                         ir::Conversion::Bitcast, name);
-            return Value::Packed(name, conv.type().get(),
-                                 Atom::Register(converted));
+            return Value::Packed(name, conv.type(), Atom::Register(converted));
         }
         else {
             SC_ASSERT(value.single().isMemory(), "");
-            return Value::Packed(name, conv.type().get(),
+            return Value::Packed(name, conv.type(),
                                  Atom::Memory(value.single().get()));
         }
     }
     case Ref_DerivedToParent:
         // TODO: Compute offset
+        value.setType(conv.type());
         return value;
     default:
         SC_UNREACHABLE();
@@ -1650,8 +1645,8 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
 }
 
 Value FuncGenContext::getValueImpl(ast::TrivDefConstructExpr const& expr) {
-    auto* type = expr.type().get();
-    auto* irType = typeMap.packed(type);
+    auto type = expr.type();
+    auto* irType = typeMap.packed(type.get());
     std::string name = "tmp";
     if (irType->size() <= PreferredMaxRegisterValueSize) {
         return Value::Packed(name, type,
@@ -1666,14 +1661,14 @@ Value FuncGenContext::getValueImpl(ast::TrivDefConstructExpr const& expr) {
 
 Value FuncGenContext::getValueImpl(ast::TrivCopyConstructExpr const& expr) {
     auto value = getValue(expr.arguments().front());
-    auto* type = expr.type().get();
+    auto type = expr.type();
     std::string name = "tmp";
     if (type->size() <= PreferredMaxRegisterValueSize) {
         return Value::Packed(name, type,
                              Atom::Register(toPackedRegister(value)));
     }
     else {
-        auto* irType = typeMap.packed(type);
+        auto* irType = typeMap.packed(type.get());
         auto* addr = makeLocalVariable(irType, name);
         callMemcpy(addr, toPackedMemory(value), irType->size());
         return Value::Packed(name, type, Atom::Memory(addr));
@@ -1681,8 +1676,8 @@ Value FuncGenContext::getValueImpl(ast::TrivCopyConstructExpr const& expr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::TrivAggrConstructExpr const& expr) {
-    auto* type = expr.type().get();
-    auto* irType = cast<ir::StructType const*>(typeMap.packed(type));
+    auto type = expr.type();
+    auto* irType = cast<ir::StructType const*>(typeMap.packed(type.get()));
     std::string name = "aggregate";
     if (irType->size() <= PreferredMaxRegisterValueSize) {
         utl::small_vector<ir::Value*> values;
@@ -1737,14 +1732,14 @@ Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {
     irArguments.insert(irArguments.begin(), mem);
     auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
     call->setComment(makeLifetimeComment(expr.constructor(), expr.object()));
-    return Value::Packed(name, type, Atom::Memory(mem));
+    return Value::Packed(name, sema::QualType(type), Atom::Memory(mem));
 }
 
 Value FuncGenContext::getValueImpl(
     ast::NontrivInlineConstructExpr const& expr) {
     auto* irType = typeMap.packed(expr.type().get());
     auto* mem = makeLocalVariable(irType, "value");
-    auto dest = Value::Packed("value", expr.type().get(), Atom::Memory(mem));
+    auto dest = Value::Packed("value", expr.type(), Atom::Memory(mem));
     auto source = [&]() -> std::optional<Value> {
         switch (expr.arguments().size()) {
         case 0:
@@ -1775,7 +1770,7 @@ Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
         SC_ASSERT(isa<ir::Alloca>(val), "Must be local memory to replace here");
         val->replaceAllUsesWith(destAddr);
     }
-    return Value::Packed(name, type, Atom::Memory(mem));
+    return Value::Packed(name, sema::QualType(type), Atom::Memory(mem));
 }
 
 Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
@@ -1809,7 +1804,7 @@ Value FuncGenContext::getValueImpl(ast::DynArrayConstructExpr const& expr) {
             elem->replaceAllUsesWith(counters[0]);
         });
     }
-    return Value::Unpacked(name, expr.type().get(),
+    return Value::Unpacked(name, expr.type(),
                            { Atom::Memory(arrayBegin), Atom::Register(count) });
 }
 
@@ -1995,11 +1990,14 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
             if (numArgs == 1) {
                 return std::nullopt;
             }
-            return Value::Packed("source.elem", type.elementType(),
+            return Value::Packed("source.elem",
+                                 sema::QualType(type.elementType()),
                                  Atom::Memory(counters[1]));
         }();
         generateLifetimeOperation(kind,
-                                  Value::Packed("dest.elem", type.elementType(),
+                                  Value::Packed("dest.elem",
+                                                sema::QualType(
+                                                    type.elementType()),
                                                 Atom::Memory(counters[0])),
                                   source);
     });
@@ -2008,9 +2006,8 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
 void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
                                         std::optional<Value> source,
                                         sema::UniquePtrType const& type) {
-    auto* pointeeType = type.base().get();
+    auto pointeeType = type.base();
     std::string name = "unique.ptr";
-
     using enum sema::SMFKind;
     switch (kind) {
     case DefaultConstructor: {
@@ -2071,7 +2068,7 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
                          ctx.intConstant(pointeeType->align(), 64) };
             }
             auto* elemType =
-                cast<sema::ArrayType const*>(pointeeType)->elementType();
+                cast<sema::ArrayType const*>(pointeeType.get())->elementType();
             auto* count = toRegister(dest[1], ctx.intType(64),
                                      utl::strcat(name, ".count"))
                               .get();
@@ -2108,8 +2105,9 @@ void FuncGenContext::generateGlobalVarGetter(
         add(initBlock);
         add<ir::Store>(md.varInit, ctx.boolConstant(true));
         auto initVal = getValue(initExpr);
-        assignValue(Value::Packed(std::string(semaVar.name()),
-                                  cast<sema::ObjectType const*>(varDecl.type()),
+        auto type =
+            sema::QualType(cast<sema::ObjectType const*>(varDecl.type()));
+        assignValue(Value::Packed(std::string(semaVar.name()), type,
                                   Atom::Memory(md.var)),
                     pack(initVal));
         add<ir::Goto>(endBlock);
@@ -2162,5 +2160,5 @@ Value FuncGenContext::unpackStructMembersToValue(
     auto addresses =
         unpackStructMembers(address, parentType, beginIndex, numElements, name);
     auto atoms = addresses | transform(Atom::Memory) | ToSmallVector<>;
-    return Value::Unpacked(std::string(name), elemType, atoms);
+    return Value::Unpacked(std::string(name), sema::QualType(elemType), atoms);
 }

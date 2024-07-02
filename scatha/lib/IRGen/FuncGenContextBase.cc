@@ -252,7 +252,7 @@ Value FuncGenContextBase::getArraySize(Value const& value) {
         semaType = base;
     }
     auto* arrType = cast<sema::ArrayType const*>(semaType);
-    auto* sizeType = symbolTable.Int();
+    auto sizeType = sema::QualType(symbolTable.Int());
     if (!arrType->isDynamic()) {
         return Value::Packed(name, sizeType,
                              Atom::Register(
@@ -261,7 +261,8 @@ Value FuncGenContextBase::getArraySize(Value const& value) {
     if (value.isUnpacked()) {
         return Value::Packed(name, sizeType, value[1]);
     }
-    else if (value[0].isMemory()) {
+    switch (value[0].location()) {
+    case ValueLocation::Memory: {
         if (isa<sema::PointerType>(semaType)) {
             auto* addr = add<ir::GetElementPointer>(ctx, arrayPtrType,
                                                     value[0].get(), nullptr,
@@ -275,12 +276,11 @@ Value FuncGenContextBase::getArraySize(Value const& value) {
             return Value::Packed(name, sizeType, Atom::Register(size));
         }
     }
-
-    else {
-        // Now value[0].isRegister()
+    case ValueLocation::Register: {
         auto* size =
             add<ir::ExtractValue>(value[0].get(), IndexArray{ 1 }, name);
         return Value::Packed(name, sizeType, Atom::Register(size));
+    }
     }
 }
 
@@ -364,6 +364,6 @@ void FuncGenContextBase::generateForLoop(
 }
 
 Value FuncGenContextBase::makeVoidValue(std::string name) const {
-    return Value::Packed(std::move(name), symbolTable.Void(),
+    return Value::Packed(std::move(name), sema::QualType(symbolTable.Void()),
                          Atom::Register(ctx.voidValue()));
 }

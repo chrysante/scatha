@@ -160,6 +160,20 @@ public:
     /// @}
 
 private:
+    /// We delete overloads of all constructors that take a raw
+    /// `ObjectType const*` to disable implicit conversions to `QualType`
+    /// @{
+    static Value Packed(std::string, sema::ObjectType const*, Atom) = delete;
+    static Value Unpacked(std::string, sema::ObjectType const*,
+                          std::span<Atom const>) = delete;
+    static Value Unpacked(std::string, sema::ObjectType const*,
+                          std::initializer_list<Atom>) = delete;
+    explicit Value(std::string, sema::ObjectType const*, std::span<Atom const>,
+                   ValueRepresentation) = delete;
+    explicit Value(std::string, sema::ObjectType const*,
+                   std::initializer_list<Atom>, ValueRepresentation) = delete;
+    /// @}
+
     std::string _name;
     sema::QualType _type;
     ValueRepresentation repr{};
