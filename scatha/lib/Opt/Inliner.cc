@@ -175,8 +175,9 @@ VisitResult Inliner::visitSCC(SCC& scc) {
     /// \returns `std::nullopt` on success.
     /// If an SCC is split during inlining, this function immediately returns a
     /// `RemoveCallEdgeResult` with `.type == SplitSCC` and the new SCCs
-    auto walk = [&](FunctionNode const& node,
-                    auto& walk) -> std::optional<RemoveCallEdgeResult> {
+    auto dfs =
+        [&](auto& dfs,
+            FunctionNode const& node) -> std::optional<RemoveCallEdgeResult> {
         if (!visited.insert(&node).second) {
             return std::nullopt;
         }
@@ -186,17 +187,18 @@ VisitResult Inliner::visitSCC(SCC& scc) {
             return result;
         }
         for (auto* pred: node.predecessors()) {
-            if (&pred->scc() == &scc) {
-                if (auto result = walk(*pred, walk)) {
-                    return result;
-                }
+            if (&pred->scc() != &scc) {
+                continue;
+            }
+            if (auto result = dfs(dfs, *pred)) {
+                return result;
             }
         }
         return std::nullopt;
     };
-    if (auto result = walk(scc.nodes().front(), walk)) {
+    if (auto result = dfs(dfs, scc.nodes().front())) {
         SC_ASSERT(result->type == RemoveCallEdgeResult::SplitSCC,
-                  "We only return a value from `walk` if we split an SCC");
+                  "We only return a value from `dfs` if we split an SCC");
         SC_ASSERT(modifiedAny, "");
         return { modifiedAny, *result };
     }
