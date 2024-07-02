@@ -23,21 +23,6 @@ sema::ObjectType const* irgen::getPtrOrRefBase(sema::Type const* type) {
     }; // clang-format on
 }
 
-static sema::ArrayType const* ptrOrRefToArrayImpl(sema::Type const* type) {
-    sema::Type const* base = getPtrOrRefBase(type);
-    base = base ? base : type;
-    return dyncast<sema::ArrayType const*>(base);
-}
-
-bool irgen::isFatPointer(sema::Type const* type) {
-    auto* AT = ptrOrRefToArrayImpl(type);
-    return AT && AT->isDynamic();
-}
-
-bool irgen::isFatPointer(ast::Expression const* expr) {
-    return isFatPointer(expr->type().get());
-}
-
 bool irgen::isDynArray(sema::Type const* type) {
     auto* arr = dyncast<sema::ArrayType const*>(type);
     return arr && arr->isDynamic();
@@ -51,6 +36,16 @@ bool irgen::isDynArrayPointer(sema::Type const* type) {
 bool irgen::isDynArrayReference(sema::Type const* type) {
     auto* ref = dyncast<sema::ReferenceType const*>(type);
     return ref && isDynArray(ref->base().get());
+}
+
+bool irgen::isDynPointer(sema::Type const* type) {
+    auto* ptr = dyncast<sema::PointerType const*>(type);
+    return ptr && ptr->base().isDyn();
+}
+
+bool irgen::isDynReference(sema::Type const* type) {
+    auto* ref = dyncast<sema::ReferenceType const*>(type);
+    return ref && ref->base().isDyn();
 }
 
 sema::ObjectType const* irgen::stripPtr(sema::ObjectType const* type) {
@@ -68,8 +63,10 @@ std::optional<size_t> irgen::getStaticArraySize(sema::ObjectType const* type) {
     return AT->count();
 }
 
-/// # THESE ARE OLD
-
 ir::StructType const* irgen::makeArrayPtrType(ir::Context& ctx) {
     return ctx.anonymousStruct({ ctx.ptrType(), ctx.intType(64) });
+}
+
+ir::StructType const* irgen::makeDynPtrType(ir::Context& ctx) {
+    return ctx.anonymousStruct({ ctx.ptrType(), ctx.ptrType() });
 }

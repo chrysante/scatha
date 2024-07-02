@@ -25,7 +25,8 @@ FuncGenContextBase::FuncGenContextBase(Config config, FuncGenParameters params):
     FunctionBuilder(params.ctx, &params.irFn),
     config(config),
     valueMap(ctx),
-    arrayPtrType(makeArrayPtrType(ctx)) {}
+    arrayPtrType(makeArrayPtrType(ctx)),
+    dynPtrType(makeDynPtrType(ctx)) {}
 
 ir::Callable* FuncGenContextBase::getFunction(
     sema::Function const* semaFunction) {
@@ -91,7 +92,7 @@ Value FuncGenContextBase::pack(Value const& value) {
         return value;
     }
     auto atom = [&]() -> Atom {
-        if (isDynArray(value.type())) {
+        if (isDynArray(value.type().get())) {
             SC_ASSERT(value[0].isMemory(), "Dyn array must be in memory");
             SC_ASSERT(value[0]->type() == ctx.ptrType(),
                       "Reference to dyn array must be arrayPtrType");
@@ -104,14 +105,20 @@ Value FuncGenContextBase::pack(Value const& value) {
                            value.name());
             return Atom(packed, Memory);
         }
-        else if (isDynArrayPointer(value.type())) {
-            auto types = typeMap.unpacked(value.type());
+        else if (isDynArrayPointer(value.type().get())) {
+            auto types = typeMap.unpacked(value.type().get());
             auto elems = zip(value, types) | transform([&](auto p) {
                 auto [atom, type] = p;
                 return toRegister(atom, type, value.name()).get();
             }) | ToSmallVector<2>;
             auto* packed = packValues(elems, value.name());
             return Atom(packed, Register);
+        }
+        else if (value.type().isDyn()) {
+            SC_UNIMPLEMENTED();
+        }
+        else if (isDynPointer(value.type().get())) {
+            SC_UNIMPLEMENTED();
         }
         else {
             return { value.single() };
@@ -125,7 +132,7 @@ Value FuncGenContextBase::unpack(Value const& value) {
         return value;
     }
     auto atoms = [&]() -> utl::small_vector<Atom, 2> {
-        if (isDynArray(value.type())) {
+        if (isDynArray(value.type().get())) {
             SC_ASSERT(value.single().isMemory(), "Dyn array must be in memory");
             SC_ASSERT(value.single()->type() == arrayPtrType,
                       "Reference to dyn array must be arrayPtrType");
@@ -134,7 +141,7 @@ Value FuncGenContextBase::unpack(Value const& value) {
             atoms[0] = Atom(atoms[0].get(), Memory);
             return atoms;
         }
-        else if (isDynArrayPointer(value.type())) {
+        else if (isDynArrayPointer(value.type().get())) {
             auto atom = value.single();
             switch (atom.location()) {
             case Register: {
@@ -142,6 +149,29 @@ Value FuncGenContextBase::unpack(Value const& value) {
             }
             case Memory: {
                 return unpackMemory(atom, arrayPtrType, value.name());
+            }
+            default:
+                SC_UNREACHABLE();
+            }
+        }
+        if (value.type().isDyn()) {
+            SC_ASSERT(value.single().isMemory(),
+                      "Dynamic object must be in memory");
+            SC_ASSERT(value.single()->type() == dynPtrType,
+                      "Reference to dyn object must be dynPtrType");
+            auto atoms = unpackRegister(Atom::Register(value.single().get()),
+                                        value.name());
+            atoms[0] = Atom(atoms[0].get(), Memory);
+            return atoms;
+        }
+        else if (isDynPointer(value.type().get())) {
+            auto atom = value.single();
+            switch (atom.location()) {
+            case Register: {
+                return unpackRegister(atom, value.name());
+            }
+            case Memory: {
+                return unpackMemory(atom, dynPtrType, value.name());
             }
             default:
                 SC_UNREACHABLE();
@@ -211,7 +241,7 @@ utl::small_vector<Atom, 2> FuncGenContextBase::unpackMemory(
 }
 
 ir::Value* FuncGenContextBase::toPackedRegister(Value const& value) {
-    auto* type = typeMap.packed(value.type());
+    auto* type = typeMap.packed(value.type().get());
     return toRegister(pack(value).single(), type, value.name()).get();
 }
 
@@ -221,7 +251,7 @@ ir::Value* FuncGenContextBase::toPackedMemory(Value const& value) {
 
 Value FuncGenContextBase::getArraySize(Value const& value) {
     auto name = utl::strcat(value.name(), ".count");
-    auto* semaType = value.type();
+    auto* semaType = value.type().get();
     if (auto* base = getPtrOrRefBase(semaType)) {
         semaType = base;
     }
@@ -284,10 +314,10 @@ ir::Value* FuncGenContextBase::makeByteSizeToCount(ir::Value* bytesize,
 
 Value FuncGenContextBase::copyValue(Value const& value) {
     SC_EXPECT(value.type()->hasTrivialLifetime() ||
-              isa<sema::UniquePtrType>(value.type()));
+              isa<sema::UniquePtrType>(value.type().get()));
     auto repr = value.representation();
     if (value.type()->size() <= PreferredMaxRegisterValueSize) {
-        auto types = typeMap.map(repr, value.type());
+        auto types = typeMap.map(repr, value.type().get());
         SC_ASSERT(types.size() == value.size(), "");
         auto elems = zip(value, types) | transform([&](auto p) {
             auto [atom, type] = p;
@@ -296,7 +326,7 @@ Value FuncGenContextBase::copyValue(Value const& value) {
         return Value(value.name(), value.type(), elems, repr);
     }
     else {
-        auto* irType = typeMap.packed(value.type());
+        auto* irType = typeMap.packed(value.type().get());
         auto* mem = makeLocalVariable(irType, value.name());
         callMemcpy(mem, toMemory(pack(value).single()).get(), irType->size());
         return Value::Packed(value.name(), value.type(), Atom::Memory(mem));

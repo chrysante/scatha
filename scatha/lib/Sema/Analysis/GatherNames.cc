@@ -105,10 +105,13 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     if (funcDef.body()) {
         funcDef.body()->decorateScope(function);
     }
-    else if (funcDef.externalLinkage() != "C" &&
-             !funcDef.findAncestor<ast::ProtocolDefinition>())
-    {
-        ctx.issue<BadFuncDef>(&funcDef, BadFuncDef::FunctionMustHaveBody);
+    else {
+        function->markAbstract();
+        if (!funcDef.findAncestor<ast::ProtocolDefinition>() &&
+            funcDef.externalLinkage() != "C")
+        {
+            ctx.issue<BadFuncDef>(&funcDef, BadFuncDef::FunctionMustHaveBody);
+        }
     }
     /// Now add this function definition to the dependency graph
     globals.push_back(&funcDef);

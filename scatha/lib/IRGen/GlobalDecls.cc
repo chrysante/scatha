@@ -43,13 +43,20 @@ ir::StructType* irgen::generateType(sema::RecordType const* semaType,
     auto structType = allocate<ir::StructType>(nameMangler(*semaType));
     StructMetadata MD;
     if (auto* semaStruct = dyncast<sema::StructType const*>(semaType)) {
-        auto objects = concat(semaStruct->baseObjects() |
-                                  transform(cast<sema::Object const*>),
-                              semaStruct->memberVariables());
-        for (auto* obj: objects) {
+        auto impl = [&](sema::Object const* obj) {
             for (auto* irElemType: typeMap.unpacked(obj->type())) {
                 structType->pushMember(irElemType);
             }
+        };
+        for (auto* base: semaStruct->baseObjects()) {
+            if (!isa<sema::ProtocolType>(base->type()) &&
+                base->type()->size() > 0)
+            {
+                impl(base);
+            }
+        }
+        for (auto* var: semaStruct->memberVariables()) {
+            impl(var);
         }
         MD = makeStructMetadata(typeMap, semaStruct);
     }
@@ -85,7 +92,9 @@ static ValueLocation computeRetValLocation(sema::Type const* type) {
 
 static PassingConvention computeArgPC(sema::Type const* type) {
     if (mayPassInRegister(type)) {
-        if (isDynArrayPointer(type) || isDynArrayReference(type)) {
+        if (isDynArrayPointer(type) || isDynArrayReference(type) ||
+            isDynPointer(type) || isDynReference(type))
+        {
             return PassingConvention(type, { Register, Register });
         }
         return PassingConvention(type, { Register });

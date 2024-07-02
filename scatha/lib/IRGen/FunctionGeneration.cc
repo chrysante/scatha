@@ -541,7 +541,7 @@ void FuncGenContext::generateImpl(ast::ReturnStatement const& stmt) {
         /// value in memory
         auto destLocation = CC.returnLocationAtCallsite();
         auto* value = to(destLocation, pack(retval).single(),
-                         typeMap.packed(retval.type()), retval.name())
+                         typeMap.packed(retval.type().get()), retval.name())
                           .get();
         generateCleanups(stmt.cleanupStack());
         add<ir::Return>(value);
@@ -808,7 +808,7 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
         if (!fmtFunction) {
             continue;
         }
-        buffer = callFunction(fmtFunction, buffer.type(),
+        buffer = callFunction(fmtFunction, buffer.type().get(),
                               { { buffer, offset, getValue(operand) } },
                               buffer.name());
         ++numFormatCalls;
@@ -817,7 +817,7 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
     if (needsTrimming) {
         buffer = callFunction(sym.builtinFunction(
                                   (size_t)svm::Builtin::fstring_trim),
-                              buffer.type(), { { buffer, offset } },
+                              buffer.type().get(), { { buffer, offset } },
                               "fstring.trim");
     }
     return Value("fstring", expr.type().get(), buffer.elements(),
@@ -1053,8 +1053,8 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         }
         case Memory: {
             ir::Value* value =
-                add<ir::GetElementPointer>(typeMap.packed(base.type()), baseVal,
-                                           ctx.intConstant(0, 64),
+                add<ir::GetElementPointer>(typeMap.packed(base.type().get()),
+                                           baseVal, ctx.intConstant(0, 64),
                                            IndexArray{ index }, name);
             return Atom::Memory(value);
         }
@@ -1233,6 +1233,10 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
+    if (call.callBinding() == sema::PointerBindMode::Dynamic) {
+        // TODO: Implement this
+        return makeVoidValue("tmp");
+    }
     return callFunction(call.function(), call.type().get(),
                         getValues(call.arguments()) | ToSmallVector<>,
                         "call.result");
@@ -1488,8 +1492,24 @@ Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
 }
 
 Value FuncGenContext::getValueImpl(ast::QualConvExpr const& conv) {
-    /// Mutability conversions are meaningless in IR
-    return getValue(conv.expression());
+    using enum sema::QualConversion;
+    auto value = getValue(conv.expression());
+    switch (conv.conversion()) {
+    case MutToConst:
+        /// Mutability conversions are meaningless in IR
+        value.setType(conv.type());
+        return value;
+    case StaticToDyn:
+        value = unpack(value);
+        // TODO: Get vtable pointer here
+        return Value::Unpacked(utl::strcat(value.name(), ".dyn"), conv.type(),
+                               { value.single(),
+                                 Atom::Register(ctx.nullpointer()) });
+    case DynToStatic:
+        value = unpack(value);
+        return Value::Unpacked(utl::strcat(value.name(), ".static"),
+                               conv.type(), { value.single() });
+    }
 }
 
 Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
@@ -1610,6 +1630,9 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                                  Atom::Memory(value.single().get()));
         }
     }
+    case Ref_DerivedToParent:
+        // TODO: Compute offset
+        return value;
     default:
         SC_UNREACHABLE();
     }
@@ -1826,7 +1849,7 @@ void FuncGenContext::generateLifetimeOperation(sema::SMFKind smfKind,
         }
         SC_EXPECT(dest.size() == source->size());
     }
-    auto* type = dest.type();
+    auto* type = dest.type().get();
     auto operation = type->lifetimeMetadata().operation(smfKind);
     auto irTypes = typeMap.unpacked(type);
     using enum sema::LifetimeOperation::Kind;
@@ -2098,7 +2121,7 @@ ir::Function* FuncGenContext::getGlobalVarGetter(
 void FuncGenContext::assignValue(Value dest, Value source) {
     SC_EXPECT(dest.size() == source.size());
     auto repr = dest.representation();
-    auto irTypes = typeMap.map(repr, dest.type());
+    auto irTypes = typeMap.map(repr, dest.type().get());
     SC_EXPECT(irTypes.size() == dest.size());
     for (auto [destAtom, sourceAtom, irType]: zip(dest, source, irTypes)) {
         SC_EXPECT(destAtom.isMemory());

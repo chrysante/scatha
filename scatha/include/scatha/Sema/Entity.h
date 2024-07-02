@@ -550,6 +550,12 @@ public:
     /// \Returns `kind() == FunctionKind::Foreign`
     bool isForeign() const { return kind() == FunctionKind::Foreign; }
 
+    /// \Returns `true` if this function is an abstract declaration, i.e., in a protocol
+    bool isAbstract() const { return _isAbstract; }
+
+    /// Mark this function as abstract declaration
+    void markAbstract() { _isAbstract = true; }
+
     /// Sets the kind of special member function. May only be called if this
     /// function is a special member function
     void setSMFKind(SMFKind kind) { _smfKind = kind; }
@@ -594,6 +600,7 @@ private:
     bool _hasSig           : 1 = false;
     bool _isMember         : 1 = false;
     bool _hasBinaryAddress : 1 = false;
+    bool _isAbstract       : 1 = false;
     /// For binary visible functions to be set after compilation
     size_t _binaryAddress = 0;
 };

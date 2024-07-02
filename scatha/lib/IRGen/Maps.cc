@@ -170,10 +170,7 @@ auto TypeMap::compute(sema::Type const* type) const {
                 res.push_back(ctx->intType(64));
             }
         },
-        [&]<typename T>(T const& type)
-            requires std::derived_from<T, sema::PointerType> ||
-                     std::derived_from<T, sema::ReferenceType>
-        {
+        [&](std::derived_from<sema::PtrRefTypeBase> auto const& type) {
             if (isDynArrayPointer(&type) || isDynArrayReference(&type)) {
                 if (Repr == ValueRepresentation::Packed) {
                     res = { makeArrayPtrType(*ctx) };
@@ -181,9 +178,11 @@ auto TypeMap::compute(sema::Type const* type) const {
                 else {
                     res = { ctx->ptrType(), ctx->intType(64) };
                 }
+                return;
             }
-            else {
-                res = { ctx->ptrType() };
+            res = { ctx->ptrType() };
+            if (type.base().isDyn()) {
+                res.push_back(ctx->ptrType());
             }
         },
     }; // clang-format on
@@ -193,6 +192,8 @@ auto TypeMap::compute(sema::Type const* type) const {
         return res.front();
     }
     else {
+        SC_ASSERT(res.size() <= 2,
+                  "Unpacked types must be represented by at most two IR types");
         return res;
     }
 }
@@ -216,6 +217,16 @@ utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(
     sema::Type const* type) const {
     return mapChached(unpackedMap, type,
                       std::bind_front(&TypeMap::compute<Unpacked>, this));
+}
+
+utl::small_vector<ir::Type const*, 2> TypeMap::unpacked(
+    sema::QualType type) const {
+    auto types = unpacked(type.get());
+    if (type.isDyn()) {
+        SC_ASSERT(types.size() == 1, "");
+        types.push_back(ctx->ptrType());
+    }
+    return types;
 }
 
 utl::small_vector<ir::Type const*, 2> TypeMap::map(

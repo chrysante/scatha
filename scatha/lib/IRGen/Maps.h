@@ -102,6 +102,9 @@ public:
     utl::small_vector<ir::Type const*, 2> unpacked(
         sema::Type const* type) const;
 
+    ///
+    utl::small_vector<ir::Type const*, 2> unpacked(sema::QualType type) const;
+
     /// \Returns the meta data associated with \p type
     StructMetadata const& metaData(sema::Type const* type) const;
 

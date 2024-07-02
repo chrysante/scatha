@@ -27,6 +27,7 @@ struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
     Config config;
     ValueMap valueMap;
     ir::StructType const* arrayPtrType = nullptr;
+    ir::StructType const* dynPtrType = nullptr;
 
     using FuncGenParameters::ctx;
 

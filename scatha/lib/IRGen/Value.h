@@ -15,6 +15,7 @@
 #include "Common/Ranges.h"
 #include "IR/CFG/Value.h"
 #include "Sema/Fwd.h"
+#include "Sema/QualType.h"
 
 namespace scatha::irgen {
 
@@ -86,41 +87,44 @@ public:
     using const_iterator = utl::vector<Atom>::const_iterator;
     using iterator = const_iterator;
 
-    static Value Packed(std::string name, sema::ObjectType const* type,
-                        Atom elem) {
+    static Value Packed(std::string name, sema::QualType type, Atom elem) {
         return Value(std::move(name), type, { elem },
                      ValueRepresentation::Packed);
     }
 
-    static Value Unpacked(std::string name, sema::ObjectType const* type,
+    static Value Unpacked(std::string name, sema::QualType type,
                           std::span<Atom const> elems) {
         return Value(std::move(name), type, elems,
                      ValueRepresentation::Unpacked);
     }
 
-    static Value Unpacked(std::string name, sema::ObjectType const* type,
+    static Value Unpacked(std::string name, sema::QualType type,
                           std::initializer_list<Atom> elems) {
         return Unpacked(std::move(name), type, std::span<Atom const>(elems));
     }
 
-    explicit Value(std::string name, sema::ObjectType const* type,
+    explicit Value(std::string name, sema::QualType type,
                    std::span<Atom const> elems, ValueRepresentation repr):
         _name(std::move(name)),
-        typeAndRepr(type, repr),
+        _type(type),
+        repr(repr),
         elems(elems | ToSmallVector<2>) {}
 
-    explicit Value(std::string name, sema::ObjectType const* type,
+    explicit Value(std::string name, sema::QualType type,
                    std::initializer_list<Atom> elems, ValueRepresentation repr):
         Value(std::move(name), type, std::span(elems), repr) {}
 
     /// \Returns the name of this value
     std::string const& name() const { return _name; }
 
-    /// TODO: Document this
-    sema::ObjectType const* type() const { return typeAndRepr.pointer(); }
+    ///
+    sema::QualType type() const { return _type; }
+
+    ///
+    void setType(sema::QualType type) { _type = type; }
 
     /// \Returns the representation of this value
-    ValueRepresentation representation() const { return typeAndRepr.integer(); }
+    ValueRepresentation representation() const { return repr; }
 
     /// \Returns `true` is this value is in packed representation
     bool isPacked() const {
@@ -157,7 +161,8 @@ public:
 
 private:
     std::string _name;
-    utl::ipp<sema::ObjectType const*, ValueRepresentation, 1> typeAndRepr;
+    sema::QualType _type;
+    ValueRepresentation repr{};
     utl::small_vector<Atom, 2> elems;
 };
 

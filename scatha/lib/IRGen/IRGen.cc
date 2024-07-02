@@ -155,7 +155,8 @@ static void importLibrary(ir::Context& ctx, ir::Module& mod,
 /// \Returns `true` for all functions that are generated unconditionally, i.e.
 /// even if they are not called by other functions
 static bool initialDeclFilter(sema::Function const* function) {
-    return mapVisibility(function) == ir::Visibility::External;
+    return !function->isAbstract() &&
+           mapVisibility(function) == ir::Visibility::External;
 }
 
 /// \Returns `true` if the entity \p entity is defined in an imported library

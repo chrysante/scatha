@@ -18,13 +18,6 @@ static size_t const PreferredMaxRegisterValueSize = 16;
 /// Otherwise returns `nullptr`
 sema::ObjectType const* getPtrOrRefBase(sema::Type const* type);
 
-/// \Returns `true` if \p type is an array with
-/// dynamic size or a pointer or a reference thereto
-[[deprecated]] bool isFatPointer(sema::Type const* type);
-
-/// \overload for expressions
-[[deprecated]] bool isFatPointer(ast::Expression const* expr);
-
 ///
 bool isDynArray(sema::Type const* type);
 
@@ -35,13 +28,22 @@ bool isDynArrayPointer(sema::Type const* type);
 bool isDynArrayReference(sema::Type const* type);
 
 ///
+bool isDynPointer(sema::Type const* type);
+
+///
+bool isDynReference(sema::Type const* type);
+
+///
 sema::ObjectType const* stripPtr(sema::ObjectType const* type);
 
 /// \Returns the size if \p type is a statically sized array or pointer thereto
 std::optional<size_t> getStaticArraySize(sema::ObjectType const* type);
 
-/// Creates an anonymous struct type with members `ptr` and `i64`
+/// Creates an anonymous struct type with members `{ ptr, i64 }`
 ir::StructType const* makeArrayPtrType(ir::Context& ctx);
+
+/// Creates an anonymous struct type with members `{ ptr, ptr }`
+ir::StructType const* makeDynPtrType(ir::Context& ctx);
 
 /// \Returns \p a if `a == b` or \p fallback otherwise
 inline ValueLocation commonLocation(
