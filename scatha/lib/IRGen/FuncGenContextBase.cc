@@ -33,13 +33,7 @@ FuncGenContextBase::FuncGenContextBase(sema::Function const* semaFn,
 
 ir::Callable* FuncGenContextBase::getFunction(
     sema::Function const* semaFunction) {
-    if (auto md = globalMap.tryGet(semaFunction)) {
-        return md->function;
-    }
-    if (semaFunction->isNative() || semaFunction->isGenerated()) {
-        declQueue.push_back(semaFunction);
-    }
-    return declareFunction(*semaFunction, *this);
+    return irgen::getFunction(*semaFunction, *this);
 }
 
 CallingConvention FuncGenContextBase::getCC(sema::Function const* function) {

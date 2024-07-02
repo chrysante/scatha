@@ -259,7 +259,9 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
                     str << ", ";
                 }
                 first = false;
-                str << formatType(elem->type()) << " ";
+                if (elem) {
+                    str << formatType(elem->type()) << " ";
+                }
                 formatValueImpl(str, elem);
             }
             str << brackets[1];

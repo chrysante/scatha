@@ -154,7 +154,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::AddressOfExpression const&);
     Value getValueImpl(ast::Conditional const&);
     Value getValueImpl(ast::FunctionCall const&);
-    Value callFunction(sema::Function const* semaFn,
+    Value callFunction(sema::Function const* semaFn, ir::Value* function,
                        sema::ObjectType const* exprType,
                        std::span<Value const> args, std::string name);
     utl::small_vector<ir::Value*> unpackArguments(auto&& passingConventions,
@@ -805,17 +805,17 @@ Value FuncGenContext::getValueImpl(ast::FStringExpr const& expr) {
         if (!fmtFunction) {
             continue;
         }
-        buffer = callFunction(fmtFunction, buffer.type().get(),
+        buffer = callFunction(fmtFunction, getFunction(fmtFunction),
+                              buffer.type().get(),
                               { { buffer, offset, getValue(operand) } },
                               buffer.name());
         ++numFormatCalls;
     }
     needsTrimming |= numFormatCalls > 1;
     if (needsTrimming) {
-        buffer = callFunction(sym.builtinFunction(
-                                  (size_t)svm::Builtin::fstring_trim),
-                              buffer.type().get(), { { buffer, offset } },
-                              "fstring.trim");
+        auto* trimFn = sym.builtinFunction((size_t)svm::Builtin::fstring_trim);
+        buffer = callFunction(trimFn, getFunction(trimFn), buffer.type().get(),
+                              { { buffer, offset } }, "fstring.trim");
     }
     return Value("fstring", expr.type().get(), buffer.elements(),
                  buffer.representation());
@@ -1230,36 +1230,50 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
-    if (call.callBinding() == sema::PointerBindMode::Dynamic) {
-        // TODO: Implement this
-        return makeVoidValue("tmp");
-    }
-    return callFunction(call.function(), call.type().get(),
-                        getValues(call.arguments()) | ToSmallVector<>,
+    auto arguments = getValues(call.arguments()) | ToSmallVector<>;
+    auto* function = [&]() -> ir::Value* {
+        using enum sema::PointerBindMode;
+        switch (call.callBinding()) {
+        case Static:
+            return getFunction(call.function());
+        case Dynamic:
+            SC_ASSERT(arguments.size() >= 1,
+                      "Need object argument to dispatch dynamic call");
+            auto obj = unpack(arguments[0]);
+            SC_ASSERT(obj.size() == 2,
+                      "Need vtable pointer to dispatch dynamic call");
+            auto* vtableAddr =
+                toRegister(obj[1], ctx.ptrType(), "vtable.addr").get();
+            auto& MD = typeMap.metaData(obj.type().get());
+            size_t index = MD.vtableIndexMap.find(call.function())->second;
+            auto* funcAddr = add<ir::GetElementPointer>(MD.vtableType,
+                                                        vtableAddr,
+                                                        ctx.intConstant(0, 32),
+                                                        std::array{ index },
+                                                        "vtable.addr.function");
+            return add<ir::Load>(funcAddr, ctx.ptrType(), "vtable.function");
+        }
+    }();
+    return callFunction(call.function(), function, call.type().get(), arguments,
                         "call.result");
 }
 
 Value FuncGenContext::callFunction(sema::Function const* semaFn,
+                                   ir::Value* irFn,
                                    sema::ObjectType const* exprType,
                                    std::span<Value const> args,
                                    std::string name) {
-    ir::Callable* function = getFunction(semaFn);
     auto CC = getCC(semaFn);
     auto irArguments = unpackArguments(CC.arguments(), args);
+    auto* irReturnType = typeMap.packed(semaFn->returnType());
     /// Allocate return value storage
     if (CC.returnLocation() == Memory) {
-        auto* irReturnType = typeMap.packed(semaFn->returnType());
         irArguments.insert(irArguments.begin(),
                            makeLocalVariable(irReturnType,
                                              utl::strcat(name, ".addr")));
+        irReturnType = ctx.voidType();
     }
-    auto instName = [&]() -> std::string {
-        if (isa<ir::VoidType>(function->returnType())) {
-            return {};
-        }
-        return name;
-    }();
-    auto* callInst = add<ir::Call>(function, irArguments, instName);
+    auto* callInst = add<ir::Call>(irReturnType, irFn, irArguments, name);
     auto* retval = CC.returnLocation() == Memory ? irArguments.front() :
                                                    callInst;
     auto atom = Atom(retval, CC.returnLocationAtCallsite());
@@ -1496,12 +1510,12 @@ Value FuncGenContext::getValueImpl(ast::QualConvExpr const& conv) {
         /// Mutability conversions are meaningless in IR
         value.setType(conv.type());
         return value;
-    case StaticToDyn:
+    case StaticToDyn: {
         value = unpack(value);
-        // TODO: Get vtable pointer here
+        auto& MD = typeMap.metaData(conv.type().get());
         return Value::Unpacked(utl::strcat(value.name(), ".dyn"), conv.type(),
-                               { value.single(),
-                                 Atom::Register(ctx.nullpointer()) });
+                               { value.single(), Atom::Register(MD.vtable) });
+    }
     case DynToStatic:
         value = unpack(value);
         return Value::Unpacked(utl::strcat(value.name(), ".static"),

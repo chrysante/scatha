@@ -4,7 +4,9 @@
 #include <utl/utility.hpp>
 
 #include "IR/Attributes.h"
+#include "IR/CFG/Constants.h"
 #include "IR/CFG/Function.h"
+#include "IR/CFG/GlobalVariable.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
@@ -24,41 +26,58 @@ using enum ValueLocation;
 using enum ValueRepresentation;
 using sema::QualType;
 
-static ir::GlobalVariable* generateVTable(sema::VTable const& vtable,
-                                          LoweringContext lctx) {
-    //    SC_UNIMPLEMENTED();
-    return nullptr;
-#if 0
-    auto vtableType = allocate<ir::StructType>(nameMangler(*vtable.type()) + ".vtable");
-    auto dfs = [&, index = size_t{0}](auto& dfs, sema::VTable const& vtable) mutable -> void {
-        for (auto* inherited : vtable.sortedInheritedVTables()) {
+static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
+                           LoweringContext lctx) {
+    auto& ctx = lctx.ctx;
+    std::string typeName = lctx.config.nameMangler(*vtable.type());
+    auto vtableType = allocate<ir::StructType>(typeName + ".vtable.type");
+    utl::small_vector<ir::Constant*> vtableFunctions;
+    auto dfs = [&](auto& dfs, sema::VTable const& vtable) mutable -> void {
+        for (auto* inherited: vtable.sortedInheritedVTables()) {
             dfs(dfs, *inherited);
         }
-        for (auto* F: vtable.layout()) {
-            
+        for (auto* semaFn: vtable.layout()) {
+            vtableType->pushMember(ctx.ptrType());
+            auto* irFn = [&]() -> ir::Constant* {
+                if (!semaFn->isAbstract()) {
+                    return getFunction(*semaFn, lctx);
+                }
+                declareFunction(*semaFn, lctx);
+                return ctx.undef(ctx.ptrType());
+            }();
+            MD.vtableIndexMap[semaFn] = vtableFunctions.size();
+            vtableFunctions.push_back(irFn);
         }
     };
     dfs(dfs, vtable);
-#endif
+    MD.vtableType = vtableType.get();
+    lctx.mod.addStructure(std::move(vtableType));
+    if (isa<sema::StructType>(vtable.type())) {
+        auto* irVTable = ctx.structConstant(vtableFunctions, MD.vtableType);
+        MD.vtable = lctx.mod.addGlobal(
+            allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Const,
+                                         irVTable, typeName + ".vtable"));
+    }
 }
 
 /// Generates the lowering metadata for \p semaType
 RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
                                          LoweringContext lctx) {
-    RecordMetadata metadata;
+    RecordMetadata MD;
+    MD.members.resize(semaType->baseTypes().size());
     if (auto* S = dyncast<sema::StructType const*>(semaType)) {
         uint32_t irIndex = 0;
         for (auto* member: S->memberVariables()) {
             auto fieldTypes = lctx.typeMap.unpacked(member->type());
-            metadata.members.push_back(
+            MD.members.push_back(
                 { .beginIndex = irIndex, .fieldTypes = fieldTypes });
             irIndex += fieldTypes.size();
         }
     }
     if (auto* vtable = semaType->vtable()) {
-        metadata.vtable = generateVTable(*vtable, lctx);
+        generateVTable(*vtable, MD, lctx);
     }
-    return metadata;
+    return MD;
 }
 
 ir::StructType* irgen::generateType(sema::RecordType const* semaType,
@@ -218,13 +237,36 @@ static UniquePtr<ir::Callable> allocateFunction(
 
 ir::Callable* irgen::declareFunction(sema::Function const& semaFn,
                                      LoweringContext lctx) {
-    auto CC = computeCallingConvention(semaFn);
-    auto irSignature = computeIRSignature(semaFn, lctx.ctx, CC, lctx.typeMap);
-    auto irFn = allocateFunction(lctx.ctx, semaFn, CC, irSignature,
-                                 lctx.typeMap, lctx.config.nameMangler);
-    lctx.globalMap.insert(&semaFn,
-                          FunctionMetadata{ irFn.get(), std::move(CC) });
-    auto* result = irFn.get();
-    lctx.mod.addGlobal(std::move(irFn));
-    return result;
+    if (semaFn.isAbstract()) {
+        auto CC = computeCallingConvention(semaFn);
+        lctx.globalMap.insert(&semaFn,
+                              FunctionMetadata{ nullptr, std::move(CC) });
+        return nullptr;
+    }
+    else {
+        auto CC = computeCallingConvention(semaFn);
+        auto irSignature =
+            computeIRSignature(semaFn, lctx.ctx, CC, lctx.typeMap);
+        auto irFn = allocateFunction(lctx.ctx, semaFn, CC, irSignature,
+                                     lctx.typeMap, lctx.config.nameMangler);
+        lctx.globalMap.insert(&semaFn,
+                              FunctionMetadata{ irFn.get(), std::move(CC) });
+        auto* result = irFn.get();
+        lctx.mod.addGlobal(std::move(irFn));
+        return result;
+    }
+}
+
+ir::Callable* irgen::getFunction(sema::Function const& semaFn,
+                                 LoweringContext lctx) {
+    if (auto md = lctx.globalMap.tryGet(&semaFn)) {
+        return md->function;
+    }
+    if ((semaFn.isNative() || semaFn.isGenerated()) && !semaFn.isAbstract() &&
+        !lctx.lowered.contains(&semaFn))
+    {
+        lctx.declQueue.push_back(&semaFn);
+        lctx.lowered.insert(&semaFn);
+    }
+    return declareFunction(semaFn, lctx);
 }

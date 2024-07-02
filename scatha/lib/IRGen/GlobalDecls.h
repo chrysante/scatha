@@ -31,6 +31,10 @@ CallingConvention computeCallingConvention(sema::Function const& function);
 ir::Callable* declareFunction(sema::Function const& semaFn,
                               LoweringContext lctx);
 
+/// \Returns the IR function corresponding to \p semaFn
+/// The function will be declared if it has not been declared before
+ir::Callable* getFunction(sema::Function const& semaFn, LoweringContext lctx);
+
 } // namespace scatha::irgen
 
 #endif // SCATHA_IRGEN_GLOBALDECLS_H_

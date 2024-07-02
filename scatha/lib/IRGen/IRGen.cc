@@ -176,15 +176,11 @@ static utl::small_vector<sema::NativeLibrary const*> topsortLibraries(
     return result;
 }
 
-void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
-                       sema::SymbolTable const& sym,
-                       sema::AnalysisResult const& analysisResult,
-                       Config config) {
-    TypeMap typeMap(ctx);
-    GlobalMap globalMap;
+static void declareInitialFunctions(sema::AnalysisResult const& analysisResult,
+                                    LoweringContext lctx) {
     /// We generate code for all compiler generated functions of public types
     utl::small_vector<sema::Function const*> generatedFunctions;
-    for (auto* type: sym.recordTypes() | Filter<sema::StructType> |
+    for (auto* type: lctx.symbolTable.recordTypes() | Filter<sema::StructType> |
                          filter(&sema::StructType::isPublic))
     {
         for (auto* F: type->entities() | Filter<sema::Function>) {
@@ -197,11 +193,26 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
     auto globalFunctions = analysisResult.globals |
                            Filter<ast::FunctionDefinition> |
                            transform([](auto* def) { return def->function(); });
-    auto functionQueue = concat(globalFunctions, generatedFunctions) |
-                         filter(initialDeclFilter) |
-                         ranges::to<std::deque<sema::Function const*>>;
-    LoweringContext lctx{ ctx,       mod,           sym,   typeMap,
-                          globalMap, functionQueue, config };
+    auto all = concat(globalFunctions, generatedFunctions) |
+               filter(initialDeclFilter);
+    for (auto* semaFn: all) {
+        lctx.declQueue.push_back(semaFn);
+        lctx.lowered.insert(semaFn);
+    }
+}
+
+void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
+                       sema::SymbolTable const& sym,
+                       sema::AnalysisResult const& analysisResult,
+                       Config config) {
+    TypeMap typeMap(ctx);
+    GlobalMap globalMap;
+    utl::hashset<sema::Function const*> loweredFunctions;
+    std::deque<sema::Function const*> declQueue;
+    LoweringContext lctx{
+        ctx, mod, sym, typeMap, globalMap, declQueue, loweredFunctions, config
+    };
+    declareInitialFunctions(analysisResult, lctx);
     /// We import libraries in topsort order because there may be dependencies
     /// between the libraries
     auto libs = topsortLibraries(sym.importedLibs() |
@@ -213,8 +224,9 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
         generateType(semaType, lctx);
     }
     /// Declare all functions that are initially in the decl queue
-    for (auto* semaFn: functionQueue) {
-        declareFunction(*semaFn, lctx);
+    for (auto* semaFn: declQueue) {
+        /// `getFunction` lazily declares the function
+        (void)getFunction(*semaFn, lctx);
     }
     /// And we generate code for all public global variables
     auto globalVariables = analysisResult.globals |
@@ -223,9 +235,9 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
     for (auto* var: globalVariables) {
         generateGlobalVariable(*var, lctx);
     }
-    while (!functionQueue.empty()) {
-        auto* semaFn = functionQueue.front();
-        functionQueue.pop_front();
+    while (!declQueue.empty()) {
+        auto* semaFn = declQueue.front();
+        declQueue.pop_front();
         auto* irFn = globalMap(semaFn).function;
         auto* native = dyncast<ir::Function*>(irFn);
         if (!native) continue;

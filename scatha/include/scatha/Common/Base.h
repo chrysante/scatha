@@ -224,8 +224,7 @@ __forceinline
     case Abort:
         doAbort();
     case Throw:
-        /// Throw should be handled earlier
-        doAbort();
+        throw AssertionFailure("Assertion failed");
     }
 }
 

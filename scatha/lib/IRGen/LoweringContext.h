@@ -3,6 +3,8 @@
 
 #include <deque>
 
+#include <utl/hashtable.hpp>
+
 #include "AST/Fwd.h"
 #include "IR/Fwd.h"
 #include "IRGen/IRGen.h"
@@ -22,6 +24,8 @@ struct LoweringContext {
     TypeMap& typeMap;
     GlobalMap& globalMap;
     std::deque<sema::Function const*>& declQueue;
+    /// All functions that have beed added to the decl queue
+    utl::hashset<sema::Function const*>& lowered;
     Config const& config;
 };
 

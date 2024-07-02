@@ -106,7 +106,9 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         funcDef.body()->decorateScope(function);
     }
     else {
-        function->markAbstract();
+        if (!funcDef.externalLinkage()) {
+            function->markAbstract();
+        }
         if (!funcDef.findAncestor<ast::ProtocolDefinition>() &&
             funcDef.externalLinkage() != "C")
         {
