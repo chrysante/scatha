@@ -23,15 +23,17 @@ namespace scatha::irgen {
 
 /// Base class of context objects for function generation of both user defined
 /// and compiler generated functions
-struct FuncGenContextBase: FuncGenParameters, ir::FunctionBuilder {
-    Config config;
+struct FuncGenContextBase: LoweringContext, ir::FunctionBuilder {
+    sema::Function const* semaFn;
+    ir::Function& irFn;
     ValueMap valueMap;
     ir::StructType const* arrayPtrType = nullptr;
     ir::StructType const* dynPtrType = nullptr;
 
-    using FuncGenParameters::ctx;
+    using LoweringContext::ctx;
 
-    FuncGenContextBase(Config config, FuncGenParameters params);
+    FuncGenContextBase(sema::Function const* semaFn, ir::Function& irFn,
+                       LoweringContext loweringContext);
 
     /// Map \p semaFn to the corresponding IR function. If the function is not
     /// declared it will be declared.

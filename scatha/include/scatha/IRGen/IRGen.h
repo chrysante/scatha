@@ -14,7 +14,7 @@
 namespace scatha::irgen {
 
 /// Config options used by `generateIR()`
-struct SCATHA_API Config {
+struct Config {
     /// The source files. Only used to generate debug symbols
     std::span<SourceFile const> sourceFiles = {};
 

@@ -89,7 +89,7 @@ public:
 
     /// Inserts as packed representation
     void insert(sema::RecordType const* key, ir::StructType const* value,
-                StructMetadata metaData);
+                RecordMetadata metaData);
 
     ///
     utl::small_vector<ir::Type const*, 2> map(ValueRepresentation repr,
@@ -106,7 +106,7 @@ public:
     utl::small_vector<ir::Type const*, 2> unpacked(sema::QualType type) const;
 
     /// \Returns the meta data associated with \p type
-    StructMetadata const& metaData(sema::Type const* type) const;
+    RecordMetadata const& metaData(sema::Type const* type) const;
 
 private:
     template <ValueRepresentation Repr>
@@ -118,7 +118,7 @@ private:
     mutable utl::hashmap<sema::Type const*,
                          utl::small_vector<ir::Type const*, 2>>
         unpackedMap;
-    utl::hashmap<sema::StructType const*, StructMetadata> meta;
+    utl::hashmap<sema::RecordType const*, RecordMetadata> meta;
 };
 
 /// # Maps of operators and other attributes

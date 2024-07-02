@@ -20,10 +20,13 @@ using namespace ranges::views;
 using enum ValueLocation;
 using enum ValueRepresentation;
 
-FuncGenContextBase::FuncGenContextBase(Config config, FuncGenParameters params):
-    FuncGenParameters(params),
-    FunctionBuilder(params.ctx, &params.irFn),
-    config(config),
+FuncGenContextBase::FuncGenContextBase(sema::Function const* semaFn,
+                                       ir::Function& irFn,
+                                       LoweringContext loweringContext):
+    LoweringContext(loweringContext),
+    FunctionBuilder(loweringContext.ctx, &irFn),
+    semaFn(semaFn),
+    irFn(irFn),
     valueMap(ctx),
     arrayPtrType(makeArrayPtrType(ctx)),
     dynPtrType(makeDynPtrType(ctx)) {}
@@ -36,8 +39,7 @@ ir::Callable* FuncGenContextBase::getFunction(
     if (semaFunction->isNative() || semaFunction->isGenerated()) {
         declQueue.push_back(semaFunction);
     }
-    return declareFunction(*semaFunction, ctx, mod, typeMap, globalMap,
-                           config.nameMangler);
+    return declareFunction(*semaFunction, *this);
 }
 
 CallingConvention FuncGenContextBase::getCC(sema::Function const* function) {

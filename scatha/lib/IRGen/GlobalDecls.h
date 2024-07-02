@@ -6,6 +6,7 @@
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
 #include "IR/Fwd.h"
+#include "IRGen/LoweringContext.h"
 #include "IRGen/Metadata.h"
 #include "Sema/Fwd.h"
 
@@ -15,23 +16,20 @@ class GlobalMap;
 class TypeMap;
 
 /// Generates the lowering metadata for \p semaType
-StructMetadata makeStructMetadata(TypeMap& typeMap,
-                                  sema::StructType const* semaType);
+RecordMetadata makeRecordMetadata(sema::RecordType const* semaType,
+                                  LoweringContext lctx);
 
 /// Translates \p semaType to an IR structure type
-ir::StructType* generateType(sema::RecordType const* semaType, ir::Context& ctx,
-                             ir::Module& mod, TypeMap& typeMap,
-                             sema::NameMangler const& nameMangler);
+ir::StructType* generateType(sema::RecordType const* semaType,
+                             LoweringContext lctx);
 
 ///
 CallingConvention computeCallingConvention(sema::Function const& function);
 
 /// Translates the function declaration \p semaFn to an IR function.
 /// \Note This does not generate code
-ir::Callable* declareFunction(sema::Function const& semaFn, ir::Context& ctx,
-                              ir::Module& mod, TypeMap const& typeMap,
-                              GlobalMap& globalMap,
-                              sema::NameMangler const& nameMangler);
+ir::Callable* declareFunction(sema::Function const& semaFn,
+                              LoweringContext lctx);
 
 } // namespace scatha::irgen
 

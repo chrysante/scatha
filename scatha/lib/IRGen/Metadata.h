@@ -17,10 +17,13 @@ struct MemberMetadata {
 };
 
 /// Metadata for translation of a struct from Scatha to IR
-struct StructMetadata {
+struct RecordMetadata {
     /// Metadata objects for each member in the Scatha representation of the
     /// struct
     utl::small_vector<MemberMetadata> members;
+
+    ///
+    ir::GlobalVariable* vtable = nullptr;
 };
 
 /// Metadata for translating a function from Scatha to IR

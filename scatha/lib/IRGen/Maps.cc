@@ -134,12 +134,10 @@ static void insertImpl(Map& map, typename Map::key_type key,
 }
 
 void TypeMap::insert(sema::RecordType const* key, ir::StructType const* value,
-                     StructMetadata metaData) {
+                     RecordMetadata metaData) {
     insertImpl(packedMap, key, value);
     insertImpl(unpackedMap, key, { value });
-    if (auto* S = dyncast<sema::StructType const*>(key)) {
-        meta.insert({ S, std::move(metaData) });
-    }
+    meta.insert({ key, std::move(metaData) });
 }
 
 template <ValueRepresentation Repr>
@@ -239,8 +237,8 @@ utl::small_vector<ir::Type const*, 2> TypeMap::map(
     }
 }
 
-StructMetadata const& TypeMap::metaData(sema::Type const* type) const {
-    auto itr = meta.find(cast<sema::StructType const*>(type));
+RecordMetadata const& TypeMap::metaData(sema::Type const* type) const {
+    auto itr = meta.find(cast<sema::RecordType const*>(type));
     SC_ASSERT(itr != meta.end(), "Not found");
     return itr->second;
 }

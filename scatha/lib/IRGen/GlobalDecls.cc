@@ -15,6 +15,7 @@
 #include "Sema/Entity.h"
 #include "Sema/NameMangling.h"
 #include "Sema/QualType.h"
+#include "Sema/VTable.h"
 
 using namespace scatha;
 using namespace irgen;
@@ -23,28 +24,50 @@ using enum ValueLocation;
 using enum ValueRepresentation;
 using sema::QualType;
 
-StructMetadata irgen::makeStructMetadata(TypeMap& typeMap,
-                                         sema::StructType const* semaType) {
-    StructMetadata metadata;
-    uint32_t irIndex = 0;
-    for (auto* member: semaType->memberVariables()) {
-        auto fieldTypes = typeMap.unpacked(member->type());
-        metadata.members.push_back(
-            { .beginIndex = irIndex, .fieldTypes = fieldTypes });
-        irIndex += fieldTypes.size();
+static ir::GlobalVariable* generateVTable(sema::VTable const& vtable,
+                                          LoweringContext lctx) {
+    //    SC_UNIMPLEMENTED();
+    return nullptr;
+#if 0
+    auto vtableType = allocate<ir::StructType>(nameMangler(*vtable.type()) + ".vtable");
+    auto dfs = [&, index = size_t{0}](auto& dfs, sema::VTable const& vtable) mutable -> void {
+        for (auto* inherited : vtable.sortedInheritedVTables()) {
+            dfs(dfs, *inherited);
+        }
+        for (auto* F: vtable.layout()) {
+            
+        }
+    };
+    dfs(dfs, vtable);
+#endif
+}
+
+/// Generates the lowering metadata for \p semaType
+RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
+                                         LoweringContext lctx) {
+    RecordMetadata metadata;
+    if (auto* S = dyncast<sema::StructType const*>(semaType)) {
+        uint32_t irIndex = 0;
+        for (auto* member: S->memberVariables()) {
+            auto fieldTypes = lctx.typeMap.unpacked(member->type());
+            metadata.members.push_back(
+                { .beginIndex = irIndex, .fieldTypes = fieldTypes });
+            irIndex += fieldTypes.size();
+        }
+    }
+    if (auto* vtable = semaType->vtable()) {
+        metadata.vtable = generateVTable(*vtable, lctx);
     }
     return metadata;
 }
 
 ir::StructType* irgen::generateType(sema::RecordType const* semaType,
-                                    [[maybe_unused]] ir::Context& ctx,
-                                    ir::Module& mod, TypeMap& typeMap,
-                                    sema::NameMangler const& nameMangler) {
-    auto structType = allocate<ir::StructType>(nameMangler(*semaType));
-    StructMetadata MD;
+                                    LoweringContext lctx) {
+    auto structType =
+        allocate<ir::StructType>(lctx.config.nameMangler(*semaType));
     if (auto* semaStruct = dyncast<sema::StructType const*>(semaType)) {
         auto impl = [&](sema::Object const* obj) {
-            for (auto* irElemType: typeMap.unpacked(obj->type())) {
+            for (auto* irElemType: lctx.typeMap.unpacked(obj->type())) {
                 structType->pushMember(irElemType);
             }
         };
@@ -58,11 +81,11 @@ ir::StructType* irgen::generateType(sema::RecordType const* semaType,
         for (auto* var: semaStruct->memberVariables()) {
             impl(var);
         }
-        MD = makeStructMetadata(typeMap, semaStruct);
     }
+    auto MD = makeRecordMetadata(semaType, lctx);
     auto* result = structType.get();
-    typeMap.insert(semaType, result, std::move(MD));
-    mod.addStructure(std::move(structType));
+    lctx.typeMap.insert(semaType, result, std::move(MD));
+    lctx.mod.addStructure(std::move(structType));
     return result;
 }
 
@@ -194,16 +217,14 @@ static UniquePtr<ir::Callable> allocateFunction(
 }
 
 ir::Callable* irgen::declareFunction(sema::Function const& semaFn,
-                                     ir::Context& ctx, ir::Module& mod,
-                                     TypeMap const& typemap,
-                                     GlobalMap& globalMap,
-                                     sema::NameMangler const& nameMangler) {
+                                     LoweringContext lctx) {
     auto CC = computeCallingConvention(semaFn);
-    auto irSignature = computeIRSignature(semaFn, ctx, CC, typemap);
-    auto irFn =
-        allocateFunction(ctx, semaFn, CC, irSignature, typemap, nameMangler);
-    globalMap.insert(&semaFn, FunctionMetadata{ irFn.get(), std::move(CC) });
+    auto irSignature = computeIRSignature(semaFn, lctx.ctx, CC, lctx.typeMap);
+    auto irFn = allocateFunction(lctx.ctx, semaFn, CC, irSignature,
+                                 lctx.typeMap, lctx.config.nameMangler);
+    lctx.globalMap.insert(&semaFn,
+                          FunctionMetadata{ irFn.get(), std::move(CC) });
     auto* result = irFn.get();
-    mod.addGlobal(std::move(irFn));
+    lctx.mod.addGlobal(std::move(irFn));
     return result;
 }

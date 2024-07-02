@@ -53,10 +53,10 @@ static auto* get(utl::hashmap<std::string, T*> const& map,
 /// Performs a DFS over a library scope and adds entries for all structs and
 /// functions to the type map and function map
 static void mapLibSymbols(
-    sema::Scope const& scope, TypeMap& typeMap, GlobalMap& globalMap,
-    sema::NameMangler const& nameMangler,
+    sema::Scope const& scope,
     utl::hashmap<std::string, ir::StructType*> const& IRStructMap,
-    utl::hashmap<std::string, ir::Global*> const& IRObjectMap) {
+    utl::hashmap<std::string, ir::Global*> const& IRObjectMap,
+    LoweringContext lctx) {
     auto entities = scope.entities() | ToSmallVector<>;
     for (auto* entity:
          entities | Filter<sema::StructType, sema::Function, sema::Variable>)
@@ -64,22 +64,22 @@ static void mapLibSymbols(
         // clang-format off
         SC_MATCH (*entity) {
             [&](sema::StructType const& semaType) {
-                std::string name = nameMangler(*entity);
-                typeMap.insert(&semaType,
+                std::string name = lctx.config.nameMangler(*entity);
+                lctx.typeMap.insert(&semaType,
                                get(IRStructMap, name),
-                               makeStructMetadata(typeMap, &semaType));
+                               makeRecordMetadata(&semaType, lctx));
             },
             [&](sema::Function const& semaFn) {
-                std::string name = nameMangler(*entity);
+                std::string name = lctx.config.nameMangler(*entity);
                 auto* irFn = get<ir::Function>(IRObjectMap, name);
-                globalMap.insert(&semaFn,
+                lctx.globalMap.insert(&semaFn,
                                  { irFn, computeCallingConvention(semaFn) });
             },
             [&](sema::Variable const& semaVar) {
                 if (!semaVar.isStatic()) {
                     return;
                 }
-                std::string name = nameMangler(semaVar);
+                std::string name = lctx.config.nameMangler(semaVar);
                 auto* irVar = cast<ir::GlobalVariable*>(get(IRObjectMap, name));
                 auto* initGuard = [&]() -> ir::GlobalVariable* {
                     if (!isa<ir::UndefValue>(irVar->initializer())) {
@@ -95,14 +95,13 @@ static void mapLibSymbols(
                     .varInit = initGuard,
                     .getter = getter
                 };
-                globalMap.insert(&semaVar, metadata);
+                lctx.globalMap.insert(&semaVar, metadata);
             },
             [&](sema::Entity const&) {}
         }; // clang-format on
     }
     for (auto* child: scope.children()) {
-        mapLibSymbols(*child, typeMap, globalMap, nameMangler, IRStructMap,
-                      IRObjectMap);
+        mapLibSymbols(*child, IRStructMap, IRObjectMap, lctx);
     }
 }
 
@@ -125,10 +124,8 @@ static void checkParserIssues(std::span<ir::ParseIssue const> issues,
     SC_ABORT();
 }
 
-static void importLibrary(ir::Context& ctx, ir::Module& mod,
-                          sema::NativeLibrary const& lib, TypeMap& typeMap,
-                          GlobalMap& globalMap,
-                          sema::NameMangler const& nameMangler) {
+static void importLibrary(sema::NativeLibrary const& lib,
+                          LoweringContext lctx) {
     auto archive = Archive::Open(lib.path());
     SC_RELASSERT(archive, "Failed to open library file");
     auto code = archive->openTextFile(TargetNames::ObjectCodeName);
@@ -144,12 +141,11 @@ static void importLibrary(ir::Context& ctx, ir::Module& mod,
         }
         IRObjectMap.insert({ std::string(object.name()), &object });
     };
-    auto parseIssues = ir::parseTo(*code, ctx, mod,
+    auto parseIssues = ir::parseTo(*code, lctx.ctx, lctx.mod,
                                    { .typeParseCallback = typeCallback,
                                      .objectParseCallback = objCallback });
     checkParserIssues(parseIssues, lib.path().string());
-    mapLibSymbols(lib, typeMap, globalMap, nameMangler, IRStructMap,
-                  IRObjectMap);
+    mapLibSymbols(lib, IRStructMap, IRObjectMap, lctx);
 }
 
 /// \Returns `true` for all functions that are generated unconditionally, i.e.
@@ -186,16 +182,6 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
                        Config config) {
     TypeMap typeMap(ctx);
     GlobalMap globalMap;
-    /// We import libraries in topsort order because there may be dependencies
-    /// between the libraries
-    auto libs = topsortLibraries(sym.importedLibs() |
-                                 Filter<sema::NativeLibrary> | ToSmallVector<>);
-    for (auto* lib: libs) {
-        importLibrary(ctx, mod, *lib, typeMap, globalMap, config.nameMangler);
-    }
-    for (auto* semaType: analysisResult.recordDependencyOrder) {
-        generateType(semaType, ctx, mod, typeMap, config.nameMangler);
-    }
     /// We generate code for all compiler generated functions of public types
     utl::small_vector<sema::Function const*> generatedFunctions;
     for (auto* type: sym.recordTypes() | Filter<sema::StructType> |
@@ -214,17 +200,28 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
     auto functionQueue = concat(globalFunctions, generatedFunctions) |
                          filter(initialDeclFilter) |
                          ranges::to<std::deque<sema::Function const*>>;
+    LoweringContext lctx{ ctx,       mod,           sym,   typeMap,
+                          globalMap, functionQueue, config };
+    /// We import libraries in topsort order because there may be dependencies
+    /// between the libraries
+    auto libs = topsortLibraries(sym.importedLibs() |
+                                 Filter<sema::NativeLibrary> | ToSmallVector<>);
+    for (auto* lib: libs) {
+        importLibrary(*lib, lctx);
+    }
+    for (auto* semaType: analysisResult.recordDependencyOrder) {
+        generateType(semaType, lctx);
+    }
+    /// Declare all functions that are initially in the decl queue
     for (auto* semaFn: functionQueue) {
-        declareFunction(*semaFn, ctx, mod, typeMap, globalMap,
-                        config.nameMangler);
+        declareFunction(*semaFn, lctx);
     }
     /// And we generate code for all public global variables
     auto globalVariables = analysisResult.globals |
                            Filter<ast::VariableDeclaration> |
                            transform([](auto* def) { return def->variable(); });
     for (auto* var: globalVariables) {
-        generateGlobalVariable(config, *var, ctx, mod, sym, typeMap, globalMap,
-                               functionQueue);
+        generateGlobalVariable(*var, lctx);
     }
     while (!functionQueue.empty()) {
         auto* semaFn = functionQueue.front();
@@ -232,14 +229,7 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
         auto* irFn = globalMap(semaFn).function;
         auto* native = dyncast<ir::Function*>(irFn);
         if (!native) continue;
-        generateFunction(config, { .semaFn = semaFn,
-                                   .irFn = *native,
-                                   .ctx = ctx,
-                                   .mod = mod,
-                                   .symbolTable = sym,
-                                   .typeMap = typeMap,
-                                   .globalMap = globalMap,
-                                   .declQueue = functionQueue });
+        generateFunction(semaFn, *native, lctx);
     }
     ir::assertInvariants(ctx, mod);
     if (config.generateDebugSymbols) {

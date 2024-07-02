@@ -251,6 +251,7 @@ set(scatha_sources
     lib/IRGen/GlobalDecls.cc
     lib/IRGen/GlobalDecls.h
     lib/IRGen/IRGen.cc
+    lib/IRGen/LoweringContext.h
     lib/IRGen/Maps.cc
     lib/IRGen/Maps.h
     lib/IRGen/Metadata.cc
