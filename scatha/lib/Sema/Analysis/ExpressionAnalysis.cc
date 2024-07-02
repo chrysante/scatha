@@ -101,7 +101,7 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::ListExpression&);
     ast::Expression* analyzeImpl(ast::NontrivAssignExpr&);
     ast::Expression* analyzeImpl(ast::ValueCatConvExpr&);
-    ast::Expression* analyzeImpl(ast::MutConvExpr&);
+    ast::Expression* analyzeImpl(ast::QualConvExpr&);
     ast::Expression* analyzeImpl(ast::ObjTypeConvExpr&);
     ast::Expression* analyzeImpl(ast::TrivDefConstructExpr&);
     ast::Expression* analyzeImpl(ast::TrivCopyConstructExpr&);
@@ -1277,7 +1277,9 @@ static void convertArgsAndPopCleanups(auto const& arguments,
 static bool isDynamicType(Type const& type) {
     // clang-format off
     return SC_MATCH(type) {
-        [](PtrRefTypeBase const& type) { return type.base().isDyn(); },
+        [](std::derived_from<PtrRefTypeBase> auto const& type) {
+            return type.base().isDyn();
+        },
         [](auto&) { return false; }
     }; // clang-format on
 }
@@ -1559,23 +1561,27 @@ ast::Expression* ExprContext::analyzeImpl(ast::ValueCatConvExpr& vcConv) {
     return &vcConv;
 }
 
-static QualType mutConvType(QualType original, MutConversion conv) {
-    using enum MutConversion;
+static QualType qualConvType(QualType original, QualConversion conv) {
+    using enum QualConversion;
     switch (conv) {
     case MutToConst:
-        return QualType::Const(original.get());
+        return original.toConst();
+    case StaticToDyn:
+        return original.toDyn();
+    case DynToStatic:
+        return original.toStatic();
     }
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::MutConvExpr& mutConv) {
-    auto* expr = mutConv.expression();
+ast::Expression* ExprContext::analyzeImpl(ast::QualConvExpr& qualConv) {
+    auto* expr = qualConv.expression();
     if (!analyzeValue(expr)) {
         return nullptr;
     }
-    mutConv.decorateValue(expr->entity(), expr->valueCategory(),
-                          mutConvType(expr->type(), mutConv.conversion()));
-    mutConv.setConstantValue(clone(expr->constantValue()));
-    return &mutConv;
+    qualConv.decorateValue(expr->entity(), expr->valueCategory(),
+                           qualConvType(expr->type(), qualConv.conversion()));
+    qualConv.setConstantValue(clone(expr->constantValue()));
+    return &qualConv;
 }
 
 static QualType ptrBase(ObjectType const* from) {
@@ -1696,19 +1702,28 @@ ObjectType const* computeConvertedObjType(ObjectTypeConversion conv,
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::ObjTypeConvExpr& conv) {
+    using enum ObjectTypeConversion;
     auto* expr = conv.expression();
     if (!analyzeValue(expr)) {
         return nullptr;
     }
-    auto* type = conv.targetType() ?
-                     conv.targetType() :
-                     computeConvertedObjType(conv.conversion(),
-                                             conv.expression()->type().get(),
-                                             sym);
+    if (conv.conversion() == Ref_DerivedToParent) {
+        QualType destType = expr->type().to(conv.targetType());
+        auto* object = sym.temporary(&conv, destType);
+        conv.decorateValue(object, expr->valueCategory());
+        return &conv;
+    }
+    auto* type = [&]() -> ObjectType const* {
+        if (auto* type = conv.targetType()) {
+            return type;
+        }
+        return computeConvertedObjType(conv.conversion(),
+                                       conv.expression()->type().get(), sym);
+    }();
     auto* object = sym.temporary(&conv, type);
-    using enum ObjectTypeConversion;
     switch (conv.conversion()) {
     case ArrayPtr_FixedToDynamic:
+    case Ptr_DerivedToParent:
     case Reinterpret_ValuePtr:
     case Reinterpret_ValuePtr_ToByteArray:
     case Reinterpret_ValuePtr_FromByteArray:

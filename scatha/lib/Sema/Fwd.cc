@@ -190,14 +190,14 @@ std::ostream& sema::operator<<(std::ostream& ostream, ValueCatConversion conv) {
     return ostream << toString(conv);
 }
 
-std::string_view sema::toString(MutConversion conv) {
+std::string_view sema::toString(QualConversion conv) {
     return std::array{
-#define SC_MUTCONV_DEF(Name, ...) std::string_view(#Name),
+#define SC_QUALCONV_DEF(Name, ...) std::string_view(#Name),
 #include "Sema/Conversion.def.h"
     }[static_cast<size_t>(conv)];
 }
 
-std::ostream& sema::operator<<(std::ostream& ostream, MutConversion conv) {
+std::ostream& sema::operator<<(std::ostream& ostream, QualConversion conv) {
     return ostream << toString(conv);
 }
 

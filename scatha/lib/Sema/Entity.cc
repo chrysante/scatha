@@ -59,15 +59,17 @@ Type const* sema::getEntityType(Entity const& entity) {
 }
 
 Object::Object(EntityType entityType, std::string name, Scope* parentScope,
-               Type const* type, Mutability mut, ast::ASTNode* astNode):
+               Type const* type, Mutability mut, PointerBindMode bindMode,
+               ast::ASTNode* astNode):
     Entity(entityType, std::move(name), parentScope, astNode),
     _type(type),
-    _mut(mut) {}
+    _mut(mut),
+    _bindMode(bindMode) {}
 
 Object::~Object() = default;
 
 QualType Object::getQualType() const {
-    return sema::getQualType(type(), mutability());
+    return sema::getQualType(type(), mutability(), bindMode());
 }
 
 void Object::setConstantValue(UniquePtr<Value> value) {
@@ -86,7 +88,7 @@ Variable::Variable(std::string name, Scope* parentScope, ast::ASTNode* astNode,
                    AccessControl accessControl, Type const* type,
                    Mutability mut):
     VarBase(EntityType::Variable, std::move(name), parentScope, type, mut,
-            astNode) {
+            PointerBindMode::Static, astNode) {
     setAccessControl(accessControl);
 }
 
@@ -99,7 +101,7 @@ BaseClassObject::BaseClassObject(Scope* parentScope, ast::ASTNode* astNode,
                                  AccessControl accessControl,
                                  RecordType const* type):
     Object(EntityType::BaseClassObject, {}, parentScope, type,
-           Mutability::Mutable, astNode) {
+           Mutability::Mutable, PointerBindMode::Static, astNode) {
     setAccessControl(accessControl);
 }
 
@@ -107,7 +109,7 @@ Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,
                    Mutability mut, ValueCategory valueCat,
                    AccessControl accessControl, ast::ASTNode* astNode):
     VarBase(EntityType::Property, std::string(toString(kind)), parentScope,
-            type, mut, astNode),
+            type, mut, PointerBindMode::Static, astNode),
     _kind(kind),
     _valueCat(valueCat) {
     setAccessControl(accessControl);
@@ -116,7 +118,7 @@ Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,
 Temporary::Temporary(size_t id, Scope* parentScope, QualType type,
                      ast::ASTNode* node):
     Object(EntityType::Temporary, std::string{}, parentScope, type.get(),
-           type.mutability(), node),
+           type.mutability(), type.bindMode(), node),
     _id(id) {}
 
 Scope::Scope(EntityType entityType, ScopeKind kind, std::string name,
@@ -259,6 +261,9 @@ bool Type::isCompleteOrVoid() const {
 }
 
 bool Type::hasTrivialLifetime() const {
+    if (isa<ProtocolType>(this)) {
+        return false;
+    }
     if (auto* objType = dyncast<ObjectType const*>(this)) {
         return objType->lifetimeMetadata().trivialLifetime();
     }

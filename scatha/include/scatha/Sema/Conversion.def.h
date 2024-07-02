@@ -17,13 +17,15 @@ SC_VALUECATCONV_DEF(MaterializeTemporary, 1)
 // === List of mutability conversions --------------------------------------===
 // ===----------------------------------------------------------------------===
 
-#ifndef SC_MUTCONV_DEF
-#define SC_MUTCONV_DEF(Name, Rank)
+#ifndef SC_QUALCONV_DEF
+#define SC_QUALCONV_DEF(Name, Rank)
 #endif
 
-SC_MUTCONV_DEF(MutToConst, 1)
+SC_QUALCONV_DEF(MutToConst, 1)
+SC_QUALCONV_DEF(StaticToDyn, 1)
+SC_QUALCONV_DEF(DynToStatic, 1)
 
-#undef SC_MUTCONV_DEF
+#undef SC_QUALCONV_DEF
 
 // ===----------------------------------------------------------------------===
 // === List of conversions between object types ----------------------------===
@@ -50,6 +52,7 @@ SC_OBJTYPECONV_DEF(Reinterpret_ValuePtr_ToByteArray, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_ValuePtr_FromByteArray, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_DynArrayPtr_ToByte, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_DynArrayPtr_FromByte, 2)
+SC_OBJTYPECONV_DEF(Ptr_DerivedToParent, 1)
 
 /// # Only valid for lvalue target types
 
@@ -59,6 +62,7 @@ SC_OBJTYPECONV_DEF(Reinterpret_ValueRef_ToByteArray, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_ValueRef_FromByteArray, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_DynArrayRef_ToByte, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_DynArrayRef_FromByte, 2)
+SC_OBJTYPECONV_DEF(Ref_DerivedToParent, 1)
 
 /// # Only valid for value target types
 

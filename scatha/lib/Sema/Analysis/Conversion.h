@@ -141,12 +141,12 @@ class Conversion {
 public:
     Conversion(QualType fromType, QualType toType,
                std::optional<ValueCatConversion> valueCatConv,
-               std::optional<MutConversion> mutConv,
+               std::span<QualConversion> qualConvs,
                std::span<ObjectTypeConversion const> objConvs):
         from(fromType),
         to(toType),
         valueCatConv(valueCatConv),
-        mutConv(mutConv),
+        qualConvs(qualConvs | ToSmallVector<8>),
         objConvs(objConvs | ToSmallVector<8>) {}
 
     /// The type of the value before the conversion
@@ -161,17 +161,19 @@ public:
         return valueCatConv;
     }
 
-    /// The mutability conversion kind
-    std::optional<MutConversion> mutConversion() const { return mutConv; }
+    /// The qualifier conversion chain
+    std::span<QualConversion const> qualConversions() const {
+        return qualConvs;
+    }
 
-    /// The object conversion kind
+    /// The object conversion chain
     std::span<ObjectTypeConversion const> objectConversions() const {
         return objConvs;
     }
 
     /// \Returns `true` if all conversions are `std::nullopt`
     bool isNoop() const {
-        return !valueCatConversion() && !mutConversion() &&
+        return !valueCatConversion() && qualConversions().empty() &&
                objectConversions().empty();
     }
 
@@ -181,7 +183,7 @@ private:
     /// All conversion enums are one byte in size so due to padding we don't
     /// waste space by directly storing optionals
     std::optional<ValueCatConversion> valueCatConv;
-    std::optional<MutConversion> mutConv;
+    utl::small_vector<QualConversion, 8> qualConvs;
     utl::small_vector<ObjectTypeConversion, 8> objConvs;
 };
 

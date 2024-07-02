@@ -166,7 +166,7 @@ struct FuncGenContext: FuncGenContextBase {
     Value getValueImpl(ast::UniqueExpr const&);
 
     Value getValueImpl(ast::ValueCatConvExpr const&);
-    Value getValueImpl(ast::MutConvExpr const&);
+    Value getValueImpl(ast::QualConvExpr const&);
     Value getValueImpl(ast::ObjTypeConvExpr const&);
 
     Value getValueImpl(ast::TrivDefConstructExpr const&);
@@ -1487,7 +1487,7 @@ Value FuncGenContext::getValueImpl(ast::ValueCatConvExpr const& conv) {
     }
 }
 
-Value FuncGenContext::getValueImpl(ast::MutConvExpr const& conv) {
+Value FuncGenContext::getValueImpl(ast::QualConvExpr const& conv) {
     /// Mutability conversions are meaningless in IR
     return getValue(conv.expression());
 }

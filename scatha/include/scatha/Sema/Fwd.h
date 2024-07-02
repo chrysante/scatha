@@ -220,15 +220,15 @@ SCATHA_API std::string_view toString(ValueCatConversion conv);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     ValueCatConversion conv);
 
-/// Conversion between mutability qualifications
-enum class MutConversion : uint8_t {
-#define SC_MUTCONV_DEF(Name, ...) Name,
+/// Conversion between same type with different qualifiers
+enum class QualConversion : uint8_t {
+#define SC_QUALCONV_DEF(Name, ...) Name,
 #include <scatha/Sema/Conversion.def.h>
 };
 
-SCATHA_API std::string_view toString(MutConversion conv);
+SCATHA_API std::string_view toString(QualConversion conv);
 
-SCATHA_API std::ostream& operator<<(std::ostream& ostream, MutConversion conv);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream, QualConversion conv);
 
 /// Conversion between different object types
 enum class ObjectTypeConversion : uint8_t {

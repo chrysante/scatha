@@ -133,11 +133,12 @@ Function const* sema::findBySignature(
     return itr != functions.end() ? *itr : nullptr;
 }
 
-QualType sema::getQualType(Type const* type, Mutability mut) {
+QualType sema::getQualType(Type const* type, Mutability mut,
+                           PointerBindMode bindMode) {
     if (auto* ref = dyncast<ReferenceType const*>(type)) {
         return ref->base();
     }
-    return { cast<ObjectType const*>(type), mut };
+    return { cast<ObjectType const*>(type), mut, bindMode };
 }
 
 ValueCategory sema::refToLValue(Type const* type) {

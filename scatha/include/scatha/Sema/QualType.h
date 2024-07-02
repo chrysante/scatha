@@ -75,10 +75,21 @@ public:
     }
 
     ///
+    QualType to(ObjectType const* type) const {
+        return QualType(type, mutability(), bindMode());
+    }
+
+    ///
     QualType toMut() const { return to(Mutability::Mutable); }
 
     ///
     QualType toConst() const { return to(Mutability::Const); }
+
+    ///
+    QualType toStatic() const { return to(PointerBindMode::Static); }
+
+    ///
+    QualType toDyn() const { return to(PointerBindMode::Dynamic); }
 
     /// Name of this type with possible top level mutability qualifier
     std::string qualName() const;

@@ -22,7 +22,8 @@ Function const* findBySignature(std::span<Function const* const> set,
 
 /// \Returns the type referenced by \p type if \p type is a reference type.
 /// Otherwise returns \p type as is
-QualType getQualType(Type const* type, Mutability mut = Mutability::Mutable);
+QualType getQualType(Type const* type, Mutability mut = Mutability::Mutable,
+                     PointerBindMode bindMode = PointerBindMode::Static);
 
 /// \Returns `LValue` if \p type is a reference type, otherwise returns `RValue`
 ValueCategory refToLValue(Type const* type);

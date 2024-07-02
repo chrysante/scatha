@@ -76,7 +76,7 @@ SC_ASTNODE_DEF(GenericExpression,          CallLike,             Concrete)
 SC_ASTNODE_DEF(ListExpression,             Expression,           Concrete)
 SC_ASTNODE_DEF(ConvExprBase,               Expression,           Abstract)
 SC_ASTNODE_DEF(ValueCatConvExpr,           ConvExprBase,         Concrete)
-SC_ASTNODE_DEF(MutConvExpr,                ConvExprBase,         Concrete)
+SC_ASTNODE_DEF(QualConvExpr,               ConvExprBase,         Concrete)
 SC_ASTNODE_DEF(ObjTypeConvExpr,            ConvExprBase,         Concrete) // Update NodeType::LAST in Fwd.h if this changes!
 
 #undef SC_ASTNODE_DEF

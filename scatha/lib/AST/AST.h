@@ -1576,18 +1576,19 @@ private:
 };
 
 /// Concrete node representing change of mutability
-class SCATHA_API MutConvExpr: public ConvExprBase {
+class SCATHA_API QualConvExpr: public ConvExprBase {
 public:
-    explicit MutConvExpr(UniquePtr<Expression> expr, sema::MutConversion conv):
-        ConvExprBase(NodeType::MutConvExpr, std::move(expr)), conv(conv) {}
+    explicit QualConvExpr(UniquePtr<Expression> expr,
+                          sema::QualConversion conv):
+        ConvExprBase(NodeType::QualConvExpr, std::move(expr)), conv(conv) {}
 
-    AST_DERIVED_COMMON(MutConvExpr)
+    AST_DERIVED_COMMON(QualConvExpr)
 
     /// The kind of conversion
-    sema::MutConversion conversion() const { return conv; }
+    sema::QualConversion conversion() const { return conv; }
 
 private:
-    sema::MutConversion conv;
+    sema::QualConversion conv;
 };
 
 /// Concrete node representing conversion between object types

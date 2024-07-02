@@ -212,6 +212,9 @@ public:
     /// \Returns `true` if this object is const
     bool isConst() const { return !isMut(); }
 
+    ///
+    PointerBindMode bindMode() const { return _bindMode; }
+
     /// \Returns the QualType that represents the type of this object.
     /// That is, if this object is a reference, it returns the referred to type,
     /// otherwise returns the type including mutability qualifier
@@ -227,7 +230,7 @@ public:
 protected:
     explicit Object(EntityType entityType, std::string name, Scope* parentScope,
                     Type const* type, Mutability mutability,
-                    ast::ASTNode* astNode);
+                    PointerBindMode bindMode, ast::ASTNode* astNode);
 
     void setMutability(Mutability mut) { _mut = mut; }
 
@@ -238,6 +241,7 @@ private:
     friend class SymbolTable; // To set the type in two phase initialization
     Type const* _type;
     Mutability _mut;
+    PointerBindMode _bindMode;
     UniquePtr<Value> constVal;
 };
 

@@ -30,7 +30,7 @@ static void formatImpl(BuiltinType const& type, std::ostream& str) {
     str << tfmt::format(Magenta | Bold, type.name());
 }
 
-static void formatImpl(StructType const& type, std::ostream& str) {
+static void formatImpl(RecordType const& type, std::ostream& str) {
     str << tfmt::format(Green, type.name());
 }
 
@@ -99,6 +99,9 @@ void sema::print(Entity const* entity) { print(entity, std::cout); }
 
 utl::vstreammanip<> sema::format(QualType type) {
     return [=](std::ostream& str) {
+        if (type.isDyn()) {
+            str << tfmt::format(BrightBlue, "dyn ");
+        }
         if (type.isMut()) {
             str << tfmt::format(BrightBlue, "mut ");
         }
