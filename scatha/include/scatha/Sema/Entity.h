@@ -312,6 +312,9 @@ public:
     /// For the symbol table
     using Object::setMutability;
 
+    ///
+    RecordType const* type() const;
+
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
@@ -550,7 +553,8 @@ public:
     /// \Returns `kind() == FunctionKind::Foreign`
     bool isForeign() const { return kind() == FunctionKind::Foreign; }
 
-    /// \Returns `true` if this function is an abstract declaration, i.e., in a protocol
+    /// \Returns `true` if this function is an abstract declaration, i.e., in a
+    /// protocol
     bool isAbstract() const { return _isAbstract; }
 
     /// Mark this function as abstract declaration
@@ -827,7 +831,7 @@ public:
 
     /// \Returns a view over the member types in this struct
     auto baseTypes() const {
-        return baseObjects() | ranges::views::transform(&Object::type);
+        return baseObjects() | ranges::views::transform(&BaseClassObject::type);
     }
 
     /// Adds a variable to the end of the list of member variables of this

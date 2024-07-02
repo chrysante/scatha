@@ -233,3 +233,18 @@ bool sema::isAggregate(Type const* t) {
 bool sema::isNewMoveDelete(sema::Function const& F) {
     return ranges::contains(std::array{ "new", "move", "delete" }, F.name());
 }
+
+bool sema::isDerivedFrom(RecordType const* derived, RecordType const* base) {
+    auto dfs = [&](auto& dfs, RecordType const* current) -> bool {
+        for (auto* currBase: current->baseTypes()) {
+            if (currBase == base) {
+                return true;
+            }
+            if (dfs(dfs, currBase)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    return dfs(dfs, derived);
+}

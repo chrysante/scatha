@@ -62,6 +62,9 @@ SCATHA_API bool isAggregate(Type const* type);
 /// \Returns `true` if \p F is a constructor or destructor
 bool isNewMoveDelete(sema::Function const& F);
 
+///
+bool isDerivedFrom(RecordType const* derived, RecordType const* base);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_UTILITY_H_

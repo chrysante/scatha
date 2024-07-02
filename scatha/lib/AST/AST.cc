@@ -171,7 +171,7 @@ sema::BaseClassObject const* BaseClassDeclaration::object() const {
 
 sema::Type const* BaseClassDeclaration::type() const {
     auto* obj = object();
-    return obj ? obj->type() : nullptr;
+    return obj ? obj->Object::type() : nullptr;
 }
 
 sema::Library const* ImportStatement::library() const {

@@ -231,20 +231,10 @@ static std::optional<ObjConvChain> derivedToBaseConv(ThinExpr from,
     if (origin == dest || !origin || !dest) {
         return std::nullopt;
     }
-    auto dfs = [&](auto& dfs) -> std::optional<ObjConvChain> {
-        for (auto* base: origin->baseTypes()) {
-            if (dest == base) {
-                return ObjConvChain{
-                    ObjectTypeConversion::Ref_DerivedToParent
-                };
-            }
-            if (auto conv = dfs(dfs)) {
-                return conv;
-            }
-        }
-        return std::nullopt;
-    };
-    return dfs(dfs);
+    if (isDerivedFrom(origin, dest)) {
+        return ObjConvChain{ ObjectTypeConversion::Ref_DerivedToParent };
+    }
+    return std::nullopt;
 }
 
 static std::optional<ObjConvChain> objectTypeConversion(ConversionKind kind,

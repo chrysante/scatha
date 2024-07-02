@@ -255,10 +255,10 @@ Type const* InstContext::instantiateRecordMember(
     RecordType& parentType, ast::BaseClassDeclaration& decl, size_t declIndex) {
     auto& obj = *decl.object();
     parentType.pushBaseObject(&obj);
-    if (!decl.type()) {
+    auto* baseType = decl.type();
+    if (!baseType) {
         return nullptr;
     }
-    auto* baseType = decl.type();
     if (isa<ProtocolType>(parentType) && !isa<ProtocolType>(baseType)) {
         ctx.issue<BadBaseDecl>(&decl, BadBaseDecl::NotAProtocol, decl.type());
         return nullptr;

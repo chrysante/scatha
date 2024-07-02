@@ -12,6 +12,7 @@
 #include "Sema/LifetimeMetadata.h"
 #include "Sema/QualType.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/VTable.h"
 
 using namespace scatha;
 using namespace sema;
@@ -32,6 +33,8 @@ struct PrintContext {
     void print(Entity const& entity);
 
     void print(LifetimeMetadata const& md);
+
+    void print(VTable const& vtable);
 
     utl::vstreammanip<> type(Type const* type) {
         return [=](std::ostream& str) { str << format(type); };
@@ -126,15 +129,38 @@ void PrintContext::print(Entity const& entity) {
         print(*child);
         formatter.pop();
     }
+    if (auto* record = dyncast<RecordType const*>(&entity);
+        record && record->vtable())
+    {
+        print(*record->vtable());
+    }
 }
 
 void PrintContext::print(LifetimeMetadata const& md) {
     str << formatter.beginLine() << "Lifetime: \n";
     for (auto [index, op]: md.operations() | ranges::views::enumerate) {
-        formatter.push(index != md.operations().size() - 1 ? Level::Child :
-                                                             Level::LastChild);
+        bool last = index == md.operations().size() - 1;
+        formatter.push(last ? Level::LastChild : Level::Child);
         str << formatter.beginLine()
             << tfmt::format(Italic, SMFKind(index), ": ") << format(op) << "\n";
+        formatter.pop();
+    }
+}
+
+void PrintContext::print(VTable const& vtable) {
+    str << formatter.beginLine() << "VTable for " << format(vtable.type())
+        << ": \n";
+    auto inherited = vtable.sortedInheritedVTables();
+    for (auto [index, base]: inherited | ranges::views::enumerate) {
+        bool last = index == inherited.size() - 1 && vtable.layout().empty();
+        formatter.push(last ? Level::LastChild : Level::Child);
+        print(*base);
+        formatter.pop();
+    }
+    for (auto [index, F]: vtable.layout() | ranges::views::enumerate) {
+        bool last = index == vtable.layout().size() - 1;
+        formatter.push(last ? Level::LastChild : Level::Child);
+        str << formatter.beginLine() << format(F) << "\n";
         formatter.pop();
     }
 }

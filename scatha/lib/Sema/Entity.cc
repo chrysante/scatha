@@ -105,6 +105,10 @@ BaseClassObject::BaseClassObject(Scope* parentScope, ast::ASTNode* astNode,
     setAccessControl(accessControl);
 }
 
+RecordType const* BaseClassObject::type() const {
+    return dyncast<RecordType const*>(Object::type());
+}
+
 Property::Property(PropertyKind kind, Scope* parentScope, Type const* type,
                    Mutability mut, ValueCategory valueCat,
                    AccessControl accessControl, ast::ASTNode* astNode):
