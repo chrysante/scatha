@@ -23,9 +23,6 @@ struct RecordMetadata {
     /// struct
     utl::small_vector<MemberMetadata> members;
 
-    /// Type of the vtable
-    ir::StructType* vtableType = nullptr;
-
     /// The global vtable constant
     ir::GlobalVariable* vtable = nullptr;
 

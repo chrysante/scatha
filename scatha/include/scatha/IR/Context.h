@@ -95,6 +95,10 @@ public:
     StructConstant* structConstant(std::span<ir::Constant* const> elems,
                                    StructType const* type);
 
+    ///
+    StructConstant* anonymousStructConstant(
+        std::span<ir::Constant* const> elems);
+
     /// \Returns the array of type \p type with constant elements \p elems
     ArrayConstant* arrayConstant(std::span<ir::Constant* const> elems,
                                  ArrayType const* type);

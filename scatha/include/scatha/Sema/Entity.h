@@ -848,6 +848,12 @@ public:
     /// \overload
     VTable const* vtable() const { return _vtable.get(); }
 
+    ///
+    bool isEmpty() const { return _isEmpty; }
+
+    ///
+    void setIsEmpty(bool value = true) { _isEmpty = value; }
+
 protected:
     explicit RecordType(EntityType entityType, std::string name,
                         Scope* parentScope, ast::ASTNode* astNode, size_t size,
@@ -857,6 +863,7 @@ private:
     utl::small_vector<BaseClassObject*> bases;
     utl::small_vector<Function*> ctors;
     std::unique_ptr<VTable> _vtable;
+    bool _isEmpty = false;
 };
 
 /// Concrete class representing the type of a structure

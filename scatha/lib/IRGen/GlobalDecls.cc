@@ -30,14 +30,12 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
                            LoweringContext lctx) {
     auto& ctx = lctx.ctx;
     std::string typeName = lctx.config.nameMangler(*vtable.type());
-    auto vtableType = allocate<ir::StructType>(typeName + ".vtable.type");
     utl::small_vector<ir::Constant*> vtableFunctions;
     auto dfs = [&](auto& dfs, sema::VTable const& vtable) mutable -> void {
         for (auto* inherited: vtable.sortedInheritedVTables()) {
             dfs(dfs, *inherited);
         }
         for (auto* semaFn: vtable.layout()) {
-            vtableType->pushMember(ctx.ptrType());
             auto* irFn = [&]() -> ir::Constant* {
                 if (!semaFn->isAbstract()) {
                     return getFunction(*semaFn, lctx);
@@ -50,10 +48,8 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
         }
     };
     dfs(dfs, vtable);
-    MD.vtableType = vtableType.get();
-    lctx.mod.addStructure(std::move(vtableType));
     if (isa<sema::StructType>(vtable.type())) {
-        auto* irVTable = ctx.structConstant(vtableFunctions, MD.vtableType);
+        auto* irVTable = ctx.anonymousStructConstant(vtableFunctions);
         MD.vtable = lctx.mod.addGlobal(
             allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Const,
                                          irVTable, typeName + ".vtable"));
@@ -91,9 +87,7 @@ ir::StructType* irgen::generateType(sema::RecordType const* semaType,
             }
         };
         for (auto* base: semaStruct->baseObjects()) {
-            if (!isa<sema::ProtocolType>(base->type()) &&
-                base->type()->size() > 0)
-            {
+            if (!base->type()->isEmpty()) {
                 impl(base);
             }
         }

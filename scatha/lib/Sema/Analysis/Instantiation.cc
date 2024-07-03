@@ -315,6 +315,9 @@ void InstContext::instantiateRecordType(SDGNode& node) {
         SC_ASSERT(objectSize == 0, "");
         SC_ASSERT(objectAlign == 0, "");
     }
+    if (objectSize == 0) {
+        recordType.setIsEmpty();
+    }
 }
 
 static Type const* getType(ast::Expression const* expr) {

@@ -1235,11 +1235,11 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
                 toRegister(obj[1], ctx.ptrType(), "vtable.addr").get();
             auto& MD = typeMap.metaData(obj.type().get());
             size_t index = MD.vtableIndexMap.find(call.function())->second;
-            auto* funcAddr = add<ir::GetElementPointer>(MD.vtableType,
-                                                        vtableAddr,
-                                                        ctx.intConstant(0, 32),
-                                                        std::array{ index },
-                                                        "vtable.addr.function");
+            auto* funcAddr =
+                add<ir::GetElementPointer>(ctx.ptrType(), vtableAddr,
+                                           ctx.intConstant(index, 32),
+                                           std::span<size_t>{},
+                                           "vtable.addr.function");
             return add<ir::Load>(funcAddr, ctx.ptrType(), "vtable.function");
         }
     }();

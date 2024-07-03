@@ -2,6 +2,7 @@
 
 #include <sstream>
 
+#include <range/v3/view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 #include <utl/strcat.hpp>
@@ -15,6 +16,7 @@
 
 using namespace scatha;
 using namespace ir;
+using namespace ranges::views;
 
 using StructKey = utl::small_vector<Type const*>;
 using StructHash = VectorHash<Type const*>;
@@ -238,7 +240,7 @@ Constant* Context::arithmeticConstant(APFloat value) {
     return floatConstant(value);
 }
 
-RecordConstant* Context::recordConstant(std::span<ir::Constant* const> elems,
+RecordConstant* Context::recordConstant(std::span<Constant* const> elems,
                                         RecordType const* type) {
     // clang-format off
     return SC_MATCH (*type) {
@@ -253,17 +255,24 @@ RecordConstant* Context::recordConstant(std::span<ir::Constant* const> elems,
 
 template <typename ConstType, typename IRType>
 static ConstType* recordConstantImpl(auto& constantMap, IRType const* type,
-                                     std::span<ir::Constant* const> elems) {
+                                     std::span<Constant* const> elems) {
     return constantMap[type].template get<ConstType>(type, elems);
 }
 
-StructConstant* Context::structConstant(std::span<ir::Constant* const> elems,
+StructConstant* Context::structConstant(std::span<Constant* const> elems,
                                         StructType const* type) {
     return recordConstantImpl<StructConstant>(impl->recordConstants, type,
                                               elems);
 }
 
-ArrayConstant* Context::arrayConstant(std::span<ir::Constant* const> elems,
+StructConstant* Context::anonymousStructConstant(
+    std::span<Constant* const> elems) {
+    auto* type =
+        anonymousStruct(elems | transform(&Value::type) | ToSmallVector<>);
+    return structConstant(elems, type);
+}
+
+ArrayConstant* Context::arrayConstant(std::span<Constant* const> elems,
                                       ArrayType const* type) {
     return recordConstantImpl<ArrayConstant>(impl->recordConstants, type,
                                              elems);
