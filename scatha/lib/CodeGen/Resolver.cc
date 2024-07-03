@@ -1,5 +1,6 @@
 #include "CodeGen/Resolver.h"
 
+#include <range/v3/view.hpp>
 #include <svm/VirtualPointer.h>
 
 #include "CodeGen/ISelCommon.h"
@@ -12,6 +13,7 @@
 
 using namespace scatha;
 using namespace cg;
+using namespace ranges::views;
 
 mir::Value* Resolver::resolveImpl(ir::Value const& value) const {
     if (auto* result = valueMap().getValue(&value)) {
@@ -126,10 +128,25 @@ mir::Value* Resolver::impl(ir::NullPointerConstant const& constant) const {
 mir::Value* Resolver::impl(ir::RecordConstant const& value) const {
     size_t numWords = ::numWords(value);
     utl::small_vector<uint64_t> words(numWords);
-    value.writeValueTo(words.data());
+    utl::hashmap<size_t, ir::Function const*> functions;
+    value.writeValueTo(words.data(),
+                       [&](ir::Constant const* value, void* dest) {
+        size_t offset = getOffset(words.data(), dest);
+        SC_ASSERT(offset % 8 == 0,
+                  "Function addresses must be correctly aligned");
+        auto* function = cast<ir::Function const*>(value);
+        functions.insert({ offset / 8, function });
+    });
     auto* reg = nextRegister(numWords);
-    for (auto* dest = reg; auto word: words) {
-        emit(new mir::CopyInst(dest, ctx->constant(word, 8), 8, {}));
+    for (auto* dest = reg; auto [index, word]: words | enumerate) {
+        auto* source = [&, index = index]() -> mir::Value* {
+            auto itr = functions.find(index);
+            if (itr != functions.end()) {
+                return resolve(*itr->second);
+            }
+            return ctx->constant(word, 8);
+        }();
+        emit(new mir::CopyInst(dest, source, 8, {}));
         dest = dest->next();
     }
     return reg;

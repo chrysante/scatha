@@ -82,7 +82,15 @@ public:
 /// the program is assembled
 class LabelPosition: public ValueBase {
 public:
-    enum Kind { Static, Dynamic };
+    enum Kind {
+        /// Used with statically bound call or jump instructions. Static labels
+        /// are 4 bytes in size
+        Static,
+        /// Used with dynamic call and jump instructions or by other
+        /// instructions that reference label addresses. Dynamic labels have the
+        /// size of a pointer, i.e., 8 bytes
+        Dynamic
+    };
 
     struct Structure {
         LabelID labelID : 63;

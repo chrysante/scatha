@@ -66,7 +66,7 @@ struct CGContext {
         return toRegIdx(cast<mir::Register const*>(value));
     }
 
-    Asm::Value toValue(mir::Value const* value) const {
+    Asm::Value toValue(mir::Value const* value) {
         // clang-format off
          return visit(*value, utl::overload{
              [](mir::Constant const& constant) -> Asm::Value {
@@ -83,6 +83,10 @@ struct CGContext {
              },
              [&](mir::Register const& reg) -> Asm::Value {
                  return toRegIdx(&reg);
+             },
+             [&](mir::Function const& F) -> Asm::Value {
+                 return LabelPosition(getLabelID(F),
+                                      LabelPosition::Dynamic);
              },
              [](mir::Value const&) -> Asm::Value {
                  SC_UNREACHABLE();

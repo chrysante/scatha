@@ -478,3 +478,21 @@ fn main() {
     __builtin_putstr("X() = \(X())" as *);
 })TEXT" });
 }
+
+TEST_CASE("Bitcast struct to single member and call",
+          "[end-to-end][regression]") {
+    test::checkIRReturns(42, R"(
+func i64 @foo(ptr %0) {
+  %entry:
+    %val = load i64, ptr %0
+    return i64 %val
+}
+func i64 @main() {
+  %entry:
+    %addr = alloca i64, i32 1
+    store ptr %addr, i64 42
+    %function = bitcast { ptr } { ptr @foo } to ptr
+    %result = call i64 %function, ptr %addr
+    return i64 %result
+})");
+}
