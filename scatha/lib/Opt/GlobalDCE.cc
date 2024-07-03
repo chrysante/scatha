@@ -31,13 +31,15 @@ struct GDCEContext {
 
     bool run();
 
+    bool eraseUnusedGlobals();
+    bool eraseUnusedFunctions();
     /// Recursively inserts callees into the `live` set
-    void visit(SCCCallGraph::FunctionNode const* node);
+    void visit(SCCCallGraph::FunctionNode const* node,
+               utl::hashset<Function*>& live);
 
     Context& ctx;
     Module& mod;
     SCCCallGraph callgraph;
-    utl::hashset<Function*> live;
 };
 
 } // namespace
@@ -46,8 +48,7 @@ bool opt::globalDCE(Context& ctx, Module& mod) {
     return GDCEContext(ctx, mod).run();
 }
 
-bool GDCEContext::run() {
-    /// Erase all unused globals
+bool GDCEContext::eraseUnusedGlobals() {
     utl::small_vector<Global*> unused;
     for (auto& global: mod.globals()) {
         if (global.unused()) {
@@ -57,19 +58,22 @@ bool GDCEContext::run() {
     for (auto* global: unused) {
         mod.erase(global);
     }
-    /// Determine all live functions
+    return !unused.empty();
+}
+
+bool GDCEContext::eraseUnusedFunctions() {
+    utl::hashset<Function*> live;
     for (auto& F: mod) {
-        if (F.visibility() == Visibility::External) {
-            visit(&callgraph[&F]);
-        }
         bool isReferenced = ranges::any_of(F.users(), [](auto* user) {
             return !isa<Call>(user);
         });
+        if (isReferenced || F.visibility() == Visibility::External) {
+            visit(&callgraph[&F], live);
+        }
         if (isReferenced) {
             live.insert(&F);
         }
     }
-    /// Erase all dead functions
     bool modified = false;
     for (auto itr = mod.begin(); itr != mod.end();) {
         auto* F = itr.to_address();
@@ -83,11 +87,26 @@ bool GDCEContext::run() {
     return modified;
 }
 
-void GDCEContext::visit(SCCCallGraph::FunctionNode const* node) {
+bool GDCEContext::run() {
+    bool modified = false;
+    while (true) {
+        bool modThisIter = false;
+        modThisIter |= eraseUnusedGlobals();
+        modThisIter |= eraseUnusedFunctions();
+        if (!modThisIter) {
+            break;
+        }
+        modified = modThisIter;
+    }
+    return modified;
+}
+
+void GDCEContext::visit(SCCCallGraph::FunctionNode const* node,
+                        utl::hashset<Function*>& live) {
     if (!live.insert(&node->function()).second) {
         return;
     }
     for (auto* succ: node->callees()) {
-        visit(succ);
+        visit(succ, live);
     }
 }
