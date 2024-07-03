@@ -104,6 +104,15 @@ struct InstCombineCtx {
     Value* visitImpl(ExtractValue* inst);
     Value* visitImpl(InsertValue* inst);
 
+    Value* loadConstant(Load* load, Constant* base,
+                        std::span<GetElementPointer* const> geps,
+                        size_t byteOffset);
+    Value* loadConstPunning(Load* load, Constant* base, size_t byteOffset);
+
+    Value* extractPhiValue(ExtractValue* extractInst);
+    Value* extractInsertValue(ExtractValue* extractInst);
+    Value* extractConstant(ExtractValue* extractInst);
+
     void mergeArithmetic(ArithmeticInst* inst);
     template <ArithmeticOperation AddOp, ArithmeticOperation SubOp,
               typename ConstantType>
@@ -586,8 +595,8 @@ static GepInfo recursiveGepBaseAndOffset(Value* pointer) {
     return result;
 }
 
-static Constant* extractElement(Constant* base,
-                                std::span<GetElementPointer* const> geps) {
+static Constant* loadConstNoPunning(Constant* base,
+                                    std::span<GetElementPointer* const> geps) {
     for (size_t i = 0; i < geps.size(); ++i) {
         size_t arrayIndex = geps[i]->constantArrayIndex().value();
         while (i + 1 < geps.size() &&
@@ -621,6 +630,41 @@ static Constant* extractElement(Constant* base,
     return base;
 }
 
+Value* InstCombineCtx::loadConstPunning(Load* load, Constant* base,
+                                        size_t byteOffset) {
+    if (auto* record = dyncast<RecordConstant*>(base)) {
+        auto* type = record->type();
+        auto members = type->members();
+        auto itr =
+            ranges::find(members, byteOffset, &RecordType::Member::offset);
+        if (itr == members.end()) {
+            return nullptr;
+        }
+        auto member = *itr;
+        if (member.type->size() != load->type()->size()) {
+            return nullptr;
+        }
+        size_t index = (size_t)(itr - members.begin());
+        BasicBlockBuilder builder(irCtx, load->parent());
+        builder.setAddPoint(load);
+        auto* extract =
+            builder.add<ExtractValue>(base, std::array{ index }, "extract");
+        modifiedAny = true;
+        worklist.push(extract);
+        return extract;
+    }
+    return nullptr;
+}
+
+Value* InstCombineCtx::loadConstant(Load* load, Constant* base,
+                                    std::span<GetElementPointer* const> geps,
+                                    size_t byteOffset) {
+    if (auto* value = loadConstNoPunning(base, geps)) {
+        return value;
+    }
+    return loadConstPunning(load, base, byteOffset);
+}
+
 static Value* makeValueFromConstantData(Context& ctx,
                                         std::span<uint8_t const> data,
                                         Type const* type) {
@@ -647,7 +691,9 @@ Value* InstCombineCtx::visitImpl(Load* load) {
     }
     /// If the geps don't do any type punning we can direct extract the accessed
     /// constant
-    if (auto* elem = extractElement(global->initializer(), geps)) {
+    if (auto* elem =
+            loadConstant(load, global->initializer(), geps, byteOffset))
+    {
         if (elem->type() == load->type()) {
             return elem;
         }
@@ -993,32 +1039,29 @@ static Value* stitchExtractedValue(Context& irCtx, ExtractValue* extractInst,
     return base;
 }
 
-Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
-    /// Extracting from `undef` results in `undef`
-    if (isa<UndefValue>(extractInst->baseValue())) {
-        return irCtx.undef(extractInst->type());
-    }
+Value* InstCombineCtx::extractPhiValue(ExtractValue* extractInst) {
     /// If we extract from a phi node and the phi node has no other users, we
     /// perform the extract in each of the predecessors and phi them together
-    if (auto* phi = dyncast<Phi*>(extractInst->baseValue())) {
-        if (phi->users().size() > 1) {
-            return nullptr;
-        }
-        utl::small_vector<PhiMapping> newPhiArgs;
-        for (auto [pred, arg]: phi->arguments()) {
-            auto* newExtract =
-                new ExtractValue(arg, extractInst->memberIndices(),
-                                 std::string(extractInst->name()));
-            pred->insert(pred->terminator(), newExtract);
-            worklist.push(newExtract);
-            newPhiArgs.push_back({ pred, newExtract });
-        }
-        auto* newPhi = new Phi(newPhiArgs, std::string(extractInst->name()));
-        /// We add the new phi node to the block of the phi node we extracted
-        /// from
-        phi->parent()->insertPhi(newPhi);
-        return newPhi;
+    auto* phi = dyncast<Phi*>(extractInst->baseValue());
+    if (!phi || phi->users().size() > 1) {
+        return nullptr;
     }
+    utl::small_vector<PhiMapping> newPhiArgs;
+    for (auto [pred, arg]: phi->arguments()) {
+        auto* newExtract = new ExtractValue(arg, extractInst->memberIndices(),
+                                            std::string(extractInst->name()));
+        pred->insert(pred->terminator(), newExtract);
+        worklist.push(newExtract);
+        newPhiArgs.push_back({ pred, newExtract });
+    }
+    auto* newPhi = new Phi(newPhiArgs, std::string(extractInst->name()));
+    /// We add the new phi node to the block of the phi node we extracted
+    /// from
+    phi->parent()->insertPhi(newPhi);
+    return newPhi;
+}
+
+Value* InstCombineCtx::extractInsertValue(ExtractValue* extractInst) {
     /// If we extract from a structure that has been build up with
     /// `insert_value` instructions, we check every `insert_value` for a match
     /// of indices
@@ -1068,6 +1111,38 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
                                          std::string(extractInst->name()));
         extractInst->parent()->insert(extractInst, newExtr);
         return newExtr;
+    }
+    return nullptr;
+}
+
+Value* InstCombineCtx::extractConstant(ExtractValue* extractInst) {
+    auto* base = dyncast<Constant*>(extractInst->baseValue());
+    if (!base) {
+        return nullptr;
+    }
+    for (size_t index: extractInst->memberIndices()) {
+        auto* record = dyncast<RecordConstant*>(base);
+        if (!record || index >= record->numElements()) {
+            return nullptr;
+        }
+        base = record->elementAt(index);
+    }
+    return base;
+}
+
+Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
+    /// Extracting from `undef` results in `undef`
+    if (isa<UndefValue>(extractInst->baseValue())) {
+        return irCtx.undef(extractInst->type());
+    }
+    if (auto* value = extractPhiValue(extractInst)) {
+        return value;
+    }
+    if (auto* value = extractInsertValue(extractInst)) {
+        return value;
+    }
+    if (auto* value = extractConstant(extractInst)) {
+        return value;
     }
     return nullptr;
 }
