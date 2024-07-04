@@ -865,8 +865,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
             [&](Object&) {
                 auto mut = ma.accessed()->type().mutability();
                 auto type = ma.member()->type().to(mut);
+                auto valueCat = 
+                    (ma.accessed()->isValue() ? ma.accessed() :
+                                                ma.member())->valueCategory();
                 ma.decorateValue(sym.temporary(&ma, type),
-                                 ma.member()->valueCategory());
+                                 valueCat);
                 ma.setConstantValue(clone(ma.member()->constantValue()));
                 return &ma;
             },
@@ -877,9 +880,23 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 }
                 return &ma;
             },
-            [&](Type&) {
-                ctx.badExpr(&ma, MemAccTypeThroughValue);
-                return nullptr;
+            [&](Type& type) -> ast::Expression* {
+                auto* accessedRecord =
+                    dyncast<RecordType const*>(ma.accessed()->type().get());
+                auto* memberRecord = dyncast<RecordType const*>(&type);
+                if (isDerivedFrom(accessedRecord, memberRecord)) {
+                    ast::Expression* expr = ma.accessed();
+                    expr = convert(Explicit, expr,
+                                   expr->type().to(memberRecord),
+                                   expr->valueCategory(), currentCleanupStack(),
+                                   ctx);
+                    SC_ASSERT(expr, "Conversion to base class must succeed");
+                    return ma.replace(expr->extractFromParent());
+                }
+                else {
+                    ctx.badExpr(&ma, MemAccTypeThroughValue);
+                    return nullptr;
+                }
             },
             [&](Entity&) -> ast::Expression* {
                 SC_UNREACHABLE();
@@ -1770,13 +1787,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivAggrConstructExpr& expr) {
     }
     /// Can `cast` because only structs are aggregates
     auto* structType = cast<StructType const*>(expr.constructedType());
-    if (expr.arguments().size() != structType->members().size()) {
+    if (expr.arguments().size() != structType->elementTypes().size()) {
         ctx.badExpr(&expr, CannotConstructType);
         return nullptr;
     }
     bool success = true;
     for (auto [arg, type]:
-         ranges::views::zip(expr.arguments(), structType->members()))
+         ranges::views::zip(expr.arguments(), structType->elementTypes()))
     {
         success &= !!convert(Implicit, arg, getQualType(type), RValue,
                              currentCleanupStack(), ctx);
@@ -1888,13 +1905,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::NontrivAggrConstructExpr& expr) {
         return nullptr;
     }
     auto* type = expr.constructedType();
-    if (expr.arguments().size() != type->members().size()) {
+    if (expr.arguments().size() != type->memberTypes().size()) {
         ctx.badExpr(&expr, CannotConstructType);
         return nullptr;
     }
     bool success = true;
     for (auto [arg, argType]:
-         ranges::views::zip(expr.arguments(), type->members()))
+         ranges::views::zip(expr.arguments(), type->memberTypes()))
     {
         auto* conv = convert(Implicit, arg,
                              QualType::Mut(cast<ObjectType const*>(argType)),

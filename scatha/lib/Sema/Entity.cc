@@ -97,10 +97,11 @@ bool Variable::isStatic() const {
            isa<Library>(parent());
 }
 
-BaseClassObject::BaseClassObject(Scope* parentScope, ast::ASTNode* astNode,
+BaseClassObject::BaseClassObject(std::string name, Scope* parentScope,
+                                 ast::ASTNode* astNode,
                                  AccessControl accessControl,
                                  RecordType const* type):
-    Object(EntityType::BaseClassObject, {}, parentScope, type,
+    Object(EntityType::BaseClassObject, std::move(name), parentScope, type,
            Mutability::Mutable, PointerBindMode::Static, astNode) {
     setAccessControl(accessControl);
 }
@@ -144,7 +145,7 @@ template <typename E, typename S>
 utl::small_ptr_vector<E*> Scope::findEntitiesImpl(S* self,
                                                   std::string_view name,
                                                   bool findHidden) {
-    auto const itr = self->_names.find(name);
+    auto itr = self->_names.find(name);
     if (itr == self->_names.end()) {
         return {};
     }
@@ -398,6 +399,13 @@ RecordType::RecordType(EntityType entityType, std::string name,
                  size, align, astNode, accessControl) {}
 
 RecordType::~RecordType() = default;
+
+void RecordType::pushBaseObject(BaseClassObject* obj) {
+    bases.push_back(obj);
+    if (isa<StructType>(obj->type())) {
+        concreteBases.push_back(obj);
+    }
+}
 
 void RecordType::setVTable(std::unique_ptr<VTable> vtable) {
     _vtable = std::move(vtable);

@@ -217,7 +217,7 @@ LifetimeOperation LifetimeAnalyzer::resolveStructOp(SMFKind kind,
         return LifetimeOperation::Deleted;
     }
     using enum SMFAvail;
-    auto memberOpAvail = type.members() |
+    auto memberOpAvail = type.memberTypes() |
                          transform(std::bind_front(SMFOperationAvail, kind));
     auto maxAvail = ranges::accumulate(memberOpAvail, Trivial, ranges::min);
     switch (maxAvail) {

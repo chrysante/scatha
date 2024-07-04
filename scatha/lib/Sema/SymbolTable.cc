@@ -679,9 +679,12 @@ Variable* SymbolTable::defineVariable(std::string name, Type const* type,
 }
 
 BaseClassObject* SymbolTable::declareBaseImpl(ast::BaseClassDeclaration* decl,
+                                              std::string name,
                                               AccessControl accessControl) {
-    auto* obj =
-        impl->addEntity<BaseClassObject>(&currentScope(), decl, accessControl);
+    auto* obj = impl->addEntity<BaseClassObject>(std::move(name),
+                                                 &currentScope(), decl,
+                                                 accessControl);
+    obj->setVisible(false);
     addToCurrentScope(obj);
     return obj;
 }
@@ -689,7 +692,7 @@ BaseClassObject* SymbolTable::declareBaseImpl(ast::BaseClassDeclaration* decl,
 BaseClassObject* SymbolTable::defineBaseImpl(ast::BaseClassDeclaration* decl,
                                              Type const* type,
                                              AccessControl accessControl) {
-    auto* obj = declareBaseImpl(decl, accessControl);
+    auto* obj = declareBaseClass(decl, accessControl);
     if (!obj) {
         return nullptr;
     }
@@ -699,12 +702,22 @@ BaseClassObject* SymbolTable::defineBaseImpl(ast::BaseClassDeclaration* decl,
 
 BaseClassObject* SymbolTable::declareBaseClass(
     ast::BaseClassDeclaration* baseDecl, AccessControl accessControl) {
-    return declareBaseImpl(baseDecl, accessControl);
+    return declareBaseImpl(baseDecl, std::string(baseDecl->name()),
+                           accessControl);
 }
 
 bool SymbolTable::setBaseClassType(BaseClassObject* obj, Type const* type) {
     obj->_type = type;
-    return validateAccessControl(*obj);
+    auto* parentType = cast<RecordType*>(obj->parent());
+    bool result = validateAccessControl(*obj);
+    if (!obj->type()) {
+        return result;
+    }
+    withScopeCurrent(parentType, [&] {
+        declareAlias(const_cast<RecordType&>(*obj->type()), obj->astNode(),
+                     obj->accessControl());
+    });
+    return result;
 }
 
 BaseClassObject* SymbolTable::defineBaseClass(Type const* type,

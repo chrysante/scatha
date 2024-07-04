@@ -322,7 +322,7 @@ void FuncGenContext::generateSynthFunctionAs(sema::SMFKind kind) {
         cast<ir::StructType const*>(typeMap.packed(parentType));
 
     bool allChildrenTrivial =
-        ranges::all_of(parentType->members() |
+        ranges::all_of(parentType->memberTypes() |
                            transform(cast<sema::ObjectType const*>),
                        [&](auto* type) {
         return type->lifetimeMetadata().operation(kind).isTrivial();

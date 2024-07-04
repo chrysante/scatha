@@ -296,8 +296,8 @@ class SCATHA_API BaseClassObject: public Object {
 public:
     BaseClassObject(BaseClassObject const&) = delete;
 
-    explicit BaseClassObject(Scope* parentScope, ast::ASTNode* astNode,
-                             AccessControl accessControl,
+    explicit BaseClassObject(std::string name, Scope* parentScope,
+                             ast::ASTNode* astNode, AccessControl accessControl,
                              RecordType const* type = nullptr);
 
     /// The AST node that corresponds to this variable
@@ -822,7 +822,7 @@ public:
         this->ctors = ctors | ToSmallVector<>;
     }
 
-    /// The base classes of this type in the order of declaration.
+    /// The base objects of this type in the order of declaration.
     std::span<BaseClassObject* const> baseObjects() { return bases; }
 
     /// \overload
@@ -830,14 +830,30 @@ public:
         return bases;
     }
 
-    /// \Returns a view over the member types in this struct
+    /// \Returns a view over the base types of this struct
     auto baseTypes() const {
         return baseObjects() | ranges::views::transform(&BaseClassObject::type);
     }
 
+    /// The non-protocol base objects of this type in the order of declaration.
+    std::span<BaseClassObject* const> concreteBaseObjects() {
+        return concreteBases;
+    }
+
+    /// \overload
+    std::span<BaseClassObject const* const> concreteBaseObjects() const {
+        return concreteBases;
+    }
+
+    /// \Returns a view over the non-protocol base types of this struct
+    auto concreteBaseTypes() const {
+        return concreteBaseObjects() |
+               ranges::views::transform(&BaseClassObject::type);
+    }
+
     /// Adds a variable to the end of the list of member variables of this
     /// structure
-    void pushBaseObject(BaseClassObject* obj) { bases.push_back(obj); }
+    void pushBaseObject(BaseClassObject* obj);
 
     ///
     void setVTable(std::unique_ptr<VTable> vtable);
@@ -860,7 +876,8 @@ protected:
                         size_t align, AccessControl accessControl);
 
 private:
-    utl::small_vector<BaseClassObject*> bases;
+    utl::small_vector<BaseClassObject*, 2> bases;
+    utl::small_vector<BaseClassObject*, 2> concreteBases;
     utl::small_vector<Function*> ctors;
     std::unique_ptr<VTable> _vtable;
     bool _isEmpty = false;
@@ -887,9 +904,28 @@ public:
     }
 
     /// \Returns a view over the member types in this struct
-    auto members() const {
-        return memberVariables() |
-               ranges::views::transform([](auto* var) { return var->type(); });
+    auto memberTypes() const {
+        return memberVariables() | ranges::views::transform(&Object::type);
+    }
+
+    /// \Returns a view over the non-protocol base class objects and member
+    /// variables
+    auto elements() {
+        using namespace ranges::views;
+        return concat(concreteBaseObjects() | transform(cast<Object*>),
+                      memberVariables());
+    }
+
+    /// \overload
+    auto elements() const {
+        using namespace ranges::views;
+        return concat(concreteBaseObjects() | transform(cast<Object const*>),
+                      memberVariables());
+    }
+
+    /// \Returns a view over the non-protocol base class types and member types
+    auto elementTypes() const {
+        return elements() | ranges::views::transform(&Object::type);
     }
 
     /// Adds a variable to the end of the list of member variables of this

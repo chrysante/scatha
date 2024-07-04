@@ -92,7 +92,7 @@ std::vector<RecordType const*> sema::instantiateEntities(
         /// return them soon, they all have mutable origin.
         auto* mutType = const_cast<StructType*>(type);
         /// Members of array type may not have lifetime analyzed here
-        for (auto* member: mutType->members() | Filter<ObjectType>) {
+        for (auto* member: mutType->memberTypes() | Filter<ObjectType>) {
             if (!member->hasLifetimeMetadata()) {
                 analyzeLifetime(const_cast<ObjectType&>(*member),
                                 ctx.symbolTable());

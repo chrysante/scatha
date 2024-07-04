@@ -690,3 +690,31 @@ fn make_unique() -> *unique mut int { return unique int(); }
         CHECK(m->type() == sym.uniquePointer(sym.Int(), Mutable));
     });
 }
+
+TEST_CASE("Value category of member access expressions", "[sema]") {
+    auto const text = R"(
+struct X { var n: int; }
+fn test() {
+    let x = X();
+    x.n;
+    X().n;
+})";
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+    REQUIRE(iss.empty());
+    auto* file = cast<TranslationUnit*>(ast.get())->sourceFile(0);
+    REQUIRE(file);
+    auto* callee = file->statement<FunctionDefinition>(1);
+    REQUIRE(callee);
+    auto* lvalueStmt = callee->body()->statement<ExpressionStatement>(1);
+    REQUIRE(lvalueStmt);
+    auto* lvalueExpr = lvalueStmt->expression();
+    REQUIRE(lvalueExpr);
+    CHECK(lvalueExpr->isLValue());
+    CHECK(lvalueExpr->type() == QualType::Const(sym.Int()));
+    auto* rvalueStmt = callee->body()->statement<ExpressionStatement>(2);
+    REQUIRE(rvalueStmt);
+    auto* rvalueExpr = rvalueStmt->expression();
+    REQUIRE(rvalueExpr);
+    CHECK(rvalueExpr->isRValue());
+    CHECK(rvalueExpr->type() == QualType::Mut(sym.Int()));
+}

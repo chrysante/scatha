@@ -240,7 +240,7 @@ bool sema::isDerivedFrom(RecordType const* derived, RecordType const* base) {
             if (currBase == base) {
                 return true;
             }
-            if (dfs(dfs, currBase)) {
+            if (currBase && dfs(dfs, currBase)) {
                 return true;
             }
         }

@@ -48,6 +48,9 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
         }
     };
     dfs(dfs, vtable);
+    if (vtableFunctions.empty()) {
+        return;
+    }
     if (isa<sema::StructType>(vtable.type())) {
         auto* irVTable = ctx.anonymousStructConstant(vtableFunctions);
         MD.vtable = lctx.mod.addGlobal(
@@ -70,8 +73,8 @@ RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
             irIndex += fieldTypes.size();
         }
     }
-    if (auto* vtable = semaType->vtable()) {
-        generateVTable(*vtable, MD, lctx);
+    if (semaType->vtable()) {
+        generateVTable(*semaType->vtable(), MD, lctx);
     }
     return MD;
 }
