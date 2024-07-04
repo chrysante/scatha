@@ -769,7 +769,7 @@ static Entity* toSingleEntity(ast::Identifier const& idExpr,
         SC_ASSERT(
             isMemberAccessRHS(idExpr),
             "Ambiguous member access should be the only reason for finding multiple entities here");
-        ctx.issue<BadExpr>(&idExpr, AmbiguousMemberAccess);
+        ctx.badExpr(&idExpr, AmbiguousMemberAccess);
         return nullptr;
     }
     auto functions = entities | transform(stripAlias) |
