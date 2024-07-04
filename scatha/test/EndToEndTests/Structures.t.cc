@@ -279,3 +279,13 @@ func i32 @main() {
     return i32 %4
 })");
 }
+
+TEST_CASE("Base class member access", "[end-to-end][member-access]") {
+    test::runReturnsTest(3, R"(
+struct Base { var n: int; }
+struct Derived: Base { var n: int; }
+fn main() {
+    let d = Derived(Base(1), 2);
+    return d.n + d.Base.n;
+})");
+}

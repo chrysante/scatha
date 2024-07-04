@@ -63,14 +63,24 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
 RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
                                          LoweringContext lctx) {
     RecordMetadata MD;
-    MD.members.resize(semaType->baseTypes().size());
     if (auto* S = dyncast<sema::StructType const*>(semaType)) {
         uint32_t irIndex = 0;
-        for (auto* member: S->memberVariables()) {
-            auto fieldTypes = lctx.typeMap.unpacked(member->type());
+        auto impl = [&](sema::Object const& obj) {
+            auto fieldTypes = lctx.typeMap.unpacked(obj.type());
             MD.members.push_back(
                 { .beginIndex = irIndex, .fieldTypes = fieldTypes });
             irIndex += fieldTypes.size();
+        };
+        for (auto* base: S->baseObjects()) {
+            if (isa<sema::StructType>(base->type())) {
+                impl(*base);
+            }
+            else {
+                MD.members.push_back({});
+            }
+        }
+        for (auto* var: S->memberVariables()) {
+            impl(*var);
         }
     }
     if (semaType->vtable()) {
