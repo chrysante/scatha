@@ -281,6 +281,19 @@ func i32 @main() {
 }
 
 TEST_CASE("Base class member access", "[end-to-end][member-access]") {
+    test::runReturnsTest(2, R"(
+struct Base {
+    var n: int;
+    var m: int;
+}
+struct Derived: Base { var n: int; }
+fn main() {
+    let d = Derived(Base(1, 2), 3);
+    return d.m;
+})");
+}
+
+TEST_CASE("Base class explicit member access", "[end-to-end][member-access]") {
     test::runReturnsTest(3, R"(
 struct Base { var n: int; }
 struct Derived: Base { var n: int; }

@@ -78,9 +78,12 @@ struct ExprContext {
                                               ast::Expression*);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
+    utl::small_vector<Entity*> findEntities(ast::Identifier& idExpr);
     ast::Expression* analyzeImpl(ast::Identifier&);
     bool validateAccessPermission(Entity const& entity) const;
     ast::Expression* analyzeImpl(ast::CastExpr&);
+    ast::Expression* convertObjType(ConversionKind kind, ast::Expression* expr,
+                                    ObjectType const* target);
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::AddressOfExpression&);
@@ -749,15 +752,30 @@ static bool isMemberAccessRHS(ast::Expression const& expr) {
     return parent && parent->member() == &expr;
 }
 
+utl::small_vector<Entity*> ExprContext::findEntities(ast::Identifier& idExpr) {
+    auto* scope = findMALookupScope(idExpr);
+    if (!scope) {
+        return sym.unqualifiedLookup(idExpr.value());
+    }
+    auto entities = scope->findEntities(idExpr.value()) | ToSmallVector<>;
+    if (!entities.empty()) {
+        return entities;
+    }
+    auto* record = dyncast<RecordType*>(scope);
+    if (!record) {
+        return {};
+    }
+    for (auto* base: record->baseTypes()) {
+        auto baseEntities =
+            const_cast<RecordType*>(base)->findEntities(idExpr.value());
+        entities.insert(entities.end(), baseEntities.begin(),
+                        baseEntities.end());
+    }
+    return entities;
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
-    auto entities = [&] {
-        if (auto* scope = findMALookupScope(idExpr)) {
-            return scope->findEntities(idExpr.value()) | ToSmallVector<>;
-        }
-        else {
-            return sym.unqualifiedLookup(idExpr.value());
-        }
-    }();
+    auto entities = findEntities(idExpr);
     auto* entity = toSingleEntity(idExpr, entities, ctx);
     if (!entity) {
         ctx.badExpr(&idExpr, UndeclaredID);
@@ -844,6 +862,13 @@ ast::Expression* ExprContext::analyzeImpl(ast::CastExpr& expr) {
     return expr.replace(conv->extractFromParent());
 }
 
+ast::Expression* ExprContext::convertObjType(ConversionKind kind,
+                                             ast::Expression* expr,
+                                             ObjectType const* target) {
+    return convert(kind, expr, expr->type().to(target), expr->valueCategory(),
+                   currentCleanupStack(), ctx);
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(ma.accessed())) {
         return nullptr;
@@ -862,7 +887,17 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     case EntityCategory::Value: {
         // clang-format off
         return SC_MATCH (*ma.member()->entity()) {
-            [&](Object&) {
+            [&](Object& obj) {
+                auto* accType = ma.accessed()->type().get();
+                if (obj.parent() != accType) {
+                    auto* memberParent = cast<RecordType*>(obj.parent());
+                    SC_ASSERT(isDerivedFrom(cast<RecordType const*>(accType),
+                                            memberParent),
+                              "");
+                    auto* conv = convertObjType(Implicit, ma.accessed(), 
+                                                memberParent);
+                    SC_ASSERT(conv, "Conversion to base class must succeed");
+                }
                 auto mut = ma.accessed()->type().mutability();
                 auto type = ma.member()->type().to(mut);
                 auto valueCat = 
@@ -886,10 +921,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 auto* memberRecord = dyncast<RecordType const*>(&type);
                 if (isDerivedFrom(accessedRecord, memberRecord)) {
                     ast::Expression* expr = ma.accessed();
-                    expr = convert(Explicit, expr,
-                                   expr->type().to(memberRecord),
-                                   expr->valueCategory(), currentCleanupStack(),
-                                   ctx);
+                    expr = convertObjType(Explicit, expr, memberRecord);
                     SC_ASSERT(expr, "Conversion to base class must succeed");
                     return ma.replace(expr->extractFromParent());
                 }
@@ -937,7 +969,6 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     case EntityCategory::Indeterminate:
         return nullptr;
     }
-
     SC_UNREACHABLE();
 }
 
