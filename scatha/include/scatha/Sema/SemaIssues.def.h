@@ -282,6 +282,10 @@ SC_SEMA_BADEXPR_DEF(Identifier, AccessedMemberWithoutObject, Error,
                     "Cannot access member '" << expr->value()
                                              << "' without an object argument")
 
+SC_SEMA_BADEXPR_DEF(Identifier, AmbiguousMemberAccess, Error,
+                    "Member '" << expr->value()
+                               << "' found in multiple base classes")
+
 SC_SEMA_BADEXPR_DEF(UnaryExpression, UnaryExprBadType, Error,
                     "Operand type " << expr->operand()->type()->name()
                                     << " is invalid for unary operator "

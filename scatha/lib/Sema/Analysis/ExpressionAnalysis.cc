@@ -713,31 +713,6 @@ static Scope* findMALookupScope(ast::Identifier& idExpr) {
     }
 }
 
-/// If \p entities
-/// - is empty, returns null
-/// - has one element, returns that element
-/// - has multiple elements, checks that all elements are functions and returns
-///   an overload set
-static Entity* toSingleEntity(ast::Identifier const& idExpr,
-                              std::span<Entity* const> entities,
-                              AnalysisContext& ctx) {
-    if (entities.empty()) {
-        return nullptr;
-    }
-    // TODO: Remove the check for !isa<Function>
-    if (entities.size() == 1 && !isa<Function>(stripAlias(entities.front()))) {
-        return stripAlias(entities.front());
-    }
-    if (!ranges::all_of(entities, isa<Function>, stripAlias)) {
-        // TODO: Find out how to trigger this
-        SC_UNIMPLEMENTED();
-    }
-    auto functions = entities | transform(stripAlias) |
-                     transform(cast<Function*>) | ToSmallVector<>;
-    return ctx.symbolTable().addOverloadSet(idExpr.sourceRange(),
-                                            std::move(functions));
-}
-
 /// \Returns `true` if \p var is a struct member and not declared `static`
 static bool isNonStaticDataMember(sema::VarBase const& var) {
     // FIXME: This only tests if var is a struct data member, not if it is
@@ -774,11 +749,39 @@ utl::small_vector<Entity*> ExprContext::findEntities(ast::Identifier& idExpr) {
     return entities;
 }
 
+/// If \p entities
+/// - is empty, returns null
+/// - has one element, returns that element
+/// - has multiple elements, checks that all elements are functions and returns
+///   an overload set
+static Entity* toSingleEntity(ast::Identifier const& idExpr,
+                              std::span<Entity* const> entities,
+                              AnalysisContext& ctx) {
+    if (entities.empty()) {
+        ctx.badExpr(&idExpr, UndeclaredID);
+        return nullptr;
+    }
+    // TODO: Remove the check for !isa<Function>
+    if (entities.size() == 1 && !isa<Function>(stripAlias(entities.front()))) {
+        return stripAlias(entities.front());
+    }
+    if (!ranges::all_of(entities, isa<Function>, stripAlias)) {
+        SC_ASSERT(
+            isMemberAccessRHS(idExpr),
+            "Ambiguous member access should be the only reason for finding multiple entities here");
+        ctx.issue<BadExpr>(&idExpr, AmbiguousMemberAccess);
+        return nullptr;
+    }
+    auto functions = entities | transform(stripAlias) |
+                     transform(cast<Function*>) | ToSmallVector<>;
+    return ctx.symbolTable().addOverloadSet(idExpr.sourceRange(),
+                                            std::move(functions));
+}
+
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
     auto entities = findEntities(idExpr);
     auto* entity = toSingleEntity(idExpr, entities, ctx);
     if (!entity) {
-        ctx.badExpr(&idExpr, UndeclaredID);
         return nullptr;
     }
     // clang-format off

@@ -809,3 +809,13 @@ struct T: int {}
     CHECK(iss.findOnLine<BadBaseDecl>(3, BadBaseDecl::NotAProtocol));
     CHECK(iss.findOnLine<BadBaseDecl>(4, BadBaseDecl::InvalidType));
 }
+
+TEST_CASE("Ambiguous member access", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+struct Base1 { var n: int; }
+struct Base2 { var n: int; }
+struct Derived: Base1, Base2 {}
+fn main() { Derived().n; }
+)");
+    CHECK(iss.findOnLine<BadExpr>(5, AmbiguousMemberAccess));
+}
