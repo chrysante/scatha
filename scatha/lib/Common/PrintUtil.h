@@ -38,6 +38,12 @@ struct Indenter {
 
     friend std::ostream& operator<<(std::ostream&, Indenter const&);
 
+    Indenter operator+(int n) const {
+        auto copy = *this;
+        copy._level += n;
+        return copy;
+    }
+
 private:
     int _level;
     int _spacesPerLevel;

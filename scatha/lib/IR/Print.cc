@@ -407,7 +407,7 @@ void PrintCtx::print(Value const& value) {
     }
     visit(value, [this](auto const& value) { printImpl(value); });
     if (auto* ptrInfo = value.pointerInfo()) {
-        str << " ";
+        str << "\n" << indent + 1;
         metadata(*ptrInfo);
     }
     if (isa<Global>(value)) {
