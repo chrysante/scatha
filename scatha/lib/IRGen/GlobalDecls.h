@@ -33,7 +33,8 @@ ir::Callable* declareFunction(sema::Function const& semaFn,
 
 /// \Returns the IR function corresponding to \p semaFn
 /// The function will be declared if it has not been declared before
-ir::Callable* getFunction(sema::Function const& semaFn, LoweringContext lctx);
+ir::Callable* getFunction(sema::Function const& semaFn, LoweringContext lctx,
+                          bool pushToDeclQueue = true);
 
 } // namespace scatha::irgen
 

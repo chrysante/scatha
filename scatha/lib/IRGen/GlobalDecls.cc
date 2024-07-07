@@ -40,7 +40,7 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
                 if (!semaFn->isAbstract()) {
                     return getFunction(*semaFn, lctx);
                 }
-                declareFunction(*semaFn, lctx);
+                getFunction(*semaFn, lctx, /* pushToDeclQueue: */ false);
                 return ctx.undef(ctx.ptrType());
             }();
             MD.vtableIndexMap[semaFn] = vtableFunctions.size();
@@ -75,7 +75,8 @@ RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
             irIndex += fieldTypes.size();
         };
         for (auto* base: S->baseObjects()) {
-            if (isa<sema::StructType>(base->type())) {
+            if (isa<sema::StructType>(base->type()) && !base->type()->isEmpty())
+            {
                 impl(*base);
             }
             else {
@@ -268,12 +269,12 @@ ir::Callable* irgen::declareFunction(sema::Function const& semaFn,
 }
 
 ir::Callable* irgen::getFunction(sema::Function const& semaFn,
-                                 LoweringContext lctx) {
+                                 LoweringContext lctx, bool pushToDeclQueue) {
     if (auto md = lctx.globalMap.tryGet(&semaFn)) {
         return md->function;
     }
-    if ((semaFn.isNative() || semaFn.isGenerated()) && !semaFn.isAbstract() &&
-        !lctx.lowered.contains(&semaFn))
+    if (pushToDeclQueue && (semaFn.isNative() || semaFn.isGenerated()) &&
+        !semaFn.isAbstract() && !lctx.lowered.contains(&semaFn))
     {
         lctx.declQueue.push_back(&semaFn);
         lctx.lowered.insert(&semaFn);

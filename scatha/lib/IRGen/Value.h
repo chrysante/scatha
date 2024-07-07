@@ -153,7 +153,10 @@ public:
     iterator end() const { return elems.end(); }
     size_t size() const { return elems.size(); }
     bool empty() const { return elems.empty(); }
-    Atom operator[](size_t index) const {
+    Atom& operator[](size_t index) {
+        return const_cast<Atom&>(std::as_const(*this)[index]);
+    }
+    Atom const& operator[](size_t index) const {
         SC_EXPECT(index < elems.size());
         return elems[index];
     }

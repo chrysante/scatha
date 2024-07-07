@@ -302,3 +302,15 @@ fn main() {
     return d.n + d.Base.n;
 })");
 }
+
+TEST_CASE("Derived to base conversion with offset",
+          "[end-to-end][member-access]") {
+    test::runReturnsTest(3, R"(
+struct Base1 { var n: int; }
+struct Base2 { var n: int; }
+struct Derived: Base1, Base2 {}
+fn main() {
+    let d = Derived(Base1(1), Base2(2));
+    return d.Base1.n + d.Base2.n;
+})");
+}

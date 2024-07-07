@@ -1234,7 +1234,10 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
             auto* vtableAddr =
                 toRegister(obj[1], ctx.ptrType(), "vtable.addr").get();
             auto& MD = typeMap.metaData(obj.type().get());
-            size_t index = MD.vtableIndexMap.find(call.function())->second;
+            auto itr = MD.vtableIndexMap.find(call.function());
+            SC_ASSERT(itr != MD.vtableIndexMap.end(),
+                      "Failed to find function in vtable");
+            size_t index = itr->second;
             auto* funcAddr =
                 add<ir::GetElementPointer>(ctx.ptrType(), vtableAddr,
                                            ctx.intConstant(index, 32),
@@ -1512,6 +1515,32 @@ Value FuncGenContext::getValueImpl(ast::QualConvExpr const& conv) {
     }
 }
 
+static utl::small_vector<uint16_t> derivedToBaseIndices(
+    sema::RecordType const* derived, sema::RecordType const* base) {
+    utl::small_vector<uint16_t> result;
+    auto dfs = [&](auto& dfs, sema::RecordType const* current) -> bool {
+        if (current == base) {
+            return true;
+        }
+        for (auto* currBase: current->baseObjects()) {
+            auto* type = currBase->type();
+            bool needIndex = !isa<sema::ProtocolType>(type) && !type->isEmpty();
+            if (needIndex) {
+                result.push_back(currBase->index());
+            }
+            if (dfs(dfs, type)) {
+                return true;
+            }
+            if (needIndex) {
+                result.pop_back();
+            }
+        }
+        return false;
+    };
+    dfs(dfs, derived);
+    return result;
+}
+
 Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
     auto* expr = conv.expression();
     auto value = getValue(expr);
@@ -1628,10 +1657,37 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                                  Atom::Memory(value.single().get()));
         }
     }
-    case Ref_DerivedToParent:
-        // TODO: Compute offset
+    case Ref_DerivedToParent: {
+        sema::RecordType const* derived =
+            cast<sema::RecordType const*>(conv.expression()->type().get());
+        auto indices =
+            derivedToBaseIndices(derived, cast<sema::RecordType const*>(
+                                              conv.type().get()));
+        value = unpack(value);
+        for (size_t index: indices) {
+            size_t irIndex =
+                typeMap.metaData(derived).members[index].beginIndex;
+            using enum ValueLocation;
+            switch (value[0].location()) {
+            case Memory: {
+                auto* irType = typeMap.packed(derived);
+                auto* valuePtr = value[0].get();
+                auto* addr = add<ir::GetElementPointer>(irType, valuePtr,
+                                                        ctx.intConstant(0, 32),
+                                                        std::array{ irIndex },
+                                                        "parent.addr");
+                derived = derived->baseTypes()[index];
+                value[0] = Atom::Memory(addr);
+                break;
+            }
+            case Register:
+                SC_UNIMPLEMENTED();
+                break;
+            }
+        }
         value.setType(conv.type());
         return value;
+    }
     default:
         SC_UNREACHABLE();
     }
