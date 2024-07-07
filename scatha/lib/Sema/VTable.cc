@@ -21,8 +21,8 @@ std::unique_ptr<VTable> VTable::clone() const {
     for (auto& [type, vtable]: inheritanceMap) {
         inheritanceClone[type] = vtable->clone();
     }
-    return std::make_unique<VTable>(type(), std::move(inheritanceClone),
-                                    _layout);
+    return std::make_unique<VTable>(correspondingType(),
+                                    std::move(inheritanceClone), _layout);
 }
 
 static QualType getPtrOrRefBase(Type const* type) {
@@ -40,7 +40,24 @@ static QualType getPtrOrRefBase(Type const* type) {
     }; // clang-format on
 }
 
-bool match(Function const& F, std::span<Type const* const> args) {
+template <typename VT>
+using SearchResult = VTable::SearchResult<VT>;
+
+utl::small_vector<SearchResult<VTable>> VTable::findFunction(
+    Function const& F) {
+    utl::small_vector<SearchResult<VTable>> result;
+    findFnImpl(*this, result, F);
+    return result;
+}
+
+utl::small_vector<SearchResult<VTable const>> VTable::findFunction(
+    Function const& F) const {
+    utl::small_vector<SearchResult<VTable const>> result;
+    findFnImpl(*this, result, F);
+    return result;
+}
+
+static bool matchArgs(Function const& F, std::span<Type const* const> args) {
     SC_ASSERT(!F.argumentTypes().empty(), "");
     SC_ASSERT(!args.empty(), "");
     if (!ranges::equal(F.argumentTypes() | drop(1), args.subspan(1))) {
@@ -57,20 +74,18 @@ bool match(Function const& F, std::span<Type const* const> args) {
                          cast<RecordType const*>(objType.get()));
 }
 
-VTable::SearchResult<VTable const> VTable::findFunction(
-    std::span<Type const* const> args) const {
-    SC_EXPECT(!args.empty());
-    for (auto [index, F]: layout() | enumerate) {
-        if (match(*F, args)) {
-            return { this, index };
+template <typename VT>
+void VTable::findFnImpl(VT& This, utl::vector<SearchResult<VT>>& result,
+                        Function const& F) {
+    SC_EXPECT(!F.argumentTypes().empty());
+    for (auto [index, G]: This.layout() | enumerate) {
+        if (G->name() == F.name() && matchArgs(*G, F.argumentTypes())) {
+            result.push_back({ &This, index });
         }
     }
-    for (auto& [type, vtable]: inheritanceMap) {
-        if (auto result = vtable->findFunction(args)) {
-            return result;
-        }
+    for (auto& [type, vtable]: This.inheritanceMap) {
+        findFnImpl<VT>(*vtable, result, F);
     }
-    return {};
 }
 
 template <typename VT>

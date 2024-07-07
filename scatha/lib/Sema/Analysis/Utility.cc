@@ -248,3 +248,20 @@ bool sema::isDerivedFrom(RecordType const* derived, RecordType const* base) {
     };
     return dfs(dfs, derived);
 }
+
+bool sema::isUnambiguouslyDerivedFrom(RecordType const* derived,
+                                      RecordType const* base) {
+    int numPaths = 0;
+    auto dfs = [&](auto& dfs, RecordType const* current) -> void {
+        for (auto* currBase: current->baseTypes()) {
+            if (currBase == base) {
+                ++numPaths;
+            }
+            if (currBase) {
+                dfs(dfs, currBase);
+            }
+        }
+    };
+    dfs(dfs, derived);
+    return numPaths == 1;
+}

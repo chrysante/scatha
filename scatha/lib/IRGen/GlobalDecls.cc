@@ -29,7 +29,7 @@ using sema::QualType;
 static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
                            LoweringContext lctx) {
     auto& ctx = lctx.ctx;
-    std::string typeName = lctx.config.nameMangler(*vtable.type());
+    std::string typeName = lctx.config.nameMangler(*vtable.correspondingType());
     utl::small_vector<ir::Constant*> vtableFunctions;
     auto dfs = [&](auto& dfs, sema::VTable const& vtable) mutable -> void {
         for (auto* inherited: vtable.sortedInheritedVTables()) {
@@ -51,8 +51,11 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
     if (vtableFunctions.empty()) {
         return;
     }
-    if (isa<sema::StructType>(vtable.type())) {
-        auto* irVTable = ctx.anonymousStructConstant(vtableFunctions);
+    if (isa<sema::StructType>(vtable.correspondingType())) {
+        auto* irVTable =
+            ctx.arrayConstant(vtableFunctions,
+                              ctx.arrayType(ctx.ptrType(),
+                                            vtableFunctions.size()));
         MD.vtable = lctx.mod.addGlobal(
             allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Const,
                                          irVTable, typeName + ".vtable"));

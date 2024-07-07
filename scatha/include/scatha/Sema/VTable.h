@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <span>
+#include <string_view>
 #include <vector>
 
 #include <range/v3/algorithm.hpp>
@@ -30,15 +31,15 @@ public:
 class VTable {
 public:
     explicit VTable(
-        RecordType const* type,
+        RecordType const* correspondingType,
         utl::hashmap<RecordType const*, std::unique_ptr<VTable>> inheritanceMap,
         VTableLayout layout):
-        _type(type),
+        _type(correspondingType),
         inheritanceMap(std::move(inheritanceMap)),
         _layout(std::move(layout)) {}
 
     /// \Returns the corresponding record type
-    RecordType const* type() const { return _type; }
+    RecordType const* correspondingType() const { return _type; }
 
     ///
     VTableLayout& layout() { return _layout; }
@@ -77,15 +78,16 @@ public:
         }
     };
 
-    ///
-    SearchResult<VTable> findFunction(std::span<Type const* const> args) {
-        auto result = std::as_const(*this).findFunction(args);
-        return { const_cast<VTable*>(result.vtable), result.index };
-    }
+    /// Finds all vtable entries that match the name and the argument types of
+    /// \p F Matches are determined like this:
+    /// - The names must be equal
+    /// - The first argument must be the derived type with the same qualifiers
+    /// - The other arguments must match exactly
+    utl::small_vector<SearchResult<VTable>> findFunction(Function const& F);
 
-    ///
-    SearchResult<VTable const> findFunction(
-        std::span<Type const* const> args) const;
+    /// \overload
+    utl::small_vector<SearchResult<VTable const>> findFunction(
+        Function const& F) const;
 
     /// \Returns a sorted list of the inherited vtables
     utl::small_vector<VTable*> sortedInheritedVTables();
@@ -94,6 +96,10 @@ public:
     utl::small_vector<VTable const*> sortedInheritedVTables() const;
 
 private:
+    template <typename VT>
+    static void findFnImpl(VT& This, utl::vector<SearchResult<VT>>& result,
+                           Function const& F);
+
     RecordType const* _type;
     utl::hashmap<RecordType const*, std::unique_ptr<VTable>> inheritanceMap;
     VTableLayout _layout;

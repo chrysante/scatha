@@ -231,7 +231,7 @@ static std::optional<ObjConvChain> derivedToBaseConv(ThinExpr from,
     if (origin == dest || !origin || !dest) {
         return std::nullopt;
     }
-    if (isDerivedFrom(origin, dest)) {
+    if (isUnambiguouslyDerivedFrom(origin, dest)) {
         return ObjConvChain{ ObjectTypeConversion::Ref_DerivedToParent };
     }
     return std::nullopt;

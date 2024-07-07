@@ -148,8 +148,8 @@ void PrintContext::print(LifetimeMetadata const& md) {
 }
 
 void PrintContext::print(VTable const& vtable) {
-    str << formatter.beginLine() << "VTable for " << format(vtable.type())
-        << ": \n";
+    str << formatter.beginLine() << "VTable for "
+        << format(vtable.correspondingType()) << ": \n";
     auto inherited = vtable.sortedInheritedVTables();
     for (auto [index, base]: inherited | ranges::views::enumerate) {
         bool last = index == inherited.size() - 1 && vtable.layout().empty();

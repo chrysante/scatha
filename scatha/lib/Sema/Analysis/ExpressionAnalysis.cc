@@ -754,9 +754,9 @@ utl::small_vector<Entity*> ExprContext::findEntities(ast::Identifier& idExpr) {
 /// - has one element, returns that element
 /// - has multiple elements, checks that all elements are functions and returns
 ///   an overload set
-static Entity* toSingleEntity(ast::Identifier const& idExpr,
-                              std::span<Entity* const> entities,
-                              AnalysisContext& ctx) {
+static Entity* selectEntity(ast::Identifier const& idExpr,
+                            std::span<Entity* const> entities,
+                            AnalysisContext& ctx) {
     if (entities.empty()) {
         ctx.badExpr(&idExpr, UndeclaredID);
         return nullptr;
@@ -780,7 +780,7 @@ static Entity* toSingleEntity(ast::Identifier const& idExpr,
 
 ast::Expression* ExprContext::analyzeImpl(ast::Identifier& idExpr) {
     auto entities = findEntities(idExpr);
-    auto* entity = toSingleEntity(idExpr, entities, ctx);
+    auto* entity = selectEntity(idExpr, entities, ctx);
     if (!entity) {
         return nullptr;
     }
@@ -922,7 +922,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 auto* accessedRecord =
                     dyncast<RecordType const*>(ma.accessed()->type().get());
                 auto* memberRecord = dyncast<RecordType const*>(&type);
-                if (isDerivedFrom(accessedRecord, memberRecord)) {
+                if (isUnambiguouslyDerivedFrom(accessedRecord, memberRecord)) {
                     ast::Expression* expr = ma.accessed();
                     expr = convertObjType(Explicit, expr, memberRecord);
                     SC_ASSERT(expr, "Conversion to base class must succeed");

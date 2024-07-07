@@ -41,13 +41,21 @@ static std::unique_ptr<VTable> buildInheritedVTable(RecordType& recordType) {
                                     VTableLayout{});
 }
 
-bool sema::analyzeProtocolConformance(AnalysisContext& ctx,
+bool sema::analyzeProtocolConformance(AnalysisContext&,
                                       RecordType& recordType) {
     auto vtable = buildInheritedVTable(recordType);
     for (auto* F:
          recordType.children() | Filter<Function> | filter(isVTableFunction))
     {
-        if (auto location = vtable->findFunction(F->argumentTypes())) {
+        auto locations = vtable->findFunction(*F);
+        /// If this function doesn't override any inherited function, we create
+        /// a new entry
+        if (locations.empty()) {
+            vtable->layout().push_back(F);
+            continue;
+        }
+        /// Otherwise we set all overridden functions to `F`
+        for (auto location: locations) {
             auto& layout = location.vtable->layout();
             auto* overridden = layout[location.index];
             if (overridden->returnType() != F->returnType()) {
@@ -55,9 +63,6 @@ bool sema::analyzeProtocolConformance(AnalysisContext& ctx,
                 SC_UNIMPLEMENTED();
             }
             layout[location.index] = F;
-        }
-        else {
-            vtable->layout().push_back(F);
         }
     }
     recordType.setVTable(std::move(vtable));
