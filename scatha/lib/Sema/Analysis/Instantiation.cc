@@ -302,7 +302,7 @@ void InstContext::instantiateRecordType(SDGNode& node) {
         if (!element) {
             continue;
         }
-        auto* type = element->type();
+        auto* type = dyncast<ObjectType const*>(element->type());
         if (!type || !type->isComplete()) {
             continue;
         }
@@ -311,7 +311,12 @@ void InstContext::instantiateRecordType(SDGNode& node) {
                   "size must be a multiple of align");
         objectSize = utl::round_up_pow_two(objectSize, type->align());
         element->setByteOffset(objectSize);
-        objectSize += type->size();
+        auto* recordType = dyncast<RecordType const*>(type);
+        if (!isa<BaseClassObject>(element->asObject()) || !recordType ||
+            !recordType->isEmpty())
+        {
+            objectSize += type->size();
+        }
     }
     if (objectAlign > 0) {
         objectSize = utl::round_up(objectSize, objectAlign);

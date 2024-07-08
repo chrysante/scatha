@@ -4,7 +4,7 @@
 
 using namespace scatha;
 
-TEST_CASE("First dynamic call", "[end-to-end]") {
+TEST_CASE("First dynamic call", "[end-to-end][dyn-calls]") {
     test::runReturnsTest(42, R"(
 protocol P { fn test(&this) -> int; }
 struct S: P {
@@ -21,7 +21,7 @@ fn main() {
 )");
 }
 
-TEST_CASE("Multiple inheritance with protocols", "[end-to-end]") {
+TEST_CASE("Multiple inheritance with protocols", "[end-to-end][dyn-calls]") {
     auto* expected =
         R"(Base1(7) -> h
 Derived2(11).h
@@ -71,5 +71,54 @@ fn main() {
     b1foo.f();
     let b2foo: &dyn Foo = d as &dyn Base2;
     b2foo.f();
+})" });
+}
+
+TEST_CASE("Forward calls up the inheritance hierarchy",
+          "[end-to-end][dyn-calls]") {
+    test::runPrintsTest("B.a -> C.c -> D.c -> 42", { R"(
+struct Offset {
+    fn placeholder(&dyn this) { __builtin_putstr("placeholder"); }
+}
+struct A {
+    fn a(&dyn this) -> int {
+        __builtin_putstr("A.a -> ");
+        return 0;
+    }
+}
+struct B: Offset, A {
+    fn a(&dyn this) {
+        __builtin_putstr("B.a -> ");
+        return this.b();
+    }
+    fn b(&dyn this) {
+        __builtin_putstr("B.b -> ");
+        return 0;
+    }
+}
+struct C: Offset, B {
+    fn b(&dyn this) {
+        __builtin_putstr("C.c -> ");
+        return this.c();
+    }
+    fn c(&dyn this) {
+        __builtin_putstr("C.c -> ");
+        return 0;
+    }
+}
+struct D: Offset, C {
+    fn new(&mut this, value: int) {
+        this.value = value;
+    }
+    fn c(&dyn this) {
+        __builtin_putstr("D.c -> ");
+        return this.value;
+    }
+    var value: int;
+}
+fn main() {
+    let d = D(42);
+    let a: &dyn A = d;
+    __builtin_puti64(a.a());
 })" });
 }

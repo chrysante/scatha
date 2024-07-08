@@ -28,13 +28,16 @@ using enum ValueRepresentation;
 using sema::QualType;
 
 static ir::Function* generateThunk(ir::Function* target,
+                                   sema::RecordType const* concreteType,
                                    ssize_t objectByteOffset,
                                    ssize_t vtableOffset, LoweringContext lctx) {
     auto& ctx = lctx.ctx;
-    auto owner = allocate<ir::Function>(ctx, target->returnType(),
-                                        ir::clone(ctx, target->parameters()),
-                                        utl::strcat(target->name(), ".thunk"),
-                                        target->attributes());
+    auto owner =
+        allocate<ir::Function>(ctx, target->returnType(),
+                               ir::clone(ctx, target->parameters()),
+                               utl::strcat(target->name(), ".thunk-for-",
+                                           concreteType->name()),
+                               target->attributes());
     auto* thunk = lctx.mod.addGlobal(std::move(owner));
     ir::FunctionBuilder builder(ctx, thunk);
     builder.addNewBlock("entry");
@@ -57,7 +60,8 @@ static ir::Function* generateThunk(ir::Function* target,
     }
     utl::small_vector<ir::Value*> args = { objPtr, vtablePtr };
     args.insert(args.end(), thunk->parameters() | drop(2) | TakeAddress);
-    auto* result = builder.add<ir::Call>(target->returnType(), target, args);
+    auto* result =
+        builder.add<ir::Call>(target->returnType(), target, args, "result");
     builder.add<ir::Return>(result);
     return thunk;
 }
@@ -95,8 +99,11 @@ static ir::Constant* getVTableFunction(sema::Function const& concreteSemaFn,
     if (owningTypeItr == concreteTypeItr) {
         return irFn;
     }
+    ThunkKey key = { &concreteSemaFn, owningTypeItr->type };
+    if (auto itr = lctx.thunkMap.find(key); itr != lctx.thunkMap.end()) {
+        return itr->second;
+    }
     size_t byteOffset = 0;
-    size_t vtableOffset = 0;
     auto* currRecord = concreteTypeItr->type;
     auto castSequence = ranges::make_subrange(std::next(concreteTypeItr),
                                               std::next(owningTypeItr));
@@ -105,14 +112,21 @@ static ir::Constant* getVTableFunction(sema::Function const& concreteSemaFn,
                                 &sema::BaseClassObject::type);
         SC_ASSERT(itr != currRecord->baseObjects().end(), "");
         byteOffset += (*itr)->byteOffset();
-        vtableOffset += vtOffset;
         currRecord = type;
     }
+    SC_ASSERT(
+        owningTypeItr->vtableOffset >= concreteTypeItr->vtableOffset,
+        "The owning type must be further into the vtable than the concrete type");
+    size_t vtableOffset =
+        owningTypeItr->vtableOffset - concreteTypeItr->vtableOffset;
     if (byteOffset == 0 && vtableOffset == 0) {
         return irFn;
     }
-    return generateThunk(cast<ir::Function*>(irFn), (ssize_t)byteOffset,
-                         (ssize_t)vtableOffset, lctx);
+    auto* thunk = generateThunk(cast<ir::Function*>(irFn), fnObjType,
+                                (ssize_t)byteOffset, (ssize_t)vtableOffset,
+                                lctx);
+    lctx.thunkMap.insert({ key, thunk });
+    return thunk;
 }
 
 static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,

@@ -207,10 +207,12 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
                        Config config) {
     TypeMap typeMap(ctx);
     GlobalMap globalMap;
-    utl::hashset<sema::Function const*> loweredFunctions;
     std::deque<sema::Function const*> declQueue;
+    utl::hashset<sema::Function const*> loweredFunctions;
+    utl::hashmap<ThunkKey, ir::Function*> thunkMap;
     LoweringContext lctx{
-        ctx, mod, sym, typeMap, globalMap, declQueue, loweredFunctions, config
+        ctx,      mod,   sym, typeMap, globalMap, declQueue, loweredFunctions,
+        thunkMap, config
     };
     declareInitialFunctions(analysisResult, lctx);
     /// We import libraries in topsort order because there may be dependencies
