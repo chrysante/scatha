@@ -24,42 +24,40 @@
 
 /// Class hierarchy of `Entity`
 ///
-/// ```
-/// Entity
-/// ├─ Object
-/// │  ├─ VarBase
-/// │  │  ├─ Variable
-/// │  │  └─ Property
-/// │  └─ Temporary
-/// ├─ OverloadSet
-/// ├─ Generic
-/// ├─ Scope
-/// │  ├─ GlobalScope
-/// │  ├─ FileScope
-/// │  ├─ AnonymousScope
-/// │  ├─ Function
-/// │  └─ Type
-/// │     ├─ ReferenceType
-/// │     ├─ FunctionType
-/// │     └─ ObjectType
-/// │        ├─ BuiltinType
-/// │        │  ├─ VoidType
-/// │        │  ├─ ArithmeticType
-/// │        │  │  ├─ BoolType
-/// │        │  │  ├─ ByteType
-/// │        │  │  ├─ IntType
-/// │        │  │  └─ FloatType
-/// │        │  ├─ NullPtrType
-/// │        │  └─ PointerType
-/// │        │     ├─ RawPtrType
-/// │        │     └─ UniquePtrType
-/// │        └─ CompoundType
-/// │           ├─ StructType
-/// │           ├─ ProtocolType
-/// │           └─ ArrayType
-/// ├─ TypeDeductionQualifier
-/// └─ PoisonEntity
-/// ```
+///     Entity
+///     ├─ Object
+///     │  ├─ VarBase
+///     │  │  ├─ Variable
+///     │  │  └─ Property
+///     │  └─ Temporary
+///     ├─ OverloadSet
+///     ├─ Generic
+///     ├─ Scope
+///     │  ├─ GlobalScope
+///     │  ├─ FileScope
+///     │  ├─ AnonymousScope
+///     │  ├─ Function
+///     │  └─ Type
+///     │     ├─ ReferenceType
+///     │     ├─ FunctionType
+///     │     └─ ObjectType
+///     │        ├─ BuiltinType
+///     │        │  ├─ VoidType
+///     │        │  ├─ ArithmeticType
+///     │        │  │  ├─ BoolType
+///     │        │  │  ├─ ByteType
+///     │        │  │  ├─ IntType
+///     │        │  │  └─ FloatType
+///     │        │  ├─ NullPtrType
+///     │        │  └─ PointerType
+///     │        │     ├─ RawPtrType
+///     │        │     └─ UniquePtrType
+///     │        └─ CompoundType
+///     │           ├─ StructType
+///     │           ├─ ProtocolType
+///     │           └─ ArrayType
+///     ├─ TypeDeductionQualifier
+///     └─ PoisonEntity
 
 #define SC_ASTNODE_DERIVED(Name, Type)                                         \
     template <typename T = ast::Type>                                          \
@@ -232,8 +230,6 @@ protected:
                     Type const* type, Mutability mutability,
                     PointerBindMode bindMode, ast::ASTNode* astNode);
 
-    void setMutability(Mutability mut) { _mut = mut; }
-
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
@@ -256,8 +252,37 @@ protected:
     using Object::Object;
 };
 
-/// Represents a variable
-class SCATHA_API Variable: public VarBase {
+/// Common base class of `Variable` and `BaseClassObject`
+class SCATHA_API RecordElement {
+public:
+    /// \Returns to position of this element in the structure
+    size_t index() const { return _index; }
+
+    /// Necessary for symbol table deserialization
+    void setIndex(size_t index) { _index = index; }
+
+    ///
+    Object& asObject() { return reinterpret_cast<Object&>(*(this + 1)); }
+
+    /// \overload
+    Object const& asObject() const {
+        return reinterpret_cast<Object const&>(*(this + 1));
+    }
+
+    ///
+    Type const* type() const { return asObject().type(); }
+
+private:
+    friend class RecordType;
+    friend class StructType;
+
+    size_t _index = 0;
+};
+
+/// Represents a local, global or struct member variable
+/// \Warning `RecordElement` must be the first base class to share the same
+/// address
+class SCATHA_API Variable: public RecordElement, public VarBase {
 public:
     Variable(Variable const&) = delete;
 
@@ -268,31 +293,23 @@ public:
     /// The AST node that corresponds to this variable
     SC_ASTNODE_DERIVED(declaration, VarDeclBase)
 
-    /// If this variable is a member of a struct, this is the position of this
-    /// variable in the struct.
-    size_t index() const { return _index; }
-
-    /// Set the index of this variable.
-    void setIndex(size_t index) { _index = index; }
-
-    /// For the symbol table
-    using Object::setMutability;
-
     /// \Returns `true` if this variable is a global or static struct data
     /// member
     bool isStatic() const;
+
+    using Object::type;
 
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
     friend class VarBase;
     ValueCategory valueCatImpl() const { return ValueCategory::LValue; }
-
-    size_t _index = 0;
 };
 
 /// Represents a base class object
-class SCATHA_API BaseClassObject: public Object {
+/// \Warning `RecordElement` must be the first base class to share the same
+/// address
+class SCATHA_API BaseClassObject: public RecordElement, public Object {
 public:
     BaseClassObject(BaseClassObject const&) = delete;
 
@@ -303,15 +320,6 @@ public:
     /// The AST node that corresponds to this variable
     SC_ASTNODE_DERIVED(declaration, BaseClassDeclaration)
 
-    /// Position of this base class
-    size_t index() const { return _index; }
-
-    ///
-    void setIndex(size_t index) { _index = index; }
-
-    /// For the symbol table
-    using Object::setMutability;
-
     ///
     RecordType const* type() const;
 
@@ -319,8 +327,6 @@ private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
     ValueCategory valueCatImpl() const { return ValueCategory::LValue; }
-
-    size_t _index = 0;
 };
 
 /// Represents a computed property such as `.count`, `.front` and `.back` member
@@ -822,33 +828,74 @@ public:
         this->ctors = ctors | ToSmallVector<>;
     }
 
-    /// The base objects of this type in the order of declaration.
-    std::span<BaseClassObject* const> baseObjects() { return bases; }
+    /// All conforming protocols objects, base struct objects and member
+    /// variables
+    std::span<RecordElement* const> elements() { return _elements; }
+
+    /// \overload
+    std::span<RecordElement const* const> elements() const { return _elements; }
+
+    /// All conforming protocols, structs and member variable types
+    auto elementTypes() const {
+        return elements() | ranges::views::transform(&RecordElement::type);
+    }
+
+    /// The base objects of protocol type of this type in the order of
+    /// declaration.
+    std::span<BaseClassObject* const> conformingProtocolObjects() {
+        return elementsImpl<BaseClassObject>(*this, 0, _structBaseBegin);
+    }
+
+    /// \overload
+    std::span<BaseClassObject const* const> conformingProtocolObjects() const {
+        return elementsImpl<BaseClassObject const>(*this, 0, _structBaseBegin);
+    }
+
+    /// The base objects of struct type of this type in the order of
+    /// declaration.
+    std::span<BaseClassObject* const> baseStructObjects() {
+        return elementsImpl<BaseClassObject>(*this, _structBaseBegin,
+                                             _variableBegin);
+    }
+
+    /// \overload
+    std::span<BaseClassObject const* const> baseStructObjects() const {
+        return elementsImpl<BaseClassObject const>(*this, _structBaseBegin,
+                                                   _variableBegin);
+    }
+
+    /// The base objects of this type in the order of declaration, except that
+    /// protocols precede structs
+    std::span<BaseClassObject* const> baseObjects() {
+        return elementsImpl<BaseClassObject>(*this, 0, _variableBegin);
+    }
 
     /// \overload
     std::span<BaseClassObject const* const> baseObjects() const {
-        return bases;
+        return elementsImpl<BaseClassObject const>(*this, 0, _variableBegin);
+    }
+
+    /// \Returns a view over the base types of this struct
+    template <typename P = ProtocolType>
+    auto conformingProtocols() const {
+        return conformingProtocolObjects() |
+               ranges::views::transform(
+                   [](auto* obj) { return cast<P const*>(obj->type()); });
+    }
+
+    /// \Returns a view over the base struct of this struct
+    template <typename S = StructType>
+    auto baseStructs() const {
+        return baseStructObjects() | ranges::views::transform([](auto* obj) {
+            return cast<S const*>(obj->type());
+        });
     }
 
     /// \Returns a view over the base types of this struct
     auto baseTypes() const {
-        return baseObjects() | ranges::views::transform(&BaseClassObject::type);
-    }
-
-    /// The non-protocol base objects of this type in the order of declaration.
-    std::span<BaseClassObject* const> concreteBaseObjects() {
-        return concreteBases;
-    }
-
-    /// \overload
-    std::span<BaseClassObject const* const> concreteBaseObjects() const {
-        return concreteBases;
-    }
-
-    /// \Returns a view over the non-protocol base types of this struct
-    auto concreteBaseTypes() const {
-        return concreteBaseObjects() |
-               ranges::views::transform(&BaseClassObject::type);
+        return baseObjects() | ranges::views::transform([](auto* obj) {
+            return cast<RecordType const*>(obj->type());
+        });
     }
 
     /// Adds a variable to the end of the list of member variables of this
@@ -876,11 +923,21 @@ protected:
                         size_t align, AccessControl accessControl);
 
 private:
-    utl::small_vector<BaseClassObject*, 2> bases;
-    utl::small_vector<BaseClassObject*, 2> concreteBases;
-    utl::small_vector<Function*> ctors;
+    friend class StructType;
+
+    template <typename T>
+    static std::span<T* const> elementsImpl(auto& This, size_t begin,
+                                            size_t end) {
+        auto* ptr = reinterpret_cast<T* const*>(This._elements.data());
+        return { ptr + begin, ptr + end };
+    }
+
     std::unique_ptr<VTable> _vtable;
+    utl::small_vector<RecordElement*> _elements;
     bool _isEmpty = false;
+    uint16_t _structBaseBegin = 0;
+    uint16_t _variableBegin = 0;
+    utl::small_vector<Function*, 4> ctors;
 };
 
 /// Concrete class representing the type of a structure
@@ -896,11 +953,14 @@ public:
     SC_ASTNODE_DERIVED(definition, StructDefinition)
 
     /// The member variables of this type in the order of declaration.
-    std::span<Variable* const> memberVariables() { return memberVars; }
+    std::span<Variable* const> memberVariables() {
+        return elementsImpl<Variable>(*this, _variableBegin, _elements.size());
+    }
 
     /// \overload
     std::span<Variable const* const> memberVariables() const {
-        return memberVars;
+        return elementsImpl<Variable const>(*this, _variableBegin,
+                                            _elements.size());
     }
 
     /// \Returns a view over the member types in this struct
@@ -910,33 +970,29 @@ public:
 
     /// \Returns a view over the non-protocol base class objects and member
     /// variables
-    auto elements() {
-        using namespace ranges::views;
-        return concat(concreteBaseObjects() | transform(cast<Object*>),
-                      memberVariables());
+    std::span<RecordElement* const> concreteElements() {
+        return elementsImpl<RecordElement>(*this, _structBaseBegin,
+                                           _elements.size());
     }
 
     /// \overload
-    auto elements() const {
-        using namespace ranges::views;
-        return concat(concreteBaseObjects() | transform(cast<Object const*>),
-                      memberVariables());
+    std::span<RecordElement const* const> concreteElements() const {
+        return elementsImpl<RecordElement const>(*this, _structBaseBegin,
+                                                 _elements.size());
     }
 
     /// \Returns a view over the non-protocol base class types and member types
-    auto elementTypes() const {
-        return elements() | ranges::views::transform(&Object::type);
+    auto concreteElementTypes() const {
+        return concreteElements() |
+               ranges::views::transform(&RecordElement::type);
     }
 
     /// Adds a variable to the end of the list of member variables of this
     /// structure
-    void pushMemberVariable(Variable* var) { memberVars.push_back(var); }
+    void pushMemberVariable(Variable* var);
 
     /// Sets the member variable of this structure at index \p index
     void setMemberVariable(size_t index, Variable* var);
-
-private:
-    utl::small_vector<Variable*> memberVars;
 };
 
 /// Concrete class representing the type of a protocol

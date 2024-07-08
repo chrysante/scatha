@@ -636,7 +636,7 @@ Variable* SymbolTable::declareVarImpl(ast::VarDeclBase* vardecl,
     }
     auto* var = impl->addEntity<Variable>(name, &currentScope(), vardecl,
                                           accessControl);
-    var->setMutability(mut);
+    var->_mut = mut;
     addToCurrentScope(var);
     addGlobalAliasIfInternalAtFilescope(var);
     return var;

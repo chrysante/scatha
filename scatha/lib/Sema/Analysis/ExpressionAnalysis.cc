@@ -1821,13 +1821,14 @@ ast::Expression* ExprContext::analyzeImpl(ast::TrivAggrConstructExpr& expr) {
     }
     /// Can `cast` because only structs are aggregates
     auto* structType = cast<StructType const*>(expr.constructedType());
-    if (expr.arguments().size() != structType->elementTypes().size()) {
+    if (expr.arguments().size() != structType->concreteElementTypes().size()) {
         ctx.badExpr(&expr, CannotConstructType);
         return nullptr;
     }
     bool success = true;
     for (auto [arg, type]:
-         ranges::views::zip(expr.arguments(), structType->elementTypes()))
+         ranges::views::zip(expr.arguments(),
+                            structType->concreteElementTypes()))
     {
         success &= !!convert(Implicit, arg, getQualType(type), RValue,
                              currentCleanupStack(), ctx);

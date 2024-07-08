@@ -401,9 +401,14 @@ RecordType::RecordType(EntityType entityType, std::string name,
 RecordType::~RecordType() = default;
 
 void RecordType::pushBaseObject(BaseClassObject* obj) {
-    bases.push_back(obj);
-    if (isa<StructType>(obj->type())) {
-        concreteBases.push_back(obj);
+    if (isa<ProtocolType>(obj->type())) {
+        obj->_index = _structBaseBegin;
+        _elements.insert(_elements.begin() + _structBaseBegin++, obj);
+        ++_variableBegin;
+    }
+    else {
+        obj->_index = _variableBegin;
+        _elements.insert(_elements.begin() + _variableBegin++, obj);
     }
 }
 
@@ -411,11 +416,16 @@ void RecordType::setVTable(std::unique_ptr<VTable> vtable) {
     _vtable = std::move(vtable);
 }
 
+void StructType::pushMemberVariable(Variable* var) {
+    var->_index = _elements.size();
+    _elements.push_back(var);
+}
+
 void StructType::setMemberVariable(size_t index, Variable* var) {
-    if (index >= memberVars.size()) {
-        memberVars.resize(index + 1);
+    if (index >= _elements.size()) {
+        _elements.resize(index + 1);
     }
-    memberVars[index] = var;
+    _elements[index] = var;
 }
 
 static Scope* getParent(ObjectType const* type) {

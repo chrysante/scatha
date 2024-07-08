@@ -36,13 +36,11 @@ struct InstContext {
 
     void instantiateRecordType(SDGNode&);
     Type const* instantiateRecordMember(RecordType& parentType,
-                                        ast::VariableDeclaration& varDecl,
-                                        size_t declIndex);
+                                        ast::VariableDeclaration& varDecl);
     Type const* instantiateRecordMember(RecordType& parentType,
-                                        ast::BaseClassDeclaration& decl,
-                                        size_t declIndex);
+                                        ast::BaseClassDeclaration& decl);
     Type const* instantiateRecordMember(RecordType& parentType,
-                                        ast::Declaration&, size_t);
+                                        ast::Declaration&);
 
     void instantiateNonStaticDataMember(SDGNode&);
 
@@ -215,8 +213,7 @@ std::vector<RecordType const*> InstContext::instantiateTypes(
 }
 
 Type const* InstContext::instantiateRecordMember(
-    RecordType& parentType, ast::VariableDeclaration& varDecl,
-    size_t declIndex) {
+    RecordType& parentType, ast::VariableDeclaration& varDecl) {
     auto* structType = dyncast<StructType*>(&parentType);
     if (!structType) {
         SC_ASSERT(isa<ProtocolType>(parentType), "");
@@ -247,12 +244,11 @@ Type const* InstContext::instantiateRecordMember(
     if (auto* array = dyncast<ArrayType const*>(varType)) {
         const_cast<ArrayType*>(array)->recomputeSize();
     }
-    var.setIndex(declIndex);
     return varType;
 }
 
 Type const* InstContext::instantiateRecordMember(
-    RecordType& parentType, ast::BaseClassDeclaration& decl, size_t declIndex) {
+    RecordType& parentType, ast::BaseClassDeclaration& decl) {
     auto& obj = *decl.object();
     parentType.pushBaseObject(&obj);
     auto* baseType = decl.type();
@@ -267,13 +263,21 @@ Type const* InstContext::instantiateRecordMember(
         ctx.issue<BadBaseDecl>(&decl, BadBaseDecl::InvalidType, decl.type());
         return nullptr;
     }
-    obj.setIndex(declIndex);
     return baseType;
 }
 
-Type const* InstContext::instantiateRecordMember(RecordType&, ast::Declaration&,
-                                                 size_t) {
+Type const* InstContext::instantiateRecordMember(RecordType&,
+                                                 ast::Declaration&) {
     SC_UNREACHABLE();
+}
+
+static void verifyLayout(RecordType const& type) {
+#if SC_DEBUG
+    for (auto [index, element]: type.elements() | enumerate) {
+        SC_ASSERT(index == element->index(),
+                  "element indices must be set correctly");
+    }
+#endif
 }
 
 void InstContext::instantiateRecordType(SDGNode& node) {
@@ -288,12 +292,12 @@ void InstContext::instantiateRecordType(SDGNode& node) {
                recordDef.body()->statements() |
                    Filter<ast::VariableDeclaration>);
     /// Here we collect all the base classes and members of the record
-    for (auto [declIndex, decl]: decls | ranges::views::enumerate) {
+    for (auto* decl: decls) {
         if (!decl->isDecorated()) {
             continue;
         }
-        auto* type = visit(*decl, [&, declIndex = declIndex](auto& decl) {
-            return instantiateRecordMember(recordType, decl, declIndex);
+        auto* type = visit(*decl, [&](auto& decl) {
+            return instantiateRecordMember(recordType, decl);
         });
         if (!type || !type->isComplete()) {
             continue;
@@ -318,6 +322,7 @@ void InstContext::instantiateRecordType(SDGNode& node) {
     if (objectSize == 0) {
         recordType.setIsEmpty();
     }
+    verifyLayout(recordType);
 }
 
 static Type const* getType(ast::Expression const* expr) {
