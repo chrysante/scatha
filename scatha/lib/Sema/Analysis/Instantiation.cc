@@ -35,12 +35,12 @@ struct InstContext {
         StructDependencyGraph& typeDependencies);
 
     void instantiateRecordType(SDGNode&);
-    Type const* instantiateRecordMember(RecordType& parentType,
-                                        ast::VariableDeclaration& varDecl);
-    Type const* instantiateRecordMember(RecordType& parentType,
-                                        ast::BaseClassDeclaration& decl);
-    Type const* instantiateRecordMember(RecordType& parentType,
-                                        ast::Declaration&);
+    RecordElement* instantiateRecordMember(RecordType& parentType,
+                                           ast::VariableDeclaration& varDecl);
+    RecordElement* instantiateRecordMember(RecordType& parentType,
+                                           ast::BaseClassDeclaration& decl);
+    RecordElement* instantiateRecordMember(RecordType& parentType,
+                                           ast::Declaration&);
 
     void instantiateNonStaticDataMember(SDGNode&);
 
@@ -212,7 +212,7 @@ std::vector<RecordType const*> InstContext::instantiateTypes(
     return sortedRecords;
 }
 
-Type const* InstContext::instantiateRecordMember(
+RecordElement* InstContext::instantiateRecordMember(
     RecordType& parentType, ast::VariableDeclaration& varDecl) {
     auto* structType = dyncast<StructType*>(&parentType);
     if (!structType) {
@@ -244,10 +244,10 @@ Type const* InstContext::instantiateRecordMember(
     if (auto* array = dyncast<ArrayType const*>(varType)) {
         const_cast<ArrayType*>(array)->recomputeSize();
     }
-    return varType;
+    return &var;
 }
 
-Type const* InstContext::instantiateRecordMember(
+RecordElement* InstContext::instantiateRecordMember(
     RecordType& parentType, ast::BaseClassDeclaration& decl) {
     auto& obj = *decl.object();
     parentType.pushBaseObject(&obj);
@@ -263,11 +263,11 @@ Type const* InstContext::instantiateRecordMember(
         ctx.issue<BadBaseDecl>(&decl, BadBaseDecl::InvalidType, decl.type());
         return nullptr;
     }
-    return baseType;
+    return &obj;
 }
 
-Type const* InstContext::instantiateRecordMember(RecordType&,
-                                                 ast::Declaration&) {
+RecordElement* InstContext::instantiateRecordMember(RecordType&,
+                                                    ast::Declaration&) {
     SC_UNREACHABLE();
 }
 
@@ -296,9 +296,13 @@ void InstContext::instantiateRecordType(SDGNode& node) {
         if (!decl->isDecorated()) {
             continue;
         }
-        auto* type = visit(*decl, [&](auto& decl) {
+        auto* element = visit(*decl, [&](auto& decl) {
             return instantiateRecordMember(recordType, decl);
         });
+        if (!element) {
+            continue;
+        }
+        auto* type = element->type();
         if (!type || !type->isComplete()) {
             continue;
         }
@@ -306,6 +310,7 @@ void InstContext::instantiateRecordType(SDGNode& node) {
         SC_ASSERT(type->size() % type->align() == 0,
                   "size must be a multiple of align");
         objectSize = utl::round_up_pow_two(objectSize, type->align());
+        element->setByteOffset(objectSize);
         objectSize += type->size();
     }
     if (objectAlign > 0) {

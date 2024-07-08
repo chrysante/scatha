@@ -1,12 +1,13 @@
 #include "IRGen/GlobalDecls.h"
 
 #include <range/v3/view.hpp>
+#include <utl/stack.hpp>
 #include <utl/utility.hpp>
 
 #include "IR/Attributes.h"
-#include "IR/CFG/Constants.h"
-#include "IR/CFG/Function.h"
-#include "IR/CFG/GlobalVariable.h"
+#include "IR/Builder.h"
+#include "IR/CFG.h"
+#include "IR/Clone.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
@@ -26,30 +27,117 @@ using enum ValueLocation;
 using enum ValueRepresentation;
 using sema::QualType;
 
+static ir::Function* generateThunk(ir::Function* target,
+                                   ssize_t objectByteOffset,
+                                   ssize_t vtableOffset, LoweringContext lctx) {
+    auto& ctx = lctx.ctx;
+    auto owner = allocate<ir::Function>(ctx, target->returnType(),
+                                        ir::clone(ctx, target->parameters()),
+                                        utl::strcat(target->name(), ".thunk"),
+                                        target->attributes());
+    auto* thunk = lctx.mod.addGlobal(std::move(owner));
+    ir::FunctionBuilder builder(ctx, thunk);
+    builder.addNewBlock("entry");
+    SC_ASSERT(ranges::distance(thunk->parameters()) >= 2,
+              "Must have at least object pointer and vtable pointer");
+    ir::Value* objPtr = thunk->parameters().begin().to_address();
+    ir::Value* vtablePtr = std::next(thunk->parameters().begin()).to_address();
+    if (objectByteOffset > 0) {
+        objPtr = builder.add<ir::GetElementPointer>(
+            ctx.intType(8), objPtr, ctx.intConstant(-objectByteOffset, 64),
+            std::span<size_t>{}, "objptr.offset");
+    }
+    if (vtableOffset > 0) {
+        vtablePtr =
+            builder.add<ir::GetElementPointer>(ctx.ptrType(), vtablePtr,
+                                               ctx.intConstant(-vtableOffset,
+                                                               64),
+                                               std::span<size_t>{},
+                                               "vtable.offset");
+    }
+    utl::small_vector<ir::Value*> args = { objPtr, vtablePtr };
+    args.insert(args.end(), thunk->parameters() | drop(2) | TakeAddress);
+    auto* result = builder.add<ir::Call>(target->returnType(), target, args);
+    builder.add<ir::Return>(result);
+    return thunk;
+}
+
+namespace {
+
+struct DFSStackElem {
+    sema::RecordType const* type;
+    size_t vtableOffset;
+};
+
+} // namespace
+
+static ir::Constant* getVTableFunction(sema::Function const& concreteSemaFn,
+                                       sema::RecordType const* owningVTableType,
+                                       std::span<DFSStackElem const> dfsStack,
+                                       LoweringContext lctx) {
+    auto& ctx = lctx.ctx;
+    if (concreteSemaFn.isAbstract()) {
+        getFunction(concreteSemaFn, lctx, /* pushToDeclQueue: */ false);
+        return ctx.undef(ctx.ptrType());
+    }
+    auto* irFn = getFunction(concreteSemaFn, lctx);
+    auto* fnObjType = cast<sema::RecordType const*>(concreteSemaFn.parent());
+    auto owningTypeItr =
+        ranges::find(dfsStack, owningVTableType, &DFSStackElem::type);
+    SC_ASSERT(owningTypeItr != dfsStack.end(), "");
+    auto concreteTypeItr =
+        ranges::find(dfsStack, fnObjType, &DFSStackElem::type);
+    SC_ASSERT(concreteTypeItr != dfsStack.end(), "");
+    while (isa<sema::ProtocolType>(owningTypeItr->type)) {
+        --owningTypeItr;
+        SC_ASSERT(owningTypeItr >= concreteTypeItr, "");
+    }
+    if (owningTypeItr == concreteTypeItr) {
+        return irFn;
+    }
+    size_t byteOffset = 0;
+    size_t vtableOffset = 0;
+    auto* currRecord = concreteTypeItr->type;
+    auto castSequence = ranges::make_subrange(std::next(concreteTypeItr),
+                                              std::next(owningTypeItr));
+    for (auto& [type, vtOffset]: castSequence) {
+        auto itr = ranges::find(currRecord->baseObjects(), type,
+                                &sema::BaseClassObject::type);
+        SC_ASSERT(itr != currRecord->baseObjects().end(), "");
+        byteOffset += (*itr)->byteOffset();
+        vtableOffset += vtOffset;
+        currRecord = type;
+    }
+    if (byteOffset == 0 && vtableOffset == 0) {
+        return irFn;
+    }
+    return generateThunk(cast<ir::Function*>(irFn), (ssize_t)byteOffset,
+                         (ssize_t)vtableOffset, lctx);
+}
+
 static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
                            LoweringContext lctx) {
     auto& ctx = lctx.ctx;
     std::string typeName = lctx.config.nameMangler(*vtable.correspondingType());
     utl::small_vector<ir::Constant*> vtableFunctions;
+    utl::stack<DFSStackElem> dfsStack;
     auto dfs = [&](auto& dfs, sema::VTable const& vtable,
                    int level = 0) mutable -> void {
+        dfsStack.push({ .type = vtable.correspondingType(),
+                        .vtableOffset = vtableFunctions.size() });
         if (level == 1) {
-            MD.inheritedVTableOffsets.push_back(vtableFunctions.size());
+            MD.inheritedVTableOffsets.push_back(dfsStack.top().vtableOffset);
         }
         for (auto* inherited: vtable.sortedInheritedVTables()) {
             dfs(dfs, *inherited, level + 1);
         }
         for (auto* semaFn: vtable.layout()) {
-            auto* irFn = [&]() -> ir::Constant* {
-                if (!semaFn->isAbstract()) {
-                    return getFunction(*semaFn, lctx);
-                }
-                getFunction(*semaFn, lctx, /* pushToDeclQueue: */ false);
-                return ctx.undef(ctx.ptrType());
-            }();
+            auto* irFn = getVTableFunction(*semaFn, vtable.correspondingType(),
+                                           dfsStack, lctx);
             MD.vtableIndexMap.insert({ semaFn, vtableFunctions.size() });
             vtableFunctions.push_back(irFn);
         }
+        dfsStack.pop();
     };
     dfs(dfs, vtable);
     if (vtableFunctions.empty()) {

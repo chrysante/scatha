@@ -238,7 +238,12 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
             str << tfmt::format(None, "%", htmlName(inst));
         },
         [&](ir::IntegralConstant const& value) {
-            str << formatNumLiteral(value.value().toString());
+            if (value.type() && value.type()->bitwidth() > 32) {
+                str << formatNumLiteral(value.value().signedToString());
+            }
+            else {
+                str << formatNumLiteral(value.value().toString());
+            }
         },
         [&](ir::FloatingPointConstant const& value) {
             str << formatNumLiteral(value.value().toString());

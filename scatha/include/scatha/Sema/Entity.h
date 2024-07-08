@@ -255,11 +255,17 @@ protected:
 /// Common base class of `Variable` and `BaseClassObject`
 class SCATHA_API RecordElement {
 public:
-    /// \Returns to position of this element in the structure
+    /// \Returns the position of this element in the structure
     size_t index() const { return _index; }
 
     /// Necessary for symbol table deserialization
-    void setIndex(size_t index) { _index = index; }
+    void setIndex(size_t index) { _index = (uint16_t)index; }
+
+    /// \Returns the byte offset of this element in the parent structure
+    size_t byteOffset() const { return _byteOffset; }
+
+    ///
+    void setByteOffset(size_t offset) { _byteOffset = (uint32_t)offset; }
 
     ///
     Object& asObject() { return reinterpret_cast<Object&>(*(this + 1)); }
@@ -276,7 +282,8 @@ private:
     friend class RecordType;
     friend class StructType;
 
-    size_t _index = 0;
+    uint16_t _index = 0;
+    uint32_t _byteOffset = 0;
 };
 
 /// Represents a local, global or struct member variable

@@ -67,6 +67,9 @@ void opt::inlineCallsite(ir::Context& ctx, ir::Call* call,
         landingpad->insert(landingpad->begin(), phi);
         call->replaceAllUsesWith(phi);
     }
+    else {
+        call->replaceAllUsesWith(ctx.voidValue());
+    }
     /// Now that we have eventually replaced all uses with a phi node we can
     /// erase the call instruction.
     landingpad->erase(call);

@@ -119,6 +119,18 @@ UniquePtr<Instruction> ir::clone(Context& context, Instruction* inst) {
     return UniquePtr<Instruction>(cloneRaw(context, inst));
 }
 
+UniquePtr<Parameter> ir::clone(Context&, Parameter const* param) {
+    return allocate<Parameter>(param->type(), param->index(), nullptr);
+}
+
+List<Parameter> ir::clone(Context& context, List<Parameter> const& params) {
+    List<Parameter> result;
+    for (auto& param: params) {
+        result.push_back(clone(context, &param).release());
+    }
+    return result;
+}
+
 UniquePtr<BasicBlock> ir::clone(Context& context, BasicBlock* BB) {
     CloneValueMap valueMap;
     return clone(context, BB, valueMap);
@@ -165,14 +177,8 @@ CloneRegionResult ir::cloneRegion(Context& context,
 }
 
 UniquePtr<Function> ir::clone(Context& context, Function* function) {
-    // TODO: Use actual type here when we have proper function types
-    // auto* type = cast<FunctionType const*>(function->type());
-    auto paramTypes =
-        function->parameters() |
-        ranges::views::transform([](Parameter const& p) { return p.type(); }) |
-        ToSmallVector<>;
     auto result = allocate<Function>(context, function->returnType(),
-                                     makeParameters(paramTypes),
+                                     clone(context, function->parameters()),
                                      std::string(function->name()),
                                      function->attributes());
     CloneValueMap valueMap;

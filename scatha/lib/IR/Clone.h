@@ -7,6 +7,7 @@
 #include <utl/hashtable.hpp>
 
 #include "Common/Base.h"
+#include "Common/List.h"
 #include "Common/UniquePtr.h"
 #include "IR/Fwd.h"
 
@@ -55,6 +56,13 @@ private:
 
 /// \Returns a clone of the instruction \p inst
 SCTEST_API UniquePtr<Instruction> clone(Context& context, Instruction* inst);
+
+///
+SCTEST_API UniquePtr<Parameter> clone(Context& context, Parameter const* param);
+
+///
+SCTEST_API List<Parameter> clone(Context& context,
+                                 List<Parameter> const& params);
 
 /// \Returns a clone of the instruction \p inst downcast to the type of the
 /// argument
