@@ -344,7 +344,7 @@ void FuncGenContext::generateSynthFunctionAs(sema::SMFKind kind) {
         }
     }
 
-    auto metadata = typeMap.metaData(parentType);
+    auto metadata = typeMap.metadata(parentType);
     auto* destAddr = &irFn.parameters().front();
     auto members =
         zip(parentType->memberVariables(), metadata.members) |
@@ -1023,12 +1023,12 @@ Value FuncGenContext::genMemberAccess(ast::MemberAccess const& expr,
         return getValue(expr.member());
     }
     Value base = getValue(expr.accessed());
-    auto& metaData =
-        typeMap.metaData(expr.accessed()->type().get()).members[var.index()];
+    auto& memberMD =
+        typeMap.metadata(expr.accessed()->type().get()).members[var.index()];
     std::string name = "mem.acc";
     auto baseLoc = base[0].location();
     auto* baseVal = base[0].get();
-    auto values = zip(iota(metaData.beginIndex), metaData.fieldTypes) |
+    auto values = zip(iota(memberMD.beginIndex), memberMD.fieldTypes) |
                   transform([&](auto p) -> Atom {
         auto [index, type] = p;
         switch (baseLoc) {
@@ -1233,16 +1233,19 @@ Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
                       "Need vtable pointer to dispatch dynamic call");
             auto* vtableAddr =
                 toRegister(obj[1], ctx.ptrType(), "vtable.addr").get();
-            auto& MD = typeMap.metaData(obj.type().get());
+            auto& MD = typeMap.metadata(obj.type().get());
             auto itr = MD.vtableIndexMap.find(call.function());
             SC_ASSERT(itr != MD.vtableIndexMap.end(),
                       "Failed to find function in vtable");
             size_t index = itr->second;
-            auto* funcAddr =
-                add<ir::GetElementPointer>(ctx.ptrType(), vtableAddr,
-                                           ctx.intConstant(index, 32),
-                                           std::span<size_t>{},
-                                           "vtable.addr.function");
+            ir::Value* funcAddr = vtableAddr;
+            if (index > 0) {
+                funcAddr =
+                    add<ir::GetElementPointer>(ctx.ptrType(), funcAddr,
+                                               ctx.intConstant(index, 32),
+                                               std::span<size_t>{},
+                                               "vtable.addr.function");
+            }
             return add<ir::Load>(funcAddr, ctx.ptrType(), "vtable.function");
         }
     }();
@@ -1503,7 +1506,7 @@ Value FuncGenContext::getValueImpl(ast::QualConvExpr const& conv) {
         return value;
     case StaticToDyn: {
         value = unpack(value);
-        auto& MD = typeMap.metaData(conv.type().get());
+        auto& MD = typeMap.metadata(conv.type().get());
         return Value::Unpacked(utl::strcat(value.name(), ".dyn"), conv.type(),
                                { value.single(), Atom::Register(MD.vtable) });
     }
@@ -1523,17 +1526,11 @@ static utl::small_vector<uint16_t> derivedToBaseIndices(
             return true;
         }
         for (auto* currBase: current->baseObjects()) {
-            auto* type = currBase->type();
-            bool needIndex = !isa<sema::ProtocolType>(type) && !type->isEmpty();
-            if (needIndex) {
-                result.push_back(currBase->index());
-            }
-            if (dfs(dfs, type)) {
+            result.push_back(currBase->index());
+            if (dfs(dfs, currBase->type())) {
                 return true;
             }
-            if (needIndex) {
-                result.pop_back();
-            }
+            result.pop_back();
         }
         return false;
     };
@@ -1665,8 +1662,26 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                                               conv.type().get()));
         value = unpack(value);
         for (size_t index: indices) {
-            size_t irIndex =
-                typeMap.metaData(derived).members[index].beginIndex;
+            auto& typeMD = typeMap.metadata(derived);
+            // Compute vtable pointer
+            size_t vtableOffset = typeMD.inheritedVTableOffsets[index];
+            if (value.size() > 1 && vtableOffset > 0) {
+                SC_ASSERT(conv.type().isDyn(), "");
+                SC_ASSERT(isa<ir::PointerType>(value[1].get()->type()), "");
+                auto* vtablePtr =
+                    add<ir::GetElementPointer>(ctx.ptrType(), value[1].get(),
+                                               ctx.intConstant(vtableOffset,
+                                                               32),
+                                               std::span<size_t>{},
+                                               "parent.vtable");
+                value[1] = Atom::Register(vtablePtr);
+            }
+            auto* baseType = derived->baseTypes()[index];
+            utl::scope_guard inc = [&] { derived = baseType; };
+            if (isa<sema::ProtocolType>(baseType) || baseType->isEmpty()) {
+                continue;
+            }
+            size_t irIndex = typeMD.members[index].beginIndex;
             using enum ValueLocation;
             switch (value[0].location()) {
             case Memory: {
@@ -1676,7 +1691,6 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                                                         ctx.intConstant(0, 32),
                                                         std::array{ irIndex },
                                                         "parent.addr");
-                derived = derived->baseTypes()[index];
                 value[0] = Atom::Memory(addr);
                 break;
             }
@@ -1806,7 +1820,7 @@ Value FuncGenContext::getValueImpl(
 Value FuncGenContext::getValueImpl(ast::NontrivAggrConstructExpr const& expr) {
     auto* type = expr.constructedType();
     auto* irType = typeMap.packed(type);
-    auto& metadata = typeMap.metaData(type);
+    auto& metadata = typeMap.metadata(type);
     std::string name = "aggr";
     auto* mem = makeLocalVariable(irType, name);
     for (auto [index, arg]: expr.arguments() | enumerate) {

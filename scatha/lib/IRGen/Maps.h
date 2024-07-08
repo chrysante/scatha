@@ -4,6 +4,7 @@
 #include <functional>
 #include <iosfwd>
 #include <optional>
+#include <span>
 #include <string>
 
 #include <utl/hashtable.hpp>
@@ -58,10 +59,10 @@ void print(ValueMap const& valueMap);
 /// Maps global sema objects to IR objects
 class GlobalMap {
 public:
-    /// Associate \p semaFn with \p irFn and \p metaData
-    void insert(sema::Function const* semaFn, FunctionMetadata metaData);
+    /// Associate \p semaFn with \p irFn and \p metadata
+    void insert(sema::Function const* semaFn, FunctionMetadata metadata);
 
-    /// Associate \p semaVar with \p metaData
+    /// Associate \p semaVar with \p metadata
     void insert(sema::Variable const* semaVar, GlobalVarMetadata metadata);
 
     /// Retrieve IR function metadata associated with \p function
@@ -89,7 +90,7 @@ public:
 
     /// Inserts as packed representation
     void insert(sema::RecordType const* key, ir::StructType const* value,
-                RecordMetadata metaData);
+                RecordMetadata metadata);
 
     ///
     utl::small_vector<ir::Type const*, 2> map(ValueRepresentation repr,
@@ -106,7 +107,7 @@ public:
     utl::small_vector<ir::Type const*, 2> unpacked(sema::QualType type) const;
 
     /// \Returns the meta data associated with \p type
-    RecordMetadata const& metaData(sema::Type const* type) const;
+    RecordMetadata const& metadata(sema::Type const* type) const;
 
 private:
     template <ValueRepresentation Repr>

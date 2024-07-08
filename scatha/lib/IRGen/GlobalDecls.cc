@@ -31,9 +31,13 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
     auto& ctx = lctx.ctx;
     std::string typeName = lctx.config.nameMangler(*vtable.correspondingType());
     utl::small_vector<ir::Constant*> vtableFunctions;
-    auto dfs = [&](auto& dfs, sema::VTable const& vtable) mutable -> void {
+    auto dfs = [&](auto& dfs, sema::VTable const& vtable,
+                   int level = 0) mutable -> void {
+        if (level == 1) {
+            MD.inheritedVTableOffsets.push_back(vtableFunctions.size());
+        }
         for (auto* inherited: vtable.sortedInheritedVTables()) {
-            dfs(dfs, *inherited);
+            dfs(dfs, *inherited, level + 1);
         }
         for (auto* semaFn: vtable.layout()) {
             auto* irFn = [&]() -> ir::Constant* {
@@ -43,7 +47,7 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
                 getFunction(*semaFn, lctx, /* pushToDeclQueue: */ false);
                 return ctx.undef(ctx.ptrType());
             }();
-            MD.vtableIndexMap[semaFn] = vtableFunctions.size();
+            MD.vtableIndexMap.insert({ semaFn, vtableFunctions.size() });
             vtableFunctions.push_back(irFn);
         }
     };
@@ -62,31 +66,33 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
     }
 }
 
+static void traverseRecord(sema::RecordType const* record, auto callback) {
+    for (auto* elem: record->elements()) {
+        auto* elemType = elem->type();
+        // clang-format off
+        bool empty = SC_MATCH (*elemType) {
+            [&](sema::RecordType const& type) {
+                return isa<sema::BaseClassObject>(elem->asObject()) &&
+                       type.isEmpty();
+            },
+            [](sema::Type const&) { return false; },
+        }; // clang-format on
+        callback(elemType, empty);
+    }
+}
+
 /// Generates the lowering metadata for \p semaType
 RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
                                          LoweringContext lctx) {
     RecordMetadata MD;
-    if (auto* S = dyncast<sema::StructType const*>(semaType)) {
-        uint32_t irIndex = 0;
-        auto impl = [&](sema::Object const& obj) {
-            auto fieldTypes = lctx.typeMap.unpacked(obj.type());
-            MD.members.push_back(
-                { .beginIndex = irIndex, .fieldTypes = fieldTypes });
-            irIndex += fieldTypes.size();
-        };
-        for (auto* base: S->baseObjects()) {
-            if (isa<sema::StructType>(base->type()) && !base->type()->isEmpty())
-            {
-                impl(*base);
-            }
-            else {
-                MD.members.push_back({});
-            }
+    uint32_t irIndex = 0;
+    traverseRecord(semaType, [&](sema::Type const* type, bool empty) {
+        auto& member = MD.members.push_back({ .beginIndex = irIndex });
+        if (!empty) {
+            member.fieldTypes = lctx.typeMap.unpacked(type);
+            irIndex += member.fieldTypes.size();
         }
-        for (auto* var: S->memberVariables()) {
-            impl(*var);
-        }
-    }
+    });
     if (semaType->vtable()) {
         generateVTable(*semaType->vtable(), MD, lctx);
     }
@@ -97,21 +103,14 @@ ir::StructType* irgen::generateType(sema::RecordType const* semaType,
                                     LoweringContext lctx) {
     auto structType =
         allocate<ir::StructType>(lctx.config.nameMangler(*semaType));
-    if (auto* semaStruct = dyncast<sema::StructType const*>(semaType)) {
-        auto impl = [&](sema::Object const* obj) {
-            for (auto* irElemType: lctx.typeMap.unpacked(obj->type())) {
-                structType->pushMember(irElemType);
-            }
-        };
-        for (auto* base: semaStruct->baseObjects()) {
-            if (!base->type()->isEmpty()) {
-                impl(base);
-            }
+    traverseRecord(semaType, [&](sema::Type const* type, bool empty) {
+        if (empty) {
+            return;
         }
-        for (auto* var: semaStruct->memberVariables()) {
-            impl(var);
+        for (auto* irElemType: lctx.typeMap.unpacked(type)) {
+            structType->pushMember(irElemType);
         }
-    }
+    });
     auto MD = makeRecordMetadata(semaType, lctx);
     auto* result = structType.get();
     lctx.typeMap.insert(semaType, result, std::move(MD));

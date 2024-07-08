@@ -23,6 +23,9 @@ struct RecordMetadata {
     /// struct
     utl::small_vector<MemberMetadata> members;
 
+    ///
+    utl::small_vector<size_t> inheritedVTableOffsets;
+
     /// The global vtable constant
     ir::GlobalVariable* vtable = nullptr;
 
