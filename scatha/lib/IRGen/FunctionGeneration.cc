@@ -1676,7 +1676,7 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
                                                "parent.vtable");
                 value[1] = Atom::Register(vtablePtr);
             }
-            auto* baseType = derived->baseTypes()[index];
+            auto* baseType = derived->baseTypes()[(ssize_t)index];
             utl::scope_guard inc = [&] { derived = baseType; };
             if (isa<sema::ProtocolType>(baseType) || baseType->isEmpty()) {
                 continue;

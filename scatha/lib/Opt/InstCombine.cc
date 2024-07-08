@@ -106,8 +106,8 @@ struct InstCombineCtx {
 
     Value* loadConstant(Load* load, Constant* base,
                         std::span<GetElementPointer* const> geps,
-                        size_t byteOffset);
-    Value* loadConstPunning(Load* load, Constant* base, size_t byteOffset);
+                        ssize_t byteOffset);
+    Value* loadConstPunning(Load* load, Constant* base, ssize_t byteOffset);
 
     Value* extractPhiValue(ExtractValue* extractInst);
     Value* extractInsertValue(ExtractValue* extractInst);
@@ -567,13 +567,13 @@ namespace {
 
 struct GepInfo {
     Value* basePtr;
-    size_t byteOffset;
+    ssize_t byteOffset;
     utl::small_vector<GetElementPointer*> geps;
 };
 
 } // namespace
 
-static std::pair<Value*, size_t> recGepBaseAndOffsetImpl(
+static std::pair<Value*, ssize_t> recGepBaseAndOffsetImpl(
     Value* pointer, utl::vector<GetElementPointer*>& geps) {
     auto* gep = dyncast<GetElementPointer*>(pointer);
     if (!gep) {
@@ -598,7 +598,7 @@ static GepInfo recursiveGepBaseAndOffset(Value* pointer) {
 static Constant* loadConstNoPunning(Constant* base,
                                     std::span<GetElementPointer* const> geps) {
     for (size_t i = 0; i < geps.size(); ++i) {
-        size_t arrayIndex = geps[i]->constantArrayIndex().value();
+        ssize_t arrayIndex = geps[i]->constantArrayIndex().value();
         while (i + 1 < geps.size() &&
                geps[i]->inboundsType() == geps[i + 1]->inboundsType())
         {
@@ -608,10 +608,12 @@ static Constant* loadConstNoPunning(Constant* base,
             ++i;
         }
         if (auto* array = dyncast<ArrayConstant*>(base)) {
-            if (array->type()->elementType() != geps[i]->inboundsType()) {
+            if (array->type()->elementType() != geps[i]->inboundsType() ||
+                arrayIndex < 0)
+            {
                 return nullptr;
             }
-            base = array->elementAt(arrayIndex);
+            base = array->elementAt((size_t)arrayIndex);
         }
         else if (arrayIndex != 0) {
             return nullptr;
@@ -631,7 +633,7 @@ static Constant* loadConstNoPunning(Constant* base,
 }
 
 Value* InstCombineCtx::loadConstPunning(Load* load, Constant* base,
-                                        size_t byteOffset) {
+                                        ssize_t byteOffset) {
     if (auto* record = dyncast<RecordConstant*>(base)) {
         auto* type = record->type();
         auto members = type->members();
@@ -658,7 +660,7 @@ Value* InstCombineCtx::loadConstPunning(Load* load, Constant* base,
 
 Value* InstCombineCtx::loadConstant(Load* load, Constant* base,
                                     std::span<GetElementPointer* const> geps,
-                                    size_t byteOffset) {
+                                    ssize_t byteOffset) {
     if (auto* value = loadConstNoPunning(base, geps)) {
         return value;
     }

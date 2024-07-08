@@ -153,8 +153,8 @@ static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
     });
     F.arguments.resize(F.argumentTypes.size());
     return ffi_prep_cif(&F.callInterface, FFI_DEFAULT_ABI,
-                        utl::narrow_cast<int>(F.arguments.size()), F.returnType,
-                        F.argumentTypes.data()) == FFI_OK;
+                        utl::narrow_cast<unsigned>(F.arguments.size()),
+                        F.returnType, F.argumentTypes.data()) == FFI_OK;
 #else
     throwError<FFIError>(FFIError::FailedToInit, F.name);
 #endif

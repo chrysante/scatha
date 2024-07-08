@@ -100,17 +100,17 @@ namespace {
 /// instructions. Every slice will be temporarily associated with a new alloca
 /// instruction before it gets promoted
 struct Slice {
-    Slice(size_t begin, size_t end, Alloca* newAlloca):
+    Slice(ssize_t begin, ssize_t end, Alloca* newAlloca):
         _begin(begin), _end(end), _newAlloca(newAlloca) {}
 
     /// \Returns the index of the first byte of the slice
-    size_t begin() const { return _begin; }
+    ssize_t begin() const { return _begin; }
 
     /// \Returns the index of the first byte past the end of the slice
-    size_t end() const { return _end; }
+    ssize_t end() const { return _end; }
 
     /// \Returns the size of the slice in bytes
-    size_t size() const { return end() - begin(); }
+    ssize_t size() const { return end() - begin(); }
 
     /// \Returns the associated intermediate alloca instruction
     Alloca* newAlloca() const { return _newAlloca; }
@@ -123,11 +123,11 @@ struct Slice {
     }
 
 private:
-    size_t _begin, _end;
+    ssize_t _begin, _end;
     Alloca* _newAlloca;
 };
 
-using Subrange = std::pair<size_t, size_t>;
+using Subrange = std::pair<ssize_t, ssize_t>;
 
 /// Represents a variable (an alloca instruction) that we are trying to slice
 /// and promote. This holds most relevant data of the algorithm
@@ -160,11 +160,11 @@ struct Variable {
     utl::hashmap<Instruction*, Phi*> assocPhis;
 
     /// Maps all pointer instructions to their offset into the alloca region.
-    /// This stores `std::optional<size_t>` because for GEPs that derive from
+    /// This stores `std::optional<ssize_t>` because for GEPs that derive from
     /// phi nodes we cannot directly compute their offsets. This map is also the
     /// place where we store all instructions that compute pointers into our
     /// alloca.
-    utl::hashmap<Instruction const*, std::optional<size_t>> ptrToOffsetMap;
+    utl::hashmap<Instruction const*, std::optional<ssize_t>> ptrToOffsetMap;
 
     /// Maps subranges of the alloca region to lists of all slices in that
     /// subrange
@@ -177,7 +177,7 @@ struct Variable {
 
     /// \Returns the offset of \p ptr into our alloca region. \p ptr must be
     /// registered and have a valid offset
-    size_t getPtrOffset(Value const* ptr) const {
+    ssize_t getPtrOffset(Value const* ptr) const {
         auto result = tryGetPtrOffset(ptr);
         SC_ASSERT(result, "Not found");
         return *result;
@@ -185,7 +185,7 @@ struct Variable {
 
     /// \Returns the offset of \p ptr into our alloca region if any offset is
     /// registered
-    std::optional<size_t> tryGetPtrOffset(Value const* ptr) const {
+    std::optional<ssize_t> tryGetPtrOffset(Value const* ptr) const {
         auto* inst = dyncast<Instruction const*>(ptr);
         if (!inst) {
             return std::nullopt;
@@ -203,13 +203,13 @@ struct Variable {
     }
 
     /// Register \p ptr as a pointer into our alloca region
-    bool addPointer(Instruction* ptr, std::optional<size_t> offset) {
+    bool addPointer(Instruction* ptr, std::optional<ssize_t> offset) {
         return ptrToOffsetMap.insert({ ptr, offset }).second;
     }
 
     /// Override the stored pointer offset of \p ptr with \p offset
     /// Adds \p ptr if not registered before
-    void setPointerOffset(Instruction* ptr, size_t offset) {
+    void setPointerOffset(Instruction* ptr, ssize_t offset) {
         ptrToOffsetMap[ptr] = offset;
     }
     /// @}
@@ -515,7 +515,7 @@ bool Variable::analyzeImpl(GetElementPointer* gep) {
         addPointer(gep, std::nullopt);
     }
     else {
-        size_t offset =
+        ssize_t offset =
             getPtrOffset(gep->basePointer()) + *gep->constantByteOffset();
         addPointer(gep, offset);
     }
@@ -530,7 +530,7 @@ bool Variable::analyzeImpl(Phi* phi) {
     if (LNF[phi->parent()]->isProperLoop()) {
         return false;
     }
-    addPointer(phi, size_t(-1));
+    addPointer(phi, std::numeric_limits<ssize_t>::max());
     if (memorize(phi)) {
         return analyzeUsers(phi);
     }
@@ -653,7 +653,7 @@ bool Variable::rewritePhis() {
                 }
                 if (auto* gep = dyncast<GetElementPointer*>(&inst)) {
                     if (auto baseOffset = tryGetPtrOffset(gep->basePointer())) {
-                        size_t offset =
+                        ssize_t offset =
                             *baseOffset + *gep->constantByteOffset();
                         setPointerOffset(&inst, offset);
                     }
@@ -738,7 +738,7 @@ Instruction* Variable::copyInstruction(Instruction* insertBefore,
     return copy;
 }
 
-static utl::small_vector<Slice> slicesInRange(size_t begin, size_t end,
+static utl::small_vector<Slice> slicesInRange(ssize_t begin, ssize_t end,
                                               std::span<Slice const> slices) {
     return ranges::make_subrange(ranges::lower_bound(slices, begin,
                                                      ranges::less{},
@@ -753,7 +753,7 @@ static utl::small_vector<Slice> slicesInRange(size_t begin, size_t end,
 }
 
 bool Variable::computeSlices() {
-    utl::hashset<size_t> set;
+    utl::hashset<ssize_t> set;
     /// We insert all the slice points at the positions that we directly load
     /// from and store to
     for (auto* inst: accesses) {
@@ -774,7 +774,7 @@ bool Variable::computeSlices() {
             continue;
         }
         auto [pointer, type] = getLSPointerAndType(inst);
-        size_t const offset = getPtrOffset(pointer);
+        ssize_t const offset = getPtrOffset(pointer);
         auto& tree = sroa.getMemberTree(type);
         auto DFS = [&](auto& DFS, MemberTree::Node const* node) -> void {
             for (auto* child: node->children()) {
@@ -806,7 +806,7 @@ bool Variable::computeSlices() {
     bool modified = false;
     for (auto [begin, end]: primSlices) {
         Alloca* newAlloca = baseAlloca;
-        if (begin != 0 || end != baseAlloca->allocatedSize().value()) {
+        if (begin != 0 || end != (ssize_t)baseAlloca->allocatedSize().value()) {
             modified = true;
             BasicBlockBuilder builder(ctx, &function.entry());
             newAlloca = builder.insert<Alloca>(baseAlloca,
@@ -833,27 +833,30 @@ utl::small_vector<Subrange, 2> Variable::getAccessedSubranges(
     // clang-format off
     return SC_MATCH (*inst) {
         [&](Load const& load) -> Ret {
-            size_t offset = getPtrOffset(load.address());
-            return { { offset, offset + load.type()->size() } };
+            ssize_t offset = getPtrOffset(load.address());
+            return { { offset, offset + (ssize_t)load.type()->size() } };
         },
         [&](Store const& store) -> Ret {
-            size_t offset = getPtrOffset(store.address());
-            return { { offset, offset + store.value()->type()->size() } };
+            ssize_t offset = getPtrOffset(store.address());
+            return { { offset, 
+                       offset + (ssize_t)store.value()->type()->size() } };
         },
         [&](Call const& call) -> Ret {
             if (isMemcpy(&call)) {
                 Ret result;
                 if (auto offset = tryGetPtrOffset(memcpyDest(&call))) {
-                    result.push_back({ *offset, *offset + memcpySize(&call) });
+                    result.push_back({ *offset, 
+                                       *offset + (ssize_t)memcpySize(&call) });
                 }
                 if (auto offset = tryGetPtrOffset(memcpySource(&call))) {
-                    result.push_back({ *offset, *offset + memcpySize(&call) });
+                    result.push_back({ *offset, 
+                                       *offset + (ssize_t)memcpySize(&call) });
                 }
                 return result;
             }
             if (isMemset(&call)) {
-                size_t offset = getPtrOffset(memsetDest(&call));
-                return { { offset, offset + memsetSize(&call) } };
+                ssize_t offset = getPtrOffset(memsetDest(&call));
+                return { { offset, offset + (ssize_t)memsetSize(&call) } };
             }
             SC_UNREACHABLE();
         },
@@ -947,7 +950,7 @@ bool Variable::replaceBySlices(Load* load) {
             for (auto slice: slices) {
                 Value* sliceValue =
                     builder.add<Load>(slice.newAlloca(),
-                                      ctx.intType(slice.size() * 8),
+                                      ctx.intType((size_t)slice.size() * 8),
                                       std::string(load->name()));
                 sliceValue = builder.add<ConversionInst>(sliceValue, intType,
                                                          Conversion::Zext,
@@ -1037,7 +1040,8 @@ bool Variable::replaceBySlices(Store* store) {
                 }
                 sliceValue =
                     builder.add<ConversionInst>(sliceValue,
-                                                ctx.intType(slice.size() * 8),
+                                                ctx.intType(
+                                                    (size_t)slice.size() * 8),
                                                 Conversion::Trunc,
                                                 "sroa.trunc");
                 builder.add<Store>(slice.newAlloca(), sliceValue);

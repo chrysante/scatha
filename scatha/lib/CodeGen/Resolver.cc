@@ -230,7 +230,7 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
     auto [dynFactor, constFactor, constOffset] =
         [&, offset = offset]() -> std::tuple<mir::Register*, size_t, size_t> {
         size_t elemSize = gep.inboundsType()->size();
-        size_t innerOffset = gep.innerByteOffset() + offset;
+        size_t innerOffset = (size_t)gep.innerByteOffset() + offset;
         auto* constIndex =
             dyncast<ir::IntegralConstant const*>(gep.arrayIndex());
         if (constIndex && constIndex->value() == 0) {

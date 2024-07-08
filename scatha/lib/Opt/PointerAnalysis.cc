@@ -94,8 +94,9 @@ bool PtrAnalyzeCtx::analyzeImpl(ExtractValue& inst) {
     return false;
 }
 
-static size_t computeAlign(size_t baseAlign, size_t offset) {
-    size_t r = offset % baseAlign;
+[[maybe_unused]]
+static size_t computeAlign(size_t baseAlign, ssize_t offset) {
+    size_t r = (size_t)offset % baseAlign;
     return r == 0 ? baseAlign : r;
 }
 
@@ -105,6 +106,7 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
     if (!base) {
         return false;
     }
+#if 0
     auto* accType = gep.accessedType();
     auto staticGEPOffset = gep.constantByteOffset();
     size_t align = [&] {
@@ -118,7 +120,6 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
         auto validBaseSize = base->validSize();
         if (!validBaseSize || !staticGEPOffset) return std::nullopt;
         return *validBaseSize - *staticGEPOffset;
-        ;
     }();
     auto* provenance = base->provenance();
     auto staticProvOffset = [&]() -> std::optional<size_t> {
@@ -132,5 +133,6 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
                               .provenance = provenance,
                               .staticProvenanceOffset = staticProvOffset,
                               .guaranteedNotNull = guaranteedNotNull });
+#endif
     return true;
 }

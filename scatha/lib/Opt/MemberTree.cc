@@ -19,15 +19,15 @@ MemberTree MemberTree::compute(ir::Type const* type) {
 }
 
 MemberTree::Node* MemberTree::computeDFS(ir::Type const* type, size_t index,
-                                         size_t offset) {
-    auto* result =
-        allocate<Node>(allocator, index, type, offset, offset + type->size());
+                                         ssize_t offset) {
+    auto* result = allocate<Node>(allocator, index, type, offset,
+                                  offset + (ssize_t)type->size());
     // clang-format off
     SC_MATCH (*type) {
         [&](ir::StructType const& type) {
             for (size_t i = 0; i < type.numElements(); ++i) {
                 auto* node = computeDFS(type.elementAt(i), i,
-                                        offset + type.offsetAt(i));
+                                        offset + (ssize_t)type.offsetAt(i));
                 result->addChild(node);
             }
         },
@@ -35,7 +35,7 @@ MemberTree::Node* MemberTree::computeDFS(ir::Type const* type, size_t index,
             auto* elemType = type.elementType();
             for (size_t i = 0; i < type.count(); ++i) {
                 auto* node = computeDFS(elemType, i,
-                                        offset + i * elemType->size());
+                                        offset + (ssize_t)(i * elemType->size()));
                 result->addChild(node);
             }
         },

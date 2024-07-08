@@ -580,16 +580,16 @@ public:
     bool hasConstantArrayIndex() const;
 
     /// \Returns the array index as a constant if possible
-    std::optional<size_t> constantArrayIndex() const;
+    std::optional<ssize_t> constantArrayIndex() const;
 
     ///  \Returns the constant byte offset that this instruction computes if the
     /// array index is a constant
-    std::optional<size_t> constantByteOffset() const;
+    std::optional<ssize_t> constantByteOffset() const;
 
     ///  \Returns the constant byte inner byte offset, that is the offset
     /// computed by the constant member indices, not included the dynamic array
     /// index
-    size_t innerByteOffset() const;
+    ssize_t innerByteOffset() const;
 
     /// Sets the inbounds type to \p type
     void setInboundsType(Type const* type) { setTypeOperand(0, type); }

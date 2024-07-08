@@ -496,3 +496,21 @@ func i64 @main() {
     return i64 %result
 })");
 }
+
+TEST_CASE("Negative gep offset", "[end-to-end][regression]") {
+    test::checkIRReturns(42, R"(
+func i64 @derefNegative(ptr %0) {
+    %entry:
+    %1 = getelementptr inbounds i64, ptr %0, i64 -1
+    %r = load i64, ptr %1
+    return i64 %r
+}
+func i64 @main() {
+    %entry:
+    %addr = alloca i64, i32 3
+    store ptr %addr, i64 42
+    %0 = getelementptr inbounds i64, ptr %addr, i64 1
+    %r = call i64 @derefNegative, ptr %0
+    return i64 %r
+})");
+}

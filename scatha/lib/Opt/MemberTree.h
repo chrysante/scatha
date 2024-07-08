@@ -19,7 +19,7 @@ public:
     /// Represents a data member of a structure or an element in an arry
     class Node: public TreeNode<void, Node> {
     public:
-        Node(size_t index, ir::Type const* type, size_t begin, size_t end):
+        Node(size_t index, ir::Type const* type, ssize_t begin, ssize_t end):
             _index(index), _type(type), _begin(begin), _end(end) {}
 
         /// Index of this member in the parent type
@@ -29,16 +29,16 @@ public:
         ir::Type const* type() const { return _type; }
 
         /// Byte offset from the beginning of the root type to this member
-        size_t begin() const { return _begin; }
+        ssize_t begin() const { return _begin; }
 
         /// Byte offset from the beginning of the root type to the end of this
         /// member
-        size_t end() const { return _end; }
+        ssize_t end() const { return _end; }
 
     private:
         size_t _index;
         ir::Type const* _type;
-        size_t _begin, _end;
+        ssize_t _begin, _end;
     };
 
     /// Computes the member tree of \p type
@@ -49,7 +49,7 @@ public:
 
 private:
     /// Implementation of `compute()`
-    Node* computeDFS(ir::Type const* type, size_t index, size_t offset);
+    Node* computeDFS(ir::Type const* type, size_t index, ssize_t offset);
 
     Node* _root;
     MonotonicBufferAllocator allocator;

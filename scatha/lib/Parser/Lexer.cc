@@ -220,7 +220,7 @@ std::optional<Token> Context::getFloatingPointLiteral() {
     if (!m || m.get<1>().size() == 1) {
         return std::nullopt;
     }
-    size_t numDots = ranges::count(m.view(), '.');
+    size_t numDots = (size_t)ranges::count(m.view(), '.');
     switch (numDots) {
     case 0:
         return std::nullopt;

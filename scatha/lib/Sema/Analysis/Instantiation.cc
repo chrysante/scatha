@@ -271,7 +271,7 @@ Type const* InstContext::instantiateRecordMember(RecordType&,
     SC_UNREACHABLE();
 }
 
-static void verifyLayout(RecordType const& type) {
+static void verifyLayout([[maybe_unused]] RecordType const& type) {
 #if SC_DEBUG
     for (auto [index, element]: type.elements() | enumerate) {
         SC_ASSERT(index == element->index(),

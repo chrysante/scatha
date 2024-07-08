@@ -1,6 +1,7 @@
 #ifndef SCATHA_IR_CONTEXT_H_
 #define SCATHA_IR_CONTEXT_H_
 
+#include <concepts>
 #include <memory>
 #include <span>
 #include <string>
@@ -64,6 +65,17 @@ public:
     /// \returns The global integral constant of \p bitwidth bits with value
     /// \p value
     IntegralConstant* intConstant(u64 value, size_t bitwidth);
+
+    /// \overload
+    template <std::integral T>
+    IntegralConstant* intConstant(T value, size_t bitwidth) {
+        if constexpr (std::is_signed_v<T>) {
+            return intConstant((uint64_t)(int64_t)value, bitwidth);
+        }
+        else {
+            return intConstant((uint64_t)value, bitwidth);
+        }
+    }
 
     /// \returns The global bool constant  value \p  value
     IntegralConstant* boolConstant(bool value);

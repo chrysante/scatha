@@ -255,8 +255,9 @@ size_t SrcHighlightCtx::endColumn(SourceRange range, std::string_view line,
 
 SourceLocation SrcHighlightCtx::ignoreTabs(SourceLocation sl) const {
     auto line = sourceMap(sl.fileIndex)[sl.line - 1];
-    int numTabs = (int)ranges::distance(
-        line.substr(0, sl.column) | filter([](char c) { return c == '\t'; }));
+    int numTabs =
+        (int)ranges::distance(line.substr(0, (size_t)sl.column) |
+                              filter([](char c) { return c == '\t'; }));
     sl.column += numTabs * 3;
     return sl;
 }

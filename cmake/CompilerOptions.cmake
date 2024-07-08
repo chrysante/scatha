@@ -20,6 +20,7 @@ function(SCSetCompilerOptions target)
     target_compile_options(${target} PRIVATE "-Wnon-virtual-dtor")
     target_compile_options(${target} PRIVATE "-Wnull-dereference")
     target_compile_options(${target} PRIVATE "-Woverloaded-virtual")
+    target_compile_options(${target} PRIVATE "-Wsign-conversion")
     # We enable this later, this triggers too often
     #target_compile_options(${target} PRIVATE "-Wshadow")
     target_compile_options(${target} PRIVATE "-Wunused")

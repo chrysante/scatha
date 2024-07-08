@@ -206,13 +206,13 @@ Select::Select(Value* condition, Value* thenValue, Value* elseValue,
                 ValueArray{ condition, thenValue, elseValue }) {}
 
 /// Computes the inner type and byte offset by \p indices on \p operandType
-static std::pair<Type const*, size_t> computeAccessedTypeAndOffset(
+static std::pair<Type const*, ssize_t> computeAccessedTypeAndOffset(
     Type const* operandType, std::span<size_t const> indices) {
     Type const* type = operandType;
-    size_t offset = 0;
+    ssize_t offset = 0;
     for (auto index: indices) {
         auto* record = cast<RecordType const*>(type);
-        offset += record->offsetAt(index);
+        offset += (ssize_t)record->offsetAt(index);
         type = record->elementAt(index);
     }
     return { type, offset };
@@ -243,21 +243,22 @@ bool GetElementPointer::hasConstantArrayIndex() const {
     return isa<IntegralConstant>(arrayIndex());
 }
 
-std::optional<size_t> GetElementPointer::constantArrayIndex() const {
+std::optional<ssize_t> GetElementPointer::constantArrayIndex() const {
     if (auto* constIndex = dyncast<IntegralConstant const*>(arrayIndex())) {
-        return constIndex->value().to<size_t>();
+        auto value = zext(constIndex->value(), 64);
+        return value.to<ssize_t>();
     }
     return std::nullopt;
 }
 
-std::optional<size_t> GetElementPointer::constantByteOffset() const {
+std::optional<ssize_t> GetElementPointer::constantByteOffset() const {
     if (auto index = constantArrayIndex()) {
-        return *index * inboundsType()->size() + innerByteOffset();
+        return *index * (ssize_t)inboundsType()->size() + innerByteOffset();
     }
     return std::nullopt;
 }
 
-size_t GetElementPointer::innerByteOffset() const {
+ssize_t GetElementPointer::innerByteOffset() const {
     return computeAccessedTypeAndOffset(inboundsType(), memberIndices()).second;
 }
 
