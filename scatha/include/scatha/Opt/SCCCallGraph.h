@@ -2,6 +2,7 @@
 #define SCATHA_OPT_SCCCALLGRAPH_H_
 
 #include <span>
+#include <vector>
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
@@ -45,21 +46,25 @@ public:
         SCCNode& scc() const { return *_scc; }
 
         /// \returns the callers of this function. Same as `predecessors()`
-        auto callers() const { return predecessors(); }
+        std::span<FunctionNode* const> callers() { return predecessors(); }
+
+        /// \overload
+        std::span<FunctionNode const* const> callers() const {
+            return predecessors();
+        }
 
         /// \returns the callees of this function. Same as `successors()`
-        auto callees() const { return successors(); }
+        std::span<FunctionNode* const> callees() { return successors(); }
+
+        /// \overload
+        std::span<FunctionNode const* const> callees() const {
+            return successors();
+        }
 
         /// \returns all `call` instructions in this function that call
         /// \p callee
         utl::hashset<ir::Call*> const& callsites(
             FunctionNode const& callee) const;
-
-        /// Checks if cached call instructions are still part of the function.
-        /// Call instructions could have been deallocated during function local
-        /// optimization passes, e.g. by dead code elimination Deletes dead call
-        /// instructions from this node.
-        void recomputeCallees(SCCCallGraph& callgraph);
 
     private:
         friend class SCCCallGraph;
@@ -89,10 +94,10 @@ public:
         explicit SCCNode(utl::small_vector<FunctionNode*> nodes);
 
         /// \returns a view over the function nodes in this SCC
-        auto nodes() { return _nodes | Dereference; }
+        std::span<FunctionNode* const> nodes() { return _nodes; }
 
         /// \overload
-        auto nodes() const { return _nodes | Dereference; }
+        std::span<FunctionNode const* const> nodes() const { return _nodes; }
 
         /// \returns a view over the functions this SCC
         auto functions() const {
@@ -110,20 +115,23 @@ public:
         utl::small_vector<FunctionNode*> _nodes;
     };
 
-    struct RemoveCallEdgeResult {
+    struct Modification {
         enum Type {
             None,        /// No structural change to the call graph
             RemovedEdge, /// A call edge has been removed, but no SCC was split
-            SplitSCC     /// The callers SCC has been split
+            SplitSCC,    /// A call edge has been removed, resulting in an SCC
+                         /// being split
+            AddedEdge, /// A call edge has been added, but no new SCC was formed
+            MergedSCCs /// The callers SCC has been split
         };
 
-        RemoveCallEdgeResult(Type type = None): type(type) {}
+        Modification(Type type = None): type(type) {}
 
-        RemoveCallEdgeResult(Type type, SCCNode* caller, SCCNode* callee):
-            type(type), newSCCs{ caller, callee } {}
+        Modification(Type type, utl::small_vector<SCCNode*, 2> modifiedSCCs):
+            type(type), modifiedSCCs(std::move(modifiedSCCs)) {}
 
         Type type;
-        std::array<SCCNode*, 2> newSCCs = {};
+        utl::small_vector<SCCNode*, 2> modifiedSCCs;
     };
 
     explicit SCCCallGraph(ir::Module& mod): mod(&mod) {}
@@ -160,12 +168,41 @@ public:
     /// Remove the call instruction \p callInst from the call graph
     /// We explicitly pass in the caller and the callee, because the call
     /// instruction is already deallocated when this function is called.
-    RemoveCallEdgeResult removeCall(ir::Function* caller,
-                                    ir::Function const* callee,
-                                    ir::Call const* callInst);
+    Modification removeCall(ir::Function* caller, ir::Function const* callee,
+                            ir::Call const* callInst);
+
+    ///
+    Modification addCall(ir::Function* caller, ir::Function* callee,
+                         ir::Call* callInst);
+
+    /// Result structure for `recomputeCallees()`
+    struct RecomputeCalleesResult {
+        /// New callees found. New callees can be found because dynamically
+        /// dispatch calls have been devirtualized
+        utl::hashset<FunctionNode*> newCallees;
+
+        /// SSCs can be modified either because calls got removed and SSCs have
+        /// been split or because a newly discovered call edge introduced a new
+        /// SCC
+        utl::hashset<SCCNode*> modifiedSCCs;
+
+        /// \Returns `true` if either `newCallees` or `modifiedSCCs` is not
+        /// empty
+        explicit operator bool() const {
+            return !newCallees.empty() || !modifiedSCCs.empty();
+        }
+
+        /// Merges `newCallees` and `modifiedSCCs` from \p rhs
+        void merge(RecomputeCalleesResult const& rhs);
+    };
+
+    /// Called after applying location transformations to a function. This
+    /// revalidates the callgraph, so we can catch new inlining candidates,
+    /// e.g., devirtualized calls
+    RecomputeCalleesResult recomputeCallees(FunctionNode& node);
 
     /// Checks if the call graph still correctly represents the structure of the
-    /// module Traps if errors are found
+    /// module and traps if errors are found
     void validate() const;
 
     /// Updates the function of the node
@@ -192,13 +229,13 @@ private:
     ir::Module* mod = nullptr;
 
     /// List of function nodes
-    utl::vector<std::unique_ptr<FunctionNode>> _nodes;
+    std::vector<std::unique_ptr<FunctionNode>> _nodes;
 
     /// Maps functions to function nodes
     utl::hashmap<ir::Function const*, FunctionNode*> _funcMap;
 
     /// List of SCCs
-    utl::vector<std::unique_ptr<SCCNode>> _sccs;
+    std::vector<std::unique_ptr<SCCNode>> _sccs;
 };
 
 /// Writes graphviz code representing \p graph to \p ostream

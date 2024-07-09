@@ -4,6 +4,7 @@
 
 #include <graphgen/graphgen.h>
 #include <utl/graph.hpp>
+#include <utl/scope_guard.hpp>
 
 #include "Common/Ranges.h"
 #include "Debug/DebugGraphviz.h"
@@ -13,38 +14,16 @@
 using namespace scatha;
 using namespace ir;
 using namespace opt;
+using namespace ranges::views;
 
 using FunctionNode = SCCCallGraph::FunctionNode;
 using SCCNode = SCCCallGraph::SCCNode;
 
-utl::hashset<ir::Call*> const& SCCCallGraph::FunctionNode::callsites(
+utl::hashset<ir::Call*> const& FunctionNode::callsites(
     FunctionNode const& callee) const {
     auto itr = _callsites.find(&callee);
     SC_ASSERT(itr != _callsites.end(), "Not found");
     return itr->second;
-}
-
-static void removeOtherSuccessors(FunctionNode* node) {
-    for (auto* succ: node->successors()) {
-        succ->removePredecessor(node);
-    }
-}
-
-void SCCCallGraph::FunctionNode::recomputeCallees(SCCCallGraph& callgraph) {
-    removeOtherSuccessors(this);
-    this->clearSuccessors();
-    utl::hashmap<FunctionNode const*, utl::hashset<Call*>> newCallsites;
-    for (auto& call: function().instructions() | Filter<Call>) {
-        auto* callee = dyncast<Function*>(call.function());
-        if (!callee) {
-            continue;
-        }
-        auto* calleeNode = &callgraph.findMut(callee);
-        newCallsites[calleeNode].insert(&call);
-        addSuccessor(calleeNode);
-        calleeNode->addPredecessor(this);
-    }
-    _callsites = newCallsites;
 }
 
 SCCCallGraph::SCCNode::SCCNode(utl::small_vector<FunctionNode*> nodes):
@@ -70,7 +49,7 @@ SCCCallGraph SCCCallGraph::computeNoSCCs(Module& mod) {
 void SCCCallGraph::computeCallGraph() {
     _nodes = *mod | ranges::views::transform([](Function& function) {
         return std::make_unique<FunctionNode>(&function);
-    }) | ToSmallVector<>;
+    }) | ranges::to<std::vector>;
     for (auto& node: _nodes) {
         _funcMap[&node->function()] = node.get();
     }
@@ -113,8 +92,8 @@ void SCCCallGraph::computeSCCs() {
     /// Then we set up the remaining links to make the set of SCC's into a graph
     /// representing the call graph.
     for (auto& scc: _sccs) {
-        for (auto& function: scc->nodes()) {
-            for (auto* succ: function.successors()) {
+        for (auto* function: scc->nodes()) {
+            for (auto* succ: function->successors()) {
                 auto& succSCC = succ->scc();
                 if (&succSCC == scc.get()) {
                     continue;
@@ -132,15 +111,19 @@ struct SCC_DFS {
     FunctionNode const* from;
     FunctionNode const* to;
     SCCNode const* scc;
+    utl::hashset<FunctionNode const*> visited;
 
     SCC_DFS(FunctionNode* from, FunctionNode* to):
         from(from), to(to), scc(&from->scc()) {}
 
-    bool search() const { return searchImpl(from); }
+    bool search() { return searchImpl(from); }
 
-    bool searchImpl(FunctionNode const* current) const {
+    bool searchImpl(FunctionNode const* current) {
         if (current == to) {
             return true;
+        }
+        if (!visited.insert(current).second) {
+            return false;
         }
         for (auto* succ: from->successors()) {
             if (&succ->scc() == scc && searchImpl(succ)) {
@@ -187,9 +170,9 @@ struct SplitSCC {
 /// Test if \p succ is a successor of \p pred by checking all nodes within the
 /// scc for edges
 static bool computeIsSuccessor(SCCNode const* pred, SCCNode const* succ) {
-    for (auto& predFn: pred->nodes()) {
-        for (auto& succFn: succ->nodes()) {
-            if (predFn.isSuccessor(&succFn)) {
+    for (auto* predFn: pred->nodes()) {
+        for (auto* succFn: succ->nodes()) {
+            if (predFn->isSuccessor(succFn)) {
                 return true;
             }
         }
@@ -230,8 +213,8 @@ void SCCCallGraph::recomputeBackEdges(SCCNode* oldSCC,
                                       std::span<SCCNode* const> newSCCs) {
     for (auto* predSCC: oldSCC->predecessors()) {
         utl::small_vector<bool> foundEdge(newSCCs.size());
-        for (auto& predNode: predSCC->nodes()) {
-            for (auto* succ: predNode.successors()) {
+        for (auto* predNode: predSCC->nodes()) {
+            for (auto* succ: predNode->successors()) {
                 for (auto [index, newSCC]: newSCCs | ranges::views::enumerate) {
                     if (&succ->scc() == newSCC) {
                         foundEdge[index] = true;
@@ -252,26 +235,24 @@ loopEnd:
     }
 }
 
-SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
-    Function* caller, Function const* callee, Call const* callInst) {
+using Modification = SCCCallGraph::Modification;
+
+Modification SCCCallGraph::removeCall(Function* caller, Function const* callee,
+                                      Call const* callInst) {
+    utl::scope_guard val = [&] { validate(); };
     auto& callerNode = findMut(caller);
     auto& calleeNode = findMut(callee);
-    /// For calls devirtualized in local optimizations the call relation will
-    /// not be reflected in the graph
-    if (!callerNode.isPredecessor(&calleeNode)) {
-        return RemoveCallEdgeResult::None;
-    }
+    SC_ASSERT(callerNode.isSuccessor(&calleeNode),
+              "Must be a successor to remove the edge");
     /// We remove `call` from our list of call sites
-    auto callsitesItr = callerNode._callsites.find(&calleeNode);
-    SC_ASSERT(callsitesItr != callerNode._callsites.end(), "");
-    auto& callsites = callsitesItr->second;
+    auto& callsites = callerNode.mutCallsites(calleeNode);
     auto callItr = callsites.find(callInst);
     SC_ASSERT(callItr != callsites.end(), "");
     callsites.erase(callItr);
     /// If there are still calls to `callee` left, the structure of the call
     /// graph is unchanged
     if (!callsites.empty()) {
-        return RemoveCallEdgeResult::None;
+        return Modification::None;
     }
     /// Otherwise, `calleeNode` is no longer a successor of `callerNode`
     callerNode.removeSuccessor(&calleeNode);
@@ -283,7 +264,7 @@ SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
             callerNode.scc().removeSuccessor(&calleeNode.scc());
             calleeNode.scc().removePredecessor(&callerNode.scc());
         }
-        return RemoveCallEdgeResult::RemovedEdge;
+        return Modification::RemovedEdge;
     }
     /// Both nodes are in the same SCC. We perform two depth first searches
     /// _within the SCC_, to see if both nodes are still reachable from each
@@ -291,7 +272,7 @@ SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
     if (SCC_DFS(&callerNode, &calleeNode).search() &&
         SCC_DFS(&calleeNode, &callerNode).search())
     {
-        return RemoveCallEdgeResult::RemovedEdge;
+        return Modification::RemovedEdge;
     }
     /// Create `oldSCC` reference here, because `SplitSCC` updates the SCC of
     /// `callerNode`
@@ -303,18 +284,96 @@ SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
     recomputeForwardEdges(callerSCC.get());
     recomputeForwardEdges(calleeSCC.get());
     recomputeBackEdges(&oldSCC, std::array{ callerSCC.get(), calleeSCC.get() });
-    auto oldSCCItr =
-        ranges::find_if(_sccs, [&](auto& scc) { return scc.get() == &oldSCC; });
-    SC_ASSERT(oldSCCItr != _sccs.end(), "Old SCC not in list?");
-    _sccs.erase(oldSCCItr);
-    RemoveCallEdgeResult result = { RemoveCallEdgeResult::SplitSCC,
-                                    callerSCC.get(), calleeSCC.get() };
+    oldSCC.clearEdges();
+    oldSCC._nodes.clear();
+    Modification result = { Modification::SplitSCC,
+                            { callerSCC.get(), calleeSCC.get() } };
     _sccs.push_back(std::move(callerSCC));
     _sccs.push_back(std::move(calleeSCC));
     return result;
 }
 
+Modification SCCCallGraph::addCall(ir::Function* caller, ir::Function* callee,
+                                   ir::Call* callInst) {
+    if (caller == callee) {
+        return Modification::None;
+    }
+    utl::scope_guard val = [&] { validate(); };
+    auto& callerNode = findMut(caller);
+    auto& calleeNode = findMut(callee);
+    if (calleeNode.isPredecessor(&callerNode)) {
+        auto& callsites = callerNode.mutCallsites(calleeNode);
+        SC_ASSERT(!callsites.contains(callInst), "");
+        callsites.insert(callInst);
+        return Modification::None;
+    }
+    auto& callsites = callerNode._callsites[&calleeNode];
+    callsites.insert(callInst);
+    callerNode.addSuccessor(&calleeNode);
+    calleeNode.addPredecessor(&callerNode);
+    callerNode.scc().addSuccessor(&calleeNode.scc());
+    calleeNode.scc().addPredecessor(&callerNode.scc());
+    if (!SCC_DFS(&calleeNode, &callerNode).search()) {
+        /// We did not introduce a cycle
+        return Modification::AddedEdge;
+    }
+    SC_UNIMPLEMENTED();
+}
+
+void SCCCallGraph::RecomputeCalleesResult::merge(
+    RecomputeCalleesResult const& rhs) {
+    newCallees.insert(rhs.newCallees.begin(), rhs.newCallees.end());
+    modifiedSCCs.insert(rhs.modifiedSCCs.begin(), rhs.modifiedSCCs.end());
+}
+
+SCCCallGraph::RecomputeCalleesResult SCCCallGraph::recomputeCallees(
+    FunctionNode& node) {
+    auto callsites = node._callsites | values | join |
+                     ranges::to<utl::hashset<Call*>>;
+    RecomputeCalleesResult result;
+    for (auto& call: node.function().instructions() | Filter<Call>) {
+        auto* callee = dyncast<Function*>(call.function());
+        if (!callee) {
+            continue;
+        }
+        auto itr = callsites.find(&call);
+        if (itr != callsites.end()) {
+            callsites.erase(itr);
+            continue;
+        }
+        auto& calleeNode = findMut(callee);
+        auto modResult = addCall(&node.function(), callee, &call);
+        switch (modResult.type) {
+        case Modification::AddedEdge:
+            result.newCallees.insert(&calleeNode);
+            break;
+        case Modification::MergedSCCs:
+            result.newCallees.insert(&calleeNode);
+            result.modifiedSCCs.insert(modResult.modifiedSCCs.begin(),
+                                       modResult.modifiedSCCs.end());
+            break;
+        default:
+            break;
+        }
+    }
+    /// Erase all call sites from the node that we didn't find in the function.
+    /// We do this in this awkward fashion because the call instructions may
+    /// have been deallocated at this point, so we cannot dereference them the
+    /// get the callee
+    for (auto& [callee, list]: node._callsites) {
+        auto toErase = list | filter([&](auto* inst) {
+            return callsites.contains(inst);
+        }) | ToSmallVector<>;
+        for (auto* inst: toErase) {
+            list.erase(inst);
+        }
+    }
+    return result;
+}
+
 void SCCCallGraph::validate() const {
+#if SC_DEBUG
+    return;
     for (auto& function: *mod) {
         /// Gather all call instructions of the current function in a hash table
         auto const callInstructions = function.instructions() |
@@ -327,25 +386,27 @@ void SCCCallGraph::validate() const {
         auto& node = (*this)[&function];
         /// We check that all necessary edges are present in the current
         /// representation of the call graph
-        for (auto* call: callInstructions) {
-            auto* callee = cast<Function const*>(call->function());
-            auto& calleeNode = (*this)[callee];
-            auto callsites = node.callsites(calleeNode);
-            SC_RELASSERT(ranges::find(callsites, call) !=
-                             ranges::end(callsites),
-                         "This `call` instruction in the function is not "
-                         "represented by the call graph");
+        if (false) {
+            for (auto* call: callInstructions) {
+                auto* callee = cast<Function const*>(call->function());
+                auto& calleeNode = (*this)[callee];
+                auto callsites = node.callsites(calleeNode);
+                SC_ASSERT(ranges::contains(callsites, call),
+                          "This `call` instruction in the function is not "
+                          "represented by the call graph");
+            }
         }
         /// We check that all edges in the current representation of the call
         /// graph correspond to actual calls
         for (auto* calleeNode: node.callees()) {
             for (auto* call: node.callsites(*calleeNode)) {
-                SC_RELASSERT(callInstructions.contains(call),
-                             "This `call` instruction in the call graph is not "
-                             "present in the function");
+                SC_ASSERT(callInstructions.contains(call),
+                          "This `call` instruction in the call graph is not "
+                          "present in the function");
             }
         }
     }
+#endif // SC_DEBUG
 }
 
 void SCCCallGraph::updateFunctionPointer(FunctionNode* node,
@@ -365,11 +426,11 @@ void opt::generateGraphviz(SCCCallGraph const& graph, std::ostream& ostream) {
     for (auto& scc: graph.sccs()) {
         auto* sccGraph = Graph::make(ID(&scc));
         G->add(sccGraph);
-        for (auto& node: scc.nodes()) {
+        for (auto* node: scc.nodes()) {
             auto* vertex = Vertex::make(ID(&node))->label(
-                std::string(node.function().name()));
+                std::string(node->function().name()));
             sccGraph->add(vertex);
-            for (auto* callee: node.callees()) {
+            for (auto* callee: node->callees()) {
                 Edge edge{ ID(&node), ID(callee) };
                 if (edges.insert({ edge.from, edge.to }).second) {
                     sccGraph->add(edge);
@@ -382,7 +443,7 @@ void opt::generateGraphviz(SCCCallGraph const& graph, std::ostream& ostream) {
     H.kind(graphgen::GraphKind::Directed);
     H.add(G);
     H.font("SF Mono");
-    generate(H, ostream);
+    graphgen::generate(H, ostream);
 }
 
 void opt::generateGraphvizTmp(SCCCallGraph const& graph) {
