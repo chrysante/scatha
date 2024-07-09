@@ -217,6 +217,12 @@ void CGContext::genInstImpl(mir::CallInst const& inst) {
             currentBlock->insertBack(asmInst);
             addMetadata(inst);
         },
+        [&](mir::UndefValue const&) {
+            auto asmInst = CallInst(RegisterIndex(255),
+                                    inst.registerOffset());
+            currentBlock->insertBack(asmInst);
+            addMetadata(inst);
+        },
         [&](mir::Value const&) {
             SC_UNREACHABLE();
         },
