@@ -99,7 +99,7 @@ struct PrintCtx {
     }
 
     void printImpl(CMoveInst const& cmov) {
-        str << instName(toCMoveInstName(cmov.condition()), cmov.numBytes())
+        str << instName(toCMoveInstName(cmov.condition()), 8 * cmov.numBytes())
             << " " << cmov.dest() << ", " << cmov.source();
     }
 
