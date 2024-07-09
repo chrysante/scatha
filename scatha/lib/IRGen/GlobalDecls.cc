@@ -92,10 +92,6 @@ static ir::Constant* getVTableFunction(sema::Function const& concreteSemaFn,
     auto concreteTypeItr =
         ranges::find(dfsStack, fnObjType, &DFSStackElem::type);
     SC_ASSERT(concreteTypeItr != dfsStack.end(), "");
-    while (isa<sema::ProtocolType>(owningTypeItr->type)) {
-        --owningTypeItr;
-        SC_ASSERT(owningTypeItr >= concreteTypeItr, "");
-    }
     if (owningTypeItr == concreteTypeItr) {
         return irFn;
     }
