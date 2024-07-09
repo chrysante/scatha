@@ -71,7 +71,9 @@ LoopRankView LoopRankView::Compute(
     auto topsort = TopSorter(function);
     auto DFS = [&](auto& DFS, LNFNode const* header, size_t rank) -> void {
         if (header->isProperLoop() && headerPredicate(header->basicBlock())) {
-            if (rank == LRV._ranks.size()) {
+            /// Loop is better than `resize()` because in 99.9% of cases the
+            /// loop will only run once
+            while (rank >= LRV._ranks.size()) {
                 LRV._ranks.emplace_back();
             }
             LRV._ranks[rank].push_back(header->basicBlock());
