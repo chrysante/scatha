@@ -267,7 +267,7 @@ fn g(n: int) -> int {
 })");
 }
 
-TEST_CASE("Fibonacci ('Double recursion')", "[end-to-end]") {
+TEST_CASE("Fibonacci (Double recursion)", "[end-to-end]") {
     test::runReturnsTest(13, R"(
 fn fib(n: int) -> int {
     if n < 3 {
