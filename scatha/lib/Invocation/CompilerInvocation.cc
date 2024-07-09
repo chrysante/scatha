@@ -131,7 +131,9 @@ std::optional<Target> CompilerInvocation::run() {
     case FrontendType::Scatha: {
         IssueHandler issueHandler;
         auto ast = parser::parse(sources, issueHandler);
+        bool haveErrors = false;
         if (!issueHandler.empty()) {
+            haveErrors |= issueHandler.haveErrors();
             issueHandler.print(sources, err());
             issueHandler.clear();
         }
@@ -143,11 +145,12 @@ std::optional<Target> CompilerInvocation::run() {
             sema::analyze(*ast, semaSym, issueHandler,
                           { .librarySearchPaths = libSearchPaths });
         if (!issueHandler.empty()) {
+            haveErrors |= issueHandler.haveErrors();
             issueHandler.print(sources, err());
         }
         tryInvoke(callbacks.frontendCallback, *ast, semaSym);
         if (!continueCompilation) return std::nullopt;
-        if (issueHandler.haveErrors()) {
+        if (haveErrors) {
             handleError();
             return std::nullopt;
         }
