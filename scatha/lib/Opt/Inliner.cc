@@ -155,8 +155,8 @@ std::optional<bool> Inliner::visitSCC(SCC& scc) {
     /// we canonicalize
     SCCCallGraph::RecomputeCalleesResult recomputeResult;
     for (auto* node: scc.nodes()) {
-        modifiedAny |= canonicalize(ctx, node->function());
-        modifiedAny |= optimize(node->function());
+        modifiedAny |= canonicalize(ctx, *node->function());
+        modifiedAny |= optimize(*node->function());
         /// We recompute the call sites after local optimizations because they
         /// could have been invalidated
         recomputeResult.merge(callGraph.recomputeCallees(*node));
@@ -179,7 +179,7 @@ std::optional<bool> Inliner::visitSCC(SCC& scc) {
         }
         modifiedAny |= *result;
         for (auto* pred: node->predecessors()) {
-            if (&pred->scc() != &scc) {
+            if (pred->scc() != &scc) {
                 continue;
             }
             if (!dfs(dfs, pred)) {
@@ -194,13 +194,13 @@ std::optional<bool> Inliner::visitSCC(SCC& scc) {
     /// Here we have fully optimized the SCC
     /// We will now try to inline self recursive functions
     for (auto& node: scc.nodes()) {
-        modifiedAny |= inlineSelfRecursion(&node->function());
+        modifiedAny |= inlineSelfRecursion(node->function());
     }
     return modifiedAny;
 }
 
 std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
-    auto& visitCount = this->visitCount[&node.function()];
+    auto& visitCount = this->visitCount[node.function()];
     utl::armed_scope_guard incGuard = [&] { ++visitCount; };
     /// We have already locally optimized this function. Now we try to inline
     /// callees.
@@ -210,7 +210,7 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
     /// invalidating the list.
     auto callees = node.callees() | ToSmallVector<>;
     for (auto* callee: callees) {
-        auto callsitesOfCallee = node.callsites(*callee);
+        auto callsitesOfCallee = node.callsites(callee);
         for (auto* callInst: callsitesOfCallee) {
             bool shouldInline = shouldInlineCallsite(callInst, visitCount);
             if (!shouldInline) {
@@ -220,8 +220,7 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
                 continue;
             }
             modifiedAny = true;
-            auto result = callGraph.removeCall(&node.function(),
-                                               &callee->function(), callInst);
+            auto result = callGraph.removeCall(&node, callee, callInst);
             /// If the SCC has been split, we immediately return.
             /// Both new SCCs will be pushed to the worklist, so no inlining
             /// opportunities are missed.
@@ -238,8 +237,8 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
     if (!modifiedAny) {
         return false;
     }
-    modifiedAny |= optimize(node.function());
-    ir::assertInvariants(ctx, node.function());
+    modifiedAny |= optimize(*node.function());
+    ir::assertInvariants(ctx, *node.function());
     if (handleCalleeRecompute(callGraph.recomputeCallees(node))) {
         return std::nullopt;
     }
@@ -386,9 +385,9 @@ bool Inliner::inlineSelfRecImpl(ir::Function* clone, ir::Function* function,
 
 utl::small_vector<SCC*> Inliner::gatherSinks() {
     utl::small_vector<SCC*> result;
-    for (auto& scc: callGraph.sccs()) {
-        if (scc.successors().empty()) {
-            result.push_back(&scc);
+    for (auto* scc: callGraph.sccs()) {
+        if (scc->successors().empty()) {
+            result.push_back(scc);
         }
     }
     return result;
@@ -406,7 +405,7 @@ bool Inliner::shouldInlineCallsite(Call const* call, int visitCount) {
     /// If the caller is being revisited and we inlined the callee before, we
     /// will only inline again if it's a leaf function
     if (visitCount > 0 && incorporatedFunctions[caller].contains(callee) &&
-        !callGraph[callee].isLeaf())
+        !callGraph[callee]->isLeaf())
     {
         return false;
     }
@@ -456,8 +455,7 @@ bool Inliner::handleCalleeRecompute(
         return false;
     }
     worklist.insert(result.modifiedSCCs.begin(), result.modifiedSCCs.end());
-    auto newCalleeSSCs = result.newCallees |
-                         transform([](auto* fnNode) { return &fnNode->scc(); });
+    auto newCalleeSSCs = result.newCallees | transform(&FunctionNode::scc);
     worklist.insert(newCalleeSSCs.begin(), newCalleeSSCs.end());
     return true;
 }
@@ -474,7 +472,7 @@ void Inliner::printWorklist() const {
     for (auto* scc: worklist) {
         for (auto [index, node]: scc->nodes() | enumerate) {
             indent(index == 0);
-            std::cout << format(node->function()) << std::endl;
+            std::cout << format(*node->function()) << std::endl;
         }
         indent();
         std::cout << "All callees analyzed: "

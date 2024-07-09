@@ -69,7 +69,7 @@ bool GDCEContext::eraseUnusedFunctions() {
             return !isa<Call>(user);
         });
         if (isReferenced || F.visibility() == Visibility::External) {
-            visit(&callgraph[&F], live);
+            visit(callgraph[&F], live);
         }
         if (isReferenced) {
             live.insert(&F);
@@ -105,7 +105,7 @@ bool GDCEContext::run() {
 
 void GDCEContext::visit(SCCCallGraph::FunctionNode const* node,
                         utl::hashset<Function*>& live) {
-    if (!live.insert(&node->function()).second) {
+    if (!live.insert(node->function()).second) {
         return;
     }
     for (auto* succ: node->callees()) {

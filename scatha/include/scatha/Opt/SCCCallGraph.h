@@ -41,10 +41,10 @@ public:
         using Base::Base;
 
         /// \returns the function corresponding to this node
-        ir::Function& function() const { return *payload(); }
+        ir::Function* function() const { return payload(); }
 
         /// \returns the SCC this function belongs to
-        SCCNode& scc() const { return *_sccAndIsLeaf.pointer(); }
+        SCCNode* scc() const { return _sccAndIsLeaf.pointer(); }
 
         /// \Returns `true` if the function is guaranteed to be a leaf function,
         /// i.e., it doesn't make any calls (disregarding calls to external
@@ -70,12 +70,12 @@ public:
         /// \returns all `call` instructions in this function that call
         /// \p callee
         utl::hashset<ir::Call*> const& callsites(
-            FunctionNode const& callee) const;
+            FunctionNode const* callee) const;
 
     private:
         friend class SCCCallGraph;
 
-        utl::hashset<ir::Call*>& mutCallsites(FunctionNode const& callee) {
+        utl::hashset<ir::Call*>& mutCallsites(FunctionNode const* callee) {
             return const_cast<utl::hashset<ir::Call*>&>(
                 static_cast<FunctionNode const*>(this)->callsites(callee));
         }
@@ -107,9 +107,7 @@ public:
 
         /// \returns a view over the functions this SCC
         auto functions() const {
-            return _nodes | ranges::views::transform([](auto* node) -> auto& {
-                return node->function();
-            });
+            return _nodes | ranges::views::transform(&FunctionNode::function);
         }
 
         void addNode(FunctionNode* node) { _nodes.push_back(node); }
@@ -153,32 +151,31 @@ public:
     static SCCCallGraph computeNoSCCs(ir::Module& mod);
 
     /// \returns the node corresponding to \p function
-    FunctionNode& operator[](ir::Function const* function) {
-        return const_cast<FunctionNode&>(
-            static_cast<SCCCallGraph const&>(*this)[function]);
+    FunctionNode* operator[](ir::Function const* function) {
+        return const_cast<FunctionNode*>(std::as_const(*this)[function]);
     }
 
     /// \overload
-    FunctionNode const& operator[](ir::Function const* function) const {
+    FunctionNode const* operator[](ir::Function const* function) const {
         auto itr = _funcMap.find(function);
         SC_ASSERT(itr != _funcMap.end(), "Not found");
-        return *itr->second;
+        return itr->second;
     }
 
     /// \returns a view over the SCC's
-    auto sccs() { return _sccs | Dereference; }
+    auto sccs() { return _sccs | ToAddress; }
 
     /// \overload
-    auto sccs() const { return _sccs | Dereference; }
+    auto sccs() const { return _sccs | ToAddress; }
 
     /// Remove the call instruction \p callInst from the call graph
     /// We explicitly pass in the caller and the callee, because the call
     /// instruction is already deallocated when this function is called.
-    Modification removeCall(ir::Function* caller, ir::Function const* callee,
+    Modification removeCall(FunctionNode* caller, FunctionNode* callee,
                             ir::Call const* callInst);
 
     ///
-    Modification addCall(ir::Function* caller, ir::Function* callee,
+    Modification addCall(FunctionNode* caller, FunctionNode* callee,
                          ir::Call* callInst);
 
     /// Result structure for `recomputeCallees()`
@@ -227,8 +224,8 @@ private:
 
     void recomputeBackEdges(SCCNode* oldSCC, std::span<SCCNode* const> newSCCs);
 
-    FunctionNode& findMut(ir::Function const* function) {
-        return const_cast<FunctionNode&>((*this)[function]);
+    FunctionNode* findMut(ir::Function const* function) {
+        return const_cast<FunctionNode*>((*this)[function]);
     }
 
     /// The module whose call graph is represented
