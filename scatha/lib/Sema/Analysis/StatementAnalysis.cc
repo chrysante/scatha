@@ -71,7 +71,6 @@ struct StmtContext {
     void analyzeMainFunction(ast::FunctionDefinition& def);
     void analyzeNewMoveDelete(ast::FunctionDefinition& def);
     void analyzeImpl(ast::ParameterDeclaration&);
-    void analyzeImpl(ast::ThisParameter&);
     void analyzeImpl(ast::RecordDefinition&);
     void analyzeImpl(ast::CompoundStatement&);
     void analyzeImpl(ast::VariableDeclaration&);
@@ -473,40 +472,28 @@ void StmtContext::analyzeNewMoveDelete(ast::FunctionDefinition& def) {
 
 void StmtContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     Type const* declaredType = semaFn->argumentType(paramDecl.index());
-    if (!declaredType) {
-        sym.declarePoison(paramDecl.nameIdentifier(), EntityCategory::Value,
-                          AccessControl::Private);
-        return;
-    }
-    auto* param = sym.defineVariable(&paramDecl, declaredType,
-                                     paramDecl.mutability(),
-                                     AccessControl::Private);
+    // clang-format off
+    auto* param = SC_MATCH (paramDecl) {
+        [&](ast::ParameterDeclaration& decl) -> Object* {
+            if (!declaredType) {
+                sym.declarePoison(paramDecl.nameIdentifier(), 
+                                  EntityCategory::Value, 
+                                  AccessControl::Private);
+                return nullptr;
+            }
+            return sym.defineVariable(&decl, declaredType,
+                                      paramDecl.mutability(),
+                                      AccessControl::Private);
+        },
+        [&](ast::ThisParameter& thisParam) -> Object* {
+            return sym.addProperty(PropertyKind::This, declaredType,
+                                   paramDecl.mutability(),
+                                   PointerBindMode::Static, LValue,
+                                   AccessControl::Private, &thisParam);
+        }
+    }; // clang-format on
     if (param) {
         paramDecl.decorateVarDecl(param);
-    }
-}
-
-void StmtContext::analyzeImpl(ast::ThisParameter& thisParam) {
-    auto* parentType = dyncast<ObjectType*>(semaFn->parent());
-    if (!parentType) {
-        return;
-    }
-    /// We already check the position during instantiation
-    auto* param = [&] {
-        Type const* type = parentType;
-        auto mut = thisParam.mutability();
-        auto bindMode = thisParam.bindMode();
-        if (thisParam.isReference()) {
-            type = sym.reference(
-                { parentType, thisParam.mutability(), thisParam.bindMode() });
-            mut = Mutability::Const;
-            bindMode = PointerBindMode::Static;
-        }
-        return sym.addProperty(PropertyKind::This, type, mut, bindMode, LValue,
-                               AccessControl::Private, &thisParam);
-    }();
-    if (param) {
-        thisParam.decorateVarDecl(param);
     }
 }
 
