@@ -1,15 +1,19 @@
 #include "Opt/LoopRankView.h"
 
+#include <iostream>
 #include <queue>
 
+#include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Loop.h"
+#include "IR/Print.h"
 
 using namespace scatha;
 using namespace ir;
 using namespace opt;
+using namespace ranges::views;
 
 LoopRankView LoopRankView::Compute(ir::Function& function) {
     return Compute(function, [](auto*) { return true; });
@@ -81,3 +85,21 @@ LoopRankView LoopRankView::Compute(
     }
     return LRV;
 }
+
+void opt::print(LoopRankView const& LRV, std::ostream& str) {
+    for (auto [index, rank]: LRV | enumerate) {
+        str << " - Rank " << index << ":\n    ";
+        bool first = true;
+        for (auto* BB: rank) {
+            if (!first) {
+                str << ", ";
+            }
+            first = false;
+            str << format(*BB);
+        }
+        str << "\n";
+    }
+}
+
+///
+void opt::print(LoopRankView const& LRV) { print(LRV, std::cout); }

@@ -1,6 +1,8 @@
 #ifndef SCATHA_OPT_LOOPRANKVIEW_H_
 #define SCATHA_OPT_LOOPRANKVIEW_H_
 
+#include <iosfwd>
+
 #include <utl/function_view.hpp>
 #include <utl/vector.hpp>
 
@@ -30,7 +32,7 @@ namespace scatha::opt {
 ///   `L1, L2, L1.1, L1.2, L2.1, L2.2`
 /// - Loops of depth 1 followed by loops of depth 0:
 ///   `L1.1, L1.2, L2.1, L2.2, L1, L2`
-class LoopRankView {
+class SCATHA_API LoopRankView {
 public:
     explicit LoopRankView() = default;
 
@@ -52,6 +54,12 @@ public:
 private:
     utl::vector<utl::small_vector<ir::BasicBlock*>> _ranks;
 };
+
+///
+SCATHA_API void print(LoopRankView const& LRV, std::ostream& ostream);
+
+///
+SCATHA_API void print(LoopRankView const& LRV);
 
 } // namespace scatha::opt
 
