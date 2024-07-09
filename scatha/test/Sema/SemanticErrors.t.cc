@@ -836,3 +836,11 @@ struct S: P { fn f(&dyn this) -> double {} }
         iss.findOnLine<BadFuncDef>(3,
                                    BadFuncDef::OverridingFunctionWrongRetType));
 }
+
+TEST_CASE("Construct protocol type", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+protocol P {}
+fn test() { P(); }
+)");
+    CHECK(iss.findOnLine<BadExpr>(3, CannotConstructType));
+}

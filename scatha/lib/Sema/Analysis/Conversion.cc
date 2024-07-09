@@ -1017,11 +1017,14 @@ ConvExp<ObjectTypeConversion> sema::computeObjectConstruction(
     std::span<ThinExpr const> arguments) {
     SC_EXPECT(kind != ConversionKind::Reinterpret);
     using enum ObjectTypeConversion;
-    auto& md = targetType->lifetimeMetadata();
     /// Dynamic array types
     if (isDynArray(*targetType)) {
         return DynArrayConstruct;
     }
+    if (!targetType->isComplete()) {
+        return ConvError;
+    }
+    auto& md = targetType->lifetimeMetadata();
     /// Default construction
     if (arguments.empty()) {
         using enum LifetimeOperation::Kind;
