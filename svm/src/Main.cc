@@ -44,13 +44,13 @@ int main(int argc, char* argv[]) {
         auto const endTime = std::chrono::high_resolution_clock::now();
         u64 const exitCode = vm.getRegister(0);
         if (options.time) {
-            std::cout << "Execution took "
+            std::clog << "Execution took "
                       << utl::format_duration(endTime - beginTime) << "\n";
         }
         return static_cast<int>(exitCode);
     }
     catch (std::exception const& e) {
-        std::cout << e.what() << std::endl;
+        std::cerr << e.what() << std::endl;
         return 1;
     }
 }
