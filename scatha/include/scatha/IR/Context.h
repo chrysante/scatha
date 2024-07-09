@@ -102,6 +102,10 @@ public:
     RecordConstant* recordConstant(std::span<ir::Constant* const> elems,
                                    RecordType const* type);
 
+    /// Adds \p constant to the context. If an equivalent constant already
+    /// exists, all users of \p constant will be replaced with the existing one
+    RecordConstant* addRecordConstant(UniquePtr<RecordConstant> constant);
+
     /// \Returns the struct object of type \p type with constant elements
     /// \p elems
     StructConstant* structConstant(std::span<ir::Constant* const> elems,
@@ -139,6 +143,15 @@ public:
 
     /// \Returns `true` if \p operation is associative
     bool isAssociative(ArithmeticOperation operation) const;
+
+    /// Removes all unused struct and array constants.
+    ///
+    /// \Note It's kind of annoying that this has to be here, but record
+    /// constants can reference into the module, for example record constants
+    /// can contain function or addresses of globals. It would probably be best
+    /// to let the module hold on to record constants, but that would be a major
+    /// refactoring.
+    bool cleanConstants();
 
 private:
     struct Impl;

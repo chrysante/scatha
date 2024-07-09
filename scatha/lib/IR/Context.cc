@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include <range/v3/view.hpp>
+#include <utl/graph.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 #include <utl/strcat.hpp>
@@ -253,6 +254,25 @@ RecordConstant* Context::recordConstant(std::span<Constant* const> elems,
     }; // clang-format on
 }
 
+RecordConstant* Context::addRecordConstant(UniquePtr<RecordConstant> constant) {
+    if (!constant->type()) {
+        return nullptr;
+    }
+    auto& map = impl->recordConstants[constant->type()].map;
+    auto key = constant->elements() | ToSmallVector<>;
+    auto itr = map.find(key);
+    if (itr != map.end()) {
+        auto* repl = itr->second.get();
+        constant->replaceAllUsesWith(repl);
+        return repl;
+    }
+    else {
+        auto* result = constant.get();
+        map.insert({ std::move(key), std::move(constant) });
+        return result;
+    }
+}
+
 template <typename ConstType, typename IRType>
 static ConstType* recordConstantImpl(auto& constantMap, IRType const* type,
                                      std::span<Constant* const> elems) {
@@ -345,4 +365,24 @@ bool Context::isAssociative(ArithmeticOperation op) const {
     default:
         return false;
     }
+}
+
+bool Context::cleanConstants() {
+    auto recordConstants = impl->recordConstants | values |
+                           transform(&RecordConstantMap::map) | join | values |
+                           ToAddress | ToSmallVector<>;
+    utl::topsort(recordConstants.begin(), recordConstants.end(),
+                 [](auto* value) {
+        return value->operands() | Filter<RecordConstant>;
+    });
+    for (auto* value: recordConstants | reverse | filter(&Value::unused)) {
+        auto itr = impl->recordConstants.find(value->type());
+        SC_ASSERT(itr != impl->recordConstants.end(), "");
+        auto& map = itr->second.map;
+        auto key = value->operands() | transform(cast<Constant*>) |
+                   ToSmallVector<>;
+        bool success = map.erase(key) == 1;
+        SC_ASSERT(success, "");
+    }
+    return false;
 }

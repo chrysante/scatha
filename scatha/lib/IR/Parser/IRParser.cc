@@ -72,6 +72,7 @@ struct IRParser {
     PUMap globalPendingUpdates;
     PUMap localPendingUpdates;
     std::vector<ParseIssue> issues;
+    std::vector<UniquePtr<RecordConstant>> recordConstants;
 
     explicit IRParser(Context& ctx, Module& mod, std::string_view text,
                       ParseOptions const& options):
@@ -1155,16 +1156,25 @@ OptValue IRParser::parseValue(Type const* type) {
             auto val = parseValue(type);
             elems.push_back(val);
         }
-        auto* aggrValue =
-            ctx.recordConstant(utl::small_vector<Constant*>(elems.size()),
-                               recordType);
+        utl::small_vector<Constant*> nullValues(elems.size());
+        // clang-format off
+        auto owner = SC_MATCH_R (UniquePtr<RecordConstant>, *recordType) {
+            [&](StructType const& type) {
+                return allocate<StructConstant>(nullValues, &type);
+            },
+            [&](ArrayType const& type) {
+                return allocate<ArrayConstant>(nullValues, &type);
+            }
+        }; // clang-format on
+        auto* value = owner.get();
+        recordConstants.push_back(std::move(owner));
         for (auto [index, elem]: elems | ranges::views::enumerate) {
-            addValueLink<Constant>(aggrValue, recordType->elementAt(index),
-                                   elem, [index = index](User* u, Constant* c) {
+            addValueLink<Constant>(value, recordType->elementAt(index), elem,
+                                   [index = index](User* u, Constant* c) {
                 u->setOperand(index, c);
             });
         }
-        return { token, aggrValue };
+        return { token, value };
     }
     case TokenKind::StringLiteral: {
         auto text = toEscapedValue(token.id());
@@ -1358,6 +1368,7 @@ void IRParser::executePendingUpdates(Token const& name, Value* value) {
 }
 
 void IRParser::postProcess() {
+    /// Sort phi arguments
     for (auto& function: mod) {
         for (auto& BB: function) {
             for (auto& phi: BB.phiNodes()) {
@@ -1369,5 +1380,9 @@ void IRParser::postProcess() {
                 phi.setArguments(sortedArgs);
             }
         }
+    }
+    /// Add record constants to the context
+    for (auto& constant: recordConstants) {
+        ctx.addRecordConstant(std::move(constant));
     }
 }

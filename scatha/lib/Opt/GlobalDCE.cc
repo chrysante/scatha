@@ -4,6 +4,7 @@
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
+#include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/PassRegistry.h"
 #include "Opt/SCCCallGraph.h"
@@ -93,6 +94,7 @@ bool GDCEContext::run() {
         bool modThisIter = false;
         modThisIter |= eraseUnusedGlobals();
         modThisIter |= eraseUnusedFunctions();
+        modThisIter |= ctx.cleanConstants();
         if (!modThisIter) {
             break;
         }

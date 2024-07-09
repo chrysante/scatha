@@ -693,7 +693,7 @@ void PrintCtx::instDecl(Instruction const* inst) const {
         str << comment(inst->comment()) << "\n" << indent;
     }
     /// Name of the value
-    if (!inst->name().empty()) {
+    if (!isa<VoidType>(inst->type())) {
         str << formatName(inst) << equals();
     }
     /// Name of the instruction

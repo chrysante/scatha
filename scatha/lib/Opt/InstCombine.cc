@@ -595,7 +595,7 @@ static GepInfo recursiveGepBaseAndOffset(Value* pointer) {
     return result;
 }
 
-static Constant* loadConstNoPunning(Constant* base,
+static Constant* loadConstNoPunning(Load* load, Constant* base,
                                     std::span<GetElementPointer* const> geps) {
     for (size_t i = 0; i < geps.size(); ++i) {
         ssize_t arrayIndex = geps[i]->constantArrayIndex().value();
@@ -629,7 +629,10 @@ static Constant* loadConstNoPunning(Constant* base,
             base = record->elementAt(index);
         }
     }
-    return base;
+    if (base->type()->size() == load->type()->size()) {
+        return base;
+    }
+    return nullptr;
 }
 
 Value* InstCombineCtx::loadConstPunning(Load* load, Constant* base,
@@ -661,7 +664,7 @@ Value* InstCombineCtx::loadConstPunning(Load* load, Constant* base,
 Value* InstCombineCtx::loadConstant(Load* load, Constant* base,
                                     std::span<GetElementPointer* const> geps,
                                     ssize_t byteOffset) {
-    if (auto* value = loadConstNoPunning(base, geps)) {
+    if (auto* value = loadConstNoPunning(load, base, geps)) {
         return value;
     }
     return loadConstPunning(load, base, byteOffset);
@@ -755,16 +758,27 @@ Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
     case FtoS:
         return nullptr;
     case Bitcast: {
-        if (auto* conv = dyncast<ConversionInst*>(inst->operand())) {
-            if (conv->conversion() == Bitcast) {
-                inst->setOperand(conv->operand());
-                return inst;
-            }
+        if (inst->operand()->type() == inst->type()) {
+            return inst->operand();
         }
-        else if (auto* load = dyncast<Load*>(inst->operand())) {
+        if (auto* convOp = dyncast<ConversionInst*>(inst->operand());
+            convOp && convOp->conversion() == Bitcast)
+        {
+            inst->setOperand(convOp->operand());
+            return inst;
+        }
+        if (auto* load = dyncast<Load*>(inst->operand())) {
             BasicBlockBuilder builder(irCtx, load->parent());
             return builder.insert<Load>(load, load->address(), inst->type(),
                                         std::string(inst->name()));
+        }
+        if (auto* op = dyncast<RecordConstant*>(inst->operand());
+            op && op->type()->numElements() == 1)
+        {
+            auto* type = op->type();
+            SC_ASSERT(type->elementAt(0)->size() == inst->type()->size(), "");
+            inst->setOperand(op->elementAt(0));
+            return inst;
         }
         return nullptr;
     }
