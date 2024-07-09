@@ -311,7 +311,7 @@ BadBaseDecl::BadBaseDecl(Scope const* _scope,
 
 static IssueSeverity toSeverity(BadFuncDef::Reason reason) {
     switch (reason) {
-#define SC_SEMA_BADFUNCDEF_DEF(reason, severity, _)                            \
+#define SC_SEMA_BADFUNCDEF_DEF(reason, severity, ...)                          \
     case BadFuncDef::reason:                                                   \
         return IssueSeverity::severity;
 #include "Sema/SemaIssues.def.h"
@@ -326,13 +326,21 @@ BadFuncDef::BadFuncDef(Scope const* scope,
 BadFuncDef::BadFuncDef(InitAsBase, Scope const* scope,
                        ast::FunctionDefinition const* funcdef,
                        IssueSeverity severity, Reason reason):
-    BadDecl(scope, funcdef, severity), _reason(reason) {}
+    BadDecl(scope, funcdef, severity), _reason(reason) {
+    switch (reason) {
+#define SC_SEMA_BADFUNCDEF_DEF(REASON, SEVERITY, _, MESSAGE)                   \
+    case REASON:                                                               \
+        MESSAGE;                                                               \
+        break;
+#include "Sema/SemaIssues.def.h"
+    }
+}
 
 std::string_view BadFuncDef::name() const { return definition()->name(); }
 
 void BadFuncDef::format(std::ostream& str) const {
     switch (reason()) {
-#define SC_SEMA_BADFUNCDEF_DEF(reason, _, message)                             \
+#define SC_SEMA_BADFUNCDEF_DEF(reason, _, message, newMessage)                 \
     case reason:                                                               \
         str << message;                                                        \
         break;

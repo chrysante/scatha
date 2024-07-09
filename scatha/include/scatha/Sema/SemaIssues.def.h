@@ -163,39 +163,57 @@ SC_SEMA_BADBASEDECL_DEF(NotAProtocol, Error, {
 // ===--------------------------------------------------------------------=== //
 
 #ifndef SC_SEMA_BADFUNCDEF_DEF
-#define SC_SEMA_BADFUNCDEF_DEF(reason, severity, text)
+#define SC_SEMA_BADFUNCDEF_DEF(reason, severity, message, newMessage)
 #endif
 
 SC_SEMA_BADFUNCDEF_DEF(MainMustReturnTrivial, Error,
                        "Function 'main' cannot return non-trivial type "
-                           << sema::format(definition()->returnType()))
+                           << sema::format(definition()->returnType()),
+                       {})
 
-SC_SEMA_BADFUNCDEF_DEF(MainNotPublic, Error, "Function 'main' must be public")
+SC_SEMA_BADFUNCDEF_DEF(MainNotPublic, Error, "Function 'main' must be public",
+                       {})
 
 SC_SEMA_BADFUNCDEF_DEF(MainInvalidArguments, Error,
                        sema::format(definition()->function()->type())
                            << " is not a valid signature for 'main'. "
-                           << " Valid signatures are () and (&[*str])")
+                           << " Valid signatures are () and (&[*str])",
+                       {})
 
 SC_SEMA_BADFUNCDEF_DEF(FunctionMustHaveBody, Error,
-                       "Function '" << definition()->name() << "' has no body")
+                       "Function '" << definition()->name() << "' has no body",
+                       {})
 
 SC_SEMA_BADFUNCDEF_DEF(UnknownLinkage, Error,
                        "Unknown linkage: \""
                            << definition()->externalLinkage().value_or("")
-                           << "\"")
+                           << "\"",
+                       {})
 
 SC_SEMA_BADFUNCDEF_DEF(ExternCNotSupported, Error,
-                       "'extern \"C\"' declaration is not supported")
+                       "'extern \"C\"' declaration is not supported", {})
 
 SC_SEMA_BADFUNCDEF_DEF(NoReturnType, Error,
                        "Function declaration '" << definition()->name()
-                                                << "' has no return type'")
+                                                << "' has no return type",
+                       {})
+
+SC_SEMA_BADFUNCDEF_DEF(OverridingFunctionWrongRetType, Error, "", {
+    header("Dynamic function has different return type in base class");
+    auto* def = definition();
+    auto* ret = def->returnTypeExpr();
+    auto defRange = ret ? ret->sourceRange() :
+                          def->nameIdentifier()->sourceRange();
+    primary(defRange, [=](std::ostream& str) {
+        str << "returns " << sema::format(def->function()->returnType());
+    });
+})
 
 SC_SEMA_BADFUNCDEF_DEF(InvalidReturnTypeForFFI, Error,
                        "Return type "
                            << sema::format(definition()->returnType())
-                           << "' is not allowed for foreign functions")
+                           << "' is not allowed for foreign functions",
+                       {})
 
 #undef SC_SEMA_BADFUNCDEF_DEF
 

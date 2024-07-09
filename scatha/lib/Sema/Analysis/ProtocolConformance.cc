@@ -2,7 +2,9 @@
 
 #include <range/v3/view.hpp>
 
+#include "AST/AST.h"
 #include "Sema/Entity.h"
+#include "Sema/SemaIssues.h"
 #include "Sema/SymbolTable.h"
 #include "Sema/VTable.h"
 
@@ -41,7 +43,7 @@ static std::unique_ptr<VTable> buildInheritedVTable(RecordType& recordType) {
                                     VTableLayout{});
 }
 
-bool sema::analyzeProtocolConformance(AnalysisContext&,
+bool sema::analyzeProtocolConformance(AnalysisContext& ctx,
                                       RecordType& recordType) {
     auto vtable = buildInheritedVTable(recordType);
     for (auto* F:
@@ -58,9 +60,12 @@ bool sema::analyzeProtocolConformance(AnalysisContext&,
         for (auto location: locations) {
             auto& layout = location.vtable->layout();
             auto* overridden = layout[location.index];
-            if (overridden->returnType() != F->returnType()) {
-                // TODO: Push error
-                SC_UNIMPLEMENTED();
+            if (overridden->returnType() &&
+                overridden->returnType() != F->returnType())
+            {
+                ctx.issue<BadFuncDef>(
+                    F->definition(),
+                    BadFuncDef::OverridingFunctionWrongRetType);
             }
             layout[location.index] = F;
         }

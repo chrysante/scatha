@@ -204,7 +204,7 @@ private:
 class SCATHA_API BadFuncDef: public BadDecl {
 public:
     enum Reason {
-#define SC_SEMA_BADFUNCDEF_DEF(reason, _0, _1) reason,
+#define SC_SEMA_BADFUNCDEF_DEF(reason, ...) reason,
 #include <scatha/Sema/SemaIssues.def.h>
     };
     SC_SEMA_ISSUE_REASON()

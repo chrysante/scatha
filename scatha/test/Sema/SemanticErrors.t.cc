@@ -819,3 +819,20 @@ fn main() { Derived().n; }
 )");
     CHECK(iss.findOnLine<BadExpr>(5, AmbiguousMemberAccess));
 }
+
+TEST_CASE("Protocol function no return type", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+protocol P { fn f(&this); }
+)");
+    CHECK(iss.findOnLine<BadFuncDef>(2, BadFuncDef::NoReturnType));
+}
+
+TEST_CASE("Invalid override", "[sema]") {
+    auto iss = test::getSemaIssues(R"(
+protocol P { fn f(&this) -> int; }
+struct S: P { fn f(&dyn this) -> double {} }
+)");
+    CHECK(
+        iss.findOnLine<BadFuncDef>(3,
+                                   BadFuncDef::OverridingFunctionWrongRetType));
+}
