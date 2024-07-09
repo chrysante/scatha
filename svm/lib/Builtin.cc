@@ -3,6 +3,7 @@
 #include <cassert>
 #include <charconv>
 #include <cmath>
+#include <cstdio>
 #include <format>
 #include <iostream>
 #include <random>
@@ -352,9 +353,91 @@ BUILTIN_DEF(fstring_trim, u64* regPtr, VirtualMachine* vm) {
     store(regPtr + 1, size);
 }
 
-BUILTIN_DEF(openfile, u64*, VirtualMachine*) {
-    // Unimplemented
-    throwError<TrapError>();
+namespace OpenMode {
+
+namespace {
+
+enum Type : u64 {
+    App = 0x01,
+    Binary = 0x02,
+    In = 0x04,
+    Out = 0x08,
+    Trunc = 0x10,
+    Ate = 0x20,
+};
+
+}
+
+} // namespace OpenMode
+
+/// This function is copied from libc++'s `std::fstream` implementation
+static char const* makeModeString(u64 mode) {
+    using namespace OpenMode;
+    switch (mode & ~Ate) {
+    case Out:
+    case Out | Trunc:
+        return "w";
+    case Out | App:
+    case App:
+        return "a";
+    case In:
+        return "r";
+    case In | Out:
+        return "r+";
+    case In | Out | Trunc:
+        return "w+";
+    case In | Out | App:
+    case In | App:
+        return "a+";
+    case Out | Binary:
+    case Out | Trunc | Binary:
+        return "wb";
+    case Out | App | Binary:
+    case App | Binary:
+        return "ab";
+    case In | Binary:
+        return "rb";
+    case In | Out | Binary:
+        return "r+b";
+    case In | Out | Trunc | Binary:
+        return "w+b";
+    case In | Out | App | Binary:
+    case In | App | Binary:
+        return "a+b";
+    default:
+        return nullptr;
+    }
+    assert(false);
+}
+
+BUILTIN_DEF(fileopen, u64* regPtr, VirtualMachine* vm) {
+    auto pathData = load<VirtualPointer>(regPtr);
+    auto pathSize = load<size_t>(regPtr + 1);
+    auto openMode = load<u64>(regPtr + 2);
+    std::string path(deref<char>(vm, pathData, pathSize), pathSize);
+    auto* file = std::fopen(path.c_str(), makeModeString(openMode));
+    u64 handle = std::bit_cast<uint64_t>(file);
+    store(regPtr, handle);
+}
+
+BUILTIN_DEF(fileclose, u64* regPtr, VirtualMachine*) {
+    auto* file = load<FILE*>(regPtr);
+    store(regPtr, std::fclose(file) != EOF);
+}
+
+BUILTIN_DEF(fileputc, u64* regPtr, VirtualMachine*) {
+    auto value = load<unsigned char>(regPtr);
+    auto* file = load<FILE*>(regPtr + 1);
+    store(regPtr, std::fputc((int)value, file) != EOF);
+}
+
+BUILTIN_DEF(filewrite, u64* regPtr, VirtualMachine* vm) {
+    auto bufferData = load<VirtualPointer>(regPtr);
+    auto bufferSize = load<size_t>(regPtr + 1);
+    auto objSize = load<u64>(regPtr + 2);
+    auto* file = load<FILE*>(regPtr + 3);
+    store(regPtr, (u64)std::fwrite(deref(vm, bufferData, bufferSize), objSize,
+                                   bufferSize / objSize, file));
 }
 
 BUILTIN_DEF(trap, u64*, VirtualMachine*) { throwError<TrapError>(); }

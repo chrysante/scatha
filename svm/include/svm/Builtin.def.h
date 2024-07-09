@@ -171,11 +171,44 @@ SVM_BUILTIN_DEF(fstring_trim, None, {
 
 /// Signature: `(path: *str, openMode: int) -> int`
 /// Opens the file specified by \p path
-/// \p openMode specifies flags
-SVM_BUILTIN_DEF(openfile, None, {
-    pointer(Str(), Mutability::Mutable),
+/// \p openMode specifies the following flags
+///
+///     0x01 (app)    seek to the end of stream before each write
+///     0x02 (binary) open in binary mode
+///     0x04 (in)     open for reading
+///     0x08 (out)    open for writing
+///     0x10 (trunc)  discard the contents of the stream when opening
+///     0x20 (ate)    seek to the end of stream immediately after open
+///
+/// \Returns an opaque file handle
+SVM_BUILTIN_DEF(fileopen, None, {
+    pointer(Str(), Mutability::Const),
     S64()
-}, pointer(Str(), Mutability::Mutable))
+}, S64())
+
+/// Signature: `(filehandle: int) -> bool`
+/// Closes the file handle
+/// \Returns `true` on success, `false` otherwise
+SVM_BUILTIN_DEF(fileclose, None, {
+    S64()
+}, Bool())
+
+/// Signature: `(value: byte, filehandle: int) -> bool`
+/// Writes \p value into the file \p filehandle
+/// \Returns `true` on success, `false` otherwise
+SVM_BUILTIN_DEF(fileputc, None, {
+    S64(),
+    Byte(),
+}, Bool())
+
+/// Signature: `(buffer: *[byte], objSize: int, filehandle: int) -> bool`
+/// Writes up to `buffer.count / objSize` objects into \p filehandle
+/// \Returns the number of objects written
+SVM_BUILTIN_DEF(filewrite, None, {
+    pointer(QualType::Const(arrayType(Byte()))),
+    S64(),
+    S64()
+}, S64())
 
 /// ## Debug trap
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())
