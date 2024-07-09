@@ -6,6 +6,7 @@
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
+#include <utl/ipp.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
@@ -43,7 +44,12 @@ public:
         ir::Function& function() const { return *payload(); }
 
         /// \returns the SCC this function belongs to
-        SCCNode& scc() const { return *_scc; }
+        SCCNode& scc() const { return *_sccAndIsLeaf.pointer(); }
+
+        /// \Returns `true` if the function is guaranteed to be a leaf function,
+        /// i.e., it doesn't make any calls (disregarding calls to external
+        /// functions)
+        bool isLeaf() const { return _sccAndIsLeaf.integer(); }
 
         /// \returns the callers of this function. Same as `predecessors()`
         std::span<FunctionNode* const> callers() { return predecessors(); }
@@ -75,7 +81,7 @@ public:
         }
 
         /// The SCC this node belongs to
-        SCCNode* _scc = nullptr;
+        utl::ipp<SCCNode*, bool, 1> _sccAndIsLeaf = {};
 
         /// For each successor we store a list of all `call` instructions in
         /// this function that call that successor function. This is necessary

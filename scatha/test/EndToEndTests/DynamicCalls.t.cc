@@ -122,3 +122,29 @@ fn main() {
     __builtin_puti64(a.a());
 })" });
 }
+
+TEST_CASE("Mutually recursive dynamic call", "[end-to-end][dyn-calls]") {
+    test::runReturnsTest(1024, R"(
+struct X {
+    fn f(&dyn mut this) -> int {
+        return this.g();
+    }
+    fn g(&dyn mut this) -> int {
+        return 0;
+    }
+}
+struct Y: X {
+    fn g(&dyn mut this) -> int {
+        if this.i++ < 10 {
+            return 2 * this.f();
+        }
+        return 1;
+    }
+    var i: int;
+}
+fn main() -> int {
+    var y = Y();
+    return y.f();
+}
+)");
+}

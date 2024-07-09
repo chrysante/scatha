@@ -29,7 +29,7 @@ utl::hashset<ir::Call*> const& FunctionNode::callsites(
 SCCCallGraph::SCCNode::SCCNode(utl::small_vector<FunctionNode*> nodes):
     _nodes(std::move(nodes)) {
     for (auto* node: _nodes) {
-        node->_scc = this;
+        node->_sccAndIsLeaf.set_pointer(this);
     }
 }
 
@@ -54,7 +54,10 @@ void SCCCallGraph::computeCallGraph() {
         _funcMap[&node->function()] = node.get();
     }
     for (auto& function: *mod) {
+        auto& thisNode = findMut(&function);
+        bool haveNativeCalls = false;
         for (auto& call: function.instructions() | Filter<Call>) {
+            haveNativeCalls |= !isa<ForeignFunction>(call.function());
             auto* target = dyncast<Function*>(call.function());
             if (!target) {
                 continue;
@@ -64,12 +67,12 @@ void SCCCallGraph::computeCallGraph() {
             if (target == &function) {
                 continue;
             }
-            auto& thisNode = findMut(&function);
             auto& succNode = findMut(target);
             thisNode.addSuccessor(&succNode);
             succNode.addPredecessor(&thisNode);
             thisNode._callsites[&succNode].insert(&call);
         }
+        thisNode._sccAndIsLeaf.set_integer(!haveNativeCalls);
     }
 }
 
@@ -86,7 +89,7 @@ void SCCCallGraph::computeSCCs() {
     /// function nodes.
     for (auto& scc: _sccs) {
         for (auto* function: scc->_nodes) {
-            function->_scc = scc.get();
+            function->_sccAndIsLeaf.set_pointer(scc.get());
         }
     }
     /// Then we set up the remaining links to make the set of SCC's into a graph
@@ -427,13 +430,13 @@ void opt::generateGraphviz(SCCCallGraph const& graph, std::ostream& ostream) {
         auto* sccGraph = Graph::make(ID(&scc));
         G->add(sccGraph);
         for (auto* node: scc.nodes()) {
-            auto* vertex = Vertex::make(ID(&node))->label(
+            auto* vertex = Vertex::make(ID(node))->label(
                 std::string(node->function().name()));
             sccGraph->add(vertex);
             for (auto* callee: node->callees()) {
-                Edge edge{ ID(&node), ID(callee) };
+                Edge edge{ ID(node), ID(callee) };
                 if (edges.insert({ edge.from, edge.to }).second) {
-                    sccGraph->add(edge);
+                    G->add(edge);
                 }
             }
         }

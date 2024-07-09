@@ -1,6 +1,11 @@
 #include "Opt/Passes.h"
 
 #include <iostream>
+#include <optional>
+
+#include <range/v3/algorithm.hpp>
+#include <range/v3/view.hpp>
+#include <utl/scope_guard.hpp>
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
@@ -71,7 +76,7 @@ struct Inliner {
     /// Collects all sinks of the quotient call graph
     utl::small_vector<SCC*> gatherSinks();
 
-    bool shouldInlineCallsite(Call const* call) const;
+    bool shouldInlineCallsite(Call const* call, int visitCount);
 
     bool allSuccessorsAnalyzed(SCC const& scc) const;
 
@@ -92,7 +97,10 @@ struct Inliner {
     SCCCallGraph callGraph;
     utl::hashset<SCC*> worklist;
     utl::hashset<SCC const*> analyzed;
+    utl::hashmap<Function const*, int> visitCount;
     utl::hashset<Function const*> selfRecursive;
+    utl::hashmap<Function const*, utl::hashset<Function const*>>
+        incorporatedFunctions;
 };
 
 } // namespace scatha::opt
@@ -192,6 +200,8 @@ std::optional<bool> Inliner::visitSCC(SCC& scc) {
 }
 
 std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
+    auto& visitCount = this->visitCount[&node.function()];
+    utl::armed_scope_guard incGuard = [&] { ++visitCount; };
     /// We have already locally optimized this function. Now we try to inline
     /// callees.
     bool modifiedAny = false;
@@ -202,7 +212,7 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
     for (auto* callee: callees) {
         auto callsitesOfCallee = node.callsites(*callee);
         for (auto* callInst: callsitesOfCallee) {
-            bool shouldInline = shouldInlineCallsite(callInst);
+            bool shouldInline = shouldInlineCallsite(callInst, visitCount);
             if (!shouldInline) {
                 continue;
             }
@@ -218,6 +228,7 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
             if (result.type == Modification::SplitSCC) {
                 worklist.insert(result.modifiedSCCs.begin(),
                                 result.modifiedSCCs.end());
+                incGuard.disarm();
                 return std::nullopt;
             }
         }
@@ -288,9 +299,11 @@ static utl::small_vector<ir::Call*> gatherCallsTo(ir::Function* caller,
 }
 
 bool Inliner::doInline(Call* callInst) {
+    auto* caller = callInst->parentFunction();
     auto* callee = cast<Function*>(callInst->function());
     if (!selfRecursive.contains(callee)) {
         inlineCallsite(ctx, callInst);
+        incorporatedFunctions[caller].insert(callee);
         return true;
     }
     /// Now we try to inline a self recursive function into the caller _if_ we
@@ -381,32 +394,36 @@ utl::small_vector<SCC*> Inliner::gatherSinks() {
     return result;
 }
 
-bool Inliner::shouldInlineCallsite(Call const* call) const {
-    SC_EXPECT(isa<Function>(call->function()));
-    auto& caller = callGraph[call->parentFunction()];
-    auto& callee = callGraph[cast<Function const*>(call->function())];
-    /// We ignore inline direct recursion and we don't inline self recursive
+bool Inliner::shouldInlineCallsite(Call const* call, int visitCount) {
+    auto* caller = call->parentFunction();
+    auto* callee = dyncast<Function const*>(call->function());
+    SC_ASSERT(callee, "");
+    /// We ignore direct recursion and we don't inline self recursive
     /// functions
-    if (&caller == &callee || selfRecursive.contains(&callee.function())) {
+    if (caller == callee || selfRecursive.contains(callee)) {
         return false;
     }
-    auto const calleeNumInstructions =
-        ranges::distance(callee.function().instructions());
+    /// If the caller is being revisited and we inlined the callee before, we
+    /// will only inline again if it's a leaf function
+    if (visitCount > 0 && incorporatedFunctions[caller].contains(callee) &&
+        !callGraph[callee].isLeaf())
+    {
+        return false;
+    }
+    ssize_t calleeNumInstructions = ranges::distance(callee->instructions());
     /// Most naive heuristic ever: Inline if we have less than 14 instructions.
     if (calleeNumInstructions < 40) {
         return true;
     }
     /// If we have constant arguments, then there are more opportunities for
     /// optimization, so we inline more aggressively.
-    if (ranges::any_of(call->arguments(),
-                       [](Value const* value) { return isa<Constant>(value); }))
-    {
+    if (ranges::any_of(call->arguments(), isa<Constant>)) {
         if (calleeNumInstructions < 21) {
             return true;
         }
     }
     /// Also always inline if we are the only user of this function.
-    if (callee.function().users().size() <= 1) {
+    if (callee->users().size() <= 1) {
         return true;
     }
     return false;
