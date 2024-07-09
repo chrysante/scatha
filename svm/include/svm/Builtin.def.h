@@ -113,58 +113,66 @@ SVM_BUILTIN_DEF(strtof64,    None, {
 /// The buffer is reallocated if it's too small to write the argument.
 /// The potentially reallocated buffer is returned.
 
-/// Signature: `(buffer: *mut str, offset: int, text: *str) -> *mut str*`
+/// Signature: `(buffer: *mut str, offset: int, text: *str) -> *mut str`
 SVM_BUILTIN_DEF(fstring_writestr, None, {
     pointer(Str(), Mutability::Mutable),
     reference(S64(), Mutability::Mutable),
     strPointer()
 }, pointer(Str(), Mutability::Mutable))
 
-/// Signature: `(buffer: *mut str, offset: int, arg: s64) -> *mut str*`
+/// Signature: `(buffer: *mut str, offset: int, arg: s64) -> *mut str`
 SVM_BUILTIN_DEF(fstring_writes64, None, {
     pointer(Str(), Mutability::Mutable),
     reference(S64(), Mutability::Mutable),
     S64()
 }, pointer(Str(), Mutability::Mutable))
 
-/// Signature: `(buffer: *mut str, offset: int, arg: u64) -> *mut str*`
+/// Signature: `(buffer: *mut str, offset: int, arg: u64) -> *mut str`
 SVM_BUILTIN_DEF(fstring_writeu64, None, {
     pointer(Str(), Mutability::Mutable),
     reference(S64(), Mutability::Mutable),
     U64()
 }, pointer(Str(), Mutability::Mutable))
 
-/// Signature: `(buffer: *mut str, offset: int, arg: f64) -> *mut str*`
+/// Signature: `(buffer: *mut str, offset: int, arg: f64) -> *mut str`
 SVM_BUILTIN_DEF(fstring_writef64, None, {
     pointer(Str(), Mutability::Mutable),
     reference(S64(), Mutability::Mutable),
     F64()
 }, pointer(Str(), Mutability::Mutable))
 
-/// Signature: `(buffer: *mut str, offset: int, arg: byte) -> *mut str*`
+/// Signature: `(buffer: *mut str, offset: int, arg: byte) -> *mut str`
 SVM_BUILTIN_DEF(fstring_writechar, None, {
     pointer(Str(), Mutability::Mutable),
     reference(S64(), Mutability::Mutable),
     Byte()
 }, pointer(Str(), Mutability::Mutable))
 
-/// Signature: `(buffer: *mut str, offset: int, arg: bool) -> *mut str*`
+/// Signature: `(buffer: *mut str, offset: int, arg: bool) -> *mut str`
 SVM_BUILTIN_DEF(fstring_writebool, None, {
     pointer(Str(), Mutability::Mutable),
     reference(S64(), Mutability::Mutable),
     Bool()
 }, pointer(Str(), Mutability::Mutable))
 
-/// Signature: `(buffer: *mut str, offset: int, arg: *byte) -> *mut str*`
+/// Signature: `(buffer: *mut str, offset: int, arg: *byte) -> *mut str`
 SVM_BUILTIN_DEF(fstring_writeptr, None, {
     pointer(Str(), Mutability::Mutable),
     reference(S64(), Mutability::Mutable),
     pointer(arrayType(Byte()), Mutability::Const)
 }, pointer(Str(), Mutability::Mutable))
 
-/// Signature: `(buffer: *mut str, targetSize: int) -> *mut str*`
+/// Signature: `(buffer: *mut str, targetSize: int) -> *mut str`
 /// Reallocates the buffer if its size differs from `targetSize`
 SVM_BUILTIN_DEF(fstring_trim, None, {
+    pointer(Str(), Mutability::Mutable),
+    S64()
+}, pointer(Str(), Mutability::Mutable))
+
+/// Signature: `(path: *str, openMode: int) -> int`
+/// Opens the file specified by \p path
+/// \p openMode specifies flags
+SVM_BUILTIN_DEF(openfile, None, {
     pointer(Str(), Mutability::Mutable),
     S64()
 }, pointer(Str(), Mutability::Mutable))
