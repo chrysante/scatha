@@ -79,7 +79,10 @@ std::optional<Archive> Archive::Open(std::filesystem::path path) {
 }
 
 std::optional<Archive> Archive::Create(std::filesystem::path path) {
-    std::filesystem::create_directories(path.parent_path());
+    auto dir = path.parent_path();
+    if (!dir.empty()) {
+        std::filesystem::create_directories(dir);
+    }
     mtar_t tar;
 #ifndef _MSC_VER
     auto code = mtar_open(&tar, path.c_str(), "w");

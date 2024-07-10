@@ -7,6 +7,7 @@
 #include "Sema/SemaUtil.h"
 #include "Sema/Serialize.h"
 #include "Sema/SimpleAnalzyer.h"
+#include "Sema/VTable.h"
 
 using namespace scatha;
 using namespace sema;
@@ -28,6 +29,16 @@ public struct Lifetime {
     fn new(&mut this) {}
     fn move(&mut this, rhs: &mut Lifetime) {}
     fn delete(&mut this) {}
+}
+public protocol P {
+    fn test(&this) -> void;
+}
+public protocol P2 {}
+public struct Base1 {}
+public struct Base2 {}
+public struct Dyn: P, P2, Base1, Base2 {
+    fn test(&dyn this) -> void {}
+    var n: int;
 }
 )");
     REQUIRE(iss.empty());
@@ -101,6 +112,36 @@ public struct Lifetime {
         auto dtor = md.destructor();
         CHECK(dtor.kind() == Nontrivial);
         CHECK(dtor.function() == find("delete"));
+    });
+    auto* P = find("P", [&](Scope const* PScope) {
+        auto& P = dyncast<ProtocolType const&>(*PScope);
+        REQUIRE(P.vtable());
+        auto* pTest = dyncast<Function const*>(find("test"));
+        REQUIRE(pTest);
+        auto& VT = *P.vtable();
+        CHECK(VT.sortedInheritedVTables().empty());
+        REQUIRE(VT.layout().size() == 1);
+        CHECK(VT.layout().front() == pTest);
+    });
+    find("Dyn", [&](Scope const* DynScope) {
+        auto& Dyn = dyncast<StructType const&>(*DynScope);
+        CHECK(Dyn.memberVariables().size() == 1);
+        CHECK(Dyn.baseStructObjects().size() == 2);
+        CHECK(Dyn.conformingProtocolObjects().size() == 2);
+        CHECK(ranges::contains(Dyn.baseTypes(), P));
+        REQUIRE(Dyn.vtable());
+        auto* dynTest = dyncast<Function const*>(find("test"));
+        REQUIRE(dynTest);
+        auto& VT = *Dyn.vtable();
+        auto inherited = VT.sortedInheritedVTables();
+        REQUIRE(inherited.size() == 4);
+        CHECK(inherited[0]->correspondingType() == P);
+        CHECK(inherited[1]->correspondingType()->name() == "P2");
+        CHECK(inherited[2]->correspondingType()->name() == "Base1");
+        CHECK(inherited[3]->correspondingType()->name() == "Base2");
+        REQUIRE(inherited[0]->layout().size() == 1);
+        CHECK(inherited[0]->correspondingType() == P);
+        CHECK(VT.layout().empty());
     });
 }
 

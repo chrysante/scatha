@@ -692,7 +692,7 @@ BaseClassObject* SymbolTable::declareBaseImpl(ast::BaseClassDeclaration* decl,
 BaseClassObject* SymbolTable::defineBaseImpl(ast::BaseClassDeclaration* decl,
                                              Type const* type,
                                              AccessControl accessControl) {
-    auto* obj = declareBaseClass(decl, accessControl);
+    auto* obj = declareBaseImpl(decl, std::string(type->name()), accessControl);
     if (!obj) {
         return nullptr;
     }
@@ -1078,8 +1078,9 @@ static bool wantExport(Entity const& entity) {
     // clang-format off
     return SC_MATCH (entity) {
         [](Function const& F) { return F.isPublic() && !F.isBuiltin(); },
-        [](StructType const& S) { return S.isPublic(); },
+        [](RecordType const& T) { return T.isPublic(); },
         [](Variable const& V) { return V.isPublic(); },
+        [](BaseClassObject const& B) { return B.isPublic(); },
         [](ForeignLibrary const&) { return true; },
         [](Entity const&) { return false; }
     }; // clang-format on

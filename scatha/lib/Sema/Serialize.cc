@@ -17,6 +17,7 @@
 #include "Sema/Entity.h"
 #include "Sema/LifetimeMetadata.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/VTable.h"
 
 using namespace scatha;
 using namespace sema;
@@ -442,19 +443,24 @@ static Type const* parseTypename(SymbolTable& sym, std::string_view text) {
 
 namespace {
 
+// clang-format off
 struct Field {
+    static constexpr std::string_view ID = "id";
     static constexpr std::string_view Entities = "entities";
     static constexpr std::string_view Children = "children";
-    static constexpr std::string_view NativeDependencies =
-        "native_dependencies";
-    static constexpr std::string_view ForeignDependencies =
-        "foreign_dependencies";
+    static constexpr std::string_view NativeDependencies = "native_dependencies";
+    static constexpr std::string_view ForeignDependencies = "foreign_dependencies";
     static constexpr std::string_view ReturnType = "return_type";
     static constexpr std::string_view ArgumentTypes = "argument_types";
     static constexpr std::string_view SMFKind = "smf_kind";
     static constexpr std::string_view Lifetime = "lifetime";
     static constexpr std::string_view LifetimeOpKind = "lifetime_op_kind";
     static constexpr std::string_view FunctionKind = "function_kind";
+    static constexpr std::string_view VTable = "vtable";
+    static constexpr std::string_view VTLayout = "layout";
+    static constexpr std::string_view VTPosition = "position";
+    static constexpr std::string_view VTCorrespondingType = "corresponding_type";
+    static constexpr std::string_view VTInherited = "inherited";
     static constexpr std::string_view BinaryAddress = "binary_address";
     static constexpr std::string_view Size = "size";
     static constexpr std::string_view Align = "align";
@@ -466,7 +472,7 @@ struct Field {
     static constexpr std::string_view EntityType = "_entity_type";
     static constexpr std::string_view Name = "_name";
     static constexpr std::string_view AccessControl = "access_control";
-};
+}; // clang-format on
 
 #if 0 // Typesafe fields, not yet implemented
 
@@ -498,6 +504,16 @@ struct FieldToType;
 struct Serializer {
     utl::hashset<NativeLibrary const*> nativeDependencies;
     utl::hashset<ForeignLibrary const*> foreignDependencies;
+    utl::hashmap<Entity const*, size_t> entityIDMap;
+    size_t IDCounter = 0;
+
+    size_t getID(Entity const& entity) {
+        auto [itr, success] = entityIDMap.insert({ &entity, IDCounter });
+        if (success) {
+            ++IDCounter;
+        }
+        return itr->second;
+    }
 
     json serialize(Entity const& entity) {
         return visit(entity,
@@ -547,11 +563,16 @@ struct Serializer {
         return j;
     }
 
-    json serializeImpl(StructType const& type) {
+    json serializeImpl(RecordType const& type) {
         json j = serializeCommon(type);
-        j[Field::Size] = type.size();
-        j[Field::Align] = type.align();
-        j[Field::Lifetime] = serializeLifetime(type.lifetimeMetadata());
+        if (auto* vtable = type.vtable()) {
+            j[Field::VTable] = serializeVTable(*vtable);
+        }
+        if (auto* structType = dyncast<StructType const*>(&type)) {
+            j[Field::Size] = type.size();
+            j[Field::Align] = type.align();
+            j[Field::Lifetime] = serializeLifetime(type.lifetimeMetadata());
+        }
         visitChildren(j[Field::Children], type);
         return j;
     }
@@ -567,6 +588,14 @@ struct Serializer {
         return j;
     }
 
+    json serializeImpl(BaseClassObject const& base) {
+        json j = serializeCommon(base);
+        j[Field::Type] = serializeTypename(base.type());
+        j[Field::Index] = base.index();
+        gatherLibraryDependencies(*base.type());
+        return j;
+    }
+
     json serializeImpl(Entity const&) {
         /// Everything else is ignored
         return json{};
@@ -574,9 +603,25 @@ struct Serializer {
 
     json serializeCommon(Entity const& entity) {
         json j;
+        j[Field::ID] = getID(entity);
         j[Field::EntityType] = entity.entityType();
         j[Field::Name] = std::string(entity.name());
         j[Field::AccessControl] = entity.accessControl();
+        return j;
+    }
+
+    json serializeVTable(VTable const& vtable) {
+        json j;
+        j[Field::VTPosition] = vtable.position();
+        j[Field::VTCorrespondingType] = getID(*vtable.correspondingType());
+        json& inherited = j[Field::VTInherited];
+        for (auto* other: vtable.sortedInheritedVTables()) {
+            inherited.push_back(serializeVTable(*other));
+        }
+        json& layout = j[Field::VTLayout];
+        for (auto* F: vtable.layout()) {
+            layout.push_back(getID(*F));
+        }
         return j;
     }
 
@@ -664,7 +709,7 @@ struct Tag {};
 class TypeMapBase {
 public:
     /// Maps \p obj to the type \p type. Throws if \p obj is already mapped
-    void insertType(json const& obj, StructType* type) {
+    void insertType(json const& obj, RecordType* type) {
         if (!map.insert({ &obj, type }).second) {
             throw std::runtime_error("Failed to map type");
         }
@@ -672,7 +717,7 @@ public:
 
     /// Retrieves the struct type corresponding to \p obj or throws if nonesuch
     /// is found
-    StructType* getType(json const& obj) const {
+    RecordType* getType(json const& obj) const {
         auto itr = map.find(&obj);
         if (itr != map.end()) {
             return itr->second;
@@ -681,13 +726,34 @@ public:
     }
 
 private:
-    utl::hashmap<json const*, StructType*> map;
+    utl::hashmap<json const*, RecordType*> map;
 };
 
 struct Deserializer: TypeMapBase {
     /// The symbol table do deserialize into. All deserialized entities be
     /// written into the current scope and according child scopes
     SymbolTable& sym;
+    utl::hashmap<size_t, Entity*> IDMap;
+    utl::hashmap<RecordType*, json> vtables;
+
+    template <typename T>
+    T* findByID(size_t ID) const {
+        auto itr = IDMap.find(ID);
+        if (itr == IDMap.end()) {
+            SC_UNIMPLEMENTED();
+        }
+        auto* res = dyncast<T*>(itr->second);
+        if (!res) {
+            SC_UNIMPLEMENTED();
+        }
+        return res;
+    }
+
+    void parseID(json const& obj, Entity& entity) {
+        if (auto ID = tryGet<size_t>(obj, Field::ID)) {
+            IDMap[*ID] = &entity;
+        }
+    }
 
     Deserializer(SymbolTable& sym): sym(sym) {}
 
@@ -711,6 +777,9 @@ struct Deserializer: TypeMapBase {
         }
         preparseTypes(get(j, Field::Entities));
         parseEntities(get(j, Field::Entities));
+        for (auto& [type, obj]: vtables) {
+            type->setVTable(parseVTable(obj));
+        }
     }
 
     /// Performs a DFS over the JSON array and declares all encountered struct
@@ -724,16 +793,35 @@ struct Deserializer: TypeMapBase {
         });
     }
 
-    void preparseImpl(Tag<StructType>, json const& obj) {
-        auto* record = sym.declareRecordType(get<std::string>(obj, Field::Name),
-                                             ast::NodeType::StructDefinition,
-                                             get(obj, Field::AccessControl));
-        auto* type = cast<StructType*>(record);
+    template <typename T>
+    struct ToASTNodeType;
+    template <>
+    struct ToASTNodeType<StructType>:
+        std::integral_constant<ast::NodeType, ast::NodeType::StructDefinition> {
+    };
+    template <>
+    struct ToASTNodeType<ProtocolType>:
+        std::integral_constant<ast::NodeType,
+                               ast::NodeType::ProtocolDefinition> {};
+
+    template <std::derived_from<RecordType> T>
+        requires(!std::same_as<T, RecordType>)
+    void preparseImpl(Tag<T>, json const& obj) {
+        auto* type =
+            sym.declareRecordType(get<std::string>(obj, Field::Name),
+                                  ToASTNodeType<T>::value,
+                                  get<AccessControl>(obj,
+                                                     Field::AccessControl));
         insertType(obj, type);
-        type->setSize(get<size_t>(obj, Field::Size));
-        type->setAlign(get<size_t>(obj, Field::Align));
-        type->setLifetimeMetadata(
-            parseLifetime(nullptr, get(obj, Field::Lifetime)));
+        if (auto* structType = dyncast<StructType*>(type)) {
+            structType->setSize(get<size_t>(obj, Field::Size));
+            structType->setAlign(get<size_t>(obj, Field::Align));
+            structType->setLifetimeMetadata(
+                parseLifetime(nullptr, get(obj, Field::Lifetime)));
+        }
+        if (auto* vtable = tryGet(obj, Field::VTable)) {
+            vtables[type] = *vtable;
+        }
         if (auto children = tryGet(obj, Field::Children)) {
             sym.withScopeCurrent(type, [&] { preparseTypes(*children); });
         }
@@ -743,14 +831,18 @@ struct Deserializer: TypeMapBase {
     void preparseImpl(Tag<T>, json const&) {}
 
     /// Because types are parsed in a prior step we only forward to our children
-    void parseImpl(Tag<StructType>, json const& obj) {
+    template <std::derived_from<RecordType> T>
+    void parseImpl(Tag<T>, json const& obj) {
         auto* type = getType(obj);
         if (auto children = tryGet(obj, Field::Children)) {
             sym.withScopeCurrent(type, [&] { parseEntities(*children); });
         }
-        type->setLifetimeMetadata(
-            parseLifetime(type, get(obj, Field::Lifetime)));
-        type->setConstructors(type->findFunctions("new"));
+        if (auto* structType = dyncast<StructType*>(type)) {
+            structType->setLifetimeMetadata(
+                parseLifetime(structType, get(obj, Field::Lifetime)));
+            structType->setConstructors(structType->findFunctions("new"));
+        }
+        parseID(obj, *type);
     }
 
     ///
@@ -765,7 +857,11 @@ struct Deserializer: TypeMapBase {
             sym.declareFunction(get<std::string>(obj, Field::Name),
                                 sym.functionType(argTypes, retType),
                                 get(obj, Field::AccessControl));
+        if (!function) {
+            SC_UNIMPLEMENTED();
+        }
         function->setKind(get<FunctionKind>(obj, Field::FunctionKind));
+        parseID(obj, *function);
         if (auto address = tryGet(obj, Field::BinaryAddress)) {
             function->setBinaryAddress(*address);
         }
@@ -778,12 +874,32 @@ struct Deserializer: TypeMapBase {
         auto mut = get<bool>(obj, Field::Mutable) ? Mutable : Const;
         auto* var = sym.defineVariable(get<std::string>(obj, Field::Name), type,
                                        mut, get(obj, Field::AccessControl));
-        if (auto index = tryGet<size_t>(obj, Field::Index)) {
-            auto* type = dyncast<StructType*>(&sym.currentScope());
-            SC_ASSERT(type, "");
-            var->setIndex(*index);
-            type->setMemberVariable(*index, var);
+        if (!var) {
+            SC_UNIMPLEMENTED();
         }
+        parseID(obj, *var);
+        if (auto index = tryGet<size_t>(obj, Field::Index)) {
+            auto* parent = dyncast<RecordType*>(&sym.currentScope());
+            SC_ASSERT(parent, "");
+            var->setIndex(*index);
+            parent->setElement(*index, var);
+        }
+    }
+
+    ///
+    void parseImpl(Tag<BaseClassObject>, json const& obj) {
+        auto* type = parseTypename(sym, get<std::string>(obj, Field::Type));
+        using enum Mutability;
+        auto* base = sym.defineBaseClass(type, get(obj, Field::AccessControl));
+        if (!base) {
+            SC_UNIMPLEMENTED();
+        }
+        parseID(obj, *base);
+        size_t index = get<size_t>(obj, Field::Index);
+        auto* parent = dyncast<RecordType*>(&sym.currentScope());
+        SC_ASSERT(parent, "");
+        base->setIndex(index);
+        parent->setElement(index, base);
     }
 
     /// Base case
@@ -793,7 +909,11 @@ struct Deserializer: TypeMapBase {
     ///
     void parseImpl(Tag<ForeignLibrary>, json const& obj) {
         auto name = get<std::string>(obj, Field::Name);
-        sym.importForeignLib(name);
+        auto* lib = sym.importForeignLib(name);
+        if (!lib) {
+            SC_UNIMPLEMENTED();
+        }
+        parseID(obj, *lib);
     }
 
     /// Performs a DFS over the JSON array and declares all encountered entities
@@ -802,6 +922,27 @@ struct Deserializer: TypeMapBase {
         parseArray(j, [this]<typename T>(Tag<T> tag, json const& child) {
             parseImpl(tag, child);
         });
+    }
+
+    ///
+    std::unique_ptr<VTable> parseVTable(json const& obj) {
+        size_t pos = get<size_t>(obj, Field::VTPosition);
+        auto* type =
+            findByID<RecordType>(get<size_t>(obj, Field::VTCorrespondingType));
+        utl::hashmap<RecordType const*, std::unique_ptr<VTable>> inheritanceMap;
+        for (auto& otherObj: get(obj, Field::VTInherited)) {
+            auto vt = parseVTable(otherObj);
+            inheritanceMap[vt->correspondingType()] = std::move(vt);
+        }
+        VTableLayout layout;
+        for (auto& fnObj: get(obj, Field::VTLayout)) {
+            auto* fn = findByID<Function>(fnObj.get<size_t>());
+            layout.push_back(fn);
+        }
+        auto vtable = std::make_unique<VTable>(type, std::move(inheritanceMap),
+                                               std::move(layout));
+        vtable->setPosition(pos);
+        return vtable;
     }
 
     /// This function will be called twice for each type. Once in preparse phase

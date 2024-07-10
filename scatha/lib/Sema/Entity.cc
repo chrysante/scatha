@@ -416,16 +416,30 @@ void RecordType::setVTable(std::unique_ptr<VTable> vtable) {
     _vtable = std::move(vtable);
 }
 
-void StructType::pushMemberVariable(Variable* var) {
-    var->_index = _elements.size();
-    _elements.push_back(var);
-}
-
-void StructType::setMemberVariable(size_t index, Variable* var) {
+void RecordType::setElement(size_t index, Object* obj) {
     if (index >= _elements.size()) {
         _elements.resize(index + 1);
     }
-    _elements[index] = var;
+    // clang-format off
+    SC_MATCH (*obj) {
+        [&](Variable& var) { _elements[index] = &var; },
+        [&](BaseClassObject& base) {
+            _elements[index] = &base;
+            _variableBegin = std::max(_variableBegin, 
+                                      utl::narrow_cast<uint16_t>(index + 1));
+            if (isa<ProtocolType>(base.type())) {
+                _structBaseBegin =
+                    std::max(_structBaseBegin,
+                             utl::narrow_cast<uint16_t>(index + 1));
+            }
+        },
+        [&](Object const&) { SC_UNREACHABLE(); }
+    }; // clang-format on
+}
+
+void StructType::pushMemberVariable(Variable* var) {
+    var->_index = _elements.size();
+    _elements.push_back(var);
 }
 
 static Scope* getParent(ObjectType const* type) {

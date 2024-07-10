@@ -19,9 +19,11 @@ namespace scatha::sema {
 /// List of functions in a vtable
 class VTableLayout: private std::vector<Function*> {
 public:
+    using vector::back;
     using vector::begin;
     using vector::empty;
     using vector::end;
+    using vector::front;
     using vector::size;
     using vector::operator[];
     using vector::push_back;

@@ -130,6 +130,23 @@ fn main() -> int {
     CHECK(ret == 7 + 42 + 7 * 42);
 }
 
+TEST_CASE("Use class hierarchy from library", "[end-to-end][lib][nativelib]") {
+    compileLibrary("libs/testlib", "libs", R"(
+public protocol P { fn test(&this) -> int; }
+public struct X: P { fn test(&dyn this) { return 42; } }
+)");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"(
+use testlib;
+fn f(p: &dyn P) {
+    return p.test();
+}
+fn main() -> int {
+    let x = X();
+    return f(x);
+})");
+    CHECK(ret == 42);
+}
+
 TEST_CASE("Use overload set by name", "[end-to-end][lib][nativelib]") {
     compileLibrary("libs/testlib", "libs", R"(
 public fn foo(n: int) { return 1; }

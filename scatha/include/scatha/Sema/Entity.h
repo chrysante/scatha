@@ -924,6 +924,10 @@ public:
     ///
     void setIsEmpty(bool value = true) { _isEmpty = value; }
 
+    /// Sets the element (base class or variable) of this structure at index \p
+    /// index
+    void setElement(size_t index, Object* obj);
+
 protected:
     explicit RecordType(EntityType entityType, std::string name,
                         Scope* parentScope, ast::ASTNode* astNode, size_t size,
@@ -997,9 +1001,6 @@ public:
     /// Adds a variable to the end of the list of member variables of this
     /// structure
     void pushMemberVariable(Variable* var);
-
-    /// Sets the member variable of this structure at index \p index
-    void setMemberVariable(size_t index, Variable* var);
 };
 
 /// Concrete class representing the type of a protocol

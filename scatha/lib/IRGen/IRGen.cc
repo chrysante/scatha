@@ -72,8 +72,9 @@ static void mapLibSymbols(
             [&](sema::Function const& semaFn) {
                 std::string name = lctx.config.nameMangler(*entity);
                 auto* irFn = get<ir::Function>(IRObjectMap, name);
-                lctx.globalMap.insert(&semaFn,
-                                 { irFn, computeCallingConvention(semaFn) });
+                lctx.globalMap.insert(&semaFn, {
+                    irFn, computeCallingConvention(semaFn)
+                });
             },
             [&](sema::Variable const& semaVar) {
                 if (!semaVar.isStatic()) {
