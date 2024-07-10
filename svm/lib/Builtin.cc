@@ -54,16 +54,13 @@ static T fract(T arg) {
     return std::copysign(std::modf(arg, &i), T(1.0));
 }
 
-template <typename T, size_t N>
-using wrap = T;
-
-template <typename Float, size_t NumArgs>
+template <typename... Args>
 static constexpr BuiltinFunction::FuncPtr math(auto impl) {
     return [](u64* regPtr, VirtualMachine*) {
         [&]<size_t... I>(std::index_sequence<I...>) {
-            std::tuple<wrap<Float, I>...> args{ load<Float>(regPtr + I)... };
+            std::tuple<Args...> args{ load<Args>(regPtr + I)... };
             store(regPtr, std::apply(decltype(impl){}, args));
-        }(std::make_index_sequence<NumArgs>{});
+        }(std::index_sequence_for<Args...>{});
     };
 }
 
@@ -74,53 +71,55 @@ static constexpr BuiltinFunction::FuncPtr math(auto impl) {
         return name(args... __VA_OPT__(, ) __VA_ARGS__);                       \
     }
 
-#define DEFINE_MATH_WRAPPER(BuiltinType, ValueType, NumArgs, Function)         \
+#define STRIP_PARENS(...) __VA_ARGS__
+
+#define DEFINE_MATH_WRAPPER(BuiltinType, ArgsTypes, Function)                  \
     template <>                                                                \
     struct BuiltinImpl<Builtin::BuiltinType> {                                 \
-        static constexpr auto* impl = math<ValueType, NumArgs>(Function);      \
+        static constexpr auto* impl = math<STRIP_PARENS ArgsTypes>(Function);  \
     };
 
-DEFINE_MATH_WRAPPER(abs_f64, double, 1, MATH_FUNCTION(abs))
-DEFINE_MATH_WRAPPER(exp_f64, double, 1, MATH_FUNCTION(exp))
-DEFINE_MATH_WRAPPER(exp2_f64, double, 1, MATH_FUNCTION(exp2))
-DEFINE_MATH_WRAPPER(exp10_f64, double, 1, MATH_FUNCTION(pow, 10.0))
-DEFINE_MATH_WRAPPER(log_f64, double, 1, MATH_FUNCTION(log))
-DEFINE_MATH_WRAPPER(log2_f64, double, 1, MATH_FUNCTION(log2))
-DEFINE_MATH_WRAPPER(log10_f64, double, 1, MATH_FUNCTION(log10))
-DEFINE_MATH_WRAPPER(pow_f64, double, 2, MATH_FUNCTION(pow))
-DEFINE_MATH_WRAPPER(sqrt_f64, double, 1, MATH_FUNCTION(sqrt))
-DEFINE_MATH_WRAPPER(cbrt_f64, double, 1, MATH_FUNCTION(cbrt))
-DEFINE_MATH_WRAPPER(hypot_f64, double, 2, MATH_FUNCTION(hypot))
-DEFINE_MATH_WRAPPER(sin_f64, double, 1, MATH_FUNCTION(sin))
-DEFINE_MATH_WRAPPER(cos_f64, double, 1, MATH_FUNCTION(cos))
-DEFINE_MATH_WRAPPER(tan_f64, double, 1, MATH_FUNCTION(tan))
-DEFINE_MATH_WRAPPER(asin_f64, double, 1, MATH_FUNCTION(asin))
-DEFINE_MATH_WRAPPER(acos_f64, double, 1, MATH_FUNCTION(acos))
-DEFINE_MATH_WRAPPER(atan_f64, double, 1, MATH_FUNCTION(atan))
-DEFINE_MATH_WRAPPER(fract_f64, double, 1, MATH_FUNCTION(fract))
-DEFINE_MATH_WRAPPER(floor_f64, double, 1, MATH_FUNCTION(floor))
-DEFINE_MATH_WRAPPER(ceil_f64, double, 1, MATH_FUNCTION(ceil))
+DEFINE_MATH_WRAPPER(abs_f64, (double), MATH_FUNCTION(abs))
+DEFINE_MATH_WRAPPER(exp_f64, (double), MATH_FUNCTION(exp))
+DEFINE_MATH_WRAPPER(exp2_f64, (double), MATH_FUNCTION(exp2))
+DEFINE_MATH_WRAPPER(exp10_f64, (double), MATH_FUNCTION(pow, 10.0))
+DEFINE_MATH_WRAPPER(log_f64, (double), MATH_FUNCTION(log))
+DEFINE_MATH_WRAPPER(log2_f64, (double), MATH_FUNCTION(log2))
+DEFINE_MATH_WRAPPER(log10_f64, (double), MATH_FUNCTION(log10))
+DEFINE_MATH_WRAPPER(pow_f64, (double, double), MATH_FUNCTION(pow))
+DEFINE_MATH_WRAPPER(sqrt_f64, (double), MATH_FUNCTION(sqrt))
+DEFINE_MATH_WRAPPER(cbrt_f64, (double), MATH_FUNCTION(cbrt))
+DEFINE_MATH_WRAPPER(hypot_f64, (double, double), MATH_FUNCTION(hypot))
+DEFINE_MATH_WRAPPER(sin_f64, (double), MATH_FUNCTION(sin))
+DEFINE_MATH_WRAPPER(cos_f64, (double), MATH_FUNCTION(cos))
+DEFINE_MATH_WRAPPER(tan_f64, (double), MATH_FUNCTION(tan))
+DEFINE_MATH_WRAPPER(asin_f64, (double), MATH_FUNCTION(asin))
+DEFINE_MATH_WRAPPER(acos_f64, (double), MATH_FUNCTION(acos))
+DEFINE_MATH_WRAPPER(atan_f64, (double), MATH_FUNCTION(atan))
+DEFINE_MATH_WRAPPER(fract_f64, (double), MATH_FUNCTION(fract))
+DEFINE_MATH_WRAPPER(floor_f64, (double), MATH_FUNCTION(floor))
+DEFINE_MATH_WRAPPER(ceil_f64, (double), MATH_FUNCTION(ceil))
 
-DEFINE_MATH_WRAPPER(abs_f32, float, 1, MATH_FUNCTION(abs))
-DEFINE_MATH_WRAPPER(exp_f32, float, 1, MATH_FUNCTION(exp))
-DEFINE_MATH_WRAPPER(exp2_f32, float, 1, MATH_FUNCTION(exp2))
-DEFINE_MATH_WRAPPER(exp10_f32, float, 1, MATH_FUNCTION(pow, 10.0f))
-DEFINE_MATH_WRAPPER(log_f32, float, 1, MATH_FUNCTION(log))
-DEFINE_MATH_WRAPPER(log2_f32, float, 1, MATH_FUNCTION(log2))
-DEFINE_MATH_WRAPPER(log10_f32, float, 1, MATH_FUNCTION(log10))
-DEFINE_MATH_WRAPPER(pow_f32, float, 2, MATH_FUNCTION(pow))
-DEFINE_MATH_WRAPPER(sqrt_f32, float, 1, MATH_FUNCTION(sqrt))
-DEFINE_MATH_WRAPPER(cbrt_f32, float, 1, MATH_FUNCTION(cbrt))
-DEFINE_MATH_WRAPPER(hypot_f32, float, 2, MATH_FUNCTION(hypot))
-DEFINE_MATH_WRAPPER(sin_f32, float, 1, MATH_FUNCTION(sin))
-DEFINE_MATH_WRAPPER(cos_f32, float, 1, MATH_FUNCTION(cos))
-DEFINE_MATH_WRAPPER(tan_f32, float, 1, MATH_FUNCTION(tan))
-DEFINE_MATH_WRAPPER(asin_f32, float, 1, MATH_FUNCTION(asin))
-DEFINE_MATH_WRAPPER(acos_f32, float, 1, MATH_FUNCTION(acos))
-DEFINE_MATH_WRAPPER(atan_f32, float, 1, MATH_FUNCTION(atan))
-DEFINE_MATH_WRAPPER(fract_f32, float, 1, MATH_FUNCTION(fract))
-DEFINE_MATH_WRAPPER(floor_f32, float, 1, MATH_FUNCTION(floor))
-DEFINE_MATH_WRAPPER(ceil_f32, float, 1, MATH_FUNCTION(ceil))
+DEFINE_MATH_WRAPPER(abs_f32, (float), MATH_FUNCTION(abs))
+DEFINE_MATH_WRAPPER(exp_f32, (float), MATH_FUNCTION(exp))
+DEFINE_MATH_WRAPPER(exp2_f32, (float), MATH_FUNCTION(exp2))
+DEFINE_MATH_WRAPPER(exp10_f32, (float), MATH_FUNCTION(pow, 10.0f))
+DEFINE_MATH_WRAPPER(log_f32, (float), MATH_FUNCTION(log))
+DEFINE_MATH_WRAPPER(log2_f32, (float), MATH_FUNCTION(log2))
+DEFINE_MATH_WRAPPER(log10_f32, (float), MATH_FUNCTION(log10))
+DEFINE_MATH_WRAPPER(pow_f32, (float, float), MATH_FUNCTION(pow))
+DEFINE_MATH_WRAPPER(sqrt_f32, (float), MATH_FUNCTION(sqrt))
+DEFINE_MATH_WRAPPER(cbrt_f32, (float), MATH_FUNCTION(cbrt))
+DEFINE_MATH_WRAPPER(hypot_f32, (float, float), MATH_FUNCTION(hypot))
+DEFINE_MATH_WRAPPER(sin_f32, (float), MATH_FUNCTION(sin))
+DEFINE_MATH_WRAPPER(cos_f32, (float), MATH_FUNCTION(cos))
+DEFINE_MATH_WRAPPER(tan_f32, (float), MATH_FUNCTION(tan))
+DEFINE_MATH_WRAPPER(asin_f32, (float), MATH_FUNCTION(asin))
+DEFINE_MATH_WRAPPER(acos_f32, (float), MATH_FUNCTION(acos))
+DEFINE_MATH_WRAPPER(atan_f32, (float), MATH_FUNCTION(atan))
+DEFINE_MATH_WRAPPER(fract_f32, (float), MATH_FUNCTION(fract))
+DEFINE_MATH_WRAPPER(floor_f32, (float), MATH_FUNCTION(floor))
+DEFINE_MATH_WRAPPER(ceil_f32, (float), MATH_FUNCTION(ceil))
 
 /// Other functions
 
