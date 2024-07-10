@@ -51,13 +51,8 @@ struct Inliner {
     std::optional<bool> visitSCC(SCC& scc);
 
     /// After analyzing an SCC, this function is called for every function of
-    /// the SCC. If it fails to eliminate self recursion,  it adds the function
-    /// to the `selfRecursive` set.
-    bool inlineSelfRecursion(ir::Function* function);
-
-    /// \returns `true` if the self recursion has been eliminated
-    bool inlineSelfRecImpl(ir::Function* clone, ir::Function* function,
-                           int numLayers);
+    /// the SCC
+    void analyzeSelfRecursion(ir::Function* function);
 
     /// Called for every function in an SCC
     /// \Returns
@@ -66,12 +61,6 @@ struct Inliner {
     /// - `std::nullopt` if structural changes have been made to the call graph
     /// and the function needs to be revisited later
     std::optional<bool> visitFunction(FunctionNode& node);
-
-    /// Inline a call.
-    /// If the callee is self recursive, inlining is only attempted if some
-    /// arguments are constant. In this case we only inline if thereby we can
-    /// eliminate all recursive calls.
-    bool doInline(Call* callInst);
 
     /// Collects all sinks of the quotient call graph
     utl::small_vector<SCC*> gatherSinks();
@@ -194,7 +183,7 @@ std::optional<bool> Inliner::visitSCC(SCC& scc) {
     /// Here we have fully optimized the SCC
     /// We will now try to inline self recursive functions
     for (auto& node: scc.nodes()) {
-        modifiedAny |= inlineSelfRecursion(node->function());
+        analyzeSelfRecursion(node->function());
     }
     return modifiedAny;
 }
@@ -205,6 +194,7 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
     /// We have already locally optimized this function. Now we try to inline
     /// callees.
     bool modifiedAny = false;
+    utl::small_vector<Function const*> inlined;
     /// We create a copy of the list of callees because after inlining one
     /// function the corresponding edge may be erased from the call graph,
     /// invalidating the list.
@@ -216,9 +206,8 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
             if (!shouldInline) {
                 continue;
             }
-            if (!doInline(callInst)) {
-                continue;
-            }
+            inlineCallsite(ctx, callInst);
+            inlined.push_back(callee->function());
             modifiedAny = true;
             auto result = callGraph.removeCall(&node, callee, callInst);
             /// If the SCC has been split, we immediately return.
@@ -232,6 +221,8 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
             }
         }
     }
+    incorporatedFunctions[node.function()].insert(inlined.begin(),
+                                                  inlined.end());
     /// If we succeeded, we optimize again to catch optimization
     /// opportunities emerged from inlining.
     if (!modifiedAny) {
@@ -245,37 +236,6 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
     return modifiedAny;
 }
 
-static bool isConstant(Value const* value) {
-    if (isa<Constant>(value)) {
-        return true;
-    }
-    while (true) {
-        auto* iv = dyncast<InsertValue const*>(value);
-        if (!iv) {
-            return false;
-        }
-        if (isa<Constant>(iv->insertedValue())) {
-            return true;
-        }
-        if (isa<Constant>(iv->baseValue()) && !isa<UndefValue>(iv->baseValue()))
-        {
-            return true;
-        }
-        value = iv->baseValue();
-    }
-    return false;
-}
-
-static utl::small_vector<uint16_t> constantArgIndices(Call const* callInst) {
-    utl::small_vector<uint16_t> result;
-    for (auto [index, arg]: callInst->arguments() | ranges::views::enumerate) {
-        if (isConstant(arg)) {
-            result.push_back(utl::narrow_cast<uint16_t>(index));
-        }
-    }
-    return result;
-}
-
 static bool callsFunction(ir::Function* caller, ir::Function* callee) {
     for (auto& call: caller->instructions() | Filter<Call>) {
         if (call.function() == callee) {
@@ -285,102 +245,10 @@ static bool callsFunction(ir::Function* caller, ir::Function* callee) {
     return false;
 }
 
-static utl::small_vector<ir::Call*> gatherCallsTo(ir::Function* caller,
-                                                  ir::Function* callee) {
-    utl::small_vector<Call*> result;
-    for (auto& call: caller->instructions() | Filter<Call>) {
-        if (call.function() != callee) {
-            continue;
-        }
-        result.push_back(&call);
-    }
-    return result;
-}
-
-bool Inliner::doInline(Call* callInst) {
-    auto* caller = callInst->parentFunction();
-    auto* callee = cast<Function*>(callInst->function());
-    if (!selfRecursive.contains(callee)) {
-        inlineCallsite(ctx, callInst);
-        incorporatedFunctions[caller].insert(callee);
-        return true;
-    }
-    /// Now we try to inline a self recursive function into the caller _if_ we
-    /// have constant arguments and can eliminate the recursion.
-    auto const indices = constantArgIndices(callInst);
-    if (indices.empty()) {
-        return false;
-    }
-    auto clone = ir::clone(ctx, callee);
-    for (size_t index: indices) {
-        auto* param = std::next(clone->parameters().begin(),
-                                utl::narrow_cast<ssize_t>(index))
-                          .to_address();
-        auto* arg = callInst->argumentAt(index);
-        param->replaceAllUsesWith(arg);
-    }
-    if (!inlineSelfRecImpl(clone.get(), callee,
-                           /* numLayers = */ 10))
-    {
-        return false;
-    }
-
-    inlineCallsite(ctx, callInst, std::move(clone));
-    return true;
-}
-
-bool Inliner::inlineSelfRecursion(ir::Function* function) {
-    if (!callsFunction(function, function)) {
-        return false;
-    }
-#if 1
-    /// As of right now this can be crazy slow for big recursive functions
-    /// because it does inline unconditionally and thus creates humongous
-    /// functions that are mostly discarded if the self recursion can't be
-    /// eliminated. That's why it's disabled.
-    selfRecursive.insert(function);
-    return false;
-#else
-    auto clone = ir::clone(ctx, function);
-    if (!inlineSelfRecImpl(clone.get(), function, /* numLayers = */ 3)) {
+void Inliner::analyzeSelfRecursion(ir::Function* function) {
+    if (callsFunction(function, function)) {
         selfRecursive.insert(function);
-        return false;
     }
-    function->replaceAllUsesWith(clone.get());
-    auto& node = callGraph[function];
-    callGraph.updateFunctionPointer(&node, clone.get());
-    mod.erase(function);
-    mod.addGlobal(std::move(clone));
-    return true;
-#endif
-}
-
-bool Inliner::inlineSelfRecImpl(ir::Function* clone, ir::Function* function,
-                                int numLayers) {
-    SC_ASSERT(callsFunction(clone, function),
-              "Function must be self recursive");
-    size_t numCallsInlined = 0;
-    size_t const maxCallsInlined = 30;
-    for (int i = 0; i < numLayers; ++i) {
-        utl::small_vector<Call*> callsToSelf = gatherCallsTo(clone, function);
-        if (callsToSelf.empty()) {
-            break;
-        }
-        for (auto* call: callsToSelf) {
-            inlineCallsite(ctx, call);
-            /// We have to limit the number of calls that we inline, because
-            /// functions like the ackermann function would otherwise be inlined
-            /// forever.
-            ++numCallsInlined;
-            if (numCallsInlined > maxCallsInlined) {
-                return false;
-            }
-        }
-        optimize(*clone);
-    }
-    /// If we are still self recursive after inlining `numLayers` layers of
-    /// recursion, we conclude the recursion can't be optimized away.
-    return !callsFunction(clone, function);
 }
 
 utl::small_vector<SCC*> Inliner::gatherSinks() {
