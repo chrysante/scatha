@@ -86,7 +86,7 @@ struct Impl {
     }
 
     std::string computeImpl(ArrayType const& type) {
-        return utl::strcat("_A", Impl{ options }.compute(type.elementType()));
+        return utl::strcat("_A", Impl{ options }.compute(*type.elementType()));
     }
 
     std::string computeImpl(RawPtrType const& type) {
