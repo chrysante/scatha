@@ -79,10 +79,8 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
                        sema::AnalysisResult const& analysisResult,
                        Config config) {
     LoweringContext lctx(ctx, mod, sym, config);
-    declareInitialFunctions(analysisResult, lctx);
-    /// We import libraries in topsort order because there may be dependencies
-    /// between the libraries
     importLibraries(sym, lctx);
+    declareInitialFunctions(analysisResult, lctx);
     for (auto* semaType: analysisResult.recordDependencyOrder) {
         generateType(semaType, lctx);
     }
