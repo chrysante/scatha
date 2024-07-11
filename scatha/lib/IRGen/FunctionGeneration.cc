@@ -131,11 +131,11 @@ struct FuncGenContext: FuncGenContextBase {
     /// # Expressions
     SC_NODEBUG Value getValue(ast::Expression const* expr);
 
-    /// \Returns a _lazy_ view of the generated values of the expressions in the
-    /// range \p expressions
-    auto getValues(auto&& expressions) {
+    /// Generates values for every expression in \p expressions
+    utl::small_vector<Value> getValues(auto&& expressions) {
         return expressions |
-               transform([&](auto* expr) { return getValue(expr); });
+               transform([&](auto* expr) { return getValue(expr); }) |
+               ToSmallVector<>;
     }
 
     Value getValueImpl(ast::Expression const&) { SC_UNREACHABLE(); }
@@ -157,8 +157,9 @@ struct FuncGenContext: FuncGenContextBase {
     Value callFunction(sema::Function const* semaFn, ir::Value* function,
                        sema::QualType exprType, std::span<Value const> args,
                        std::string name);
-    utl::small_vector<ir::Value*> unpackArguments(auto&& passingConventions,
-                                                  auto&& values);
+    utl::small_vector<ir::Value*> unpackArguments(
+        std::span<PassingConvention const> passingConventions,
+        std::span<Value const> arguments);
     Value getValueImpl(ast::Subscript const&);
     Value getValueImpl(ast::SubscriptSlice const&);
     Value getValueImpl(ast::ListExpression const&);
@@ -1219,7 +1220,7 @@ Value FuncGenContext::getValueImpl(ast::Conditional const& condExpr) {
 }
 
 Value FuncGenContext::getValueImpl(ast::FunctionCall const& call) {
-    auto arguments = getValues(call.arguments()) | ToSmallVector<>;
+    utl::small_vector arguments = getValues(call.arguments());
     auto* function = [&]() -> ir::Value* {
         using enum sema::PointerBindMode;
         switch (call.callBinding()) {
@@ -1278,19 +1279,31 @@ Value FuncGenContext::callFunction(sema::Function const* semaFn,
 }
 
 utl::small_vector<ir::Value*> FuncGenContext::unpackArguments(
-    auto&& passingConventions, auto&& values) {
+    std::span<PassingConvention const> passingConventions,
+    std::span<Value const> argValues) {
+    SC_EXPECT(passingConventions.size() == argValues.size());
     utl::small_vector<ir::Value*> irArguments;
-    for (auto [PC, value]: zip(passingConventions, values)) {
+    for (auto [PC, argValue]: zip(passingConventions, argValues)) {
         auto locations = PC.locationsAtCallsite();
-        auto unpacked = unpack(value);
-        auto irTypes = typeMap.unpacked(value.type());
-        SC_ASSERT(irTypes.size() == unpacked.size(), "");
-        SC_ASSERT(PC.numParams() == unpacked.size(), "Argument count mismatch");
-        for (auto [index, loc, atom]:
-             zip(iota(size_t{ 0 }), locations, unpacked))
-        {
-            irArguments.push_back(
-                to(loc, atom, irTypes[index], value.name()).get());
+        if (PC.numParams() == 1) {
+            auto passedValue = pack(argValue);
+            auto* irType = typeMap.packed(PC.type());
+            auto atom = to(locations.front(), passedValue.single(), irType,
+                           argValue.name());
+            irArguments.push_back(atom.get());
+        }
+        else {
+            auto passedValue = unpack(argValue);
+            auto irTypes = typeMap.unpacked(PC.type());
+            SC_ASSERT(irTypes.size() == passedValue.size(), "");
+            SC_ASSERT(PC.numParams() == passedValue.size(),
+                      "Argument count mismatch");
+            for (auto [index, loc, atom]:
+                 zip(iota(size_t{ 0 }), locations, passedValue))
+            {
+                auto atom2 = to(loc, atom, irTypes[index], argValue.name());
+                irArguments.push_back(atom2.get());
+            }
         }
     }
     return irArguments;
@@ -1407,7 +1420,7 @@ Value FuncGenContext::getValueImpl(ast::MoveExpr const& expr) {
         auto* irCtor = getFunction(semaCtor);
         auto CC = getCC(semaCtor);
         auto irArguments =
-            unpackArguments(CC.arguments() | drop(1), single(value));
+            unpackArguments(CC.arguments().subspan(1), std::span(&value, 1));
         irArguments.insert(irArguments.begin(), mem);
         auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
         call->setComment(makeLifetimeComment(semaCtor, expr.object()));
@@ -1581,9 +1594,13 @@ Value FuncGenContext::getValueImpl(ast::ObjTypeConvExpr const& conv) {
         value = unpack(value);
         SC_ASSERT(isa<sema::PointerType>(*expr->type()), "");
         size_t count = getStaticArraySize(expr->type().get()).value();
+        Atom countAtm = Atom::Register(ctx.intConstant(count, 64));
+        if (isa<sema::UniquePtrType>(*expr->type())) {
+            SC_ASSERT(value[0].isMemory(), "Unique pointers must be in memory");
+            countAtm = toMemory(countAtm);
+        }
         return Value::Unpacked(value.name(), conv.type(),
-                               { value[0],
-                                 Atom::Register(ctx.intConstant(count, 64)) });
+                               { value[0], countAtm });
     }
     case Reinterpret_ValueRef:
         [[fallthrough]];
@@ -1791,7 +1808,7 @@ Value FuncGenContext::getValueImpl(ast::NontrivConstructExpr const& expr) {
     auto* irCtor = getFunction(expr.constructor());
     auto CC = getCC(expr.constructor());
     auto irArguments =
-        unpackArguments(CC.arguments() | drop(1), getValues(expr.arguments()));
+        unpackArguments(CC.arguments().subspan(1), getValues(expr.arguments()));
     irArguments.insert(irArguments.begin(), mem);
     auto* call = add<ir::Call>(irCtor->returnType(), irCtor, irArguments);
     call->setComment(makeLifetimeComment(expr.constructor(), expr.object()));
@@ -1875,9 +1892,9 @@ Value FuncGenContext::getValueImpl(ast::NontrivAssignExpr const& expr) {
     /// If the values are different, we  call the destructor of LHS and the copy
     /// or move constructor of LHS with RHS as argument. If the values are the
     /// same we do nothing
-    auto dest = getValue(expr.dest());
+    Value dest = getValue(expr.dest());
     SC_ASSERT(dest[0].isMemory(), "Must be in memory to be assigned");
-    auto source = to(dest.representation(), getValue(expr.source()));
+    Value source = getValue(expr.source());
     auto* assignBlock = newBlock("assign");
     auto* endBlock = newBlock("assign.end");
     if (expr.mustCheckForSelfAssignment()) {

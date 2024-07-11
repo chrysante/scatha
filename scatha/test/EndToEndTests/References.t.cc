@@ -462,3 +462,16 @@ fn main() {
 }
 )");
 }
+
+TEST_CASE("Reassign unique pointer to array", "[end-to-end][references]") {
+    test::checkReturns(42, R"(
+fn modify(x: &mut *unique [int]) {
+    x = unique [42];
+}
+fn main() {
+    var p = unique [int](0);
+    modify(p);
+    return p[0];
+}
+)");
+}
