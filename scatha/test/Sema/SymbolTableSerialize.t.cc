@@ -40,6 +40,7 @@ public struct Dyn: P, P2, Base1, Base2 {
     fn test(&dyn this) -> void {}
     var n: int;
 }
+public fn dynArgFn(arg: &dyn mut Dyn) {}
 )");
     REQUIRE(iss.empty());
     sym.prepareExport();
@@ -123,7 +124,7 @@ public struct Dyn: P, P2, Base1, Base2 {
         REQUIRE(VT.layout().size() == 1);
         CHECK(VT.layout().front() == pTest);
     });
-    find("Dyn", [&](Scope const* DynScope) {
+    auto* Dyn = find("Dyn", [&](Scope const* DynScope) {
         auto& Dyn = dyncast<StructType const&>(*DynScope);
         CHECK(Dyn.memberVariables().size() == 1);
         CHECK(Dyn.baseStructObjects().size() == 2);
@@ -142,6 +143,15 @@ public struct Dyn: P, P2, Base1, Base2 {
         REQUIRE(inherited[0]->layout().size() == 1);
         CHECK(inherited[0]->correspondingType() == P);
         CHECK(VT.layout().empty());
+    });
+    find("dynArgFn", [&](Scope const* scope) {
+        auto& dynArgFn = dyncast<Function const&>(*scope);
+        REQUIRE(dynArgFn.argumentCount() == 1);
+        auto* argType = dyncast<ReferenceType const*>(dynArgFn.argumentType(0));
+        REQUIRE(argType);
+        CHECK(argType->base().get() == Dyn);
+        CHECK(argType->base().isMut());
+        CHECK(argType->base().isDyn());
     });
 }
 

@@ -344,6 +344,10 @@ private:
                 addChildren(std::move(c));
             }
         }
+        else if constexpr (std::same_as<std::remove_cvref_t<C>, std::nullptr_t>)
+        {
+            _children.push_back({});
+        }
         else {
             if (child) {
                 child->_parent = this;
@@ -1328,12 +1332,12 @@ public:
                                   SourceRange sourceRange,
                                   UniquePtr<Expression> typeExpr):
         Declaration(NodeType::BaseClassDeclaration, specList, sourceRange,
-                    std::move(typeExpr)) {}
+                    /* nameExpr: */ nullptr, std::move(typeExpr)) {}
 
     AST_DERIVED_COMMON(BaseClassDeclaration)
 
     /// Expression denoting the base class type
-    AST_PROPERTY(0, Expression, typeExpr, TypeExpr)
+    AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
 
     /// Declared variable. In most cases this is the object but in some cases
     /// the object is not a variable, in which case this function fails

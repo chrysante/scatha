@@ -1,6 +1,7 @@
 #include "IRGen/GlobalDecls.h"
 
 #include <range/v3/view.hpp>
+#include <utl/function_view.hpp>
 #include <utl/stack.hpp>
 #include <utl/utility.hpp>
 
@@ -27,17 +28,30 @@ using enum ValueLocation;
 using enum ValueRepresentation;
 using sema::QualType;
 
+static std::string makeVTableName(sema::VTable const& vt,
+                                  sema::NameMangler const& nameMangler) {
+    std::string typeName = nameMangler(*vt.correspondingType());
+    return typeName + ".vtable";
+}
+
+static std::string makeThunkName(ir::Function* target,
+                                 sema::RecordType const* concreteType,
+                                 sema::NameMangler const& nameMangler) {
+    return utl::strcat(target->name(), ".thunk-for-",
+                       nameMangler(*concreteType));
+}
+
 static ir::Function* generateThunk(ir::Function* target,
                                    sema::RecordType const* concreteType,
                                    ssize_t objectByteOffset,
-                                   ssize_t vtableOffset, LoweringContext lctx) {
+                                   ssize_t vtableOffset, ir::Visibility vis,
+                                   LoweringContext lctx) {
     auto& ctx = lctx.ctx;
-    auto owner =
-        allocate<ir::Function>(ctx, target->returnType(),
-                               ir::clone(ctx, target->parameters()),
-                               utl::strcat(target->name(), ".thunk-for-",
-                                           concreteType->name()),
-                               target->attributes());
+    auto name = makeThunkName(target, concreteType, lctx.config.nameMangler);
+    auto owner = allocate<ir::Function>(ctx, target->returnType(),
+                                        ir::clone(ctx, target->parameters()),
+                                        std::move(name), target->attributes(),
+                                        vis);
     auto* thunk = lctx.mod.addGlobal(std::move(owner));
     ir::FunctionBuilder builder(ctx, thunk);
     builder.addNewBlock("entry");
@@ -75,16 +89,48 @@ struct DFSStackElem {
 
 } // namespace
 
-static ir::Constant* getVTableFunction(sema::Function const& concreteSemaFn,
+static ir::Visibility max(ir::Visibility a, ir::Visibility b) {
+    using enum ir::Visibility;
+    if (a == External || b == External) {
+        return External;
+    }
+    return Internal;
+}
+
+namespace {
+
+struct VTableGenCallbacks {
+    utl::function_view<ir::Function*(sema::Function const& concreteSemaFn,
+                                     sema::RecordType const* owningType,
+                                     ir::Function* target)>
+        thunkCache;
+
+    utl::function_view<ir::Function*(sema::Function const& concreteSemaFn,
+                                     sema::RecordType const* owningType,
+                                     ir::Function* target, ssize_t byteOffset,
+                                     ssize_t vtableOffset, ir::Visibility)>
+        thunkGen;
+
+    utl::function_view<ir::GlobalVariable*(std::span<ir::Constant* const>,
+                                           ir::Visibility)>
+        vtableFactory;
+};
+
+} // namespace
+
+static ir::Constant* findOrGenVTableFn(sema::Function const& concreteSemaFn,
                                        sema::RecordType const* owningVTableType,
                                        std::span<DFSStackElem const> dfsStack,
+                                       ir::Visibility vis,
+                                       VTableGenCallbacks callbacks,
                                        LoweringContext lctx) {
     auto& ctx = lctx.ctx;
     if (concreteSemaFn.isAbstract()) {
-        getFunction(concreteSemaFn, lctx, /* pushToDeclQueue: */ false);
+        (void)getFunction(concreteSemaFn, lctx, /* pushToDeclQueue: */ false);
         return ctx.undef(ctx.ptrType());
     }
-    auto* irFn = getFunction(concreteSemaFn, lctx);
+    auto* target = cast<ir::Function*>(getFunction(concreteSemaFn, lctx));
+    vis = max(vis, target->visibility());
     auto* fnObjType = cast<sema::RecordType const*>(concreteSemaFn.parent());
     auto owningTypeItr =
         ranges::find(dfsStack, owningVTableType, &DFSStackElem::type);
@@ -93,11 +139,13 @@ static ir::Constant* getVTableFunction(sema::Function const& concreteSemaFn,
         ranges::find(dfsStack, fnObjType, &DFSStackElem::type);
     SC_ASSERT(concreteTypeItr != dfsStack.end(), "");
     if (owningTypeItr == concreteTypeItr) {
-        return irFn;
+        target->setVisibility(vis);
+        return target;
     }
-    ThunkKey key = { &concreteSemaFn, owningTypeItr->type };
-    if (auto itr = lctx.thunkMap.find(key); itr != lctx.thunkMap.end()) {
-        return itr->second;
+    if (auto* thunk =
+            callbacks.thunkCache(concreteSemaFn, owningTypeItr->type, target))
+    {
+        return thunk;
     }
     size_t byteOffset = 0;
     auto* currRecord = concreteTypeItr->type;
@@ -116,23 +164,20 @@ static ir::Constant* getVTableFunction(sema::Function const& concreteSemaFn,
     size_t vtableOffset =
         owningTypeItr->vtableOffset - concreteTypeItr->vtableOffset;
     if (byteOffset == 0 && vtableOffset == 0) {
-        return irFn;
+        return target;
     }
-    auto* thunk = generateThunk(cast<ir::Function*>(irFn), fnObjType,
-                                (ssize_t)byteOffset, (ssize_t)vtableOffset,
-                                lctx);
-    lctx.thunkMap.insert({ key, thunk });
-    return thunk;
+    return callbacks.thunkGen(concreteSemaFn, owningTypeItr->type, target,
+                              utl::narrow_cast<ssize_t>(byteOffset),
+                              utl::narrow_cast<ssize_t>(vtableOffset), vis);
 }
 
 static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
-                           LoweringContext lctx) {
-    auto& ctx = lctx.ctx;
-    std::string typeName = lctx.config.nameMangler(*vtable.correspondingType());
+                           VTableGenCallbacks callbacks, LoweringContext lctx) {
+    auto visibility = mapVisibility(vtable.correspondingType());
     utl::small_vector<ir::Constant*> vtableFunctions;
     utl::stack<DFSStackElem> dfsStack;
     auto dfs = [&](auto& dfs, sema::VTable const& vtable,
-                   int level = 0) mutable -> void {
+                   int level = 0) -> void {
         dfsStack.push({ .type = vtable.correspondingType(),
                         .vtableOffset = vtableFunctions.size() });
         if (level == 1) {
@@ -142,25 +187,19 @@ static void generateVTable(sema::VTable const& vtable, RecordMetadata& MD,
             dfs(dfs, *inherited, level + 1);
         }
         for (auto* semaFn: vtable.layout()) {
-            auto* irFn = getVTableFunction(*semaFn, vtable.correspondingType(),
-                                           dfsStack, lctx);
+            auto* irFn = findOrGenVTableFn(*semaFn, vtable.correspondingType(),
+                                           dfsStack, visibility, callbacks,
+                                           lctx);
             MD.vtableIndexMap.insert({ semaFn, vtableFunctions.size() });
             vtableFunctions.push_back(irFn);
         }
         dfsStack.pop();
     };
     dfs(dfs, vtable);
-    if (vtableFunctions.empty()) {
-        return;
-    }
-    if (isa<sema::StructType>(vtable.correspondingType())) {
-        auto* irVTable =
-            ctx.arrayConstant(vtableFunctions,
-                              ctx.arrayType(ctx.ptrType(),
-                                            vtableFunctions.size()));
-        MD.vtable = lctx.mod.addGlobal(
-            allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Const,
-                                         irVTable, typeName + ".vtable"));
+    if (!vtableFunctions.empty() &&
+        isa<sema::StructType>(vtable.correspondingType()))
+    {
+        MD.vtable = callbacks.vtableFactory(vtableFunctions, visibility);
     }
 }
 
@@ -179,9 +218,9 @@ static void traverseRecord(sema::RecordType const* record, auto callback) {
     }
 }
 
-/// Generates the lowering metadata for \p semaType
-RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
-                                         LoweringContext lctx) {
+static RecordMetadata makeRecordMetadataImpl(sema::RecordType const* semaType,
+                                             VTableGenCallbacks callbacks,
+                                             LoweringContext lctx) {
     RecordMetadata MD;
     uint32_t irIndex = 0;
     traverseRecord(semaType, [&](sema::Type const* type, bool empty) {
@@ -191,10 +230,78 @@ RecordMetadata irgen::makeRecordMetadata(sema::RecordType const* semaType,
             irIndex += member.fieldTypes.size();
         }
     });
-    if (semaType->vtable()) {
-        generateVTable(*semaType->vtable(), MD, lctx);
+    if (auto* vtable = semaType->vtable()) {
+        generateVTable(*vtable, MD, callbacks, lctx);
     }
     return MD;
+}
+
+/// Generates the lowering metadata for \p semaType
+static RecordMetadata makeRecordMetadata(sema::RecordType const* semaType,
+                                         LoweringContext lctx) {
+    auto& ctx = lctx.ctx;
+    auto* vtable = semaType->vtable();
+    auto thunkCache = [&](sema::Function const& concreteSemaFn,
+                          sema::RecordType const* owningType, ir::Function*) {
+        auto itr = lctx.thunkMap.find({ &concreteSemaFn, owningType });
+        return itr != lctx.thunkMap.end() ? itr->second : nullptr;
+    };
+    auto thunkGen = [&](sema::Function const& concreteSemaFn,
+                        sema::RecordType const* owningType,
+                        ir::Function* target, ssize_t byteOffset,
+                        ssize_t vtableOffset, ir::Visibility vis) {
+        SC_EXPECT(byteOffset != 0 || vtableOffset != 0);
+        auto* objType = cast<sema::RecordType const*>(concreteSemaFn.parent());
+        auto* thunk =
+            generateThunk(target, objType, byteOffset, vtableOffset, vis, lctx);
+        ThunkKey key = { &concreteSemaFn, owningType };
+        lctx.thunkMap.insert({ key, thunk });
+        return thunk;
+    };
+    auto vtCallback = [&](std::span<ir::Constant* const> functions,
+                          ir::Visibility vis) {
+        SC_EXPECT(vtable);
+        auto* irVTable =
+            ctx.arrayConstant(functions,
+                              ctx.arrayType(ctx.ptrType(), functions.size()));
+        std::string name = makeVTableName(*vtable, lctx.config.nameMangler);
+        return lctx.mod.addGlobal(
+            allocate<ir::GlobalVariable>(ctx, ir::GlobalVariable::Const,
+                                         irVTable, std::move(name), vis));
+    };
+    return makeRecordMetadataImpl(semaType,
+                                  { thunkCache, thunkGen, vtCallback }, lctx);
+}
+
+/// Generates the lowering metadata for \p semaType
+RecordMetadata irgen::makeRecordMetadataImport(sema::RecordType const* semaType,
+                                               LoweringContext lctx) {
+    auto* vtable = semaType->vtable();
+    auto thunkCache = [&](sema::Function const& concreteSemaFn,
+                          sema::RecordType const*, ir::Function* target) {
+        auto* concreteType =
+            cast<sema::RecordType const*>(concreteSemaFn.parent());
+        std::string name =
+            makeThunkName(target, concreteType, lctx.config.nameMangler);
+        return lctx.importMap.tryGet<ir::Function>(name);
+    };
+    auto thunkGen = [&](sema::Function const& concreteSemaFn,
+                        sema::RecordType const*, ir::Function* target,
+                        ssize_t byteOffset, ssize_t vtableOffset,
+                        ir::Visibility) {
+        SC_EXPECT(byteOffset != 0 || vtableOffset != 0);
+        auto* concreteType =
+            cast<sema::RecordType const*>(concreteSemaFn.parent());
+        std::string name =
+            makeThunkName(target, concreteType, lctx.config.nameMangler);
+        return lctx.importMap.get<ir::Function>(name);
+    };
+    auto vtCallback = [&](std::span<ir::Constant* const>, ir::Visibility) {
+        std::string name = makeVTableName(*vtable, lctx.config.nameMangler);
+        return lctx.importMap.get<ir::GlobalVariable>(name);
+    };
+    return makeRecordMetadataImpl(semaType,
+                                  { thunkCache, thunkGen, vtCallback }, lctx);
 }
 
 ir::StructType* irgen::generateType(sema::RecordType const* semaType,

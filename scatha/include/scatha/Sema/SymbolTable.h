@@ -397,11 +397,7 @@ private:
                             Type const* type, Mutability mut,
                             AccessControl accCtrl);
     BaseClassObject* declareBaseImpl(ast::BaseClassDeclaration* decl,
-                                     std::string name,
                                      AccessControl accessControl);
-    BaseClassObject* defineBaseImpl(ast::BaseClassDeclaration* decl,
-                                    Type const* type,
-                                    AccessControl accessControl);
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);

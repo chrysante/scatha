@@ -16,8 +16,8 @@ class GlobalMap;
 class TypeMap;
 
 /// Generates the lowering metadata for \p semaType
-RecordMetadata makeRecordMetadata(sema::RecordType const* semaType,
-                                  LoweringContext lctx);
+RecordMetadata makeRecordMetadataImport(sema::RecordType const* semaType,
+                                        LoweringContext lctx);
 
 /// Translates \p semaType to an IR structure type
 ir::StructType* generateType(sema::RecordType const* semaType,

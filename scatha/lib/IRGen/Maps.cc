@@ -133,11 +133,19 @@ static void insertImpl(Map& map, typename Map::key_type key,
     SC_ASSERT(success, "Failed to insert type");
 }
 
-void TypeMap::insert(sema::RecordType const* key, ir::StructType const* value,
-                     RecordMetadata metadata) {
+void TypeMap::insert(sema::RecordType const* key, ir::StructType const* value) {
     insertImpl(packedMap, key, value);
     insertImpl(unpackedMap, key, { value });
-    meta.insert({ key, std::move(metadata) });
+}
+
+void TypeMap::insert(sema::RecordType const* key, ir::StructType const* value,
+                     RecordMetadata MD) {
+    insert(key, value);
+    setMetadata(key, std::move(MD));
+}
+
+void TypeMap::setMetadata(sema::RecordType const* key, RecordMetadata MD) {
+    insertImpl(meta, key, std::move(MD));
 }
 
 template <ValueRepresentation Repr>
@@ -414,8 +422,8 @@ ir::Visibility irgen::mapVisibility(sema::Entity const* entity) {
         return ir::Visibility::Internal;
     }
     auto* parent = entity->parent();
-    /// Derived functions for array types or unique ptr types are not `external`
-    if (isa<sema::Type>(parent) && !isa<sema::StructType>(parent)) {
+    /// Auto generated functions for non-user types are never `external`
+    if (isa<sema::Type>(parent) && !isa<sema::RecordType>(parent)) {
         return ir::Visibility::Internal;
     }
     return ir::Visibility::External;

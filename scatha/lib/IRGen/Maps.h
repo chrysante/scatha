@@ -92,6 +92,12 @@ public:
     void insert(sema::RecordType const* key, ir::StructType const* value,
                 RecordMetadata metadata);
 
+    /// \overload
+    void insert(sema::RecordType const* key, ir::StructType const* value);
+
+    /// Used by library import to defer metadata generation
+    void setMetadata(sema::RecordType const* key, RecordMetadata metadata);
+
     ///
     utl::small_vector<ir::Type const*, 2> map(ValueRepresentation repr,
                                               sema::Type const* type) const;

@@ -136,6 +136,9 @@ static std::string serializeTypename(Type const* type) {
 static void serializeTypenameImpl(Type const& type, std::ostream& str) {
     auto ptrLikeImpl = [&](std::string_view kind, PtrRefTypeBase const& ptr) {
         str << kind;
+        if (ptr.base().isDyn()) {
+            str << "dyn ";
+        }
         if (ptr.base().isMut()) {
             str << "mut ";
         }
@@ -192,6 +195,7 @@ struct TypenameToken {
         Ref,
         Ptr,
         Mut,
+        Dyn,
         Unique,
         Dot,
         Comma,
@@ -262,6 +266,9 @@ struct TypenameLexer {
             if (res == "mut") {
                 return Token{ Token::Mut, res };
             }
+            if (res == "dyn") {
+                return Token{ Token::Dyn, res };
+            }
             if (res == "unique") {
                 return Token{ Token::Unique, res };
             }
@@ -314,6 +321,11 @@ struct TypenameParser {
     }
 
     QualType parseQualType() {
+        auto bindMode = PointerBindMode::Static;
+        if (lex.peek().type == Token::Dyn) {
+            lex.get();
+            bindMode = PointerBindMode::Dynamic;
+        }
         auto mut = Mutability::Const;
         if (lex.peek().type == Token::Mut) {
             lex.get();
@@ -321,7 +333,7 @@ struct TypenameParser {
         }
         auto* baseType = dyncast<ObjectType const*>(parse());
         if (!baseType) return nullptr;
-        return QualType(baseType, mut);
+        return QualType(baseType, mut, bindMode);
     }
 
     ReferenceType const* parseRef() {
@@ -453,6 +465,8 @@ struct Field {
     static constexpr std::string_view ReturnType = "return_type";
     static constexpr std::string_view ArgumentTypes = "argument_types";
     static constexpr std::string_view SMFKind = "smf_kind";
+    static constexpr std::string_view IsAbstract = "is_abstract";
+    static constexpr std::string_view IsEmpty = "is_empty";
     static constexpr std::string_view Lifetime = "lifetime";
     static constexpr std::string_view LifetimeOpKind = "lifetime_op_kind";
     static constexpr std::string_view FunctionKind = "function_kind";
@@ -556,6 +570,7 @@ struct Serializer {
             j[Field::SMFKind] = *kind;
         }
         j[Field::FunctionKind] = function.kind();
+        j[Field::IsAbstract] = function.isAbstract();
         if (auto address = function.binaryAddress()) {
             j[Field::BinaryAddress] = *address;
         }
@@ -573,6 +588,7 @@ struct Serializer {
             j[Field::Align] = type.align();
             j[Field::Lifetime] = serializeLifetime(type.lifetimeMetadata());
         }
+        j[Field::IsEmpty] = type.isEmpty();
         visitChildren(j[Field::Children], type);
         return j;
     }
@@ -842,6 +858,7 @@ struct Deserializer: TypeMapBase {
                 parseLifetime(structType, get(obj, Field::Lifetime)));
             structType->setConstructors(structType->findFunctions("new"));
         }
+        type->setIsEmpty(get<bool>(obj, Field::IsEmpty));
         parseID(obj, *type);
     }
 
@@ -861,6 +878,7 @@ struct Deserializer: TypeMapBase {
             SC_UNIMPLEMENTED();
         }
         function->setKind(get<FunctionKind>(obj, Field::FunctionKind));
+        function->markAbstract(get<bool>(obj, Field::IsAbstract));
         parseID(obj, *function);
         if (auto address = tryGet(obj, Field::BinaryAddress)) {
             function->setBinaryAddress(*address);

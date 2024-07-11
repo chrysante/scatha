@@ -143,8 +143,44 @@ fn f(p: &dyn P) {
 fn main() -> int {
     let x = X();
     return f(x);
-})");
+}
+)");
     CHECK(ret == 42);
+}
+
+TEST_CASE("Dynamic dispatch through library", "[end-to-end][lib][nativelib]") {
+    compileLibrary("libs/testlib", "libs", R"(
+public protocol P { fn foo(&this, n: int) -> int; }
+public protocol Q { fn bar(&mut this) -> int; }
+public struct X: P, Q {
+    fn foo(&dyn this, n: int) -> int { __builtin_trap(); }
+    fn bar(&dyn mut this) -> int { __builtin_trap(); }
+}
+public fn useX(x: &mut dyn X) -> int {
+    return x.foo(3) + x.bar();
+}
+)");
+    uint64_t ret = compileAndRunDependentProgram("libs", R"TEXT(
+import testlib;
+struct Y: testlib.X {
+    fn new(&mut this, value: int) {
+        this.value = value;
+    }
+    fn foo(&dyn this, n: int) -> int {
+        return 7 + n;
+    }
+    fn bar(&mut dyn this) -> int {
+        ++this.value;
+        return 13 + this.value;
+    }
+    var value: int;
+}
+fn main() {
+    var y = Y(1);
+    return testlib.useX(y);
+}
+)TEXT");
+    CHECK(ret == 25);
 }
 
 TEST_CASE("Use overload set by name", "[end-to-end][lib][nativelib]") {

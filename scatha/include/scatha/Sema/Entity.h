@@ -572,7 +572,7 @@ public:
     bool isAbstract() const { return _isAbstract; }
 
     /// Mark this function as abstract declaration
-    void markAbstract() { _isAbstract = true; }
+    void markAbstract(bool value = true) { _isAbstract = value; }
 
     /// Sets the kind of special member function. May only be called if this
     /// function is a special member function

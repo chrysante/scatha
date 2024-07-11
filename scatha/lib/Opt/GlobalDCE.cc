@@ -52,7 +52,7 @@ bool opt::globalDCE(Context& ctx, Module& mod) {
 bool GDCEContext::eraseUnusedGlobals() {
     utl::small_vector<Global*> unused;
     for (auto& global: mod.globals()) {
-        if (global.unused()) {
+        if (global.visibility() != Visibility::External && global.unused()) {
             unused.push_back(&global);
         }
     }

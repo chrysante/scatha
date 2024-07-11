@@ -679,42 +679,29 @@ Variable* SymbolTable::defineVariable(std::string name, Type const* type,
 }
 
 BaseClassObject* SymbolTable::declareBaseImpl(ast::BaseClassDeclaration* decl,
-                                              std::string name,
                                               AccessControl accessControl) {
-    auto* obj = impl->addEntity<BaseClassObject>(std::move(name),
-                                                 &currentScope(), decl,
-                                                 accessControl);
+    auto* obj = impl->addEntity<BaseClassObject>(std::string{}, &currentScope(),
+                                                 decl, accessControl);
     obj->setVisible(false);
-    addToCurrentScope(obj);
-    return obj;
-}
-
-BaseClassObject* SymbolTable::defineBaseImpl(ast::BaseClassDeclaration* decl,
-                                             Type const* type,
-                                             AccessControl accessControl) {
-    auto* obj = declareBaseImpl(decl, std::string(type->name()), accessControl);
-    if (!obj) {
-        return nullptr;
-    }
-    setBaseClassType(obj, type);
     return obj;
 }
 
 BaseClassObject* SymbolTable::declareBaseClass(
     ast::BaseClassDeclaration* baseDecl, AccessControl accessControl) {
-    return declareBaseImpl(baseDecl, std::string(baseDecl->name()),
-                           accessControl);
+    return declareBaseImpl(baseDecl, accessControl);
 }
 
 bool SymbolTable::setBaseClassType(BaseClassObject* obj, Type const* type) {
-    obj->_type = type;
-    auto* parentType = cast<RecordType*>(obj->parent());
-    bool result = validateAccessControl(*obj);
-    if (!obj->type()) {
-        return result;
+    if (!type) {
+        return false;
     }
+    obj->_type = type;
+    bool result = validateAccessControl(*obj);
+    auto* parentType = cast<RecordType*>(obj->parent());
+    obj->setName(std::string(type->name()));
     withScopeCurrent(parentType, [&] {
-        declareAlias(const_cast<RecordType&>(*obj->type()), obj->astNode(),
+        addToCurrentScope(obj);
+        declareAlias(const_cast<Type&>(*obj->Object::type()), obj->astNode(),
                      obj->accessControl());
     });
     return result;
@@ -722,7 +709,12 @@ bool SymbolTable::setBaseClassType(BaseClassObject* obj, Type const* type) {
 
 BaseClassObject* SymbolTable::defineBaseClass(Type const* type,
                                               AccessControl accessControl) {
-    return defineBaseImpl(nullptr, type, accessControl);
+    auto* obj = declareBaseImpl(nullptr, accessControl);
+    if (!obj) {
+        return nullptr;
+    }
+    setBaseClassType(obj, type);
+    return obj;
 }
 
 Property* SymbolTable::addProperty(PropertyKind kind, Type const* type,

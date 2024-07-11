@@ -34,44 +34,29 @@ using namespace scatha;
 using namespace irgen;
 using namespace ranges::views;
 
-/// Helper function to get a hashmap entry or abort
-template <typename TargetType = void, typename T>
-static auto* get(utl::hashmap<std::string, T*> const& map,
-                 std::string_view name) {
-    auto itr = map.find(name);
-    SC_RELASSERT(itr != map.end(),
-                 utl::strcat("Failed to find symbol '", name, "' in library")
-                     .c_str());
-    if constexpr (std::is_same_v<TargetType, void>) {
-        return itr->second;
-    }
-    else {
-        return cast<TargetType*>(itr->second);
-    }
-}
-
 /// Performs a DFS over a library scope and adds entries for all structs and
 /// functions to the type map and function map
 static void mapLibSymbols(
     sema::Scope const& scope,
-    utl::hashmap<std::string, ir::StructType*> const& IRStructMap,
-    utl::hashmap<std::string, ir::Global*> const& IRObjectMap,
+    utl::vector<sema::RecordType const*>& metadataDeferQueue,
     LoweringContext lctx) {
     auto entities = scope.entities() | ToSmallVector<>;
-    for (auto* entity:
-         entities | Filter<sema::StructType, sema::Function, sema::Variable>)
-    {
+    auto& importMap = lctx.importMap;
+    for (auto* entity: entities) {
         // clang-format off
         SC_MATCH (*entity) {
-            [&](sema::StructType const& semaType) {
+            [&](sema::RecordType const& semaType) {
                 std::string name = lctx.config.nameMangler(*entity);
                 lctx.typeMap.insert(&semaType,
-                               get(IRStructMap, name),
-                               makeRecordMetadata(&semaType, lctx));
+                                    importMap.get<ir::StructType>(name));
+                metadataDeferQueue.push_back(&semaType);
             },
             [&](sema::Function const& semaFn) {
+                if (semaFn.isAbstract()) {
+                    return;
+                }
                 std::string name = lctx.config.nameMangler(*entity);
-                auto* irFn = get<ir::Function>(IRObjectMap, name);
+                auto* irFn = importMap.get<ir::Function>(name);
                 lctx.globalMap.insert(&semaFn, {
                     irFn, computeCallingConvention(semaFn)
                 });
@@ -81,16 +66,14 @@ static void mapLibSymbols(
                     return;
                 }
                 std::string name = lctx.config.nameMangler(semaVar);
-                auto* irVar = cast<ir::GlobalVariable*>(get(IRObjectMap, name));
+                auto* irVar = importMap.get<ir::GlobalVariable>(name);
                 auto* initGuard = [&]() -> ir::GlobalVariable* {
                     if (!isa<ir::UndefValue>(irVar->initializer())) {
                         return nullptr;
                     }
-                    return get<ir::GlobalVariable>(IRObjectMap,
-                                                   utl::strcat(name, ".init"));
+                    return importMap.get<ir::GlobalVariable>(name, ".init");
                 }();
-                auto* getter = get<ir::Function>(IRObjectMap,
-                                                 utl::strcat(name, ".getter"));
+                auto* getter = importMap.get<ir::Function>(name, ".getter");
                 GlobalVarMetadata metadata{
                     .var = irVar,
                     .varInit = initGuard,
@@ -102,7 +85,7 @@ static void mapLibSymbols(
         }; // clang-format on
     }
     for (auto* child: scope.children()) {
-        mapLibSymbols(*child, IRStructMap, IRObjectMap, lctx);
+        mapLibSymbols(*child, metadataDeferQueue, lctx);
     }
 }
 
@@ -131,22 +114,26 @@ static void importLibrary(sema::NativeLibrary const& lib,
     SC_RELASSERT(archive, "Failed to open library file");
     auto code = archive->openTextFile(TargetNames::ObjectCodeName);
     SC_RELASSERT(code, "Failed to open object code file");
-    utl::hashmap<std::string, ir::StructType*> IRStructMap;
-    utl::hashmap<std::string, ir::Global*> IRObjectMap;
     auto typeCallback = [&](ir::StructType& type) {
-        IRStructMap.insert({ std::string(type.name()), &type });
+        lctx.importMap.insert(&type);
     };
     auto objCallback = [&](ir::Global& object) {
         if (auto* irFn = dyncast<ir::Function*>(&object)) {
             irFn->setVisibility(ir::Visibility::Internal);
         }
-        IRObjectMap.insert({ std::string(object.name()), &object });
+        lctx.importMap.insert(&object);
     };
     auto parseIssues = ir::parseTo(*code, lctx.ctx, lctx.mod,
                                    { .typeParseCallback = typeCallback,
                                      .objectParseCallback = objCallback });
     checkParserIssues(parseIssues, lib.path().string());
-    mapLibSymbols(lib, IRStructMap, IRObjectMap, lctx);
+    utl::small_vector<sema::RecordType const*, 8> metadataDeferQueue;
+    mapLibSymbols(lib, metadataDeferQueue, lctx);
+    /// We defer generation of type metadata because to generate vtables all
+    /// functions must be declared in the global map
+    for (auto* type: metadataDeferQueue) {
+        lctx.typeMap.setMetadata(type, makeRecordMetadataImport(type, lctx));
+    }
 }
 
 /// \Returns `true` for all functions that are generated unconditionally, i.e.
@@ -211,10 +198,17 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
     std::deque<sema::Function const*> declQueue;
     utl::hashset<sema::Function const*> loweredFunctions;
     utl::hashmap<ThunkKey, ir::Function*> thunkMap;
-    LoweringContext lctx{
-        ctx,      mod,   sym, typeMap, globalMap, declQueue, loweredFunctions,
-        thunkMap, config
-    };
+    ImportMap importMap;
+    LoweringContext lctx{ ctx,
+                          mod,
+                          sym,
+                          typeMap,
+                          globalMap,
+                          declQueue,
+                          loweredFunctions,
+                          thunkMap,
+                          importMap,
+                          config };
     declareInitialFunctions(analysisResult, lctx);
     /// We import libraries in topsort order because there may be dependencies
     /// between the libraries
