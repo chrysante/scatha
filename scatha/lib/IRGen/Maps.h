@@ -1,6 +1,7 @@
 #ifndef SCATHA_IRGEN_MAPS_H_
 #define SCATHA_IRGEN_MAPS_H_
 
+#include <concepts>
 #include <functional>
 #include <iosfwd>
 #include <optional>
@@ -8,9 +9,11 @@
 #include <string>
 
 #include <utl/hashtable.hpp>
+#include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
+#include "Common/Base.h"
 #include "IR/Fwd.h"
 #include "IRGen/Metadata.h"
 #include "Sema/Fwd.h"
@@ -126,6 +129,70 @@ private:
                          utl::small_vector<ir::Type const*, 2>>
         unpackedMap;
     utl::hashmap<sema::RecordType const*, RecordMetadata> meta;
+};
+
+/// Maps mangled names to IR objects and types
+class ImportMap {
+public:
+    template <typename T>
+    void insert(T* t) {
+        auto& map = getMap<std::remove_const_t<T>>();
+        map.insert({ std::string(t->name()), t });
+    }
+
+    template <typename TargetType>
+    TargetType* get(std::string_view name) const {
+        auto* result = tryGet<TargetType>(name);
+        SC_RELASSERT(result, utl::strcat("Failed to find symbol '", name,
+                                         "' in library")
+                                 .c_str());
+        return result;
+    }
+
+    template <typename TargetType>
+    TargetType* get(auto const&... args) const
+        requires(sizeof...(args) > 1)
+    {
+        return get<TargetType>(utl::strcat(args...));
+    }
+
+    template <typename TargetType>
+    TargetType* tryGet(std::string_view name) const {
+        auto& map = getMap<TargetType>();
+        auto itr = map.find(name);
+        return itr != map.end() ? cast<TargetType*>(itr->second) : nullptr;
+    }
+
+    template <typename TargetType>
+    TargetType* tryGet(auto const&... args) const
+        requires(sizeof...(args) > 1)
+    {
+        return tryGet<TargetType>(utl::strcat(args...));
+    }
+
+private:
+    template <typename TargetType>
+    auto& getMap() {
+        auto& map = std::as_const(*this).getMap<TargetType>();
+        return const_cast<std::remove_cvref_t<decltype(map)>&>(map);
+    }
+
+    template <typename TargetType>
+    auto const& getMap() const {
+        if constexpr (std::derived_from<TargetType, ir::StructType>) {
+            return types;
+        }
+        else if constexpr (std::derived_from<TargetType, ir::Global>) {
+            return objects;
+        }
+        else {
+            static_assert(!std::same_as<TargetType, TargetType>,
+                          "Invalid argument type");
+        }
+    }
+
+    utl::hashmap<std::string, ir::StructType*> types;
+    utl::hashmap<std::string, ir::Global*> objects;
 };
 
 /// # Maps of operators and other attributes

@@ -228,7 +228,7 @@ struct FuncGenContext: FuncGenContextBase {
 } // namespace
 
 void irgen::generateFunction(sema::Function const* semaFn, ir::Function& irFn,
-                             LoweringContext loweringContext) {
+                             LoweringContext& loweringContext) {
     using enum sema::FunctionKind;
     switch (semaFn->kind()) {
     case Native:
@@ -244,7 +244,7 @@ void irgen::generateFunction(sema::Function const* semaFn, ir::Function& irFn,
 
 void irgen::generateNativeFunction(sema::Function const* semaFn,
                                    ir::Function& irFn,
-                                   LoweringContext loweringContext) {
+                                   LoweringContext& loweringContext) {
     FuncGenContext funcCtx(semaFn, irFn, loweringContext);
     funcCtx.generate(*semaFn->definition());
     ir::setupInvariants(loweringContext.ctx, irFn);
@@ -252,7 +252,7 @@ void irgen::generateNativeFunction(sema::Function const* semaFn,
 
 void irgen::generateSynthFunction(sema::Function const* semaFn,
                                   ir::Function& irFn,
-                                  LoweringContext loweringContext) {
+                                  LoweringContext& loweringContext) {
     FuncGenContext funcCtx(semaFn, irFn, loweringContext);
     funcCtx.generateSynthFunction();
     ir::setupInvariants(loweringContext.ctx, irFn);
@@ -270,7 +270,7 @@ static ir::Constant* getConstantInitializer(ast::Expression const& initExpr,
 }
 
 GlobalVarMetadata irgen::generateGlobalVariable(sema::Variable const& semaVar,
-                                                LoweringContext lctx) {
+                                                LoweringContext& lctx) {
     SC_ASSERT(semaVar.declaration(),
               "Cannot call this function on a variable from a library");
     auto& varDecl =
@@ -2150,7 +2150,7 @@ void FuncGenContext::inlineLifetimeImpl(sema::SMFKind kind, Value dest,
 
 GlobalVarMetadata FuncGenContext::makeGlobalVariable(
     sema::Variable const& semaVar) {
-    return generateGlobalVariable(semaVar, *this);
+    return generateGlobalVariable(semaVar, lctx);
 }
 
 void FuncGenContext::generateGlobalVarGetter(

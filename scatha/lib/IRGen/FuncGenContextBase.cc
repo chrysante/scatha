@@ -22,18 +22,24 @@ using enum ValueRepresentation;
 
 FuncGenContextBase::FuncGenContextBase(sema::Function const* semaFn,
                                        ir::Function& irFn,
-                                       LoweringContext loweringContext):
-    LoweringContext(loweringContext),
-    FunctionBuilder(loweringContext.ctx, &irFn),
+                                       LoweringContext& lctx):
+    FunctionBuilder(lctx.ctx, &irFn),
     semaFn(semaFn),
     irFn(irFn),
-    valueMap(ctx),
-    arrayPtrType(makeArrayPtrType(ctx)),
-    dynPtrType(makeDynPtrType(ctx)) {}
+    lctx(lctx),
+    ctx(lctx.ctx),
+    mod(lctx.mod),
+    symbolTable(lctx.symbolTable),
+    config(lctx.config),
+    typeMap(lctx.typeMap),
+    globalMap(lctx.globalMap),
+    valueMap(lctx.ctx),
+    arrayPtrType(makeArrayPtrType(lctx.ctx)),
+    dynPtrType(makeDynPtrType(lctx.ctx)) {}
 
 ir::Callable* FuncGenContextBase::getFunction(
     sema::Function const* semaFunction) {
-    return irgen::getFunction(*semaFunction, *this);
+    return irgen::getFunction(*semaFunction, lctx);
 }
 
 CallingConvention FuncGenContextBase::getCC(sema::Function const* function) {
