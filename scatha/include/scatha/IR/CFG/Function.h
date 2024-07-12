@@ -5,12 +5,12 @@
 #include <span>
 #include <string>
 
-#include "Common/Base.h"
-#include "Common/FFI.h"
-#include "IR/CFG/BasicBlock.h"
-#include "IR/CFG/Global.h"
-#include "IR/Fwd.h"
-#include "IR/UniqueName.h"
+#include <scatha/Common/Base.h>
+#include <scatha/Common/FFI.h>
+#include <scatha/IR/CFG/BasicBlock.h>
+#include <scatha/IR/CFG/Global.h>
+#include <scatha/IR/Fwd.h>
+#include <scatha/IR/UniqueName.h>
 
 namespace scatha::ir {
 

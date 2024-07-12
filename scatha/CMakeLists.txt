@@ -22,11 +22,11 @@ target_link_libraries(scatha
   PUBLIC
     range-v3
     utility
+    APMath
   PRIVATE
     nlohmann_json
     ctre
     microtar
-    APMath
     graphgen
     termfmt
 )

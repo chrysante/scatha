@@ -4,10 +4,10 @@
 #include <utl/function_view.hpp>
 #include <utl/vector.hpp>
 
-#include "IR/CFG/Instruction.h"
-#include "IR/CFG/Iterator.h"
-#include "IR/CFG/Value.h"
-#include "IR/Fwd.h"
+#include <scatha/IR/CFG/Instruction.h>
+#include <scatha/IR/CFG/Iterator.h>
+#include <scatha/IR/CFG/Value.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

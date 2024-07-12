@@ -5,7 +5,7 @@
 
 #include <utl/hashtable.hpp>
 
-#include "Common/Base.h"
+#include <scatha/Common/Base.h>
 
 namespace scatha::ir {
 

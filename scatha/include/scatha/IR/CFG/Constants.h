@@ -5,11 +5,11 @@
 
 #include <utl/vector.hpp>
 
-#include "Common/APFloat.h"
-#include "Common/APInt.h"
-#include "Common/Base.h"
-#include "IR/CFG/Constant.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/APFloat.h>
+#include <scatha/Common/APInt.h>
+#include <scatha/Common/Base.h>
+#include <scatha/IR/CFG/Constant.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

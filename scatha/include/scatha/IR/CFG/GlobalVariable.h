@@ -1,8 +1,8 @@
 #ifndef SCATHA_IR_CFG_GLOBALVARIABLE_H_
 #define SCATHA_IR_CFG_GLOBALVARIABLE_H_
 
-#include "IR/CFG/Global.h"
-#include "IR/Fwd.h"
+#include <scatha/IR/CFG/Global.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

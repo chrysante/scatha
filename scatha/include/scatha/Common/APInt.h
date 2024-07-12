@@ -4,6 +4,6 @@
 #include <APMath/APInt.h>
 #include <APMath/Conversion.h>
 
-#include "Common/APMathFwd.h"
+#include <scatha/Common/APMathFwd.h>
 
 #endif // SCATHA_COMMON_APINT_H_

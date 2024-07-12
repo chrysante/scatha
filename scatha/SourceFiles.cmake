@@ -16,6 +16,8 @@ set(scatha_headers
   include/scatha/CodeGen/SelectionNode.h
 
   include/scatha/Common/APMathFwd.h
+  include/scatha/Common/APFloat.h
+  include/scatha/Common/APInt.h
   include/scatha/Common/Allocator.h
   include/scatha/Common/Base.h
   include/scatha/Common/DebugInfo.h
@@ -32,6 +34,18 @@ set(scatha_headers
   include/scatha/Common/UniquePtr.h
   include/scatha/Common/Utility.h
 
+  include/scatha/IR/CFG/BasicBlock.h
+  include/scatha/IR/CFG/Constant.h
+  include/scatha/IR/CFG/Constants.h
+  include/scatha/IR/CFG/Function.h
+  include/scatha/IR/CFG/Global.h
+  include/scatha/IR/CFG/GlobalVariable.h
+  include/scatha/IR/CFG/Instruction.h
+  include/scatha/IR/CFG/Instructions.h
+  include/scatha/IR/CFG/Iterator.h
+  include/scatha/IR/CFG/User.h
+  include/scatha/IR/CFG/Value.h
+  include/scatha/IR/CFG.h
   include/scatha/IR/Context.h
   include/scatha/IR/Fwd.h
   include/scatha/IR/Graphviz.h
@@ -46,6 +60,7 @@ set(scatha_headers
   include/scatha/IR/Pipeline.h
   include/scatha/IR/PipelineError.h
   include/scatha/IR/Print.h
+  include/scatha/IR/UniqueName.h
 
   include/scatha/IRGen/IRGen.h
 
@@ -151,8 +166,6 @@ set(scatha_sources
     lib/CodeGen/ValueMap.cc
     lib/CodeGen/ValueMap.h
 
-    lib/Common/APFloat.h
-    lib/Common/APInt.h
     lib/Common/Allocator.cc
     lib/Common/Base.cc
     lib/Common/Builtin.cc
@@ -182,28 +195,16 @@ set(scatha_sources
     lib/IR/Builder.cc
     lib/IR/Builder.h
     lib/IR/CFG/BasicBlock.cc
-    lib/IR/CFG/BasicBlock.h
     lib/IR/CFG/Constant.cc
-    lib/IR/CFG/Constant.h
     lib/IR/CFG/Constants.cc
-    lib/IR/CFG/Constants.h
     lib/IR/CFG/Function.cc
-    lib/IR/CFG/Function.h
     lib/IR/CFG/Global.cc
-    lib/IR/CFG/Global.h
     lib/IR/CFG/GlobalVariable.cc
-    lib/IR/CFG/GlobalVariable.h
     lib/IR/CFG/Instruction.cc
-    lib/IR/CFG/Instruction.h
     lib/IR/CFG/Instructions.cc
-    lib/IR/CFG/Instructions.h
     lib/IR/CFG/Iterator.cc
-    lib/IR/CFG/Iterator.h
     lib/IR/CFG/User.cc
-    lib/IR/CFG/User.h
     lib/IR/CFG/Value.cc
-    lib/IR/CFG/Value.h
-    lib/IR/CFG.h
     lib/IR/Clone.cc
     lib/IR/Clone.h
     lib/IR/Context.cc
@@ -238,7 +239,6 @@ set(scatha_sources
     lib/IR/Type.cc
     lib/IR/Type.h
     lib/IR/UniqueName.cc
-    lib/IR/UniqueName.h
     lib/IR/Validate.cc
     lib/IR/Validate.h
     lib/IR/VectorHash.h

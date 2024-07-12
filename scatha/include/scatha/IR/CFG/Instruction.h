@@ -6,10 +6,10 @@
 
 #include <utl/small_ptr_vector.hpp>
 
-#include "Common/List.h"
-#include "Common/Ranges.h"
-#include "IR/CFG/User.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/List.h>
+#include <scatha/Common/Ranges.h>
+#include <scatha/IR/CFG/User.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

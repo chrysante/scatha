@@ -7,9 +7,9 @@
 
 #include <utl/vector.hpp>
 
-#include "Common/Base.h"
-#include "IR/CFG/Value.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/IR/CFG/Value.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

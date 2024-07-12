@@ -4,6 +4,6 @@
 #include <APMath/APFloat.h>
 #include <APMath/Conversion.h>
 
-#include "Common/APMathFwd.h"
+#include <scatha/Common/APMathFwd.h>
 
 #endif // SCATHA_COMMON_APFLOAT_H_

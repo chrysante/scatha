@@ -8,11 +8,11 @@
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
-#include "Common/Base.h"
-#include "Common/Metadata.h"
-#include "Common/Ranges.h"
-#include "Common/UniquePtr.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/Common/Metadata.h>
+#include <scatha/Common/Ranges.h>
+#include <scatha/Common/UniquePtr.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

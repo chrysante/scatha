@@ -3,9 +3,9 @@
 
 #include <utl/function_view.hpp>
 
-#include "Common/Base.h"
-#include "IR/CFG/User.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/IR/CFG/User.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

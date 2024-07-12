@@ -5,9 +5,9 @@
 
 #include <utl/function_view.hpp>
 
-#include "Common/Ranges.h"
-#include "IR/CFG/BasicBlock.h"
-#include "IR/CFG/Instruction.h"
+#include <scatha/Common/Ranges.h>
+#include <scatha/IR/CFG/BasicBlock.h>
+#include <scatha/IR/CFG/Instruction.h>
 
 namespace scatha::ir {
 

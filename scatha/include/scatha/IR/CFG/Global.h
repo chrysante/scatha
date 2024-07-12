@@ -1,9 +1,9 @@
 #ifndef SCATHA_IR_CFG_GLOBAL_H_
 #define SCATHA_IR_CFG_GLOBAL_H_
 
-#include "Common/List.h"
-#include "IR/CFG/Constant.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/List.h>
+#include <scatha/IR/CFG/Constant.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

@@ -1,8 +1,8 @@
 #ifndef SCATHA_IR_ITERATOR_H_
 #define SCATHA_IR_ITERATOR_H_
 
-#include "Common/List.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/List.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir::internal {
 
