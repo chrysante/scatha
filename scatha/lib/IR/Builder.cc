@@ -16,7 +16,9 @@ using namespace ir;
 using namespace ranges::views;
 
 BasicBlockBuilder::BasicBlockBuilder(Context& ctx, BasicBlock* BB):
-    ctx(ctx), currentBB(BB), instAddPoint(BB->end()) {}
+    ctx(ctx),
+    currentBB(BB),
+    instAddPoint(BB ? BB->end() : BasicBlock::ConstIterator{}) {}
 
 Instruction* BasicBlockBuilder::add(Instruction* inst) {
     return insert(instAddPoint.to_address(), inst);

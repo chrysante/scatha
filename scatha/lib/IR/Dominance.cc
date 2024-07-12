@@ -45,7 +45,7 @@ static utl::hashset<BasicBlock*> intersect(auto&& range) {
     }
     return ranges::accumulate(std::next(ranges::begin(range)),
                               ranges::end(range), *range.begin(),
-                              [](auto&& a, auto const& b) {
+                              [](auto& a, auto const& b) {
         return intersect(std::move(a), b);
     });
 }
