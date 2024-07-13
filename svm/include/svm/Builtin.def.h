@@ -213,6 +213,9 @@ SVM_BUILTIN_DEF(filewrite, None, {
 /// ## Debug trap
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())
 
+/// ## Exit
+SVM_BUILTIN_DEF(exit,    None,  { S64() }, Void())
+
 /// Quick and dirty randon number generation.
 SVM_BUILTIN_DEF(rand_i64, None,  {  }, S64())
 
