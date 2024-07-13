@@ -148,3 +148,33 @@ fn main() -> int {
 }
 )");
 }
+
+TEST_CASE("Infinite dynamic recursion", "[end-to-end][dyn-calls]") {
+    test::runPrintsTest(
+        "f -> g -> test -> f -> g -> test -> f -> g -> test -> exit", { R"(
+protocol P { fn test(&this) -> int; }
+var i: int = 0;
+struct S: P {
+    fn test(&dyn this) -> int {
+        __builtin_putstr("test -> ");
+        if (++i > 2) {
+            __builtin_putstr("exit");
+            __builtin_exit(0);
+        }
+        return f(this);
+    }
+}
+fn f(s: &S) -> int {
+    __builtin_putstr("f -> ");
+    return g(s);
+}
+fn g(s: &S) -> int {
+    __builtin_putstr("g -> ");
+    return (s as &dyn P).test();
+}
+fn main() {
+    var s = S();
+    return f(s);
+}
+)" });
+}

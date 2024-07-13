@@ -5,6 +5,7 @@
 #include <graphgen/graphgen.h>
 #include <utl/graph.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/stack.hpp>
 
 #include "Common/Ranges.h"
 #include "Debug/DebugGraphviz.h"
@@ -296,6 +297,102 @@ Modification SCCCallGraph::removeCall(FunctionNode* callerNode,
     return result;
 }
 
+namespace {
+
+struct FunctionDFS {
+    utl::hashset<FunctionNode const*> visited;
+    utl::stack<FunctionNode*> path;
+
+    bool search(FunctionNode* origin, FunctionNode* dest) {
+        if (origin == dest) {
+            return true;
+        }
+        if (!visited.insert(origin).second) {
+            return false;
+        }
+        path.push(origin);
+        for (auto* succ: origin->successors()) {
+            if (search(succ, dest)) {
+                return true;
+            }
+        }
+        path.pop();
+        return false;
+    }
+};
+
+struct RecomputeSCC {
+    struct VertexData {
+        uint32_t index   : 31 = 0;
+        bool defined     : 1 = false;
+        uint32_t lowlink : 31 = 0;
+        bool onStack     : 1 = false;
+    };
+
+    RecomputeSCC(std::span<FunctionNode* const> nodes): nodes(nodes) {}
+
+    void compute() {
+        for (auto* node: nodes) {
+            if (!vertexData[node].defined && strongConnect(node)) {
+                return;
+            }
+        }
+    }
+
+    bool strongConnect(FunctionNode* v) {
+        auto& vData = vertexData[v];
+        /// Set the depth index for `v` to the smallest unused index
+        vData.index = index;
+        vData.defined = true;
+        vData.lowlink = index;
+        ++index;
+        stack.push(v);
+        vData.onStack = true;
+        for (auto* w: v->successors()) {
+            auto& wData = vertexData[w];
+            if (!wData.defined) {
+                /// Successor `w` has not yet been visited; recurse on it.
+                strongConnect(w);
+                vData.lowlink = std::min(vData.lowlink, wData.lowlink);
+            }
+            else if (wData.onStack) {
+                /// Successor `w` is in `stack` and hence in the current
+                /// SCC. If `w` is not on stack, then `(v, w)` is an edge
+                /// pointing to an SCC already found and must be ignored.
+                /// Note: The next line may look odd - but is correct. It
+                /// says `wData.index`, not `wData.lowlink`; that is
+                /// deliberate and from the original paper.
+                vData.lowlink = std::min(vData.lowlink, wData.index);
+            }
+        }
+        /// If `v` is a root node, pop the stack and generate an SCC.
+        if (vData.lowlink != vData.index) {
+            return false;
+        }
+        SCC.clear();
+        bool done = false;
+        while (true) {
+            auto w = stack.pop();
+            auto& wData = vertexData[w];
+            wData.onStack = false;
+            SCC.push_back(w);
+            done |= w == nodes.front();
+            if (w == v) {
+                break;
+            }
+        }
+        return done;
+    }
+
+    std::span<FunctionNode* const> nodes;
+    utl::stack<FunctionNode*> stack;
+    uint32_t index = 0;
+    utl::node_hashmap<FunctionNode const*, VertexData> vertexData;
+    utl::small_vector<FunctionNode*> SCC;
+};
+
+} // namespace
+
 Modification SCCCallGraph::addCall(FunctionNode* callerNode,
                                    FunctionNode* calleeNode,
                                    ir::Call* callInst) {
@@ -315,11 +412,42 @@ Modification SCCCallGraph::addCall(FunctionNode* callerNode,
     calleeNode->addPredecessor(callerNode);
     callerNode->scc()->addSuccessor(calleeNode->scc());
     calleeNode->scc()->addPredecessor(callerNode->scc());
-    if (!SCC_DFS(calleeNode, callerNode).search()) {
+    callerNode->_sccAndIsLeaf.set_integer(false);
+    FunctionDFS DFS{};
+    if (!DFS.search(calleeNode, callerNode)) {
         /// We did not introduce a cycle
         return Modification::AddedEdge;
     }
-    SC_UNIMPLEMENTED();
+    RecomputeSCC sccCtx(DFS.path);
+    sccCtx.compute();
+    auto* callerSCC = callerNode->scc();
+    utl::hashset<SCCNode const*> visited = { callerSCC };
+    for (auto* fnNode: sccCtx.SCC) {
+        auto* fnSCC = fnNode->scc();
+        if (!visited.insert(fnSCC).second) {
+            continue;
+        }
+        for (auto* pred: fnSCC->predecessors()) {
+            pred->removeSuccessor(fnSCC);
+            if (pred != callerSCC) {
+                callerSCC->addPredecessor(pred);
+                pred->addSuccessor(callerSCC);
+            }
+        }
+        for (auto* succ: fnSCC->successors()) {
+            succ->removePredecessor(fnSCC);
+            if (succ != callerSCC) {
+                callerSCC->addSuccessor(succ);
+                succ->addPredecessor(callerSCC);
+            }
+        }
+        fnSCC->clearEdges();
+        for (auto* node: fnSCC->nodes()) {
+            callerSCC->addNode(node);
+            node->_sccAndIsLeaf.set_pointer(callerSCC);
+        }
+    }
+    return { Modification::AddedEdge, { callerSCC } };
 }
 
 void SCCCallGraph::RecomputeCalleesResult::merge(
