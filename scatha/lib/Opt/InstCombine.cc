@@ -788,8 +788,11 @@ Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
 }
 
 Value* InstCombineCtx::visitImpl(Phi* phi) {
-    Value* const first = phi->operands().front();
-    bool const allEqual =
+    if (phi->operands().empty()) {
+        return irCtx.undef(phi->type());
+    }
+    Value* first = phi->operands().front();
+    bool allEqual =
         ranges::all_of(phi->operands(), [&](auto* op) { return op == first; });
     if (allEqual) {
         return first;
