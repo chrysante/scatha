@@ -64,6 +64,22 @@ static bool isCritical(Instruction const* inst) {
     return isa<Return>(inst) || opt::hasSideEffects(inst);
 }
 
+static bool anyExitIsReachable(Function const& function,
+                               DomTree const& postDomTree) {
+    auto dfs = [&](auto& dfs, DomTree::Node const* node) -> bool {
+        if (node->basicBlock() == &function.entry()) {
+            return true;
+        }
+        for (auto* child: node->children()) {
+            if (dfs(dfs, child)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    return postDomTree.root() && dfs(dfs, postDomTree.root());
+}
+
 bool DCEContext::run() {
     /// Initialization phase
     auto instructions = function.instructions() | TakeAddress |
@@ -73,8 +89,7 @@ bool DCEContext::run() {
     for (auto* inst: criticalInstructions) {
         mark(inst);
     }
-    if (postDomInfo.domTree().empty()) /// The function has no exits.
-    {
+    if (!anyExitIsReachable(function, postDomInfo.domTree())) {
         if (marked.empty()) {
             /// A non terminating function without critical instructions is
             /// undefined behaviour. We delete the body.
