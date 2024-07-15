@@ -286,7 +286,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::ObjectType const* type,
     switch (op) {
     case ast::BinaryOperator::Multiplication:
         // clang-format off
-        return visit(*type, utl::overload{
+        return SC_MATCH (*type) {
             [](sema::IntType const&) {
                 return ir::ArithmeticOperation::Mul;
             },
@@ -296,11 +296,11 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::ObjectType const* type,
             [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
-        }); // clang-format on
+        }; // clang-format on
 
     case ast::BinaryOperator::Division:
         // clang-format off
-        return visit(*type, utl::overload{
+        return SC_MATCH (*type) {
             [](sema::IntType const& type) {
                 return type.isSigned() ?
                     ir::ArithmeticOperation::SDiv :
@@ -312,7 +312,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::ObjectType const* type,
             [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
-        }); // clang-format on
+        }; // clang-format on
 
     case ast::BinaryOperator::Remainder:
         return cast<sema::IntType const*>(type)->isSigned() ?
@@ -321,7 +321,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::ObjectType const* type,
 
     case ast::BinaryOperator::Addition:
         // clang-format off
-        return visit(*type, utl::overload{
+        return SC_MATCH (*type) {
             [](sema::IntType const&) {
                 return ir::ArithmeticOperation::Add;
             },
@@ -331,11 +331,11 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::ObjectType const* type,
             [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
-        }); // clang-format on
+        }; // clang-format on
 
     case ast::BinaryOperator::Subtraction:
         // clang-format off
-        return visit(*type, utl::overload{
+        return SC_MATCH (*type) {
             [](sema::IntType const&) {
                 return ir::ArithmeticOperation::Sub;
             },
@@ -345,7 +345,7 @@ ir::ArithmeticOperation irgen::mapArithmeticOp(sema::ObjectType const* type,
             [](sema::ObjectType const&) -> ir::ArithmeticOperation {
                 SC_UNREACHABLE();
             },
-        }); // clang-format on
+        }; // clang-format on
 
     case ast::BinaryOperator::LeftShift:
         return ir::ArithmeticOperation::LShL;
@@ -374,7 +374,7 @@ ir::ArithmeticOperation irgen::mapArithmeticAssignOp(
 
 ir::CompareMode irgen::mapCompareMode(sema::ObjectType const* type) {
     // clang-format off
-    return visit(*type, utl::overload{
+    return SC_MATCH (*type) {
         [](sema::VoidType const&) -> ir::CompareMode {
             SC_UNREACHABLE();
         },
@@ -401,7 +401,7 @@ ir::CompareMode irgen::mapCompareMode(sema::ObjectType const* type) {
         [](sema::CompoundType const&) -> ir::CompareMode {
             SC_UNREACHABLE();
         }
-    }); // clang-format on
+    }; // clang-format on
 }
 
 ir::FunctionAttribute irgen::mapFuncAttrs(sema::FunctionAttribute attr) {

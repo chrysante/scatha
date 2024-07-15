@@ -104,7 +104,7 @@ public:
     ///
     template <std::derived_from<Attribute> Attrib>
     Attrib const* get() const {
-        return cast<Attrib const*>(get(utl::dc::TypeToID<Attrib>));
+        return cast<Attrib const*>(get(csp::impl::TypeToID<Attrib>));
     }
 
 protected:
@@ -130,11 +130,7 @@ private:
     /// adding this value to a function.
     void uniqueExistingName(Function& func);
 
-    /// Customization point for `UniquePtr`
-    friend void ir::privateDelete(Value* value);
-
-    /// Customization point for `ir::DynAllocator`
-    friend void ir::privateDestroy(Value* value);
+    friend NodeType get_rtti(Value const& value) { return value.nodeType(); }
 
     NodeType _nodeType;
     Type const* _type;
@@ -143,11 +139,6 @@ private:
     utl::hashmap<AttributeType, UniquePtr<Attribute>> _attribs;
     std::unique_ptr<PointerInfo> ptrInfo;
 };
-
-/// For `dyncast` compatibilty
-inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
-    return value.nodeType();
-}
 
 } // namespace scatha::ir
 

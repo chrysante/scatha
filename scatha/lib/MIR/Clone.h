@@ -16,7 +16,7 @@ UniquePtr<Instruction> cloneImpl(Instruction& inst);
 /// argument is not const
 template <std::derived_from<Instruction> Inst>
 UniquePtr<Inst> clone(Inst& inst) {
-    return uniquePtrCast<Inst>(cloneImpl(inst));
+    return cast<Inst>(cloneImpl(inst));
 }
 
 } // namespace scatha::mir

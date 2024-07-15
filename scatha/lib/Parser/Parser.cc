@@ -1221,7 +1221,7 @@ UniquePtr<ast::Expression> Context::parsePostfix() {
 
 static bool isGenericID(ast::Expression const* expr) {
     // clang-format off
-    return visit(*expr, utl::overload{
+    return SC_MATCH (*expr) {
         [](ast::Expression const&) { return false; },
         [](ast::Identifier const& expr) {
             /// Only generic ID for now
@@ -1230,7 +1230,7 @@ static bool isGenericID(ast::Expression const* expr) {
         [](ast::MemberAccess const& expr) {
             return isGenericID(expr.member());
         },
-    }); // clang-format on
+    }; // clang-format on
 }
 
 UniquePtr<ast::Expression> Context::parseGeneric() {
@@ -1566,7 +1566,7 @@ QualifierSet Context::parseQualifierSet(SourceRange sr) {
         .bindMode = sema::PointerBindMode::Static,
     };
     // clang-format off
-    while (std::visit(utl::overload{
+    while (std::visit(csp::overload{
         [&](sema::Mutability m) { set.mut = m; return true; },
         [&](sema::PointerBindMode mode) { set.bindMode = mode; return true; },
         [](auto) { return false; }

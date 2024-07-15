@@ -68,7 +68,7 @@ struct Computation {
                       Instruction const* B,
                       std::span<Value const* const> BOps) {
         // clang-format off
-        return visit2(*A, *B, utl::overload{
+        return visit2(*A, *B, csp::overload{
             [&](ArithmeticInst const& A, ArithmeticInst const& B) {
                 if (A.operation() != B.operation()) {
                     return false;
@@ -133,7 +133,7 @@ struct Computation {
         utl::hash_combine_seed(seed, inst->nodeType());
 
         // clang-format off
-        utl::visit(*inst, utl::overload{
+        SC_MATCH (*inst) {
             [&](ArithmeticInst const& inst) {
                 utl::hash_combine_seed(seed, inst.operation());
             },
@@ -168,7 +168,7 @@ struct Computation {
             [&](Instruction const&) {
                 SC_UNREACHABLE();
             }
-        }); // clang-format on
+        }; // clang-format on
         for (auto* operand: ops) {
             /// We XOR the hash because it is commutative. This way two lists of
             /// operands end up with the same hash regardless of order. We do
@@ -194,7 +194,7 @@ struct std::hash<Computation> {
 /// \returns `true` for all instructions ignored by the algorithm
 static bool isIgnored(Instruction const* inst) {
     // clang-format off
-    return visit(*inst, utl::overload{
+    return SC_MATCH (*inst) {
         [](Phi const&)            { return true; },
         [](TerminatorInst const&) { return true; },
         [](Alloca const&)         { return true; },
@@ -202,7 +202,7 @@ static bool isIgnored(Instruction const* inst) {
         [](Store const&)          { return true; },
         [](Call const&)           { return true; },
         [](Instruction const&)    { return false; }
-    }); // clang-format on
+    }; // clang-format on
 }
 
 namespace {

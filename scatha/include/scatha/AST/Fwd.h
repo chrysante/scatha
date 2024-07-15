@@ -101,7 +101,7 @@ std::string_view toString(LoopKind loopKind);
 std::ostream& operator<<(std::ostream& ostream, LoopKind loopKind);
 
 /// Insulated call to `delete` on the most derived base of \p astNode
-SCATHA_API void privateDelete(ast::ASTNode* astNode);
+SCATHA_API void do_delete(ast::ASTNode& astNode);
 
 } // namespace scatha::ast
 

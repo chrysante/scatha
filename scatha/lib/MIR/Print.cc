@@ -56,12 +56,12 @@ static constexpr auto localName =
 static constexpr auto regName =
     utl::streammanip([](std::ostream& str, Register const* reg) -> auto& {
     // clang-format off
-    char const prefix = visit(*reg, utl::overload{
+    char const prefix = SC_MATCH (*reg) {
         [](SSARegister const&) { return 'S'; },
         [](VirtualRegister const&) { return 'V'; },
         [](CalleeRegister const&) { return 'C'; },
         [](HardwareRegister const&) { return 'H'; },
-    }); // clang-format on
+    }; // clang-format on
     auto name = utl::strcat(prefix, reg->index());
     auto fmt = tfmt::BrightBlue;
     if (reg->fixed()) {

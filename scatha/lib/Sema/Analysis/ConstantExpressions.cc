@@ -8,12 +8,12 @@
 using namespace scatha;
 using namespace sema;
 
-void sema::privateDelete(sema::Value* value) {
-    visit(*value, [](auto& value) { delete &value; });
+void sema::do_delete(sema::Value& value) {
+    visit(value, [](auto& value) { delete &value; });
 }
 
-void sema::privateDestroy(sema::Value* type) {
-    visit(*type, [](auto& type) { std::destroy_at(&type); });
+void sema::do_destroy(sema::Value& type) {
+    visit(type, [](auto& type) { std::destroy_at(&type); });
 }
 
 UniquePtr<Value> Value::clone() const {

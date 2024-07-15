@@ -74,12 +74,12 @@ void Value::uniqueExistingName(Function& func) {
     _name = func.nameFac.makeUnique(std::move(_name));
 }
 
-void ir::privateDelete(Value* value) {
-    visit(*value, [](auto& derived) { delete &derived; });
+void ir::do_delete(Value& value) {
+    visit(value, [](auto& derived) { delete &derived; });
 }
 
-void ir::privateDestroy(Value* value) {
-    visit(*value, [](auto& derived) { std::destroy_at(&derived); });
+void ir::do_destroy(Value& value) {
+    visit(value, [](auto& derived) { std::destroy_at(&derived); });
 }
 
 void Value::allocatePointerInfo(PointerInfo info) {

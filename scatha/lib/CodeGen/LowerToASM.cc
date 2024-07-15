@@ -68,7 +68,7 @@ struct CGContext {
 
     Asm::Value toValue(mir::Value const* value) {
         // clang-format off
-         return visit(*value, utl::overload{
+         return SC_MATCH (*value) {
              [](mir::Constant const& constant) -> Asm::Value {
                  switch (constant.bytewidth()) {
                  case 1: return Value8(constant.value());
@@ -91,7 +91,7 @@ struct CGContext {
              [](mir::Value const&) -> Asm::Value {
                  SC_UNREACHABLE();
              }
-         }); // clang-format on
+         }; // clang-format on
     }
 
     void addMetadata(mir::Instruction const& inst) {

@@ -5,12 +5,12 @@
 using namespace scatha;
 using namespace ir;
 
-void ir::privateDelete(ir::Type* type) {
-    visit(*type, [](auto& derived) { delete &derived; });
+void ir::do_delete(ir::Type& type) {
+    visit(type, [](auto& derived) { delete &derived; });
 }
 
-void ir::privateDestroy(ir::Type* type) {
-    visit(*type, [](auto& derived) { std::destroy_at(&derived); });
+void ir::do_destroy(ir::Type& type) {
+    visit(type, [](auto& derived) { std::destroy_at(&derived); });
 }
 
 std::string FunctionType::makeName(

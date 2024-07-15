@@ -206,7 +206,7 @@ bool SCCPContext::apply() {
         }
         SC_ASSERT(isa<Instruction>(value), "We can only replace instructions");
         // clang-format off
-        Value* const newValue = std::visit(utl::overload{
+        Value* newValue = std::visit(csp::overload{
             [&](APInt const& constant) -> Value* {
                 return irCtx.intConstant(constant);
             },
@@ -252,7 +252,7 @@ void SCCPContext::processFlowEdge(FlowEdge edge) {
 
 void SCCPContext::processUseEdge(UseEdge edge) {
     // clang-format off
-    visit(*edge.user, utl::overload{
+    SC_MATCH (*edge.user) {
         [&](Phi& phi) { visitPhi(phi); },
         [&](Instruction& inst) {
             if (basicBlockIsExecutable(*inst.parent())) {
@@ -260,7 +260,7 @@ void SCCPContext::processUseEdge(UseEdge edge) {
             }
         },
         [](User const&) {}
-    }); // clang-format on
+    }; // clang-format on
 }
 
 void SCCPContext::visitPhi(Phi& phi) {
@@ -350,7 +350,7 @@ void SCCPContext::notifyUsers(Value& value) {
 void SCCPContext::processTerminator(FormalValue const& value,
                                     TerminatorInst& inst) {
     // clang-format off
-    std::visit(utl::overload{
+    std::visit(csp::overload{
         [&](Unexamined) {
             SC_UNREACHABLE();
         },
@@ -376,7 +376,7 @@ void SCCPContext::processTerminator(FormalValue const& value,
 
 void SCCPContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
     // clang-format off
-    visit(inst, utl::overload{
+    SC_MATCH (inst) {
         [&](Goto& gt)   {
             flowWorklist.push_back({ inst.parent(), gt.target() });
         },
@@ -391,7 +391,7 @@ void SCCPContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
             flowWorklist.push_back(edge);
         },
         [&](Return&) {}
-    }); // clang-format on
+    }; // clang-format on
 }
 
 bool SCCPContext::basicBlockIsExecutable(BasicBlock& bb) {
@@ -416,11 +416,11 @@ size_t SCCPContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
 
 bool SCCPContext::controlledByConstant(TerminatorInst const& terminator) {
     // clang-format off
-    return visit(terminator, utl::overload{
+    return SC_MATCH (terminator) {
         [](Goto const&) { return true; },
         [](Branch const& br) { return isa<IntegralConstant>(br.condition()); },
         [](Return const&) { return true; }
-    }); // clang-format on
+    }; // clang-format on
 }
 
 template <typename T>
@@ -511,7 +511,7 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
         [[fallthrough]];
     case ArithmeticOperation::FSub:
         // clang-format off
-        return std::visit(utl::overload{
+        return std::visit(csp::overload{
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Add: return add(lhs, rhs);
@@ -559,7 +559,7 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
         [[fallthrough]];
     case ArithmeticOperation::XOr:
         // clang-format off
-        return std::visit(utl::overload{
+        return std::visit(csp::overload{
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Mul: return mul(lhs, rhs);
@@ -619,7 +619,7 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
 FormalValue SCCPContext::evaluateUnaryArithmetic(
     UnaryArithmeticOperation operation, FormalValue const& operand) {
     // clang-format off
-    return std::visit(utl::overload{
+    return std::visit(csp::overload{
         [&](APInt const& operand) -> FormalValue {
             switch (operation) {
             case UnaryArithmeticOperation::BitwiseNot: return btwnot(operand);
@@ -648,7 +648,7 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
                                             FormalValue const& lhs,
                                             FormalValue const& rhs) {
     // clang-format off
-    return std::visit(utl::overload{
+    return std::visit(csp::overload{
         [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
             switch (operation) {
             case CompareOperation::Less:
@@ -745,7 +745,7 @@ FormalValue SCCPContext::formalValue(Value* value) {
         return formalValue;
     }
     // clang-format off
-    formalValue = visit(*value, utl::overload{
+    formalValue = SC_MATCH (*value) {
         [&](IntegralConstant const& constant) -> FormalValue {
             return constant.value();
         },
@@ -754,6 +754,6 @@ FormalValue SCCPContext::formalValue(Value* value) {
         },
         [&](Parameter const&) -> FormalValue { return Inevaluable{}; },
         [&](Value const&) -> FormalValue { return Unexamined{}; }
-    }); // clang-format on
+    }; // clang-format on
     return formalValue;
 }

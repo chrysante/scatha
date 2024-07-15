@@ -221,7 +221,7 @@ FloatingPointConstant* Context::floatConstant(double value, size_t bitwidth) {
 
 Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
     // clang-format off
-    return visit(*type, utl::overload{
+    return SC_MATCH (*type) {
         [&](IntegralType const& type) {
             return intConstant(static_cast<uint64_t>(value),
                                     type.bitwidth());
@@ -230,7 +230,7 @@ Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
             return floatConstant(value, type.bitwidth());
         },
         [&](Type const&) -> Constant* { SC_UNREACHABLE(); }
-    }); // clang-format on
+    }; // clang-format on
 }
 
 Constant* Context::arithmeticConstant(APInt value) {

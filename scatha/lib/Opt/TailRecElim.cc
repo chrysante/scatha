@@ -129,7 +129,7 @@ bool TREContext::run() {
         auto ret = viableReturns.front();
         auto other = otherReturns.front();
         // clang-format off
-        bool const modified = std::visit(utl::overload{
+        bool const modified = std::visit(csp::overload{
             [&](DirectReturn const& ret) {
                 rewrite(ret);
                 return true;
@@ -309,7 +309,7 @@ void TREContext::rewriteImpl(AccumulatedPhiReturn info) {
 
 std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
     // clang-format off
-    return visit(*ret.value(), utl::overload{
+    return SC_MATCH (*ret.value()) {
         [&](Value const& value) -> std::optional<ViableReturn> {
             if (!isa<VoidType>(value.type())) {
                 return std::nullopt;
@@ -410,7 +410,7 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
             }
             return std::nullopt;
         }
-    }); // clang-format on
+    }; // clang-format on
 }
 
 bool TREContext::isInterestingCall(Value const* inst) const {

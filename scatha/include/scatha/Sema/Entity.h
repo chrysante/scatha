@@ -171,6 +171,10 @@ private:
     /// To be used by symbol table
     void addAlias(Alias* alias);
 
+    friend EntityType get_rtti(Entity const& entity) {
+        return entity.entityType();
+    }
+
     /// Type ID used by `dyncast`
     EntityType _entityType;
     bool _isBuiltin = false;
@@ -181,11 +185,6 @@ private:
     utl::small_ptr_vector<Alias*> _aliases;
     ast::ASTNode* _astNode = nullptr;
 };
-
-/// Customization point for the `dyncast` facilities
-EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
-    return entity.entityType();
-}
 
 /// Temporary function. We will remove this function after we restructure the
 /// entity hierarchy such that `Function` derives from `Object`

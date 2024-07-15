@@ -22,15 +22,13 @@ protected:
     explicit Value(ConstantKind kind): _kind(kind) {}
 
 public:
+    friend ConstantKind get_rtti(Value const& value) { return value.kind(); }
+
     ConstantKind _kind;
 };
 
 inline UniquePtr<Value> clone(Value const* value) {
     return value ? value->clone() : nullptr;
-}
-
-inline ConstantKind dyncast_get_type(Value const& value) {
-    return value.kind();
 }
 
 /// Represents an integral constant value

@@ -10,8 +10,8 @@
 using namespace scatha;
 using namespace ast;
 
-void ast::privateDelete(ASTNode* node) {
-    visit(*node, [](auto& derived) { delete &derived; });
+void ast::do_delete(ASTNode& node) {
+    visit(node, [](auto& derived) { delete &derived; });
 }
 
 SourceRange ASTNode::sourceRange() const {

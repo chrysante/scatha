@@ -68,7 +68,7 @@ SCTEST_API List<Parameter> clone(Context& context,
 /// argument
 template <std::derived_from<Instruction> Inst>
 UniquePtr<Inst> clone(Context& context, Inst* inst) {
-    return uniquePtrCast<Inst>(clone(context, static_cast<Instruction*>(inst)));
+    return cast<Inst>(clone(context, static_cast<Instruction*>(inst)));
 }
 
 /// \Returns a clone of the basic block \p BB

@@ -305,8 +305,7 @@ public:
     /// \overload for generic type
     template <typename T>
     T* replaceChild(ASTNode const* old, UniquePtr<T> repl) {
-        return cast<T*>(
-            replaceChild(old, uniquePtrCast<ASTNode>(std::move(repl))));
+        return cast<T*>(replaceChild(old, cast<ASTNode>(std::move(repl))));
     }
 
     /// Replace `this` node with new node \p repl
@@ -317,7 +316,7 @@ public:
     /// \overload for generic type
     template <typename T>
     T* replace(UniquePtr<T> repl) {
-        return cast<T*>(replace(uniquePtrCast<ASTNode>(std::move(repl))));
+        return cast<T*>(replace(cast<ASTNode>(std::move(repl))));
     }
 
     /// Get the index of child \p child
@@ -356,18 +355,14 @@ private:
         }
     }
 
-    friend void ast::privateDelete(ast::ASTNode*);
+    // For `dyncast` compatibilty
+    friend NodeType get_rtti(ASTNode const& node) { return node.nodeType(); }
 
     NodeType _type;
     SourceRange _sourceRange;
     ASTNode* _parent = nullptr;
     utl::small_vector<UniquePtr<ASTNode>> _children;
 };
-
-// For `dyncast` compatibilty
-NodeType dyncast_get_type(std::derived_from<ASTNode> auto const& node) {
-    return node.nodeType();
-}
 
 /// \overload
 template <typename Node, std::invocable<UniquePtr<Node>> F>

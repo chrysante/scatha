@@ -1377,7 +1377,7 @@ AccessTree* InstCombineCtx::getAccessTreeCommon(Inst* inst) {
         return itr->second.get();
     }
     // clang-format off
-    auto treeOwner = visit(*inst->baseValue(), utl::overload{
+    auto treeOwner = SC_MATCH (*inst->baseValue()) {
         [&](ExtractValue& evBase) {
             return getAccessTree(&evBase)->clone();
         },
@@ -1389,7 +1389,7 @@ AccessTree* InstCombineCtx::getAccessTreeCommon(Inst* inst) {
             tree->setValue(&base);
             return tree;
         }
-    }); // clang-format on
+    }; // clang-format on
     auto* root = treeOwner.get();
     accessTrees.insert({ inst, std::move(treeOwner) });
     return root;

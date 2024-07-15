@@ -15,14 +15,12 @@ protected:
     explicit Attribute(AttributeType type): _type(type) {}
 
 private:
+    friend AttributeType get_rtti(Attribute const& attrib) {
+        return attrib.type();
+    }
+
     AttributeType _type;
 };
-
-/// For `dyncast` compatibilty
-inline AttributeType dyncast_get_type(
-    std::derived_from<Attribute> auto const& attrib) {
-    return attrib.type();
-}
 
 /// Private base class of `ByValAttribute` and `ValRetAttribute`
 class ByValAttribImpl {

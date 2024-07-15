@@ -36,7 +36,7 @@ public:
 #define TEST_EQ(property)       A.property() == B.property()
 #define TEST_RANGE_EQ(property) ranges::equal(A.property(), B.property())
         // clang-format off
-        bool result = visitInstPair(inst(), rhs.inst(), utl::overload{
+        bool result = visitInstPair(inst(), rhs.inst(), csp::overload{
             [](Instruction const& A, Instruction const& B) {
                 return TEST_RANGE_EQ(operands) && TEST_EQ(bytewidth);
             },

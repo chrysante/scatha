@@ -58,10 +58,10 @@ std::string_view toString(NodeType nodeType);
 std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 /// Insulated call to `delete` on the most derived base of \p value
-SCTEST_API void privateDelete(mir::Value* value);
+SCTEST_API void do_delete(mir::Value& value);
 
 /// Insulated call to destructor on the most derived base of \p value
-SCTEST_API void privateDestroy(mir::Value* value);
+SCTEST_API void do_destroy(mir::Value& value);
 
 /// Forward declarations of all instructions in the MIR module.
 #define SC_MIR_INSTCLASS_DEF(Type, ...) class Type;
@@ -81,10 +81,10 @@ std::string_view toString(InstType instType);
 std::ostream& operator<<(std::ostream& ostream, InstType type);
 
 /// Insulated call to `delete` on the most derived base of \p inst
-SCTEST_API void privateDelete(mir::Instruction* inst);
+SCTEST_API void do_delete(mir::Instruction& inst);
 
 /// Insulated call to destructor on the most derived base of \p inst
-SCTEST_API void privateDestroy(mir::Instruction* inst);
+SCTEST_API void do_destroy(mir::Instruction& inst);
 
 /// To make the base parent case in the dyncast macro work
 using VoidParent = void;

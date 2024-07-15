@@ -62,7 +62,7 @@ public:
     /// \overload that down casts to the given type
     template <std::derived_from<Global> G>
     G* addGlobal(UniquePtr<G> value) {
-        return cast<G*>(addGlobal(uniquePtrCast<Global>(std::move(value))));
+        return cast<G*>(addGlobal(UniquePtr<Global>(value.release())));
     }
 
     /// Creates a global constant with value \p value and name \p name if no

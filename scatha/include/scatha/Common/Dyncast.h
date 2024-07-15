@@ -1,31 +1,31 @@
 #ifndef SCATHA_COMMON_DYNCAST_H_
 #define SCATHA_COMMON_DYNCAST_H_
 
-#include <utl/dyncast.hpp>
-#include <utl/overload.hpp>
+#include <csp.hpp>
 
 #define SC_DYNCAST_DEFINE(Type, ID, Parent, Corporeality)                      \
-    UTL_DYNCAST_DEFINE(Type, ID, Parent, Corporeality)
+    CSP_DEFINE(Type, ID, Parent, Corporeality)
 
 namespace scatha {
 
-using utl::cast;
-using utl::dyncast;
-using utl::isa;
-using utl::unsafe_cast;
-using utl::visit;
+using csp::cast;
+using csp::dyncast;
+using csp::isa;
+using csp::unsafe_cast;
+using csp::visit;
 
 } // namespace scatha
 
 /// Convenience macro for 'match' expressions
 #define SC_MATCH(...)                                                          \
     ::scatha::internal::Matcher(                                               \
-        ::scatha::internal::Tag<utl::dc::DeduceReturnTypeTag>{}, __VA_ARGS__)  \
-            ->*utl::overload
+        ::scatha::internal::Tag<csp::impl::DeduceReturnTypeTag>{},             \
+        __VA_ARGS__)                                                           \
+            ->*csp::overload
 
 #define SC_MATCH_R(R, ...)                                                     \
     ::scatha::internal::Matcher(::scatha::internal::Tag<R>{}, __VA_ARGS__)     \
-            ->*utl::overload
+            ->*csp::overload
 
 namespace scatha::internal {
 
@@ -41,7 +41,7 @@ struct Matcher {
 
 template <typename R, typename... T, typename... F>
 SC_NODEBUG decltype(auto) operator->*(Matcher<R, T...> m,
-                                      utl::overload<F...> const& f) {
+                                      csp::overload<F...> const& f) {
     // clang-format off
     return std::apply([&](auto&&... t) -> decltype(auto) {
         return visit<R>(t..., f);
@@ -50,7 +50,7 @@ SC_NODEBUG decltype(auto) operator->*(Matcher<R, T...> m,
 
 template <typename R, typename... T, typename... F>
 SC_NODEBUG decltype(auto) operator->*(Matcher<R, T...> m,
-                                      utl::overload<F...>&& f) {
+                                      csp::overload<F...>&& f) {
     // clang-format off
     return std::apply([&](auto&&... t) -> decltype(auto) {
         return visit<R>(t..., std::move(f));
@@ -67,13 +67,13 @@ struct Matcher<R, T> {
 
 template <typename R, typename T, typename... F>
 SC_NODEBUG decltype(auto) operator->*(Matcher<R, T> m,
-                                      utl::overload<F...> const& f) {
+                                      csp::overload<F...> const& f) {
     return visit<R>(m.t, f);
 }
 
 template <typename R, typename T, typename... F>
 SC_NODEBUG decltype(auto) operator->*(Matcher<R, T> m,
-                                      utl::overload<F...>&& f) {
+                                      csp::overload<F...>&& f) {
     return visit<R>(m.t, f);
 }
 

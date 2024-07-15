@@ -9,31 +9,15 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
 
-namespace scatha::internal {
-
-struct PrivateDeleter {
-    void operator()(auto* ptr) const { privateDelete(ptr); }
-};
-
-} // namespace scatha::internal
-
 namespace scatha {
 
 template <typename T>
-using UniquePtr = std::unique_ptr<T, internal::PrivateDeleter>;
+using UniquePtr = csp::unique_ptr<T>;
 
 template <typename T, typename... Args>
     requires std::constructible_from<T, Args...>
 UniquePtr<T> allocate(Args&&... args) {
-    return UniquePtr<T>(new T(std::forward<Args>(args)...));
-}
-
-template <typename Derived, typename Base>
-    requires std::derived_from<Derived, Base> ||
-             std::convertible_to<Base*, Derived*>
-UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
-    auto* d = cast<Derived*>(p.release());
-    return UniquePtr<Derived>(d);
+    return csp::make_unique<T>(std::forward<Args>(args)...);
 }
 
 /// Utility function to convert `UniquePtr` arguments into a

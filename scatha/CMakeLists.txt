@@ -21,6 +21,7 @@ target_include_directories(scatha
 target_link_libraries(scatha
   PUBLIC
     range-v3
+    csp
     utility
     APMath
   PRIVATE

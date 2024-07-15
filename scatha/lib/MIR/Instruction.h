@@ -131,17 +131,16 @@ protected:
 private:
     friend class Function; // To set the index
 
+    friend InstType get_rtti(Instruction const& inst) {
+        return inst.instType();
+    }
+
     InstType _instType;
     Register* _dest = nullptr;
     utl::small_vector<Value*> _ops;
     uint8_t _numDests = 0;
     uint8_t _byteWidth = 0;
 };
-
-/// For `dyncast` et al to work
-inline InstType dyncast_get_type(Instruction const& inst) {
-    return inst.instType();
-}
 
 /// CRTP base class for all instructions that access memory.
 /// This class exists to define a getter for the memory address that the derived

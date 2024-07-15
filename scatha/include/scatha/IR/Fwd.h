@@ -277,22 +277,22 @@ class PointerInfo;
 struct PointerInfoDesc;
 
 /// Insulated call to `delete` on the most derived base of \p value
-SCATHA_API void privateDelete(ir::Value* value);
+SCATHA_API void do_delete(ir::Value& value);
 
 /// Insulated call to destructor on the most derived base of \p value
-SCATHA_API void privateDestroy(ir::Value* value);
+SCATHA_API void do_destroy(ir::Value& value);
 
 /// Insulated call to `delete` on the most derived base of \p attrib
-SCATHA_API void privateDelete(ir::Attribute* attrib);
+SCATHA_API void do_delete(ir::Attribute& attrib);
 
 /// Insulated call to destructor on the most derived base of \p attrib
-SCATHA_API void privateDestroy(ir::Attribute* attrib);
+SCATHA_API void do_destroy(ir::Attribute& attrib);
 
 /// Insulated call to `delete` on the most derived base of \p type
-SCATHA_API void privateDelete(ir::Type* type);
+SCATHA_API void do_delete(ir::Type& type);
 
 /// Insulated call to destructor on the most derived base of \p type
-SCATHA_API void privateDestroy(ir::Type* type);
+SCATHA_API void do_destroy(ir::Type& type);
 
 class DomTree;
 

@@ -222,7 +222,7 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
         return htmlNameImpl(str, value);
     };
     // clang-format off
-    visit(*value, utl::overload{
+    SC_MATCH (*value) {
         [&](ir::Global const& global) {
             str << tfmt::format(Green,
                                 "@", htmlName(global));
@@ -277,7 +277,7 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
         [&](ir::Value const&) {
             str << tfmt::format(BGMagenta, "???");
         },
-    }); // clang-format on
+    }; // clang-format on
 }
 
 static constexpr utl::streammanip formatName([](std::ostream& str,
@@ -391,7 +391,7 @@ std::string ir::toString(Value const* value) {
         return sstr.str();
     }
     // clang-format off
-    return visit(*value, utl::overload{
+    return SC_MATCH (*value) {
         [&](Function const& func) { return utl::strcat("@", func.name()); },
         [&](Value const& value) { return utl::strcat("%", value.name()); },
         [&](IntegralConstant const& value) {
@@ -403,7 +403,7 @@ std::string ir::toString(Value const* value) {
         [&](UndefValue const&) {
             return std::string("undef");
         },
-    }); // clang-format on
+    }; // clang-format on
 }
 
 void PrintCtx::print(Value const& value) {

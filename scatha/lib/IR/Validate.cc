@@ -135,16 +135,16 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
               "The last instruction must be the one and only terminator of a "
               "basic block");
     }
-    // clang-format off
     CHECK(bb.terminator() != nullptr, "Basic block must have a terminator");
-    visit(*bb.terminator(), utl::overload{
+    // clang-format off
+    SC_MATCH (*bb.terminator()) {
         [&](Return const& ret) {
-            auto const* const returnedType = ret.value()->type();
+            auto const* returnedType = ret.value()->type();
             CHECK(returnedType == bb.parent()->returnType(),
                   "Returned type must match return type of the function");
         },
         [](TerminatorInst const&) {},
-    }); // clang-format on
+    }; // clang-format on
     for (auto* pred: bb.predecessors()) {
         auto const predSucc = pred->successors();
         CHECK(std::find(predSucc.begin(), predSucc.end(), &bb) !=
@@ -301,12 +301,12 @@ void AssertContext::uniqueName(Value const& value) {
         return;
     }
     // clang-format off
-    Callable const* function = visit(value, utl::overload{
+    Callable const* function = SC_MATCH (value) {
         [](Instruction const& inst) { return inst.parentFunction(); },
         [](Parameter const& param) { return param.parent(); },
         [](BasicBlock const& bb) { return bb.parent(); },
         [](Value const&) -> Function const* { SC_UNREACHABLE(); },
-    }); // clang-format on
+    }; // clang-format on
     auto const [itr, success] = nameValueMap.insert(
         { std::string(value.name()), { function, &value } });
     if (success) {

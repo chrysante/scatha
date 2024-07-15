@@ -46,23 +46,13 @@ protected:
     void setAlign(size_t align) { _align = align; }
 
 private:
-    /// For `UniquePtr<>`
-    friend void ir::privateDelete(Type* type);
+    friend TypeCategory get_rtti(Type const& type) { return type.category(); }
 
-    /// For `ir::DynAllocator`
-    friend void ir::privateDestroy(Type* type);
-
-private:
     std::string _name;
     TypeCategory _category;
     bool isAnon = false;
     size_t _size, _align;
 };
-
-/// For dyncast compatibilty of the type category hierarchy
-inline TypeCategory dyncast_get_type(std::derived_from<Type> auto const& type) {
-    return type.category();
-}
 
 /// Represents the void type. This is empty.
 class VoidType: public Type {

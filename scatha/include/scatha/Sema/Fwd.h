@@ -260,16 +260,16 @@ SCATHA_API bool isArithmeticConversion(ObjectTypeConversion conv);
 namespace scatha::sema {
 
 /// Insulated call to `delete` on the most derived base of \p entity
-SCATHA_API void privateDelete(sema::Entity* entity);
+SCATHA_API void do_delete(sema::Entity& entity);
 
 /// Insulated call to destructor on the most derived base of \p entity
-SCATHA_API void privateDestroy(sema::Entity* entity);
+SCATHA_API void do_destroy(sema::Entity& entity);
 
 /// Insulated call to `delete` on the most derived base of \p value
-SCATHA_API void privateDelete(sema::Value* value);
+SCATHA_API void do_delete(sema::Value& value);
 
 /// Insulated call to destructor on the most derived base of \p value
-SCATHA_API void privateDestroy(sema::Value* type);
+SCATHA_API void do_destroy(sema::Value& type);
 
 } // namespace scatha::sema
 

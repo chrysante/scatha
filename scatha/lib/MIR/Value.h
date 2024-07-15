@@ -16,12 +16,10 @@ protected:
     Value(NodeType nodeType): _nodeType(nodeType) {}
 
 private:
+    friend NodeType get_rtti(Value const& value) { return value.nodeType(); }
+
     NodeType _nodeType;
 };
-
-inline NodeType dyncast_get_type(Value const& value) {
-    return value.nodeType();
-}
 
 } // namespace scatha::mir
 

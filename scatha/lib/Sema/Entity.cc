@@ -23,12 +23,12 @@ using namespace scatha;
 using namespace sema;
 using namespace ranges::views;
 
-void sema::privateDelete(sema::Entity* entity) {
-    visit(*entity, [](auto& entity) { delete &entity; });
+void sema::do_delete(sema::Entity& entity) {
+    visit(entity, [](auto& entity) { delete &entity; });
 }
 
-void sema::privateDestroy(sema::Entity* entity) {
-    visit(*entity, [](auto& entity) { std::destroy_at(&entity); });
+void sema::do_destroy(sema::Entity& entity) {
+    visit(entity, [](auto& entity) { std::destroy_at(&entity); });
 }
 
 EntityCategory Entity::category() const {
