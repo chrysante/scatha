@@ -63,11 +63,10 @@ std::ostream& ir::operator<<(std::ostream& ostream, CompareMode mode) {
 
 std::string_view ir::toString(CompareOperation op) {
     switch (op) {
-        // clang-format off
 #define SC_COMPARE_OPERATION_DEF(Op, name)                                     \
-    case CompareOperation::Op: return #name;
+    case CompareOperation::Op:                                                 \
+        return #name;
 #include "IR/Lists.def.h"
-        // clang-format on
     }
     SC_UNREACHABLE();
 }

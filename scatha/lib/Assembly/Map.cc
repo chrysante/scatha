@@ -74,6 +74,8 @@ static OpCode mapCMovRR(CompareOperation cmpOp) {
         return OpCode::cmove64RR;
     case CompareOperation::NotEq:
         return OpCode::cmovne64RR;
+    case CompareOperation::None:
+        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -92,6 +94,8 @@ static OpCode mapCMovRV(CompareOperation cmpOp) {
         return OpCode::cmove64RV;
     case CompareOperation::NotEq:
         return OpCode::cmovne64RV;
+    case CompareOperation::None:
+        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -170,6 +174,8 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
             return OpCode::cmovne64RM;
         }
         SC_UNREACHABLE();
+    case CompareOperation::None:
+        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -190,6 +196,8 @@ std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp, ValueType dest,
         [[fallthrough]];
     case ValueType::Value64:
         return { mapCMovRV(cmpOp), 8 };
+    case ValueType::LabelPosition:
+        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -221,8 +229,9 @@ OpCode Asm::mapCall(ValueType type) {
         return OpCode::icallr;
     case ValueType::MemoryAddress:
         return OpCode::icallm;
+    default:
+        SC_UNREACHABLE();
     }
-    SC_UNREACHABLE();
 }
 
 OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
