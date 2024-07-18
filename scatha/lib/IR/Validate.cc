@@ -82,9 +82,24 @@ void ir::assertInvariants(Context& ctx, Module const& mod) {
     assertCtx.run();
 }
 
-void ir::assertInvariants(Context& ctx, Function const& function) {
+static void doCheckGlobal(bool condition, Value const& value,
+                          std::string_view msg);
+
+static void assertGlobalInvariants(Context&, Global const& global) {
+    for (auto* operand: global.operands()) {
+        doCheckGlobal(operand, global, "Operands must not be null");
+        doCheckGlobal(isa<Constant>(operand), global,
+                      "Operands of globals must be constants");
+    }
+}
+
+static void assertGlobalInvariants(Context& ctx, Function const& function) {
     AssertFnCtx assertCtx(ctx, function);
     assertCtx.run();
+}
+
+void ir::assertInvariants(Context& ctx, Global const& global) {
+    visit(global, [&](auto& global) { assertGlobalInvariants(ctx, global); });
 }
 
 void AssertModCtx::run() {
@@ -93,6 +108,7 @@ void AssertModCtx::run() {
     }
     for (auto& global: mod.globals()) {
         uniqueGlobalName(global);
+        assertInvariants(ctx, global);
     }
     for (auto& function: mod) {
         uniqueGlobalName(function);
@@ -420,13 +436,18 @@ void AssertFnCtx::check(bool condition, Value const& value,
     });
 }
 
-void AssertModCtx::check(bool condition, Value const& value,
-                         std::string_view msg) const {
+static void doCheckGlobal(bool condition, Value const& value,
+                          std::string_view msg) {
     doCheck(condition, msg, nullptr, nullptr, &value, [&](std::ostream& str) {
         str << "\t";
         printDecl(value, str);
         str << "\n";
     });
+}
+
+void AssertModCtx::check(bool condition, Value const& value,
+                         std::string_view msg) const {
+    doCheckGlobal(condition, value, msg);
 }
 
 void AssertModCtx::check(bool condition, Type const& type,

@@ -20,7 +20,7 @@ private:
 
 SCATHA_API void assertInvariants(Context& ctx, Module const& mod);
 
-SCATHA_API void assertInvariants(Context& ctx, Function const& function);
+SCATHA_API void assertInvariants(Context& ctx, Global const& global);
 
 } // namespace scatha::ir
 
