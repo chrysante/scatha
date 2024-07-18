@@ -124,9 +124,10 @@ struct ProgRepConsole: ProgRepBase {
                 str << ' ';
             }
         }
+        str << "\n";
     }
 
-    void clearLine() const { str << "\33[2K\r"; }
+    void clearLine() const { str << "\33[1A\33[2K\r"; }
 
     size_t getWidth() const {
         return std::clamp(tfmt::getWidth(std::cout).value_or(80), size_t{ 20 },

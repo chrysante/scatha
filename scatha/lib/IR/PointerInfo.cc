@@ -1,5 +1,7 @@
 #include "IR/PointerInfo.h"
 
+#include "IR/CFG/Value.h"
+
 using namespace scatha;
 using namespace ir;
 

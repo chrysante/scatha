@@ -39,7 +39,7 @@ public:
     /// # Modifiers
 
     ///
-    FileScope* declareFileScope(std::string filename);
+    FileScope* declareFileScope(size_t index, std::string filename);
 
     /// Imports the library denoted by \p ID and declares an alias to it in the
     /// current scope

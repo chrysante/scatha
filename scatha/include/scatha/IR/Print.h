@@ -29,8 +29,11 @@ SCATHA_API void printDecl(Value const& value);
 /// Print declaration of  \p value to \p ostream
 SCATHA_API void printDecl(Value const& value, std::ostream& ostream);
 
-///
+/// Formats the name of \p value with type decorations
 SCATHA_API utl::vstreammanip<> format(Value const& value);
+
+/// Formats the name of \p value without type decorations
+SCATHA_API utl::vstreammanip<> formatName(Value const& value);
 
 /// Print instruction \p inst to `std::cout`
 SCATHA_API void print(Instruction const& inst);

@@ -78,12 +78,11 @@ bool GDCEContext::eraseUnusedFunctions() {
     bool modified = false;
     for (auto itr = mod.begin(); itr != mod.end();) {
         auto* F = itr.to_address();
-        if (live.contains(F)) {
-            ++itr;
-            continue;
+        ++itr;
+        if (!live.contains(F)) {
+            mod.erase(F);
+            modified = true;
         }
-        itr = mod.erase(itr);
-        modified = true;
     }
     return modified;
 }

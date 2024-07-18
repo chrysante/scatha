@@ -280,8 +280,8 @@ static void formatValueImpl(std::ostream& str, Value const* value) {
     }; // clang-format on
 }
 
-static constexpr utl::streammanip formatName([](std::ostream& str,
-                                                Value const* value) {
+static constexpr utl::streammanip doFormatName([](std::ostream& str,
+                                                  Value const* value) {
     formatValueImpl(str, value);
 });
 
@@ -315,7 +315,7 @@ void ir::print(Module const& mod) { ir::print(mod, std::cout); }
 
 void ir::print(Module const& mod, std::ostream& str) {
     PrintCtx ctx(str);
-    for (auto& structure: mod.structures()) {
+    for (auto* structure: mod.structTypes()) {
         ctx.print(*structure);
     }
     auto globals = mod.globals() | TakeAddress | ToSmallVector<>;
@@ -353,8 +353,12 @@ void ir::printDecl(Value const& value, std::ostream& ostream) {
     }; // clang-format on
 }
 
-SCATHA_API utl::vstreammanip<> ir::format(Value const& value) {
+utl::vstreammanip<> ir::format(Value const& value) {
     return [&](std::ostream& str) { printDecl(value, str); };
+}
+
+utl::vstreammanip<> ir::formatName(Value const& value) {
+    return [&](std::ostream& str) { str << doFormatName(&value); };
 }
 
 void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }
@@ -421,7 +425,7 @@ void PrintCtx::print(Value const& value) {
 }
 
 void PrintCtx::printImpl(GlobalVariable const& var) {
-    str << formatName(&var) << equals();
+    str << doFormatName(&var) << equals();
     keyword(var.isMutable() ? "global" : "constant");
     str << " ";
     typedName(var.initializer());
@@ -450,11 +454,11 @@ static ssize_t length(auto const& fmt) {
 }
 
 void PrintCtx::printImpl(BasicBlock const& bb) {
-    str << indent << formatName(&bb) << tfmt::format(None, ":");
+    str << indent << doFormatName(&bb) << tfmt::format(None, ":");
     if (!bb.isEntry()) {
         ssize_t commentIndent = 30;
         ssize_t const currentColumn =
-            indent.totalIndent() + length(formatName(&bb)) + 1;
+            indent.totalIndent() + length(doFormatName(&bb)) + 1;
         if (currentColumn >= commentIndent) {
             str << "\n";
         }
@@ -557,8 +561,8 @@ void PrintCtx::printImpl(Phi const& phi) {
     space();
     for (bool first = true; auto const [pred, value]: phi.arguments()) {
         str << (first ? first = false, "" : ", ");
-        str << tfmt::format(None, "[") << label() << " " << formatName(pred)
-            << tfmt::format(None, " : ") << formatName(value)
+        str << tfmt::format(None, "[") << label() << " " << doFormatName(pred)
+            << tfmt::format(None, " : ") << doFormatName(value)
             << tfmt::format(None, "]");
     }
 }
@@ -675,14 +679,14 @@ static std::string_view toStrName(ir::Instruction const* inst) {
 
 void PrintCtx::funcDecl(ir::Callable const* func) {
     str << formatKeyword("func") << " " << formatType(func->returnType()) << " "
-        << formatName(func) << "(";
+        << doFormatName(func) << "(";
     for (bool first = true; auto& param: func->parameters()) {
         str << (first ? (void)(first = false), "" : ", ")
             << formatType(param.type()) << " ";
         for (auto* attrib: param.attributes()) {
             str << formatAttrib(*attrib) << " ";
         }
-        str << formatName(&param);
+        str << doFormatName(&param);
     }
     str << ")";
 }
@@ -694,13 +698,13 @@ void PrintCtx::instDecl(Instruction const* inst) const {
     }
     /// Name of the value
     if (!isa<VoidType>(inst->type())) {
-        str << formatName(inst) << equals();
+        str << doFormatName(inst) << equals();
     }
     /// Name of the instruction
     str << formatInstName(toStrName(inst)) << " ";
 }
 
-void PrintCtx::name(Value const* value) const { str << formatName(value); }
+void PrintCtx::name(Value const* value) const { str << doFormatName(value); }
 
 void PrintCtx::type(Type const* type) const { str << formatType(type); }
 

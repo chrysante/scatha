@@ -3,6 +3,7 @@
 #include <iostream>
 #include <span>
 
+#include <svm/Builtin.h>
 #include <utl/graph.hpp>
 #include <utl/vector.hpp>
 
@@ -10,6 +11,7 @@
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/IRParser.h"
+#include "IR/Module.h"
 #include "IR/Type.h"
 #include "IRGen/GlobalDecls.h"
 #include "IRGen/LoweringContext.h"
@@ -111,8 +113,12 @@ static void importLibrary(sema::NativeLibrary const& lib, ImportMap& importMap,
     SC_RELASSERT(archive, "Failed to open library file");
     auto code = archive->openTextFile(TargetNames::ObjectCodeName);
     SC_RELASSERT(code, "Failed to open object code file");
-    auto typeCallback = [&](ir::StructType& type) { importMap.insert(&type); };
-    auto objCallback = [&](ir::Global& object) {
+    auto typeCallback = [&](ir::StructType& type, ir::DeclToken& declToken) {
+        if (!importMap.insert(&type)) {
+            declToken.ignore();
+        }
+    };
+    auto objCallback = [&](ir::Global& object, ir::DeclToken&) {
         if (auto* irFn = dyncast<ir::Function*>(&object)) {
             irFn->setVisibility(ir::Visibility::Internal);
         }
@@ -120,7 +126,8 @@ static void importLibrary(sema::NativeLibrary const& lib, ImportMap& importMap,
     };
     auto parseIssues = ir::parseTo(*code, lctx.ctx, lctx.mod,
                                    { .typeParseCallback = typeCallback,
-                                     .objectParseCallback = objCallback });
+                                     .objectParseCallback = objCallback,
+                                     .assertInvariants = false });
     checkParserIssues(parseIssues, lib.path().string());
     MapCtx mapCtx(importMap, lctx);
     mapCtx.mapScope(lib);
@@ -141,6 +148,56 @@ static utl::small_vector<sema::NativeLibrary const*> topsortLibraries(
     return result;
 }
 
+static constexpr auto BuiltinPrefix = "__builtin_";
+
+static svm::Builtin nameToBuiltin(std::string_view name) {
+    static utl::hashmap<std::string_view, svm::Builtin> const map = {
+#define SVM_BUILTIN_DEF(Name, ...) { #Name, svm::Builtin::Name },
+#include <svm/Builtin.def.h>
+    };
+    auto itr = map.find(name);
+    SC_RELASSERT(itr != map.end(), "Unknown builtin name");
+    return itr->second;
+}
+
+static void declareBuiltinFunction(LoweringContext& lctx,
+                                   ir::ForeignFunction& F) {
+    SC_EXPECT(F.name().starts_with(BuiltinPrefix));
+    auto name = F.name().substr(std::strlen(BuiltinPrefix));
+    svm::Builtin key = nameToBuiltin(name);
+    auto* semaFn = lctx.symbolTable.builtinFunction((size_t)key);
+    lctx.globalMap.insert(semaFn, { &F, computeCallingConvention(*semaFn) });
+}
+
+static void uniqueGlobals(LoweringContext& lctx) {
+    utl::hashmap<std::string, ir::Global*> map;
+    utl::small_vector<ir::Global*> toErase;
+    auto impl = [&](ir::Global& global) {
+        auto [itr, success] =
+            map.insert({ std::string(global.name()), &global });
+        if (success) {
+            if (global.name().starts_with(BuiltinPrefix)) {
+                declareBuiltinFunction(lctx,
+                                       cast<ir::ForeignFunction&>(global));
+            }
+            return;
+        }
+        auto* existing = itr->second;
+        SC_RELASSERT(existing->nodeType() == global.nodeType(), "");
+        global.replaceAllUsesWith(existing);
+        toErase.push_back(&global);
+    };
+    for (auto& global: lctx.mod.globals()) {
+        impl(global);
+    }
+    for (auto& F: lctx.mod) {
+        impl(F);
+    }
+    for (auto* global: toErase) {
+        lctx.mod.erase(global);
+    }
+}
+
 void irgen::importLibraries(sema::SymbolTable const& sym,
                             LoweringContext& lctx) {
     /// We import libraries in topsort order because there may be dependencies
@@ -151,4 +208,5 @@ void irgen::importLibraries(sema::SymbolTable const& sym,
     for (auto* lib: libs) {
         importLibrary(*lib, importMap, lctx);
     }
+    uniqueGlobals(lctx);
 }

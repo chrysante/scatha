@@ -176,10 +176,16 @@ static_assert(sizeof(f64) == 8);
 using std::size_t;
 using ssize_t = std::ptrdiff_t;
 
-/// Exception class to be thrown if the installed assertion handler is `Throw`
-class AssertionFailure: public std::runtime_error {
+/// Base class of all scatha exceptions
+class Exception: public std::runtime_error {
 public:
     using runtime_error::runtime_error;
+};
+
+/// Exception class to be thrown if the installed assertion handler is `Throw`
+class AssertionFailure: public Exception {
+public:
+    using Exception::Exception;
 };
 
 } // namespace scatha

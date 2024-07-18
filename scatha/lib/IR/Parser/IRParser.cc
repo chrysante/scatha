@@ -405,25 +405,32 @@ std::vector<ParseIssue> ir::parseTo(std::string_view text, Context& ctx,
         return std::move(parser.issues);
     }
     parser.postProcess();
-    assertInvariants(ctx, mod);
+    if (options.assertInvariants) {
+        assertInvariants(ctx, mod);
+    }
     return {};
 }
 
 void IRParser::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
         try {
+            DeclToken declToken;
             if (auto type = parseStructure()) {
                 if (options.typeParseCallback) {
-                    options.typeParseCallback(*type);
+                    options.typeParseCallback(*type, declToken);
                 }
-                mod.addStructure(std::move(type));
+                if (!declToken.shallIgnore()) {
+                    mod.addStructure(std::move(type));
+                }
                 continue;
             }
             if (auto global = parseGlobal()) {
                 if (options.objectParseCallback) {
-                    options.objectParseCallback(*global);
+                    options.objectParseCallback(*global, declToken);
                 }
-                mod.addGlobal(std::move(global));
+                if (!declToken.shallIgnore()) {
+                    mod.addGlobal(std::move(global));
+                }
                 continue;
             }
             reportSyntaxIssue(peekToken());
@@ -1046,15 +1053,15 @@ Type const* IRParser::tryParseType() {
         return ctx.ptrType();
     case TokenKind::GlobalIdentifier: {
         eatToken();
-        auto structures = mod.structures();
-        auto itr = ranges::find_if(structures, [&](auto&& type) {
+        auto structures = mod.structTypes();
+        auto itr = ranges::find_if(structures, [&](auto* type) {
             // TODO: Handle '@' and '%' prefixes
             return type->name() == token.id();
         });
         if (itr == ranges::end(structures)) {
             reportSemaIssue(token, SemanticIssue::UseOfUndeclaredIdentifier);
         }
-        return itr->get();
+        return *itr;
     }
     case TokenKind::IntType:
         eatToken();

@@ -662,7 +662,14 @@ void GVNContext::assignRanks() {
             size_t rank = computeRank(&inst);
             globalRanks[&inst] = rank;
             localRanks[BB][&inst] = rank;
-            insertPoints[{ BB, rank }] = inst.next();
+            auto* insertPoint = [&] {
+                auto* p = inst.next();
+                while (isa<Alloca>(p)) {
+                    p = p->next();
+                }
+                return p;
+            }();
+            insertPoints[{ BB, rank }] = insertPoint;
             maxRank = std::max(maxRank, rank);
         }
     }

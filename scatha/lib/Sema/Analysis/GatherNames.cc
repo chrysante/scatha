@@ -66,8 +66,8 @@ size_t GatherContext::gather(ast::ASTNode& node) {
 }
 
 size_t GatherContext::gatherImpl(ast::TranslationUnit& TU) {
-    for (auto* file: TU.sourceFiles()) {
-        auto* scope = sym.declareFileScope(file->name());
+    for (auto [index, file]: TU.sourceFiles() | enumerate) {
+        auto* scope = sym.declareFileScope(index, file->name());
         sym.withScopeCurrent(scope, [&] { gather(*file); });
     }
     return InvalidIndex;

@@ -135,9 +135,9 @@ private:
 class ImportMap {
 public:
     template <typename T>
-    void insert(T* t) {
+    bool insert(T* t) {
         auto& map = getMap<std::remove_const_t<T>>();
-        map.insert({ std::string(t->name()), t });
+        return map.insert({ std::string(t->name()), t }).second;
     }
 
     template <typename TargetType>

@@ -227,9 +227,10 @@ AnonymousScope::AnonymousScope(ScopeKind scopeKind, Scope* parent):
 GlobalScope::GlobalScope():
     Scope(EntityType::GlobalScope, ScopeKind::Global, {}, nullptr) {}
 
-FileScope::FileScope(std::string filename, Scope* parent):
+FileScope::FileScope(size_t index, std::string filename, Scope* parent):
     Scope(EntityType::FileScope, ScopeKind::Global, std::move(filename),
-          parent) {}
+          parent),
+    _index(index) {}
 
 Library::Library(EntityType entityType, std::string name, Scope* parent):
     Scope(entityType, ScopeKind::Global, std::move(name), parent) {}

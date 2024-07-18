@@ -209,8 +209,8 @@ SymbolTable& SymbolTable::operator=(SymbolTable&& rhs) noexcept {
 
 SymbolTable::~SymbolTable() = default;
 
-FileScope* SymbolTable::declareFileScope(std::string filename) {
-    auto* file = impl->addEntity<FileScope>(filename, &globalScope());
+FileScope* SymbolTable::declareFileScope(size_t index, std::string filename) {
+    auto* file = impl->addEntity<FileScope>(index, filename, &globalScope());
     globalScope().addChild(file);
     return file;
 }

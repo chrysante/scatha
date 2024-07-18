@@ -72,10 +72,6 @@ void Module::erase(Global* global) {
     }; // clang-format on
 }
 
-List<Function>::iterator Module::erase(List<Function>::const_iterator itr) {
-    return funcs.erase(itr);
-}
-
 List<Function>::iterator Module::begin() { return funcs.begin(); }
 
 List<Function>::const_iterator Module::begin() const { return funcs.begin(); }

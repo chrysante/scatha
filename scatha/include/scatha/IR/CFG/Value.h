@@ -46,7 +46,7 @@ public:
     auto users() const { return _users | ranges::views::keys; }
 
     /// View of all users with use counts using this value.
-    auto countedUsers() const { return _users | Opaque; }
+    auto const& countedUsers() const { return _users; }
 
     /// Number of users using this value. Multiple uses by the same user are
     /// counted as one.

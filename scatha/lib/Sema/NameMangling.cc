@@ -48,6 +48,13 @@ struct Impl {
     std::string computeBase(Entity const& entity) {
         std::string result = std::string(entity.name());
         Scope const* scope = entity.parent();
+        /// Private symbols at file scope must be uniqued because the name may
+        /// be reused
+        if (auto* file = dyncast<FileScope const*>(scope);
+            file && entity.isPrivate())
+        {
+            result = utl::strcat(result, "_F", file->index());
+        }
         while (true) {
             SC_EXPECT(scope);
             auto [name, cont] = getScopeNameAndContinue(*scope);

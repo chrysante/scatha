@@ -471,7 +471,13 @@ public:
 /// Represents a file scope
 class SCATHA_API FileScope: public Scope {
 public:
-    explicit FileScope(std::string filename, Scope* parent);
+    explicit FileScope(size_t index, std::string filename, Scope* parent);
+
+    /// \Returns the index of the file
+    size_t index() const { return _index; }
+
+private:
+    size_t _index;
 };
 
 /// Abstract base class of `NativeLibrary` and `ForeignLibrary`

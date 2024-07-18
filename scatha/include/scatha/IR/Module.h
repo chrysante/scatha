@@ -2,6 +2,7 @@
 #define SCATHA_IR_MODULE_H_
 
 #include <span>
+#include <vector>
 
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
@@ -26,9 +27,6 @@ public:
     Module& operator=(Module const& rhs) = delete;
     Module& operator=(Module&& rhs) noexcept;
     ~Module();
-
-    /// \Returns a view over the user defined structs in this module
-    auto structures() const { return structs | Opaque; }
 
     /// \Returns a view over the functions in this module
     auto& functions() { return funcs; }
@@ -72,12 +70,12 @@ public:
     GlobalVariable* makeGlobalConstant(Context& ctx, Constant* value,
                                        std::string name);
 
+    /// \Returns a view over all struct types in the module
+    auto structTypes() const { return structs | ToAddress; }
+
     /// Erase the global  \p global from this module.  \p global can also be a
     /// function
     void erase(Global* global);
-
-    /// \overload
-    List<Function>::iterator erase(List<Function>::const_iterator funcItr);
 
     /// Functio container interface @{
     List<Function>::iterator begin();
@@ -92,7 +90,7 @@ public:
     /// @}
 
 private:
-    utl::vector<UniquePtr<StructType>> structs;
+    std::vector<UniquePtr<StructType>> structs;
     List<Global> _globals;
     utl::hashset<ForeignFunction*> _extFunctions;
     /// Map used to unique global constants

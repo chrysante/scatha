@@ -21,13 +21,30 @@ class Module;
 SCATHA_API Expected<std::pair<Context, Module>, ParseIssue> parse(
     std::string_view text);
 
+/// Communication channel for parser callbacks
+class DeclToken {
+public:
+    /// Called by a parser callback to ignore a declaration.
+    /// \Warning Currently this may only be called on type callbacks
+    void ignore() { _shallIgnore = true; }
+
+    ///
+    bool shallIgnore() const { return _shallIgnore; }
+
+private:
+    bool _shallIgnore = false;
+};
+
 /// Options structure for `parseTo()`
 struct ParseOptions {
     /// Callback that will be invoked when a type is parsed
-    utl::function_view<void(ir::StructType&)> typeParseCallback;
+    utl::function_view<void(ir::StructType&, DeclToken&)> typeParseCallback;
 
     /// Callback that will be invoked when a global is parsed
-    utl::function_view<void(ir::Global&)> objectParseCallback;
+    utl::function_view<void(ir::Global&, DeclToken&)> objectParseCallback;
+
+    /// Assert invariants after parsing
+    bool assertInvariants = true;
 };
 
 /// Parses \p text into the IR module \p mod
