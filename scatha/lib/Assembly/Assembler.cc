@@ -80,7 +80,7 @@ struct Assembler: AsmWriter {
 
     /// Append opcode  \p o to the back of the binary
     void put(svm::OpCode o) {
-        SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
+        SC_ASSERT(o != svm::InvalidOpcode, "Invalid opcode");
         put<std::underlying_type_t<svm::OpCode>>(utl::to_underlying(o));
     }
 
@@ -238,9 +238,8 @@ void Assembler::translate(LEAInst const& lea) {
 }
 
 void Assembler::translate(CompareInst const& cmp) {
-    OpCode const opcode =
-        mapCompare(cmp.type(), promote(cmp.lhs().valueType(), 8),
-                   promote(cmp.rhs().valueType(), 8), cmp.width());
+    OpCode opcode = mapCompare(cmp.type(), promote(cmp.lhs().valueType(), 8),
+                               promote(cmp.rhs().valueType(), 8), cmp.width());
     put(opcode);
     dispatch(promote(cmp.lhs(), 8));
     dispatch(promote(cmp.rhs(), 8));
@@ -286,8 +285,6 @@ void Assembler::translate(UnaryArithmeticInst const& inst) {
             SC_UNREACHABLE();
         }
         break;
-    case UnaryArithmeticOperation::_count:
-        SC_UNREACHABLE();
     }
     translate(inst.operand());
 }

@@ -757,7 +757,7 @@ Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
         return nullptr;
     case FtoS:
         return nullptr;
-    case Bitcast: {
+    case Bitcast:
         if (inst->operand()->type() == inst->type()) {
             return inst->operand();
         }
@@ -781,9 +781,6 @@ Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
             return inst;
         }
         return nullptr;
-    }
-    case _count:
-        SC_UNREACHABLE();
     }
 }
 
@@ -1021,9 +1018,6 @@ Value* InstCombineCtx::visitImpl(UnaryArithmeticInst* inst) {
     }
     case Negate:
         return nullptr;
-
-    case _count:
-        SC_UNREACHABLE();
     };
 }
 

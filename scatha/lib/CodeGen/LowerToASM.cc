@@ -376,40 +376,55 @@ void CGContext::genInstImpl(mir::SelectInst const&) {
 
 static Asm::UnaryArithmeticOperation mapUnaryArithmetic(
     mir::UnaryArithmeticOperation op) {
-    // clang-format off
-     return UTL_MAP_ENUM(op, Asm::UnaryArithmeticOperation, {
-         { mir::UnaryArithmeticOperation::BitwiseNot,
-         Asm::UnaryArithmeticOperation::BitwiseNot }, {
-         mir::UnaryArithmeticOperation::LogicalNot,
-         Asm::UnaryArithmeticOperation::LogicalNot }, {
-         mir::UnaryArithmeticOperation::Negate,
-         Asm::UnaryArithmeticOperation::Negate     },
-     }); // clang-format on
+    switch (op) {
+    case mir::UnaryArithmeticOperation::BitwiseNot:
+        return Asm::UnaryArithmeticOperation::BitwiseNot;
+    case mir::UnaryArithmeticOperation::LogicalNot:
+        return Asm::UnaryArithmeticOperation::LogicalNot;
+    case mir::UnaryArithmeticOperation::Negate:
+        return Asm::UnaryArithmeticOperation::Negate;
+    }
 }
 
 static Asm::ArithmeticOperation mapArithmetic(mir::ArithmeticOperation op) {
-    // clang-format off
-     return UTL_MAP_ENUM(op, Asm::ArithmeticOperation, {
-         { mir::ArithmeticOperation::Add,   Asm::ArithmeticOperation::Add  },
-         { mir::ArithmeticOperation::Sub,   Asm::ArithmeticOperation::Sub  },
-         { mir::ArithmeticOperation::Mul,   Asm::ArithmeticOperation::Mul  },
-         { mir::ArithmeticOperation::SDiv,  Asm::ArithmeticOperation::SDiv },
-         { mir::ArithmeticOperation::UDiv,  Asm::ArithmeticOperation::UDiv },
-         { mir::ArithmeticOperation::SRem,  Asm::ArithmeticOperation::SRem },
-         { mir::ArithmeticOperation::URem,  Asm::ArithmeticOperation::URem },
-         { mir::ArithmeticOperation::FAdd,  Asm::ArithmeticOperation::FAdd },
-         { mir::ArithmeticOperation::FSub,  Asm::ArithmeticOperation::FSub },
-         { mir::ArithmeticOperation::FMul,  Asm::ArithmeticOperation::FMul },
-         { mir::ArithmeticOperation::FDiv,  Asm::ArithmeticOperation::FDiv },
-         { mir::ArithmeticOperation::LShL,  Asm::ArithmeticOperation::LShL },
-         { mir::ArithmeticOperation::LShR,  Asm::ArithmeticOperation::LShR },
-         { mir::ArithmeticOperation::AShL,  Asm::ArithmeticOperation::AShL },
-         { mir::ArithmeticOperation::AShR,  Asm::ArithmeticOperation::AShR },
-         { mir::ArithmeticOperation::And,   Asm::ArithmeticOperation::And  },
-         { mir::ArithmeticOperation::Or,    Asm::ArithmeticOperation::Or   },
-         { mir::ArithmeticOperation::XOr,   Asm::ArithmeticOperation::XOr  },
-     });
-    // clang-format on
+    switch (op) {
+    case mir::ArithmeticOperation::Add:
+        return Asm::ArithmeticOperation::Add;
+    case mir::ArithmeticOperation::Sub:
+        return Asm::ArithmeticOperation::Sub;
+    case mir::ArithmeticOperation::Mul:
+        return Asm::ArithmeticOperation::Mul;
+    case mir::ArithmeticOperation::SDiv:
+        return Asm::ArithmeticOperation::SDiv;
+    case mir::ArithmeticOperation::UDiv:
+        return Asm::ArithmeticOperation::UDiv;
+    case mir::ArithmeticOperation::SRem:
+        return Asm::ArithmeticOperation::SRem;
+    case mir::ArithmeticOperation::URem:
+        return Asm::ArithmeticOperation::URem;
+    case mir::ArithmeticOperation::FAdd:
+        return Asm::ArithmeticOperation::FAdd;
+    case mir::ArithmeticOperation::FSub:
+        return Asm::ArithmeticOperation::FSub;
+    case mir::ArithmeticOperation::FMul:
+        return Asm::ArithmeticOperation::FMul;
+    case mir::ArithmeticOperation::FDiv:
+        return Asm::ArithmeticOperation::FDiv;
+    case mir::ArithmeticOperation::LShL:
+        return Asm::ArithmeticOperation::LShL;
+    case mir::ArithmeticOperation::LShR:
+        return Asm::ArithmeticOperation::LShR;
+    case mir::ArithmeticOperation::AShL:
+        return Asm::ArithmeticOperation::AShL;
+    case mir::ArithmeticOperation::AShR:
+        return Asm::ArithmeticOperation::AShR;
+    case mir::ArithmeticOperation::And:
+        return Asm::ArithmeticOperation::And;
+    case mir::ArithmeticOperation::Or:
+        return Asm::ArithmeticOperation::Or;
+    case mir::ArithmeticOperation::XOr:
+        return Asm::ArithmeticOperation::XOr;
+    }
 }
 
 static Asm::CompareOperation mapCompareOperation(mir::CompareOperation op) {
@@ -437,8 +452,6 @@ static Asm::Type mapCompareMode(ir::CompareMode mode) {
         return Type::Unsigned;
     case ir::CompareMode::Float:
         return Type::Float;
-    case ir::CompareMode::_count:
-        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }

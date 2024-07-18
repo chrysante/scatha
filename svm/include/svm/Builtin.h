@@ -12,17 +12,14 @@ namespace svm {
 enum class Builtin {
 #define SVM_BUILTIN_DEF(name, ...) name,
 #include <svm/Builtin.def.h>
-    _count
 };
 
 inline std::string_view toString(Builtin builtin) {
     switch (builtin) {
-        // clang-format off
-#define SVM_BUILTIN_DEF(name, ...) case Builtin::name: return #name;
+#define SVM_BUILTIN_DEF(name, ...)                                             \
+    case Builtin::name:                                                        \
+        return #name;
 #include <svm/Builtin.def.h>
-        // clang-format on
-    case Builtin::_count:
-        unreachable();
     }
     unreachable();
 }

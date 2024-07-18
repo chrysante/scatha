@@ -74,9 +74,8 @@ static OpCode mapCMovRR(CompareOperation cmpOp) {
         return OpCode::cmove64RR;
     case CompareOperation::NotEq:
         return OpCode::cmovne64RR;
-    default:
-        SC_UNREACHABLE();
     }
+    SC_UNREACHABLE();
 }
 
 static OpCode mapCMovRV(CompareOperation cmpOp) {
@@ -93,9 +92,8 @@ static OpCode mapCMovRV(CompareOperation cmpOp) {
         return OpCode::cmove64RV;
     case CompareOperation::NotEq:
         return OpCode::cmovne64RV;
-    default:
-        SC_UNREACHABLE();
     }
+    SC_UNREACHABLE();
 }
 
 static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
@@ -110,9 +108,8 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
             return OpCode::cmovl32RM;
         case 8:
             return OpCode::cmovl64RM;
-        default:
-            SC_UNREACHABLE();
         }
+        SC_UNREACHABLE();
     case CompareOperation::LessEq:
         switch (size) {
         case 1:
@@ -123,9 +120,8 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
             return OpCode::cmovle32RM;
         case 8:
             return OpCode::cmovle64RM;
-        default:
-            SC_UNREACHABLE();
         }
+        SC_UNREACHABLE();
     case CompareOperation::Greater:
         switch (size) {
         case 1:
@@ -136,9 +132,8 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
             return OpCode::cmovg32RM;
         case 8:
             return OpCode::cmovg64RM;
-        default:
-            SC_UNREACHABLE();
         }
+        SC_UNREACHABLE();
     case CompareOperation::GreaterEq:
         switch (size) {
         case 1:
@@ -149,9 +144,8 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
             return OpCode::cmovge32RM;
         case 8:
             return OpCode::cmovge64RM;
-        default:
-            SC_UNREACHABLE();
         }
+        SC_UNREACHABLE();
     case CompareOperation::Eq:
         switch (size) {
         case 1:
@@ -162,9 +156,8 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
             return OpCode::cmove32RM;
         case 8:
             return OpCode::cmove64RM;
-        default:
-            SC_UNREACHABLE();
         }
+        SC_UNREACHABLE();
     case CompareOperation::NotEq:
         switch (size) {
         case 1:
@@ -175,12 +168,10 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
             return OpCode::cmovne32RM;
         case 8:
             return OpCode::cmovne64RM;
-        default:
-            SC_UNREACHABLE();
         }
-    default:
         SC_UNREACHABLE();
     }
+    SC_UNREACHABLE();
 }
 
 std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp, ValueType dest,
@@ -199,23 +190,27 @@ std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp, ValueType dest,
         [[fallthrough]];
     case ValueType::Value64:
         return { mapCMovRV(cmpOp), 8 };
-    default:
-        /// No matching instruction.
-        SC_UNREACHABLE();
     }
+    SC_UNREACHABLE();
 }
 
 OpCode Asm::mapJump(CompareOperation condition) {
-    // clang-format off
-    return UTL_MAP_ENUM(condition, OpCode, {
-        { CompareOperation::None,      OpCode::jmp },
-        { CompareOperation::Less,      OpCode::jl  },
-        { CompareOperation::LessEq,    OpCode::jle },
-        { CompareOperation::Greater,   OpCode::jg  },
-        { CompareOperation::GreaterEq, OpCode::jge },
-        { CompareOperation::Eq,        OpCode::je  },
-        { CompareOperation::NotEq,     OpCode::jne },
-    }); // clang-format on
+    switch (condition) {
+    case CompareOperation::None:
+        return OpCode::jmp;
+    case CompareOperation::Less:
+        return OpCode::jl;
+    case CompareOperation::LessEq:
+        return OpCode::jle;
+    case CompareOperation::Greater:
+        return OpCode::jg;
+    case CompareOperation::GreaterEq:
+        return OpCode::jge;
+    case CompareOperation::Eq:
+        return OpCode::je;
+    case CompareOperation::NotEq:
+        return OpCode::jne;
+    }
 }
 
 OpCode Asm::mapCall(ValueType type) {
@@ -226,78 +221,97 @@ OpCode Asm::mapCall(ValueType type) {
         return OpCode::icallr;
     case ValueType::MemoryAddress:
         return OpCode::icallm;
-    default:
-        /// No matching instruction.
-        SC_UNREACHABLE();
     }
+    SC_UNREACHABLE();
 }
 
 OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
         switch (width) {
         case 1:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp8RR },
-                { Type::Unsigned, OpCode::ucmp8RR },
-                { Type::Float,    OpCode::_count },
-            }); // clang-format on
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp8RR;
+            case Type::Unsigned:
+                return OpCode::ucmp8RR;
+            case Type::Float:
+                return svm::InvalidOpcode;
+            }
+            SC_UNREACHABLE();
         case 2:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp16RR },
-                { Type::Unsigned, OpCode::ucmp16RR },
-                { Type::Float,    OpCode::_count },
-            }); // clang-format on
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp16RR;
+            case Type::Unsigned:
+                return OpCode::ucmp16RR;
+            case Type::Float:
+                return svm::InvalidOpcode;
+            }
+            SC_UNREACHABLE();
         case 4:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp32RR },
-                { Type::Unsigned, OpCode::ucmp32RR },
-                { Type::Float,    OpCode::fcmp32RR },
-            }); // clang-format on
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp32RR;
+            case Type::Unsigned:
+                return OpCode::ucmp32RR;
+            case Type::Float:
+                return OpCode::fcmp32RR;
+            }
+            SC_UNREACHABLE();
         case 8:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp64RR },
-                { Type::Unsigned, OpCode::ucmp64RR },
-                { Type::Float,    OpCode::fcmp64RR },
-            }); // clang-format on
-        default:
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp64RR;
+            case Type::Unsigned:
+                return OpCode::ucmp64RR;
+            case Type::Float:
+                return OpCode::fcmp64RR;
+            }
             SC_UNREACHABLE();
         }
+        SC_UNREACHABLE();
     }
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::Value64) {
         switch (width) {
         case 1:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp8RV },
-                { Type::Unsigned, OpCode::ucmp8RV },
-                { Type::Float,    OpCode::_count },
-            }); // clang-format on
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp8RV;
+            case Type::Unsigned:
+                return OpCode::ucmp8RV;
+            case Type::Float:
+                return svm::InvalidOpcode;
+            }
+            SC_UNREACHABLE();
         case 2:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp16RV },
-                { Type::Unsigned, OpCode::ucmp16RV },
-                { Type::Float,    OpCode::_count },
-            }); // clang-format on
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp16RV;
+            case Type::Unsigned:
+                return OpCode::ucmp16RV;
+            case Type::Float:
+                return svm::InvalidOpcode;
+            }
+            SC_UNREACHABLE();
         case 4:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp32RV },
-                { Type::Unsigned, OpCode::ucmp32RV },
-                { Type::Float,    OpCode::fcmp32RV },
-            }); // clang-format on
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp32RV;
+            case Type::Unsigned:
+                return OpCode::ucmp32RV;
+            case Type::Float:
+                return OpCode::fcmp32RV;
+            }
+            SC_UNREACHABLE();
         case 8:
-            // clang-format off
-            return UTL_MAP_ENUM(type, OpCode, {
-                { Type::Signed,   OpCode::scmp64RV },
-                { Type::Unsigned, OpCode::ucmp64RV },
-                { Type::Float,    OpCode::fcmp64RV },
-            }); // clang-format on
-        default:
+            switch (type) {
+            case Type::Signed:
+                return OpCode::scmp64RV;
+            case Type::Unsigned:
+                return OpCode::ucmp64RV;
+            case Type::Float:
+                return OpCode::fcmp64RV;
+            }
             SC_UNREACHABLE();
         }
     }
@@ -308,127 +322,192 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
 OpCode Asm::mapTest(Type type, size_t width) {
     switch (width) {
     case 1:
-        // clang-format off
-        return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::stest8 },
-            { Type::Unsigned, OpCode::utest8 },
-            { Type::Float,    OpCode::_count },
-        }); // clang-format on
+        switch (type) {
+        case Type::Signed:
+            return OpCode::stest8;
+        case Type::Unsigned:
+            return OpCode::utest8;
+        case Type::Float:
+            return svm::InvalidOpcode;
+        }
     case 2:
-        // clang-format off
-        return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::stest16 },
-            { Type::Unsigned, OpCode::utest16 },
-            { Type::Float,    OpCode::_count },
-        }); // clang-format on
+        switch (type) {
+        case Type::Signed:
+            return OpCode::stest16;
+        case Type::Unsigned:
+            return OpCode::utest16;
+        case Type::Float:
+            return svm::InvalidOpcode;
+        }
     case 4:
-        // clang-format off
-        return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::stest32 },
-            { Type::Unsigned, OpCode::utest32 },
-            { Type::Float,    OpCode::_count },
-        }); // clang-format on
+        switch (type) {
+        case Type::Signed:
+            return OpCode::stest32;
+        case Type::Unsigned:
+            return OpCode::utest32;
+        case Type::Float:
+            return svm::InvalidOpcode;
+        }
     case 8:
-        // clang-format off
-        return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::stest64 },
-            { Type::Unsigned, OpCode::utest64 },
-            { Type::Float,    OpCode::_count },
-        }); // clang-format on
+        switch (type) {
+        case Type::Signed:
+            return OpCode::stest64;
+        case Type::Unsigned:
+            return OpCode::utest64;
+        case Type::Float:
+            return svm::InvalidOpcode;
+        }
     default:
         SC_UNREACHABLE();
     }
 }
 
 OpCode Asm::mapSet(CompareOperation operation) {
-    // clang-format off
-    return UTL_MAP_ENUM(operation, OpCode, {
-        { CompareOperation::None,      OpCode::_count },
-        { CompareOperation::Less,      OpCode::setl  },
-        { CompareOperation::LessEq,    OpCode::setle },
-        { CompareOperation::Greater,   OpCode::setg  },
-        { CompareOperation::GreaterEq, OpCode::setge },
-        { CompareOperation::Eq,        OpCode::sete  },
-        { CompareOperation::NotEq,     OpCode::setne },
-    }); // clang-format on
+    switch (operation) {
+    case CompareOperation::None:
+        return svm::InvalidOpcode;
+    case CompareOperation::Less:
+        return OpCode::setl;
+    case CompareOperation::LessEq:
+        return OpCode::setle;
+    case CompareOperation::Greater:
+        return OpCode::setg;
+    case CompareOperation::GreaterEq:
+        return OpCode::setge;
+    case CompareOperation::Eq:
+        return OpCode::sete;
+    case CompareOperation::NotEq:
+        return OpCode::setne;
+    }
 }
 
 OpCode Asm::mapArithmetic64(ArithmeticOperation operation, ValueType dest,
                             ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
-        // clang-format off
-        return UTL_MAP_ENUM(operation, OpCode, {
-            { ArithmeticOperation::Add,  OpCode::add64RR },
-            { ArithmeticOperation::Sub,  OpCode::sub64RR },
-            { ArithmeticOperation::Mul,  OpCode::mul64RR },
-            { ArithmeticOperation::SDiv, OpCode::sdiv64RR },
-            { ArithmeticOperation::UDiv, OpCode::udiv64RR },
-            { ArithmeticOperation::SRem, OpCode::srem64RR },
-            { ArithmeticOperation::URem, OpCode::urem64RR },
-            { ArithmeticOperation::FAdd, OpCode::fadd64RR },
-            { ArithmeticOperation::FSub, OpCode::fsub64RR },
-            { ArithmeticOperation::FMul, OpCode::fmul64RR },
-            { ArithmeticOperation::FDiv, OpCode::fdiv64RR },
-            { ArithmeticOperation::LShL, OpCode::lsl64RR },
-            { ArithmeticOperation::LShR, OpCode::lsr64RR },
-            { ArithmeticOperation::AShL, OpCode::asl64RR },
-            { ArithmeticOperation::AShR, OpCode::asr64RR },
-            { ArithmeticOperation::And,  OpCode::and64RR },
-            { ArithmeticOperation::Or,   OpCode::or64RR },
-            { ArithmeticOperation::XOr,  OpCode::xor64RR },
-        }); // clang-format on
+        switch (operation) {
+        case ArithmeticOperation::Add:
+            return OpCode::add64RR;
+        case ArithmeticOperation::Sub:
+            return OpCode::sub64RR;
+        case ArithmeticOperation::Mul:
+            return OpCode::mul64RR;
+        case ArithmeticOperation::SDiv:
+            return OpCode::sdiv64RR;
+        case ArithmeticOperation::UDiv:
+            return OpCode::udiv64RR;
+        case ArithmeticOperation::SRem:
+            return OpCode::srem64RR;
+        case ArithmeticOperation::URem:
+            return OpCode::urem64RR;
+        case ArithmeticOperation::FAdd:
+            return OpCode::fadd64RR;
+        case ArithmeticOperation::FSub:
+            return OpCode::fsub64RR;
+        case ArithmeticOperation::FMul:
+            return OpCode::fmul64RR;
+        case ArithmeticOperation::FDiv:
+            return OpCode::fdiv64RR;
+        case ArithmeticOperation::LShL:
+            return OpCode::lsl64RR;
+        case ArithmeticOperation::LShR:
+            return OpCode::lsr64RR;
+        case ArithmeticOperation::AShL:
+            return OpCode::asl64RR;
+        case ArithmeticOperation::AShR:
+            return OpCode::asr64RR;
+        case ArithmeticOperation::And:
+            return OpCode::and64RR;
+        case ArithmeticOperation::Or:
+            return OpCode::or64RR;
+        case ArithmeticOperation::XOr:
+            return OpCode::xor64RR;
+        }
     }
     if (dest == ValueType::RegisterIndex &&
         (source == ValueType::Value64 || source == ValueType::Value8))
     {
         SC_ASSERT((source == ValueType::Value8) == isShift(operation),
                   "Only shift operations allow 8 bit literal operands");
-        // clang-format off
-        return UTL_MAP_ENUM(operation, OpCode, {
-            { ArithmeticOperation::Add,  OpCode::add64RV },
-            { ArithmeticOperation::Sub,  OpCode::sub64RV },
-            { ArithmeticOperation::Mul,  OpCode::mul64RV },
-            { ArithmeticOperation::SDiv, OpCode::sdiv64RV },
-            { ArithmeticOperation::UDiv, OpCode::udiv64RV },
-            { ArithmeticOperation::SRem, OpCode::srem64RV },
-            { ArithmeticOperation::URem, OpCode::urem64RV },
-            { ArithmeticOperation::FAdd, OpCode::fadd64RV },
-            { ArithmeticOperation::FSub, OpCode::fsub64RV },
-            { ArithmeticOperation::FMul, OpCode::fmul64RV },
-            { ArithmeticOperation::FDiv, OpCode::fdiv64RV },
-            { ArithmeticOperation::LShL, OpCode::lsl64RV },
-            { ArithmeticOperation::LShR, OpCode::lsr64RV },
-            { ArithmeticOperation::AShL, OpCode::asl64RV },
-            { ArithmeticOperation::AShR, OpCode::asr64RV },
-            { ArithmeticOperation::And,  OpCode::and64RV },
-            { ArithmeticOperation::Or,   OpCode::or64RV },
-            { ArithmeticOperation::XOr,  OpCode::xor64RV },
-        }); // clang-format on
+        switch (operation) {
+        case ArithmeticOperation::Add:
+            return OpCode::add64RV;
+        case ArithmeticOperation::Sub:
+            return OpCode::sub64RV;
+        case ArithmeticOperation::Mul:
+            return OpCode::mul64RV;
+        case ArithmeticOperation::SDiv:
+            return OpCode::sdiv64RV;
+        case ArithmeticOperation::UDiv:
+            return OpCode::udiv64RV;
+        case ArithmeticOperation::SRem:
+            return OpCode::srem64RV;
+        case ArithmeticOperation::URem:
+            return OpCode::urem64RV;
+        case ArithmeticOperation::FAdd:
+            return OpCode::fadd64RV;
+        case ArithmeticOperation::FSub:
+            return OpCode::fsub64RV;
+        case ArithmeticOperation::FMul:
+            return OpCode::fmul64RV;
+        case ArithmeticOperation::FDiv:
+            return OpCode::fdiv64RV;
+        case ArithmeticOperation::LShL:
+            return OpCode::lsl64RV;
+        case ArithmeticOperation::LShR:
+            return OpCode::lsr64RV;
+        case ArithmeticOperation::AShL:
+            return OpCode::asl64RV;
+        case ArithmeticOperation::AShR:
+            return OpCode::asr64RV;
+        case ArithmeticOperation::And:
+            return OpCode::and64RV;
+        case ArithmeticOperation::Or:
+            return OpCode::or64RV;
+        case ArithmeticOperation::XOr:
+            return OpCode::xor64RV;
+        }
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
     {
-        // clang-format off
-        return UTL_MAP_ENUM(operation, OpCode, {
-            { ArithmeticOperation::Add,  OpCode::add64RM  },
-            { ArithmeticOperation::Sub,  OpCode::sub64RM  },
-            { ArithmeticOperation::Mul,  OpCode::mul64RM  },
-            { ArithmeticOperation::SDiv, OpCode::sdiv64RM },
-            { ArithmeticOperation::UDiv, OpCode::udiv64RM },
-            { ArithmeticOperation::SRem, OpCode::srem64RM },
-            { ArithmeticOperation::URem, OpCode::urem64RM },
-            { ArithmeticOperation::FAdd, OpCode::fadd64RM },
-            { ArithmeticOperation::FSub, OpCode::fsub64RM },
-            { ArithmeticOperation::FMul, OpCode::fmul64RM },
-            { ArithmeticOperation::FDiv, OpCode::fdiv64RM },
-            { ArithmeticOperation::LShL, OpCode::lsl64RM  },
-            { ArithmeticOperation::LShR, OpCode::lsr64RM  },
-            { ArithmeticOperation::AShL, OpCode::asl64RM  },
-            { ArithmeticOperation::AShR, OpCode::asr64RM  },
-            { ArithmeticOperation::And,  OpCode::and64RM  },
-            { ArithmeticOperation::Or,   OpCode::or64RM   },
-            { ArithmeticOperation::XOr,  OpCode::xor64RM  },
-        }); // clang-format on
+        switch (operation) {
+        case ArithmeticOperation::Add:
+            return OpCode::add64RM;
+        case ArithmeticOperation::Sub:
+            return OpCode::sub64RM;
+        case ArithmeticOperation::Mul:
+            return OpCode::mul64RM;
+        case ArithmeticOperation::SDiv:
+            return OpCode::sdiv64RM;
+        case ArithmeticOperation::UDiv:
+            return OpCode::udiv64RM;
+        case ArithmeticOperation::SRem:
+            return OpCode::srem64RM;
+        case ArithmeticOperation::URem:
+            return OpCode::urem64RM;
+        case ArithmeticOperation::FAdd:
+            return OpCode::fadd64RM;
+        case ArithmeticOperation::FSub:
+            return OpCode::fsub64RM;
+        case ArithmeticOperation::FMul:
+            return OpCode::fmul64RM;
+        case ArithmeticOperation::FDiv:
+            return OpCode::fdiv64RM;
+        case ArithmeticOperation::LShL:
+            return OpCode::lsl64RM;
+        case ArithmeticOperation::LShR:
+            return OpCode::lsr64RM;
+        case ArithmeticOperation::AShL:
+            return OpCode::asl64RM;
+        case ArithmeticOperation::AShR:
+            return OpCode::asr64RM;
+        case ArithmeticOperation::And:
+            return OpCode::and64RM;
+        case ArithmeticOperation::Or:
+            return OpCode::or64RM;
+        case ArithmeticOperation::XOr:
+            return OpCode::xor64RM;
+        }
     }
     /// No matching instruction.
     SC_UNREACHABLE();
@@ -438,78 +517,129 @@ OpCode Asm::mapArithmetic32(ArithmeticOperation operation, ValueType dest,
                             ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
-        // clang-format off
-        return UTL_MAP_ENUM(operation, OpCode, {
-            { ArithmeticOperation::Add,  OpCode::add32RR },
-            { ArithmeticOperation::Sub,  OpCode::sub32RR },
-            { ArithmeticOperation::Mul,  OpCode::mul32RR },
-            { ArithmeticOperation::SDiv, OpCode::sdiv32RR },
-            { ArithmeticOperation::UDiv, OpCode::udiv32RR },
-            { ArithmeticOperation::SRem, OpCode::srem32RR },
-            { ArithmeticOperation::URem, OpCode::urem32RR },
-            { ArithmeticOperation::FAdd, OpCode::fadd32RR },
-            { ArithmeticOperation::FSub, OpCode::fsub32RR },
-            { ArithmeticOperation::FMul, OpCode::fmul32RR },
-            { ArithmeticOperation::FDiv, OpCode::fdiv32RR },
-            { ArithmeticOperation::LShL, OpCode::lsl32RR },
-            { ArithmeticOperation::LShR, OpCode::lsr32RR },
-            { ArithmeticOperation::AShL, OpCode::asl32RR },
-            { ArithmeticOperation::AShR, OpCode::asr32RR },
-            { ArithmeticOperation::And,  OpCode::and32RR },
-            { ArithmeticOperation::Or,   OpCode::or32RR },
-            { ArithmeticOperation::XOr,  OpCode::xor32RR },
-        }); // clang-format on
+        switch (operation) {
+        case ArithmeticOperation::Add:
+            return OpCode::add32RR;
+        case ArithmeticOperation::Sub:
+            return OpCode::sub32RR;
+        case ArithmeticOperation::Mul:
+            return OpCode::mul32RR;
+        case ArithmeticOperation::SDiv:
+            return OpCode::sdiv32RR;
+        case ArithmeticOperation::UDiv:
+            return OpCode::udiv32RR;
+        case ArithmeticOperation::SRem:
+            return OpCode::srem32RR;
+        case ArithmeticOperation::URem:
+            return OpCode::urem32RR;
+        case ArithmeticOperation::FAdd:
+            return OpCode::fadd32RR;
+        case ArithmeticOperation::FSub:
+            return OpCode::fsub32RR;
+        case ArithmeticOperation::FMul:
+            return OpCode::fmul32RR;
+        case ArithmeticOperation::FDiv:
+            return OpCode::fdiv32RR;
+        case ArithmeticOperation::LShL:
+            return OpCode::lsl32RR;
+        case ArithmeticOperation::LShR:
+            return OpCode::lsr32RR;
+        case ArithmeticOperation::AShL:
+            return OpCode::asl32RR;
+        case ArithmeticOperation::AShR:
+            return OpCode::asr32RR;
+        case ArithmeticOperation::And:
+            return OpCode::and32RR;
+        case ArithmeticOperation::Or:
+            return OpCode::or32RR;
+        case ArithmeticOperation::XOr:
+            return OpCode::xor32RR;
+        }
     }
     if (dest == ValueType::RegisterIndex &&
         (source == ValueType::Value32 || source == ValueType::Value8))
     {
         SC_ASSERT((source == ValueType::Value8) == isShift(operation),
                   "Only shift operations allow 8 bit literal operands");
-        // clang-format off
-        return UTL_MAP_ENUM(operation, OpCode, {
-            { ArithmeticOperation::Add,  OpCode::add32RV },
-            { ArithmeticOperation::Sub,  OpCode::sub32RV },
-            { ArithmeticOperation::Mul,  OpCode::mul32RV },
-            { ArithmeticOperation::SDiv, OpCode::sdiv32RV },
-            { ArithmeticOperation::UDiv, OpCode::udiv32RV },
-            { ArithmeticOperation::SRem, OpCode::srem32RV },
-            { ArithmeticOperation::URem, OpCode::urem32RV },
-            { ArithmeticOperation::FAdd, OpCode::fadd32RV },
-            { ArithmeticOperation::FSub, OpCode::fsub32RV },
-            { ArithmeticOperation::FMul, OpCode::fmul32RV },
-            { ArithmeticOperation::FDiv, OpCode::fdiv32RV },
-            { ArithmeticOperation::LShL, OpCode::lsl32RV },
-            { ArithmeticOperation::LShR, OpCode::lsr32RV },
-            { ArithmeticOperation::AShL, OpCode::asl32RV },
-            { ArithmeticOperation::AShR, OpCode::asr32RV },
-            { ArithmeticOperation::And,  OpCode::and32RV },
-            { ArithmeticOperation::Or,   OpCode::or32RV },
-            { ArithmeticOperation::XOr,  OpCode::xor32RV },
-        }); // clang-format on
+        switch (operation) {
+        case ArithmeticOperation::Add:
+            return OpCode::add32RV;
+        case ArithmeticOperation::Sub:
+            return OpCode::sub32RV;
+        case ArithmeticOperation::Mul:
+            return OpCode::mul32RV;
+        case ArithmeticOperation::SDiv:
+            return OpCode::sdiv32RV;
+        case ArithmeticOperation::UDiv:
+            return OpCode::udiv32RV;
+        case ArithmeticOperation::SRem:
+            return OpCode::srem32RV;
+        case ArithmeticOperation::URem:
+            return OpCode::urem32RV;
+        case ArithmeticOperation::FAdd:
+            return OpCode::fadd32RV;
+        case ArithmeticOperation::FSub:
+            return OpCode::fsub32RV;
+        case ArithmeticOperation::FMul:
+            return OpCode::fmul32RV;
+        case ArithmeticOperation::FDiv:
+            return OpCode::fdiv32RV;
+        case ArithmeticOperation::LShL:
+            return OpCode::lsl32RV;
+        case ArithmeticOperation::LShR:
+            return OpCode::lsr32RV;
+        case ArithmeticOperation::AShL:
+            return OpCode::asl32RV;
+        case ArithmeticOperation::AShR:
+            return OpCode::asr32RV;
+        case ArithmeticOperation::And:
+            return OpCode::and32RV;
+        case ArithmeticOperation::Or:
+            return OpCode::or32RV;
+        case ArithmeticOperation::XOr:
+            return OpCode::xor32RV;
+        }
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
     {
-        // clang-format off
-        return UTL_MAP_ENUM(operation, OpCode, {
-            { ArithmeticOperation::Add,  OpCode::add32RM  },
-            { ArithmeticOperation::Sub,  OpCode::sub32RM  },
-            { ArithmeticOperation::Mul,  OpCode::mul32RM  },
-            { ArithmeticOperation::SDiv, OpCode::sdiv32RM },
-            { ArithmeticOperation::UDiv, OpCode::udiv32RM },
-            { ArithmeticOperation::SRem, OpCode::srem32RM },
-            { ArithmeticOperation::URem, OpCode::urem32RM },
-            { ArithmeticOperation::FAdd, OpCode::fadd32RM },
-            { ArithmeticOperation::FSub, OpCode::fsub32RM },
-            { ArithmeticOperation::FMul, OpCode::fmul32RM },
-            { ArithmeticOperation::FDiv, OpCode::fdiv32RM },
-            { ArithmeticOperation::LShL, OpCode::lsl32RM  },
-            { ArithmeticOperation::LShR, OpCode::lsr32RM  },
-            { ArithmeticOperation::AShL, OpCode::asl32RM  },
-            { ArithmeticOperation::AShR, OpCode::asr32RM  },
-            { ArithmeticOperation::And,  OpCode::and32RM  },
-            { ArithmeticOperation::Or,   OpCode::or32RM   },
-            { ArithmeticOperation::XOr,  OpCode::xor32RM  },
-        }); // clang-format on
+        switch (operation) {
+        case ArithmeticOperation::Add:
+            return OpCode::add32RM;
+        case ArithmeticOperation::Sub:
+            return OpCode::sub32RM;
+        case ArithmeticOperation::Mul:
+            return OpCode::mul32RM;
+        case ArithmeticOperation::SDiv:
+            return OpCode::sdiv32RM;
+        case ArithmeticOperation::UDiv:
+            return OpCode::udiv32RM;
+        case ArithmeticOperation::SRem:
+            return OpCode::srem32RM;
+        case ArithmeticOperation::URem:
+            return OpCode::urem32RM;
+        case ArithmeticOperation::FAdd:
+            return OpCode::fadd32RM;
+        case ArithmeticOperation::FSub:
+            return OpCode::fsub32RM;
+        case ArithmeticOperation::FMul:
+            return OpCode::fmul32RM;
+        case ArithmeticOperation::FDiv:
+            return OpCode::fdiv32RM;
+        case ArithmeticOperation::LShL:
+            return OpCode::lsl32RM;
+        case ArithmeticOperation::LShR:
+            return OpCode::lsr32RM;
+        case ArithmeticOperation::AShL:
+            return OpCode::asl32RM;
+        case ArithmeticOperation::AShR:
+            return OpCode::asr32RM;
+        case ArithmeticOperation::And:
+            return OpCode::and32RM;
+        case ArithmeticOperation::Or:
+            return OpCode::or32RM;
+        case ArithmeticOperation::XOr:
+            return OpCode::xor32RM;
+        }
     }
     /// No matching instruction.
     SC_UNREACHABLE();

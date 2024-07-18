@@ -35,12 +35,10 @@ std::ostream& ir::operator<<(std::ostream& ostream, AttributeType attrib) {
 
 std::string_view ir::toString(Conversion conv) {
     switch (conv) {
-        // clang-format off
-#define SC_CONVERSION_DEF(Conv, Keyword) case Conversion::Conv: return #Keyword;
+#define SC_CONVERSION_DEF(Conv, Keyword)                                       \
+    case Conversion::Conv:                                                     \
+        return #Keyword;
 #include "IR/Lists.def.h"
-        // clang-format on
-    case Conversion::_count:
-        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -51,13 +49,10 @@ std::ostream& ir::operator<<(std::ostream& ostream, Conversion conv) {
 
 std::string_view ir::toString(CompareMode mode) {
     switch (mode) {
-        // clang-format off
 #define SC_COMPARE_MODE_DEF(Mode, name)                                        \
-    case CompareMode::Mode: return #name;
+    case CompareMode::Mode:                                                    \
+        return #name;
 #include "IR/Lists.def.h"
-        // clang-format on
-    case CompareMode::_count:
-        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -100,13 +95,10 @@ CompareOperation ir::inverse(CompareOperation compareOp) {
 
 std::string_view ir::toString(UnaryArithmeticOperation op) {
     switch (op) {
-        // clang-format off
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, name)                            \
-    case UnaryArithmeticOperation::Op: return #name;
+    case UnaryArithmeticOperation::Op:                                         \
+        return #name;
 #include "IR/Lists.def.h"
-        // clang-format on
-    case UnaryArithmeticOperation::_count:
-        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -118,13 +110,10 @@ std::ostream& ir::operator<<(std::ostream& ostream,
 
 std::string_view ir::toString(ArithmeticOperation op) {
     switch (op) {
-        // clang-format off
 #define SC_ARITHMETIC_OPERATION_DEF(Op, name)                                  \
-    case ArithmeticOperation::Op: return #name;
+    case ArithmeticOperation::Op:                                              \
+        return #name;
 #include "IR/Lists.def.h"
-        // clang-format on
-    case ArithmeticOperation::_count:
-        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -149,7 +138,6 @@ bool ir::isCommutative(ArithmeticOperation op) {
     case FAdd:
     case FMul:
         return true;
-
     default:
         return false;
     }

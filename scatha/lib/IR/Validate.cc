@@ -305,8 +305,6 @@ void AssertFnCtx::assertInvariantsImpl(CompareInst const& cmp) {
     case CompareMode::Float:
         check(isa<FloatType>(type), cmp, "Type must be float");
         break;
-    case CompareMode::_count:
-        SC_UNREACHABLE();
     }
 }
 

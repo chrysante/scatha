@@ -9,17 +9,22 @@ using namespace scatha;
 using namespace Asm;
 
 size_t Asm::sizeOf(ValueType type) {
-    // clang-format off
-    return UTL_MAP_ENUM(type, size_t, {
-        { ValueType::RegisterIndex, 1 },
-        { ValueType::MemoryAddress, 4 },
-        { ValueType::Value8,        1 },
-        { ValueType::Value16,       2 },
-        { ValueType::Value32,       4 },
-        { ValueType::Value64,       8 },
-        { ValueType::LabelPosition, 4 },
-    });
-    // clang-format on
+    switch (type) {
+    case ValueType::RegisterIndex:
+        return 1;
+    case ValueType::MemoryAddress:
+        return 4;
+    case ValueType::Value8:
+        return 1;
+    case ValueType::Value16:
+        return 2;
+    case ValueType::Value32:
+        return 4;
+    case ValueType::Value64:
+        return 8;
+    case ValueType::LabelPosition:
+        return 4;
+    }
 }
 
 bool Asm::isLiteralValue(ValueType type) {

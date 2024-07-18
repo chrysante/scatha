@@ -16,7 +16,6 @@ void CMoveInst::verify() {
 }
 
 void ArithmeticInst::verify() const {
-    SC_ASSERT(operation() != ArithmeticOperation::_count, "Invalid operation.");
     SC_ASSERT(dest().is<RegisterIndex>(),
               "Dest operand must always be a register index.");
     SC_ASSERT(width() == 4 || width() == 8, "Invalid width");
@@ -51,9 +50,6 @@ static void verifyWidth(Type type, size_t bits) {
     case Type::Float:
         SC_ASSERT(bits == 32 || bits == 64, "Invalid bit width");
         break;
-
-    case Type::_count:
-        SC_UNREACHABLE();
     }
 };
 

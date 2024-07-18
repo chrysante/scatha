@@ -30,8 +30,6 @@ static std::string_view typeToChar(Type type) {
         return "u";
     case Type::Float:
         return "f";
-    case Type::_count:
-        SC_UNREACHABLE();
     }
     SC_UNREACHABLE();
 }
@@ -141,12 +139,16 @@ struct PrintCtx {
     }
 
     void printImpl(CompareInst const& cmp) {
-        // clang-format off
-        auto name = UTL_MAP_ENUM(cmp.type(), std::string_view, {
-            { Type::Signed,   "scmp" },
-            { Type::Unsigned, "ucmp" },
-            { Type::Float,    "fcmp" },
-        }); // clang-format on
+        auto name = [&]() -> std::string_view {
+            switch (cmp.type()) {
+            case Type::Signed:
+                return "scmp";
+            case Type::Unsigned:
+                return "ucmp";
+            case Type::Float:
+                return "fcmp";
+            }
+        }();
         str << instName(name, cmp.width() * 8) << " " << cmp.lhs() << ", "
             << cmp.rhs();
     }

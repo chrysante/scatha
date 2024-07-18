@@ -177,8 +177,6 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
                                          inst.metadata()));
             break;
         }
-        case ir::Conversion::_count:
-            SC_UNREACHABLE();
         }
         return true;
     }

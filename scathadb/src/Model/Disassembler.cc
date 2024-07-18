@@ -152,8 +152,6 @@ static void print(std::ostream& str, Instruction inst,
             assert(false);
         }
         break;
-    case _count:
-        assert(false);
     }
 }
 

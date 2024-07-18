@@ -48,8 +48,9 @@ namespace svm {
 enum class OpCode : u8 {
 #define SVM_INSTRUCTION_DEF(inst, class) inst,
 #include <svm/OpCode.def.h>
-    _count
 };
+
+inline constexpr OpCode InvalidOpcode = (OpCode)0xFF;
 
 ///
 std::string_view toString(OpCode);
@@ -58,7 +59,7 @@ std::string_view toString(OpCode);
 std::ostream& operator<<(std::ostream&, OpCode);
 
 ///
-enum class OpCodeClass { RR, RV64, RV32, RV8, RM, MR, R, Jump, Other, _count };
+enum class OpCodeClass { RR, RV64, RV32, RV8, RM, MR, R, Jump, Other };
 
 /// Maps opcodes to their class
 inline constexpr OpCodeClass classify(OpCode code) {
@@ -112,8 +113,6 @@ inline constexpr size_t codeSize(OpCode code) {
     case OpCodeClass::Jump:
         return sizeof(OpCode) + 4;
     case OpCodeClass::Other:
-        unreachable();
-    case _count:
         unreachable();
     }
     unreachable();

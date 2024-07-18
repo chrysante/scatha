@@ -17,7 +17,6 @@ enum class TokenKind {
 #define SC_PUNCTUATION_TOKEN_DEF(Token, _) Token,
 #define SC_OTHER_TOKEN_DEF(Token, _)       Token,
 #include <scatha/Parser/Token.def.h>
-    _count
 };
 
 /// \Returns the case name of \p tokenKind as a string

@@ -100,7 +100,6 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 enum class Conversion {
 #define SC_CONVERSION_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def.h>
-    _count
 };
 
 /// Convert \p conv to string
@@ -113,7 +112,6 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, Conversion conv);
 enum class CompareMode {
 #define SC_COMPARE_MODE_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def.h>
-    _count
 };
 
 /// Convert \p compareMode to string
@@ -150,7 +148,6 @@ CompareOperation inverse(CompareOperation compareOp);
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def.h>
-    _count
 };
 
 /// Convert \p unaryArithmeticOp to string
@@ -165,7 +162,6 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def.h>
-    _count
 };
 
 /// Convert \p arithmeticOp to string
@@ -197,7 +193,6 @@ enum class TypeCategory {
 enum class Visibility {
 #define SC_VISKIND_DEF(vis) vis,
 #include <scatha/IR/Lists.def.h>
-    _count
 };
 
 /// Bitfield of function attributes

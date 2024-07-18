@@ -494,8 +494,6 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
         }
         return Inevaluable{};
     }
-    case Conversion::_count:
-        SC_UNREACHABLE();
     }
 }
 
@@ -629,17 +627,9 @@ FormalValue SCCPContext::evaluateUnaryArithmetic(
                 return sub(APInt(1, operand.bitwidth()), operand);
             case UnaryArithmeticOperation::Negate:
                 return negate(operand);
-            case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
             }
         },
-        [&](APFloat const&) -> FormalValue {
-            switch (operation) {
-            case UnaryArithmeticOperation::BitwiseNot: [[fallthrough]];
-            case UnaryArithmeticOperation::LogicalNot: [[fallthrough]];
-            case UnaryArithmeticOperation::Negate: [[fallthrough]];
-            case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
-            }
-        },
+        [&](APFloat const&) -> FormalValue { SC_UNREACHABLE(); },
         [](auto const&) -> FormalValue { return Inevaluable{}; },
     }, operand); // clang-format on
 }
