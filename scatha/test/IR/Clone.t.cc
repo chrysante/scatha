@@ -18,8 +18,8 @@ TEST_CASE("IR clone", "[ir][parser]") {
 func i64 @f(i64) {
   %entry:
     %i.addr = alloca i64
-    store ptr %i.addr, i64 %0
     %j.ptr = alloca i64
+    store ptr %i.addr, i64 %0
     %i = load i64, ptr %i.addr
     %expr.result = mul i64 %i, i64 2
     store ptr %j.ptr, i64 %expr.result
@@ -47,11 +47,11 @@ func i64 @f(i64) {
         testBasicBlock("entry").instructions({
             testInstruction("i.addr")
                 .instType(Alloca),
+            testInstruction("j.ptr")
+                .instType(Alloca),
             testInstruction("")
                 .instType(Store)
                 .references({ "i.addr", "0" }),
-            testInstruction("j.ptr")
-                .instType(Alloca),
             testInstruction("i")
                 .instType(Load)
                 .references({ "i.addr" }),

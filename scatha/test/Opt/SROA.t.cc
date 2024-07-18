@@ -457,8 +457,8 @@ ext func void @__builtin_memcpy(ptr, i64, ptr, i64)
 func void @test() {
 %entry:
     %data = alloca i64, i32 2
-    %elem = getelementptr inbounds i64, ptr %data, i32 1
     %target = alloca i64, i32 1
+    %elem = getelementptr inbounds i64, ptr %data, i32 1
     branch i1 1, label %foo, label %bar
 
 %foo:

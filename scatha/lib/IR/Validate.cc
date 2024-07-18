@@ -134,15 +134,16 @@ void AssertFnCtx::assertInvariants(BasicBlock const& BB) {
         else {
             foundNonPhi = true;
         }
-#if 0
         if (isa<Alloca>(inst)) {
-            check(!foundNonAlloca, inst, "Allocas may not appear after one non-alloca instruction has appeared");
-            check(BB.isEntry(), inst, "Allocas may only appear in the entry block");
+            check(
+                !foundNonAlloca, inst,
+                "Allocas may not appear after one non-alloca instruction has appeared");
+            check(BB.isEntry(), inst,
+                  "Allocas may only appear in the entry block");
         }
         else {
             foundNonAlloca = true;
         }
-#endif
         check(
             isa<TerminatorInst>(inst) == (&inst == &BB.back()), inst,
             "The last instruction must be the one and only terminator of a basic block");

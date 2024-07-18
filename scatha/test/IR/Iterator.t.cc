@@ -18,8 +18,8 @@ TEST_CASE("Iterate over instructions in a function", "[ir][opt]") {
 func i64 @ff(i64) {
   %entry:
     %n.addr = alloca i64
-    store ptr %n.addr, i64 %0
     %k-ptr = alloca i64
+    store ptr %n.addr, i64 %0
     %n = load i64, ptr %n.addr
     store ptr %k-ptr, i64 %n
     %k = load i64, ptr %k-ptr
@@ -38,7 +38,7 @@ func i64 @ff(i64) {
     auto [ctx, mod] = ir::parse(text).value();
     auto& function = mod.front();
     ir::NodeType const reference[] = {
-        ir::NodeType::Alloca,      ir::NodeType::Store,  ir::NodeType::Alloca,
+        ir::NodeType::Alloca,      ir::NodeType::Alloca, ir::NodeType::Store,
         ir::NodeType::Load,        ir::NodeType::Store,  ir::NodeType::Load,
         ir::NodeType::CompareInst, ir::NodeType::Branch, ir::NodeType::Store,
         ir::NodeType::Load,        ir::NodeType::Goto,   ir::NodeType::Load,
