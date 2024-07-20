@@ -35,7 +35,7 @@ public:
 
     /// \Returns the number of allocated bytes if this alloca is static.
     /// Otherwise returns `std::nullopt`
-    std::optional<size_t> allocatedSize() const;
+    std::optional<ssize_t> allocatedSize() const;
 
     /// Set the number of objects allocated.
     void setCount(Value* count) { setOperand(0, count); }

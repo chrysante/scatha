@@ -29,9 +29,9 @@ std::optional<size_t> Alloca::constantCount() const {
     return constCount->value().to<size_t>();
 }
 
-std::optional<size_t> Alloca::allocatedSize() const {
+std::optional<ssize_t> Alloca::allocatedSize() const {
     if (auto count = constantCount()) {
-        return allocatedType()->size() * *count;
+        return (ssize_t)(allocatedType()->size() * *count);
     }
     return std::nullopt;
 }

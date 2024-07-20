@@ -1210,11 +1210,11 @@ void IRParser::parseMetadataFor(Value& value) {
             return;
         }
         eatToken(); // Open paran
-        std::optional<size_t> align;
-        std::optional<size_t> validSize;
+        std::optional<ssize_t> align;
+        std::optional<ssize_t> validSize;
         Type const* provType = nullptr;
         std::optional<OptValue> prov;
-        std::optional<size_t> provOffset;
+        std::optional<ssize_t> provOffset;
         bool nonnull = false;
         for (int i = 0;; ++i) {
             auto tok = eatToken();
@@ -1230,11 +1230,11 @@ void IRParser::parseMetadataFor(Value& value) {
             }
             if (tok.id() == "align") {
                 expect(eatToken(), TokenKind::Colon);
-                align = parseInt(eatToken(), /*width=*/9).to<size_t>();
+                align = parseInt(eatToken(), 64).to<ssize_t>();
             }
             else if (tok.id() == "validsize") {
                 expect(eatToken(), TokenKind::Colon);
-                validSize = parseInt(eatToken(), /*width=*/54).to<size_t>();
+                validSize = parseInt(eatToken(), 64).to<ssize_t>();
             }
             else if (tok.id() == "provenance") {
                 expect(eatToken(), TokenKind::Colon);
@@ -1243,7 +1243,7 @@ void IRParser::parseMetadataFor(Value& value) {
             }
             else if (tok.id() == "offset") {
                 expect(eatToken(), TokenKind::Colon);
-                provOffset = parseInt(eatToken(), /*width=*/54).to<size_t>();
+                provOffset = parseInt(eatToken(), 64).to<ssize_t>();
             }
             else if (tok.id() == "nonnull") {
                 nonnull = true;

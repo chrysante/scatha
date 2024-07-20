@@ -10,10 +10,10 @@ namespace scatha::ir {
 
 /// Parameters to initialize `PointerInfo`
 struct PointerInfoDesc {
-    size_t align;
-    std::optional<size_t> validSize;
-    Value* provenance;
-    std::optional<size_t> staticProvenanceOffset;
+    ssize_t align = 0;
+    std::optional<ssize_t> validSize;
+    Value* provenance = nullptr;
+    std::optional<ssize_t> staticProvenanceOffset;
     bool guaranteedNotNull = false;
 };
 
@@ -22,15 +22,16 @@ class PointerInfo {
 public:
     PointerInfo() = default;
 
-    PointerInfo(PointerInfoDesc);
+    PointerInfo(PointerInfoDesc desc);
 
     /// The minimum alignment requirement that can be assumed for this pointer
-    size_t align() const { return _align; }
+    ssize_t align() const { return (ssize_t)_align; }
 
     /// The number of bytes which are dereferencable through this pointer if
     /// known statically
-    std::optional<size_t> validSize() const {
-        return _hasRange ? std::optional(_range) : std::nullopt;
+    std::optional<ssize_t> validSize() const {
+        return _validSize != InvalidSize ? std::optional(_validSize) :
+                                           std::nullopt;
     }
 
     /// \Returns the value that this pointer originates from. This could be a
@@ -41,33 +42,36 @@ public:
     ///     %elem = getelementptr i32, ptr %alloc, i32 2
     ///
     /// `%elem` has provenance `%alloc`
-    Value* provenance() const { return prov; }
+    Value* provenance() const { return _prov; }
 
     /// \Returns the statically known offset in bytes of this pointer from its
     /// provenance or `std::nullopt`
-    std::optional<size_t> staticProvencanceOffset() const {
-        return hasStaticProvOffset ? std::optional<size_t>(staticProvOffset) :
-                                     std::nullopt;
+    std::optional<ssize_t> staticProvencanceOffset() const {
+        return _staticProvOffset != InvalidSize ?
+                   std::optional<ssize_t>(_staticProvOffset) :
+                   std::nullopt;
     }
 
     /// \Returns `true` if this pointer info has provenance and static
     /// provenance offset info available
-    bool hasProvAndStaticOffset() const { return prov && hasStaticProvOffset; }
+    bool hasProvAndStaticOffset() const {
+        return _prov && staticProvencanceOffset().has_value();
+    }
 
     ///
-    void setProvenance(Value* p, std::optional<size_t> staticOffset);
+    void setProvenance(Value* p, std::optional<ssize_t> staticOffset);
 
     /// \Returns `true` if this pointer is guaranteed not to be null
     bool guaranteedNotNull() const { return _guaranteedNotNull; }
 
 private:
-    size_t _align  : 9;
-    bool _hasRange : 1;
-    size_t _range  : 54;
-    Value* prov = nullptr;
-    uint16_t staticProvOffset : 15 = 0;
-    bool hasStaticProvOffset  : 1 = false;
-    bool _guaranteedNotNull   : 1 = false;
+    static constexpr ssize_t InvalidSize = std::numeric_limits<ssize_t>::min();
+
+    uint8_t _align = 0;
+    bool _guaranteedNotNull = false;
+    Value* _prov = nullptr;
+    ssize_t _validSize = InvalidSize;
+    ssize_t _staticProvOffset = InvalidSize;
 };
 
 } // namespace scatha::ir

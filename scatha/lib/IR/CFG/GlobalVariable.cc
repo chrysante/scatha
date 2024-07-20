@@ -25,8 +25,8 @@ void GlobalVariable::setInitializer(Constant* init) {
         return;
     }
     auto* type = init->type();
-    allocatePointerInfo({ .align = type->align(),
-                          .validSize = type->size(),
+    allocatePointerInfo({ .align = (ssize_t)type->align(),
+                          .validSize = (ssize_t)type->size(),
                           .provenance = this,
                           .staticProvenanceOffset = 0,
                           .guaranteedNotNull = true });

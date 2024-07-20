@@ -138,8 +138,8 @@ void LoweringContext::generateAllocas(ir::Function const& irFn,
     for (auto* inst: allocas) {
         offsets.push_back(numBytes);
         auto size = inst->allocatedSize();
-        size_t const StaticAllocaAlign = 16;
-        numBytes += alignTo(*size, StaticAllocaAlign);
+        size_t StaticAllocaAlign = 16;
+        numBytes += alignTo(utl::narrow_cast<size_t>(*size), StaticAllocaAlign);
     }
 
     /// Emit one LISP instruction

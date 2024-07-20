@@ -71,7 +71,7 @@ void PtrAnalyzeCtx::analyze(Value& value) {
 }
 
 bool PtrAnalyzeCtx::analyzeImpl(Alloca& inst) {
-    inst.allocatePointerInfo({ .align = inst.allocatedType()->align(),
+    inst.allocatePointerInfo({ .align = (ssize_t)inst.allocatedType()->align(),
                                .validSize = inst.allocatedSize(),
                                .provenance = &inst,
                                .staticProvenanceOffset = 0,
@@ -93,8 +93,14 @@ bool PtrAnalyzeCtx::analyzeImpl(ExtractValue& inst) {
     return false;
 }
 
-static size_t computeAlign(size_t baseAlign, ssize_t offset) {
-    size_t r = (size_t)offset % baseAlign;
+static ssize_t mod(ssize_t a, ssize_t b) {
+    SC_ASSERT(b > 0, "divisor must positive to compute modulo");
+    ssize_t result = a % b;
+    return result < 0 ? result + std::abs(b) : result;
+}
+
+static ssize_t computeAlign(ssize_t baseAlign, ssize_t offset) {
+    ssize_t r = mod(offset, baseAlign);
     return r == 0 ? baseAlign : r;
 }
 
@@ -106,11 +112,11 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
     }
     auto* accType = gep.accessedType();
     auto staticGEPOffset = gep.constantByteOffset();
-    size_t align = [&] {
+    ssize_t align = [&] {
         if (staticGEPOffset) {
             return computeAlign(base->align(), *staticGEPOffset);
         }
-        return std::min(base->align(), accType->align());
+        return std::min(base->align(), (ssize_t)accType->align());
     }();
     SC_ASSERT(align != 0, "Align can never be zero");
     auto validSize = [&]() -> std::optional<size_t> {
