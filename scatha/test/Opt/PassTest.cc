@@ -7,6 +7,7 @@
 #include "IR/Equal.h"
 #include "IR/IRParser.h"
 #include "IR/Module.h"
+#include "IR/PipelineParser.h"
 
 using namespace scatha;
 using namespace test;
@@ -29,20 +30,32 @@ void test::passTest(ir::LocalPass pass, std::string fSource,
     test::passTest(pass, fCtx, F, ref);
 }
 
-void test::passTest(ir::GlobalPass pass, ir::LocalPass local, ir::Context& mCtx,
+void test::passTest(ir::Pipeline const& pipeline, ir::Context& mCtx,
                     ir::Module& M, ir::Module& ref) {
-    bool const modifiedFirstTime = pass(mCtx, M, local);
+    bool const modifiedFirstTime = pipeline(mCtx, M);
     CHECK(modifiedFirstTime);
-    bool const modifiedSecondTime = pass(mCtx, M, local);
+    bool const modifiedSecondTime = pipeline(mCtx, M);
     CHECK(!modifiedSecondTime);
     for (auto&& [F, G]: ranges::views::zip(M, ref)) {
         CHECK(test::funcEqual(F, G));
     }
 }
 
-void test::passTest(ir::GlobalPass pass, ir::LocalPass local,
-                    std::string mSource, std::string refSource) {
+void test::passTest(ir::Pipeline const& pipeline, std::string mSource,
+                    std::string refSource) {
     auto [mCtx, M] = ir::parse(mSource).value();
     auto [refCtx, ref] = ir::parse(refSource).value();
-    test::passTest(pass, local, mCtx, M, ref);
+    test::passTest(pipeline, mCtx, M, ref);
+}
+
+void test::passTest(ir::GlobalPass pass, ir::LocalPass local,
+                    std::string mSource, std::string refSource) {
+    return passTest(ir::Pipeline(std::move(pass), std::move(local)),
+                    std::move(mSource), std::move(refSource));
+}
+
+void test::passTest(std::string pipeline, std::string mSource,
+                    std::string refSource) {
+    return passTest(ir::parsePipeline(pipeline), std::move(mSource),
+                    std::move(refSource));
 }

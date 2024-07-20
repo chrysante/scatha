@@ -898,7 +898,9 @@ static bool dynAllocMayAlias(Call const* inst, Value const* other) {
 }
 
 static bool mayAlias(Value const* A, Value const* B) {
-    SC_EXPECT(A != B);
+    if (A == B) {
+        return true;
+    }
     if (auto* allocaInst = dyncast<Alloca const*>(A)) {
         return allocaMayAlias(allocaInst, B);
     }
@@ -930,6 +932,14 @@ static StaticCompareResult pointerStaticCompare(Value const* lhs,
         !rhsInfo->hasProvAndStaticOffset())
     {
         return Indeterminate;
+    }
+    if (lhsInfo->provenance() == rhsInfo->provenance()) {
+        if (lhsInfo->staticProvencanceOffset().value() ==
+            rhsInfo->staticProvencanceOffset().value())
+        {
+            return Equal;
+        }
+        return NotEqual;
     }
     if (!mayAlias(lhsInfo->provenance(), rhsInfo->provenance())) {
         return NotEqual;

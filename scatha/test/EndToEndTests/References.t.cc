@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "EndToEndTests/PassTesting.h"
+#include "Opt/PassTest.h"
 
 using namespace scatha;
 
@@ -474,4 +475,28 @@ fn main() {
     return p[0];
 }
 )");
+}
+
+TEST_CASE("Compare pointers in same allocation", "[end-to-end][references]") {
+    test::passTest("ptranalysis, instcombine, sroa, instcombine",
+                   R"(
+@array = constant [i64, 2] [i64 0, i64 1]
+  #ptr(align: 8, validsize: 16, provenance: ptr @array, offset: 0, nonnull)
+
+ext func void @__builtin_memcpy(ptr %0, i64 %1, ptr %2, i64 %3)
+
+func i1 @test() {
+  %entry:
+    %i.addr = alloca i64, i32 2
+    call void @__builtin_memcpy, ptr %i.addr, i64 16, ptr @array, i64 16
+    %elem.addr = getelementptr inbounds i64, ptr %i.addr, i64 0
+    %elem.addr.0 = getelementptr inbounds i64, ptr %i.addr, i64 1
+    %eq = ucmp eq ptr %elem.addr, ptr %elem.addr.0
+    return i1 %eq
+})",
+                   R"(
+func i1 @test() {
+  %entry:
+    return i1 0
+})");
 }

@@ -19,15 +19,23 @@ Pipeline& Pipeline::operator=(Pipeline&&) noexcept = default;
 
 Pipeline::~Pipeline() = default;
 
+static auto passToPipelineRoot(GlobalPass global, LocalPass local) {
+    auto localNode = std::make_unique<PipelineLocalNode>(std::move(local));
+    auto globalNode =
+        std::make_unique<PipelineGlobalNode>(std::move(global),
+                                             std::move(localNode));
+    return std::make_unique<PipelineRoot>(std::move(globalNode));
+}
+
 static auto passToPipelineRoot(LocalPass pass) {
-    auto local = std::make_unique<PipelineLocalNode>(std::move(pass));
-    auto global =
-        std::make_unique<PipelineGlobalNode>(ir::forEach, std::move(local));
-    return std::make_unique<PipelineRoot>(std::move(global));
+    return passToPipelineRoot(ir::forEach, std::move(pass));
 }
 
 Pipeline::Pipeline(LocalPass pass) noexcept:
     Pipeline(passToPipelineRoot(std::move(pass))) {}
+
+Pipeline::Pipeline(GlobalPass global, LocalPass local) noexcept:
+    Pipeline(passToPipelineRoot(std::move(global), std::move(local))) {}
 
 bool Pipeline::execute(ir::Context& ctx, ir::Module& mod) const {
     SC_ASSERT(root, "Invalid pipeline");

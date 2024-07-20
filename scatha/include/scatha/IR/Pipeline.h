@@ -13,6 +13,7 @@ namespace scatha::ir {
 class Pipeline;
 class PipelineRoot;
 class LocalPass;
+class GlobalPass;
 
 /// Print a descriptive string of the pipeline to \p ostream
 /// Equivalent to `ostream << toString(pipeline)`
@@ -54,6 +55,9 @@ public:
 
     /// Construct a pipeline from a single local pass
     Pipeline(LocalPass pass) noexcept;
+
+    ///
+    Pipeline(GlobalPass global, LocalPass local) noexcept;
 
     /// Execute this pipeline on the module \p mod
     bool execute(ir::Context& ctx, ir::Module& mod) const;

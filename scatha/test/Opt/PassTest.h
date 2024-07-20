@@ -6,6 +6,7 @@
 
 #include "IR/Fwd.h"
 #include "IR/Pass.h"
+#include "IR/Pipeline.h"
 
 namespace scatha::test {
 
@@ -14,11 +15,16 @@ void passTest(ir::LocalPass pass, ir::Context& fCtx, ir::Function& F,
 
 void passTest(ir::LocalPass pass, std::string F, std::string ref);
 
-void passTest(ir::GlobalPass pass, ir::LocalPass local, ir::Context& mCtx,
-              ir::Module& M, ir::Module& ref);
+void passTest(ir::Pipeline const& pipeline, ir::Context& mCtx, ir::Module& M,
+              ir::Module& ref);
 
-void passTest(ir::GlobalPass pass, ir::LocalPass local, std::string F,
-              std::string ref);
+void passTest(ir::Pipeline const& pipeline, std::string mSource,
+              std::string refSource);
+
+void passTest(ir::GlobalPass pass, ir::LocalPass local, std::string mSource,
+              std::string refSource);
+
+void passTest(std::string pipeline, std::string mSource, std::string refSource);
 
 } // namespace scatha::test
 
