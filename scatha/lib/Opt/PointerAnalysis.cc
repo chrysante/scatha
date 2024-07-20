@@ -7,6 +7,7 @@
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
+#include "IR/Context.h"
 #include "IR/PassRegistry.h"
 #include "IR/PointerInfo.h"
 #include "IR/Type.h"
@@ -41,6 +42,7 @@ struct PtrAnalyzeCtx {
     bool analyzeImpl(Alloca& inst);
     bool analyzeImpl(GetElementPointer& gep);
     bool analyzeImpl(ExtractValue& inst);
+    bool analyzeImpl(Call& call);
     bool analyzeImpl(Value&) { return false; }
 };
 
@@ -60,7 +62,6 @@ bool PtrAnalyzeCtx::run() {
 }
 
 void PtrAnalyzeCtx::analyze(Value& value) {
-    SC_EXPECT(isa<PointerType>(value.type()));
     if (value.pointerInfo()) {
         return;
     }
@@ -71,26 +72,27 @@ void PtrAnalyzeCtx::analyze(Value& value) {
 }
 
 bool PtrAnalyzeCtx::analyzeImpl(Alloca& inst) {
-    inst.allocatePointerInfo({ .align = (ssize_t)inst.allocatedType()->align(),
-                               .validSize = inst.allocatedSize(),
-                               .provenance = &inst,
-                               .staticProvenanceOffset = 0,
-                               .guaranteedNotNull = true });
+    inst.allocatePointerInfo();
+    inst.setPointerInfo(0, { .align = (ssize_t)inst.allocatedType()->align(),
+                             .validSize = inst.allocatedSize(),
+                             .provenance = PointerProvenance::Static(&inst),
+                             .staticProvenanceOffset = 0,
+                             .guaranteedNotNull = true });
     return true;
 }
 
 bool PtrAnalyzeCtx::analyzeImpl(ExtractValue& inst) {
-    if (auto* call = dyncast<Call*>(inst.baseValue()); isBuiltinAlloc(call)) {
-        inst.allocatePointerInfo(
-            { .align = 16, /// We happen to know that all pointers returned by
-                           /// `builtin.alloc` are align to 16 byte boundaries
-              .validSize = std::nullopt,
-              .provenance = call,
-              .staticProvenanceOffset = 0,
-              .guaranteedNotNull = true });
-        return true;
+    analyze(*inst.baseValue());
+    if (inst.memberIndices().size() != 1) {
+        return false;
     }
-    return false;
+    size_t index = inst.memberIndices()[0];
+    if (inst.baseValue()->ptrInfoArrayCount() <= index) {
+        return false;
+    }
+    inst.allocatePointerInfo();
+    inst.setPointerInfo(index, *inst.baseValue()->pointerInfo(index));
+    return true;
 }
 
 static ssize_t mod(ssize_t a, ssize_t b) {
@@ -125,7 +127,7 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
         return utl::narrow_cast<size_t>((ssize_t)*validBaseSize -
                                         *staticGEPOffset);
     }();
-    auto* provenance = base->provenance();
+    auto provenance = base->provenance();
     auto staticProvOffset = [&]() -> std::optional<size_t> {
         auto baseOffset = base->staticProvencanceOffset();
         if (!baseOffset || !staticGEPOffset) return std::nullopt;
@@ -133,10 +135,36 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
                                         *staticGEPOffset);
     }();
     bool guaranteedNotNull = base->guaranteedNotNull();
-    gep.allocatePointerInfo({ .align = align,
-                              .validSize = validSize,
-                              .provenance = provenance,
-                              .staticProvenanceOffset = staticProvOffset,
-                              .guaranteedNotNull = guaranteedNotNull });
+    gep.allocatePointerInfo();
+    gep.setPointerInfo(0, { .align = align,
+                            .validSize = validSize,
+                            .provenance = provenance,
+                            .staticProvenanceOffset = staticProvOffset,
+                            .guaranteedNotNull = guaranteedNotNull });
     return true;
+}
+
+bool PtrAnalyzeCtx::analyzeImpl(Call& call) {
+    if (isBuiltinAlloc(&call)) {
+        call.allocatePointerInfo(2);
+        call.setPointerInfo(
+            0,
+            { .align = 16, /// We happen to know that all pointers returned by
+              /// `__builtin_alloc` are aligned to 16 byte boundaries
+              .validSize = std::nullopt,
+              .provenance = PointerProvenance::Static(&call),
+              .staticProvenanceOffset = 0,
+              .guaranteedNotNull = true });
+        return true;
+    }
+    if (isa<PointerType>(call.type())) {
+        call.allocatePointerInfo();
+        call.setPointerInfo(0,
+                            { .align = 0,
+                              .validSize = std::nullopt,
+                              .provenance = PointerProvenance::Dynamic(&call),
+                              .staticProvenanceOffset = 0 });
+        return true;
+    }
+    return false;
 }

@@ -928,12 +928,13 @@ static StaticCompareResult pointerStaticCompare(Value const* lhs,
     }
     auto* lhsInfo = lhs->pointerInfo();
     auto* rhsInfo = rhs->pointerInfo();
-    if (!lhsInfo || !lhsInfo->hasProvAndStaticOffset() || !rhsInfo ||
-        !rhsInfo->hasProvAndStaticOffset())
-    {
+    if (!lhsInfo || !lhsInfo->isValid() || !rhsInfo || !rhsInfo->isValid()) {
         return Indeterminate;
     }
-    if (lhsInfo->provenance() == rhsInfo->provenance()) {
+    if (lhsInfo->provenance().value() == rhsInfo->provenance().value() &&
+        lhsInfo->staticProvencanceOffset() &&
+        rhsInfo->staticProvencanceOffset())
+    {
         if (lhsInfo->staticProvencanceOffset().value() ==
             rhsInfo->staticProvencanceOffset().value())
         {
@@ -941,7 +942,8 @@ static StaticCompareResult pointerStaticCompare(Value const* lhs,
         }
         return NotEqual;
     }
-    if (!mayAlias(lhsInfo->provenance(), rhsInfo->provenance())) {
+    if (!mayAlias(lhsInfo->provenance().value(), rhsInfo->provenance().value()))
+    {
         return NotEqual;
     }
     if (lhsInfo->guaranteedNotNull() && isa<NullPointerConstant>(rhs)) {

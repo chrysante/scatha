@@ -82,11 +82,14 @@ Context::Context(): impl(std::make_unique<Impl>()) {
     impl->_ptrType = pt.get();
     impl->_types.push_back(std::move(pt));
     impl->nullptrConstant = allocate<NullPointerConstant>(ptrType());
-    impl->nullptrConstant->allocatePointerInfo(
-        { .align = 32, // Max align value
-          .validSize = 0,
-          .provenance = impl->nullptrConstant.get(),
-          .staticProvenanceOffset = 0 });
+    impl->nullptrConstant->allocatePointerInfo();
+    // clang-format off
+    impl->nullptrConstant->setPointerInfo(0, {
+        .align = 32, // Max align value
+        .validSize = 0,
+        .provenance = PointerProvenance::Static(impl->nullptrConstant.get()),
+        .staticProvenanceOffset = 0
+    }); // clang-format on
 }
 
 Context::Context(Context&&) noexcept = default;

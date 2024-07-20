@@ -71,13 +71,24 @@ public:
     /// \overload
     PointerInfo const* pointerInfo() const { return ptrInfo.get(); }
 
-    /// Allocates a pointer info object for this value.
-    /// \pre Must not already have a pointer object
-    /// \pre Must be of pointer type
-    void allocatePointerInfo(PointerInfo info);
+    /// \Returns the pointer info at \p index
+    /// \Pre \p index must be less than `ptrInfoArrayCount()`
+    PointerInfo* pointerInfo(size_t index);
 
     /// \overload
-    void allocatePointerInfo(PointerInfoDesc desc);
+    PointerInfo const* pointerInfo(size_t index) const;
+
+    ///
+    void allocatePointerInfo(size_t count = 1);
+
+    /// Allocates a pointer info object for this value.
+    void setPointerInfo(size_t index, PointerInfo info);
+
+    /// \overload
+    void setPointerInfo(size_t index, PointerInfoDesc desc);
+
+    ///
+    size_t ptrInfoArrayCount() const { return _ptrInfoArrayCount; }
 
     /// \Returns a view over the attributes of this value (`[Attribute const*]`)
     auto attributes() const {
@@ -133,11 +144,12 @@ private:
     friend NodeType get_rtti(Value const& value) { return value.nodeType(); }
 
     NodeType _nodeType;
+    uint16_t _ptrInfoArrayCount = 0;
     Type const* _type;
     std::string _name;
     utl::hashmap<User*, uint16_t> _users;
     utl::hashmap<AttributeType, UniquePtr<Attribute>> _attribs;
-    std::unique_ptr<PointerInfo> ptrInfo;
+    std::unique_ptr<PointerInfo[]> ptrInfo;
 };
 
 } // namespace scatha::ir

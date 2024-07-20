@@ -82,13 +82,34 @@ void ir::do_destroy(Value& value) {
     visit(value, [](auto& derived) { std::destroy_at(&derived); });
 }
 
-void Value::allocatePointerInfo(PointerInfo info) {
-    SC_EXPECT(isa<PointerType>(type()));
-    ptrInfo = std::make_unique<PointerInfo>(info);
+PointerInfo* Value::pointerInfo(size_t index) {
+    SC_EXPECT(index < ptrInfoArrayCount());
+    return &ptrInfo[index];
 }
 
-void Value::allocatePointerInfo(PointerInfoDesc desc) {
-    allocatePointerInfo(PointerInfo(desc));
+///
+PointerInfo const* Value::pointerInfo(size_t index) const {
+    SC_EXPECT(index < ptrInfoArrayCount());
+    return &ptrInfo[index];
+}
+
+void Value::allocatePointerInfo(size_t count) {
+    if (ptrInfoArrayCount() >= count) {
+        return;
+    }
+    auto tmp = std::make_unique<PointerInfo[]>(count);
+    std::copy(ptrInfo.get(), ptrInfo.get() + ptrInfoArrayCount(), tmp.get());
+    ptrInfo = std::move(tmp);
+    _ptrInfoArrayCount = utl::narrow_cast<uint16_t>(count);
+}
+
+void Value::setPointerInfo(size_t index, PointerInfo info) {
+    SC_EXPECT(index < ptrInfoArrayCount());
+    ptrInfo[index] = info;
+}
+
+void Value::setPointerInfo(size_t index, PointerInfoDesc desc) {
+    setPointerInfo(index, PointerInfo(desc));
 }
 
 Attribute const* Value::addAttribute(UniquePtr<Attribute> attrib) {

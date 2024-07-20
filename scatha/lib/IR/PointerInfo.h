@@ -3,18 +3,45 @@
 
 #include <optional>
 
+#include <utl/ipp.hpp>
+
 #include "Common/Base.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {
 
+///
+class PointerProvenance {
+public:
+    static PointerProvenance Static(Value* value) {
+        return PointerProvenance(value, true);
+    }
+
+    static PointerProvenance Dynamic(Value* value) {
+        return PointerProvenance(value, false);
+    }
+
+    PointerProvenance(Value* value, bool isStatic): _value(value, isStatic) {}
+
+    /// \Returns `true` if the provenance is the statically known origin of the
+    /// pointer, e.g., an `alloca` instruction or a call to `__builtin_alloc`.
+    /// Pointers whose origin is unknown are "dynamic"
+    bool isStatic() const { return _value.integer(); }
+
+    Value* value() const { return _value.pointer(); }
+
+private:
+    utl::ipp<Value*, bool, 1> _value;
+};
+
 /// Parameters to initialize `PointerInfo`
 struct PointerInfoDesc {
     ssize_t align = 0;
     std::optional<ssize_t> validSize;
-    Value* provenance = nullptr;
+    PointerProvenance provenance;
     std::optional<ssize_t> staticProvenanceOffset;
     bool guaranteedNotNull = false;
+    bool hasStaticProvenance = false;
 };
 
 /// Statically known pointer meta data
@@ -23,6 +50,9 @@ public:
     PointerInfo() = default;
 
     PointerInfo(PointerInfoDesc desc);
+
+    ///
+    bool isValid() const { return _isValid; }
 
     /// The minimum alignment requirement that can be assumed for this pointer
     ssize_t align() const { return (ssize_t)_align; }
@@ -42,7 +72,7 @@ public:
     ///     %elem = getelementptr i32, ptr %alloc, i32 2
     ///
     /// `%elem` has provenance `%alloc`
-    Value* provenance() const { return _prov; }
+    PointerProvenance provenance() const { return _prov; }
 
     /// \Returns the statically known offset in bytes of this pointer from its
     /// provenance or `std::nullopt`
@@ -52,14 +82,9 @@ public:
                    std::nullopt;
     }
 
-    /// \Returns `true` if this pointer info has provenance and static
-    /// provenance offset info available
-    bool hasProvAndStaticOffset() const {
-        return _prov && staticProvencanceOffset().has_value();
-    }
-
     ///
-    void setProvenance(Value* p, std::optional<ssize_t> staticOffset);
+    void setProvenance(PointerProvenance p,
+                       std::optional<ssize_t> staticOffset);
 
     /// \Returns `true` if this pointer is guaranteed not to be null
     bool guaranteedNotNull() const { return _guaranteedNotNull; }
@@ -67,9 +92,10 @@ public:
 private:
     static constexpr ssize_t InvalidSize = std::numeric_limits<ssize_t>::min();
 
+    bool _isValid = false;
     uint8_t _align = 0;
     bool _guaranteedNotNull = false;
-    Value* _prov = nullptr;
+    PointerProvenance _prov = PointerProvenance::Dynamic(nullptr);
     ssize_t _validSize = InvalidSize;
     ssize_t _staticProvOffset = InvalidSize;
 };

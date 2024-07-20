@@ -98,6 +98,8 @@ struct IRParser {
     UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructType> parseStructure();
+
+    bool parsePtrInfo(Token tok, Value& value);
     void parseMetadataFor(Value& value);
     bool validateFFIType(Token const& token, Type const* type);
 
@@ -482,9 +484,7 @@ UniquePtr<GlobalVariable> IRParser::parseGlobalVar() {
     if (!success) {
         reportSemaIssueNoFail(name, SemanticIssue::Redeclaration);
     }
-    if (peekToken().kind() == TokenKind::MetadataIdentifier) {
-        parseMetadataFor(*global);
-    }
+    parseMetadataFor(*global);
     return global;
 }
 
@@ -645,9 +645,7 @@ UniquePtr<BasicBlock> IRParser::parseBasicBlock() {
         if (!isa<Phi>(instruction.get())) {
             registerValue(optInstName, instruction.get());
         }
-        if (peekToken().kind() == TokenKind::MetadataIdentifier) {
-            parseMetadataFor(*instruction);
-        }
+        parseMetadataFor(*instruction);
         result->pushBack(std::move(instruction));
     }
     return result;
@@ -1201,76 +1199,96 @@ OptValue IRParser::parseValue(Type const* type) {
     }
 }
 
-void IRParser::parseMetadataFor(Value& value) {
-    auto tok = eatToken();
-    SC_EXPECT(tok.kind() == TokenKind::MetadataIdentifier);
-    if (tok.id() == "ptr") {
-        if (peekToken().kind() != TokenKind::OpenParan) {
-            value.allocatePointerInfo(PointerInfo());
-            return;
+bool IRParser::parsePtrInfo(Token tok, Value& value) {
+    if (tok.id() != "ptr") {
+        return false;
+    }
+    size_t index = 0;
+    if (peekToken().kind() == TokenKind::Colon) {
+        eatToken();
+        index = parseInt(eatToken(), 64).to<size_t>();
+    }
+    value.allocatePointerInfo(index + 1);
+    if (peekToken().kind() != TokenKind::OpenParan) {
+        reportSemaIssue(peekToken(), SemanticIssue::UnexpectedID);
+        return false;
+    }
+    eatToken(); // Open paran
+    std::optional<ssize_t> align;
+    std::optional<ssize_t> validSize;
+    Type const* provType = nullptr;
+    std::optional<OptValue> prov;
+    std::optional<ssize_t> provOffset;
+    bool nonnull = false;
+    bool Static = false;
+    for (int i = 0;; ++i) {
+        auto tok = eatToken();
+        if (tok.kind() == TokenKind::CloseParan) {
+            break;
         }
-        eatToken(); // Open paran
-        std::optional<ssize_t> align;
-        std::optional<ssize_t> validSize;
-        Type const* provType = nullptr;
-        std::optional<OptValue> prov;
-        std::optional<ssize_t> provOffset;
-        bool nonnull = false;
-        for (int i = 0;; ++i) {
-            auto tok = eatToken();
-            if (tok.kind() == TokenKind::CloseParan) {
-                break;
-            }
-            if (i > 0) {
-                expect(tok, TokenKind::Comma);
-                tok = eatToken();
-            }
-            if (!isBuiltinID(tok.kind())) {
-                reportSyntaxIssue(tok);
-            }
-            if (tok.id() == "align") {
-                expect(eatToken(), TokenKind::Colon);
-                align = parseInt(eatToken(), 64).to<ssize_t>();
-            }
-            else if (tok.id() == "validsize") {
-                expect(eatToken(), TokenKind::Colon);
-                validSize = parseInt(eatToken(), 64).to<ssize_t>();
-            }
-            else if (tok.id() == "provenance") {
-                expect(eatToken(), TokenKind::Colon);
-                provType = parseType();
-                prov = parseValue(provType);
-            }
-            else if (tok.id() == "offset") {
-                expect(eatToken(), TokenKind::Colon);
-                provOffset = parseInt(eatToken(), 64).to<ssize_t>();
-            }
-            else if (tok.id() == "nonnull") {
-                nonnull = true;
-            }
-            else {
-                reportSyntaxIssue(tok);
-            }
+        if (i > 0) {
+            expect(tok, TokenKind::Comma);
+            tok = eatToken();
         }
-        auto assign = [=](Value* value, Value* prov) {
-            value->allocatePointerInfo({
-                .align = align.value_or(1),
-                .validSize = validSize,
-                .provenance = prov,
-                .staticProvenanceOffset = provOffset,
-                .guaranteedNotNull = nonnull,
-            });
-        };
-        if (prov) {
-            addValueLink(&value, provType, *prov, assign,
-                         /* allowSelfRef = */ true);
+        if (!isBuiltinID(tok.kind())) {
+            reportSyntaxIssue(tok);
+        }
+        if (tok.id() == "align") {
+            expect(eatToken(), TokenKind::Colon);
+            align = parseInt(eatToken(), 64).to<ssize_t>();
+        }
+        else if (tok.id() == "validsize") {
+            expect(eatToken(), TokenKind::Colon);
+            validSize = parseInt(eatToken(), 64).to<ssize_t>();
+        }
+        else if (tok.id() == "provenance") {
+            expect(eatToken(), TokenKind::Colon);
+            provType = parseType();
+            prov = parseValue(provType);
+        }
+        else if (tok.id() == "offset") {
+            expect(eatToken(), TokenKind::Colon);
+            provOffset = parseInt(eatToken(), 64).to<ssize_t>();
+        }
+        else if (tok.id() == "nonnull") {
+            nonnull = true;
+        }
+        else if (tok.id() == "static") {
+            Static = true;
         }
         else {
-            assign(&value, nullptr);
+            reportSyntaxIssue(tok);
         }
     }
+    auto assign = [=](Value* value, Value* prov) {
+        value->setPointerInfo(index,
+                              {
+                                  .align = align.value_or(1),
+                                  .validSize = validSize,
+                                  .provenance = PointerProvenance(prov, Static),
+                                  .staticProvenanceOffset = provOffset,
+                                  .guaranteedNotNull = nonnull,
+                              });
+    };
+    if (prov) {
+        addValueLink(&value, provType, *prov, assign,
+                     /* allowSelfRef = */ true);
+    }
     else {
-        reportSyntaxIssue(tok);
+        assign(&value, nullptr);
+    }
+    return true;
+}
+
+void IRParser::parseMetadataFor(Value& value) {
+    while (true) {
+        if (peekToken().kind() != TokenKind::MetadataIdentifier) {
+            break;
+        }
+        if (parsePtrInfo(eatToken(), value)) {
+            continue;
+        }
+        break;
     }
 }
 
