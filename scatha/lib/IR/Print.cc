@@ -642,6 +642,10 @@ void PrintCtx::metadata(int index, PointerInfo const& info) {
     if (auto offset = info.staticProvencanceOffset()) {
         str << ", offset: " << *offset;
     }
+    if (info.isNonEscaping()) {
+        str << ", ";
+        keyword("noescape");
+    }
     if (info.guaranteedNotNull()) {
         str << ", ";
         keyword("nonnull");

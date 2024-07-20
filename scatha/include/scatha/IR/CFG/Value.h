@@ -71,6 +71,12 @@ public:
     /// \overload
     PointerInfo const* pointerInfo() const { return ptrInfo.get(); }
 
+    /// Pointer infos associated with this value
+    std::span<PointerInfo> pointerInfoRange();
+
+    /// \overload
+    std::span<PointerInfo const> pointerInfoRange() const;
+
     /// \Returns the pointer info at \p index
     /// \Pre \p index must be less than `ptrInfoArrayCount()`
     PointerInfo* pointerInfo(size_t index);

@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <range/v3/algorithm.hpp>
+#include <svm/Builtin.h>
 #include <utl/functional.hpp> // for ceil_divide
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
@@ -871,47 +872,67 @@ enum class StaticCompareResult { Indeterminate, Equal, NotEqual };
 
 } // namespace
 
-static bool allocaMayAlias(Alloca const* inst, Value const* other) {
-    SC_EXPECT(inst != other);
+static bool isBuiltinAlloc(Value const* call) {
+    return isBuiltinCall(call, svm::Builtin::alloc);
+}
+
+static bool allocaMayAlias(PointerInfo const& alloc, PointerInfo const& other) {
+    auto* inst = cast<Alloca const*>(alloc.provenance().value());
+    auto* otherProv = other.provenance().value();
+    SC_EXPECT(inst != otherProv);
     /// Two alloca instructions can never alias each other
-    if (isa<Alloca>(other)) {
+    if (isa<Alloca>(otherProv)) {
         return false;
     }
     /// Automatic and dynamic allocations cannot alias
-    if (isBuiltinAlloc(other)) {
+    if (isBuiltinAlloc(otherProv)) {
+        return false;
+    }
+    /// Non-escaping allocas can only alias themselves
+    if (alloc.isNonEscaping()) {
         return false;
     }
     return true;
 }
 
-static bool dynAllocMayAlias(Call const* inst, Value const* other) {
-    SC_EXPECT(inst != other);
+static bool dynAllocMayAlias(PointerInfo const& alloc,
+                             PointerInfo const& other) {
+    auto* call = cast<Call const*>(alloc.provenance().value());
+    SC_EXPECT(isBuiltinAlloc(call));
+    auto* otherProv = other.provenance().value();
+    SC_EXPECT(call != otherProv);
     /// Two dynamic allocations can never alias each other
-    if (isBuiltinAlloc(other)) {
+    if (isBuiltinAlloc(otherProv)) {
         return false;
     }
     /// Automatic and dynamic allocations cannot alias
-    if (isa<Alloca>(other)) {
+    if (isa<Alloca>(otherProv)) {
+        return false;
+    }
+    /// Non-escaping allocations can only alias themselves
+    if (alloc.isNonEscaping()) {
         return false;
     }
     return true;
 }
 
-static bool mayAlias(Value const* A, Value const* B) {
-    if (A == B) {
+static bool mayAlias(PointerInfo const& A, PointerInfo const& B) {
+    auto* aProv = A.provenance().value();
+    auto* bProv = B.provenance().value();
+    if (aProv == bProv) {
         return true;
     }
-    if (auto* allocaInst = dyncast<Alloca const*>(A)) {
-        return allocaMayAlias(allocaInst, B);
+    if (isa<Alloca>(aProv)) {
+        return allocaMayAlias(A, B);
     }
-    if (auto* allocaInst = dyncast<Alloca const*>(B)) {
-        return allocaMayAlias(allocaInst, A);
+    if (isa<Alloca>(bProv)) {
+        return allocaMayAlias(B, A);
     }
-    if (auto* alloc = dyncast<Call const*>(A); isBuiltinAlloc(alloc)) {
-        return dynAllocMayAlias(alloc, B);
+    if (isBuiltinAlloc(aProv)) {
+        return dynAllocMayAlias(A, B);
     }
-    if (auto* alloc = dyncast<Call const*>(B); isBuiltinAlloc(alloc)) {
-        return dynAllocMayAlias(alloc, A);
+    if (isBuiltinAlloc(bProv)) {
+        return dynAllocMayAlias(B, A);
     }
     return true;
 }
@@ -942,8 +963,7 @@ static StaticCompareResult pointerStaticCompare(Value const* lhs,
         }
         return NotEqual;
     }
-    if (!mayAlias(lhsInfo->provenance().value(), rhsInfo->provenance().value()))
-    {
+    if (!mayAlias(*lhsInfo, *rhsInfo)) {
         return NotEqual;
     }
     if (lhsInfo->guaranteedNotNull() && isa<NullPointerConstant>(rhs)) {

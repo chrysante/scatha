@@ -5,6 +5,8 @@
 #include <string>
 #include <utility>
 
+#include <svm/Builtin.h>
+
 #include "Common/Base.h"
 #include "IR/Fwd.h"
 
@@ -127,10 +129,10 @@ inline ir::Value* memsetValue(ir::Instruction* call) {
 /// \Returns the size of the memset operation as constant
 int64_t memsetConstValue(ir::Instruction const* call);
 
-/// # builtin.alloc related queries
+/// # builtin function related queries
 
-/// \Returns `true` if \p value is a call to `builtin.alloc`
-bool isBuiltinAlloc(ir::Value const* value);
+/// \Returns `true` if \p value is a call to the builtin function \p builtin
+bool isBuiltinCall(ir::Value const* value, svm::Builtin builtin);
 
 } // namespace scatha::opt
 

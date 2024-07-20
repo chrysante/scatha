@@ -1,6 +1,7 @@
 #include "Opt/Passes.h"
 
 #include <range/v3/view.hpp>
+#include <svm/Builtin.h>
 #include <utl/hashtable.hpp>
 #include <utl/queue.hpp>
 #include <utl/vector.hpp>
@@ -29,21 +30,38 @@ struct PtrAnalyzeCtx {
     Context& ctx;
     Function& function;
 
-    utl::hashset<Value const*> visited;
+    utl::hashset<Value const*> provenanceVisited;
+    utl::hashset<Value const*> escapingVisited;
+    utl::hashset<Value const*> escaping;
     bool modified = false;
+
+    void markEscaping(Value* value) { escaping.insert(value); }
 
     PtrAnalyzeCtx(Context& ctx, Function& function):
         ctx(ctx), function(function) {}
 
     bool run();
 
-    void analyze(Value& inst);
+    /// Performs a DFS over the operands to analyze provenance
+    void provenance(Value& inst);
+    bool provenanceImpl(Alloca& inst);
+    bool provenanceImpl(GetElementPointer& gep);
+    bool provenanceImpl(ExtractValue& inst);
+    bool provenanceImpl(Call& call);
+    bool provenanceImpl(Value&) { return false; }
 
-    bool analyzeImpl(Alloca& inst);
-    bool analyzeImpl(GetElementPointer& gep);
-    bool analyzeImpl(ExtractValue& inst);
-    bool analyzeImpl(Call& call);
-    bool analyzeImpl(Value&) { return false; }
+    /// Checks whether \p inst escapes its operands
+    void analyzeEscapingOperands(Instruction& inst);
+    void analyzeEscapingOperandsImpl(Call& call);
+    void analyzeEscapingOperandsImpl(Store& store);
+    void analyzeEscapingOperandsImpl(Instruction&) {}
+
+    /// Performs a DFS over the users to analyze whether pointers escape
+    void analyzeEscaping(Value& value);
+    void analyzeEscapingImpl(GetElementPointer& inst);
+    void analyzeEscapingImpl(InsertValue& inst);
+    void analyzeEscapingImpl(ExtractValue& inst);
+    void analyzeEscapingImpl(Value&) {}
 };
 
 } // namespace
@@ -54,24 +72,29 @@ bool opt::pointerAnalysis(Context& ctx, Function& function) {
 
 bool PtrAnalyzeCtx::run() {
     for (auto& inst: function.instructions()) {
-        if (isa<PointerType>(inst.type())) {
-            analyze(inst);
-        }
+        provenance(inst);
+        analyzeEscapingOperands(inst);
+    }
+    for (auto& param: function.parameters()) {
+        analyzeEscaping(param);
+    }
+    for (auto& inst: function.instructions()) {
+        analyzeEscaping(inst);
     }
     return modified;
 }
 
-void PtrAnalyzeCtx::analyze(Value& value) {
+void PtrAnalyzeCtx::provenance(Value& value) {
     if (value.pointerInfo()) {
         return;
     }
-    if (!visited.insert(&value).second) {
+    if (!provenanceVisited.insert(&value).second) {
         return;
     }
-    visit(value, [this](auto& value) { modified |= analyzeImpl(value); });
+    visit(value, [this](auto& value) { modified |= provenanceImpl(value); });
 }
 
-bool PtrAnalyzeCtx::analyzeImpl(Alloca& inst) {
+bool PtrAnalyzeCtx::provenanceImpl(Alloca& inst) {
     inst.allocatePointerInfo();
     inst.setPointerInfo(0, { .align = (ssize_t)inst.allocatedType()->align(),
                              .validSize = inst.allocatedSize(),
@@ -81,8 +104,8 @@ bool PtrAnalyzeCtx::analyzeImpl(Alloca& inst) {
     return true;
 }
 
-bool PtrAnalyzeCtx::analyzeImpl(ExtractValue& inst) {
-    analyze(*inst.baseValue());
+bool PtrAnalyzeCtx::provenanceImpl(ExtractValue& inst) {
+    provenance(*inst.baseValue());
     if (inst.memberIndices().size() != 1) {
         return false;
     }
@@ -91,7 +114,7 @@ bool PtrAnalyzeCtx::analyzeImpl(ExtractValue& inst) {
         return false;
     }
     inst.allocatePointerInfo();
-    inst.setPointerInfo(index, *inst.baseValue()->pointerInfo(index));
+    inst.setPointerInfo(0, *inst.baseValue()->pointerInfo(index));
     return true;
 }
 
@@ -102,12 +125,15 @@ static ssize_t mod(ssize_t a, ssize_t b) {
 }
 
 static ssize_t computeAlign(ssize_t baseAlign, ssize_t offset) {
+    if (baseAlign == 0) {
+        return 0;
+    }
     ssize_t r = mod(offset, baseAlign);
     return r == 0 ? baseAlign : r;
 }
 
-bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
-    analyze(*gep.basePointer());
+bool PtrAnalyzeCtx::provenanceImpl(GetElementPointer& gep) {
+    provenance(*gep.basePointer());
     auto* base = gep.basePointer()->pointerInfo();
     if (!base) {
         return false;
@@ -120,7 +146,6 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
         }
         return std::min(base->align(), (ssize_t)accType->align());
     }();
-    SC_ASSERT(align != 0, "Align can never be zero");
     auto validSize = [&]() -> std::optional<size_t> {
         auto validBaseSize = base->validSize();
         if (!validBaseSize || !staticGEPOffset) return std::nullopt;
@@ -144,17 +169,17 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
     return true;
 }
 
-bool PtrAnalyzeCtx::analyzeImpl(Call& call) {
-    if (isBuiltinAlloc(&call)) {
+bool PtrAnalyzeCtx::provenanceImpl(Call& call) {
+    if (isBuiltinCall(&call, svm::Builtin::alloc)) {
         call.allocatePointerInfo(2);
         call.setPointerInfo(
-            0,
-            { .align = 16, /// We happen to know that all pointers returned by
-              /// `__builtin_alloc` are aligned to 16 byte boundaries
-              .validSize = std::nullopt,
-              .provenance = PointerProvenance::Static(&call),
-              .staticProvenanceOffset = 0,
-              .guaranteedNotNull = true });
+            0, { /// We happen to know that all pointers returned by
+                 /// `__builtin_alloc` are aligned to 16 byte boundaries
+                 .align = 16,
+                 .validSize = std::nullopt,
+                 .provenance = PointerProvenance::Static(&call),
+                 .staticProvenanceOffset = 0,
+                 .guaranteedNotNull = true });
         return true;
     }
     if (isa<PointerType>(call.type())) {
@@ -167,4 +192,62 @@ bool PtrAnalyzeCtx::analyzeImpl(Call& call) {
         return true;
     }
     return false;
+}
+
+void PtrAnalyzeCtx::analyzeEscapingOperands(Instruction& inst) {
+    visit(inst, [&](auto& inst) { analyzeEscapingOperandsImpl(inst); });
+}
+
+void PtrAnalyzeCtx::analyzeEscapingOperandsImpl(Call& call) {
+    /// Deallocation is not considered escaping
+    if (isBuiltinCall(&call, svm::Builtin::dealloc)) {
+        return;
+    }
+    for (auto* arg: call.arguments()) {
+        markEscaping(arg);
+    }
+}
+
+void PtrAnalyzeCtx::analyzeEscapingOperandsImpl(Store& store) {
+    markEscaping(store.value());
+}
+
+void PtrAnalyzeCtx::analyzeEscaping(Value& value) {
+    if (!value.pointerInfo()) {
+        value.allocatePointerInfo();
+    }
+    if (!escapingVisited.insert(&value).second) {
+        return;
+    }
+    for (auto* user: value.users()) {
+        analyzeEscaping(*user);
+    }
+    if (!escaping.contains(&value)) {
+        for (auto& info: value.pointerInfoRange()) {
+            modified |= !info.isNonEscaping();
+            info.setNonEscaping();
+        }
+    }
+    visit(value, [this](auto& value) { analyzeEscapingImpl(value); });
+}
+
+void PtrAnalyzeCtx::analyzeEscapingImpl(GetElementPointer& inst) {
+    if (escaping.contains(&inst)) {
+        markEscaping(inst.basePointer());
+    }
+}
+
+void PtrAnalyzeCtx::analyzeEscapingImpl(InsertValue& inst) {
+    if (!escaping.contains(&inst)) {
+        return;
+    }
+    for (auto* operand: inst.operands()) {
+        markEscaping(operand);
+    }
+}
+
+void PtrAnalyzeCtx::analyzeEscapingImpl(ExtractValue& inst) {
+    if (escaping.contains(&inst)) {
+        markEscaping(inst.baseValue());
+    }
 }

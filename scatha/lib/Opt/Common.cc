@@ -2,7 +2,6 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
-#include <svm/Builtin.h>
 #include <utl/hashset.hpp>
 
 #include "Common/Graph.h"
@@ -249,10 +248,21 @@ int64_t opt::memsetConstValue(ir::Instruction const* inst) {
     return size->value().to<int64_t>();
 }
 
-bool opt::isBuiltinAlloc(ir::Value const* value) {
+static std::string_view toName(svm::Builtin builtin) {
+    switch (builtin) {
+#define SVM_BUILTIN_DEF(Name, ...)                                             \
+    case svm::Builtin::Name:                                                   \
+        return "__builtin_" #Name;
+#include <svm/Builtin.def.h>
+    }
+    SC_UNREACHABLE();
+}
+
+bool opt::isBuiltinCall(ir::Value const* value, svm::Builtin builtin) {
     auto* call = dyncast<Call const*>(value);
     if (!call || !call->function()) {
         return false;
     }
-    return call->function()->name() == "__builtin_alloc";
+    auto* F = call->function();
+    return isa<ForeignFunction>(F) && F->name() == toName(builtin);
 }

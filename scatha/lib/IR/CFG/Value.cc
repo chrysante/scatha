@@ -93,6 +93,22 @@ PointerInfo const* Value::pointerInfo(size_t index) const {
     return &ptrInfo[index];
 }
 
+template <typename I>
+static std::span<I> ptrInfoRangeImpl(auto& value) {
+    if (!value.pointerInfo()) {
+        return {};
+    }
+    return { value.pointerInfo(), value.ptrInfoArrayCount() };
+}
+
+std::span<PointerInfo> Value::pointerInfoRange() {
+    return ptrInfoRangeImpl<PointerInfo>(*this);
+}
+
+std::span<PointerInfo const> Value::pointerInfoRange() const {
+    return ptrInfoRangeImpl<PointerInfo const>(*this);
+}
+
 void Value::allocatePointerInfo(size_t count) {
     if (ptrInfoArrayCount() >= count) {
         return;

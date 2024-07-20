@@ -95,7 +95,7 @@ func void @f() {
         REQUIRE(ptr);
         CHECK(ptr->align() == 8);
         CHECK(ptr->validSize().value() == 8);
-        CHECK(ptr->provenance() == &a1);
+        CHECK(ptr->provenance().value() == &a1);
         CHECK(ptr->staticProvencanceOffset().value() == 0);
         CHECK(ptr->guaranteedNotNull());
     }
@@ -105,7 +105,7 @@ func void @f() {
         REQUIRE(ptr);
         CHECK(ptr->align() == 8);
         CHECK(ptr->validSize().value() == 8);
-        CHECK(ptr->provenance() == &a1);
+        CHECK(ptr->provenance().value() == &a1);
         CHECK(ptr->staticProvencanceOffset().value() == 0);
         CHECK(ptr->guaranteedNotNull());
     }

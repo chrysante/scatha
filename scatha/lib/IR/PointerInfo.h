@@ -42,6 +42,7 @@ struct PointerInfoDesc {
     std::optional<ssize_t> staticProvenanceOffset;
     bool guaranteedNotNull = false;
     bool hasStaticProvenance = false;
+    bool nonEscaping = false;
 };
 
 /// Statically known pointer meta data
@@ -86,6 +87,14 @@ public:
     void setProvenance(PointerProvenance p,
                        std::optional<ssize_t> staticOffset);
 
+    /// \Returns `true` if this pointer is a function-local value and does not
+    /// espace the scope of the function, i.e., it is not stored to memory and
+    /// not passed to function calls
+    bool isNonEscaping() const { return _nonEscaping; }
+
+    ///
+    void setNonEscaping(bool value = true) { _nonEscaping = value; }
+
     /// \Returns `true` if this pointer is guaranteed not to be null
     bool guaranteedNotNull() const { return _guaranteedNotNull; }
 
@@ -95,6 +104,7 @@ private:
     bool _isValid = false;
     uint8_t _align = 0;
     bool _guaranteedNotNull = false;
+    bool _nonEscaping = false;
     PointerProvenance _prov = PointerProvenance::Dynamic(nullptr);
     ssize_t _validSize = InvalidSize;
     ssize_t _staticProvOffset = InvalidSize;

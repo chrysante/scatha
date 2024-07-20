@@ -11,6 +11,7 @@ PointerInfo::PointerInfo(PointerInfoDesc desc):
     _isValid(true),
     _align(utl::narrow_cast<uint8_t>(desc.align)),
     _guaranteedNotNull(desc.guaranteedNotNull),
+    _nonEscaping(desc.nonEscaping),
     _prov(desc.provenance),
     _validSize(desc.validSize.value_or(InvalidSize)),
     _staticProvOffset(desc.staticProvenanceOffset.value_or(InvalidSize)) {}

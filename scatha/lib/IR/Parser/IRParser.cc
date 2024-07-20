@@ -1221,6 +1221,7 @@ bool IRParser::parsePtrInfo(Token tok, Value& value) {
     std::optional<ssize_t> provOffset;
     bool nonnull = false;
     bool Static = false;
+    bool nonEscaping = false;
     for (int i = 0;; ++i) {
         auto tok = eatToken();
         if (tok.kind() == TokenKind::CloseParan) {
@@ -1256,19 +1257,21 @@ bool IRParser::parsePtrInfo(Token tok, Value& value) {
         else if (tok.id() == "static") {
             Static = true;
         }
+        else if (tok.id() == "noescape") {
+            nonEscaping = true;
+        }
         else {
             reportSyntaxIssue(tok);
         }
     }
     auto assign = [=](Value* value, Value* prov) {
         value->setPointerInfo(index,
-                              {
-                                  .align = align.value_or(1),
-                                  .validSize = validSize,
-                                  .provenance = PointerProvenance(prov, Static),
-                                  .staticProvenanceOffset = provOffset,
-                                  .guaranteedNotNull = nonnull,
-                              });
+                              { .align = align.value_or(1),
+                                .validSize = validSize,
+                                .provenance = PointerProvenance(prov, Static),
+                                .staticProvenanceOffset = provOffset,
+                                .guaranteedNotNull = nonnull,
+                                .nonEscaping = nonEscaping });
     };
     if (prov) {
         addValueLink(&value, provType, *prov, assign,
