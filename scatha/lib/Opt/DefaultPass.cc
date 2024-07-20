@@ -21,9 +21,7 @@ bool opt::canonicalize(Context& ctx, Function& function) {
 bool opt::defaultPass(Context& ctx, Function& function) {
     bool modified = false;
     modified |= sroa(ctx, function);
-#if 0 // Not sufficiently tested
     modified |= pointerAnalysis(ctx, function);
-#endif
     modified |= instCombine(ctx, function);
     modified |= propagateConstants(ctx, function);
     modified |= dce(ctx, function);

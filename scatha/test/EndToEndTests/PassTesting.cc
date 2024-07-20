@@ -113,12 +113,12 @@ using ParserType =
 namespace {
 
 struct Impl {
-    ir::Pipeline light =
-        ir::PassManager::makePipeline("unifyreturns, sroa, memtoreg");
-    ir::Pipeline lightRotate =
-        ir::PassManager::makePipeline("canonicalize, sroa, memtoreg");
+    ir::Pipeline light = ir::PassManager::makePipeline(
+        "unifyreturns, sroa, memtoreg, ptranalysis");
+    ir::Pipeline lightRotate = ir::PassManager::makePipeline(
+        "canonicalize, sroa, memtoreg, ptranalysis");
     ir::Pipeline lightInline =
-        ir::PassManager::makePipeline("inline(sroa, memtoreg)");
+        ir::PassManager::makePipeline("inline(sroa, memtoreg, ptranalysis)");
 
     static Impl& get() {
         static Impl inst;

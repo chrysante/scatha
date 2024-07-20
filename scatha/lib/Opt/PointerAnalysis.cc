@@ -20,8 +20,7 @@ using namespace opt;
 using namespace ir;
 using namespace ranges::views;
 
-SC_REGISTER_PASS(opt::pointerAnalysis, "pointeranalysis",
-                 PassCategory::Experimental);
+SC_REGISTER_PASS(opt::pointerAnalysis, "ptranalysis", PassCategory::Analysis);
 
 namespace {
 
@@ -94,7 +93,6 @@ bool PtrAnalyzeCtx::analyzeImpl(ExtractValue& inst) {
     return false;
 }
 
-[[maybe_unused]]
 static size_t computeAlign(size_t baseAlign, ssize_t offset) {
     size_t r = (size_t)offset % baseAlign;
     return r == 0 ? baseAlign : r;
@@ -106,7 +104,6 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
     if (!base) {
         return false;
     }
-#if 0
     auto* accType = gep.accessedType();
     auto staticGEPOffset = gep.constantByteOffset();
     size_t align = [&] {
@@ -119,13 +116,15 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
     auto validSize = [&]() -> std::optional<size_t> {
         auto validBaseSize = base->validSize();
         if (!validBaseSize || !staticGEPOffset) return std::nullopt;
-        return *validBaseSize - *staticGEPOffset;
+        return utl::narrow_cast<size_t>((ssize_t)*validBaseSize -
+                                        *staticGEPOffset);
     }();
     auto* provenance = base->provenance();
     auto staticProvOffset = [&]() -> std::optional<size_t> {
         auto baseOffset = base->staticProvencanceOffset();
         if (!baseOffset || !staticGEPOffset) return std::nullopt;
-        return *baseOffset + *staticGEPOffset;
+        return utl::narrow_cast<size_t>((ssize_t)*baseOffset +
+                                        *staticGEPOffset);
     }();
     bool guaranteedNotNull = base->guaranteedNotNull();
     gep.allocatePointerInfo({ .align = align,
@@ -133,6 +132,5 @@ bool PtrAnalyzeCtx::analyzeImpl(GetElementPointer& gep) {
                               .provenance = provenance,
                               .staticProvenanceOffset = staticProvOffset,
                               .guaranteedNotNull = guaranteedNotNull });
-#endif
     return true;
 }
