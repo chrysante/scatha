@@ -30,6 +30,11 @@ UniquePtr<FloatValue> FloatValue::doClone() const {
     return allocate<FloatValue>(value());
 }
 
+UniquePtr<PointerValue> PointerValue::doClone() const {
+    SC_ASSERT(isNull(), "");
+    return allocate<PointerValue>(NullPointerTag{});
+}
+
 static std::optional<APInt> doEvalUnary(ast::UnaryOperator op, APInt operand) {
     using enum ast::UnaryOperator;
     switch (op) {
@@ -75,6 +80,7 @@ UniquePtr<Value> sema::evalUnary(ast::UnaryOperator op, Value const* operand) {
             }
             return nullptr;
         },
+        [&](Value const&) -> UniquePtr<Value> { return nullptr; },
     }); // clang-format on
 }
 
@@ -282,18 +288,19 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op, Value const* lhs,
     }
     ConstantKind kind = lhs ? lhs->kind() : rhs->kind();
     switch (kind) {
-    case ConstantKind::IntValue: {
+    case ConstantKind::Value:
+        SC_UNREACHABLE();
+    case ConstantKind::IntValue:
         return doEvalBinary(op, cast<IntValue const*>(lhs),
                             cast<IntValue const*>(rhs));
-    }
     case ConstantKind::FloatValue:
         if (!lhs || !rhs) {
             return nullptr;
         }
         return doEvalBinary(op, cast<FloatValue const*>(lhs)->value(),
                             cast<FloatValue const*>(rhs)->value());
-    default:
-        SC_UNREACHABLE();
+    case ConstantKind::PointerValue:
+        return nullptr;
     }
 }
 
@@ -413,6 +420,25 @@ static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
         return toUnsigned(operand, 32);
     case FloatToUnsigned64:
         return toUnsigned(operand, 64);
+    default:
+        return nullptr;
+    }
+}
+
+static UniquePtr<Value> doEvalConversion(ObjectTypeConversion conv,
+                                         PointerValue const* value) {
+    using enum ObjectTypeConversion;
+    switch (conv) {
+    case NullptrToRawPtr:
+        [[fallthrough]];
+    case NullptrToUniquePtr:
+        SC_ASSERT(value->isNull(), "");
+        return value->clone();
+    case UniqueToRawPtr:
+        if (value->isNull()) {
+            return value->clone();
+        }
+        return nullptr;
     default:
         return nullptr;
     }

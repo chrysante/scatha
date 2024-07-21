@@ -10,21 +10,16 @@
 namespace scatha::sema {
 
 /// Represents a constant value
-class Value {
+class Value: public csp::base_helper<Value> {
 public:
     /// Runtime type of this node
-    ConstantKind kind() const { return _kind; }
+    ConstantKind kind() const { return get_rtti(*this); }
 
     /// Clone this value
     UniquePtr<Value> clone() const;
 
 protected:
-    explicit Value(ConstantKind kind): _kind(kind) {}
-
-public:
-    friend ConstantKind get_rtti(Value const& value) { return value.kind(); }
-
-    ConstantKind _kind;
+    using base_helper::base_helper;
 };
 
 inline UniquePtr<Value> clone(Value const* value) {
@@ -73,6 +68,24 @@ private:
     UniquePtr<FloatValue> doClone() const;
 
     APFloat val;
+};
+
+///
+class PointerValue: public Value {
+public:
+    struct NullPointerTag {};
+
+    /// Constructs a null pointer constant value
+    PointerValue(NullPointerTag): Value(ConstantKind::PointerValue) {}
+
+    /// \Returns `true` if this value is the null pointer
+    bool isNull() const { return true; }
+
+private:
+    friend class Value;
+    UniquePtr<PointerValue> doClone() const;
+
+    // For now we only support null pointer constants
 };
 
 UniquePtr<Value> evalUnary(ast::UnaryOperator op, Value const* operand);

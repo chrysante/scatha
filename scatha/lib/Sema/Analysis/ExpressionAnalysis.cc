@@ -287,6 +287,8 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
 
     case Null:
         lit.decorateValue(sym.temporary(&lit, sym.NullPtr()), RValue);
+        lit.setConstantValue(
+            allocate<PointerValue>(PointerValue::NullPointerTag{}));
         return &lit;
 
     case This: {

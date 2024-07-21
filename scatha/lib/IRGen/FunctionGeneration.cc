@@ -76,7 +76,13 @@ static ir::Constant* toIR(ir::Context& ctx, sema::Value const& value) {
         },
         [&](sema::FloatValue const& value) {
             return ctx.floatConstant(value.value());
-        }
+        },
+        [&](sema::PointerValue const& value) -> ir::Constant* {
+            if (value.isNull()) {
+                return ctx.nullpointer();
+            }
+            return nullptr;
+        },
     }; // clang-format on
 }
 

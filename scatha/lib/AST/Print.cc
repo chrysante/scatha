@@ -77,13 +77,16 @@ static void printConstantValue(std::ostream& str, TreeFormatter& formatter,
     // clang-format off
     SC_MATCH (value) {
         [&](sema::IntValue const& node) {
-            auto value = node.value();
-            str << (node.isSigned() ? value.signedToString() :
-                                              value.toString());
+            auto val = node.value();
+            str << (node.isSigned() ? val.signedToString() : val.toString());
         },
         [&](sema::FloatValue const& node) {
             str << node.value().toString();
-        }
+        },
+        [&](sema::PointerValue const& value) {
+            SC_ASSERT(value.isNull(), "");
+            str << tfmt::format(Magenta | Bold, "null");
+        },
     }; // clang-format on
 }
 

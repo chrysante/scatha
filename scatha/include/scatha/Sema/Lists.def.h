@@ -139,8 +139,9 @@ SC_SEMA_ACCESS_CONTROL_DEF(Private,  "private")
 #   define SC_SEMA_CONSTKIND_DEF(...)
 #endif
 
-SC_SEMA_CONSTKIND_DEF(Value,      VoidParent, Abstract)
-SC_SEMA_CONSTKIND_DEF(IntValue,   Value,      Concrete)
-SC_SEMA_CONSTKIND_DEF(FloatValue, Value,      Concrete)
+SC_SEMA_CONSTKIND_DEF(Value,        VoidParent, Abstract)
+SC_SEMA_CONSTKIND_DEF(IntValue,     Value,      Concrete)
+SC_SEMA_CONSTKIND_DEF(FloatValue,   Value,      Concrete)
+SC_SEMA_CONSTKIND_DEF(PointerValue, Value,      Concrete)
 
 #undef SC_SEMA_CONSTKIND_DEF
