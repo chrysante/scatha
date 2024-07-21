@@ -6,6 +6,7 @@
 #include <utl/queue.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Dyncast.h"
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -15,7 +16,6 @@
 #include "Opt/Common.h"
 
 #include "IR/Print.h"
-#include <iostream>
 
 using namespace scatha;
 using namespace opt;
@@ -23,6 +23,48 @@ using namespace ir;
 using namespace ranges::views;
 
 SC_REGISTER_PASS(opt::pointerAnalysis, "ptranalysis", PassCategory::Analysis);
+
+#define INFO_NODE_DEF(X)                                                       \
+    X(InfoNode, void, Abstract)                                                \
+    X(TreeNode, InfoNode, Concrete)                                            \
+    X(LeafNode, InfoNode, Concrete)
+
+namespace {
+
+enum class InfoNodeID {
+#define X(Name, ...) Name,
+    INFO_NODE_DEF(X)
+#undef X
+};
+
+struct InfoNode: csp::base_helper<InfoNode, InfoNodeID> {
+    using base_helper::base_helper;
+};
+
+struct TreeNode: InfoNode {
+    TreeNode(): InfoNode(InfoNodeID::TreeNode) {}
+
+    InfoNode* child(size_t index) {
+        auto itr = children.find(index);
+        return itr != children.end() ? itr->second : nullptr;
+    }
+
+    utl::hashmap<size_t, InfoNode*> children;
+};
+
+struct LeafNode: InfoNode {
+    LeafNode(PointerInfoDesc const& desc):
+        InfoNode(InfoNodeID::LeafNode), desc(desc) {}
+
+    PointerInfoDesc desc;
+};
+
+} // namespace
+
+#define X(Name, Parent, Corporeality)                                          \
+    SC_DYNCAST_DEFINE(Name, InfoNodeID::Name, Parent, Corporeality)
+INFO_NODE_DEF(X)
+#undef X
 
 namespace {
 
@@ -33,22 +75,22 @@ struct PtrAnalyzeCtx {
     utl::hashset<Value const*> provenanceVisited;
     utl::hashset<Value const*> escapingVisited;
     utl::hashset<Value const*> escaping;
-    bool modified = false;
-
-    void markEscaping(Value* value) { escaping.insert(value); }
+    utl::hashmap<Value*, InfoNode*> info;
+    utl::small_vector<UniquePtr<InfoNode>> infoNodes;
 
     PtrAnalyzeCtx(Context& ctx, Function& function):
         ctx(ctx), function(function) {}
 
-    bool run();
+    void run();
 
     /// Performs a DFS over the operands to analyze provenance
-    void provenance(Value& inst);
-    bool provenanceImpl(Alloca& inst);
-    bool provenanceImpl(GetElementPointer& gep);
-    bool provenanceImpl(ExtractValue& inst);
-    bool provenanceImpl(Call& call);
-    bool provenanceImpl(Value&) { return false; }
+    InfoNode* provenance(Value& inst);
+    InfoNode* provenanceImpl(Alloca& inst);
+    InfoNode* provenanceImpl(GetElementPointer& gep);
+    InfoNode* provenanceImpl(ExtractValue& inst);
+    InfoNode* provenanceImpl(InsertValue& inst);
+    InfoNode* provenanceImpl(Call& call);
+    InfoNode* provenanceImpl(Value&) { return nullptr; }
 
     /// Checks whether \p inst escapes its operands
     void analyzeEscapingOperands(Instruction& inst);
@@ -62,15 +104,26 @@ struct PtrAnalyzeCtx {
     void analyzeEscapingImpl(InsertValue& inst);
     void analyzeEscapingImpl(ExtractValue& inst);
     void analyzeEscapingImpl(Value&) {}
+
+    void markEscaping(Value* value) { escaping.insert(value); }
+    template <typename NodeType>
+    NodeType* addNode(UniquePtr<NodeType> node);
+    LeafNode* makeLeafNode(PointerInfoDesc const& desc);
+    TreeNode* makeTreeNode();
+    InfoNode* clone(InfoNode const& node);
+    InfoNode* getNode(Value const* value, std::span<size_t const> indices = {});
+    InfoNode* setNode(Value* value, InfoNode* node,
+                      std::span<size_t const> indices = {});
 };
 
 } // namespace
 
 bool opt::pointerAnalysis(Context& ctx, Function& function) {
-    return PtrAnalyzeCtx(ctx, function).run();
+    PtrAnalyzeCtx(ctx, function).run();
+    return false;
 }
 
-bool PtrAnalyzeCtx::run() {
+void PtrAnalyzeCtx::run() {
     for (auto& inst: function.instructions()) {
         provenance(inst);
         analyzeEscapingOperands(inst);
@@ -81,41 +134,57 @@ bool PtrAnalyzeCtx::run() {
     for (auto& inst: function.instructions()) {
         analyzeEscaping(inst);
     }
-    return modified;
+    for (auto& [value, node]: info) {
+        if (auto* leaf = dyncast<LeafNode const*>(node)) {
+            value->setPointerInfo(leaf->desc);
+        }
+    }
 }
 
-void PtrAnalyzeCtx::provenance(Value& value) {
-    if (value.pointerInfo()) {
-        return;
+InfoNode* PtrAnalyzeCtx::provenance(Value& value) {
+    if (auto itr = info.find(&value); itr != info.end()) {
+        return itr->second;
     }
     if (!provenanceVisited.insert(&value).second) {
-        return;
+        return nullptr;
     }
-    visit(value, [this](auto& value) { modified |= provenanceImpl(value); });
+    return visit(value, [this](auto& value) { return provenanceImpl(value); });
 }
 
-bool PtrAnalyzeCtx::provenanceImpl(Alloca& inst) {
-    inst.allocatePointerInfo();
-    inst.setPointerInfo(0, { .align = (ssize_t)inst.allocatedType()->align(),
-                             .validSize = inst.allocatedSize(),
-                             .provenance = PointerProvenance::Static(&inst),
-                             .staticProvenanceOffset = 0,
-                             .guaranteedNotNull = true });
-    return true;
+InfoNode* PtrAnalyzeCtx::provenanceImpl(Alloca& inst) {
+    PointerInfoDesc desc{ .align = (ssize_t)inst.allocatedType()->align(),
+                          .validSize = inst.allocatedSize(),
+                          .provenance = PointerProvenance::Static(&inst),
+                          .staticProvenanceOffset = 0,
+                          .guaranteedNotNull = true };
+    return setNode(&inst, makeLeafNode(desc));
 }
 
-bool PtrAnalyzeCtx::provenanceImpl(ExtractValue& inst) {
-    provenance(*inst.baseValue());
-    if (inst.memberIndices().size() != 1) {
-        return false;
+InfoNode* PtrAnalyzeCtx::provenanceImpl(ExtractValue& inst) {
+    auto* node = provenance(*inst.baseValue());
+    if (!node) {
+        return nullptr;
     }
-    size_t index = inst.memberIndices()[0];
-    if (inst.baseValue()->ptrInfoArrayCount() <= index) {
-        return false;
+    for (size_t index: inst.memberIndices()) {
+        auto* tree = cast<TreeNode*>(node);
+        auto itr = tree->children.find(index);
+        if (itr == tree->children.end()) {
+            return nullptr;
+        }
+        node = itr->second;
     }
-    inst.allocatePointerInfo();
-    inst.setPointerInfo(0, *inst.baseValue()->pointerInfo(index));
-    return true;
+    return setNode(&inst, node);
+}
+
+InfoNode* PtrAnalyzeCtx::provenanceImpl(InsertValue& inst) {
+    auto* base = provenance(*inst.baseValue());
+    auto* value = provenance(*inst.insertedValue());
+    if (!base || !value) {
+        return nullptr;
+    }
+    auto* node = setNode(&inst, clone(*base));
+    setNode(&inst, value, inst.memberIndices());
+    return node;
 }
 
 static ssize_t mod(ssize_t a, ssize_t b) {
@@ -132,66 +201,84 @@ static ssize_t computeAlign(ssize_t baseAlign, ssize_t offset) {
     return r == 0 ? baseAlign : r;
 }
 
-bool PtrAnalyzeCtx::provenanceImpl(GetElementPointer& gep) {
-    provenance(*gep.basePointer());
-    auto* base = gep.basePointer()->pointerInfo();
+InfoNode* PtrAnalyzeCtx::provenanceImpl(GetElementPointer& gep) {
+    /// GEP operates on pointers, and pointer values must always correspond to
+    /// leaf nodes
+    auto* base = cast<LeafNode*>(provenance(*gep.basePointer()));
     if (!base) {
-        return false;
+        return nullptr;
     }
+    auto const& baseDesc = base->desc;
     auto* accType = gep.accessedType();
     auto staticGEPOffset = gep.constantByteOffset();
     ssize_t align = [&] {
         if (staticGEPOffset) {
-            return computeAlign(base->align(), *staticGEPOffset);
+            return computeAlign(baseDesc.align, *staticGEPOffset);
         }
-        return std::min(base->align(), (ssize_t)accType->align());
+        return std::min(baseDesc.align, (ssize_t)accType->align());
     }();
     auto validSize = [&]() -> std::optional<size_t> {
-        auto validBaseSize = base->validSize();
+        auto validBaseSize = baseDesc.validSize;
         if (!validBaseSize || !staticGEPOffset) return std::nullopt;
         return utl::narrow_cast<size_t>((ssize_t)*validBaseSize -
                                         *staticGEPOffset);
     }();
-    auto provenance = base->provenance();
+    auto provenance = baseDesc.provenance;
     auto staticProvOffset = [&]() -> std::optional<size_t> {
-        auto baseOffset = base->staticProvencanceOffset();
+        auto baseOffset = baseDesc.staticProvenanceOffset;
         if (!baseOffset || !staticGEPOffset) return std::nullopt;
         return utl::narrow_cast<size_t>((ssize_t)*baseOffset +
                                         *staticGEPOffset);
     }();
-    bool guaranteedNotNull = base->guaranteedNotNull();
-    gep.allocatePointerInfo();
-    gep.setPointerInfo(0, { .align = align,
-                            .validSize = validSize,
-                            .provenance = provenance,
-                            .staticProvenanceOffset = staticProvOffset,
-                            .guaranteedNotNull = guaranteedNotNull });
-    return true;
+    auto* node =
+        makeLeafNode({ .align = align,
+                       .validSize = validSize,
+                       .provenance = provenance,
+                       .staticProvenanceOffset = staticProvOffset,
+                       .guaranteedNotNull = baseDesc.guaranteedNotNull });
+    return setNode(&gep, node);
 }
 
-bool PtrAnalyzeCtx::provenanceImpl(Call& call) {
+InfoNode* PtrAnalyzeCtx::provenanceImpl(Call& call) {
     if (isBuiltinCall(&call, svm::Builtin::alloc)) {
-        call.allocatePointerInfo(2);
-        call.setPointerInfo(
-            0, { /// We happen to know that all pointers returned by
-                 /// `__builtin_alloc` are aligned to 16 byte boundaries
-                 .align = 16,
-                 .validSize = std::nullopt,
-                 .provenance = PointerProvenance::Static(&call),
-                 .staticProvenanceOffset = 0,
-                 .guaranteedNotNull = true });
-        return true;
+        auto* node = makeLeafNode(
+            { /// We happen to know that all pointers returned by
+              /// `__builtin_alloc` are aligned to 16 byte boundaries
+              .align = 16,
+              .provenance = PointerProvenance::Static(&call),
+              .staticProvenanceOffset = 0,
+              .guaranteedNotNull = true });
+        return setNode(&call, node, { { 0 } });
     }
-    if (isa<PointerType>(call.type())) {
-        call.allocatePointerInfo();
-        call.setPointerInfo(0,
-                            { .align = 0,
-                              .validSize = std::nullopt,
-                              .provenance = PointerProvenance::Dynamic(&call),
-                              .staticProvenanceOffset = 0 });
-        return true;
+    bool hasPointers = false;
+    auto dfs = [&](auto& dfs, Type const* type) -> InfoNode* {
+        // clang-format off
+        return SC_MATCH_R (InfoNode*, *type) {
+            [&](RecordType const& type) {
+                auto* tree = makeTreeNode();
+                for (auto [index, elem]: type.elements() | enumerate) {
+                    if (auto* node = dfs(dfs, elem)) {
+                        tree->children.insert({ (size_t)index, node });
+                    }
+                }
+                return tree;
+            },
+            [&](PointerType const&) {
+                hasPointers = true;
+                return makeLeafNode({
+                    .align = 1,
+                    .provenance = PointerProvenance::Dynamic(&call),
+                    .staticProvenanceOffset = 0
+                });
+            },
+            [&](Type const&) { return nullptr; },
+        }; // clang-format on
+    };
+    auto* node = dfs(dfs, call.type());
+    if (hasPointers) {
+        return setNode(&call, node);
     }
-    return false;
+    return nullptr;
 }
 
 void PtrAnalyzeCtx::analyzeEscapingOperands(Instruction& inst) {
@@ -213,20 +300,15 @@ void PtrAnalyzeCtx::analyzeEscapingOperandsImpl(Store& store) {
 }
 
 void PtrAnalyzeCtx::analyzeEscaping(Value& value) {
-    if (!value.pointerInfo()) {
-        value.allocatePointerInfo();
-    }
     if (!escapingVisited.insert(&value).second) {
         return;
     }
     for (auto* user: value.users()) {
         analyzeEscaping(*user);
     }
-    if (!escaping.contains(&value)) {
-        for (auto& info: value.pointerInfoRange()) {
-            modified |= !info.isNonEscaping();
-            info.setNonEscaping();
-        }
+    auto* node = dyncast<LeafNode*>(getNode(&value));
+    if (node && !escaping.contains(&value)) {
+        node->desc.nonEscaping = true;
     }
     visit(value, [this](auto& value) { analyzeEscapingImpl(value); });
 }
@@ -250,4 +332,80 @@ void PtrAnalyzeCtx::analyzeEscapingImpl(ExtractValue& inst) {
     if (escaping.contains(&inst)) {
         markEscaping(inst.baseValue());
     }
+}
+
+template <typename NodeType>
+NodeType* PtrAnalyzeCtx::addNode(UniquePtr<NodeType> node) {
+    auto* result = node.get();
+    infoNodes.push_back(std::move(node));
+    return result;
+}
+
+LeafNode* PtrAnalyzeCtx::makeLeafNode(PointerInfoDesc const& desc) {
+    return addNode(allocate<LeafNode>(desc));
+}
+
+TreeNode* PtrAnalyzeCtx::makeTreeNode() {
+    return addNode(allocate<TreeNode>());
+}
+
+InfoNode* PtrAnalyzeCtx::clone(InfoNode const& node) {
+    // clang-format off
+    auto copy = SC_MATCH_R (UniquePtr<InfoNode>, node) {
+        [&](TreeNode const& node) {
+            auto copy = allocate<TreeNode>();
+            for (auto [index, child]: node.children) {
+                copy->children.insert({ (size_t)index, clone(*child) });
+            }
+            return copy;
+        },
+        [](LeafNode const& node) { return allocate<LeafNode>(node.desc); },
+    }; // clang-format on
+    return addNode(std::move(copy));
+}
+
+InfoNode* PtrAnalyzeCtx::getNode(Value const* value,
+                                 std::span<size_t const> indices) {
+    auto itr = info.find(value);
+    if (itr == info.end()) {
+        return nullptr;
+    }
+    auto* node = itr->second;
+    for (size_t index: indices) {
+        auto* tree = dyncast<TreeNode*>(node);
+        if (!tree) {
+            return nullptr;
+        }
+        node = tree->child(index);
+    }
+    return node;
+}
+
+InfoNode* PtrAnalyzeCtx::setNode(Value* value, InfoNode* node,
+                                 std::span<size_t const> indices) {
+    if (indices.empty()) {
+        info.insert_or_assign(value, node);
+        return node;
+    }
+    auto* current = [&]() -> InfoNode* {
+        auto itr = info.find(value);
+        if (itr != info.end()) {
+            return itr->second;
+        }
+        auto* n = makeTreeNode();
+        info.insert({ value, n });
+        return n;
+    }();
+    for (size_t index: indices | drop(1)) {
+        auto* tree = cast<TreeNode*>(current);
+        auto itr = tree->children.find(index);
+        if (itr != tree->children.end()) {
+            current = itr->second;
+            continue;
+        }
+        current = makeTreeNode();
+        tree->children.insert({ index, current });
+    }
+    cast<TreeNode*>(current)->children.insert_or_assign(indices.back(), node);
+    return node;
 }

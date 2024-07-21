@@ -96,7 +96,7 @@ func void @f() {
         CHECK(ptr->align() == 8);
         CHECK(ptr->validSize().value() == 8);
         CHECK(ptr->provenance().value() == &a1);
-        CHECK(ptr->staticProvencanceOffset().value() == 0);
+        CHECK(ptr->staticProvenanceOffset().value() == 0);
         CHECK(ptr->guaranteedNotNull());
     }
     auto& a2 = *a1.next();
@@ -106,7 +106,7 @@ func void @f() {
         CHECK(ptr->align() == 8);
         CHECK(ptr->validSize().value() == 8);
         CHECK(ptr->provenance().value() == &a1);
-        CHECK(ptr->staticProvencanceOffset().value() == 0);
+        CHECK(ptr->staticProvenanceOffset().value() == 0);
         CHECK(ptr->guaranteedNotNull());
     }
 }

@@ -61,6 +61,7 @@ set(scatha_headers
   include/scatha/IR/PipelineError.h
   include/scatha/IR/Print.h
   include/scatha/IR/UniqueName.h
+  include/scatha/IR/ValueRef.h
 
   include/scatha/IRGen/IRGen.h
 
@@ -241,6 +242,7 @@ set(scatha_sources
     lib/IR/UniqueName.cc
     lib/IR/Validate.cc
     lib/IR/Validate.h
+    lib/IR/ValueRef.cc
     lib/IR/VectorHash.h
 
     lib/IRGen/CallingConvention.cc

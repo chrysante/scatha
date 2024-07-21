@@ -289,6 +289,8 @@ SCATHA_API void do_delete(ir::Type& type);
 /// Insulated call to destructor on the most derived base of \p type
 SCATHA_API void do_destroy(ir::Type& type);
 
+class ValueRef;
+
 class DomTree;
 
 class DominanceInfo;

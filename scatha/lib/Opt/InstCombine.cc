@@ -949,15 +949,14 @@ static StaticCompareResult pointerStaticCompare(Value const* lhs,
     }
     auto* lhsInfo = lhs->pointerInfo();
     auto* rhsInfo = rhs->pointerInfo();
-    if (!lhsInfo || !lhsInfo->isValid() || !rhsInfo || !rhsInfo->isValid()) {
+    if (!lhsInfo || !rhsInfo) {
         return Indeterminate;
     }
     if (lhsInfo->provenance().value() == rhsInfo->provenance().value() &&
-        lhsInfo->staticProvencanceOffset() &&
-        rhsInfo->staticProvencanceOffset())
+        lhsInfo->staticProvenanceOffset() && rhsInfo->staticProvenanceOffset())
     {
-        if (lhsInfo->staticProvencanceOffset().value() ==
-            rhsInfo->staticProvencanceOffset().value())
+        if (lhsInfo->staticProvenanceOffset().value() ==
+            rhsInfo->staticProvenanceOffset().value())
         {
             return Equal;
         }

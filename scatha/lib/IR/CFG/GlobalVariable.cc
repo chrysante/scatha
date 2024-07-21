@@ -25,12 +25,11 @@ void GlobalVariable::setInitializer(Constant* init) {
         return;
     }
     auto* type = init->type();
-    allocatePointerInfo();
-    setPointerInfo(0, { .align = (ssize_t)type->align(),
-                        .validSize = (ssize_t)type->size(),
-                        .provenance = PointerProvenance::Static(this),
-                        .staticProvenanceOffset = 0,
-                        .guaranteedNotNull = true });
+    setPointerInfo({ .align = (ssize_t)type->align(),
+                     .validSize = (ssize_t)type->size(),
+                     .provenance = PointerProvenance::Static(this),
+                     .staticProvenanceOffset = 0,
+                     .guaranteedNotNull = true });
 }
 
 PointerType const* GlobalVariable::type() const {

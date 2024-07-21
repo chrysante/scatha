@@ -24,7 +24,7 @@ public:
     Value(Value const&) = delete;
     Value& operator=(Value const&) = delete;
 
-    /// Calls `removeAllUses()`
+    /// Calls `removeAllUses()` and `clearAllReferences()`
     ~Value();
 
     /// The runtime type of this CFG node.
@@ -62,39 +62,17 @@ public:
     /// Replace all uses of `this` with \p newValue
     void replaceAllUsesWith(Value* newValue);
 
+    /// Sets all `ValueRef`s to this value to null
+    void clearAllReferences();
+
     /// For complex initialization.
     void setType(Type const* type) { _type = type; }
 
     /// Pointer info associated with this value
-    PointerInfo* pointerInfo() { return ptrInfo.get(); }
-
-    /// \overload
     PointerInfo const* pointerInfo() const { return ptrInfo.get(); }
 
-    /// Pointer infos associated with this value
-    std::span<PointerInfo> pointerInfoRange();
-
-    /// \overload
-    std::span<PointerInfo const> pointerInfoRange() const;
-
-    /// \Returns the pointer info at \p index
-    /// \Pre \p index must be less than `ptrInfoArrayCount()`
-    PointerInfo* pointerInfo(size_t index);
-
-    /// \overload
-    PointerInfo const* pointerInfo(size_t index) const;
-
-    ///
-    void allocatePointerInfo(size_t count = 1);
-
     /// Allocates a pointer info object for this value.
-    void setPointerInfo(size_t index, PointerInfo info);
-
-    /// \overload
-    void setPointerInfo(size_t index, PointerInfoDesc desc);
-
-    ///
-    size_t ptrInfoArrayCount() const { return _ptrInfoArrayCount; }
+    void setPointerInfo(PointerInfoDesc desc);
 
     /// \Returns a view over the attributes of this value (`[Attribute const*]`)
     auto attributes() const {
@@ -130,6 +108,7 @@ protected:
 
 private:
     friend class User;
+    friend class ValueRef;
 
     /// Register a user of this value. Won't affect \p user
     /// This function and `removeUserWeak()` are solely intended to be used be
@@ -154,8 +133,9 @@ private:
     Type const* _type;
     std::string _name;
     utl::hashmap<User*, uint16_t> _users;
+    utl::hashset<ValueRef*> _references;
     utl::hashmap<AttributeType, UniquePtr<Attribute>> _attribs;
-    std::unique_ptr<PointerInfo[]> ptrInfo;
+    std::unique_ptr<PointerInfo> ptrInfo;
 };
 
 } // namespace scatha::ir

@@ -1203,12 +1203,6 @@ bool IRParser::parsePtrInfo(Token tok, Value& value) {
     if (tok.id() != "ptr") {
         return false;
     }
-    size_t index = 0;
-    if (peekToken().kind() == TokenKind::Colon) {
-        eatToken();
-        index = parseInt(eatToken(), 64).to<size_t>();
-    }
-    value.allocatePointerInfo(index + 1);
     if (peekToken().kind() != TokenKind::OpenParan) {
         reportSemaIssue(peekToken(), SemanticIssue::UnexpectedID);
         return false;
@@ -1265,8 +1259,7 @@ bool IRParser::parsePtrInfo(Token tok, Value& value) {
         }
     }
     auto assign = [=](Value* value, Value* prov) {
-        value->setPointerInfo(index,
-                              { .align = align.value_or(1),
+        value->setPointerInfo({ .align = align.value_or(1),
                                 .validSize = validSize,
                                 .provenance = PointerProvenance(prov, Static),
                                 .staticProvenanceOffset = provOffset,

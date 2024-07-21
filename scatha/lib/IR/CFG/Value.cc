@@ -5,6 +5,7 @@
 #include "IR/CFG.h"
 #include "IR/PointerInfo.h"
 #include "IR/Type.h"
+#include "IR/ValueRef.h"
 
 using namespace scatha;
 using namespace ir;
@@ -12,7 +13,10 @@ using namespace ir;
 Value::Value(NodeType nodeType, Type const* type, std::string name) noexcept:
     _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
-Value::~Value() { removeAllUses(); }
+Value::~Value() {
+    removeAllUses();
+    clearAllReferences();
+}
 
 void Value::removeAllUses() {
     /// We make a copy of the user list because `updateOperand()` modifies the
@@ -34,6 +38,13 @@ void Value::replaceAllUsesWith(Value* newValue) {
     for (auto* user: users() | ToSmallVector<>) {
         user->updateOperand(this, newValue);
     }
+}
+
+void Value::clearAllReferences() {
+    for (auto* ref: _references) {
+        ref->_value = nullptr;
+    }
+    _references.clear();
 }
 
 void Value::addUserWeak(User* user) {
@@ -82,50 +93,8 @@ void ir::do_destroy(Value& value) {
     visit(value, [](auto& derived) { std::destroy_at(&derived); });
 }
 
-PointerInfo* Value::pointerInfo(size_t index) {
-    SC_EXPECT(index < ptrInfoArrayCount());
-    return &ptrInfo[index];
-}
-
-///
-PointerInfo const* Value::pointerInfo(size_t index) const {
-    SC_EXPECT(index < ptrInfoArrayCount());
-    return &ptrInfo[index];
-}
-
-template <typename I>
-static std::span<I> ptrInfoRangeImpl(auto& value) {
-    if (!value.pointerInfo()) {
-        return {};
-    }
-    return { value.pointerInfo(), value.ptrInfoArrayCount() };
-}
-
-std::span<PointerInfo> Value::pointerInfoRange() {
-    return ptrInfoRangeImpl<PointerInfo>(*this);
-}
-
-std::span<PointerInfo const> Value::pointerInfoRange() const {
-    return ptrInfoRangeImpl<PointerInfo const>(*this);
-}
-
-void Value::allocatePointerInfo(size_t count) {
-    if (ptrInfoArrayCount() >= count) {
-        return;
-    }
-    auto tmp = std::make_unique<PointerInfo[]>(count);
-    std::copy(ptrInfo.get(), ptrInfo.get() + ptrInfoArrayCount(), tmp.get());
-    ptrInfo = std::move(tmp);
-    _ptrInfoArrayCount = utl::narrow_cast<uint16_t>(count);
-}
-
-void Value::setPointerInfo(size_t index, PointerInfo info) {
-    SC_EXPECT(index < ptrInfoArrayCount());
-    ptrInfo[index] = info;
-}
-
-void Value::setPointerInfo(size_t index, PointerInfoDesc desc) {
-    setPointerInfo(index, PointerInfo(desc));
+void Value::setPointerInfo(PointerInfoDesc desc) {
+    ptrInfo = std::make_unique<PointerInfo>(desc);
 }
 
 Attribute const* Value::addAttribute(UniquePtr<Attribute> attrib) {

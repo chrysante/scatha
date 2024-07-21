@@ -75,7 +75,7 @@ struct PrintCtx {
     void printImport(std::string_view libName);
     void print(StructType const& structure);
 
-    void metadata(int index, PointerInfo const&);
+    void metadata(PointerInfo const&);
 
     void funcDecl(ir::Callable const*);
     void instDecl(Instruction const*) const;
@@ -415,14 +415,9 @@ void PrintCtx::print(Value const& value) {
         instDecl(inst);
     }
     visit(value, [this](auto const& value) { printImpl(value); });
-    size_t ptrInfoCount = value.ptrInfoArrayCount();
-    for (size_t i = 0; i < ptrInfoCount; ++i) {
-        auto* info = value.pointerInfo(i);
-        if (!info || !info->isValid()) {
-            continue;
-        }
+    if (auto* info = value.pointerInfo()) {
         str << "\n" << indent + 1;
-        metadata(ptrInfoCount == 1 ? -1 : (int)i, *info);
+        metadata(*info);
     }
     if (isa<Global>(value)) {
         str << "\n\n";
@@ -623,12 +618,8 @@ void PrintCtx::print(StructType const& structure) {
     str << "\n";
 }
 
-void PrintCtx::metadata(int index, PointerInfo const& info) {
-    str << tfmt::format(Red, "#ptr");
-    if (index >= 0) {
-        str << ":" << index;
-    }
-    str << "(";
+void PrintCtx::metadata(PointerInfo const& info) {
+    str << tfmt::format(Red, "#ptr") << "(";
     str << "align: " << info.align();
     if (auto size = info.validSize()) {
         str << ", validsize: " << *size;
@@ -639,7 +630,7 @@ void PrintCtx::metadata(int index, PointerInfo const& info) {
         str << ", ";
         keyword("static");
     }
-    if (auto offset = info.staticProvencanceOffset()) {
+    if (auto offset = info.staticProvenanceOffset()) {
         str << ", offset: " << *offset;
     }
     if (info.isNonEscaping()) {

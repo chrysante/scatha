@@ -7,6 +7,7 @@
 
 #include "Common/Base.h"
 #include "IR/Fwd.h"
+#include "IR/ValueRef.h"
 
 namespace scatha::ir {
 
@@ -48,12 +49,7 @@ struct PointerInfoDesc {
 /// Statically known pointer meta data
 class PointerInfo {
 public:
-    PointerInfo() = default;
-
     PointerInfo(PointerInfoDesc desc);
-
-    ///
-    bool isValid() const { return _isValid; }
 
     /// The minimum alignment requirement that can be assumed for this pointer
     ssize_t align() const { return (ssize_t)_align; }
@@ -73,11 +69,13 @@ public:
     ///     %elem = getelementptr i32, ptr %alloc, i32 2
     ///
     /// `%elem` has provenance `%alloc`
-    PointerProvenance provenance() const { return _prov; }
+    PointerProvenance provenance() const {
+        return { _prov.value(), _staticProv };
+    }
 
     /// \Returns the statically known offset in bytes of this pointer from its
     /// provenance or `std::nullopt`
-    std::optional<ssize_t> staticProvencanceOffset() const {
+    std::optional<ssize_t> staticProvenanceOffset() const {
         return _staticProvOffset != InvalidSize ?
                    std::optional<ssize_t>(_staticProvOffset) :
                    std::nullopt;
@@ -101,11 +99,11 @@ public:
 private:
     static constexpr ssize_t InvalidSize = std::numeric_limits<ssize_t>::min();
 
-    bool _isValid = false;
     uint8_t _align = 0;
     bool _guaranteedNotNull = false;
     bool _nonEscaping = false;
-    PointerProvenance _prov = PointerProvenance::Dynamic(nullptr);
+    bool _staticProv = false;
+    ValueRef _prov;
     ssize_t _validSize = InvalidSize;
     ssize_t _staticProvOffset = InvalidSize;
 };
