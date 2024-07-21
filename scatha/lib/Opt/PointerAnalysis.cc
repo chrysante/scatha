@@ -85,12 +85,15 @@ struct PtrAnalyzeCtx {
 
     /// Performs a DFS over the operands to analyze provenance
     InfoNode* provenance(Value& inst);
+    InfoNode* provenanceImpl(Parameter& param);
     InfoNode* provenanceImpl(Alloca& inst);
     InfoNode* provenanceImpl(GetElementPointer& gep);
     InfoNode* provenanceImpl(ExtractValue& inst);
     InfoNode* provenanceImpl(InsertValue& inst);
     InfoNode* provenanceImpl(Call& call);
+    InfoNode* provenanceImpl(Load& load);
     InfoNode* provenanceImpl(Value&) { return nullptr; }
+    InfoNode* annotateUnknown(Value& value);
 
     /// Checks whether \p inst escapes its operands
     void analyzeEscapingOperands(Instruction& inst);
@@ -124,15 +127,16 @@ bool opt::pointerAnalysis(Context& ctx, Function& function) {
 }
 
 void PtrAnalyzeCtx::run() {
-    for (auto& inst: function.instructions()) {
-        provenance(inst);
-        analyzeEscapingOperands(inst);
+    auto values = concat(function.parameters() | transform(cast<Value&>),
+                         function.instructions());
+    for (auto& value: values) {
+        provenance(value);
+        if (auto* inst = dyncast<Instruction*>(&value)) {
+            analyzeEscapingOperands(*inst);
+        }
     }
-    for (auto& param: function.parameters()) {
-        analyzeEscaping(param);
-    }
-    for (auto& inst: function.instructions()) {
-        analyzeEscaping(inst);
+    for (auto& value: values) {
+        analyzeEscaping(value);
     }
     for (auto& [value, node]: info) {
         if (auto* leaf = dyncast<LeafNode const*>(node)) {
@@ -149,6 +153,10 @@ InfoNode* PtrAnalyzeCtx::provenance(Value& value) {
         return nullptr;
     }
     return visit(value, [this](auto& value) { return provenanceImpl(value); });
+}
+
+InfoNode* PtrAnalyzeCtx::provenanceImpl(Parameter& param) {
+    return annotateUnknown(param);
 }
 
 InfoNode* PtrAnalyzeCtx::provenanceImpl(Alloca& inst) {
@@ -224,11 +232,12 @@ InfoNode* PtrAnalyzeCtx::provenanceImpl(GetElementPointer& gep) {
                                         *staticGEPOffset);
     }();
     auto provenance = baseDesc.provenance;
-    auto staticProvOffset = [&]() -> std::optional<size_t> {
+    auto staticProvOffset = [&]() -> std::optional<ssize_t> {
         auto baseOffset = baseDesc.staticProvenanceOffset;
-        if (!baseOffset || !staticGEPOffset) return std::nullopt;
-        return utl::narrow_cast<size_t>((ssize_t)*baseOffset +
-                                        *staticGEPOffset);
+        if (!baseOffset || !staticGEPOffset) {
+            return std::nullopt;
+        }
+        return *baseOffset + *staticGEPOffset;
     }();
     auto* node =
         makeLeafNode({ .align = align,
@@ -250,6 +259,14 @@ InfoNode* PtrAnalyzeCtx::provenanceImpl(Call& call) {
               .guaranteedNotNull = true });
         return setNode(&call, node, { { 0 } });
     }
+    return annotateUnknown(call);
+}
+
+InfoNode* PtrAnalyzeCtx::provenanceImpl(Load& load) {
+    return annotateUnknown(load);
+}
+
+InfoNode* PtrAnalyzeCtx::annotateUnknown(Value& value) {
     bool hasPointers = false;
     auto dfs = [&](auto& dfs, Type const* type) -> InfoNode* {
         // clang-format off
@@ -267,16 +284,16 @@ InfoNode* PtrAnalyzeCtx::provenanceImpl(Call& call) {
                 hasPointers = true;
                 return makeLeafNode({
                     .align = 1,
-                    .provenance = PointerProvenance::Dynamic(&call),
+                    .provenance = PointerProvenance::Dynamic(&value),
                     .staticProvenanceOffset = 0
                 });
             },
             [&](Type const&) { return nullptr; },
         }; // clang-format on
     };
-    auto* node = dfs(dfs, call.type());
+    auto* node = dfs(dfs, value.type());
     if (hasPointers) {
-        return setNode(&call, node);
+        return setNode(&value, node);
     }
     return nullptr;
 }

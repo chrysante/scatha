@@ -693,6 +693,10 @@ void PrintCtx::funcDecl(ir::Callable const* func) {
             str << formatAttrib(*attrib) << " ";
         }
         str << doFormatName(&param);
+        if (auto* info = param.pointerInfo()) {
+            str << " ";
+            metadata(*info);
+        }
     }
     str << ")";
 }

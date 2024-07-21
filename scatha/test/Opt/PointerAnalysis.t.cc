@@ -150,3 +150,42 @@ func ptr @makePtr() {
     return ptr nullptr
 })");
 }
+
+TEST_CASE("Compare alloca to pointer loaded from memory",
+          "[opt][pointer-analysis]") {
+    test::passTest("ptranalysis, instcombine, sroa",
+                   R"(
+@p = global ptr nullptr
+func i1 @test() {
+  %entry:
+    %i.addr = alloca i64, i32 1
+    %p.2 = load ptr, ptr @p
+    %eq.2 = ucmp eq ptr %p.2, ptr %i.addr
+    return i1 %eq.2
+}
+)",
+                   R"(
+func i1 @test() {
+    %entry:
+    return i1 0
+}
+)");
+}
+
+TEST_CASE("Compare alloca to pointer argument", "[opt][pointer-analysis]") {
+    test::passTest("ptranalysis, instcombine, sroa",
+                   R"(
+func i1 @test-_Ps64(ptr %0) {
+    %entry:
+    %i.addr = alloca i64, i32 1
+    %eq = ucmp eq ptr %i.addr, ptr %0
+    return i1 %eq
+}
+)",
+                   R"(
+func i1 @test-_Ps64(ptr %0) {
+    %entry:
+    return i1 0
+}
+)");
+}
