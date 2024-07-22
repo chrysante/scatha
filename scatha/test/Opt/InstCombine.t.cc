@@ -553,3 +553,26 @@ func i1 @test() {
 }
 )");
 }
+
+TEST_CASE("Fold constant Geps", "[opt][inst-combine]") {
+    test::passTest("instcombine",
+                   R"(
+func ptr @0(ptr %0) {
+  %entry:
+    %1 = getelementptr inbounds i32, ptr %0, i32 1
+    %2 = getelementptr inbounds i32, ptr %1, i32 1
+    %3 = getelementptr inbounds i32, ptr %2, i32 1
+    %4 = getelementptr inbounds i32, ptr %3, i32 1
+    %5 = getelementptr inbounds i32, ptr %4, i32 1
+    %6 = getelementptr inbounds i32, ptr %5, i32 1
+    return ptr %6
+}
+)",
+
+                   R"(
+func ptr @0(ptr %0) {
+  %entry:
+    %1 = getelementptr inbounds i32, ptr %0, i64 6
+    return ptr %1
+})");
+}

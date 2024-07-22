@@ -103,6 +103,8 @@ struct InstCombineCtx {
     Value* visitInstruction(Instruction* inst);
 
     Value* visitImpl(Instruction*) { return nullptr; }
+    Value* constGepCombinePreserveStructure(GetElementPointer* inst);
+    Value* constGepCombineByteOffset(GetElementPointer* inst);
     Value* visitImpl(GetElementPointer* inst);
     Value* visitImpl(ArithmeticInst* inst);
     Value* visitImpl(Load* inst);
@@ -239,12 +241,154 @@ Value* InstCombineCtx::visitInstruction(Instruction* inst) {
     return visit(*inst, [this](auto& inst) { return visitImpl(&inst); });
 }
 
-Value* InstCombineCtx::visitImpl(GetElementPointer*) {
-#if 0
-    if (auto offset = inst->constantByteOffset(); offset && *offset == 0) {
+namespace {
+
+struct GepCombineData {
+    Value* base = nullptr;
+    Type const* baseType = nullptr;
+    ssize_t staticArrayIndex = 0;
+    utl::small_vector<size_t> memberIndices;
+
+    bool hasArrayOffset() const { return staticArrayIndex != 0; }
+};
+
+} // namespace
+
+static std::optional<ssize_t> adjustArrayIndexToType(Type const* baseType,
+                                                     Type const* indexType,
+                                                     ssize_t index) {
+    if (index == 0) {
+        return 0;
+    }
+    ssize_t baseSize = (ssize_t)baseType->size();
+    ssize_t currSize = (ssize_t)indexType->size();
+    if (baseSize == currSize) {
+        return index;
+    }
+    if (baseSize % currSize != 0) {
+        return std::nullopt;
+    }
+    if (baseSize < currSize) {
+        ssize_t factor = currSize / baseSize;
+        return index * factor;
+    }
+    ssize_t denum = baseSize / currSize;
+    if (index % denum != 0) {
+        return std::nullopt;
+    }
+    return index / denum;
+}
+
+static void searchGepCombine(GetElementPointer* inst, GepCombineData& data) {
+    data.baseType = inst->inboundsType();
+    while (inst) {
+        /// If we already have array offset, we cannot combine a gep with member
+        /// indices
+        if (data.hasArrayOffset() && !inst->memberIndices().empty()) {
+            return;
+        }
+        if (!inst->hasConstantArrayIndex()) {
+            return;
+        }
+        ssize_t constArrayIndex = inst->constantArrayIndex().value();
+        auto adjIndex = adjustArrayIndexToType(data.baseType,
+                                               inst->inboundsType(),
+                                               constArrayIndex);
+        if (!adjIndex) {
+            return;
+        }
+        constArrayIndex = *adjIndex;
+        if (!inst->memberIndices().empty()) {
+            data.baseType = inst->inboundsType();
+            data.memberIndices.insert(data.memberIndices.begin(),
+                                      inst->memberIndices().begin(),
+                                      inst->memberIndices().end());
+        }
+        data.staticArrayIndex += constArrayIndex;
+        data.base = inst->basePointer();
+        inst = dyncast<GetElementPointer*>(inst->basePointer());
+    }
+}
+
+[[maybe_unused]]
+static bool memberIndicesAreValid(Type const* type, std::span<size_t> indices) {
+    for (size_t index: indices) {
+        auto* record = dyncast<RecordType const*>(type);
+        if (!record || record->numElements() <= index) {
+            return false;
+        }
+        type = record->elementAt(index);
+    }
+    return true;
+}
+
+Value* InstCombineCtx::constGepCombinePreserveStructure(
+    GetElementPointer* inst) {
+    GepCombineData data;
+    searchGepCombine(inst, data);
+    if (!data.base || data.base == inst->basePointer()) {
+        return nullptr;
+    }
+    SC_ASSERT(memberIndicesAreValid(data.baseType, data.memberIndices), "");
+    auto* index = irCtx.intConstant(data.staticArrayIndex, 64);
+    BasicBlockBuilder builder(irCtx, inst->parent());
+    builder.setAddPoint(inst);
+    return builder.add<GetElementPointer>(data.baseType, data.base, index,
+                                          data.memberIndices,
+                                          std::string(inst->name()));
+}
+
+namespace {
+
+struct GepInfo {
+    Value* basePtr;
+    ssize_t byteOffset;
+    utl::small_vector<GetElementPointer*> geps;
+};
+
+} // namespace
+
+static std::pair<Value*, ssize_t> recGepBaseAndOffsetImpl(
+    Value* pointer, utl::vector<GetElementPointer*>& geps) {
+    auto* gep = dyncast<GetElementPointer*>(pointer);
+    if (!gep || !gep->hasConstantArrayIndex()) {
+        return { pointer, 0 };
+    }
+    geps.push_back(gep);
+    auto [base, offset] = recGepBaseAndOffsetImpl(gep->basePointer(), geps);
+    return { base, offset + *gep->constantByteOffset() };
+}
+
+static GepInfo recursiveGepBaseAndOffset(Value* pointer) {
+    GepInfo result;
+    std::tie(result.basePtr, result.byteOffset) =
+        recGepBaseAndOffsetImpl(pointer, result.geps);
+    return result;
+}
+
+Value* InstCombineCtx::constGepCombineByteOffset(GetElementPointer* inst) {
+    auto info = recursiveGepBaseAndOffset(inst);
+    if (info.geps.size() <= 1) {
+        return nullptr;
+    }
+    auto* index = irCtx.intConstant(info.byteOffset, 64);
+    BasicBlockBuilder builder(irCtx, inst->parent());
+    builder.setAddPoint(inst);
+    return builder.add<GetElementPointer>(irCtx.intType(8), info.basePtr, index,
+                                          std::span<size_t>{},
+                                          std::string(inst->name()));
+}
+
+Value* InstCombineCtx::visitImpl(GetElementPointer* inst) {
+    if (inst->constantByteOffset() == 0) {
         return inst->basePointer();
     }
-#endif
+    if (auto* result = constGepCombinePreserveStructure(inst)) {
+        return result;
+    }
+    if (auto* result = constGepCombineByteOffset(inst)) {
+        return result;
+    }
     return nullptr;
 }
 
@@ -571,38 +715,6 @@ bool InstCombineCtx::tryMergeNegate(ArithmeticInst* inst) {
         }
     }
     return false;
-}
-
-namespace {
-
-struct GepInfo {
-    Value* basePtr;
-    ssize_t byteOffset;
-    utl::small_vector<GetElementPointer*> geps;
-};
-
-} // namespace
-
-static std::pair<Value*, ssize_t> recGepBaseAndOffsetImpl(
-    Value* pointer, utl::vector<GetElementPointer*>& geps) {
-    auto* gep = dyncast<GetElementPointer*>(pointer);
-    if (!gep) {
-        return { pointer, 0 };
-    }
-    if (!gep->hasConstantArrayIndex()) {
-        return { nullptr, 0 };
-    }
-    geps.push_back(gep);
-    auto [base, offset] = recGepBaseAndOffsetImpl(gep->basePointer(), geps);
-    return { base, offset + *gep->constantByteOffset() };
-}
-
-static GepInfo recursiveGepBaseAndOffset(Value* pointer) {
-    GepInfo result;
-    auto [base, offset] = recGepBaseAndOffsetImpl(pointer, result.geps);
-    result.basePtr = base;
-    result.byteOffset = offset;
-    return result;
 }
 
 static Constant* loadConstNoPunning(Load* load, Constant* base,
