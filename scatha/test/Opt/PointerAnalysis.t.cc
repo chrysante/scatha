@@ -6,6 +6,7 @@
 #include "IR/Context.h"
 #include "IR/IRParser.h"
 #include "IR/Module.h"
+#include "IR/PointerInfo.h"
 #include "Opt/PassTest.h"
 #include "Opt/Passes.h"
 
@@ -13,7 +14,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-TEST_CASE("Pointer analysis two allocas", "[opt][pointer-analysis]") {
+TEST_CASE("Two allocas", "[opt][pointer-analysis]") {
     auto [ctx, mod] = ir::parse(R"(
 func i1 @F() {
 %entry:
@@ -33,8 +34,7 @@ func i1 @F() {
     CHECK(retval->value() == 0);
 }
 
-TEST_CASE("Pointer analysis alloca and __builtin_alloc",
-          "[opt][pointer-analysis]") {
+TEST_CASE("Alloca and __builtin_alloc", "[opt][pointer-analysis]") {
     auto [ctx, mod] = ir::parse(R"(
 ext func { ptr, i64 } @__builtin_alloc(i64, i64)
 
@@ -188,4 +188,21 @@ func i1 @test-_Ps64(ptr %0) {
     return i1 0
 }
 )");
+}
+
+TEST_CASE("Amend parameter metadata", "[opt][pointer-analysis]") {
+    auto [ctx, mod] = ir::parse(R"(
+func void @F(ptr %p #ptr(nonnull)) {
+  %entry:
+    return
+}
+)")
+                          .value();
+    auto& F = mod.front();
+    pointerAnalysis(ctx, F);
+    auto& param = F.parameters().front();
+    auto* info = param.pointerInfo();
+    REQUIRE(info);
+    CHECK(info->isNonEscaping());
+    CHECK(info->guaranteedNotNull());
 }

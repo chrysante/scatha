@@ -72,7 +72,11 @@ public:
     PointerInfo const* pointerInfo() const { return ptrInfo.get(); }
 
     /// Allocates a pointer info object for this value.
-    void setPointerInfo(PointerInfoDesc desc);
+    void setPointerInfo(PointerInfoDesc const& desc);
+
+    /// Allocates a pointer info object for this value or amends the existing
+    /// pointer info.
+    void amendPointerInfo(PointerInfoDesc const& desc);
 
     /// \Returns a view over the attributes of this value (`[Attribute const*]`)
     auto attributes() const {

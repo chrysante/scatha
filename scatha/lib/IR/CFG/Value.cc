@@ -93,8 +93,17 @@ void ir::do_destroy(Value& value) {
     visit(value, [](auto& derived) { std::destroy_at(&derived); });
 }
 
-void Value::setPointerInfo(PointerInfoDesc desc) {
+void Value::setPointerInfo(PointerInfoDesc const& desc) {
     ptrInfo = std::make_unique<PointerInfo>(desc);
+}
+
+void Value::amendPointerInfo(PointerInfoDesc const& desc) {
+    if (ptrInfo) {
+        ptrInfo->amend(desc);
+    }
+    else {
+        setPointerInfo(desc);
+    }
 }
 
 Attribute const* Value::addAttribute(UniquePtr<Attribute> attrib) {

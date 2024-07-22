@@ -1263,11 +1263,8 @@ bool IRParser::parsePtrInfo(Token tok, Value& value) {
         }
     }
     auto assign = [=](Value* value, Value* prov) mutable {
-        if (prov == value) {
-            Static = true;
-            if (!provOffset) {
-                provOffset = 0;
-            }
+        if (!provOffset && prov == value) {
+            provOffset = 0;
         }
         value->setPointerInfo({ .align = align.value_or(1),
                                 .validSize = validSize,

@@ -31,6 +31,8 @@ public:
 
     Value* value() const { return _value.pointer(); }
 
+    bool operator==(PointerProvenance const&) const = default;
+
 private:
     utl::ipp<Value*, bool, 1> _value;
 };
@@ -42,7 +44,6 @@ struct PointerInfoDesc {
     PointerProvenance provenance;
     std::optional<ssize_t> staticProvenanceOffset;
     bool guaranteedNotNull = false;
-    bool hasStaticProvenance = false;
     bool nonEscaping = false;
 };
 
@@ -50,6 +51,12 @@ struct PointerInfoDesc {
 class PointerInfo {
 public:
     PointerInfo(PointerInfoDesc desc);
+
+    /// \Returns the description that created this pointer info
+    PointerInfoDesc getDesc() const;
+
+    ///
+    void amend(PointerInfoDesc desc);
 
     /// The minimum alignment requirement that can be assumed for this pointer
     ssize_t align() const { return (ssize_t)_align; }

@@ -83,9 +83,12 @@ struct PtrAnalyzeCtx {
 
     void run();
 
+    void apply();
+
     /// Performs a DFS over the operands to analyze provenance
     InfoNode* provenance(Value& inst);
     InfoNode* provenanceImpl(Parameter& param);
+    InfoNode* provenanceImpl(GlobalVariable& var);
     InfoNode* provenanceImpl(Alloca& inst);
     InfoNode* provenanceImpl(GetElementPointer& gep);
     InfoNode* provenanceImpl(ExtractValue& inst);
@@ -138,10 +141,25 @@ void PtrAnalyzeCtx::run() {
     for (auto& value: values) {
         analyzeEscaping(value);
     }
+    apply();
+}
+
+void PtrAnalyzeCtx::apply() {
     for (auto& [value, node]: info) {
-        if (auto* leaf = dyncast<LeafNode const*>(node)) {
-            value->setPointerInfo(leaf->desc);
+        auto* leaf = dyncast<LeafNode const*>(node);
+        if (!leaf) {
+            continue;
         }
+        // clang-format off
+        SC_MATCH (*value) {
+            [&](Instruction& inst) {
+                inst.setPointerInfo(leaf->desc);
+            },
+            [&](Parameter& param) {
+                param.amendPointerInfo(leaf->desc);
+            },
+            [](Value const&) {}
+        }; // clang-format on
     }
 }
 
@@ -157,6 +175,13 @@ InfoNode* PtrAnalyzeCtx::provenance(Value& value) {
 
 InfoNode* PtrAnalyzeCtx::provenanceImpl(Parameter& param) {
     return annotateUnknown(param);
+}
+
+InfoNode* PtrAnalyzeCtx::provenanceImpl(GlobalVariable& var) {
+    if (auto* info = var.pointerInfo()) {
+        return setNode(&var, makeLeafNode(info->getDesc()));
+    }
+    return nullptr;
 }
 
 InfoNode* PtrAnalyzeCtx::provenanceImpl(Alloca& inst) {
