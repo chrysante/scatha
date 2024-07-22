@@ -37,7 +37,7 @@ private:
 
 /// Parameters to initialize `PointerInfo`
 struct PointerInfoDesc {
-    ssize_t align = 0;
+    ssize_t align = 1;
     std::optional<ssize_t> validSize;
     PointerProvenance provenance;
     std::optional<ssize_t> staticProvenanceOffset;

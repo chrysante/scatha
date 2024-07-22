@@ -202,9 +202,6 @@ static ssize_t mod(ssize_t a, ssize_t b) {
 }
 
 static ssize_t computeAlign(ssize_t baseAlign, ssize_t offset) {
-    if (baseAlign == 0) {
-        return 0;
-    }
     ssize_t r = mod(offset, baseAlign);
     return r == 0 ? baseAlign : r;
 }
@@ -283,7 +280,6 @@ InfoNode* PtrAnalyzeCtx::annotateUnknown(Value& value) {
             [&](PointerType const&) {
                 hasPointers = true;
                 return makeLeafNode({
-                    .align = 1,
                     .provenance = PointerProvenance::Dynamic(&value),
                     .staticProvenanceOffset = 0
                 });

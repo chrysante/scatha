@@ -75,7 +75,7 @@ struct PrintCtx {
     void printImport(std::string_view libName);
     void print(StructType const& structure);
 
-    void metadata(PointerInfo const&);
+    void metadata(Value const& value, PointerInfo const&);
 
     void funcDecl(ir::Callable const*);
     void instDecl(Instruction const*) const;
@@ -417,7 +417,7 @@ void PrintCtx::print(Value const& value) {
     visit(value, [this](auto const& value) { printImpl(value); });
     if (auto* info = value.pointerInfo()) {
         str << "\n" << indent + 1;
-        metadata(*info);
+        metadata(value, *info);
     }
     if (isa<Global>(value)) {
         str << "\n\n";
@@ -618,28 +618,37 @@ void PrintCtx::print(StructType const& structure) {
     str << "\n";
 }
 
-void PrintCtx::metadata(PointerInfo const& info) {
+void PrintCtx::metadata(Value const& value, PointerInfo const& info) {
     str << tfmt::format(Red, "#ptr") << "(";
-    str << "align: " << info.align();
+    bool first = true;
+    utl::streammanip field = [&](std::ostream& str) {
+        if (!first) {
+            str << ", ";
+        }
+        first = false;
+    };
+    if (info.align() != 1) {
+        str << field << "align: " << info.align();
+    }
     if (auto size = info.validSize()) {
-        str << ", validsize: " << *size;
+        str << field << "validsize: " << *size;
     }
-    str << ", provenance: ";
-    typedName(info.provenance().value());
+    if (auto* prov = info.provenance().value(); prov != &value) {
+        str << field << "provenance: ";
+        typedName(info.provenance().value());
+        if (auto offset = info.staticProvenanceOffset(); offset && *offset != 0)
+        {
+            str << field << "offset: " << *offset;
+        }
+    }
     if (info.provenance().isStatic()) {
-        str << ", ";
-        keyword("static");
-    }
-    if (auto offset = info.staticProvenanceOffset()) {
-        str << ", offset: " << *offset;
+        str << field << "static";
     }
     if (info.isNonEscaping()) {
-        str << ", ";
-        keyword("noescape");
+        str << field << "noescape";
     }
     if (info.guaranteedNotNull()) {
-        str << ", ";
-        keyword("nonnull");
+        str << field << "nonnull";
     }
     str << ")";
 }
@@ -695,7 +704,7 @@ void PrintCtx::funcDecl(ir::Callable const* func) {
         str << doFormatName(&param);
         if (auto* info = param.pointerInfo()) {
             str << " ";
-            metadata(*info);
+            metadata(param, *info);
         }
     }
     str << ")";

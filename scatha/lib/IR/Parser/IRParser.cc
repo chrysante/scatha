@@ -173,7 +173,7 @@ struct IRParser {
             std::invoke(fn, user, value);
             return;
         }
-        _addPendingUpdate(optVal.token(), [=, this](Value* v) {
+        _addPendingUpdate(optVal.token(), [=, this](Value* v) mutable {
             SC_EXPECT(v);
             auto* value = dyncast<V*>(v);
             if (!value) {
@@ -512,22 +512,26 @@ UniquePtr<Callable> IRParser::parseCallable() {
     expect(eatToken(), TokenKind::OpenParan);
     List<Parameter> parameters;
     size_t index = 0;
-    if (peekToken().kind() != TokenKind::CloseParan) {
-        parameters.push_back(parseParamDecl(index++).release());
-    }
     while (true) {
-        if (peekToken().kind() != TokenKind::Comma) {
+        if (peekToken().kind() == TokenKind::CloseParan) {
+            eatToken();
             break;
         }
-        eatToken(); // Comma
+        if (index != 0) {
+            if (peekToken().kind() != TokenKind::Comma) {
+                expect(eatToken(), TokenKind::CloseParan);
+                break;
+            }
+            eatToken();
+        }
         auto argTypeTok = peekToken();
         parameters.push_back(parseParamDecl(index++).release());
+        parseMetadataFor(parameters.back());
         if (isForeign) {
             isValidFFISig &=
                 validateFFIType(argTypeTok, parameters.back().type());
         }
     }
-    expect(eatToken(), TokenKind::CloseParan);
     if (isForeign) {
         if (!isValidFFISig) {
             return nullptr;
@@ -1258,7 +1262,13 @@ bool IRParser::parsePtrInfo(Token tok, Value& value) {
             reportSyntaxIssue(tok);
         }
     }
-    auto assign = [=](Value* value, Value* prov) {
+    auto assign = [=](Value* value, Value* prov) mutable {
+        if (prov == value) {
+            Static = true;
+            if (!provOffset) {
+                provOffset = 0;
+            }
+        }
         value->setPointerInfo({ .align = align.value_or(1),
                                 .validSize = validSize,
                                 .provenance = PointerProvenance(prov, Static),
@@ -1271,7 +1281,8 @@ bool IRParser::parsePtrInfo(Token tok, Value& value) {
                      /* allowSelfRef = */ true);
     }
     else {
-        assign(&value, nullptr);
+        /// Unspecified provenance means the value itself is the provenance
+        assign(&value, &value);
     }
     return true;
 }

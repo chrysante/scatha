@@ -79,15 +79,25 @@ func @X @f(@X) {
 
 TEST_CASE("Parse IR with pointer info metadata", "[ir][parser]") {
     auto const text = R"(
-func void @f() {
+func void @f(ptr %0 #ptr(align: 8)) {
 %entry:
-    %1 = alloca i64, i32 1 #ptr(align: 8, validsize: 8, provenance: ptr %1, offset: 0, nonnull)
+    %1 = alloca i64, i32 1 #ptr(align: 8, validsize: 8, nonnull)
     // Same as %1 but metadata in different order
-    %2 = alloca i64, i32 1 #ptr(nonnull, validsize: 8, provenance: ptr %1, align: 8, offset: 0)
+    %2 = alloca i64, i32 1 #ptr(nonnull, validsize: 8, align: 8)
     return
 })";
     auto [ctx, mod] = ir::parse(text).value();
     auto& f = mod.front();
+    SECTION("%0") {
+        auto& param = f.parameters().front();
+        auto* ptr = param.pointerInfo();
+        REQUIRE(ptr);
+        CHECK(ptr->align() == 8);
+        CHECK(!ptr->validSize());
+        CHECK(ptr->provenance().value() == &param);
+        CHECK(ptr->staticProvenanceOffset().value() == 0);
+        CHECK(!ptr->guaranteedNotNull());
+    }
     auto& entry = f.front();
     auto& a1 = entry.front();
     SECTION("%1") {
@@ -105,7 +115,7 @@ func void @f() {
         REQUIRE(ptr);
         CHECK(ptr->align() == 8);
         CHECK(ptr->validSize().value() == 8);
-        CHECK(ptr->provenance().value() == &a1);
+        CHECK(ptr->provenance().value() == &a2);
         CHECK(ptr->staticProvenanceOffset().value() == 0);
         CHECK(ptr->guaranteedNotNull());
     }
