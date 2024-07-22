@@ -280,7 +280,9 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
         }
         SC_UNREACHABLE();
     }
-    if (lhs == ValueType::RegisterIndex && rhs == ValueType::Value64) {
+    if (lhs == ValueType::RegisterIndex &&
+        (rhs == ValueType::Value64 || rhs == ValueType::LabelPosition))
+    {
         switch (width) {
         case 1:
             switch (type) {

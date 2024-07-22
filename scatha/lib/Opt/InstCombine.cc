@@ -917,21 +917,25 @@ static bool dynAllocMayAlias(PointerInfo const& alloc,
 }
 
 static bool mayAlias(PointerInfo const& A, PointerInfo const& B) {
-    auto* aProv = A.provenance().value();
-    auto* bProv = B.provenance().value();
+    auto aProv = A.provenance();
+    auto bProv = B.provenance();
     if (aProv == bProv) {
         return true;
     }
-    if (isa<Alloca>(aProv)) {
+    if (aProv.isStatic() && bProv.isStatic() && aProv.value() != bProv.value())
+    {
+        return false;
+    }
+    if (isa<Alloca>(aProv.value())) {
         return allocaMayAlias(A, B);
     }
-    if (isa<Alloca>(bProv)) {
+    if (isa<Alloca>(bProv.value())) {
         return allocaMayAlias(B, A);
     }
-    if (isBuiltinAlloc(aProv)) {
+    if (isBuiltinAlloc(aProv.value())) {
         return dynAllocMayAlias(A, B);
     }
-    if (isBuiltinAlloc(bProv)) {
+    if (isBuiltinAlloc(bProv.value())) {
         return dynAllocMayAlias(B, A);
     }
     return true;
@@ -952,15 +956,14 @@ static StaticCompareResult pointerStaticCompare(Value const* lhs,
     if (!lhsInfo || !rhsInfo) {
         return Indeterminate;
     }
-    if (lhsInfo->provenance().value() == rhsInfo->provenance().value() &&
-        lhsInfo->staticProvenanceOffset() && rhsInfo->staticProvenanceOffset())
+    auto lhsProv = lhsInfo->provenance();
+    auto rhsProv = rhsInfo->provenance();
+    auto lhsOffset = lhsInfo->staticProvenanceOffset();
+    auto rhsOffset = rhsInfo->staticProvenanceOffset();
+    if (lhsProv.isStatic() && rhsProv.isStatic() &&
+        lhsProv.value() == rhsProv.value() && lhsOffset && rhsOffset)
     {
-        if (lhsInfo->staticProvenanceOffset().value() ==
-            rhsInfo->staticProvenanceOffset().value())
-        {
-            return Equal;
-        }
-        return NotEqual;
+        return *lhsOffset == *rhsOffset ? Equal : NotEqual;
     }
     if (!mayAlias(*lhsInfo, *rhsInfo)) {
         return NotEqual;

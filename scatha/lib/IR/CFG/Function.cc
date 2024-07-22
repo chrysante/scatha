@@ -8,6 +8,7 @@
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
+#include "IR/PointerInfo.h"
 #include "IR/Type.h"
 
 using namespace scatha;
@@ -42,6 +43,9 @@ Callable::Callable(NodeType nodeType, Context& ctx, Type const* returnType,
         param.setIndex(index);
         param.set_parent(this);
     }
+    setPointerInfo({ .provenance = PointerProvenance::Static(this),
+                     .staticProvenanceOffset = 0,
+                     .guaranteedNotNull = true });
 }
 
 struct Function::AnalysisData {

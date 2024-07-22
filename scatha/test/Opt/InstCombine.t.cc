@@ -514,3 +514,42 @@ func @q @update(i64 %a, i64 %b) {
     return @q %1
 })");
 }
+
+TEST_CASE("Compare vtable elements", "[opt][inst-combine]") {
+    test::passTest("instcombine",
+                   R"(
+@vtable = constant [ptr, 2] [ptr @1, ptr @2]
+func void @1() {
+  %entry:
+    return
+}
+func void @2() {
+  %entry:
+    return
+}
+func i1 @test() {
+  %entry:
+    %0 = load ptr, ptr @vtable
+    %1 = getelementptr inbounds ptr, ptr @vtable, i32 1
+    %2 = load ptr, ptr %1
+    %3 = ucmp eq ptr %0, ptr %2
+    return i1 %3
+}
+)",
+
+                   R"(
+@vtable = constant [ptr, 2] [ptr @1, ptr @2]
+func void @1() {
+  %entry:
+    return
+}
+func void @2() {
+  %entry:
+    return
+}
+func i1 @test() {
+  %entry:
+    return i1 0
+}
+)");
+}

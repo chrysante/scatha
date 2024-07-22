@@ -415,7 +415,7 @@ void PrintCtx::print(Value const& value) {
         instDecl(inst);
     }
     visit(value, [this](auto const& value) { printImpl(value); });
-    if (auto* info = value.pointerInfo()) {
+    if (auto* info = value.pointerInfo(); info && !isa<Callable>(value)) {
         str << "\n" << indent + 1;
         metadata(value, *info);
     }
