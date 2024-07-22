@@ -206,3 +206,20 @@ func void @F(ptr %p #ptr(nonnull)) {
     CHECK(info->isNonEscaping());
     CHECK(info->guaranteedNotNull());
 }
+
+TEST_CASE("Pointer parameter bitcast and stored", "[opt][pointer-analysis]") {
+    auto [ctx, mod] = ir::parse(R"(
+func void @test(ptr %0) {
+  %entry:
+    %1 = bitcast ptr %0 to i64
+    store ptr %0, i64 %1
+}
+)")
+                          .value();
+    auto& F = mod.front();
+    pointerAnalysis(ctx, F);
+    auto& param = F.parameters().front();
+    auto* info = param.pointerInfo();
+    REQUIRE(info);
+    CHECK(!info->isNonEscaping());
+}

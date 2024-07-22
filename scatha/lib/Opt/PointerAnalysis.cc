@@ -106,6 +106,7 @@ struct PtrAnalyzeCtx {
     void analyzeEscapingOperandsImpl(Call& call);
     void analyzeEscapingOperandsImpl(Store& store);
     void analyzeEscapingOperandsImpl(Phi& phi);
+    void analyzeEscapingOperandsImpl(ConversionInst& inst);
     void analyzeEscapingOperandsImpl(Instruction&) {}
 
     /// Performs a DFS over the users to analyze whether pointers escape
@@ -156,7 +157,7 @@ void PtrAnalyzeCtx::apply() {
             continue;
         }
         auto desc = leaf->desc;
-        desc.nonEscaping = isProvenanceEscaping(desc.provenance.value());
+        desc.nonEscaping = !isProvenanceEscaping(desc.provenance.value());
         // clang-format off
         SC_MATCH (*value) {
             [&](Instruction& inst) {
@@ -175,14 +176,19 @@ bool PtrAnalyzeCtx::isProvenanceEscaping(Value const* prov) {
     if (itr != provEscaping.end()) {
         return itr->second;
     }
-    auto& offsets = provToOffset[prov];
-    bool result = ranges::all_of(offsets, [&](Instruction const* inst) {
-        if (!isa<PointerType>(inst->type())) {
+    bool result = [&] {
+        if (escaping.contains(prov)) {
             return true;
         }
-        auto* node = dyncast<LeafNode*>(getNode(inst));
-        return node && node->desc.nonEscaping;
-    });
+        auto& offsets = provToOffset[prov];
+        return ranges::any_of(offsets, [&](Instruction const* inst) {
+            if (!isa<PointerType>(inst->type())) {
+                return false;
+            }
+            auto* node = dyncast<LeafNode*>(getNode(inst));
+            return !node || !node->desc.nonEscaping;
+        });
+    }();
     provEscaping[prov] = result;
     return result;
 }
@@ -360,6 +366,10 @@ void PtrAnalyzeCtx::analyzeEscapingOperandsImpl(Phi& phi) {
     for (auto* op: phi.operands()) {
         markEscaping(op);
     }
+}
+
+void PtrAnalyzeCtx::analyzeEscapingOperandsImpl(ConversionInst& inst) {
+    markEscaping(inst.operand());
 }
 
 void PtrAnalyzeCtx::analyzeEscaping(Value& value) {

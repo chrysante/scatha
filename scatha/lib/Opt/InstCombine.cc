@@ -72,6 +72,15 @@ public:
         }
     }
 
+    /// Push all operands of \p value onto the worklist
+    void pushOperands(Value* value) {
+        if (auto* user = dyncast<User*>(value)) {
+            for (auto* op: user->operands()) {
+                pushValue(op);
+            }
+        }
+    }
+
     /// Pop the first instruction off the worklist.
     /// \Returns the popped instruction
     Instruction* pop() { return items[index++]; }
@@ -765,6 +774,7 @@ Value* InstCombineCtx::visitImpl(ConversionInst* inst) {
         if (auto* convOp = dyncast<ConversionInst*>(inst->operand());
             convOp && convOp->conversion() == Bitcast)
         {
+            worklist.push(convOp);
             inst->setOperand(convOp->operand());
             return inst;
         }
