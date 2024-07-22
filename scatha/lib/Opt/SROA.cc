@@ -945,8 +945,7 @@ bool Variable::replaceBySlices(Load* load) {
         default: {
             Value* value = ctx.intConstant(0, node->type()->size() * 8);
             auto* intType = value->type();
-            BasicBlockBuilder builder(ctx, load->parent());
-            builder.setAddPoint(load);
+            BasicBlockBuilder builder(ctx, load->parent(), load);
             for (auto slice: slices) {
                 Value* sliceValue =
                     builder.add<Load>(slice.newAlloca(),
@@ -1020,8 +1019,7 @@ bool Variable::replaceBySlices(Store* store) {
             break;
         }
         default: {
-            BasicBlockBuilder builder(ctx, store->parent());
-            builder.setAddPoint(store);
+            BasicBlockBuilder builder(ctx, store->parent(), store);
             Value* value = store->value();
             auto* intType = ctx.intType(value->type()->size() * 8);
             if (value->type() != intType) {

@@ -331,8 +331,7 @@ Value* InstCombineCtx::constGepCombinePreserveStructure(
     }
     SC_ASSERT(memberIndicesAreValid(data.baseType, data.memberIndices), "");
     auto* index = irCtx.intConstant(data.staticArrayIndex, 64);
-    BasicBlockBuilder builder(irCtx, inst->parent());
-    builder.setAddPoint(inst);
+    BasicBlockBuilder builder(irCtx, inst->parent(), inst);
     return builder.add<GetElementPointer>(data.baseType, data.base, index,
                                           data.memberIndices,
                                           std::string(inst->name()));
@@ -372,8 +371,7 @@ Value* InstCombineCtx::constGepCombineByteOffset(GetElementPointer* inst) {
         return nullptr;
     }
     auto* index = irCtx.intConstant(info.byteOffset, 64);
-    BasicBlockBuilder builder(irCtx, inst->parent());
-    builder.setAddPoint(inst);
+    BasicBlockBuilder builder(irCtx, inst->parent(), inst);
     return builder.add<GetElementPointer>(irCtx.intType(8), info.basePtr, index,
                                           std::span<size_t>{},
                                           std::string(inst->name()));
@@ -772,8 +770,7 @@ Value* InstCombineCtx::loadConstPunning(Load* load, Constant* base,
             return nullptr;
         }
         size_t index = (size_t)(itr - members.begin());
-        BasicBlockBuilder builder(irCtx, load->parent());
-        builder.setAddPoint(load);
+        BasicBlockBuilder builder(irCtx, load->parent(), load);
         auto* extract =
             builder.add<ExtractValue>(base, std::array{ index }, "extract");
         modifiedAny = true;

@@ -18,6 +18,10 @@ namespace scatha::ir {
 class BasicBlockBuilder {
 public:
     explicit BasicBlockBuilder(Context& ctx, BasicBlock* BB);
+    explicit BasicBlockBuilder(Context& ctx, BasicBlock* BB,
+                               BasicBlock::ConstIterator addPoint);
+    explicit BasicBlockBuilder(Context& ctx, BasicBlock* BB,
+                               Instruction const* addPoint);
 
     /// Adds the instruction \p inst before the currently set 'add point' of the
     /// basic block. By default this is the end iterator.

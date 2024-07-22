@@ -20,6 +20,14 @@ BasicBlockBuilder::BasicBlockBuilder(Context& ctx, BasicBlock* BB):
     currentBB(BB),
     instAddPoint(BB ? BB->end() : BasicBlock::ConstIterator{}) {}
 
+BasicBlockBuilder::BasicBlockBuilder(Context& ctx, BasicBlock* BB,
+                                     BasicBlock::ConstIterator addPoint):
+    ctx(ctx), currentBB(BB), instAddPoint(addPoint) {}
+
+BasicBlockBuilder::BasicBlockBuilder(Context& ctx, BasicBlock* BB,
+                                     Instruction const* addPoint):
+    BasicBlockBuilder(ctx, BB, BasicBlock::ConstIterator(addPoint)) {}
+
 Instruction* BasicBlockBuilder::add(Instruction* inst) {
     return insert(instAddPoint.to_address(), inst);
 }
