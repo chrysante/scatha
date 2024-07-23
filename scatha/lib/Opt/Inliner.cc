@@ -5,6 +5,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <termfmt/termfmt.h>
 #include <utl/scope_guard.hpp>
 
 #include "Common/Logging.h"
@@ -27,7 +28,26 @@ using namespace ranges::views;
 
 SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline",
                         PassCategory::Simplification,
-                        { Flag{ "print-vis-order", false } });
+                        { Flag{ "print-vis-order", false },
+                          Flag{ "print-decisions", false } });
+
+namespace {
+
+struct Arguments {
+    static Arguments Parse(PassArgumentMap const& map) {
+        return {
+            .printVisOrder = map.get<bool>("print-vis-order"),
+            .printDecisions = map.get<bool>("print-decisions"),
+        };
+    }
+
+    bool printVisOrder = false;
+    bool printDecisions = false;
+
+    bool printAny() const { return printVisOrder || printDecisions; }
+};
+
+} // namespace
 
 using SCC = SCCCallGraph::SCCNode;
 using FunctionNode = SCCCallGraph::FunctionNode;
@@ -36,11 +56,13 @@ using Modification = SCCCallGraph::Modification;
 namespace scatha::opt {
 
 struct Inliner {
-    explicit Inliner(Context& ctx, Module& mod, LocalPass localPass):
+    explicit Inliner(Context& ctx, Module& mod, PassArgumentMap const& map,
+                     LocalPass localPass):
         ctx(ctx),
         mod(mod),
         localPass(std::move(localPass)),
-        callGraph(SCCCallGraph::compute(mod)) {}
+        callGraph(SCCCallGraph::compute(mod)),
+        args(Arguments::Parse(map)) {}
 
     bool run();
 
@@ -83,7 +105,10 @@ struct Inliner {
     void printWorklist() const;
 
     ///
-    void visitMessage(auto const&... args);
+    void printVisit(Function const& F);
+
+    ///
+    void printDecision(Call const& inst, bool decision);
 
     Context& ctx;
     Module& mod;
@@ -95,7 +120,7 @@ struct Inliner {
     utl::hashset<Function const*> selfRecursive;
     utl::hashmap<Function const*, utl::hashset<Function const*>>
         incorporatedFunctions;
-    bool printVisOrder = false;
+    Arguments args;
 };
 
 } // namespace scatha::opt
@@ -110,13 +135,12 @@ bool opt::inlineFunctions(ir::Context& ctx, ir::Module& mod,
     if (!localPass) {
         localPass = defaultPass;
     }
-    Inliner inl(ctx, mod, std::move(localPass));
-    inl.printVisOrder = args.get<bool>("print-vis-order");
+    Inliner inl(ctx, mod, args, std::move(localPass));
     return inl.run();
 }
 
 bool Inliner::run() {
-    if (printVisOrder) {
+    if (args.printAny()) {
         logging::subHeader("Inliner");
     }
     bool modifiedAny = false;
@@ -200,7 +224,7 @@ std::optional<bool> Inliner::visitSCC(SCC& scc) {
 }
 
 std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
-    visitMessage(format(*node.function()));
+    printVisit(*node.function());
     auto& visitCount = this->visitCount[node.function()];
     utl::armed_scope_guard incGuard = [&] { ++visitCount; };
     /// We have already locally optimized this function. Now we try to inline
@@ -215,6 +239,7 @@ std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
         auto callsitesOfCallee = node.callsites(callee);
         for (auto* callInst: callsitesOfCallee) {
             bool shouldInline = shouldInlineCallsite(callInst, visitCount);
+            printDecision(*callInst, shouldInline);
             if (!shouldInline) {
                 continue;
             }
@@ -361,10 +386,26 @@ void Inliner::printWorklist() const {
     }
 }
 
-void Inliner::visitMessage(auto const&... args) {
-    if (printVisOrder) {
-        std::cout << "    ";
-        ((std::cout << args), ...);
-        std::cout << "\n";
+using namespace tfmt::modifiers;
+
+void Inliner::printVisit(Function const& F) {
+    if (!args.printVisOrder) {
+        return;
     }
+    std::cout << "  " << tfmt::format(Grey | Bold, "Visiting: ") << format(F)
+              << std::endl;
+}
+
+void Inliner::printDecision(Call const& inst, bool decision) {
+    if (!args.printDecisions) {
+        return;
+    }
+    std::cout << "    ";
+    if (decision) {
+        std::cout << tfmt::format(Green | Bold, "Inlining: ");
+    }
+    else {
+        std::cout << tfmt::format(Red | Bold, "Not inlining: ");
+    }
+    std::cout << format(inst) << "\n";
 }
