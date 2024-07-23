@@ -328,6 +328,9 @@ set(scatha_sources
     lib/Opt/Optimizer.cc
     lib/Opt/PointerAnalysis.cc
     lib/Opt/Rematerialize.cc
+    lib/Opt/ScalarEvolution.cc
+    lib/Opt/ScalarEvolution.h
+    lib/Opt/SCEV.def.h
     lib/Opt/SCCCallGraph.cc
     lib/Opt/SROA.cc
     lib/Opt/SimplifyCFG.cc

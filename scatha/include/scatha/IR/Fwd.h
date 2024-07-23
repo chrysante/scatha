@@ -58,7 +58,6 @@
 namespace scatha::ir {
 
 class Context;
-
 class Module;
 
 /// Forward declaration of CFG nodes
@@ -290,12 +289,10 @@ SCATHA_API void do_delete(ir::Type& type);
 SCATHA_API void do_destroy(ir::Type& type);
 
 class ValueRef;
-
 class DomTree;
-
 class DominanceInfo;
-
 class LoopNestingForest;
+class LoopInfo;
 
 /// Convenience wrapper to make `std::array<Value*, N>` in a less verbose
 /// way
