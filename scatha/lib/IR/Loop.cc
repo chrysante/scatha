@@ -250,11 +250,14 @@ struct LCSSAContext {
         if (itr != exitToPhiMap.end()) {
             return itr->second;
         }
-        auto* pred = exit->singlePredecessor();
-        SC_ASSERT(pred, "This may not be true but we just assert it for now "
-                        "until we have a better solution");
-        Phi* phi =
-            new Phi({ { pred, inst } }, utl::strcat(inst->name(), ".phi"));
+        utl::small_vector<PhiMapping> phiArgs;
+        for (auto* pred: exit->predecessors()) {
+            /// Not sure if this must be asserted. Maybe we can use undef if
+            /// this is false
+            SC_ASSERT(loop.isExiting(pred), "");
+            phiArgs.push_back({ pred, inst });
+        }
+        Phi* phi = new Phi(phiArgs, utl::strcat(inst->name(), ".phi"));
         exit->insert(exit->phiEnd(), phi);
         exitToPhiMap.insert({ exit, phi });
         return phi;

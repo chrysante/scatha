@@ -98,7 +98,7 @@ struct UnrollContext {
 
 bool opt::loopUnroll(Context& ctx, Function& function) {
     auto LRV = LoopRankView::Compute(function);
-    bool modified = false;
+    bool modified = makeLCSSA(function);
     /// We traverse all loops in reverse rank order (reverse BFS order)
     for (auto& rankList: LRV | ranges::views::reverse) {
         auto& LNF = function.getOrComputeLNF();
