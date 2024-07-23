@@ -152,15 +152,20 @@ public:
     /// \Returns `true` if this node is part of the loop with header \p header
     bool isLoopNodeOf(LNFNode const* header) const;
 
-    ///
+    /// Lazily computes loop info for this node
     LoopInfo& loopInfo() {
+        return const_cast<LoopInfo&>(std::as_const(*this).loopInfo());
+    }
+
+    /// \overload
+    LoopInfo const& loopInfo() const {
         if (!_loopInfo) {
             _loopInfo = std::make_unique<LoopInfo>(LoopInfo::Compute(*this));
         }
         return *_loopInfo;
     }
 
-    std::unique_ptr<LoopInfo> _loopInfo;
+    mutable std::unique_ptr<LoopInfo> _loopInfo;
 };
 
 /// The loop nesting forest of a function `F` is a forest representing the loops

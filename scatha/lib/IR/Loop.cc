@@ -15,9 +15,11 @@
 #include "IR/CFG/Instructions.h"
 #include "IR/Dominance.h"
 #include "IR/PassRegistry.h"
+#include "IR/Print.h"
 
 using namespace scatha;
 using namespace ir;
+using namespace ranges::views;
 
 /// Induction variables are of the following kind:
 /// ```
@@ -125,8 +127,8 @@ Phi* LoopInfo::loopClosingPhiNode(BasicBlock const* exit,
     return nullptr;
 }
 
-void ir::print(LoopInfo const& loop, std::ostream& str) {
-    TreeFormatter formatter;
+static void printImpl(LoopInfo const& loop, std::ostream& str,
+                      TreeFormatter& formatter) {
     formatter.push(Level::Child);
     str << formatter.beginLine() << "Header: " << loop.header()->name()
         << std::endl;
@@ -157,6 +159,11 @@ void ir::print(LoopInfo const& loop, std::ostream& str) {
     }));
     list("Induction variables", loop.inductionVariables() | ToName,
          /* last = */ true);
+}
+
+void ir::print(LoopInfo const& loop, std::ostream& str) {
+    TreeFormatter formatter;
+    printImpl(loop, str, formatter);
 }
 
 void ir::print(LoopInfo const& loop) { print(loop, std::cout); }
@@ -371,19 +378,32 @@ namespace {
 
 struct LNFPrintCtx {
     std::ostream& str;
-    TreeFormatter formatter;
+    bool printLoopInfo = false;
+    TreeFormatter formatter = {};
 
-    explicit LNFPrintCtx(std::ostream& str): str(str) {}
+    void run(LoopNestingForest const& LNF) {
+        for (auto [index, root]: LNF.roots() | enumerate) {
+            print(root, index == LNF.roots().size() - 1);
+        }
+    }
 
     void print(LNFNode const* node, bool lastInParent) {
         formatter.push(!lastInParent ? Level::Child : Level::LastChild);
         str << formatter.beginLine();
         auto* BB = node->basicBlock();
-        bool isNonTrivialLoop = node->children().size() > 0;
-        tfmt::formatScope(isNonTrivialLoop ? tfmt::Bold : tfmt::None, str, [&] {
-            str << (BB ? BB->name() : "NULL") << std::endl;
+        bool isProper = node->isProperLoop();
+        tfmt::formatScope(isProper ? tfmt::Bold : tfmt::None, str, [&] {
+            (BB ? str << formatName(*BB) : str << "NULL") << std::endl;
         });
-        for (auto [index, child]: node->children() | ranges::views::enumerate) {
+        if (isProper && printLoopInfo) {
+            formatter.push(node->children().empty() ? Level::LastChild :
+                                                      Level::Child);
+            str << formatter.beginLine()
+                << tfmt::format(tfmt::BrightBlue, "Loop Info:") << "\n";
+            printImpl(node->loopInfo(), str, formatter);
+            formatter.pop();
+        }
+        for (auto [index, child]: node->children() | enumerate) {
             print(child, index == node->children().size() - 1);
         }
         formatter.pop();
@@ -395,8 +415,14 @@ struct LNFPrintCtx {
 void ir::print(LoopNestingForest const& LNF) { ir::print(LNF, std::cout); }
 
 void ir::print(LoopNestingForest const& LNF, std::ostream& str) {
-    LNFPrintCtx ctx(str);
-    for (auto [index, root]: LNF.roots() | ranges::views::enumerate) {
-        ctx.print(root, index == LNF.roots().size() - 1);
-    }
+    LNFPrintCtx{ str }.run(LNF);
 }
+
+static bool printLNFPass(Context&, Function& F, PassArgumentMap const& args) {
+    auto& LNF = F.getOrComputeLNF();
+    LNFPrintCtx{ std::cout, .printLoopInfo = args.get<bool>("info") }.run(LNF);
+    return false;
+}
+
+SC_REGISTER_PASS(printLNFPass, "print-lnf", PassCategory::Other,
+                 { Flag{ "info", false } });
