@@ -177,7 +177,8 @@ public:
 
     template <typename T>
     T get(std::string_view argName) const {
-        return map.at(argName)->get<T>();
+        auto itr = map.find(argName);
+        return itr != map.end() ? itr->second->get<T>() : T{};
     }
 
     void insert(std::string name, std::unique_ptr<PassArgument> arg) {
@@ -286,19 +287,18 @@ private:
 /// Represents a global pass that operates on an entire module
 class GlobalPass: public PassBase {
 public:
-    /// The function pointer type with the signature of the pass type
-    using PointerType = bool (*)(ir::Context&, ir::Module&, LocalPass);
+    using Sig = bool(ir::Context&, ir::Module&, PassArgumentMap const&,
+                     LocalPass);
 
     /// Construct an empty global pass. Empty passes are invalid an can not be
     /// executed.
     GlobalPass() = default;
 
-    /// Construct a global pass from function pointer \p pointer
-    GlobalPass(PointerType ptr): GlobalPass(std::function(ptr)) {}
+    GlobalPass(Sig* p): GlobalPass(p, {}) {}
 
     /// Construct a named global pass from a function
-    GlobalPass(std::function<bool(ir::Context&, ir::Module&, LocalPass)> p,
-               PassArgumentMap params = {}, std::string name = {},
+    GlobalPass(std::function<Sig> p, PassArgumentMap params = {},
+               std::string name = {},
                PassCategory category = PassCategory::Other):
         PassBase(std::move(params), std::move(name), category),
         p(std::move(p)) {}
@@ -306,14 +306,14 @@ public:
     /// Invoke the pass
     bool operator()(ir::Context& ctx, ir::Module& mod,
                     LocalPass localPass) const {
-        return p(ctx, mod, std::move(localPass));
+        return p(ctx, mod, arguments(), std::move(localPass));
     }
 
     /// \Returns `true` is the pass is non-empty
     operator bool() const { return !!p; }
 
 private:
-    std::function<bool(ir::Context&, ir::Module&, LocalPass)> p;
+    std::function<Sig> p;
 };
 
 } // namespace scatha::ir

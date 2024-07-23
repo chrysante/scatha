@@ -26,7 +26,8 @@ using namespace ir;
 using namespace tfmt::modifiers;
 
 /// To expose the `print(Function)` function to the pass manager
-static bool printPass(ir::Context&, ir::Function& function) {
+static bool printPass(ir::Context&, ir::Function& function,
+                      PassArgumentMap const&) {
     ir::print(function);
     return false;
 }
@@ -34,13 +35,16 @@ static bool printPass(ir::Context&, ir::Function& function) {
 SC_REGISTER_PASS(printPass, "print", PassCategory::Other, {});
 
 /// To expose the `print(Module)` function to the pass manager
-static bool printPass(ir::Context&, ir::Module& mod, LocalPass) {
-    logging::header(" IR Module ");
+static bool printPass(ir::Context&, ir::Module& mod,
+                      PassArgumentMap const& args, LocalPass) {
+    auto title = args.get<std::string>("title");
+    logging::header(utl::strcat(" ", title, " "));
     ir::print(mod);
     return false;
 }
 
-SC_REGISTER_GLOBAL_PASS(printPass, "print", PassCategory::Other, {});
+SC_REGISTER_GLOBAL_PASS(printPass, "print", PassCategory::Other,
+                        { String{ "title", "IR Module" } });
 
 namespace {
 

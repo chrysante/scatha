@@ -7,6 +7,7 @@
 #include <range/v3/view.hpp>
 #include <utl/scope_guard.hpp>
 
+#include "Common/Logging.h"
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
@@ -25,7 +26,8 @@ using namespace opt;
 using namespace ranges::views;
 
 SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline",
-                        PassCategory::Simplification, {});
+                        PassCategory::Simplification,
+                        { Flag{ "print-vis-order", false } });
 
 using SCC = SCCCallGraph::SCCNode;
 using FunctionNode = SCCCallGraph::FunctionNode;
@@ -77,8 +79,11 @@ struct Inliner {
     /// and revisited
     bool handleCalleeRecompute(SCCCallGraph::RecomputeCalleesResult result);
 
-    /// Debug utility
+    /// Debug utilities
     void printWorklist() const;
+
+    ///
+    void visitMessage(auto const&... args);
 
     Context& ctx;
     Module& mod;
@@ -90,24 +95,30 @@ struct Inliner {
     utl::hashset<Function const*> selfRecursive;
     utl::hashmap<Function const*, utl::hashset<Function const*>>
         incorporatedFunctions;
+    bool printVisOrder = false;
 };
 
 } // namespace scatha::opt
 
-bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
-    return inlineFunctions(ctx, mod, opt::defaultPass);
+bool opt::inlineFunctions(ir::Context& ctx, Module& mod,
+                          PassArgumentMap const& args) {
+    return inlineFunctions(ctx, mod, args, opt::defaultPass);
 }
 
 bool opt::inlineFunctions(ir::Context& ctx, ir::Module& mod,
-                          LocalPass localPass) {
+                          PassArgumentMap const& args, LocalPass localPass) {
     if (!localPass) {
         localPass = defaultPass;
     }
     Inliner inl(ctx, mod, std::move(localPass));
+    inl.printVisOrder = args.get<bool>("print-vis-order");
     return inl.run();
 }
 
 bool Inliner::run() {
+    if (printVisOrder) {
+        logging::subHeader("Inliner");
+    }
     bool modifiedAny = false;
     worklist = gatherSinks() | ranges::to<utl::hashset<SCC*>>;
     while (!worklist.empty()) {
@@ -189,6 +200,7 @@ std::optional<bool> Inliner::visitSCC(SCC& scc) {
 }
 
 std::optional<bool> Inliner::visitFunction(FunctionNode& node) {
+    visitMessage(format(*node.function()));
     auto& visitCount = this->visitCount[node.function()];
     utl::armed_scope_guard incGuard = [&] { ++visitCount; };
     /// We have already locally optimized this function. Now we try to inline
@@ -346,5 +358,13 @@ void Inliner::printWorklist() const {
         std::cout << "All callees analyzed: "
                   << (allSuccessorsAnalyzed(*scc) ? "true" : "false")
                   << std::endl;
+    }
+}
+
+void Inliner::visitMessage(auto const&... args) {
+    if (printVisOrder) {
+        std::cout << "    ";
+        ((std::cout << args), ...);
+        std::cout << "\n";
     }
 }

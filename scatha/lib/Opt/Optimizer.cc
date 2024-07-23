@@ -15,10 +15,11 @@ using namespace opt;
 SC_REGISTER_GLOBAL_PASS(opt::optimize, "optimize", PassCategory::Optimization,
                         {});
 
-bool opt::optimize(Context& ctx, Module& mod, LocalPass) {
+bool opt::optimize(Context& ctx, Module& mod, PassArgumentMap const&,
+                   LocalPass) {
     bool modified = false;
-    modified |= inlineFunctions(ctx, mod);
-    modified |= globalDCE(ctx, mod);
-    modified |= forEach(ctx, mod, splitReturns);
+    modified |= inlineFunctions(ctx, mod, {});
+    modified |= globalDCE(ctx, mod, {});
+    modified |= forEach(ctx, mod, {}, splitReturns);
     return modified;
 }

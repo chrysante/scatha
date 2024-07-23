@@ -15,8 +15,9 @@ using namespace ir;
 
 /// Expose the pass to the pass manager. Therefore we need a function that
 /// accepts a local pass as the third argument
-static bool globalDCEPass(Context& ctx, Module& mod, LocalPass) {
-    return globalDCE(ctx, mod);
+static bool globalDCEPass(Context& ctx, Module& mod,
+                          PassArgumentMap const& args, LocalPass) {
+    return globalDCE(ctx, mod, args);
 }
 
 SC_REGISTER_GLOBAL_PASS(globalDCEPass, "globaldce",
@@ -45,7 +46,7 @@ struct GDCEContext {
 
 } // namespace
 
-bool opt::globalDCE(Context& ctx, Module& mod) {
+bool opt::globalDCE(Context& ctx, Module& mod, PassArgumentMap const&) {
     return GDCEContext(ctx, mod).run();
 }
 

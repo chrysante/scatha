@@ -8,7 +8,8 @@
 namespace scatha::ir {
 
 /// Execute \p localPass for each function in the module \p mod
-SCATHA_API bool forEach(Context& ctx, Module& mod, LocalPass localPass);
+SCATHA_API bool forEach(Context& ctx, Module& mod, ir::PassArgumentMap const&,
+                        LocalPass localPass);
 
 } // namespace scatha::ir
 

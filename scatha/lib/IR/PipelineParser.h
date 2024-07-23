@@ -31,6 +31,8 @@
 ///
 ///     arg              => id | id ":" value
 ///
+///     value            => id | string-lit | numeric-lit
+///
 
 namespace scatha::ir {
 

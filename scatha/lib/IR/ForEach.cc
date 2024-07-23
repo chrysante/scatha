@@ -9,7 +9,8 @@ using namespace ir;
 
 SC_REGISTER_GLOBAL_PASS(ir::forEach, "foreach", PassCategory::Other, {});
 
-bool ir::forEach(Context& ctx, Module& mod, LocalPass localPass) {
+bool ir::forEach(Context& ctx, Module& mod, ir::PassArgumentMap const&,
+                 LocalPass localPass) {
     bool modified = false;
     for (auto& F: mod) {
         modified |= localPass(ctx, F);

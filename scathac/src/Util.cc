@@ -85,7 +85,7 @@ std::pair<ir::Context, ir::Module> scatha::genIR(
 void scatha::optimize(ir::Context& ctx, ir::Module& mod,
                       OptionsBase const& options) {
     if (options.optLevel > 0) {
-        opt::optimize(ctx, mod);
+        opt::optimize(ctx, mod, {});
     }
     else if (!options.pipeline.empty()) {
         auto pipeline = ir::PassManager::makePipeline(options.pipeline);

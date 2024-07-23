@@ -25,6 +25,7 @@ struct Token {
         OpenBracket,
         CloseBracket,
         Colon,
+        StringLit,
         End
     };
 
@@ -54,6 +55,8 @@ static std::string toString(Token::Type type) {
         return "]";
     case Token::Colon:
         return ":";
+    case Token::StringLit:
+        return "<string-lit>";
     case Token::End:
         return "<end>";
     }
@@ -68,16 +71,11 @@ public:
     Lexer(std::string_view text): text(text) {}
 
     Token next() {
-        while (index < text.size() && std::isspace(text[index])) {
-            ++column;
-            if (text[index] == '\n') {
-                ++line;
-                column = 0;
-            }
-            ++index;
+        while (index() < text.size() && std::isspace(text[index()])) {
+            inc();
         }
-        if (index == text.size()) {
-            return Token(Token::End, {}, line, column);
+        if (index() == text.size()) {
+            return Token(Token::End, {}, line(), column());
         }
         if (auto token = getSingleCharToken(',', Token::Separator)) {
             return *token;
@@ -97,49 +95,81 @@ public:
         if (auto token = getSingleCharToken(':', Token::Colon)) {
             return *token;
         }
-        if (isNumeric(text[index])) {
-            size_t begin = index;
-            size_t count = 1;
-            ++index;
-            while (index < text.size() && isNumeric(text[index])) {
-                ++index;
-                ++count;
+        if (isNumeric(text[index()])) {
+            size_t begin = index();
+            inc();
+            while (index() < text.size() && isNumeric(text[index()])) {
+                inc();
             }
-            return Token(Token::NumericLiteral, text.substr(begin, count), line,
-                         column);
+            return Token(Token::NumericLiteral,
+                         text.substr(begin, index() - begin), line(), column());
         }
-        if (isIDBegin(text[index])) {
-            size_t begin = index;
-            size_t count = 1;
-            ++index;
-            while (index < text.size() && isIDContinue(text[index])) {
-                ++index;
-                ++count;
+        if (isIDBegin(text[index()])) {
+            size_t begin = index();
+            inc();
+            while (index() < text.size() && isIDContinue(text[index()])) {
+                inc();
             }
-            return Token(Token::Identifier, text.substr(begin, count), line,
-                         column);
+            return Token(Token::Identifier, text.substr(begin, index() - begin),
+                         line(), column());
         }
-        throw PipelineLexicalError(line + 1, column + 1, "Invalid token");
+        if (text[index()] == '\'' || text[index()] == '\"') {
+            char delim = text[index()];
+            inc();
+            size_t begin = index();
+            while (text[index()] != delim) {
+                inc();
+                if (index() == text.size() || text[index()] == '\n') {
+                    throw PipelineLexicalError(line() + 1, column() + 1,
+                                               "Unterminated string literal");
+                }
+            }
+            Token tok(Token::StringLit, text.substr(begin, index() - begin),
+                      line(), column());
+            inc();
+            return tok;
+        }
+        throw PipelineLexicalError(line() + 1, column() + 1, "Invalid token");
     }
 
 private:
     static bool isIDBegin(char c) { return std::isalpha(c) || c == '_'; }
 
-    static bool isIDContinue(char c) { return std::isalnum(c) || c == '_'; }
+    static bool isIDContinue(char c) {
+        return std::isalnum(c) || c == '_' || c == '-';
+    }
 
     static bool isNumeric(char c) { return std::isdigit(c); }
 
     std::optional<Token> getSingleCharToken(char c, Token::Type type) {
-        if (text[index] == c) {
-            return Token(type, text.substr(index++, 1), line, column);
+        if (text[index()] == c) {
+            Token tok(type, text.substr(index(), 1), line(), column());
+            inc();
+            return tok;
         }
         return std::nullopt;
     }
 
+    void inc() {
+        if (index() >= text.size()) {
+            return;
+        }
+        ++_column;
+        if (text[index()] == '\n') {
+            _column = 0;
+            ++_line;
+        }
+        ++_index;
+    }
+
+    size_t index() const { return _index; }
+    size_t column() const { return _column; }
+    size_t line() const { return _line; }
+
     std::string_view text;
-    size_t index = 0;
-    size_t column = 0;
-    size_t line = 0;
+    size_t _index = 0;
+    size_t _column = 0;
+    size_t _line = 0;
 };
 
 class Parser {
@@ -245,15 +275,15 @@ public:
         expect(Token::CloseBracket);
     }
 
-    void matchArg(PassBase& pass, Token key, Token value) {
+    void matchArg(PassBase& pass, Token key, std::string_view value) {
         using enum ArgumentMatchResult;
-        switch (pass.matchArgument(key.id, value.id)) {
+        switch (pass.matchArgument(key.id, value)) {
         case Success:
             return;
         case UnknownArgument:
             throw makeError(key, "Unknown argument '", key.id, "'");
         case BadValue:
-            throw makeError(value, "Bad value for argument '", key.id, "'");
+            throw makeError(key, "Bad value for argument '", key.id, "'");
         }
         SC_UNREACHABLE();
     }
@@ -265,20 +295,25 @@ public:
         auto name = eat();
         if (peek().type != Token::Colon) {
             /// Flags are true when specified
-            matchArg(pass, name,
-                     Token(Token::Identifier, "YES", name.column, name.line));
+            matchArg(pass, name, "YES");
             return true;
         }
         eat(); // Colon
-        auto arg = eat();
-        switch (arg.type) {
+        matchArg(pass, name, parseValue());
+        return true;
+    }
+
+    std::string parseValue() {
+        auto tok = eat();
+        switch (tok.type) {
         case Token::Identifier:
             [[fallthrough]];
         case Token::NumericLiteral:
-            matchArg(pass, name, arg);
-            return true;
+            [[fallthrough]];
+        case Token::StringLit:
+            return std::string(tok.id);
         default:
-            throw makeError(peek(), "Unexpected argument token");
+            throw makeError(tok, "Unexpected value token");
         }
     }
 

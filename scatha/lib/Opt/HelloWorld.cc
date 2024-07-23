@@ -18,8 +18,6 @@ static bool helloWorld(Context&, Function& F, PassArgumentMap const& args) {
     return false;
 }
 
-using namespace passParameterTypes;
-
 SC_REGISTER_PASS(helloWorld, "helloworld", ir::PassCategory::Other,
                  { String{ "message", "Hello World" },
                    Flag{ "print", false } });

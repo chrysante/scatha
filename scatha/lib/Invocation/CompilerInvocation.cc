@@ -188,7 +188,7 @@ std::optional<Target> CompilerInvocation::run() {
     }
     }
     if (optLevel > 0) {
-        opt::optimize(irContext, irModule);
+        opt::optimize(irContext, irModule, {});
     }
     else if (!optPipeline.empty()) {
         auto pipeline = ir::PassManager::makePipeline(optPipeline);
@@ -230,7 +230,7 @@ std::optional<Target> CompilerInvocation::run() {
     case TargetType::StaticLibrary: {
         std::stringstream symstr;
         sema::serialize(semaSym, symstr);
-        opt::globalDCE(irContext, irModule);
+        opt::globalDCE(irContext, irModule, {});
         std::stringstream objstr;
         ir::print(irModule, objstr);
         return Target(TargetType::StaticLibrary, name,

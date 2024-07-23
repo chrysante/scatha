@@ -69,7 +69,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
         ir::Context ctx;
         ir::Module mod;
         irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {});
-        ir::forEach(ctx, mod, opt::unifyReturns);
+        ir::forEach(ctx, mod, {}, opt::unifyReturns);
         return std::tuple{ std::move(ctx), std::move(mod),
                            sym.foreignLibraries() };
     };
@@ -78,7 +78,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
 static Generator makeIRGenerator(std::string_view text) {
     return [=] {
         auto result = ir::parse(text).value();
-        ir::forEach(result.first, result.second, opt::unifyReturns);
+        ir::forEach(result.first, result.second, {}, opt::unifyReturns);
         return std::tuple{ std::move(result).first, std::move(result).second,
                            std::vector<ForeignLibraryDecl>{} };
     };
@@ -141,7 +141,7 @@ struct Impl {
         /// Default optimizations
         {
             auto [ctx, mod, libs] = generator();
-            opt::optimize(ctx, mod);
+            opt::optimize(ctx, mod, {});
             runChecked("Default pipeline", mod, libs, begin, end);
         }
 
@@ -244,9 +244,9 @@ struct Impl {
             auto message = utl::strcat("Idempotency check for \"", pass.name(),
                                        "\" with pre pipeline \"", prePipeline,
                                        "\"");
-            ir::forEach(ctx, mod, pass);
+            ir::forEach(ctx, mod, {}, pass);
             runChecked(message, mod, libs, begin, end);
-            bool second = ir::forEach(ctx, mod, pass);
+            bool second = ir::forEach(ctx, mod, {}, pass);
             INFO(message);
             CHECK(!second);
             runChecked(message, mod, libs, begin, end);
@@ -287,7 +287,7 @@ void test::runIRPrintsTest(std::string_view expected, std::string source) {
 bool test::compiles(std::string text) {
     try {
         auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
-        opt::optimize(ctx, mod);
+        opt::optimize(ctx, mod, {});
         return true;
     }
     catch (...) {
@@ -298,7 +298,7 @@ bool test::compiles(std::string text) {
 bool test::IRCompiles(std::string_view text) {
     try {
         auto [ctx, mod, libs] = makeIRGenerator(text)();
-        opt::optimize(ctx, mod);
+        opt::optimize(ctx, mod, {});
         return true;
     }
     catch (...) {
