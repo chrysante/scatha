@@ -16,7 +16,7 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::tailRecElim, "tre", PassCategory::Simplification);
+SC_REGISTER_PASS(opt::tailRecElim, "tre", PassCategory::Simplification, {});
 
 namespace {
 

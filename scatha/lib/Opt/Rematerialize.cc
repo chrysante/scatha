@@ -10,7 +10,7 @@ using namespace ir;
 using namespace opt;
 
 SC_REGISTER_PASS(opt::rematerialize, "rematerialize",
-                 PassCategory::Experimental);
+                 PassCategory::Experimental, {});
 
 namespace {
 

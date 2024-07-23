@@ -23,7 +23,8 @@ using namespace opt;
 using namespace ir;
 using namespace ranges::views;
 
-SC_REGISTER_PASS(opt::pointerAnalysis, "ptranalysis", PassCategory::Analysis);
+SC_REGISTER_PASS(opt::pointerAnalysis, "ptranalysis", PassCategory::Analysis,
+                 {});
 
 #define INFO_NODE_DEF(X)                                                       \
     X(InfoNode, void, Abstract)                                                \

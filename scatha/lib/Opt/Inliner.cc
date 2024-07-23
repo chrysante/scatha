@@ -25,7 +25,7 @@ using namespace opt;
 using namespace ranges::views;
 
 SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline",
-                        PassCategory::Simplification);
+                        PassCategory::Simplification, {});
 
 using SCC = SCCCallGraph::SCCNode;
 using FunctionNode = SCCCallGraph::FunctionNode;

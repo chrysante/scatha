@@ -14,7 +14,7 @@ using namespace opt;
 using namespace ir;
 
 SC_REGISTER_PASS(opt::splitCriticalEdges, "splitcriticaledges",
-                 PassCategory::Simplification);
+                 PassCategory::Simplification, {});
 
 bool opt::preceeds(Instruction const* a, Instruction const* b) {
     SC_ASSERT(a->parent() == b->parent(),

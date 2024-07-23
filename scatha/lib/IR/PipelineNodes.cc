@@ -4,6 +4,7 @@
 
 using namespace scatha;
 using namespace ir;
+using namespace ranges::views;
 
 void PipelineLocalNode::print(std::ostream& str) const { str << pass.name(); }
 
@@ -55,7 +56,7 @@ void PipelineLocalNode::printTree(std::ostream& str,
 void PipelineGlobalNode::printTree(std::ostream& str,
                                    TreeFormatter& formatter) const {
     str << formatter.beginLine() << pass.name() << std::endl;
-    for (auto [index, node]: children | ranges::views::enumerate) {
+    for (auto [index, node]: children | enumerate) {
         formatter.push(index == children.size() - 1 ? Level::LastChild :
                                                       Level::Child);
         node->printTree(str, formatter);
@@ -65,7 +66,7 @@ void PipelineGlobalNode::printTree(std::ostream& str,
 
 void PipelineRoot::printTree(std::ostream& str,
                              TreeFormatter& formatter) const {
-    for (auto [index, node]: children | ranges::views::enumerate) {
+    for (auto [index, node]: children | enumerate) {
         formatter.push(index == children.size() - 1 ? Level::LastChild :
                                                       Level::Child);
         node->printTree(str, formatter);

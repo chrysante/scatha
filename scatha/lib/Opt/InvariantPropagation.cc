@@ -25,7 +25,7 @@ using namespace ir;
 using namespace opt;
 
 #if 0
-SC_REGISTER_PASS(opt::propagateInvariants, "invprop");
+SC_REGISTER_PASS(opt::propagateInvariants, "invprop", {});
 #endif
 
 [[maybe_unused]] static constexpr auto Signed = CompareMode::Signed;

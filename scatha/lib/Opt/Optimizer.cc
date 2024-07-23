@@ -12,7 +12,8 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_GLOBAL_PASS(opt::optimize, "optimize", PassCategory::Optimization);
+SC_REGISTER_GLOBAL_PASS(opt::optimize, "optimize", PassCategory::Optimization,
+                        {});
 
 bool opt::optimize(Context& ctx, Module& mod, LocalPass) {
     bool modified = false;

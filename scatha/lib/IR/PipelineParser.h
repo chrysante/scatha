@@ -6,16 +6,31 @@
 #include "Common/Base.h"
 #include "IR/Pipeline.h"
 
-/// # Pipeline script grammar
+/// Pipeline script grammar
 ///
-/// ```
-/// pipeline         => global-pass-list
-/// global-pass-list => global-pass [ ( "," global-pass )* ]
+///     pipeline         => global-pass-list
 ///
-/// global-pass      => global-pass-id [ "(" local-pass-list ")" ]
-///                   | local-pass-id
-/// local-pass-list  => local-pass-id [ ( "," local-pass-id )* ]
-/// ```
+///     global-pass-list => global-pass
+///                       | global-pass "," global-pass-list
+///
+///     global-pass      => global-pass-id
+///                       | global-pass-id "(" local-pass-list ")"
+///                       | local-pass-id
+///
+///     global-pass-id   => global-pass-name
+///                       | global-pass-name "[" arg-list "]"
+///
+///     local-pass-list  => local-pass-id
+///                       | local-pass-id "," local-pass-list
+///
+///     local-pass-id    => local-pass-name
+///                       | local-pass-name "[" arg-list "]"
+///
+///     arg-list         => arg
+///                       | arg "," arg-list
+///
+///     arg              => id | id ":" value
+///
 
 namespace scatha::ir {
 

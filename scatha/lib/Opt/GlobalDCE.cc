@@ -20,7 +20,7 @@ static bool globalDCEPass(Context& ctx, Module& mod, LocalPass) {
 }
 
 SC_REGISTER_GLOBAL_PASS(globalDCEPass, "globaldce",
-                        PassCategory::Simplification);
+                        PassCategory::Simplification, {});
 
 using Node = SCCCallGraph::FunctionNode;
 

@@ -226,6 +226,7 @@ set(scatha_sources
     lib/IR/Parser/IRLexer.cc
     lib/IR/Parser/IRLexer.h
     lib/IR/Parser/IRParser.cc
+    lib/IR/Pass.cc
     lib/IR/PassManager.cc
     lib/IR/PassRegistry.h
     lib/IR/Pipeline.cc

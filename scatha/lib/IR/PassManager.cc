@@ -10,6 +10,7 @@
 
 using namespace scatha;
 using namespace ir;
+using namespace ranges::views;
 
 namespace {
 
@@ -43,10 +44,9 @@ struct Impl {
 
     template <typename Pass>
     utl::vector<Pass> getPassesImpl(utl::hashmap<std::string, Pass> const& map,
-                                    auto filter) const {
+                                    auto cond) const {
 #ifndef _MSC_VER
-        return map | ranges::views::values | ranges::views::filter(filter) |
-               ranges::to<utl::vector>;
+        return map | values | filter(cond) | ranges::to<utl::vector>;
 #else
         utl::vector<Pass> result;
         for (auto& [name, pass]: map) {
@@ -63,12 +63,14 @@ struct Impl {
     }
 
     void registerLocal(LocalPass pass) {
-        auto [itr, success] = localPasses.insert({ pass.name(), pass });
+        auto [itr, success] =
+            localPasses.insert({ pass.name(), std::move(pass) });
         SC_ASSERT(success, "Failed to register pass");
     }
 
     void registerGlobal(GlobalPass pass) {
-        auto [itr, success] = globalPasses.insert({ pass.name(), pass });
+        auto [itr, success] =
+            globalPasses.insert({ pass.name(), std::move(pass) });
         SC_ASSERT(success, "Failed to register pass");
     }
 };

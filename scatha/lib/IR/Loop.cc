@@ -193,7 +193,7 @@ bool ir::makeLCSSA(Function& function) {
 
 static bool makeLCSSAPass(Context&, Function& F) { return makeLCSSA(F); }
 
-SC_REGISTER_PASS(makeLCSSAPass, "lcssa", PassCategory::Canonicalization);
+SC_REGISTER_PASS(makeLCSSAPass, "lcssa", PassCategory::Canonicalization, {});
 
 static BasicBlock* getIdom(BasicBlock* dominator, BasicBlock* BB,
                            auto condition) {

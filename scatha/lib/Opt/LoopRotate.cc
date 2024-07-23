@@ -107,7 +107,8 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::loopRotate, "looprotate", PassCategory::Canonicalization);
+SC_REGISTER_PASS(opt::loopRotate, "looprotate", PassCategory::Canonicalization,
+                 {});
 
 /// \Returns `true` if \p node is a while loop
 static bool isWhileLoop(LNFNode const* header, LoopNestingForest const& LNF) {

@@ -26,8 +26,8 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::globalValueNumbering, "gvn",
-                 PassCategory::Simplification);
+SC_REGISTER_PASS(opt::globalValueNumbering, "gvn", PassCategory::Simplification,
+                 {});
 
 /// Really annoying but we put this here for now to query the context in
 /// `Computation` class

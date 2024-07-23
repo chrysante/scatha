@@ -29,7 +29,7 @@ using namespace ir;
 /// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
 
 SC_REGISTER_PASS(opt::propagateConstants, "propagateconst",
-                 PassCategory::Simplification);
+                 PassCategory::Simplification, {});
 
 namespace {
 

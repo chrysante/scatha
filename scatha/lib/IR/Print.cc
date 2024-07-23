@@ -31,7 +31,7 @@ static bool printPass(ir::Context&, ir::Function& function) {
     return false;
 }
 
-SC_REGISTER_PASS(printPass, "print", PassCategory::Other);
+SC_REGISTER_PASS(printPass, "print", PassCategory::Other, {});
 
 /// To expose the `print(Module)` function to the pass manager
 static bool printPass(ir::Context&, ir::Module& mod, LocalPass) {
@@ -40,7 +40,7 @@ static bool printPass(ir::Context&, ir::Module& mod, LocalPass) {
     return false;
 }
 
-SC_REGISTER_GLOBAL_PASS(printPass, "print", PassCategory::Other);
+SC_REGISTER_GLOBAL_PASS(printPass, "print", PassCategory::Other, {});
 
 namespace {
 
