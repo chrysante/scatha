@@ -185,7 +185,7 @@ inline void* svm::VirtualMemory::nativeToHost(VirtualPointer ptr) {
     if (ptr == VirtualPointer::Null) {
         return nullptr;
     }
-    if (ptr.slotIndex == 0 || ptr.slotIndex >= slots.size()) {
+    if ((uint64_t)ptr.slotIndex - 1 >= slots.size() - 1) {
         reportAccessError(MemoryNotAllocated, ptr, ~size_t(0));
     }
     auto& slot = slots[ptr.slotIndex];

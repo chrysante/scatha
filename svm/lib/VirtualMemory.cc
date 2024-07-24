@@ -122,6 +122,7 @@ VirtualPointer VirtualMemory::MakeStaticDataPointer(size_t offset) {
 }
 
 VirtualMemory::VirtualMemory(size_t staticDataSize) {
+    slots.reserve(2 + MaxPoolSize / BlockSizeDiff);
     /// Index 0 is unsued
     slots.push_back(Slot::Owning(0));
     /// Static data

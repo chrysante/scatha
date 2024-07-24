@@ -27,9 +27,6 @@ using namespace svm;
 /// Jump instructions subtract the codesize from the target because we have
 /// conditional jumps and advance the instruction pointer unconditionally
 static constexpr size_t execCodeSizeImpl(OpCode code) {
-    if (code == InvalidOpcode) {
-        return 0;
-    }
     if (code == OpCode::call) {
         return 0;
     }
@@ -335,12 +332,9 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
 }
 
 /// Computed gotos supported by GCC allow jump threading
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(SVM_NO_JUMP_THREADING)
 #define JUMP_THREADING 1
 #endif // __GNUC__
-
-template <int>
-struct Undef;
 
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 #if JUMP_THREADING
@@ -364,14 +358,11 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     // The jump table must have 256 entries. The last entries all point to
     // `opcode_block_invalid`. This way we don't have to perform bounds checking
     // with our 8 bit opcodes
-    static constexpr auto jumpTable =
+    static constexpr std::array jumpTable =
         [](void* Invalid, auto*... args) {
         return [&]<size_t... I>(std::index_sequence<I...>) {
-            std::array<void*, 256> table = { ((void)I, Invalid)... };
-            size_t i = 0;
-            ((table[i++] = args), ...);
-            return table;
-        }(std::make_index_sequence<256>{});
+            return std::array{ args..., ((void)I, Invalid)... };
+        }(std::make_index_sequence<256 - sizeof...(args)>{});
     }(&&opcode_block_invalid
 #define SVM_INSTRUCTION_DEF(name, ...) , &&opcode_block_##name
 #include "OpCode.def.h"
