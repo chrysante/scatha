@@ -26,7 +26,7 @@ private:
     u64 val;
 };
 
-///
+/// Thrown if a stack allocation of invalid size is attempted
 class InvalidStackAllocationError {
 public:
     explicit InvalidStackAllocationError(u64 count): cnt(count) {}

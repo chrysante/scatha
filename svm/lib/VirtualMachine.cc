@@ -294,6 +294,9 @@ void VirtualMachine::printRegisters(size_t n) const {
 
 VirtualPointer VirtualMachine::allocateStackMemory(size_t numBytes,
                                                    size_t align) {
+    if (numBytes % 8 != 0 || align < 8 || std::popcount(align) != 1) {
+        throwError<InvalidStackAllocationError>(numBytes);
+    }
     alignTo(impl->currentFrame.stackPtr, align);
     auto result = impl->currentFrame.stackPtr;
     impl->currentFrame.stackPtr += numBytes;
