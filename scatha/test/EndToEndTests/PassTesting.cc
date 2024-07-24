@@ -315,7 +315,12 @@ uint64_t test::runProgram(std::span<uint8_t const> program, size_t startpos) {
     /// We need 2 megabytes of stack size for the ackermann function test to run
     svm::VirtualMachine vm(1 << 10, 1 << 12);
     vm.loadBinary(program.data());
-    vm.execute(startpos, {});
+    if (getOptions().NoJumpThreading) {
+        vm.executeNoJumpThread(startpos, {});
+    }
+    else {
+        vm.execute(startpos, {});
+    }
     return vm.getRegister(0);
 }
 

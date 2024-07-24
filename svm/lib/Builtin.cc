@@ -441,11 +441,7 @@ BUILTIN_DEF(filewrite, u64* regPtr, VirtualMachine* vm) {
 
 BUILTIN_DEF(trap, u64*, VirtualMachine*) { throwError<TrapError>(); }
 
-BUILTIN_DEF(exit, u64* regPtr, VirtualMachine* VM) {
-    int64_t returnCode = load<int64_t>(regPtr);
-    VM->impl->registers[0] = (uint64_t)returnCode;
-    VM->impl->currentFrame.iptr = VM->impl->programBreak;
-}
+BUILTIN_DEF(exit, u64*, VirtualMachine*) { throw ExitException(); }
 
 BUILTIN_DEF(rand_i64, u64* regPtr, VirtualMachine*) {
     static thread_local std::mt19937_64 rng(std::random_device{}());

@@ -120,7 +120,8 @@ static void condMoveRM(VirtualMemory& memory, u8 const* i, u64* reg,
 
 template <OpCode C>
 static void performCall(VirtualMemory& memory, u8 const* i, u8 const* binary,
-                        ExecutionFrame& currentFrame) {
+                        u8 const*& iptr, u64*& regPtr,
+                        VirtualPointer stackPtr) {
     auto const [dest, regOffset] = [&] {
         if constexpr (C == OpCode::call) {
             /// Yes, unlike in the indirect call cases we load a 32 bit dest
@@ -128,35 +129,34 @@ static void performCall(VirtualMemory& memory, u8 const* i, u8 const* binary,
             return std::pair{ load<u32>(i), load<u8>(i + 4) };
         }
         else if constexpr (C == OpCode::icallr) {
-            auto* reg = currentFrame.regPtr;
+            auto* reg = regPtr;
             u8 const idx = load<u8>(i);
             return std::pair{ load<u64>(reg + idx), load<u8>(i + 1) };
         }
         else {
             static_assert(C == OpCode::icallm);
-            auto* reg = currentFrame.regPtr;
+            auto* reg = regPtr;
             VirtualPointer destAddr = getPointer(reg, i);
             return std::pair{ load<u64>(memory.dereference(destAddr, 8)),
                               load<u8>(i + 4) };
         }
     }();
-    currentFrame.regPtr += regOffset;
-    currentFrame.regPtr[-3] = utl::bit_cast<u64>(currentFrame.stackPtr);
-    currentFrame.regPtr[-2] = regOffset;
-    auto* retAddr = currentFrame.iptr + CodeSize<C>;
-    currentFrame.regPtr[-1] = utl::bit_cast<u64>(retAddr);
-    currentFrame.iptr = binary + dest;
+    regPtr += regOffset;
+    regPtr[-3] = utl::bit_cast<u64>(stackPtr);
+    regPtr[-2] = regOffset;
+    auto* retAddr = iptr + CodeSize<C>;
+    regPtr[-1] = utl::bit_cast<u64>(retAddr);
+    iptr = binary + dest;
 }
 
 template <OpCode C>
-static void jump(u8 const* i, u8 const* binary, ExecutionFrame& currentFrame,
-                 bool cond) {
+static void jump(u8 const* i, u8 const* binary, u8 const*& iptr, bool cond) {
     u32 dest = load<u32>(&i[0]);
     if (cond) {
         /// `ExecCodeSize` is added to the instruction pointer after executing
         /// any instruction. Because we want the instruction pointer to be
         /// `binary + dest` we subtract that number here.
-        currentFrame.iptr = binary + dest - ExecCodeSize<C>;
+        iptr = binary + dest - ExecCodeSize<C>;
     }
 }
 
@@ -337,16 +337,18 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 #endif
 
     beginExecution(start, arguments);
+    u8 const* iptr = currentFrame.iptr;
+    u64* regPtr = currentFrame.regPtr;
 
     // Jumps directly the the next instruction. We use
     // `std::min(., InvalidOpcodeIndex)` to ensure we never read past the end
     // of the jump table, even with a corrupted binary
-#define GOTO_NEXT()                                                            \
-    goto* jumpTable[std::min(*currentFrame.iptr, InvalidOpcodeIndex)];
+#define GOTO_NEXT() goto* jumpTable[std::min(*iptr, InvalidOpcodeIndex)]
 
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \
         currentFrame.iptr = programBreak;                                      \
+        currentFrame.regPtr = regPtr;                                          \
         return endExecution();                                                 \
     } while (0)
 
@@ -360,27 +362,21 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 
     using enum OpCode;
 
-    // Execution starts by jumping to the first instruction
-    GOTO_NEXT()
-
-#define INST(opcode, ...)                                                      \
-    opcode_block_##opcode: {                                                   \
-        [[maybe_unused]] auto* iptr = currentFrame.iptr + sizeof(OpCode);      \
-        [[maybe_unused]] auto* regPtr = currentFrame.regPtr;                   \
-        __VA_ARGS__                                                            \
+#define INST(opcode)                                                           \
+    if constexpr ((uint8_t)opcode != 0) {                                      \
+        iptr += ExecCodeSize<OpCode(std::max(0, (uint8_t)opcode - 1))>;        \
     }                                                                          \
-    if constexpr (opcode == cbltn) {                                           \
-        if (currentFrame.iptr == programBreak) TERMINATE_EXECUTION();          \
-    }                                                                          \
-    currentFrame.iptr += ExecCodeSize<opcode>;                                 \
-    /* Instead of going back to a loop header, we immediately jump to the      \
-     * next instruction, significantly reducing branching */                   \
-    GOTO_NEXT()
+    GOTO_NEXT();                                                               \
+    opcode_block_##opcode:                                                     \
+        if ([[maybe_unused]] auto* const opPtr = iptr + sizeof(OpCode); true)
 
 #include "ExecutionInstDef.h"
 
+    iptr += ExecCodeSize<OpCode{ InvalidOpcodeIndex - 1 }>;
+    GOTO_NEXT();
+
 opcode_block_invalid:
-    throwError<InvalidOpcodeError>((u64)*currentFrame.iptr);
+    throwError<InvalidOpcodeError>((u64)*iptr);
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
@@ -418,27 +414,32 @@ void VMImpl::beginExecution(size_t start, std::span<u64 const> arguments) {
 bool VMImpl::running() const { return currentFrame.iptr < programBreak; }
 
 void VMImpl::stepExecution() {
-    OpCode const opcode = load<OpCode>(currentFrame.iptr);
-    auto* const iptr = currentFrame.iptr + sizeof(OpCode);
-    auto* const regPtr = currentFrame.regPtr;
+    u8 const* iptr = currentFrame.iptr;
+    u64* regPtr = currentFrame.regPtr;
+    OpCode const opcode = load<OpCode>(iptr);
+    auto* const opPtr = iptr + sizeof(OpCode);
     size_t codeOffset;
     switch ((u8)opcode) {
         using enum OpCode;
-#define INST(opcode, ...)                                                      \
-    case (u8)opcode:                                                           \
-        codeOffset = ExecCodeSize<opcode>;                                     \
-        __VA_ARGS__                                                            \
-        break;
 
-#define TERMINATE_EXECUTION() currentFrame.iptr = programBreak
+#define INST(opcode)                                                           \
+    break;                                                                     \
+    case (u8)opcode:                                                           \
+        codeOffset = ExecCodeSize<opcode>;
+
+#define TERMINATE_EXECUTION()                                                  \
+    do {                                                                       \
+        iptr = programBreak;                                                   \
+        codeOffset = 0;                                                        \
+    } while (0)
 
 #include "ExecutionInstDef.h"
-
         break;
     default:
         throwError<InvalidOpcodeError>((u64)opcode);
     }
-    currentFrame.iptr += codeOffset;
+    currentFrame.iptr = iptr + codeOffset;
+    currentFrame.regPtr = regPtr;
     ++stats.executedInstructions;
 }
 

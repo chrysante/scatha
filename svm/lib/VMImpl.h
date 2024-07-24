@@ -19,6 +19,9 @@ namespace svm {
 
 class VirtualMachine;
 
+/// Exception class thrown by `__builtin_exit()`
+class ExitException {};
+
 /// Implementation details of the virtual machine
 struct VMImpl {
     VMImpl();

@@ -9,6 +9,7 @@ struct Options {
     bool TestPasses = false;
     bool TestIdempotency = false;
     bool PrintCodegen = false;
+    bool NoJumpThreading = false;
     std::string TestPipeline;
 };
 

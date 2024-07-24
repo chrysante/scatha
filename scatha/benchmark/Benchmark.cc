@@ -192,3 +192,20 @@ fn isSorted(data: &[int]) -> bool {
 )");
     RUN(VM);
 }
+
+TEST_CASE("Ackermann") {
+    auto VM = makeLoadedVM(R"(
+fn ack(n: int, m: int) -> int {
+    if n == 0 {
+        return m + 1;
+    }
+    if m == 0 {
+        return ack(n - 1, 1);
+    }
+    return ack(n - 1, ack(n, m - 1));
+}
+fn main() -> int {
+    return ack(3, 4);
+})");
+    RUN(VM);
+}
