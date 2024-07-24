@@ -254,10 +254,6 @@ private:
 /// the predecessor. Each entry in the MCT holds a computation and a pointer to
 /// the corresponding computation in the LCT of the successor block.
 class MovableComputationTable {
-    // auto allEntries() {
-    //     return _entries | ranges::views::values | ranges::views::join;
-    // }
-
 public:
     class Entry: public utl::ilist_node<Entry> {
     public:
