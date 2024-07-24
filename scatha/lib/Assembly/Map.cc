@@ -7,24 +7,24 @@ using namespace Asm;
 
 using svm::OpCode;
 
-std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source,
-                                       size_t size) {
+std::optional<MoveMapResult> Asm::mapMove(ValueType dest, ValueType source,
+                                          size_t size) {
     if (dest == ValueType::RegisterIndex) {
         switch (source) {
         case ValueType::RegisterIndex:
-            return { OpCode::mov64RR, 8 };
+            return MoveMapResult{ OpCode::mov64RR, 8 };
         case ValueType::MemoryAddress:
             switch (size) {
             case 1:
-                return { OpCode::mov8RM, 1 };
+                return MoveMapResult{ OpCode::mov8RM, 1 };
             case 2:
-                return { OpCode::mov16RM, 2 };
+                return MoveMapResult{ OpCode::mov16RM, 2 };
             case 4:
-                return { OpCode::mov32RM, 4 };
+                return MoveMapResult{ OpCode::mov32RM, 4 };
             case 8:
-                return { OpCode::mov64RM, 8 };
+                return MoveMapResult{ OpCode::mov64RM, 8 };
             default:
-                SC_UNREACHABLE();
+                return std::nullopt;
             }
         case ValueType::Value8:
             [[fallthrough]];
@@ -35,32 +35,32 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source,
         case ValueType::Value64:
             [[fallthrough]];
         case ValueType::LabelPosition:
-            return { OpCode::mov64RV, 8 };
+            return MoveMapResult{ OpCode::mov64RV, 8 };
         default:
             /// No matching instruction
-            SC_UNREACHABLE();
+            return std::nullopt;
         }
     }
     if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex)
     {
         switch (size) {
         case 1:
-            return { OpCode::mov8MR, 1 };
+            return MoveMapResult{ OpCode::mov8MR, 1 };
         case 2:
-            return { OpCode::mov16MR, 2 };
+            return MoveMapResult{ OpCode::mov16MR, 2 };
         case 4:
-            return { OpCode::mov32MR, 4 };
+            return MoveMapResult{ OpCode::mov32MR, 4 };
         case 8:
-            return { OpCode::mov64MR, 8 };
+            return MoveMapResult{ OpCode::mov64MR, 8 };
         default:
-            SC_UNREACHABLE();
+            return std::nullopt;
         }
     }
     /// No matching instruction.
-    SC_UNREACHABLE();
+    return std::nullopt;
 }
 
-static OpCode mapCMovRR(CompareOperation cmpOp) {
+static std::optional<OpCode> mapCMovRR(CompareOperation cmpOp) {
     switch (cmpOp) {
     case CompareOperation::Less:
         return OpCode::cmovl64RR;
@@ -75,12 +75,12 @@ static OpCode mapCMovRR(CompareOperation cmpOp) {
     case CompareOperation::NotEq:
         return OpCode::cmovne64RR;
     case CompareOperation::None:
-        SC_UNREACHABLE();
+        return std::nullopt;
     }
-    SC_UNREACHABLE();
+    return std::nullopt;
 }
 
-static OpCode mapCMovRV(CompareOperation cmpOp) {
+static std::optional<OpCode> mapCMovRV(CompareOperation cmpOp) {
     switch (cmpOp) {
     case CompareOperation::Less:
         return OpCode::cmovl64RV;
@@ -95,12 +95,12 @@ static OpCode mapCMovRV(CompareOperation cmpOp) {
     case CompareOperation::NotEq:
         return OpCode::cmovne64RV;
     case CompareOperation::None:
-        SC_UNREACHABLE();
+        return std::nullopt;
     }
-    SC_UNREACHABLE();
+    return std::nullopt;
 }
 
-static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
+static std::optional<OpCode> mapCMovRM(CompareOperation cmpOp, size_t size) {
     switch (cmpOp) {
     case CompareOperation::Less:
         switch (size) {
@@ -113,7 +113,7 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
         case 8:
             return OpCode::cmovl64RM;
         }
-        SC_UNREACHABLE();
+        return std::nullopt;
     case CompareOperation::LessEq:
         switch (size) {
         case 1:
@@ -125,7 +125,7 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
         case 8:
             return OpCode::cmovle64RM;
         }
-        SC_UNREACHABLE();
+        return std::nullopt;
     case CompareOperation::Greater:
         switch (size) {
         case 1:
@@ -137,7 +137,7 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
         case 8:
             return OpCode::cmovg64RM;
         }
-        SC_UNREACHABLE();
+        return std::nullopt;
     case CompareOperation::GreaterEq:
         switch (size) {
         case 1:
@@ -149,7 +149,7 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
         case 8:
             return OpCode::cmovge64RM;
         }
-        SC_UNREACHABLE();
+        return std::nullopt;
     case CompareOperation::Eq:
         switch (size) {
         case 1:
@@ -161,7 +161,7 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
         case 8:
             return OpCode::cmove64RM;
         }
-        SC_UNREACHABLE();
+        return std::nullopt;
     case CompareOperation::NotEq:
         switch (size) {
         case 1:
@@ -173,21 +173,28 @@ static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
         case 8:
             return OpCode::cmovne64RM;
         }
-        SC_UNREACHABLE();
+        return std::nullopt;
     case CompareOperation::None:
-        SC_UNREACHABLE();
+        return std::nullopt;
     }
     SC_UNREACHABLE();
 }
 
-std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp, ValueType dest,
-                                        ValueType source, size_t size) {
+std::optional<MoveMapResult> Asm::mapCMove(CompareOperation cmpOp,
+                                           ValueType dest, ValueType source,
+                                           size_t size) {
     SC_ASSERT(dest == ValueType::RegisterIndex, "Can only cmov to registers");
     switch (source) {
     case ValueType::RegisterIndex:
-        return { mapCMovRR(cmpOp), 8 };
+        if (auto opcode = mapCMovRR(cmpOp)) {
+            return MoveMapResult{ *opcode, 8 };
+        }
+        return std::nullopt;
     case ValueType::MemoryAddress:
-        return { mapCMovRM(cmpOp, size), size };
+        if (auto opcode = mapCMovRM(cmpOp, size)) {
+            return MoveMapResult{ *opcode, size };
+        }
+        return std::nullopt;
     case ValueType::Value8:
         [[fallthrough]];
     case ValueType::Value16:
@@ -195,14 +202,17 @@ std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp, ValueType dest,
     case ValueType::Value32:
         [[fallthrough]];
     case ValueType::Value64:
-        return { mapCMovRV(cmpOp), 8 };
+        if (auto opcode = mapCMovRV(cmpOp)) {
+            return MoveMapResult{ *opcode, 8 };
+        }
+        return std::nullopt;
     case ValueType::LabelPosition:
-        SC_UNREACHABLE();
+        return std::nullopt;
     }
     SC_UNREACHABLE();
 }
 
-OpCode Asm::mapJump(CompareOperation condition) {
+std::optional<svm::OpCode> Asm::mapJump(CompareOperation condition) {
     switch (condition) {
     case CompareOperation::None:
         return OpCode::jmp;
@@ -219,9 +229,10 @@ OpCode Asm::mapJump(CompareOperation condition) {
     case CompareOperation::NotEq:
         return OpCode::jne;
     }
+    SC_UNREACHABLE();
 }
 
-OpCode Asm::mapCall(ValueType type) {
+std::optional<svm::OpCode> Asm::mapCall(ValueType type) {
     switch (type) {
     case ValueType::LabelPosition:
         return OpCode::call;
@@ -230,11 +241,12 @@ OpCode Asm::mapCall(ValueType type) {
     case ValueType::MemoryAddress:
         return OpCode::icallm;
     default:
-        SC_UNREACHABLE();
+        return std::nullopt;
     }
 }
 
-OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
+std::optional<svm::OpCode> Asm::mapCompare(Type type, ValueType lhs,
+                                           ValueType rhs, size_t width) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
         switch (width) {
         case 1:
@@ -244,9 +256,9 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Unsigned:
                 return OpCode::ucmp8RR;
             case Type::Float:
-                return svm::InvalidOpcode;
+                return std::nullopt;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
         case 2:
             switch (type) {
             case Type::Signed:
@@ -254,9 +266,9 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Unsigned:
                 return OpCode::ucmp16RR;
             case Type::Float:
-                return svm::InvalidOpcode;
+                return std::nullopt;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
         case 4:
             switch (type) {
             case Type::Signed:
@@ -266,7 +278,7 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Float:
                 return OpCode::fcmp32RR;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
         case 8:
             switch (type) {
             case Type::Signed:
@@ -276,9 +288,10 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Float:
                 return OpCode::fcmp64RR;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
+        default:
+            return std::nullopt;
         }
-        SC_UNREACHABLE();
     }
     if (lhs == ValueType::RegisterIndex &&
         (rhs == ValueType::Value64 || rhs == ValueType::LabelPosition))
@@ -291,9 +304,9 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Unsigned:
                 return OpCode::ucmp8RV;
             case Type::Float:
-                return svm::InvalidOpcode;
+                return std::nullopt;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
         case 2:
             switch (type) {
             case Type::Signed:
@@ -301,9 +314,9 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Unsigned:
                 return OpCode::ucmp16RV;
             case Type::Float:
-                return svm::InvalidOpcode;
+                return std::nullopt;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
         case 4:
             switch (type) {
             case Type::Signed:
@@ -313,7 +326,7 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Float:
                 return OpCode::fcmp32RV;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
         case 8:
             switch (type) {
             case Type::Signed:
@@ -323,14 +336,16 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
             case Type::Float:
                 return OpCode::fcmp64RV;
             }
-            SC_UNREACHABLE();
+            return std::nullopt;
+        default:
+            return std::nullopt;
         }
     }
     /// No matching instruction.
-    SC_UNREACHABLE();
+    return std::nullopt;
 }
 
-OpCode Asm::mapTest(Type type, size_t width) {
+std::optional<svm::OpCode> Asm::mapTest(Type type, size_t width) {
     switch (width) {
     case 1:
         switch (type) {
@@ -339,7 +354,7 @@ OpCode Asm::mapTest(Type type, size_t width) {
         case Type::Unsigned:
             return OpCode::utest8;
         case Type::Float:
-            return svm::InvalidOpcode;
+            return std::nullopt;
         }
     case 2:
         switch (type) {
@@ -348,7 +363,7 @@ OpCode Asm::mapTest(Type type, size_t width) {
         case Type::Unsigned:
             return OpCode::utest16;
         case Type::Float:
-            return svm::InvalidOpcode;
+            return std::nullopt;
         }
     case 4:
         switch (type) {
@@ -357,7 +372,7 @@ OpCode Asm::mapTest(Type type, size_t width) {
         case Type::Unsigned:
             return OpCode::utest32;
         case Type::Float:
-            return svm::InvalidOpcode;
+            return std::nullopt;
         }
     case 8:
         switch (type) {
@@ -366,17 +381,17 @@ OpCode Asm::mapTest(Type type, size_t width) {
         case Type::Unsigned:
             return OpCode::utest64;
         case Type::Float:
-            return svm::InvalidOpcode;
+            return std::nullopt;
         }
     default:
-        SC_UNREACHABLE();
+        return std::nullopt;
     }
 }
 
-OpCode Asm::mapSet(CompareOperation operation) {
+std::optional<svm::OpCode> Asm::mapSet(CompareOperation operation) {
     switch (operation) {
     case CompareOperation::None:
-        return svm::InvalidOpcode;
+        return std::nullopt;
     case CompareOperation::Less:
         return OpCode::setl;
     case CompareOperation::LessEq:
@@ -390,10 +405,12 @@ OpCode Asm::mapSet(CompareOperation operation) {
     case CompareOperation::NotEq:
         return OpCode::setne;
     }
+    SC_UNREACHABLE();
 }
 
-OpCode Asm::mapArithmetic64(ArithmeticOperation operation, ValueType dest,
-                            ValueType source) {
+std::optional<svm::OpCode> Asm::mapArithmetic64(ArithmeticOperation operation,
+                                                ValueType dest,
+                                                ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
         switch (operation) {
@@ -434,6 +451,7 @@ OpCode Asm::mapArithmetic64(ArithmeticOperation operation, ValueType dest,
         case ArithmeticOperation::XOr:
             return OpCode::xor64RR;
         }
+        SC_UNREACHABLE();
     }
     if (dest == ValueType::RegisterIndex &&
         (source == ValueType::Value64 || source == ValueType::Value8))
@@ -478,6 +496,7 @@ OpCode Asm::mapArithmetic64(ArithmeticOperation operation, ValueType dest,
         case ArithmeticOperation::XOr:
             return OpCode::xor64RV;
         }
+        SC_UNREACHABLE();
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
     {
@@ -519,13 +538,15 @@ OpCode Asm::mapArithmetic64(ArithmeticOperation operation, ValueType dest,
         case ArithmeticOperation::XOr:
             return OpCode::xor64RM;
         }
+        SC_UNREACHABLE();
     }
     /// No matching instruction.
-    SC_UNREACHABLE();
+    return std::nullopt;
 }
 
-OpCode Asm::mapArithmetic32(ArithmeticOperation operation, ValueType dest,
-                            ValueType source) {
+std::optional<svm::OpCode> Asm::mapArithmetic32(ArithmeticOperation operation,
+                                                ValueType dest,
+                                                ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
         switch (operation) {
@@ -566,6 +587,7 @@ OpCode Asm::mapArithmetic32(ArithmeticOperation operation, ValueType dest,
         case ArithmeticOperation::XOr:
             return OpCode::xor32RR;
         }
+        SC_UNREACHABLE();
     }
     if (dest == ValueType::RegisterIndex &&
         (source == ValueType::Value32 || source == ValueType::Value8))
@@ -610,6 +632,7 @@ OpCode Asm::mapArithmetic32(ArithmeticOperation operation, ValueType dest,
         case ArithmeticOperation::XOr:
             return OpCode::xor32RV;
         }
+        SC_UNREACHABLE();
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
     {
@@ -651,9 +674,10 @@ OpCode Asm::mapArithmetic32(ArithmeticOperation operation, ValueType dest,
         case ArithmeticOperation::XOr:
             return OpCode::xor32RM;
         }
+        SC_UNREACHABLE();
     }
     /// No matching instruction.
-    SC_UNREACHABLE();
+    return std::nullopt;
 }
 
 // clang-format on

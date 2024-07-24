@@ -55,8 +55,6 @@ inline constexpr size_t NumOpcodes =
 #include <svm/OpCode.def.h>
     0;
 
-inline constexpr OpCode InvalidOpcode = (OpCode)0xFF;
-
 ///
 std::string_view toString(OpCode);
 

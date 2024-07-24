@@ -80,7 +80,6 @@ struct Assembler: AsmWriter {
 
     /// Append opcode  \p o to the back of the binary
     void put(svm::OpCode o) {
-        SC_ASSERT(o != svm::InvalidOpcode, "Invalid opcode");
         put<std::underlying_type_t<svm::OpCode>>(utl::to_underlying(o));
     }
 
@@ -180,30 +179,31 @@ void Assembler::dispatch(Instruction const& inst) {
 void Assembler::translate(MoveInst const& mov) {
     auto const [opcode, size] = mapMove(mov.dest().valueType(),
                                         mov.source().valueType(),
-                                        mov.numBytes());
+                                        mov.numBytes())
+                                    .value();
     put(opcode);
     dispatch(mov.dest());
     dispatch(promote(mov.source(), size));
 }
 
 void Assembler::translate(CMoveInst const& cmov) {
-    auto const [opcode, size] =
-        mapCMove(cmov.condition(), cmov.dest().valueType(),
-                 cmov.source().valueType(), cmov.numBytes());
+    auto [opcode, size] = mapCMove(cmov.condition(), cmov.dest().valueType(),
+                                   cmov.source().valueType(), cmov.numBytes())
+                              .value();
     put(opcode);
     dispatch(cmov.dest());
     dispatch(promote(cmov.source(), size));
 }
 
 void Assembler::translate(JumpInst const& jmp) {
-    OpCode const opcode = mapJump(jmp.condition());
+    OpCode opcode = mapJump(jmp.condition()).value();
     put(opcode);
     put(LabelPlaceholder{}, jmp.target(), StaticAddressWidth);
     return;
 }
 
 void Assembler::translate(CallInst const& call) {
-    OpCode const opcode = mapCall(call.dest().valueType());
+    OpCode opcode = mapCall(call.dest().valueType()).value();
     put(opcode);
     dispatch(call.dest());
     put<u8>(call.regPtrOffset());
@@ -239,14 +239,15 @@ void Assembler::translate(LEAInst const& lea) {
 
 void Assembler::translate(CompareInst const& cmp) {
     OpCode opcode = mapCompare(cmp.type(), promote(cmp.lhs().valueType(), 8),
-                               promote(cmp.rhs().valueType(), 8), cmp.width());
+                               promote(cmp.rhs().valueType(), 8), cmp.width())
+                        .value();
     put(opcode);
     dispatch(promote(cmp.lhs(), 8));
     dispatch(promote(cmp.rhs(), 8));
 }
 
 void Assembler::translate(TestInst const& test) {
-    OpCode const opcode = mapTest(test.type(), test.width());
+    OpCode opcode = mapTest(test.type(), test.width()).value();
     put(opcode);
     SC_ASSERT(test.operand().is<RegisterIndex>(),
               "Can only test values in registers");
@@ -254,7 +255,7 @@ void Assembler::translate(TestInst const& test) {
 }
 
 void Assembler::translate(SetInst const& set) {
-    OpCode const opcode = mapSet(set.operation());
+    OpCode opcode = mapSet(set.operation()).value();
     put(opcode);
     dispatch(set.dest());
 }
@@ -290,12 +291,14 @@ void Assembler::translate(UnaryArithmeticInst const& inst) {
 }
 
 void Assembler::translate(ArithmeticInst const& inst) {
-    OpCode const opcode =
+    OpCode opcode =
         inst.width() == 4 ?
             mapArithmetic32(inst.operation(), inst.dest().valueType(),
-                            inst.source().valueType()) :
+                            inst.source().valueType())
+                .value() :
             mapArithmetic64(inst.operation(), inst.dest().valueType(),
-                            inst.source().valueType());
+                            inst.source().valueType())
+                .value();
     put(opcode);
     dispatch(inst.dest());
     dispatch(inst.source());
