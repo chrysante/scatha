@@ -354,10 +354,6 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     u8 const* iptr = currentFrame.iptr;
     u64* regPtr = currentFrame.regPtr;
 
-    // Jumps directly the the next instruction. We don't need to perform bounds
-    // checking because the jump table has 256 entries
-#define GOTO_NEXT() goto* jumpTable[*iptr]
-
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \
         currentFrame.iptr = programBreak;                                      \
@@ -381,20 +377,21 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 #include "OpCode.def.h"
         );
 
-#define INST(InstName)                                                         \
-    if constexpr ((uint8_t)OpCode::InstName != 0) {                            \
-        static constexpr OpCode PrevOpCode =                                   \
-            OpCode((uint8_t)OpCode::InstName - 1);                             \
-        iptr += ExecCodeSize<PrevOpCode>;                                      \
-    }                                                                          \
-    GOTO_NEXT();                                                               \
+    // Here the execution starts. We jump to the first opcode block.
+    goto* jumpTable[*iptr];
+
+    // Defines the beginning of an opcode block. #including "ExecutionInstDef.h"
+    // will fill in the code for each block.
+#define INST_BEGIN(InstName)                                                   \
     opcode_block_##InstName:                                                   \
         if ([[maybe_unused]] auto* const opPtr = iptr + sizeof(OpCode); true)
 
-#include "ExecutionInstDef.h"
+    // After executing one opcode, we directly jump to the next block
+#define INST_END(InstName)                                                     \
+    iptr += ExecCodeSize<OpCode::InstName>;                                    \
+    goto* jumpTable[*iptr];
 
-    iptr += ExecCodeSize<OpCode{ NumOpcodes - 1 }>;
-    GOTO_NEXT();
+#include "ExecutionInstDef.h"
 
 opcode_block_invalid:
     throwError<InvalidOpcodeError>((u64)*iptr);
@@ -441,10 +438,11 @@ void VMImpl::stepExecution() {
     auto* const opPtr = iptr + sizeof(OpCode);
     size_t codeOffset;
     switch ((u8)opcode) {
-#define INST(InstName)                                                         \
-    break;                                                                     \
+#define INST_BEGIN(InstName)                                                   \
     case (u8)OpCode::InstName:                                                 \
         codeOffset = ExecCodeSize<OpCode::InstName>;
+
+#define INST_END(InstName) break;
 
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \
@@ -453,13 +451,12 @@ void VMImpl::stepExecution() {
     } while (0)
 
 #include "ExecutionInstDef.h"
-        break;
+
     default:
         throwError<InvalidOpcodeError>((u64)opcode);
     }
     currentFrame.iptr = iptr + codeOffset;
     currentFrame.regPtr = regPtr;
-    ++stats.executedInstructions;
 }
 
 u64 const* VMImpl::endExecution() {
