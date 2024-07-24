@@ -292,6 +292,8 @@ class ValueRef;
 class DomTree;
 class DominanceInfo;
 class LoopNestingForest;
+class LNFNode;
+class LoopNestingForest;
 class LoopInfo;
 
 /// Convenience wrapper to make `std::array<Value*, N>` in a less verbose
