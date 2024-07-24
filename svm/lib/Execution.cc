@@ -10,6 +10,14 @@
 #include "OpCode.h"
 #include "VMImpl.h"
 
+#if defined(__GNUC__)
+#define ALWAYS_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define ALWAYS_INLINE __forceinline
+#else
+#define ALWAYS_INLINE
+#endif
+
 using namespace svm;
 
 /// \Returns `codeSize(code)`  except for call and terminate instruction for
@@ -19,6 +27,9 @@ using namespace svm;
 /// Jump instructions subtract the codesize from the target because we have
 /// conditional jumps and advance the instruction pointer unconditionally
 static constexpr size_t execCodeSizeImpl(OpCode code) {
+    if (code == InvalidOpcode) {
+        return 0;
+    }
     if (code == OpCode::call) {
         return 0;
     }
@@ -52,15 +63,15 @@ static void storeReg(u64* dest, T const& t) {
 }
 
 static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
-    uint64_t baseptrRegIdx = i[0];
-    uint64_t offsetCountRegIdx = i[1];
+    u64 baseptrRegIdx = i[0];
+    u64 offsetCountRegIdx = i[1];
     i64 constantOffsetMultiplier = i[2];
     i64 constantInnerOffset = i[3];
     VirtualPointer offsetBaseptr =
         std::bit_cast<VirtualPointer>(reg[baseptrRegIdx]) + constantInnerOffset;
     /// See documentation in "OpCode.h"
     if (offsetCountRegIdx == 0xFF) {
-        return offsetBaseptr;
+        constantOffsetMultiplier &= i64(0);
     }
     i64 offsetCount = static_cast<i64>(reg[offsetCountRegIdx]);
     return offsetBaseptr + offsetCount * constantOffsetMultiplier;
@@ -119,9 +130,9 @@ static void condMoveRM(VirtualMemory& memory, u8 const* i, u64* reg,
 }
 
 template <OpCode C>
-static void performCall(VirtualMemory& memory, u8 const* i, u8 const* binary,
-                        u8 const*& iptr, u64*& regPtr,
-                        VirtualPointer stackPtr) {
+ALWAYS_INLINE static void performCall(VirtualMemory& memory, u8 const* i,
+                                      u8 const* binary, u8 const*& iptr,
+                                      u64*& regPtr, VirtualPointer stackPtr) {
     auto const [dest, regOffset] = [&] {
         if constexpr (C == OpCode::call) {
             /// Yes, unlike in the indirect call cases we load a 32 bit dest
@@ -328,6 +339,9 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
 #define JUMP_THREADING 1
 #endif // __GNUC__
 
+template <int>
+struct Undef;
+
 u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 #if JUMP_THREADING
 
@@ -340,10 +354,9 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     u8 const* iptr = currentFrame.iptr;
     u64* regPtr = currentFrame.regPtr;
 
-    // Jumps directly the the next instruction. We use
-    // `std::min(., InvalidOpcodeIndex)` to ensure we never read past the end
-    // of the jump table, even with a corrupted binary
-#define GOTO_NEXT() goto* jumpTable[std::min(*iptr, InvalidOpcodeIndex)]
+    // Jumps directly the the next instruction. We don't need to perform bounds
+    // checking because the jump table has 256 entries
+#define GOTO_NEXT() goto* jumpTable[*iptr]
 
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \
@@ -352,27 +365,35 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
         return endExecution();                                                 \
     } while (0)
 
-    void* jumpTable[] = {
-#define SVM_INSTRUCTION_DEF(name, ...) &&opcode_block_##name,
+    // The jump table must have 256 entries. The last entries all point to
+    // `opcode_block_invalid`. This way we don't have to perform bounds checking
+    // with our 8 bit opcodes
+    static constexpr auto jumpTable =
+        [](void* Invalid, auto*... args) {
+        return [&]<size_t... I>(std::index_sequence<I...>) {
+            std::array<void*, 256> table = { ((void)I, Invalid)... };
+            size_t i = 0;
+            ((table[i++] = args), ...);
+            return table;
+        }(std::make_index_sequence<256>{});
+    }(&&opcode_block_invalid
+#define SVM_INSTRUCTION_DEF(name, ...) , &&opcode_block_##name
 #include "OpCode.def.h"
-        &&opcode_block_invalid
-    };
-    static constexpr uint8_t JumpTableSize{ sizeof(jumpTable) / sizeof(void*) };
-    static constexpr uint8_t InvalidOpcodeIndex{ JumpTableSize - 1 };
+        );
 
-    using enum OpCode;
-
-#define INST(opcode)                                                           \
-    if constexpr ((uint8_t)opcode != 0) {                                      \
-        iptr += ExecCodeSize<OpCode(std::max(0, (uint8_t)opcode - 1))>;        \
+#define INST(InstName)                                                         \
+    if constexpr ((uint8_t)OpCode::InstName != 0) {                            \
+        static constexpr OpCode PrevOpCode =                                   \
+            OpCode((uint8_t)OpCode::InstName - 1);                             \
+        iptr += ExecCodeSize<PrevOpCode>;                                      \
     }                                                                          \
     GOTO_NEXT();                                                               \
-    opcode_block_##opcode:                                                     \
+    opcode_block_##InstName:                                                   \
         if ([[maybe_unused]] auto* const opPtr = iptr + sizeof(OpCode); true)
 
 #include "ExecutionInstDef.h"
 
-    iptr += ExecCodeSize<OpCode{ InvalidOpcodeIndex - 1 }>;
+    iptr += ExecCodeSize<OpCode{ NumOpcodes - 1 }>;
     GOTO_NEXT();
 
 opcode_block_invalid:
@@ -420,12 +441,10 @@ void VMImpl::stepExecution() {
     auto* const opPtr = iptr + sizeof(OpCode);
     size_t codeOffset;
     switch ((u8)opcode) {
-        using enum OpCode;
-
-#define INST(opcode)                                                           \
+#define INST(InstName)                                                         \
     break;                                                                     \
-    case (u8)opcode:                                                           \
-        codeOffset = ExecCodeSize<opcode>;
+    case (u8)OpCode::InstName:                                                 \
+        codeOffset = ExecCodeSize<OpCode::InstName>;
 
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \

@@ -11,16 +11,16 @@
 #endif
 
 INST(call) {
-    performCall<call>(memory, opPtr, binary, iptr, regPtr,
-                      currentFrame.stackPtr);
+    performCall<OpCode::call>(memory, opPtr, binary, iptr, regPtr,
+                              currentFrame.stackPtr);
 }
 INST(icallr) {
-    performCall<icallr>(memory, opPtr, binary, iptr, regPtr,
-                        currentFrame.stackPtr);
+    performCall<OpCode::icallr>(memory, opPtr, binary, iptr, regPtr,
+                                currentFrame.stackPtr);
 }
 INST(icallm) {
-    performCall<icallm>(memory, opPtr, binary, iptr, regPtr,
-                        currentFrame.stackPtr);
+    performCall<OpCode::icallm>(memory, opPtr, binary, iptr, regPtr,
+                                currentFrame.stackPtr);
 }
 
 INST(ret) {
@@ -140,13 +140,13 @@ INST(lea) {
 }
 
 /// ## Jumps
-INST(jmp) { jump<jmp>(opPtr, binary, iptr, true); }
-INST(je) { jump<je>(opPtr, binary, iptr, equal(cmpFlags)); }
-INST(jne) { jump<jne>(opPtr, binary, iptr, notEqual(cmpFlags)); }
-INST(jl) { jump<jl>(opPtr, binary, iptr, less(cmpFlags)); }
-INST(jle) { jump<jle>(opPtr, binary, iptr, lessEq(cmpFlags)); }
-INST(jg) { jump<jg>(opPtr, binary, iptr, greater(cmpFlags)); }
-INST(jge) { jump<jge>(opPtr, binary, iptr, greaterEq(cmpFlags)); }
+INST(jmp) { jump<OpCode::jmp>(opPtr, binary, iptr, true); }
+INST(je) { jump<OpCode::je>(opPtr, binary, iptr, equal(cmpFlags)); }
+INST(jne) { jump<OpCode::jne>(opPtr, binary, iptr, notEqual(cmpFlags)); }
+INST(jl) { jump<OpCode::jl>(opPtr, binary, iptr, less(cmpFlags)); }
+INST(jle) { jump<OpCode::jle>(opPtr, binary, iptr, lessEq(cmpFlags)); }
+INST(jg) { jump<OpCode::jg>(opPtr, binary, iptr, greater(cmpFlags)); }
+INST(jge) { jump<OpCode::jge>(opPtr, binary, iptr, greaterEq(cmpFlags)); }
 
 /// ## Comparison
 INST(ucmp8RR) { compareRR<u8>(opPtr, regPtr, cmpFlags); }

@@ -50,6 +50,11 @@ enum class OpCode : u8 {
 #include <svm/OpCode.def.h>
 };
 
+inline constexpr size_t NumOpcodes =
+#define SVM_INSTRUCTION_DEF(inst, class) 1 +
+#include <svm/OpCode.def.h>
+    0;
+
 inline constexpr OpCode InvalidOpcode = (OpCode)0xFF;
 
 ///
