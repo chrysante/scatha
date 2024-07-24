@@ -40,7 +40,12 @@ int main(int argc, char* argv[]) {
         auto execArg = setupArguments(vm, options.arguments);
         /// Excute the program
         auto const beginTime = std::chrono::high_resolution_clock::now();
-        vm.execute(execArg);
+        if (!options.noJumpThread) {
+            vm.execute(execArg);
+        }
+        else {
+            vm.executeNoJumpThread(execArg);
+        }
         auto const endTime = std::chrono::high_resolution_clock::now();
         u64 const exitCode = vm.getRegister(0);
         if (options.time) {

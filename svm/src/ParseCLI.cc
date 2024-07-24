@@ -33,6 +33,8 @@ Options svm::parseCLI(int argc, char* argv[]) {
     std::filesystem::path filepath;
     app.add_flag("-t,--time", result.time, "Measure execution time");
     app.add_flag("--print", result.print, "Print the binary");
+    app.add_flag("--no-jump-thread", result.noJumpThread,
+                 "Don't use jump threading for execution");
     app.add_option("--binary", result.filepath, "Executable file")
         ->check(CLI::ExistingFile);
     try {

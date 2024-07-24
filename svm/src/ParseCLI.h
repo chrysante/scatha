@@ -12,6 +12,7 @@ struct Options {
     std::vector<std::string> arguments;
     bool time;
     bool print;
+    bool noJumpThread;
 };
 
 ///
