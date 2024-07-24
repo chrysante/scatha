@@ -3,6 +3,8 @@
 
 #include <csp.hpp>
 
+#include <scatha/Common/Base.h>
+
 #define SC_DYNCAST_DEFINE(Type, ID, Parent, Corporeality)                      \
     CSP_DEFINE(Type, ID, Parent, Corporeality)
 
