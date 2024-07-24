@@ -49,6 +49,7 @@ target_sources(libsvm
     lib/BuiltinInternal.h
     lib/Errors.cc
     lib/Execution.cc
+    lib/ExecutionInstDef.h
     lib/ExternalFunction.h
     lib/Memory.h
     lib/OpCode.cc

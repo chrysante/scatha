@@ -18,8 +18,16 @@ static svm::VirtualMachine makeLoadedVM(std::string source) {
     return vm;
 }
 
-TEST_CASE("Benchmark") {
-    auto count = makeLoadedVM(R"(
+#define RUN(VM)                                                                \
+    BENCHMARK("Jump threaded") {                                               \
+        VM.execute({});                                                        \
+    };                                                                         \
+    BENCHMARK("No jump threading") {                                           \
+        VM.executeNoJumpThread({});                                            \
+    }
+
+TEST_CASE("Count") {
+    auto VM = makeLoadedVM(R"(
 fn count(n: int) -> int {
     var i = 0;
     while i < n { ++i; }
@@ -28,10 +36,11 @@ fn count(n: int) -> int {
 fn main() -> int {
     return count(1000000);
 })");
-    BENCHMARK("Count") {
-        count.execute({});
-    };
-    auto sortTree = makeLoadedVM(R"(
+    RUN(VM);
+}
+
+TEST_CASE("Sort tree") {
+    auto VM = makeLoadedVM(R"(
 struct Node {
     fn new(&mut this, n: int) {
         this.value = n;
@@ -113,7 +122,73 @@ fn main() {
     return isSorted(result);
 }
 )");
-    BENCHMARK("Sort tree") {
-        sortTree.execute({});
-    };
+    RUN(VM);
+}
+
+TEST_CASE("Sort") {
+    auto VM = makeLoadedVM(R"(
+fn main() -> bool {
+    var data = [
+        15,   50,   82,   57,    7,   42,   86,   23,   60,   51,
+        17,   19,   80,   33,   49,   35,   79,   98,   89,   27,
+        92,   45,   43,    5,   87,    2,   58,   75,   22,   18,
+        30,   41,   70,   40,    3,   84,   63,   39,   56,   97,
+        81,    6,   64,   47,   90,   20,   77,   12,   74,   55,
+        78,    4,   28,   52,   61,   85,   32,   37,   95,   83,
+        87,   54,   77,   72,    9,   65,   11,   31,   10,    1,
+        25,   73,   44,   71,   68,    8,   67,   13,   91,   24,
+        62,   21,   66,   48,   99,   94,   69,   46,  100,   38,
+        16,   53,   96,   34,   59,   14,   29,   93,   36,   26
+    ];
+    sort(data);
+    return isSorted(data);
+}
+
+fn sort(data: &mut [int]) -> void {
+    if data.empty {
+        return;
+    }
+    let p = partition(data);
+    sort(data[0 : p]);
+    sort(data[p + 1 : data.count]);
+}
+
+fn partition(data: &mut [int]) -> int {
+    var i = 0;
+    var j = data.count - 2;
+    let pivot = data.back;
+    while i < j {
+        while i < j && data[i] <= pivot {
+            ++i;
+        }
+        while j > i && data[j] > pivot {
+            --j;
+        }
+        if data[i] > data[j] {
+            swap(data[i], data[j]);
+        }
+    }
+    if data[i] <= pivot {
+        return data.count - 1; // index of pivot
+    }
+    swap(data[i], data.back);
+    return i;
+}
+
+fn swap(a: &mut int, b: &mut int) {
+    let tmp = a;
+    a = b;
+    b = tmp;
+}
+
+fn isSorted(data: &[int]) -> bool {
+    for i = 0; i < data.count - 1; ++i {
+        if data[i] > data[i + 1] {
+            return false;
+        }
+    }
+    return true;
+}
+)");
+    RUN(VM);
 }

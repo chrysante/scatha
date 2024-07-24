@@ -216,6 +216,18 @@ u64 const* VirtualMachine::execute(size_t startAddress,
     return impl->execute(startAddress, arguments);
 }
 
+u64 const* VirtualMachine::executeNoJumpThread(std::span<u64 const> arguments) {
+    if (!impl->startAddress.has_value()) {
+        throwError<NoStartAddress>();
+    }
+    return executeNoJumpThread(*impl->startAddress, arguments);
+}
+
+u64 const* VirtualMachine::executeNoJumpThread(size_t startAddress,
+                                               std::span<u64 const> arguments) {
+    return impl->executeNoJumpThread(startAddress, arguments);
+}
+
 void VirtualMachine::beginExecution(std::span<u64 const> arguments) {
     if (!impl->startAddress.has_value()) {
         throwError<NoStartAddress>();

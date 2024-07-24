@@ -49,6 +49,14 @@ public:
     /// \Returns Bottom register pointer of the run execution frame
     u64 const* execute(size_t startAddress, std::span<u64 const> arguments);
 
+    /// Same as `execute()`, except that no jump threading is used.
+    /// This exists for benchmarking
+    u64 const* executeNoJumpThread(std::span<u64 const> arguments);
+
+    /// \overload
+    u64 const* executeNoJumpThread(size_t startAddress,
+                                   std::span<u64 const> arguments);
+
     /// # Stepwise execution / debugger implementation
     /// @{
     /// Start stepwise execution of the loaded program
