@@ -69,7 +69,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
         ir::Context ctx;
         ir::Module mod;
         irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {});
-        ir::forEach(ctx, mod, {}, opt::unifyReturns);
+        ir::forEach(ctx, mod, opt::unifyReturns, {});
         return std::tuple{ std::move(ctx), std::move(mod),
                            sym.foreignLibraries() };
     };
@@ -78,7 +78,7 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
 static Generator makeIRGenerator(std::string_view text) {
     return [=] {
         auto result = ir::parse(text).value();
-        ir::forEach(result.first, result.second, {}, opt::unifyReturns);
+        ir::forEach(result.first, result.second, opt::unifyReturns, {});
         return std::tuple{ std::move(result).first, std::move(result).second,
                            std::vector<ForeignLibraryDecl>{} };
     };
@@ -146,7 +146,7 @@ struct Impl {
         }
 
         if (getOptions().TestPasses) {
-            for (auto pass: ir::PassManager::localPasses()) {
+            for (auto pass: ir::PassManager::functionPasses()) {
                 if (pass.category() == ir::PassCategory::Experimental) {
                     continue;
                 }
@@ -158,7 +158,7 @@ struct Impl {
                 testPipeline(generator, lightRotate, pipeline, begin, end);
                 testPipeline(generator, lightInline, pipeline, begin, end);
             }
-            auto passes = ir::PassManager::localPasses();
+            auto passes = ir::PassManager::functionPasses();
         }
 
         if (!getOptions().TestPipeline.empty()) {
@@ -231,7 +231,7 @@ struct Impl {
                          utl::function_view<void()> begin,
                          utl::function_view<void(u64)> end) const {
         for (auto pass:
-             ir::PassManager::localPasses(ir::PassCategory::Simplification))
+             ir::PassManager::functionPasses(ir::PassCategory::Simplification))
         {
             if (pass.name() == "default") {
                 continue;
@@ -244,9 +244,9 @@ struct Impl {
             auto message = utl::strcat("Idempotency check for \"", pass.name(),
                                        "\" with pre pipeline \"", prePipeline,
                                        "\"");
-            ir::forEach(ctx, mod, {}, pass);
+            ir::forEach(ctx, mod, pass, {});
             runChecked(message, mod, libs, begin, end);
-            bool second = ir::forEach(ctx, mod, {}, pass);
+            bool second = ir::forEach(ctx, mod, pass, {});
             INFO(message);
             CHECK(!second);
             runChecked(message, mod, libs, begin, end);

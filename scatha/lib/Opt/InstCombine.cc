@@ -26,8 +26,8 @@ using namespace ir;
 using namespace opt;
 using namespace ranges::views;
 
-SC_REGISTER_PASS(opt::instCombine, "instcombine", PassCategory::Simplification,
-                 {});
+SC_REGISTER_FUNCTION_PASS(opt::instCombine, "instcombine",
+                          PassCategory::Simplification, {});
 
 namespace {
 

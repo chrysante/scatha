@@ -26,7 +26,7 @@ using namespace ir;
 using namespace opt;
 using namespace ranges::views;
 
-SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline",
+SC_REGISTER_MODULE_PASS(opt::inlineFunctions, "inline",
                         PassCategory::Simplification,
                         { Flag{ "print-vis-order", false },
                           Flag{ "print-decisions", false } });
@@ -57,10 +57,10 @@ namespace scatha::opt {
 
 struct Inliner {
     explicit Inliner(Context& ctx, Module& mod, PassArgumentMap const& map,
-                     LocalPass localPass):
+                     FunctionPass functionPass):
         ctx(ctx),
         mod(mod),
-        localPass(std::move(localPass)),
+        functionPass(std::move(functionPass)),
         callGraph(SCCCallGraph::compute(mod)),
         args(Arguments::Parse(map)) {}
 
@@ -112,7 +112,7 @@ struct Inliner {
 
     Context& ctx;
     Module& mod;
-    LocalPass localPass;
+    FunctionPass functionPass;
     SCCCallGraph callGraph;
     utl::hashset<SCC*> worklist;
     utl::hashset<SCC const*> analyzed;
@@ -127,15 +127,16 @@ struct Inliner {
 
 bool opt::inlineFunctions(ir::Context& ctx, Module& mod,
                           PassArgumentMap const& args) {
-    return inlineFunctions(ctx, mod, args, opt::defaultPass);
+    return inlineFunctions(ctx, mod, opt::defaultPass, args);
 }
 
 bool opt::inlineFunctions(ir::Context& ctx, ir::Module& mod,
-                          PassArgumentMap const& args, LocalPass localPass) {
-    if (!localPass) {
-        localPass = defaultPass;
+                          FunctionPass functionPass,
+                          PassArgumentMap const& args) {
+    if (!functionPass) {
+        functionPass = defaultPass;
     }
-    Inliner inl(ctx, mod, args, std::move(localPass));
+    Inliner inl(ctx, mod, args, std::move(functionPass));
     return inl.run();
 }
 
@@ -346,7 +347,7 @@ bool Inliner::optimize(Function& function) const {
     bool modifiedAny = false;
     int const tripLimit = 4;
     for (int i = 0; i < tripLimit; ++i) {
-        if (!localPass(ctx, function)) {
+        if (!functionPass(ctx, function)) {
             break;
         }
         modifiedAny = true;

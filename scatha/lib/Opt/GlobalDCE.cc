@@ -15,12 +15,12 @@ using namespace ir;
 
 /// Expose the pass to the pass manager. Therefore we need a function that
 /// accepts a local pass as the third argument
-static bool globalDCEPass(Context& ctx, Module& mod,
-                          PassArgumentMap const& args, LocalPass) {
+static bool globalDCEPass(Context& ctx, Module& mod, FunctionPass,
+                          PassArgumentMap const& args) {
     return globalDCE(ctx, mod, args);
 }
 
-SC_REGISTER_GLOBAL_PASS(globalDCEPass, "globaldce",
+SC_REGISTER_MODULE_PASS(globalDCEPass, "globaldce",
                         PassCategory::Simplification, {});
 
 using Node = SCCCallGraph::FunctionNode;

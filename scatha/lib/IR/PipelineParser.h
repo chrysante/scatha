@@ -8,30 +8,39 @@
 
 /// Pipeline script grammar
 ///
-///     pipeline         => global-pass-list
+///     pipeline            => module-pass-list
 ///
-///     global-pass-list => global-pass
-///                       | global-pass "," global-pass-list
+///     module-pass-list    => module-pass
+///                          | module-pass "," module-pass-list
 ///
-///     global-pass      => global-pass-id
-///                       | global-pass-id "(" local-pass-list ")"
-///                       | local-pass-id
+///     module-pass         => module-pass-id
+///                          | module-pass-id "(" function-pass-list ")"
+///                          | function-pass
 ///
-///     global-pass-id   => global-pass-name
-///                       | global-pass-name "[" arg-list "]"
+///     module-pass-id      => module-pass-name
+///                          | module-pass-name "[" arg-list "]"
 ///
-///     local-pass-list  => local-pass-id
-///                       | local-pass-id "," local-pass-list
+///     function-pass-list  => function-pass
+///                          | function-pass "," function-pass-list
 ///
-///     local-pass-id    => local-pass-name
-///                       | local-pass-name "[" arg-list "]"
+///     function-pass       => function-pass-id
+///                          | "loop" "(" loop-pass-list ")"
 ///
-///     arg-list         => arg
-///                       | arg "," arg-list
+///     function-pass-id    => function-pass-name
+///                          | function-pass-name "[" arg-list "]"
 ///
-///     arg              => id | id ":" value
+///     loop-pass-list      => loop-pass
+///                          | loop-pass "," loop-pass-list
 ///
-///     value            => id | string-lit | numeric-lit
+///     loop-pass           => loop-pass-id
+///                          | loop-pass-id "[" arg-list "]"
+///
+///     arg-list            => arg
+///                          | arg "," arg-list
+///
+///     arg                 => id | id ":" value
+///
+///     value               => id | string-lit | numeric-lit
 ///
 
 namespace scatha::ir {

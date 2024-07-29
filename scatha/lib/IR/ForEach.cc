@@ -7,13 +7,13 @@
 using namespace scatha;
 using namespace ir;
 
-SC_REGISTER_GLOBAL_PASS(ir::forEach, "foreach", PassCategory::Other, {});
+SC_REGISTER_MODULE_PASS(ir::forEach, "foreach", PassCategory::Other, {});
 
-bool ir::forEach(Context& ctx, Module& mod, ir::PassArgumentMap const&,
-                 LocalPass localPass) {
+bool ir::forEach(Context& ctx, Module& mod, FunctionPass functionPass,
+                 ir::PassArgumentMap const&) {
     bool modified = false;
     for (auto& F: mod) {
-        modified |= localPass(ctx, F);
+        modified |= functionPass(ctx, F);
     }
     return modified;
 }

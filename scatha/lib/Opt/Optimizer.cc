@@ -12,14 +12,14 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_GLOBAL_PASS(opt::optimize, "optimize", PassCategory::Optimization,
+SC_REGISTER_MODULE_PASS(opt::optimize, "optimize", PassCategory::Optimization,
                         {});
 
-bool opt::optimize(Context& ctx, Module& mod, PassArgumentMap const&,
-                   LocalPass) {
+bool opt::optimize(Context& ctx, Module& mod, FunctionPass,
+                   PassArgumentMap const&) {
     bool modified = false;
     modified |= inlineFunctions(ctx, mod, {});
     modified |= globalDCE(ctx, mod, {});
-    modified |= forEach(ctx, mod, {}, splitReturns);
+    modified |= forEach(ctx, mod, splitReturns, {});
     return modified;
 }

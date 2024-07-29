@@ -20,7 +20,8 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::loopUnroll, "loopunroll", PassCategory::Experimental, {});
+SC_REGISTER_FUNCTION_PASS(opt::loopUnroll, "loopunroll",
+                          PassCategory::Experimental, {});
 
 namespace {
 

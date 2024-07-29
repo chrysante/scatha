@@ -12,7 +12,7 @@
 using namespace scatha;
 using namespace test;
 
-void test::passTest(ir::LocalPass pass, ir::Context& fCtx, ir::Function& F,
+void test::passTest(ir::FunctionPass pass, ir::Context& fCtx, ir::Function& F,
                     ir::Function& ref) {
     bool const modifiedFirstTime = pass(fCtx, F);
     CHECK(modifiedFirstTime);
@@ -21,7 +21,7 @@ void test::passTest(ir::LocalPass pass, ir::Context& fCtx, ir::Function& F,
     CHECK(test::funcEqual(F, ref));
 }
 
-void test::passTest(ir::LocalPass pass, std::string fSource,
+void test::passTest(ir::FunctionPass pass, std::string fSource,
                     std::string refSource) {
     auto [fCtx, fMod] = ir::parse(fSource).value();
     auto [refCtx, refMod] = ir::parse(refSource).value();
@@ -48,7 +48,7 @@ void test::passTest(ir::Pipeline const& pipeline, std::string mSource,
     test::passTest(pipeline, mCtx, M, ref);
 }
 
-void test::passTest(ir::GlobalPass pass, ir::LocalPass local,
+void test::passTest(ir::ModulePass pass, ir::FunctionPass local,
                     std::string mSource, std::string refSource) {
     return passTest(ir::Pipeline(std::move(pass), std::move(local)),
                     std::move(mSource), std::move(refSource));

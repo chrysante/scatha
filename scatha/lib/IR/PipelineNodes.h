@@ -12,9 +12,9 @@
 namespace scatha::ir {
 
 /// Represents a local pass in the pipeline tree
-class PipelineLocalNode {
+class PipelineFunctionNode {
 public:
-    explicit PipelineLocalNode(LocalPass pass): pass(std::move(pass)) {}
+    explicit PipelineFunctionNode(FunctionPass pass): pass(std::move(pass)) {}
 
     bool execute(ir::Context& ctx, ir::Function& F) const {
         return pass(ctx, F);
@@ -25,21 +25,21 @@ public:
     void printTree(std::ostream&, TreeFormatter&) const;
 
 private:
-    LocalPass pass;
+    FunctionPass pass;
 };
 
 /// Represents a global pass in the pipeline tree
-class PipelineGlobalNode {
+class PipelineModuleNode {
 public:
-    PipelineGlobalNode(
-        GlobalPass pass,
-        utl::small_vector<std::unique_ptr<PipelineLocalNode>> children = {}):
+    PipelineModuleNode(
+        ModulePass pass,
+        utl::small_vector<std::unique_ptr<PipelineFunctionNode>> children = {}):
         pass(std::move(pass)), children(std::move(children)) {}
 
-    PipelineGlobalNode(GlobalPass pass,
-                       std::unique_ptr<PipelineLocalNode> onlyChild):
+    PipelineModuleNode(ModulePass pass,
+                       std::unique_ptr<PipelineFunctionNode> singleChild):
         pass(std::move(pass)) {
-        children.push_back(std::move(onlyChild));
+        children.push_back(std::move(singleChild));
     }
 
     bool execute(ir::Context& ctx, ir::Module& mod) const;
@@ -49,8 +49,8 @@ public:
     void printTree(std::ostream&, TreeFormatter&) const;
 
 private:
-    GlobalPass pass;
-    utl::small_vector<std::unique_ptr<PipelineLocalNode>> children;
+    ModulePass pass;
+    utl::small_vector<std::unique_ptr<PipelineFunctionNode>> children;
 };
 
 /// Represents the root of the pipeline tree
@@ -58,12 +58,12 @@ class PipelineRoot {
 public:
     PipelineRoot() = default;
 
-    explicit PipelineRoot(std::unique_ptr<PipelineGlobalNode> singleChild) {
+    explicit PipelineRoot(std::unique_ptr<PipelineModuleNode> singleChild) {
         children.push_back(std::move(singleChild));
     }
 
     explicit PipelineRoot(
-        utl::small_vector<std::unique_ptr<PipelineGlobalNode>> children):
+        utl::small_vector<std::unique_ptr<PipelineModuleNode>> children):
         children(std::move(children)) {}
 
     bool execute(ir::Context& ctx, ir::Module& mod) const {
@@ -81,7 +81,7 @@ public:
     bool empty() const { return children.empty(); }
 
 private:
-    utl::small_vector<std::unique_ptr<PipelineGlobalNode>> children;
+    utl::small_vector<std::unique_ptr<PipelineModuleNode>> children;
 };
 
 } // namespace scatha::ir

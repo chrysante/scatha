@@ -6,10 +6,11 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::canonicalize, "canonicalize",
-                 PassCategory::Canonicalization, {});
+SC_REGISTER_FUNCTION_PASS(opt::canonicalize, "canonicalize",
+                          PassCategory::Canonicalization, {});
 
-SC_REGISTER_PASS(opt::defaultPass, "default", PassCategory::Simplification, {});
+SC_REGISTER_FUNCTION_PASS(opt::defaultPass, "default",
+                          PassCategory::Simplification, {});
 
 bool opt::canonicalize(Context& ctx, Function& function) {
     bool modified = false;

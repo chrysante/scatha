@@ -177,49 +177,53 @@ public:
     Parser(std::string_view text): _lex(text), _peekToken(_lex.next()) {}
 
     Pipeline parse() {
-        auto root = std::make_unique<PipelineRoot>(parseGlobalList());
+        auto root = std::make_unique<PipelineRoot>(parseModulePassList());
         return Pipeline(std::move(root));
     }
 
-    utl::small_vector<std::unique_ptr<PipelineGlobalNode>> parseGlobalList() {
-        return parseList<PipelineGlobalNode>([this] { return parseGlobal(); },
-                                             "global node");
+    utl::small_vector<std::unique_ptr<PipelineModuleNode>>
+        parseModulePassList() {
+        return parseList<PipelineModuleNode>([this] {
+            return parseModulePass();
+        }, "global node");
     }
 
-    std::unique_ptr<PipelineGlobalNode> parseGlobal() {
+    std::unique_ptr<PipelineModuleNode> parseModulePass() {
         auto token = peek();
         if (token.type != Token::Identifier) {
             return nullptr;
         }
-        auto globalPass = PassManager::getGlobalPass(token.id);
-        if (!globalPass) {
+        auto modulePass = PassManager::getModulePass(token.id);
+        if (!modulePass) {
             return parseImplicitForeach();
         }
         eat();
-        parseArguments(globalPass);
+        parseArguments(modulePass);
         if (peek().type != Token::OpenParan) {
-            return std::make_unique<PipelineGlobalNode>(std::move(globalPass));
+            return std::make_unique<PipelineModuleNode>(std::move(modulePass));
         }
         eat();
-        auto localList = parseLocalList();
+        auto fnPassList = parseFunctionPassList();
         expect(Token::CloseParan);
-        return std::make_unique<PipelineGlobalNode>(std::move(globalPass),
-                                                    std::move(localList));
+        return std::make_unique<PipelineModuleNode>(std::move(modulePass),
+                                                    std::move(fnPassList));
     }
 
-    std::unique_ptr<PipelineGlobalNode> parseImplicitForeach() {
-        auto localNode = parseLocal();
-        if (!localNode) {
+    std::unique_ptr<PipelineModuleNode> parseImplicitForeach() {
+        auto fnNode = parseFunctionPass();
+        if (!fnNode) {
             return nullptr;
         }
-        return std::make_unique<PipelineGlobalNode>(PassManager::getGlobalPass(
+        return std::make_unique<PipelineModuleNode>(PassManager::getModulePass(
                                                         "foreach"),
-                                                    std::move(localNode));
+                                                    std::move(fnNode));
     }
 
-    utl::small_vector<std::unique_ptr<PipelineLocalNode>> parseLocalList() {
-        return parseList<PipelineLocalNode>([this] { return parseLocal(); },
-                                            "local node");
+    utl::small_vector<std::unique_ptr<PipelineFunctionNode>>
+        parseFunctionPassList() {
+        return parseList<PipelineFunctionNode>([this] {
+            return parseFunctionPass();
+        }, "local node");
     }
 
     void parseList(auto parseCB, std::string_view type) {
@@ -252,18 +256,18 @@ public:
         return result;
     }
 
-    std::unique_ptr<PipelineLocalNode> parseLocal() {
+    std::unique_ptr<PipelineFunctionNode> parseFunctionPass() {
         auto token = peek();
         if (token.type != Token::Identifier) {
             return nullptr;
         }
-        auto pass = PassManager::getPass(token.id);
+        auto pass = PassManager::getFunctionPass(token.id);
         if (!pass) {
             return nullptr;
         }
         eat();
         parseArguments(pass);
-        return std::make_unique<PipelineLocalNode>(std::move(pass));
+        return std::make_unique<PipelineFunctionNode>(std::move(pass));
     }
 
     void parseArguments(PassBase& pass) {

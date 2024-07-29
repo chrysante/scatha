@@ -18,6 +18,6 @@ static bool helloWorld(Context&, Function& F, PassArgumentMap const& args) {
     return false;
 }
 
-SC_REGISTER_PASS(helloWorld, "helloworld", ir::PassCategory::Other,
-                 { String{ "message", "Hello World" },
-                   Flag{ "print", false } });
+SC_REGISTER_FUNCTION_PASS(helloWorld, "helloworld", ir::PassCategory::Other,
+                          { String{ "message", "Hello World" },
+                            Flag{ "print", false } });

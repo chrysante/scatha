@@ -13,25 +13,26 @@
         return 0;                                                              \
     }()
 
-/// Register a local pass
-#define SC_REGISTER_PASS(function, name, category, ...)                        \
-    _SC_REGISTER_PASS_IMPL(registerLocal, function, name, category, __VA_ARGS__)
+/// Register a function pass
+#define SC_REGISTER_FUNCTION_PASS(function, name, category, ...)               \
+    _SC_REGISTER_PASS_IMPL(registerFunctionPass, function, name, category,     \
+                           __VA_ARGS__)
 
-/// Register a global pass. Same as `SC_REGISTER_PASS` except that \p function
-/// is cast to global pass signature
-#define SC_REGISTER_GLOBAL_PASS(function, name, category, ...)                 \
+/// Register a global pass. Same as `SC_REGISTER_FUNCTION_PASS` except that \p
+/// function is cast to module pass signature
+#define SC_REGISTER_MODULE_PASS(function, name, category, ...)                 \
     _SC_REGISTER_PASS_IMPL(                                                    \
-        registerGlobal,                                                        \
+        registerModulePass,                                                    \
         static_cast<bool (*)(::scatha::ir::Context&, ::scatha::ir::Module&,    \
-                             ::scatha::ir::PassArgumentMap const&,             \
-                             ::scatha::ir::LocalPass)>(function),              \
+                             ::scatha::ir::FunctionPass,                       \
+                             ::scatha::ir::PassArgumentMap const&)>(function), \
         name, category, __VA_ARGS__)
 
 namespace scatha::ir::internal {
 
-void registerLocal(LocalPass pass);
+void registerFunctionPass(FunctionPass pass);
 
-void registerGlobal(GlobalPass pass);
+void registerModulePass(ModulePass pass);
 
 } // namespace scatha::ir::internal
 

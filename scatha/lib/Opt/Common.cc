@@ -13,8 +13,8 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-SC_REGISTER_PASS(opt::splitCriticalEdges, "splitcriticaledges",
-                 PassCategory::Simplification, {});
+SC_REGISTER_FUNCTION_PASS(opt::splitCriticalEdges, "splitcriticaledges",
+                          PassCategory::Simplification, {});
 
 bool opt::preceeds(Instruction const* a, Instruction const* b) {
     SC_ASSERT(a->parent() == b->parent(),

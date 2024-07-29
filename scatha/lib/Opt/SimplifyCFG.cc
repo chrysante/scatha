@@ -20,8 +20,8 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-SC_REGISTER_PASS(opt::simplifyCFG, "simplifycfg", PassCategory::Simplification,
-                 {});
+SC_REGISTER_FUNCTION_PASS(opt::simplifyCFG, "simplifycfg",
+                          PassCategory::Simplification, {});
 
 ///
 static bool removeUnreachableBlocks(Function* function);

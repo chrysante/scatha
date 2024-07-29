@@ -15,9 +15,9 @@ using namespace ranges::views;
 namespace {
 
 struct Impl {
-    utl::hashmap<std::string, LocalPass> localPasses;
+    utl::hashmap<std::string, FunctionPass> functionPasses;
 
-    utl::hashmap<std::string, GlobalPass> globalPasses;
+    utl::hashmap<std::string, ModulePass> modulePasses;
 
     auto getPassImpl(auto& map, std::string_view name) const {
         auto itr = map.find(name);
@@ -27,15 +27,15 @@ struct Impl {
         return decltype(itr->second){};
     }
 
-    LocalPass getPass(std::string_view name) const {
-        if (auto pass = getPassImpl(localPasses, name)) {
+    FunctionPass getFunctionPass(std::string_view name) const {
+        if (auto pass = getPassImpl(functionPasses, name)) {
             return pass;
         }
         return {};
     }
 
-    GlobalPass getGlobalPass(std::string_view name) const {
-        return getPassImpl(globalPasses, name);
+    ModulePass getModulePass(std::string_view name) const {
+        return getPassImpl(modulePasses, name);
     }
 
     Pipeline makePipeline(std::string_view text) const {
@@ -58,19 +58,19 @@ struct Impl {
 #endif
     }
 
-    utl::vector<LocalPass> getLocalPasses(auto filter) const {
-        return getPassesImpl(localPasses, filter);
+    utl::vector<FunctionPass> getFunctionPasses(auto filter) const {
+        return getPassesImpl(functionPasses, filter);
     }
 
-    void registerLocal(LocalPass pass) {
+    void registerFunctionPass(FunctionPass pass) {
         auto [itr, success] =
-            localPasses.insert({ pass.name(), std::move(pass) });
+            functionPasses.insert({ pass.name(), std::move(pass) });
         SC_ASSERT(success, "Failed to register pass");
     }
 
-    void registerGlobal(GlobalPass pass) {
+    void registerModulePass(ModulePass pass) {
         auto [itr, success] =
-            globalPasses.insert({ pass.name(), std::move(pass) });
+            modulePasses.insert({ pass.name(), std::move(pass) });
         SC_ASSERT(success, "Failed to register pass");
     }
 };
@@ -82,31 +82,31 @@ static Impl& getImpl() {
     return *impl;
 }
 
-LocalPass PassManager::getPass(std::string_view name) {
-    return getImpl().getPass(name);
+FunctionPass PassManager::getFunctionPass(std::string_view name) {
+    return getImpl().getFunctionPass(name);
 }
 
-GlobalPass PassManager::getGlobalPass(std::string_view name) {
-    return getImpl().getGlobalPass(name);
+ModulePass PassManager::getModulePass(std::string_view name) {
+    return getImpl().getModulePass(name);
 }
 
 Pipeline PassManager::makePipeline(std::string_view passes) {
     return getImpl().makePipeline(passes);
 }
 
-utl::vector<LocalPass> PassManager::localPasses() {
-    return getImpl().getLocalPasses([](auto&) { return true; });
+utl::vector<FunctionPass> PassManager::functionPasses() {
+    return getImpl().getFunctionPasses([](auto&) { return true; });
 }
 
-utl::vector<LocalPass> PassManager::localPasses(PassCategory category) {
-    return getImpl().getLocalPasses(
+utl::vector<FunctionPass> PassManager::functionPasses(PassCategory category) {
+    return getImpl().getFunctionPasses(
         [=](auto& pass) { return pass.category() == category; });
 }
 
-void ir::internal::registerLocal(LocalPass pass) {
-    getImpl().registerLocal(std::move(pass));
+void ir::internal::registerFunctionPass(FunctionPass pass) {
+    getImpl().registerFunctionPass(std::move(pass));
 }
 
-void ir::internal::registerGlobal(GlobalPass pass) {
-    getImpl().registerGlobal(std::move(pass));
+void ir::internal::registerModulePass(ModulePass pass) {
+    getImpl().registerModulePass(std::move(pass));
 }

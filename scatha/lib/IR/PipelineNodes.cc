@@ -6,14 +6,16 @@ using namespace scatha;
 using namespace ir;
 using namespace ranges::views;
 
-void PipelineLocalNode::print(std::ostream& str) const { str << pass.name(); }
+void PipelineFunctionNode::print(std::ostream& str) const {
+    str << pass.name();
+}
 
-bool PipelineGlobalNode::execute(ir::Context& ctx, ir::Module& mod) const {
-    auto local = [&]() -> LocalPass {
+bool PipelineModuleNode::execute(ir::Context& ctx, ir::Module& mod) const {
+    auto local = [&]() -> FunctionPass {
         if (children.empty()) {
             return {};
         }
-        return LocalPass([this](ir::Context& ctx, ir::Function& F) {
+        return FunctionPass([this](ir::Context& ctx, ir::Function& F) {
             bool result = false;
             for (auto& child: children) {
                 result |= child->execute(ctx, F);
@@ -24,7 +26,7 @@ bool PipelineGlobalNode::execute(ir::Context& ctx, ir::Module& mod) const {
     return pass(ctx, mod, std::move(local));
 }
 
-void PipelineGlobalNode::print(std::ostream& str) const {
+void PipelineModuleNode::print(std::ostream& str) const {
     str << pass.name() << "(";
     bool first = true;
     for (auto& node: children) {
@@ -48,12 +50,12 @@ void PipelineRoot::print(std::ostream& str) const {
     }
 }
 
-void PipelineLocalNode::printTree(std::ostream& str,
-                                  TreeFormatter& formatter) const {
+void PipelineFunctionNode::printTree(std::ostream& str,
+                                     TreeFormatter& formatter) const {
     str << formatter.beginLine() << pass.name() << std::endl;
 }
 
-void PipelineGlobalNode::printTree(std::ostream& str,
+void PipelineModuleNode::printTree(std::ostream& str,
                                    TreeFormatter& formatter) const {
     str << formatter.beginLine() << pass.name() << std::endl;
     for (auto [index, node]: children | enumerate) {

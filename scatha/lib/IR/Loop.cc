@@ -200,7 +200,8 @@ bool ir::makeLCSSA(Function& function) {
 
 static bool makeLCSSAPass(Context&, Function& F) { return makeLCSSA(F); }
 
-SC_REGISTER_PASS(makeLCSSAPass, "lcssa", PassCategory::Canonicalization, {});
+SC_REGISTER_FUNCTION_PASS(makeLCSSAPass, "lcssa",
+                          PassCategory::Canonicalization, {});
 
 static BasicBlock* getIdom(BasicBlock* dominator, BasicBlock* BB,
                            auto condition) {
@@ -424,5 +425,5 @@ static bool printLNFPass(Context&, Function& F, PassArgumentMap const& args) {
     return false;
 }
 
-SC_REGISTER_PASS(printLNFPass, "print-lnf", PassCategory::Other,
-                 { Flag{ "info", false } });
+SC_REGISTER_FUNCTION_PASS(printLNFPass, "print-lnf", PassCategory::Other,
+                          { Flag{ "info", false } });

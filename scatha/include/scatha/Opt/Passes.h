@@ -10,9 +10,10 @@ namespace scatha::opt {
 /// # Global passes
 
 /// Global optimization pass that is equal to `inline, globaldce, splitreturns`
-/// \param LocalPass is ignored
+/// \param FunctionPass is ignored
 SCATHA_API bool optimize(ir::Context& ctx, ir::Module& mod,
-                         ir::PassArgumentMap const& args, ir::LocalPass = {});
+                         ir::FunctionPass = {},
+                         ir::PassArgumentMap const& args = {});
 
 /// The inliner
 SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod,
@@ -20,8 +21,8 @@ SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod,
 
 /// \overload
 SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod,
-                                ir::PassArgumentMap const& args,
-                                ir::LocalPass localPass);
+                                ir::FunctionPass functionPass,
+                                ir::PassArgumentMap const& args);
 
 /// Eliminate all functions that do not get called by any externally visible
 /// function and all unused globals

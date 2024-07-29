@@ -10,10 +10,10 @@
 
 namespace scatha::test {
 
-void passTest(ir::LocalPass pass, ir::Context& fCtx, ir::Function& F,
+void passTest(ir::FunctionPass pass, ir::Context& fCtx, ir::Function& F,
               ir::Function& ref);
 
-void passTest(ir::LocalPass pass, std::string F, std::string ref);
+void passTest(ir::FunctionPass pass, std::string F, std::string ref);
 
 void passTest(ir::Pipeline const& pipeline, ir::Context& mCtx, ir::Module& M,
               ir::Module& ref);
@@ -21,7 +21,7 @@ void passTest(ir::Pipeline const& pipeline, ir::Context& mCtx, ir::Module& M,
 void passTest(ir::Pipeline const& pipeline, std::string mSource,
               std::string refSource);
 
-void passTest(ir::GlobalPass pass, ir::LocalPass local, std::string mSource,
+void passTest(ir::ModulePass pass, ir::FunctionPass local, std::string mSource,
               std::string refSource);
 
 void passTest(std::string pipeline, std::string mSource, std::string refSource);

@@ -206,7 +206,7 @@ private:
     Map map;
 };
 
-/// Common base class of `LocalPass` and `GlobalPass`
+/// Common base class of `FunctionPass` and `ModulePass`
 class PassBase {
 public:
     /// The name of the pass
@@ -240,80 +240,73 @@ private:
     PassCategory _cat;
 };
 
-/// Represents a local pass that operates on a single function
-class LocalPass: public PassBase {
+template <typename Derived, typename Sig>
+class PassMixin;
+
+template <typename Derived, typename... Args>
+class PassMixin<Derived, bool(Args...)>: public PassBase {
 public:
-    /// The signature of the pass type
-    using Sig = bool(ir::Context&, ir::Function&, PassArgumentMap const&);
+    using Sig = bool(Args...);
 
-    /// Construct an empty local pass. Empty passes are invalid an can not be
+    /// Construct an empty pass. Empty passes are invalid an can not be
     /// executed.
-    LocalPass() = default;
+    PassMixin() = default;
 
-    /// Construct a named local pass from a function without pass parameters
+    PassMixin(std::function<Sig> p, PassArgumentMap params = {},
+              std::string name = {},
+              PassCategory category = PassCategory::Other):
+        PassBase(std::move(params), std::move(name), category),
+        p(std::move(p)) {}
+
+    /// \Returns `true` is the pass is non-empty
+    operator bool() const { return !!p; }
+
+protected:
+    std::function<Sig> p;
+};
+
+/// Represents a pass that operates on a single function
+class FunctionPass:
+    public PassMixin<PassBase, bool(ir::Context&, ir::Function&,
+                                    PassArgumentMap const&)> {
+public:
+    using PassMixin::PassMixin;
+
+    /// Construct a named function pass from a function without pass parameters
     template <std::invocable<ir::Context&, ir::Function&> P>
-        requires std::same_as<
+        requires std::convertible_to<
                      std::invoke_result_t<P, ir::Context&, ir::Function&>,
                      bool> &&
                  (!std::derived_from<std::remove_cvref_t<P>, PassBase>)
-    LocalPass(P&& p, PassArgumentMap params = {}, std::string name = {},
-              PassCategory category = PassCategory::Other):
-        LocalPass(
+    FunctionPass(P&& p, PassArgumentMap params = {}, std::string name = {},
+                 PassCategory category = PassCategory::Other):
+        FunctionPass(
             [p = std::forward<P>(p)](ir::Context& ctx, ir::Function& F,
                                      PassArgumentMap const&) {
                 return std::invoke(p, ctx, F);
             },
             std::move(params), std::move(name), category) {}
 
-    /// Construct a named local pass from a function
-    LocalPass(std::function<Sig> p, PassArgumentMap params = {},
-              std::string name = {},
-              PassCategory category = PassCategory::Other):
-        PassBase(std::move(params), std::move(name), category),
-        p(std::move(p)) {}
-
     /// Invoke the pass
     bool operator()(ir::Context& ctx, ir::Function& function) const {
         return p(ctx, function, arguments());
     }
-
-    /// \Returns `true` is the pass is non-empty
-    operator bool() const { return !!p; }
-
-private:
-    std::function<Sig> p;
 };
 
-/// Represents a global pass that operates on an entire module
-class GlobalPass: public PassBase {
+/// Represents a global pass that operates on a module
+class ModulePass:
+    public PassMixin<ModulePass, bool(ir::Context&, ir::Module&, FunctionPass,
+                                      PassArgumentMap const&)> {
 public:
-    using Sig = bool(ir::Context&, ir::Module&, PassArgumentMap const&,
-                     LocalPass);
+    using PassMixin::PassMixin;
 
-    /// Construct an empty global pass. Empty passes are invalid an can not be
-    /// executed.
-    GlobalPass() = default;
-
-    GlobalPass(Sig* p): GlobalPass(p, {}) {}
-
-    /// Construct a named global pass from a function
-    GlobalPass(std::function<Sig> p, PassArgumentMap params = {},
-               std::string name = {},
-               PassCategory category = PassCategory::Other):
-        PassBase(std::move(params), std::move(name), category),
-        p(std::move(p)) {}
+    ModulePass(Sig* p): ModulePass(p, {}) {}
 
     /// Invoke the pass
     bool operator()(ir::Context& ctx, ir::Module& mod,
-                    LocalPass localPass) const {
-        return p(ctx, mod, arguments(), std::move(localPass));
+                    FunctionPass functionPass) const {
+        return p(ctx, mod, std::move(functionPass), arguments());
     }
-
-    /// \Returns `true` is the pass is non-empty
-    operator bool() const { return !!p; }
-
-private:
-    std::function<Sig> p;
 };
 
 } // namespace scatha::ir
