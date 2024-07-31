@@ -32,6 +32,9 @@ enum class PassCategory {
     /// manager but we can ignore them in the automatic pass tests
     Experimental,
 
+    /// Wrapper passes that only exist to schedule other passes
+    Schedule,
+
     /// For now here we have 'print' and 'foreach'
     Other
 };
@@ -265,37 +268,79 @@ protected:
     std::function<Sig> p;
 };
 
+/// Represents a global pass that operates on a module
+class LoopPass:
+    public PassMixin<LoopPass,
+                     bool(Context&, LNFNode&, PassArgumentMap const&)> {
+public:
+    using PassMixin::PassMixin;
+
+    /// Construct a named function pass from a function without pass parameters
+    template <std::invocable<Context&, LNFNode&> P>
+        requires std::convertible_to<
+                     std::invoke_result_t<P, Context&, LNFNode&>, bool> &&
+                 (!std::derived_from<std::remove_cvref_t<P>, PassBase>)
+    LoopPass(P&& p, PassArgumentMap params = {}, std::string name = {},
+             PassCategory category = PassCategory::Other):
+        LoopPass(
+            [p = std::forward<P>(p)](Context& ctx, LNFNode& loop,
+                                     PassArgumentMap const&) {
+                return std::invoke(p, ctx, loop);
+            },
+            std::move(params), std::move(name), category) {}
+
+    /// Invoke the pass
+    bool operator()(Context& ctx, LNFNode& loop) const {
+        return p && p(ctx, loop, arguments());
+    }
+};
+
 /// Represents a pass that operates on a single function
 class FunctionPass:
-    public PassMixin<PassBase, bool(ir::Context&, ir::Function&,
+    public PassMixin<PassBase, bool(Context&, Function&, LoopPass const&,
                                     PassArgumentMap const&)> {
 public:
     using PassMixin::PassMixin;
 
     /// Construct a named function pass from a function without pass parameters
-    template <std::invocable<ir::Context&, ir::Function&> P>
+    template <std::invocable<Context&, Function&> P>
         requires std::convertible_to<
-                     std::invoke_result_t<P, ir::Context&, ir::Function&>,
-                     bool> &&
+                     std::invoke_result_t<P, Context&, Function&>, bool> &&
                  (!std::derived_from<std::remove_cvref_t<P>, PassBase>)
     FunctionPass(P&& p, PassArgumentMap params = {}, std::string name = {},
                  PassCategory category = PassCategory::Other):
         FunctionPass(
-            [p = std::forward<P>(p)](ir::Context& ctx, ir::Function& F,
+            [p = std::forward<P>(p)](Context& ctx, Function& F, LoopPass const&,
                                      PassArgumentMap const&) {
                 return std::invoke(p, ctx, F);
             },
             std::move(params), std::move(name), category) {}
 
+    ///
+    template <std::invocable<Context&, Function&, PassArgumentMap const&> P>
+        requires std::convertible_to<
+            std::invoke_result_t<P, Context&, Function&,
+                                 PassArgumentMap const&>,
+            bool>
+    FunctionPass(P&& p, PassArgumentMap params = {}, std::string name = {},
+                 PassCategory category = PassCategory::Other):
+        FunctionPass(
+            [p = std::forward<P>(p)](Context& ctx, Function& F, LoopPass const&,
+                                     PassArgumentMap const& args) {
+                return std::invoke(p, ctx, F, args);
+            },
+            std::move(params), std::move(name), category) {}
+
     /// Invoke the pass
-    bool operator()(ir::Context& ctx, ir::Function& function) const {
-        return p(ctx, function, arguments());
+    bool operator()(Context& ctx, Function& function,
+                    LoopPass const& loopPass = {}) const {
+        return p && p(ctx, function, loopPass, arguments());
     }
 };
 
 /// Represents a global pass that operates on a module
 class ModulePass:
-    public PassMixin<ModulePass, bool(ir::Context&, ir::Module&, FunctionPass,
+    public PassMixin<ModulePass, bool(Context&, Module&, FunctionPass const&,
                                       PassArgumentMap const&)> {
 public:
     using PassMixin::PassMixin;
@@ -303,9 +348,9 @@ public:
     ModulePass(Sig* p): ModulePass(p, {}) {}
 
     /// Invoke the pass
-    bool operator()(ir::Context& ctx, ir::Module& mod,
-                    FunctionPass functionPass) const {
-        return p(ctx, mod, std::move(functionPass), arguments());
+    bool operator()(Context& ctx, Module& mod,
+                    FunctionPass const& functionPass) const {
+        return p && p(ctx, mod, functionPass, arguments());
     }
 };
 

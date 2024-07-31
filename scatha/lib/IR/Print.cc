@@ -35,7 +35,7 @@ static bool printPass(ir::Context&, ir::Function& function,
 SC_REGISTER_FUNCTION_PASS(printPass, "print", PassCategory::Other, {});
 
 /// To expose the `print(Module)` function to the pass manager
-static bool printPass(ir::Context&, ir::Module& mod, FunctionPass,
+static bool printPass(ir::Context&, ir::Module& mod, FunctionPass const&,
                       PassArgumentMap const& args) {
     auto title = args.get<std::string>("title");
     logging::header(utl::strcat(" ", title, " "));

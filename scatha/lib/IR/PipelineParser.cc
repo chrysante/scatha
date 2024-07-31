@@ -199,12 +199,7 @@ public:
         }
         eat();
         parseArguments(modulePass);
-        if (peek().type != Token::OpenParan) {
-            return std::make_unique<PipelineModuleNode>(std::move(modulePass));
-        }
-        eat();
         auto fnPassList = parseFunctionPassList();
-        expect(Token::CloseParan);
         return std::make_unique<PipelineModuleNode>(std::move(modulePass),
                                                     std::move(fnPassList));
     }
@@ -219,11 +214,29 @@ public:
                                                     std::move(fnNode));
     }
 
+    template <typename Node>
+    utl::small_vector<std::unique_ptr<Node>> parsePassList(
+        auto callback, std::string_view type) {
+        if (peek().type != Token::OpenParan) {
+            return {};
+        }
+        eat();
+        auto list = parseList<Node>(callback, type);
+        expect(eat(), Token::CloseParan);
+        return list;
+    }
+
     utl::small_vector<std::unique_ptr<PipelineFunctionNode>>
         parseFunctionPassList() {
-        return parseList<PipelineFunctionNode>([this] {
+        return parsePassList<PipelineFunctionNode>([this] {
             return parseFunctionPass();
-        }, "local node");
+        }, "function pass");
+    }
+
+    utl::small_vector<std::unique_ptr<PipelineLoopNode>> parseLoopPassList() {
+        return parsePassList<PipelineLoopNode>([this] {
+            return parseLoopPass();
+        }, "loop pass");
     }
 
     void parseList(auto parseCB, std::string_view type) {
@@ -267,7 +280,23 @@ public:
         }
         eat();
         parseArguments(pass);
-        return std::make_unique<PipelineFunctionNode>(std::move(pass));
+        auto loopPassList = parseLoopPassList();
+        return std::make_unique<PipelineFunctionNode>(std::move(pass),
+                                                      std::move(loopPassList));
+    }
+
+    std::unique_ptr<PipelineLoopNode> parseLoopPass() {
+        auto token = peek();
+        if (token.type != Token::Identifier) {
+            return nullptr;
+        }
+        auto pass = PassManager::getLoopPass(token.id);
+        if (!pass) {
+            return nullptr;
+        }
+        eat();
+        parseArguments(pass);
+        return std::make_unique<PipelineLoopNode>(std::move(pass));
     }
 
     void parseArguments(PassBase& pass) {

@@ -19,12 +19,11 @@ Pipeline& Pipeline::operator=(Pipeline&&) noexcept = default;
 
 Pipeline::~Pipeline() = default;
 
-static auto passToPipelineRoot(ModulePass global, FunctionPass local) {
-    auto localNode = std::make_unique<PipelineFunctionNode>(std::move(local));
-    auto globalNode =
-        std::make_unique<PipelineModuleNode>(std::move(global),
-                                             std::move(localNode));
-    return std::make_unique<PipelineRoot>(std::move(globalNode));
+static auto passToPipelineRoot(ModulePass modPass, FunctionPass fnPass) {
+    auto fnNode = std::make_unique<PipelineFunctionNode>(std::move(fnPass));
+    auto modNode = std::make_unique<PipelineModuleNode>(std::move(modPass),
+                                                        std::move(fnNode));
+    return std::make_unique<PipelineRoot>(std::move(modNode));
 }
 
 static auto passToPipelineRoot(FunctionPass pass) {

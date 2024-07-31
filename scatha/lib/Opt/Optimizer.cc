@@ -15,7 +15,7 @@ using namespace opt;
 SC_REGISTER_MODULE_PASS(opt::optimize, "optimize", PassCategory::Optimization,
                         {});
 
-bool opt::optimize(Context& ctx, Module& mod, FunctionPass,
+bool opt::optimize(Context& ctx, Module& mod, FunctionPass const&,
                    PassArgumentMap const&) {
     bool modified = false;
     modified |= inlineFunctions(ctx, mod, {});

@@ -13,6 +13,11 @@
         return 0;                                                              \
     }()
 
+/// Register a loop pass
+#define SC_REGISTER_LOOP_PASS(function, name, category, ...)                   \
+    _SC_REGISTER_PASS_IMPL(registerLoopPass, function, name, category,         \
+                           __VA_ARGS__)
+
 /// Register a function pass
 #define SC_REGISTER_FUNCTION_PASS(function, name, category, ...)               \
     _SC_REGISTER_PASS_IMPL(registerFunctionPass, function, name, category,     \
@@ -24,11 +29,13 @@
     _SC_REGISTER_PASS_IMPL(                                                    \
         registerModulePass,                                                    \
         static_cast<bool (*)(::scatha::ir::Context&, ::scatha::ir::Module&,    \
-                             ::scatha::ir::FunctionPass,                       \
+                             ::scatha::ir::FunctionPass const&,                \
                              ::scatha::ir::PassArgumentMap const&)>(function), \
         name, category, __VA_ARGS__)
 
 namespace scatha::ir::internal {
+
+void registerLoopPass(LoopPass pass);
 
 void registerFunctionPass(FunctionPass pass);
 

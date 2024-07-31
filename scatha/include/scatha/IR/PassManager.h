@@ -4,8 +4,7 @@
 #include <functional>
 #include <string>
 #include <string_view>
-
-#include <utl/vector.hpp>
+#include <vector>
 
 #include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
@@ -19,20 +18,23 @@ namespace scatha::ir {
 /// Passes are registered at static initialization phase.
 class SCATHA_API PassManager {
 public:
-    /// Get the local transform pass with name \p name
+    /// Get the loop transform pass with name \p name
+    static LoopPass getLoopPass(std::string_view name);
+
+    /// Get the function transform pass with name \p name
     static FunctionPass getFunctionPass(std::string_view name);
 
-    /// Get the global transform pass with name \p name
+    /// Get the module transform pass with name \p name
     static ModulePass getModulePass(std::string_view name);
 
     /// Make a pipeline from the pipeline script \p script
     static Pipeline makePipeline(std::string_view script);
 
     /// \Returns A list of all local passes
-    static utl::vector<FunctionPass> functionPasses();
+    static std::vector<FunctionPass> functionPasses();
 
     /// \Returns A list of all function passes of category \p category
-    static utl::vector<FunctionPass> functionPasses(PassCategory category);
+    static std::vector<FunctionPass> functionPasses(PassCategory category);
 };
 
 } // namespace scatha::ir

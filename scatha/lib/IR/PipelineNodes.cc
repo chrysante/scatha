@@ -6,12 +6,36 @@ using namespace scatha;
 using namespace ir;
 using namespace ranges::views;
 
+bool PipelineLoopNode::execute(ir::Context& ctx, ir::LNFNode& loop) const {
+    return pass(ctx, loop);
+}
+
+void PipelineLoopNode::print(std::ostream&) const {}
+
+void PipelineLoopNode::printTree(std::ostream&, TreeFormatter&) const {}
+
 void PipelineFunctionNode::print(std::ostream& str) const {
     str << pass.name();
 }
 
+bool PipelineFunctionNode::execute(ir::Context& ctx, ir::Function& F) const {
+    auto loopPass = [&]() -> LoopPass {
+        if (children.empty()) {
+            return {};
+        }
+        return LoopPass([this](ir::Context& ctx, ir::LNFNode& loop) {
+            bool result = false;
+            for (auto& child: children) {
+                result |= child->execute(ctx, loop);
+            }
+            return result;
+        });
+    }();
+    return pass(ctx, F, loopPass);
+}
+
 bool PipelineModuleNode::execute(ir::Context& ctx, ir::Module& mod) const {
-    auto local = [&]() -> FunctionPass {
+    auto fnPass = [&]() -> FunctionPass {
         if (children.empty()) {
             return {};
         }
@@ -23,7 +47,7 @@ bool PipelineModuleNode::execute(ir::Context& ctx, ir::Module& mod) const {
             return result;
         });
     }();
-    return pass(ctx, mod, std::move(local));
+    return pass(ctx, mod, fnPass);
 }
 
 void PipelineModuleNode::print(std::ostream& str) const {

@@ -131,12 +131,9 @@ bool opt::inlineFunctions(ir::Context& ctx, Module& mod,
 }
 
 bool opt::inlineFunctions(ir::Context& ctx, ir::Module& mod,
-                          FunctionPass functionPass,
+                          FunctionPass const& argPass,
                           PassArgumentMap const& args) {
-    if (!functionPass) {
-        functionPass = defaultPass;
-    }
-    Inliner inl(ctx, mod, args, std::move(functionPass));
+    Inliner inl(ctx, mod, args, argPass ? argPass : defaultPass);
     return inl.run();
 }
 

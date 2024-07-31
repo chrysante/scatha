@@ -138,6 +138,7 @@ bool makeLCSSA(LoopInfo& loopInfo);
 
 /// Node in the loop nesting forest. Every node directly corresponds to one
 /// basic block.
+/// TODO: Rename to `Loop`
 class LNFNode: public GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree> {
 public:
     using GraphNode::GraphNode;

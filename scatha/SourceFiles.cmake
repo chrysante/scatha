@@ -318,6 +318,7 @@ set(scatha_sources
     lib/Opt/Inliner.cc
     lib/Opt/InstCombine.cc
     lib/Opt/InvariantPropagation.cc
+    lib/Opt/LoopPass.cc
     lib/Opt/LoopRankView.cc
     lib/Opt/LoopRankView.h
     lib/Opt/LoopRotate.cc

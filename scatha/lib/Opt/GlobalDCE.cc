@@ -15,7 +15,7 @@ using namespace ir;
 
 /// Expose the pass to the pass manager. Therefore we need a function that
 /// accepts a local pass as the third argument
-static bool globalDCEPass(Context& ctx, Module& mod, FunctionPass,
+static bool globalDCEPass(Context& ctx, Module& mod, FunctionPass const&,
                           PassArgumentMap const& args) {
     return globalDCE(ctx, mod, args);
 }

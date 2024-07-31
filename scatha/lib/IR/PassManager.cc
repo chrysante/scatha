@@ -15,8 +15,8 @@ using namespace ranges::views;
 namespace {
 
 struct Impl {
+    utl::hashmap<std::string, LoopPass> loopPasses;
     utl::hashmap<std::string, FunctionPass> functionPasses;
-
     utl::hashmap<std::string, ModulePass> modulePasses;
 
     auto getPassImpl(auto& map, std::string_view name) const {
@@ -25,6 +25,13 @@ struct Impl {
             return itr->second;
         }
         return decltype(itr->second){};
+    }
+
+    LoopPass getLoopPass(std::string_view name) const {
+        if (auto pass = getPassImpl(loopPasses, name)) {
+            return pass;
+        }
+        return {};
     }
 
     FunctionPass getFunctionPass(std::string_view name) const {
@@ -43,12 +50,12 @@ struct Impl {
     }
 
     template <typename Pass>
-    utl::vector<Pass> getPassesImpl(utl::hashmap<std::string, Pass> const& map,
+    std::vector<Pass> getPassesImpl(utl::hashmap<std::string, Pass> const& map,
                                     auto cond) const {
 #ifndef _MSC_VER
-        return map | values | filter(cond) | ranges::to<utl::vector>;
+        return map | values | filter(cond) | ranges::to<std::vector>;
 #else
-        utl::vector<Pass> result;
+        std::vector<Pass> result;
         for (auto& [name, pass]: map) {
             if (filter(pass)) {
                 result.push_back(pass);
@@ -58,8 +65,14 @@ struct Impl {
 #endif
     }
 
-    utl::vector<FunctionPass> getFunctionPasses(auto filter) const {
+    std::vector<FunctionPass> getFunctionPasses(auto filter) const {
         return getPassesImpl(functionPasses, filter);
+    }
+
+    void registerLoopPass(LoopPass pass) {
+        auto [itr, success] =
+            loopPasses.insert({ pass.name(), std::move(pass) });
+        SC_ASSERT(success, "Failed to register pass");
     }
 
     void registerFunctionPass(FunctionPass pass) {
@@ -82,6 +95,10 @@ static Impl& getImpl() {
     return *impl;
 }
 
+LoopPass PassManager::getLoopPass(std::string_view name) {
+    return getImpl().getLoopPass(name);
+}
+
 FunctionPass PassManager::getFunctionPass(std::string_view name) {
     return getImpl().getFunctionPass(name);
 }
@@ -94,13 +111,17 @@ Pipeline PassManager::makePipeline(std::string_view passes) {
     return getImpl().makePipeline(passes);
 }
 
-utl::vector<FunctionPass> PassManager::functionPasses() {
+std::vector<FunctionPass> PassManager::functionPasses() {
     return getImpl().getFunctionPasses([](auto&) { return true; });
 }
 
-utl::vector<FunctionPass> PassManager::functionPasses(PassCategory category) {
+std::vector<FunctionPass> PassManager::functionPasses(PassCategory category) {
     return getImpl().getFunctionPasses(
         [=](auto& pass) { return pass.category() == category; });
+}
+
+void ir::internal::registerLoopPass(LoopPass pass) {
+    getImpl().registerLoopPass(std::move(pass));
 }
 
 void ir::internal::registerFunctionPass(FunctionPass pass) {

@@ -11,14 +11,30 @@
 
 namespace scatha::ir {
 
-/// Represents a local pass in the pipeline tree
+/// Represents a loop pass in the pipeline tree
+class PipelineLoopNode {
+public:
+    explicit PipelineLoopNode(LoopPass pass): pass(std::move(pass)) {}
+
+    bool execute(ir::Context& ctx, ir::LNFNode& loop) const;
+
+    void print(std::ostream&) const;
+
+    void printTree(std::ostream&, TreeFormatter&) const;
+
+private:
+    LoopPass pass;
+};
+
+/// Represents a function pass in the pipeline tree
 class PipelineFunctionNode {
 public:
-    explicit PipelineFunctionNode(FunctionPass pass): pass(std::move(pass)) {}
+    explicit PipelineFunctionNode(
+        FunctionPass pass,
+        utl::small_vector<std::unique_ptr<PipelineLoopNode>> children = {}):
+        pass(std::move(pass)), children(std::move(children)) {}
 
-    bool execute(ir::Context& ctx, ir::Function& F) const {
-        return pass(ctx, F);
-    }
+    bool execute(ir::Context& ctx, ir::Function& F) const;
 
     void print(std::ostream&) const;
 
@@ -26,9 +42,10 @@ public:
 
 private:
     FunctionPass pass;
+    utl::small_vector<std::unique_ptr<PipelineLoopNode>> children;
 };
 
-/// Represents a global pass in the pipeline tree
+/// Represents a module pass in the pipeline tree
 class PipelineModuleNode {
 public:
     PipelineModuleNode(

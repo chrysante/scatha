@@ -7,12 +7,12 @@
 
 namespace scatha::opt {
 
-/// # Global passes
+/// # Module passes
 
 /// Global optimization pass that is equal to `inline, globaldce, splitreturns`
 /// \param FunctionPass is ignored
 SCATHA_API bool optimize(ir::Context& ctx, ir::Module& mod,
-                         ir::FunctionPass = {},
+                         ir::FunctionPass const& = {},
                          ir::PassArgumentMap const& args = {});
 
 /// The inliner
@@ -21,7 +21,7 @@ SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod,
 
 /// \overload
 SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod,
-                                ir::FunctionPass functionPass,
+                                ir::FunctionPass const& functionPass,
                                 ir::PassArgumentMap const& args);
 
 /// Eliminate all functions that do not get called by any externally visible
@@ -93,14 +93,18 @@ SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 /// function, thus creating loops.
 SCATHA_API bool tailRecElim(ir::Context& context, ir::Function& function);
 
-/// Unrolls loops with constant trip count
-SCATHA_API bool loopUnroll(ir::Context& context, ir::Function& function);
-
 ///
 SCATHA_API bool rematerialize(ir::Context& context, ir::Function& function);
 
 ///
 SCATHA_API bool pointerAnalysis(ir::Context& context, ir::Function& function);
+
+///
+SCATHA_API bool loopSchedule(ir::Context& context, ir::Function& function,
+                             ir::LoopPass const& loopPass);
+
+/// Unrolls loops with constant trip count
+SCATHA_API bool loopUnroll(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 
