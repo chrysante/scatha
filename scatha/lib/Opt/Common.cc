@@ -7,6 +7,7 @@
 #include "Common/Graph.h"
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
+#include "IR/Context.h"
 #include "IR/PassRegistry.h"
 
 using namespace scatha;
