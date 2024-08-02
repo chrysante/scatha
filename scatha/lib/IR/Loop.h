@@ -13,6 +13,7 @@
 #include "Common/Graph.h"
 #include "Common/Ranges.h"
 #include "IR/Fwd.h"
+#include "Opt/ScalarEvolution.h"
 
 namespace scatha::ir {
 
@@ -57,7 +58,8 @@ public:
     /// \Returns a view over all (inner) basic blocks in the loop
     auto const& innerBlocks() const { return _innerBlocks; }
 
-    /// \Returns `true` if \p BB is an inner block of this loop
+    /// \Returns `true` if \p BB is an inner block of this loop, i.e., part of
+    /// the loop
     bool isInner(BasicBlock const* BB) const {
         return _innerBlocks.contains(BB);
     }
@@ -108,6 +110,16 @@ public:
         return _inductionVars;
     }
 
+    ///
+    opt::ScevExpr const* getScevExpr(Instruction* inst) const;
+
+    ///
+    opt::ScevExpr* setScevExpr(Instruction* inst,
+                               UniquePtr<opt::ScevExpr> expr);
+
+    ///
+    auto const& getScevExprMap() const { return scevExprMap; }
+
 private:
     friend bool makeLCSSA(LoopInfo& loopInfo);
 
@@ -120,6 +132,7 @@ private:
     utl::hashmap<std::pair<BasicBlock const*, Instruction const*>, Phi*>
         _loopClosingPhiNodes;
     utl::small_vector<Instruction*, 2> _inductionVars;
+    utl::hashmap<Instruction*, UniquePtr<opt::ScevExpr>> scevExprMap;
 };
 
 /// Print loop info \p loop to \p ostream

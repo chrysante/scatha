@@ -102,18 +102,29 @@ using NoParent = void;
 
 namespace scatha::opt {
 
+/// \Returns a deep copy of \p expr
+UniquePtr<ScevExpr> clone(ScevExpr const& expr);
+
+/// \overload
+template <std::derived_from<ScevExpr> Expr>
+UniquePtr<Expr> clone(Expr const& expr) {
+    auto copy = clone((ScevExpr const&)expr);
+    auto* raw = cast<Expr*>(copy.get());
+    copy.release();
+    return UniquePtr<Expr>(raw);
+}
+
 ///
 utl::vstreammanip<> format(ScevExpr const& expr);
 
-///
+/// Pretty-prints \p expr to `std::cout`
 void print(ScevExpr const& expr);
 
-/// \overload
+/// \overload for arbitrary ostream
 void print(ScevExpr const& expr, std::ostream& ostream);
 
 ///
-utl::hashmap<ir::Instruction*, UniquePtr<ScevExpr>> scev(ir::Context& ctx,
-                                                         ir::LoopInfo& loop);
+void scev(ir::Context& ctx, ir::LNFNode& loop);
 
 }; // namespace scatha::opt
 

@@ -133,6 +133,18 @@ Phi* LoopInfo::loopClosingPhiNode(BasicBlock const* exit,
     return nullptr;
 }
 
+opt::ScevExpr const* LoopInfo::getScevExpr(Instruction* inst) const {
+    auto itr = scevExprMap.find(inst);
+    return itr != scevExprMap.end() ? itr->second.get() : nullptr;
+}
+
+opt::ScevExpr* LoopInfo::setScevExpr(Instruction* inst,
+                                     UniquePtr<opt::ScevExpr> expr) {
+    auto* result = expr.get();
+    scevExprMap.insert_or_assign(inst, std::move(expr));
+    return result;
+}
+
 static void printImpl(LoopInfo const& loop, std::ostream& str,
                       TreeFormatter& formatter) {
     formatter.push(Level::Child);
