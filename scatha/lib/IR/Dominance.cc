@@ -88,19 +88,19 @@ void PrintCtx::print(DomTree::Node const& node) {
     indent.decrease();
 }
 
-DominanceInfo DominanceInfo::compute(Function& function) {
-    DominanceInfo result;
-    result._dominatorMap = computeDominatorSets(function);
-    result._domTree = computeDomTree(function, result._dominatorMap);
-    result._domFront = computeDomFronts(function, result._domTree);
+std::unique_ptr<DominanceInfo> DominanceInfo::compute(Function& function) {
+    auto result = std::make_unique<DominanceInfo>();
+    result->_dominatorMap = computeDominatorSets(function);
+    result->_domTree = computeDomTree(function, result->_dominatorMap);
+    result->_domFront = computeDomFronts(function, result->_domTree);
     return result;
 }
 
-DominanceInfo DominanceInfo::computePost(Function& function) {
-    DominanceInfo result;
-    result._dominatorMap = computePostDomSets(function);
-    result._domTree = computePostDomTree(function, result._dominatorMap);
-    result._domFront = computePostDomFronts(function, result._domTree);
+std::unique_ptr<DominanceInfo> DominanceInfo::computePost(Function& function) {
+    auto result = std::make_unique<DominanceInfo>();
+    result->_dominatorMap = computePostDomSets(function);
+    result->_domTree = computePostDomTree(function, result->_dominatorMap);
+    result->_domFront = computePostDomFronts(function, result->_domTree);
     return result;
 }
 

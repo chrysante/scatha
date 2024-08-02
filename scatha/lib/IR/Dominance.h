@@ -107,7 +107,7 @@ public:
 
     /// Compute dominance information of \p function
     /// Computes dominance sets, dominator tree and dominance frontiers.
-    static DominanceInfo compute(ir::Function& function);
+    static std::unique_ptr<DominanceInfo> compute(ir::Function& function);
 
     /// Compute the post-dominator sets of the basic blocks in \p function
     /// I.e. for each basic block `B` the set of basic blocks that are dominated
@@ -130,7 +130,7 @@ public:
     /// Compute post-dominance information of \p function
     /// Computes post-dominance sets, post-dominator tree and post-dominance
     /// frontiers.
-    static DominanceInfo computePost(ir::Function& function);
+    static std::unique_ptr<DominanceInfo> computePost(ir::Function& function);
 
     /// \returns the dominator set of \p BB i.e. the set of basic blocks that
     /// dominate (or post-dominate) \p BB
