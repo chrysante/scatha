@@ -233,9 +233,8 @@ void AssertFnCtx::assertInvariants(Instruction const& inst) {
                 def->parentFunction() == &function, inst,
                 "If our operand is an instruction it must be in the same function");
             if (isa<Phi>(inst)) {
-                checkUseDefDom(*def, *inst.parent()
-                                          ->predecessor(index)
-                                          ->terminator());
+                auto* pred = inst.parent()->predecessor(index);
+                checkUseDefDom(*def, *pred->terminator());
             }
             else {
                 checkUseDefDom(*def, inst);
