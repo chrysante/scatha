@@ -43,8 +43,10 @@ SCTEST_API ir::BasicBlock* splitEdge(ir::Context& ctx, ir::BasicBlock* from,
 SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 
 /// Creates a new basic block with name \p name that will be a predecessor of
-/// \p BB and a successor of all blocks in \p preds \pre All blocks in \p preds
-/// must be predecessors of \p BB
+/// \p BB and a successor of all blocks in \p preds
+///
+/// \pre All blocks in \p preds must be predecessors of \p BB
+///
 /// \Note This function can be used to create preheaders for loop header with
 /// multiple inedges from outside the loop
 SCTEST_API ir::BasicBlock* addJoiningPredecessor(
