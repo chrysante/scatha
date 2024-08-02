@@ -22,7 +22,11 @@ SC_REGISTER_FUNCTION_PASS(
        PassArgumentMap const&) { return loopSchedule(ctx, F, loopPass); },
     "loop", PassCategory::Schedule, {});
 
+<<<<<<< HEAD
 static bool loopPrepare(Context& ctx, LNFNode& loop) {
+=======
+static bool loopCanonicalize(Context& ctx, LNFNode& loop) {
+>>>>>>> ec745ca9 (Implemented loop canonicalization)
     bool modified = false;
     modified |= simplifyLoop(ctx, loop);
     modified |= makeLCSSA(loop.loopInfo());
@@ -71,9 +75,13 @@ bool opt::loopSchedule(Context& ctx, Function& F, LoopPass const& loopPass) {
         if (!node->isProperLoop()) {
             continue;
         }
-        modified |= loopPrepare(ctx, *node);
+        modified |= loopCanonicalize(ctx, *node);
     }
+#if SC_DEBUG
+    /// Because we modify the CFG in the canonicalization and patch the existing
+    /// LNF, we assert here that the patches are applied correctly
     validateLNF(F);
+#endif // SC_DEBUG_LEVEL
     for (auto* node: BFSOrder | reverse) {
         if (!node->isProperLoop()) {
             continue;
