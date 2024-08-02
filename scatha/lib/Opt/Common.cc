@@ -122,9 +122,18 @@ BasicBlock* opt::addJoiningPredecessor(Context& ctx, BasicBlock* header,
         for (auto* pred: preds) {
             args.push_back({ pred, phi.operandOf(pred) });
         }
-        auto* preheaderPhi = new Phi(args, std::string(phi.name()));
-        preheader->pushBack(preheaderPhi);
-        phi.addArgument(preheader, preheaderPhi);
+        auto* value = [&]() -> Value* {
+            if (args.empty()) {
+                return ctx.undef(phi.type());
+            }
+            if (args.size() == 1) {
+                return args.front().value;
+            }
+            auto* preheaderPhi = new Phi(args, std::string(phi.name()));
+            preheader->pushBack(preheaderPhi);
+            return preheaderPhi;
+        }();
+        phi.addArgument(preheader, value);
     }
     for (auto* pred: preds) {
         pred->terminator()->updateTarget(header, preheader);
