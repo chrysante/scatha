@@ -7,14 +7,21 @@
 
 namespace scatha::ir {
 
+/// Argument structure for `generateGraphviz()`
+struct GraphvizArgs {
+    /// Highlight loops in the generated image
+    bool markLoops = false;
+};
+
 /// Generates graphviz source for a visual representation of the function \p
 /// function and writes it into \p ostream
-SCATHA_API void generateGraphviz(Function const& function,
+SCATHA_API void generateGraphviz(Function const& function, GraphvizArgs args,
                                  std::ostream& ostream);
 
 /// Generates graphviz source for a visual representation of the module \p mod
 /// and writes it into \p ostream
-SCATHA_API void generateGraphviz(Module const& mod, std::ostream& ostream);
+SCATHA_API void generateGraphviz(Module const& mod, GraphvizArgs args,
+                                 std::ostream& ostream);
 
 /// Debug utility to generate graphical CFG representation of the function to a
 /// temporary file

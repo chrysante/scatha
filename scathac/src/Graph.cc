@@ -58,7 +58,7 @@ int scatha::graphMain(GraphOptions options) {
     if (options.cfg) {
         auto path = options.dest / "cfg.gv";
         auto file = openFile(path);
-        ir::generateGraphviz(mod, file);
+        ir::generateGraphviz(mod, {}, file);
         file.close();
         generate(path);
     }

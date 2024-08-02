@@ -14,7 +14,9 @@
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Function.h"
 #include "IR/CFG/Instructions.h"
+#include "IR/Loop.h"
 #include "IR/Module.h"
+#include "IR/PassRegistry.h"
 #include "IR/Print.h"
 
 using namespace scatha;
@@ -42,10 +44,22 @@ static Label makeLabel(BasicBlock const& BB) {
     return Label(std::move(sstr).str(), LabelKind::HTML);
 }
 
-static Graph* makeFunction(Function const& function) {
+static Graph* makeFunction(Function const& function, GraphvizArgs args) {
     auto* subgraph = Graph::make(ID(&function))->label(makeLabel(function));
     for (auto& BB: function) {
-        subgraph->add(Vertex::make(ID(&BB))->label(makeLabel(BB)));
+        auto* BBVertex = Vertex::make(ID(&BB));
+        BBVertex->label(makeLabel(BB));
+        if (args.markLoops) {
+            auto& LNF = function.getOrComputeLNF();
+            auto* node = LNF[&BB];
+            if (node->isProperLoop()) {
+                BBVertex->style(Style::Bold);
+            }
+            if (node->parent()->loopInfo().isLatch(&BB)) {
+                BBVertex->color(Color::Blue);
+            }
+        }
+        subgraph->add(BBVertex);
         for (auto* succ: BB.successors()) {
             subgraph->add(Edge{ ID(&BB), ID(succ) });
         }
@@ -53,26 +67,29 @@ static Graph* makeFunction(Function const& function) {
     return subgraph;
 }
 
-void ir::generateGraphviz(Function const& function, std::ostream& ostream) {
+void ir::generateGraphviz(Function const& function, GraphvizArgs args,
+                          std::ostream& ostream) {
     Graph G;
     G.font(MonoFont);
-    G.add(makeFunction(function));
+    G.add(makeFunction(function, args));
     generate(G, ostream);
 }
 
-void ir::generateGraphviz(Module const& mod, std::ostream& ostream) {
+void ir::generateGraphviz(Module const& mod, GraphvizArgs args,
+                          std::ostream& ostream) {
     Graph G;
     G.font(MonoFont);
     for (auto& function: mod) {
-        G.add(makeFunction(function));
+        G.add(makeFunction(function, args));
     }
     generate(G, ostream);
 }
 
-static void generateTmpImpl(auto& obj) {
+static void generateTmpImpl(auto& obj, GraphvizArgs args,
+                            std::string filename) {
     try {
-        auto [path, file] = debug::newDebugFile("cfg");
-        generateGraphviz(obj, file);
+        auto [path, file] = debug::newDebugFile(std::move(filename));
+        generateGraphviz(obj, args, file);
         file.close();
         debug::createGraphAndOpen(path);
     }
@@ -82,7 +99,21 @@ static void generateTmpImpl(auto& obj) {
 }
 
 void ir::generateGraphvizTmp(Function const& function) {
-    generateTmpImpl(function);
+    generateTmpImpl(function, {}, "cfg");
 }
 
-void ir::generateGraphvizTmp(Module const& mod) { generateTmpImpl(mod); }
+void ir::generateGraphvizTmp(Module const& mod) {
+    generateTmpImpl(mod, {}, "cfg");
+}
+
+static bool graphvizPassWrapper(Context&, Module& mod, FunctionPass const&,
+                                PassArgumentMap const& args) {
+    auto filename = args.get<std::string>("file");
+    GraphvizArgs gvArgs = { .markLoops = args.get<bool>("mark-loops") };
+    generateTmpImpl(mod, gvArgs, std::move(filename));
+    return true;
+}
+
+SC_REGISTER_MODULE_PASS(graphvizPassWrapper, "graph", PassCategory::Other,
+                        { String{ "file", "cfg" },
+                          Flag{ "mark-loops", false } });
