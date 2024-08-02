@@ -166,7 +166,10 @@ public:
     /// \overload
     LoopNestingForest const& getOrComputeLNF() const;
 
-    /// Invalidate (post-) dominance and loop information.
+    /// Invalidate dominance and post-dominance analysis
+    void invalidateDomInfo();
+
+    /// Invalidate dominance and loop analysis
     void invalidateCFGInfo();
 
 private:

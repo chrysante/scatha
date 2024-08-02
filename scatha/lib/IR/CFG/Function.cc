@@ -49,9 +49,9 @@ Callable::Callable(NodeType nodeType, Context& ctx, Type const* returnType,
 }
 
 struct Function::AnalysisData {
-    std::optional<DominanceInfo> domInfo;
-    std::optional<DominanceInfo> postDomInfo;
-    std::optional<LoopNestingForest> LNF;
+    std::unique_ptr<DominanceInfo> domInfo;
+    std::unique_ptr<DominanceInfo> postDomInfo;
+    std::unique_ptr<LoopNestingForest> LNF;
 };
 
 static void uniqueParams(auto&& params, auto&& nameFac) {
@@ -102,10 +102,14 @@ LoopNestingForest const& Function::getOrComputeLNF() const {
     return *analysisData->LNF;
 }
 
+void Function::invalidateDomInfo() {
+    analysisData->domInfo = nullptr;
+    analysisData->postDomInfo = nullptr;
+}
+
 void Function::invalidateCFGInfo() {
-    analysisData->domInfo = std::nullopt;
-    analysisData->postDomInfo = std::nullopt;
-    analysisData->LNF = std::nullopt;
+    invalidateDomInfo();
+    analysisData->LNF = nullptr;
 }
 
 void Function::insertCallback(BasicBlock& bb) {
