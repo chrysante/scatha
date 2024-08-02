@@ -6,6 +6,7 @@
 #include <range/v3/view.hpp>
 #include <termfmt/termfmt.h>
 #include <utl/graph.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 
 #include "Common/PrintUtil.h"
@@ -16,6 +17,7 @@
 #include "IR/Dominance.h"
 #include "IR/PassRegistry.h"
 #include "IR/Print.h"
+#include "Opt/Common.h"
 
 using namespace scatha;
 using namespace ir;
@@ -69,9 +71,13 @@ static bool isInductionVar(Instruction const* inst, LoopInfo const& loop,
 }
 
 LoopInfo LoopInfo::Compute(LNFNode const& header) {
+    if (!header.isProperLoop()) {
+        return {};
+    }
     LoopInfo loop;
     /// Set the header
     loop._header = header.basicBlock();
+    SC_EXPECT(loop._header);
     /// Gather all inner blocks
     header.preorderDFS([&](LNFNode const* node) {
         loop._innerBlocks.insert(node->basicBlock());
@@ -137,21 +143,21 @@ static void printImpl(LoopInfo const& loop, std::ostream& str,
         formatter.push(last ? Level::LastChild : Level::Child);
         str << formatter.beginLine() << name << ":" << std::endl;
         size_t size = elems.size();
-        for (auto [index, elem]: elems | ranges::views::enumerate) {
+        for (auto [index, elem]: elems | enumerate) {
             formatter.push(index == size - 1 ? Level::LastChild : Level::Child);
             str << formatter.beginLine() << elem << std::endl;
             formatter.pop();
         }
         formatter.pop();
     };
-    static constexpr auto ToName = ranges::views::transform(&Value::name);
+    static constexpr auto ToName = transform(&Value::name);
     list("Inner blocks", loop.innerBlocks() | ToName);
     list("Entering blocks", loop.enteringBlocks() | ToName);
     list("Latches", loop.latches() | ToName);
     list("Exiting blocks", loop.exitingBlocks() | ToName);
     list("Exit blocks", loop.exitBlocks() | ToName);
     list("Loop closing phi nodes",
-         loop.loopClosingPhiMap() | ranges::views::transform([](auto& elem) {
+         loop.loopClosingPhiMap() | transform([](auto& elem) {
         auto [key, phi] = elem;
         auto [exit, inst] = key;
         return utl::strcat("{ ", exit->name(), ", ", inst->name(), " } -> ",
@@ -308,7 +314,86 @@ bool ir::makeLCSSA(LoopInfo& loop) {
     return modified;
 }
 
+static bool needPreheader(std::span<BasicBlock* const> preds) {
+    if (preds.size() == 1) {
+        return preds.front()->successors().size() > 1;
+    }
+    return !preds.empty();
+}
+
+static bool needLatch(std::span<BasicBlock* const> preds) {
+    return preds.size() > 1;
+}
+
+static utl::hashset<BasicBlock*> gatherLoopBlocks(LNFNode& loop) {
+    utl::hashset<BasicBlock*> nodes;
+    loop.preorderDFS([&](auto* node) { nodes.insert(node->basicBlock()); });
+    return nodes;
+}
+
+bool ir::simplifyLoop(Context& ctx, LNFNode& loop) {
+    auto* header = loop.basicBlock();
+    auto& LNF = loop.getLNF();
+    utl::small_vector<BasicBlock*> loopPreds, nonLoopPreds;
+    for (auto* pred: header->predecessors()) {
+        auto* predNode = LNF[pred];
+        if (predNode->isLoopNodeOf(&loop)) {
+            loopPreds.push_back(pred);
+        }
+        else {
+            nonLoopPreds.push_back(pred);
+        }
+    }
+    bool modified = false;
+    // Preheader
+    if (needPreheader(nonLoopPreds)) {
+        auto* pred =
+            opt::addJoiningPredecessor(ctx, header, nonLoopPreds, "preheader");
+        LNF.addNode(loop.parent(), pred);
+        modified = true;
+    }
+    // Single latch
+    if (needLatch(loopPreds)) {
+        auto* pred =
+            opt::addJoiningPredecessor(ctx, header, loopPreds, "latch");
+        LNF.addNode(&loop, pred);
+        modified = true;
+    }
+    // Dedicated exits
+    utl::hashmap<BasicBlock*, utl::small_vector<BasicBlock*>> exitMap;
+    auto loopNodes = gatherLoopBlocks(loop);
+    loop.preorderDFS([&](LNFNode* node) {
+        auto* BB = node->basicBlock();
+        for (auto* exit: BB->successors()) {
+            if (loopNodes.contains(exit)) {
+                continue;
+            }
+            bool hasNonLoopPreds =
+                ranges::any_of(exit->predecessors(), [&](auto* pred) {
+                return !loopNodes.contains(pred);
+            });
+            if (hasNonLoopPreds) {
+                exitMap[exit].push_back(BB);
+            }
+        }
+    });
+    for (auto& [exit, loopPreds]: exitMap) {
+        auto* pred = opt::addJoiningPredecessor(ctx, exit, loopPreds, "exit");
+        LNF.addNode(loop.parent(), pred);
+        modified = true;
+    }
+    if (modified) {
+        auto& F = *header->parent();
+        F.invalidateDomInfo();
+        loop.invalidateLoopInfo();
+    }
+    return modified;
+}
+
 bool LNFNode::isProperLoop() const {
+    if (!parent()) {
+        return false;
+    }
     if (!children().empty()) {
         return true;
     }
@@ -326,26 +411,32 @@ bool LNFNode::isLoopNodeOf(LNFNode const* header) const {
     return false;
 }
 
-LoopNestingForest LoopNestingForest::compute(ir::Function& function,
-                                             DomTree const& domtree) {
-    LoopNestingForest result;
-    result._virtualRoot = std::make_unique<Node>();
-    auto bbs = function | TakeAddress | ranges::to<utl::hashset<BasicBlock*>>;
-    result._nodes = bbs | ranges::views::transform([](auto* bb) {
-        return Node(bb);
-    }) | ranges::to<NodeSet>;
-    auto impl = [&domtree,
-                 &result](auto& impl, Node* root,
-                          utl::hashset<BasicBlock*> const& bbs) -> void {
-        utl::small_vector<utl::hashset<BasicBlock*>, 4> sccs;
-        utl::compute_sccs(bbs.begin(), bbs.end(), [&](BasicBlock* bb) {
-            return bb->successors() | ranges::views::filter([&](auto* succ) {
-                return bbs.contains(succ);
-            });
-        }, [&] { sccs.emplace_back(); }, [&](BasicBlock* bb) {
-            sccs.back().insert(bb);
-        });
-        for (auto& scc: sccs) {
+LoopNestingForest const& LNFNode::getLNF() const {
+    auto* node = this;
+    while (node->parent()) {
+        node = node->parent();
+    }
+    return static_cast<LoopNestingForest const&>(*node);
+}
+
+std::unique_ptr<LoopNestingForest> LoopNestingForest::compute(
+    ir::Function& function, DomTree const& domtree) {
+    std::unique_ptr<LoopNestingForest> result(new LoopNestingForest());
+    auto BBs = function | TakeAddress | ranges::to<utl::hashset<BasicBlock*>>;
+    result->_nodes = BBs | transform([](auto* bb) { return Node(bb); }) |
+                     ranges::to<NodeSet>;
+    auto dfs = [&](auto& dfs, Node* root,
+                   utl::hashset<BasicBlock*> const& BBs) -> void {
+        utl::small_vector<utl::hashset<BasicBlock*>, 4> SCCs;
+        auto succs = [&](BasicBlock* bb) {
+            return bb->successors() |
+                   filter([&](auto* succ) { return BBs.contains(succ); });
+        };
+        auto beginSCC = [&] { SCCs.emplace_back(); };
+        auto emitVertex = [&](BasicBlock* bb) { SCCs.back().insert(bb); };
+        utl::compute_sccs(BBs.begin(), BBs.end(), succs, beginSCC, emitVertex);
+        for (auto& scc: SCCs) {
+            SC_ASSERT(!scc.empty(), "Empty SCCs cannot exist");
             auto* header = *scc.begin();
             while (true) {
                 auto* dom = domtree.idom(header);
@@ -354,13 +445,13 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                 }
                 header = dom;
             }
-            auto* headerNode = result.findMut(header);
+            auto* headerNode = result->findMut(header);
             root->addChild(headerNode);
             scc.erase(header);
-            impl(impl, headerNode, scc);
+            dfs(dfs, headerNode, scc);
         }
     };
-    impl(impl, result._virtualRoot.get(), bbs);
+    dfs(dfs, result.get(), BBs);
     return result;
 }
 
@@ -373,6 +464,38 @@ void LoopNestingForest::addNode(Node const* parent, BasicBlock* BB) {
 
 void LoopNestingForest::addNode(BasicBlock const* parent, BasicBlock* BB) {
     addNode((*this)[parent], BB);
+}
+
+bool ir::compareEqual(
+    LoopNestingForest const& A, LoopNestingForest const& B,
+    utl::function_view<void(LNFNode const&, LNFNode const&)> DC) {
+    auto invokeDC = [&](LNFNode const& nodeA, LNFNode const& nodeB) {
+        if (DC) {
+            DC(nodeA, nodeB);
+        }
+    };
+    auto sortedChildren = [](LNFNode const& node) {
+        auto children = node.children() | ToSmallVector<>;
+        ranges::sort(children, ranges::less{}, &LNFNode::basicBlock);
+        return children;
+    };
+    auto DFS = [&](auto& DFS, LNFNode const& A, LNFNode const& B) -> bool {
+        if (A.basicBlock() != B.basicBlock() ||
+            A.children().size() != B.children().size())
+        {
+            invokeDC(A, B);
+            return false;
+        }
+        auto CA = sortedChildren(A);
+        auto CB = sortedChildren(B);
+        for (auto [cA, cB]: zip(CA, CB)) {
+            if (!DFS(DFS, *cA, *cB)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    return DFS(DFS, *A.virtualRoot(), *B.virtualRoot());
 }
 
 namespace {

@@ -2,11 +2,14 @@
 #define SCATHA_IR_LOOP_H_
 
 #include <iosfwd>
+#include <memory>
 #include <span>
 
+#include <utl/function_view.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Base.h"
 #include "Common/Graph.h"
 #include "Common/Ranges.h"
 #include "IR/Fwd.h"
@@ -136,12 +139,16 @@ bool makeLCSSA(Function& function);
 /// \Returns `true` if the loop has been modified
 bool makeLCSSA(LoopInfo& loopInfo);
 
+/// Canonicalizes \p loop to have a preheader, a single backedge and dedicated
+/// exit blocks
+bool simplifyLoop(Context& ctx, LNFNode& loop);
+
 /// Node in the loop nesting forest. Every node directly corresponds to one
 /// basic block.
 /// TODO: Rename to `Loop`
 class LNFNode: public GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree> {
 public:
-    using GraphNode::GraphNode;
+    explicit LNFNode(ir::BasicBlock* BB): GraphNode(BB) { SC_EXPECT(BB); }
 
     /// \Returns the corresponding basic block
     BasicBlock* basicBlock() const { return payload(); }
@@ -166,19 +173,38 @@ public:
         return *_loopInfo;
     }
 
+    ///
+    void invalidateLoopInfo() { _loopInfo = nullptr; }
+
+    /// \Returns the owning LNF
+    LoopNestingForest& getLNF() {
+        return const_cast<LoopNestingForest&>(std::as_const(*this).getLNF());
+    }
+
+    /// \overload
+    LoopNestingForest const& getLNF() const;
+
+private:
+    friend class LoopNestingForest;
+
+    LNFNode(std::nullptr_t): GraphNode() {}
+
     mutable std::unique_ptr<LoopInfo> _loopInfo;
 };
 
 /// The loop nesting forest of a function `F` is a forest representing the loops
 /// of `F`. Every node is the header of a loop, where single basic blocks are
 /// considered to be trivial loops.
-class SCTEST_API LoopNestingForest {
+class SCTEST_API LoopNestingForest: private LNFNode {
 public:
     using Node = LNFNode;
 
     /// Compute the loop nesting forest of \p function
-    static LoopNestingForest compute(ir::Function& function,
-                                     DomTree const& domtree);
+    static std::unique_ptr<LoopNestingForest> compute(ir::Function& function,
+                                                      DomTree const& domtree);
+
+    LoopNestingForest(LoopNestingForest const&) = delete;
+    LoopNestingForest& operator=(LoopNestingForest const&) = delete;
 
     /// \Returns The node corresponding to basic block \p BB
     Node* operator[](ir::BasicBlock const* BB) {
@@ -194,7 +220,12 @@ public:
     }
 
     /// \Returns roots of the forest.
-    auto roots() const { return _virtualRoot->children(); }
+    std::span<LNFNode* const> roots() { return LNFNode::children(); }
+
+    /// \overload
+    std::span<LNFNode const* const> roots() const {
+        return LNFNode::children();
+    }
 
     /// \Returns `true` if the forest is empty.
     bool empty() const { return _nodes.empty(); }
@@ -206,11 +237,14 @@ public:
     /// \overload
     void addNode(BasicBlock const* parent, BasicBlock* BB);
 
+    /// \Returns the number of nodes
+    size_t numNodes() const { return _nodes.size(); }
+
     /// Traverse the forest in BFS order
     template <std::invocable<Node const*> F>
     void BFS(F&& f) const {
-        _virtualRoot->BFS([&](Node const* node) {
-            if (node != _virtualRoot.get()) {
+        LNFNode::BFS([&](Node const* node) {
+            if (node != this) {
                 f(node);
             }
         });
@@ -219,8 +253,8 @@ public:
     /// \overload
     template <std::invocable<Node*> F>
     void BFS(F&& f) {
-        _virtualRoot->BFS([&](Node* node) {
-            if (node != _virtualRoot.get()) {
+        LNFNode::BFS([&](Node* node) {
+            if (node != this) {
                 f(node);
             }
         });
@@ -258,7 +292,15 @@ public:
         }
     }
 
+    ///
+    LNFNode* virtualRoot() { return this; }
+
+    /// \overload
+    LNFNode const* virtualRoot() const { return this; }
+
 private:
+    LoopNestingForest(): LNFNode(nullptr) {}
+
     Node* findMut(ir::BasicBlock const* bb) {
         return const_cast<Node*>(
             static_cast<LoopNestingForest const*>(this)->operator[](bb));
@@ -266,9 +308,17 @@ private:
 
     using NodeSet =
         utl::node_hashset<Node, Node::PayloadHash<>, Node::PayloadEqual<>>;
+
+    friend class LNFNode;
+
     NodeSet _nodes;
-    std::unique_ptr<Node> _virtualRoot;
 };
+
+/// Compares the loop nest forests \p A and \p B for equality. If a difference
+/// is detected, \p diffCallback is invoked on the differing basic blocks
+bool compareEqual(
+    LoopNestingForest const& A, LoopNestingForest const& B,
+    utl::function_view<void(LNFNode const&, LNFNode const&)> diffCallback);
 
 /// Print the loop nesting forest \p LNF to `std::cout`.
 SCTEST_API void print(LoopNestingForest const& LNF);

@@ -29,8 +29,8 @@ bool opt::defaultPass(Context& ctx, Function& function) {
     modified |= simplifyCFG(ctx, function);
     modified |= globalValueNumbering(ctx, function);
     modified |= tailRecElim(ctx, function);
-#if 0 // Not working correctly
-    modified |= loopUnroll(ctx, function);
-#endif
+    if (std::getenv("TEST_LOOP_SCHEDULE")) {
+        loopSchedule(ctx, function, {});
+    }
     return modified;
 }
