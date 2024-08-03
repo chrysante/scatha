@@ -16,6 +16,7 @@
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Module.h"
+#include "IR/PassRegistry.h"
 #include "IR/Print.h"
 #include "IR/Type.h"
 
@@ -23,6 +24,11 @@ using namespace scatha;
 using namespace ir;
 using namespace ranges::views;
 using namespace tfmt::modifiers;
+
+SC_REGISTER_MODULE_PASS([](Context& ctx, Module& mod, auto&, auto&) {
+    assertInvariants(ctx, mod);
+    return false;
+}, "validate", PassCategory::Other, {});
 
 using GlobalEntityPtr = std::variant<Global const*, Type const*>;
 

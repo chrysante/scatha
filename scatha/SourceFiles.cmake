@@ -471,6 +471,7 @@ set(scatha_test_sources
     test/Opt/GlobalValueNumbering.t.cc
     test/Opt/Inliner.t.cc
     test/Opt/InstCombine.t.cc
+    test/Opt/LoopRotate.t.cc
     test/Opt/MemToReg.t.cc
     test/Opt/PassTest.cc
     test/Opt/PassTest.h
