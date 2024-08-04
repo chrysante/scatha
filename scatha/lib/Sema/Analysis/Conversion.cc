@@ -45,6 +45,42 @@ static std::optional<ObjConvChain> implExplIntConversion(ConversionKind kind,
     SC_EXPECT(kind != ConversionKind::Reinterpret);
     using enum ObjectTypeConversion;
     ObjConvChain result;
+    if (from.bitwidth() > to.bitwidth()) {
+        if (kind == ConversionKind::Implicit) {
+            return std::nullopt;
+        }
+        switch (to.bitwidth()) {
+        case 8:
+            result.push_back(IntTruncTo8);
+            break;
+        case 16:
+            result.push_back(IntTruncTo16);
+            break;
+        case 32:
+            result.push_back(IntTruncTo32);
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
+    }
+    else if (from.bitwidth() < to.bitwidth()) {
+        switch (to.bitwidth()) {
+        case 16:
+            result.push_back(from.isSigned() ? SignedWidenTo16 :
+                                               UnsignedWidenTo16);
+            break;
+        case 32:
+            result.push_back(from.isSigned() ? SignedWidenTo32 :
+                                               UnsignedWidenTo32);
+            break;
+        case 64:
+            result.push_back(from.isSigned() ? SignedWidenTo64 :
+                                               UnsignedWidenTo64);
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
+    }
     // clang-format off
     static constexpr ConvExp<ObjectTypeConversion> SignConvMat[2][2] = {
         //             Unsigned          Signed
@@ -62,47 +98,6 @@ static std::optional<ObjConvChain> implExplIntConversion(ConversionKind kind,
     }
     if (signConv.hasValue()) {
         result.push_back(signConv.value());
-    }
-    if (from.bitwidth() == to.bitwidth()) {
-        return result;
-    }
-    else if (from.bitwidth() > to.bitwidth()) {
-        if (kind == ConversionKind::Implicit) {
-            return std::nullopt;
-        }
-        switch (to.bitwidth()) {
-        case 8:
-            result.push_back(IntTruncTo8);
-            break;
-        case 16:
-            result.push_back(IntTruncTo16);
-            break;
-        case 32:
-            result.push_back(IntTruncTo32);
-            break;
-        default:
-            SC_UNREACHABLE();
-        }
-        return result;
-    }
-    else {
-        switch (to.bitwidth()) {
-        case 16:
-            result.push_back(to.isSigned() ? SignedWidenTo16 :
-                                             UnsignedWidenTo16);
-            break;
-        case 32:
-            result.push_back(to.isSigned() ? SignedWidenTo32 :
-                                             UnsignedWidenTo32);
-            break;
-        case 64:
-            result.push_back(to.isSigned() ? SignedWidenTo64 :
-                                             UnsignedWidenTo64);
-            break;
-        default:
-            SC_UNREACHABLE();
-        }
-        return result;
     }
     return result;
 }

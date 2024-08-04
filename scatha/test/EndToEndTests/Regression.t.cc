@@ -514,3 +514,196 @@ func i64 @main() {
     return i64 %r
 })");
 }
+
+TEST_CASE("Integer promotion", "[end-to-end][regression]") {
+    SECTION("1") {
+        test::runReturnsTest((u64)-1, R"(
+fn main() -> int {
+    let i = s32(-1);
+    return i;
+})");
+    }
+
+    SECTION("2") {
+        test::runReturnsTest((u64)-2, R"(
+fn main() -> int {
+    let i = s32(-1);
+    let j = s16(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("3") {
+        test::runReturnsTest(65534, R"(
+fn main() -> int {
+    let i = s32(-1);
+    let j = u16(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("4") {
+        test::runReturnsTest(4294967294, R"(
+fn main() -> int {
+    let i = u32(-1);
+    let j = s16(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("5") {
+        test::runReturnsTest((u64)-1, R"(
+fn main() -> int {
+    let i = s32(-1);
+    return i;
+})");
+    }
+
+    SECTION("6") {
+        test::runReturnsTest((u64)-2, R"(
+fn main() -> int {
+    let i = s32(-1);
+    let j = s16(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("7") {
+        test::runReturnsTest(65534, R"(
+fn main() -> int {
+    let i = s32(-1);
+    let j = u16(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("8") {
+        test::runReturnsTest(4294967294, R"(
+fn main() -> int {
+    let i = u32(-1);
+    let j = s16(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("9") {
+        test::runReturnsTest(0, R"(
+fn main() -> int {
+    let i = s32(0);
+    let j = u16(0);
+    return i + j;
+})");
+    }
+
+    SECTION("10") {
+        test::runReturnsTest(0, R"(
+fn main() -> int {
+    let i = s16(-1);
+    let j = u16(1);
+    return i + j;
+})");
+    }
+
+    SECTION("11") {
+        test::runReturnsTest((u64)-2, R"(
+fn main() -> int {
+    let i = s16(-1);
+    let j = s16(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("12") {
+        test::runReturnsTest(4294967295, R"(
+fn main() -> int {
+    let i = u32(-1);
+    let j = u32(0);
+    return i + j;
+})");
+    }
+
+    SECTION("13") {
+        test::runReturnsTest(65534, R"(
+fn main() -> int {
+    let i = u32(65535);
+    let j = s8(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("14") {
+        test::runReturnsTest(0, R"(
+fn main() -> int {
+    let i = s32(32768);
+    let j = u32(32768);
+    return i - j;
+})");
+    }
+
+    SECTION("15") {
+        test::runReturnsTest((u64)-2, R"(
+fn main() -> int {
+    let i = s8(-64);
+    let j = s8(-64);
+    return i + j + 126;
+})");
+    }
+
+    SECTION("16") {
+        test::runReturnsTest((u64)-2147483649, R"(
+fn main() -> int {
+    let i = s32(-2147483648);
+    let j = s64(-1);
+    return i + j;
+})");
+    }
+
+    SECTION("17") {
+        test::runReturnsTest(4294967294, R"(
+fn main() -> int {
+    let i = s64(-1);
+    let j = u32(4294967295);
+    return i + j;
+})");
+    }
+
+    SECTION("18") {
+        test::runReturnsTest((u64)-1, R"(
+fn main() -> u64 {
+    let i = s32(-1);
+    return u64(i);
+})");
+    }
+
+    SECTION("19") {
+        test::runReturnsTest(0, R"(
+fn main() -> u64 {
+    let i = s32(0);
+    return u64(i);
+})");
+    }
+
+    SECTION("20") {
+        test::runReturnsTest(2147483647, R"(
+fn main() -> u64 {
+    let i = s32(2147483647);
+    return u64(i);
+})");
+    }
+
+    SECTION("21") {
+        test::runReturnsTest((u64)-2147483648, R"(
+fn main() -> u64 {
+    let i = s32(-2147483648);
+    return u64(i);
+})");
+    }
+
+    SECTION("22") {
+        test::runReturnsTest((u64)-2, R"(
+fn main() -> u64 {
+    let i = s32(-2);
+    return u64(i);
+})");
+    }
+}

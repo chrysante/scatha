@@ -508,17 +508,17 @@ std::optional<ir::Conversion> irgen::mapArithmeticConv(
     case IntTruncTo32:
         return ir::Conversion::Trunc;
     case SignedWidenTo16:
-        return ir::Conversion::Zext;
+        return ir::Conversion::Sext;
     case SignedWidenTo32:
-        return ir::Conversion::Zext;
+        return ir::Conversion::Sext;
     case SignedWidenTo64:
-        return ir::Conversion::Zext;
+        return ir::Conversion::Sext;
     case UnsignedWidenTo16:
-        return ir::Conversion::Sext;
+        return ir::Conversion::Zext;
     case UnsignedWidenTo32:
-        return ir::Conversion::Sext;
+        return ir::Conversion::Zext;
     case UnsignedWidenTo64:
-        return ir::Conversion::Sext;
+        return ir::Conversion::Zext;
     case FloatTruncTo32:
         return ir::Conversion::Ftrunc;
     case FloatWidenTo64:
