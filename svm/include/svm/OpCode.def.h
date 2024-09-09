@@ -10,13 +10,13 @@
 
 /// ## Function call and return
 /// Performs the following operations:
-/// ```
-/// regPtr    += regOffset
-/// regPtr[-3] = stackPtr
-/// regPtr[-2] = regOffset
-/// regPtr[-1] = iptr
-/// jmp dest
-/// ```
+///
+///     regPtr    += regOffset
+///     regPtr[-3] = stackPtr
+///     regPtr[-2] = regOffset
+///     regPtr[-1] = iptr
+///     jmp dest
+///
 SVM_INSTRUCTION_DEF(call, Other) // (u32 dest, u8 regOffset)
 
 /// Indirect call from register
@@ -24,23 +24,29 @@ SVM_INSTRUCTION_DEF(call, Other) // (u32 dest, u8 regOffset)
 /// not hardcoded but loaded from the register `destRegIdx`
 SVM_INSTRUCTION_DEF(icallr, Other) // (u8 destRegIdx, u8 regOffset)
 
-/// Indirect call from register
+/// Indirect call from memory
 /// Performs the same operations as call except that the `dest` argument is
 /// not hardcoded but loaded from the memory pointer `dest`
 SVM_INSTRUCTION_DEF(icallm, Other) // (MEMORY_POINTER dest, u8 regOffset)
 
 /// Return to caller. Effectively performs the following operations:
-/// ```
-/// iptr     = regPtr[-1]
-/// stackPtr = regPtr[-3]
-/// regPtr  -= regPtr[-2]
-/// ```
+///
+///     iptr     = regPtr[-1]
+///     stackPtr = regPtr[-3]
+///     regPtr  -= regPtr[-2]
+///
 SVM_INSTRUCTION_DEF(ret, Other)
 
-// foreignFunctionTable[index](regPtr + regPtrOffset)
+/// Invokes the foreign function at `index`
+///
+///     foreignFunctionTable[index](regPtr + regPtrOffset)
+///
 SVM_INSTRUCTION_DEF(cfng, Other) // (u8 regPtrOffset, u16 index)
 
-// builtinFunctionTable[index](regPtr + regPtrOffset)
+/// Invokes the builtin function at `index`
+///
+///     builtinFunctionTable[index](regPtr + regPtrOffset)
+///
 SVM_INSTRUCTION_DEF(cbltn, Other) // (u8 regPtrOffset, u16 index)
 
 /// Immediately terminates the program.
