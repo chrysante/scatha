@@ -360,6 +360,7 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     // with our 8 bit opcodes
     static constexpr std::array jumpTable =
         [](void* Invalid, auto*... args) {
+        static_assert(sizeof...(args) <= 256);
         return [&]<size_t... I>(std::index_sequence<I...>) {
             return std::array{ args..., ((void)I, Invalid)... };
         }(std::make_index_sequence<256 - sizeof...(args)>{});
