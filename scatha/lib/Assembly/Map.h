@@ -10,7 +10,7 @@
 
 namespace scatha::Asm {
 
-/// These function basically perform overload resolution for instructions, i.e.
+/// These functions basically perform overload resolution for instructions, i.e.
 /// they map instructions and their arguments to opcodes
 
 struct MoveMapResult {
