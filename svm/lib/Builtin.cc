@@ -196,7 +196,8 @@ static void putstrImpl(u64* regPtr, VirtualMachine* vm) {
 BUILTIN_DEF(putstr, u64* regPtr, VirtualMachine* vm) {
     auto data = load<VirtualPointer>(regPtr);
     size_t size = load<size_t>(regPtr + 1);
-    *vm->impl->ostream << std::string_view(deref<char>(vm, data, size), size);
+    std::string_view text(deref<char>(vm, data, size), size);
+    *vm->impl->ostream << text;
 }
 
 BUILTIN_DEF(putln, u64* regPtr, VirtualMachine* vm) {
