@@ -223,19 +223,10 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         emit(new InstType(resolve(inst), LHS, RHS, size, op, inst.metadata()));
     }
 
-    /// Tests if the load has no execution dependencies on the LHS value. Only
-    /// in that case we can emit a load-arithmetic instruction. Otherwise we
-    /// must fall back to seperate instructions
-    bool canDeferLoad(ir::Value const* LHS, ir::Load const* load) const {
-        auto* LHSInst = dyncast<ir::Instruction const*>(LHS);
-        if (!LHSInst) return true;
-        return !DAG().dependencies(DAG(LHSInst)).contains(DAG(load));
-    }
-
     // Arithmetic -> Load -> GEP
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* load = dyncast<ir::Load const*>(inst.rhs());
-        if (!load || !canDeferLoad(inst.lhs(), load)) return false;
+        if (!load || !canDeferLoad(load, inst.lhs())) return false;
         auto* loadNode = DAG(load);
         if (!loadNode) return false;
         auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
@@ -252,7 +243,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
     // Arithmetic -> Load
     SD_MATCH_CASE(ir::ArithmeticInst const& inst, SelectionNode& node) {
         auto* load = dyncast<ir::Load const*>(inst.rhs());
-        if (!load || !canDeferLoad(inst.lhs(), load)) return false;
+        if (!load || !canDeferLoad(load, inst.lhs())) return false;
         auto* loadNode = DAG(load);
         if (!loadNode) return false;
         node.merge(*loadNode);
@@ -591,7 +582,50 @@ struct Matcher<ir::Return>: MatcherBase {
 
 template <>
 struct Matcher<ir::Call>: MatcherBase {
+    // This does not work correctly, because merging GEP selection nodes into
+    // the Call node can remove a dependency on the GEP of one of the function
+    // arguments. This is a common case with dynamic vtable dispatch. To fix
+    // this we need to refactor the selection DAG to account for multiplicities
+    // of dependencies or associate dependencies with operands
+#if 0
+    // Call -> Load -> GEP
+    SD_MATCH_CASE(ir::Call const& call, SelectionNode& node) {
+        auto* load = dyncast<ir::Load const*>(call.function());
+        if (!load || !canDeferLoad(load, call.arguments())) return false;
+        auto* loadNode = DAG(load);
+        if (!loadNode) return false;
+        auto* gep = dyncast<ir::GetElementPointer const*>(load->address());
+        if (!gep) return false;
+        auto* gepNode = DAG(gep);
+        if (!gepNode) return false;
+        node.merge(*loadNode);
+        node.merge(*gepNode);
+        auto callee = computeGEP(*gep);
+        doEmit<mir::CallMemoryInst>(call, callee);
+        return true;
+    }
+    
+    // Call -> Load
+    SD_MATCH_CASE(ir::Call const& call, SelectionNode& node) {
+        auto* load = dyncast<ir::Load const*>(call.function());
+        if (!load || !canDeferLoad(load, call.arguments())) return false;
+        auto* loadNode = DAG(load);
+        if (!loadNode) return false;
+        node.merge(*loadNode);
+        auto callee = computeAddress(*load->address(), load->metadata());
+        doEmit<mir::CallMemoryInst>(call, callee);
+        return true;
+    }
+#endif
+
+    // Base case
     SD_MATCH_CASE(ir::Call const& call, SelectionNode&) {
+        auto* callee = resolve(*call.function());
+        return doEmit<mir::CallValueInst>(call, callee);
+    }
+
+    template <typename InstType, typename T>
+    bool doEmit(ir::Call const& call, T callee) {
         utl::small_vector<mir::Value*, 16> args;
         for (auto* arg: call.arguments()) {
             auto* mirArg = resolve(*arg);
@@ -602,8 +636,8 @@ struct Matcher<ir::Call>: MatcherBase {
         }
         size_t const numDests = numWords(call);
         auto* dest = resolve(call);
-        emit(new mir::CallInst(dest, numDests, resolve(*call.function()),
-                               std::move(args), call.metadata()));
+        emit(new InstType(dest, numDests, callee, std::move(args),
+                          call.metadata()));
         return true;
     }
 };

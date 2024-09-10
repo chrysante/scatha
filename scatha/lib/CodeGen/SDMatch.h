@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include <range/v3/algorithm.hpp>
 #include <utl/vector.hpp>
 
 #include "CodeGen/Resolver.h"
@@ -49,6 +50,19 @@ protected:
     /// \Returns the DAG node of \p inst
     SelectionNode* DAG(ir::Instruction const* inst) const {
         return DAG()[inst];
+    }
+
+    /// Tests if \p load has no execution dependencies on \p value. Only
+    /// in that case can we merge the load into the using instruction
+    bool canDeferLoad(ir::Load const* load, ir::Value const* value) const;
+
+    /// \overload
+    template <ranges::range R>
+        requires std::convertible_to<ranges::range_value_t<R>, ir::Value const*>
+    bool canDeferLoad(ir::Load const* load, R&& r) const {
+        return ranges::all_of(r, [&](auto* value) {
+            return canDeferLoad(load, value);
+        });
     }
 
 private:
