@@ -163,9 +163,8 @@ void cg::allocateRegisters(Context&, Function& F) {
     }
     /// Then we set the register offset argument of all call instructions
     for (auto& call: F | ranges::views::join | Filter<CallInst>) {
-        size_t offset = isa<ForeignFunction>(call.callee()) ?
-                            numCols :
-                            numCols + numRegistersForCallMetadata();
+        size_t offset =
+            call.isNative() ? numCols + numRegistersForCallMetadata() : numCols;
         call.setRegisterOffset(offset);
     }
     F.setRegisterPhase(RegisterPhase::Hardware);

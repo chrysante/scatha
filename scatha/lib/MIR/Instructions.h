@@ -78,12 +78,9 @@ public:
                  std::move(metadata)) {}
 };
 
-/// Concrete call instruction
+/// Abstract base class of `CallValueInst` and `CallMemoryInst`
 class CallInst: public Instruction {
 public:
-    explicit CallInst(Register* dest, size_t numDests, Value* callee,
-                      utl::small_vector<Value*> arguments, Metadata metadata);
-
     ///
     size_t registerOffset() const { return regOffset; }
 
@@ -92,28 +89,59 @@ public:
         regOffset = utl::narrow_cast<uint32_t>(offset);
     }
 
-    /// The actual function parameters. Drops the first operand if this is a
-    /// `CallInst`
-    std::span<Value* const> arguments() { return operands().subspan(1); }
+    /// \Returns 1 if `*this` is a `CallValueInst` or 2 if `*this` is a
+    /// `CallMemoryInst`
+    size_t numCalleeOperands() const;
+
+    /// The function call arguments
+    std::span<Value* const> arguments();
 
     /// \overload
-    std::span<Value const* const> arguments() const {
-        return operands().subspan(1);
-    }
+    std::span<Value const* const> arguments() const;
 
     /// \Returns the number of callee registers that this function defines.
     /// In SSA form this is the same as `numDests()`
     size_t numReturnRegisters() const { return numRetRegs; }
+
+    /// \Returns `true` if the callee is a native function
+    bool isNative() const;
+
+protected:
+    CallInst(InstType instType, Register* dest, size_t numDests,
+             utl::small_vector<Value*> operands, Metadata metadata);
+
+private:
+    uint32_t regOffset = 0;
+    uint32_t numRetRegs = 0;
+};
+
+/// Direct call or indirect call to an address in a register
+class CallValueInst: public CallInst {
+public:
+    explicit CallValueInst(Register* dest, size_t numDests, Value* callee,
+                           utl::small_vector<Value*> arguments,
+                           Metadata metadata);
 
     /// The called function or function pointer
     Value* callee() { return operandAt(0); }
 
     /// \overload
     Value const* callee() const { return operandAt(0); }
+};
 
-private:
-    uint32_t regOffset = 0;
-    uint32_t numRetRegs = 0;
+/// Indirect call to an address in memory
+class CallMemoryInst: public CallInst, public MemoryInst<CallMemoryInst, 0, 1> {
+public:
+    explicit CallMemoryInst(Register* dest, size_t numDests,
+                            MemoryAddress callee,
+                            utl::small_vector<Value*> arguments,
+                            Metadata metadata);
+
+    /// The address of the called function pointer
+    MemoryAddress callee() { return address(); }
+
+    /// \overload
+    ConstMemoryAddress callee() const { return address(); }
 };
 
 /// Concrete cond-copy instruction

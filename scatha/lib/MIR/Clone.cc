@@ -20,9 +20,16 @@ static CopyInst* doClone(CopyInst& inst) {
                         inst.metadata());
 }
 
-static CallInst* doClone(CallInst& inst) {
-    return new CallInst(inst.dest(), inst.numDests(), inst.callee(),
-                        inst.arguments() | ToSmallVector<>, inst.metadata());
+static CallInst* doClone(CallValueInst& inst) {
+    return new CallValueInst(inst.dest(), inst.numDests(), inst.callee(),
+                             inst.arguments() | ToSmallVector<>,
+                             inst.metadata());
+}
+
+static CallInst* doClone(CallMemoryInst& inst) {
+    return new CallMemoryInst(inst.dest(), inst.numDests(), inst.callee(),
+                              inst.arguments() | ToSmallVector<>,
+                              inst.metadata());
 }
 
 static CondCopyInst* doClone(CondCopyInst& inst) {

@@ -29,7 +29,8 @@ struct CGContext {
     void genInstImpl(mir::StoreInst const&);
     void genInstImpl(mir::LoadInst const&);
     void genInstImpl(mir::CopyInst const&);
-    void genInstImpl(mir::CallInst const&);
+    void genInstImpl(mir::CallValueInst const&);
+    void genInstImpl(mir::CallMemoryInst const&);
     void genInstImpl(mir::CondCopyInst const&);
     void genInstImpl(mir::LISPInst const&);
     void genInstImpl(mir::LEAInst const&);
@@ -47,6 +48,8 @@ struct CGContext {
     void genInstImpl(mir::SelectInst const&);
 
     LabelID getLabelID(mir::Value const& value) {
+        SC_ASSERT(isa<mir::Function>(value) || isa<mir::BasicBlock>(value),
+                  "Only addressable values can have labels");
         auto [itr, success] =
             labelIDs.insert({ &value, LabelID{ labelIndexCounter } });
         if (success) {
@@ -196,7 +199,7 @@ void CGContext::genInstImpl(mir::CopyInst const& inst) {
     addMetadata(inst);
 }
 
-void CGContext::genInstImpl(mir::CallInst const& inst) {
+void CGContext::genInstImpl(mir::CallValueInst const& inst) {
     // clang-format off
     SC_MATCH (*inst.callee()) {
         [&](mir::Function const& callee) {
@@ -227,6 +230,13 @@ void CGContext::genInstImpl(mir::CallInst const& inst) {
             SC_UNREACHABLE();
         },
     }; // clang-format on
+}
+
+void CGContext::genInstImpl(mir::CallMemoryInst const& inst) {
+    auto asmInst =
+        CallInst(convertAddress(inst.callee()), inst.registerOffset());
+    currentBlock->insertBack(asmInst);
+    addMetadata(inst);
 }
 
 void CGContext::genInstImpl(mir::CondCopyInst const& inst) {
@@ -350,13 +360,15 @@ void CGContext::genInstImpl(mir::ConversionInst const& inst) {
 }
 
 void CGContext::genInstImpl(mir::JumpInst const& inst) {
-    currentBlock->insertBack(JumpInst(getLabelID(*inst.target())));
+    auto ID = getLabelID(*inst.target());
+    currentBlock->insertBack(JumpInst(ID));
     addMetadata(inst);
 }
 
 void CGContext::genInstImpl(mir::CondJumpInst const& inst) {
     auto condition = mapCompareOperation(inst.condition());
-    currentBlock->insertBack(JumpInst(condition, getLabelID(*inst.target())));
+    auto ID = getLabelID(*inst.target());
+    currentBlock->insertBack(JumpInst(condition, ID));
     addMetadata(inst);
 }
 

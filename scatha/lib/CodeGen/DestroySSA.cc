@@ -16,8 +16,13 @@ using namespace ranges::views;
 
 static bool isTailCall(CallInst const& call) {
     /// Make sure this is not a call to a foreign function because we can't jump
-    /// to those
-    if (!isa<Function>(call.callee())) {
+    /// to those.
+    /// As of right now we don't suppport TCO for indirect calls either. This
+    /// shouldn't be hard to fix, we only need to implement indirect jump
+    /// instructions
+    if (auto* cv = dyncast<CallValueInst const*>(&call);
+        !cv || !isa<Function>(cv->callee()))
+    {
         return false;
     }
     auto* ret = dyncast<ReturnInst const*>(call.next());
@@ -113,7 +118,15 @@ static BasicBlock::Iterator destroyTailCall(Function& F, BasicBlock& BB,
     auto& ret = *call.next();
     SC_ASSERT(isa<ReturnInst>(ret), "We are not a tailcall");
     std::advance(itr, 2);
-    auto* jump = new JumpInst(call.callee(), call.metadata());
+    // clang-format off
+    auto* jump = SC_MATCH (call) {
+        [&](CallValueInst& call) {
+            return new JumpInst(call.callee(), call.metadata());
+        },
+        [&](CallMemoryInst&) -> JumpInst* {
+            SC_UNIMPLEMENTED();
+        }
+    }; // clang-format on
     BB.erase(&call);
     BB.erase(&ret);
     BB.insert(itr, jump);
@@ -126,8 +139,7 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
     if (isTailCall(call)) {
         return destroyTailCall(F, BB, call, callItr);
     }
-    bool const isNative = !isa<ForeignFunction>(call.callee());
-    size_t numMDRegs = isNative ? numRegistersForCallMetadata() : 0;
+    size_t numMDRegs = call.isNative() ? numRegistersForCallMetadata() : 0;
     size_t numCalleeRegs =
         numMDRegs + std::max(call.arguments().size(), call.numDests());
     /// Allocate additional callee registers if not enough present.
@@ -136,7 +148,8 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
         F.calleeRegisters().add(reg);
     }
     /// Copy arguments into callee registers.
-    utl::small_vector<Value*> newArguments{ call.callee() };
+    auto newArguments = call.operands() | take(call.numCalleeOperands()) |
+                        ToSmallVector<>;
     newArguments.reserve(call.operands().size());
     auto dest =
         std::next(F.calleeRegisters().begin(), static_cast<ssize_t>(numMDRegs));

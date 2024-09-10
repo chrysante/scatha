@@ -284,8 +284,8 @@ struct PrintContext {
         str << std::setw(6) << "";
     }
 
-    void printOperands(Instruction const& inst) {
-        for (bool first = true; auto* op: inst.operands()) {
+    void print(std::span<Value const* const> operands) {
+        for (bool first = true; auto* op: operands) {
             if (!first) {
                 str << none(", ");
             }
@@ -310,7 +310,7 @@ struct PrintContext {
     void printImpl(Instruction const& inst) {
         printInstBegin(inst);
         str << formatInstName(inst) << " ";
-        printOperands(inst);
+        print(inst.operands());
     }
 
     void printImpl(StoreInst const& inst) {
@@ -336,7 +336,11 @@ struct PrintContext {
     void printImpl(CallInst const& call) {
         printInstBegin(call);
         str << formatInstName(call) << " ";
-        printOperands(call);
+        visit(call, [&](auto& call) { print(call.callee()); });
+        if (!call.arguments().empty()) {
+            str << none(", ");
+        }
+        print(call.arguments());
         str << tfmt::format(BrightGrey, " [regoffset=", call.registerOffset(),
                             "]");
     }
