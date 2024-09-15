@@ -232,6 +232,8 @@ static Instruction readInstruction(uint8_t const* textPtr) {
             arg2 = makeValue8(load<uint8_t>(argData + 1));
             break;
         case OpCode::icallm:
+            arg1 = makeAddress(load<uint32_t>(argData));
+            arg2 = makeValue8(load<uint32_t>(argData + 4));
             break;
         case OpCode::ret:
             break;
