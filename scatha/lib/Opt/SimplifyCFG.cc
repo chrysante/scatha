@@ -286,7 +286,7 @@ bool SCFGContext::replaceSameTargetBranch(BasicBlock* BB) {
 bool SCFGContext::canExecuteSpeculatively(BasicBlock const* BB) {
     /// The number of instructions in a basic block that we are willing to
     /// speculatively execute by folding it into another block
-    size_t const MaxInstructionSpec = 4;
+    size_t const MaxInstructionSpec = 2;
     size_t count = 0;
     for (auto& inst: *BB) {
         if (isa<Phi>(inst)) {
