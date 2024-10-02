@@ -36,7 +36,7 @@ static thread_local ir::Context* gContext = nullptr;
 /// Visits the first argument and casts the second argument to the type of the
 /// first
 static decltype(auto) visit2(auto& a, auto& b, auto&& fn) {
-    return visit(a, [&]<typename T>(T& Ta) {
+    return visit(a, [&]<typename T>(T& Ta) -> decltype(auto) {
         if (auto* Tb = dyncast<T*>(&b)) {
             return fn(Ta, *Tb);
         }
