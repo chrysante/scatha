@@ -24,50 +24,50 @@
 #include "Sema/LifetimeOperation.h"
 #include "Sema/QualType.h"
 
-/// # AST class hierarchy
-/// ```
-/// ASTNode
-/// ├─ TranslationUnit
-/// ├─ Statement
-/// │  ├─ Declaration
-/// │  │  ├─ VariableDeclaration
-/// │  │  ├─ ParameterDeclaration
-/// │  │  │  └─ ThisParameter
-/// │  │  ├─ ModuleDeclaration
-/// │  │  ├─ FunctionDefinition
-/// │  │  └─ StructDefinition
-/// │  ├─ CompoundStatement
-/// │  ├─ ExpressionStatement
-/// │  └─ ControlFlowStatement
-/// │     ├─ ReturnStatement
-/// │     ├─ IfStatement
-/// │     ├─ LoopStatement
-/// │     └─ JumpStatement
-/// └─ Expression
-///    ├─ Identifier
-///    ├─ Literal
-///    ├─ UnaryExpression
-///    ├─ BinaryExpression
-///    ├─ MemberAccess
-///    ├─ Conditional
-///    ├─ MoveExpr
-///    ├─ CallLike
-///    │  ├─ FunctionCall
-///    │  ├─ Subscript
-///    │  └─ ConstructExpr
-///    ├─ NontrivAssignExpr
-///    ├─ AddressOfExpression
-///    ├─ DereferenceExpression
-///    ├─ Conversion
-///    └─ ConstructBase
-///       ├─ TrivDefConstructExpr
-///       ├─ TrivCopyConstructExpr
-///       ├─ TrivAggrConstructExpr
-///       ├─ NontrivAggrConstructExpr
-///       ├─ NontrivConstructExpr
-///       ├─ NontrivInlineConstructExpr
-///       └─ DynArrayConstructExpr
-/// ```
+/// AST class hierarchy
+///
+///     ASTNode
+///     ├─ TranslationUnit
+///     ├─ Statement
+///     │  ├─ Declaration
+///     │  │  ├─ VariableDeclaration
+///     │  │  ├─ ParameterDeclaration
+///     │  │  │  └─ ThisParameter
+///     │  │  ├─ ModuleDeclaration
+///     │  │  ├─ FunctionDefinition
+///     │  │  └─ StructDefinition
+///     │  ├─ CompoundStatement
+///     │  ├─ ExpressionStatement
+///     │  └─ ControlFlowStatement
+///     │     ├─ ReturnStatement
+///     │     ├─ IfStatement
+///     │     ├─ LoopStatement
+///     │     └─ JumpStatement
+///     └─ Expression
+///        ├─ Identifier
+///        ├─ Literal
+///        ├─ UnaryExpression
+///        ├─ BinaryExpression
+///        ├─ MemberAccess
+///        ├─ Conditional
+///        ├─ MoveExpr
+///        ├─ CallLike
+///        │  ├─ FunctionCall
+///        │  ├─ Subscript
+///        │  └─ ConstructExpr
+///        ├─ NontrivAssignExpr
+///        ├─ AddressOfExpression
+///        ├─ DereferenceExpression
+///        ├─ Conversion
+///        └─ ConstructBase
+///           ├─ TrivDefConstructExpr
+///           ├─ TrivCopyConstructExpr
+///           ├─ TrivAggrConstructExpr
+///           ├─ NontrivAggrConstructExpr
+///           ├─ NontrivConstructExpr
+///           ├─ NontrivInlineConstructExpr
+///           └─ DynArrayConstructExpr
+///
 
 #define AST_DERIVED_COMMON(Type)                                               \
     UniquePtr<Type> extractFromParent() {                                      \
