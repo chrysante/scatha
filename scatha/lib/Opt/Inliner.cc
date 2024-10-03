@@ -152,6 +152,10 @@ bool Inliner::run() {
                 "We have no component in the worklist that has all successors analyzed.");
         }
         SCC& scc = **itr;
+        if (scc.nodes().empty()) {
+            worklist.erase(itr);
+            continue;
+        }
         auto visRes = visitSCC(scc);
         if (!visRes) {
             modifiedAny = true;
