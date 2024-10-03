@@ -200,11 +200,9 @@ std::optional<Target> CompilerInvocation::run() {
     case TargetType::Executable:
         [[fallthrough]];
     case TargetType::BinaryOnly: {
-        cg::NullLogger logger;
-        if (!codegenLogger) {
-            codegenLogger = &logger;
-        }
-        auto asmStream = cg::codegen(irModule, *codegenLogger);
+        cg::NullLogger nullLogger;
+        auto* logger = codegenLogger ? codegenLogger : &nullLogger;
+        auto asmStream = cg::codegen(irModule, *logger);
         tryInvoke(callbacks.codegenCallback, asmStream);
         if (!continueCompilation) return std::nullopt;
         auto asmRes = Asm::assemble(asmStream);
