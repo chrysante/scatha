@@ -33,5 +33,8 @@ if(SCATHA_DEV_MODE)
     add_link_options("$<$<CONFIG:Debug>:-fsanitize=address>")
     add_compile_options("$<$<CONFIG:Debug>:-fsanitize=undefined>")
     add_link_options("$<$<CONFIG:Debug>:-fsanitize=undefined>")
+    
+    # For now because of suspected bugs in UBSAN
+    add_compile_options("$<$<CONFIG:Debug>:-fno-sanitize=function>")
   endif()
 endif()
