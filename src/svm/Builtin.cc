@@ -39,6 +39,25 @@ static std::span<T> loadArray(u64* regPtr) {
     return std::span<T>(data, size);
 }
 
+/// Writes a 64 bit value into the return slot
+template <typename T>
+    requires(sizeof(T) <= 8)
+static void return64(u64* regPtr, T value) {
+    std::memset(regPtr, 0, 8);
+    store(regPtr, value);
+}
+
+/// Writes a 128 bit value into the return slot
+template <typename T>
+    requires(sizeof(T) > 8) && (sizeof(T) <= 16)
+static void return128(u64* regPtr, T value) {
+    std::memset(regPtr, 0, 8);
+    std::memcpy(regPtr, &value, 8);
+    std::memset(regPtr + 1, 0, 8);
+    std::memcpy(regPtr + 1, (char*)&value + 8,
+                std::min(size_t{ 8 }, sizeof(T) - 8));
+}
+
 namespace {
 
 template <Builtin>
@@ -57,10 +76,11 @@ static T fract(T arg) {
 template <typename... Args>
 static constexpr BuiltinFunction::FuncPtr math(auto impl) {
     return [](u64* regPtr, VirtualMachine*) {
-        [&]<size_t... I>(std::index_sequence<I...>) {
+        auto retval = [&]<size_t... I>(std::index_sequence<I...>) {
             std::tuple<Args...> args{ load<Args>(regPtr + I)... };
-            store(regPtr, std::apply(decltype(impl){}, args));
+            return std::apply(decltype(impl){}, args);
         }(std::index_sequence_for<Args...>{});
+        return64(regPtr, retval);
     };
 }
 
@@ -157,8 +177,7 @@ BUILTIN_DEF(alloc, u64* regPtr, VirtualMachine* vm) {
     u64 size = load<u64>(regPtr);
     u64 align = load<u64>(regPtr + 1);
     VirtualPointer addr = vm->impl->memory.allocate(size, align);
-    store(regPtr, addr);
-    store(regPtr + 1, size);
+    return128(regPtr, std::pair{ addr, size });
 }
 
 BUILTIN_DEF(dealloc, u64* regPtr, VirtualMachine* vm) {
@@ -216,8 +235,7 @@ BUILTIN_DEF(readline, u64* regPtr, VirtualMachine* vm) {
     std::getline(*vm->impl->istream, line);
     auto buffer = vm->impl->memory.allocate(line.size(), 8);
     std::memcpy(deref(vm, buffer, line.size()), line.data(), line.size());
-    store(regPtr, buffer);
-    store(regPtr + 1, line.size());
+    return128(regPtr, std::pair{ buffer, line.size() });
 }
 
 /// ## String conversion
@@ -231,11 +249,11 @@ BUILTIN_DEF(strtos64, u64* regPtr, VirtualMachine* vm) {
     auto* text = deref<char>(vm, data, size);
     auto result = std::from_chars(text, text + size, value, base);
     if (result.ec == std::errc{}) {
-        store(regPtr, u64{ 1 });
         store(deref(vm, dest, sizeof(value)), value);
+        return64(regPtr, u64{ 1 });
     }
     else {
-        store(regPtr, u64{ 0 });
+        return64(regPtr, u64{ 0 });
     }
 }
 
@@ -249,11 +267,11 @@ BUILTIN_DEF(strtof64, u64* regPtr, VirtualMachine* vm) {
     char* strEnd = nullptr;
     double value = std::strtod(strText.data(), &strEnd);
     if (strEnd != strText.data()) {
-        store(regPtr, u64{ 1 });
         store(deref(vm, dest, sizeof(value)), value);
+        return64(regPtr, u64{ 1 });
     }
     else {
-        store(regPtr, u64{ 0 });
+        return64(regPtr, u64{ 0 });
     }
 }
 
@@ -288,8 +306,7 @@ static void fstringWriteImpl(u64* regPtr, VirtualMachine* vm,
     }
     std::memcpy((char*)nativeBuffer + *offset, arg.data(), arg.size());
     *offset += arg.size();
-    store(regPtr, buffer);
-    store(regPtr + 1, size);
+    return128(regPtr, std::pair{ buffer, size });
 }
 
 BUILTIN_DEF(fstring_writestr, u64* regPtr, VirtualMachine* vm) {
@@ -349,8 +366,7 @@ BUILTIN_DEF(fstring_trim, u64* regPtr, VirtualMachine* vm) {
     if (size > offset) {
         fstringRealloc(vm, buffer, size, offset, offset);
     }
-    store(regPtr, buffer);
-    store(regPtr + 1, size);
+    return128(regPtr, std::pair{ buffer, size });
 }
 
 namespace OpenMode {
@@ -417,18 +433,20 @@ BUILTIN_DEF(fileopen, u64* regPtr, VirtualMachine* vm) {
     std::string path(deref<char>(vm, pathData, pathSize), pathSize);
     auto* file = std::fopen(path.c_str(), makeModeString(openMode));
     u64 handle = std::bit_cast<uint64_t>(file);
-    store(regPtr, handle);
+    return64(regPtr, handle);
 }
 
 BUILTIN_DEF(fileclose, u64* regPtr, VirtualMachine*) {
     auto* file = load<FILE*>(regPtr);
-    store(regPtr, std::fclose(file) != EOF);
+    bool result = std::fclose(file) != EOF;
+    return64(regPtr, result);
 }
 
 BUILTIN_DEF(fileputc, u64* regPtr, VirtualMachine*) {
     auto value = load<unsigned char>(regPtr);
     auto* file = load<FILE*>(regPtr + 1);
-    store(regPtr, std::fputc((int)value, file) != EOF);
+    bool result = std::fputc((int)value, file) != EOF;
+    return64(regPtr, result);
 }
 
 BUILTIN_DEF(filewrite, u64* regPtr, VirtualMachine* vm) {
@@ -436,8 +454,9 @@ BUILTIN_DEF(filewrite, u64* regPtr, VirtualMachine* vm) {
     auto bufferSize = load<size_t>(regPtr + 1);
     auto objSize = load<u64>(regPtr + 2);
     auto* file = load<FILE*>(regPtr + 3);
-    store(regPtr, (u64)std::fwrite(deref(vm, bufferData, bufferSize), objSize,
-                                   bufferSize / objSize, file));
+    u64 retval = (u64)std::fwrite(deref(vm, bufferData, bufferSize), objSize,
+                                  bufferSize / objSize, file);
+    return64(regPtr, retval);
 }
 
 BUILTIN_DEF(trap, u64*, VirtualMachine*) { throwError<TrapError>(); }
@@ -447,7 +466,7 @@ BUILTIN_DEF(exit, u64*, VirtualMachine*) { throw ExitException(); }
 BUILTIN_DEF(rand_i64, u64* regPtr, VirtualMachine*) {
     static thread_local std::mt19937_64 rng(std::random_device{}());
     u64 randomValue = rng();
-    store(regPtr, randomValue);
+    return64(regPtr, randomValue);
 }
 
 std::vector<BuiltinFunction> svm::makeBuiltinTable() {
