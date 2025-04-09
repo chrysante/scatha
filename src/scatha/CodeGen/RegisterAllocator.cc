@@ -158,12 +158,12 @@ static void evictUnusedInstructions(Function& F) {
 /// As a last step we allocate callee registers to the upper hardware registers.
 /// We first replace all callee registers with new hardware registers
 static void allocateCalleeRegisters(Function& F) {
+    size_t numRegs = F.hardwareRegisters().size();
     for (auto& calleeReg: F.calleeRegisters()) {
         auto* hReg = new HardwareRegister();
         F.hardwareRegisters().add(hReg);
         calleeReg.replaceWith(hReg);
     }
-    size_t numRegs = F.hardwareRegisters().size();
     /// Then we set the register offset argument of all call instructions
     for (auto& call: F | ranges::views::join | Filter<CallInst>) {
         size_t offset = [&] {
