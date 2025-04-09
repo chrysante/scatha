@@ -11,9 +11,6 @@ namespace scatha {
 struct CompilerOptions: BaseOptions {
     /// Set if time taken by compilation shall be printed
     bool time;
-
-    /// Set if debug symbols shall be generated
-    bool debug;
 };
 
 /// User facing compiler main function

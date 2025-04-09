@@ -59,7 +59,7 @@ public:
     /// Calles `resolve()` and copies the values to a register if it is not
     /// already in one
     mir::SSARegister* resolveToRegister(ir::Value const& value,
-                                        Metadata metadata) const;
+                                        Metadata const* metadata) const;
 
     /// Generate \p numWords adjacent SSA registers
     mir::SSARegister* nextRegister(size_t numWords = 1) const;
@@ -71,20 +71,21 @@ public:
     /// \Returns The register after \p dest
     template <typename R, typename Copy = mir::CopyInst>
     R* genCopy(R* dest, mir::Value* source, size_t numBytes,
-               Metadata metadata) const;
+               Metadata const* metadata) const;
 
     /// Same as `genCopy()` but generates `cmov` instructions
     template <typename R, typename Copy = mir::CondCopyInst>
     R* genCondCopy(R* dest, mir::Value* source, size_t numBytes,
-                   mir::CompareOperation condition, Metadata metadata) const;
+                   mir::CompareOperation condition,
+                   Metadata const* metadata) const;
 
     /// Computes the MIR representation of memory address represented by \p addr
     mir::MemoryAddress computeAddress(ir::Value const& addr, size_t offset,
-                                      Metadata metadata) const;
+                                      Metadata const* metadata) const;
 
     /// \overload for `offset = 0`
     mir::MemoryAddress computeAddress(ir::Value const& addr,
-                                      Metadata metadata) const;
+                                      Metadata const* metadata) const;
 
     /// Computes the IR GEP instruction \p gep
     /// The \p offset argument exists to emit adjacent load and store
@@ -114,9 +115,8 @@ private:
     mir::Value* impl(ir::ForeignFunction const& function) const;
     mir::Value* impl(ir::Value const&) const;
 
-    std::pair<mir::Value*, size_t> computeAddressImpl(ir::Value const& addr,
-                                                      size_t offset,
-                                                      Metadata metadata) const;
+    std::pair<mir::Value*, size_t> computeAddressImpl(
+        ir::Value const& addr, size_t offset, Metadata const* metadata) const;
 
     mir::Register* genCopyImpl(
         mir::Register* dest, mir::Value* source, size_t numBytes,
@@ -140,11 +140,11 @@ namespace scatha::cg {
 
 template <typename R, typename Copy>
 R* Resolver::genCopy(R* dest, mir::Value* source, size_t numBytes,
-                     Metadata metadata) const {
+                     Metadata const* metadata) const {
     mir::Register* result =
         genCopyImpl(dest, source, numBytes,
                     [&](auto* dest, auto* source, size_t numBytes) {
-        emit(new Copy(dest, source, numBytes, metadata));
+        emit(new Copy(dest, source, numBytes, clone(metadata)));
     });
     /// We `static_cast` and not `cast` because `result` is not a valid pointer
     /// but a pointer one past the end
@@ -154,11 +154,11 @@ R* Resolver::genCopy(R* dest, mir::Value* source, size_t numBytes,
 template <typename R, typename Copy>
 R* Resolver::genCondCopy(R* dest, mir::Value* source, size_t numBytes,
                          mir::CompareOperation condition,
-                         Metadata metadata) const {
+                         Metadata const* metadata) const {
     mir::Register* result =
         genCopyImpl(dest, source, numBytes,
                     [&](auto* dest, auto* source, size_t numBytes) {
-        emit(new Copy(dest, source, numBytes, condition, metadata));
+        emit(new Copy(dest, source, numBytes, condition, clone(metadata)));
     });
     /// See `static_cast` in `genCopy()`
     return static_cast<R*>(result);

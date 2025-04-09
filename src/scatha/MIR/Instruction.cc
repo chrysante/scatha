@@ -10,7 +10,7 @@ using namespace mir;
 
 Instruction::Instruction(InstType instType, Register* dest, size_t numDests,
                          utl::small_vector<Value*> operands, size_t byteWidth,
-                         Metadata metadata):
+                         std::unique_ptr<Metadata> metadata):
     ProgramPoint(ProgramPoint::Kind_Instruction),
     ObjectWithMetadata(std::move(metadata)),
     _instType(instType),

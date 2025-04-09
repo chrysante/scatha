@@ -6,11 +6,36 @@
 #include <string>
 #include <vector>
 
+#include <scatha/Common/Metadata.h>
 #include <scatha/Common/SourceLocation.h>
 
 namespace scatha::dbi {
 
-using SourceFileList = std::vector<std::filesystem::path>;
+/// List of source file paths to be associated with a target
+class SourceFileList:
+    public Metadata,
+    public std::vector<std::filesystem::path> {
+public:
+    SourceFileList(vector elems): vector(std::move(elems)) {}
+
+private:
+    SourceFileList(SourceFileList const&) = default;
+
+    std::unique_ptr<Metadata> doClone() const final;
+    void doPrettyPrint(std::ostream& os) const final;
+};
+
+/// Source location to be associated with an instruction
+class SourceLocationMD: public Metadata, public SourceLocation {
+public:
+    SourceLocationMD(SourceLocation sl): SourceLocation(sl) {}
+
+private:
+    SourceLocationMD(SourceLocationMD const&) = default;
+
+    std::unique_ptr<Metadata> doClone() const final;
+    void doPrettyPrint(std::ostream& os) const final;
+};
 
 /// Converts debug info into a JSON string
 std::string serialize(std::span<std::filesystem::path const> sourceFiles,

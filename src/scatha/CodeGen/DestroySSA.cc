@@ -102,13 +102,13 @@ static BasicBlock::Iterator destroyTailCall(Function& F, BasicBlock& BB,
             auto* tmp = new VirtualRegister();
             F.virtualRegisters().add(tmp);
             BB.insert(std::next(tmpCopyInsertPoint),
-                      new CopyInst(tmp, arg, 8, call.metadata()));
+                      new CopyInst(tmp, arg, 8, call.cloneMetadata()));
             BB.insert(insertPoint,
-                      new CopyInst(&dest, tmp, 8, call.metadata()));
+                      new CopyInst(&dest, tmp, 8, call.cloneMetadata()));
         }
         /// Otherwise we copy directly to the dest register
         else {
-            auto* copy = new CopyInst(&dest, arg, 8, call.metadata());
+            auto* copy = new CopyInst(&dest, arg, 8, call.cloneMetadata());
             BB.insert(insertPoint, copy);
         }
     }
@@ -118,7 +118,7 @@ static BasicBlock::Iterator destroyTailCall(Function& F, BasicBlock& BB,
     // clang-format off
     auto* jump = SC_MATCH (call) {
         [&](CallValueInst& call) {
-            return new JumpInst(call.callee(), call.metadata());
+            return new JumpInst(call.callee(), call.cloneMetadata());
         },
         [&](CallMemoryInst&) -> JumpInst* {
             SC_UNIMPLEMENTED();
@@ -155,7 +155,7 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
     {
         Value* arg = *argItr;
         CalleeRegister* destReg = dest.to_address();
-        auto* copy = new CopyInst(destReg, arg, 8, call.metadata());
+        auto* copy = new CopyInst(destReg, arg, 8, call.cloneMetadata());
         BB.insert(&call, copy);
         newArguments.push_back(destReg);
         destReg->addUser(&call);
@@ -167,7 +167,7 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
     auto destAndCalleeRegs =
         zip(call.destRegisters(), F.calleeRegisters() | drop(numMDRegs));
     for (auto [dest, calleeReg]: destAndCalleeRegs) {
-        auto* copy = new CopyInst(dest, &calleeReg, 8, call.metadata());
+        auto* copy = new CopyInst(dest, &calleeReg, 8, call.cloneMetadata());
         BB.insert(std::next(callItr), copy);
     }
     /// We don't define registers anymore, see comment above.
@@ -180,7 +180,7 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB,
                                     ReturnInst& ret, BasicBlock::Iterator itr) {
     for (auto [arg, dest]: zip(ret.operands(), F.virtualReturnValueRegisters()))
     {
-        auto* copy = new CopyInst(dest, arg, 8, ret.metadata());
+        auto* copy = new CopyInst(dest, arg, 8, ret.cloneMetadata());
         BB.insert(itr, copy);
         if (auto* argReg = dyncast<Register*>(arg)) {
             BB.removeLiveOut(argReg);
@@ -224,7 +224,7 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, PhiInst& phi,
         dest = tmp;
         F.virtualRegisters().add(tmp);
         BB.insert(&phi, new CopyInst(phi.dest(), tmp, phi.bytewidth(),
-                                     phi.metadata()));
+                                     phi.cloneMetadata()));
         BB.addLiveIn(tmp);
         BB.removeLiveIn(phi.dest());
     }
@@ -237,8 +237,8 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, PhiInst& phi,
             }
             before = p;
         }
-        pred->insert(before,
-                     new CopyInst(dest, arg, phi.bytewidth(), phi.metadata()));
+        pred->insert(before, new CopyInst(dest, arg, phi.bytewidth(),
+                                          phi.cloneMetadata()));
         /// Update live sets to honor inserted copy
         if (auto* argReg = dyncast<Register*>(arg)) {
             /// True if this argument appears only once in the phi arguments.
@@ -267,10 +267,10 @@ static BasicBlock::Iterator destroy(Function&, BasicBlock& BB,
                                     SelectInst& select,
                                     BasicBlock::Iterator itr) {
     auto* copy = new CopyInst(select.dest(), select.thenValue(),
-                              select.bytewidth(), select.metadata());
+                              select.bytewidth(), select.cloneMetadata());
     auto* cndCopy =
         new CondCopyInst(select.dest(), select.elseValue(), select.bytewidth(),
-                         inverse(select.condition()), select.metadata());
+                         inverse(select.condition()), select.cloneMetadata());
     BB.insert(itr, copy);
     BB.insert(itr, cndCopy);
     return BB.erase(itr);

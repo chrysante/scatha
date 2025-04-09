@@ -6,6 +6,7 @@
 #include <utl/strcat.hpp>
 
 #include "AST/AST.h"
+#include "Common/DebugInfo.h"
 #include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -107,6 +108,15 @@ struct LoopDesc {
 
 struct FuncGenContext: FuncGenContextBase {
     utl::stack<LoopDesc, 4> loopStack;
+    utl::stack<SourceLocation> sourceLocStack;
+
+    std::unique_ptr<Metadata> getMetadata() override {
+        if (!lctx.config.generateDebugSymbols || sourceLocStack.empty())
+            return nullptr;
+        return std::make_unique<dbi::SourceLocationMD>(sourceLocStack.top());
+    }
+    void pushSourceLoc(SourceLocation sl) { sourceLocStack.push(sl); }
+    void popSourceLoc() { sourceLocStack.pop(); }
 
     template <typename... Args>
     FuncGenContext(Args&&... args):
@@ -117,7 +127,7 @@ struct FuncGenContext: FuncGenContextBase {
     void generateSynthFunctionAs(sema::SMFKind kind);
 
     /// # Statements
-    SC_NODEBUG void generate(ast::Statement const&);
+    void generate(ast::Statement const&);
 
     void generateImpl(ast::Statement const&) { SC_UNREACHABLE(); }
     void generateImpl(ast::ImportStatement const&);
@@ -135,7 +145,7 @@ struct FuncGenContext: FuncGenContextBase {
     void generateImpl(ast::JumpStatement const&);
 
     /// # Expressions
-    SC_NODEBUG Value getValue(ast::Expression const* expr);
+    Value getValue(ast::Expression const* expr);
 
     /// Generates values for every expression in \p expressions
     utl::small_vector<Value> getValues(auto&& expressions) {
@@ -390,8 +400,10 @@ void FuncGenContext::generate(ast::Statement const& stmt) {
     if (!stmt.reachable()) {
         return;
     }
+    pushSourceLoc(stmt.sourceLocation());
     visit(stmt,
           [this](auto const& stmt) SC_NODEBUG { return generateImpl(stmt); });
+    popSourceLoc();
 }
 
 void FuncGenContext::generateImpl(ast::ImportStatement const&) {
@@ -693,9 +705,11 @@ void FuncGenContext::generateImpl(ast::JumpStatement const& jump) {
 
 Value FuncGenContext::getValue(ast::Expression const* expr) {
     SC_EXPECT(expr);
+    pushSourceLoc(expr->sourceLocation());
     auto result =
         visit(*expr, [&](auto& expr) SC_NODEBUG { return getValueImpl(expr); });
     valueMap.tryInsert(expr->object(), result);
+    popSourceLoc();
     return result;
 }
 

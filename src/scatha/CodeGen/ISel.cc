@@ -48,7 +48,7 @@ struct Matcher<ir::Load>: MatcherBase {
         for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
             auto* inst = new mir::LoadInst(dest, addrCallback(i),
                                            sliceWidth(numBytes, i, numWords),
-                                           load.metadata());
+                                           load.cloneMetadata());
             emit(inst);
         }
     }
@@ -87,7 +87,7 @@ struct Matcher<ir::Store>: MatcherBase {
         for (size_t i = 0; i < numWords; ++i, value = value->next()) {
             auto* inst = new mir::StoreInst(addrCallback(i), value,
                                             sliceWidth(numBytes, i, numWords),
-                                            store.metadata());
+                                            store.cloneMetadata());
             emit(inst);
         }
     }
@@ -144,7 +144,8 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
                     size_t size = inst.type()->size();
                     emit(new mir::ValueArithmeticInst(
                         resolve(inst), operand, CTX().constant(mask, size),
-                        size, mir::ArithmeticOperation::And, inst.metadata()));
+                        size, mir::ArithmeticOperation::And,
+                        inst.cloneMetadata()));
                 }
                 /// Everything else is a no-op
                 else {
@@ -174,7 +175,7 @@ struct Matcher<ir::ConversionInst>: MatcherBase {
                 cast<ir::ArithmeticType const*>(inst.type())->bitwidth());
             emit(new mir::ConversionInst(resolve(inst), operand,
                                          inst.conversion(), fromBits, toBits,
-                                         inst.metadata()));
+                                         inst.cloneMetadata()));
             break;
         }
         }
@@ -188,8 +189,9 @@ struct Matcher<ir::CompareInst>: MatcherBase {
         auto* LHS = resolveToRegister(*cmp.lhs(), cmp.metadata());
         auto* RHS = resolve(*cmp.rhs());
         emit(new mir::CompareInst(LHS, RHS, cmp.lhs()->type()->size(),
-                                  cmp.mode(), cmp.metadata()));
-        emit(new mir::SetInst(resolve(cmp), cmp.operation(), cmp.metadata()));
+                                  cmp.mode(), cmp.cloneMetadata()));
+        emit(new mir::SetInst(resolve(cmp), cmp.operation(),
+                              cmp.cloneMetadata()));
         return true;
     }
 };
@@ -200,7 +202,8 @@ struct Matcher<ir::UnaryArithmeticInst>: MatcherBase {
         auto* operand = resolveToRegister(*inst.operand(), inst.metadata());
         emit(new mir::UnaryArithmeticInst(resolve(inst), operand,
                                           inst.operand()->type()->size(),
-                                          inst.operation(), inst.metadata()));
+                                          inst.operation(),
+                                          inst.cloneMetadata()));
         return true;
     }
 };
@@ -220,7 +223,8 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         if (size < 4) {
             size = 8;
         }
-        emit(new InstType(resolve(inst), LHS, RHS, size, op, inst.metadata()));
+        emit(new InstType(resolve(inst), LHS, RHS, size, op,
+                          inst.cloneMetadata()));
     }
 
     // Arithmetic -> Load -> GEP
@@ -308,7 +312,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         emit(new mir::LEAInst(resolve(*add1),
                               mir::MemoryAddress(add2LHS, mulLHS, *factor,
                                                  *term),
-                              add1->metadata()));
+                              add1->cloneMetadata()));
         return true;
     }
 
@@ -342,7 +346,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         emit(new mir::LEAInst(resolve(*add1),
                               mir::MemoryAddress(add1LHS, mulLHS, *factor,
                                                  *term),
-                              add1->metadata()));
+                              add1->cloneMetadata()));
         return true;
     }
 
@@ -376,7 +380,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         emit(new mir::LEAInst(resolve(*add1),
                               mir::MemoryAddress(add1RHS, mulLHS, *factor,
                                                  *term),
-                              add1->metadata()));
+                              add1->cloneMetadata()));
         return true;
     }
 
@@ -400,7 +404,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
         emit(new mir::LEAInst(resolve(*add),
                               mir::MemoryAddress(addLHS, mulLHS, *factor, 0),
-                              add->metadata()));
+                              add->cloneMetadata()));
         return true;
     }
 
@@ -424,7 +428,7 @@ struct Matcher<ir::ArithmeticInst>: MatcherBase {
         auto* mulLHS = resolveToRegister(*mul->lhs(), mul->metadata());
         emit(new mir::LEAInst(resolve(*add),
                               mir::MemoryAddress(addRHS, mulLHS, *factor, 0),
-                              add->metadata()));
+                              add->cloneMetadata()));
         return true;
     }
 
@@ -523,7 +527,7 @@ template <>
 struct Matcher<ir::Goto>: MatcherBase {
     SD_MATCH_CASE(ir::Goto const& gt, SelectionNode&) {
         auto* target = resolve(*gt.target());
-        emit(new mir::JumpInst(target, gt.metadata()));
+        emit(new mir::JumpInst(target, gt.cloneMetadata()));
         return true;
     }
 };
@@ -533,8 +537,9 @@ struct Matcher<ir::Branch>: MatcherBase {
     void impl(ir::Branch const& br, mir::CompareOperation cond) {
         auto* thenTarget = resolve(*br.thenTarget());
         auto* elseTarget = resolve(*br.elseTarget());
-        emit(new mir::CondJumpInst(elseTarget, inverse(cond), br.metadata()));
-        emit(new mir::JumpInst(thenTarget, br.metadata()));
+        emit(new mir::CondJumpInst(elseTarget, inverse(cond),
+                                   br.cloneMetadata()));
+        emit(new mir::JumpInst(thenTarget, br.cloneMetadata()));
     }
 
     // Branch -> Compare
@@ -547,7 +552,7 @@ struct Matcher<ir::Branch>: MatcherBase {
         auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
         auto* RHS = resolve(*cmp->rhs());
         emit(new mir::CompareInst(LHS, RHS, cmp->lhs()->type()->size(),
-                                  cmp->mode(), cmp->metadata()));
+                                  cmp->mode(), cmp->cloneMetadata()));
         impl(br, cmp->operation());
         return true;
     }
@@ -559,7 +564,7 @@ struct Matcher<ir::Branch>: MatcherBase {
         /// responsibility to omit the branch
         auto* cond = resolveToRegister(*br.condition(), br.metadata());
         emit(new mir::TestInst(cond, 1, mir::CompareMode::Unsigned,
-                               br.metadata()));
+                               br.cloneMetadata()));
         impl(br, mir::CompareOperation::NotEqual);
         return true;
     }
@@ -575,7 +580,7 @@ struct Matcher<ir::Return>: MatcherBase {
         {
             args.push_back(retval);
         }
-        emit(new mir::ReturnInst(std::move(args), ret.metadata()));
+        emit(new mir::ReturnInst(std::move(args), ret.cloneMetadata()));
         return true;
     }
 };
@@ -637,7 +642,7 @@ struct Matcher<ir::Call>: MatcherBase {
         size_t const numDests = numWords(call);
         auto* dest = resolve(call);
         emit(new InstType(dest, numDests, callee, std::move(args),
-                          call.metadata()));
+                          call.cloneMetadata()));
         return true;
     }
 };
@@ -655,7 +660,7 @@ struct Matcher<ir::Phi>: MatcherBase {
         for (size_t i = 0; i < numWords; ++i) {
             emit(new mir::PhiInst(dest, arguments,
                                   sliceWidth(numBytes, i, numWords),
-                                  phi.metadata()));
+                                  phi.cloneMetadata()));
             dest = dest->next();
             ranges::for_each(arguments, [](auto& arg) { arg = arg->next(); });
         }
@@ -674,7 +679,7 @@ struct Matcher<ir::Select>: MatcherBase {
         for (size_t i = 0; i < numWords; ++i) {
             emit(new mir::SelectInst(dest, thenVal, elseVal, cond,
                                      sliceWidth(numBytes, i, numWords),
-                                     select.metadata()));
+                                     select.cloneMetadata()));
             dest = dest->next();
             thenVal = thenVal->next();
             elseVal = elseVal->next();
@@ -691,7 +696,7 @@ struct Matcher<ir::Select>: MatcherBase {
         auto* LHS = resolveToRegister(*cmp->lhs(), cmp->metadata());
         auto* RHS = resolve(*cmp->rhs());
         emit(new mir::CompareInst(LHS, RHS, cmp->lhs()->type()->size(),
-                                  cmp->mode(), cmp->metadata()));
+                                  cmp->mode(), cmp->cloneMetadata()));
         impl(select, cmp->operation());
         return true;
     }
@@ -700,7 +705,7 @@ struct Matcher<ir::Select>: MatcherBase {
     SD_MATCH_CASE(ir::Select const& select, SelectionNode&) {
         auto* cond = resolveToRegister(*select.condition(), select.metadata());
         emit(new mir::TestInst(cond, 1, mir::CompareMode::Unsigned,
-                               select.metadata()));
+                               select.cloneMetadata()));
         impl(select, mir::CompareOperation::NotEqual);
         return true;
     }
@@ -710,7 +715,7 @@ template <>
 struct Matcher<ir::GetElementPointer>: MatcherBase {
     SD_MATCH_CASE(ir::GetElementPointer const& gep, SelectionNode&) {
         mir::MemoryAddress address = computeGEP(gep);
-        emit(new mir::LEAInst(resolve(gep), address, gep.metadata()));
+        emit(new mir::LEAInst(resolve(gep), address, gep.cloneMetadata()));
         return true;
     }
 };
@@ -776,12 +781,12 @@ struct Matcher<ir::ExtractValue>: MatcherBase {
         auto* shiftOffset = CTX().constant(8 * innerByteOffset, 1);
         emit(new mir::ValueArithmeticInst(sourceShifted, srcreg, shiftOffset, 8,
                                           mir::ArithmeticOperation::LShR,
-                                          extract.metadata()));
+                                          extract.cloneMetadata()));
         auto* sourceMask = CTX().constant(makeWordMask(0, innerSize), 8);
         mir::Register* dest = resolve(extract);
         emit(new mir::ValueArithmeticInst(dest, sourceShifted, sourceMask, 8,
                                           mir::ArithmeticOperation::And,
-                                          extract.metadata()));
+                                          extract.cloneMetadata()));
         return true;
     }
 };
@@ -847,18 +852,18 @@ struct Matcher<ir::InsertValue>: MatcherBase {
                 emit(new mir::ValueArithmeticInst(maskedSource, source,
                                                   sourceMask, 8,
                                                   mir::ArithmeticOperation::And,
-                                                  insert.metadata()));
+                                                  insert.cloneMetadata()));
                 auto* maskedInserted = nextRegister();
                 auto* insertedMask = CTX().constant(~sourceMask->value(), 8);
                 emit(new mir::ValueArithmeticInst(maskedInserted,
                                                   insertedMember, insertedMask,
                                                   8,
                                                   mir::ArithmeticOperation::And,
-                                                  insert.metadata()));
+                                                  insert.cloneMetadata()));
                 emit(new mir::ValueArithmeticInst(dest, maskedSource,
                                                   maskedInserted, 8,
                                                   mir::ArithmeticOperation::Or,
-                                                  insert.metadata()));
+                                                  insert.cloneMetadata()));
                 dest = dest->next();
                 source = source->next();
             }
@@ -878,19 +883,19 @@ struct Matcher<ir::InsertValue>: MatcherBase {
             emit(new mir::ValueArithmeticInst(shiftedInsert, insertedMember,
                                               shiftCount, 8,
                                               mir::ArithmeticOperation::LShL,
-                                              insert.metadata()));
+                                              insert.cloneMetadata()));
             auto* maskedSource = nextRegister();
             emit(new mir::ValueArithmeticInst(maskedSource, source, sourceMask,
                                               8, mir::ArithmeticOperation::And,
-                                              insert.metadata()));
+                                              insert.cloneMetadata()));
             auto* maskedInsert = nextRegister();
             emit(new mir::ValueArithmeticInst(maskedInsert, shiftedInsert,
                                               insertedMask, 8,
                                               mir::ArithmeticOperation::And,
-                                              insert.metadata()));
+                                              insert.cloneMetadata()));
             emit(new mir::ValueArithmeticInst(dest, maskedSource, maskedInsert,
                                               8, mir::ArithmeticOperation::Or,
-                                              insert.metadata()));
+                                              insert.cloneMetadata()));
             dest = dest->next();
             source = source->next();
         }

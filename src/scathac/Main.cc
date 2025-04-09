@@ -18,6 +18,8 @@ static void commonOptions(CLI::App* app, BaseOptions& opt) {
         { "binary", TargetType::BinaryOnly },
         { "staticlib", TargetType::StaticLibrary },
     };
+    app->add_flag("-d,--debug", opt.generateDebugInfo,
+                  "Generate debug symbols");
     app->add_option("-T,--target-type", opt.targetType, "Target type")
         ->transform(CLI::CheckedTransformer(targetTypeMap, CLI::ignore_case));
     app->add_option("-o,--output", opt.outputFile, "Directory to place binary");
@@ -30,9 +32,8 @@ int main(int argc, char* argv[]) {
     // clang-format off
     CompilerOptions compilerOptions{};
     commonOptions(&compiler, compilerOptions);
-    compiler.add_option("-O", compilerOptions.optLevel);
-    compiler.add_option("--stdlib", compilerOptions.stdlibDir);
-    compiler.add_flag("-d,--debug", compilerOptions.debug, "Generate debug symbols");
+    compiler.add_option("-O", compilerOptions.optLevel, "Optimization level");
+    compiler.add_option("--stdlib", compilerOptions.stdlibDir, "Override standard library search path")->check(CLI::ExistingPath);
     compiler.add_flag("-t,--time", compilerOptions.time, "Measure compilation time");
     
     CLI::App* inspect = compiler.add_subcommand("inspect", "Tool to visualize the state of the compilation pipeline");
@@ -48,7 +49,6 @@ int main(int argc, char* argv[]) {
     inspect->add_flag("--codegen", inspectOptions.codegen, "Print codegen pipeline");
     inspect->add_flag("--asm", inspectOptions.assembly, "Print assembly");
     inspect->add_flag("--frontend", inspectOptions.onlyFrontend, "Only run the frontend. No IR or bytecode will be generated");
-    
     
     CLI::App* graph = compiler.add_subcommand("graph", "Tool to generate images of various graphs in the compilation pipeline");
     GraphOptions graphOptions{};

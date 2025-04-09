@@ -27,6 +27,7 @@ void scatha::populateBaseOptions(BaseOptions const& options,
     invocation.addInputs(loadSourceFiles(options.files));
     invocation.addLibSearchPaths(options.libSearchPaths);
     if (auto dir = findStdlibDir(options)) invocation.addLibSearchPath(*dir);
+    invocation.generateDebugInfo(options.generateDebugInfo);
 }
 
 FrontendType scatha::deduceFrontend(

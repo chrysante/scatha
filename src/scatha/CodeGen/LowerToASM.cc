@@ -99,7 +99,7 @@ struct CGContext {
 
     void addMetadata(mir::Instruction const& inst) {
         SC_EXPECT(currentBlock);
-        currentBlock->back().setMetadata(inst.metadata());
+        currentBlock->back().setMetadata(inst.cloneMetadata());
     }
 
     Asm::AssemblyStream& result;
@@ -125,7 +125,7 @@ void CGContext::run(mir::Module const& mod) {
         genFunction(F);
     }
     result.setDataSection(mod.dataSection());
-    result.setMetadata(mod.metadata());
+    result.setMetadata(mod.cloneMetadata());
     auto jumpsites = mod.addressPlaceholders() | transform([&](auto p) {
         auto [offset, function] = p;
         return Jumpsite{ offset, getLabelID(*function), 8 };

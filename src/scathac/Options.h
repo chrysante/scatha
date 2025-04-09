@@ -28,6 +28,9 @@ struct BaseOptions {
     /// Optimization level
     int optLevel = 0;
 
+    /// Set if debug symbols shall be generated
+    bool generateDebugInfo = false;
+
     /// Custom IR optimization pipeline
     std::string pipeline;
 

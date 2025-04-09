@@ -37,7 +37,7 @@ static void convertToTwoAddressMode(Function& F) {
             F.virtualRegisters().add(tmp);
             auto* copy = new CopyInst(tmp, arithmetic->LHS(),
                                       arithmetic->bytewidth(),
-                                      arithmetic->metadata());
+                                      arithmetic->cloneMetadata());
             inst.parent()->insert(&inst, copy);
             inst.setOperandAt(1, tmp);
         }
@@ -45,7 +45,7 @@ static void convertToTwoAddressMode(Function& F) {
             !ranges::contains(inst.operands() | drop(1), dest),
             "The other operands must not contain dest because we clobber dest with a copy before execution the instruction");
         auto* copy =
-            new CopyInst(dest, operand, inst.bytewidth(), inst.metadata());
+            new CopyInst(dest, operand, inst.bytewidth(), inst.cloneMetadata());
         inst.parent()->insert(&inst, copy);
         inst.setOperandAt(0, dest);
     }
@@ -111,7 +111,7 @@ static void evictCopyInstructions(Function& F) {
                     new ValueArithmeticInst(copy->dest(), copy->dest(),
                                             copy->dest(), copy->bytewidth(),
                                             ArithmeticOperation::XOr,
-                                            copy->metadata());
+                                            copy->cloneMetadata());
                 BB.insert(itr, selfXor);
                 itr = BB.erase(itr);
                 continue;

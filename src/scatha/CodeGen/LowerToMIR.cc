@@ -85,6 +85,7 @@ void LoweringContext::run() {
             generateBB(irBB);
         }
     }
+    mirMod.setMetadata(irMod.cloneMetadata());
 }
 
 mir::Function* LoweringContext::declareFunction(ir::Function const& irFn) {

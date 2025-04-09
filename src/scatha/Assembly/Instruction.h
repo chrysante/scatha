@@ -351,11 +351,16 @@ public:
         return static_cast<InstructionType>(index());
     }
 
-    Metadata metadata() const {
+    Metadata const* metadata() const {
         return std::visit(&InstructionBase::metadata, *this);
     }
 
-    void setMetadata(Metadata metadata) {
+    template <std::derived_from<Metadata> MD>
+    MD const* metadataAs() const {
+        return dynamic_cast<MD const*>(metadata());
+    }
+
+    void setMetadata(std::unique_ptr<Metadata> metadata) {
         std::visit([&](auto& inst) { inst.setMetadata(std::move(metadata)); },
                    *this);
     }

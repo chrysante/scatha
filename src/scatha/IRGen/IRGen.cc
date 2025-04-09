@@ -106,7 +106,9 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
     }
     ir::assertInvariants(ctx, mod);
     if (config.generateDebugSymbols) {
-        mod.setMetadata(config.sourceFiles | transform(&SourceFile::path) |
-                        ranges::to<dbi::SourceFileList>);
+        auto sourceList = config.sourceFiles | transform(&SourceFile::path) |
+                          ranges::to<std::vector>;
+        mod.setMetadata(
+            std::make_unique<dbi::SourceFileList>(std::move(sourceList)));
     }
 }

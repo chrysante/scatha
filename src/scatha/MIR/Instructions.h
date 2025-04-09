@@ -17,7 +17,7 @@ public:
 
 protected:
     UnaryInstruction(InstType type, Register* dest, Value* operand,
-                     size_t byteWidth, Metadata metadata):
+                     size_t byteWidth, std::unique_ptr<Metadata> metadata):
         Instruction(type, dest, 1, { operand }, byteWidth,
                     std::move(metadata)) {}
 };
@@ -26,7 +26,7 @@ protected:
 class StoreInst: public Instruction, public MemoryInst<StoreInst, 0, 1> {
 public:
     explicit StoreInst(MemoryAddress address, Value* source, size_t byteWidth,
-                       Metadata metadata):
+                       std::unique_ptr<Metadata> metadata):
         Instruction(InstType::StoreInst, nullptr, 0,
                     { address.baseAddress(), address.dynOffset(), source },
                     byteWidth, std::move(metadata)),
@@ -46,7 +46,7 @@ public:
 class LoadInst: public Instruction, public MemoryInst<StoreInst, 0, 1> {
 public:
     explicit LoadInst(Register* dest, MemoryAddress source, size_t byteWidth,
-                      Metadata metadata):
+                      std::unique_ptr<Metadata> metadata):
         Instruction(InstType::LoadInst, dest, 1,
                     { source.baseAddress(), source.dynOffset() }, byteWidth,
                     std::move(metadata)),
@@ -73,7 +73,7 @@ protected:
 class CopyInst: public CopyBase {
 public:
     explicit CopyInst(Register* dest, Value* source, size_t byteWidth,
-                      Metadata metadata):
+                      std::unique_ptr<Metadata> metadata):
         CopyBase(InstType::CopyInst, dest, source, byteWidth,
                  std::move(metadata)) {}
 };
@@ -108,7 +108,8 @@ public:
 
 protected:
     CallInst(InstType instType, Register* dest, size_t numDests,
-             utl::small_vector<Value*> operands, Metadata metadata);
+             utl::small_vector<Value*> operands,
+             std::unique_ptr<Metadata> metadata);
 
 private:
     uint32_t regOffset = 0;
@@ -120,7 +121,7 @@ class CallValueInst: public CallInst {
 public:
     explicit CallValueInst(Register* dest, size_t numDests, Value* callee,
                            utl::small_vector<Value*> arguments,
-                           Metadata metadata);
+                           std::unique_ptr<Metadata> metadata);
 
     /// The called function or function pointer
     Value* callee() { return operandAt(0); }
@@ -135,7 +136,7 @@ public:
     explicit CallMemoryInst(Register* dest, size_t numDests,
                             MemoryAddress callee,
                             utl::small_vector<Value*> arguments,
-                            Metadata metadata);
+                            std::unique_ptr<Metadata> metadata);
 
     /// The address of the called function pointer
     MemoryAddress callee() { return address(); }
@@ -148,7 +149,8 @@ public:
 class CondCopyInst: public CopyBase {
 public:
     CondCopyInst(Register* dest, Value* source, size_t byteWidth,
-                 mir::CompareOperation condition, Metadata metadata):
+                 mir::CompareOperation condition,
+                 std::unique_ptr<Metadata> metadata):
         CopyBase(InstType::CondCopyInst, dest, source, byteWidth,
                  std::move(metadata)),
         _cond(condition) {}
@@ -163,7 +165,8 @@ private:
 /// Concrete LISP (load & increment stack pointer) instruction
 class LISPInst: public UnaryInstruction {
 public:
-    explicit LISPInst(Register* dest, Value* allocSize, Metadata metadata):
+    explicit LISPInst(Register* dest, Value* allocSize,
+                      std::unique_ptr<Metadata> metadata):
         UnaryInstruction(InstType::LISPInst, dest, allocSize, 0,
                          std::move(metadata)) {}
 
@@ -184,7 +187,8 @@ public:
 /// Concrete LEA instruction
 class LEAInst: public Instruction, public MemoryInst<LEAInst, 0, 1> {
 public:
-    explicit LEAInst(Register* dest, MemoryAddress addr, Metadata metadata):
+    explicit LEAInst(Register* dest, MemoryAddress addr,
+                     std::unique_ptr<Metadata> metadata):
         Instruction(InstType::LEAInst, dest, 1,
                     { addr.baseAddress(), addr.dynOffset() }, 0,
                     std::move(metadata)),
@@ -198,7 +202,7 @@ public:
 class CompareInst: public Instruction {
 public:
     explicit CompareInst(Value* LHS, Value* RHS, size_t byteWidth,
-                         CompareMode mode, Metadata metadata):
+                         CompareMode mode, std::unique_ptr<Metadata> metadata):
         Instruction(InstType::CompareInst, nullptr, 0, { LHS, RHS }, byteWidth,
                     std::move(metadata)),
         _mode(mode) {}
@@ -226,7 +230,7 @@ private:
 class TestInst: public UnaryInstruction {
 public:
     explicit TestInst(Value* operand, size_t byteWidth, CompareMode mode,
-                      Metadata metadata):
+                      std::unique_ptr<Metadata> metadata):
         UnaryInstruction(InstType::TestInst, nullptr, operand, byteWidth,
                          std::move(metadata)),
         _mode(mode) {}
@@ -242,7 +246,7 @@ private:
 class SetInst: public Instruction {
 public:
     explicit SetInst(Register* dest, CompareOperation operation,
-                     Metadata metadata):
+                     std::unique_ptr<Metadata> metadata):
         Instruction(InstType::SetInst, dest, 1, {}, 0, std::move(metadata)),
         op(operation) {}
 
@@ -259,7 +263,7 @@ public:
     explicit UnaryArithmeticInst(Register* dest, Value* operand,
                                  size_t byteWidth,
                                  UnaryArithmeticOperation operation,
-                                 Metadata metadata):
+                                 std::unique_ptr<Metadata> metadata):
         UnaryInstruction(InstType::UnaryArithmeticInst, dest, operand,
                          byteWidth, std::move(metadata)),
         op(operation) {}
@@ -287,7 +291,8 @@ public:
 protected:
     ArithmeticInst(InstType instType, Register* dest,
                    utl::small_vector<Value*> operands, size_t byteWidth,
-                   ArithmeticOperation operation, Metadata metadata):
+                   ArithmeticOperation operation,
+                   std::unique_ptr<Metadata> metadata):
         Instruction(instType, dest, 1, std::move(operands), byteWidth,
                     std::move(metadata)),
         op(operation) {}
@@ -303,7 +308,7 @@ public:
     explicit ValueArithmeticInst(Register* dest, Value* LHS, Value* RHS,
                                  size_t byteWidth,
                                  ArithmeticOperation operation,
-                                 Metadata metadata):
+                                 std::unique_ptr<Metadata> metadata):
         ArithmeticInst(InstType::ValueArithmeticInst, dest, { LHS, RHS },
                        byteWidth, operation, std::move(metadata)) {}
 
@@ -321,7 +326,7 @@ class LoadArithmeticInst:
 public:
     explicit LoadArithmeticInst(Register* dest, Value* LHS, MemoryAddress RHS,
                                 size_t byteWidth, ArithmeticOperation operation,
-                                Metadata metadata):
+                                std::unique_ptr<Metadata> metadata):
         ArithmeticInst(InstType::LoadArithmeticInst, dest,
                        { LHS, RHS.baseAddress(), RHS.dynOffset() }, byteWidth,
                        operation, std::move(metadata)),
@@ -338,7 +343,8 @@ public:
 class ConversionInst: public UnaryInstruction {
 public:
     explicit ConversionInst(Register* dest, Value* operand, Conversion conv,
-                            size_t fromBits, size_t toBits, Metadata metadata);
+                            size_t fromBits, size_t toBits,
+                            std::unique_ptr<Metadata> metadata);
 
     ///
     Conversion conversion() const { return conv; }
@@ -359,7 +365,7 @@ private:
 class TerminatorInst: public Instruction {
 protected:
     TerminatorInst(InstType instType, utl::small_vector<Value*> operands,
-                   Metadata metadata):
+                   std::unique_ptr<Metadata> metadata):
         Instruction(instType, nullptr, 0, std::move(operands), 0,
                     std::move(metadata)) {}
 };
@@ -375,13 +381,14 @@ public:
     Value const* target() const;
 
 protected:
-    JumpBase(InstType instType, Value* target, Metadata metadata);
+    JumpBase(InstType instType, Value* target,
+             std::unique_ptr<Metadata> metadata);
 };
 
 ///
 class JumpInst: public JumpBase {
 public:
-    explicit JumpInst(Value* target, Metadata metadata):
+    explicit JumpInst(Value* target, std::unique_ptr<Metadata> metadata):
         JumpBase(InstType::JumpInst, target, std::move(metadata)) {}
 };
 
@@ -389,7 +396,7 @@ public:
 class CondJumpInst: public JumpBase {
 public:
     explicit CondJumpInst(Value* target, CompareOperation condition,
-                          Metadata metadata):
+                          std::unique_ptr<Metadata> metadata):
         JumpBase(InstType::CondJumpInst, target, std::move(metadata)),
         cond(condition) {}
 
@@ -404,7 +411,8 @@ private:
 ///
 class ReturnInst: public TerminatorInst {
 public:
-    explicit ReturnInst(utl::small_vector<Value*> operands, Metadata metadata):
+    explicit ReturnInst(utl::small_vector<Value*> operands,
+                        std::unique_ptr<Metadata> metadata):
         TerminatorInst(InstType::ReturnInst, std::move(operands),
                        std::move(metadata)) {}
 };
@@ -413,7 +421,7 @@ public:
 class PhiInst: public Instruction {
 public:
     explicit PhiInst(Register* dest, utl::small_vector<Value*> operands,
-                     size_t byteWidth, Metadata metadata):
+                     size_t byteWidth, std::unique_ptr<Metadata> metadata):
         Instruction(InstType::PhiInst, dest, 1, std::move(operands), byteWidth,
                     std::move(metadata)) {}
 };
@@ -423,7 +431,7 @@ class SelectInst: public Instruction {
 public:
     explicit SelectInst(Register* dest, Value* thenVal, Value* elseVal,
                         CompareOperation condition, size_t byteWidth,
-                        Metadata metadata):
+                        std::unique_ptr<Metadata> metadata):
         Instruction(InstType::SelectInst, dest, 1, { thenVal, elseVal },
                     byteWidth, std::move(metadata)),
         cond(condition) {}

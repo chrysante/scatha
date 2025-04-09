@@ -35,6 +35,7 @@ Instruction* BasicBlockBuilder::add(Instruction* inst) {
 Instruction* BasicBlockBuilder::insert(Instruction const* before,
                                        Instruction* inst) {
     currentBB->insert(before, inst);
+    if (auto md = getMetadata()) inst->setMetadata(std::move(md));
     return inst;
 }
 

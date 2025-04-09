@@ -435,17 +435,13 @@ void Assembler::setJumpDests() {
 }
 
 std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {
-    auto globalMd = stream.metadata();
-    auto* list = std::any_cast<dbi::SourceFileList>(&globalMd);
-
+    auto* sourceFileList = stream.metadataAs<dbi::SourceFileList>();
     utl::small_vector<SourceLocation> sourceLocations;
     for (auto& inst: stream | join) {
-        auto instMd = inst.metadata();
-        auto* SL = std::any_cast<SourceLocation>(&instMd);
-        if (SL) {
-            sourceLocations.push_back(*SL);
-        }
+        auto* SL = inst.metadataAs<dbi::SourceLocationMD>();
+        if (SL) sourceLocations.push_back(*SL);
     }
-    return dbi::serialize(list ? *list : dbi::SourceFileList{},
+    dbi::SourceFileList fallback({});
+    return dbi::serialize(sourceFileList ? *sourceFileList : fallback,
                           sourceLocations);
 }

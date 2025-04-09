@@ -28,13 +28,15 @@ bool CallInst::isNative() const {
 }
 
 CallInst::CallInst(InstType instType, Register* dest, size_t numDests,
-                   utl::small_vector<Value*> operands, Metadata metadata):
+                   utl::small_vector<Value*> operands,
+                   std::unique_ptr<Metadata> metadata):
     Instruction(instType, dest, numDests, std::move(operands), 0,
                 std::move(metadata)),
     numRetRegs(utl::narrow_cast<uint32_t>(numDests)) {}
 
 CallValueInst::CallValueInst(Register* dest, size_t numDests, Value* callee,
-                             utl::small_vector<Value*> args, Metadata metadata):
+                             utl::small_vector<Value*> args,
+                             std::unique_ptr<Metadata> metadata):
     CallInst(InstType::CallValueInst, dest, numDests,
              (args.insert(args.begin(), callee), std::move(args)),
              std::move(metadata)) {}
@@ -42,7 +44,7 @@ CallValueInst::CallValueInst(Register* dest, size_t numDests, Value* callee,
 CallMemoryInst::CallMemoryInst(Register* dest, size_t numDests,
                                MemoryAddress callee,
                                utl::small_vector<Value*> args,
-                               Metadata metadata):
+                               std::unique_ptr<Metadata> metadata):
     CallInst(InstType::CallMemoryInst, dest, numDests,
              (args.insert(args.begin(),
                           { callee.baseAddress(), callee.dynOffset() }),
@@ -52,7 +54,7 @@ CallMemoryInst::CallMemoryInst(Register* dest, size_t numDests,
 
 ConversionInst::ConversionInst(Register* dest, Value* operand, Conversion conv,
                                size_t fromBits, size_t toBits,
-                               Metadata metadata):
+                               std::unique_ptr<Metadata> metadata):
     UnaryInstruction(InstType::ConversionInst, dest, operand,
                      /* byteWidth = */ utl::ceil_divide(fromBits, 8),
                      std::move(metadata)),
@@ -60,7 +62,8 @@ ConversionInst::ConversionInst(Register* dest, Value* operand, Conversion conv,
     _fromBits(utl::narrow_cast<uint16_t>(fromBits)),
     _toBits(utl::narrow_cast<uint16_t>(toBits)) {}
 
-JumpBase::JumpBase(InstType instType, Value* target, Metadata metadata):
+JumpBase::JumpBase(InstType instType, Value* target,
+                   std::unique_ptr<Metadata> metadata):
     TerminatorInst(instType, { target }, std::move(metadata)) {}
 
 Value const* JumpBase::target() const {

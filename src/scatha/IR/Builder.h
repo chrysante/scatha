@@ -23,6 +23,8 @@ public:
     explicit BasicBlockBuilder(Context& ctx, BasicBlock* BB,
                                Instruction const* addPoint);
 
+    virtual ~BasicBlockBuilder() = default;
+
     /// Adds the instruction \p inst before the currently set 'add point' of the
     /// basic block. By default this is the end iterator.
     /// \Returns the argument
@@ -102,6 +104,11 @@ public:
 
 private:
     friend class FunctionBuilder;
+
+    /// Can be used by derived classes to automatically add metadata to
+    /// instructions
+    virtual std::unique_ptr<Metadata> getMetadata() { return nullptr; }
+
     Context& ctx;
     BasicBlock* currentBB;
     BasicBlock::ConstIterator instAddPoint;

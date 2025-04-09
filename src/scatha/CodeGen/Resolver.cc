@@ -23,7 +23,7 @@ mir::Value* Resolver::resolveImpl(ir::Value const& value) const {
 }
 
 mir::SSARegister* Resolver::resolveToRegister(ir::Value const& value,
-                                              Metadata metadata) const {
+                                              Metadata const* metadata) const {
     auto* result = resolve(value);
     if (auto* reg = dyncast<mir::SSARegister*>(result)) {
         return reg;
@@ -178,11 +178,9 @@ mir::Register* Resolver::genCopyImpl(
 }
 
 std::pair<mir::Value*, size_t> Resolver::computeAddressImpl(
-    ir::Value const& addr, size_t offset, Metadata metadata) const {
+    ir::Value const& addr, size_t offset, Metadata const* metadata) const {
     auto [base, baseOffset] = valueMap().getAddress(&addr);
-    if (base) {
-        return { base, baseOffset + offset };
-    }
+    if (base) return { base, baseOffset + offset };
     /// This is kind of ugly because in the worst case we generate many
     /// duplicate copy instruction, but we leave it like this for now. We
     /// generate a copy instruction for every call to this function if the base
@@ -197,7 +195,7 @@ static constexpr size_t ConstantAddressOffsetLimit = 256;
 
 mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
                                             size_t offset,
-                                            Metadata metadata) const {
+                                            Metadata const* metadata) const {
     auto [base, totalOffset] = computeAddressImpl(addr, offset, metadata);
     if (totalOffset < ConstantAddressOffsetLimit) {
         return mir::MemoryAddress(base, totalOffset);
@@ -205,15 +203,15 @@ mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
     size_t smallOffset = totalOffset % ConstantAddressOffsetLimit;
     size_t bigOffset = totalOffset - smallOffset;
     auto* dynOffset = nextRegister();
-    emit(
-        new mir::CopyInst(dynOffset, ctx->constant(bigOffset, 8), 8, metadata));
+    emit(new mir::CopyInst(dynOffset, ctx->constant(bigOffset, 8), 8,
+                           clone(metadata)));
     return mir::MemoryAddress(base, dynOffset,
                               /* offsetFactor = */ 1, smallOffset);
 }
 
 mir::MemoryAddress Resolver::computeAddress(ir::Value const& addr,
-                                            Metadata metadata) const {
-    return computeAddress(addr, 0, std::move(metadata));
+                                            Metadata const* metadata) const {
+    return computeAddress(addr, 0, metadata);
 }
 
 mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
@@ -256,7 +254,7 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
         size_t bigOffset = constOffset - smallOffset;
         dynFactor = nextRegister();
         emit(new mir::CopyInst(dynFactor, ctx->constant(bigOffset, 8), 8,
-                               gep.metadata()));
+                               gep.cloneMetadata()));
         return mir::MemoryAddress(basereg, dynFactor, 1, smallOffset);
     }
     auto* dynFactorSum = nextRegister();
@@ -266,6 +264,6 @@ mir::MemoryAddress Resolver::computeGEP(ir::GetElementPointer const& gep,
     emit(new mir::ValueArithmeticInst(dynFactorSum, dynFactor,
                                       ctx->constant(bigOffset, 8), 8,
                                       mir::ArithmeticOperation::Add,
-                                      gep.metadata()));
+                                      gep.cloneMetadata()));
     return mir::MemoryAddress(basereg, dynFactorSum, constFactor, smallOffset);
 }

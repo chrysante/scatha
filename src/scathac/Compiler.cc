@@ -70,7 +70,6 @@ int scatha::compilerMain(CompilerOptions options) {
     invocation.setFrontend(deduceFrontend(options.files));
     invocation.setOptLevel(options.optLevel);
     invocation.setOptPipeline(options.pipeline);
-    invocation.generateDebugInfo(options.debug);
     timer.reset();
     auto target = invocation.run();
     if (!target) {
