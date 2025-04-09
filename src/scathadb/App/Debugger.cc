@@ -186,7 +186,7 @@ Debugger::Debugger(Model* _model):
         root |= panel.overlay();
     }
     /// Instruction view is focused by default
-    sourceView->TakeFocus();
+    instView->TakeFocus();
 }
 
 void Debugger::run() { _screen.Loop(root); }
@@ -223,4 +223,9 @@ void Debugger::toggleBottombar() {
         _bottombarSizeBackup = _bottombarSize;
         _bottombarSize = min;
     }
+}
+
+void Debugger::cycleMainViews() {
+    _mainViewIdx = (_mainViewIdx + 1) % int(mainViews.size());
+    mainViews[size_t(_mainViewIdx)]->TakeFocus();
 }

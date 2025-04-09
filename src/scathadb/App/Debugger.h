@@ -76,10 +76,7 @@ public:
     int mainViewIndex() const { return _mainViewIdx; }
 
     ///
-    void cycleMainViews() {
-        _mainViewIdx = (_mainViewIdx + 1) % int(mainViews.size());
-        mainViews[size_t(_mainViewIdx)]->TakeFocus();
-    }
+    void cycleMainViews();
 
     ///
     ftxui::ScreenInteractive& screen() { return _screen; }

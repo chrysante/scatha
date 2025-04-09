@@ -8,8 +8,7 @@ Element sdb::breakpointIndicator(LineInfo line) {
         return text("   ");
     }
     return text("-> ") |
-           color(line.state != BreakState::None ? Color::White :
-                                                  Color::BlueLight) |
+           color(line.state != BreakState::None ? Color::White : Color::Blue) |
            bold;
 }
 
