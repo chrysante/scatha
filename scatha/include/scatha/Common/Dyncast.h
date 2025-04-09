@@ -10,11 +10,7 @@
 
 namespace scatha {
 
-using csp::cast;
-using csp::dyncast;
-using csp::isa;
-using csp::unsafe_cast;
-using csp::visit;
+using namespace csp::ops;
 
 } // namespace scatha
 
