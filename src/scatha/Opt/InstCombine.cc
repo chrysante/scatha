@@ -941,7 +941,7 @@ Value* InstCombineCtx::visitImpl(Select* inst) {
     }
     /// If we select between two bools, we want to replace the select by either
     /// the condition or the inverse of the condition
-    if (auto* boolType = getBoolType(inst->type())) {
+    if (getBoolType(inst->type())) {
         SC_ASSERT(getBoolType(inst->thenValue()->type()), "");
         SC_ASSERT(getBoolType(inst->elseValue()->type()), "");
         auto* thenVal = dyncast<IntegralConstant*>(inst->thenValue());
@@ -1449,8 +1449,7 @@ static utl::hashmap<std::pair<Value*, Value*>, InsertValue*> gatherIVMap(
 }
 
 Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
-    if (auto* undefInsValue = dyncast<UndefValue*>(insertInst->insertedValue()))
-    {
+    if (isa<UndefValue>(insertInst->insertedValue())) {
         return insertInst->baseValue();
     }
     if (ranges::all_of(insertInst->users(), [](Instruction* user) {

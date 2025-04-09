@@ -439,7 +439,7 @@ static void setPhiType(Context& ctx, Phi* phi, Type const* type) {
     auto* repl = ctx.undef(type);
     phi->setType(type);
     for (auto [index, op]: phi->operands() | ranges::views::enumerate) {
-        if (auto* undef = dyncast<UndefValue*>(op)) {
+        if (isa<UndefValue>(op)) {
             phi->setOperand(index, repl);
         }
     }

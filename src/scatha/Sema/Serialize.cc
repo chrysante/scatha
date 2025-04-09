@@ -583,7 +583,7 @@ struct Serializer {
         if (auto* vtable = type.vtable()) {
             j[Field::VTable] = serializeVTable(*vtable);
         }
-        if (auto* structType = dyncast<StructType const*>(&type)) {
+        if (isa<StructType>(type)) {
             j[Field::Size] = type.size();
             j[Field::Align] = type.align();
             j[Field::Lifetime] = serializeLifetime(type.lifetimeMetadata());

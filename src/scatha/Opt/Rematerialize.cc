@@ -54,8 +54,7 @@ bool RematCtx::visitImpl(GetElementPointer& gep) {
         if (user->parent() == gep.parent()) {
             continue;
         }
-        if (auto* phi = dyncast<Phi*>(user)) {
-
+        if (isa<Phi>(user)) {
             continue;
         }
         modified = true;

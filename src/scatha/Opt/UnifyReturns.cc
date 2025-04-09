@@ -21,7 +21,7 @@ SC_REGISTER_FUNCTION_PASS(opt::splitReturns, "splitreturns",
 static utl::hashset<BasicBlock*> gatherReturnBlocks(Function& function) {
     utl::hashset<BasicBlock*> returnBlocks;
     for (auto& bb: function) {
-        if (auto* ret = dyncast<Return*>(bb.terminator())) {
+        if (isa<Return>(bb.terminator())) {
             returnBlocks.insert(&bb);
         }
     }

@@ -115,7 +115,7 @@ static void printImpl(AccessTree const* node, std::ostream& str,
         str << *index << " : ";
     }
     if (auto* value = node->value()) {
-        str << toString(node->value());
+        str << toString(value);
     }
     else {
         str << "<No value>";
