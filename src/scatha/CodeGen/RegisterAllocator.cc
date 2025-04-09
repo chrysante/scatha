@@ -11,15 +11,15 @@ using namespace cg;
 using namespace mir;
 using namespace ranges::views;
 
-void cg::allocateRegisters(Context&, Function& F) {
-    /// For instructions that are three address instructions in the MIR
-    /// but two address instructions in the VM, we issue copies of the
-    /// first operand into the destination register and then replace the
-    /// first operand by the dest register.
-    for (auto& inst:
-         F.instructions() |
-             Filter<UnaryArithmeticInst, ArithmeticInst, ConversionInst>)
-    {
+/// For instructions that are three address instructions in the MIR but two
+/// address instructions in the VM, we issue copies of the first operand into
+/// the destination register and then replace the first operand by the dest
+/// register.
+static void convertToTwoAddressMode(Function& F) {
+    auto instructions =
+        F.instructions() |
+        Filter<UnaryArithmeticInst, ArithmeticInst, ConversionInst>;
+    for (auto& inst: instructions) {
         auto* dest = inst.dest();
         auto* operand = inst.operandAt(0);
         if (dest == operand) {
@@ -41,29 +41,27 @@ void cg::allocateRegisters(Context&, Function& F) {
             inst.parent()->insert(&inst, copy);
             inst.setOperandAt(1, tmp);
         }
-        SC_ASSERT(!ranges::contains(inst.operands() | drop(1), dest),
-                  "The other operands must not contain dest because we clobber "
-                  "dest with a copy before execution the instruction");
+        SC_ASSERT(
+            !ranges::contains(inst.operands() | drop(1), dest),
+            "The other operands must not contain dest because we clobber dest with a copy before execution the instruction");
         auto* copy =
             new CopyInst(dest, operand, inst.bytewidth(), inst.metadata());
         inst.parent()->insert(&inst, copy);
         inst.setOperandAt(0, dest);
     }
-    /// Now we color the interference graph and replace registers
-    /// This is were the actual work happens, everything is this file is mostly
-    /// auxiliary
-    auto graph = InterferenceGraph::compute(F);
-    graph.colorize();
-    size_t const numCols = graph.numColors();
-    SC_ASSERT(F.hardwareRegisters().empty(),
-              "Must be empty because we are allocating `numCols` new registers "
-              "that we expect to be indexed with [0, numCols)");
-    /// Allocate hardware registers
-    for (size_t i = 0; i < numCols; ++i) {
+}
+
+static void allocateHardwareRegisters(Function& F, size_t numRegs) {
+    SC_ASSERT(
+        F.hardwareRegisters().empty(),
+        "Must be empty because we are allocating `numRegs` new registers that we expect to be indexed with [0, numRegs)");
+    for (size_t i = 0; i < numRegs; ++i)
         F.hardwareRegisters().add(new HardwareRegister());
-    }
-    /// Replace all virtual registers with the newly allocated hardware
-    /// registers
+}
+
+/// Replace all virtual registers with the newly allocated hardware registers
+static void replaceVirtRegsWithHardwareRegs(Function& F,
+                                            InterferenceGraph const& graph) {
     utl::hashmap<VirtualRegister*, HardwareRegister*> registerMap;
     for (auto* node: graph) {
         auto* vreg = dyncast<VirtualRegister*>(node->reg());
@@ -89,7 +87,9 @@ void cg::allocateRegisters(Context&, Function& F) {
             BB.removeLiveOut(vreg);
         }
     }
-    /// Then we try to evict some copy instructions.
+}
+
+static void evictCopyInstructions(Function& F) {
     for (auto& BB: F) {
         for (auto itr = BB.begin(); itr != BB.end();) {
             auto* copy = dyncast<CopyInst*>(itr.to_address());
@@ -119,8 +119,10 @@ void cg::allocateRegisters(Context&, Function& F) {
             ++itr;
         }
     }
-    /// We erase all instructions that are not critical and don't define live
-    /// registers
+}
+
+/// Erase all instructions that are not critical and don't define live registers
+static void evictUnusedInstructions(Function& F) {
     for (auto& BB: F) {
         /// We make a copy because we modify the live set as we traverse the
         /// block, so we know at each instruction which registers are live.
@@ -151,21 +153,42 @@ void cg::allocateRegisters(Context&, Function& F) {
             BB.erase(inst);
         }
     }
-    /// Now as a last step we allocate callee registers to the upper hardware
-    /// registers.
-    SC_ASSERT(numCols == F.hardwareRegisters().size(),
-              "Make sure we haven't added any more hardware registers");
-    /// We first replace all callee registers with new hardware registers
+}
+
+/// As a last step we allocate callee registers to the upper hardware registers.
+/// We first replace all callee registers with new hardware registers
+static void allocateCalleeRegisters(Function& F) {
     for (auto& calleeReg: F.calleeRegisters()) {
         auto* hReg = new HardwareRegister();
         F.hardwareRegisters().add(hReg);
         calleeReg.replaceWith(hReg);
     }
+    size_t numRegs = F.hardwareRegisters().size();
     /// Then we set the register offset argument of all call instructions
     for (auto& call: F | ranges::views::join | Filter<CallInst>) {
-        size_t offset =
-            call.isNative() ? numCols + numRegistersForCallMetadata() : numCols;
+        size_t offset = [&] {
+            if (call.isNative()) return numRegs + numRegistersForCallMetadata();
+            return numRegs;
+        }();
         call.setRegisterOffset(offset);
     }
+}
+
+void cg::allocateRegisters(Context&, Function& F) {
+    convertToTwoAddressMode(F);
+    /// Now we color the interference graph and replace registers
+    /// This is were the actual work happens, everything is this file is mostly
+    /// auxiliary
+    auto graph = InterferenceGraph::compute(F);
+    graph.colorize();
+    size_t numCols = graph.numColors();
+    allocateHardwareRegisters(F, numCols);
+    replaceVirtRegsWithHardwareRegs(F, graph);
+    /// Then we try to evict some copy instructions.
+    evictCopyInstructions(F);
+    evictUnusedInstructions(F);
+    SC_ASSERT(numCols == F.hardwareRegisters().size(),
+              "Make sure we haven't added any more hardware registers");
+    allocateCalleeRegisters(F);
     F.setRegisterPhase(RegisterPhase::Hardware);
 }
