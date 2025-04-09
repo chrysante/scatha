@@ -173,6 +173,7 @@ std::optional<Target> CompilerInvocation::run() {
         }
         irgen::generateIR(irContext, irModule, *ast, semaSym, analysisResult,
                           std::move(irgenConfig));
+        opt::globalDCE(irContext, irModule, {});
         tryInvoke(callbacks.irgenCallback, irContext, irModule);
         semaSym.prepareExport();
         if (!continueCompilation) return std::nullopt;
