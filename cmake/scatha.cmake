@@ -1,4 +1,4 @@
-include(SourceFiles.cmake)
+include(cmake/scatha-files.cmake)
 
 # scatha
 add_library(scatha SHARED)
@@ -14,8 +14,8 @@ target_include_directories(scatha
       include
     PRIVATE
       include/scatha
-      lib
-      ${PROJECT_SOURCE_DIR}/svm/include
+      src/scatha
+      include/svm
 )
 
 target_link_libraries(scatha
@@ -37,7 +37,8 @@ target_sources(scatha
     ${scatha_headers}
     ${scatha_sources}
 )
-source_group(TREE ${PROJECT_SOURCE_DIR}/scatha FILES ${scatha_headers} ${scatha_sources})
+source_group(TREE ${PROJECT_SOURCE_DIR}/include/scatha FILES ${scatha_headers})
+source_group(TREE ${PROJECT_SOURCE_DIR}/src/scatha FILES ${scatha_sources})
 
 if(NOT SCATHA_BUILD_TESTS)
   return()
@@ -51,8 +52,8 @@ SCSetCompilerOptions(scatha-test)
 target_include_directories(scatha-test
     PRIVATE
       include/scatha
-      lib
-      test
+      src/scatha
+      test/scatha
 )
 
 target_link_libraries(scatha-test
@@ -72,10 +73,10 @@ target_sources(scatha-test
   PRIVATE
     ${scatha_test_sources}
 )
-source_group(TREE ${PROJECT_SOURCE_DIR}/scatha/test FILES ${scatha_test_sources})
+source_group(TREE ${PROJECT_SOURCE_DIR}/test/scatha FILES ${scatha_test_sources})
 
 # Library used to test foreign function import
-add_library(ffi-testlib SHARED test/ffi-testlib/lib.cc)
+add_library(ffi-testlib SHARED ${PROJECT_SOURCE_DIR}/test/scatha/ffi-testlib/lib.cc)
 # We create a copy of the library in a nested folder to test importing nested
 # path names
 add_custom_command(TARGET ffi-testlib POST_BUILD
@@ -106,4 +107,4 @@ target_sources(scatha-benchmark
   PRIVATE
     ${scatha_benchmark_sources}
 )
-source_group(TREE ${PROJECT_SOURCE_DIR}/scatha/benchmark FILES ${scatha_benchmark_sources})
+source_group(TREE ${PROJECT_SOURCE_DIR}/benchmark/scatha FILES ${scatha_benchmark_sources})

@@ -22,8 +22,7 @@ target_include_directories(libsvm
       lib
 )
 
-target_sources(libsvm
-  PRIVATE
+set(libsvm_headers
     include/svm/Builtin.def.h
     include/svm/Builtin.h
     include/svm/Common.h
@@ -37,31 +36,34 @@ target_sources(libsvm
     include/svm/VMData.h
     include/svm/VirtualMachine.h
     include/svm/VirtualMemory.h
-    include/svm/VirtualPointer.h
-)
+    include/svm/VirtualPointer.h)
 
-source_group(include/svm REGULAR_EXPRESSION "include/svm/*")
+set(libsvm_sources
+    src/svm/ArithmeticOps.h
+    src/svm/Builtin.cc
+    src/svm/BuiltinInternal.h
+    src/svm/Errors.cc
+    src/svm/Execution.cc
+    src/svm/ExecutionInstDef.h
+    src/svm/ExternalFunction.h
+    src/svm/Memory.h
+    src/svm/OpCode.cc
+    src/svm/Program.cc
+    src/svm/Util.cc
+    src/svm/VMImpl.h
+    src/svm/VirtualMachine.cc
+    src/svm/VirtualMemory.cc
+    src/svm/VirtualPointer.cc
+)
 
 target_sources(libsvm
   PRIVATE
-    lib/ArithmeticOps.h
-    lib/Builtin.cc
-    lib/BuiltinInternal.h
-    lib/Errors.cc
-    lib/Execution.cc
-    lib/ExecutionInstDef.h
-    lib/ExternalFunction.h
-    lib/Memory.h
-    lib/OpCode.cc
-    lib/Program.cc
-    lib/Util.cc
-    lib/VMImpl.h
-    lib/VirtualMachine.cc
-    lib/VirtualMemory.cc
-    lib/VirtualPointer.cc
+    ${libsvm_headers}
+    ${libsvm_sources}
 )
 
-source_group(lib REGULAR_EXPRESSION "lib/*")
+source_group(TREE ${PROJECT_SOURCE_DIR}/include/svm FILES ${libsvm_headers})
+source_group(TREE ${PROJECT_SOURCE_DIR}/src/svm FILES ${libsvm_sources})
 
 # svm
 
@@ -79,17 +81,21 @@ target_link_libraries(svm
 
 target_include_directories(svm
   PRIVATE
-    src
+    src/svm
+)
+
+set(svm_sources
+    src/svm/Main.cc
+    src/svm/ParseCLI.h
+    src/svm/ParseCLI.cc
 )
 
 target_sources(svm
   PRIVATE
-    src/Main.cc
-    src/ParseCLI.h
-    src/ParseCLI.cc
+    ${svm_sources}
 )
 
-source_group(src REGULAR_EXPRESSION "src/*")
+source_group(TREE ${PROJECT_SOURCE_DIR}/src/svm FILES ${svm_sources})
 
 endif() # SCATHA_BUILD_EXECUTABLES
 
@@ -111,11 +117,15 @@ target_include_directories(svm-test
     lib
 )
 
-target_sources(svm-test
-  PRIVATE
-    test/VirtualMemory.t.cc
+set(svm_test_sources
+  test/svm/VirtualMemory.t.cc
 )
 
-source_group(svm-test REGULAR_EXPRESSION "test/*")
+target_sources(svm-test
+  PRIVATE
+    ${svm_test_sources}
+)
+
+source_group(TREE ${PROJECT_SOURCE_DIR}/test/svm FILES ${svm_test_sources})
 
 endif() # SCATHA_BUILD_TESTS

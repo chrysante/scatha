@@ -41,13 +41,12 @@ if(SCATHA_BUILD_TESTS)
 endif()
 
 # Subprojects
-add_subdirectory(scatha)
-add_subdirectory(scathac)
-add_subdirectory(svm)
-add_subdirectory(scathadb)
+include(cmake/scatha.cmake)
+include(cmake/scathac.cmake)
+include(cmake/svm.cmake)
+include(cmake/scathadb.cmake)
 
 if(SCATHA_BUILD_EXAMPLES)
-  add_subdirectory(playground)
   install(
     TARGETS
       scatha
