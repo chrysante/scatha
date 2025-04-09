@@ -2,6 +2,27 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJ_DIR="$SCRIPT_DIR/.."
 
-cd $PROJ_DIR/stdlib
+COMPILER="scathac"
+DEST="$PROJ_DIR/stdlib/build"
+SOURCE="$PROJ_DIR/stdlib/src"
 
-scathac -o -T staticlib -O build/std src/*.sc
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -C|--compiler)
+      COMPILER="$2"
+      shift 2
+      ;;
+    -D|--dest)
+      DEST="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+$COMPILER -o -T staticlib -O "$DEST/std" \
+    $SOURCE/Math.sc \
+    $SOURCE/Print.sc \
+    $SOURCE/String.sc
