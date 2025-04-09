@@ -24,7 +24,7 @@ static void commonOptions(CLI::App* app, BaseOptions& opt) {
 }
 
 int main(int argc, char* argv[]) {
-    CLI::App compiler("sctool");
+    CLI::App compiler("Scatha Compiler", "scathac");
     compiler.require_subcommand(0, 1);
 
     // clang-format off
