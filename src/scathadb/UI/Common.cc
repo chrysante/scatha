@@ -267,6 +267,7 @@ void ScrollBase::scrollToLine(long line) {
 }
 
 void ScrollBase::setFocusLine(long line) {
+    if (ChildCount() == 0) return;
     _focusLine = std::clamp(line, 0l, utl::narrow_cast<long>(ChildCount()) - 1);
     scrollToLine(focusLine());
 }
