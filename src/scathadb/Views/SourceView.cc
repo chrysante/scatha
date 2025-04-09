@@ -48,10 +48,9 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
     }
 
     Element Render() override {
-        return placeholder("Unimplemented");
-        if (!fileIndex) {
-            return placeholder("No File Open");
-        }
+        if (model->disassembly().empty())
+            return placeholder("No Program Loaded");
+        if (!fileIndex) return placeholder("No File Open");
         return ScrollBase::Render();
     }
 
