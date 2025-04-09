@@ -51,6 +51,9 @@ public:
     /// Unload the currently active program
     void unloadProgram();
 
+    ///
+    bool isProgramLoaded() const;
+
     /// Set the arguments that will be loaded into VM stack memory before
     /// execution starts
     void setArguments(std::vector<std::string> arguments);

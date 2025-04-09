@@ -36,17 +36,6 @@ ComponentDecorator Command::EventCatcher(Debugger* db) {
     });
 }
 
-Command::Command(std::string hotkey,
-                 std::function<std::string(Debugger const&)> buttonLabel,
-                 std::function<bool(Debugger const&)> isActive,
-                 std::function<void(Debugger&)> action,
-                 std::string description):
-    hotkey(std::move(hotkey)),
-    buttonLabel(std::move(buttonLabel)),
-    isActive(std::move(isActive)),
-    action(std::move(action)),
-    description(std::move(description)) {}
-
 std::vector<Command> Command::_all;
 
 Component sdb::ToolbarButton(Debugger* debugger, Command command) {

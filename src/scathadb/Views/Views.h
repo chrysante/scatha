@@ -41,6 +41,9 @@ ModalView SettingsView();
 /// Confirm quitting the app
 ModalView QuitConfirm(std::function<void()> doQuit);
 
+/// Confirm unloading the current program
+ModalView UnloadConfirm(std::function<void()> doUnload);
+
 } // namespace sdb
 
 #endif // SDB_VIEWS_VIEWS_H_

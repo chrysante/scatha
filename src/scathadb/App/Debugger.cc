@@ -12,72 +12,84 @@ using namespace ftxui;
 
 // clang-format off
 auto const QuitCmd = Command::Add({
-    "q",
-    [](Debugger const&) { return "Quit"; },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.openModal("quit-confirm"); },
-    "Quit the debugger"
+    .hotkey = "q",
+    .buttonLabel = [](Debugger const&) { return "Quit"; },
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.openModal("quit-confirm"); },
+    .description = "Quit the debugger"
+});
+
+auto const UnloadProgramCmd = Command::Add({
+    .hotkey = "u",
+    .buttonLabel = [](Debugger const&) { return "Unload"; },
+    .isActive = [](Debugger const& db) {
+        return db.model()->isProgramLoaded();
+    },
+    .action = [](Debugger& db) { db.openModal("unload-confirm"); },
+    .description = "Unload the current program"
 });
 
 auto const RunCmd = Command::Add({
-    "r",
-    [](Debugger const&) { return "Run"; },
-    [](Debugger const& db) { return !db.model()->disassembly().empty(); },
-    [](Debugger& db) { db.model()->start(); },
-    "Run the currently loaded program"
+    .hotkey = "r",
+    .buttonLabel = [](Debugger const&) { return "Run"; },
+    .isActive = [](Debugger const& db) {
+        return !db.model()->disassembly().empty();
+    },
+    .action = [](Debugger& db) { db.model()->start(); },
+    .description = "Run the currently loaded program"
 });
 
 auto const StopCmd = Command::Add({
-    "x",
-    [](Debugger const&) { return "Stop"; },
-    [](Debugger const& db) { return !db.model()->isStopped(); },
-    [](Debugger& db) { db.model()->stop(); },
-    "Stop the currently running program"
+    .hotkey = "x",
+    .buttonLabel = [](Debugger const&) { return "Stop"; },
+    .isActive = [](Debugger const& db) { return !db.model()->isStopped(); },
+    .action = [](Debugger& db) { db.model()->stop(); },
+    .description = "Stop the currently running program"
 });
 
 auto const OpenCmd = Command::Add({
-    "o",
-    [](Debugger const&) { return "Open"; },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.openModal("file-open"); },
-    "Open an executable file for debugging"
+    .hotkey = "o",
+    .buttonLabel = [](Debugger const&) { return "Open"; },
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.openModal("file-open"); },
+    .description = "Open an executable file for debugging"
 });
 
 auto const SettingsCmd = Command::Add({
-    ",",
-    [](Debugger const&) { return "Settings"; },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.openModal("settings"); },
-    "Show the settings window"
+    .hotkey = ",",
+    .buttonLabel = [](Debugger const&) { return "Settings"; },
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.openModal("settings"); },
+    .description = "Show the settings window"
 });
 
 auto const HelpCmd = Command::Add({
-    "h",
-    [](Debugger const&) { return "Help"; },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.openModal("help"); },
-    "Show this help panel"
+    .hotkey = "h",
+    .buttonLabel = [](Debugger const&) { return "Help"; },
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.openModal("help"); },
+    .description = "Show this help panel"
 });
 
 auto const ToggleLeftSidebarCmd = Command::Add({
-    "L",
-    [](Debugger const&) { return "⌷⎕"; },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.toggleSidebar(0); },
-    "Show or hide the left sidebar"
+    .hotkey = "L",
+    .buttonLabel = [](Debugger const&) { return "⌷⎕"; },
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.toggleSidebar(0); },
+    .description = "Show or hide the left sidebar"
 });
 
 auto const ToggleRightSidebarCmd = Command::Add({
-    "R",
-    [](Debugger const&) { return "⎕⌷"; },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.toggleSidebar(1); },
-    "Show or hide the right sidebar"
+    .hotkey = "R",
+    .buttonLabel = [](Debugger const&) { return "⎕⌷"; },
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.toggleSidebar(1); },
+    .description = "Show or hide the right sidebar"
 });
 
 auto const CycleMainViewCmd = Command::Add({
-    "v",
-    [](Debugger const& db) {
+    .hotkey = "v",
+    .buttonLabel = [](Debugger const& db) {
         switch (db.mainViewIndex()) {
         case 0:
             return "Asm";
@@ -88,45 +100,47 @@ auto const CycleMainViewCmd = Command::Add({
             return "";
         }
     },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.cycleMainViews(); },
-    "Cycle the main views"
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.cycleMainViews(); },
+    .description = "Cycle the main views"
 });
 
 auto const ToggleConsoleCmd = Command::Add({
-    "C",
-    [](Debugger const&) { return "▂▂"; },
-    [](Debugger const&) { return true; },
-    [](Debugger& db) { db.toggleBottombar(); },
-    "Show or hide the console"
+    .hotkey = "C",
+    .buttonLabel = [](Debugger const&) { return "▂▂"; },
+    .isActive = [](Debugger const&) { return true; },
+    .action = [](Debugger& db) { db.toggleBottombar(); },
+    .description = "Show or hide the console"
 });
 
 auto const ToggleExecCmd = Command::Add({
-    "p",
-    [](Debugger const& db) { return db.model()->isPaused() ? "|>" : "||"; },
-    [](Debugger const& db) { return !db.model()->isStopped(); },
-    [](Debugger& db) { db.model()->toggle(); },
-    "Toggle execution"
+    .hotkey = "p",
+    .buttonLabel = [](Debugger const& db) {
+        return db.model()->isPaused() ? "|>" : "||";
+    },
+    .isActive = [](Debugger const& db) { return !db.model()->isStopped(); },
+    .action = [](Debugger& db) { db.model()->toggle(); },
+    .description = "Toggle execution"
 });
 
 auto const StepInstCmd = Command::Add({
-    "i",
-    [](Debugger const&) { return ">."; },
-    [](Debugger const& db) {
+    .hotkey = "i",
+    .buttonLabel = [](Debugger const&) { return ">."; },
+    .isActive = [](Debugger const& db) {
         return db.model()->isPaused();
     },
-    [](Debugger& db) { db.model()->stepInstruction(); },
-    "Execute the current instruction)"
+    .action = [](Debugger& db) { db.model()->stepInstruction(); },
+    .description = "Execute the current instruction)"
 });
 
 auto const StepSourceLineCmd = Command::Add({
-    "l",
-    [](Debugger const&) { return ">_"; },
-    [](Debugger const& db) {
+    .hotkey = "l",
+    .buttonLabel = [](Debugger const&) { return ">_"; },
+    .isActive = [](Debugger const& db) {
         return !db.model()->sourceDebug().empty() && db.model()->isPaused();
     },
-    [](Debugger& db) { db.model()->stepSourceLine(); },
-    "Execute the current line"
+    .action = [](Debugger& db) { db.model()->stepSourceLine(); },
+    .description = "Execute the current line"
 });
 // clang-format on
 
@@ -139,6 +153,8 @@ Debugger::Debugger(Model* _model):
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
     addModal("quit-confirm", QuitConfirm([this] { quit(); }));
+    addModal("unload-confirm",
+             UnloadConfirm([this] { model()->unloadProgram(); }));
     auto sidebar =
         TabView({ { " Files ", SourceFileBrowser(model(), uiHandle) },
                   { " VM State ", VMStateView(model()) } });
@@ -158,6 +174,8 @@ Debugger::Debugger(Model* _model):
         { dbgCtrlBar, sdb::Separator(), ConsoleView(model()) });
     mainView = SplitBottom(bottom, mainView, &_bottombarSize);
     mainView = SplitLeft(sidebar, mainView, &_sidebarSize[0]);
+    auto currentFileDisplay = Renderer(
+        [this] { return text(model()->currentFilepath().string()) | flex; });
     auto toolbar = Toolbar({
         ToolbarButton(this, ToggleLeftSidebarCmd),
         ToolbarButton(this, QuitCmd),
@@ -165,10 +183,9 @@ Debugger::Debugger(Model* _model):
         ToolbarButton(this, StopCmd),
         ToolbarButton(this, CycleMainViewCmd),
         sdb::Spacer(),
-        Renderer([this] {
-        return text(model()->currentFilepath().string()) | flex;
-    }),
+        currentFileDisplay,
         sdb::Spacer(),
+        ToolbarButton(this, UnloadProgramCmd),
         ToolbarButton(this, OpenCmd),
         ToolbarButton(this, SettingsCmd),
         ToolbarButton(this, HelpCmd),

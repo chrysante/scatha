@@ -142,7 +142,12 @@ void Model::unloadProgram() {
     stop();
     clearBreakpoints();
     _currentFilepath.clear();
+    vm.reset();
+    disasm = {};
+    sourceDbg = {};
 }
+
+bool Model::isProgramLoaded() const { return !_currentFilepath.empty(); }
 
 void Model::setArguments(std::vector<std::string> arguments) {
     runArguments = std::move(arguments);

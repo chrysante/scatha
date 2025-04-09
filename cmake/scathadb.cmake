@@ -58,7 +58,7 @@ set(scathadb_sources
     src/scathadb/Views/HelpPanel.h
     src/scathadb/Views/InstructionView.cc
     src/scathadb/Views/OpenFilePanel.cc
-    src/scathadb/Views/QuitConfirm.cc
+    src/scathadb/Views/Confirm.cc
     src/scathadb/Views/Settings.cc
     src/scathadb/Views/SourceFileBrowser.cc
     src/scathadb/Views/SourceView.cc

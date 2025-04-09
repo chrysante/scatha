@@ -23,11 +23,6 @@ struct Command {
     ///
     static ftxui::ComponentDecorator EventCatcher(Debugger* db);
 
-    Command(std::string hotkey,
-            std::function<std::string(Debugger const&)> buttonLabel,
-            std::function<bool(Debugger const&)> isActive,
-            std::function<void(Debugger&)> action, std::string description);
-
     ///
     std::string hotkey;
 
