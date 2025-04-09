@@ -94,7 +94,7 @@ static auto codegenAndAssemble(
         cg::DebugLogger logger(*str);
         return cg::codegen(mod, logger);
     }();
-    auto [prog, sym, unresolved] = Asm::assemble(assembly);
+    auto [prog, sym, unresolved, dsym] = Asm::assemble(assembly);
     if (!Asm::link(Asm::LinkerOptions{}, prog, foreignLibs, unresolved)) {
         throw std::runtime_error("Linker error");
     }

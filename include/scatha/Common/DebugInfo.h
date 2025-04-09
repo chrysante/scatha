@@ -8,6 +8,7 @@
 
 #include <scatha/Common/Metadata.h>
 #include <scatha/Common/SourceLocation.h>
+#include <utl/hashmap.hpp>
 
 namespace scatha::dbi {
 
@@ -37,9 +38,13 @@ private:
     void doPrettyPrint(std::ostream& os) const final;
 };
 
-/// Converts debug info into a JSON string
-std::string serialize(std::span<std::filesystem::path const> sourceFiles,
-                      std::span<SourceLocation const> sourceLocations);
+///
+struct DebugInfoMap {
+    std::vector<std::filesystem::path> sourceFiles;
+    utl::hashmap<size_t, SourceLocation> sourceLocationMap;
+
+    std::string serialize() const;
+};
 
 } // namespace scatha::dbi
 

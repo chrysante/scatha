@@ -217,10 +217,11 @@ std::optional<Target> CompilerInvocation::run() {
         auto asmStream = cg::codegen(irModule, *logger);
         tryInvoke(callbacks.codegenCallback, asmStream);
         if (!continueCompilation) return std::nullopt;
-        auto asmRes = Asm::assemble(asmStream);
+        auto asmRes =
+            Asm::assemble(asmStream, { .generateDebugInfo = genDebugInfo });
         tryInvoke(callbacks.asmCallback, asmRes);
         if (!continueCompilation) return std::nullopt;
-        auto& [program, symbolTable, unresolved] = asmRes;
+        auto& [program, symbolTable, unresolved, dsym] = asmRes;
         auto linkRes = Asm::link(linkerOptions, program,
                                  semaSym.foreignLibraries(), unresolved);
         if (!linkRes) {
@@ -230,12 +231,11 @@ std::optional<Target> CompilerInvocation::run() {
         }
         tryInvoke(callbacks.linkerCallback, program);
         if (!continueCompilation) return std::nullopt;
-        std::string dsym = genDebugInfo ? Asm::generateDebugSymbols(asmStream) :
-                                          std::string{};
         populateSymbolTableWithBinaryInfo(semaSym, asmRes);
         return Target(targetType, name,
                       std::make_unique<sema::SymbolTable>(std::move(semaSym)),
-                      std::move(program), std::move(dsym));
+                      std::move(program),
+                      genDebugInfo ? dsym.serialize() : std::string{});
     }
     case TargetType::StaticLibrary: {
         std::stringstream symstr;

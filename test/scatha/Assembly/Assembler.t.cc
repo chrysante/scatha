@@ -24,7 +24,7 @@ static T load(void const* ptr) {
 }
 
 static auto assembleAndExecute(AssemblyStream const& str) {
-    auto [prog, sym, unresolved] = assemble(str);
+    auto [prog, sym, unresolved, dsym] = assemble(str);
     if (!link(LinkerOptions{}, prog, {}, unresolved)) {
         throw std::runtime_error("Linker error");
     }
@@ -36,7 +36,7 @@ static auto assembleAndExecute(AssemblyStream const& str) {
 }
 
 [[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
-    auto [prog, sym, unresolved] = assemble(str);
+    auto [prog, sym, unresolved, dsym] = assemble(str);
     if (!link(LinkerOptions{}, prog, {}, unresolved)) {
         throw std::runtime_error("Linker error");
     }

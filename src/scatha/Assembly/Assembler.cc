@@ -17,7 +17,6 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
-#include "Common/DebugInfo.h"
 
 using namespace scatha;
 using namespace Asm;
@@ -38,10 +37,12 @@ struct LabelPlaceholder {};
 
 struct Assembler: AsmWriter {
     explicit Assembler(AssemblyStream const& stream,
+                       AssemblerOptions const& options,
                        std::unordered_map<std::string, size_t>& sym,
                        std::vector<std::pair<size_t, ForeignFunctionInterface>>&
                            unresolvedSymbols):
         AsmWriter(binary),
+        options(options),
         stream(stream),
         sym(sym),
         unresolvedSymbols(unresolvedSymbols),
@@ -116,11 +117,15 @@ struct Assembler: AsmWriter {
             { sizeof(svm::ProgramHeader) + position, std::move(function) });
     }
 
+    dbi::DebugInfoMap generateDebugSymbols();
+
+    AssemblerOptions const& options;
     AssemblyStream const& stream;
     std::unordered_map<std::string, size_t>& sym;
     std::vector<std::pair<size_t, ForeignFunctionInterface>>& unresolvedSymbols;
     std::vector<u8> binary;
     size_t FFISectionBegin = 0;
+    utl::hashmap<size_t, SourceLocation> sourceLocMap;
 
     /// Maps Label ID to Code position
     utl::hashmap<LabelID, size_t> labels;
@@ -132,9 +137,10 @@ struct Assembler: AsmWriter {
 
 } // namespace
 
-AssemblerResult Asm::assemble(AssemblyStream const& astr) {
+AssemblerResult Asm::assemble(AssemblyStream const& astr,
+                              AssemblerOptions const& options) {
     AssemblerResult result;
-    Assembler ctx(astr, result.symbolTable, result.unresolvedSymbols);
+    Assembler ctx(astr, options, result.symbolTable, result.unresolvedSymbols);
     ctx.run();
     size_t dataSecSize = astr.dataSection().size();
     svm::ProgramHeader const header{
@@ -149,6 +155,8 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     std::memcpy(result.program.data(), &header, sizeof(header));
     std::memcpy(result.program.data() + header.dataOffset, ctx.binary.data(),
                 ctx.binary.size());
+    if (options.generateDebugInfo)
+        result.debugInfo = ctx.generateDebugSymbols();
     return result;
 }
 
@@ -173,6 +181,8 @@ void Assembler::run() {
 }
 
 void Assembler::dispatch(Instruction const& inst) {
+    if (auto* md = inst.metadataAs<dbi::SourceLocationMD>())
+        sourceLocMap[pos] = *md;
     std::visit([this](auto& inst) { translate(inst); }, inst);
 }
 
@@ -434,14 +444,10 @@ void Assembler::setJumpDests() {
     }
 }
 
-std::string Asm::generateDebugSymbols(AssemblyStream const& stream) {
-    auto* sourceFileList = stream.metadataAs<dbi::SourceFileList>();
-    utl::small_vector<SourceLocation> sourceLocations;
-    for (auto& inst: stream | join) {
-        auto* SL = inst.metadataAs<dbi::SourceLocationMD>();
-        if (SL) sourceLocations.push_back(*SL);
-    }
-    dbi::SourceFileList fallback({});
-    return dbi::serialize(sourceFileList ? *sourceFileList : fallback,
-                          sourceLocations);
+dbi::DebugInfoMap Assembler::generateDebugSymbols() {
+    dbi::DebugInfoMap map;
+    if (auto* sourceFileList = stream.metadataAs<dbi::SourceFileList>())
+        map.sourceFiles = *sourceFileList;
+    map.sourceLocationMap = std::move(sourceLocMap);
+    return map;
 }

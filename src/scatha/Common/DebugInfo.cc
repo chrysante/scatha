@@ -38,19 +38,21 @@ static nlohmann::json toJSON(SourceLocation loc) {
 }
 
 static nlohmann::json serialize(
-    std::span<SourceLocation const> sourceLocations) {
+    std::span<std::pair<size_t, SourceLocation> const> sourceLocations) {
     nlohmann::json result;
-    for (auto [index, SL]: sourceLocations | ranges::views::enumerate) {
-        result[index] = toJSON(SL);
+    for (auto [pos, SL]: sourceLocations) {
+        nlohmann::json j;
+        j["position"] = pos;
+        j["SL"] = toJSON(SL);
+        result.push_back(std::move(j));
     }
     return result;
 }
 
-std::string dbi::serialize(std::span<std::filesystem::path const> sourceFiles,
-                           std::span<SourceLocation const> sourceLocations) {
+std::string DebugInfoMap::serialize() const {
     nlohmann::json data = {
         { "files", ::serialize(sourceFiles) },
-        { "sourcemap", ::serialize(sourceLocations) },
+        { "sourcemap", ::serialize(sourceLocationMap.values()) },
     };
     return data.dump();
 }

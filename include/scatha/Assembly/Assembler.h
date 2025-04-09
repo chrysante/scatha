@@ -9,6 +9,7 @@
 
 #include <scatha/Assembly/Options.h>
 #include <scatha/Common/Base.h>
+#include <scatha/Common/DebugInfo.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/FFI.h>
 
@@ -26,16 +27,21 @@ struct AssemblerResult {
     /// Symbols that still need to be linked. These are written as mangled names
     /// in the binary and need to be replaced by the linker
     std::vector<std::pair<size_t, ForeignFunctionInterface>> unresolvedSymbols;
+
+    ///
+    dbi::DebugInfoMap debugInfo;
+};
+
+/// Argument structure for `assemble()`
+struct AssemblerOptions {
+    bool generateDebugInfo = false;
 };
 
 /// Create binary executable file from the assembly stream \p program
 /// References to functions in other libraries will not be resolved and written
 /// into `unresolvedSymbols`
-SCATHA_API AssemblerResult assemble(AssemblyStream const& program);
-
-///
-SCATHA_API std::string generateDebugSymbols(
-    AssemblyStream const& assemblyStream);
+SCATHA_API AssemblerResult assemble(AssemblyStream const& program,
+                                    AssemblerOptions const& options = {});
 
 /// Error type returned by `link()`
 struct SCATHA_API LinkerError {
