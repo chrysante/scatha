@@ -15,27 +15,24 @@ using namespace mir;
 using namespace ranges::views;
 
 static bool isTailCall(CallInst const& call) {
-    /// Make sure this is not a call to a foreign function because we can't jump
-    /// to those.
-    /// As of right now we don't suppport TCO for indirect calls either. This
-    /// shouldn't be hard to fix, we only need to implement indirect jump
-    /// instructions
+    // Make sure this is not a call to a foreign function because we can't jump
+    // to those. As of right now we don't suppport TCO for indirect calls
+    // either. This shouldn't be hard to fix, we only need to implement indirect
+    // jump instructions.
     if (auto* cv = dyncast<CallValueInst const*>(&call);
         !cv || !isa<Function>(cv->callee()))
-    {
         return false;
-    }
     auto* ret = dyncast<ReturnInst const*>(call.next());
-    if (!ret) {
-        return false;
-    }
-    if (ret->operands().size() != call.numDests()) {
-        return false;
-    }
-    if (!call.dest()) {
+    if (!ret) return false;
+    // If we return nothing we can we can instead return the callees return
+    // value
+    if (ret->operands().empty() || isa<UndefValue>(ret->operands().front()))
         return true;
-    }
-    return ret->operands().front() == call.dest();
+    // We return the callees return value, the canonical TCO case
+    if (ret->operands().size() == call.numDests() &&
+        ret->operands().front() == call.dest())
+        return true;
+    return false;
 }
 
 static void mapSSAToVirtualRegisters(Function& F) {
