@@ -53,9 +53,7 @@ if(SCATHA_BUILD_EXAMPLES)
       scathac
       scathadb
       svm
-      libsvm
-      termfmt
     DESTINATION
-      bin
+      lib/scatha/bin
   )
 endif()
