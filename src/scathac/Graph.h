@@ -6,7 +6,7 @@
 namespace scatha {
 
 /// Command line options for the `graph` debug tool
-struct GraphOptions: OptionsBase {
+struct GraphOptions: BaseOptions {
     std::filesystem::path dest;
     bool generatesvg;
     bool open;

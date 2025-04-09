@@ -12,12 +12,15 @@
 namespace scatha {
 
 /// Common command line options
-struct OptionsBase {
+struct BaseOptions {
     /// List of all input files
     std::vector<std::filesystem::path> files;
 
     /// List of library search paths
     std::vector<std::filesystem::path> libSearchPaths;
+
+    /// Override the default stdlib directory
+    std::filesystem::path stdlibDir;
 
     /// Output file stem
     std::filesystem::path outputFile;
@@ -31,6 +34,10 @@ struct OptionsBase {
     ///
     TargetType targetType = TargetType::Executable;
 };
+
+/// Populates \p invocation with the common options specified in \p options
+void populateBaseOptions(BaseOptions const& options,
+                         CompilerInvocation& invocation);
 
 /// Parsing mode
 enum class ParseMode { Scatha, IR };

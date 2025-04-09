@@ -22,7 +22,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-$COMPILER -o -T staticlib -O "$DEST/std" \
+$COMPILER -O1 -T staticlib -o "$DEST/std" \
     $SOURCE/Math.sc \
     $SOURCE/Print.sc \
     $SOURCE/String.sc

@@ -54,11 +54,19 @@ public:
     /// \param name The name of the target
     CompilerInvocation(TargetType targetType, std::string name);
 
-    /// Set the source texts to be compiled to \p sources
-    void setInputs(std::vector<SourceFile> sources);
+    /// Adds \p source to the list source texts to be compiled
+    void addInput(SourceFile sources);
 
-    /// Set the paths to be searched for library imports to \p directories
-    void setLibSearchPaths(std::vector<std::filesystem::path> directories);
+    /// Adds \p sources to the list source texts to be compiled
+    void addInputs(std::vector<SourceFile> sources);
+
+    /// Adds \p directory to the list of paths to be searched for library
+    /// imports
+    void addLibSearchPath(std::filesystem::path directory);
+
+    /// Adds \p directories to the list of paths to be searched for library
+    /// imports
+    void addLibSearchPaths(std::vector<std::filesystem::path> directories);
 
     /// Set the compiler stage callbacks to \p callbacks
     void setCallbacks(CompilerCallbacks callbacks);

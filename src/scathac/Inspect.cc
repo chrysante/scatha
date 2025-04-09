@@ -45,8 +45,7 @@ static void iselViz(ir::Module const& irMod) {
 int scatha::inspectMain(InspectOptions options) {
     CompilerInvocation invocation(options.targetType,
                                   options.outputFile.stem().string());
-    invocation.setInputs(loadSourceFiles(options.files));
-    invocation.setLibSearchPaths(options.libSearchPaths);
+    populateBaseOptions(options, invocation);
     // clang-format off
     invocation.setCallbacks({
         .frontendCallback = [&](ast::ASTNode const& ast, 

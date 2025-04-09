@@ -10,7 +10,7 @@
 
 using namespace scatha;
 
-static void commonOptions(CLI::App* app, OptionsBase& opt) {
+static void commonOptions(CLI::App* app, BaseOptions& opt) {
     app->add_option("files", opt.files)->check(CLI::ExistingFile);
     app->add_option("-L, --libsearchpaths", opt.libSearchPaths);
     static std::unordered_map<std::string, TargetType> const targetTypeMap = {
@@ -20,7 +20,7 @@ static void commonOptions(CLI::App* app, OptionsBase& opt) {
     };
     app->add_option("-T,--target-type", opt.targetType, "Target type")
         ->transform(CLI::CheckedTransformer(targetTypeMap, CLI::ignore_case));
-    app->add_option("-O,--output", opt.outputFile, "Directory to place binary");
+    app->add_option("-o,--output", opt.outputFile, "Directory to place binary");
 }
 
 int main(int argc, char* argv[]) {
@@ -30,7 +30,8 @@ int main(int argc, char* argv[]) {
     // clang-format off
     CompilerOptions compilerOptions{};
     commonOptions(&compiler, compilerOptions);
-    compiler.add_flag_callback("-o,--optimize", [&]{ compilerOptions.optLevel = 1; }, "Optimize the program");
+    compiler.add_option("-O", compilerOptions.optLevel);
+    compiler.add_option("--stdlib", compilerOptions.stdlibDir);
     compiler.add_flag("-d,--debug", compilerOptions.debug, "Generate debug symbols");
     compiler.add_flag("-t,--time", compilerOptions.time, "Measure compilation time");
     

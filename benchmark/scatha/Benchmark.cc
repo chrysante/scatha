@@ -7,7 +7,7 @@ using namespace scatha;
 
 static svm::VirtualMachine makeLoadedVM(std::string source) {
     CompilerInvocation inv(TargetType::Executable, "bench");
-    inv.setInputs({ SourceFile::make(std::move(source)) });
+    inv.addInput(SourceFile::make(std::move(source)));
     inv.setOptLevel(1);
     auto target = inv.run();
     if (!target) {

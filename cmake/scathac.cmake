@@ -25,7 +25,7 @@ set(scathac_sources
     src/scathac/Options.h
     src/scathac/Util.cc
     src/scathac/Util.h
-    src/scathac/main.cc
+    src/scathac/Main.cc
 )
 
 target_sources(scathac
@@ -33,3 +33,5 @@ target_sources(scathac
 )
 
 source_group(TREE ${PROJECT_SOURCE_DIR}/src/scathac FILES ${scathac_sources})
+
+target_compile_definitions(scathac PRIVATE SCATHA_DEFAULT_STDLIB_DIR="${CMAKE_INSTALL_PREFIX}/lib/scatha/stdlib")

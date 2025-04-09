@@ -48,9 +48,7 @@ int scatha::compilerMain(CompilerOptions options) {
     }
     CompilerInvocation invocation(options.targetType,
                                   options.outputFile.stem().string());
-    invocation.setInputs(options.files | transform(&SourceFile::load) |
-                         ranges::to<std::vector>);
-    invocation.setLibSearchPaths(options.libSearchPaths);
+    populateBaseOptions(options, invocation);
     Timer timer;
     auto makePrintCallback = [&](std::string section) {
         return [&, section](auto&&...) {

@@ -9,11 +9,11 @@ cd $PROJ_DIR/stdlib
 
 cd $PROJ_DIR/stdlib
 
-scathac -o -T staticlib -O build/testframework testframework/testframework.sc
+scathac -O1 -T staticlib -o build/testframework testframework/testframework.sc
 
 for filename in test/*.sc; do
     name=${filename##*/}
     test_exec="build/${name%.*}"
-    scathac -o -L build -O $test_exec $filename
+    scathac -O --stdlib build -o $test_exec $filename
     ./$test_exec
 done

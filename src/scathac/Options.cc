@@ -1,11 +1,33 @@
 #include "Options.h"
 
+#include <cstdlib>
+#include <optional>
+#include <stdexcept>
+
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
-#include <stdexcept>
 
 using namespace scatha;
 using namespace ranges::views;
+
+static std::optional<std::filesystem::path> findStdlibDir(
+    BaseOptions const& options) {
+    if (!options.stdlibDir.empty()) return options.stdlibDir;
+    if (char const* stdlibDir = std::getenv("SCATHA_STDLIB_DIR"))
+        return std::filesystem::path(stdlibDir);
+#if defined(SCATHA_DEFAULT_STDLIB_DIR)
+    return std::filesystem::path(SCATHA_DEFAULT_STDLIB_DIR);
+#else
+    return std::nullopt;
+#endif
+}
+
+void scatha::populateBaseOptions(BaseOptions const& options,
+                                 CompilerInvocation& invocation) {
+    invocation.addInputs(loadSourceFiles(options.files));
+    invocation.addLibSearchPaths(options.libSearchPaths);
+    if (auto dir = findStdlibDir(options)) invocation.addLibSearchPath(*dir);
+}
 
 FrontendType scatha::deduceFrontend(
     std::span<std::filesystem::path const> files) {

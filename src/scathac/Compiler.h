@@ -8,7 +8,7 @@
 namespace scatha {
 
 /// Command line options of the user facing compiler
-struct CompilerOptions: OptionsBase {
+struct CompilerOptions: BaseOptions {
     /// Set if time taken by compilation shall be printed
     bool time;
 

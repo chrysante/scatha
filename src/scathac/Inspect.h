@@ -8,7 +8,7 @@
 namespace scatha {
 
 /// Command line options for the `inspect` debug tool
-struct InspectOptions: OptionsBase {
+struct InspectOptions: BaseOptions {
     bool ast;
     bool sym;
     bool printBuiltins;

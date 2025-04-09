@@ -51,13 +51,24 @@ using namespace scatha;
 CompilerInvocation::CompilerInvocation(TargetType targetType, std::string name):
     targetType(targetType), name(name), errStream(&std::cout) {}
 
-void CompilerInvocation::setInputs(std::vector<SourceFile> sources) {
-    this->sources = std::move(sources);
+void CompilerInvocation::addInput(SourceFile s) {
+    sources.push_back(std::move(s));
 }
 
-void CompilerInvocation::setLibSearchPaths(
+void CompilerInvocation::addInputs(std::vector<SourceFile> s) {
+    sources.insert(sources.end(), std::move_iterator(s.begin()),
+                   std::move_iterator(s.end()));
+}
+
+void CompilerInvocation::addLibSearchPath(std::filesystem::path directory) {
+    libSearchPaths.push_back(std::move(directory));
+}
+
+void CompilerInvocation::addLibSearchPaths(
     std::vector<std::filesystem::path> directories) {
-    libSearchPaths = std::move(directories);
+    libSearchPaths.insert(libSearchPaths.end(),
+                          std::move_iterator(directories.begin()),
+                          std::move_iterator(directories.end()));
 }
 
 void CompilerInvocation::setCallbacks(CompilerCallbacks callbacks) {

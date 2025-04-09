@@ -11,13 +11,13 @@ using namespace scatha;
 
 TEST_CASE("Target symbol table", "[invocation][end-to-end]") {
     CompilerInvocation inv(TargetType::BinaryOnly, "test");
-    inv.setInputs({ SourceFile::make(R"(
+    inv.addInput(SourceFile::make(R"(
 public fn foo() -> int { return 42; }
 public fn bar(n: int) -> int { return 2 * n; }
 public struct Baz {
     fn baz() { return 7; }
 }
-)") });
+)"));
     auto target = inv.run();
     REQUIRE(target);
     if (GENERATE(true, false)) {
@@ -43,11 +43,11 @@ public struct Baz {
 
 TEST_CASE("Mapped memory", "[invocation][end-to-end]") {
     CompilerInvocation inv(TargetType::Executable, "test");
-    inv.setInputs({ SourceFile::make(R"(
+    inv.addInput(SourceFile::make(R"(
 public fn foo(p: *int) -> bool {
     return *p == 42;
 }
-)") });
+)"));
     auto target = inv.run();
     REQUIRE(target);
     svm::VirtualMachine vm;

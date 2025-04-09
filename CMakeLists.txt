@@ -48,7 +48,7 @@ include(cmake/scathadb.cmake)
 include(cmake/stdlib.cmake)
 
 if(SCATHA_BUILD_EXAMPLES)
-  set(INSTALL_DEST lib/scatha/bin)
+  set(INSTALL_DEST lib/scatha)
   install(
     TARGETS
       scatha
@@ -56,7 +56,7 @@ if(SCATHA_BUILD_EXAMPLES)
       scathadb
       svm
     DESTINATION
-      ${INSTALL_DEST}
+      ${INSTALL_DEST}/bin
   )
   install(
     FILES

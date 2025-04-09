@@ -24,8 +24,8 @@ void test::compileLibrary(std::filesystem::path name,
     std::stringstream sstr;
     CompilerInvocation inv =
         makeCompiler(TargetType::StaticLibrary, name.stem().string(), sstr);
-    inv.setInputs({ SourceFile::make(std::move(source)) });
-    inv.setLibSearchPaths({ libSearchPath });
+    inv.addInput(SourceFile::make(std::move(source)));
+    inv.addLibSearchPath(libSearchPath);
     auto target = inv.run();
     if (target) {
         target->writeToDisk(name.parent_path());
@@ -38,8 +38,8 @@ uint64_t test::compileAndRunDependentProgram(
     std::stringstream sstr;
     CompilerInvocation inv = makeCompiler(TargetType::Executable, "test", sstr);
     inv.setErrorStream(sstr);
-    inv.setInputs({ SourceFile::make(std::move(source)) });
-    inv.setLibSearchPaths({ libSearchPath });
+    inv.addInput(SourceFile::make(std::move(source)));
+    inv.addLibSearchPath(libSearchPath);
     inv.setLinkerOptions(linkOptions);
     size_t startpos = 0;
     auto asmCallback = [&](Asm::AssemblerResult const& res) {

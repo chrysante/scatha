@@ -46,7 +46,7 @@ std::optional<ScathaData> scatha::parseScatha(
     return result;
 }
 
-std::optional<ScathaData> scatha::parseScatha(OptionsBase const& options) {
+std::optional<ScathaData> scatha::parseScatha(BaseOptions const& options) {
     auto sourceFiles = options.files |
                        ranges::views::transform([](auto const& path) {
         return SourceFile::load(path);
@@ -54,7 +54,7 @@ std::optional<ScathaData> scatha::parseScatha(OptionsBase const& options) {
     return parseScatha(sourceFiles, options.libSearchPaths);
 }
 
-std::pair<ir::Context, ir::Module> scatha::parseIR(OptionsBase const& options) {
+std::pair<ir::Context, ir::Module> scatha::parseIR(BaseOptions const& options) {
     assert(options.files.size() == 1);
     auto path = options.files.front();
     std::fstream file(path);
@@ -83,7 +83,7 @@ std::pair<ir::Context, ir::Module> scatha::genIR(
 }
 
 void scatha::optimize(ir::Context& ctx, ir::Module& mod,
-                      OptionsBase const& options) {
+                      BaseOptions const& options) {
     if (options.optLevel > 0) {
         opt::optimize(ctx, mod, {});
     }

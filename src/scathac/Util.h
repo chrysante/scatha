@@ -32,17 +32,17 @@ std::optional<ScathaData> parseScatha(
     std::span<std::filesystem::path const> libSearchPaths);
 
 /// \overload that opens the source files from \p options
-std::optional<ScathaData> parseScatha(OptionsBase const& options);
+std::optional<ScathaData> parseScatha(BaseOptions const& options);
 
 /// Parses single input file into an IR module
-std::pair<ir::Context, ir::Module> parseIR(OptionsBase const& options);
+std::pair<ir::Context, ir::Module> parseIR(BaseOptions const& options);
 
 std::pair<ir::Context, ir::Module> genIR(
     ast::ASTNode const& ast, sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult, irgen::Config config);
 
 /// Apply the specfied optimization level or pipeline to \p mod
-void optimize(ir::Context& ctx, ir::Module& mod, OptionsBase const& options);
+void optimize(ir::Context& ctx, ir::Module& mod, BaseOptions const& options);
 
 /// Print errors of linker phase
 void printLinkerError(Asm::LinkerError const& error);
