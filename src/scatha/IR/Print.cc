@@ -80,6 +80,7 @@ struct PrintCtx {
     void print(StructType const& structure);
 
     void metadata(Value const& value, PointerInfo const&);
+    void metadata(Metadata const& md);
 
     void funcDecl(ir::Callable const*);
     void instDecl(Instruction const*) const;
@@ -304,7 +305,7 @@ static constexpr utl::streammanip formatAttrib([](std::ostream& str,
         [&](ValRetAttribute const& attrib) {
             str << formatKeyword("valret") << formatSizeAlignAttrib(attrib);
         }
-    }; // clang-format off
+    }; // clang-format on
 });
 
 static auto equals() {
@@ -319,6 +320,10 @@ void ir::print(Module const& mod) { ir::print(mod, std::cout); }
 
 void ir::print(Module const& mod, std::ostream& str) {
     PrintCtx ctx(str);
+    if (auto* md = mod.metadata()) {
+        ctx.metadata(*md);
+        str << "\n\n";
+    }
     for (auto* structure: mod.structTypes()) {
         ctx.print(*structure);
     }
@@ -419,6 +424,10 @@ void PrintCtx::print(Value const& value) {
         instDecl(inst);
     }
     visit(value, [this](auto const& value) { printImpl(value); });
+    if (auto* md = value.metadata()) {
+        str << " ";
+        metadata(*md);
+    }
     if (auto* info = value.pointerInfo(); info && !isa<Callable>(value)) {
         str << "\n" << indent + 1;
         metadata(value, *info);
@@ -655,6 +664,13 @@ void PrintCtx::metadata(Value const& value, PointerInfo const& info) {
         str << field << "nonnull";
     }
     str << ")";
+}
+
+void PrintCtx::metadata(Metadata const& md) {
+    tfmt::FormatGuard guard(BrightGrey, str);
+    str << " [ ";
+    md.prettyPrint(str);
+    str << " ]";
 }
 
 static std::string_view toStrName(ir::Instruction const* inst) {

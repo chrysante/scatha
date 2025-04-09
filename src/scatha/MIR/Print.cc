@@ -18,9 +18,18 @@ using namespace mir;
 using namespace tfmt::modifiers;
 using namespace ranges::views;
 
+static constexpr auto metadata =
+    utl::streammanip([](std::ostream& str, Metadata const& md) -> auto& {
+    tfmt::FormatGuard guard(BrightGrey, str);
+    str << "[ ";
+    md.prettyPrint(str);
+    return str << " ]";
+});
+
 void mir::print(Module const& mod) { mir::print(mod, std::cout); }
 
 void mir::print(Module const& mod, std::ostream& str) {
+    if (auto* md = mod.metadata()) str << metadata(*md) << "\n\n";
     for (auto* F: mod.foreignFunctionsNEW()) {
         print(*F, str);
         str << "\n";
@@ -264,6 +273,7 @@ struct PrintContext {
 
     void print(Instruction const& inst) {
         visit(inst, [&](auto& inst) { printImpl(inst); });
+        if (auto* md = inst.metadata()) str << " " << metadata(*md);
         str << "\n";
     }
 
