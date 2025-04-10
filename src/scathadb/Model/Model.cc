@@ -129,13 +129,11 @@ void Model::loadProgram(std::filesystem::path filepath) {
     vm.setLibdir(filepath.parent_path());
     vm.loadBinary(binary.data());
     _currentFilepath = filepath;
-    disasm = disassemble(binary);
     auto dsympath = filepath;
     dsympath += ".scdsym";
-    sourceDbg = SourceDebugInfo::Load(dsympath, disasm);
-    if (uiHandle) {
-        uiHandle->reload();
-    }
+    sourceDbg = SourceDebugInfo::Load(dsympath);
+    disasm = disassemble(binary, sourceDbg);
+    if (uiHandle) uiHandle->reload();
 }
 
 void Model::unloadProgram() {

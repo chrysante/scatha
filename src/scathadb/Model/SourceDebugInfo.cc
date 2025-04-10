@@ -57,38 +57,49 @@ void from_json(nlohmann::json const& json, SourceLocation& SL) {
 
 } // namespace sdb
 
-SourceDebugInfo SourceDebugInfo::Load(std::filesystem::path path,
-                                      Disassembly const& disasm) {
+SourceDebugInfo SourceDebugInfo::Load(std::filesystem::path path) {
     auto file = std::fstream(path, std::ios::in);
-    if (!file) {
-        return {};
-    }
+    if (!file) return {};
     SourceDebugInfo result;
-    auto json = nlohmann::json::parse(file);
-    for (auto file: json["files"]) {
-        result._files.push_back(
-            SourceFile::Load(path.parent_path() / file.get<std::string>()));
+    auto const json = nlohmann::json::parse(file);
+    if (auto itr = json.find("files"); itr != json.end()) {
+        for (auto file: *itr)
+            result._files.push_back(
+                SourceFile::Load(path.parent_path() / file.get<std::string>()));
     }
-
-    auto& sourceMap = result._sourceMap;
-    for (auto [index, jsonSL]: json["sourcemap"] | ranges::views::enumerate) {
-        try {
-            auto SL = jsonSL.get<SourceLocation>();
-            uint32_t offset =
-                utl::narrow_cast<uint32_t>(disasm.indexToOffset(index));
-            sourceMap.offsetToSrcLoc.insert({ offset, SL });
-            sourceMap.srcLocToOffsets[SL].push_back(offset);
-            sourceMap.srcLineToOffsets[size_t(SL.line)].push_back(offset);
-        }
-        catch (nlohmann::json::exception const& e) {
+    if (auto itr = json.find("labels"); itr != json.end()) {
+        auto& labelMap = result._labelMap;
+        for (auto value: *itr) {
+            auto pos = value.find("pos");
+            auto label = value.find("label");
+            if (pos != value.end() && label != value.end())
+                labelMap.insert(
+                    { pos->get<size_t>(), label->get<std::string>() });
         }
     }
-    for (auto& [SL, offsets]: sourceMap.srcLocToOffsets) {
-        ranges::sort(offsets);
+    if (auto itr = json.find("sourcemap"); itr != json.end()) {
+        auto& sourceMap = result._sourceMap;
+        for (auto const& value: *itr) {
+            auto pos = value.find("pos");
+            auto loc = value.find("loc");
+            if (pos != value.end() && loc != value.end()) {
+                auto SL = loc->get<SourceLocation>();
+                uint32_t offset = pos->get<uint32_t>();
+                sourceMap.offsetToSrcLoc.insert({ offset, SL });
+                sourceMap.srcLocToOffsets[SL].push_back(offset);
+                sourceMap.srcLineToOffsets[size_t(SL.line)].push_back(offset);
+            }
+        }
+        for (auto& [SL, offsets]: sourceMap.srcLocToOffsets)
+            ranges::sort(offsets);
+        for (auto& [line, offsets]: sourceMap.srcLineToOffsets)
+            ranges::sort(offsets);
     }
-    for (auto& [line, offsets]: sourceMap.srcLineToOffsets) {
-        ranges::sort(offsets);
-    }
-
     return result;
+}
+
+std::optional<std::string> SourceDebugInfo::labelName(size_t binOffset) const {
+    auto itr = _labelMap.find(binOffset);
+    if (itr != _labelMap.end()) return itr->second;
+    return std::nullopt;
 }

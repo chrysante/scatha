@@ -26,33 +26,40 @@ void SourceLocationMD::doPrettyPrint(std::ostream& os) const { os << *this; }
 
 static nlohmann::json serialize(std::span<std::filesystem::path const> list) {
     nlohmann::json result;
-    for (auto [index, path]: list | ranges::views::enumerate) {
-        result[index] = path;
-    }
+    for (auto& path: list)
+        result.push_back(path);
     return result;
 }
 
-static nlohmann::json toJSON(SourceLocation loc) {
-    return { size_t(loc.fileIndex), size_t(loc.index), size_t(loc.line),
-             size_t(loc.column) };
+static nlohmann::json serialize(
+    std::span<std::pair<size_t, std::string> const> labels) {
+    nlohmann::json result;
+    for (auto& [pos, label]: labels)
+        result.push_back({ { "pos", pos }, { "label", label } });
+    return result;
 }
+
+namespace scatha {
+
+static void to_json(nlohmann::json& j, SourceLocation const& loc) {
+    j = { size_t(loc.fileIndex), size_t(loc.index), size_t(loc.line),
+          size_t(loc.column) };
+}
+
+} // namespace scatha
 
 static nlohmann::json serialize(
     std::span<std::pair<size_t, SourceLocation> const> sourceLocations) {
     nlohmann::json result;
-    for (auto [pos, SL]: sourceLocations) {
-        nlohmann::json j;
-        j["position"] = pos;
-        j["SL"] = toJSON(SL);
-        result.push_back(std::move(j));
-    }
+    for (auto& [pos, SL]: sourceLocations)
+        result.push_back({ { "pos", pos }, { "loc", SL } });
     return result;
 }
 
 std::string DebugInfoMap::serialize() const {
-    nlohmann::json data = {
-        { "files", ::serialize(sourceFiles) },
-        { "sourcemap", ::serialize(sourceLocationMap.values()) },
-    };
+    nlohmann::json data;
+    data["files"] = ::serialize(sourceFiles);
+    data["labels"] = ::serialize(labelMap.values());
+    data["sourcemap"] = ::serialize(sourceLocationMap.values());
     return data.dump();
 }

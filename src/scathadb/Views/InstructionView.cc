@@ -87,10 +87,9 @@ void InstView::reload() {
          model->disassembly().instructions() | ranges::views::enumerate)
     {
         /// Add label renderer for labelled instructions
-        if (inst.labelID != 0) {
+        if (!inst.label.empty()) {
             long lineNum = static_cast<long>(ChildCount());
-            std::string name = utl::strcat(labelName(inst.labelID), ":");
-            Add(labelRenderer(lineNum, std::move(name)));
+            Add(labelRenderer(lineNum, inst.label));
         }
         /// Add instruction renderer
         long lineNum = static_cast<long>(ChildCount());
@@ -144,7 +143,8 @@ ElementDecorator InstView::lineModifier(LineInfo line) const {
 Component InstView::labelRenderer(long lineNum, std::string name) {
     return Renderer([=, this, name = std::move(name)] {
         auto line = getLineInfo(lineNum);
-        return hbox({ lineNumber(line), text(std::move(name)) | bold | flex }) |
+        return hbox({ lineNumber(line), text(std::move(name)) | bold,
+                      text(":") }) |
                lineModifier(line);
     });
 }
@@ -222,7 +222,7 @@ static Element getLabelName(Disassembly const* disasm, Value offset) {
     auto destIndex = disasm->offsetToIndex(offset.raw);
     if (!destIndex) return text(toString(offset));
     auto& destInst = disasm->instructions()[*destIndex];
-    return text(labelName(destInst.labelID)) | labelDeco();
+    return text(destInst.label) | labelDeco();
 }
 
 static Element printInst(Instruction inst, Disassembly const* disasm,

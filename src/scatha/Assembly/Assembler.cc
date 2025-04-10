@@ -117,7 +117,7 @@ struct Assembler: AsmWriter {
             { sizeof(svm::ProgramHeader) + position, std::move(function) });
     }
 
-    dbi::DebugInfoMap generateDebugSymbols();
+    dbi::DebugInfoMap extractDebugInfo();
 
     AssemblerOptions const& options;
     AssemblyStream const& stream;
@@ -125,7 +125,7 @@ struct Assembler: AsmWriter {
     std::vector<std::pair<size_t, ForeignFunctionInterface>>& unresolvedSymbols;
     std::vector<u8> binary;
     size_t FFISectionBegin = 0;
-    utl::hashmap<size_t, SourceLocation> sourceLocMap;
+    dbi::DebugInfoMap debugInfo;
 
     /// Maps Label ID to Code position
     utl::hashmap<LabelID, size_t> labels;
@@ -155,8 +155,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr,
     std::memcpy(result.program.data(), &header, sizeof(header));
     std::memcpy(result.program.data() + header.dataOffset, ctx.binary.data(),
                 ctx.binary.size());
-    if (options.generateDebugInfo)
-        result.debugInfo = ctx.generateDebugSymbols();
+    if (options.generateDebugInfo) result.debugInfo = ctx.extractDebugInfo();
     return result;
 }
 
@@ -166,15 +165,14 @@ void Assembler::run() {
     setPosition(binary.size());
     for (auto& block: stream) {
         if (block.isExternallyVisible()) {
-            sym.insert({ std::string(block.name()), currentPosition() });
-            if (block.name().starts_with("main")) {
+            sym.insert({ block.name(), currentPosition() });
+            if (block.name().starts_with("main"))
                 startAddress = currentPosition();
-            }
         }
         labels.insert({ block.id(), currentPosition() });
-        for (auto& inst: block) {
+        debugInfo.labelMap[currentPosition()] = block.name();
+        for (auto& inst: block)
             dispatch(inst);
-        }
     }
     /// Internal linking
     setJumpDests();
@@ -182,7 +180,7 @@ void Assembler::run() {
 
 void Assembler::dispatch(Instruction const& inst) {
     if (auto* md = inst.metadataAs<dbi::SourceLocationMD>())
-        sourceLocMap[pos] = *md;
+        debugInfo.sourceLocationMap[pos] = *md;
     std::visit([this](auto& inst) { translate(inst); }, inst);
 }
 
@@ -444,10 +442,8 @@ void Assembler::setJumpDests() {
     }
 }
 
-dbi::DebugInfoMap Assembler::generateDebugSymbols() {
-    dbi::DebugInfoMap map;
+dbi::DebugInfoMap Assembler::extractDebugInfo() {
     if (auto* sourceFileList = stream.metadataAs<dbi::SourceFileList>())
-        map.sourceFiles = *sourceFileList;
-    map.sourceLocationMap = std::move(sourceLocMap);
-    return map;
+        debugInfo.sourceFiles = *sourceFileList;
+    return std::move(debugInfo);
 }

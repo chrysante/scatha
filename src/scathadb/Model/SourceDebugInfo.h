@@ -35,7 +35,6 @@ struct std::hash<sdb::SourceLocation> {
 
 namespace sdb {
 
-class Disassembly;
 class SourceDebugInfo;
 
 ///
@@ -63,8 +62,7 @@ private:
 class SourceDebugInfo {
 public:
     ///
-    static SourceDebugInfo Load(std::filesystem::path path,
-                                Disassembly const& disasm);
+    static SourceDebugInfo Load(std::filesystem::path path);
 
     ///
     std::span<SourceFile const> files() const { return _files; }
@@ -75,9 +73,13 @@ public:
     ///
     SourceLocationMap const& sourceMap() const { return _sourceMap; }
 
+    ///
+    std::optional<std::string> labelName(size_t binOffset) const;
+
 private:
-    SourceLocationMap _sourceMap;
     std::vector<SourceFile> _files;
+    utl::hashmap<size_t, std::string> _labelMap;
+    SourceLocationMap _sourceMap;
 };
 
 } // namespace sdb

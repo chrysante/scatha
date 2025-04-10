@@ -14,6 +14,7 @@
 namespace sdb {
 
 class Disassembly;
+class SourceDebugInfo;
 
 ///
 struct Value {
@@ -57,9 +58,9 @@ struct Instruction {
     /// opcode
     Value arg1, arg2;
 
-    /// The ID of the label of this instruction. Zero means this instructions is
+    /// The label of this instruction. Empty means this instructions is
     /// unlabelled
-    size_t labelID = 0;
+    std::string label;
 };
 
 /// Convert the instruction \p inst to a string. If \p disasm is non-null it is
@@ -70,13 +71,11 @@ std::string toString(Instruction inst, Disassembly const* disasm = nullptr,
 /// Print \p inst to \p ostream
 std::ostream& operator<<(std::ostream& ostream, Instruction inst);
 
-/// Convert the label id \p ID to a name
-std::string labelName(size_t ID);
-
 /// Disassemble the program \p program
 /// Disassembling a program recomputes as much structure as possible to enable
 /// debugging
-Disassembly disassemble(std::span<uint8_t const> program);
+Disassembly disassemble(std::span<uint8_t const> program,
+                        SourceDebugInfo const& debugInfo);
 
 /// Represents a disassembled program.
 class Disassembly {
@@ -127,7 +126,8 @@ public:
     bool empty() const { return insts.empty(); }
 
 private:
-    friend Disassembly sdb::disassemble(std::span<uint8_t const>);
+    friend Disassembly sdb::disassemble(std::span<uint8_t const>,
+                                        SourceDebugInfo const&);
 
     std::vector<Instruction> insts;
     /// Maps binary offsets to instruction indices

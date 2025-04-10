@@ -8,6 +8,8 @@
 #include <svm/VirtualMachine.h>
 #include <utl/strcat.hpp>
 
+#include "Model/SourceDebugInfo.h"
+
 using namespace sdb;
 using namespace svm;
 
@@ -90,8 +92,7 @@ static std::string getLabelName(Disassembly const* disasm, Value offset) {
     if (!destIndex) {
         return toString(offset);
     }
-    auto& destInst = disasm->instructions()[*destIndex];
-    return labelName(destInst.labelID);
+    return disasm->instructions()[*destIndex].label;
 }
 
 static void print(std::ostream& str, Instruction inst,
@@ -165,11 +166,6 @@ std::string sdb::toString(Instruction inst, Disassembly const* disasm,
 std::ostream& sdb::operator<<(std::ostream& str, Instruction inst) {
     print(str, inst, nullptr, nullptr);
     return str;
-}
-
-std::string sdb::labelName(size_t ID) {
-    assert(ID != 0);
-    return utl::strcat(".L", ID);
 }
 
 template <typename T>
@@ -251,13 +247,12 @@ static Instruction readInstruction(uint8_t const* textPtr) {
     default:
         assert(false);
     }
-    return { opcode, arg1, arg2 };
+    return { opcode, arg1, arg2, {} };
 }
 
-Disassembly sdb::disassemble(std::span<uint8_t const> program) {
-    if (program.empty()) {
-        return {};
-    }
+Disassembly sdb::disassemble(std::span<uint8_t const> program,
+                             SourceDebugInfo const& debugInfo) {
+    if (program.empty()) return {};
 
     Disassembly result;
     ProgramView const p(program.data());
@@ -269,29 +264,28 @@ Disassembly sdb::disassemble(std::span<uint8_t const> program) {
         auto inst = readInstruction(&text[i]);
         result.offsetToIndexMap.insert({ binOffset, result.insts.size() });
         result.indexToOffsetMap.push_back(binOffset);
-        result.insts.push_back(inst);
+        if (auto name = debugInfo.labelName(binOffset))
+            inst.label = *std::move(name);
+        result.insts.push_back(std::move(inst));
         i += codeSize(inst.opcode);
     }
 
     /// Gather indices of all labelled instructions, i.e. instructions that are
     /// targets of jumps or calls
-    auto labelledInstructionIndices = result.insts | ranges::views::enumerate |
-                                      ranges::views::filter([](auto p) {
-        auto [index, inst] = p;
+    auto jumpDestIndices = result.insts | ranges::views::filter([](auto& inst) {
         return inst.opcode == OpCode::call ||
                classify(inst.opcode) == OpCodeClass::Jump;
-    }) | ranges::views::values | ranges::views::transform([&](auto& inst) {
+    }) | ranges::views::transform([&](auto& inst) {
         return result.offsetToIndex(inst.arg1.raw).value();
     }) | ranges::to<std::vector>;
-
-    ranges::sort(labelledInstructionIndices);
-    ranges::unique(labelledInstructionIndices);
-
+    ranges::sort(jumpDestIndices);
+    ranges::unique(jumpDestIndices);
     /// Assign ascending labels to all labelled instructions
     size_t labelID = 1;
-    ranges::for_each(labelledInstructionIndices, [&](size_t index) {
+    ranges::for_each(jumpDestIndices, [&](size_t index) {
         auto& destInst = result.insts[index];
-        destInst.labelID = labelID++;
+        if (destInst.label.empty())
+            destInst.label = utl::strcat(".L", labelID++);
     });
 
     return result;

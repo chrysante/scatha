@@ -32,7 +32,7 @@ public:
 
     void setExternallyVisible(bool value = true) { _extern = value; }
 
-    std::string_view name() const { return _name; }
+    std::string const& name() const { return _name; }
 
     size_t instructionCount() const { return instructions.size(); }
     bool empty() const { return instructions.empty(); }
