@@ -14,7 +14,7 @@ SourceFile SourceFile::load(std::filesystem::path path) {
     }
     std::stringstream sstr;
     sstr << file.rdbuf();
-    return make(std::move(sstr).str(), std::move(path));
+    return make(std::move(sstr).str(), std::filesystem::absolute(path));
 }
 
 SourceFile SourceFile::make(std::string text, std::filesystem::path path) {
