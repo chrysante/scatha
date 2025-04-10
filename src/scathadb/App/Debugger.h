@@ -87,9 +87,10 @@ private:
     Model* _model;
     std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
-    std::vector<ftxui::Component> mainViews;
     UIHandle uiHandle;
-    int _mainViewIdx = 0;
+    int _mainViewIdx = 1;
+    int _mainSplitSizeBackup = 70;
+    int _mainSplitSize = _mainSplitSizeBackup;
     int _sidebarSize[2] = { 30, 30 };
     int _sidebarSizeBackup[2] = { 30, 30 };
     int _bottombarSize = 10;

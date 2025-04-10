@@ -92,12 +92,13 @@ auto const CycleMainViewCmd = Command::Add({
     .buttonLabel = [](Debugger const& db) {
         switch (db.mainViewIndex()) {
         case 0:
-            return "Asm";
-        case 1:
             return "Src";
+        case 1:
+            return "S/A";
+        case 2:
+            return "Asm";
         default:
-            assert(false);
-            return "";
+            return "???";
         }
     },
     .isActive = [](Debugger const&) { return true; },
@@ -160,9 +161,7 @@ Debugger::Debugger(Model* _model):
                   { " VM State ", VMStateView(model()) } });
     auto sourceView = SourceView(model(), uiHandle);
     auto instView = InstructionView(model(), uiHandle);
-    mainViews = { sourceView, instView };
-    auto mainView = Container::Tab(mainViews, &_mainViewIdx);
-
+    auto mainView = SplitLeft(sourceView, instView, &_mainSplitSize);
     auto dbgCtrlBar = Toolbar({
         ToolbarButton(this, ToggleExecCmd),
         ToolbarButton(this, StepSourceLineCmd),
@@ -243,6 +242,20 @@ void Debugger::toggleBottombar() {
 }
 
 void Debugger::cycleMainViews() {
-    _mainViewIdx = (_mainViewIdx + 1) % int(mainViews.size());
-    mainViews[size_t(_mainViewIdx)]->TakeFocus();
+    _mainViewIdx = (_mainViewIdx + 1) % 3;
+    switch (_mainViewIdx) {
+    case 0:
+        _mainSplitSize = 1000;
+        break;
+    case 1:
+        _mainSplitSize = _mainSplitSizeBackup;
+        break;
+    case 2:
+        _mainSplitSizeBackup = _mainSplitSize;
+        _mainSplitSize = -1;
+        break;
+    default:
+        assert(false);
+        break;
+    }
 }
