@@ -156,6 +156,7 @@ private:
     UIHandle* uiHandle;
 
     std::filesystem::path _currentFilepath;
+    std::vector<uint8_t> _binary;
     std::vector<std::string> runArguments;
     std::unique_ptr<ExecThread> execThread;
     std::mutex vmMutex;

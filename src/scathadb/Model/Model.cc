@@ -119,20 +119,19 @@ Model::~Model() { stop(); }
 void Model::loadProgram(std::filesystem::path filepath) {
     stop();
     clearBreakpoints();
-    auto binary = svm::readBinaryFromFile(filepath.string());
-    if (binary.empty()) {
+    _binary = svm::readBinaryFromFile(filepath.string());
+    if (_binary.empty()) {
         std::string progName = filepath.stem();
         auto msg =
             utl::strcat("Failed to load ", progName, ". Binary is empty.\n");
         throw std::runtime_error(msg);
     }
     vm.setLibdir(filepath.parent_path());
-    vm.loadBinary(binary.data());
     _currentFilepath = filepath;
     auto dsympath = filepath;
     dsympath += ".scdsym";
     sourceDbg = SourceDebugInfo::Load(dsympath);
-    disasm = disassemble(binary, sourceDbg);
+    disasm = disassemble(_binary, sourceDbg);
     if (uiHandle) uiHandle->reload();
 }
 
@@ -153,6 +152,7 @@ void Model::setArguments(std::vector<std::string> arguments) {
 
 void Model::start() {
     stop();
+    vm.loadBinary(_binary.data());
     using enum ExecCommand;
     execThread->sendCommand(Start);
 }
