@@ -10,6 +10,12 @@
 
 using namespace sdb;
 
+std::string sdb::toString(SourceLocation const& SL) {
+    std::stringstream sstr;
+    sstr << "L:" << SL.line << ", C:" << SL.column << ", F:" << SL.fileIndex;
+    return std::move(sstr).str();
+}
+
 template <typename R>
 static R findWithDefault(auto const& map, auto key, R def = {}) {
     auto itr = map.find(key);

@@ -305,8 +305,7 @@ ExecState Model::doExecuteSteps() {
     }
     catch (...) {
         handleException();
-        handleInstEncounter(offset, BreakState::Error);
-        handleSourceLineEncounter(offset, BreakState::Error);
+        handleEncounter(offset, BreakState::Error);
         vm.setInstructionPointerOffset(offset);
         return Paused;
     }
@@ -322,12 +321,12 @@ ExecState Model::doStepInstruction() {
     }
     catch (...) {
         handleException();
-        handleInstEncounter(offset, BreakState::Error);
+        handleEncounter(offset, BreakState::Error);
         vm.setInstructionPointerOffset(offset);
         return Paused;
     }
     if (vm.running()) {
-        handleInstEncounter(vm.instructionPointerOffset(), BreakState::Step);
+        handleEncounter(vm.instructionPointerOffset(), BreakState::Step);
         return Paused;
     }
     else {
@@ -348,6 +347,9 @@ ExecState Model::doStepSourceLine() {
                 return Exiting;
             }
             offset = vm.instructionPointerOffset();
+            if (instBreakpoints.at(offset)) {
+                break;
+            }
             auto loc = sourceDebug().sourceMap().toSourceLoc(offset);
             if (loc && loc->line != startLoc.line) {
                 break;
@@ -356,15 +358,12 @@ ExecState Model::doStepSourceLine() {
     }
     catch (...) {
         handleException();
-        handleInstEncounter(offset, BreakState::Error);
-        handleSourceLineEncounter(offset, BreakState::Error);
+        handleEncounter(offset, BreakState::Error);
         vm.setInstructionPointerOffset(offset);
         return Paused;
     }
     if (vm.running()) {
-        handleInstEncounter(vm.instructionPointerOffset(), BreakState::Step);
-        handleSourceLineEncounter(vm.instructionPointerOffset(),
-                                  BreakState::Step);
+        handleEncounter(vm.instructionPointerOffset(), BreakState::Step);
         return Paused;
     }
     else {
@@ -374,16 +373,19 @@ ExecState Model::doStepSourceLine() {
 
 bool Model::handleBreakpoint(size_t offset) {
     if (instBreakpoints.at(offset)) {
-        handleInstEncounter(offset, BreakState::Breakpoint);
-        handleSourceLineEncounter(offset, BreakState::Breakpoint);
+        handleEncounter(offset, BreakState::Breakpoint);
         return true;
     }
     if (sourceBreakpoints.at(offset)) {
-        handleInstEncounter(offset, BreakState::Breakpoint);
-        handleSourceLineEncounter(offset, BreakState::Breakpoint);
+        handleEncounter(offset, BreakState::Breakpoint);
         return true;
     }
     return false;
+}
+
+void Model::handleEncounter(size_t offset, BreakState state) {
+    handleInstEncounter(offset, state);
+    handleSourceLineEncounter(offset, state);
 }
 
 void Model::handleInstEncounter(size_t offset, BreakState state) {

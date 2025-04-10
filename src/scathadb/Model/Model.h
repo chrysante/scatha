@@ -148,6 +148,7 @@ private:
 
     bool handleBreakpoint(size_t binaryOffset);
 
+    void handleEncounter(size_t offset, BreakState state);
     void handleInstEncounter(size_t binaryOffset, BreakState state);
     void handleSourceLineEncounter(size_t binaryOffset, BreakState state);
 

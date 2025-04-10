@@ -39,6 +39,19 @@ public:
         if (event.is_mouse()) {
             return handleMouse(event);
         }
+        if (event == Event::Character("b")) {
+            if (auto index = asDerived().lineToIndex(focusLine())) {
+                asDerived().toggleBreakpoint(*index);
+            }
+            else {
+                beep();
+            }
+            return true;
+        }
+        if (event == Event::Character("c")) {
+            asDerived().model->clearBreakpoints();
+            return true;
+        }
         return false;
     }
 

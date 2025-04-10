@@ -23,6 +23,8 @@ struct SourceLocation {
     bool operator==(SourceLocation const&) const = default;
 };
 
+std::string toString(SourceLocation const& SL);
+
 } // namespace sdb
 
 template <>

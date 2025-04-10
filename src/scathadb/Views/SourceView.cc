@@ -26,9 +26,7 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
             TakeFocus();
         });
         uiHandle.addSourceCallback([this](SourceLocation SL, BreakState state) {
-            if (SL.fileIndex != fileIndex) {
-                reload(size_t(SL.fileIndex));
-            }
+            if (SL.fileIndex != fileIndex) reload(size_t(SL.fileIndex));
             if (auto line = indexToLine(SL.line)) {
                 setFocusLine(*line);
                 scrollToLine(*line);
@@ -53,6 +51,8 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
         if (!fileIndex) return placeholder("No File Open");
         return ScrollBase::Render();
     }
+
+    bool OnEvent(Event event) override { return FileViewBase::OnEvent(event); }
 
     LineInfo getLineInfo(long lineNum) const {
         auto index = lineToIndex(lineNum);

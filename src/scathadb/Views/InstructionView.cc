@@ -294,6 +294,14 @@ Component InstView::instructionRenderer(long lineNum, size_t index) {
     return Renderer([=, this] {
         auto line = getLineInfo(lineNum);
         auto& disasm = model->disassembly();
+#if 0
+        auto sourceLoc = [&] {
+            size_t offset = model->disassembly().indexToOffset(index);
+            if (auto SL = model->sourceDebug().sourceMap().toSourceLoc(offset))
+                return text(utl::strcat("[", toString(*SL), "]"));
+            return text("");
+        }() | color(Color::GrayLight);
+#endif
         auto instLabel =
             printInst(disasm.instruction(index), &disasm, &model->VM());
         return hbox({ lineNumber(line), breakpointIndicator(line),
@@ -309,25 +317,7 @@ Element InstView::Render() {
     return ScrollBase::Render();
 }
 
-bool InstView::OnEvent(Event event) {
-    if (FileViewBase::OnEvent(event)) {
-        return true;
-    }
-    if (event == Event::Character("b")) {
-        if (auto index = lineToIndex(focusLine())) {
-            model->toggleInstBreakpoint(*index);
-        }
-        else {
-            beep();
-        }
-        return true;
-    }
-    if (event == Event::Character("c")) {
-        model->clearBreakpoints();
-        return true;
-    }
-    return false;
-}
+bool InstView::OnEvent(Event event) { return FileViewBase::OnEvent(event); }
 
 std::optional<size_t> InstView::lineToIndex(long line) const {
     auto itr = lineToIndexMap.find(line);
