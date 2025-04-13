@@ -17,11 +17,13 @@ set(scbinutil_headers
     include/scbinutil/ProgramView.h
     include/scbinutil/OpCode.def.h
     include/scbinutil/OpCode.h
+    include/scbinutil/Utils.h
 )
 
 set(scbinutil_sources
     src/scbinutil/ProgramView.cc
     src/scbinutil/OpCode.cc
+    src/scbinutil/Utils.cc
 )
 
 target_sources(scbinutil

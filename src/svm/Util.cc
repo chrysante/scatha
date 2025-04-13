@@ -5,33 +5,13 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <scbinutil/Utils.h>
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
 #include <svm/VirtualMachine.h>
 
 using namespace svm;
-
-std::span<uint8_t const> svm::seekBinary(std::span<uint8_t const> file) {
-    auto* data = file.data();
-    auto* end = std::to_address(file.end());
-    /// We ignore any empty lines
-    while (data < end && *data == '\n') {
-        ++data;
-    }
-    /// We ignore lines starting with `#` and the next line
-    while (data < end && *data == '#') {
-        for (int i = 0; i < 2; ++i) {
-            while (data < end && *data != '\n') {
-                ++data;
-            }
-            if (data < end) {
-                ++data;
-            }
-        }
-    }
-    return std::span(data, end);
-}
 
 std::vector<uint8_t> svm::readBinaryFromFile(std::string_view path) {
     std::fstream file(std::string(path), std::ios::in);
@@ -44,7 +24,7 @@ std::vector<uint8_t> svm::readBinaryFromFile(std::string_view path) {
     file.seekg(0, std::ios::beg);
     std::vector<u8> data(static_cast<size_t>(filesize));
     file.read(reinterpret_cast<char*>(data.data()), filesize);
-    return seekBinary(data) | ranges::to<std::vector>;
+    return scbinutil::seekBinary(data) | ranges::to<std::vector>;
 }
 
 namespace {

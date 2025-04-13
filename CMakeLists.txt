@@ -46,6 +46,7 @@ include(cmake/scatha.cmake)
 include(cmake/scathac.cmake)
 include(cmake/scbinutil.cmake)
 include(cmake/svm.cmake)
+include(cmake/scdis.cmake)
 include(cmake/scathadb.cmake)
 include(cmake/stdlib.cmake)
 
@@ -55,6 +56,7 @@ if(SCATHA_BUILD_EXAMPLES)
     TARGETS
       scatha
       scathac
+      scdis
       scathadb
       svm
     DESTINATION

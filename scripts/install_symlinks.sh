@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # List of binaries to symlink
-BINARIES="scatha scathac scathadb svm"
+BINARIES="scatha scathac scathadb svm scdis"
 
 # Installation prefix (default to /usr/local if not specified)
 PREFIX="${1:-/usr/local}"
