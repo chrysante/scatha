@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <scatha/Common/Base.h>
+#include <scatha/DebugInfo/DebugInfo.h>
 #include <scatha/Sema/Fwd.h>
 
 namespace scatha {
@@ -59,8 +60,8 @@ public:
     std::span<uint8_t const> binary() const { return _binary; }
 
     /// \Returns the compiled debug info if available
-    /// Only meaningful if `type()` is `Executable` or `BinaryOnly`
-    std::string const& debugInfo() const { return _debugInfo; }
+    /// Only non-empty if `type()` is `Executable` or `BinaryOnly`
+    DebugInfoMap const& debugInfo() const { return _debugInfo; }
 
     /// \Returns the serialized static library
     /// Only meaningful if `type()` is `StaticLibrary`
@@ -75,7 +76,7 @@ private:
     /// Construct a binary target
     Target(TargetType type, std::string name,
            std::unique_ptr<sema::SymbolTable> sym, std::vector<uint8_t> binary,
-           std::string debugInfo);
+           DebugInfoMap debugInfo);
 
     /// Construct a library target
     Target(TargetType type, std::string name,
@@ -87,7 +88,7 @@ private:
 
     /// Binary targets
     std::vector<uint8_t> _binary;
-    std::string _debugInfo;
+    DebugInfoMap _debugInfo;
 
     /// Library targets
     StaticLib _staticLib;

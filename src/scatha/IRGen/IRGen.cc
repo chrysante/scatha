@@ -10,7 +10,7 @@
 #include <utl/strcat.hpp>
 
 #include "AST/AST.h"
-#include "Common/DebugInfo.h"
+#include "Common/DebugMetadata.h"
 #include "IR/CFG/Function.h"
 #include "IR/CFG/GlobalVariable.h"
 #include "IR/Context.h"
@@ -109,6 +109,6 @@ void irgen::generateIR(ir::Context& ctx, ir::Module& mod, ast::ASTNode const&,
         auto sourceList = config.sourceFiles | transform(&SourceFile::path) |
                           ranges::to<std::vector>;
         mod.setMetadata(
-            std::make_unique<dbi::SourceFileList>(std::move(sourceList)));
+            std::make_unique<SourceFileList>(std::move(sourceList)));
     }
 }

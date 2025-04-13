@@ -234,8 +234,7 @@ std::optional<Target> CompilerInvocation::run() {
         populateSymbolTableWithBinaryInfo(semaSym, asmRes);
         return Target(targetType, name,
                       std::make_unique<sema::SymbolTable>(std::move(semaSym)),
-                      std::move(program),
-                      genDebugInfo ? dsym.serialize() : std::string{});
+                      std::move(program), std::move(dsym));
     }
     case TargetType::StaticLibrary: {
         std::stringstream symstr;

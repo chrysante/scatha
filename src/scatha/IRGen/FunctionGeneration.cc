@@ -6,7 +6,7 @@
 #include <utl/strcat.hpp>
 
 #include "AST/AST.h"
-#include "Common/DebugInfo.h"
+#include "Common/DebugMetadata.h"
 #include "IR/Builder.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -113,7 +113,7 @@ struct FuncGenContext: FuncGenContextBase {
     std::unique_ptr<Metadata> getMetadata() override {
         if (!lctx.config.generateDebugSymbols || sourceLocStack.empty())
             return nullptr;
-        return std::make_unique<dbi::SourceLocationMD>(sourceLocStack.top());
+        return std::make_unique<SourceLocationMD>(sourceLocStack.top());
     }
     void pushSourceLoc(SourceLocation sl) { sourceLocStack.push(sl); }
     void popSourceLoc() { sourceLocStack.pop(); }

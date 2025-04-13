@@ -17,6 +17,7 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
+#include "Common/DebugMetadata.h"
 
 using namespace scatha;
 using namespace Asm;
@@ -117,7 +118,7 @@ struct Assembler: AsmWriter {
             { sizeof(svm::ProgramHeader) + position, std::move(function) });
     }
 
-    dbi::DebugInfoMap extractDebugInfo();
+    DebugInfoMap extractDebugInfo();
 
     AssemblerOptions const& options;
     AssemblyStream const& stream;
@@ -125,7 +126,7 @@ struct Assembler: AsmWriter {
     std::vector<std::pair<size_t, ForeignFunctionInterface>>& unresolvedSymbols;
     std::vector<u8> binary;
     size_t FFISectionBegin = 0;
-    dbi::DebugInfoMap debugInfo;
+    DebugInfoMap debugInfo;
 
     /// Maps Label ID to Code position
     utl::hashmap<LabelID, size_t> labels;
@@ -179,7 +180,7 @@ void Assembler::run() {
 }
 
 void Assembler::dispatch(Instruction const& inst) {
-    if (auto* md = inst.metadataAs<dbi::SourceLocationMD>())
+    if (auto* md = inst.metadataAs<SourceLocationMD>())
         debugInfo.sourceLocationMap[pos] = *md;
     std::visit([this](auto& inst) { translate(inst); }, inst);
 }
@@ -442,8 +443,8 @@ void Assembler::setJumpDests() {
     }
 }
 
-dbi::DebugInfoMap Assembler::extractDebugInfo() {
-    if (auto* sourceFileList = stream.metadataAs<dbi::SourceFileList>())
+DebugInfoMap Assembler::extractDebugInfo() {
+    if (auto* sourceFileList = stream.metadataAs<SourceFileList>())
         debugInfo.sourceFiles = *sourceFileList;
     return std::move(debugInfo);
 }

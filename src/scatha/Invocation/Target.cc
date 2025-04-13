@@ -1,5 +1,7 @@
 #include "Invocation/Target.h"
 
+#include <nlohmann/json.hpp>
+
 #include "Common/FileHandling.h"
 #include "Invocation/ExecutableWriter.h"
 #include "Invocation/TargetNames.h"
@@ -46,16 +48,25 @@ std::optional<Target> Target::ReadFromDisk(std::filesystem::path const& path) {
     if (!symtxt || !sema::deserialize(sym, *symtxt)) {
         return std::nullopt;
     }
-    auto debugInfo = archive->openTextFile(TargetNames::DebugInfoName);
+    auto debugInfoString = archive->openTextFile(TargetNames::DebugInfoName);
+    auto debugInfo = [&]() -> DebugInfoMap {
+        if (!debugInfoString) return {};
+        return DebugInfoMap::deserialize(
+            nlohmann::json::parse(*debugInfoString));
+    }();
     return Target(TargetType::BinaryOnly, path.stem().string(),
                   std::make_unique<sema::SymbolTable>(std::move(sym)), *code,
-                  debugInfo.value_or(std::string{}));
+                  std::move(debugInfo));
 }
 
 static std::string serializeToString(sema::SymbolTable const& sym) {
     std::stringstream sstr;
     sema::serialize(sym, sstr);
     return std::move(sstr).str();
+}
+
+static std::string serializeToString(DebugInfoMap const& debugInfo) {
+    return nlohmann::to_string(debugInfo.serialize());
 }
 
 void Target::writeToDisk(std::filesystem::path const& dir) const {
@@ -66,7 +77,7 @@ void Target::writeToDisk(std::filesystem::path const& dir) const {
         if (!debugInfo().empty()) {
             auto file =
                 createOutputFile(appendExt(outFile, "scdsym"), std::ios::trunc);
-            file << debugInfo();
+            file << serializeToString(debugInfo());
         }
         break;
     case TargetType::BinaryOnly: {
@@ -78,7 +89,8 @@ void Target::writeToDisk(std::filesystem::path const& dir) const {
         archive->addTextFile(TargetNames::SymbolTableName,
                              serializeToString(symbolTable()));
         if (!debugInfo().empty()) {
-            archive->addTextFile(TargetNames::DebugInfoName, debugInfo());
+            archive->addTextFile(TargetNames::DebugInfoName,
+                                 serializeToString(debugInfo()));
         }
         break;
     }
@@ -98,7 +110,7 @@ void Target::writeToDisk(std::filesystem::path const& dir) const {
 
 Target::Target(TargetType type, std::string name,
                std::unique_ptr<sema::SymbolTable> sym,
-               std::vector<uint8_t> binary, std::string debugInfo):
+               std::vector<uint8_t> binary, DebugInfoMap debugInfo):
     _type(type),
     _name(std::move(name)),
     _sym(std::move(sym)),

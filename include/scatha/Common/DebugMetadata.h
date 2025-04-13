@@ -1,5 +1,5 @@
-#ifndef SCATHA_COMMON_DEBUGINFO_H_
-#define SCATHA_COMMON_DEBUGINFO_H_
+#ifndef SCATHA_COMMON_DEBUGMETADATA_H_
+#define SCATHA_COMMON_DEBUGMETADATA_H_
 
 #include <filesystem>
 #include <span>
@@ -10,7 +10,7 @@
 #include <scatha/Common/SourceLocation.h>
 #include <utl/hashmap.hpp>
 
-namespace scatha::dbi {
+namespace scatha {
 
 /// List of source file paths to be associated with a target
 class SourceFileList:
@@ -38,21 +38,6 @@ private:
     void doPrettyPrint(std::ostream& os) const final;
 };
 
-/// Structure containing all debug metadata emitted by the compiler
-struct DebugInfoMap {
-    /// List of absolute source file paths. This array can be indexed by the
-    /// file indices of source locations.
-    std::vector<std::filesystem::path> sourceFiles;
+} // namespace scatha
 
-    /// Maps binary offsets to label names.
-    utl::hashmap<size_t, std::string> labelMap;
-
-    /// Maps binary offsets to source locations.
-    utl::hashmap<size_t, SourceLocation> sourceLocationMap;
-
-    std::string serialize() const;
-};
-
-} // namespace scatha::dbi
-
-#endif // SCATHA_COMMON_DEBUGINFO_H_
+#endif // SCATHA_COMMON_DEBUGMETADATA_H_

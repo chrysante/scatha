@@ -9,9 +9,9 @@
 
 #include <scatha/Assembly/Options.h>
 #include <scatha/Common/Base.h>
-#include <scatha/Common/DebugInfo.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/FFI.h>
+#include <scatha/DebugInfo/DebugInfo.h>
 
 namespace scatha::Asm {
 
@@ -29,7 +29,7 @@ struct AssemblerResult {
     std::vector<std::pair<size_t, ForeignFunctionInterface>> unresolvedSymbols;
 
     ///
-    dbi::DebugInfoMap debugInfo;
+    DebugInfoMap debugInfo;
 };
 
 /// Argument structure for `assemble()`

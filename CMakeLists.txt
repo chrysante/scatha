@@ -41,6 +41,7 @@ if(SCATHA_BUILD_TESTS)
 endif()
 
 # Subprojects
+include(cmake/scatha-debuginfo.cmake)
 include(cmake/scatha.cmake)
 include(cmake/scathac.cmake)
 include(cmake/svm.cmake)

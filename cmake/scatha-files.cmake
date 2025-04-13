@@ -20,7 +20,7 @@ set(scatha_headers
   include/scatha/Common/APInt.h
   include/scatha/Common/Allocator.h
   include/scatha/Common/Base.h
-  include/scatha/Common/DebugInfo.h
+  include/scatha/Common/DebugMetadata.h
   include/scatha/Common/Dyncast.h
   include/scatha/Common/Expected.h
   include/scatha/Common/FFI.h
@@ -171,7 +171,7 @@ set(scatha_sources
     src/scatha/Common/Base.cc
     src/scatha/Common/Builtin.cc
     src/scatha/Common/Builtin.h
-    src/scatha/Common/DebugInfo.cc
+    src/scatha/Common/DebugMetadata.cc
     src/scatha/Common/EscapeSequence.cc
     src/scatha/Common/EscapeSequence.h
     src/scatha/Common/FFI.cc

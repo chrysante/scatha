@@ -10,7 +10,6 @@ target_compile_definitions(scatha
 
 target_include_directories(scatha
     PUBLIC
-      ${CMAKE_CURRENT_BINARY_DIR}/include
       include
     PRIVATE
       include/scatha
@@ -20,6 +19,7 @@ target_include_directories(scatha
 
 target_link_libraries(scatha
   PUBLIC
+    scatha-debuginfo
     range-v3
     csp
     utility
