@@ -1,14 +1,15 @@
 #ifndef SDB_MODEL_DISASSEMBLER_H_
 #define SDB_MODEL_DISASSEMBLER_H_
 
+#include <cassert>
 #include <optional>
 #include <span>
 #include <string>
 #include <vector>
 
+#include <scbinutil/OpCode.h>
+#include <scbinutil/ProgramView.h>
 #include <svm/Fwd.h>
-#include <svm/OpCode.h>
-#include <svm/Program.h>
 #include <utl/hashtable.hpp>
 
 namespace sdb {
@@ -52,7 +53,7 @@ std::ostream& operator<<(std::ostream& ostream, Value value);
 /// Represents a single VM intruction
 struct Instruction {
     /// The opcode of this instructions
-    svm::OpCode opcode;
+    scbinutil::OpCode opcode;
 
     /// The arguments of this instruction. These can be empty depending on the
     /// opcode

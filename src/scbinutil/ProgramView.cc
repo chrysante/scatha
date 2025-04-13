@@ -1,4 +1,4 @@
-#include "svm/Program.h"
+#include "scbinutil/ProgramView.h"
 
 #include <iomanip>
 #include <iostream>
@@ -10,11 +10,31 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
-#include "Common.h"
-#include "Memory.h"
-#include "OpCode.h"
+#include "scbinutil/OpCode.h"
 
-using namespace svm;
+using namespace scbinutil;
+
+template <typename T>
+static T load(void const* ptr) {
+    std::aligned_storage_t<sizeof(T), alignof(T)> storage;
+    std::memcpy(&storage, ptr, sizeof(T));
+    return reinterpret_cast<T const&>(storage);
+}
+
+template <typename T>
+static void store(void* dest, T const& t) {
+    std::memcpy(dest, &t, sizeof(T));
+}
+
+[[noreturn]] static void unreachable() {
+#if defined(__GNUC__)
+    __builtin_unreachable();
+#elif defined(_MSC_VER)
+    __assume(false);
+#else
+    assert(false);
+#endif
+}
 
 FFITrivialType FFIType::_sVoid = FFITrivialType(Kind::Void);
 FFITrivialType FFIType::_sInt8 = FFITrivialType(Kind::Int8);
@@ -77,14 +97,14 @@ FFIType const* FFIType::Struct(std::span<FFIType const* const> types) {
 }
 
 template <typename T>
-static T readAs(std::span<u8 const> data, size_t offset) {
+static T readAs(std::span<uint8_t const> data, size_t offset) {
     return load<T>(&data[offset]);
 }
 
 namespace {
 
 struct LibDeclParser {
-    std::span<u8 const> data;
+    std::span<uint8_t const> data;
 
     template <typename T>
     T read() {
@@ -98,7 +118,7 @@ struct LibDeclParser {
     }
 
     std::vector<FFILibDecl> parse() {
-        size_t numLibs = read<u32>();
+        size_t numLibs = read<uint32_t>();
         std::vector<FFILibDecl> libs;
         for (size_t i = 0; i < numLibs; ++i) {
             libs.push_back(parseLibDecl());
@@ -120,7 +140,7 @@ struct LibDeclParser {
 
     FFILibDecl parseLibDecl() {
         std::string name = parseString();
-        size_t numFunctions = read<u32>();
+        size_t numFunctions = read<uint32_t>();
         std::vector<FFIDecl> FFIs;
         for (size_t i = 0; i < numFunctions; ++i) {
             FFIs.push_back(parseFFIDecl());
@@ -130,13 +150,13 @@ struct LibDeclParser {
 
     FFIDecl parseFFIDecl() {
         auto name = parseString();
-        size_t numArgs = read<u8>();
+        size_t numArgs = read<uint8_t>();
         std::vector<FFIType const*> argTypes;
         for (size_t i = 0; i < numArgs; ++i) {
             argTypes.push_back(parseType());
         }
         auto retType = parseType();
-        auto index = read<u32>();
+        auto index = read<uint32_t>();
         return FFIDecl{ .name = name,
                         .argumentTypes = argTypes,
                         .returnType = retType,
@@ -144,11 +164,11 @@ struct LibDeclParser {
     }
 
     FFIType const* parseType() {
-        auto kind = FFIType::Kind{ read<u8>() };
+        auto kind = FFIType::Kind{ read<uint8_t>() };
         if (FFIType::isTrivial(kind)) {
             return FFIType::Trivial(kind);
         }
-        size_t numElems = read<u16>();
+        size_t numElems = read<uint16_t>();
         std::vector<FFIType const*> elems(numElems);
         for (auto& elem: elems) {
             elem = parseType();
@@ -159,11 +179,11 @@ struct LibDeclParser {
 
 } // namespace
 
-static std::vector<FFILibDecl> parseLibDecls(std::span<u8 const> data) {
+static std::vector<FFILibDecl> parseLibDecls(std::span<uint8_t const> data) {
     return LibDeclParser{ data }.parse();
 }
 
-ProgramView::ProgramView(u8 const* prog) {
+ProgramView::ProgramView(uint8_t const* prog) {
     ProgramHeader header{};
     std::memcpy(&header, prog, sizeof(header));
     if (header.versionString[0] != GlobalProgID) {
@@ -182,21 +202,23 @@ ProgramView::ProgramView(u8 const* prog) {
         parseLibDecls(std::span(prog + header.FFIDeclOffset, FFIDeclSize));
 }
 
-void svm::print(u8 const* program) { svm::print(program, std::cout); }
+void scbinutil::print(uint8_t const* program) {
+    scbinutil::print(program, std::cout);
+}
 
 template <typename T>
 static constexpr std::string_view typeToStr() {
 #define SVM_TYPETOSTR_CASE(type)                                               \
     else if constexpr (std::is_same_v<T, type>) { return #type; }
     if constexpr (false) (void)0; /// First case for the macro to work.
-    SVM_TYPETOSTR_CASE(u8)
-    SVM_TYPETOSTR_CASE(u16)
-    SVM_TYPETOSTR_CASE(u32)
-    SVM_TYPETOSTR_CASE(u64)
-    SVM_TYPETOSTR_CASE(i8)
-    SVM_TYPETOSTR_CASE(i16)
-    SVM_TYPETOSTR_CASE(i32)
-    SVM_TYPETOSTR_CASE(i64)
+    SVM_TYPETOSTR_CASE(uint8_t)
+    SVM_TYPETOSTR_CASE(uint16_t)
+    SVM_TYPETOSTR_CASE(uint32_t)
+    SVM_TYPETOSTR_CASE(uint64_t)
+    SVM_TYPETOSTR_CASE(int8_t)
+    SVM_TYPETOSTR_CASE(int16_t)
+    SVM_TYPETOSTR_CASE(int32_t)
+    SVM_TYPETOSTR_CASE(int64_t)
     else { static_assert(!std::is_same_v<T, T>); }
 #undef SVM_TYPETOSTR_CASE
 }
@@ -207,33 +229,33 @@ static auto printAs(auto data) {
 }
 
 template <typename T>
-static auto printAs(std::span<u8 const> data, size_t offset) {
+static auto printAs(std::span<uint8_t const> data, size_t offset) {
     return printAs<T>(readAs<T>(data, offset));
 }
 
 static constexpr utl::streammanip reg([](std::ostream& str,
-                                         std::span<u8 const> text, size_t i) {
-    str << "%" << +readAs<u8>(text, i);
+                                         std::span<uint8_t const> text,
+                                         size_t i) {
+    str << "%" << +readAs<uint8_t>(text, i);
 });
 
-static constexpr utl::streammanip memoryAcccess([](std::ostream& str,
-                                                   std::span<u8 const> text,
-                                                   size_t i) {
-    size_t const offsetCountRegisterIndex = readAs<u8>(text, i + 1);
-    u8 const constantOffsetMultiplier = readAs<u8>(text, i + 2);
-    u8 const constantInnerOffset = readAs<u8>(text, i + 3);
-    str << "[ " << reg(text, i);
-    if (offsetCountRegisterIndex != 0xFF) {
-        str << " + " << reg(text, i + 1) << " * "
-            << printAs<u8>(constantOffsetMultiplier);
-    }
-    if (constantInnerOffset > 0) {
-        str << " + " << printAs<u8>(constantInnerOffset);
-    }
-    str << " ]";
-});
+static constexpr utl::streammanip memoryAcccess(
+    [](std::ostream& str, std::span<uint8_t const> text, size_t i) {
+        size_t const offsetCountRegisterIndex = readAs<uint8_t>(text, i + 1);
+        uint8_t const constantOffsetMultiplier = readAs<uint8_t>(text, i + 2);
+        uint8_t const constantInnerOffset = readAs<uint8_t>(text, i + 3);
+        str << "[ " << reg(text, i);
+        if (offsetCountRegisterIndex != 0xFF) {
+            str << " + " << reg(text, i + 1) << " * "
+                << printAs<uint8_t>(constantOffsetMultiplier);
+        }
+        if (constantInnerOffset > 0) {
+            str << " + " << printAs<uint8_t>(constantInnerOffset);
+        }
+        str << " ]";
+    });
 
-void svm::print(u8 const* progData, std::ostream& str) {
+void scbinutil::print(uint8_t const* progData, std::ostream& str) {
     ProgramView const p(progData);
 
     str << ".data:\n";
@@ -258,13 +280,13 @@ void svm::print(u8 const* progData, std::ostream& str) {
             str << reg(text, i + 1) << ", " << reg(text, i + 2);
             break;
         case RV64:
-            str << reg(text, i + 1) << ", " << printAs<u64>(text, i + 2);
+            str << reg(text, i + 1) << ", " << printAs<uint64_t>(text, i + 2);
             break;
         case RV32:
-            str << reg(text, i + 1) << ", " << printAs<u32>(text, i + 2);
+            str << reg(text, i + 1) << ", " << printAs<uint32_t>(text, i + 2);
             break;
         case RV8:
-            str << reg(text, i + 1) << ", " << printAs<u8>(text, i + 2);
+            str << reg(text, i + 1) << ", " << printAs<uint8_t>(text, i + 2);
             break;
         case RM:
             str << reg(text, i + 1) << ", " << memoryAcccess(text, i + 2);
@@ -276,23 +298,24 @@ void svm::print(u8 const* progData, std::ostream& str) {
             str << reg(text, i + 1);
             break;
         case Jump:
-            str << printAs<i32>(text, i + 1);
+            str << printAs<int32_t>(text, i + 1);
             break;
         case Other:
             switch (opcode) {
             case OpCode::lincsp:
-                str << reg(text, i + 1) << ", " << printAs<u16>(i + 2);
+                str << reg(text, i + 1) << ", " << printAs<uint16_t>(i + 2);
                 break;
             case OpCode::call:
-                str << printAs<i32>(text, i + 1) << ", "
-                    << printAs<u8>(text, i + 5);
+                str << printAs<int32_t>(text, i + 1) << ", "
+                    << printAs<uint8_t>(text, i + 5);
                 break;
             case OpCode::icallr:
-                str << reg(text, i + 1) << ", " << printAs<u8>(text, i + 2);
+                str << reg(text, i + 1) << ", "
+                    << printAs<uint8_t>(text, i + 2);
                 break;
             case OpCode::icallm:
                 str << memoryAcccess(text, i + 1) << ", "
-                    << printAs<u8>(text, i + 5);
+                    << printAs<uint8_t>(text, i + 5);
                 break;
             case OpCode::ret:
                 break;
@@ -301,11 +324,11 @@ void svm::print(u8 const* progData, std::ostream& str) {
             case OpCode::cfng:
                 [[fallthrough]];
             case OpCode::cbltn:
-                str << printAs<u8>(text, i + 1) << ", "
-                    << printAs<u16>(text, i + 2);
+                str << printAs<uint8_t>(text, i + 1) << ", "
+                    << printAs<uint16_t>(text, i + 2);
                 break;
             default:
-                assert(false);
+                unreachable();
             }
             break;
         }

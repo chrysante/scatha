@@ -4,8 +4,8 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <scbinutil/ProgramView.h>
 #include <svm/Builtin.h>
-#include <svm/Program.h>
 #include <utl/dynamic_library.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
@@ -125,14 +125,14 @@ Expected<void, LinkerError> Asm::link(
     std::span<ForeignLibraryDecl const> foreignLibs,
     std::span<std::pair<size_t, ForeignFunctionInterface> const>
         unresolvedSymbols) {
-    SC_ASSERT(binary.size() >= sizeof(svm::ProgramHeader),
+    SC_ASSERT(binary.size() >= sizeof(scbinutil::ProgramHeader),
               "Binary must at least contain a header");
     Linker linker(options, binary, foreignLibs, unresolvedSymbols);
     auto result = linker.run();
     /// Update binary size because we placed the dynamic link section in the
     /// back
-    auto& header = *reinterpret_cast<svm::ProgramHeader*>(binary.data());
-    header.size = sizeof(svm::ProgramHeader) + binary.size();
+    auto& header = *reinterpret_cast<scbinutil::ProgramHeader*>(binary.data());
+    header.size = sizeof(scbinutil::ProgramHeader) + binary.size();
     return result;
 }
 

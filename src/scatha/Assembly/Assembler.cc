@@ -3,8 +3,8 @@
 #include <span>
 
 #include <range/v3/view.hpp>
-#include <svm/OpCode.h>
-#include <svm/Program.h>
+#include <scbinutil/OpCode.h>
+#include <scbinutil/ProgramView.h>
 #include <utl/bit.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/scope_guard.hpp>
@@ -23,7 +23,7 @@ using namespace scatha;
 using namespace Asm;
 using namespace ranges::views;
 
-using svm::OpCode;
+using scbinutil::OpCode;
 
 /// 4 bytes will always suffice to store code addresses unless we have binaries
 /// greater than 4GB in size.
@@ -81,8 +81,8 @@ struct Assembler: AsmWriter {
     using AsmWriter::put;
 
     /// Append opcode  \p o to the back of the binary
-    void put(svm::OpCode o) {
-        put<std::underlying_type_t<svm::OpCode>>(utl::to_underlying(o));
+    void put(scbinutil::OpCode o) {
+        put<std::underlying_type_t<scbinutil::OpCode>>(utl::to_underlying(o));
     }
 
     /// Emit a placeholder for a label address and register a jumpsite for
@@ -115,7 +115,8 @@ struct Assembler: AsmWriter {
     void addUnresolvedSymbol(size_t position,
                              ForeignFunctionInterface function) {
         unresolvedSymbols.push_back(
-            { sizeof(svm::ProgramHeader) + position, std::move(function) });
+            { sizeof(scbinutil::ProgramHeader) + position,
+              std::move(function) });
     }
 
     DebugInfoMap extractDebugInfo();
@@ -133,7 +134,7 @@ struct Assembler: AsmWriter {
     /// List of all code position with a jump site
     std::vector<Jumpsite> jumpsites;
     /// Address of the `start` or `main` function.
-    uint64_t startAddress = svm::InvalidAddress;
+    uint64_t startAddress = scbinutil::InvalidAddress;
 };
 
 } // namespace
@@ -144,13 +145,13 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr,
     Assembler ctx(astr, options, result.symbolTable, result.unresolvedSymbols);
     ctx.run();
     size_t dataSecSize = astr.dataSection().size();
-    svm::ProgramHeader const header{
-        .versionString = { svm::GlobalProgID },
-        .size = sizeof(svm::ProgramHeader) + ctx.binary.size(),
+    scbinutil::ProgramHeader const header{
+        .versionString = { scbinutil::GlobalProgID },
+        .size = sizeof(scbinutil::ProgramHeader) + ctx.binary.size(),
         .startAddress = ctx.startAddress,
-        .dataOffset = sizeof(svm::ProgramHeader),
-        .textOffset = sizeof(svm::ProgramHeader) + dataSecSize,
-        .FFIDeclOffset = sizeof(svm::ProgramHeader) + ctx.binary.size(),
+        .dataOffset = sizeof(scbinutil::ProgramHeader),
+        .textOffset = sizeof(scbinutil::ProgramHeader) + dataSecSize,
+        .FFIDeclOffset = sizeof(scbinutil::ProgramHeader) + ctx.binary.size(),
     };
     result.program.resize(header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
@@ -350,7 +351,7 @@ void Assembler::translate(ConvertInst const& inst) {
 #define MAP_CONV(FromType, FromBits, ToType, ToBits)                           \
     if (inst.fromType() == Type::FromType && inst.fromBits() == FromBits &&    \
         inst.toType() == Type::ToType && inst.toBits() == ToBits)
-        using enum svm::OpCode;
+        using enum scbinutil::OpCode;
         MAP_CONV(Signed, 8, Float, 32) { return s8tof32; }
         MAP_CONV(Signed, 16, Float, 32) { return s16tof32; }
         MAP_CONV(Signed, 32, Float, 32) { return s32tof32; }

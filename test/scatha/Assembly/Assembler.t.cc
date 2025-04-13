@@ -2,8 +2,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
+#include <scbinutil/ProgramView.h>
 #include <svm/Builtin.h>
-#include <svm/Program.h>
 #include <svm/VirtualMachine.h>
 
 #include "Assembly/Assembler.h"
@@ -40,7 +40,7 @@ static auto assembleAndExecute(AssemblyStream const& str) {
     if (!link(LinkerOptions{}, prog, {}, unresolved)) {
         throw std::runtime_error("Linker error");
     }
-    svm::print(prog.data());
+    scbinutil::print(prog.data());
 }
 
 TEST_CASE("Alloca implementation", "[assembly][vm]") {

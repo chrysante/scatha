@@ -7,6 +7,7 @@ set_target_properties(libsvm PROPERTIES OUTPUT_NAME "svm")
 
 target_link_libraries(libsvm
   PUBLIC
+    scbinutil
     utility
   PRIVATE
     range-v3
@@ -29,9 +30,6 @@ set(libsvm_headers
     include/svm/Errors.def.h
     include/svm/Errors.h
     include/svm/Fwd.h
-    include/svm/OpCode.def.h
-    include/svm/OpCode.h
-    include/svm/Program.h
     include/svm/Util.h
     include/svm/VMData.h
     include/svm/VirtualMachine.h
@@ -47,8 +45,6 @@ set(libsvm_sources
     src/svm/ExecutionInstDef.h
     src/svm/ExternalFunction.h
     src/svm/Memory.h
-    src/svm/OpCode.cc
-    src/svm/Program.cc
     src/svm/Util.cc
     src/svm/VMImpl.h
     src/svm/VirtualMachine.cc

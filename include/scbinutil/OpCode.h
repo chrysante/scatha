@@ -1,34 +1,32 @@
-#ifndef SVM_OPCODE_H_
-#define SVM_OPCODE_H_
+#ifndef SCBINUTIL_OPCODE_H_
+#define SCBINUTIL_OPCODE_H_
 
 #include <array>
 #include <iosfwd>
 #include <string_view>
 
-#include <svm/Common.h>
+namespace scbinutil {
 
-namespace svm {
-
-/// ## A program looks like this:
-/// ```
-/// u8 [instruction], u8... [arguments]
-/// ...
-/// ```
+/// A program looks like this:
 ///
-/// ```
-/// MEMORY_POINTER == [u8 baseptrRegIdx,
-///                    u8 offsetCountRegIdx,
-///                    u8 constantOffsetMultiplier,
-///                    u8 constantInnerOffset]
+///     u8 [instruction], u8... [arguments]
+///     ...
 ///
-/// eval(MEMORY_POINTER) ==
-///     reg[baseptrRegIdx] + offsetCountRegIdx * constantOffsetMultiplier
-///                        + constantOffsetTerm
 ///
-/// sizeof(MEMORY_POINTER) == 4
-/// ```
-/// NOTE: If `offsetCountRegIdx == 0xFF` then `eval(MEMORY_POINTER) ==
-/// reg[baseptrRegIdx] + constantInnerOffset`
+///     MEMORY_POINTER == [u8 baseptrRegIdx,
+///                        u8 offsetCountRegIdx,
+///                        u8 constantOffsetMultiplier,
+///                        u8 constantInnerOffset]
+///
+///     eval(MEMORY_POINTER) ==
+///         reg[baseptrRegIdx] + offsetCountRegIdx * constantOffsetMultiplier
+///                            + constantOffsetTerm
+///
+///     sizeof(MEMORY_POINTER) == 4
+///
+/// NOTE: If `offsetCountRegIdx == 0xFF` then
+/// `eval(MEMORY_POINTER) == reg[baseptrRegIdx] + constantInnerOffset`
+///
 
 /// ## Calling convention
 ///
@@ -45,18 +43,18 @@ namespace svm {
 
 /// Opcodes are stored as 12 bit integers. The next 4 bits encode the offset to
 /// the next instruction.
-enum class OpCode : u8 {
+enum class OpCode : uint8_t {
 #define SVM_INSTRUCTION_DEF(inst, class) inst,
-#include <svm/OpCode.def.h>
+#include <scbinutil/OpCode.def.h>
 };
 
 inline constexpr size_t NumOpcodes =
 #define SVM_INSTRUCTION_DEF(inst, class) 1 +
-#include <svm/OpCode.def.h>
+#include <scbinutil/OpCode.def.h>
     0;
 
 ///
-std::string_view toString(OpCode);
+std::string_view toString(OpCode code);
 
 ///
 std::ostream& operator<<(std::ostream&, OpCode);
@@ -64,12 +62,22 @@ std::ostream& operator<<(std::ostream&, OpCode);
 ///
 enum class OpCodeClass { RR, RV64, RV32, RV8, RM, MR, R, Jump, Other };
 
+namespace internal {
+
+[[noreturn]] void throwRuntimeError(std::string_view msg);
+
+}
+
 /// Maps opcodes to their class
 inline constexpr OpCodeClass classify(OpCode code) {
-    return std::array{
+    constexpr OpCodeClass classMap[] = {
 #define SVM_INSTRUCTION_DEF(inst, class) OpCodeClass::class,
-#include <svm/OpCode.def.h>
-    }[static_cast<size_t>(code)];
+#include <scbinutil/OpCode.def.h>
+    };
+    size_t index = static_cast<size_t>(code);
+    if (index >= std::size(classMap))
+        internal::throwRuntimeError("Invalid opcode");
+    return classMap[index];
 };
 
 /// \Returns The offset in bytes to the next instruction.
@@ -95,7 +103,7 @@ inline constexpr size_t codeSize(OpCode code) {
         case OpCode::lincsp:
             return sizeof(OpCode) + 1 + 2;
         default:
-            unreachable();
+            internal::throwRuntimeError("Invalid opcode");
         }
     }
     switch (opCodeClass) {
@@ -116,11 +124,11 @@ inline constexpr size_t codeSize(OpCode code) {
     case OpCodeClass::Jump:
         return sizeof(OpCode) + 4;
     case OpCodeClass::Other:
-        unreachable();
+        internal::throwRuntimeError("Invalid opcode");
     }
-    unreachable();
+    internal::throwRuntimeError("Invalid opcode");
 }
 
-} // namespace svm
+} // namespace scbinutil
 
-#endif // SVM_OPCODE_H_
+#endif // SCBINUTIL_OPCODE_H_

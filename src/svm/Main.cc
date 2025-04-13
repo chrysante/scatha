@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-#include <svm/Program.h>
+#include <scbinutil/ProgramView.h>
 #include <svm/Util.h>
 #include <svm/VirtualMachine.h>
 #include <svm/VirtualPointer.h>
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
             return -1;
         }
         if (options.print) {
-            print(binary.data());
+            scbinutil::print(binary.data());
             return 0;
         }
         vm.setLibdir(options.filepath.parent_path());

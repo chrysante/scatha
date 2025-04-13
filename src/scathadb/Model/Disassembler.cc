@@ -11,7 +11,7 @@
 #include "Model/SourceDebugInfo.h"
 
 using namespace sdb;
-using namespace svm;
+using namespace scbinutil;
 
 namespace {
 

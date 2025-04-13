@@ -2,12 +2,12 @@
 
 #include <cassert>
 
+#include <scbinutil/OpCode.h>
 #include <utl/functional.hpp>
 
 #include "ArithmeticOps.h"
 #include "Common.h"
 #include "Memory.h"
-#include "OpCode.h"
 #include "VMImpl.h"
 
 #if defined(__GNUC__)
@@ -19,6 +19,7 @@
 #endif
 
 using namespace svm;
+using scbinutil::OpCode;
 
 /// \Returns `codeSize(code)`  except for call and terminate instruction for
 /// which this function returns 0. This is used to advance the instruction
@@ -366,7 +367,7 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
         }(std::make_index_sequence<256 - sizeof...(args)>{});
     }(&&opcode_block_invalid
 #define SVM_INSTRUCTION_DEF(name, ...) , &&opcode_block_##name
-#include "OpCode.def.h"
+#include "scbinutil/OpCode.def.h"
         );
 
     // Here the execution starts. We jump to the first opcode block.

@@ -4,7 +4,7 @@
 
 #include <ftxui/dom/elements.hpp>
 #include <range/v3/view.hpp>
-#include <svm/OpCode.h>
+#include <scbinutil/OpCode.h>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
@@ -149,8 +149,8 @@ Component InstView::labelRenderer(long lineNum, std::string name) {
     });
 }
 
-static std::string prettyInstName(svm::OpCode opcode) {
-    auto name = svm::toString(opcode);
+static std::string prettyInstName(scbinutil::OpCode opcode) {
+    auto name = scbinutil::toString(opcode);
     using namespace std::string_view_literals;
     constexpr std::array suffixes = { "8"sv, "16"sv, "32"sv, "64"sv };
     for (auto suffix: suffixes) {
@@ -228,8 +228,8 @@ static Element getLabelName(Disassembly const* disasm, Value offset) {
 static Element printInst(Instruction inst, Disassembly const* disasm,
                          svm::VirtualMachine const* vm) {
     auto name = text(prettyInstName(inst.opcode)) | instDeco();
-    using enum svm::OpCodeClass;
-    switch (classify(inst.opcode)) {
+    using enum scbinutil::OpCodeClass;
+    switch (scbinutil::classify(inst.opcode)) {
     case RR:
         [[fallthrough]];
     case RV64:
@@ -248,7 +248,7 @@ static Element printInst(Instruction inst, Disassembly const* disasm,
     case Jump:
         return hbox({ name, space(), getLabelName(disasm, inst.arg1) });
     case Other:
-        using enum svm::OpCode;
+        using enum scbinutil::OpCode;
         switch (inst.opcode) {
         case lincsp:
             return hbox({ name, space(), toElement(inst.arg1), comma(),

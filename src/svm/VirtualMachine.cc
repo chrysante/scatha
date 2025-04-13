@@ -6,6 +6,7 @@
 #include <ffi.h>
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <scbinutil/ProgramView.h>
 #include <utl/dynamic_library.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
@@ -15,7 +16,6 @@
 #include "Common.h"
 #include "Errors.h"
 #include "Memory.h"
-#include "Program.h"
 #include "VMImpl.h"
 
 using namespace svm;
@@ -80,7 +80,7 @@ static utl::dynamic_library loadLibrary(std::filesystem::path const& libdir,
     return utl::dynamic_library(libname);
 }
 
-static ffi_type* toLibFFI(FFIType const* type);
+static ffi_type* toLibFFI(scbinutil::FFIType const* type);
 
 ffi_type svm::ArrayPtrType = [] {
     ffi_type result;
@@ -92,12 +92,13 @@ ffi_type svm::ArrayPtrType = [] {
     return result;
 }();
 
-static ffi_type* mapFFIStructType(FFIStructType const* type) {
+static ffi_type* mapFFIStructType(scbinutil::FFIStructType const* type) {
     struct LibFFITypeWrapper {
         std::vector<ffi_type*> elems;
         ffi_type type;
     };
-    static utl::node_hashmap<FFIStructType const*, LibFFITypeWrapper> map;
+    static utl::node_hashmap<scbinutil::FFIStructType const*, LibFFITypeWrapper>
+        map;
     if (auto itr = map.find(type); itr != map.end()) {
         return &itr->second.type;
     }
@@ -116,8 +117,8 @@ static ffi_type* mapFFIStructType(FFIStructType const* type) {
     return &itr->second.type;
 }
 
-static ffi_type* toLibFFI(FFIType const* type) {
-    using enum FFIType::Kind;
+static ffi_type* toLibFFI(scbinutil::FFIType const* type) {
+    using enum scbinutil::FFIType::Kind;
     switch (type->kind()) {
     case Void:
         return &ffi_type_void;
@@ -136,12 +137,14 @@ static ffi_type* toLibFFI(FFIType const* type) {
     case Pointer:
         return &ffi_type_pointer;
     case Struct:
-        return mapFFIStructType(static_cast<FFIStructType const*>(type));
+        return mapFFIStructType(
+            static_cast<scbinutil::FFIStructType const*>(type));
     }
     return nullptr;
 }
 
-static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
+static bool initForeignFunction(scbinutil::FFIDecl const& decl,
+                                ForeignFunction& F) {
 #ifndef _MSC_VER
     F.name = decl.name;
     F.funcPtr = (void (*)())decl.ptr;
@@ -160,9 +163,9 @@ static bool initForeignFunction(FFIDecl const& decl, ForeignFunction& F) {
 #endif
 }
 
-static void loadForeignFunctions(VirtualMachine* vm,
-                                 std::span<FFILibDecl const> libDecls) {
-    std::vector<FFIDecl> fnDecls;
+static void loadForeignFunctions(
+    VirtualMachine* vm, std::span<scbinutil::FFILibDecl const> libDecls) {
+    std::vector<scbinutil::FFIDecl> fnDecls;
     for (auto& libDecl: libDecls) {
         auto lib = loadLibrary(vm->impl->libdir, libDecl.name);
         for (auto FFI: libDecl.funcDecls) {
@@ -171,7 +174,7 @@ static void loadForeignFunctions(VirtualMachine* vm,
         }
         vm->impl->dylibs.push_back(std::move(lib));
     }
-    ranges::sort(fnDecls, ranges::less{}, &FFIDecl::index);
+    ranges::sort(fnDecls, ranges::less{}, &scbinutil::FFIDecl::index);
     /// We clear before we resize because `ForeignFunction` traps on copy
     /// construction
     vm->impl->foreignFunctionTable.clear();
@@ -184,7 +187,7 @@ static void loadForeignFunctions(VirtualMachine* vm,
 }
 
 void VirtualMachine::loadBinary(u8 const* progData) {
-    ProgramView program(progData);
+    scbinutil::ProgramView program(progData);
     size_t binSize = utl::round_up(program.binary.size(), 16);
     impl->memory.resizeStaticSlot(binSize + impl->stackSize);
     auto staticData = VirtualMemory::MakeStaticDataPointer(0);
@@ -197,7 +200,7 @@ void VirtualMachine::loadBinary(u8 const* progData) {
     impl->binary = rawStaticData;
     impl->binarySize = binSize;
     impl->programBreak = impl->binary + program.binary.size();
-    if (program.startAddress != InvalidAddress) {
+    if (program.startAddress != scbinutil::InvalidAddress) {
         impl->startAddress = program.startAddress;
     }
     loadForeignFunctions(this, program.libDecls);

@@ -1,42 +1,41 @@
-#ifndef SVM_PROGRAM_H_
-#define SVM_PROGRAM_H_
+#ifndef SCBINUTIL_PROGRAMVIEW_H_
+#define SCBINUTIL_PROGRAMVIEW_H_
 
+#include <cstdint>
 #include <iosfwd>
 #include <span>
 #include <string>
 #include <vector>
 
-#include <svm/Common.h>
-
-namespace svm {
+namespace scbinutil {
 
 /// Identifier that every program header version string must start with to
 /// verify it is a correct program
-inline constexpr u64 GlobalProgID = 0x5CBF;
+inline constexpr uint64_t GlobalProgID = 0x5CBF;
 
-inline constexpr u64 InvalidAddress = ~u64(0);
+inline constexpr uint64_t InvalidAddress = ~uint64_t(0);
 
 ///
 struct ProgramHeader {
     /// Arbitrary version string. Not yet sure what to put in here.
-    u64 versionString[2];
+    uint64_t versionString[2];
 
     /// Size of the entire program including data and text section and this
     /// header.
-    u64 size;
+    uint64_t size;
 
     /// Position of the start/main function in the text section.
-    u64 startAddress;
+    uint64_t startAddress;
 
     /// Offset of the beginning of the data section.
     /// This should usually the size of the header.
-    u64 dataOffset;
+    uint64_t dataOffset;
 
     /// Offset to the beginning of the text section.
-    u64 textOffset;
+    uint64_t textOffset;
 
     /// Offset to a list of dynamic library and FFI declarations
-    u64 FFIDeclOffset;
+    uint64_t FFIDeclOffset;
 };
 
 /// The FFI decl format is as follows:
@@ -156,34 +155,34 @@ struct FFILibDecl {
 ///
 class ProgramView {
 public:
-    explicit ProgramView(u8 const* data);
+    explicit ProgramView(uint8_t const* data);
 
     ///
     ProgramHeader header;
 
     /// Address of the 'start' label
-    u64 startAddress = InvalidAddress;
+    uint64_t startAddress = InvalidAddress;
 
     /// View over the entire binary section of the program, i.e. `data` and
     /// `text` adjacently combined
-    std::span<u8 const> binary;
+    std::span<uint8_t const> binary;
 
     /// View over the static data section of the program
-    std::span<u8 const> data;
+    std::span<uint8_t const> data;
 
     /// View over the code of the program
-    std::span<u8 const> text;
+    std::span<uint8_t const> text;
 
     ///
     std::vector<FFILibDecl> libDecls;
 };
 
 ///
-void print(u8 const* program);
+void print(uint8_t const* program);
 
 ///
-void print(u8 const* program, std::ostream&);
+void print(uint8_t const* program, std::ostream& ostream);
 
-} // namespace svm
+} // namespace scbinutil
 
-#endif // SVM_PROGRAM_H_
+#endif // SCBINUTIL_PROGRAMVIEW_H_

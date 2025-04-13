@@ -8,7 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
-#include <svm/Program.h>
+#include <scbinutil/ProgramView.h>
 #include <svm/VirtualMachine.h>
 #include <termfmt/termfmt.h>
 #include <utl/functional.hpp>

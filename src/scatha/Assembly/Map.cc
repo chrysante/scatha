@@ -5,7 +5,7 @@
 using namespace scatha;
 using namespace Asm;
 
-using svm::OpCode;
+using scbinutil::OpCode;
 
 std::optional<MoveMapResult> Asm::mapMove(ValueType dest, ValueType source,
                                           size_t size) {
@@ -212,7 +212,7 @@ std::optional<MoveMapResult> Asm::mapCMove(CompareOperation cmpOp,
     SC_UNREACHABLE();
 }
 
-std::optional<svm::OpCode> Asm::mapJump(CompareOperation condition) {
+std::optional<OpCode> Asm::mapJump(CompareOperation condition) {
     switch (condition) {
     case CompareOperation::None:
         return OpCode::jmp;
@@ -232,7 +232,7 @@ std::optional<svm::OpCode> Asm::mapJump(CompareOperation condition) {
     SC_UNREACHABLE();
 }
 
-std::optional<svm::OpCode> Asm::mapCall(ValueType type) {
+std::optional<OpCode> Asm::mapCall(ValueType type) {
     switch (type) {
     case ValueType::LabelPosition:
         return OpCode::call;
@@ -245,8 +245,8 @@ std::optional<svm::OpCode> Asm::mapCall(ValueType type) {
     }
 }
 
-std::optional<svm::OpCode> Asm::mapCompare(Type type, ValueType lhs,
-                                           ValueType rhs, size_t width) {
+std::optional<OpCode> Asm::mapCompare(Type type, ValueType lhs, ValueType rhs,
+                                      size_t width) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
         switch (width) {
         case 1:
@@ -345,7 +345,7 @@ std::optional<svm::OpCode> Asm::mapCompare(Type type, ValueType lhs,
     return std::nullopt;
 }
 
-std::optional<svm::OpCode> Asm::mapTest(Type type, size_t width) {
+std::optional<OpCode> Asm::mapTest(Type type, size_t width) {
     switch (width) {
     case 1:
         switch (type) {
@@ -388,7 +388,7 @@ std::optional<svm::OpCode> Asm::mapTest(Type type, size_t width) {
     }
 }
 
-std::optional<svm::OpCode> Asm::mapSet(CompareOperation operation) {
+std::optional<OpCode> Asm::mapSet(CompareOperation operation) {
     switch (operation) {
     case CompareOperation::None:
         return std::nullopt;
@@ -408,9 +408,8 @@ std::optional<svm::OpCode> Asm::mapSet(CompareOperation operation) {
     SC_UNREACHABLE();
 }
 
-std::optional<svm::OpCode> Asm::mapArithmetic64(ArithmeticOperation operation,
-                                                ValueType dest,
-                                                ValueType source) {
+std::optional<OpCode> Asm::mapArithmetic64(ArithmeticOperation operation,
+                                           ValueType dest, ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
         switch (operation) {
@@ -544,9 +543,8 @@ std::optional<svm::OpCode> Asm::mapArithmetic64(ArithmeticOperation operation,
     return std::nullopt;
 }
 
-std::optional<svm::OpCode> Asm::mapArithmetic32(ArithmeticOperation operation,
-                                                ValueType dest,
-                                                ValueType source) {
+std::optional<OpCode> Asm::mapArithmetic32(ArithmeticOperation operation,
+                                           ValueType dest, ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
         switch (operation) {

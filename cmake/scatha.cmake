@@ -20,6 +20,7 @@ target_include_directories(scatha
 target_link_libraries(scatha
   PUBLIC
     scatha-debuginfo
+    scbinutil
     range-v3
     csp
     utility
