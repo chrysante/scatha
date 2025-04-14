@@ -8,7 +8,9 @@
 #include <vector>
 
 #include <scbinutil/OpCode.h>
+#include <scbinutil/ProgramView.h>
 #include <utl/hashtable.hpp>
+#include <utl/projection.hpp>
 
 namespace scdis {
 
@@ -134,6 +136,12 @@ public:
         return index ? findLabel(*index) : nullptr;
     }
 
+    ///
+    scbinutil::FFIDecl const* findFfiByIndex(size_t index) const {
+        auto itr = _ffiset.find(index);
+        return itr != _ffiset.end() ? std::to_address(itr) : nullptr;
+    }
+
 private:
     friend struct internal::Disassembler;
 
@@ -141,6 +149,10 @@ private:
     // Maps instruction indices to labels
     utl::hashmap<size_t, Label> _labels;
     IpoIndexMap _indexMap;
+    template <typename T, auto Mem>
+    using ProjectionHashset = utl::hashset<T, utl::projection_hash<T, Mem>,
+                                           utl::projection_equal_to<T, Mem>>;
+    ProjectionHashset<scbinutil::FFIDecl, &scbinutil::FFIDecl::index> _ffiset;
 };
 
 } // namespace scdis

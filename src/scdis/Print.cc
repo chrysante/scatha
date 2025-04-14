@@ -4,6 +4,7 @@
 #include <ostream>
 
 #include <range/v3/view.hpp>
+#include <svm/Builtin.h>
 #include <termfmt/termfmt.h>
 #include <utl/scope_guard.hpp>
 
@@ -92,7 +93,7 @@ void PrintCtx::printValue(Value value) {
 }
 
 void PrintCtx::printInstruction(Instruction inst) {
-    del.beginInst(inst.ipo);
+    del.beginInst(inst);
     utl::scope_guard end = [&] { del.endInst(); };
     del.instName(prettyInstName(inst.opcode));
     using enum scbinutil::OpCodeClass;
@@ -148,6 +149,16 @@ void PrintCtx::printInstruction(Instruction inst) {
             del.space();
             printValue(inst.arg1);
             del.comma();
+            if (inst.opcode == cfng) {
+                if (auto* fn = disasm.findFfiByIndex(inst.arg2.raw)) {
+                    del.labelName(fn->name);
+                    return;
+                }
+            }
+            if (inst.opcode == cbltn) {
+                del.labelName(svm::toString((svm::Builtin)inst.arg2.raw));
+                return;
+            }
             // TODO: Print function name here if possible
             del.plaintext("index: ");
             del.immediate(inst.arg2.raw);
@@ -184,23 +195,29 @@ struct OstreamDelegate final: PrintDelegate {
     }
 
     void registerName(size_t index) override {
-        format(tfmt::BrightMagenta, "%", index);
+        format(tfmt::Magenta, "%", index);
     }
 
-    void immediate(uint64_t value) override { format(tfmt::BrightCyan, value); }
+    void immediate(uint64_t value) override { format(tfmt::Cyan, value); }
+
+    static tfmt::Modifier const& LabelMod() {
+        static auto const mod = tfmt::Green | tfmt::Bold;
+        return mod;
+    }
 
     void label(std::string_view label) override {
-        format(tfmt::BrightGreen, label, ":\n");
+        format(LabelMod(), label, ":\n");
     }
 
     void labelName(std::string_view label) override {
-        format(tfmt::BrightGreen, label);
+        format(LabelMod(), label);
     }
 
     void plaintext(std::string_view text) override { os << text; }
 
-    void beginInst(InstructionPointerOffset ipo) override {
-        format(tfmt::BrightGrey, std::setw(5), std::right, ipo.value, ": ");
+    void beginInst(Instruction const& inst) override {
+        format(tfmt::BrightGrey, std::setw(5), std::right, inst.ipo.value,
+               ": ");
     }
 
     void endInst() override { os << "\n"; }

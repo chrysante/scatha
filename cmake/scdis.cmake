@@ -9,8 +9,8 @@ target_link_libraries(libscdis
   PUBLIC
     scatha-debuginfo
     utility
-  PRIVATE
     scbinutil
+  PRIVATE
     termfmt
     range-v3
 )

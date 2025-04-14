@@ -110,7 +110,7 @@ static Instruction readInstruction(InstructionPointerOffset ipo,
 Disassembly Disassembler::run() {
     if (program.empty()) return {};
     Disassembly result;
-    ProgramView const p(program.data());
+    ProgramView p(program.data());
     auto text = p.text;
     // Gather all instructions and labels from debug info
     for (size_t textIndex = 0; textIndex < text.size();) {
@@ -144,5 +144,9 @@ Disassembly Disassembler::run() {
             return Label{ utl::strcat(".L", labelID++) };
         }));
     });
+    // Gather all FFIs
+    for (auto& lib: p.libDecls)
+        for (auto& ffi: lib.funcDecls)
+            result._ffiset.insert(std::move(ffi));
     return result;
 }

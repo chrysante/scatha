@@ -31,7 +31,7 @@ public:
     virtual void rightBracket() { plaintext("]"); }
 
     // Optional hooks for composition
-    virtual void beginInst(InstructionPointerOffset) {}
+    virtual void beginInst(Instruction const&) {}
     virtual void endInst() {}
 };
 
