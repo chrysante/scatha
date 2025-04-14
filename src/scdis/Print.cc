@@ -34,6 +34,7 @@ struct PrintCtx {
     void printLabelName(InstructionPointerOffset ipo);
     void printValue(Value value);
     void printInstruction(Instruction inst);
+    void printVar(Variable const& var);
     void printAll();
 };
 
@@ -41,7 +42,7 @@ struct PrintCtx {
 
 void PrintCtx::printLabelName(InstructionPointerOffset ipo) {
     if (auto* label = disasm.findLabel(ipo)) {
-        del.labelName(label->name);
+        del.labelName(*label);
     }
     else {
         del.plaintext("ipo: ");
@@ -151,15 +152,14 @@ void PrintCtx::printInstruction(Instruction inst) {
             del.comma();
             if (inst.opcode == cfng) {
                 if (auto* fn = disasm.findFfiByIndex(inst.arg2.raw)) {
-                    del.labelName(fn->name);
+                    del.ffiName(fn->name);
                     return;
                 }
             }
             if (inst.opcode == cbltn) {
-                del.labelName(svm::toString((svm::Builtin)inst.arg2.raw));
+                del.ffiName(svm::toString((svm::Builtin)inst.arg2.raw));
                 return;
             }
-            // TODO: Print function name here if possible
             del.plaintext("index: ");
             del.immediate(inst.arg2.raw);
             return;
@@ -171,9 +171,18 @@ void PrintCtx::printInstruction(Instruction inst) {
     }
 }
 
+void PrintCtx::printVar(Variable const& var) {
+    del.label(var.label);
+    del.beginData(var.ipo);
+    del.string({ (char const*)var.data.data(), var.data.size() });
+    del.endData();
+}
+
 void PrintCtx::printAll() {
+    for (auto& var: disasm.variables())
+        printVar(var);
     for (auto [index, inst]: disasm.instructions() | enumerate) {
-        if (auto* label = disasm.findLabel(index)) del.label(label->name);
+        if (auto* label = disasm.findLabel(index)) del.label(*label);
         printInstruction(inst);
     }
 }
@@ -200,29 +209,49 @@ struct OstreamDelegate final: PrintDelegate {
 
     void immediate(uint64_t value) override { format(tfmt::Cyan, value); }
 
-    static tfmt::Modifier const& LabelMod() {
-        static auto const mod = tfmt::Green | tfmt::Bold;
-        return mod;
+    static tfmt::Modifier const& LabelMod(Label::Type type) {
+        switch (type) {
+        case Label::Function: {
+            static auto const mod = tfmt::Green | tfmt::Bold;
+            return mod;
+        }
+        case Label::Block:
+        case Label::String:
+        case Label::Raw:
+            static auto const mod = tfmt::Bold;
+            return mod;
+        }
     }
 
-    void label(std::string_view label) override {
-        format(LabelMod(), label, ":\n");
+    void label(Label const& label) override {
+        format(LabelMod(label.type), label.name, ":\n");
     }
 
-    void labelName(std::string_view label) override {
-        format(LabelMod(), label);
+    void labelName(Label const& label) override {
+        format(LabelMod(label.type), label.name);
+    }
+
+    void ffiName(std::string_view name) override { format(tfmt::Yellow, name); }
+
+    void string(std::string_view value) override {
+        format(tfmt::Red, "\"", value, "\"");
     }
 
     void plaintext(std::string_view text) override { os << text; }
 
-    void beginInst(Instruction const& inst) override {
-        format(tfmt::BrightGrey, std::setw(5), std::right, inst.ipo.value,
-               ": ");
+    void beginLine(InstructionPointerOffset ipo) const {
+        format(tfmt::BrightGrey, std::setw(5), std::right, ipo.value, ": ");
     }
+
+    void beginInst(Instruction const& inst) override { beginLine(inst.ipo); }
 
     void endInst() override { os << "\n"; }
 
-    void format(tfmt::Modifier const& mod, auto const&... args) {
+    void beginData(InstructionPointerOffset ipo) override { beginLine(ipo); }
+
+    void endData() override { os << "\n"; }
+
+    void format(tfmt::Modifier const& mod, auto const&... args) const {
         if constexpr (UseColor)
             os << tfmt::format(mod, args...);
         else

@@ -5,7 +5,10 @@
 #include <list>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
+
+#include <utl/hashtable.hpp>
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Metadata.h>
@@ -42,6 +45,12 @@ public:
 
     ///
     void setDataSection(std::vector<u8> data);
+
+    ///
+    utl::hashmap<size_t, std::string> const& dataLabels() const;
+
+    ///
+    void setDataLabels(utl::hashmap<size_t, std::string> labels);
 
     /// \Returns a view over the jump sites
     std::span<Jumpsite const> jumpSites() const;

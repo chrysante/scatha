@@ -18,8 +18,10 @@ public:
     virtual void instName(std::string_view name) = 0;
     virtual void registerName(size_t index) = 0;
     virtual void immediate(uint64_t value) = 0;
-    virtual void label(std::string_view label) = 0;
-    virtual void labelName(std::string_view label) = 0;
+    virtual void label(Label const& label) = 0;
+    virtual void labelName(Label const& label) = 0;
+    virtual void ffiName(std::string_view name) = 0;
+    virtual void string(std::string_view value) = 0;
     virtual void plaintext(std::string_view str) = 0;
 
     // Optional structural helpers (spacing, punctuation)
@@ -33,6 +35,8 @@ public:
     // Optional hooks for composition
     virtual void beginInst(Instruction const&) {}
     virtual void endInst() {}
+    virtual void beginData(InstructionPointerOffset) {}
+    virtual void endData() {}
 };
 
 /// Generic print function that uses \p delegate to print \p disasm

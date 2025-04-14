@@ -162,6 +162,10 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr,
 }
 
 void Assembler::run() {
+    for (auto& [offset, name]: stream.dataLabels())
+        debugInfo.labelMap.insert(
+            { offset,
+              DebugLabel{ .type = DebugLabel::StringData, .name = name } });
     /// We write the static data in the front of the binary
     binary = stream.dataSection() | ranges::to<std::vector>;
     setPosition(binary.size());
@@ -172,7 +176,10 @@ void Assembler::run() {
                 startAddress = currentPosition();
         }
         labels.insert({ block.id(), currentPosition() });
-        debugInfo.labelMap[currentPosition()] = block.name();
+        auto labelType = block.isFunction() ? DebugLabel::Function :
+                                              DebugLabel::BasicBlock;
+        debugInfo.labelMap[currentPosition()] = { .type = labelType,
+                                                  .name = block.name() };
         for (auto& inst: block)
             dispatch(inst);
     }

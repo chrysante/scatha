@@ -92,7 +92,8 @@ public:
     /// \Returns pair of pointer to the data and the offset from the start of
     /// the data section where this allocation is placed Returned pointer will
     /// be valid until the next call to this function
-    std::pair<void*, size_t> allocateStaticData(size_t size, size_t align);
+    std::pair<void*, size_t> allocateStaticData(std::string name, size_t size,
+                                                size_t align);
 
     ///
     void addAddressPlaceholder(size_t offset, Function const* function);
@@ -101,6 +102,11 @@ public:
     std::span<std::pair<size_t, Function const*> const> addressPlaceholders()
         const {
         return addrPlaceholders;
+    }
+
+    ///
+    utl::hashmap<size_t, std::string> const& dataNames() const {
+        return _dataNames;
     }
 
 private:
@@ -113,6 +119,9 @@ private:
 
     /// Data section
     std::vector<uint8_t> staticData;
+
+    ///
+    utl::hashmap<size_t, std::string> _dataNames;
 
     ///
     utl::small_vector<std::pair<size_t, Function const*>> addrPlaceholders;

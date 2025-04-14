@@ -12,14 +12,20 @@
 
 namespace scatha {
 
+struct DebugLabel {
+    enum Type { Function, BasicBlock, StringData, RawData };
+    Type type;
+    std::string name;
+};
+
 /// Structure containing all debug metadata emitted by the compiler
 struct DebugInfoMap {
     /// List of absolute source file paths. This array can be indexed by the
     /// file indices of source locations.
     std::vector<std::filesystem::path> sourceFiles;
 
-    /// Maps binary offsets to label names.
-    utl::hashmap<size_t, std::string> labelMap;
+    /// Maps binary offsets to labels.
+    utl::hashmap<size_t, DebugLabel> labelMap;
 
     /// Maps binary offsets to source locations.
     utl::hashmap<size_t, SourceLocation> sourceLocationMap;

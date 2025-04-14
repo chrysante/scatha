@@ -75,7 +75,8 @@ mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
         auto* value = var.initializer();
         size_t size = value->type()->size();
         size_t align = value->type()->align();
-        auto [data, offset] = mod->allocateStaticData(size, align);
+        auto [data, offset] =
+            mod->allocateStaticData(std::string(var.name()), size, align);
         /// Callback is only executed by function pointers
         auto callback = [&, data = data,
                          offset = offset](ir::Constant const* value,

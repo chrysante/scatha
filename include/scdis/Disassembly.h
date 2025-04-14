@@ -11,12 +11,21 @@
 #include <scbinutil/ProgramView.h>
 #include <utl/hashtable.hpp>
 #include <utl/projection.hpp>
+#include <utl/vector.hpp>
 
 namespace scdis {
 
 namespace internal {
 struct Disassembler;
 }
+
+///
+struct Label {
+    enum Type { Function, Block, String, Raw };
+
+    Type type;
+    std::string name;
+};
 
 /// Minimal set of instruction argument types
 enum class ValueType {
@@ -71,9 +80,11 @@ struct Instruction {
     Value arg1, arg2;
 };
 
-///
-struct Label {
-    std::string name;
+/// Represents a global variable, i.e., a section of the data segment
+struct Variable {
+    Label label;
+    InstructionPointerOffset ipo;
+    utl::small_vector<uint8_t> data;
 };
 
 } // namespace scdis
@@ -112,6 +123,12 @@ class Disassembly {
 public:
     Disassembly() = default;
 
+    /// \Returns a view over the global variables in this program
+    std::span<Variable const> variables() const { return _vars; }
+
+    /// \Returns the global variable at \p index
+    Variable const& variable(size_t index) const { return _vars[index]; }
+
     /// \Returns a view over the instructions in this program
     std::span<Instruction const> instructions() const { return _insts; }
 
@@ -126,8 +143,8 @@ public:
 
     /// \Returns the label of the instruction at instruction index \p index
     Label const* findLabel(size_t index) const {
-        auto itr = _labels.find(index);
-        return itr != _labels.end() ? &itr->second : nullptr;
+        auto itr = _instLabels.find(index);
+        return itr != _instLabels.end() ? &itr->second : nullptr;
     }
 
     /// \overload
@@ -145,9 +162,10 @@ public:
 private:
     friend struct internal::Disassembler;
 
+    std::vector<Variable> _vars;
     std::vector<Instruction> _insts;
     // Maps instruction indices to labels
-    utl::hashmap<size_t, Label> _labels;
+    utl::hashmap<size_t, Label> _instLabels;
     IpoIndexMap _indexMap;
     template <typename T, auto Mem>
     using ProjectionHashset = utl::hashset<T, utl::projection_hash<T, Mem>,

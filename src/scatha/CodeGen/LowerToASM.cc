@@ -125,6 +125,7 @@ void CGContext::run(mir::Module const& mod) {
         genFunction(F);
     }
     result.setDataSection(mod.dataSection());
+    result.setDataLabels(mod.dataNames());
     result.setMetadata(mod.cloneMetadata());
     auto jumpsites = mod.addressPlaceholders() | transform([&](auto p) {
         auto [offset, function] = p;
@@ -134,10 +135,11 @@ void CGContext::run(mir::Module const& mod) {
 }
 
 void CGContext::genFunction(mir::Function const& F) {
-    currentBlock = result.add(Asm::Block(getLabelID(F), std::string(F.name())));
-    if (F.visibility() == mir::Visibility::External) {
-        currentBlock->setExternallyVisible();
-    }
+    BlockOptions options = { .isExternallyVisible = F.visibility() ==
+                                                    mir::Visibility::External,
+                             .isFunction = true };
+    currentBlock =
+        result.add(Asm::Block(getLabelID(F), std::string(F.name()), options));
     currentFunction = &F;
     for (auto& BB: F) {
         genBlock(BB);

@@ -24,9 +24,11 @@ void Module::addGlobal(Value* value) {
     }
 }
 
-std::pair<void*, size_t> Module::allocateStaticData(size_t size, size_t align) {
+std::pair<void*, size_t> Module::allocateStaticData(std::string name,
+                                                    size_t size, size_t align) {
     size_t offset = utl::round_up(staticData.size(), align);
     staticData.resize(offset + size);
+    _dataNames.insert({ offset, std::move(name) });
     return { staticData.data() + offset, offset };
 }
 

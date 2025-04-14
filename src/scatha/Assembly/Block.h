@@ -12,17 +12,30 @@
 
 namespace scatha::Asm {
 
+struct BlockOptions {
+    bool isExternallyVisible = false;
+    bool isFunction = false;
+};
+
 class Block {
 public:
     using Iterator = utl::vector<Instruction>::iterator;
     using ConstIterator = utl::vector<Instruction>::const_iterator;
 
-    explicit Block(LabelID id, std::string name):
-        Block(id, std::move(name), {}) {}
+    explicit Block(LabelID id, std::string name, BlockOptions options = {}):
+        Block(id, std::move(name), options, {}) {}
 
     explicit Block(LabelID id, std::string name,
                    std::initializer_list<Instruction> instructions):
-        _id(id), _name(std::move(name)), instructions(instructions) {}
+        Block(id, std::move(name), {}, instructions) {}
+
+    explicit Block(LabelID id, std::string name, BlockOptions options,
+                   std::initializer_list<Instruction> instructions):
+        _id(id),
+        _extern(options.isExternallyVisible),
+        _isFunction(options.isFunction),
+        _name(std::move(name)),
+        instructions(instructions) {}
 
     LabelID id() const { return _id; }
 
@@ -30,7 +43,8 @@ public:
     /// global symbol table.
     bool isExternallyVisible() const { return _extern; }
 
-    void setExternallyVisible(bool value = true) { _extern = value; }
+    /// \Returns true if this block is the entry block of a function
+    bool isFunction() const { return _isFunction; }
 
     std::string const& name() const { return _name; }
 
@@ -58,8 +72,9 @@ public:
     }
 
 private:
-    LabelID _id  : 63;
-    bool _extern : 1 = false;
+    LabelID _id      : 62;
+    bool _extern     : 1 = false;
+    bool _isFunction : 1 = false;
     std::string _name;
     utl::vector<Instruction> instructions;
 };

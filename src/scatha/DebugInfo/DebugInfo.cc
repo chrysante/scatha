@@ -22,6 +22,15 @@ static void from_json(nlohmann::json const& j, SourceLocation& loc) {
     loc.column = j.at(3).get<i32>();
 }
 
+static void to_json(nlohmann::json& j, DebugLabel const& label) {
+    j = { { "type", label.type }, { "name", label.name } };
+}
+
+static void from_json(nlohmann::json const& j, DebugLabel& label) {
+    label.type = j.at("type").get<DebugLabel::Type>();
+    label.name = j.at("name").get<std::string>();
+}
+
 } // namespace scatha
 
 nlohmann::json DebugInfoMap::serialize() const {
@@ -44,7 +53,7 @@ DebugInfoMap DebugInfoMap::deserialize(nlohmann::json const& j) {
     auto& labels = j.at("labels");
     for (auto& elem: labels)
         map.labelMap.insert({ elem.at("pos").get<size_t>(),
-                              elem.at("label").get<std::string>() });
+                              elem.at("label").get<DebugLabel>() });
     auto& sourcemap = j.at("sourcemap");
     for (auto& elem: sourcemap)
         map.sourceLocationMap.insert({ elem.at("pos").get<size_t>(),

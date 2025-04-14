@@ -8,6 +8,7 @@ using namespace Asm;
 struct AssemblyStream::Impl {
     std::list<Block> blocks;
     std::vector<u8> data;
+    utl::hashmap<size_t, std::string> dataLabels;
     std::vector<Jumpsite> jumpsites;
     std::vector<Metadata> metadata;
 };
@@ -41,6 +42,14 @@ std::span<u8 const> AssemblyStream::dataSection() const { return impl->data; }
 
 void AssemblyStream::setDataSection(std::vector<u8> data) {
     impl->data = std::move(data);
+}
+
+utl::hashmap<size_t, std::string> const& AssemblyStream::dataLabels() const {
+    return impl->dataLabels;
+}
+
+void AssemblyStream::setDataLabels(utl::hashmap<size_t, std::string> labels) {
+    impl->dataLabels = std::move(labels);
 }
 
 std::span<Jumpsite const> AssemblyStream::jumpSites() const {
