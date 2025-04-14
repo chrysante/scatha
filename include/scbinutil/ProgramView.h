@@ -2,7 +2,6 @@
 #define SCBINUTIL_PROGRAMVIEW_H_
 
 #include <cstdint>
-#include <iosfwd>
 #include <span>
 #include <string>
 #include <vector>
@@ -176,12 +175,6 @@ public:
     ///
     std::vector<FFILibDecl> libDecls;
 };
-
-///
-void print(uint8_t const* program);
-
-///
-void print(uint8_t const* program, std::ostream& ostream);
 
 } // namespace scbinutil
 

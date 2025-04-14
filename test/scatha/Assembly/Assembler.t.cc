@@ -35,14 +35,6 @@ static auto assembleAndExecute(AssemblyStream const& str) {
                       vm.stackData() | ranges::to<std::vector> };
 }
 
-[[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
-    auto [prog, sym, unresolved, dsym] = assemble(str);
-    if (!link(LinkerOptions{}, prog, {}, unresolved)) {
-        throw std::runtime_error("Linker error");
-    }
-    scbinutil::print(prog.data());
-}
-
 TEST_CASE("Alloca implementation", "[assembly][vm]") {
     AssemblyStream a;
     // clang-format off

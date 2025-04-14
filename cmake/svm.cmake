@@ -82,8 +82,6 @@ target_include_directories(svm
 
 set(svm_sources
     src/svm/Main.cc
-    src/svm/ParseCLI.h
-    src/svm/ParseCLI.cc
 )
 
 target_sources(svm
