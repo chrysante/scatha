@@ -10,6 +10,7 @@ SCSetCompilerOptions(scathadb)
 target_link_libraries(scathadb
   PRIVATE
     libsvm
+    libscdis
     range-v3
     utility
     nlohmann_json
@@ -33,8 +34,6 @@ set(scathadb_sources
 
     src/scathadb/Model/Breakpoint.cc
     src/scathadb/Model/Breakpoint.h
-    src/scathadb/Model/Disassembler.cc
-    src/scathadb/Model/Disassembler.h
     src/scathadb/Model/Model.cc
     src/scathadb/Model/Model.h
     src/scathadb/Model/Options.cc
@@ -52,11 +51,11 @@ set(scathadb_sources
     src/scathadb/UI/ModalView.h
 
     src/scathadb/Views/ConsoleView.cc
+    src/scathadb/Views/DisassemblyView.cc
     src/scathadb/Views/FileViewCommon.cc
     src/scathadb/Views/FileViewCommon.h
     src/scathadb/Views/HelpPanel.cc
     src/scathadb/Views/HelpPanel.h
-    src/scathadb/Views/InstructionView.cc
     src/scathadb/Views/OpenFilePanel.cc
     src/scathadb/Views/Confirm.cc
     src/scathadb/Views/Settings.cc

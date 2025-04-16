@@ -1,11 +1,15 @@
 #include "Model/Model.h"
 
 #include <condition_variable>
+#include <fstream>
 #include <functional>
 #include <mutex>
 #include <queue>
 #include <thread>
 
+#include <nlohmann/json.hpp>
+#include <scatha/DebugInfo/DebugInfo.h>
+#include <scdis/Disassembler.h>
 #include <svm/Util.h>
 #include <svm/VirtualMemory.h>
 #include <utl/strcat.hpp>
@@ -116,6 +120,14 @@ Model::Model(UIHandle* uiHandle):
 
 Model::~Model() { stop(); }
 
+static scatha::DebugInfoMap readDebugInfo(std::filesystem::path inputPath) {
+    inputPath += ".scdsym";
+    std::fstream file(inputPath, std::ios::in);
+    if (!file) return {};
+    auto j = nlohmann::json::parse(file);
+    return scatha::DebugInfoMap::deserialize(j);
+}
+
 void Model::loadProgram(std::filesystem::path filepath) {
     stop();
     clearBreakpoints();
@@ -128,10 +140,8 @@ void Model::loadProgram(std::filesystem::path filepath) {
     }
     vm.setLibdir(filepath.parent_path());
     _currentFilepath = filepath;
-    auto dsympath = filepath;
-    dsympath += ".scdsym";
-    sourceDbg = SourceDebugInfo::Load(dsympath);
-    disasm = disassemble(_binary, sourceDbg);
+    auto debugInfo = readDebugInfo(filepath);
+    disasm = scdis::disassemble(_binary, debugInfo);
     if (uiHandle) uiHandle->reload();
 }
 
@@ -185,8 +195,8 @@ std::vector<uint64_t> Model::readRegisters(size_t count) {
 }
 
 void Model::toggleInstBreakpoint(size_t instIndex) {
-    size_t offset = disasm.indexToOffset(instIndex);
-    instBreakpoints.toggle(offset);
+    auto ipo = disasm.indexMap().indexToIpo(instIndex);
+    instBreakpoints.toggle(ipo.value);
 }
 
 bool Model::toggleSourceBreakpoint(size_t lineIndex) {
@@ -199,8 +209,8 @@ bool Model::toggleSourceBreakpoint(size_t lineIndex) {
 }
 
 bool Model::hasInstBreakpoint(size_t instIndex) const {
-    size_t offset = disasm.indexToOffset(instIndex);
-    return instBreakpoints.at(offset);
+    auto ipo = disasm.indexMap().indexToIpo(instIndex);
+    return instBreakpoints.at(ipo.value);
 }
 
 bool Model::hasSourceBreakpoint(size_t lineIndex) const {
@@ -389,7 +399,9 @@ void Model::handleEncounter(size_t offset, BreakState state) {
 }
 
 void Model::handleInstEncounter(size_t offset, BreakState state) {
-    if (auto index = disasm.offsetToIndex(offset)) {
+    if (auto index = disasm.indexMap().ipoToIndex(
+            scdis::InstructionPointerOffset(offset)))
+    {
         uiHandle->hitInstruction(*index, state);
     }
 }

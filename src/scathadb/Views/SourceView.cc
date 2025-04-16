@@ -18,15 +18,15 @@ using namespace ftxui;
 
 namespace {
 
-struct SourceViewBase: FileViewBase<SourceViewBase> {
+struct SourceViewBase: FileViewBase {
     SourceViewBase(Model* model, UIHandle& uiHandle): model(model) {
         uiHandle.addReloadCallback([this] { reload(); });
         uiHandle.addOpenSourceFileCallback([this](size_t index) {
-            reload(index);
+            reloadFile(index);
             TakeFocus();
         });
         uiHandle.addSourceCallback([this](SourceLocation SL, BreakState state) {
-            if (SL.fileIndex != fileIndex) reload(size_t(SL.fileIndex));
+            if (SL.fileIndex != fileIndex) reloadFile(size_t(SL.fileIndex));
             if (auto line = indexToLine(SL.line)) {
                 setFocusLine(*line);
                 scrollToLine(*line);
@@ -68,7 +68,7 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
             return breakState.load();
         }();
         return LineInfo{
-            .num = lineNum,
+            .lineIndex = lineNum,
             .isFocused = lineNum == focusLine(),
             .hasBreakpoint = index && model->hasSourceBreakpoint(*index),
             .state = state,
@@ -95,7 +95,13 @@ struct SourceViewBase: FileViewBase<SourceViewBase> {
         }
     }
 
-    void reload(std::optional<size_t> sourceFileIndex = std::nullopt) {
+    void clearBreakpoints() override {}
+
+    void reload() override { reloadImpl(std::nullopt); }
+
+    void reloadFile(size_t fileIndex) { reloadImpl(fileIndex); }
+
+    void reloadImpl(std::optional<size_t> sourceFileIndex) {
         DetachAllChildren();
         auto& debug = model->sourceDebug();
         if (!sourceFileIndex && !debug.empty()) {

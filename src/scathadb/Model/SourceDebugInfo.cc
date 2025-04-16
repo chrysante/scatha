@@ -6,8 +6,6 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 
-#include "Model/Disassembler.h"
-
 using namespace sdb;
 
 std::string sdb::toString(SourceLocation const& SL) {

@@ -160,8 +160,8 @@ Debugger::Debugger(Model* _model):
         TabView({ { " Files ", SourceFileBrowser(model(), uiHandle) },
                   { " VM State ", VMStateView(model()) } });
     auto sourceView = SourceView(model(), uiHandle);
-    auto instView = InstructionView(model(), uiHandle);
-    auto mainView = SplitLeft(sourceView, instView, &_mainSplitSize);
+    auto disasmView = DisassemblyView(model(), uiHandle);
+    auto mainView = SplitLeft(sourceView, disasmView, &_mainSplitSize);
     auto dbgCtrlBar = Toolbar({
         ToolbarButton(this, ToggleExecCmd),
         ToolbarButton(this, StepSourceLineCmd),
@@ -201,8 +201,14 @@ Debugger::Debugger(Model* _model):
     for (auto& [name, panel]: modalViews) {
         root |= panel.overlay();
     }
-    /// Instruction view is focused by default
-    instView->TakeFocus();
+    // All unhandled key events generate a beep
+    root |= CatchEvent([root = root.get()](Event event) {
+        if (root->OnEvent(event)) return true;
+        if (event.is_character()) beep();
+        return false;
+    });
+    // Instruction view is focused by default
+    disasmView->TakeFocus();
 }
 
 void Debugger::run() { _screen.Loop(root); }

@@ -92,25 +92,8 @@ using View = std::shared_ptr<ViewBase>;
 /// Base class for scrollable views
 class ScrollBase: public ViewBase {
 public:
-    ftxui::Element Render() override;
-
-    bool OnEvent(ftxui::Event event) override;
-
-protected:
-    /// Sets the scroll position to \p value
-    void setScroll(long value);
-
-    /// Adds \p offset to the currect scroll position
-    void setScrollOffset(long offset);
-
     /// \Returns `true` if line \p line is currently in view
     bool isInView(long line) const;
-
-    /// Centers the view around line \p line
-    void center(long line, double ratio = 0.5);
-
-    /// Helper function to be used when overriding `OnEvent()`
-    bool handleScroll(ftxui::Event event);
 
     /// \Returns the bounding box of this view
     ftxui::Box box() const { return _box; }
@@ -121,18 +104,33 @@ protected:
     /// Maximum scroll position based on the current view contents
     long maxScrollPositition() const;
 
-    /// Move view up or down if necessary
-    void scrollToLine(long line);
-
     /// \Returns the index of the focused line
     long focusLine() const { return _focusLine; }
-
-    ///
-    void setFocusLine(long line);
 
     /// Add an offset to which line is focused and move view if necessary
     void focusLineOffset(long offset);
 
+protected:
+    /// Sets the scroll position to \p value
+    void setScroll(long value);
+
+    /// Adds \p offset to the currect scroll position
+    void setScrollOffset(long offset);
+
+    /// Centers the view around line \p line
+    void center(long line, double ratio = 0.5);
+
+    /// Helper function to be used when overriding `OnEvent()`
+    bool handleScroll(ftxui::Event event);
+
+    /// Move view up or down if necessary
+    void scrollToLine(long line);
+
+    ///
+    void setFocusLine(long line);
+
+    ftxui::Element Render() override;
+    bool OnEvent(ftxui::Event event) override;
     /// Scroll views are always focusable to allow keyboard navigation
     bool Focusable() const override { return true; }
 

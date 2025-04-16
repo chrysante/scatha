@@ -7,10 +7,10 @@
 #include <sstream>
 #include <vector>
 
+#include <scdis/Disassembly.h>
 #include <svm/VirtualMachine.h>
 
 #include "Model/Breakpoint.h"
-#include "Model/Disassembler.h"
 #include "Model/SourceDebugInfo.h"
 #include "Model/UIHandle.h"
 
@@ -100,10 +100,10 @@ public:
     svm::VirtualMachine const& VM() const { return vm; }
 
     /// \Returns a reference to the disassembled program
-    Disassembly& disassembly() { return disasm; }
+    scdis::Disassembly& disassembly() { return disasm; }
 
     /// \overload
-    Disassembly const& disassembly() const { return disasm; }
+    scdis::Disassembly const& disassembly() const { return disasm; }
 
     /// \Returns the standard-out stream
     std::stringstream& standardout() { return _stdout; }
@@ -163,7 +163,7 @@ private:
     std::mutex vmMutex;
     svm::VirtualMachine vm;
 
-    Disassembly disasm;
+    scdis::Disassembly disasm;
     SourceDebugInfo sourceDbg;
 
     std::mutex breakpointMutex;

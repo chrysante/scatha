@@ -17,7 +17,7 @@ class UIHandle;
 
 /// Displays the disassembled instructions of the currently loaded program as
 /// well as execution stepping and allows settings breakpoints
-ftxui::Component InstructionView(Model* model, UIHandle& uiHandle);
+ftxui::Component DisassemblyView(Model* model, UIHandle& uiHandle);
 
 /// Displays the source code of the currently loaded program as
 /// well as execution stepping and allows settings breakpoints

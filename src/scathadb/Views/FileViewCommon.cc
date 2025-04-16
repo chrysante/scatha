@@ -13,7 +13,7 @@ Element sdb::breakpointIndicator(LineInfo line) {
 }
 
 Element sdb::lineNumber(LineInfo line) {
-    return text(std::to_string(line.num + 1) + " ") | align_right |
+    return text(std::to_string(line.lineIndex + 1) + " ") | align_right |
            size(WIDTH, EQUAL, 5) |
            color(line.state != BreakState::None ? Color::White :
                                                   Color::GrayDark);
@@ -25,4 +25,17 @@ ElementDecorator sdb::lineMessageDecorator(std::string message) {
             { elem, filler(),
               hflow(paragraphAlignRight(std::move(message))) | yflex_grow });
     };
+}
+
+bool FileViewBase::OnEvent(ftxui::Event event) {
+    using namespace ftxui;
+    if (event == Event::Special("Reload")) {
+        reload();
+        return true;
+    }
+    if (event == Event::Character("c")) {
+        clearBreakpoints();
+        return true;
+    }
+    return ScrollBase::OnEvent(event);
 }
