@@ -50,6 +50,7 @@ nlohmann::json DebugInfoMap::serialize() const {
 
 DebugInfoMap DebugInfoMap::deserialize(nlohmann::json const& j) {
     DebugInfoMap map;
+    map.sourceFiles = j.at("files");
     auto& labels = j.at("labels");
     for (auto& elem: labels)
         map.labelMap.insert({ elem.at("pos").get<size_t>(),

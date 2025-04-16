@@ -61,7 +61,8 @@ struct InstructionPointerOffset {
 
     size_t value;
 
-    bool operator==(InstructionPointerOffset const&) const = default;
+    std::strong_ordering operator<=>(InstructionPointerOffset const&) const =
+        default;
 };
 
 /// Represents a single VM intruction.

@@ -6,11 +6,16 @@
 #include <span>
 #include <vector>
 
+#include <scdis/Disassembly.h>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "Model/SourceFile.h"
+
+namespace scatha {
+struct DebugInfoMap;
+}
 
 namespace sdb {
 
@@ -39,32 +44,39 @@ namespace sdb {
 
 class SourceDebugInfo;
 
-///
+/// Maps source locations to instruction pointer offsets and vice versa
 class SourceLocationMap {
 public:
     /// \Returns the source location of binary offset \p offset if possible
-    std::optional<SourceLocation> toSourceLoc(size_t offset) const;
+    std::optional<SourceLocation> toSourceLoc(
+        scdis::InstructionPointerOffset ipo) const;
 
     /// \Returns the binary offsets associated with the source location \p
     /// sourceLoc
-    std::span<uint32_t const> toOffsets(SourceLocation sourceLoc) const;
+    std::span<scdis::InstructionPointerOffset const> toIpos(
+        SourceLocation sourceLoc) const;
 
-    /// \Returns the binary offsets associated with the line number \p lineNum
-    std::span<uint32_t const> toOffsets(size_t lineNum) const;
+    /// \Returns the binary offsets associated with the line number \p
+    /// sourceLine
+    std::span<scdis::InstructionPointerOffset const> toIpos(
+        size_t sourceLine) const;
 
 private:
     friend class SourceDebugInfo;
 
-    utl::hashmap<size_t, SourceLocation> offsetToSrcLoc;
-    utl::hashmap<SourceLocation, utl::small_vector<uint32_t>> srcLocToOffsets;
-    utl::hashmap<size_t, utl::small_vector<uint32_t>> srcLineToOffsets;
+    utl::hashmap<scdis::InstructionPointerOffset, SourceLocation> ipoToSrcLoc;
+    utl::hashmap<SourceLocation,
+                 utl::small_vector<scdis::InstructionPointerOffset>>
+        srcLocToIpos;
+    utl::hashmap<size_t, utl::small_vector<scdis::InstructionPointerOffset>>
+        srcLineToIpos;
 };
 
 ///
 class SourceDebugInfo {
 public:
     ///
-    static SourceDebugInfo Load(std::filesystem::path path);
+    static SourceDebugInfo Make(scatha::DebugInfoMap const& map);
 
     ///
     std::span<SourceFile const> files() const { return _files; }
@@ -75,12 +87,8 @@ public:
     ///
     SourceLocationMap const& sourceMap() const { return _sourceMap; }
 
-    ///
-    std::optional<std::string> labelName(size_t binOffset) const;
-
 private:
     std::vector<SourceFile> _files;
-    utl::hashmap<size_t, std::string> _labelMap;
     SourceLocationMap _sourceMap;
 };
 

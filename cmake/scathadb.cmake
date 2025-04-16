@@ -9,6 +9,7 @@ SCSetCompilerOptions(scathadb)
 
 target_link_libraries(scathadb
   PRIVATE
+    scatha-debuginfo
     libsvm
     libscdis
     range-v3
