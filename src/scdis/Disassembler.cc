@@ -92,6 +92,8 @@ static Instruction readInstruction(InstructionPointerOffset ipo,
             break;
         case OpCode::terminate:
             break;
+        case OpCode::trap:
+            break;
         case OpCode::cfng:
         case OpCode::cbltn:
             arg1 = makeValue8(load<uint8_t>(argData));

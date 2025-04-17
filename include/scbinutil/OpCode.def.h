@@ -52,6 +52,9 @@ SVM_INSTRUCTION_DEF(cbltn, Other) // (u8 regPtrOffset, u16 index)
 /// Immediately terminates the program.
 SVM_INSTRUCTION_DEF(terminate, Other)
 
+/// Throws `InterruptException`
+SVM_INSTRUCTION_DEF(trap, Other)
+
 /// ## Loads and stores
 /// Copies the value from the source operand (right) into the destination
 /// operand (right).

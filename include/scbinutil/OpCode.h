@@ -96,6 +96,8 @@ inline constexpr size_t codeSize(OpCode code) {
             return sizeof(OpCode);
         case OpCode::terminate:
             return sizeof(OpCode);
+        case OpCode::trap:
+            return sizeof(OpCode);
         case OpCode::cfng:
             return sizeof(OpCode) + 1 + 2;
         case OpCode::cbltn:

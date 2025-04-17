@@ -74,6 +74,9 @@ INST_END(cbltn)
 INST_BEGIN(terminate) { TERMINATE_EXECUTION(); }
 INST_END(terminate)
 
+INST_BEGIN(trap) { throwException<InterruptException>(); }
+INST_END(trap)
+
 /// ## Loads and storeRegs
 INST_BEGIN(mov64RR) {
     size_t destRegIdx = opPtr[0];

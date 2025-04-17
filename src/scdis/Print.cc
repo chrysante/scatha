@@ -145,6 +145,8 @@ void PrintCtx::printInstruction(Instruction inst) {
             return;
         case terminate:
             return;
+        case trap:
+            return;
         case cfng:
         case cbltn: {
             del.space();
