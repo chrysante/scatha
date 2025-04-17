@@ -26,12 +26,12 @@ struct SourceViewBase: FileViewBase {
             TakeFocus();
         });
         uiHandle.addSourceCallback([this](SourceLocation SL, BreakState state) {
-            if (SL.fileIndex != fileIndex) reloadFile(size_t(SL.fileIndex));
-            if (auto line = indexToLine(SL.line)) {
+            if (SL.line.file != fileIndex) reloadFile(size_t(SL.line.file));
+            if (auto line = indexToLine(SL.line.line)) {
                 setFocusLine(*line);
                 scrollToLine(*line);
             }
-            breakIndex = SL.line;
+            breakIndex = SL.line.line;
             breakState = state;
         });
         uiHandle.addResumeCallback([this]() {
@@ -67,10 +67,11 @@ struct SourceViewBase: FileViewBase {
             }
             return breakState.load();
         }();
+        SourceLine sourceLine = { (uint32_t)*fileIndex, (uint32_t)*index };
         return LineInfo{
             .lineIndex = lineNum,
             .isFocused = lineNum == focusLine(),
-            .hasBreakpoint = index && model->hasSourceBreakpoint(*index),
+            .hasBreakpoint = index && model->hasSourceBreakpoint(sourceLine),
             .state = state,
         };
     }
@@ -123,8 +124,8 @@ struct SourceViewBase: FileViewBase {
         }
     }
 
-    void toggleBreakpoint(size_t index) {
-        model->toggleSourceBreakpoint(index);
+    void toggleBreakpoint(SourceLine line) {
+        model->toggleSourceBreakpoint(line);
     }
 
     std::optional<size_t> lineToIndex(long line) const {

@@ -19,24 +19,33 @@ struct DebugInfoMap;
 
 namespace sdb {
 
-struct SourceLocation {
-    size_t fileIndex : 12;
-    size_t textIndex : 50;
+struct SourceLine {
+    uint32_t file;
     uint32_t line;
+
+    bool operator==(SourceLine const&) const = default;
+};
+
+struct SourceLocation {
+    SourceLine line;
     uint32_t column;
 
     bool operator==(SourceLocation const&) const = default;
 };
 
-std::string toString(SourceLocation const& SL);
-
 } // namespace sdb
+
+template <>
+struct std::hash<sdb::SourceLine> {
+    size_t operator()(sdb::SourceLine SL) const {
+        return utl::hash_combine(SL.file, SL.line);
+    }
+};
 
 template <>
 struct std::hash<sdb::SourceLocation> {
     size_t operator()(sdb::SourceLocation SL) const {
-        return utl::hash_combine(SL.fileIndex, SL.textIndex, SL.line,
-                                 SL.column);
+        return utl::hash_combine(SL.line, SL.column);
     }
 };
 
@@ -56,10 +65,10 @@ public:
     std::span<scdis::InstructionPointerOffset const> toIpos(
         SourceLocation sourceLoc) const;
 
-    /// \Returns the binary offsets associated with the line number \p
-    /// sourceLine
+    /// \Returns the binary offsets associated with the line number
+    /// \p sourceLine
     std::span<scdis::InstructionPointerOffset const> toIpos(
-        size_t sourceLine) const;
+        SourceLine sourceLine) const;
 
 private:
     friend class SourceDebugInfo;
@@ -68,7 +77,7 @@ private:
     utl::hashmap<SourceLocation,
                  utl::small_vector<scdis::InstructionPointerOffset>>
         srcLocToIpos;
-    utl::hashmap<size_t, utl::small_vector<scdis::InstructionPointerOffset>>
+    utl::hashmap<SourceLine, utl::small_vector<scdis::InstructionPointerOffset>>
         srcLineToIpos;
 };
 

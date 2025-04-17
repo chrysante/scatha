@@ -9,12 +9,6 @@
 
 using namespace sdb;
 
-std::string sdb::toString(SourceLocation const& SL) {
-    std::stringstream sstr;
-    sstr << "L:" << SL.line << ", C:" << SL.column << ", F:" << SL.fileIndex;
-    return std::move(sstr).str();
-}
-
 template <typename R>
 static R findWithDefault(auto const& map, auto key, R def = {}) {
     auto itr = map.find(key);
@@ -36,13 +30,13 @@ std::span<scdis::InstructionPointerOffset const> SourceLocationMap::toIpos(
 }
 
 std::span<scdis::InstructionPointerOffset const> SourceLocationMap::toIpos(
-    size_t sourceLine) const {
+    SourceLine sourceLine) const {
     return findWithDefault<std::span<scdis::InstructionPointerOffset const>>(
         srcLineToIpos, sourceLine);
 }
 
 static sdb::SourceLocation convertSourceLoc(scatha::SourceLocation sl) {
-    return { sl.fileIndex, (size_t)sl.index, (uint32_t)sl.line,
+    return { { (uint32_t)sl.fileIndex, (uint32_t)sl.line },
              (uint32_t)sl.column };
 }
 

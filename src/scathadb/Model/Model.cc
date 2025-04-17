@@ -200,8 +200,8 @@ void Model::toggleInstBreakpoint(size_t instIndex) {
     instBreakpoints.toggle(ipo.value);
 }
 
-bool Model::toggleSourceBreakpoint(size_t lineIndex) {
-    auto ipos = sourceDebug().sourceMap().toIpos(lineIndex);
+bool Model::toggleSourceBreakpoint(SourceLine line) {
+    auto ipos = sourceDebug().sourceMap().toIpos(line);
     if (ipos.empty()) return false;
     sourceBreakpoints.toggle(ipos.front().value);
     return true;
@@ -212,8 +212,8 @@ bool Model::hasInstBreakpoint(size_t instIndex) const {
     return instBreakpoints.at(ipo.value);
 }
 
-bool Model::hasSourceBreakpoint(size_t lineIndex) const {
-    auto offsets = sourceDebug().sourceMap().toIpos(lineIndex);
+bool Model::hasSourceBreakpoint(SourceLine line) const {
+    auto offsets = sourceDebug().sourceMap().toIpos(line);
     if (offsets.empty()) return false;
     return sourceBreakpoints.at(offsets.front().value);
 }

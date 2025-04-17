@@ -112,13 +112,13 @@ public:
     void toggleInstBreakpoint(size_t instIndex);
 
     /// \Returns `true` if a breakpoint could be set on line \p lineIndex
-    bool toggleSourceBreakpoint(size_t lineIndex);
+    bool toggleSourceBreakpoint(SourceLine lineIndex);
 
     ///
     bool hasInstBreakpoint(size_t instIndex) const;
 
     ///
-    bool hasSourceBreakpoint(size_t lineIndex) const;
+    bool hasSourceBreakpoint(SourceLine lineIndex) const;
 
     ///
     void clearBreakpoints();
