@@ -215,11 +215,23 @@ static void handleException(UIHandle const* uiHandle) {
         throw;
     }
     catch (svm::RuntimeException& e) {
-        uiHandle->onError(std::move(e).error());
+        uiHandle->onException(std::move(e).get());
     }
     catch (...) {
         // TODO: Display error message
         std::exit(42);
+    }
+}
+
+static bool haveInterruptException() {
+    try {
+        throw;
+    }
+    catch (svm::RuntimeException& e) {
+        return std::holds_alternative<svm::InterruptException>(e.get());
+    }
+    catch (...) {
+        return false;
     }
 }
 
@@ -283,6 +295,11 @@ State Impl::doRunningIndef() {
         }
         catch (...) {
             InstructionPointerOffset ipo(vm.get().instructionPointerOffset());
+            if (haveInterruptException()) {
+                if (!vm.get().running()) return State::Idle;
+                if (handleBreakpoint(ipo)) return State::Paused;
+                return State::RunningIndef;
+            }
             handleException(uiHandle);
             uiHandle->encounter(ipo, BreakState::Error);
             // Set the instruction pointer to where it was before executing the
@@ -290,15 +307,8 @@ State Impl::doRunningIndef() {
             vm.get().setInstructionPointerOffset(ipo.value);
             return State::Paused;
         }
-        InstructionPointerOffset ipo(vm.get().instructionPointerOffset());
-        if (!vm.get().running()) {
-            endExecution(vm.get(), uiHandle);
-            return State::Idle;
-        }
-        if (handleBreakpoint(ipo)) {
-            return State::Paused;
-        }
-        return State::RunningIndef;
+        endExecution(vm.get(), uiHandle);
+        return State::Idle;
     }
     switch (*command) {
     case Command::StartExecution:

@@ -13,7 +13,7 @@
 #include <utl/utility.hpp>
 
 #include "Common.h"
-#include "Errors.h"
+#include "Exceptions.h"
 #include "ExternalFunction.h"
 #include "Memory.h"
 #include "VMImpl.h"
@@ -459,7 +459,9 @@ BUILTIN_DEF(filewrite, u64* regPtr, VirtualMachine* vm) {
     return64(regPtr, retval);
 }
 
-BUILTIN_DEF(trap, u64*, VirtualMachine*) { throwError<TrapError>(); }
+BUILTIN_DEF(trap, u64*, VirtualMachine*) {
+    throwException<InterruptException>();
+}
 
 BUILTIN_DEF(exit, u64*, VirtualMachine*) { throw ExitException(); }
 

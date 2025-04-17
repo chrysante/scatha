@@ -35,12 +35,12 @@ struct SourceViewBase: FileViewBase {
             breakState = state;
         });
         uiHandle.addResumeCallback([this]() {
-            error = {};
+            exc = {};
             breakIndex = std::nullopt;
             breakState = {};
         });
-        uiHandle.addErrorCallback(
-            [this](svm::ErrorVariant err) { error = std::move(err); });
+        uiHandle.addExceptionCallback(
+            [this](svm::ExceptionVariant exc) { this->exc = std::move(exc); });
 
         reload();
     }
@@ -84,6 +84,9 @@ struct SourceViewBase: FileViewBase {
                 return color(Color::Black) | bgcolor(Color::GrayLight);
             }
             return nothing;
+        case Paused:
+            return lineMessageDecorator("Paused") | color(Color::White) |
+                   bgcolor(Color::Green);
         case Step:
             return lineMessageDecorator("Step") | color(Color::White) |
                    bgcolor(Color::Green);
@@ -146,7 +149,7 @@ struct SourceViewBase: FileViewBase {
 
     Model* model = nullptr;
     std::optional<size_t> fileIndex = 0;
-    std::optional<svm::ErrorVariant> error;
+    std::optional<svm::ExceptionVariant> exc;
     std::atomic<std::optional<uint32_t>> breakIndex;
     std::atomic<BreakState> breakState = {};
 };

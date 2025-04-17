@@ -14,7 +14,7 @@
 
 #include "BuiltinInternal.h"
 #include "Common.h"
-#include "Errors.h"
+#include "Exceptions.h"
 #include "Memory.h"
 #include "VMImpl.h"
 
@@ -181,7 +181,7 @@ static void loadForeignFunctions(
     vm->impl->foreignFunctionTable.resize(fnDecls.size());
     for (auto [decl, F]: zip(fnDecls, vm->impl->foreignFunctionTable)) {
         if (!initForeignFunction(decl, F)) {
-            throwError<FFIError>(FFIError::FailedToInit, decl.name);
+            throwException<FFIError>(FFIError::FailedToInit, decl.name);
         }
     }
 }
@@ -209,7 +209,7 @@ void VirtualMachine::loadBinary(u8 const* progData) {
 
 u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
     if (!impl->startAddress.has_value()) {
-        throwError<NoStartAddress>();
+        throwException<NoStartAddress>();
     }
     return execute(*impl->startAddress, arguments);
 }
@@ -223,7 +223,7 @@ u64 const* VirtualMachine::execute(size_t startAddress,
 
 u64 const* VirtualMachine::executeNoJumpThread(std::span<u64 const> arguments) {
     if (!impl->startAddress.has_value()) {
-        throwError<NoStartAddress>();
+        throwException<NoStartAddress>();
     }
     return executeNoJumpThread(*impl->startAddress, arguments);
 }
@@ -236,7 +236,7 @@ u64 const* VirtualMachine::executeNoJumpThread(size_t startAddress,
 }
 
 void VirtualMachine::beginExecution(std::span<u64 const> arguments) {
-    if (!impl->startAddress.has_value()) throwError<NoStartAddress>();
+    if (!impl->startAddress.has_value()) throwException<NoStartAddress>();
     beginExecution(*impl->startAddress, arguments);
 }
 

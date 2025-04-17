@@ -1,5 +1,5 @@
-#ifndef SVM_ERRORS_H_
-#define SVM_ERRORS_H_
+#ifndef SVM_EXCEPTIONS_H_
+#define SVM_EXCEPTIONS_H_
 
 #include <concepts>
 #include <stdexcept>
@@ -67,9 +67,9 @@ private:
 };
 
 /// Error class thrown when executing trap instruction
-class TrapError {
+class InterruptException {
 public:
-    TrapError() = default;
+    InterruptException() = default;
 
     ///
     std::string message() const;
@@ -192,11 +192,11 @@ public:
     std::string message() const;
 };
 
-/// Variant of all concrete error classes
-class ErrorVariant:
+/// Variant of all concrete exception classes
+class ExceptionVariant:
     public std::variant<std::monostate
-#define SVM_ERROR_DEF(Name) , Name
-#include <svm/Errors.def.h>
+#define SVM_EXCEPTION_DEF(Name) , Name
+#include <svm/Exceptions.def.h>
                         > {
 public:
     using variant::variant;
@@ -205,38 +205,41 @@ public:
     std::string message() const;
 
     /// Returns true if this error variant holds a runtime error
-    bool hasError() const {
+    bool hasValue() const {
         return !std::holds_alternative<std::monostate>(*this);
     }
 };
 
 /// Exception class
-class RuntimeException: public std::runtime_error {
+class RuntimeException: public std::exception {
 public:
-    explicit RuntimeException(ErrorVariant error):
-        runtime_error(error.message()), err(std::move(error)) {}
+    explicit RuntimeException(ExceptionVariant exception):
+        msg(exception.message()), exc(std::move(exception)) {}
 
     /// \Returns the wrapped error object
-    ErrorVariant const& error() const& { return err; }
+    ExceptionVariant const& get() const& { return exc; }
     /// \overload
-    ErrorVariant& error() & { return err; }
+    ExceptionVariant& get() & { return exc; }
     /// \overload
-    ErrorVariant const&& error() const&& { return std::move(err); }
+    ExceptionVariant const&& get() const&& { return std::move(exc); }
     /// \overload
-    ErrorVariant&& error() && { return std::move(err); }
+    ExceptionVariant&& get() && { return std::move(exc); }
+
+    char const* what() const noexcept final { return msg.c_str(); }
 
 private:
-    ErrorVariant err;
+    std::string msg;
+    ExceptionVariant exc;
 };
 
 /// \Throws `Err` constructed by \p args... wrapped in a `RuntimeException`
 template <typename Err, typename... Args>
     requires std::constructible_from<Err, Args...> &&
-             std::constructible_from<ErrorVariant, Err>
-[[noreturn]] SVM_NOINLINE void throwError(Args&&... args) {
+             std::constructible_from<ExceptionVariant, Err>
+[[noreturn]] SVM_NOINLINE void throwException(Args&&... args) {
     throw RuntimeException(Err(std::forward<Args>(args)...));
 }
 
 } // namespace svm
 
-#endif // SVM_ERRORS_H_
+#endif // SVM_EXCEPTIONS_H_

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include <svm/Errors.h>
+#include <svm/Exceptions.h>
 #include <svm/VirtualPointer.h>
 
 namespace svm {

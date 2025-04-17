@@ -48,7 +48,7 @@ struct DisasmView: FileViewBase {
     }
 
     Model* model;
-    svm::ErrorVariant error;
+    svm::ExceptionVariant exc;
     std::atomic<std::optional<uint32_t>> breakIndex;
     std::atomic<BreakState> breakState = {};
     std::vector<long> instIndexToLineMap;
@@ -74,12 +74,12 @@ DisasmView::DisasmView(Model* model, UIHandle& uiHandle): model(model) {
         breakState = state;
     });
     uiHandle.addResumeCallback([this]() {
-        error = {};
+        exc = {};
         breakIndex = std::nullopt;
         breakState = {};
     });
-    uiHandle.addErrorCallback(
-        [this](svm::ErrorVariant err) { error = std::move(err); });
+    uiHandle.addExceptionCallback(
+        [this](svm::ExceptionVariant exc) { this->exc = std::move(exc); });
     reload();
 }
 
@@ -96,7 +96,7 @@ static auto immediateDeco() { return color(Color::CyanLight); }
 static auto ffiDeco() { return color(Color::Yellow); }
 
 static ElementDecorator lineModifier(LineInfo line,
-                                     svm::ErrorVariant const& error) {
+                                     svm::ExceptionVariant const& exc) {
     using enum BreakState;
     switch (line.state) {
     case None:
@@ -114,7 +114,7 @@ static ElementDecorator lineModifier(LineInfo line,
         return lineMessageDecorator("Breakpoint") | color(Color::White) |
                bgcolor(Color::Green);
     case Error:
-        return lineMessageDecorator(error.message()) | color(Color::White) |
+        return lineMessageDecorator(exc.message()) | color(Color::White) |
                bgcolor(Color::RedLight);
     }
 }
@@ -162,7 +162,7 @@ struct ConstructionDelegate final: scdis::PrintDelegate {
             auto lineInfo = This->getLabelLineInfo(lineIdx);
             return hbox(
                        { lineNumber(lineInfo), text(name) | bold, text(":") }) |
-                   lineModifier(lineInfo, This->error);
+                   lineModifier(lineInfo, This->exc);
         });
         labelView |= CatchEvent([=, This = This](Event event) {
             if (handleMouseEventOnLine(This, event, lineIdx)) return true;
@@ -193,7 +193,7 @@ struct ConstructionDelegate final: scdis::PrintDelegate {
             auto lineInfo = This->getInstLineInfo(lineIdx, instIdx);
             return hbox({ lineNumber(lineInfo), breakpointIndicator(lineInfo),
                           instElem | flex }) |
-                   lineModifier(lineInfo, This->error);
+                   lineModifier(lineInfo, This->exc);
         });
         instView |= CatchEvent([=, This = This](Event event) {
             if (event == Event::Character("b") && lineIdx == This->focusLine())
@@ -215,7 +215,7 @@ struct ConstructionDelegate final: scdis::PrintDelegate {
             auto lineInfo = This->getLabelLineInfo(lineIdx);
             return hbox({ lineNumber(lineInfo), breakpointIndicator(lineInfo),
                           elem | flex }) |
-                   lineModifier(lineInfo, This->error);
+                   lineModifier(lineInfo, This->exc);
         });
         dataView |= CatchEvent([=, This = This](Event event) {
             if (handleMouseEventOnLine(This, event, lineIdx)) return true;

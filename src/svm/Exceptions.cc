@@ -1,4 +1,4 @@
-#include "svm/Errors.h"
+#include "svm/Exceptions.h"
 
 #include <utl/overload.hpp>
 #include <utl/strcat.hpp>
@@ -22,7 +22,7 @@ std::string FFIError::message() const {
     unreachable();
 }
 
-std::string TrapError::message() const { return "Executed trap instruction"; }
+std::string InterruptException::message() const { return "Interrupt"; }
 
 std::string ArithmeticError::message() const {
     return "Attempt to divide by zero";
@@ -58,7 +58,7 @@ std::string NoStartAddress::message() const {
     return "Attempted execution without start address";
 }
 
-std::string ErrorVariant::message() const {
+std::string ExceptionVariant::message() const {
     utl::overload callback{
         [](auto const& e) { return e.message(); },
         [](std::monostate) -> std::string { return "No error"; },

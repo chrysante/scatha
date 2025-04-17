@@ -27,8 +27,8 @@ set(libsvm_headers
     include/svm/Builtin.def.h
     include/svm/Builtin.h
     include/svm/Common.h
-    include/svm/Errors.def.h
-    include/svm/Errors.h
+    include/svm/Exceptions.def.h
+    include/svm/Exceptions.h
     include/svm/Fwd.h
     include/svm/Util.h
     include/svm/VMData.h
@@ -40,7 +40,7 @@ set(libsvm_sources
     src/svm/ArithmeticOps.h
     src/svm/Builtin.cc
     src/svm/BuiltinInternal.h
-    src/svm/Errors.cc
+    src/svm/Exceptions.cc
     src/svm/Execution.cc
     src/svm/ExecutionInstDef.h
     src/svm/ExternalFunction.h

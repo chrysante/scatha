@@ -1,7 +1,7 @@
 #ifndef SVM_ARITHMETICOPS_H_
 #define SVM_ARITHMETICOPS_H_
 
-#include "Errors.h"
+#include "Exceptions.h"
 
 #define SVM_ARITHMETIC_OP(Name, ...)                                           \
     struct Name##_T {                                                          \
@@ -26,14 +26,14 @@ SVM_ARITHMETIC_OP(Mul, auto x, auto y) { return x * y; }
 
 SVM_ARITHMETIC_OP(Div, auto x, auto y) {
     if (y == decltype(y){ 0 }) {
-        throwError<ArithmeticError>(ArithmeticError::DivideByZero);
+        throwException<ArithmeticError>(ArithmeticError::DivideByZero);
     }
     return x / y;
 }
 
 SVM_ARITHMETIC_OP(Rem, auto x, auto y) {
     if (y == decltype(y){ 0 }) {
-        throwError<ArithmeticError>(ArithmeticError::DivideByZero);
+        throwException<ArithmeticError>(ArithmeticError::DivideByZero);
     }
     return x % y;
 }

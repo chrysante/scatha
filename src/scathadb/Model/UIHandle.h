@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <scdis/Disassembly.h>
-#include <svm/Errors.h>
+#include <svm/Exceptions.h>
 
 #include "Model/SourceDebugInfo.h"
 
@@ -101,15 +101,15 @@ public:
     }
 
     /// Called when an error is reported by VM execution
-    void onError(svm::ErrorVariant error) const {
-        for (auto& cb: errorCallbacks) {
+    void onException(svm::ExceptionVariant error) const {
+        for (auto& cb: exceptionCallbacks) {
             cb(error);
         }
         refresh();
     }
 
-    void addErrorCallback(std::function<void(svm::ErrorVariant)> cb) {
-        errorCallbacks.push_back(std::move(cb));
+    void addExceptionCallback(std::function<void(svm::ExceptionVariant)> cb) {
+        exceptionCallbacks.push_back(std::move(cb));
     }
 
     /// Called to open a source file
@@ -135,7 +135,7 @@ private:
     CallbackList<void(size_t, BreakState)> instCallbacks;
     CallbackList<void(SourceLocation, BreakState)> sourceCallbacks;
     CallbackList<void()> resumeCallbacks;
-    CallbackList<void(svm::ErrorVariant)> errorCallbacks;
+    CallbackList<void(svm::ExceptionVariant)> exceptionCallbacks;
     CallbackList<void(size_t index)> openSourceFileCallbacks;
 };
 

@@ -139,10 +139,12 @@ VirtualPointer VirtualMemory::allocate(size_t size, size_t align) {
         return ZeroSizedAllocationResult;
     }
     if (size >= uint64_t(1) << 48) {
-        throwError<AllocationError>(AllocationError::InvalidSize, size, align);
+        throwException<AllocationError>(AllocationError::InvalidSize, size,
+                                        align);
     }
     if (std::popcount(align) != 1 || size % align != 0) {
-        throwError<AllocationError>(AllocationError::InvalidAlign, size, align);
+        throwException<AllocationError>(AllocationError::InvalidAlign, size,
+                                        align);
     }
     if (size <= MaxPoolSize) {
         auto [slotIndex, pool] = getPool(size, align);
@@ -205,12 +207,12 @@ std::pair<size_t, PoolAllocator&> VirtualMemory::getPool(size_t size,
 
 void VirtualMemory::reportAccessError(MemoryAccessError::Reason reason,
                                       VirtualPointer ptr, size_t size) {
-    throwError<MemoryAccessError>(reason, ptr, size);
+    throwException<MemoryAccessError>(reason, ptr, size);
 }
 
 void VirtualMemory::reportDeallocationError(VirtualPointer ptr, size_t size,
                                             size_t align) {
-    throwError<DeallocationError>(ptr, size, align);
+    throwException<DeallocationError>(ptr, size, align);
 }
 
 VirtualPointer VirtualMemory::map(void* p, size_t size) {

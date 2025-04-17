@@ -221,7 +221,7 @@ INST_BEGIN(lincsp) {
     size_t destRegIdx = load<u8>(opPtr);
     size_t offset = load<u16>(opPtr + 1);
     if (SVM_UNLIKELY(offset % 8 != 0)) {
-        throwError<InvalidStackAllocationError>(offset);
+        throwException<InvalidStackAllocationError>(offset);
     }
     regPtr[destRegIdx] = utl::bit_cast<u64>(currentFrame.stackPtr);
     currentFrame.stackPtr += offset;

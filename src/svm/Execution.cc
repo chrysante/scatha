@@ -78,7 +78,7 @@ static VirtualPointer getPointer(u64 const* reg, u8 const* i) {
 #define CHECK_ALIGNED(Kind, ptr, Size)                                         \
     do {                                                                       \
         if (SVM_UNLIKELY(!isAligned(ptr, Size))) {                             \
-            throwError<MemoryAccessError>(                                     \
+            throwException<MemoryAccessError>(                                 \
                 UTL_CONCAT(MemoryAccessError::Misaligned, Kind), ptr, Size);   \
         }                                                                      \
     } while (0)
@@ -355,6 +355,7 @@ void VMImpl::execute() {
     auto onInterrupt = [&] {
         currentFrame.iptr = iptr;
         currentFrame.regPtr = regPtr;
+        throwException<InterruptException>();
     };
 
 #define TERMINATE_EXECUTION()                                                  \
@@ -391,16 +392,13 @@ void VMImpl::execute() {
 #define INST_END(InstName)                                                     \
     iptr += ExecCodeSize<OpCode::InstName>;                                    \
     if constexpr (Mode == ExecutionMode::Interruptible)                        \
-        if (interruptFlag.load()) {                                            \
-            onInterrupt();                                                     \
-            return;                                                            \
-        }                                                                      \
+        if (interruptFlag.load()) onInterrupt();                               \
     goto* jumpTable[*iptr];
 
 #include "ExecutionInstDef.h"
 
 opcode_block_invalid:
-    throwError<InvalidOpcodeError>((u64)*iptr);
+    throwException<InvalidOpcodeError>((u64)*iptr);
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
@@ -413,9 +411,13 @@ opcode_block_invalid:
 
 template <ExecutionMode Mode>
 void VMImpl::executeNoJumpThread() {
-    interruptFlag.store(false);
-    while (running() && !interruptFlag.load())
+    if constexpr (Mode == ExecutionMode::Interruptible)
+        interruptFlag.store(false);
+    while (running()) {
+        if constexpr (Mode == ExecutionMode::Interruptible)
+            if (interruptFlag.load()) throwException<InterruptException>();
         stepExecution();
+    }
 }
 
 template void VMImpl::execute<ExecutionMode::Default>();
@@ -462,7 +464,7 @@ void VMImpl::stepExecution() {
 #include "ExecutionInstDef.h"
 
     default:
-        throwError<InvalidOpcodeError>((u64)opcode);
+        throwException<InvalidOpcodeError>((u64)opcode);
     }
     currentFrame.iptr = iptr + codeOffset;
     currentFrame.regPtr = regPtr;
