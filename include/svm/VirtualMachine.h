@@ -72,6 +72,14 @@ public:
     /// \pre `beginExecution()` has been called and `running()` returns `true`
     void stepExecution();
 
+    /// Execute indefinitely but allow asynchronous interruption by calling
+    /// `interruptExecution()`
+    void executeInterruptible();
+
+    /// Interrupts the execution of `executeInterruptible()`
+    /// This function is thread-safe, i.e., it may be called asynchronously
+    void interruptExecution();
+
     /// Ends stepwise execution
     /// \pre `running()` returns `false`
     u64 const* endExecution();

@@ -216,7 +216,9 @@ u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
 
 u64 const* VirtualMachine::execute(size_t startAddress,
                                    std::span<u64 const> arguments) {
-    return impl->execute(startAddress, arguments);
+    impl->beginExecution(startAddress, arguments);
+    impl->execute<ExecutionMode::Default>();
+    return impl->endExecution();
 }
 
 u64 const* VirtualMachine::executeNoJumpThread(std::span<u64 const> arguments) {
@@ -228,13 +230,13 @@ u64 const* VirtualMachine::executeNoJumpThread(std::span<u64 const> arguments) {
 
 u64 const* VirtualMachine::executeNoJumpThread(size_t startAddress,
                                                std::span<u64 const> arguments) {
-    return impl->executeNoJumpThread(startAddress, arguments);
+    impl->beginExecution(startAddress, arguments);
+    impl->executeNoJumpThread<ExecutionMode::Default>();
+    return impl->endExecution();
 }
 
 void VirtualMachine::beginExecution(std::span<u64 const> arguments) {
-    if (!impl->startAddress.has_value()) {
-        throwError<NoStartAddress>();
-    }
+    if (!impl->startAddress.has_value()) throwError<NoStartAddress>();
     beginExecution(*impl->startAddress, arguments);
 }
 
@@ -246,6 +248,12 @@ void VirtualMachine::beginExecution(size_t startAddress,
 bool VirtualMachine::running() const { return impl->running(); }
 
 void VirtualMachine::stepExecution() { impl->stepExecution(); }
+
+void VirtualMachine::executeInterruptible() {
+    impl->execute<ExecutionMode::Interruptible>();
+}
+
+void VirtualMachine::interruptExecution() { impl->interruptExecution(); }
 
 u64 const* VirtualMachine::endExecution() { return impl->endExecution(); }
 

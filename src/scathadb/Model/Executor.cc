@@ -109,6 +109,15 @@ struct Executor::Impl {
 
     void threadMain();
 
+    void pushCommand(Command command) {
+        commandQueue.push(command);
+        virtualMachine.interruptExecution();
+    }
+
+    std::optional<Command> tryPopCommand() { return commandQueue.tryPop(); }
+
+    Command waitCommand() { return commandQueue.wait(); }
+
     Locked<svm::VirtualMachine&> getVM() {
         return { virtualMachine, std::unique_lock(vmMutex) };
     }
@@ -117,7 +126,6 @@ struct Executor::Impl {
 
     bool handleBreakpoint(InstructionPointerOffset ipo);
 
-    State executeSteps(svm::VirtualMachine& vm);
     State stepInstruction(svm::VirtualMachine& vm);
 
     // State functions
@@ -150,23 +158,23 @@ Executor::Executor(Executor&&) noexcept = default;
 Executor& Executor::operator=(Executor&&) noexcept = default;
 
 Executor::~Executor() {
-    impl->commandQueue.push(Command::Shutdown);
+    impl->pushCommand(Command::Shutdown);
     impl->thread.join();
 }
 
-void Executor::startExecution() {
-    impl->commandQueue.push(Command::StartExecution);
-}
+void Executor::startExecution() { impl->pushCommand(Command::StartExecution); }
 
 void Executor::stopExecution() {
-    impl->commandQueue.push(Command::StopExecution);
+    impl->pushCommand(Command::StopExecution);
+    while (impl->state.load() != State::Idle)
+        std::this_thread::yield();
 }
 
 void Executor::toggleExecution() {
-    impl->commandQueue.push(Command::ToggleExecution);
+    impl->pushCommand(Command::ToggleExecution);
 }
 
-void Executor::stepInstruction() { impl->commandQueue.push(Command::StepInst); }
+void Executor::stepInstruction() { impl->pushCommand(Command::StepInst); }
 
 bool Executor::isIdle() const { return impl->state.load() == State::Idle; }
 
@@ -216,7 +224,7 @@ static void handleException(UIHandle const* uiHandle) {
 }
 
 State Impl::doIdle() {
-    switch (commandQueue.wait()) {
+    switch (waitCommand()) {
     case Command::StartExecution:
         try {
             auto vm = initVMForExecution();
@@ -266,37 +274,32 @@ bool Impl::handleBreakpoint(InstructionPointerOffset ipo) {
     return false;
 }
 
-constexpr int NumExecStepsPerFSMStep = 20;
-
-State Impl::executeSteps(svm::VirtualMachine& vm) {
-    InstructionPointerOffset ipo;
-    try {
-        for (int i = 0; i < NumExecStepsPerFSMStep; ++i) {
-            if (!vm.running()) {
-                endExecution(vm, uiHandle);
-                return State::Idle;
-            }
-            ipo.value = vm.instructionPointerOffset();
-            vm.stepExecution();
-            ipo.value = vm.instructionPointerOffset();
-            if (handleBreakpoint(ipo)) return State::Paused;
+State Impl::doRunningIndef() {
+    auto command = tryPopCommand();
+    auto vm = getVM();
+    if (!command) {
+        try {
+            vm.get().executeInterruptible();
+        }
+        catch (...) {
+            InstructionPointerOffset ipo(vm.get().instructionPointerOffset());
+            handleException(uiHandle);
+            uiHandle->encounter(ipo, BreakState::Error);
+            // Set the instruction pointer to where it was before executing the
+            // error
+            vm.get().setInstructionPointerOffset(ipo.value);
+            return State::Paused;
+        }
+        InstructionPointerOffset ipo(vm.get().instructionPointerOffset());
+        if (!vm.get().running()) {
+            endExecution(vm.get(), uiHandle);
+            return State::Idle;
+        }
+        if (handleBreakpoint(ipo)) {
+            return State::Paused;
         }
         return State::RunningIndef;
     }
-    catch (...) {
-        handleException(uiHandle);
-        uiHandle->encounter(ipo, BreakState::Error);
-        // Set the instruction pointer to where it was before executing the
-        // error
-        vm.setInstructionPointerOffset(ipo.value);
-        return State::Paused;
-    }
-}
-
-State Impl::doRunningIndef() {
-    auto command = commandQueue.tryPop();
-    auto vm = getVM();
-    if (!command) return executeSteps(vm.get());
     switch (*command) {
     case Command::StartExecution:
         return State::RunningIndef;
@@ -307,7 +310,7 @@ State Impl::doRunningIndef() {
 
     case Command::ToggleExecution: {
         InstructionPointerOffset ipo(vm.get().instructionPointerOffset());
-        uiHandle->encounter(ipo, BreakState::None);
+        uiHandle->encounter(ipo, BreakState::Paused);
         return State::Paused;
     }
     case Command::Shutdown:
@@ -337,12 +340,12 @@ State Impl::stepInstruction(svm::VirtualMachine& vm) {
     }
     else {
         endExecution(vm, uiHandle);
-        return State::Stopped;
+        return State::Idle;
     }
 }
 
 State Impl::doPaused() {
-    switch (commandQueue.wait()) {
+    switch (waitCommand()) {
     case Command::StartExecution:
         return State::Paused;
 

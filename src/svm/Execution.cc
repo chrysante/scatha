@@ -337,7 +337,8 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
 #define JUMP_THREADING 1
 #endif // __GNUC__
 
-u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
+template <ExecutionMode Mode>
+void VMImpl::execute() {
 #if JUMP_THREADING
 
 #ifdef __GNUC__
@@ -345,15 +346,22 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
 #pragma GCC diagnostic ignored "-Wgnu"
 #endif
 
-    beginExecution(start, arguments);
     u8 const* iptr = currentFrame.iptr;
     u64* regPtr = currentFrame.regPtr;
+    // Cache the interrupt flags address into a local variable
+    auto& interruptFlag = this->interruptFlag;
+    if constexpr (Mode == ExecutionMode::Interruptible)
+        interruptFlag.store(false);
+    auto onInterrupt = [&] {
+        currentFrame.iptr = iptr;
+        currentFrame.regPtr = regPtr;
+    };
 
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \
         currentFrame.iptr = programBreak;                                      \
         currentFrame.regPtr = regPtr;                                          \
-        return endExecution();                                                 \
+        return;                                                                \
     } while (0)
 
     // The jump table must have 256 entries. The last entries all point to
@@ -382,6 +390,11 @@ u64 const* VMImpl::execute(size_t start, std::span<u64 const> arguments) {
     // After executing one opcode, we directly jump to the next block
 #define INST_END(InstName)                                                     \
     iptr += ExecCodeSize<OpCode::InstName>;                                    \
+    if constexpr (Mode == ExecutionMode::Interruptible)                        \
+        if (interruptFlag.load()) {                                            \
+            onInterrupt();                                                     \
+            return;                                                            \
+        }                                                                      \
     goto* jumpTable[*iptr];
 
 #include "ExecutionInstDef.h"
@@ -398,14 +411,17 @@ opcode_block_invalid:
 #endif // JUMP_THREADING
 }
 
-u64 const* VMImpl::executeNoJumpThread(size_t start,
-                                       std::span<u64 const> arguments) {
-    beginExecution(start, arguments);
-    while (running()) {
+template <ExecutionMode Mode>
+void VMImpl::executeNoJumpThread() {
+    interruptFlag.store(false);
+    while (running() && !interruptFlag.load())
         stepExecution();
-    }
-    return endExecution();
 }
+
+template void VMImpl::execute<ExecutionMode::Default>();
+template void VMImpl::execute<ExecutionMode::Interruptible>();
+template void VMImpl::executeNoJumpThread<ExecutionMode::Default>();
+template void VMImpl::executeNoJumpThread<ExecutionMode::Interruptible>();
 
 void VMImpl::beginExecution(size_t start, std::span<u64 const> arguments) {
     auto const lastframe = execFrames.top() = currentFrame;
@@ -451,6 +467,8 @@ void VMImpl::stepExecution() {
     currentFrame.iptr = iptr + codeOffset;
     currentFrame.regPtr = regPtr;
 }
+
+void VMImpl::interruptExecution() { interruptFlag.store(true); }
 
 u64 const* VMImpl::endExecution() {
     execFrames.pop();

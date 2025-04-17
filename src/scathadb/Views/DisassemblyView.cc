@@ -62,10 +62,15 @@ ftxui::Component sdb::DisassemblyView(Model* model, UIHandle& uiHandle) {
 
 DisasmView::DisasmView(Model* model, UIHandle& uiHandle): model(model) {
     uiHandle.addReloadCallback([this] { reload(); });
-    uiHandle.addInstCallback([this](size_t instIndex, BreakState state) {
-        setFocusLine(instIndexToLineMap[instIndex]);
-        scrollToLine(instIndexToLineMap[instIndex]);
-        breakIndex = instIndex;
+    // FIXME: The way we implement model callbacks is probably a race condition
+    uiHandle.addEncounterCallback(
+        [this, model](scdis::InstructionPointerOffset ipo, BreakState state) {
+        auto instIndex = model->disassembly().indexMap().ipoToIndex(ipo);
+        if (!instIndex) return;
+        long lineIndex = instIndexToLineMap[*instIndex];
+        setFocusLine(lineIndex);
+        scrollToLine(lineIndex);
+        breakIndex = *instIndex;
         breakState = state;
     });
     uiHandle.addResumeCallback([this]() {
@@ -99,6 +104,9 @@ static ElementDecorator lineModifier(LineInfo line,
             return color(Color::Black) | bgcolor(Color::GrayLight);
         }
         return nothing;
+    case Paused:
+        return lineMessageDecorator("Paused") | color(Color::White) |
+               bgcolor(Color::Green);
     case Step:
         return lineMessageDecorator("Step Instruction") | color(Color::White) |
                bgcolor(Color::Green);

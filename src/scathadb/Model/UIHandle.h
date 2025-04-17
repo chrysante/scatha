@@ -17,6 +17,7 @@ class SourceFile;
 
 enum class BreakState {
     None,
+    Paused,
     Step,
     Breakpoint,
     Error,

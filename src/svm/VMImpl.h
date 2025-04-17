@@ -22,6 +22,8 @@ class VirtualMachine;
 /// Exception class thrown by `__builtin_exit()`
 class ExitException {};
 
+enum ExecutionMode { Default, Interruptible };
+
 /// Implementation details of the virtual machine
 struct VMImpl {
     VMImpl();
@@ -75,14 +77,18 @@ struct VMImpl {
 
     std::filesystem::path libdir;
 
+    std::atomic_bool interruptFlag;
+
     /// See documentation in "VirtualMachine.h"
     /// @{
-    u64 const* execute(size_t startAddress, std::span<u64 const> arguments);
-    u64 const* executeNoJumpThread(size_t startAddress,
-                                   std::span<u64 const> arguments);
+    template <ExecutionMode Mode>
+    void execute();
+    template <ExecutionMode Mode>
+    void executeNoJumpThread();
     void beginExecution(size_t startAddress, std::span<u64 const> arguments);
     bool running() const;
     void stepExecution();
+    void interruptExecution();
     u64 const* endExecution();
     size_t instructionPointerOffset() const;
     void setInstructionPointerOffset(size_t offset);
