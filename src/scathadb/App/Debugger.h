@@ -11,6 +11,7 @@
 
 #include <ftxui/component/screen_interactive.hpp>
 
+#include "Model/Model.h"
 #include "Model/UIHandle.h"
 #include "UI/Common.h"
 #include "UI/ModalView.h"
@@ -24,16 +25,16 @@ class Debugger;
 ///
 class Debugger {
 public:
-    explicit Debugger(Model* model);
+    Debugger();
 
     ///
     void run();
 
     ///
-    Model* model() { return _model; }
+    Model* model() { return &_model; }
 
     /// \overload
-    Model const* model() const { return _model; }
+    Model const* model() const { return &_model; }
 
     ///
     void quit();
@@ -84,7 +85,7 @@ public:
 private:
     ftxui::ScreenInteractive _screen;
 
-    Model* _model;
+    Model _model;
     std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
     UIHandle uiHandle;

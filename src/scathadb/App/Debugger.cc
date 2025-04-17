@@ -35,15 +35,15 @@ auto const RunCmd = Command::Add({
     .isActive = [](Debugger const& db) {
         return !db.model()->disassembly().empty();
     },
-    .action = [](Debugger& db) { db.model()->start(); },
+    .action = [](Debugger& db) { db.model()->startExecution(); },
     .description = "Run the currently loaded program"
 });
 
 auto const StopCmd = Command::Add({
     .hotkey = "x",
     .buttonLabel = [](Debugger const&) { return "Stop"; },
-    .isActive = [](Debugger const& db) { return !db.model()->isStopped(); },
-    .action = [](Debugger& db) { db.model()->stop(); },
+    .isActive = [](Debugger const& db) { return !db.model()->isIdle(); },
+    .action = [](Debugger& db) { db.model()->stopExecution(); },
     .description = "Stop the currently running program"
 });
 
@@ -119,8 +119,8 @@ auto const ToggleExecCmd = Command::Add({
     .buttonLabel = [](Debugger const& db) {
         return db.model()->isPaused() ? "|>" : "||";
     },
-    .isActive = [](Debugger const& db) { return !db.model()->isStopped(); },
-    .action = [](Debugger& db) { db.model()->toggle(); },
+    .isActive = [](Debugger const& db) { return !db.model()->isIdle(); },
+    .action = [](Debugger& db) { db.model()->toggleExecution(); },
     .description = "Toggle execution"
 });
 
@@ -145,11 +145,10 @@ auto const StepSourceLineCmd = Command::Add({
 });
 // clang-format on
 
-Debugger::Debugger(Model* _model):
-    _screen(ScreenInteractive::Fullscreen()), _model(_model) {
+Debugger::Debugger():
+    _screen(ScreenInteractive::Fullscreen()), _model(&uiHandle) {
     uiHandle.addRefreshCallback(
         [this] { _screen.PostEvent(Event::Special("Refresh")); });
-    _model->setUIHandle(&uiHandle);
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
@@ -214,7 +213,7 @@ Debugger::Debugger(Model* _model):
 void Debugger::run() { _screen.Loop(root); }
 
 void Debugger::quit() {
-    model()->stop();
+    model()->stopExecution();
     _screen.Exit();
 }
 

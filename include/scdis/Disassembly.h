@@ -57,7 +57,7 @@ Value makeValue64(uint64_t value);
 
 ///
 struct InstructionPointerOffset {
-    explicit InstructionPointerOffset(size_t value): value(value) {}
+    explicit InstructionPointerOffset(size_t value = 0): value(value) {}
 
     size_t value;
 

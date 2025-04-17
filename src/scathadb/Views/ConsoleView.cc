@@ -9,6 +9,7 @@
 #include <range/v3/view.hpp>
 
 #include "Model/Model.h"
+#include "Model/UIHandle.h"
 #include "UI/Common.h"
 
 using namespace sdb;
@@ -28,14 +29,14 @@ static size_t computeHash(std::string_view text) {
 namespace {
 
 struct ConsoleViewImpl: ScrollBase {
-    std::stringstream& out;
+    Model const* model;
     std::vector<std::string> lines;
     size_t lastHash = 0;
 
-    ConsoleViewImpl(Model* model): out(model->standardout()) {}
+    ConsoleViewImpl(Model const* model): model(model) {}
 
     Element Render() override {
-        auto consoleText = out.str();
+        auto consoleText = model->standardout().str();
         size_t hash = computeHash(consoleText);
         if (hash != lastHash) {
             lastHash = hash;

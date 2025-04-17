@@ -14,7 +14,9 @@ target_link_libraries(scathadb
     libscdis
     range-v3
     utility
+    csp
     nlohmann_json
+    magic_enum
     CLI11::CLI11
     ftxui::screen
     ftxui::dom
@@ -35,10 +37,14 @@ set(scathadb_sources
 
     src/scathadb/Model/Breakpoint.cc
     src/scathadb/Model/Breakpoint.h
+    src/scathadb/Model/Executor.cc
+    src/scathadb/Model/Executor.h
     src/scathadb/Model/Model.cc
     src/scathadb/Model/Model.h
     src/scathadb/Model/Options.cc
     src/scathadb/Model/Options.h
+    src/scathadb/Model/Stdout.cc
+    src/scathadb/Model/Stdout.h
     src/scathadb/Model/SourceDebugInfo.cc
     src/scathadb/Model/SourceDebugInfo.h
     src/scathadb/Model/SourceFile.cc

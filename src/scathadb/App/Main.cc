@@ -19,17 +19,17 @@ static std::vector<std::string> makeArgVector(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     auto args = makeArgVector(argc, argv);
     Options options = parseArguments(std::span(args).subspan(1));
-    Model model;
+    Debugger debugger;
     if (options) {
         try {
-            model.loadProgram(options.filepath);
-            model.setArguments(options.arguments);
+            auto* model = debugger.model();
+            model->loadProgram(options.filepath);
+            model->setArguments(options.arguments);
         }
         catch (std::exception const& e) {
             std::cerr << e.what() << std::endl;
             return 1;
         }
     }
-    Debugger debugger(&model);
     debugger.run();
 }

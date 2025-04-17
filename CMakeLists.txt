@@ -38,6 +38,7 @@ if(SCATHA_BUILD_EXECUTABLES)
 endif()
 if(SCATHA_BUILD_TESTS)
   CPMAddPackage("gh:catchorg/Catch2@3.4.0")
+  CPMAddPackage("gh:Neargye/magic_enum@0.9.7")
 endif()
 
 # Subprojects

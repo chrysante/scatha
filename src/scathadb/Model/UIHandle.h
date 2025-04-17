@@ -6,8 +6,10 @@
 #include <functional>
 #include <vector>
 
-#include "Model/SourceDebugInfo.h"
+#include <scdis/Disassembly.h>
 #include <svm/Errors.h>
+
+#include "Model/SourceDebugInfo.h"
 
 namespace sdb {
 
@@ -45,6 +47,20 @@ public:
 
     void addReloadCallback(std::function<void()> cb) {
         reloadCallbacks.push_back(std::move(cb));
+    }
+
+    void encounter(scdis::InstructionPointerOffset ipo,
+                   BreakState state) const {
+        for (auto& cb: encounterCallbacks) {
+            cb(ipo, state);
+        }
+    }
+
+    void addEncounterCallback(
+        std::function<void(scdis::InstructionPointerOffset ipo,
+                           BreakState state)>
+            cb) {
+        encounterCallbacks.push_back(std::move(cb));
     }
 
     /// Called when an instruction has been hit at index \p index
@@ -108,14 +124,18 @@ public:
     }
 
 private:
-    std::vector<std::function<void()>> refreshCallbacks;
-    std::vector<std::function<void()>> reloadCallbacks;
-    std::vector<std::function<void(size_t, BreakState)>> instCallbacks;
-    std::vector<std::function<void(SourceLocation, BreakState)>>
-        sourceCallbacks;
-    std::vector<std::function<void()>> resumeCallbacks;
-    std::vector<std::function<void(svm::ErrorVariant)>> errorCallbacks;
-    std::vector<std::function<void(size_t index)>> openSourceFileCallbacks;
+    template <typename Sig>
+    using CallbackList = std::vector<std::function<Sig>>;
+
+    CallbackList<void()> refreshCallbacks;
+    CallbackList<void()> reloadCallbacks;
+    CallbackList<void(scdis::InstructionPointerOffset ipo, BreakState state)>
+        encounterCallbacks;
+    CallbackList<void(size_t, BreakState)> instCallbacks;
+    CallbackList<void(SourceLocation, BreakState)> sourceCallbacks;
+    CallbackList<void()> resumeCallbacks;
+    CallbackList<void(svm::ErrorVariant)> errorCallbacks;
+    CallbackList<void(size_t index)> openSourceFileCallbacks;
 };
 
 } // namespace sdb

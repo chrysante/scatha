@@ -36,15 +36,14 @@ struct RegView: ScrollBase {
     }
 
     Element Render() override {
-        if (!model->isPaused()) {
-            return text("");
-        }
-        auto lock = model->lockVM();
-        values = model->readRegisters(utl::narrow_cast<size_t>(maxReg));
-        auto& vm = model->VM();
-        auto execFrame = vm.getCurrentExecFrame();
+        if (!model->isPaused()) return text("");
+        auto vm = model->readVM();
+        auto regs = vm.get().registerData();
+        values.assign(regs.begin(),
+                      std::max(regs.end(), regs.begin() + maxReg));
+        auto execFrame = vm.get().getCurrentExecFrame();
+        vm.unlock();
         currentOffset = execFrame.regPtr - execFrame.bottomReg;
-        lock.unlock();
         return ScrollBase::Render();
     }
 
@@ -64,7 +63,8 @@ Element RegEntry::Render() {
     }
     uint64_t value = values[utl::narrow_cast<size_t>(index)];
     auto ptr = std::bit_cast<svm::VirtualPointer>(value);
-    auto derefRange = parent->model->VM().validPtrRange(ptr);
+    auto vm = parent->model->readVM();
+    auto derefRange = vm.get().validPtrRange(ptr);
     std::stringstream sstr;
     if (derefRange >= 0) {
         sstr << "[" << ptr.slotIndex << ":" << ptr.offset << ":" << derefRange
@@ -81,7 +81,8 @@ Element RegEntry::Render() {
 
 static Component CompareFlagsView(Model* model) {
     return Renderer([model] {
-        auto flags = model->VM().getCompareFlags();
+        auto vm = model->readVM();
+        auto flags = vm.get().getCompareFlags();
         bool active = model->isPaused();
         auto display = [=](std::string name, bool cond) {
             return text(name) | bold |
@@ -110,9 +111,7 @@ ftxui::Component sdb::VMStateView(Model* model) {
         CompareFlagsView(model),
     });
     return Renderer(cont, [=] {
-        if (model->isStopped()) {
-            return placeholder("No Debug Session");
-        }
+        if (model->isIdle()) return placeholder("No Debug Session");
         return cont->Render();
     });
 }
