@@ -9,8 +9,9 @@
 
 #include <scdis/Disassembly.h>
 #include <svm/VirtualMachine.h>
+#include <utl/messenger.hpp>
 
-#include "Model/Breakpoint.h"
+#include "Model/BreakpointManager.h"
 #include "Model/Executor.h"
 #include "Model/SourceDebugInfo.h"
 #include "Model/Stdout.h"
@@ -92,14 +93,14 @@ public:
     SourceDebugInfo const& sourceDebug() const { return sourceDbg; }
 
 private:
+    std::shared_ptr<utl::messenger> _messenger;
     UIHandle* uiHandle;
     std::filesystem::path _currentFilepath;
     std::vector<std::string> runArguments;
     Executor executor;
     scdis::Disassembly disasm;
     SourceDebugInfo sourceDbg;
-
-    BreakpointSet instBreakpoints, sourceBreakpoints;
+    BreakpointManager breakpointManager;
 
     CallbackStringStream _stdout;
 };

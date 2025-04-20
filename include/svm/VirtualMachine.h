@@ -111,6 +111,12 @@ public:
     ///
     ExecutionFrame getCurrentExecFrame() const;
 
+    /// \Returns a pointer to the loaded binary.
+    ///
+    /// Must be used with care. We expose this to allow the debugger to path the
+    /// instruction stream at runtime.
+    u8* getBinaryPointer();
+
     /// # Memory
 
     /// Allocates a memory region in the current stack frame.

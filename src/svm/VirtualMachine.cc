@@ -296,6 +296,8 @@ ExecutionFrame VirtualMachine::getCurrentExecFrame() const {
     return impl->currentFrame;
 }
 
+u8* VirtualMachine::getBinaryPointer() { return const_cast<u8*>(impl->binary); }
+
 void VirtualMachine::printRegisters(size_t n) const {
     for (size_t i = 0; i < n; ++i) {
         std::cout << "%" << i << ": " << std::hex

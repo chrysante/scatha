@@ -22,8 +22,10 @@ static decltype(auto) locked(auto& mutex, auto&& fn) {
 }
 
 Model::Model(UIHandle* uiHandle):
+    _messenger(std::make_shared<utl::messenger>()),
     uiHandle(uiHandle),
-    executor(uiHandle),
+    executor(_messenger, uiHandle),
+    breakpointManager(_messenger, disasm.indexMap()),
     _stdout([uiHandle] { uiHandle->refresh(); }) {
     executor.writeVM().get().setIOStreams(nullptr, &_stdout);
 }
@@ -38,9 +40,8 @@ static scatha::DebugInfoMap readDebugInfo(std::filesystem::path inputPath) {
 
 void Model::loadProgram(std::filesystem::path filepath) {
     executor.stopExecution();
-    clearBreakpoints();
-    auto binary = svm::readBinaryFromFile(filepath.string());
-    if (binary.empty()) {
+    auto program = svm::readBinaryFromFile(filepath.string());
+    if (program.empty()) {
         std::string progName = filepath.stem();
         auto msg =
             utl::strcat("Failed to load ", progName, ". Binary is empty.\n");
@@ -50,9 +51,10 @@ void Model::loadProgram(std::filesystem::path filepath) {
     vm.get().setLibdir(filepath.parent_path());
     _currentFilepath = filepath;
     auto debugInfo = readDebugInfo(filepath);
-    disasm = scdis::disassemble(binary, debugInfo);
+    disasm = scdis::disassemble(program, debugInfo);
     sourceDbg = SourceDebugInfo::Make(debugInfo);
-    executor.setBinary(std::move(binary));
+    executor.setBinary(program);
+    breakpointManager.setProgramData(program);
     if (uiHandle) uiHandle->reload();
 }
 
@@ -64,6 +66,7 @@ void Model::unloadProgram() {
     vm.get().reset();
     disasm = {};
     sourceDbg = {};
+    breakpointManager.clearAll();
 }
 
 bool Model::isProgramLoaded() const { return !_currentFilepath.empty(); }
@@ -81,29 +84,15 @@ void Model::startExecution() {
 void Model::stepSourceLine() {}
 
 void Model::toggleInstBreakpoint(size_t instIndex) {
-    auto ipo = disasm.indexMap().indexToIpo(instIndex);
-    instBreakpoints.toggle(ipo.value);
+    breakpointManager.toggleInstBreakpoint(instIndex);
 }
 
-bool Model::toggleSourceBreakpoint(SourceLine line) {
-    auto ipos = sourceDebug().sourceMap().toIpos(line);
-    if (ipos.empty()) return false;
-    sourceBreakpoints.toggle(ipos.front().value);
-    return true;
-}
+bool Model::toggleSourceBreakpoint(SourceLine line) { return false; }
 
 bool Model::hasInstBreakpoint(size_t instIndex) const {
-    auto ipo = disasm.indexMap().indexToIpo(instIndex);
-    return instBreakpoints.at(ipo.value);
+    return breakpointManager.hasInstBreakpoint(instIndex);
 }
 
-bool Model::hasSourceBreakpoint(SourceLine line) const {
-    auto offsets = sourceDebug().sourceMap().toIpos(line);
-    if (offsets.empty()) return false;
-    return sourceBreakpoints.at(offsets.front().value);
-}
+bool Model::hasSourceBreakpoint(SourceLine line) const { return false; }
 
-void Model::clearBreakpoints() {
-    instBreakpoints.clear();
-    sourceBreakpoints.clear();
-}
+void Model::clearBreakpoints() { breakpointManager.clearAll(); }

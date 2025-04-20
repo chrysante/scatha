@@ -15,7 +15,7 @@ namespace sdb {
 
 class SourceFile;
 
-enum class BreakState {
+enum class BreakState : unsigned {
     None,
     Paused,
     Step,

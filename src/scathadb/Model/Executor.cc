@@ -11,6 +11,8 @@
 #include <magic_enum/magic_enum.hpp>
 #include <svm/Util.h>
 
+#include "Model/Events.h"
+
 using namespace sdb;
 using scdis::InstructionPointerOffset;
 
@@ -104,8 +106,9 @@ private:
 
 } // namespace
 
-struct Executor::Impl {
-    explicit Impl(UIHandle const* uiHandle);
+struct Executor::Impl: utl::transceiver<utl::messenger> {
+    explicit Impl(std::shared_ptr<utl::messenger> messenger,
+                  UIHandle const* uiHandle);
 
     void threadMain();
 
@@ -126,7 +129,7 @@ struct Executor::Impl {
 
     bool handleBreakpoint(InstructionPointerOffset ipo);
 
-    State stepInstruction(svm::VirtualMachine& vm);
+    State stepInstruction(svm::VirtualMachine& vm, bool sendUIEncounter = true);
 
     // State functions
 
@@ -144,14 +147,17 @@ struct Executor::Impl {
     svm::VirtualMachine virtualMachine;
     std::vector<uint8_t> binary;
     std::vector<std::string> runArguments;
+    std::function<void(svm::VirtualMachine&)> interruptCallback;
+    std::mutex interruptCallbackMutex;
 };
 
 #define X(Name) [](Impl& impl) { return impl.do##Name(); },
 constexpr EnumArray<State, State (*)(Impl&)> Impl::states = { STATE(X) };
 #undef X
 
-Executor::Executor(UIHandle const* uiHandle):
-    impl(std::make_unique<Impl>(uiHandle)) {}
+Executor::Executor(std::shared_ptr<utl::messenger> messenger,
+                   UIHandle const* uiHandle):
+    impl(std::make_unique<Impl>(std::move(messenger), uiHandle)) {}
 
 Executor::Executor(Executor&&) noexcept = default;
 
@@ -171,10 +177,17 @@ void Executor::stopExecution() {
 }
 
 void Executor::toggleExecution() {
-    impl->pushCommand(Command::ToggleExecution);
+    if (isRunning())
+        impl->virtualMachine.interruptExecution();
+    else
+        impl->pushCommand(Command::ToggleExecution);
 }
 
 void Executor::stepInstruction() { impl->pushCommand(Command::StepInst); }
+
+bool Executor::isRunning() const {
+    return impl->state.load() == State::RunningIndef;
+}
 
 bool Executor::isIdle() const { return impl->state.load() == State::Idle; }
 
@@ -192,8 +205,24 @@ void Executor::setArguments(std::vector<std::string> arguments) {
     impl->runArguments = std::move(arguments);
 }
 
-Impl::Impl(UIHandle const* uiHandle):
-    uiHandle(uiHandle), thread(&Impl::threadMain, this) {}
+Impl::Impl(std::shared_ptr<utl::messenger> messenger, UIHandle const* uiHandle):
+    transceiver(std::move(messenger)), uiHandle(uiHandle) {
+    listen([this](DoInterruptedOnVM const& event) {
+        if (state.load() != State::RunningIndef) {
+            event.callback(getVM().get());
+        }
+        else {
+            std::unique_lock lock(interruptCallbackMutex);
+            interruptCallback = event.callback;
+            lock.unlock();
+            virtualMachine.interruptExecution();
+        }
+    });
+    listen([this](IsExecIdle event) {
+        *event.value = state.load() == State::Idle;
+    });
+    thread = std::thread(&Impl::threadMain, this);
+}
 
 void Impl::threadMain() {
     while (true) {
@@ -241,6 +270,7 @@ State Impl::doIdle() {
         try {
             auto vm = initVMForExecution();
             auto arg = svm::setupArguments(vm.get(), runArguments);
+            send_now(WillBeginExecution{ vm.get() });
             vm.get().beginExecution(arg);
             return State::RunningIndef;
         }
@@ -291,17 +321,27 @@ State Impl::doRunningIndef() {
     auto vm = getVM();
     if (!command) {
         try {
+            stepInstruction(vm.get(), /* sendUIEncounter: */ false);
             vm.get().executeInterruptible();
         }
         catch (...) {
             InstructionPointerOffset ipo(vm.get().instructionPointerOffset());
             if (haveInterruptException()) {
+                std::unique_lock lock(interruptCallbackMutex);
+                if (interruptCallback) {
+                    interruptCallback(vm.get());
+                    interruptCallback = nullptr;
+                    return State::RunningIndef;
+                }
+                lock.unlock();
                 if (!vm.get().running()) return State::Idle;
-                if (handleBreakpoint(ipo)) return State::Paused;
-                return State::RunningIndef;
+                uiHandle->encounter(ipo, BreakState::Paused);
+                uiHandle->refresh();
+                return State::Paused;
             }
             handleException(uiHandle);
             uiHandle->encounter(ipo, BreakState::Error);
+            uiHandle->refresh();
             // Set the instruction pointer to where it was before executing the
             // error
             vm.get().setInstructionPointerOffset(ipo.value);
@@ -332,8 +372,9 @@ State Impl::doRunningIndef() {
     }
 }
 
-State Impl::stepInstruction(svm::VirtualMachine& vm) {
-    InstructionPointerOffset ipo(vm.instructionPointerOffset());
+State Impl::stepInstruction(svm::VirtualMachine& vm, bool sendUIEncounter) {
+    InstructionPointerOffset const ipo(vm.instructionPointerOffset());
+    send_now(WillStepInstruction{ vm, ipo });
     try {
         vm.stepExecution();
     }
@@ -341,11 +382,15 @@ State Impl::stepInstruction(svm::VirtualMachine& vm) {
         handleException(uiHandle);
         uiHandle->encounter(ipo, BreakState::Error);
         vm.setInstructionPointerOffset(ipo.value);
+        send_now(DidStepInstruction{ vm, ipo });
         return State::Paused;
     }
+    send_now(DidStepInstruction{ vm, ipo });
     if (vm.running()) {
-        ipo.value = vm.instructionPointerOffset();
-        uiHandle->encounter(ipo, BreakState::Step);
+        if (sendUIEncounter) {
+            InstructionPointerOffset ipoAfter(vm.instructionPointerOffset());
+            uiHandle->encounter(ipoAfter, BreakState::Step);
+        }
         return State::Paused;
     }
     else {

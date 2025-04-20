@@ -2,12 +2,14 @@
 #define SDB_MODEL_EXECUTOR_H_
 
 #include <concepts>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
 #include <svm/VirtualMachine.h>
+#include <utl/messenger.hpp>
 
 #include "Model/SourceDebugInfo.h"
 #include "Model/UIHandle.h"
@@ -39,27 +41,31 @@ class Executor {
 public:
     struct Impl;
 
-    explicit Executor(UIHandle const* uiHandle);
+    explicit Executor(std::shared_ptr<utl::messenger> messenger,
+                      UIHandle const* uiHandle);
     Executor(Executor&&) noexcept;
     Executor& operator=(Executor&&) noexcept;
     ~Executor();
 
-    ///
+    /// Starts execution of the loaded program
     void startExecution();
 
-    ///
+    /// Stops execution of the currently running program
     void stopExecution();
 
-    ///
+    /// Pauses or continues execution of the currently running program
     void toggleExecution();
 
-    ///
+    /// Steps one instruction of the currently running paused program
     void stepInstruction();
 
-    ///
+    /// \Returns `true` if a program is currently running
+    bool isRunning() const;
+
+    /// \Returns `true` if no program is currently running
     bool isIdle() const;
 
-    ///
+    /// \Returns `true` if the currently running program is paused
     bool isPaused() const;
 
     ///

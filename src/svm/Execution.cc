@@ -28,21 +28,10 @@ using scbinutil::OpCode;
 /// Jump instructions subtract the codesize from the target because we have
 /// conditional jumps and advance the instruction pointer unconditionally
 static constexpr size_t execCodeSizeImpl(OpCode code) {
-    if (code == OpCode::call) {
+    if (code == OpCode::call || code == OpCode::icallr ||
+        code == OpCode::icallm || code == OpCode::ret ||
+        code == OpCode::terminate || code == OpCode::trap)
         return 0;
-    }
-    if (code == OpCode::icallr) {
-        return 0;
-    }
-    if (code == OpCode::icallm) {
-        return 0;
-    }
-    if (code == OpCode::ret) {
-        return 0;
-    }
-    if (code == OpCode::terminate) {
-        return 0;
-    }
     return codeSize(code);
 }
 
@@ -337,6 +326,17 @@ static void invokeFFI(ForeignFunction& F, u64* regPtr, VirtualMemory& memory) {
 #define JUMP_THREADING 1
 #endif // __GNUC__
 
+static constexpr std::array<void*, 256> makeJumpTable(void* invalid,
+                                                      auto*... labels) {
+    // The jump table must have 256 entries. The last entries all point to
+    // `opcode_block_invalid`. This way we don't have to perform bounds checking
+    // with our 8 bit opcodes
+    static_assert(sizeof...(labels) <= 256);
+    return [&]<size_t... I>(std::index_sequence<I...>) {
+        return std::array{ labels..., ((void)I, invalid)... };
+    }(std::make_index_sequence<256 - sizeof...(labels)>{});
+}
+
 template <ExecutionMode Mode>
 void VMImpl::execute() {
 #if JUMP_THREADING
@@ -352,11 +352,12 @@ void VMImpl::execute() {
     auto& interruptFlag = this->interruptFlag;
     if constexpr (Mode == ExecutionMode::Interruptible)
         interruptFlag.store(false);
-    auto onInterrupt = [&] {
-        currentFrame.iptr = iptr;
-        currentFrame.regPtr = regPtr;
-        throwException<InterruptException>();
-    };
+#define ON_INTERRUPT()                                                         \
+    do {                                                                       \
+        currentFrame.iptr = iptr;                                              \
+        currentFrame.regPtr = regPtr;                                          \
+        throwException<InterruptException>();                                  \
+    } while (0)
 
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \
@@ -365,19 +366,10 @@ void VMImpl::execute() {
         return;                                                                \
     } while (0)
 
-    // The jump table must have 256 entries. The last entries all point to
-    // `opcode_block_invalid`. This way we don't have to perform bounds checking
-    // with our 8 bit opcodes
-    static constexpr std::array jumpTable =
-        [](void* Invalid, auto*... args) {
-        static_assert(sizeof...(args) <= 256);
-        return [&]<size_t... I>(std::index_sequence<I...>) {
-            return std::array{ args..., ((void)I, Invalid)... };
-        }(std::make_index_sequence<256 - sizeof...(args)>{});
-    }(&&opcode_block_invalid
+    static constexpr std::array jumpTable = makeJumpTable(&&opcode_block_invalid
 #define SVM_INSTRUCTION_DEF(name, ...) , &&opcode_block_##name
 #include "scbinutil/OpCode.def.h"
-        );
+    );
 
     // Here the execution starts. We jump to the first opcode block.
     goto* jumpTable[*iptr];
@@ -392,7 +384,7 @@ void VMImpl::execute() {
 #define INST_END(InstName)                                                     \
     iptr += ExecCodeSize<OpCode::InstName>;                                    \
     if constexpr (Mode == ExecutionMode::Interruptible)                        \
-        if (interruptFlag.load()) onInterrupt();                               \
+        if (interruptFlag.load()) ON_INTERRUPT();                              \
     goto* jumpTable[*iptr];
 
 #include "ExecutionInstDef.h"
@@ -449,6 +441,10 @@ void VMImpl::stepExecution() {
     auto* const opPtr = iptr + sizeof(OpCode);
     size_t codeOffset;
     switch ((u8)opcode) {
+#define ON_INTERRUPT()                                                         \
+    do {                                                                       \
+        throwException<InterruptException>();                                  \
+    } while (0)
 #define INST_BEGIN(InstName)                                                   \
     case (u8)OpCode::InstName:                                                 \
         codeOffset = ExecCodeSize<OpCode::InstName>;

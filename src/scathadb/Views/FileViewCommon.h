@@ -13,9 +13,9 @@ namespace sdb {
 
 struct LineInfo {
     long lineIndex;
-    bool isFocused     : 1;
-    bool hasBreakpoint : 1;
-    BreakState state   : 3;
+    bool isFocused;
+    bool hasBreakpoint;
+    BreakState state;
 };
 
 ftxui::Element breakpointIndicator(LineInfo line);

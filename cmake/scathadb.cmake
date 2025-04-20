@@ -35,8 +35,10 @@ set(scathadb_sources
     src/scathadb/App/Debugger.h
     src/scathadb/App/Main.cc
 
-    src/scathadb/Model/Breakpoint.cc
-    src/scathadb/Model/Breakpoint.h
+    src/scathadb/Model/BreakpointManager.cc
+    src/scathadb/Model/BreakpointManager.h
+    src/scathadb/Model/Events.h
+    src/scathadb/Model/Events.cc
     src/scathadb/Model/Executor.cc
     src/scathadb/Model/Executor.h
     src/scathadb/Model/Model.cc
