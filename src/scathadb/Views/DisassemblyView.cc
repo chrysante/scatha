@@ -9,6 +9,8 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "App/Messenger.h"
+#include "Model/Events.h"
 #include "Model/Model.h"
 #include "UI/Common.h"
 #include "Views/FileViewCommon.h"
@@ -29,10 +31,10 @@ using namespace ftxui;
 
 namespace {
 
-struct DisasmView: FileViewBase {
-    DisasmView(Model* model, UIHandle& uiHandle);
+struct DisasmView: FileViewBase, Transceiver {
+    DisasmView(Model* model, std::shared_ptr<Messenger> messenger);
 
-    void reload() override;
+    void reload();
     void clearBreakpoints() override { model->clearBreakpoints(); }
 
     LineInfo getInstLineInfo(long lineIndex, size_t instIndex) const;
@@ -56,30 +58,24 @@ struct DisasmView: FileViewBase {
 
 } // namespace
 
-ftxui::Component sdb::DisassemblyView(Model* model, UIHandle& uiHandle) {
-    return Make<DisasmView>(model, uiHandle);
+ftxui::Component sdb::DisassemblyView(Model* model,
+                                      std::shared_ptr<Messenger> messenger) {
+    return Make<DisasmView>(model, std::move(messenger));
 }
 
-DisasmView::DisasmView(Model* model, UIHandle& uiHandle): model(model) {
-    uiHandle.addReloadCallback([this] { reload(); });
-    // FIXME: The way we implement model callbacks is probably a race condition
-    uiHandle.addEncounterCallback(
-        [this, model](scdis::InstructionPointerOffset ipo, BreakState state) {
-        auto instIndex = model->disassembly().indexMap().ipoToIndex(ipo);
+DisasmView::DisasmView(Model* mdl, std::shared_ptr<Messenger> messenger):
+    Transceiver(messenger), model(mdl) {
+    listen([this](ReloadUIRequest) { reload(); });
+    listen([this](BreakEvent const& event) {
+        auto instIndex = model->disassembly().indexMap().ipoToIndex(event.ipo);
         if (!instIndex) return;
         long lineIndex = instIndexToLineMap[*instIndex];
         setFocusLine(lineIndex);
         scrollToLine(lineIndex);
         breakIndex = *instIndex;
-        breakState = state;
+        breakState = event.state;
+        exc = event.exception;
     });
-    uiHandle.addResumeCallback([this]() {
-        exc = {};
-        breakIndex = std::nullopt;
-        breakState = {};
-    });
-    uiHandle.addExceptionCallback(
-        [this](svm::ExceptionVariant exc) { this->exc = std::move(exc); });
     reload();
 }
 

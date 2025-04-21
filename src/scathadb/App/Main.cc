@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <range/v3/view.hpp>
+#include <utl/thread.hpp>
 #include <utl/utility.hpp>
 
 #include "App/Debugger.h"
@@ -17,6 +18,7 @@ static std::vector<std::string> makeArgVector(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    utl::set_current_thread_name("Main");
     auto args = makeArgVector(argc, argv);
     Options options = parseArguments(std::span(args).subspan(1));
     Debugger debugger;

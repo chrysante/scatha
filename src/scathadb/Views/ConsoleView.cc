@@ -9,7 +9,6 @@
 #include <range/v3/view.hpp>
 
 #include "Model/Model.h"
-#include "Model/UIHandle.h"
 #include "UI/Common.h"
 
 using namespace sdb;

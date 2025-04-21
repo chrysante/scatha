@@ -6,10 +6,10 @@
 
 #include <scdis/Disassembly.h>
 #include <utl/hashtable.hpp>
-#include <utl/messenger.hpp>
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
+#include "App/Messenger.h"
 #include "Model/SourceDebugInfo.h"
 
 namespace sdb {
@@ -51,9 +51,9 @@ private:
 };
 
 /// High-level breakpoint manager
-class BreakpointManager: utl::transceiver<utl::messenger> {
+class BreakpointManager: Transceiver {
 public:
-    explicit BreakpointManager(std::shared_ptr<utl::messenger> messenger,
+    explicit BreakpointManager(std::shared_ptr<Messenger> messenger,
                                scdis::IpoIndexMap const& ipoIndexMap,
                                SourceLocationMap const& sourceLocMap);
 

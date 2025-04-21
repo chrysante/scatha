@@ -11,8 +11,8 @@
 
 #include <ftxui/component/screen_interactive.hpp>
 
+#include "App/Messenger.h"
 #include "Model/Model.h"
-#include "Model/UIHandle.h"
 #include "UI/Common.h"
 #include "UI/ModalView.h"
 
@@ -85,10 +85,10 @@ public:
 private:
     ftxui::ScreenInteractive _screen;
 
+    std::shared_ptr<Messenger> _messenger;
     Model _model;
     std::unordered_map<std::string, ModalView> modalViews;
     ftxui::Component root;
-    UIHandle uiHandle;
     int _mainViewIdx = 1;
     int _mainSplitSizeBackup = 70;
     int _mainSplitSize = _mainSplitSizeBackup;

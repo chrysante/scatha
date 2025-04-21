@@ -4,6 +4,7 @@
 #include <functional>
 
 #include <scdis/Disassembly.h>
+#include <svm/Exceptions.h>
 
 namespace svm {
 class VirtualMachine;
@@ -39,6 +40,38 @@ struct WillStepInstruction {
 struct DidStepInstruction {
     svm::VirtualMachine& vm;
     scdis::InstructionPointerOffset ipo;
+};
+
+/// Sent if UI must be reconstructed. For now this is only sent when a patient
+/// program is loaded.
+struct ReloadUIRequest {};
+
+enum class BreakState : unsigned {
+    None,
+    Paused,
+    Step,
+    Breakpoint,
+    Error,
+};
+
+/// Sent if execution is interrupted
+struct BreakEvent {
+    /// The instruction pointer offset where the break occurred
+    scdis::InstructionPointerOffset ipo;
+
+    /// The reason for the break
+    BreakState state;
+
+    /// Optionally the exception causing the break
+    svm::ExceptionVariant exception = {};
+};
+
+/// Sent when the patient program writes a newline character to the terminal
+struct PatientConsoleOutputEvent {};
+
+/// Sent if a source file shall be openend
+struct OpenSourceFileRequest {
+    size_t fileIndex;
 };
 
 } // namespace sdb

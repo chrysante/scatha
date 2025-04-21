@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "App/Command.h"
+#include "Model/Events.h"
 #include "Model/Model.h"
 #include "Views/HelpPanel.h"
 #include "Views/Views.h"
@@ -146,9 +147,16 @@ auto const StepSourceLineCmd = Command::Add({
 // clang-format on
 
 Debugger::Debugger():
-    _screen(ScreenInteractive::Fullscreen()), _model(&uiHandle) {
-    uiHandle.addRefreshCallback(
-        [this] { _screen.PostEvent(Event::Special("Refresh")); });
+    _screen(ScreenInteractive::Fullscreen()),
+    _messenger(std::make_shared<Messenger>(
+        [this](std::function<void()> cb) { _screen.Post(std::move(cb)); })),
+    _model(_messenger) {
+    _messenger->listen([this](BreakEvent const&) {
+        _screen.PostEvent(Event::Special("Refresh"));
+    });
+    _messenger->listen([this](PatientConsoleOutputEvent) {
+        _screen.PostEvent(Event::Special("Refresh"));
+    });
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
     addModal("help", HelpPanel());
@@ -156,10 +164,10 @@ Debugger::Debugger():
     addModal("unload-confirm",
              UnloadConfirm([this] { model()->unloadProgram(); }));
     auto sidebar =
-        TabView({ { " Files ", SourceFileBrowser(model(), uiHandle) },
+        TabView({ { " Files ", SourceFileBrowser(model(), _messenger) },
                   { " VM State ", VMStateView(model()) } });
-    auto sourceView = SourceView(model(), uiHandle);
-    auto disasmView = DisassemblyView(model(), uiHandle);
+    auto sourceView = SourceView(model(), _messenger);
+    auto disasmView = DisassemblyView(model(), _messenger);
     auto mainView = SplitLeft(sourceView, disasmView, &_mainSplitSize);
     auto dbgCtrlBar = Toolbar({
         ToolbarButton(this, ToggleExecCmd),
@@ -210,7 +218,12 @@ Debugger::Debugger():
     disasmView->TakeFocus();
 }
 
-void Debugger::run() { _screen.Loop(root); }
+void Debugger::run() {
+    // Flush any messages we accumulated before the main loop
+    _messenger->flush();
+    // Run the main loop
+    _screen.Loop(root);
+}
 
 void Debugger::quit() {
     model()->stopExecution();

@@ -14,6 +14,8 @@
 #include <svm/VirtualMemory.h>
 #include <utl/strcat.hpp>
 
+#include "Model/Events.h"
+
 using namespace sdb;
 
 static decltype(auto) locked(auto& mutex, auto&& fn) {
@@ -21,12 +23,11 @@ static decltype(auto) locked(auto& mutex, auto&& fn) {
     return fn();
 }
 
-Model::Model(UIHandle* uiHandle):
-    _messenger(std::make_shared<utl::messenger>()),
-    uiHandle(uiHandle),
-    executor(_messenger, uiHandle),
+Model::Model(std::shared_ptr<Messenger> messenger):
+    _messenger(std::move(messenger)),
+    executor(_messenger),
     breakpointManager(_messenger, disasm.indexMap(), sourceDbg.sourceMap()),
-    _stdout([uiHandle] { uiHandle->refresh(); }) {
+    _stdout([this] { _messenger->send_now(PatientConsoleOutputEvent{}); }) {
     executor.writeVM().get().setIOStreams(nullptr, &_stdout);
 }
 
@@ -55,7 +56,7 @@ void Model::loadProgram(std::filesystem::path filepath) {
     sourceDbg = SourceDebugInfo::Make(debugInfo);
     executor.setBinary(program);
     breakpointManager.setProgramData(program);
-    if (uiHandle) uiHandle->reload();
+    _messenger->send_buffered(ReloadUIRequest{});
 }
 
 void Model::unloadProgram() {

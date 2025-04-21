@@ -61,10 +61,10 @@ void BreakpointPatcher::setProgramData(std::span<uint8_t const> progData) {
     binary.assign(program.binary.begin(), program.binary.end());
 }
 
-BreakpointManager::BreakpointManager(std::shared_ptr<utl::messenger> messenger,
+BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
                                      scdis::IpoIndexMap const& ipoIndexMap,
                                      SourceLocationMap const& sourceLocMap):
-    transceiver(std::move(messenger)),
+    Transceiver(std::move(messenger)),
     ipoIndexMap(ipoIndexMap),
     sourceLocMap(sourceLocMap) {
     listen([this](WillBeginExecution event) {
@@ -90,7 +90,7 @@ BreakpointManager::BreakpointManager(std::shared_ptr<utl::messenger> messenger,
     });
 }
 
-static bool isExecIdle(utl::emitter<utl::messenger> const& emitter) {
+static bool isExecIdle(Transceiver const& emitter) {
     bool isIdle = true;
     emitter.send_now(IsExecIdle{ &isIdle });
     return isIdle;

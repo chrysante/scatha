@@ -7,6 +7,8 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "App/Messenger.h"
+#include "Model/Events.h"
 #include "Model/Model.h"
 #include "Model/SourceFile.h"
 #include "UI/Common.h"
@@ -18,16 +20,16 @@ using namespace ftxui;
 
 namespace {
 
-struct SourceViewBase: FileViewBase {
-    SourceViewBase(Model* model, UIHandle& uiHandle): model(model) {
-        uiHandle.addReloadCallback([this] { reload(); });
-        uiHandle.addOpenSourceFileCallback([this](size_t index) {
-            reloadFile(index);
+struct SourceViewBase: FileViewBase, Transceiver {
+    SourceViewBase(Model* mdl, std::shared_ptr<Messenger> messenger):
+        Transceiver(std::move(messenger)), model(mdl) {
+        listen([this](ReloadUIRequest) { reload(); });
+        listen([this](OpenSourceFileRequest request) {
+            reloadFile(request.fileIndex);
             TakeFocus();
         });
-        uiHandle.addEncounterCallback(
-            [this](scdis::InstructionPointerOffset ipo, BreakState state) {
-            auto SL = this->model->sourceDebug().sourceMap().toSourceLoc(ipo);
+        listen([this](BreakEvent const& event) {
+            auto SL = model->sourceDebug().sourceMap().toSourceLoc(event.ipo);
             if (!SL) return;
             auto [fileIdx, lineIdx] = SL->line;
             if (lineIdx != fileIndex) reloadFile(size_t(fileIdx));
@@ -36,16 +38,9 @@ struct SourceViewBase: FileViewBase {
                 scrollToLine(*line);
             }
             breakIndex = lineIdx;
-            breakState = state;
+            breakState = event.state;
+            exc = event.exception;
         });
-        uiHandle.addResumeCallback([this]() {
-            exc = {};
-            breakIndex = std::nullopt;
-            breakState = {};
-        });
-        uiHandle.addExceptionCallback(
-            [this](svm::ExceptionVariant exc) { this->exc = std::move(exc); });
-
         reload();
     }
 
@@ -105,7 +100,7 @@ struct SourceViewBase: FileViewBase {
 
     void clearBreakpoints() override {}
 
-    void reload() override { reloadImpl(std::nullopt); }
+    void reload() { reloadImpl(std::nullopt); }
 
     void reloadFile(size_t fileIndex) { reloadImpl(fileIndex); }
 
@@ -173,6 +168,7 @@ struct SourceViewBase: FileViewBase {
 
 } // namespace
 
-ftxui::Component sdb::SourceView(Model* model, UIHandle& uiHandle) {
-    return Make<SourceViewBase>(model, uiHandle);
+ftxui::Component sdb::SourceView(Model* model,
+                                 std::shared_ptr<Messenger> messenger) {
+    return Make<SourceViewBase>(model, std::move(messenger));
 }

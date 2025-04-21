@@ -9,20 +9,19 @@
 
 #include <scdis/Disassembly.h>
 #include <svm/VirtualMachine.h>
-#include <utl/messenger.hpp>
 
+#include "App/Messenger.h"
 #include "Model/BreakpointManager.h"
 #include "Model/Executor.h"
 #include "Model/SourceDebugInfo.h"
 #include "Model/Stdout.h"
-#include "Model/UIHandle.h"
 
 namespace sdb {
 
 ///
 class Model {
 public:
-    explicit Model(UIHandle* uiHandle);
+    explicit Model(std::shared_ptr<Messenger> _messenger);
 
     /// Load the program at \p filepath into the VM.
     /// This unloads the currently active program
@@ -93,8 +92,7 @@ public:
     SourceDebugInfo const& sourceDebug() const { return sourceDbg; }
 
 private:
-    std::shared_ptr<utl::messenger> _messenger;
-    UIHandle* uiHandle;
+    std::shared_ptr<Messenger> _messenger;
     std::filesystem::path _currentFilepath;
     std::vector<std::string> runArguments;
     Executor executor;

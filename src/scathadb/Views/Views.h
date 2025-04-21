@@ -12,19 +12,21 @@
 
 namespace sdb {
 
+class Messenger;
 class Model;
-class UIHandle;
 
 /// Displays the disassembled instructions of the currently loaded program as
 /// well as execution stepping and allows settings breakpoints
-ftxui::Component DisassemblyView(Model* model, UIHandle& uiHandle);
+ftxui::Component DisassemblyView(Model* model,
+                                 std::shared_ptr<Messenger> messenger);
 
 /// Displays the source code of the currently loaded program as
 /// well as execution stepping and allows settings breakpoints
-ftxui::Component SourceView(Model* model, UIHandle& uiHandle);
+ftxui::Component SourceView(Model* model, std::shared_ptr<Messenger> messenger);
 
 /// Displays a file browser for the source files of the currently loaded program
-ftxui::Component SourceFileBrowser(Model* model, UIHandle& uiHandle);
+ftxui::Component SourceFileBrowser(Model* model,
+                                   std::shared_ptr<Messenger> messenger);
 
 /// Displays VM state like registers and compare flags
 ftxui::Component VMStateView(Model* model);

@@ -34,6 +34,8 @@ set(scathadb_sources
     src/scathadb/App/Debugger.cc
     src/scathadb/App/Debugger.h
     src/scathadb/App/Main.cc
+    src/scathadb/App/Messenger.cc
+    src/scathadb/App/Messenger.h
 
     src/scathadb/Model/BreakpointManager.cc
     src/scathadb/Model/BreakpointManager.h
@@ -51,8 +53,6 @@ set(scathadb_sources
     src/scathadb/Model/SourceDebugInfo.h
     src/scathadb/Model/SourceFile.cc
     src/scathadb/Model/SourceFile.h
-    src/scathadb/Model/UIHandle.cc
-    src/scathadb/Model/UIHandle.h
 
     src/scathadb/UI/Common.cc
     src/scathadb/UI/Common.h

@@ -29,10 +29,6 @@ ElementDecorator sdb::lineMessageDecorator(std::string message) {
 
 bool FileViewBase::OnEvent(ftxui::Event event) {
     using namespace ftxui;
-    if (event == Event::Special("Reload")) {
-        reload();
-        return true;
-    }
     if (event == Event::Character("c")) {
         clearBreakpoints();
         return true;

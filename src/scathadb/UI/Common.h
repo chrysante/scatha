@@ -80,11 +80,7 @@ struct NamedComponent {
 ftxui::Component TabView(std::vector<NamedComponent> children);
 
 /// Common base class for views in this project
-class ViewBase: public ftxui::ComponentBase {
-public:
-    /// Command to rebuild this view from scratch
-    virtual void refresh() {}
-};
+class ViewBase: public ftxui::ComponentBase {};
 
 /// Analoguous to `ftxui::Component`
 using View = std::shared_ptr<ViewBase>;

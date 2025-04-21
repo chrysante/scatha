@@ -9,10 +9,9 @@
 #include <vector>
 
 #include <svm/VirtualMachine.h>
-#include <utl/messenger.hpp>
 
+#include "App/Messenger.h"
 #include "Model/SourceDebugInfo.h"
-#include "Model/UIHandle.h"
 
 namespace sdb {
 
@@ -41,8 +40,7 @@ class Executor {
 public:
     struct Impl;
 
-    explicit Executor(std::shared_ptr<utl::messenger> messenger,
-                      UIHandle const* uiHandle);
+    explicit Executor(std::shared_ptr<Messenger> messenger);
     Executor(Executor&&) noexcept;
     Executor& operator=(Executor&&) noexcept;
     ~Executor();

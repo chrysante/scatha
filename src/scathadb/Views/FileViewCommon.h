@@ -6,7 +6,7 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
 
-#include "Model/UIHandle.h" // For BreakState
+#include "Model/Events.h" // For BreakState
 #include "UI/Common.h"
 
 namespace sdb {
@@ -29,7 +29,6 @@ protected:
     bool OnEvent(ftxui::Event event) override;
 
 private:
-    virtual void reload() = 0;
     virtual void clearBreakpoints() = 0;
 };
 
