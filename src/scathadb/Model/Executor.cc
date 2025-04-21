@@ -251,8 +251,7 @@ State Impl::doIdle() {
             return State::RunningIndef;
         }
         catch (svm::RuntimeException const& e) {
-            send_buffered(BreakEvent{ InstructionPointerOffset(),
-                                      BreakState::Error, e.get() });
+            send_buffered(PatientStartFailureEvent{ e.get() });
             return State::Idle;
         }
 

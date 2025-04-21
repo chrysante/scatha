@@ -40,6 +40,9 @@ ModalView OpenFilePanel(Model* model);
 /// Display debugger settings
 ModalView SettingsView();
 
+/// Displays an error message regarding why the patient program could not start
+ModalView PatientStartFailureModal(std::shared_ptr<Messenger> messenger);
+
 /// Confirm quitting the app
 ModalView QuitConfirm(std::function<void()> doQuit);
 

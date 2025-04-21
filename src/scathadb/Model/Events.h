@@ -66,6 +66,11 @@ struct BreakEvent {
     svm::ExceptionVariant exception = {};
 };
 
+/// Sent by the executor if an exception is thrown when starting execution
+struct PatientStartFailureEvent {
+    svm::ExceptionVariant exception;
+};
+
 /// Sent when the patient program writes a newline character to the terminal
 struct PatientConsoleOutputEvent {};
 

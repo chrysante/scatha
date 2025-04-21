@@ -1,8 +1,11 @@
 #include "Views/Views.h"
 
+#include <svm/Exceptions.h>
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "App/Messenger.h"
+#include "Model/Events.h"
 #include "UI/Common.h"
 
 using namespace sdb;
@@ -69,4 +72,23 @@ ModalView sdb::UnloadConfirm(std::function<void()> doUnload) {
                                                 .confirmLabel = "Unload",
                                                 .confirmHotkey = "u",
                                             });
+}
+
+// We put this here for now
+ModalView sdb::PatientStartFailureModal(std::shared_ptr<Messenger> messenger) {
+    struct Impl: ComponentBase, Transceiver {
+        Impl(std::shared_ptr<Messenger> messenger):
+            Transceiver(std::move(messenger)) {
+            listen([this](PatientStartFailureEvent const& event) {
+                exc = event.exception;
+            });
+        }
+
+        Element Render() override {
+            return text(exc.message()) | center | flex;
+        }
+
+        svm::ExceptionVariant exc;
+    };
+    return ModalView("Error", Make<Impl>(std::move(messenger)));
 }

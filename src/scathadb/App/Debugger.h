@@ -83,6 +83,8 @@ public:
     ftxui::ScreenInteractive& screen() { return _screen; }
 
 private:
+    void refreshScreen();
+
     ftxui::ScreenInteractive _screen;
 
     std::shared_ptr<Messenger> _messenger;

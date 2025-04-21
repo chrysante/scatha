@@ -151,11 +151,11 @@ Debugger::Debugger():
     _messenger(std::make_shared<Messenger>(
         [this](std::function<void()> cb) { _screen.Post(std::move(cb)); })),
     _model(_messenger) {
-    _messenger->listen([this](BreakEvent const&) {
-        _screen.PostEvent(Event::Special("Refresh"));
-    });
-    _messenger->listen([this](PatientConsoleOutputEvent) {
-        _screen.PostEvent(Event::Special("Refresh"));
+    _messenger->listen([this](BreakEvent const&) { refreshScreen(); });
+    _messenger->listen([this](PatientConsoleOutputEvent) { refreshScreen(); });
+    _messenger->listen([this](PatientStartFailureEvent const&) {
+        openModal("patient-start-failure");
+        refreshScreen();
     });
     addModal("file-open", OpenFilePanel(model()));
     addModal("settings", SettingsView());
@@ -163,6 +163,7 @@ Debugger::Debugger():
     addModal("quit-confirm", QuitConfirm([this] { quit(); }));
     addModal("unload-confirm",
              UnloadConfirm([this] { model()->unloadProgram(); }));
+    addModal("patient-start-failure", PatientStartFailureModal(_messenger));
     auto sidebar =
         TabView({ { " Files ", SourceFileBrowser(model(), _messenger) },
                   { " VM State ", VMStateView(model()) } });
@@ -277,3 +278,5 @@ void Debugger::cycleMainViews() {
         break;
     }
 }
+
+void Debugger::refreshScreen() { _screen.PostEvent(Event::Special("Refresh")); }
