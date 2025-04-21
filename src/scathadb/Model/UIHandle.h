@@ -64,30 +64,6 @@ public:
         encounterCallbacks.push_back(std::move(cb));
     }
 
-    /// Called when an instruction has been hit at index \p index
-    void hitInstruction(size_t index, BreakState state) const {
-        for (auto& cb: instCallbacks) {
-            cb(index, state);
-        }
-        refresh();
-    }
-
-    void addInstCallback(std::function<void(size_t, BreakState)> cb) {
-        instCallbacks.push_back(std::move(cb));
-    }
-
-    /// Called when a source line has been hit at index \p index
-    void hitSourceLocation(SourceLocation SL, BreakState state) const {
-        for (auto& cb: sourceCallbacks) {
-            cb(SL, state);
-        }
-        refresh();
-    }
-
-    void addSourceCallback(std::function<void(SourceLocation, BreakState)> cb) {
-        sourceCallbacks.push_back(std::move(cb));
-    }
-
     /// Called when execution resumes after being paused
     void resume() {
         for (auto& cb: resumeCallbacks) {
@@ -132,8 +108,6 @@ private:
     CallbackList<void()> reloadCallbacks;
     CallbackList<void(scdis::InstructionPointerOffset ipo, BreakState state)>
         encounterCallbacks;
-    CallbackList<void(size_t, BreakState)> instCallbacks;
-    CallbackList<void(SourceLocation, BreakState)> sourceCallbacks;
     CallbackList<void()> resumeCallbacks;
     CallbackList<void(svm::ExceptionVariant)> exceptionCallbacks;
     CallbackList<void(size_t index)> openSourceFileCallbacks;

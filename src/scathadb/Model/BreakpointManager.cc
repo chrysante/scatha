@@ -62,12 +62,21 @@ void BreakpointPatcher::setProgramData(std::span<uint8_t const> progData) {
 }
 
 BreakpointManager::BreakpointManager(std::shared_ptr<utl::messenger> messenger,
-                                     scdis::IpoIndexMap const& ipoIndexMap):
-    transceiver(std::move(messenger)), ipoIndexMap(ipoIndexMap) {
+                                     scdis::IpoIndexMap const& ipoIndexMap,
+                                     SourceLocationMap const& sourceLocMap):
+    transceiver(std::move(messenger)),
+    ipoIndexMap(ipoIndexMap),
+    sourceLocMap(sourceLocMap) {
     listen([this](WillBeginExecution event) {
-        for (auto& instIndex: instBreakpointSet) {
+        for (auto instIndex: instBreakpointSet) {
             auto ipo = this->ipoIndexMap.indexToIpo(instIndex);
             patcher.addBreakpoint(ipo);
+        }
+        for (auto sourceLine: sourceLineBreakpointSet) {
+            auto ipos = this->sourceLocMap.toIpos(sourceLine);
+            assert(!ipos.empty() &&
+                   "Shouldn't have added this to the breakpoint set");
+            patcher.addBreakpoint(ipos.front());
         }
         patcher.patchInstructionStream(event.vm.getBinaryPointer());
     });
@@ -101,6 +110,24 @@ void BreakpointManager::toggleInstBreakpoint(size_t instIndex) {
 
 bool BreakpointManager::hasInstBreakpoint(size_t instIndex) const {
     return instBreakpointSet.contains(instIndex);
+}
+
+bool BreakpointManager::toggleSourceLineBreakpoint(SourceLine line) {
+    auto ipos = sourceLocMap.toIpos(line);
+    if (ipos.empty()) return false;
+    auto [itr, success] = sourceLineBreakpointSet.insert(line);
+    if (!success) sourceLineBreakpointSet.erase(itr);
+    if (isExecIdle(*this)) return true;
+    if (success)
+        patcher.addBreakpoint(ipos.front());
+    else
+        patcher.removeBreakpoint(ipos.front());
+    install();
+    return true;
+}
+
+bool BreakpointManager::hasSourceLineBreakpoint(SourceLine line) const {
+    return sourceLineBreakpointSet.contains(line);
 }
 
 void BreakpointManager::clearAll() {

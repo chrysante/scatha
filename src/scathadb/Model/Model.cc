@@ -25,7 +25,7 @@ Model::Model(UIHandle* uiHandle):
     _messenger(std::make_shared<utl::messenger>()),
     uiHandle(uiHandle),
     executor(_messenger, uiHandle),
-    breakpointManager(_messenger, disasm.indexMap()),
+    breakpointManager(_messenger, disasm.indexMap(), sourceDbg.sourceMap()),
     _stdout([uiHandle] { uiHandle->refresh(); }) {
     executor.writeVM().get().setIOStreams(nullptr, &_stdout);
 }
@@ -87,12 +87,16 @@ void Model::toggleInstBreakpoint(size_t instIndex) {
     breakpointManager.toggleInstBreakpoint(instIndex);
 }
 
-bool Model::toggleSourceBreakpoint(SourceLine line) { return false; }
+bool Model::toggleSourceBreakpoint(SourceLine line) {
+    return breakpointManager.toggleSourceLineBreakpoint(line);
+}
 
 bool Model::hasInstBreakpoint(size_t instIndex) const {
     return breakpointManager.hasInstBreakpoint(instIndex);
 }
 
-bool Model::hasSourceBreakpoint(SourceLine line) const { return false; }
+bool Model::hasSourceBreakpoint(SourceLine line) const {
+    return breakpointManager.hasSourceLineBreakpoint(line);
+}
 
 void Model::clearBreakpoints() { breakpointManager.clearAll(); }

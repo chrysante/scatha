@@ -25,13 +25,17 @@ struct SourceViewBase: FileViewBase {
             reloadFile(index);
             TakeFocus();
         });
-        uiHandle.addSourceCallback([this](SourceLocation SL, BreakState state) {
-            if (SL.line.file != fileIndex) reloadFile(size_t(SL.line.file));
-            if (auto line = indexToLine(SL.line.line)) {
+        uiHandle.addEncounterCallback(
+            [this](scdis::InstructionPointerOffset ipo, BreakState state) {
+            auto SL = this->model->sourceDebug().sourceMap().toSourceLoc(ipo);
+            if (!SL) return;
+            auto [fileIdx, lineIdx] = SL->line;
+            if (lineIdx != fileIndex) reloadFile(size_t(fileIdx));
+            if (auto line = indexToLine(lineIdx)) {
                 setFocusLine(*line);
                 scrollToLine(*line);
             }
-            breakIndex = SL.line.line;
+            breakIndex = lineIdx;
             breakState = state;
         });
         uiHandle.addResumeCallback([this]() {
@@ -117,13 +121,26 @@ struct SourceViewBase: FileViewBase {
         }
         auto& file = debug.files()[*fileIndex];
         for (auto [index, line]: file.lines() | ranges::views::enumerate) {
-            Add(Renderer([this, index = index, line = std::string(line)] {
+            auto component =
+                Renderer([this, index = index, line = std::string(line)] {
                 auto lineInfo = getLineInfo(utl::narrow_cast<ssize_t>(index));
                 return hbox({ lineNumber(lineInfo),
                               breakpointIndicator(lineInfo),
                               text(line) | flex }) |
                        lineModifier(lineInfo);
-            }));
+            });
+            SourceLine sourceLine{ utl::narrow_cast<uint32_t>(*sourceFileIndex),
+                                   utl::narrow_cast<uint32_t>(index) };
+            component |= CatchEvent([this, sourceLine](Event event) {
+                if (event == Event::Character('b') &&
+                    sourceLine.line == (size_t)focusLine() + 1)
+                {
+                    if (!model->toggleSourceBreakpoint(sourceLine)) beep();
+                    return true;
+                }
+                return false;
+            });
+            Add(component);
         }
     }
 

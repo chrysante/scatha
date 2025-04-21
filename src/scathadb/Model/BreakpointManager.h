@@ -10,6 +10,8 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
+#include "Model/SourceDebugInfo.h"
+
 namespace sdb {
 
 /// Low-level breakpoint installation manager.
@@ -52,13 +54,21 @@ private:
 class BreakpointManager: utl::transceiver<utl::messenger> {
 public:
     explicit BreakpointManager(std::shared_ptr<utl::messenger> messenger,
-                               scdis::IpoIndexMap const& ipoIndexMap);
+                               scdis::IpoIndexMap const& ipoIndexMap,
+                               SourceLocationMap const& sourceLocMap);
 
     /// Install or remove an instruction breakpoint at \p instIndex
     void toggleInstBreakpoint(size_t instIndex);
 
     /// \Returns true if an instruction breakpoint is installed at \p instIndex
     bool hasInstBreakpoint(size_t instIndex) const;
+
+    /// Install or remove a source line breakpoint at \p line
+    /// \Returns `true` if a breakpoint could be added (or removed)
+    bool toggleSourceLineBreakpoint(SourceLine line);
+
+    /// \Returns true if a source line breakpoint is installed at \p line
+    bool hasSourceLineBreakpoint(SourceLine line) const;
 
     /// Removes all installed breakpoints
     void clearAll();
@@ -70,7 +80,9 @@ private:
     void install();
 
     scdis::IpoIndexMap const& ipoIndexMap;
+    SourceLocationMap const& sourceLocMap;
     utl::hashset<size_t> instBreakpointSet;
+    utl::hashset<SourceLine> sourceLineBreakpointSet;
     BreakpointPatcher patcher;
 };
 
