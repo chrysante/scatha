@@ -110,7 +110,7 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
             auto ipo = ipoIndexMap.indexToIpo(index);
             if (ipo >= function->end) break;
             auto sourceLoc = sourceDebugInfo.sourceMap().toSourceLoc(ipo);
-            if (sourceLoc && sourceLoc->line == line) continue;
+            if (!sourceLoc || sourceLoc->line == line) continue;
             steppingBreakpoints.push_back(ipo);
             patcher.pushBreakpoint(ipo, true);
         }
